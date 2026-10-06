@@ -1,0 +1,397 @@
+# Nigeria topic taxonomy. See ZA file for curation rules.
+# 26 May 2026: aggressive Gen Z keyword expansion + sports_football topic add
+# + culture_owambe / fashion_ankara_asoebi overlap fix (aso ebi removed from
+# fashion_ankara_asoebi to stop double-classification).
+market: ng
+
+topic_groups:
+  music_afrobeats:
+    description: >
+      Afrobeats scene, top NG artists, collaborations, dance challenges.
+      Global amapiano + afrobeats crossover common, routes to this topic.
+    keywords:
+    - afrobeats
+    - "#afrobeats"
+    - afro beats
+    - burna boy
+    - rema
+    - wizkid
+    - davido
+    - tems
+    - ayra starr
+    - asake
+    - fireboy
+    - tyla
+    - afrobeats challenge
+    - shallipopi
+    - seyi vibez
+    - olamide
+    - tiwa savage
+    - mr eazi
+    - falz
+    - yemi alade
+    - kizz daniel
+    - omah lay
+    - ruger
+    - bnxn
+    - victony
+    - zinoleesky
+    - nothing do my shoulder
+    - spaghetti dance
+    - real vol 1
+    - afronation
+    - nigerian music
+
+    - '[r/burnaboy]'
+    - odumodublvck
+    - famous pluto
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "flavour n'abania"
+    - "johnny drille"
+    - "johnnydrille"
+    - "dangbana republik"
+    - "smallbaddo"
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): upcoming
+    # NG music event windows Jul to Dec 2026.
+    - "gidi culture festival"
+    - "flytime fest"
+    - "world music day"
+  film_nollywood:
+    description: Nollywood film industry, premieres, top actors, streaming.
+    keywords:
+    - nollywood
+    - netflix naija
+    - mount zion
+    - kannywood
+    - prime video nigeria
+    - sonia uche
+    - movie premiere
+    - nollywood movie
+    - africa magic
+    - showmax naija
+    - genevieve nnaji
+    - funke akindele
+    - mercy aigbe
+    - chioma akpotha
+    - ramsey nouah
+    - nollywood actor
+    - nollywood actress
+    - "#nollywood"
+
+    - yoruba movie
+    - yoruba comedy movie
+    - nollyfilms
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "chief imo"
+    - "9jacruise"
+    - "naijacomedians"
+  diaspora_japa:
+    description: >
+      Emigration narrative, study abroad, work visas, diaspora
+      conversations in Nigeria.
+    keywords:
+    - japa
+    - "#japa"
+    - japa life
+    - japa wave
+    - japa-core
+    - visa
+    - uk student
+    - canada immigration
+    - work permit
+    - relocation
+    - naija abroad
+    - diaspora
+    - schengen
+    - usa visa
+    - canadian visa
+    - student visa uk
+    - care worker uk
+    - tier 2 visa
+    - permanent residency
+    - canada pr
+    - moved abroad
+    - i japa
+    - dey abroad
+    - life in uk
+    - life in canada
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "ijgb"
+    - "nigeriansabroad"
+    - "nigeriansinuk"
+    - "nigeriansingermany"
+
+  politics_tinubu:
+    description: NG federal politics, parties, economic policy fallout and national civic moments.
+    keywords:
+    - tinubu
+    - apc
+    - pdp
+    - labour party
+    - obedient
+    - subsidy removal
+    - fuel scarcity
+    - naira
+    - election
+    - inec
+    - peter obi
+    - atiku
+    - cbn
+    - emefiele
+    - naira value
+    - fuel price
+    - dollar rate
+    - inflation naija
+    - cost of living naija
+    - bad governance
+    - state of the nation
+
+    - biafra
+    - endsars
+    - '#endsars'
+    - free nnamdi kanu
+    - freenamdikanu
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "verydarkman"
+    - "nnamdi kanu"
+    - "adc presidential"
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): civic
+    # calendar moments (Jun 12 Democracy Day, Oct 1 Independence Day).
+    - "democracy day"
+    - "naija independence day"
+    # Named observances and conferences retain their existing civic topic.
+    - day of the african child
+    - international youth day
+    - iheal youth impact
+    - youth impact forum
+    - innovation and youth conference
+    # 30 Jun 2026 classifier lift: service and strike terms on unclassified rows.
+    - asuu
+    - nysc
+  culture_owambe:
+    description: Weddings, parties, aso ebi fashion, celebration culture.
+    keywords:
+    - owambe
+    - aso ebi
+    - asoebi
+    - wedding
+    - traditional wedding
+    - igbo wedding
+    - yoruba wedding
+    - hausa wedding
+    - bride price
+    - "#owambe"
+    - "#asoebi"
+    - "#naijawedding"
+    - gele
+    - bridal shower
+    - white wedding
+    - introduction ceremony
+    - engagement ceremony
+    - reception
+    - aso oke
+    - lace fabric
+    - native attire
+    - corporate aso ebi
+
+    - detty december
+    - '#dettydecember'
+    - igbo amaka
+    - igbo kwenu
+    - igbo culture
+    - '#igboamaka'
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "dobale"
+    - "owanbe"
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): Nov to Dec
+    # party-season calendar moments.
+    - "calabar carnival"
+    - "#calabarcarnival"
+    - "detty prep"
+    - "halloween"
+  economy_sapa_hustle:
+    description: >
+      Economic reality, fintech, hustle language and entrepreneurship.
+    keywords:
+    - sapa
+    - sapa naija
+    - kuku sapa
+    - hustle
+    - side hustle
+    - fintech
+    - paystack
+    - flutterwave
+    - crypto naira
+    - entrepreneur
+    - shege
+    - wahala
+    - broke
+    - no money
+    - hustle culture
+    - hustler naija
+    - small business
+    - 9 to 5
+    - corporate slave
+    - main hustle
+    - side hustle naija
+    - opay
+    - palmpay
+    - kuda
+    - moniepoint
+    - airtime
+    - data subscription
+    # 30 Jun 2026 classifier lift: slang high_signal terms on unclassified rows
+    # (nepa/danfo/no light) with zero slang-layer hits in pipeline_runs.
+    - nepa
+    - no light
+    - nepa light
+    - danfo
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "naijamarketplace"
+
+  food_jollof:
+    description: NG food culture, jollof wars, street food, cooking content.
+    keywords:
+    - jollof
+    - world jollof rice day
+    - jollof rice
+    - party jollof
+    - suya
+    - amala
+    - egusi
+    - pounded yam
+    - efo riro
+    - nigerian food
+    - "#jollof"
+    - "#nigerianfood"
+    - moi moi
+    - fufu
+    - ofada rice
+    - banga soup
+    - okra soup
+    - pepper soup
+    - akara
+    - puff puff
+    - small chops
+    - cold stone naija
+    - domino naija
+
+  fashion_ankara_asoebi:
+    description: Traditional fashion fabrics, styles, tailoring culture.
+    # 26 May 2026: removed "aso ebi" from this topic (kept in culture_owambe).
+    # Stops double-classification of wedding-guest content.
+    keywords:
+    - ankara
+    - agbada
+    - danshiki
+    - gele
+    - lace
+    - naija fashion
+    - adire
+    - "#ankarastyle"
+    - "#naijafashion"
+    - asoebi style
+    - aso oke
+    - kaftan
+    - buba
+    - dashiki
+    - native attire
+    - traditional fabric
+    - tailor naija
+    - bespoke naija
+    - nigerian fashion 2026
+    - lagos fashion week
+    - arise fashion week
+
+  sports_football:
+    description: >
+      Super Eagles football, NPFL, Premier League fandom, World Cup qualifiers,
+      player and club fandom around Osimhen, Lookman and Asisat Oshoala.
+    keywords:
+    - super eagles
+    - super eagles squad
+    - afcon
+    - osimhen
+    - lookman
+    - naija football
+    - super falcons
+    - npfl
+    - premier league nigeria
+    - world cup qualifiers fifa naija
+    - football naija
+    - kanu
+    - okocha
+    - jay jay okocha
+    - sunday oliseh
+    - finidi
+    - asisat oshoala
+    - victor osimhen
+    - ademola lookman
+    - "#supereagles"
+    - "#naijafootball"
+    - eagles squad
+    - chelle
+    - peseiro
+    - finidi george
+    - rohr
+    - musa
+    - chukwueze
+    - boniface
+    - awoniyi
+    - afcon2025
+    - can2025
+    - '#afcon2025'
+    - '#can2025'
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "tobi amusan"
+    - "amusan"
+    # 9 Jun 2026 football/FIFA pickup: global competitions + top clubs +
+    # marquee players. NG already carries afcon + super eagles + national
+    # players; these add the World Cup / UEFA / club-fandom surface that was
+    # missing. Unambiguous low-collision terms.
+    - "fifa"
+    - "uefa"
+    - "world cup"
+    - "champions league"
+    - "europa league"
+    - "real madrid"
+    - "barcelona"
+    - "manchester united"
+    - "manchester city"
+    - "liverpool"
+    - "arsenal"
+    - "chelsea"
+    - "psg"
+    - "bayern munich"
+    - "juventus"
+    - "inter milan"
+    - "ac milan"
+    - "mbappe"
+    - "haaland"
+    - "messi"
+    - "ronaldo"
+    - "salah"
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): Sep 2026
+    # National Sports Festival window.
+    - "national sports festival"
+
+  # 11 Jun 2026 Gemini brand lens (stage 1). Zodiac and horoscope "gemini"
+  # collisions are stripped at classification time via
+  # src/utils/geo_blocklist.py TOPIC_GEO_BLOCKLIST["tech_gemini_ai"].
+  tech_gemini_ai:
+    description: >
+      Google Gemini brand conversation: Gemini app adoption, Nano Banana
+      image edits, Veo video generation, everyday Google AI use.
+    keywords:
+    - google gemini
+    - gemini app
+    - gemini ai
+    - gemini pro
+    - gemini flash
+    - gemini nano
+    - gemini advanced
+    - gemini 2.5
+    - nano banana
+    - google ai
+    - veo 3
+    - google veo

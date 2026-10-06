@@ -1,0 +1,189 @@
+{
+  "status": "complete",
+  "as_of": "2026-09-28T06:10:00+02:00",
+  "short_answer": "Outside the election and sport, three conversations moved this week in South Africa: Sunday 'seven colours' plate ratings on TikTok and X, the 'Not in my kitchen, Sipho' voice-note meme out of Durban, and people rewearing their Heritage Day outfits after 24 September. Seven colours posts ran at 3.1 times their usual daily count on Sunday 27 September.",
+  "claims": [
+    {
+      "id": "c1",
+      "text": "On Sunday 27 September, people across TikTok and X posted their Sunday lunch plates as 'seven colours' and asked others to rate them, at 3.1 times the usual daily count of #7colours posts.",
+      "label": "corroborated",
+      "kind": "observation",
+      "evidence_ids": ["tt_7431", "tt_7458", "x_1840", "x_1846"],
+      "quotes": [
+        {"evidence_id": "tt_7431", "text": "I can't be the only one who puts beetroot right next to the chakalaka"},
+        {"evidence_id": "x_1840", "text": "Rate my 7 colours honestly, the butternut is doing the most"}
+      ],
+      "numbers": [
+        {
+          "value": 3.1,
+          "unit": "times usual daily #7colours posts (27 September against the 28-day daily median)",
+          "query_id": "q_7colours_daily",
+          "run_id": "r_20260928_0500",
+          "result_hash": "sha256:8f3423be5d155888ca20616eff8d599ab51a9c3b4b59c466cc44eba36d60c291"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "text": "A voice note of a Durban woman telling someone called Sipho to leave her kitchen became a meme format: creators on TikTok and X reused the line 'Not in my kitchen, Sipho' over their own clips and captions from 24 September.",
+      "label": "corroborated",
+      "kind": "observation",
+      "evidence_ids": ["tt_7502", "tt_7519", "x_1851"],
+      "quotes": [
+        {"evidence_id": "tt_7502", "text": "Not in my kitchen, Sipho. Not today, not ever."},
+        {"evidence_id": "x_1851", "text": "my manager asking for the report before 9: not in my kitchen, Sipho"}
+      ]
+    },
+    {
+      "id": "c3",
+      "text": "Heritage Day outfits are getting a second outing: two unrelated accounts posted their 24 September looks again later in the week under #heritagefits, which suggests a rewear angle may be forming, though two posts are not yet a trend.",
+      "label": "inferred",
+      "kind": "interpretation",
+      "evidence_ids": ["tt_7533", "x_1862"],
+      "quotes": [
+        {"evidence_id": "tt_7533", "text": "Wore my Heritage Day shweshwe again to work because why should it live in the cupboard for a year"},
+        {"evidence_id": "x_1862", "text": "Round two for the Heritage Day fit"}
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "tt_7431",
+      "platform": "tiktok",
+      "handle": "@mpho.cooks.za",
+      "url": "https://www.tiktok.com/@mpho.cooks.za/video/7431902215584120101",
+      "posted_at": "2026-09-27T14:05:00+02:00",
+      "market": "ZA",
+      "text": "Sunday 7 colours check. I can't be the only one who puts beetroot right next to the chakalaka #7colours #sundaylunch",
+      "engagement": {"views": 184000, "likes": 12900, "comments": 1410},
+      "flags": []
+    },
+    {
+      "id": "tt_7458",
+      "platform": "tiktok",
+      "handle": "@thandi_eats_jozi",
+      "url": "https://www.tiktok.com/@thandi_eats_jozi/video/7431955503318290710",
+      "posted_at": "2026-09-27T16:20:00+02:00",
+      "market": "ZA",
+      "text": "Rating your 7 colours plates from the comments. Pap AND rice on one plate is a crime #7colours",
+      "engagement": {"views": 96500, "likes": 7300, "comments": 2210},
+      "flags": []
+    },
+    {
+      "id": "x_1840",
+      "platform": "x",
+      "handle": "@lerato_mk",
+      "url": "https://x.com/lerato_mk/status/1840012345678901248",
+      "posted_at": "2026-09-27T18:02:00+02:00",
+      "market": "ZA",
+      "text": "Rate my 7 colours honestly, the butternut is doing the most #7colours",
+      "engagement": {"views": 41200, "likes": 1860, "reposts": 212},
+      "flags": []
+    },
+    {
+      "id": "x_1846",
+      "platform": "x",
+      "handle": "@kasikitchen_sa",
+      "url": "https://x.com/kasikitchen_sa/status/1840098765432101888",
+      "posted_at": "2026-09-27T20:31:00+02:00",
+      "market": "ZA",
+      "text": "The 7 colours debate has taken over my timeline today. Coleslaw counts as a colour, I will not be taking questions",
+      "engagement": {"views": 28800, "likes": 1320, "reposts": 144},
+      "flags": []
+    },
+    {
+      "id": "tt_7502",
+      "platform": "tiktok",
+      "handle": "@zinhle.voicenotes",
+      "url": "https://www.tiktok.com/@zinhle.voicenotes/video/7430811249087610117",
+      "posted_at": "2026-09-24T11:45:00+02:00",
+      "market": "ZA",
+      "text": "The voice note my aunt sent the family group. Not in my kitchen, Sipho. Not today, not ever. #notinmykitchen #durban",
+      "engagement": {"views": 612000, "likes": 58400, "shares": 9700},
+      "flags": []
+    },
+    {
+      "id": "tt_7519",
+      "platform": "tiktok",
+      "handle": "@durbs_comedy",
+      "url": "https://www.tiktok.com/@durbs_comedy/video/7431107784412250374",
+      "posted_at": "2026-09-25T19:10:00+02:00",
+      "market": "ZA",
+      "text": "When the landlord comes for an inspection: Not in my kitchen, Sipho #notinmykitchen",
+      "engagement": {"views": 233000, "likes": 21100, "shares": 3050},
+      "flags": []
+    },
+    {
+      "id": "x_1851",
+      "platform": "x",
+      "handle": "@nkosi_writes",
+      "url": "https://x.com/nkosi_writes/status/1839402211876543232",
+      "posted_at": "2026-09-26T08:37:00+02:00",
+      "market": "ZA",
+      "text": "my manager asking for the report before 9: not in my kitchen, Sipho",
+      "engagement": {"views": 57300, "likes": 3900, "reposts": 610},
+      "flags": []
+    },
+    {
+      "id": "tt_7533",
+      "platform": "tiktok",
+      "handle": "@thrift_with_ayanda",
+      "url": "https://www.tiktok.com/@thrift_with_ayanda/video/7431290017765430533",
+      "posted_at": "2026-09-26T07:55:00+02:00",
+      "market": "ZA",
+      "text": "Wore my Heritage Day shweshwe again to work because why should it live in the cupboard for a year #heritagefits #rewear",
+      "engagement": {"views": 38400, "likes": 4100, "comments": 380},
+      "flags": []
+    },
+    {
+      "id": "x_1862",
+      "platform": "x",
+      "handle": "@kgomotso_style",
+      "url": "https://x.com/kgomotso_style/status/1839110987654321152",
+      "posted_at": "2026-09-25T12:20:00+02:00",
+      "market": "ZA",
+      "text": "Round two for the Heritage Day fit. Same beadwork, different shoes #heritagefits",
+      "engagement": {"views": 9100, "likes": 640, "reposts": 38},
+      "flags": []
+    }
+  ],
+  "so_what": [
+    {
+      "text": "Food and grocery brands can join the seven colours ratings on Sunday afternoons with their own plate, as long as they take the rating as a joke and do not correct anyone's plate; the moment passes by Monday.",
+      "claim_ids": ["c1"]
+    },
+    {
+      "text": "The Sipho line is a free-to-use refusal format, but it belongs to one family's voice note; a brand should reply in the format rather than lift the audio, and should not name a real Sipho.",
+      "claim_ids": ["c2"]
+    },
+    {
+      "text": "A retailer with a rewear or repair message could invite Heritage Day outfit reposts, but should wait for more than two posts before building on it.",
+      "claim_ids": ["c3"]
+    }
+  ],
+  "watch_next": [
+    {
+      "text": "Whether #7colours posts return next Sunday at more than twice the daily median, or fall back after one weekend.",
+      "claim_ids": ["c1"],
+      "forecast": false
+    },
+    {
+      "text": "Likely to spread to Facebook family groups within a week as a reshared voice note; this is a forecast, not an observation.",
+      "claim_ids": ["c2"],
+      "forecast": true
+    },
+    {
+      "text": "Count #heritagefits rewear posts through 5 October to see whether the angle holds.",
+      "claim_ids": ["c3"],
+      "forecast": false
+    }
+  ],
+  "gaps": [
+    {
+      "what": "No Instagram posts in the evidence for any of the three conversations",
+      "searched": "instagram hashtag search for #7colours, #notinmykitchen and #heritagefits, 21 to 27 September",
+      "why": "rate_limited"
+    }
+  ],
+  "context": ""
+}

@@ -1,0 +1,23 @@
+# Keep the Cloud Run source upload lean. The frontend ships prebuilt in
+# web/dist; its sources and node_modules never need to reach the buildpack.
+.git
+.gitignore
+.gcloudignore
+frontend/node_modules/
+frontend/
+node_modules/
+tests/
+docs/
+.playwright-mcp/
+__pycache__/
+*.pyc
+.env
+.github/
+.gitattributes
+.code-quality-gate/
+design-handoff/
+design-handoff-v2/
+design-handoff-v3/
+# Only the runtime version file is needed from local hidden metadata.
+.*
+!.python-version

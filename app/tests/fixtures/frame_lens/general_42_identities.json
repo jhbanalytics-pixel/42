@@ -1,0 +1,644 @@
+{
+  "note": "General 42 identities retained before the investigation frame could name a client lens. Each entry holds the stored bytes and the ids derived from them, captured from the code at the commit below with the unit test stand ins (the fake export face and the renderer double of tests/unit/dossier_pdf_fakes.py). test_frame_lens_general_identity.py rebuilds every one from its inputs and compares the bytes. Never edit these values.",
+  "provenance": {
+    "captured_at_commit": "7d16fd188c8a8e6ceda0cb851ee83d15725368b3",
+    "captured_on": "2026-09-25",
+    "branch": "feat/42-u02-lens-journey"
+  },
+  "frames": [
+    {
+      "name": "general_default",
+      "frame": {
+        "client_scope_id": "ogilvy_default",
+        "market_scope": [
+          "za",
+          "ng",
+          "ke"
+        ],
+        "brand_config_id": null,
+        "audience_lens_ids": [],
+        "theme_id": null,
+        "run_id": "investigation_run_001",
+        "contract_version": "2.1.0",
+        "decision_question": "Which emerging behaviour should the brand act on in six weeks?",
+        "time_horizon_days": 42,
+        "brand_context": null,
+        "known_assumptions": [],
+        "change_my_mind_if": [],
+        "research_role_id": null,
+        "research_role_version": null,
+        "output_mode": "internal_working_paper"
+      },
+      "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+      "scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878",
+      "created_at": "2026-09-14T07:30:00Z",
+      "active_role_versions": {},
+      "storage_record": {
+        "storage_version": "investigation_record_v1",
+        "frame": {
+          "client_scope_id": "ogilvy_default",
+          "market_scope": [
+            "za",
+            "ng",
+            "ke"
+          ],
+          "brand_config_id": null,
+          "audience_lens_ids": [],
+          "theme_id": null,
+          "run_id": "investigation_run_001",
+          "contract_version": "2.1.0",
+          "decision_question": "Which emerging behaviour should the brand act on in six weeks?",
+          "time_horizon_days": 42,
+          "brand_context": null,
+          "known_assumptions": [],
+          "change_my_mind_if": [],
+          "research_role_id": null,
+          "research_role_version": null,
+          "output_mode": "internal_working_paper"
+        },
+        "response": {
+          "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+          "client_scope_id": "ogilvy_default",
+          "market_scope": [
+            "za",
+            "ng",
+            "ke"
+          ],
+          "brand_config_id": null,
+          "audience_lens_ids": [],
+          "theme_id": null,
+          "run_id": "investigation_run_001",
+          "contract_version": "2.1.0",
+          "research_role_id": null,
+          "research_role_version": null,
+          "status": "plan_ready",
+          "research_plan": {
+            "questions": [
+              "Which emerging behaviour should the brand act on in six weeks?",
+              "What changed inside the declared market and time horizon?",
+              "What evidence supports and opposes acting now?",
+              "Which materially different responses should be compared?"
+            ],
+            "required_source_families": [
+              "social",
+              "search",
+              "news",
+              "history"
+            ],
+            "socialcrawl_lanes": [],
+            "historical_window_days": 365,
+            "credit_ceiling": 0,
+            "token_budget": {},
+            "stopping_conditions": [
+              "Stop if a factual claim has no resolvable receipt.",
+              "Stop if a blocking contradiction remains unresolved.",
+              "Stop before any paid source call without an approved funding gate."
+            ],
+            "known_gaps": [
+              "optional_socialcrawl_funding_unverified"
+            ]
+          },
+          "created_at": "2026-09-14T07:30:00Z",
+          "updated_at": "2026-09-14T07:30:00Z"
+        }
+      },
+      "stored_bytes": "{\"frame\":{\"audience_lens_ids\":[],\"brand_config_id\":null,\"brand_context\":null,\"change_my_mind_if\":[],\"client_scope_id\":\"ogilvy_default\",\"contract_version\":\"2.1.0\",\"decision_question\":\"Which emerging behaviour should the brand act on in six weeks?\",\"known_assumptions\":[],\"market_scope\":[\"za\",\"ng\",\"ke\"],\"output_mode\":\"internal_working_paper\",\"research_role_id\":null,\"research_role_version\":null,\"run_id\":\"investigation_run_001\",\"theme_id\":null,\"time_horizon_days\":42},\"response\":{\"audience_lens_ids\":[],\"brand_config_id\":null,\"client_scope_id\":\"ogilvy_default\",\"contract_version\":\"2.1.0\",\"created_at\":\"2026-09-14T07:30:00Z\",\"investigation_id\":\"inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c\",\"market_scope\":[\"za\",\"ng\",\"ke\"],\"research_plan\":{\"credit_ceiling\":0,\"historical_window_days\":365,\"known_gaps\":[\"optional_socialcrawl_funding_unverified\"],\"questions\":[\"Which emerging behaviour should the brand act on in six weeks?\",\"What changed inside the declared market and time horizon?\",\"What evidence supports and opposes acting now?\",\"Which materially different responses should be compared?\"],\"required_source_families\":[\"social\",\"search\",\"news\",\"history\"],\"socialcrawl_lanes\":[],\"stopping_conditions\":[\"Stop if a factual claim has no resolvable receipt.\",\"Stop if a blocking contradiction remains unresolved.\",\"Stop before any paid source call without an approved funding gate.\"],\"token_budget\":{}},\"research_role_id\":null,\"research_role_version\":null,\"run_id\":\"investigation_run_001\",\"status\":\"plan_ready\",\"theme_id\":null,\"updated_at\":\"2026-09-14T07:30:00Z\"},\"storage_version\":\"investigation_record_v1\"}",
+      "stored_sha256": "0aa25c3251f09ca145fb3f8ddaae6567edcf4d77fd6e79fb54c8798c5001ecfc"
+    },
+    {
+      "name": "bsa_pulse_scope_no_lens",
+      "frame": {
+        "client_scope_id": "bsa_pulse",
+        "market_scope": [
+          "za",
+          "ng",
+          "ke"
+        ],
+        "brand_config_id": "bsa",
+        "audience_lens_ids": [],
+        "theme_id": null,
+        "run_id": "journey_other_scope",
+        "contract_version": "2.1.0",
+        "decision_question": "Which emerging behaviour should the brand act on in six weeks?",
+        "time_horizon_days": 42,
+        "brand_context": null,
+        "known_assumptions": [],
+        "change_my_mind_if": [],
+        "research_role_id": null,
+        "research_role_version": null,
+        "output_mode": "internal_working_paper"
+      },
+      "investigation_id": "inv_e29c985fb9bbdabf2da2118338145a7249ab38d6924ed4d6dfd0ff2c8f96c860",
+      "scope_digest": "2ad91ba6d949642296e7411e2fbeae87e65454f78c384e56998e032d76022ec5",
+      "created_at": "2026-09-14T07:30:00Z",
+      "active_role_versions": {},
+      "storage_record": {
+        "storage_version": "investigation_record_v1",
+        "frame": {
+          "client_scope_id": "bsa_pulse",
+          "market_scope": [
+            "za",
+            "ng",
+            "ke"
+          ],
+          "brand_config_id": "bsa",
+          "audience_lens_ids": [],
+          "theme_id": null,
+          "run_id": "journey_other_scope",
+          "contract_version": "2.1.0",
+          "decision_question": "Which emerging behaviour should the brand act on in six weeks?",
+          "time_horizon_days": 42,
+          "brand_context": null,
+          "known_assumptions": [],
+          "change_my_mind_if": [],
+          "research_role_id": null,
+          "research_role_version": null,
+          "output_mode": "internal_working_paper"
+        },
+        "response": {
+          "investigation_id": "inv_e29c985fb9bbdabf2da2118338145a7249ab38d6924ed4d6dfd0ff2c8f96c860",
+          "client_scope_id": "bsa_pulse",
+          "market_scope": [
+            "za",
+            "ng",
+            "ke"
+          ],
+          "brand_config_id": "bsa",
+          "audience_lens_ids": [],
+          "theme_id": null,
+          "run_id": "journey_other_scope",
+          "contract_version": "2.1.0",
+          "research_role_id": null,
+          "research_role_version": null,
+          "status": "plan_ready",
+          "research_plan": {
+            "questions": [
+              "Which emerging behaviour should the brand act on in six weeks?",
+              "What changed inside the declared market and time horizon?",
+              "What evidence supports and opposes acting now?",
+              "Which materially different responses should be compared?"
+            ],
+            "required_source_families": [
+              "social",
+              "search",
+              "news",
+              "history"
+            ],
+            "socialcrawl_lanes": [],
+            "historical_window_days": 365,
+            "credit_ceiling": 0,
+            "token_budget": {},
+            "stopping_conditions": [
+              "Stop if a factual claim has no resolvable receipt.",
+              "Stop if a blocking contradiction remains unresolved.",
+              "Stop before any paid source call without an approved funding gate."
+            ],
+            "known_gaps": [
+              "optional_socialcrawl_funding_unverified"
+            ]
+          },
+          "created_at": "2026-09-14T07:30:00Z",
+          "updated_at": "2026-09-14T07:30:00Z"
+        }
+      },
+      "stored_bytes": "{\"frame\":{\"audience_lens_ids\":[],\"brand_config_id\":\"bsa\",\"brand_context\":null,\"change_my_mind_if\":[],\"client_scope_id\":\"bsa_pulse\",\"contract_version\":\"2.1.0\",\"decision_question\":\"Which emerging behaviour should the brand act on in six weeks?\",\"known_assumptions\":[],\"market_scope\":[\"za\",\"ng\",\"ke\"],\"output_mode\":\"internal_working_paper\",\"research_role_id\":null,\"research_role_version\":null,\"run_id\":\"journey_other_scope\",\"theme_id\":null,\"time_horizon_days\":42},\"response\":{\"audience_lens_ids\":[],\"brand_config_id\":\"bsa\",\"client_scope_id\":\"bsa_pulse\",\"contract_version\":\"2.1.0\",\"created_at\":\"2026-09-14T07:30:00Z\",\"investigation_id\":\"inv_e29c985fb9bbdabf2da2118338145a7249ab38d6924ed4d6dfd0ff2c8f96c860\",\"market_scope\":[\"za\",\"ng\",\"ke\"],\"research_plan\":{\"credit_ceiling\":0,\"historical_window_days\":365,\"known_gaps\":[\"optional_socialcrawl_funding_unverified\"],\"questions\":[\"Which emerging behaviour should the brand act on in six weeks?\",\"What changed inside the declared market and time horizon?\",\"What evidence supports and opposes acting now?\",\"Which materially different responses should be compared?\"],\"required_source_families\":[\"social\",\"search\",\"news\",\"history\"],\"socialcrawl_lanes\":[],\"stopping_conditions\":[\"Stop if a factual claim has no resolvable receipt.\",\"Stop if a blocking contradiction remains unresolved.\",\"Stop before any paid source call without an approved funding gate.\"],\"token_budget\":{}},\"research_role_id\":null,\"research_role_version\":null,\"run_id\":\"journey_other_scope\",\"status\":\"plan_ready\",\"theme_id\":null,\"updated_at\":\"2026-09-14T07:30:00Z\"},\"storage_version\":\"investigation_record_v1\"}",
+      "stored_sha256": "fff3f8d51855613d835186c8f21416d12ce5b75e2b7a7ffcc253f6d9f92bb78d"
+    },
+    {
+      "name": "general_with_role_and_context",
+      "frame": {
+        "client_scope_id": "ogilvy_default",
+        "market_scope": [
+          "za"
+        ],
+        "brand_config_id": null,
+        "audience_lens_ids": [],
+        "theme_id": null,
+        "run_id": "investigation_run_002",
+        "contract_version": "2.1.0",
+        "decision_question": "Is the Durban ‘lekker’ café trend real, or a weekend blip?",
+        "time_horizon_days": 90,
+        "brand_context": "A retailer weighing a coastal pop up.",
+        "known_assumptions": [
+          "Weekend footfall is the signal.",
+          "Prices hold."
+        ],
+        "change_my_mind_if": [
+          "Footfall falls for three weekends."
+        ],
+        "research_role_id": "digital_architect",
+        "research_role_version": "1.0.0",
+        "output_mode": "client_brief"
+      },
+      "investigation_id": "inv_f4d203a270c78aafbfb3fbb8c0073de6610f1cc7c32cecfce8411a6459af0d7c",
+      "scope_digest": "51e2da7ca6395db4630235a49a24c0afaef66447a373253ed4c8947901112921",
+      "created_at": "2026-09-14T07:30:00Z",
+      "active_role_versions": {
+        "digital_architect": "1.0.0"
+      },
+      "storage_record": {
+        "storage_version": "investigation_record_v1",
+        "frame": {
+          "client_scope_id": "ogilvy_default",
+          "market_scope": [
+            "za"
+          ],
+          "brand_config_id": null,
+          "audience_lens_ids": [],
+          "theme_id": null,
+          "run_id": "investigation_run_002",
+          "contract_version": "2.1.0",
+          "decision_question": "Is the Durban ‘lekker’ café trend real, or a weekend blip?",
+          "time_horizon_days": 90,
+          "brand_context": "A retailer weighing a coastal pop up.",
+          "known_assumptions": [
+            "Weekend footfall is the signal.",
+            "Prices hold."
+          ],
+          "change_my_mind_if": [
+            "Footfall falls for three weekends."
+          ],
+          "research_role_id": "digital_architect",
+          "research_role_version": "1.0.0",
+          "output_mode": "client_brief"
+        },
+        "response": {
+          "investigation_id": "inv_f4d203a270c78aafbfb3fbb8c0073de6610f1cc7c32cecfce8411a6459af0d7c",
+          "client_scope_id": "ogilvy_default",
+          "market_scope": [
+            "za"
+          ],
+          "brand_config_id": null,
+          "audience_lens_ids": [],
+          "theme_id": null,
+          "run_id": "investigation_run_002",
+          "contract_version": "2.1.0",
+          "research_role_id": "digital_architect",
+          "research_role_version": "1.0.0",
+          "status": "plan_ready",
+          "research_plan": {
+            "questions": [
+              "Is the Durban ‘lekker’ café trend real, or a weekend blip?",
+              "What changed inside the declared market and time horizon?",
+              "What evidence supports and opposes acting now?",
+              "Which materially different responses should be compared?"
+            ],
+            "required_source_families": [
+              "social",
+              "search",
+              "news",
+              "history"
+            ],
+            "socialcrawl_lanes": [],
+            "historical_window_days": 365,
+            "credit_ceiling": 0,
+            "token_budget": {},
+            "stopping_conditions": [
+              "Stop if a factual claim has no resolvable receipt.",
+              "Stop if a blocking contradiction remains unresolved.",
+              "Stop before any paid source call without an approved funding gate."
+            ],
+            "known_gaps": [
+              "optional_socialcrawl_funding_unverified"
+            ]
+          },
+          "created_at": "2026-09-14T07:30:00Z",
+          "updated_at": "2026-09-14T07:30:00Z"
+        }
+      },
+      "stored_bytes": "{\"frame\":{\"audience_lens_ids\":[],\"brand_config_id\":null,\"brand_context\":\"A retailer weighing a coastal pop up.\",\"change_my_mind_if\":[\"Footfall falls for three weekends.\"],\"client_scope_id\":\"ogilvy_default\",\"contract_version\":\"2.1.0\",\"decision_question\":\"Is the Durban ‘lekker’ café trend real, or a weekend blip?\",\"known_assumptions\":[\"Weekend footfall is the signal.\",\"Prices hold.\"],\"market_scope\":[\"za\"],\"output_mode\":\"client_brief\",\"research_role_id\":\"digital_architect\",\"research_role_version\":\"1.0.0\",\"run_id\":\"investigation_run_002\",\"theme_id\":null,\"time_horizon_days\":90},\"response\":{\"audience_lens_ids\":[],\"brand_config_id\":null,\"client_scope_id\":\"ogilvy_default\",\"contract_version\":\"2.1.0\",\"created_at\":\"2026-09-14T07:30:00Z\",\"investigation_id\":\"inv_f4d203a270c78aafbfb3fbb8c0073de6610f1cc7c32cecfce8411a6459af0d7c\",\"market_scope\":[\"za\"],\"research_plan\":{\"credit_ceiling\":0,\"historical_window_days\":365,\"known_gaps\":[\"optional_socialcrawl_funding_unverified\"],\"questions\":[\"Is the Durban ‘lekker’ café trend real, or a weekend blip?\",\"What changed inside the declared market and time horizon?\",\"What evidence supports and opposes acting now?\",\"Which materially different responses should be compared?\"],\"required_source_families\":[\"social\",\"search\",\"news\",\"history\"],\"socialcrawl_lanes\":[],\"stopping_conditions\":[\"Stop if a factual claim has no resolvable receipt.\",\"Stop if a blocking contradiction remains unresolved.\",\"Stop before any paid source call without an approved funding gate.\"],\"token_budget\":{}},\"research_role_id\":\"digital_architect\",\"research_role_version\":\"1.0.0\",\"run_id\":\"investigation_run_002\",\"status\":\"plan_ready\",\"theme_id\":null,\"updated_at\":\"2026-09-14T07:30:00Z\"},\"storage_version\":\"investigation_record_v1\"}",
+      "stored_sha256": "8d585d84abbc2e66148d723f0932bb7aaece6e8a3b8189f59dfa1048f4609cc2"
+    }
+  ],
+  "dossiers": [
+    {
+      "name": "record_minimal",
+      "body": "{\"admitted_answer\":{\"contract_version\":\"general_question_result_record_v1\"},\"bindings\":{\"deployment_digest\":\"aee50b18a03c89e4883a5acadf5c8614dd7fd2f111c3b616e1a8d6427edc3e3f\",\"policy_digest\":\"823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\",\"prompt_manifest_digest\":\"cf07194ee232eb531e15f690000d19846dea69cf05504782658afcfacb9228a2\",\"publisher_build_digest\":\"44575cf5b28512d75644bf54a517dcef304ff809fd511747621b4d64f19aac66\",\"result_digest\":\"f6a214f7a5fcda0c2cee9660b7fc29f5649e3c68aad48e20e950137c98913a68\",\"snapshot_digest\":\"16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_binding_digest\":\"e3711c65701f97be17e90762f022bb4c3e256ea54594b54e84f53455bff3d1b0\"},\"contract_version\":\"investigation_dossier_record_v1\",\"created_at\":\"2026-09-12T00:00:00Z\",\"evidence_snapshot\":{\"contract_version\":\"general_question_snapshot_v1\"},\"frame\":{\"audience_lens_ids\":[],\"brand_config_id\":null,\"brand_context\":null,\"change_my_mind_if\":[],\"client_scope_id\":\"ogilvy_default\",\"contract_version\":\"2.1.0\",\"decision_question\":\"Which emerging behaviour should the brand act on in six weeks?\",\"known_assumptions\":[],\"market_scope\":[\"za\",\"ng\",\"ke\"],\"output_mode\":\"internal_working_paper\",\"research_role_id\":null,\"research_role_version\":null,\"run_id\":\"investigation_run_001\",\"theme_id\":null,\"time_horizon_days\":42},\"investigation_id\":\"inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c\",\"predecessor_version\":null,\"request_reference\":{\"parent_request_id\":null,\"request_digest\":\"1f58b9145b24d108d7ac38887338b3ea3229833b9c1e418250343f907bfd1047\",\"request_id\":\"5c2f6f2e-4a5d-4c2f-9b6e-1c0f2a3b4c5d\",\"thread_anchor_request_id\":null},\"review_state\":{\"claim_decision_refs\":[],\"relationship_decision_refs\":[],\"selected_claim_ids\":[],\"unresolved_questions\":[]},\"scope\":{\"audience_lens_ids\":[],\"brand_config_id\":null,\"client_scope_id\":\"ogilvy_default\",\"contract_version\":\"2.1.0\",\"market_scope\":[\"za\",\"ng\",\"ke\"],\"run_id\":\"investigation_run_001\",\"theme_id\":null},\"temporal_binding\":{\"as_of\":\"2026-08-29T06:30:00Z\",\"source_cutoff\":\"2026-08-28\",\"window_end\":\"2026-08-28\",\"window_start\":\"2026-08-01\"}}",
+      "dossier_version": "e44d97c873f806ff822706ec182d99d3e57903ca49e07a7bc57e54e16f6fe99e",
+      "scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878"
+    },
+    {
+      "name": "resolver_dossier",
+      "body": "{\"admitted_answer\":{\"contract_version\":\"general_question_result_record_v1\",\"response\":{\"answer\":\"Repair is becoming a weekend social activity.\\n\\nLimitation: internal.\",\"intelligence\":{\"claims\":[{\"claim_id\":\"clm_1\",\"falsifier\":null,\"kind\":\"observation\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\"],\"support_state\":\"source_record\",\"text\":\"Claim clm_1: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_2\",\"falsifier\":null,\"kind\":\"interpretation\",\"limitations\":[],\"parent_claim_ids\":[\"clm_1\"],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\",\"gqctx_a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\"],\"support_state\":\"derived\",\"text\":\"Claim clm_2: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_3\",\"falsifier\":null,\"kind\":\"recommendation\",\"limitations\":[],\"parent_claim_ids\":[\"clm_2\"],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\"],\"support_state\":\"derived\",\"text\":\"Claim clm_3: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_4\",\"falsifier\":null,\"kind\":\"limitation\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_6afc2626f985776268e059f3d8a0bbb1d8bc951918cfdf31de3ded4c60feacd5\"],\"support_state\":\"source_record\",\"text\":\"Claim clm_4: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_5\",\"falsifier\":null,\"kind\":\"abstention\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\"],\"support_state\":\"source_record\",\"text\":\"Claim clm_5: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_6\",\"falsifier\":null,\"kind\":\"inference\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\"],\"support_state\":\"derived\",\"text\":\"Claim clm_6: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_7\",\"falsifier\":null,\"kind\":\"proposal\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\"],\"support_state\":\"proposed\",\"text\":\"Claim clm_7: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_8\",\"falsifier\":null,\"kind\":\"model_proposal\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\"],\"support_state\":\"source_record\",\"text\":\"Claim clm_8: repair tutorials recur across independent sources.\"}],\"receipts\":[{\"author\":null,\"citation_label\":\"R1\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"za\",\"platform\":\"web\",\"published_at\":\"2026-08-20T00:00:00Z\",\"reading_ids\":[],\"receipt_id\":\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R1\",\"url\":\"https://example.test/R1\"},{\"author\":null,\"citation_label\":\"R2\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"za\",\"platform\":\"web\",\"published_at\":\"2026-08-27T00:00:00Z\",\"reading_ids\":[],\"receipt_id\":\"gqctx_a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R2\",\"url\":\"https://example.test/R2\"},{\"author\":null,\"citation_label\":\"R3\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"6afc2626f985776268e059f3d8a0bbb1d8bc951918cfdf31de3ded4c60feacd5\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"gh\",\"platform\":\"web\",\"published_at\":null,\"reading_ids\":[],\"receipt_id\":\"gqctx_6afc2626f985776268e059f3d8a0bbb1d8bc951918cfdf31de3ded4c60feacd5\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R3\",\"url\":null}],\"sections\":[{\"claim_ids\":[\"clm_1\"],\"kind\":\"answer\"},{\"claim_ids\":[\"clm_2\",\"clm_3\"],\"kind\":\"interpretation\"}]}},\"state\":\"complete\"},\"bindings\":{\"deployment_digest\":\"aee50b18a03c89e4883a5acadf5c8614dd7fd2f111c3b616e1a8d6427edc3e3f\",\"policy_digest\":\"823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\",\"prompt_manifest_digest\":\"cf07194ee232eb531e15f690000d19846dea69cf05504782658afcfacb9228a2\",\"publisher_build_digest\":\"44575cf5b28512d75644bf54a517dcef304ff809fd511747621b4d64f19aac66\",\"result_digest\":\"f6a214f7a5fcda0c2cee9660b7fc29f5649e3c68aad48e20e950137c98913a68\",\"snapshot_digest\":\"16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_binding_digest\":\"e3711c65701f97be17e90762f022bb4c3e256ea54594b54e84f53455bff3d1b0\"},\"contract_version\":\"investigation_dossier_record_v1\",\"created_at\":\"2026-09-12T00:00:00Z\",\"evidence_snapshot\":{\"contract_version\":\"general_question_snapshot_v1\",\"provenance\":{\"profile\":\"protected_context_v1\",\"source_binding\":{\"source_binding_digest\":\"e3711c65701f97be17e90762f022bb4c3e256ea54594b54e84f53455bff3d1b0\"}},\"receipts\":[{\"author\":null,\"citation_label\":\"R1\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"za\",\"platform\":\"web\",\"published_at\":\"2026-08-20T00:00:00Z\",\"reading_ids\":[],\"receipt_id\":\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R1\",\"url\":\"https://example.test/R1\"},{\"author\":null,\"citation_label\":\"R2\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"za\",\"platform\":\"web\",\"published_at\":\"2026-08-27T00:00:00Z\",\"reading_ids\":[],\"receipt_id\":\"gqctx_a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R2\",\"url\":\"https://example.test/R2\"},{\"author\":null,\"citation_label\":\"R3\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"6afc2626f985776268e059f3d8a0bbb1d8bc951918cfdf31de3ded4c60feacd5\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"gh\",\"platform\":\"web\",\"published_at\":null,\"reading_ids\":[],\"receipt_id\":\"gqctx_6afc2626f985776268e059f3d8a0bbb1d8bc951918cfdf31de3ded4c60feacd5\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R3\",\"url\":null}],\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\"},\"frame\":{\"audience_lens_ids\":[],\"brand_config_id\":null,\"brand_context\":null,\"change_my_mind_if\":[],\"client_scope_id\":\"ogilvy_default\",\"contract_version\":\"2.1.0\",\"decision_question\":\"Which emerging behaviour should the brand act on in six weeks?\",\"known_assumptions\":[],\"market_scope\":[\"za\",\"ng\",\"ke\"],\"output_mode\":\"internal_working_paper\",\"research_role_id\":null,\"research_role_version\":null,\"run_id\":\"investigation_run_001\",\"theme_id\":null,\"time_horizon_days\":42},\"investigation_id\":\"inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c\",\"predecessor_version\":null,\"request_reference\":{\"parent_request_id\":null,\"request_digest\":\"1f58b9145b24d108d7ac38887338b3ea3229833b9c1e418250343f907bfd1047\",\"request_id\":\"5c2f6f2e-4a5d-4c2f-9b6e-1c0f2a3b4c5d\",\"thread_anchor_request_id\":null},\"review_state\":{\"claim_decision_refs\":[],\"relationship_decision_refs\":[],\"selected_claim_ids\":[\"clm_1\",\"clm_2\"],\"unresolved_questions\":[{\"blocking\":true,\"question_id\":\"q_1\",\"text\":\"Does it hold outside Gauteng?\"},{\"blocking\":false,\"question_id\":\"q_2\",\"text\":\"Is the sample seasonal?\"}]},\"scope\":{\"audience_lens_ids\":[],\"brand_config_id\":null,\"client_scope_id\":\"ogilvy_default\",\"contract_version\":\"2.1.0\",\"market_scope\":[\"za\",\"ng\",\"ke\"],\"run_id\":\"investigation_run_001\",\"theme_id\":null},\"temporal_binding\":{\"as_of\":\"2026-08-29T06:30:00Z\",\"source_cutoff\":\"2026-08-28\",\"window_end\":\"2026-08-28\",\"window_start\":\"2026-08-01\"}}",
+      "dossier_version": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+      "scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878"
+    },
+    {
+      "name": "bsa_pulse_scope_no_lens",
+      "body": "{\"admitted_answer\":{\"contract_version\":\"general_question_result_record_v1\",\"response\":{\"answer\":\"Repair is becoming a weekend social activity.\\n\\nLimitation: internal.\",\"intelligence\":{\"claims\":[{\"claim_id\":\"clm_1\",\"falsifier\":null,\"kind\":\"observation\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\"],\"support_state\":\"source_record\",\"text\":\"Claim clm_1: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_2\",\"falsifier\":null,\"kind\":\"interpretation\",\"limitations\":[],\"parent_claim_ids\":[\"clm_1\"],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\",\"gqctx_a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\"],\"support_state\":\"derived\",\"text\":\"Claim clm_2: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_3\",\"falsifier\":null,\"kind\":\"recommendation\",\"limitations\":[],\"parent_claim_ids\":[\"clm_2\"],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\"],\"support_state\":\"derived\",\"text\":\"Claim clm_3: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_4\",\"falsifier\":null,\"kind\":\"limitation\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_6afc2626f985776268e059f3d8a0bbb1d8bc951918cfdf31de3ded4c60feacd5\"],\"support_state\":\"source_record\",\"text\":\"Claim clm_4: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_5\",\"falsifier\":null,\"kind\":\"abstention\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\"],\"support_state\":\"source_record\",\"text\":\"Claim clm_5: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_6\",\"falsifier\":null,\"kind\":\"inference\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\"],\"support_state\":\"derived\",\"text\":\"Claim clm_6: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_7\",\"falsifier\":null,\"kind\":\"proposal\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\"],\"support_state\":\"proposed\",\"text\":\"Claim clm_7: repair tutorials recur across independent sources.\"},{\"claim_id\":\"clm_8\",\"falsifier\":null,\"kind\":\"model_proposal\",\"limitations\":[],\"parent_claim_ids\":[],\"reading_ids\":[],\"receipt_ids\":[\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\"],\"support_state\":\"source_record\",\"text\":\"Claim clm_8: repair tutorials recur across independent sources.\"}],\"receipts\":[{\"author\":null,\"citation_label\":\"R1\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"za\",\"platform\":\"web\",\"published_at\":\"2026-08-20T00:00:00Z\",\"reading_ids\":[],\"receipt_id\":\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R1\",\"url\":\"https://example.test/R1\"},{\"author\":null,\"citation_label\":\"R2\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"za\",\"platform\":\"web\",\"published_at\":\"2026-08-27T00:00:00Z\",\"reading_ids\":[],\"receipt_id\":\"gqctx_a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R2\",\"url\":\"https://example.test/R2\"},{\"author\":null,\"citation_label\":\"R3\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"6afc2626f985776268e059f3d8a0bbb1d8bc951918cfdf31de3ded4c60feacd5\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"gh\",\"platform\":\"web\",\"published_at\":null,\"reading_ids\":[],\"receipt_id\":\"gqctx_6afc2626f985776268e059f3d8a0bbb1d8bc951918cfdf31de3ded4c60feacd5\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R3\",\"url\":null}],\"sections\":[{\"claim_ids\":[\"clm_1\"],\"kind\":\"answer\"},{\"claim_ids\":[\"clm_2\",\"clm_3\"],\"kind\":\"interpretation\"}]}},\"state\":\"complete\"},\"bindings\":{\"deployment_digest\":\"aee50b18a03c89e4883a5acadf5c8614dd7fd2f111c3b616e1a8d6427edc3e3f\",\"policy_digest\":\"823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\",\"prompt_manifest_digest\":\"cf07194ee232eb531e15f690000d19846dea69cf05504782658afcfacb9228a2\",\"publisher_build_digest\":\"44575cf5b28512d75644bf54a517dcef304ff809fd511747621b4d64f19aac66\",\"result_digest\":\"f6a214f7a5fcda0c2cee9660b7fc29f5649e3c68aad48e20e950137c98913a68\",\"snapshot_digest\":\"16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_binding_digest\":\"e3711c65701f97be17e90762f022bb4c3e256ea54594b54e84f53455bff3d1b0\"},\"contract_version\":\"investigation_dossier_record_v1\",\"created_at\":\"2026-09-12T00:00:00Z\",\"evidence_snapshot\":{\"contract_version\":\"general_question_snapshot_v1\",\"provenance\":{\"profile\":\"protected_context_v1\",\"source_binding\":{\"source_binding_digest\":\"e3711c65701f97be17e90762f022bb4c3e256ea54594b54e84f53455bff3d1b0\"}},\"receipts\":[{\"author\":null,\"citation_label\":\"R1\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"za\",\"platform\":\"web\",\"published_at\":\"2026-08-20T00:00:00Z\",\"reading_ids\":[],\"receipt_id\":\"gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R1\",\"url\":\"https://example.test/R1\"},{\"author\":null,\"citation_label\":\"R2\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"za\",\"platform\":\"web\",\"published_at\":\"2026-08-27T00:00:00Z\",\"reading_ids\":[],\"receipt_id\":\"gqctx_a9853e9461803988ddee48ada339cf352731c92fedec3b569ecd86fb7868b01a\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R2\",\"url\":\"https://example.test/R2\"},{\"author\":null,\"citation_label\":\"R3\",\"collected_at\":\"2026-08-28T20:00:00Z\",\"content_digest\":\"6afc2626f985776268e059f3d8a0bbb1d8bc951918cfdf31de3ded4c60feacd5\",\"excerpt\":\"Repair tutorials recur across two independent source families.\",\"kind\":\"content\",\"limitations\":[\"Contextual records do not carry promoted signal authority.\"],\"market\":\"gh\",\"platform\":\"web\",\"published_at\":null,\"reading_ids\":[],\"receipt_id\":\"gqctx_6afc2626f985776268e059f3d8a0bbb1d8bc951918cfdf31de3ded4c60feacd5\",\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\",\"source_family\":\"news\",\"source_label\":\"news\",\"source_row_id\":\"R3\",\"url\":null}],\"snapshot_id\":\"gqs_16a0eeb0791b6c92451fd284dd9f599e0a7dbe7f6ebea6e2d2d06c7f74aec112\"},\"frame\":{\"audience_lens_ids\":[],\"brand_config_id\":\"bsa\",\"brand_context\":null,\"change_my_mind_if\":[],\"client_scope_id\":\"bsa_pulse\",\"contract_version\":\"2.1.0\",\"decision_question\":\"Which emerging behaviour should the brand act on in six weeks?\",\"known_assumptions\":[],\"market_scope\":[\"za\",\"ng\",\"ke\"],\"output_mode\":\"internal_working_paper\",\"research_role_id\":null,\"research_role_version\":null,\"run_id\":\"journey_other_scope\",\"theme_id\":null,\"time_horizon_days\":42},\"investigation_id\":\"inv_e29c985fb9bbdabf2da2118338145a7249ab38d6924ed4d6dfd0ff2c8f96c860\",\"predecessor_version\":null,\"request_reference\":{\"parent_request_id\":null,\"request_digest\":\"1f58b9145b24d108d7ac38887338b3ea3229833b9c1e418250343f907bfd1047\",\"request_id\":\"5c2f6f2e-4a5d-4c2f-9b6e-1c0f2a3b4c5d\",\"thread_anchor_request_id\":null},\"review_state\":{\"claim_decision_refs\":[],\"relationship_decision_refs\":[],\"selected_claim_ids\":[\"clm_1\",\"clm_2\"],\"unresolved_questions\":[{\"blocking\":true,\"question_id\":\"q_1\",\"text\":\"Does it hold outside Gauteng?\"},{\"blocking\":false,\"question_id\":\"q_2\",\"text\":\"Is the sample seasonal?\"}]},\"scope\":{\"audience_lens_ids\":[],\"brand_config_id\":\"bsa\",\"client_scope_id\":\"bsa_pulse\",\"contract_version\":\"2.1.0\",\"market_scope\":[\"za\",\"ng\",\"ke\"],\"run_id\":\"journey_other_scope\",\"theme_id\":null},\"temporal_binding\":{\"as_of\":\"2026-08-29T06:30:00Z\",\"source_cutoff\":\"2026-08-28\",\"window_end\":\"2026-08-28\",\"window_start\":\"2026-08-01\"}}",
+      "dossier_version": "7db4ab468935dd9b0b19058557cac9475cea6d473dc0dae89c2fde6dab5a7c9c",
+      "scope_digest": "2ad91ba6d949642296e7411e2fbeae87e65454f78c384e56998e032d76022ec5"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "general_titled_with_pdf",
+      "inputs": {
+        "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+        "scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878",
+        "dossier_version": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+        "selected_claim_ids": [
+          "clm_1",
+          "clm_2"
+        ],
+        "client_read": {
+          "contract_version": "intelligence_dossier_v1",
+          "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+          "concise_answer": "Claim clm_1: repair tutorials recur across independent sources.",
+          "claims": [],
+          "evidence": [],
+          "excluded_count": 5,
+          "excluded_reasons": [
+            "claim status is pending, not approved"
+          ],
+          "artifact_readiness": {
+            "state": "blocked",
+            "failed": [
+              "decision",
+              "claim_not_approved",
+              "claim_not_ready",
+              "relationship_not_approved",
+              "blocking_question"
+            ]
+          }
+        },
+        "title": "Which emerging behaviour should the brand act on in six weeks?",
+        "pdf_digest": "c35b21d6ca39aa7cc3b79a705d989f1a6e88b99ab43988d74048799e3db926a3"
+      },
+      "artifact_id": "art_9d1ad78bcfcdd816",
+      "artifact_version": "9d1ad78bcfcdd81638a4cde0b744154c819b3eacfbbed79c48734ea99d9981e7",
+      "record": {
+        "contract_version": "dossier_artifact_v1",
+        "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+        "dossier_version": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+        "artifact_id": "art_9d1ad78bcfcdd816",
+        "artifact_version": "9d1ad78bcfcdd81638a4cde0b744154c819b3eacfbbed79c48734ea99d9981e7",
+        "format": "html",
+        "manifest": {
+          "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+          "scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878",
+          "dossier_version": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+          "artifact_version": "9d1ad78bcfcdd81638a4cde0b744154c819b3eacfbbed79c48734ea99d9981e7",
+          "selection_digest": "2a4cb3234dc534fa8c093c8df64f8d88b2cbca62a242b7940fa5af653a4c175a",
+          "export_digests": {
+            "html": "46232cedc07a79d0402d23942034fa56d0ea41583564c8db70eb6aad6f2668d6",
+            "client_read": "bf0adbfd1be11ea3ef5e9610df343b315a595163defe51edc16ad1ceffa1897e",
+            "pdf": "c35b21d6ca39aa7cc3b79a705d989f1a6e88b99ab43988d74048799e3db926a3"
+          }
+        },
+        "client_read": {
+          "contract_version": "intelligence_dossier_v1",
+          "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+          "concise_answer": "Claim clm_1: repair tutorials recur across independent sources.",
+          "claims": [],
+          "evidence": [],
+          "excluded_count": 5,
+          "excluded_reasons": [
+            "claim status is pending, not approved"
+          ],
+          "artifact_readiness": {
+            "state": "blocked",
+            "failed": [
+              "decision",
+              "claim_not_approved",
+              "claim_not_ready",
+              "relationship_not_approved",
+              "blocking_question"
+            ]
+          }
+        },
+        "html": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"referrer\" content=\"no-referrer\">\n<style>@font-face{font-family:Newsreader;src:url('data:font/woff2;base64,d09GMiBzdGFuZC1pbiBmYWNlIGZvciB1bml0IHRlc3Rz') format('woff2'),url('newsreader-variable-tcB4qQtO.woff2') format('woff2')}body{font-family:Newsreader,Georgia,serif;max-width:48rem;margin:2rem auto;padding:0 1rem;color:#1a1a1a}h2{margin-top:2rem}.item{margin:.5rem 0}small{color:#555}</style>\n</head>\n<body>\n<h1>Client Read</h1>\n<p><small>Which emerging behaviour should the brand act on in six weeks?</small></p>\n<h2>Answer</h2><p>Claim clm_1: repair tutorials recur across independent sources.</p>\n<p><small>5 item(s) withheld from this read.</small></p>\n</body>\n</html>\n"
+      }
+    },
+    {
+      "name": "general_untitled_html_only",
+      "inputs": {
+        "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+        "scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878",
+        "dossier_version": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+        "selected_claim_ids": [
+          "clm_1",
+          "clm_2"
+        ],
+        "client_read": {
+          "contract_version": "intelligence_dossier_v1",
+          "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+          "concise_answer": "Claim clm_1: repair tutorials recur across independent sources.",
+          "claims": [],
+          "evidence": [],
+          "excluded_count": 5,
+          "excluded_reasons": [
+            "claim status is pending, not approved"
+          ],
+          "artifact_readiness": {
+            "state": "blocked",
+            "failed": [
+              "decision",
+              "claim_not_approved",
+              "claim_not_ready",
+              "relationship_not_approved",
+              "blocking_question"
+            ]
+          }
+        },
+        "title": null,
+        "pdf_digest": null
+      },
+      "artifact_id": "art_26b927a8906cec5d",
+      "artifact_version": "26b927a8906cec5df42b937b624ca7bce4573cfe0c751ecf9c250813b3ea33e0",
+      "record": {
+        "contract_version": "dossier_artifact_v1",
+        "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+        "dossier_version": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+        "artifact_id": "art_26b927a8906cec5d",
+        "artifact_version": "26b927a8906cec5df42b937b624ca7bce4573cfe0c751ecf9c250813b3ea33e0",
+        "format": "html",
+        "manifest": {
+          "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+          "scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878",
+          "dossier_version": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+          "artifact_version": "26b927a8906cec5df42b937b624ca7bce4573cfe0c751ecf9c250813b3ea33e0",
+          "selection_digest": "2a4cb3234dc534fa8c093c8df64f8d88b2cbca62a242b7940fa5af653a4c175a",
+          "export_digests": {
+            "html": "6b8b1ea7eaa2d3bab7f00e3386115e566b776ae5a3491612ab51faf0a874d14b",
+            "client_read": "bf0adbfd1be11ea3ef5e9610df343b315a595163defe51edc16ad1ceffa1897e"
+          }
+        },
+        "client_read": {
+          "contract_version": "intelligence_dossier_v1",
+          "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+          "concise_answer": "Claim clm_1: repair tutorials recur across independent sources.",
+          "claims": [],
+          "evidence": [],
+          "excluded_count": 5,
+          "excluded_reasons": [
+            "claim status is pending, not approved"
+          ],
+          "artifact_readiness": {
+            "state": "blocked",
+            "failed": [
+              "decision",
+              "claim_not_approved",
+              "claim_not_ready",
+              "relationship_not_approved",
+              "blocking_question"
+            ]
+          }
+        },
+        "html": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"referrer\" content=\"no-referrer\">\n<style>@font-face{font-family:Newsreader;src:url('data:font/woff2;base64,d09GMiBzdGFuZC1pbiBmYWNlIGZvciB1bml0IHRlc3Rz') format('woff2'),url('newsreader-variable-tcB4qQtO.woff2') format('woff2')}body{font-family:Newsreader,Georgia,serif;max-width:48rem;margin:2rem auto;padding:0 1rem;color:#1a1a1a}h2{margin-top:2rem}.item{margin:.5rem 0}small{color:#555}</style>\n</head>\n<body>\n<h1>Client Read</h1>\n<p><small>Investigation inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c</small></p>\n<h2>Answer</h2><p>Claim clm_1: repair tutorials recur across independent sources.</p>\n<p><small>5 item(s) withheld from this read.</small></p>\n</body>\n</html>\n"
+      }
+    },
+    {
+      "name": "bsa_pulse_scope_no_lens",
+      "inputs": {
+        "investigation_id": "inv_e29c985fb9bbdabf2da2118338145a7249ab38d6924ed4d6dfd0ff2c8f96c860",
+        "scope_digest": "2ad91ba6d949642296e7411e2fbeae87e65454f78c384e56998e032d76022ec5",
+        "dossier_version": "7db4ab468935dd9b0b19058557cac9475cea6d473dc0dae89c2fde6dab5a7c9c",
+        "selected_claim_ids": [
+          "clm_1",
+          "clm_2"
+        ],
+        "client_read": {
+          "contract_version": "intelligence_dossier_v1",
+          "investigation_id": "inv_e29c985fb9bbdabf2da2118338145a7249ab38d6924ed4d6dfd0ff2c8f96c860",
+          "concise_answer": "Claim clm_1: repair tutorials recur across independent sources.",
+          "claims": [],
+          "evidence": [],
+          "excluded_count": 5,
+          "excluded_reasons": [
+            "claim status is pending, not approved"
+          ],
+          "artifact_readiness": {
+            "state": "blocked",
+            "failed": [
+              "decision",
+              "claim_not_approved",
+              "claim_not_ready",
+              "relationship_not_approved",
+              "blocking_question"
+            ]
+          }
+        },
+        "title": "Which emerging behaviour should the brand act on in six weeks?",
+        "pdf_digest": "e835a6a09b1edc7b36b0357ac99bc060e35c1ad6bc797522b07027b0e62d4ffe"
+      },
+      "artifact_id": "art_92788528b3473b01",
+      "artifact_version": "92788528b3473b013428bb540069de22935eba082d8d65aa8d08c29d417c1133",
+      "record": {
+        "contract_version": "dossier_artifact_v1",
+        "investigation_id": "inv_e29c985fb9bbdabf2da2118338145a7249ab38d6924ed4d6dfd0ff2c8f96c860",
+        "dossier_version": "7db4ab468935dd9b0b19058557cac9475cea6d473dc0dae89c2fde6dab5a7c9c",
+        "artifact_id": "art_92788528b3473b01",
+        "artifact_version": "92788528b3473b013428bb540069de22935eba082d8d65aa8d08c29d417c1133",
+        "format": "html",
+        "manifest": {
+          "investigation_id": "inv_e29c985fb9bbdabf2da2118338145a7249ab38d6924ed4d6dfd0ff2c8f96c860",
+          "scope_digest": "2ad91ba6d949642296e7411e2fbeae87e65454f78c384e56998e032d76022ec5",
+          "dossier_version": "7db4ab468935dd9b0b19058557cac9475cea6d473dc0dae89c2fde6dab5a7c9c",
+          "artifact_version": "92788528b3473b013428bb540069de22935eba082d8d65aa8d08c29d417c1133",
+          "selection_digest": "2a4cb3234dc534fa8c093c8df64f8d88b2cbca62a242b7940fa5af653a4c175a",
+          "export_digests": {
+            "html": "46232cedc07a79d0402d23942034fa56d0ea41583564c8db70eb6aad6f2668d6",
+            "client_read": "2cf8e3ce68ddd740549237a1aa285fdb02008bf1c965ea9c8972b4a98e89c8e7",
+            "pdf": "e835a6a09b1edc7b36b0357ac99bc060e35c1ad6bc797522b07027b0e62d4ffe"
+          }
+        },
+        "client_read": {
+          "contract_version": "intelligence_dossier_v1",
+          "investigation_id": "inv_e29c985fb9bbdabf2da2118338145a7249ab38d6924ed4d6dfd0ff2c8f96c860",
+          "concise_answer": "Claim clm_1: repair tutorials recur across independent sources.",
+          "claims": [],
+          "evidence": [],
+          "excluded_count": 5,
+          "excluded_reasons": [
+            "claim status is pending, not approved"
+          ],
+          "artifact_readiness": {
+            "state": "blocked",
+            "failed": [
+              "decision",
+              "claim_not_approved",
+              "claim_not_ready",
+              "relationship_not_approved",
+              "blocking_question"
+            ]
+          }
+        },
+        "html": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"referrer\" content=\"no-referrer\">\n<style>@font-face{font-family:Newsreader;src:url('data:font/woff2;base64,d09GMiBzdGFuZC1pbiBmYWNlIGZvciB1bml0IHRlc3Rz') format('woff2'),url('newsreader-variable-tcB4qQtO.woff2') format('woff2')}body{font-family:Newsreader,Georgia,serif;max-width:48rem;margin:2rem auto;padding:0 1rem;color:#1a1a1a}h2{margin-top:2rem}.item{margin:.5rem 0}small{color:#555}</style>\n</head>\n<body>\n<h1>Client Read</h1>\n<p><small>Which emerging behaviour should the brand act on in six weeks?</small></p>\n<h2>Answer</h2><p>Claim clm_1: repair tutorials recur across independent sources.</p>\n<p><small>5 item(s) withheld from this read.</small></p>\n</body>\n</html>\n"
+      }
+    }
+  ],
+  "export": {
+    "inputs": {
+      "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+      "scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878",
+      "dossier_version": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+      "selected_claim_ids": [
+        "clm_1",
+        "clm_2"
+      ],
+      "client_read": {
+        "contract_version": "intelligence_dossier_v1",
+        "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+        "concise_answer": "Claim clm_1: repair tutorials recur across independent sources.",
+        "claims": [],
+        "evidence": [],
+        "excluded_count": 5,
+        "excluded_reasons": [
+          "claim status is pending, not approved"
+        ],
+        "artifact_readiness": {
+          "state": "blocked",
+          "failed": [
+            "decision",
+            "claim_not_approved",
+            "claim_not_ready",
+            "relationship_not_approved",
+            "blocking_question"
+          ]
+        }
+      },
+      "title": "Which emerging behaviour should the brand act on in six weeks?"
+    },
+    "html": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"referrer\" content=\"no-referrer\">\n<style>@font-face{font-family:Newsreader;src:url('data:font/woff2;base64,d09GMiBzdGFuZC1pbiBmYWNlIGZvciB1bml0IHRlc3Rz') format('woff2'),url('newsreader-variable-tcB4qQtO.woff2') format('woff2')}body{font-family:Newsreader,Georgia,serif;max-width:48rem;margin:2rem auto;padding:0 1rem;color:#1a1a1a}h2{margin-top:2rem}.item{margin:.5rem 0}small{color:#555}</style>\n</head>\n<body>\n<h1>Client Read</h1>\n<p><small>Which emerging behaviour should the brand act on in six weeks?</small></p>\n<h2>Answer</h2><p>Claim clm_1: repair tutorials recur across independent sources.</p>\n<p><small>5 item(s) withheld from this read.</small></p>\n</body>\n</html>\n",
+    "pdf_sha256": "903a8185ba8979996a4dcce1296707337778775e7e00c48791463a1102067281",
+    "manifest": {
+      "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+      "scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878",
+      "dossier_version": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+      "artifact_version": "641511624b816fd8bbe7bdd17cabac9fc4ba06194cf2722df050c65cba3c43d3",
+      "selection_digest": "2a4cb3234dc534fa8c093c8df64f8d88b2cbca62a242b7940fa5af653a4c175a",
+      "export_digests": {
+        "html": "46232cedc07a79d0402d23942034fa56d0ea41583564c8db70eb6aad6f2668d6",
+        "client_read": "bf0adbfd1be11ea3ef5e9610df343b315a595163defe51edc16ad1ceffa1897e",
+        "pdf": "903a8185ba8979996a4dcce1296707337778775e7e00c48791463a1102067281"
+      }
+    },
+    "artifact_id": "art_641511624b816fd8"
+  },
+  "journey": {
+    "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+    "published_version": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+    "published_body_sha256": "f3d036b5db51a2cfe6b466808e1440c3b301a5e6a880e1a58537fb52f27a51be",
+    "selected_version": "d13c0fd2fb707aa61f6e5c8926b25242be246feb5cc7735db843c010c6a80927",
+    "selected_record_sha256": "d13c0fd2fb707aa61f6e5c8926b25242be246feb5cc7735db843c010c6a80927",
+    "pointer_scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878",
+    "artifact_id": "art_ee60573f85456279",
+    "artifact_version": "ee60573f85456279ee18aefbb906aef9ab915ea4ee442cc07e162057896f9ba5",
+    "manifest": {
+      "investigation_id": "inv_3dcb52fb91b636a3aa20461408c41b658aa376409b34b0582990feafc198e99c",
+      "scope_digest": "53a1748fde112bc966f4393ec0edaf4b373a9e64d4b104abd4a801394566a878",
+      "dossier_version": "d13c0fd2fb707aa61f6e5c8926b25242be246feb5cc7735db843c010c6a80927",
+      "artifact_version": "ee60573f85456279ee18aefbb906aef9ab915ea4ee442cc07e162057896f9ba5",
+      "selection_digest": "649ab172c2a8fc4462eba50a15064b1d13b45c64088ed167d74b303ed65e01e1",
+      "export_digests": {
+        "html": "686b29d5f00f0a9925946a6dae34f1fb126f2d8db1059bf24240838cdc4bbfe8",
+        "client_read": "9d187d9c4f9f48a03c3824c94a0cd64cee5d803da22cf60e426df55b0fcd2f2e",
+        "pdf": "4cbaadd6d5cf12b3a3c3a9ed4add936ab346080f98778c3f9799665399b607bb"
+      }
+    },
+    "html": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"referrer\" content=\"no-referrer\">\n<style>@font-face{font-family:Newsreader;src:url('data:font/woff2;base64,d09GMiBzdGFuZC1pbiBmYWNlIGZvciB1bml0IHRlc3Rz') format('woff2'),url('newsreader-variable-tcB4qQtO.woff2') format('woff2')}body{font-family:Newsreader,Georgia,serif;max-width:48rem;margin:2rem auto;padding:0 1rem;color:#1a1a1a}h2{margin-top:2rem}.item{margin:.5rem 0}small{color:#555}</style>\n</head>\n<body>\n<h1>Client Read</h1>\n<p><small>Which emerging behaviour should the brand act on in six weeks?</small></p>\n<h2>Answer</h2><p>Claim clm_1: repair tutorials recur across independent sources.</p>\n<h2>Findings</h2>\n<p class=\"item\"><strong>observation</strong> Claim clm_1: repair tutorials recur across independent sources. <small>Sources: gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9</small></p>\n<h2>Evidence</h2>\n<p class=\"item\">gqctx_5fe4b0da8d436fb3e31b85712741f22bfbfccb0592e14c2dadf202bba4377ef9 <small>20 Aug 2026</small></p>\n<p><small>4 item(s) withheld from this read.</small></p>\n</body>\n</html>\n",
+    "pdf_sha256": "4cbaadd6d5cf12b3a3c3a9ed4add936ab346080f98778c3f9799665399b607bb",
+    "stored_pdf_sha256": "4cbaadd6d5cf12b3a3c3a9ed4add936ab346080f98778c3f9799665399b607bb"
+  }
+}

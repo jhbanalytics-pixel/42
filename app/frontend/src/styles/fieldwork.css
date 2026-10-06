@@ -1,0 +1,496 @@
+/* Fieldwork: the source roster and its health for one collection day.
+
+   Flat and read top to bottom: the lead, one line of day facts, a market
+   switch, then each market's sources in plain rows grouped by kind. No
+   tiles, no nested cards. Status is always written in words; the small mark
+   beside it only repeats what the words say. */
+
+.fieldwork-page {
+  font-family: var(--sans);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  color: var(--ink);
+  padding: var(--s-6) var(--s-5);
+  max-width: var(--maxw);
+}
+
+.fieldwork-page :focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+:where(.fieldwork-page) p { margin: 0; }
+.fieldwork-page a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.fieldwork-page a:hover { color: var(--ogilvy-red-text); }
+
+/* Lead */
+.fieldwork-lead { margin-bottom: var(--s-5); }
+.fieldwork-lead__title {
+  font: 600 var(--type-7)/1.2 var(--sans);
+  margin: 0 0 var(--s-2);
+  text-wrap: balance;
+}
+.fieldwork-lead__standfirst { max-width: var(--measure); color: var(--ink-2); text-wrap: pretty; }
+.fieldwork-lead__kicker {
+  font: 400 var(--type-3)/1.5 var(--sans);
+  font-variation-settings: "MONO" 0;
+  color: var(--muted);
+  margin-top: var(--s-1);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+.fieldwork-state__note {
+  font-size: var(--type-4);
+  color: var(--muted);
+  max-width: var(--measure);
+  margin: var(--s-3) 0;
+  text-wrap: pretty;
+}
+.fieldwork-state__note--notice {
+  margin-bottom: var(--s-5);
+  color: var(--ink-2);
+  border-left: 2px solid var(--line-2);
+  padding-left: var(--s-3);
+}
+
+.fieldwork-state__note--busy { margin-top: 0; }
+
+.fieldwork-section__title {
+  font-size: var(--type-section-title);
+  font-weight: 600;
+  line-height: var(--leading-section-title);
+  margin: 0 0 var(--s-3);
+  text-wrap: balance;
+}
+
+.fieldwork-button {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line-2);
+  padding: var(--s-1) var(--s-4);
+  min-height: var(--target-min);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.fieldwork-button:hover, .fieldwork-button:focus-visible { border-color: var(--ink); }
+.fieldwork-button:active { box-shadow: var(--press-grip); }
+
+.fieldwork-link-button {
+  font: inherit;
+  font-size: var(--type-3);
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  padding: 0;
+  min-height: var(--target-min);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+  transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.fieldwork-link-button:hover, .fieldwork-link-button:focus-visible { color: var(--ink); }
+.fieldwork-link-button:active { box-shadow: var(--press-grip); }
+
+/* Day facts: one ruled band of four short facts. */
+.fieldwork-day {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-4) var(--s-5);
+  margin: 0 0 var(--s-5);
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.fieldwork-day__item { min-width: 0; }
+.fieldwork-day dt { font-size: var(--type-3); color: var(--muted); margin-bottom: var(--s-1); white-space: nowrap; }
+.fieldwork-day dd { margin: 0; display: grid; gap: var(--s-1); justify-items: start; }
+.fieldwork-day__value { font-size: var(--type-5); font-weight: 600; font-variant-numeric: tabular-nums; text-wrap: balance; }
+.fieldwork-day__note { font-size: var(--type-3); color: var(--muted); max-width: 40ch; text-wrap: pretty; }
+.fieldwork-date {
+  position: relative;
+  display: inline-grid;
+  justify-items: start;
+  gap: 2px;
+  min-height: var(--target-min);
+  padding: var(--s-1) var(--s-6) var(--s-1) var(--s-2);
+  margin-left: calc(var(--s-2) * -1);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+/* A small chevron says the day can be changed. */
+.fieldwork-date::after {
+  content: "";
+  position: absolute;
+  right: var(--s-2);
+  top: calc(var(--s-1) + 0.55em);
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+}
+.fieldwork-date:hover, .fieldwork-date:focus-within { border-color: var(--line-2); }
+.fieldwork-date:focus-within { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+.fieldwork-date__hint { font-size: var(--type-3); color: var(--muted); white-space: nowrap; }
+.fieldwork-date__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  font: inherit;
+}
+/* The ring is also drawn on the visible label around the input; the input's
+   own states only keep the pointer. */
+.fieldwork-date__input:hover, .fieldwork-date__input:focus-visible { cursor: pointer; }
+.fieldwork-date__input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; cursor: pointer; }
+.fieldwork-fig { font-variant-numeric: tabular-nums; }
+
+/* Market switch */
+.fieldwork-roster { margin-bottom: var(--s-7); }
+.fieldwork-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s-1);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--s-4);
+}
+.fieldwork-tab {
+  font: inherit;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  padding: var(--s-2) var(--s-3);
+  min-height: var(--target-min);
+  cursor: pointer;
+  display: grid;
+  justify-items: start;
+  text-align: left;
+  transition: border-color var(--motion-control) var(--motion-standard-easing), color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.fieldwork-tab:active, .fieldwork-page [role="tab"]:active { box-shadow: var(--press-grip); }
+.fieldwork-tab:hover, .fieldwork-tab:focus-visible { color: var(--ink); border-bottom-color: var(--line-2); }
+.fieldwork-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.fieldwork-tab__name { font-weight: 600; white-space: nowrap; }
+.fieldwork-tab__count { font-size: var(--type-3); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* The market select only shows at phone width, where it replaces the tabs. */
+.fieldwork-market-select { display: none; }
+.fieldwork-market-select__label { display: block; font-size: var(--type-3); color: var(--muted); margin-bottom: var(--s-1); }
+.fieldwork-market-select__control {
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--shape-control);
+  min-height: var(--target-min);
+  width: 100%;
+  max-width: 24rem;
+  padding: var(--s-2) var(--s-3);
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+.fieldwork-market-select__control:hover, .fieldwork-market-select__control:focus-visible { border-color: var(--ink-2); }
+.fieldwork-market-select__control:focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+
+.fieldwork-panel__tally { color: var(--ink-2); margin-bottom: var(--s-5); max-width: var(--measure); text-wrap: pretty; }
+
+/* Groups and source tables.
+   Each group is a real table: one column per fact, so a reader runs an eye
+   down Calls or Items and compares sources directly (Tufte, The Visual
+   Display of Quantitative Information, on tables). Rules are hairlines in
+   the line colour and corners are square, so the grid stays quiet behind
+   the data (Tufte, on data ink). */
+.fieldwork-group { margin-bottom: var(--s-5); }
+.fieldwork-group__title {
+  font-size: var(--type-signal-title);
+  font-weight: 600;
+  margin: 0;
+  padding-bottom: var(--s-2);
+  text-wrap: balance;
+}
+.fieldwork-sources {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 0;
+  border-top: 1px solid var(--line-2);
+}
+.fieldwork-sources th, .fieldwork-sources td {
+  padding: var(--s-2) var(--s-4) var(--s-2) 0;
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+}
+.fieldwork-sources th:last-child, .fieldwork-sources td:last-child { padding-right: 0; }
+.fieldwork-sources thead th {
+  font-size: var(--type-3);
+  color: var(--muted);
+  font-weight: 600;
+  line-height: 1.3;
+  border-bottom: 1px solid var(--line);
+}
+.fieldwork-sources td { border-bottom: 1px solid var(--line); }
+.fieldwork-sources tbody th { border-bottom: 1px solid var(--line); }
+/* Fixed widths for the figure columns, so the same column sits in the same
+   place in every group and the eye can compare across groups too. */
+.fieldwork-col-source { width: auto; }
+.fieldwork-col-status { width: 12rem; }
+.fieldwork-sources thead .fieldwork-num { width: 6.5rem; }
+.fieldwork-sources thead .fieldwork-num:last-child { width: 11rem; }
+/* Figures right aligned in tabular digits, so units sit over units from row
+   to row (Bringhurst, The Elements of Typographic Style 3.2.2, on tabular
+   figures). */
+.fieldwork-num { text-align: right; font-variant-numeric: tabular-nums; }
+.fieldwork-sources .fieldwork-num { text-align: right; }
+.fieldwork-source__none { color: var(--muted); }
+
+/* A compact row: the name, then its description as one muted line, so two
+   lines and their padding come to about 56px. */
+.fieldwork-source__what { min-width: 12rem; }
+.fieldwork-source__name { font-size: var(--type-4); font-weight: 600; line-height: 1.3; text-wrap: balance; }
+/* Descriptions and handles are one to three lines, so they balance: no last
+   line is left holding a word or two. */
+.fieldwork-source__detail, .fieldwork-source__members { font-size: var(--type-3); line-height: 1.35; color: var(--muted); max-width: var(--measure); text-wrap: pretty; }
+.fieldwork-source__more { font-size: var(--type-3); color: var(--muted); max-width: var(--measure); }
+.fieldwork-source__more > summary {
+  cursor: pointer;
+  min-height: var(--target-min);
+  display: block;
+  padding-top: var(--s-1);
+  text-wrap: balance;
+}
+.fieldwork-source__more > summary:hover { color: var(--ink); }
+/* One size and one weight for every status, so no state shouts louder than
+   another by type alone; the words and the mark carry the state (WCAG 2.2,
+   1.4.1 Use of Color). */
+.fieldwork-source__status { display: flex; align-items: baseline; gap: var(--s-2); max-width: 32ch; text-wrap: pretty; }
+/* The mark is a small svg circle: a filled dot, or a ring of a given
+   width. */
+.fieldwork-status-mark {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  overflow: visible;
+  transform: translateY(1px);
+}
+.fieldwork-status-mark circle { fill: none; stroke: var(--muted); stroke-width: 1.5px; }
+/* Delivered and failed are filled in their colours; partial is a thick red
+   ring; no record, not yet recorded and could not be read are a quiet open
+   ring; off is a fainter, thinner one. The words beside each mark carry the
+   meaning. */
+.fieldwork-source[data-status="delivered"] .fieldwork-status-mark circle { fill: var(--pos); stroke: var(--pos); }
+.fieldwork-source[data-status="failed"] .fieldwork-status-mark circle { fill: var(--neg); stroke: var(--neg); }
+.fieldwork-source[data-status="partial"] .fieldwork-status-mark circle { stroke: var(--neg); stroke-width: 2.5px; r: 3.5px; }
+.fieldwork-source[data-status="off"] .fieldwork-status-mark circle { stroke: var(--line-2); stroke-width: 1px; }
+.fieldwork-source[data-status="failed"] .fieldwork-source__status,
+.fieldwork-source[data-status="partial"] .fieldwork-source__status { color: var(--ogilvy-red-text); }
+.fieldwork-source[data-status="no_record"] .fieldwork-source__status,
+.fieldwork-source[data-status="waiting"] .fieldwork-source__status,
+.fieldwork-source[data-status="unavailable"] .fieldwork-source__status,
+.fieldwork-source[data-status="off"] .fieldwork-source__status { color: var(--ink-2); }
+
+/* Switched off */
+.fieldwork-off { margin-bottom: var(--s-6); }
+.fieldwork-off__intro { color: var(--ink-2); margin-bottom: var(--s-3); max-width: var(--measure); text-wrap: pretty; }
+.fieldwork-off__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: 0 var(--s-6);
+}
+.fieldwork-off__row { padding: var(--s-3) 0; border-top: 1px solid var(--line); display: grid; gap: var(--s-1); align-content: start; box-sizing: border-box; }
+.fieldwork-off__name { font-weight: 600; text-wrap: balance; }
+.fieldwork-off__market { font-size: var(--type-3); color: var(--muted); white-space: nowrap; }
+.fieldwork-off__why { color: var(--ink-2); max-width: var(--measure); text-wrap: pretty; }
+
+/* How to read */
+.fieldwork-method { max-width: none; border-top: 1px solid var(--line); }
+.fieldwork-method__body { max-width: var(--measure); }
+.fieldwork-method > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--target-min);
+  cursor: pointer;
+  color: var(--ink-2);
+  list-style: none;
+}
+.fieldwork-method > summary::-webkit-details-marker { display: none; }
+.fieldwork-method > summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: 2px var(--s-1);
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+.fieldwork-method[open] > summary::before { transform: rotate(45deg); }
+.fieldwork-method > summary:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.fieldwork-method__body { display: grid; gap: var(--s-2); padding-bottom: var(--s-4); color: var(--ink-2); }
+.fieldwork-method__body p { max-width: var(--measure); text-wrap: pretty; }
+
+.fieldwork-problem { display: grid; gap: var(--s-2); justify-items: start; }
+
+@media (max-width: 1100px) {
+  .fieldwork-day { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Under 720px the six columns no longer fit, so each row becomes a short
+   card: the source on top, then every figure under its own label drawn from
+   data-label, the same pattern as the Coverage tables (styles/coverage42.css,
+   .cv42-stack). The header row stays for screen readers only. Every fact and
+   word stays; only the layout changes (WCAG 2.2, 1.4.10 Reflow). */
+@media (max-width: 719px) {
+  .fieldwork-sources, .fieldwork-sources tbody, .fieldwork-sources tr { display: block; width: 100%; min-width: 0; }
+  .fieldwork-sources thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .fieldwork-sources tbody tr {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+    gap: var(--s-2) var(--s-3);
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .fieldwork-sources th, .fieldwork-sources td { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: auto; min-width: 0; padding: 0; border: 0; text-align: left; }
+  .fieldwork-sources .fieldwork-num { text-align: left; }
+  .fieldwork-sources tbody th, .fieldwork-sources .fieldwork-source__how, .fieldwork-sources .fieldwork-source__plan { grid-column: 1 / -1; }
+  .fieldwork-sources td[data-label]::before { content: attr(data-label); font-size: var(--type-3); color: var(--muted); white-space: nowrap; }
+  .fieldwork-sources .fieldwork-source__how::before { display: none; }
+  /* A source with no record already says so in its status, so its three
+     empty figure cells are not repeated on the card. */
+  .fieldwork-source[data-recorded="false"] td.fieldwork-num:not(.fieldwork-source__plan) { display: none; }
+}
+
+@media (max-width: 680px) {
+  .fieldwork-page { padding: var(--s-5) var(--s-4); }
+  .fieldwork-lead__title { font: 600 var(--type-6)/1.25 var(--sans); }
+  .fieldwork-day { grid-template-columns: minmax(0, 1fr); gap: var(--s-3); }
+  /* One row of market tabs that fits the width: the source counts move to
+     the tally line below, so each tab is only its market name. */
+  .fieldwork-tabs { flex-wrap: nowrap; gap: 0; }
+  .fieldwork-tab { flex: 0 1 auto; min-width: 0; padding: var(--s-2) var(--s-2); }
+  .fieldwork-tab__count { display: none; }
+}
+@media (max-width: 479px) {
+  .fieldwork-page { padding-inline: 0; }
+}
+
+@media (max-width: 519px) {
+  .fieldwork-tabs { display: none; }
+  .fieldwork-market-select { display: block; margin-bottom: var(--s-4); }
+}
+
+/* Reduced motion takes the transitions away and keeps every state: the open
+   triangle still points down. A universal selector does not reach
+   pseudo-elements, so ::before is named too. */
+@media (prefers-reduced-motion: reduce) {
+  .fieldwork-page *, .fieldwork-page *::before {
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+}
+
+/* Charts, 3 October 2026: the source-state chart stands apart from the roster. */
+[data-fieldwork-states] { margin-bottom: var(--s-6); }
+
+/* No AI look pass, 4 October 2026: on a phone the four day facts keep two
+   to a row, so the summary is one screen block and not a column of four. */
+@media (max-width: 679px) {
+  .fieldwork-day { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4) var(--s-4); }
+  .fieldwork-day dt { white-space: normal; }
+  .fieldwork-day__value { font-size: var(--type-4); }
+  .fieldwork-day > .fieldwork-day__item:first-child { grid-column: 1 / -1; }
+}
+
+/* Round 2, 4 October 2026. A figure the record does not hold is left
+   visually empty (its words stay for screen readers), since the status
+   beside it already says there is no record; the status keeps to one line
+   on a wide screen. */
+.fieldwork-col-status { width: 14rem; }
+@media (min-width: 720px) {
+  .fieldwork-source[data-status="no_record"] .fieldwork-source__status { white-space: nowrap; }
+  .fieldwork-sources td.fieldwork-num:not(.fieldwork-source__plan) { white-space: nowrap; }
+}
+/* Narrower screens: fixed column widths, so every group's columns line
+   up with the group above and the plan keeps to two lines. */
+@media (min-width: 720px) and (max-width: 1279px) {
+  .fieldwork-sources { table-layout: fixed; }
+  .fieldwork-col-status { width: 9rem; }
+  .fieldwork-sources thead .fieldwork-num { width: 5.5rem; }
+  .fieldwork-sources thead .fieldwork-num:nth-child(4) { width: 4.5rem; }
+  .fieldwork-sources thead .fieldwork-num:nth-child(5) { width: 7.5rem; }
+  .fieldwork-sources thead .fieldwork-num:last-child { width: 8.5rem; }
+  /* The source column keeps room for a two-line name, and each figure keeps
+     a gap from the one before it. */
+  .fieldwork-sources td.fieldwork-num, .fieldwork-sources th.fieldwork-num { padding-inline-start: var(--s-3); }
+}
+@media (min-width: 1280px) {
+  .fieldwork-sources { table-layout: fixed; }
+  .fieldwork-col-status { width: 15rem; }
+  .fieldwork-sources thead .fieldwork-num:nth-child(4) { width: 5rem; }
+  .fieldwork-sources thead .fieldwork-num:last-child { width: 14rem; }
+}
+.fieldwork-source__toggle { display: none; transition: color var(--motion-control) var(--motion-standard-easing); }
+.fieldwork-source__toggle:hover, .fieldwork-source__toggle:focus-visible { color: var(--ink); }
+.fieldwork-source__toggle:focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+/* The plan breaks only after its comma: "3 reads planned," over "15 credits". */
+.fieldwork-source__plan-part { white-space: nowrap; }
+/* Polish pass: every plan cell is two even lines, reads then credits, so
+   no row wraps where its neighbour does not. */
+.fieldwork-source__plan-part { display: block; }
+
+/* Phones: a row is the source and its status. Figures opens the calls,
+   items, place and plan for that one source under it. */
+@media (max-width: 719px) {
+  .fieldwork-sources tbody tr.fieldwork-source { position: relative; gap: var(--s-1) var(--s-3); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .fieldwork-source td.fieldwork-num[data-label]::before { white-space: normal; }
+  .fieldwork-source[data-open] td.fieldwork-num { justify-content: space-between; }
+  .fieldwork-sources tbody th.fieldwork-source__what { padding-right: 6.5rem; border-bottom: 0; }
+  .fieldwork-source__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    position: absolute;
+    top: var(--s-2);
+    right: 0;
+    min-height: var(--target-min);
+    padding: 0 0 0 var(--s-3);
+    font: inherit;
+    font-size: var(--type-3);
+    color: var(--ink-2);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .fieldwork-source__toggle::after {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform var(--motion-control) var(--motion-standard-easing);
+  }
+  .fieldwork-source__toggle[aria-expanded="true"]::after { transform: rotate(-135deg) translateY(-2px); }
+  .fieldwork-source:not([data-open]) td.fieldwork-num { display: none; }
+  .fieldwork-source[data-open] td.fieldwork-num { padding-top: var(--s-2); }
+}

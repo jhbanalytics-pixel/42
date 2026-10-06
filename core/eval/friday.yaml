@@ -1,0 +1,324 @@
+# 42 Friday replay subset: 10 of the 30 questions in questions.yaml, one per family.
+#
+# The plan lets Ask show a 10-question replay on Friday 2 October instead of the
+# full 30. promptfoo cannot filter a file:// test list by id from inside a config, so
+# the ten entries below are verbatim copies from questions.yaml; if an entry there
+# changes, copy it here again (core/eval/tests/test_score_run.py fails until they match).
+# Load it in place of the full set with `tests: file://friday.yaml`, then score the
+# export with
+# `py -3.13 -m core.eval.score_run <results.json> --live-credits 0 --questions core/eval/friday.yaml`,
+# so any of the ten missing from the export is scored as a failed question.
+#
+# The pick, one per family: an answerable question first (no thin or guardrail items,
+# so every question counts toward supported completion), then the shortest window,
+# then market balance across ZA, NG and KE.
+#   now           NOW-01  ZA        7 days
+#   rising        RISE-02 NG       49 days (the only answerable rising item)
+#   why           WHY-03  KE       30 days
+#   spread        SPR-03  ZA, KE   60 days (all spread items are 60 days; this one adds KE)
+#   creators      CRE-01  NG       30 days
+#   brand         BRD-01  ZA       30 days
+#   compare       CMP-01  ZA, NG, KE 30 days
+#   history       HIS-02  NG      750 days (shortest answerable history item)
+#   authenticity  AUT-01  NG       14 days
+#   forward       FWD-02  ZA, NG, KE 14 days
+# Only NOW-01, AUT-01 and FWD-02 sit inside 7 to 14 days; no other family has an
+# answerable item that short. RISE-02, SPR-03 and HIS-02 run past 30 days, so their
+# answers rest partly on legacy rows (memory only), and the score file says so.
+# Question-level markets: ZA in 5, NG in 6, KE in 4.
+
+- description: "NOW-01 | now | ZA | last 7 days"
+  metadata: {family: now, markets: ZA, answerability: answerable}
+  vars:
+    id: NOW-01
+    family: now
+    markets: [ZA]
+    window: last 7 days
+    window_days: 7
+    expected_answerability: answerable
+    question: >-
+      What's South African social actually talking about this week, outside
+      the election and sport? Give me the three conversations with the most
+      momentum right now and show me the posts that prove it.
+    great_answer_must:
+      - Names three specific conversations (a named meme, sound, phrase, event or controversy), not themes like "humour" or "lifestyle"
+      - Shows momentum for each with numbers from the data (post count or engagement against the conversation's own recent baseline), each number traceable to cited posts or a named query
+      - Cites posts from at least two platforms per conversation where they exist, naming handles, dates and quotes, and says where each conversation lives (platform, language, place, community)
+      - Excludes election and sport content as asked, or flags where a conversation overlaps with them
+      - Ends with one line per conversation on whether a brand could join and how
+    fails_if:
+      - Lists evergreen SA topics (braai, taxis, load shedding, Jozi traffic) without posts dated in the last 7 days
+      - Gives momentum words ("blowing up", "viral") with no count or baseline
+      - Ranks conversations by how often the model has heard of them instead of by measured volume or growth
+    min_evidence:
+      posts: 9
+      platforms: 2
+      creators: 6
+      summary: At least 3 cited posts per conversation (9 in total) from 2 or more platforms and 6 or more distinct accounts, all dated in the last 7 days.
+
+- description: "RISE-02 | rising | NG | last 21 days"
+  metadata: {family: rising, markets: NG, answerability: answerable}
+  vars:
+    id: RISE-02
+    family: rising
+    markets: [NG]
+    window: last 21 days, against the 28 days before
+    window_days: 49
+    expected_answerability: answerable
+    question: >-
+      Which new slang or catchphrases have started showing up across Nigerian
+      X and TikTok in the last three weeks? And which of them have already
+      jumped from skits into brand posts or news headlines?
+    great_answer_must:
+      - Names each phrase with its first appearance in the data (date, platform, account) and its growth since
+      - Explains the meaning and origin of each phrase from the posts themselves (the skit, song or incident it came from), labelling any interpretation as inferred
+      - Shows, with cited posts, which phrases have been picked up by brand accounts or news outlets, and which have not
+      - Gives a view on shelf life (still climbing, peaking, fading) based on the daily trend, not on instinct
+    fails_if:
+      - Lists established Nigerian slang from general knowledge as new
+      - Claims a brand used a phrase without citing the brand's post
+      - Gives a phrase's origin story with no post that shows it
+    min_evidence:
+      posts: 8
+      platforms: 2
+      creators: 6
+      required_platforms: [x, tiktok]
+      summary: At least 8 cited posts from X and TikTok (both present) and 6 or more accounts, with posts dated in the last 21 days for every phrase called new, plus a cited brand or news post for every claimed crossover.
+
+- description: "WHY-03 | why | KE | last 30 days"
+  metadata: {family: why, markets: KE, answerability: answerable}
+  vars:
+    id: WHY-03
+    family: why
+    markets: [KE]
+    window: last 30 days
+    window_days: 30
+    expected_answerability: answerable
+    question: >-
+      AFCON 2027 qualifiers kicked off on 21 September and Kenya is co-hosting
+      the tournament with Uganda and Tanzania. Is excitement or cynicism
+      winning in Kenyan posts about it right now, and what's driving that?
+    great_answer_must:
+      - Gives a measured balance of excitement against cynicism from the collected posts, with the sample size and how posts were classified
+      - Names the specific drivers of each side (for example Harambee Stars results, stadium readiness, costs, ticketing), each with cited posts
+      - Shows which platforms and communities carry which side (football fan pages, Sheng comedy, news comment sections, political accounts)
+      - Separates what happened (fixtures, official statements, cited as news) from how people reacted
+      - Tells a brand whether now is the moment to attach itself to Pamoja AFCON or to wait
+    fails_if:
+      - States Kenyan sentiment on AFCON from general knowledge of the hosting bid without posts in the window
+      - Reports a sentiment split with no count behind it
+      - Presents facts about stadium progress without a dated news source
+    min_evidence:
+      posts: 8
+      platforms: 2
+      creators: 6
+      summary: At least 8 cited posts from 2 or more platforms (news counts as one) and 6 or more accounts, dated in the last 30 days, with at least 2 posts per side of the balance.
+
+- description: "SPR-03 | spread | ZA, KE | last 60 days"
+  metadata: {family: spread, markets: "ZA,KE", answerability: answerable}
+  vars:
+    id: SPR-03
+    family: spread
+    markets: [ZA, KE]
+    window: last 60 days
+    window_days: 60
+    expected_answerability: answerable
+    question: >-
+      Is amapiano still spreading in Kenya? Which Kenyan creators and DJs are
+      posting it in the last couple of months, and is it being localised
+      (Sheng or Swahili lyrics, local dance moves, Kenyan collaborations) or
+      just imported as is?
+    great_answer_must:
+      - Shows amapiano-tagged or amapiano-sounding content from Kenyan accounts in the window, with counts and the trend (growing, flat, fading) against an earlier period
+      - Names specific Kenyan creators, DJs or events, with cited posts
+      - Gives evidence of localisation (lyrics, dance, collaborations with South African artists) or says it found little, with examples either way
+      - Says how the Kenyan amapiano scene sits alongside local genres (gengetone, Kenyan drill, Arbantone) in the data, if it can
+      - Tells a brand whether amapiano is a bridge to Kenyan audiences or a borrowed sound
+    fails_if:
+      - Relies on the general story of amapiano's continental spread without Kenyan posts in the window
+      - Lists South African artists as if they were Kenyan creators
+      - Uses the growth of amapiano in ZA as evidence for KE
+    min_evidence:
+      posts: 7
+      platforms: 2
+      creators: 5
+      per_market: 1
+      summary: At least 7 cited posts, 5 or more of them from Kenyan accounts, from 2 or more platforms and 5 or more accounts, dated in the last 60 days.
+
+- description: "CRE-01 | creators | NG | last 30 days"
+  metadata: {family: creators, markets: NG, answerability: answerable}
+  vars:
+    id: CRE-01
+    family: creators
+    markets: [NG]
+    window: last 30 days
+    window_days: 30
+    expected_answerability: answerable
+    question: >-
+      Who are the mid-sized Nigerian creators (not the big skit makers)
+      driving food and home-cooking content right now? What formats are they
+      using, and how do their comment sections behave?
+    great_answer_must:
+      - Names at least four specific accounts with platform, rough follower tier as observed, and recent cited posts
+      - Describes the formats they share (for example market-run vlogs, budget meal series, regional dish explainers, recipe duets) with examples
+      - Characterises the comment sections from the comments themselves (requests, debates, regional pride, price talk), citing comments or post records
+      - Describes the community by language, region, interest and creator type only, and says the list is what 42 collected, not a census
+      - Suggests how a brand could work with this tier (formats that fit, what would feel like an ad)
+    fails_if:
+      - Names creators from general knowledge who have not posted food content in the window
+      - Gives follower counts or engagement rates that are not in the cited records
+      - Describes the creators' audiences by age, gender split or income
+    min_evidence:
+      posts: 8
+      platforms: 2
+      creators: 4
+      summary: At least 8 cited posts from 2 or more platforms by 4 or more named creators, each creator with at least one post dated in the last 30 days.
+
+- description: "BRD-01 | brand | ZA | last 30 days"
+  metadata: {family: brand, markets: ZA, answerability: answerable}
+  vars:
+    id: BRD-01
+    family: brand
+    markets: [ZA]
+    window: last 30 days
+    window_days: 30
+    expected_answerability: answerable
+    question: >-
+      How are South African fast-food chicken brands (Nando's, Chicken Licken
+      and KFC are the obvious examples) showing up in organic conversation this
+      month? Which moments are people crediting them for, where are they
+      getting dragged, and where's the gap for a challenger?
+    great_answer_must:
+      - Separates brand-owned posts from organic mentions, and reports organic mentions with cited posts
+      - Names specific moments of praise and specific complaints for each brand discussed, each with cited posts
+      - Says where the data is thin for a brand rather than filling it with the brand's reputation for topical advertising
+      - Identifies a cultural tension or unclaimed territory in the category that a challenger could own, labelled as inferred and tied to evidence
+      - Flags any authenticity concerns (paid posts, giveaway-driven spikes)
+    fails_if:
+      - Recites famous past campaigns as if they were current conversation
+      - Counts brand-owned or paid posts as organic sentiment
+      - Gives share-of-voice percentages without the counts and sample
+    min_evidence:
+      posts: 9
+      platforms: 2
+      creators: 7
+      summary: At least 9 cited organic posts from 2 or more platforms and 7 or more non-brand accounts, dated in the last 30 days, with at least 2 per brand discussed.
+
+- description: "CMP-01 | compare | ZA, NG, KE | last 30 days"
+  metadata: {family: compare, markets: "ZA,NG,KE", answerability: answerable}
+  vars:
+    id: CMP-01
+    family: compare
+    markets: [ZA, NG, KE]
+    window: last 30 days
+    window_days: 30
+    expected_answerability: answerable
+    question: >-
+      Compare how football fan culture and banter show up in South Africa,
+      Nigeria and Kenya over the last month: platforms, formats, tone,
+      local-league versus Premier League talk. Don't tell me one market "cares
+      more" unless the data can actually support that.
+    great_answer_must:
+      - Compares the three markets on the same measures (dominant platforms, formats, tone, local-league against European-league share of sampled posts) with cited posts from each
+      - States how much was collected per market and why volumes cannot be read as prevalence, and avoids ranking passion or size
+      - Names market-specific texture (for example PSL and Soweto derby talk, Super Eagles and Nigerian Premier League talk, Harambee Stars and FKF talk) with evidence
+      - Identifies one shared format a pan-African brand could use and one thing that only works in a single market
+    fails_if:
+      - Says one market is more football-mad based on raw post counts
+      - Fills a market with stereotypes (for example "Nigerians love Arsenal") without cited posts
+      - Cites posts for only one or two of the three markets
+    min_evidence:
+      posts: 9
+      platforms: 2
+      creators: 7
+      per_market: 3
+      summary: At least 3 cited posts per market (9 in total) from 2 or more platforms and 7 or more accounts, dated in the last 30 days, plus the collection volume per market.
+
+- description: "HIS-02 | history | NG | Independence 2024, 2025 and now"
+  metadata: {family: history, markets: NG, answerability: answerable}
+  vars:
+    id: HIS-02
+    family: history
+    markets: [NG]
+    window: around 1 October in 2024 and 2025, and the last 14 days
+    window_days: 750
+    expected_answerability: answerable
+    question: >-
+      Every 1 October there's a "what exactly are we celebrating" wave on
+      Nigerian social. How did it play out around Independence in 2024 and
+      2025, and based on that, what should we expect this week?
+    great_answer_must:
+      - Shows the 2024 and 2025 episodes with dated posts, the peak day, the main formats and what the wave was reacting to each year
+      - Uses only information available at each point when describing what signalled each wave in advance
+      - Compares the last 14 days with the same pre-Independence days in 2024 and 2025, with counts
+      - Gives a bounded expectation for this week (labelled as a forecast, with confidence and what would change it), and notes how the election campaign may alter the pattern
+    fails_if:
+      - Describes past years from memory without cited posts from those years
+      - Presents the forecast as an observation
+      - Uses hindsight knowledge to claim a past wave was predictable
+    min_evidence:
+      posts: 9
+      platforms: 2
+      creators: 7
+      summary: At least 3 cited posts from each of the 2024 window, the 2025 window and the last 14 days (9 in total) from 2 or more platforms and 7 or more accounts.
+
+- description: "AUT-01 | authenticity | NG | last 14 days"
+  metadata: {family: authenticity, markets: NG, answerability: answerable}
+  vars:
+    id: AUT-01
+    family: authenticity
+    markets: [NG]
+    window: last 14 days
+    window_days: 14
+    expected_answerability: answerable
+    question: >-
+      There's a lot of paid-influencer noise in the campaign. In the last two
+      weeks, which trending Nigerian political hashtags show signs of
+      coordination (near-identical posts, synchronised timing, new or
+      single-purpose accounts), and which look organic? I need this before any
+      brand goes near those conversations.
+    great_answer_must:
+      - Assesses named hashtags against stated authenticity indicators, with the measured values (share of near-duplicate text, posting-time clustering, share of recently created or single-topic accounts) and cited example posts
+      - Labels each hashtag as flagged, mixed or organic-looking with confidence, and does not call anything a bot network without the indicators to back it
+      - Stays neutral about which party or candidate benefits
+      - Gives a practical brand rule (for example do not reply to or trend-jack flagged tags, keep scheduled posts off peak push times) tied to the findings
+    fails_if:
+      - Alleges a named person or party is paying for coordination without evidence
+      - Calls accounts bots from content alone, with no behavioural indicator
+      - Assesses hashtags from outside the window
+    min_evidence:
+      posts: 8
+      platforms: 1
+      creators: 8
+      summary: At least 8 cited posts by 8 or more distinct accounts from the last 14 days, with the authenticity indicator values stated for every hashtag assessed.
+
+- description: "FWD-02 | forward | ZA, NG, KE | last 14 days, two-week horizon"
+  metadata: {family: forward, markets: "ZA,NG,KE", answerability: answerable}
+  vars:
+    id: FWD-02
+    family: forward
+    markets: [ZA, NG, KE]
+    window: last 14 days, forecasting two weeks ahead
+    window_days: 14
+    expected_answerability: answerable
+    question: >-
+      Of the things rising in the last two weeks across South Africa, Nigeria
+      and Kenya, which do you expect to still be growing two weeks from now,
+      and why? Give me a confidence level and tell me what baseline you're
+      beating.
+    great_answer_must:
+      - Names specific rising items per market with measured growth, cited posts and lifecycle stage
+      - Gives a forecast for each (keeps growing, peaks, fades) with a confidence level and the reason, compared against the persistence baseline (what rose last week keeps rising)
+      - Says why it expects to beat the baseline for any item where it departs from it, citing analogues from stored history
+      - Logs each forecast in a checkable form (item, market, measure, horizon date)
+      - Covers all three markets, or says which market lacked rising items and why
+    fails_if:
+      - Forecasts without naming the baseline or a confidence level
+      - Uses the model's general expectations about Afrobeats or amapiano instead of measured growth
+      - Gives forecasts that cannot be checked in two weeks
+    min_evidence:
+      posts: 9
+      platforms: 2
+      creators: 7
+      per_market: 3
+      summary: At least 3 cited posts per market (9 in total) from 2 or more platforms and 7 or more accounts, dated in the last 14 days, with growth figures for every forecast item.

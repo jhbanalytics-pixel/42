@@ -1,0 +1,51 @@
+{
+  "fieldwork": {
+    "contract_version": "fieldwork_workspace_v2",
+    "workspace_state": "ready",
+    "source_operations": [],
+    "research_operations": [
+      {
+        "operation_id": "gq_00000000000000000000000000000001",
+        "kind": "research",
+        "operation_type": "general_question",
+        "entity_id": "00000000-0000-4000-8000-000000000001",
+        "title": "Retained question operation",
+        "status": "unconfirmed",
+        "market_scope": ["za"],
+        "evidence_readiness": "unchecked",
+        "updated_at": "2026-09-05T10:00:00Z",
+        "gaps": ["Execution is unconfirmed, so no terminal answer is recorded."],
+        "next_operation": {
+          "action": "open_question_request",
+          "entity_id": "00000000-0000-4000-8000-000000000001",
+          "label": "Open question",
+          "available": true,
+          "reason": null
+        }
+      }
+    ],
+    "research_operation_count": 1,
+    "research_operations_truncated": false,
+    "operation_summary": {
+      "count_state": "complete",
+      "total": 1,
+      "known_total": 1,
+      "known_by_status": {
+        "planned": 0,
+        "running": 0,
+        "unconfirmed": 1,
+        "complete": 0,
+        "partial": 0,
+        "needs_clarification": 0,
+        "refused": 0,
+        "held": 0,
+        "killed": 0,
+        "unavailable": 0
+      }
+    },
+    "operation_coverage": {},
+    "budget_summary": {"state": "unavailable"},
+    "freshness": null,
+    "unavailable_inputs": []
+  }
+}

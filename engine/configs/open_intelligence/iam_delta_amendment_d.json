@@ -1,0 +1,1517 @@
+{
+  "approval": {
+    "applied": false,
+    "approved_at": "2026-09-20T20:12:32+00:00",
+    "approved_by": "Albert Meintjes, in the session chat, document 36b26fca392ed3267e67419ed03adcbd242fa4714008bc85e96ea6284533031c; amendment b PROVISIONING_DELTA_AMENDMENT_B_APPROVAL_20260914.json, document ea2579481ab074ce175f14e34db9e799d60ffc546ed3a8bd675e6f79bcf194df; amendment c PROVISIONING_DELTA_AMENDMENT_C_APPROVAL_20260914.json, document 3dce68ab20ecb238e10e15ea3e80bc962edb038d0d1f222e7e4ef72a7989e6ca; amendment d PROVISIONING_DELTA_AMENDMENT_D_APPROVAL_20260920.json, document 35023bcfc88eae60fe042e053dcf558a4bc375d2de881f8ff8a5543f61e9d13f",
+    "state": "approved"
+  },
+  "bindings": [
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: successor-brain-read.json binds brain_read to trends_v2_staging; brain_read is a read operation, so dataViewer rather than dataEditor",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: every v2 execution consumes its approval and records its result through sp_consume_open_intelligence_execution_v2; routine scope only, mirroring the retained v1 routine-level pattern; no dataset-level grant on trends_v2_staging_approvals, so no reach to legacy v1 routines",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: execution_approval.py _default_approval_reader reads the approval through sp_read_open_intelligence_execution_approval_v2 via _runtime_query before consumption; the v1 map gave each principal this reader too; routine scope only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: brain_read reads capture and recurring grant approvals through sp_read_open_intelligence_execution_approval_v3 as it reads through the v2 routine; routine scope grants routines.get on that routine only (amendment c)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v3",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: execution_approval.py _default_result_reader reads the result back through sp_read_open_intelligence_execution_result_v2 on both the first and the retried write path of _record_execution_result_impl; routine scope only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: every v2 execution consumes its approval and records its result through sp_record_open_intelligence_execution_result_v2; routine scope only, mirroring the retained v1 routine-level pattern; no dataset-level grant on trends_v2_staging_approvals, so no reach to legacy v1 routines",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest_precedent: job creation only, no data access; bigquery.jobs.create is a project permission and dataset roles alone cannot run a query; precedent is the twelve existing runtime identities holding roles/bigquery.jobUser at project level in r03-project-iam-readback-0805.json; eleven 42 identities receive it, price policy excluded because no consumer runs a BigQuery job",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "roles/bigquery.jobUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the runtime loader reads its own execution and job through run.googleapis.com (_default_execution_reader keyed off CLOUD_RUN_JOB and CLOUD_RUN_EXECUTION); run.viewer on intelligence-42-brain-staging only; precedent r03-legacy-quiescence-iam-map.md L31, resource-level roles/run.viewer on the legacy jobs",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-brain-staging",
+      "role": "roles/run.viewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-build@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: build publishes engine and app images only to the approved repository intelligence-42; repository scope, not project wide",
+      "resource": "//artifactregistry.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/repositories/intelligence-42",
+      "role": "roles/artifactregistry.writer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-build@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: a build that runs as a user managed service account must write its build log and Logging offers no scope narrower than the project; mirrors the existing cloudbuild-deployer binding in r03-native-project-iam.json",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "roles/logging.logWriter"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy resolves and reads back the pinned image digest in intelligence-42 before and after a release; repository scope",
+      "resource": "//artifactregistry.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/repositories/intelligence-42",
+      "role": "roles/artifactregistry.reader"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: release readback records queue state and audience before and after activation without changing the queue",
+      "resource": "//cloudtasks.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/queues/oi-general-question-staging",
+      "role": "roles/cloudtasks.viewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-apply to job intelligence-42-apply-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-apply@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-brain to job intelligence-42-brain-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-exposure to job intelligence-42-exposure-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-exposure@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-freshness to job intelligence-42-freshness-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-freshness@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-funded to job intelligence-42-funded-pilot-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-ingest to job intelligence-42-ingest-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-ingest@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-migration to job intelligence-42-migration-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-orchestration to job intelligence-42-daily-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-price-policy to job intelligence-42-price-policy-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-proof to job intelligence-42-proof-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-proof@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches intelligence-42-release to job intelligence-42-release-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-release@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: deploy attaches listening-post-staging to service listening-post-staging; actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-apply-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-apply-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-brain-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-brain-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-daily-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-exposure-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-exposure-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-freshness-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-freshness-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-funded-pilot-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-ingest-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-ingest-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-migration-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-migration-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-price-policy-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-price-policy-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-proof-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-proof-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the approved staging job intelligence-42-release-staging; job scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-release-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: deploy alters the staging service listening-post-staging; service scope, not project wide",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/services/listening-post-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-freshness@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the monitor reads 42 source state; read only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/intelligence_42_sources_staging",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-freshness@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the monitor reads 42 release state; read only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-freshness@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest_precedent: job creation only, no data access; bigquery.jobs.create is a project permission and dataset roles alone cannot run a query; precedent is the twelve existing runtime identities holding roles/bigquery.jobUser at project level in r03-project-iam-readback-0805.json; eleven 42 identities receive it, price policy excluded because no consumer runs a BigQuery job",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "roles/bigquery.jobUser"
+    },
+    {
+      "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/listening-post-staging-cache/objects/intelligence-42/staging/freshness/alerts/')",
+      "member": "serviceAccount:intelligence-42-freshness@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: operator alert sink, write side, under the prefix intelligence-42/staging/freshness/alerts/ in the existing evidence bucket; amendment a of R03_DECISIONS_APPROVAL_20260913.json approved the sink for the freshness identity only; the manifest grammar admits bucket names only, so the prefix is carried as this condition on the bucket row",
+      "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+      "role": "roles/storage.objectCreator"
+    },
+    {
+      "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json'",
+      "member": "serviceAccount:intelligence-42-freshness@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the monitor reports expired question pricing, which it reads from the exact staging allowance ledger object",
+      "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+      "role": "roles/storage.objectViewer"
+    },
+    {
+      "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/listening-post-staging-cache/objects/intelligence-42/staging/freshness/alerts/')",
+      "member": "serviceAccount:intelligence-42-freshness@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: operator alert sink, read side, so the monitor can read back the alerts it wrote under intelligence-42/staging/freshness/alerts/; amendment a of R03_DECISIONS_APPROVAL_20260913.json approved write and read for the freshness identity only; carried as a condition on the bucket row for the same reason as the write side",
+      "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+      "role": "roles/storage.objectViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: successor-wave1-pilot.json binds wave1_pilot to trends_v2_staging; the operation writes evidence, so dataEditor on that dataset only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+      "role": "roles/bigquery.dataEditor"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: every v2 execution consumes its approval and records its result through sp_consume_open_intelligence_execution_v2; routine scope only, mirroring the retained v1 routine-level pattern; no dataset-level grant on trends_v2_staging_approvals, so no reach to legacy v1 routines",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: execution_approval.py _default_approval_reader reads the approval through sp_read_open_intelligence_execution_approval_v2 via _runtime_query before consumption; the v1 map gave each principal this reader too; routine scope only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: wave1_pilot reads capture and recurring grant approvals through sp_read_open_intelligence_execution_approval_v3 as it reads through the v2 routine; routine scope grants routines.get on that routine only (amendment c)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v3",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: execution_approval.py _default_result_reader reads the result back through sp_read_open_intelligence_execution_result_v2 on both the first and the retried write path of _record_execution_result_impl; routine scope only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: every v2 execution consumes its approval and records its result through sp_record_open_intelligence_execution_result_v2; routine scope only, mirroring the retained v1 routine-level pattern; no dataset-level grant on trends_v2_staging_approvals, so no reach to legacy v1 routines",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: successor-wave1-pilot.json binds wave1_pilot to trends_v2_staging_funded; the operation writes evidence, so dataEditor on that dataset only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_funded",
+      "role": "roles/bigquery.dataEditor"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest_precedent: job creation only, no data access; bigquery.jobs.create is a project permission and dataset roles alone cannot run a query; precedent is the twelve existing runtime identities holding roles/bigquery.jobUser at project level in r03-project-iam-readback-0805.json; eleven 42 identities receive it, price policy excluded because no consumer runs a BigQuery job",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "roles/bigquery.jobUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the runtime loader reads its own execution and job through run.googleapis.com (_default_execution_reader keyed off CLOUD_RUN_JOB and CLOUD_RUN_EXECUTION); run.viewer on intelligence-42-funded-pilot-staging only; precedent r03-legacy-quiescence-iam-map.md L31, resource-level roles/run.viewer on the legacy jobs",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging",
+      "role": "roles/run.viewer"
+    },
+    {
+      "condition": "resource.type == 'secretmanager.googleapis.com/SecretVersion' && resource.name == 'projects/590353929363/secrets/SOCIALCRAWL_OGILVY_API_KEY/versions/1'",
+      "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: successor-wave1-pilot.json lists SOCIALCRAWL_OGILVY_API_KEY as the only secret of wave1_pilot; the condition pins version 1 because Secret Manager attaches IAM to the secret, not the version",
+      "resource": "//secretmanager.googleapis.com/projects/ogilvy-trends-v2/secrets/SOCIALCRAWL_OGILVY_API_KEY/versions/1",
+      "role": "roles/secretmanager.secretAccessor"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-ingest@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: ingestion writes only the source dataset intelligence_42_sources_staging (C01: new collection and normalization only)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/intelligence_42_sources_staging",
+      "role": "roles/bigquery.dataEditor"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-ingest@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest_precedent: job creation only, no data access; bigquery.jobs.create is a project permission and dataset roles alone cannot run a query; precedent is the twelve existing runtime identities holding roles/bigquery.jobUser at project level in r03-project-iam-readback-0805.json; eleven 42 identities receive it, price policy excluded because no consumer runs a BigQuery job",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "roles/bigquery.jobUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: successor-migration-exposure.json binds migration_apply to trends_v2_staging; the operation writes evidence, so dataEditor on that dataset only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+      "role": "roles/bigquery.dataEditor"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: every v2 execution consumes its approval and records its result through sp_consume_open_intelligence_execution_v2; routine scope only, mirroring the retained v1 routine-level pattern; no dataset-level grant on trends_v2_staging_approvals, so no reach to legacy v1 routines",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: execution_approval.py _default_approval_reader reads the approval through sp_read_open_intelligence_execution_approval_v2 via _runtime_query before consumption; the v1 map gave each principal this reader too; routine scope only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: migration_apply reads capture and recurring grant approvals through sp_read_open_intelligence_execution_approval_v3 as it reads through the v2 routine; routine scope grants routines.get on that routine only (amendment c)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v3",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: execution_approval.py _default_result_reader reads the result back through sp_read_open_intelligence_execution_result_v2 on both the first and the retried write path of _record_execution_result_impl; routine scope only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: every v2 execution consumes its approval and records its result through sp_record_open_intelligence_execution_result_v2; routine scope only, mirroring the retained v1 routine-level pattern; no dataset-level grant on trends_v2_staging_approvals, so no reach to legacy v1 routines",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest_precedent: job creation only, no data access; bigquery.jobs.create is a project permission and dataset roles alone cannot run a query; precedent is the twelve existing runtime identities holding roles/bigquery.jobUser at project level in r03-project-iam-readback-0805.json; eleven 42 identities receive it, price policy excluded because no consumer runs a BigQuery job",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "roles/bigquery.jobUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the runtime loader reads its own execution and job through run.googleapis.com (_default_execution_reader keyed off CLOUD_RUN_JOB and CLOUD_RUN_EXECUTION); run.viewer on intelligence-42-migration-staging only; precedent r03-legacy-quiescence-iam-map.md L31, resource-level roles/run.viewer on the legacy jobs",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-migration-staging",
+      "role": "roles/run.viewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: successor-source-snapshot-capture.json binds collection_exposure_issue, r3_apply, r3_proof_issue and r3_release to trends_v2_staging under the daily job since amendment d, and those operations write, so dataEditor on that dataset only; the coordinator's read only row stays beside it",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+      "role": "roles/bigquery.dataEditor"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the coordinator reads candidate and release state to decide what to dispatch; read only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the capture path's routines validate canonical JSON through fn_is_canonical_execution_json_v1; routine scope grants routines.get on that function only (amendment b)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/fn_is_canonical_execution_json_v1",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily job cancels a derivation it will not run (daily_execution_authority.py, cancel_derivation) through sp_cancel_open_intelligence_daily_derivation_v1 under the daily origin row; routine scope grants routines.get on that routine only (amendment d)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_cancel_open_intelligence_daily_derivation_v1",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily job consumes the selected derivation (daily_execution_authority.py, consume_derivation) through sp_consume_open_intelligence_daily_derivation_v1 under the daily origin row; routine scope grants routines.get on that routine only (amendment d)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_daily_derivation_v1",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: collection_exposure_issue, r3_apply, r3_proof_issue and r3_release consume their approvals through sp_consume_open_intelligence_execution_v2 under the daily origin row since amendment d; routine scope grants routines.get on that routine only; the capture operation keeps its own consume routine",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the capture path under the source_snapshot_capture origin consumes its plan through sp_consume_open_intelligence_source_snapshot_v2; routine scope grants routines.get on that routine only (amendment b)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_source_snapshot_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily job derives the daily execution (daily_execution_authority.py, derive_execution) through sp_derive_open_intelligence_daily_execution_v1 under the daily origin row; routine scope grants routines.get on that routine only (amendment d)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_derive_open_intelligence_daily_execution_v1",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily job reads the derivation chain back (daily_execution_authority.py L235) through sp_read_open_intelligence_daily_chain_v1 under the daily origin row; routine scope grants routines.get on that routine only (amendment d)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_daily_chain_v1",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily job reads a derivation back (daily_execution_authority.py L207) through sp_read_open_intelligence_daily_derivation_v1 under the daily origin row; routine scope grants routines.get on that routine only (amendment d)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_daily_derivation_v1",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the coordinator reads open approvals and results through sp_read_open_intelligence_execution_approval_v2; routine scope grants routines.get on that routine only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: source_snapshot_capture reads capture and recurring grant approvals through sp_read_open_intelligence_execution_approval_v3 as it reads through the v2 routine; routine scope grants routines.get on that routine only (amendment c)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v3",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the coordinator reads open approvals and results through sp_read_open_intelligence_execution_result_chain_v2; routine scope grants routines.get on that routine only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_chain_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the coordinator reads open approvals and results through sp_read_open_intelligence_execution_result_v2; routine scope grants routines.get on that routine only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily job records the daily result (daily_execution_authority.py, record_result) through sp_record_open_intelligence_daily_result_v1 under the daily origin row; routine scope grants routines.get on that routine only (amendment d)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_daily_result_v1",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the capture path records its result through sp_record_open_intelligence_execution_result_v2; routine scope grants routines.get on that routine only (amendment b)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v2",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily job selects the derivation to run (daily_execution_authority.py, select_derivation) through sp_select_open_intelligence_daily_derivation_v1 under the daily origin row; routine scope grants routines.get on that routine only (amendment d)",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_select_open_intelligence_daily_derivation_v1",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest_precedent: job creation only, no data access; bigquery.jobs.create is a project permission and dataset roles alone cannot run a query; precedent is the twelve existing runtime identities holding roles/bigquery.jobUser at project level in r03-project-iam-readback-0805.json; eleven 42 identities receive it, price policy excluded because no consumer runs a BigQuery job",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "roles/bigquery.jobUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily coordinator dispatches intelligence-42-apply-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-apply-staging",
+      "role": "roles/run.invoker"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily coordinator dispatches intelligence-42-brain-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-brain-staging",
+      "role": "roles/run.invoker"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the managed daily job reads back its own execution through run.googleapis.com under the source_snapshot_capture origin; run.viewer on intelligence-42-daily-staging only, the R05 verify-runtime readback (amendment b)",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+      "role": "roles/run.viewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily coordinator dispatches intelligence-42-exposure-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-exposure-staging",
+      "role": "roles/run.invoker"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily coordinator dispatches intelligence-42-freshness-staging; the manifest lists no separate scheduler for this job, so the coordinator is the only approved dispatcher; strike this row if a dedicated scheduler is added",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-freshness-staging",
+      "role": "roles/run.invoker"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily coordinator dispatches intelligence-42-funded-pilot-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging",
+      "role": "roles/run.invoker"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily coordinator dispatches intelligence-42-ingest-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-ingest-staging",
+      "role": "roles/run.invoker"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily coordinator dispatches intelligence-42-migration-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-migration-staging",
+      "role": "roles/run.invoker"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily coordinator dispatches intelligence-42-proof-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-proof-staging",
+      "role": "roles/run.invoker"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the daily coordinator dispatches intelligence-42-release-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-release-staging",
+      "role": "roles/run.invoker"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: the renewal sequence reads queue state and audience; no queue mutation",
+      "resource": "//cloudtasks.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/queues/oi-general-question-staging",
+      "role": "roles/cloudtasks.viewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: a new revision of listening-post-staging runs as the app identity, which requires actAs on that account only",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: R04 bounded same-image activation updates the staging service only; service scope; the single run.developer carve-out for a non deploy identity",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/services/listening-post-staging",
+      "role": "roles/run.developer"
+    },
+    {
+      "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json'",
+      "member": "serviceAccount:intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: replaces the exact allowance ledger object, mirroring the app identity's existing conditional grant; no time bound is proposed here, the existing app grant carries one",
+      "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+      "role": "projects/ogilvy-trends-v2/roles/QuestionControlReplace"
+    },
+    {
+      "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json'",
+      "member": "serviceAccount:intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "derived: reads the exact allowance ledger object before renewal",
+      "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+      "role": "roles/storage.objectViewer"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-qa@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: QA writes only trends_v2_staging_qa; no binding on trends_v2_staging, so QA reads nothing that ordinary evidence writers write",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_qa",
+      "role": "roles/bigquery.dataEditor"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-qa@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest_precedent: job creation only, no data access; bigquery.jobs.create is a project permission and dataset roles alone cannot run a query; precedent is the twelve existing runtime identities holding roles/bigquery.jobUser at project level in r03-project-iam-readback-0805.json; eleven 42 identities receive it, price policy excluded because no consumer runs a BigQuery job",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "roles/bigquery.jobUser"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-scheduler@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: the scheduler identity invokes the daily coordinator job; the price policy job is its only other target",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+      "role": "roles/run.invoker"
+    },
+    {
+      "condition": null,
+      "member": "serviceAccount:intelligence-42-scheduler@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "purpose": "manifest: the scheduler identity invokes the twelve hourly price policy job through the dedicated scheduler row that amendment a of R03_DECISIONS_APPROVAL_20260913.json added; the daily coordinator job is its only other target",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-price-policy-staging",
+      "role": "roles/run.invoker"
+    }
+  ],
+  "contract_version": "42_iam_delta_v1",
+  "create": [
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json",
+        "r03-native-artifact-repositories.json"
+      ],
+      "existence": "absent_by_native_discovery",
+      "note": "Artifact Registry repository for engine and app images; digests, not tags, identify execution inputs.",
+      "resource": "//artifactregistry.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/repositories/intelligence-42"
+    },
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json",
+        "r03-native-dataset-intelligence_42_sources_staging.json"
+      ],
+      "existence": "absent_by_native_discovery",
+      "note": "Source dataset, new collection and normalization only.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/intelligence_42_sources_staging"
+    },
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json",
+        "r03-native-connected-repositories.json"
+      ],
+      "existence": "absent_by_native_discovery",
+      "note": "Connected repository under the existing connection tev2-gh.",
+      "resource": "//cloudbuild.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/connections/tev2-gh/repositories/jhbanalytics-pixel-42-ogilvy-intelligence"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the build operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-build@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the deploy operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the execution_brain_read operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the execution_collection_exposure_issue operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-exposure@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the execution_migration_apply operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the execution_r3_apply operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-apply@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the execution_r3_proof_issue operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-proof@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the execution_r3_release operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-release@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the execution_wave1_pilot operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the freshness operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-freshness@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the ingestion operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-ingest@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the orchestration operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the price_policy operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the qa operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-qa@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Dedicated identity for the scheduler operation; not present in the native service account listing.",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-scheduler@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-apply-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-brain-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-exposure-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-freshness-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-ingest-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-migration-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-price-policy-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-proof-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-run-jobs.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Staging Cloud Run job; not present in the native job listing.",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-release-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-schedulers.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Daily scheduler invoking the coordinator through the scheduler identity; not present in the native scheduler listing.",
+      "resource": "//cloudscheduler.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_approve_open_intelligence_execution_v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_disable_open_intelligence_execution_approval_v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_chain_v2"
+    },
+    {
+      "evidence": [
+        "RUN/r03-cutover-inventory/tables/open_intelligence_execution_results_v1/page-001.json"
+      ],
+      "existence": "not_probed",
+      "note": "Create only if a fresh existence probe finds it absent; a retained result record from 2026-09-02 references objects under bootstrap/ in this bucket, so it is expected to be present.",
+      "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-schedulers.json"
+      ],
+      "existence": "absent_from_native_listing",
+      "note": "Twelve hourly price policy scheduler invoking its job through the scheduler identity; not present in the native scheduler listing. Row added by amendment a of R03_DECISIONS_APPROVAL_20260913.json.",
+      "resource": "//cloudscheduler.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-price-policy-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines. Row added by amendment a of R03_DECISIONS_APPROVAL_20260913.json.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/fn_is_canonical_execution_json_v1"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_source_snapshot_v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_approve_open_intelligence_execution_v3"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the R03 Step 4 v2 SQL installation under its own approval, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v3"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the apply-v2 SQL installation under amendment d, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_approve_open_intelligence_recurring_grant_v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the apply-v2 SQL installation under amendment d, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_recurring_grant_v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the apply-v2 SQL installation under amendment d, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_disable_open_intelligence_recurring_grant_v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the apply-v2 SQL installation under amendment d, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_derive_open_intelligence_daily_execution_v1"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the apply-v2 SQL installation under amendment d, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_select_open_intelligence_daily_derivation_v1"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the apply-v2 SQL installation under amendment d, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_daily_derivation_v1"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the apply-v2 SQL installation under amendment d, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_cancel_open_intelligence_daily_derivation_v1"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the apply-v2 SQL installation under amendment d, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_daily_derivation_v1"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the apply-v2 SQL installation under amendment d, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_daily_chain_v1"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "existence": "not_probed",
+      "note": "Installed by the apply-v2 SQL installation under amendment d, not by IAM provisioning; the native dataset access list names only v1 routines.",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_daily_result_v1"
+    }
+  ],
+  "existing": [
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json"
+      ],
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/services/listening-post-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json"
+      ],
+      "resource": "//cloudtasks.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/queues/oi-general-question-staging"
+    },
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json"
+      ],
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging"
+    },
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json"
+      ],
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals"
+    },
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json"
+      ],
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_qa"
+    },
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json"
+      ],
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_funded"
+    },
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json"
+      ],
+      "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache"
+    },
+    {
+      "evidence": [
+        "r03-native-discovery-summary.json"
+      ],
+      "resource": "//secretmanager.googleapis.com/projects/ogilvy-trends-v2/secrets/ui-passcode-staging/versions/2"
+    },
+    {
+      "evidence": [
+        "r03-funded-secret-versions.json"
+      ],
+      "resource": "//secretmanager.googleapis.com/projects/ogilvy-trends-v2/secrets/SOCIALCRAWL_OGILVY_API_KEY/versions/1"
+    },
+    {
+      "evidence": [
+        "r03-native-service-accounts.json"
+      ],
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "evidence": [
+        "r03-native-build-connections.json"
+      ],
+      "resource": "//cloudbuild.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/connections/tev2-gh"
+    },
+    {
+      "evidence": [
+        "r03-native-build-connections.json"
+      ],
+      "resource": "//cloudbuild.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1"
+    },
+    {
+      "evidence": [
+        "r03-native-project.json"
+      ],
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_disable_open_intelligence_execution_approval_v1"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v1"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_chain_v1"
+    },
+    {
+      "evidence": [
+        "r03-native-dataset-trends_v2_staging_approvals.json"
+      ],
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v1"
+    }
+  ],
+  "must_not_grant": [
+    {
+      "applies_to": "every service identity; the human operator may still invoke it",
+      "reason": "legacy v1 approval disable; a mutating routine the manifest keeps invokable for the human operator only",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_disable_open_intelligence_execution_approval_v1"
+    },
+    {
+      "applies_to": "every manifest identity",
+      "reason": "legacy v1 approval issuance; new approvals go only through the approved v2 map",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_approve_open_intelligence_execution_v1"
+    },
+    {
+      "applies_to": "every manifest identity",
+      "reason": "legacy v1 consumption; a direct call would bypass v2 mode selection",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v1"
+    },
+    {
+      "applies_to": "every manifest identity",
+      "reason": "legacy v1 source snapshot consumption; not part of the 42 execution surface",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_source_snapshot_v1"
+    },
+    {
+      "applies_to": "every manifest identity",
+      "reason": "legacy bootstrap import; no direct caller grant exists natively and none is added",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_import_open_intelligence_execution_bootstrap_v1"
+    },
+    {
+      "applies_to": "every manifest identity",
+      "reason": "legacy v1 result write; v2 results are recorded only through sp_record_open_intelligence_execution_result_v2",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v1"
+    }
+  ],
+  "origin_registry_sha256": "d67a0f738b25fbf95bc7e79d376a5043b95ed49c600f083771a6566f2b6fc179",
+  "project": "ogilvy-trends-v2",
+  "project_number": "590353929363",
+  "proof_obligations": [
+    {
+      "statement": "The release and proof rows on sp_read_open_intelligence_execution_result_chain_v2 are correct only once the P3 caller slices move release_open_intelligence_run.py (L198, L517 to L518) and issue_r3_execution_proof.py (L136) from the v1 chain reader to sp_read_open_intelligence_execution_result_chain_v2. Step 6 must verify that by a readback of the caller code at the candidate commit before the first native run; until then a native run of release or proof would call the v1 reader and fail on permission.",
+      "topic": "chain_reader_v2_callers"
+    },
+    {
+      "statement": "Secret Manager attaches IAM to the secret, not the version. The version pin on SOCIALCRAWL_OGILVY_API_KEY is expressed as a resource.name condition on the secret. Step 6 readback must prove native acceptance of that condition and that the job references the version by number so resource.name is evaluable.",
+      "topic": "secret_version_condition"
+    }
+  ],
+  "region": "us-central1",
+  "resource_manifest_sha256": "ee809a4e81dec5242ea71ddd703990c5e0a9e237613e11135e069be0ea51ad96",
+  "retained": [
+    {
+      "condition": null,
+      "finding": null,
+      "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "readback": "r03-native-dataset-trends_v2_staging.json",
+      "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "condition": null,
+      "finding": null,
+      "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "readback": "r03-native-project-iam.json",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "projects/ogilvy-trends-v2/roles/QuestionQuotaUse"
+    },
+    {
+      "condition": "request.time < timestamp('2026-09-30T23:59:59Z')",
+      "finding": null,
+      "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "readback": "r03-native-project-iam.json",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "projects/ogilvy-trends-v2/roles/QuestionVertexPredict"
+    },
+    {
+      "condition": null,
+      "finding": null,
+      "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "readback": "r03-native-project-iam.json",
+      "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+      "role": "roles/bigquery.jobUser"
+    },
+    {
+      "condition": null,
+      "finding": null,
+      "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "readback": "r03-native-queue-iam.json",
+      "resource": "//cloudtasks.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/queues/oi-general-question-staging",
+      "role": "projects/ogilvy-trends-v2/roles/QuestionTaskDelivery"
+    },
+    {
+      "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json' && request.time < timestamp('2026-09-30T23:59:59Z')",
+      "finding": "existing_broad_grant: conditional exact ledger replace with a time bound outside this delta's condition allowlist",
+      "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "readback": "r03-native-evidence-bucket-iam.json",
+      "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+      "role": "projects/ogilvy-trends-v2/roles/QuestionControlReplace"
+    },
+    {
+      "condition": null,
+      "finding": "existing_broad_grant: whole-bucket object creation, not isolated to a 42 staging prefix",
+      "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "readback": "r03-native-evidence-bucket-iam.json",
+      "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+      "role": "roles/storage.objectCreator"
+    },
+    {
+      "condition": null,
+      "finding": "existing_broad_grant: whole-bucket object read, not isolated to a 42 staging prefix",
+      "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "readback": "r03-native-evidence-bucket-iam.json",
+      "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+      "role": "roles/storage.objectViewer"
+    },
+    {
+      "condition": null,
+      "finding": null,
+      "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "readback": "r03-native-app-identity-iam.json",
+      "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "condition": null,
+      "finding": null,
+      "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "readback": "r03-native-passcode-iam.json",
+      "resource": "//secretmanager.googleapis.com/projects/ogilvy-trends-v2/secrets/ui-passcode-staging",
+      "role": "roles/secretmanager.secretAccessor"
+    }
+  ],
+  "routine_authorizations": [
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_approve_open_intelligence_execution_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_disable_open_intelligence_execution_approval_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataViewer",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataViewer",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataViewer",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_chain_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataViewer",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/fn_is_canonical_execution_json_v1"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_source_snapshot_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_approve_open_intelligence_execution_v3"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataViewer",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v3"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_approve_open_intelligence_recurring_grant_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataViewer",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_recurring_grant_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_disable_open_intelligence_recurring_grant_v2"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_derive_open_intelligence_daily_execution_v1"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataViewer",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_select_open_intelligence_daily_derivation_v1"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_daily_derivation_v1"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_cancel_open_intelligence_daily_derivation_v1"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataViewer",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_daily_derivation_v1"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataViewer",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_daily_chain_v1"
+    },
+    {
+      "dataset": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals",
+      "role": "roles/bigquery.routineDataEditor",
+      "routine": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_daily_result_v1"
+    }
+  ],
+  "unresolved": [
+    {
+      "members": [
+        "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "serviceAccount:intelligence-42-scheduler@ogilvy-trends-v2.iam.gserviceaccount.com"
+      ],
+      "statement": "Cloud Scheduler has no job-level IAM. Creating or updating intelligence-42-daily-staging or intelligence-42-price-policy-staging through the deploy identity would need project-level roles/cloudscheduler.admin, which reaches the production schedulers. No scheduler binding is proposed and the deploy identity holds no actAs on the scheduler account; the operator who creates the two scheduler jobs is the principal that needs roles/iam.serviceAccountUser (actAs) on intelligence-42-scheduler, and that grant is made to the operator at provisioning time, as decision c of R03_DECISIONS_APPROVAL_20260913.json records.",
+      "topic": "cloud_scheduler_job_iam"
+    },
+    {
+      "members": [],
+      "statement": "No manifest identity is bound to ogilvy-trends-v2-execution-approvals-staging. The retained bootstrap proof shows bootstrap/manifests, bootstrap/signatures and bootstrap/locks written through the legacy bootstrap path. Assign a v2 writer only when the v2 approval flow names one.",
+      "topic": "execution_approvals_bucket"
+    },
+    {
+      "members": [],
+      "statement": "The caller of sp_approve_open_intelligence_execution_v2 and sp_disable_open_intelligence_execution_approval_v2 is a human principal outside the manifest identities; review_auth is prepared, not enrolled. No binding is proposed.",
+      "topic": "human_approver"
+    },
+    {
+      "members": [
+        "serviceAccount:intelligence-42-ingest@ogilvy-trends-v2.iam.gserviceaccount.com"
+      ],
+      "statement": "No engine script is yet bound to intelligence-42-ingest-staging, and the existing connectors read secrets outside the manifest; the only manifest secret, SOCIALCRAWL_OGILVY_API_KEY, is bound to the funded pilot per successor-wave1-pilot.json. The decision is what 42 staging ingestion collects; the manifest must move first, adding the secret version rows, before this file can carry those bindings.",
+      "topic": "ingestion_source_credentials"
+    },
+    {
+      "members": [
+        "serviceAccount:intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "serviceAccount:intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com"
+      ],
+      "statement": "The runtime loader reads its build through cloudbuild.googleapis.com (_default_build_reader), which needs cloudbuild.builds.get, and Cloud Build offers that only at project scope as roles/cloudbuild.builds.viewer. Native precedent: eight legacy execution identities hold roles/cloudbuild.builds.viewer at project level in r03-project-iam-readback-0805.json. The recommendation is that Albert extend the project-level exception class to that role for the seven execution identities. No binding rows are added and the validator exception class is not widened until that decision is recorded. Since amendment d the daily job runs collection_exposure_issue, r3_apply, r3_proof_issue and r3_release under intelligence-42-orchestration, so that account joins the members and the four retired accounts leave them.",
+      "topic": "cloudbuild_builds_viewer"
+    },
+    {
+      "members": [
+        "serviceAccount:intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com"
+      ],
+      "statement": "roles/run.developer on listening-post-staging carries run.services.update and run.services.setIamPolicy and run.services.delete alongside get; the plan asks for describe and update only. A custom role limited to run.services.get, run.services.update, run.revisions.get, run.revisions.list and run.operations.get would fit, but the reviewed manifest has no custom role row for it and this file binds only manifest rows, so run.developer stays with its breadth stated in the document. A custom role needs a manifest row first.",
+      "topic": "price_policy_custom_run_role"
+    }
+  ]
+}

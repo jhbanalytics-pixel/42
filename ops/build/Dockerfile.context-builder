@@ -1,0 +1,27 @@
+ARG TOOLCHAIN_IMAGE
+FROM ${TOOLCHAIN_IMAGE}
+
+# The toolchain stage of engine/Dockerfile.tests supplies python 3.13, git 2.47.3 and node
+# v24.18.1 from pinned manifests. This image adds the bun release the frontend build needs,
+# pinned by ops/build/bun_runtime.json.
+COPY install_bun_runtime.py /tmp/bun-tools/install_bun_runtime.py
+COPY bun_runtime.json /tmp/bun-tools/bun_runtime.json
+RUN python /tmp/bun-tools/install_bun_runtime.py \
+      --manifest /tmp/bun-tools/bun_runtime.json \
+      --manifest-sha256 47f51cc3de393fe45e52a82d23ca415386dd5b859a9780363a8835829cec32aa \
+      --download-root /tmp/bun-download \
+      --destination /opt/bun && \
+    rm -rf /tmp/bun-download && \
+    test -x /opt/bun/bin/bun && \
+    test "$(/opt/bun/bin/bun --version)" = "1.4.0"
+
+ENV PATH="/opt/bun/bin:/opt/42-ci/node:${PATH}"
+ENV HOME="/home/testuser"
+ENV XDG_CACHE_HOME="/home/testuser/.cache"
+ENV BUN_INSTALL="/opt/bun"
+
+RUN mkdir -p /home/testuser/.cache && \
+    chown 10001:10001 /home/testuser /home/testuser/.cache && \
+    git config --system --add safe.directory /workspace
+
+USER 10001:10001

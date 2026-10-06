@@ -1,0 +1,26 @@
+[
+ {
+  "hour": "2026-09-30T13:00:00+02:00",
+  "market": "ZA",
+  "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e",
+  "posts6": 41,
+  "creators6": 19,
+  "expected6": 6.5,
+  "ratio": 6.31,
+  "platforms": 2,
+  "run_id": "breaking-20260930-fixture-13",
+  "rule_version": "breaking-1"
+ },
+ {
+  "hour": "2026-09-30T11:00:00+02:00",
+  "market": "NG",
+  "item_id": "7f2ab79603408ca60b74cc340171539579ae87710894abaebf234f04648bc35d",
+  "posts6": 12,
+  "creators6": 9,
+  "expected6": 0.0,
+  "ratio": null,
+  "platforms": 2,
+  "run_id": "breaking-20260930-fixture-11",
+  "rule_version": "breaking-1"
+ }
+]

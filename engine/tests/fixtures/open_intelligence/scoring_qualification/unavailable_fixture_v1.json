@@ -1,0 +1,64 @@
+{
+  "qualification_version": "scoring_qualification_v1",
+  "mode": "fixture_dry_run",
+  "source_snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "provider_bundle_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "rule_candidate_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "records": [
+    {
+      "qualification_version": "scoring_qualification_v1",
+      "source_snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "provider_bundle_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "rule_candidate_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "signal_id": "sig_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "market": "za",
+      "signal_date": "2026-08-25",
+      "discovery_mode": "replay",
+      "rule_version": "decision_rules_fixture_v1",
+      "component_proofs": [
+        {"name": "velocity", "state": "unavailable", "value": null, "source_rows": [], "window_start": null, "window_end": null, "numerator": null, "denominator": null, "missing_reason": "velocity_unavailable"},
+        {"name": "breadth", "state": "unavailable", "value": null, "source_rows": [], "window_start": null, "window_end": null, "numerator": null, "denominator": null, "missing_reason": "breadth_unavailable"},
+        {"name": "source_independence", "state": "unavailable", "value": null, "source_rows": [], "window_start": null, "window_end": null, "numerator": null, "denominator": null, "missing_reason": "source_independence_unavailable"},
+        {"name": "source_integrity", "state": "unavailable", "value": null, "source_rows": [], "window_start": null, "window_end": null, "numerator": null, "denominator": null, "missing_reason": "source_integrity_unavailable"},
+        {"name": "geo_confidence", "state": "unavailable", "value": null, "source_rows": [], "window_start": null, "window_end": null, "numerator": null, "denominator": null, "missing_reason": "geo_confidence_unavailable"},
+        {"name": "qualifying_source_families", "state": "unavailable", "value": null, "source_rows": [], "window_start": null, "window_end": null, "numerator": null, "denominator": null, "missing_reason": "qualifying_source_families_unavailable"},
+        {"name": "qualifying_current_receipts", "state": "unavailable", "value": null, "source_rows": [], "window_start": null, "window_end": null, "numerator": null, "denominator": null, "missing_reason": "qualifying_current_receipts_unavailable"}
+      ],
+      "gate_proofs": [
+        {"name": "evidence_state", "state": "unavailable", "observed_value": null, "source_rows": [], "window_start": null, "window_end": null, "missing_reason": "evidence_state_unavailable"},
+        {"name": "foreign_market_sample_reviewed", "state": "unavailable", "observed_value": null, "source_rows": [], "window_start": null, "window_end": null, "missing_reason": "foreign_market_sample_reviewed_unavailable"},
+        {"name": "foreign_market_leakage", "state": "unavailable", "observed_value": null, "source_rows": [], "window_start": null, "window_end": null, "missing_reason": "foreign_market_leakage_unavailable"},
+        {"name": "duplicate_identity", "state": "unavailable", "observed_value": null, "source_rows": [], "window_start": null, "window_end": null, "missing_reason": "duplicate_identity_unavailable"},
+        {"name": "factual_conflict", "state": "unavailable", "observed_value": null, "source_rows": [], "window_start": null, "window_end": null, "missing_reason": "factual_conflict_unavailable"},
+        {"name": "directional_conflict", "state": "unavailable", "observed_value": null, "source_rows": [], "window_start": null, "window_end": null, "missing_reason": "directional_conflict_unavailable"},
+        {"name": "membership_receipts_complete", "state": "unavailable", "observed_value": null, "source_rows": [], "window_start": null, "window_end": null, "missing_reason": "membership_receipts_complete_unavailable"},
+        {"name": "cluster_build_version", "state": "unavailable", "observed_value": null, "source_rows": [], "window_start": null, "window_end": null, "missing_reason": "cluster_build_version_unavailable"}
+      ],
+      "mathematical_proof": {
+        "trust_gate_eligible": false,
+        "velocity": null,
+        "breadth": null,
+        "source_independence": null,
+        "evidence_strength": null,
+        "geo_confidence": null,
+        "scorer_decision_strength": null,
+        "independent_decision_strength": null,
+        "scorer_matches_independent": null,
+        "missing_reasons": ["scoring_evidence_unavailable"]
+      },
+      "candidate_comparisons": [],
+      "source_dominance": [],
+      "missing_reasons": ["scoring_evidence_unavailable"],
+      "canonical_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+  ],
+  "cohort_distributions": [],
+  "signal_percentiles": [],
+  "correlations": [],
+  "missing_reasons": ["scoring_evidence_unavailable"],
+  "certified": false,
+  "recommendation": null,
+  "promotion_authorized": false,
+  "human_review_state": "pending",
+  "canonical_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+}

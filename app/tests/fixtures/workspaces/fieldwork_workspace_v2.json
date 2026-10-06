@@ -1,0 +1,166 @@
+{
+  "note": "Fixture only. Not a live reading.",
+  "provenance": "fixture-only",
+  "partial": {
+    "contract_version": "fieldwork_workspace_v2",
+    "resource_version": "fwr_f0a9fb04b81fbf5d066b8d55d052d0e60feeb1944441014a13aaa5f8b7f2b3aa",
+    "client_scope_id": "ogilvy_default",
+    "market_scope": [
+      "za"
+    ],
+    "brand_config_id": null,
+    "audience_lens_ids": [],
+    "theme_id": null,
+    "workspace_state": "unavailable_source",
+    "generated_at": "2026-09-09T22:00:00Z",
+    "freshness": {
+      "state": "unavailable",
+      "source_lab_checked_at": null,
+      "investigations_updated_at": null,
+      "oldest_operation_updated_at": null,
+      "reasons": [
+        "fieldwork_operation_inputs_unavailable"
+      ]
+    },
+    "operation_coverage": {
+      "general_questions": {
+        "state": "complete",
+        "observed_at": "2026-09-07T12:00:00Z",
+        "window": {
+          "basis": "retained_question_ledger",
+          "start": null,
+          "end": "2026-09-07T12:00:00Z"
+        },
+        "known_count": 1,
+        "known_by_status": {
+          "planned": 0,
+          "running": 0,
+          "unconfirmed": 0,
+          "complete": 0,
+          "partial": 1,
+          "needs_clarification": 0,
+          "refused": 0,
+          "held": 0,
+          "killed": 0,
+          "unavailable": 0
+        },
+        "total_count": 1,
+        "returned_count": 1,
+        "unread_count": 0,
+        "invalid_count": 0,
+        "reasons": []
+      },
+      "investigation_plans": {
+        "state": "unavailable",
+        "observed_at": null,
+        "window": null,
+        "known_count": 0,
+        "known_by_status": {
+          "planned": 0,
+          "running": 0,
+          "unconfirmed": 0,
+          "complete": 0,
+          "partial": 0,
+          "needs_clarification": 0,
+          "refused": 0,
+          "held": 0,
+          "killed": 0,
+          "unavailable": 0
+        },
+        "total_count": null,
+        "returned_count": 0,
+        "unread_count": null,
+        "invalid_count": null,
+        "reasons": [
+          "not_wired"
+        ]
+      },
+      "source_executions": {
+        "state": "unavailable",
+        "observed_at": null,
+        "window": null,
+        "known_count": 0,
+        "known_by_status": {
+          "planned": 0,
+          "running": 0,
+          "unconfirmed": 0,
+          "complete": 0,
+          "partial": 0,
+          "needs_clarification": 0,
+          "refused": 0,
+          "held": 0,
+          "killed": 0,
+          "unavailable": 0
+        },
+        "total_count": null,
+        "returned_count": 0,
+        "unread_count": null,
+        "invalid_count": null,
+        "reasons": [
+          "not_wired"
+        ]
+      }
+    },
+    "operation_summary": {
+      "count_state": "partial",
+      "total": null,
+      "known_total": 1,
+      "known_by_status": {
+        "planned": 0,
+        "running": 0,
+        "unconfirmed": 0,
+        "complete": 0,
+        "partial": 1,
+        "needs_clarification": 0,
+        "refused": 0,
+        "held": 0,
+        "killed": 0,
+        "unavailable": 0
+      }
+    },
+    "budget_summary": {
+      "state": "unavailable",
+      "funding_lane": null,
+      "credit_ceiling": null,
+      "credits_reserved": null,
+      "credits_used": null,
+      "credits_remaining": null,
+      "reserve_floor": null,
+      "observed_at": null,
+      "reasons": [
+        "fieldwork_operation_inputs_unavailable"
+      ]
+    },
+    "source_operations": [],
+    "research_operations": [
+      {
+        "operation_id": "gq_00000000000000000000000000000001",
+        "kind": "research",
+        "operation_type": "general_question",
+        "entity_id": "00000000-0000-0000-0000-000000000001",
+        "title": "A retained question",
+        "status": "partial",
+        "market_scope": [
+          "za"
+        ],
+        "updated_at": "2026-09-07T12:00:00Z",
+        "evidence_readiness": "unchecked",
+        "gaps": [],
+        "next_operation": {
+          "action": "open_question_request",
+          "entity_id": "00000000-0000-0000-0000-000000000001",
+          "label": "Open request",
+          "available": true,
+          "reason": null
+        }
+      }
+    ],
+    "research_operation_count": null,
+    "research_operations_truncated": false,
+    "unavailable_inputs": [
+      "investigation_store",
+      "source_executions",
+      "budget_authority"
+    ]
+  }
+}

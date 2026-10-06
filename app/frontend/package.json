@@ -1,0 +1,30 @@
+{
+  "name": "pulse-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "bun test",
+    "test:journeys": "playwright test --config playwright.config.mjs",
+    "verify:instrument-package": "node scripts/verify-instrument-package.mjs"
+  },
+  "dependencies": {
+    "chart.js": "4.4.7",
+    "ogilvy-intelligence-design-system": "file:vendor/ogilvy-intelligence-design-system-2.0.22.tgz",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^20.14.5",
+    "@playwright/test": "1.62.1",
+    "@vitejs/plugin-react": "^4.4.0",
+    "vite": "^6.3.0"
+  },
+  "overrides": {
+    "nanoid": "3.3.18",
+    "postcss": "8.5.23"
+  }
+}

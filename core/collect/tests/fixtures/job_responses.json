@@ -1,0 +1,205 @@
+{
+  "_note": "Response bodies for core/collect/tests/test_job.py, keyed by route, with per-market variants under route|MARKET. Unprobed shapes in the envelope of the parse_*.json fixtures. prism/post-stats rows are built by the test from the request's urls.",
+  "tiktok/trending|ZA": {
+    "success": true, "credits_used": 5,
+    "data": {"items": [
+      {"computed": {"language": "en"}, "vendor_labels": {"relevance": 0.9},
+       "post": {"id": "7500000000000000001", "url": "https://www.tiktok.com/@za.one/video/7500000000000000001",
+                "published_at": "2026-09-28T18:00:00Z", "author": {"username": "za.one", "followers": 5000},
+                "content": {"text": "Sunday groove #amapiano #mzansi #fyp"},
+                "engagement": {"views": 12000, "likes": 900, "comments": 41, "shares": 12},
+                "ext": {"region": "ZA", "music_id": "m100"}}},
+      {"post": {"id": "7500000000000000002", "url": "https://www.tiktok.com/@za.two/video/7500000000000000002",
+                "published_at": "2026-09-28T19:00:00Z", "author": {"username": "za.two", "followers": 20000},
+                "content": {"text": "Kasi steps #kasi #amapiano"},
+                "engagement": {"views": 8000, "likes": 500, "comments": 20, "shares": 5},
+                "ext": {"region": "ZA", "music_id": "m100"}}},
+      {"post": {"id": "7500000000000000003", "url": "https://www.tiktok.com/@za.three/video/7500000000000000003",
+                "published_at": "2026-09-28T20:00:00Z", "author": {"username": "za.three"},
+                "content": {"text": "Braai day #braai #stokvel"},
+                "engagement": {"views": 3000, "likes": 100, "comments": 4, "shares": 1},
+                "ext": {"region": "ZA", "music_id": "m200"}}}
+    ]}
+  },
+  "tiktok/trending|NG": {
+    "success": true, "credits_used": 5,
+    "data": {"items": [
+      {"post": {"id": "7500000000000000011", "url": "https://www.tiktok.com/@ng.one/video/7500000000000000011",
+                "published_at": "2026-09-28T17:00:00Z", "author": {"username": "ng.one", "followers": 90000},
+                "content": {"text": "Owambe vibes #afrobeats #naija"},
+                "engagement": {"views": 40000, "likes": 3000, "comments": 150, "shares": 70},
+                "ext": {"region": "NG", "music_id": "m300"}}},
+      {"post": {"id": "7500000000000000012", "url": "https://www.tiktok.com/@ng.two/video/7500000000000000012",
+                "published_at": "2026-09-28T18:30:00Z", "author": {"username": "ng.two"},
+                "content": {"text": "Japa talk #naija #japa"},
+                "engagement": {"views": 9000, "likes": 600, "comments": 30, "shares": 9},
+                "ext": {"region": "NG", "music_id": "m300"}}},
+      {"post": {"id": "7500000000000000013", "url": "https://www.tiktok.com/@ng.three/video/7500000000000000013",
+                "published_at": "2026-09-28T21:00:00Z", "author": {"username": "ng.three"},
+                "content": {"text": "Lagos dance #amapiano #lagos"},
+                "engagement": {"views": 2000, "likes": 80, "comments": 3, "shares": 1},
+                "ext": {"region": "GH", "music_id": "m100"}}}
+    ]}
+  },
+  "tiktok/trending|KE": {
+    "success": true, "credits_used": 5,
+    "data": {"items": [
+      {"post": {"id": "7500000000000000021", "url": "https://www.tiktok.com/@ke.one/video/7500000000000000021",
+                "published_at": "2026-09-28T16:00:00Z", "author": {"username": "ke.one", "followers": 7000},
+                "content": {"text": "Matatu art #gengetone #nairobi"},
+                "engagement": {"views": 15000, "likes": 1100, "comments": 60, "shares": 20},
+                "ext": {"region": "KE", "music_id": "m400"}}},
+      {"post": {"id": "7500000000000000022", "url": "https://www.tiktok.com/@ke.two/video/7500000000000000022",
+                "published_at": "2026-09-28T17:30:00Z", "author": {"username": "ke.two"},
+                "content": {"text": "Stage run #nairobi #matatu"},
+                "engagement": {"views": 6000, "likes": 300, "comments": 11, "shares": 2},
+                "ext": {"region": "KE", "music_id": "m400"}}},
+      {"post": {"id": "7500000000000000023", "url": "https://www.tiktok.com/@ke.three/video/7500000000000000023",
+                "published_at": "2026-09-28T22:00:00Z", "author": {"username": "ke.three"},
+                "content": {"text": "Sasa #sheng"},
+                "engagement": {"views": 1000},
+                "ext": {"music_id": "m500"}}}
+    ]}
+  },
+  "tiktok/hashtags/popular": {
+    "success": true, "credits_used": 6,
+    "data": {"items": [
+      {"rank": 1, "hashtag_name": "amapiano", "trend": [{"date": "2026-09-27", "value": 400}, {"date": "2026-09-28", "value": 520}]},
+      {"rank": 2, "hashtag_name": "heritageday", "trend": [{"date": "2026-09-28", "value": 300}]}
+    ]}
+  },
+  "youtube/videos/trending": {
+    "success": true, "credits_used": 1,
+    "data": {"items": [
+      {"post": {"id": "yt_j1", "url": "https://www.youtube.com/watch?v=yt_j1", "published_at": "2026-09-28T10:00:00Z",
+                "author": {"id": "UC_j1", "subscribers": 80000}, "content": {"title": "Derby highlights"},
+                "engagement": {"views": 300000, "likes": 9000, "comments": 700}}},
+      {"post": {"id": "yt_j2", "url": "https://www.youtube.com/watch?v=yt_j2", "published_at": "2026-09-27T08:00:00Z",
+                "author": {"id": "UC_j2"}, "content": {"title": "Studio session #amapiano"},
+                "engagement": {"views": 90000}}}
+    ]}
+  },
+  "youtube/shorts/trending": {
+    "success": true, "credits_used": 5,
+    "data": {"items": [
+      {"post": {"id": "sh_j1", "url": "https://www.youtube.com/shorts/sh_j1", "published_at": "2026-09-28T12:00:00Z",
+                "author": {"id": "UC_s1"}, "content": {"title": "Dance break #shorts"}, "engagement": {"views": 1000000}}}
+    ]}
+  },
+  "instagram/music/trending": {
+    "success": true, "credits_used": 5,
+    "data": {"items": [
+      {"track": {"audio_cluster_id": "ig_a1", "title": "Song one"}},
+      {"track": {"audio_cluster_id": "ig_a2", "title": "Song two"}}
+    ]}
+  },
+  "instagram/location/posts": {
+    "cached": false,
+    "credits_remaining": 0,
+    "credits_used": 5,
+    "data": {"dropped": 0, "items": [
+      {"computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+       "post": {"author": {"avatar_url": "https://example.invalid/avatar.png", "display_name": null,
+                            "username": "fixture_creator", "verified": false},
+                "content": {"duration_seconds": null, "media_urls": "", "text": null, "thumbnail_url": null},
+                "engagement": {"comments": 1, "likes": 10, "saves": null, "shares": null, "views": null},
+                "ext": {"coauthors": [], "media_type": "fixture", "published_at_epoch": 1790618400},
+                "flags": {"deleted": false, "nsfw": null, "pinned": false, "spoiler": null},
+                "id": "ig_location_fixture_1", "published_at": "2026-09-28T18:00:00Z",
+                "url": "https://www.instagram.com/p/ig_location_fixture_1/"},
+       "vendor_labels": {}}
+    ], "total": null},
+    "endpoint": "instagram/location/posts",
+    "pagination": {"has_more": false, "next_cursor": null, "page_size": 1},
+    "platform": "instagram",
+    "request_id": "fixture",
+    "success": true
+  },
+  "apple_music/charts": {
+    "success": true, "credits_used": 1,
+    "data": {"items": [{"id": "am_1", "title": "Chart song"}, {"id": "am_2", "title": "Second song"}]}
+  },
+  "reddit/subreddit": {
+    "success": true, "credits_used": 1,
+    "data": {"items": [
+      {"post": {"id": "t3_j1", "url": "https://www.reddit.com/r/any/comments/j1/", "published_at": "2026-09-28T18:00:00Z",
+                "author": {"username": "r_user"}, "content": {"title": "Fuel price day", "text": "Again #fuel"},
+                "engagement": {"likes": 400, "comments": 88}}}
+    ]}
+  },
+  "facebook/profile/posts": {
+    "success": true, "credits_used": 1,
+    "data": {"items": [
+      {"post": {"id": "fb_j1", "url": "https://www.facebook.com/page/posts/fb_j1", "published_at": "2026-09-28T09:00:00Z",
+                "content": {"text": "Weekend line-up #heritageday"}, "engagement": {"likes": 50, "comments": 5, "shares": 2}}},
+      {"post": {"id": "fb_old", "url": "https://www.facebook.com/page/posts/fb_old", "published_at": "2026-09-01T09:00:00Z",
+                "content": {"text": "An old post"}, "engagement": {"likes": 5}}}
+    ]}
+  },
+  "tiktok/song/videos": {
+    "success": true, "credits_used": 1,
+    "data": {
+      "adoption": [{"date": "2026-09-27", "count": 40}, {"date": "2026-09-28", "count": 55}],
+      "items": [
+        {"post": {"id": "7500000000000000091", "url": "https://www.tiktok.com/@s.user/video/7500000000000000091",
+                  "published_at": "2026-09-28T09:00:00Z", "author": {"username": "s.user"},
+                  "content": {"text": "This sound #amapiano"}, "engagement": {"views": 3000, "likes": 200, "comments": 5, "shares": 1},
+                  "ext": {"region": "ZA"}}}
+      ]
+    }
+  },
+  "tiktok/song": {"success": true, "credits_used": 1, "data": {"title": "Original sound", "video_count": 15000}},
+  "tiktok/hashtag": {"success": true, "credits_used": 1, "data": {"video_count": 900000}},
+  "tiktok/search/top": {
+    "success": true, "credits_used": 1,
+    "data": {"items": [
+      {"post": {"id": "7500000000000000081", "url": "https://www.tiktok.com/@q.user/video/7500000000000000081",
+                "published_at": "2026-09-27T10:00:00Z", "author": {"username": "q.user"},
+                "content": {"text": "Search find"}, "engagement": {"views": 5400, "likes": 300, "comments": 12, "shares": 4},
+                "ext": {"region": "ZA"}}}
+    ]}
+  },
+  "search/multi": {
+    "success": true, "credits_used": 6,
+    "data": {"sources": {
+      "instagram": {"items": [
+        {"post": {"id": "ig_j1", "url": "https://www.instagram.com/reel/ig_j1/", "published_at": "2026-09-27T07:00:00Z",
+                  "author": {"username": "ig.user"}, "content": {"text": "Reel find"}, "engagement": {"likes": 900, "comments": 40}}}
+      ]},
+      "twitter": {"items": [
+        {"post": {"id": "x_j1", "url": "https://x.com/someone/status/x_j1", "published_at": "2026-09-27T08:00:00Z",
+                  "author": {"username": "someone"}, "content": {"text": "Tweet find"}, "engagement": {"likes": 12}}}
+      ]},
+      "reddit": {"items": []}
+    }}
+  },
+  "instagram/search/reels": {
+    "success": true, "credits_used": 3,
+    "data": {"items": [
+      {"computed": {"language": "en"},
+       "post": {"id": "ig_r1", "url": "https://www.instagram.com/reel/ig_r1/", "published_at": "2026-09-27T09:00:00Z",
+                "author": {"username": "reel.user"}, "content": {"text": "Reel search find"},
+                "engagement": {"views": 2100, "likes": 150, "comments": 9},
+                "ext": {"author_id": "51001", "author_followers": 8200, "author_country": "South Africa"}}}
+    ], "hydration": {"rows": 1, "lookups": 1, "cache_hits": 0, "credits_held": 60, "credits_kept": 2}}
+  },
+  "prism/profiles": {
+    "success": true, "credits_used": 24,
+    "data": {"items": [
+      {"platform": "instagram", "handle": "desk.one", "status": "ok",
+       "posts": [
+         {"id": "ig_p1", "url": "https://www.instagram.com/p/ig_p1/", "published_at": "2026-09-28T11:00:00Z",
+          "content": {"text": "Desk post"}, "engagement": {"likes": 3000, "comments": 90}}
+       ]},
+      {"platform": "instagram", "handle": "desk.two", "status": "not_found", "error": "not found"}
+    ]}
+  },
+  "twitter/user/tweets": {
+    "success": true, "credits_used": 1,
+    "data": {"items": [
+      {"post": {"id": "x_p1", "url": "https://x.com/hub/status/x_p1", "published_at": "2026-09-28T12:00:00Z",
+                "content": {"text": "Hub tweet"}, "engagement": {"likes": 40, "comments": 3, "shares": 5}}}
+    ]}
+  },
+  "web/scrape": {"success": true, "credits_used": 1, "data": {"markdown": "1. #SomeTag"}}
+}

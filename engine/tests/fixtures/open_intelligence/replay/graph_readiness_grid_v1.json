@@ -1,0 +1,49 @@
+{
+  "fixture_scope": "synthetic_test_only",
+  "artifact_version": "replay_graph_readiness_grid_v1",
+  "cutoff": "2026-08-25",
+  "input_row_count": 18693,
+  "observations": [
+    {"market": "ke", "term": "ke alpha", "candidate_type": "keyword", "row_ids": ["row_ke_alpha"], "source_families": ["news"], "platforms": ["news"], "aliases": [], "observed_dates": ["2026-08-25"], "topic_tags": ["culture"]},
+    {"market": "ke", "term": "ke beta", "candidate_type": "keyword", "row_ids": ["row_ke_beta"], "source_families": ["search"], "platforms": ["search"], "aliases": [], "observed_dates": ["2026-08-25"], "topic_tags": ["culture"]},
+    {"market": "ng", "term": "ng alpha", "candidate_type": "keyword", "row_ids": ["row_ng_alpha"], "source_families": ["news"], "platforms": ["news"], "aliases": [], "observed_dates": ["2026-08-25"], "topic_tags": ["music"]},
+    {"market": "ng", "term": "ng beta", "candidate_type": "keyword", "row_ids": ["row_ng_beta"], "source_families": ["search"], "platforms": ["search"], "aliases": [], "observed_dates": ["2026-08-25"], "topic_tags": ["music"]},
+    {"market": "za", "term": "za alpha", "candidate_type": "keyword", "row_ids": ["row_za_alpha"], "source_families": ["news"], "platforms": ["news"], "aliases": [], "observed_dates": ["2026-08-25"], "topic_tags": ["culture"]},
+    {"market": "za", "term": "za beta", "candidate_type": "keyword", "row_ids": ["row_za_beta"], "source_families": ["search"], "platforms": ["search"], "aliases": [], "observed_dates": ["2026-08-25"], "topic_tags": ["culture"]}
+  ],
+  "semantic_providers": [
+    {"candidate_id": "provider_frozen_a", "version": "frozen_matrix_a_v1", "runtime_ms": 1.0, "matrix": [{"left": "ke|keyword|ke alpha", "right": "ke|keyword|ke beta", "score": 0.8}, {"left": "ng|keyword|ng alpha", "right": "ng|keyword|ng beta", "score": 0.8}, {"left": "za|keyword|za alpha", "right": "za|keyword|za beta", "score": 0.8}]},
+    {"candidate_id": "provider_frozen_b", "version": "frozen_matrix_b_v1", "runtime_ms": 1.5, "matrix": [{"left": "ke|keyword|ke alpha", "right": "ke|keyword|ke beta", "score": 0.95}, {"left": "ng|keyword|ng alpha", "right": "ng|keyword|ng beta", "score": 0.95}, {"left": "za|keyword|za alpha", "right": "za|keyword|za beta", "score": 0.95}]}
+  ],
+  "graph_rule_candidates": [
+    {"candidate_id": "graph_grid_a", "version": "graph_grid_a_v1", "semantic_vote_floor": 0.5, "component_similarity_floor": 0.5, "temporal_overlap_days": 2, "runtime_ms": 0.5},
+    {"candidate_id": "graph_grid_b", "version": "graph_grid_b_v1", "semantic_vote_floor": 0.75, "component_similarity_floor": 0.75, "temporal_overlap_days": 0, "runtime_ms": 0.75}
+  ],
+  "readiness_rule_candidates": [
+    {"candidate_id": "readiness_grid_a", "version": "readiness_grid_a_v1", "current_cutoff": "2026-08-25T00:00:00Z", "minimum_geo_confidence": 0.5, "runtime_ms": 0.25},
+    {"candidate_id": "readiness_grid_b", "version": "readiness_grid_b_v1", "current_cutoff": "2026-08-25T00:00:00Z", "minimum_geo_confidence": 0.8, "runtime_ms": 0.3}
+  ],
+  "component_reviews": [
+    {"signal_id": "sig_dup", "review_market": "za", "component_members": ["za|keyword|za alpha", "za|keyword|za beta"], "membership_complete": true, "evidence_ready": false, "geo_proven": false},
+    {"signal_id": "sig_foreign", "review_market": "za", "component_members": ["ke|keyword|ke alpha", "ke|keyword|ke beta"], "membership_complete": true, "evidence_ready": false, "geo_proven": false},
+    {"signal_id": "sig_ke", "review_market": "ke", "component_members": ["ke|keyword|ke alpha", "ke|keyword|ke beta"], "membership_complete": false, "evidence_ready": false, "geo_proven": false},
+    {"signal_id": "sig_ng", "review_market": "ng", "component_members": ["ng|keyword|ng alpha", "ng|keyword|ng beta"], "membership_complete": true, "evidence_ready": true, "geo_proven": true},
+    {"signal_id": "sig_za", "review_market": "za", "component_members": ["za|keyword|za alpha", "za|keyword|za beta"], "membership_complete": true, "evidence_ready": true, "geo_proven": true}
+  ],
+  "known_events": [
+    {"event_id": "known_ke", "market": "ke", "member_identities": ["ke|keyword|ke alpha"]},
+    {"event_id": "known_ng", "market": "ng", "member_identities": ["ng|keyword|ng alpha"]},
+    {"event_id": "known_za", "market": "za", "member_identities": ["za|keyword|za alpha"]}
+  ],
+  "readiness_cases": [
+    {"case_id": "case_contradictory", "quality_evaluated": true, "quality_failed": false, "factual_conflict": true, "records": [{"row_id": "ready_conflict", "source_family": "news", "direction": "rising", "published_at": "2026-08-25T12:00:00Z", "availability": "available", "geo_confidence": 0.9, "factual_conflict": false}]},
+    {"case_id": "case_incomplete", "quality_evaluated": true, "quality_failed": false, "factual_conflict": false, "records": [{"row_id": "incomplete_news", "source_family": "news", "direction": "rising", "published_at": "2026-08-25T12:00:00Z", "availability": "unavailable", "geo_confidence": 0.9, "factual_conflict": false}, {"row_id": "incomplete_search", "source_family": "search", "direction": "rising", "published_at": "2026-08-25T12:00:00Z", "availability": "available", "geo_confidence": 0.9, "factual_conflict": false}]},
+    {"case_id": "case_missing_geo", "quality_evaluated": true, "quality_failed": false, "factual_conflict": false, "records": [{"row_id": "geo_news", "source_family": "news", "direction": "rising", "published_at": "2026-08-25T12:00:00Z", "availability": "available", "geo_confidence": 0.1, "factual_conflict": false}, {"row_id": "geo_search", "source_family": "search", "direction": "rising", "published_at": "2026-08-25T12:00:00Z", "availability": "available", "geo_confidence": 0.1, "factual_conflict": false}]},
+    {"case_id": "case_ready", "quality_evaluated": true, "quality_failed": false, "factual_conflict": false, "records": [{"row_id": "ready_news", "source_family": "news", "direction": "rising", "published_at": "2026-08-25T12:00:00Z", "availability": "available", "geo_confidence": 0.9, "factual_conflict": false}, {"row_id": "ready_search", "source_family": "search", "direction": "rising", "published_at": "2026-08-25T12:00:00Z", "availability": "available", "geo_confidence": 0.9, "factual_conflict": false}]},
+    {"case_id": "case_source_dependence", "quality_evaluated": true, "quality_failed": false, "factual_conflict": false, "records": [{"row_id": "dep_news_a", "source_family": "news", "direction": "rising", "published_at": "2026-08-25T12:00:00Z", "availability": "available", "geo_confidence": 0.9, "factual_conflict": false}, {"row_id": "dep_news_b", "source_family": "news", "direction": "rising", "published_at": "2026-08-25T12:00:00Z", "availability": "available", "geo_confidence": 0.9, "factual_conflict": false}]},
+    {"case_id": "case_thin", "quality_evaluated": true, "quality_failed": false, "factual_conflict": false, "records": [{"row_id": "thin_news", "source_family": "news", "direction": "rising", "published_at": "2026-08-25T12:00:00Z", "availability": "available", "geo_confidence": 0.9, "factual_conflict": false}]},
+    {"case_id": "case_unchecked", "quality_evaluated": false, "quality_failed": false, "factual_conflict": false, "records": []}
+  ],
+  "task5c_contract": {"qualifies_evidence": false, "current_window_complete": false, "history_window_complete": false, "missing_work": ["incomplete_current_window", "incomplete_history_window", "task5c_nonqualifying_evidence"]},
+  "fixture_digest": "579b676d8e190e750288e05fbd92e2e4ae97498583669b3b38a2fbff8f9dac4e"
+}

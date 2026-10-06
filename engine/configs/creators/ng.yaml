@@ -1,0 +1,371 @@
+# Nigeria Creator Watchlists
+# 26 May 2026: curated creator expansion.
+# tier_1 = established creators (Korty EO, Layi Wasabi, top Afrobeats artists).
+# tier_2 = secondary creators + supporting Afrobeats roster.
+# tier_3 = niche / emerging.
+#
+# 1 Jul 2026: tier_2 trimmed for a safe tier_2 flip. tiktok tier_2 17,
+# instagram tier_2 18, threads tier_2 6 (unchanged, was never bloated) =
+# 41 cumulative new handles, in the docs/flip-readiness.md ~40-60 target.
+# The 11 Jun client influencer seeding (Met Gala + UEFA lists) moved to
+# tier_3 rather than deleted; see the tier_3 comments below for why.
+# creator_tier_cap_boost is NOT yet set to tier_2 anywhere in sources.yaml;
+# this file change alone has zero live effect.
+market: ng
+market_name: Nigeria
+
+watchlists:
+  tiktok:
+    tier_1:
+      - taaooma
+      - layi.wasabi
+      - tobibakre
+      - realsydneytalker
+      - poco_lee
+      - carterefe
+      - enioluwa
+
+    tier_2:
+      - davido
+      - wizkidayo
+      - asakemusic
+      - burnaboyofficial
+      - ayrastarr
+      - shallipopiworld
+      - seyivibez
+      - tiwasavage
+      - osimhen9
+      - lasisielenu8
+      - mrmacaroni1
+      - fosudo
+      - priscilla_mkambala
+
+    tier_3:
+      - jay_onair
+      - thedimmaumeh
+      - charles.chima
+      - naijapr
+      - falzthebahdguy
+      - mreazi
+      - yemialade
+      - kizz_daniel
+      - omahlay
+      - ruger
+      - bnxn
+      - victony
+      - zinoleesky
+      # 28 Jul 2026: moved down from tier_1/tier_2. Probed live the same
+      # day: each of these resolves and BILLS a credit, then returns only
+      # posts older than socialcrawl.max_age_days (21), so the engine
+      # dropped every row. 35 credits a day for zero signal. Not deleted,
+      # so a cadence change or a wider window can promote them back.
+      - korty_eo
+      - brodashaggi
+      - remasings
+      - temsbaby
+      - olamide
+      - lookmanademola10
+      # 1 Jul 2026: re-tiered down from tier_2. The 11 Jun 2026 client
+      # influencer seeding (Met Gala + UEFA lists) is a ~150-handle
+      # micro-influencer/fan-account blob, not peak-reach Afrobeats/comedy
+      # anchors, and its size alone made tier_2 too large to flip under the
+      # shared EnsembleData boost budget (real vendor-truth from
+      # /customer/get-history shows the account already spends 1700-3700
+      # units/day on tiktok+instagram+threads combined some days, against a
+      # 5000/day Bronze cap shared with Reddit; one recent pilot flip pushed
+      # a day to ~5007). Nothing deleted, just correctly tiered; still
+      # trackable by raising creator_tier_cap_boost to tier_3 later if the
+      # client need justifies the extra spend.
+      - chizi.a
+      - thisthingcalledfashion
+      - denolagrey1
+      - rukkayahh_
+      - zayneekarmani
+      - fashion_boy0
+      - pearl_lummy
+      - omoabrittany
+      - peckybaby
+      - hellosisieko
+      - beatbymideelle
+      - _fhayvor0
+      - livingas.kat
+      - thepetitedunni1
+      - ariella_o.j
+      - _gloreeyah
+      - makveeproduction
+      - glowwithzanne
+      - ms_chioma_
+      - adaeverafter
+      - beautywithbimpe_herselff
+      - diaryofalamb
+      - txzthai
+      - lifeoftito
+      - _arikeartistry
+      - therendoll
+      - lusheey
+      - doriseneje
+      - braineeofficial
+      - king_keturah
+      - its.oladoyin
+      - bosealaoo
+      - luv.sewa
+      - the_girl_from_neptune
+      - ugcbysalome
+      - miss_nae_omi
+      - munachiprosperity
+      - flora_nelo
+      - osasona.oluwadamilola
+      - temi.creates
+      - rosekhocy
+      - emimial
+      - adeyyonawave
+      - oluwaseunayooo
+      - roy_h.a.n
+      - augustina330
+      - debbypatrick0
+      - hantysmallz
+      - thecreativesophie_x
+      - thefaithjoy
+      - idarapeniel
+      - amymaha
+      - agirlisamy
+      - jessykiss_madridista
+      - zees_jersey
+      - adebisidejoke
+      - football.matter8
+      - mariannah.baybee
+      - ____tiana27
+      - evera_empire
+      - vee_ifeoma
+      - iemstevo
+      - anabellamarvy
+      - ninobite_001
+      - dfkenny
+      - phlowzanalysis
+      - dlanor_jay
+      - henryggmu
+      - geminithestriker
+      - ab_eromonsele
+      - asiwajulerry5
+      - footycabal_
+      - pepkome
+      - the_tote_guy
+      - ogaprofesso
+      - mrbenjaamin
+
+  instagram:
+    tier_1:
+      - taaooma
+      - korty_eo
+      - layi.wasabi
+      - tobibakre
+      - brodashaggi
+      - enioluwaofficial
+      - poco_lee
+      - sydneytalker
+
+    tier_2:
+      - davido
+      - wizkidayo
+      - asakemusik
+      - burnaboygram
+      - heisrema
+      - ayrastarr
+      - temsbaby
+      - shallipopiworld
+      - seyivibez
+      - olamide
+      - tiwasavage
+      - victorosimhen9
+      - lookmanademola10
+      - its.priscy
+      - ekiogunbor
+      - fisayofosudo
+      - mrmacaroni1
+
+    tier_3:
+      - qwin_onyi
+      - creative_nahz
+      - naija_pr
+      - falzthebahdguy
+      - mreazi
+      - yemialademusic
+      - kizzdaniel
+      - omah_lay
+      - ruger
+      - bnxn
+      # 28 Jul 2026: moved down from tier_1/tier_2. Probed live the same
+      # day: each of these resolves and BILLS a credit, then returns only
+      # posts older than socialcrawl.max_age_days (21), so the engine
+      # dropped every row. 35 credits a day for zero signal. Not deleted,
+      # so a cadence change or a wider window can promote them back.
+      - dimmaumeh
+      # 1 Jul 2026: re-tiered down from tier_2, same rationale as tiktok
+      # above (11 Jun 2026 client seeding blob, too large for a tier_2 flip).
+      - olajumoke
+      - vagimedee_
+      - jehocreated
+      - just.james___
+      - kaunsy
+      - festina_p
+      - neylo__
+      - crownforall_2
+      - sophiee_is_king
+      - _adunolaa
+      - _ablaii
+      - deleunusuall
+      - tife.pereao
+      - princessneemah
+      - thesolape
+      - _iffeehh
+      - boujee__debs
+      - jadesolaaa__
+      - muneenee_
+      - jumoke_xo
+      - themactony_
+      - _nini.xox
+      - its.gaffy
+      - the.bamidele
+      - aniekanwillliams
+      - asamaiige
+      - dir.wey
+      - bruce_iv
+      - the_girl_mmife
+      - damilola.biyi
+      - i.m.e.l.d.a__
+      - iamdsolution_
+      - omotola_dales
+      - oyintofe.o
+      - caritascn
+      - funsowaters
+      - wowcandice
+      - jolaade.aki
+      - _.itsmona
+      - dark_skinned_simi
+      - queenbeth__
+      - ___vickybell
+      - racheal__lee
+      - ___ais.ha__
+      - ___mareeyam1
+      - beautywithangee
+      - _i.am_aliyah
+      - iijeomaa
+      - isoken.igbinigie
+      - chimamandaleoo
+      - sommiethevibe
+      - _fhayvor
+      - _callme_njure
+      - omg.itswini
+      - ibifubaradavies
+      - erinfolamikeyede
+      - sorire._
+      - habeebtii._
+      - iam.tofunmi
+      - naomi_anyaegbu
+      - tifee.a
+      - pitanissy
+      - queen_aeesha_
+      - jossy_utd
+      - mayor_frosh
+      - bigbabyboi_
+      - askitsemmy
+      - modovictor
+      - brown_diya
+      - theabuazeezpod
+      - adedalegend
+      - mrbenjaamin2
+      - itssophlex
+      - mekelecfc
+      - atama_fc
+      - kdc_global
+      - godfreyafc
+      - iamtupee
+      - touchlinevibess
+      - kingerons_
+      - lifewithelanii
+      - _joycedaniels
+      - adefikayo_
+      - iam_orizbaby
+      - mc_mastersebcomedian
+      - cr7_daughter
+      - bandanaboi__
+      - danicfc100
+      - oganlamedia
+      - kenyblaze2
+      - mara_neje
+      - chumannoli
+      - emmaknowball
+      - ariyibiiii
+      - kelbenky1
+      - stoneavenuee
+      - officialdedeuk
+      - busayo_debs
+      - _simply.stephh
+      - timii_xx
+      - xeusthegreat
+      - thenameisbrill
+      - mrskombo2
+      - nonso.fc
+      - iyalode__afc
+      - yourblackgurl_
+      - cali_addo
+      - danielnwala
+      - amobiezeaku
+      - jay_subway_
+      - mrlinah11
+      - iamrayband
+      - stevoiem
+      - ordusonjenny
+      - freda_akams
+      - chisparkle
+      - adebisidejoke_
+      - obaapawhitneybae
+      - mmesoma.m
+      - mezie.szn_
+      - chuddy007
+      - bosa_lee
+      - adeola.dr
+      - papijhay_
+      - itskayboi_
+      - thevictorianelson
+      - louisotega
+      - iniobongmonday
+      - je.jesports
+      - beyondthematchhq
+      - _ivorydee
+      - portharcourtblackboy
+      - realvoxview
+
+  threads:
+    tier_1:
+      - taaooma
+      - layi.wasabi
+      - enioluwaofficial
+
+    tier_2:
+      - davido
+      - wizkidayo
+      - asakemusic
+      - fisayofosudo
+      - its.priscy
+
+    tier_3:
+      - naija_pr
+      - falzthebahdguy
+
+      # 28 Jul 2026: moved down from tier_1/tier_2. Probed live the same
+      # day: each of these resolves and BILLS a credit, then returns only
+      # posts older than socialcrawl.max_age_days (21), so the engine
+      # dropped every row. 35 credits a day for zero signal. Not deleted,
+      # so a cadence change or a wider window can promote them back.
+      - korty_eo
+      - brodashaggi
+      - dimmaumeh
+# Documentation only. These values are NOT read at runtime. The authoritative
+# tier weights live in src/ingestion/enrichment.py (_TIER_WEIGHTS). Editing the
+# numbers below changes nothing in scoring; only alignment_audit.py reads this
+# key, and only to confirm it exists. Keep in sync by hand if you change the code.
+tier_weights:
+  tier_1: 1.0
+  tier_2: 0.7
+  tier_3: 0.4

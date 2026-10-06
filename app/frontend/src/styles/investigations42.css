@@ -1,0 +1,137 @@
+/* The sentence under the title is muted at a 66 character measure, as on
+   History, Alerts and every More page. */
+.inv42-lede { font-size: var(--type-body); color: var(--muted); margin: 0 0 var(--s-5); max-width: var(--measure); text-wrap: balance;
+  line-height: var(--leading-body);
+}
+.inv42-back { font-size: var(--type-meta); margin: 0 0 var(--s-3);
+  line-height: var(--leading-meta);
+}
+/* Page port, 3 October 2026: the way back to the list is a 44px target
+   (WCAG 2.5.5), still drawn as a plain link. */
+.inv42-back a { display: inline-flex; align-items: center; min-height: 44px; }
+.inv42 a { color: var(--ink); }
+.inv42-question { font-size: var(--type-page-title); font-weight: 600; margin: 0 0 var(--s-2);
+  line-height: var(--leading-page-title);
+}
+.inv42-section { margin: 0 0 var(--s-6); max-width: 760px; }
+.inv42-section-title { font-size: var(--type-section-title); font-weight: 600; margin: 0 0 var(--s-3);
+  line-height: var(--leading-section-title);
+}
+.inv42-line { font-size: var(--type-body); line-height: var(--leading-body); margin: 0 0 var(--s-2); }
+.inv42-new { margin: 0 0 var(--s-6); }
+
+/* The status tabs are the Today tab row (today42.css). Outside .t42 the row's
+   type variable is not set, so it is named here at the body size. */
+.inv42 .inv42-status-tabs { --t42-body: var(--type-body); }
+/* One primary button: the red plane at 600, as Schedules, Skins and Alerts
+   set theirs, rather than a second red button at 400. */
+.inv42 .ask42-primary { font-weight: 600; }
+/* The sentence sits under the title at the gap Dossiers and History use. */
+.inv42 > .ask42-title { margin: 0 0 var(--s-2); }
+
+@media (max-width: 479px) {
+  /* On a phone the workspace already pads the page, as on History. */
+  .ask42.inv42 { padding-inline: 0; }
+}
+
+/* Labels and helper lines read at body size, above their control. */
+.inv42 .ask42-label { font-size: var(--type-body); color: var(--ink); font-weight: 600; }
+.inv42 .ask42-muted { font-size: var(--type-body); }
+.inv42 .ask42-form { gap: var(--s-2); }
+.inv42 .ask42-form > .ask42-input { margin-bottom: var(--s-3); }
+.inv42 .inv42-form-row { align-items: flex-end; gap: var(--s-4); }
+.inv42-field { display: grid; gap: var(--s-2); min-width: 0; }
+.inv42-field .ask42-select { min-width: 16rem; }
+.inv42-empty { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
+.inv42-empty-line { margin: 0; font-size: var(--type-body); color: var(--ink-2); line-height: var(--leading-body); }
+.inv42-empty .inv42-empty-line { flex: 1 1 16rem; }
+
+.inv42-list { list-style: none; margin: 0 0 var(--s-5); padding: 0; display: grid; border-top: 1px solid var(--line); }
+.inv42-row { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--s-1) var(--s-3); align-items: baseline; padding: var(--s-3); border-bottom: 1px solid var(--line); animation: inv42RowIn var(--motion-layer) var(--motion-standard-easing) backwards; animation-delay: calc(min(var(--row-step, 0), 4) * 80ms); transition: background-color var(--motion-row) var(--motion-standard-easing); }
+.inv42-row:hover, .inv42-row:focus-within { background: var(--surface); }
+.inv42-row:hover .inv42-row-title { text-decoration-thickness: 2px; }
+.inv42-row:nth-child(2) { --row-step: 1; }
+.inv42-row:nth-child(3) { --row-step: 2; }
+.inv42-row:nth-child(4) { --row-step: 3; }
+.inv42-row:nth-child(n+5) { --row-step: 4; }
+@keyframes inv42RowIn { from { opacity: 0; transform: translateY(4px); } }
+.inv42-row .ask42-muted { grid-column: 2; }
+.inv42-row-title { font-size: var(--type-signal-title); font-weight: 600;
+  line-height: var(--leading-signal-title);
+}
+.inv42-state { font-size: var(--type-body); color: var(--muted);
+  line-height: var(--leading-meta);
+}
+.inv42-state[data-state="running"] { color: var(--ink); }
+
+.inv42-subs { margin: 0 0 var(--s-4); padding-left: var(--s-5); display: grid; gap: var(--s-3); }
+.inv42-sub { display: grid; gap: var(--s-1); line-height: 1.5; }
+.inv42-sub-text { font-size: var(--type-body);
+  line-height: var(--leading-body);
+}
+
+.inv42-edit { display: grid; gap: var(--s-4); }
+.inv42-edit-sub { display: grid; gap: var(--s-2); margin: 0; padding: var(--s-3) var(--s-4); border: 1px solid var(--line); }
+.inv42-platforms { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin: 0; padding: 0; border: 0; }
+.inv42-platforms legend { width: 100%; margin-bottom: var(--s-1); }
+.inv42-check { display: inline-flex; align-items: center; gap: var(--s-2); min-height: var(--target-min); font-size: var(--type-body);
+  line-height: var(--leading-body);
+}
+.inv42-check input { width: 20px; height: 20px; }
+.ask42-input.inv42-number { width: 120px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .inv42-row { animation: none; }
+}
+
+/* Layout pass, 4 October 2026. The form keeps a working width on the left
+   and what an investigation hands back fills the right, so the start of the
+   page uses the screen instead of a 760px column beside a void. */
+.inv42-start { display: grid; gap: var(--s-6) var(--s-7); margin: 0 0 var(--s-6); }
+.inv42-start > .inv42-new { margin: 0; min-width: 0; }
+.inv42-start .ask42-form { max-width: none; margin-bottom: 0; }
+.inv42-get { min-width: 0; }
+.inv42-get-list { margin: 0; display: grid; border-top: 1px solid var(--line); }
+.inv42-get-list > div { display: grid; gap: var(--s-1); padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
+.inv42-get-list dt { font-weight: 600; color: var(--ink); line-height: var(--leading-body); }
+.inv42-get-list dd { margin: 0; color: var(--ink-2); line-height: var(--leading-body); text-wrap: pretty; }
+.inv42-get-note { margin: var(--s-3) 0 0; color: var(--muted); line-height: var(--leading-body); text-wrap: pretty; }
+/* The hint beside the button says why it waits, so a waiting button never
+   reads as a broken one. */
+.inv42-hint { display: inline-flex; align-items: center; min-height: var(--target-min); color: var(--muted); line-height: var(--leading-body); }
+#main-content main.inv42 .inv42-form-row > .ask42-primary:disabled { background: transparent; border-color: var(--line-2); color: var(--muted); opacity: 1; }
+.inv42 .inv42-field { flex: 0 1 17rem; }
+.inv42-field .ask42-select { width: 100%; min-width: 0; }
+/* The empty list is one ruled block: what is missing and what to do, then
+   what the list will hold. */
+.inv42-empty-first { display: grid; gap: var(--s-1); padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
+.inv42-empty-note { margin: 0; color: var(--muted); line-height: var(--leading-body); }
+
+@media (min-width: 1000px) {
+  .inv42-start { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+  .inv42-get { padding-inline-start: var(--s-6); border-inline-start: 1px solid var(--line); }
+  .inv42-get .inv42-section-title { margin-bottom: var(--s-3); }
+}
+
+/* Layout pass two, 4 October 2026. Market sits under the angles at a
+   working width, and Draft a plan ends a ruled line that says what it will
+   do, so the red button reads as the end of a sentence, not a lone block. */
+.inv42-new .inv42-field { max-width: 20rem; margin-bottom: var(--s-3); }
+.inv42 .inv42-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3) var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+.inv42 .inv42-form-row > .inv42-hint { flex: 1 1 10rem; margin: 0; display: block; min-height: 0; color: var(--ink-2); text-wrap: pretty; }
+.inv42 .inv42-form-row > .ask42-primary { flex: none; }
+/* Six status tabs do not fit a phone's width in one row: they sit in two
+   rows of three, every word whole, instead of the last one cut at the edge. */
+@media (max-width: 479px) {
+  .inv42 .inv42-status-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; overflow: visible; }
+  .inv42 .inv42-status-tabs > .t42-tab { text-align: start; justify-self: start; }
+  .inv42 .inv42-form-row > .ask42-primary { flex: 1 1 100%; }
+}

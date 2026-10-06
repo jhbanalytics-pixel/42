@@ -1,0 +1,25 @@
+{
+  "probe": "9a",
+  "route": "facebook/events",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 0>"
+      ],
+      "total": "<int>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<null>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

@@ -1,0 +1,240 @@
+/* PULSE · Graph Surfaces (Compare / Network / Map).
+   Targeted focus-visible, hover and responsive states the inline style
+   objects in compare.jsx, network.jsx and map.jsx cannot express. Every
+   other rule (layout, colour, type, data bindings) stays next to the data
+   in those files, same pattern as topic.css / loop.css / voices.css. */
+
+/* Compare: mode toggle, pickers, versus links */
+.cmp-wrap {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 32px 30px 90px;
+}
+.cmp-signal-dot,
+.cmp-versus-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+.cmp-signal-dot {
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  background: var(--accent);
+}
+.cmp-versus-dot { width: 9px; height: 9px; }
+.cmp-versus-dot--a { background: var(--accent); }
+.cmp-versus-dot--b { background: var(--cooling); }
+.cmp-versus-link {
+  min-width: 0;
+  padding: 8px;
+  margin: -8px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 0;
+  transition: background-color var(--motion-row) var(--motion-standard-easing), color var(--motion-row) var(--motion-standard-easing);
+}
+.cmp-versus-link--a { text-align: left; }
+.cmp-versus-link--b { text-align: right; }
+.cmp-versus-link:hover, .cmp-versus-link:focus-visible { background: var(--surface-2); }
+.page.compare .intel-down {
+  max-width: 640px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-left: 4px solid var(--down);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.cmp-metric-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(82px, 110px) minmax(0, 1fr);
+  align-items: stretch;
+  border-bottom: 1px solid var(--line);
+}
+.cmp-metric-value {
+  min-width: 0;
+  padding: 14px 18px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  overflow-wrap: break-word;
+}
+.cmp-metric-value.tnum { font-family: var(--data-mono); }
+.cmp-metric-value.is-winner { color: var(--ink); }
+.cmp-metric-value--a { text-align: right; }
+.cmp-metric-value--b { text-align: left; }
+.cmp-metric-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1.35;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--faint);
+  overflow-wrap: break-word;
+}
+.cmp-seg button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+.cmp-picker select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+.cmp-versus a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-offset);
+  border-radius: 0;
+}
+@media (max-width: 720px) {
+  .cmp-wrap { padding: 20px 16px 72px; }
+  .page.compare .ui-page-hero { gap: 16px; padding: 24px 0 28px; }
+  .page.compare .ui-page-hero-title {
+    max-width: 100%;
+    font-size: var(--type-7);
+    overflow-wrap: normal;
+    text-wrap: balance;
+  }
+  .page.compare :is(.intel-down, .rc-empty) { overflow-wrap: break-word; }
+  .cmp-picker-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .cmp-versus {
+    grid-template-columns: 1fr !important;
+    text-align: left !important;
+    gap: 10px !important;
+    padding: 14px 16px !important;
+  }
+  .cmp-versus-link,
+  .cmp-versus-link--b { text-align: left; }
+  .cmp-versus-link--b > div:first-child { justify-content: flex-start !important; }
+  .cmp-metric-value { padding: 12px 10px; font-size: 12px; }
+  .cmp-metric-label { padding: 10px 6px; font-size: 8px; letter-spacing: 0.08em; }
+}
+
+/* Network: node links, link lists */
+/* Quiet register, 23 Sept 2026: Network is a page title, a labelled plot on
+   the open page and two plain lists. Nothing is framed inside the plot, the
+   links are neutral, and red marks only the node in hand, its links and the
+   focus ring. Figures and labels are the sans at 14px; mono is kept for the
+   handles a reader copies. */
+.net-node:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+.net-bridge-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+/* The page gutter is the shared shell rule in app.css. */
+.network-page .net-page-head { margin: 0; }
+.network-page .net-page-title { margin: 0; font: 600 var(--type-page-title)/var(--leading-page-title) var(--sans); letter-spacing: 0; color: var(--ink); text-align: left; }
+.network-page .net-lead { max-width: var(--measure); margin: var(--s-2) 0 0; font: 400 var(--type-body)/var(--leading-body) var(--sans); color: var(--muted); text-wrap: pretty; }
+.network-page .net-coverage { margin-top: 24px; padding-block: 16px; border-block: 1px solid var(--line); font: 400 var(--type-3)/1.6 var(--sans); color: var(--muted); }
+.network-page .net-coverage p { max-width: var(--measure); margin: 8px 0; }
+.network-page .net-coverage summary { min-height: 48px; padding-block: 12px; color: var(--ink); cursor: pointer; transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing); }
+.network-page .net-coverage summary:hover { color: var(--accent-text); }
+.network-page .net-coverage summary:focus-visible { outline: 2px solid var(--accent-text); outline-offset: var(--focus-offset); }
+.network-page .net-coverage summary:active { box-shadow: var(--press-grip); }
+.network-page .net-recorded-links,
+.network-page .net-bridges-section { margin-top: 48px; }
+.network-page .net-recorded-links h2,
+.network-page .net-bridges-section h2,
+.network-page .net-finding { margin: 0; font: 400 var(--type-5)/1.3 var(--serif); color: var(--ink); }
+.network-page .net-recorded-links > p,
+.network-page .net-source { max-width: var(--measure); margin: 8px 0 0; font: 400 var(--type-3)/1.6 var(--sans); color: var(--muted); }
+.network-page .net-link-list { list-style: none; margin: 16px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.network-page .net-link-list li { border-bottom: 1px solid var(--line); }
+.network-page .net-bridge-card { display: flex; flex-direction: column; gap: 4px; min-height: 48px; padding: 16px 0; color: var(--ink); text-decoration: none; transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing); }
+.network-page .net-bridge-card:hover .net-bridge-name,
+.network-page .net-bridge-card:focus-visible .net-bridge-name { text-decoration: underline; text-underline-offset: 4px; }
+.network-page .net-bridge-name,
+.network-page .net-creator-label { font: 400 var(--type-4)/1.4 var(--mono); font-variation-settings: "MONO" 1, "CASL" 0, "slnt" 0, "CRSV" 0; overflow-wrap: break-word; }
+.network-page .net-topic-tag { font: 400 var(--type-4)/1.5 var(--sans); color: var(--ink); }
+.network-page .net-column-heads,
+.network-page .net-provenance,
+.network-page .net-provenance-value,
+.network-page .net-node-meta { font: 400 var(--type-3)/1.4 var(--sans); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; font-variant-numeric: tabular-nums; letter-spacing: normal; color: var(--muted); }
+.network-page .net-node-market { font: inherit; }
+.network-page .net-bridge-label { color: var(--ink); }
+/* Quiet register, 23 Sept 2026: the failed read is plain words on the page
+   under a hairline, not a framed card of 11.5px red mono. The message is the
+   sans at 14px, the status code stays in mono because a reader quotes it,
+   and Try again is the one red action. */
+.network-page .intel-down { max-width: none; margin-top: var(--s-5); padding: var(--s-5) 0 0; border: 0; border-top: 1px solid var(--line); background: none; }
+.network-page .intel-down > .legacy-action { margin-top: var(--s-4); }
+.network-page .intel-down > .workspace-reason { margin-top: var(--s-3); }
+.network-page .intel-down .id-head { margin: 0; font: 600 var(--type-6)/1.3 var(--sans); color: var(--ink); text-wrap: balance; }
+.network-page .intel-down .id-msg { margin: 8px 0 0; font: 400 var(--type-3)/1.55 var(--sans); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; color: var(--muted); }
+.network-page .intel-down > .id-msg { max-width: var(--measure); font-size: var(--type-4); line-height: 1.6; text-wrap: pretty; }
+.network-page .intel-down .id-head { max-width: var(--measure); }
+.network-page .intel-down .id-msg code { font: inherit; font-family: var(--mono); font-variation-settings: "MONO" 1, "CASL" 0, "slnt" 0, "CRSV" 0; color: var(--ink); }
+.network-page .net-empty-note { margin-top: 24px; }
+.network-page .net-empty-note .es-block { min-height: 0; padding: 20px; text-align: left; align-items: flex-start; }
+.network-page .net-empty-note .es-copy { width: 100%; max-width: none; }
+.network-page .net-empty-note .es-title { font-size: var(--type-4); margin: 0 0 12px; }
+.network-page .net-empty-note .es-body { max-width: var(--measure); margin: 0 0 16px; font-size: var(--type-3); }
+.network-page .net-empty-note .es-status, .network-page .net-empty-note .es-actions { justify-content: flex-start; }
+.network-page .net-canvas { height: auto; margin-top: 32px; padding: 0; border: 0; background: none; overflow: visible; }
+.network-page .net-column-heads { position: relative; min-height: 48px; margin-top: 16px; }
+.network-page .net-column-heads > span { position: absolute; bottom: 0; width: 36%; }
+.network-page .net-column-heads > :first-child { left: 3%; text-align: left; }
+.network-page .net-column-heads > :last-child { right: 3%; text-align: left; }
+.network-page .net-plot { position: relative; width: 100%; margin-block: 32px; }
+.network-page .net-edge { transition: opacity var(--motion-row) var(--motion-standard-easing), stroke var(--motion-row) var(--motion-standard-easing); }
+.network-page .net-node { position: absolute; width: 36%; min-height: 48px; transform: translateY(-50%); display: flex; flex-direction: column; justify-content: center; gap: 0; padding: 8px 0; border: 0; background: none; color: var(--ink); text-decoration: none; transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing); }
+.network-page .net-node--topic { left: 3%; align-items: flex-start; text-align: left; }
+.network-page .net-node--creator { right: 3%; align-items: flex-start; text-align: left; }
+.network-page .net-node-label { font: 400 var(--type-4)/1.4 var(--serif); overflow-wrap: normal; }
+.network-page .net-node:hover,
+.network-page .net-node:focus-visible { color: var(--ink); background: none; box-shadow: inset 0 -2px 0 var(--accent); }
+.network-page .net-node:focus-visible { outline: 2px solid var(--accent); outline-offset: var(--focus-offset); }
+.network-page .net-node:active,
+.network-page .net-bridge-card:active,
+.network-page .net-topic-links a:active { box-shadow: var(--press-grip); }
+.network-page .net-mobile-links { display: none; margin-top: 16px; border-top: 1px solid var(--line); }
+.network-page .net-topic-links { padding-block: 16px; border-block-end: 1px solid var(--line); }
+.network-page .net-topic-links h2 { margin: 0; font: 400 var(--type-5)/1.4 var(--serif); }
+.network-page .net-topic-links > .net-node-meta { margin: 0 0 8px; }
+.network-page .net-topic-links ul { list-style: none; margin: 0; padding: 0; }
+.network-page .net-topic-links li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; }
+.network-page .net-topic-links li a { flex-direction: column; align-items: flex-start; justify-content: center; padding-block: 8px; }
+.network-page .net-topic-links a { display: inline-flex; align-items: center; min-height: 48px; color: var(--ink); transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing); }
+.network-page .net-topic-links a:hover,
+.network-page .net-topic-links a:focus-visible { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+.network-page .net-topic-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: var(--focus-offset); }
+@media (max-width: 1100px) {
+  .network-page .net-plot,
+  .network-page .net-column-heads { display: none; }
+  .network-page .net-mobile-links { display: block; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .network-page .net-edge,
+  .network-page .net-node,
+  .network-page .net-bridge-card,
+  .network-page .net-topic-links a { transition: none; }
+  .network-page .net-coverage summary { transition: none; }
+}
+
+/* Map: node cards, lane grid */
+.map-node:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+@media (max-width: 720px) {
+  .map-lane {
+    grid-template-columns: 1fr !important;
+  }
+}

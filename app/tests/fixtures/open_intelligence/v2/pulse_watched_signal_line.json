@@ -1,0 +1,25 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "pulse_watched_signal_line",
+  "fixture_kind": "pulse_watched_signal_line",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "audience_lens_ids": [],
+    "brand_config_id": "fixture_brand",
+    "client_scope_id": "fixture_scope",
+    "continuity_day": 4,
+    "contract_version": "2.0.0",
+    "deep_link": "/signals/sig_1111111111111111111111111111111111111111111111111111111111111111?market=za",
+    "evidence_state": "ready",
+    "market_scope": [
+      "za"
+    ],
+    "material_change": "source_family_agreement",
+    "run_id": "run_fixture_001",
+    "signal_id": "sig_1111111111111111111111111111111111111111111111111111111111111111",
+    "signal_name": "Fixture repair routine",
+    "theme_id": "fixture_theme",
+    "what_changed": "A second synthetic source family joined the fixture signal."
+  },
+  "sanitized": true
+}

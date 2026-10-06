@@ -1,0 +1,36 @@
+# Trend Cycles -- 8 Planned + 4 Ad-Hoc
+# Each cycle defines a themed trend window the team focuses on.
+
+planned_cycles:
+  - id: cycle_01
+    name: "Launch Wave"
+    start_date: "2026-05-01"
+    end_date: "2026-05-31"
+    markets: [ng, za, ke]
+    focus_topics: []           # Auto-detected from pipeline output
+    status: upcoming
+
+  - id: cycle_02
+    name: "Africa Day"
+    start_date: "2026-05-25"
+    end_date: "2026-06-07"
+    markets: [ng, za, ke]
+    focus_topics:
+      - african_identity
+      - music_entertainment
+    status: upcoming
+
+  # Cycles 3-8 TBD by strategy team
+  # - id: cycle_03
+  #   name: ""
+  #   start_date: ""
+  #   end_date: ""
+  #   markets: [ng, za, ke]
+  #   focus_topics: []
+  #   status: planned
+
+adhoc_slots:
+  max_adhoc: 4
+  min_duration_days: 7
+  max_duration_days: 21
+  activation_threshold: 0.8   # Trend score to auto-suggest an ad-hoc cycle

@@ -1,0 +1,71 @@
+{
+  "probe": "8b",
+  "route": "instagram/location/posts",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 23>",
+        {
+          "computed": {
+            "content_category": "<null>",
+            "engagement_rate": "<null>",
+            "estimated_reach": "<null>",
+            "language": "<null>"
+          },
+          "post": {
+            "author": {
+              "avatar_url": "<str>",
+              "display_name": "<null>",
+              "username": "<str>",
+              "verified": "<bool>"
+            },
+            "content": {
+              "duration_seconds": "<null>",
+              "media_urls": "<str>",
+              "text": "<null>",
+              "thumbnail_url": "<null>"
+            },
+            "engagement": {
+              "comments": "<int>",
+              "likes": "<int>",
+              "saves": "<null>",
+              "shares": "<null>",
+              "views": "<null>"
+            },
+            "ext": {
+              "coauthors": [
+                "<list of 0>"
+              ],
+              "media_type": "<str>",
+              "published_at_epoch": "<int>"
+            },
+            "flags": {
+              "deleted": "<bool>",
+              "nsfw": "<null>",
+              "pinned": "<bool>",
+              "spoiler": "<null>"
+            },
+            "id": "<str>",
+            "published_at": "<str>",
+            "url": "<str>"
+          },
+          "vendor_labels": {}
+        }
+      ],
+      "total": "<null>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<null>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

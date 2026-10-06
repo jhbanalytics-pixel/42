@@ -1,0 +1,908 @@
+.t42 {
+  --t42-small: var(--type-meta);
+  --t42-body: var(--type-body);
+  --t42-lead: var(--type-signal-title);
+  --t42-head: var(--type-page-title);
+  font-family: var(--sans);
+  font-size: var(--type-body);
+  color: var(--ink);
+  padding: var(--s-6) var(--s-5);
+  max-width: var(--maxw);
+
+  line-height: var(--leading-body);
+}
+
+.t42 :focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.t42-head { margin-bottom: var(--s-5); }
+.t42-heading { font-size: var(--type-page-title); font-weight: 600; line-height: var(--leading-page-title); margin: 0 0 var(--s-3); }
+/* The deck under the title is set in the sans like every other page's deck.
+   The serif is kept for one job only, a quoted post, so it means a voice. */
+.t42-headline { font-family: var(--sans); font-size: var(--type-signal-title); line-height: var(--leading-signal-title); margin: 0 0 var(--s-4); max-width: var(--measure); text-wrap: balance; }
+.t42-status { font-size: var(--t42-body); color: var(--muted); }
+
+/* The header reads in three steps (hierarchy): the title, the one-sentence
+   headline, then the quiet facts. A warning that changes how the page is
+   read is the first fact, told apart by ink and weight alone: no rule and no
+   larger size, so the header holds three registers, not five. */
+.t42-status-area { display: grid; gap: var(--s-1); margin-top: var(--s-3); }
+.t42-status-area:empty { display: none; }
+/* The warm-up meter is a thin track of its days under the facts that name
+   it: the days passed in ink, today in red, the rest in the rule colour,
+   no outlined squares. */
+.t42-status-area > [data-today-warmup-meter] { width: min(100%, 20rem); margin: var(--s-1) 0 0; }
+.t42-status-area > [data-today-warmup-meter] .ch42-steps-row { display: flex; flex-wrap: nowrap; gap: 2px; }
+.t42-status-area > [data-today-warmup-meter] .ch42-step { flex: 1 1 0; width: auto; height: 4px; border: 0; background: var(--line-2); }
+.t42-status-area > [data-today-warmup-meter] .ch42-step.is-done { background: var(--ink); }
+.t42-status-area > [data-today-warmup-meter] .ch42-step.is-now { background: var(--accent); }
+.t42-notice {
+  margin: 0;
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  font-weight: 600;
+  color: var(--ink);
+}
+/* A date in a heading is one thought and never splits across lines. */
+.t42-nowrap { white-space: nowrap; }
+.t42-facts {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s-4);
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  color: var(--muted);
+}
+
+/* A market's own notes: quiet lines; a data issue keeps the notice mark. */
+.t42-banner {
+  font-size: var(--t42-small);
+  line-height: var(--leading-meta);
+  margin: 0 0 var(--s-2);
+  color: var(--muted);
+}
+.t42-banner-data_issue { padding-left: var(--s-3); border-left: 2px solid var(--ink); color: var(--ink); font-weight: 600; }
+
+/* Every tab row stays one line: a tab never shrinks below its word, and a row
+   wider than its column scrolls sideways inside itself, never the page. */
+.t42-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--s-2);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--s-5);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  scroll-padding-inline: var(--s-5);
+}
+.t42-tabs::-webkit-scrollbar { display: none; }
+.t42-tabs > .t42-tab { flex: 0 0 auto; white-space: nowrap; }
+/* The scroller clips anything outside it, so a tab's ring sits just inside its own edge. */
+.t42-tabs > .t42-tab:focus-visible { outline-offset: calc(var(--focus-offset) * -1); }
+.t42-tab {
+  position: relative;
+  font: inherit;
+  font-size: var(--t42-body);
+  background: none;
+  border: 0;
+  color: var(--muted);
+  padding: var(--s-2) var(--s-3);
+  min-height: var(--target-min);
+  cursor: pointer;
+  transition: color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing);
+}
+/* The active indicator grows in from the tab's centre and fades; a hovered
+   tab shows a faint one, so the pointer always has an answer. */
+.t42-tab::after {
+  content: "";
+  position: absolute;
+  left: var(--s-3);
+  right: var(--s-3);
+  bottom: 0;
+  height: 2px;
+  background: var(--ink);
+  opacity: 0;
+  transform: scaleX(.4);
+  transition: opacity var(--motion-layer) var(--motion-standard-easing), transform var(--motion-layer) var(--motion-standard-easing);
+}
+.t42-tab:hover, .t42-tab:focus-visible { color: var(--ink); }
+.t42-tab:active { background-color: var(--surface-2); }
+.t42-tab:hover::after { opacity: .3; transform: none; }
+.t42-tab[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+.t42-tab[aria-selected="true"]::after { opacity: 1; transform: none; }
+
+.t42-market { margin-bottom: var(--s-7); }
+.t42-market-name { font-size: var(--t42-lead); font-weight: 600; margin: 0 0 var(--s-3); }
+.t42-source-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s-3); margin-bottom: var(--s-2); font-size: var(--type-meta); color: var(--muted); }
+.t42-market [data-source-problem] { margin: 0; color: var(--muted); font-size: var(--type-meta); }
+.t42-market details[data-section="source-details"] { font-size: var(--type-meta); color: var(--muted); }
+.t42-market details[data-section="source-details"][open] { flex: 1 1 100%; }
+.t42-market details[data-section="source-details"] > summary {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 2px;
+}
+.t42-market details[data-section="source-details"] > .t42-rows { padding-left: var(--s-4); }
+
+.t42-cards {
+  list-style: none;
+  margin: 0 0 var(--s-4);
+  padding: 0;
+  display: grid;
+  gap: var(--s-4);
+  align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+/* The trend card. Title first with its state on the same row, then the
+   line, then one facts row, the trend line and stills, and one action row
+   with a single primary action (hierarchy, one primary action per region). */
+.t42-card {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  transition: background-color var(--motion-row) var(--motion-standard-easing);
+  animation: t42Enter var(--motion-layer) var(--motion-standard-easing) backwards;
+  animation-delay: calc(min(var(--i, 0), 6) * 80ms);
+}
+.t42-card:hover, .t42-card:focus-within { background-color: var(--surface-2); }
+@keyframes t42Enter { from { opacity: 0; transform: translateY(calc(8px * var(--motion, 1))); } to { opacity: 1; transform: none; } }
+
+.t42-card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-1) var(--s-4); }
+.t42-card-head > .t42-card-title { flex: 1 1 16rem; min-width: 0; }
+.t42-card-kicker { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3); }
+.t42-card-meta { display: flex; flex-wrap: wrap; margin: 0; font-size: var(--type-meta); color: var(--muted);
+  line-height: var(--leading-meta);
+}
+.t42-card-meta > * + *::before { content: "·"; padding-inline: var(--s-2); color: var(--muted); font-weight: 400; }
+.t42-tag { font-weight: 600; color: var(--ink); }
+.t42-flag, .t42-news { font-weight: 600; color: var(--ink); }
+.t42-card-title { font-size: var(--type-signal-title); font-weight: 600; margin: 0; overflow-wrap: anywhere;
+  line-height: var(--leading-signal-title);
+}
+.t42-explanation { margin: 0; line-height: 1.45; max-width: var(--measure); }
+.t42-held-line, .t42-count { margin: 0; font-size: var(--t42-small); color: var(--muted); }
+/* Short sentences share their words evenly across their lines, so none ends
+   on a two-word straggler ("possibly tied to / the weekend."). text-wrap:
+   pretty, inherited from body, only guards a single last word. */
+.t42-explanation,
+.t42-post-text,
+.t42-specificity-quote,
+.t42-notice,
+.t42-head > .t42-status,
+.t42-below .t42-chip > span,
+[data-dropped-row] > .t42-row-reason,
+[data-held-row] > .t42-line-text { text-wrap: pretty; }
+
+/* The facts row: one wrapping line of small facts, spaced apart rather than
+   split by marks, so a wrapped line never starts with a stray separator. app.css
+   flattens this wrapper; inside a card it is a row again. */
+.t42-card .t42-card-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-4);
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  color: var(--muted);
+}
+.t42-card .t42-card-metrics:empty { display: none; }
+.t42-card .t42-card-metrics > * { margin: 0; }
+.t42-card .t42-card-metrics > .tc-figures { display: contents; }
+.t42-card .t42-card-metrics .tc-figure { min-width: 0; overflow-wrap: anywhere; }
+
+/* The trend line and the stills share a row. */
+.t42-card-media { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-3) var(--s-5); }
+.t42-card-media:empty { display: none; }
+.t42-trend { margin: 0; display: grid; gap: var(--s-1); justify-items: start; }
+.t42-trend-caption { font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); }
+.t42-spark { display: block; max-width: 100%; height: auto; overflow: visible; }
+.t42-spark .t42-axis { stroke: var(--line-2); stroke-width: 1; }
+.t42-spark .t42-line { stroke: var(--ink); stroke-width: 1.5; }
+.t42-spark .t42-gap { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.t42-spark .t42-dot { fill: var(--ink); }
+.t42-spark .t42-tick { font-family: var(--sans); font-size: var(--type-meta); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.t42-spark .t42-band { fill: var(--line); stroke: none; }
+.t42-spark-empty { margin: 0; font-size: var(--type-meta); }
+
+.t42-thumbs { display: flex; gap: var(--s-2); }
+.t42-thumb { width: 72px; height: 96px; object-fit: cover; display: block; background: var(--surface-2, var(--surface-inset)); border: 1px solid var(--line); box-sizing: border-box; }
+
+/* One action row, two levels (NN/g, visual hierarchy of actions: a primary
+   action carries more visual weight than the secondary ones). Every action
+   keeps the same height on one centre line and answers hover and press with
+   a plane. Ask leads the row in ink at 600 with an underline; Watch, Posts
+   and Compare with sit at 400 in the muted ink with no underline, and take
+   the ink and the underline only on hover or keyboard focus. */
+.t42-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-1) var(--s-4); }
+.t42-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s-1); margin: 0 0 0 calc(var(--s-2) * -1); }
+.t42-actions > * { flex-shrink: 0; white-space: nowrap; }
+.t42-action {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--target-min);
+  padding: 0 var(--s-2);
+  font: inherit;
+  font-size: var(--type-body);
+  line-height: 1;
+  font-weight: 400;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  text-decoration: none;
+  text-decoration-color: var(--ink);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: background-color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing), color var(--motion-control) var(--motion-standard-easing);
+}
+.t42-action:hover, .t42-action:focus-visible { background-color: var(--surface-inset); color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink); }
+.t42-action:active { background-color: var(--line); }
+.t42-action[aria-pressed="true"] { color: var(--muted); }
+.t42-action-primary { font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-2); }
+.tc-watching { font-size: var(--t42-small); color: var(--muted); }
+
+/* The one-tap feedback sits after the actions as a labelled question in
+   the small size: the muted run-in label, then Real, Not real and Useful as
+   plain words split by a thin rule, so the taps read as one answer to one
+   question and never as boxed buttons or more actions at the weight of Ask
+   (NN/g, visual hierarchy of actions). Each tap is 32px tall, above the
+   24px minimum target of WCAG 2.2, 2.5.8. A chosen tap turns ink, heavier
+   and underlined. */
+.t42-card-foot .f42-feedback { gap: 0; }
+.t42-card-foot .f42-label { margin-inline-end: var(--s-1); }
+.t42-card-foot .f42-note:not(:empty) { margin-inline-start: var(--s-2); }
+.t42-card-foot .f42-tap {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 0 var(--s-2);
+  font-size: var(--type-2);
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  text-decoration: none;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+}
+/* A thin rule between neighbouring words, drawn by the later word. */
+.t42-card-foot .f42-tap + .f42-tap { margin-inline-start: 0; border-inline-start: 1px solid var(--line); }
+.t42-card-foot .f42-tap:hover, .t42-card-foot .f42-tap:focus-visible { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink); }
+.t42-card-foot .f42-tap[aria-pressed="true"] { font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink); }
+.t42-card-foot .f42-tap:focus-visible { position: relative; z-index: 1; }
+
+.t42-link { color: var(--ink); font-size: var(--t42-small); text-decoration: underline; text-underline-offset: 2px; }
+/* A link that stands on its own row gets a full tap target; a link inside a
+   sentence keeps the line's rhythm. */
+.t42-section > .t42-link,
+.t42-post > .t42-link,
+.t42-line-text > .t42-link:only-child {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+}
+/* Breaking lines on Today: each topic link is a full tap target. */
+.t42-breaking-rows > li { overflow-wrap: anywhere; }
+.t42-breaking-rows > li > .t42-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+}
+.t42-button, .t42-disclose {
+  font: inherit;
+  font-size: var(--t42-small);
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line-2);
+  padding: var(--s-1) var(--s-3);
+  min-height: 32px;
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing);
+}
+.t42-button { min-height: var(--target-min); }
+.t42-button:hover, .t42-button:focus-visible { border-color: var(--ink); }
+.t42-button:active:not(:disabled) { background-color: var(--surface-2); }
+.t42-disclose { border: 0; padding: 0; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 2px; }
+.t42-disclose:hover, .t42-disclose:focus-visible { text-decoration-color: var(--ink); }
+
+.t42-posts { border-top: 1px solid var(--line); padding-top: var(--s-2); }
+.t42-evidence { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+.t42-post-meta { margin: 0; font-size: var(--type-meta); color: var(--muted);
+  line-height: var(--leading-meta);
+}
+.t42-post-text { margin: var(--s-1) 0; font-size: var(--type-body); overflow-wrap: anywhere;
+  line-height: var(--leading-body);
+}
+/* A local example whose words are the quote above says so in a quiet line. */
+.t42-post-quoted { margin: var(--s-1) 0; font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); }
+.t42-specificity { display: grid; gap: var(--s-3); }
+.t42-specificity-why-now { margin: 0; }
+/* Labels run in at the start of their line, so each part costs no extra row. */
+.t42-specificity-label { display: inline; margin-right: var(--s-2); font-size: var(--t42-small); font-weight: 600; color: var(--muted); }
+.t42-specificity-examples > .t42-specificity-label { display: block; margin: 0; }
+.t42-specificity-quote > .t42-post-text { display: inline; }
+/* The quote is a plain indented serif line in curly quotation marks: no
+   rule, no plane. The marks make the serif read as a deliberate quotation,
+   not a stray change of face. They are drawn, so the text stays verbatim. */
+.t42-specificity-quote { margin: 0; padding: 0; max-width: var(--measure); }
+.t42-specificity-quote .t42-post-text { margin: 0; font-family: var(--serif); font-size: var(--type-signal-title); line-height: var(--leading-signal-title); quotes: "\201C" "\201D"; }
+.t42-specificity-quote .t42-post-text::before { content: open-quote; }
+.t42-specificity-quote .t42-post-text::after { content: close-quote; }
+.t42-specificity-examples { display: grid; gap: var(--s-2); }
+/* Local examples: each post is a short column under a thin ink rule, its
+   source line, then its words, then its link, so two or three examples
+   read as one row of evidence across the card's width. */
+.t42-specificity-examples > .t42-evidence { grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: var(--s-3) var(--s-5); }
+.t42-specificity-examples .t42-post {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line-2);
+}
+.t42-specificity-examples .t42-post > .t42-post-text,
+.t42-specificity-examples .t42-post > .t42-post-quoted { margin: 0; }
+.t42-specificity-examples .t42-post > .t42-link { min-block-size: 32px; }
+
+/* The short lists under the cards stand in one column at the page's width.
+   Side by side in narrow tracks they broke "Reclassified as Seasonal" and
+   "Moments in the next 14 days" onto extra rows and left a lone section on a
+   row of its own. */
+.t42-below { display: grid; gap: var(--s-5); grid-template-columns: minmax(0, 1fr); margin-top: var(--s-5); }
+/* From 1200px Moments and the boards stand side by side under the
+   left-out line, two short ruled lists that share the width instead of two
+   lonely rows across it. The left-out line and anything else span both
+   columns. Narrower, a moment's row would wrap, so they stack. */
+@media (min-width: 1200px) {
+  .t42-below:has(> [data-section="moments"]):has(> [data-section="boards"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-6); }
+  .t42-below > :not([data-section="moments"]):not([data-section="boards"]) { grid-column: 1 / -1; }
+}
+.t42-section { font-size: var(--t42-small); }
+/* The page headline already says this card's Why now, so the card skips it. */
+.t42-card-headline-said .t42-specificity-why-now { display: none; }
+.t42-section-title { font-size: var(--type-section-title); font-weight: 600; margin: 0 0 var(--s-2);
+  line-height: var(--leading-section-title);
+}
+.t42-line-text { margin: 0 0 var(--s-2); }
+.t42-rows { margin: 0; padding-left: var(--s-4); display: grid; gap: var(--s-1); }
+.t42-board-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1); }
+.t42-row { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-3); }
+.t42-chip { padding: var(--s-2) 0; border-top: 1px solid var(--line); flex: 1 1 100%; }
+/* Held back is a compact name | reason list across the full width, so the
+   items held back never take more room than the items shown. */
+.t42-below > [data-section="held-back"] { grid-column: 1 / -1; }
+[data-section="held-back"] .t42-rows > li { font-size: var(--type-3); }
+[data-held-row] > .t42-line-text { margin: 0; color: var(--muted); }
+[data-section="held-back"] .t42-rows > li > .t42-disclose { min-height: var(--target-min); font-size: var(--type-3); }
+@media (min-width: 769px) {
+  .t42-today-market [data-section="held-back"] .t42-rows > li {
+    display: grid;
+    grid-template-columns: minmax(12rem, 22rem) minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--s-5);
+    padding-block: 0;
+  }
+  [data-section="held-back"] [data-held-row] > .t42-held-detail { padding-left: 0; }
+}
+.t42-held-detail { padding: var(--s-2) 0 var(--s-2) var(--s-3); }
+[data-section="held-for-evidence"] > summary {
+  min-block-size: var(--target-min);
+  padding-block: var(--s-3);
+  cursor: pointer;
+}
+/* An empty market's held items, grouped by reason: the reason once in ink
+   with its count, a plain line on what it means where one is known, then
+   the topics as quiet rows. Posts and figures open per topic. */
+.t42-held-group { margin: 0 0 var(--s-5); max-width: var(--measure); }
+.t42-held-group-reason {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-3);
+  margin: 0;
+  padding-block: var(--s-2);
+  border-bottom: 1px solid var(--line-2);
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--ink);
+}
+.t42-held-group-count { font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+.t42-held-group-help { margin: var(--s-2) 0; font-size: var(--type-3); color: var(--ink-2); max-width: var(--measure); }
+/* The topic's disclosure sits at the row's end while closed and opens under
+   the row; positioned rather than display: contents, which has dropped a
+   details element from the accessibility tree in some browsers. */
+.t42-today-market [data-section="held-for-evidence"] .t42-held-list > li {
+  position: relative;
+  display: block;
+  padding: var(--s-2) 0;
+  font-size: var(--type-3);
+}
+/* The title is a strong for its role; #main-content strong sets 600, and the
+   group reason above carries the weight here. */
+#main-content [data-section="held-for-evidence"] .t42-held-title { display: block; padding-inline-end: 10rem; font-weight: 400; color: var(--ink); overflow-wrap: anywhere; }
+.t42-held-list > li > [data-held-detail] { margin: 0; color: var(--muted); }
+.t42-held-more > summary {
+  position: absolute;
+  top: var(--s-2);
+  inset-inline-end: 0;
+  cursor: pointer;
+  font-size: var(--type-2);
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+}
+.t42-held-more > summary:is(:hover, :focus-visible) { color: var(--ink); text-decoration-color: currentColor; }
+.t42-held-more > .t42-held-detail { margin-top: var(--s-2); padding: var(--s-2) 0 var(--s-3) var(--s-4); border-inline-start: 1px solid var(--line-2); }
+.t42-today-market .t42-held-more .t42-rows > li { padding-inline: 0; min-block-size: 0; }
+.t42-coverage { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: var(--s-3); }
+
+.t42-loading-head { display: grid; gap: var(--s-3); max-width: var(--measure); }
+.t42-loading-shape, .t42-loading-tab {
+  display: block;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  animation: none;
+  transition: none;
+}
+.t42-loading-title { width: min(74%, 31rem); height: 2.4rem; }
+.t42-loading-line { width: min(100%, 48rem); height: .75rem; }
+.t42-loading-line-short { width: min(72%, 35rem); height: .75rem; }
+.t42-loading-tabs { align-items: center; }
+.t42-loading-tab { height: 44px; }
+.t42-loading-tab-za { width: 7rem; }
+.t42-loading-tab-active { border-bottom-color: var(--ink); }
+.t42-loading-tab-ng { width: 5.5rem; }
+.t42-loading-tab-ke { width: 4rem; }
+.t42-loading-tab-all { width: 3rem; }
+.t42-loading-card {
+  display: grid;
+  gap: var(--s-3);
+  width: min(100%, 34rem);
+  min-height: 10rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: var(--s-4);
+}
+.t42-loading-card-meta { width: 7rem; height: .65rem; }
+.t42-loading-card-title { width: 68%; height: 1rem; }
+.t42-loading-card-line { width: 92%; height: .75rem; }
+.t42-loading-card-line-short { width: 74%; height: .75rem; }
+
+
+
+/* Today's cards are rows of one list at every width, split by a hairline
+   rather than boxed (no boxes inside boxes). */
+.t42-today-market > .t42-cards {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.t42 .t42-today-market .t42-card {
+  box-sizing: border-box;
+  min-block-size: 64px;
+  padding: var(--s-4) var(--s-3);
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+.t42 .t42-today-market .t42-card:hover,
+.t42 .t42-today-market .t42-card:focus-within { background-color: var(--surface); }
+.t42-today-market .t42-rows { list-style: none; padding: 0; gap: 0; }
+.t42-today-market .t42-rows > li {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-block-size: var(--target-min);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.t42-today-market .t42-board-rows { gap: 0; }
+.t42-today-market .t42-board-rows > li {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.t42-today-market .t42-disclose,
+.d42-held .t42-disclose {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+  text-align: start;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 769px) {
+  .t42 .t42-head { margin-bottom: var(--s-3); }
+  .t42 .t42-heading { margin-bottom: var(--s-2); }
+  .t42 .t42-headline { margin-bottom: var(--s-2); max-width: none; }
+  .t42-head > .t42-status { margin-block: var(--s-2); }
+  .t42-head > .t42-banner {
+    margin-bottom: var(--s-1);
+    padding-block: var(--s-1);
+    line-height: var(--leading-meta);
+  }
+  .t42 .a42-strip { margin-bottom: var(--s-4); padding-block: var(--s-2); }
+  .t42 .t42-tabs { margin-bottom: var(--s-4); }
+}
+
+.t42-today-market .tc-title-link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+.t42-today-market .tc-title-link:is(:hover, :focus-visible) { color: var(--accent-text); }
+
+.t42 #t42-panel > .t42-heading { font-size: var(--type-section-title); line-height: var(--leading-section-title); }
+
+/* On a phone the workspace already pads the page by --space-5, so the page
+   adds none of its own. It never reaches past the workspace edge, which would
+   make the workspace scroll sideways (wide-tables.test.jsx). */
+@media (max-width: 479px) {
+  .t42 { padding-inline: 0; }
+  .t42-tab { padding-inline: var(--s-2); }
+  /* Tabs wrap to a second row rather than running off the screen edge. */
+  .t42 .t42-tabs { flex-wrap: wrap; overflow: visible; }
+  /* On a phone the lead card's line, quote and first example come into the
+     first screen: the header and tabs keep tighter spacing. */
+  .t42 .t42-head { margin-bottom: var(--s-3); }
+  .t42 .t42-headline { margin-bottom: var(--s-2); }
+  .t42-status-area { margin-top: var(--s-2); gap: var(--s-1); }
+  /* On a phone each fact stands on its own short line, never wrapping two
+     facts onto one row and one onto the next. */
+  .t42-facts { flex-direction: column; }
+  .t42 .t42-tabs { margin-bottom: var(--s-2); }
+  .t42 .t42-today-market .t42-card { padding-block: var(--s-3); gap: var(--s-2); }
+  .t42-specificity { gap: var(--s-2); }
+  .t42-specificity-quote .t42-post-text { font-size: var(--type-body); line-height: var(--leading-body); }
+}
+
+/* Disclosure content arrives as one quiet layer on open: opacity and a 4px
+   rise, never height. It runs on mount or on [open], so a data refresh never
+   replays it. */
+@keyframes t42Reveal { from { opacity: 0; transform: translateY(calc(4px * var(--motion, 1))); } to { opacity: 1; transform: none; } }
+.t42-held-detail,
+.t42-posts:not([hidden]),
+.t42 details[open] > :not(summary) { animation: t42Reveal var(--motion-layer) var(--motion-standard-easing) backwards; }
+
+/* Every entrance and move above stops under reduced motion; the page shows
+   its final state at once. */
+@media (prefers-reduced-motion: reduce) {
+  .t42-card,
+  .t42-held-detail,
+  .t42-posts:not([hidden]),
+  .t42 details[open] > :not(summary) { animation: none; }
+  .t42-card,
+  .t42-tab,
+  .t42-tab::after,
+  .t42-action,
+  .t42-button { transition: none; }
+}
+
+/* Every list under the cards uses one row: the same size, height and inset as
+   Held back, and the same name | reason columns where a row has a reason.
+   Before, Dropped ran "name: reason" in small type, Moments sat flush left
+   with no inset, and a board stood in a narrow column with taller rows. */
+.t42-below .t42-rows > li,
+.t42-below .t42-board-rows > li,
+.t42-below .t42-chip { font-size: var(--type-3); }
+.t42-below .t42-chip { box-sizing: border-box; min-block-size: var(--target-min); padding: var(--s-2) var(--s-3); display: flex; align-items: center; }
+.t42-below [data-section="boards"] .t42-board { flex: 1 1 100%; }
+.t42-below [data-section="boards"] .t42-board > .t42-line-text { color: var(--muted); }
+[data-dropped-row] > .t42-row-reason { color: var(--muted); }
+@media (min-width: 769px) {
+  .t42-today-market [data-section="dropped"] .t42-rows > li {
+    display: grid;
+    grid-template-columns: minmax(12rem, 22rem) minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--s-5);
+  }
+}
+
+/* UX pass, 3 October 2026. The first-visit guide: three numbered steps on
+   one ruled band, read left to right at desktop and top to bottom on a
+   phone, with Got it at the end. No plane and no colour: it is the page's
+   own type on a rule, so it reads as part of Today, not a pop-up. */
+.t42-guide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-5);
+  margin: var(--s-4) 0 0;
+  padding: var(--s-3) 0;
+  border-block: 1px solid var(--line);
+}
+.t42-guide-steps {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1 1 32rem;
+  gap: var(--s-2) var(--s-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+}
+.t42-guide-steps > li { flex: 0 1 auto; text-wrap: pretty; }
+.t42-guide-n { display: inline-block; min-width: 1.25em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.t42-guide-close {
+  margin-inline-start: auto;
+  min-height: var(--target-min);
+  padding: 0 var(--s-3);
+  font: inherit;
+  font-size: var(--t42-small);
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line-2);
+  cursor: pointer;
+}
+.t42-guide-close:hover, .t42-guide-close:focus-visible { border-color: var(--ink); }
+@media (max-width: 640px) {
+  .t42-guide-steps { flex-direction: column; flex-basis: 100%; }
+  .t42-guide-close { margin-inline-start: 0; }
+}
+
+/* Left out today: one quiet line that opens Dropped and Held back. */
+.t42-left-out { border-top: 1px solid var(--line); padding-top: var(--s-3); }
+.t42-left-out > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+  font-size: var(--type-body);
+  color: var(--ink-2, var(--muted));
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+}
+.t42-left-out > summary:hover, .t42-left-out > summary:focus-visible { color: var(--ink); text-decoration-color: var(--ink); }
+.t42-left-out-body { display: grid; gap: var(--s-5); margin-top: var(--s-3); }
+.t42-guide-close { transition: border-color var(--motion-control) var(--motion-standard-easing); }
+.t42-left-out > summary { transition: color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing); }
+
+/* Visual pass, 3 October 2026 (Albert: "make it pretty, data driven").
+   Every trend card leads with its numbers: a figure panel with the headline
+   figure set large, a second figure beside it and the trend line under
+   them. Data is drawn in ink; Ogilvy red marks only the point that matters
+   now: the latest measured day on the line and the market you picked. The
+   numerals are tabular so figures line up across cards. The charts take
+   no motion of their own: the card reveal brings them in (host-motion). */
+.t42-card-aside { display: grid; gap: var(--s-3); align-content: start; min-width: 0; }
+.t42-card-aside:not(:has(> .tc-big)):has(> .t42-card-media:empty) { display: none; }
+
+.tc-big { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-5); }
+.tc-big-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; margin: 0; }
+.tc-big-lead { padding-top: var(--s-2); border-top: 2px solid var(--ink); }
+.tc-big-item:not(.tc-big-lead) { padding-top: var(--s-2); border-top: 2px solid var(--line-2); }
+.tc-big-value {
+  margin: 0;
+  font-size: var(--t-8);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink);
+}
+.tc-big-item:not(.tc-big-lead) .tc-big-value { font-size: var(--t-7); color: var(--ink-2, var(--ink)); }
+.tc-big-unit { margin: 0; font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); }
+
+.t42-spark { width: 100%; max-width: 360px; }
+.t42-spark .t42-line { stroke: var(--ink); stroke-width: 2; }
+.t42-spark .t42-dot { fill: var(--ink); }
+.t42-spark .t42-dot-now { fill: var(--accent); }
+.t42-spark .t42-area { fill: var(--line); stroke: none; opacity: 0.6; }
+
+/* Today: one trend per row, so from 900px the card is two columns, the
+   words on the left and the figure panel on the right; the actions and the
+   posts run the full width under both. */
+@media (min-width: 900px) {
+  .t42 .t42-today-market .t42-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+    grid-template-rows: auto auto 1fr;
+    column-gap: var(--s-6);
+    row-gap: var(--s-3);
+    align-items: start;
+  }
+  .t42 .t42-today-market .t42-card > * { grid-column: 1; }
+  .t42 .t42-today-market .t42-card > .t42-card-aside { grid-column: 2; grid-row: 1 / span 3; }
+  .t42 .t42-today-market .t42-card > .t42-card-foot,
+  .t42 .t42-today-market .t42-card > .t42-posts { grid-column: 1 / -1; }
+}
+/* Elsewhere the panel sits under the words: figures, then the line. */
+.t42-card-aside > .t42-card-media { align-items: flex-end; }
+
+/* The day across markets: one column per market, posts read set large, the
+   share placed in the market as a labelled ink bar on a 0 to 100% scale,
+   then the cleared and held counts. The picked market's column carries the
+   ink rule and its bar turns red. */
+.t42-glance { margin: var(--s-5) 0 var(--s-2); }
+.t42-glance-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--s-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.t42-glance-market {
+  display: grid;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-3) 0 var(--s-2);
+  font: inherit;
+  color: var(--ink);
+  text-align: start;
+  background: none;
+  border: 0;
+  border-top: 2px solid var(--line-2);
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+.t42-glance-market:hover, .t42-glance-market:focus-visible { border-top-color: var(--ink-2, var(--ink)); }
+.t42-glance-market[aria-pressed="true"] { border-top-color: var(--ink); }
+.t42-glance-market:focus-visible { outline: var(--focus-width, 2px) solid var(--accent); outline-offset: var(--focus-offset); }
+.t42-glance-name { font-size: var(--type-body); font-weight: 600; line-height: var(--leading-body); }
+.t42-glance-note { font-weight: 400; color: var(--muted); }
+.t42-glance-figure { display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; }
+.t42-glance-value {
+  font-size: var(--t-8);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.t42-glance-unit { font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); }
+.t42-glance-bar { display: block; height: 6px; background: var(--line); overflow: hidden; }
+.t42-glance-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--ink-2, var(--ink));
+  transform: scaleX(var(--share, 0));
+  transform-origin: left center;
+}
+.t42-glance-market[aria-pressed="true"] .t42-glance-fill { background: var(--accent); }
+.t42-glance-located { display: grid; gap: var(--s-1); }
+.t42-glance-window { margin: 0 0 var(--s-3); font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); }
+.t42-glance-bar-label { font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); font-variant-numeric: tabular-nums; }
+.t42-glance-cleared { color: var(--ink); font-weight: 600; }
+.t42-glance-facts { font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* A phone keeps the three markets side by side, so the day still reads as
+   one comparison: the long words drop and the numbers stay. */
+@media (max-width: 640px) {
+  .t42-glance-list { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: var(--s-3); }
+  .t42-glance-value { font-size: var(--t-7); }
+  .t42-glance-name { font-size: var(--type-meta); }
+  .t42-glance-long, .t42-glance-note { display: none; }
+}
+/* Discover is a long list, so its figures step down a size. */
+.t42 .d42-feed .tc-big-value { font-size: var(--t-7); }
+.t42 .d42-feed .tc-big-item:not(.tc-big-lead) .tc-big-value { font-size: var(--t-6); }
+.t42 .d42-feed .t42-card-aside { margin-top: var(--s-2); }
+/* The shell rounds every control (html .oi-product :is(button, ...)); a
+   market column is a figure, not a control, so it keeps square ends. */
+html .oi-product .t42 .t42-glance .t42-glance-list button.t42-glance-market { border-radius: 0; }
+
+/* Design pass, 3 October 2026. The finding is the page's largest line: when
+   the brief carries a headline, the dated title steps down to a quiet
+   eyebrow over it, so the first words a reader meets are the trend, not the
+   date. A brief with no headline keeps its title as it was. */
+.t42 .t42-head:has(> .t42-lead) > .t42-heading {
+  font-size: var(--type-3);
+  line-height: var(--leading-meta);
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 var(--s-2);
+}
+.t42 .t42-head > .t42-lead > .t42-headline {
+  font-size: var(--t-7);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  /* 52ch, 4 October 2026: at 36ch the finding took three short lines and
+     left the right of the page empty. */
+  max-width: 52ch;
+}
+/* A warning that changes how the page is read stays first and in ink, but
+   at the weight of the facts beside it, so the header holds one status
+   register. */
+.t42 .t42-notice { font-weight: 400; }
+
+/* The first-visit guide is one quiet line under the header: the three steps
+   run as a sentence in the facts' size, and Got it is a text link. */
+.t42 .t42-guide { margin: var(--s-2) 0 0; padding: 0; border: 0; gap: var(--s-1) var(--s-3); }
+.t42 .t42-guide-steps { flex: 0 1 auto; gap: 0 var(--s-3); font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); }
+.t42 .t42-guide-steps { flex-direction: row; flex-basis: auto; }
+.t42 .t42-guide-n { min-width: 0; color: var(--ink); }
+html .oi-product .t42 .t42-guide button.t42-guide-close {
+  margin-inline-start: 0;
+  min-height: var(--target-min);
+  padding: 0;
+  font-size: var(--type-meta);
+  color: var(--ink);
+  border: 0;
+  border-radius: 0;
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+html .oi-product .t42 .t42-guide button.t42-guide-close:hover { text-decoration-color: var(--ink); }
+.t42 .t42-glance-value { font-size: calc(var(--t-7) * 1.4); }
+@media (max-width: 640px) {
+  .t42 .t42-head > .t42-lead > .t42-headline { font-size: var(--t-6); }
+  .t42 .t42-glance-value { font-size: var(--t-6); }
+  /* On a phone the trend comes first: the guide steps aside, and the cleared
+     and held counts sit on their own lines. */
+  .t42 .t42-guide { display: none; }
+  .t42 .t42-glance-sep { display: none; }
+  .t42 .t42-glance-facts { display: grid; }
+}
+
+/* Motion pass, 3 October 2026 (Albert: "proper animations"). The data
+   arrives the way it reads: each market's bar grows from zero to its share,
+   the trend line draws from its first day to its last, and the fill and day
+   marks settle in once the line has landed; the figures rise in order. Each
+   runs once, on the package's draw and handoff moves, only when the reader
+   has not asked for less motion (data-motion="off" stops them all in
+   app.css). The final picture is the same with or without them. */
+@media (prefers-reduced-motion: no-preference) {
+  .t42 .t42-glance-fill { animation: t42BarGrow var(--motion-draw) var(--motion-handoff-easing) both; }
+  .t42 .t42-spark .t42-line { stroke-dasharray: 1; animation: t42LineDraw var(--motion-draw) var(--motion-handoff-easing) both; }
+  .t42 .t42-spark { --spark-after: 8; }
+  .t42 .t42-spark .t42-area,
+  .t42 .t42-spark .t42-dot {
+    animation: t42Settle var(--motion-handoff) var(--motion-handoff-easing) both;
+    animation-delay: calc(min(var(--spark-after, 0), 9) * 80ms);
+  }
+  .t42 .tc-big-item {
+    animation: t42Rise var(--motion-handoff) var(--motion-handoff-easing) both;
+    animation-delay: calc(min(var(--figure-step, 0), 2) * 80ms);
+  }
+  .t42 .tc-big-item + .tc-big-item { --figure-step: 1; }
+}
+@keyframes t42BarGrow { from { transform: scaleX(0); } }
+@keyframes t42LineDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes t42Settle { from { opacity: 0; } }
+@keyframes t42Rise { from { opacity: 0; transform: translateY(6px); } }
+
+/* Today's card title carries its state words right beside it, so the eye
+   reads name then state, not across an empty middle. */
+.t42-today-market .t42-card-head { justify-content: flex-start; }
+.t42-today-market .t42-card-head > .t42-card-title { flex: 0 1 auto; }
+
+/* A post cut to a preview: the whole stored post opens below it, and a post
+   stored only as an excerpt says so beside its link (audit TOD-01, TOP-01). */
+.t42-post-full { margin: 0 0 var(--s-1); }
+.t42-post-full > summary { width: fit-content; padding-block: var(--s-2); }
+.t42-post-full-text > p { margin: var(--s-1) 0; font-size: var(--type-body); line-height: var(--leading-body); white-space: pre-line; overflow-wrap: anywhere; }
+.t42-post-note { margin-left: var(--s-2); font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); }

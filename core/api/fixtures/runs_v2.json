@@ -1,0 +1,79 @@
+[
+ {
+  "run_id": "r_detect_20260929_01",
+  "stage": "detect",
+  "run_date": "2026-09-29",
+  "status": "ok",
+  "started_at": "2026-09-29T04:00:00+02:00",
+  "finished_at": "2026-09-29T05:10:00+02:00",
+  "counts": {},
+  "error": null,
+  "model_usd": 0.0
+ },
+ {
+  "run_id": "r_understand_20260930_01",
+  "stage": "understand",
+  "run_date": "2026-09-30",
+  "status": "running",
+  "started_at": "2026-09-30T04:00:00+02:00",
+  "finished_at": null,
+  "counts": {},
+  "error": null,
+  "model_usd": null
+ },
+ {
+  "run_id": "r_understand_20260930_01",
+  "stage": "understand",
+  "run_date": "2026-09-30",
+  "status": "ok",
+  "started_at": "2026-09-30T04:00:00+02:00",
+  "finished_at": "2026-09-30T04:40:00+02:00",
+  "counts": {},
+  "error": null,
+  "model_usd": 1.25
+ },
+ {
+  "run_id": "r_detect_20260930_00",
+  "stage": "detect",
+  "run_date": "2026-09-30",
+  "status": "failed",
+  "started_at": "2026-09-30T04:00:00+02:00",
+  "finished_at": "2026-09-30T05:02:00+02:00",
+  "counts": {},
+  "error": null,
+  "model_usd": 0.1
+ },
+ {
+  "run_id": "r_detect_20260930_01",
+  "stage": "detect",
+  "run_date": "2026-09-30",
+  "status": "ok",
+  "started_at": "2026-09-30T04:00:00+02:00",
+  "finished_at": "2026-09-30T05:20:00+02:00",
+  "counts": {},
+  "error": null,
+  "model_usd": 0.4
+ },
+ {
+  "run_id": "r_brief_20260930_01",
+  "stage": "brief",
+  "run_date": "2026-09-30",
+  "status": "ok",
+  "started_at": "2026-09-30T06:00:00+02:00",
+  "finished_at": "2026-09-30T06:15:02+02:00",
+  "counts": {},
+  "error": null,
+  "model_usd": 2.1
+ },
+ {
+  "run_id": "r_ask_20260930_v2",
+  "stage": "ask",
+  "run_date": "2026-09-30",
+  "status": "ok",
+  "started_at": "2026-09-30T10:00:00+02:00",
+  "finished_at": "2026-09-30T10:00:40+02:00",
+  "counts": {},
+  "error": null,
+  "model_usd": 0.85
+ }
+]

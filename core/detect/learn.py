@@ -1,0 +1,213 @@
+"""The weekly learn job (BUILD.md 2.7, ENGINE.md section 6): writes the detection scorecard.
+
+Entry point: python -m core.detect.learn [--week YYYY-MM-DD], run weekly. --week names the week's Monday; without
+it the job scores the last complete Monday to Sunday week in SAST (chain.today, so RUN_DATE sets the day it
+counts back from).
+
+run_scorecard (core/detect/scorecard.py) computes one row per market, and the job appends them in one INSERT to
+intelligence_42_agent.engine_scorecard: week_start, week_end, market, run_id,
+rule_version, then one JSON Figure per metric. Then it appends one runs row (core/detect/runs.py), stage 'learn',
+run_date the week's Monday, under the run_id the Figures carry; counts hold model_usd 0.0, since no model is
+called.
+
+Append only; nothing is replaced or removed. A week and market already written by an ok learn run is skipped, so
+a rerun adds nothing. Rows of a failed run never count as written. When every market is already written the
+scorecard is not computed and the runs row reads 'skipped'. FORCE_RERUN=1 writes every market again, and the
+latest run_id per week and market wins.
+
+Until lane L1 creates engine_scorecard, the job computes the rows, prints them, appends a 'skipped' runs row with
+the reason and exits 0. Any other failure appends a 'failed' runs row and exits 1.
+
+After the scorecard the same run scores forecasts and the weekly quality (ENGINE.md section 3, forecast scoring in
+Monday's learn; FEATURES.md 26 and 7) through the packaged core.eval modules, on learn's client, calling no model:
+core.eval.forecast_score scores every forecast whose window closed by the week's Sunday per rule, target and
+horizon against persistence and appends one forecast_score row per cohort, promotion_eligible included; then
+core.eval.quality_score appends one weekly_quality row per market (ALL, ZA, NG, KE), reading the scorecard just
+written. With no forecast closed there is no cohort and no forecast_score row; closed forecasts not yet resolved
+make a cohort with n 0, insufficient, never eligible. core/schema/agent.sql creates both tables (apply.py) and
+learn never does: while one is missing its result is printed and counted with a note and nothing is written to it.
+Scoring runs inside the learn run, so a scoring failure appends the same 'failed' runs row and exits 1, and the
+retry writes the week again. When every market is already written by an ok learn run, scoring is skipped too, so a
+rerun adds nothing; FORCE_RERUN=1 scores again (append only, the newest scored_at is current). The runs row's
+counts carry each score's run_id, the rows written and the promotion eligible cohorts as rule/target/horizon.
+Nothing here acts on promotion_eligible: forecasts stay hidden (TRUST.md K9) until a reader is built to check it.
+"""
+
+import argparse
+import json
+import os
+import sys
+import traceback
+from datetime import date, datetime, timedelta, timezone
+
+from google.api_core.exceptions import NotFound
+from google.cloud import bigquery
+
+from core.collect import chain
+from core.eval import forecast_score, quality_score
+
+from . import aggregate, runs, scorecard, sqlrun
+from .sqlrun import AGENT, CORE
+
+PROJECT = "ogilvy-trends-v2"
+TABLE = "engine_scorecard"
+KEYS = (("week_start", "DATE"), ("week_end", "DATE"), ("market", "STRING"), ("run_id", "STRING"),
+        ("rule_version", "STRING"))
+FIGURES = ("time_to_detect", "lead_time", "precision", "recall", "breadth_platforms", "expansion_cluster_share",
+           "expansion_platform_share", "expansion_language_share", "cost_per_confirmed")
+FIELDS = KEYS + tuple((f, "STRING") for f in FIGURES)   # Figures travel as JSON text, parsed in the INSERT
+
+APPEND_SQL = """
+INSERT INTO {agent}.engine_scorecard (week_start, week_end, market, run_id, rule_version, time_to_detect,
+  lead_time, precision, recall, breadth_platforms, expansion_cluster_share, expansion_platform_share,
+  expansion_language_share, cost_per_confirmed)
+SELECT n.week_start, n.week_end, n.market, n.run_id, n.rule_version, PARSE_JSON(n.time_to_detect),
+  PARSE_JSON(n.lead_time), PARSE_JSON(n.precision), PARSE_JSON(n.recall), PARSE_JSON(n.breadth_platforms),
+  PARSE_JSON(n.expansion_cluster_share), PARSE_JSON(n.expansion_platform_share),
+  PARSE_JSON(n.expansion_language_share), PARSE_JSON(n.cost_per_confirmed)
+FROM UNNEST(@rows) n
+"""
+
+# The markets of the week already written by an ok learn run.
+DONE_SQL = """
+SELECT DISTINCT s.market FROM {agent}.engine_scorecard s
+JOIN {agent}.runs r ON r.run_id = s.run_id
+WHERE s.week_start = @week_start AND r.stage = 'learn' AND r.status = 'ok'
+"""
+
+
+def last_week(today):
+    """The Monday of the last Monday to Sunday week that ended before today."""
+    return today - timedelta(days=today.weekday() + 7)
+
+
+def week_for(now=None):
+    return last_week(chain.today(now))
+
+
+def table_exists(client, agent=AGENT, table=TABLE):
+    try:
+        client.get_table(f"{agent}.{table}")
+    except NotFound:
+        return False
+    return True
+
+
+def score_execute(client, agent=AGENT):
+    """The core.eval modules' execute(sql, params) on learn's client. Their SQL names the staging agent dataset in
+    full, so another agent dataset (the tests' DuckDB schema) is put in its place. Leading comment lines are left
+    off, so each statement starts with its verb. A None parameter goes as a STRING NULL, which that SQL casts to its
+    column type."""
+    def execute(sql, params):
+        sql = sqlrun._strip_leading_comments(sql)
+        if agent != AGENT:
+            sql = sql.replace(f"`{PROJECT}.{AGENT}.", f"`{agent}.")
+        config = bigquery.QueryJobConfig(query_parameters=[sqlrun._param(k, v) for k, v in params.items()])
+        return {"rows": [dict(row.items()) for row in client.query(sql, job_config=config).result()]}
+    return execute
+
+
+def score_week(client, week_start, now, agent=AGENT, scorecard_run_id=None):
+    """Score the week's forecasts, then its quality, each written only when its table exists. The quality's
+    precision reads scorecard_run_id's rows, the scorecard this learn run has just written, before any other
+    attempt's. Returns the counts for the runs row and the full results to print."""
+    execute = score_execute(client, agent)
+    missing = "{agent}.{table} does not exist (core/schema/apply.py makes it); the scores are printed and none written"
+
+    exists = table_exists(client, agent, "forecast_score")
+    fs = forecast_score.run(execute, week_start, dry_run=not exists, now=now)
+    written = len(fs["cohorts"]) if exists and fs["note"] is None else 0
+    notes = [n for n in (fs["note"], None if exists else missing.format(agent=agent, table="forecast_score")) if n]
+    counts = {"forecast_score": {
+        "written": written, "run_id": fs["run_id"] if written else None, "note": "; ".join(notes) or None,
+        "promotion_eligible": [f"{c['rule']}/{c['target']}/{c['horizon']}" for c in fs["cohorts"]
+                               if c["promotion_eligible"]]}}
+
+    exists = table_exists(client, agent, "weekly_quality")
+    q = quality_score.run(execute, week_start, dry_run=not exists, now=now, scorecard_run_id=scorecard_run_id)
+    counts["quality"] = {"written": len(q["rows"]) if exists else 0, "run_id": q["run_id"] if exists else None,
+                         "notes": q["notes"]}
+    if not exists:
+        counts["quality"]["note"] = missing.format(agent=agent, table="weekly_quality")
+    return counts, {"forecast_score": fs, "quality": q}
+
+
+def rows_param(rows):
+    """The scorecard rows as the @rows struct array of APPEND_SQL, each Figure as JSON text."""
+    records = [{**{k: r[k] for k, _ in KEYS}, **{f: json.dumps(r[f]) for f in FIGURES}} for r in rows]
+    return aggregate._struct_array("rows", records, FIELDS)
+
+
+def run(client, week_start, *, core=CORE, agent=AGENT, now=None):
+    """Score and append week_start's week, score its forecasts and quality, then append the runs row. Returns the
+    run_id, status, error, counts, the rows written or, when the table is missing, the rows that would have been,
+    and the scores. On any failure appends a 'failed' runs row and re-raises."""
+    run_id = runs.new_run_id("learn", week_start)
+    started = runs.now()
+    counts = {"week_start": week_start.isoformat(), "week_end": (week_start + timedelta(days=6)).isoformat()}
+    scores = {}
+    try:
+        exists = table_exists(client, agent)
+        done = set()
+        if exists and os.environ.get("FORCE_RERUN") != "1":
+            done = {r["market"] for r in sqlrun.query(client, DONE_SQL, {"week_start": week_start},
+                                                      core=core, agent=agent)}
+        counts["already_written"] = [m for m in scorecard.MARKETS if m in done]
+        rows = []
+        if len(done) < len(scorecard.MARKETS):
+            rows = [r for r in scorecard.run_scorecard(client, week_start, run_id=run_id, core=core, agent=agent)
+                    if r["market"] not in done]
+        if not exists:
+            status = "skipped"
+            error = (f"{agent}.{TABLE} does not exist yet; "
+                     f"{len(rows)} rows printed, none written")
+        elif not rows:
+            status, error = "skipped", "every market already written by an ok learn run; FORCE_RERUN=1 writes again"
+        else:
+            aggregate._run(client, APPEND_SQL, [rows_param(rows)], core, agent)
+            status, error = "ok", None
+        counts["written"] = [r["market"] for r in rows] if status == "ok" else []
+        if len(done) < len(scorecard.MARKETS):
+            score_counts, scores = score_week(client, week_start, now or datetime.now(timezone.utc), agent,
+                                              scorecard_run_id=run_id if status == "ok" else None)
+            counts.update(score_counts)
+    except Exception as e:
+        runs.append(client, run_id, "learn", week_start, "failed", started, runs.now(), counts,
+                    error=f"{type(e).__name__}: {e}", agent=agent)
+        raise
+    runs.append(client, run_id, "learn", week_start, status, started, runs.now(), counts, error=error, agent=agent)
+    return {"run_id": run_id, "status": status, "error": error, "counts": counts, "rows": rows, "scores": scores}
+
+
+def _monday(text):
+    d = date.fromisoformat(text)
+    if d.weekday() != 0:
+        raise argparse.ArgumentTypeError(f"{text} is not a Monday")
+    return d
+
+
+def main(argv=None, client=None, now=None, core=CORE, agent=AGENT):
+    """Exit code: 0 when the week is written or skipped, 1 on any failure."""
+    ap = argparse.ArgumentParser(prog="python -m core.detect.learn",
+                                 description="Append the week's detection scorecard to engine_scorecard.")
+    ap.add_argument("--week", type=_monday,
+                    help="the week's Monday, YYYY-MM-DD; default the last complete week in SAST")
+    a = ap.parse_args(argv)
+    week = a.week or week_for(now)
+    if week + timedelta(days=6) >= chain.today(now):
+        # An unfinished week would be written as ok and then skipped by the Monday run for good.
+        print(f"learn: the week of {week.isoformat()} has not ended; only complete weeks are scored", file=sys.stderr)
+        return 2
+    if client is None:
+        client = bigquery.Client(project=PROJECT)
+    try:
+        res = run(client, week, core=core, agent=agent, now=now)
+    except Exception:
+        traceback.print_exc()
+        return 1
+    print(json.dumps({"learn": week.isoformat(), **res}, default=str))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

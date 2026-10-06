@@ -1,0 +1,34 @@
+/* PostStrip, the cited posts on an Ask answer. The card strip lives in
+   ask42.css; this sheet aligns it and draws the text rows.
+
+   Each card lines its text up from the top, so a creator handle sits level
+   with the one beside it whatever the length of the lines below (alignment). */
+.ask42-posts > .ask42-post { align-content: start; }
+
+/* A post with no still is a text row, never an empty frame: the creator as
+   the link to the post, then platform, date, views and duration in one muted
+   line, then the transcript line. */
+.ask42-posts > .ask42-post-row {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--s-1);
+  padding-block: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+.ask42-posts > .ask42-post-row:last-child { border-bottom: 1px solid var(--line); }
+/* The row's spoken note about the missing still takes no space. */
+.ask42-post-row > .ask42-post-blank { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.ask42-post-row { position: relative; }
+.ask42-post-open {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  margin-block: calc(var(--s-3) * -1) calc(var(--s-1) * -1);
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+.ask42-post-open:hover, .ask42-post-open:focus-visible { text-decoration-color: var(--ink); }

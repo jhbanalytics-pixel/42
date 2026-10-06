@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt pytest ruff==0.15.12
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Backend tests
+        run: python -m pytest tests/ -q
+
+      - name: Open Intelligence fixture parity
+        run: python scripts/verify_open_intelligence_fixture_parity.py
+
+      - name: Build frontend
+        working-directory: frontend
+        run: bun run build
+
+      - name: Ruff
+        run: ruff check src/ tests/
+
+      - name: Install JSX gate dependency
+        run: npm install @babel/standalone
+
+      - name: JSX gate
+        run: node scripts/check_jsx.mjs
+
+      - name: Contrast gate (WCAG AA)
+        run: node scripts/check_contrast.mjs
+
+      - name: Workbench route smoke
+        run: node scripts/test_workbench_routes.mjs
+
+      - name: Research batch fan-out
+        run: node scripts/test_research_batch_fanout.mjs
+
+      - name: Console boundary check
+        run: node scripts/check_console_boundaries.mjs
+
+      - name: Explicit research generation owners
+        run: node scripts/test_explicit_research_generation.mjs
+
+      - name: Explicit research generation mutations
+        run: node scripts/test_explicit_research_generation_mutations.mjs
+
+      - name: Resolve Chrome for the geometry gates
+        run: |
+          chrome=""
+          for candidate in /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium-browser /usr/bin/chromium; do
+            if [ -x "$candidate" ]; then chrome="$candidate"; break; fi
+          done
+          if [ -z "$chrome" ]; then
+            chrome=$(npx --yes @puppeteer/browsers install chrome@stable --path "$RUNNER_TEMP/chrome" | awk '{print $NF}')
+          fi
+          "$chrome" --version
+          echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
+
+      - name: Contract suite
+        run: bun test frontend/src/ui/__tests__/
+
+      - name: Browser journeys
+        working-directory: frontend
+        run: bun run test:journeys

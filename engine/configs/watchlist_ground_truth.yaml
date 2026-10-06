@@ -1,0 +1,141 @@
+# Lead-time evaluation ground-truth watchlist.
+#
+# A standing list of real cultural moves, added from OUTSIDE the engine
+# (news, team knowledge, culture), never from what the engine already
+# surfaced. Consumed read-only by scripts/leadtime_eval.py to measure how
+# early PULSE detects a move relative to when it became mainstream-obvious.
+#
+# Schema per entry:
+#   id:           slug, unique
+#   market:       za | ng | ke
+#   title:        one line, human description of the move
+#   event_date:   ISO date the move became mainstream-obvious
+#   match_terms:  lowercase substrings that identify the move in engine text
+#   added:        ISO date this entry was added to the watchlist
+#   source:       one-line receipt for where the fact came from
+#
+# See docs/leadtime-eval.md for how to add an entry and the honesty rule.
+
+entries:
+  - id: ke-jun25-protest-anniversary
+    market: ke
+    title: "Kenya 25 June protest anniversary"
+    event_date: 2026-06-25
+    # Anniversary-specific phrases: bare maandamano is a standing KE term
+    # that matches months of unrelated briefs and fakes lead time.
+    match_terms:
+      - june 25 anniversary
+      - anniversary protests
+      - wreath
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: ke-genz-protesters-tortured
+    market: ke
+    title: "Missing Gen-Z protesters found tortured"
+    event_date: 2026-06-28
+    match_terms:
+      - tortur
+      - abduct
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-bafana-first-wc-knockout
+    market: za
+    title: "Bafana Bafana first World Cup knockout"
+    event_date: 2026-06-24
+    # Bare bafana matches all squad coverage; keep the scorer and the round.
+    match_terms:
+      - maseko
+      - bafana knockout
+      - last 16
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-canada-exit
+    market: za
+    title: "Bafana Bafana 1-0 exit to Canada"
+    event_date: 2026-06-28
+    match_terms:
+      - eustaquio
+      - canada bafana
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-tyla-is-it-love
+    market: za
+    title: "Tyla releases Is It Love single"
+    event_date: 2026-06-26
+    # Bare tyla matches every Tyla story; the single title is the event.
+    match_terms:
+      - is it love
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-tyla-toy-story-5
+    market: za
+    title: "Tyla cast in Toy Story 5"
+    event_date: 2026-07-01
+    match_terms:
+      - toy story
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-springboks-barbarians
+    market: za
+    title: "Springboks 80-31 win over Barbarians"
+    event_date: 2026-06-20
+    match_terms:
+      - barbarians
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: ng-senegal-record-framing
+    market: ng
+    title: "Super Eagles Senegal 5-0 record framing"
+    event_date: 2026-06-26
+    # Bare senegal matches fixture noise; the record scoreline is the event.
+    match_terms:
+      - senegal 5-0
+      - senegal record
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: ng-petrol-price-crash
+    market: ng
+    title: "Petrol landing cost crash"
+    event_date: 2026-06-25
+    match_terms:
+      - fuel price
+      - dangote
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-mopepe-dance-challenge
+    market: za
+    title: "Mopepe dance challenge"
+    event_date: 2026-06-25
+    match_terms:
+      - mopepe
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: ng-mobo-nominations-sweep
+    market: ng
+    title: "MOBO nominations sweep"
+    event_date: 2026-06-24
+    match_terms:
+      - mobo
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: ke-saba-saba-buildup
+    market: ke
+    title: "Saba Saba protest buildup"
+    event_date: 2026-07-07
+    # Qualified: bare saba saba echoes prior-year coverage.
+    match_terms:
+      - saba saba march
+      - saba saba protest
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe (future event, allowed)"

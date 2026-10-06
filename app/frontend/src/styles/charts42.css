@@ -1,0 +1,143 @@
+/* Charts, 3 October 2026. The shared chart forms in ui/Charts42.jsx. Data is
+   ink on the page's own paper; tones step down the ink ramp for parts of a
+   whole, each part labelled in words beside its count; Ogilvy red marks the
+   one focal mark (the current step, the latest point, the largest rise).
+   Marks are thin, ends are square like the rest of 42, numerals tabular. */
+.ch42 {
+  --ch-1: var(--ink);
+  --ch-2: var(--ink-2, var(--ink));
+  --ch-3: var(--muted);
+  --ch-4: var(--line-2);
+  --ch-5: var(--line);
+  margin: 0;
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.ch42-head { display: grid; gap: 2px; }
+.ch42-title { font-size: var(--type-body); line-height: var(--leading-body); font-weight: 600; color: var(--ink); }
+.ch42-caption { font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); text-wrap: pretty; }
+
+/* Ranked bars, dumbbells and timelines share one row grid: the label, the
+   mark on a shared scale, then the value written out. */
+.ch42-bars { display: grid; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+.ch42-bar-row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 11rem) minmax(0, 1fr) minmax(4.5rem, auto);
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 24px;
+}
+.ch42-bar-label { font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--ink); overflow-wrap: anywhere; }
+.ch42-bar-value { font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--ink); text-align: end; white-space: nowrap; }
+.ch42-bar-note { color: var(--muted); }
+.ch42-bar-none { font-size: var(--type-meta); color: var(--muted); font-style: italic; }
+.ch42-bar-track, .ch42-bullet-track { display: block; height: 10px; background: var(--ch-5); overflow: hidden; }
+.ch42-bar-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--ch-2);
+  transform: scaleX(var(--share, 0));
+  transform-origin: left center;
+}
+.ch42-bar-row.is-focus .ch42-bar-fill { background: var(--accent); }
+.ch42-bar-row.is-focus .ch42-bar-label { font-weight: 600; }
+
+/* Part to whole: one bar, parts split by a 2px paper gap, then a key that
+   writes each part's count and share in words. */
+.ch42-parts-bar { display: flex; gap: 2px; height: 14px; }
+.ch42-part { flex: var(--grow, 1) 1 0; min-width: 3px; }
+.ch42-tone-0 { background: var(--ch-1); }
+.ch42-tone-1 { background: var(--ch-2); }
+.ch42-tone-2 { background: var(--ch-3); }
+.ch42-tone-3 { background: var(--ch-4); }
+.ch42-tone-4 { background: var(--ch-5); }
+.ch42-parts-key { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-5); margin: 0; padding: 0; list-style: none; }
+.ch42-parts-key > li { display: inline-flex; align-items: baseline; gap: var(--s-2); font-size: var(--type-meta); line-height: var(--leading-meta); }
+.ch42-swatch { display: inline-block; width: 10px; height: 10px; align-self: center; }
+.ch42-key-label { color: var(--ink); }
+.ch42-key-value { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.ch42-key-share { color: var(--muted); font-weight: 400; }
+
+/* A meter of known steps: done in ink, now in red, still to come as outlines. */
+.ch42-steps-row { display: flex; flex-wrap: wrap; gap: 3px; }
+.ch42-step { width: 10px; height: 10px; box-sizing: border-box; border: 1px solid var(--line-2); }
+.ch42-step.is-done { background: var(--ink); border-color: var(--ink); }
+.ch42-step.is-now { background: var(--accent); border-color: var(--accent); }
+
+/* A measure against its cap. */
+.ch42-bullet-figure { display: flex; align-items: baseline; gap: var(--s-1); flex-wrap: wrap; }
+.ch42-bullet-value { font-size: var(--t-7); line-height: 1; font-weight: 600; color: var(--ink); }
+.ch42-bullet-of { font-size: var(--type-meta); color: var(--muted); }
+
+/* Two moments per row: the earlier as a hollow dot, the later solid, joined
+   by a rule on one shared scale. A rise is drawn in ink; the focal row in red. */
+.ch42-legend { display: flex; gap: var(--s-4); margin: 0; font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); }
+.ch42-legend > span { display: inline-flex; align-items: center; gap: var(--s-1); }
+.ch42-db-track { position: relative; display: block; height: 14px; margin-inline: 7px; }
+.ch42-db-line { position: absolute; top: 6px; height: 2px; background: var(--line-2); }
+.ch42-db-from, .ch42-db-to, .ch42-dot-from, .ch42-dot-to { display: inline-block; width: 10px; height: 10px; box-sizing: border-box; }
+.ch42-db-from, .ch42-db-to { position: absolute; top: 2px; margin-left: -5px; }
+.ch42-db-from, .ch42-dot-from { border: 2px solid var(--ink-2, var(--ink)); background: var(--paper, transparent); }
+.ch42-db-to, .ch42-dot-to { background: var(--ink); }
+.ch42-bar-row.is-focus .ch42-db-to { background: var(--accent); }
+
+/* Small multiples: one small area chart per series on a shared scale. */
+.ch42-multiples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  gap: var(--s-4) var(--s-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ch42-multiple { display: grid; gap: 2px; min-width: 0; padding-top: var(--s-2); border-top: 1px solid var(--line); }
+.ch42-multiple-label { font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--ink); font-weight: 600; }
+.ch42-multiple-figure { font-size: var(--t-6); line-height: 1.1; font-weight: 600; color: var(--ink); }
+.ch42-multiple-unit { font-size: var(--type-meta); font-weight: 400; color: var(--muted); }
+.ch42-multiple-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ch42-now { fill: var(--accent); }
+.ch42-multiple-days, .ch42-axis-days { display: flex; justify-content: space-between; margin: 0; font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); }
+.ch42-axis { stroke: var(--line-2); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ch42-area { fill: var(--line); stroke: none; }
+.ch42-line { stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+
+/* Spans on one time axis: the rise in a lighter tone, the fade in ink, the
+   peak as a red tick. */
+.ch42-tl-track { position: relative; display: block; height: 12px; background: var(--ch-5); }
+.ch42-tl-rise, .ch42-tl-fade { position: absolute; top: 0; bottom: 0; }
+.ch42-tl-rise { background: var(--ch-3); }
+.ch42-tl-fade { background: var(--ch-1); }
+.ch42-tl-peak { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--accent); }
+
+/* One square per unit, grouped by state: settled states filled, the alert
+   state in the status red, open states as outlines. */
+.ch42-unit-rows { display: grid; gap: var(--s-4); margin: 0; padding: 0; list-style: none; }
+.ch42-unit-row { display: grid; gap: var(--s-2); }
+.ch42-unit-cells { display: flex; flex-wrap: wrap; gap: 3px; }
+.ch42-unit { display: inline-block; width: 12px; height: 12px; box-sizing: border-box; vertical-align: -1px; }
+.ch42-unit-ink { background: var(--ink); }
+.ch42-unit-soft { background: var(--muted); }
+.ch42-unit-alert { background: var(--down, var(--accent)); }
+.ch42-unit-open { border: 1px solid var(--line-2); }
+.ch42-unit-key { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--ink); }
+
+@media (max-width: 640px) {
+  .ch42-bar-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: var(--s-1); }
+  .ch42-bar-row > .ch42-bar-track,
+  .ch42-bar-row > .ch42-db-track,
+  .ch42-bar-row > .ch42-tl-track,
+  .ch42-bar-row > .ch42-bar-none { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* The marks arrive once, the way they read: bars grow from zero and lines
+   draw from their first day, only when the reader has not asked for less
+   motion (data-motion="off" stops them in app.css). */
+@media (prefers-reduced-motion: no-preference) {
+  .ch42 .ch42-bar-fill { animation: ch42BarGrow var(--motion-draw) var(--motion-handoff-easing) both; }
+  .ch42 .ch42-line { stroke-dasharray: 1; animation: ch42LineDraw var(--motion-draw) var(--motion-handoff-easing) both; }
+}
+@keyframes ch42BarGrow { from { transform: scaleX(0); } }
+@keyframes ch42LineDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }

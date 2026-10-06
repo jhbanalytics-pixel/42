@@ -1,0 +1,31 @@
+{
+  "_note": "Invented handles and pages for core/collect/sources_sweep.py tests. Warehouse rows have the columns the sweep's SQL returns; brand24_csv has the header of the Brand24 export.",
+  "warehouse_core": [
+    {"market": "NG", "platform": "x", "handle": "gistlovershq", "days_seen": 6, "posts": 12, "total_posts": 12, "engagement": 41200, "last_post": "2026-09-29", "via": "author", "followers": 250000},
+    {"market": "NG", "platform": "instagram", "handle": "naijabeatsdaily", "days_seen": 3, "posts": 5, "total_posts": 7, "engagement": 900, "last_post": "2026-09-29", "via": "author", "followers": null},
+    {"market": "ZA", "platform": "instagram", "handle": "naijabeatsdaily", "days_seen": 1, "posts": 2, "total_posts": 7, "engagement": 100, "last_post": "2026-09-28", "via": "author", "followers": null},
+    {"market": "KE", "platform": "tiktok", "handle": "splitcreator", "days_seen": 2, "posts": 3, "total_posts": 6, "engagement": 700, "last_post": "2026-09-29", "via": "author", "followers": null},
+    {"market": "ZA", "platform": "tiktok", "handle": "splitcreator", "days_seen": 2, "posts": 3, "total_posts": 6, "engagement": 800, "last_post": "2026-09-29", "via": "author", "followers": null},
+    {"market": "ZA", "platform": "instagram", "handle": "mzansigossip", "days_seen": 5, "posts": 20, "total_posts": 20, "engagement": 5000, "last_post": "2026-09-29", "via": "author+mention", "followers": 80000},
+    {"market": "ZA", "platform": "instagram", "handle": "sowetoreels", "days_seen": 5, "posts": 10, "total_posts": 10, "engagement": 9000, "last_post": "2026-09-29", "via": "author", "followers": null},
+    {"market": "ZA", "platform": "instagram", "handle": "oldpage", "days_seen": 2, "posts": 4, "total_posts": 4, "engagement": 50, "last_post": "2026-07-01", "via": "author", "followers": null},
+    {"market": "ZA", "platform": "x", "handle": "stjohnschurchza", "days_seen": 3, "posts": 6, "total_posts": 6, "engagement": 300, "last_post": "2026-09-29", "via": "mention", "followers": null},
+    {"market": "KE", "platform": "x", "handle": "nairobicountygov", "days_seen": 4, "posts": 8, "total_posts": 8, "engagement": 400, "last_post": "2026-09-29", "via": "mention", "followers": null}
+  ],
+  "warehouse_legacy": [
+    {"market": "NG", "platform": "instagram", "handle": "naijabeatsdaily", "days_seen": 30, "posts": 60, "total_posts": 60, "engagement": 12000, "last_post": "2026-09-27", "via": "author", "followers": null},
+    {"market": "ZA", "platform": "tiktok", "handle": "splitcreator", "days_seen": 1, "posts": 1, "total_posts": 1, "engagement": 10, "last_post": "2026-09-01", "via": "author", "followers": null}
+  ],
+  "brand24_csv": [
+    "page_slug,markets,rows_,first_seen,last_seen,sample_url",
+    "100000000000001,ng,14,2026-06-02,2026-08-20,https://www.facebook.com/100000000000001",
+    "kasigossipdaily,za,3,2026-08-03,2026-08-19,https://www.facebook.com/kasigossipdaily",
+    "100000000000003,ke,4,2026-05-01,2026-06-10,https://www.facebook.com/100000000000003",
+    "100000000000004,\"ke,ng\",40,2026-05-01,2026-08-20,https://www.facebook.com/100000000000004",
+    "gracechurchlagos,ng,25,2026-05-01,2026-08-20,https://www.facebook.com/gracechurchlagos",
+    "gautenggov,za,30,2026-05-01,2026-08-20,https://www.facebook.com/gautenggov",
+    "100000000000007,ke,12,2026-05-01,2026-05-20,https://www.facebook.com/100000000000007",
+    "abc123share,ke,11,2026-06-01,2026-08-18,https://www.facebook.com/share/abc123",
+    "100000000000009,za,10,2026-06-01,2026-08-15,https://web.facebook.com/KickoffSoccerZA/"
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_05_history",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture scope, 18 to 25 August 2026",
+      "sections": [
+        {
+          "body": "Synthetic fixture scope, 18 to 25 August 2026.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "Across three synthetic analogues, two of three observed sequences were followed by follow-on workshops [E1] [E2] [E3]. This bounded recurrence is not a forecast for the current signal [E1] [E2] [E3]. The current move differs by spanning two source families [E4].",
+          "evidence_ids": [
+            "ev_0501050105010501050105010501050105010501050105010501050105010501",
+            "ev_0502050205020502050205020502050205020502050205020502050205020502",
+            "ev_0503050305030503050305030503050305030503050305030503050305030503",
+            "ev_0504050405040504050405040504050405040504050405040504050405040504"
+          ],
+          "heading": "Finding",
+          "section_id": "finding"
+        },
+        {
+          "body": "Synthetic fixture evidence does not measure population prevalence.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture intelligence brief"
+    },
+    "audience_lenses": [],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [],
+    "evidence": [
+      {
+        "author_label": "@fixture_history_one",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "context",
+        "direction": "not_applicable",
+        "evidence_id": "ev_0501050105010501050105010501050105010501050105010501050105010501",
+        "excerpt": "Synthetic fixture analogue one was followed by an observed follow-on workshop.",
+        "geo_confidence": 0.91,
+        "metric_label": "1 synthetic analogue sequence",
+        "platform": "fixture_history",
+        "published_at": "2026-08-22T09:00:00Z",
+        "row_id": "fixture_05_row_01",
+        "signal_id": "sig_0505050505050505050505050505050505050505050505050505050505050505",
+        "source_family": "history_one",
+        "source_label": "Fixture history one",
+        "url": "https://evidence.invalid/05/01"
+      },
+      {
+        "author_label": "@fixture_history_two",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "context",
+        "direction": "not_applicable",
+        "evidence_id": "ev_0502050205020502050205020502050205020502050205020502050205020502",
+        "excerpt": "Synthetic fixture analogue two was followed by an observed follow-on workshop.",
+        "geo_confidence": 0.9,
+        "metric_label": "1 synthetic analogue sequence",
+        "platform": "fixture_history",
+        "published_at": "2026-08-22T11:00:00Z",
+        "row_id": "fixture_05_row_02",
+        "signal_id": "sig_0505050505050505050505050505050505050505050505050505050505050505",
+        "source_family": "history_two",
+        "source_label": "Fixture history two",
+        "url": "https://evidence.invalid/05/02"
+      },
+      {
+        "author_label": "@fixture_history_three",
+        "availability": "available",
+        "citation_label": "[E3]",
+        "claim_role": "context",
+        "direction": "not_applicable",
+        "evidence_id": "ev_0503050305030503050305030503050305030503050305030503050305030503",
+        "excerpt": "Synthetic fixture analogue three ended in a quiet archive without a follow-on workshop.",
+        "geo_confidence": 0.89,
+        "metric_label": "1 synthetic analogue sequence",
+        "platform": "fixture_history",
+        "published_at": "2026-08-22T13:00:00Z",
+        "row_id": "fixture_05_row_03",
+        "signal_id": "sig_0505050505050505050505050505050505050505050505050505050505050505",
+        "source_family": "history_three",
+        "source_label": "Fixture history three",
+        "url": "https://evidence.invalid/05/03"
+      },
+      {
+        "author_label": "@fixture_current",
+        "availability": "available",
+        "citation_label": "[E4]",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_0504050405040504050405040504050405040504050405040504050405040504",
+        "excerpt": "Synthetic fixture current move spans two source families rather than one.",
+        "geo_confidence": 0.93,
+        "metric_label": "2 synthetic current families",
+        "platform": "fixture_forum",
+        "published_at": "2026-08-24T14:00:00Z",
+        "row_id": "fixture_05_row_04",
+        "signal_id": "sig_0505050505050505050505050505050505050505050505050505050505050505",
+        "source_family": "current_forum",
+        "source_label": "Fixture current source",
+        "url": "https://evidence.invalid/05/04"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [],
+      "audience_lenses": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Decide whether observed recurrence warrants monitoring.",
+      "evidence_requirements": [
+        "three synthetic analogues",
+        "current difference",
+        "observed follow-on outcomes"
+      ],
+      "evidence_state": "ready",
+      "historical_comparison": {
+        "required": true,
+        "window_days": 730
+      },
+      "intent": "historical_analogue",
+      "market_scope": [
+        "za"
+      ],
+      "markets": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_05",
+      "run_id": "run_fixture_05",
+      "source_families": [
+        "history_one",
+        "history_two",
+        "history_three",
+        "current_forum"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "ready",
+    "expected_intent": "historical_analogue",
+    "human_review_required": false,
+    "limitations": [
+      "Synthetic fixture evidence does not measure population prevalence."
+    ],
+    "missing_work": [],
+    "request": {
+      "audience_lens_ids": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Decide whether observed recurrence warrants monitoring.",
+      "market_scope": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "question": "What happened before, what is different now, and what usually follows?",
+      "run_id": "run_fixture_05",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

@@ -1,0 +1,33 @@
+{
+  "fixture_scope": "synthetic_test_only",
+  "artifact_version": "replay_metric_formulas_v1",
+  "cutoff": "2026-08-25",
+  "current_window": {"start_date": "2026-08-19", "end_date": "2026-08-25", "markets": ["za"], "source_tables": ["ogilvy-trends-v2.trends_v2_staging.enriched_content"], "complete_partitions": true},
+  "history_window": {"start_date": "2026-07-22", "end_date": "2026-08-18", "markets": ["za"], "source_tables": ["ogilvy-trends-v2.trends_v2_staging.signal_candidates_v2", "ogilvy-trends-v2.trends_v2_staging.signal_membership_v2"], "complete_partitions": true},
+  "evidence_rows": [
+    {"row_id": "row_brand24", "source_family": "brand24", "platform": "instagram", "vendor_id": "vendor_c", "current_count": 7, "history_count": 0, "qualifies_evidence": false, "geo_provenance": null},
+    {"row_id": "row_news_tiktok", "source_family": "news", "platform": "tiktok", "vendor_id": "vendor_a", "current_count": 7, "history_count": 14, "qualifies_evidence": true, "geo_provenance": null},
+    {"row_id": "row_news_youtube", "source_family": "news", "platform": "youtube", "vendor_id": "vendor_a", "current_count": 14, "history_count": 28, "qualifies_evidence": true, "geo_provenance": "country:za"},
+    {"row_id": "row_search", "source_family": "search", "platform": "search", "vendor_id": "vendor_b", "current_count": 21, "history_count": 84, "qualifies_evidence": true, "geo_provenance": "country:za"}
+  ],
+  "saturation_universes": [{"universe_id": "oi_fixture_universe_v1", "version": "saturation_universe_v1", "source": "independent_fixture_registry", "source_families": ["brand24", "news", "search", "youtube"], "platforms": ["instagram", "news", "search", "tiktok", "youtube"], "digest": "6b92ebc591ef0dfa8494ec714379728177b11bb80445397fbec4ab39534d794e"}],
+  "historical": {
+    "current": {"signal_id": "current_signal", "as_of": "2026-08-25T23:00:00Z", "market": "za", "terms": ["alpha", "wave"], "source_families": ["news", "search"], "trajectory_signature": ["rising", "rising"], "evidence_state": "ready", "receipts": [{"receipt_id": "row_news_youtube", "signal_id": "current_signal", "published_at": "2026-08-25T10:00:00Z", "source_family": "news", "market": "za"}, {"receipt_id": "row_search", "signal_id": "current_signal", "published_at": "2026-08-25T11:00:00Z", "source_family": "search", "market": "za"}]},
+    "candidates": [{"signal_id": "prior_signal", "as_of": "2026-08-18T23:00:00Z", "market": "za", "terms": ["alpha", "rhythm"], "source_families": ["news", "search"], "trajectory_signature": ["rising", "rising"], "evidence_state": "ready", "receipts": [{"receipt_id": "hist_row_1", "signal_id": "prior_signal", "published_at": "2026-08-18T10:00:00Z", "source_family": "news", "market": "za"}, {"receipt_id": "hist_row_2", "signal_id": "prior_signal", "published_at": "2026-08-18T11:00:00Z", "source_family": "search", "market": "za"}]}],
+    "rules": {"term_weight": 0.4, "source_weight": 0.2, "trajectory_weight": 0.3, "geography_weight": 0.1, "minimum_similarity": 0.0, "allow_cross_market": false, "minimum_trajectory_points": 2, "eligible_evidence_states": ["ready", "thin"]},
+    "limit": 5
+  },
+  "formulas": [
+    {"formula_id": "breadth_combined_saturation", "formula_version": "breadth_combined_v1", "metric_family": "breadth", "operation": "combined_saturation", "rival_formula_id": "breadth_mean_saturation", "universe_id": "oi_fixture_universe_v1"},
+    {"formula_id": "breadth_mean_saturation", "formula_version": "breadth_mean_v1", "metric_family": "breadth", "operation": "mean_saturation", "rival_formula_id": "breadth_combined_saturation", "universe_id": "oi_fixture_universe_v1"},
+    {"formula_id": "geo_all_receipt_coverage", "formula_version": "geo_all_v1", "metric_family": "geo_coverage", "operation": "all_receipt_coverage", "rival_formula_id": "geo_qualifying_receipt_coverage", "universe_id": null},
+    {"formula_id": "geo_qualifying_receipt_coverage", "formula_version": "geo_qualifying_v1", "metric_family": "geo_coverage", "operation": "qualifying_receipt_coverage", "rival_formula_id": "geo_all_receipt_coverage", "universe_id": null},
+    {"formula_id": "historical_similarity_max", "formula_version": "historical_similarity_max_v1", "metric_family": "historical_similarity", "operation": "max_historical_similarity", "rival_formula_id": "novelty_one_minus_max", "universe_id": null},
+    {"formula_id": "independence_one_minus_hhi", "formula_version": "independence_hhi_v1", "metric_family": "independence", "operation": "one_minus_hhi", "rival_formula_id": "independence_one_minus_max_share", "universe_id": null},
+    {"formula_id": "independence_one_minus_max_share", "formula_version": "independence_max_share_v1", "metric_family": "independence", "operation": "one_minus_max_share", "rival_formula_id": "independence_one_minus_hhi", "universe_id": null},
+    {"formula_id": "novelty_one_minus_max", "formula_version": "novelty_one_minus_max_v1", "metric_family": "novelty", "operation": "one_minus_max_historical_similarity", "rival_formula_id": "historical_similarity_max", "universe_id": null},
+    {"formula_id": "velocity_family_rate_delta_mean", "formula_version": "velocity_delta_v1", "metric_family": "velocity", "operation": "family_rate_delta_mean", "rival_formula_id": "velocity_family_rate_ratio_mean", "universe_id": null},
+    {"formula_id": "velocity_family_rate_ratio_mean", "formula_version": "velocity_ratio_v1", "metric_family": "velocity", "operation": "family_rate_ratio_mean", "rival_formula_id": "velocity_family_rate_delta_mean", "universe_id": null}
+  ],
+  "formula_digest": "b5098420e29a4c5863d53d0c891ce8b0c25157c911318bc022dd6365b3cdb8b7"
+}

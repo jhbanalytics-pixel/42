@@ -1,0 +1,192 @@
+# Publishes the engine image to the staging registry with provenance.
+# Submitted from a connected repository revision with `--dir=engine`, so the working
+# directory is the engine tree, and with COMMIT_SHA passed as a substitution equal to
+# the submitted revision, because a manual submit leaves the built-in value empty.
+# The build identity holds artifactregistry.writer on intelligence-42 and logging.logWriter
+# only: logs go to Cloud Logging, nothing reads a secret and nothing writes a bucket.
+# The managed jobs run the repository root package ops (python -m ops.runners.managed_runtime
+# and python -m ops.deploy.refresh_question_policy) and the managed runtime reads the root
+# infra/runtime files under /app, none of which the engine build context contains. So
+# stage-ops-package copies /workspace/ops and /workspace/infra/runtime into the engine tree
+# (/workspace/engine/ops and /workspace/engine/infra/runtime) and writes
+# /workspace/engine/ops-source-inventory.txt over both before the image builds. All three
+# exist in the Cloud Build workspace only: the repository's engine tree never carries them,
+# the step fails closed when a checkout does, and ops-tree-inventory proves the image's
+# /app/ops and /app/infra/runtime match the staged inventory line for line. The existing
+# COPY infra/ line in Dockerfile.staging brings the staged infra/runtime in; no line names it.
+# unit-tests builds Dockerfile.tests with the engine tree as its docker context, so the suite
+# inside that image sees the engine tree alone under /workspace/engine and nothing above it.
+# Checks that read the checkout rather than the engine tree therefore live in
+# engine/tests/repository and run in repository-tests, which is that same image over the real
+# checkout. Three of them are pinned by the unit suite: the managed daily job's environment in
+# infra/runtime/daily-staging.json, the ingest run reader's expected digests against the ingest
+# job definition in infra/runtime/ingest-staging.json and the retired vendor scan over the app,
+# ops, infra and operations trees.
+steps:
+  - id: unit-tests
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    env:
+      - DOCKER_BUILDKIT=1
+    args:
+      - build
+      - --file
+      - Dockerfile.tests
+      - --tag
+      - 42-engine-tests:${BUILD_ID}
+      - .
+
+  # Runs engine/tests/repository in the image the previous step built, over the checkout
+  # rather than over the image's own copy of the engine tree: the build's working directory is
+  # /workspace/engine and Cloud Build mounts the whole workspace, so these tests read the app,
+  # docs, infra, ops and engine trees as a checkout holds them. It runs before
+  # stage-ops-package, so the scan reads the reviewed tree with nothing staged into it.
+  - id: repository-tests
+    name: 42-engine-tests:${BUILD_ID}
+    args:
+      - /opt/42-engine-test-venv/bin/python
+      - -m
+      - pytest
+      - -q
+      - -p
+      - no:cacheprovider
+      - tests/repository/
+
+  # Stages the reviewed ops package and the root infra/runtime files into the engine build
+  # context. ops/tests stays out because the image never runs tests and its fixtures are
+  # test doubles; bytecode caches, .git and virtualenv directories stay out so the copy holds
+  # source only. The inventory is one `sha256  path` line per staged file across both trees,
+  # paths relative to the engine tree in byte order, then files=N sha256=<digest over those
+  # lines>, the digest ops-tree-inventory recomputes. The script holds no dollar sign, so the
+  # bytes here are the bytes bash runs.
+  - id: stage-ops-package
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        test -d /workspace/ops
+        test -d /workspace/infra/runtime
+        test ! -e /workspace/engine/ops
+        test ! -e /workspace/engine/infra/runtime
+        test ! -e /workspace/engine/ops-source-inventory.txt
+        rm -rf /tmp/ops-stage
+        mkdir -p /tmp/ops-stage
+        cd /workspace
+        find ops infra/runtime \( -type d \( -path ops/tests -o -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache -o -name .mypy_cache -o -name .git -o -name .venv -o -name venv \) -prune \) -o -type f ! -name '*.pyc' -print | LC_ALL=C sort > /tmp/ops-stage/files.txt
+        grep -qx ops/runners/managed_runtime.py /tmp/ops-stage/files.txt
+        grep -qx ops/deploy/refresh_question_policy.py /tmp/ops-stage/files.txt
+        grep -qx ops/deploy/resource_manifest.json /tmp/ops-stage/files.txt
+        grep -qx infra/runtime/daily-staging.json /tmp/ops-stage/files.txt
+        grep -qx infra/runtime/scheduler-staging.json /tmp/ops-stage/files.txt
+        xargs --no-run-if-empty --delimiter '\n' --arg-file /tmp/ops-stage/files.txt cp --parents --target-directory /workspace/engine
+        cd /workspace/engine
+        find ops infra/runtime -type f | LC_ALL=C sort | xargs --no-run-if-empty --delimiter '\n' sha256sum --text > /tmp/ops-stage/lines.txt
+        { cat /tmp/ops-stage/lines.txt; printf 'files='; wc -l < /tmp/ops-stage/lines.txt | tr -d ' \n'; printf ' sha256='; sha256sum --text /tmp/ops-stage/lines.txt | cut -c 1-64; } > /workspace/engine/ops-source-inventory.txt
+        echo "stage-ops-package staged /workspace/engine/ops and /workspace/engine/infra/runtime"
+        tail -n 1 /workspace/engine/ops-source-inventory.txt
+
+  - id: build-staging-image
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    env:
+      - DOCKER_BUILDKIT=1
+    args:
+      - build
+      - --file
+      - Dockerfile.staging
+      - --tag
+      - us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine:${COMMIT_SHA}
+      - .
+
+  # The staging image has no shell, so the check is a python one liner run through the
+  # image's own interpreter with the entrypoint overridden explicitly.
+  - id: manifest-inside-image
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    args:
+      - run
+      - --rm
+      - --entrypoint
+      - python
+      - us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine:${COMMIT_SHA}
+      - -c
+      - |
+        import hashlib
+        expected = "${_RESOURCE_MANIFEST_SHA256}"
+        path = "/app/configs/open_intelligence/resource_manifest_v1.json"
+        with open(path, "rb") as handle:
+            actual = hashlib.sha256(handle.read()).hexdigest()
+        print(f"manifest-inside-image {path} sha256={actual} expected={expected}")
+        if actual != expected:
+            raise SystemExit("manifest-inside-image: packaged resource manifest digest mismatch")
+
+  - id: ops-tree-inventory
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    args:
+      - run
+      - --rm
+      - --entrypoint
+      - python
+      - us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine:${COMMIT_SHA}
+      - -c
+      - |
+        import hashlib
+        import pathlib
+        roots = ("/app/configs", "/app/infra", "/app/scripts", "/app/ops")
+        inventory = pathlib.Path("/app/ops-source-inventory.txt")
+        count = 0
+        summary = hashlib.sha256()
+        for root in roots:
+            base = pathlib.Path(root)
+            if not base.is_dir():
+                raise SystemExit(f"ops-tree-inventory: missing {root}")
+            for path in sorted(item for item in base.rglob("*") if item.is_file()):
+                line = f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path}"
+                print(line)
+                summary.update(line.encode("utf-8") + b"\n")
+                count += 1
+        print(f"ops-tree-inventory files={count} sha256={summary.hexdigest()}")
+        if not inventory.is_file():
+            raise SystemExit(f"ops-tree-inventory: missing {inventory}")
+        staged = (pathlib.Path("/app/ops"), pathlib.Path("/app/infra/runtime"))
+        for tree in staged:
+            if not tree.is_dir():
+                raise SystemExit(f"ops-tree-inventory: missing {tree}")
+
+        def relative(item):
+            return item.relative_to(inventory.parent).as_posix()
+
+        files = [item for tree in staged for item in tree.rglob("*") if item.is_file()]
+        recomputed = []
+        digest = hashlib.sha256()
+        for path in sorted(files, key=relative):
+            line = f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {relative(path)}"
+            recomputed.append(line)
+            digest.update(line.encode("utf-8") + b"\n")
+        recomputed.append(f"files={len(recomputed)} sha256={digest.hexdigest()}")
+        recorded = inventory.read_text(encoding="utf-8").splitlines()
+        for number, (expected, actual) in enumerate(zip(recorded, recomputed), start=1):
+            if expected != actual:
+                raise SystemExit(
+                    f"ops-tree-inventory: line {number} of {inventory} is {expected!r}, "
+                    f"the image has {actual!r}"
+                )
+        if len(recorded) != len(recomputed):
+            raise SystemExit(
+                f"ops-tree-inventory: {inventory} has {len(recorded)} lines, "
+                f"the image's staged trees have {len(recomputed)}"
+            )
+        print(
+            f"ops-tree-inventory {staged[0]} and {staged[1]} match {inventory} "
+            f"across {len(recorded)} lines"
+        )
+
+images:
+  - us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine:${COMMIT_SHA}
+
+substitutions:
+  _RESOURCE_MANIFEST_SHA256: 33ed5155608920fddc36e199e77a3082b381b65c3dcd0d803f201811571f1e09
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1800s

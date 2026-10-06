@@ -1,0 +1,11 @@
+{
+  "mode": "items",
+  "window": {"from": "2026-09-03", "to": "2026-09-30", "days": 28},
+  "subjects": [
+    {"key": "s1", "label": "#fixture_za_step", "item_id": "i_step", "market": "ZA", "platform": null, "matched_by": "linked", "card": null},
+    {"key": "s2", "label": "Fixture Cola", "item_id": "i_cola", "market": "ZA", "platform": null, "matched_by": "keyword", "card": null}
+  ],
+  "series": [],
+  "rows": [],
+  "notes": ["This comparison needs more data than one question may read"]
+}

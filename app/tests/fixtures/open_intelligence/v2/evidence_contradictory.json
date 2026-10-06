@@ -1,0 +1,52 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "evidence_contradictory",
+  "fixture_kind": "evidence_readiness",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "direction_by_family": {
+      "forum": "rising",
+      "video": "declining"
+    },
+    "evidence": [
+      {
+        "author_label": "@fixture_author_0e_01",
+        "availability": "available",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_0e010e010e010e010e010e010e010e010e010e010e010e010e010e010e010e01",
+        "excerpt": "Synthetic fixture contradictory evidence records a forum rise.",
+        "geo_confidence": 0.91,
+        "metric_label": "8 synthetic posts",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_0e_row_01",
+        "signal_id": "sig_0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+        "source_family": "forum",
+        "source_label": "Fixture source 0e-01",
+        "url": "https://evidence.invalid/0e/01"
+      },
+      {
+        "author_label": "@fixture_author_0e_02",
+        "availability": "available",
+        "claim_role": "contradiction",
+        "direction": "declining",
+        "evidence_id": "ev_0e020e020e020e020e020e020e020e020e020e020e020e020e020e020e020e02",
+        "excerpt": "Synthetic fixture contradictory evidence records a video decline.",
+        "geo_confidence": 0.91,
+        "metric_label": "index declined from 7 to 4 synthetic points",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_0e_row_02",
+        "signal_id": "sig_0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+        "source_family": "video",
+        "source_label": "Fixture source 0e-02",
+        "url": "https://evidence.invalid/0e/02"
+      }
+    ],
+    "evidence_state": "contradictory",
+    "qualifying_family_count": 2,
+    "signal_id": "sig_0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e"
+  },
+  "sanitized": true
+}

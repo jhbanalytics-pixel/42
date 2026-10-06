@@ -1,0 +1,22 @@
+# Authorized client lenses. A lens is the optional configuration a request may
+# name beside the seven scope values; general 42 names none and is the default.
+# An entry is the only thing that authorizes a configuration. A request that
+# names a lens is bound to that entry. A request that names none, under a client
+# scope whose brand configuration an entry carries, still reaches that entry, so
+# the client purpose policy keeps running for it. A brand name under any other
+# client scope, and a brand name no entry carries at all, are refused rather
+# than loaded. Each entry pins the exact bytes of the configuration document it
+# authorizes, so a changed document is refused rather than loaded. Client inputs
+# the configuration still lacks are read from that document; none of them are
+# declared here, and no consumer on today's answer path asks for one.
+contract_version: client_lens_registry_v1
+default_client_lens_id: null
+lenses:
+  bsa_pulse_lens:
+    client_lens_id: bsa_pulse_lens
+    label: Brand South Africa Pulse
+    client_scope_id: bsa_pulse
+    brand_config_id: bsa
+    overlay_id: bsa
+    configuration_digest: e1baafa865b5c9419225102d752c651c5b6e4fada034a2317f2d6f8a395336bf
+    enabled: true

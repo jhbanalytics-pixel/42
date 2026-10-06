@@ -1,0 +1,1042 @@
+[
+  {
+    "capability_id": "bsa_configuration",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "bsa_configuration unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": "A single configured persona cannot contradict itself; conflicting scope requests are refused at the route as invalid."
+  },
+  {
+    "capability_id": "bsa_configuration",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "bsa_configuration unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "bsa_configuration",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "bsa_configuration unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "bsa_configuration",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "bsa_configuration unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "bsa_configuration",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "bsa_configuration unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "bsa_configuration",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "bsa_configuration unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "bsa_configuration",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "bsa_configuration unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "bsa_configuration",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "bsa_configuration unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": "A configuration entry is present or absent; thinness is a property of the evidence a persona produces, which the questions and investigation rows own."
+  },
+  {
+    "capability_id": "compare",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "compare contradictory",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "compare",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "compare empty",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "compare",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "compare failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "compare",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "compare held",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "compare",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "compare loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "compare",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "compare populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "compare",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "compare stale",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "compare",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "compare thin",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "coverage_source_lab",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "coverage_source_lab contradictory",
+    "native_data_binding": "fixture",
+    "test_result": "failed",
+    "remaining_gate": "source_lab.py 2.2.0 carries no claim two sources can disagree on; a catalog inconsistent with its list is a failed verification, not a contradiction.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "coverage_source_lab",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "coverage_source_lab empty",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "coverage_source_lab",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "coverage_source_lab failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "coverage_source_lab",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "coverage_source_lab held",
+    "native_data_binding": "fixture",
+    "test_result": "inapplicable",
+    "remaining_gate": "none",
+    "inapplicable_reason": "Source Lab is a read of a verified catalog snapshot; a snapshot that is not verified is a failed read, and nothing on the route waits on approval."
+  },
+  {
+    "capability_id": "coverage_source_lab",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "coverage_source_lab loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "coverage_source_lab",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "coverage_source_lab populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "coverage_source_lab",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "coverage_source_lab stale",
+    "native_data_binding": "fixture",
+    "test_result": "failed",
+    "remaining_gate": "source_lab.py 2.2.0 states checked_at on the catalog but no freshness state or window, so the route cannot declare a snapshot stale with its age.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "coverage_source_lab",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "coverage_source_lab thin",
+    "native_data_binding": "fixture",
+    "test_result": "failed",
+    "remaining_gate": "source_lab.py 2.2.0 sets quality_state only as measured or unmeasured (source_lab.py:531) and carries no evidence floor, so no thin state can be produced.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "creators_network_language contradictory",
+    "native_data_binding": "fixture",
+    "test_result": "inapplicable",
+    "remaining_gate": "none",
+    "inapplicable_reason": "Contributor and language reads list observed records; they carry no claims that can contradict each other."
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "creators_network_language empty",
+    "native_data_binding": "fixture",
+    "test_result": "failed",
+    "remaining_gate": "creator.py returns 404 for a handle with no rows in its window instead of a measured zero, so the route cannot show an empty profile.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "creators_network_language failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "creators_network_language held",
+    "native_data_binding": "fixture",
+    "test_result": "inapplicable",
+    "remaining_gate": "none",
+    "inapplicable_reason": "These routes read completed observations and hold nothing pending; a missing profile is a failed or empty read, not a held one."
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "creators_network_language loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "creators_network_language populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "creators_network_language stale",
+    "native_data_binding": "fixture",
+    "test_result": "failed",
+    "remaining_gate": "creator.py states a rolling 30 day window but no freshness stamp or age, so no stale state can be produced.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "creators_network_language thin",
+    "native_data_binding": "fixture",
+    "test_result": "failed",
+    "remaining_gate": "creator.py carries no evidence floor for a contributor, so no thin state can be produced.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "listen",
+    "state": "contradictory",
+    "ui_receipt": "creators_network_language listen contradictory reason",
+    "native_data_binding": "fixture",
+    "test_result": "refused",
+    "remaining_gate": "listen_feed quotes recorded posts one at a time and makes no claim that two of them could contradict.",
+    "inapplicable_reason": "Contributor and language reads list observed records; they carry no claims that can contradict each other."
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "listen",
+    "state": "empty",
+    "ui_receipt": "creators_network_language listen empty",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "listen",
+    "state": "failed",
+    "ui_receipt": "creators_network_language listen failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "listen",
+    "state": "held",
+    "ui_receipt": "creators_network_language listen held reason",
+    "native_data_binding": "fixture",
+    "test_result": "refused",
+    "remaining_gate": "A row listen_feed reads is published or absent; no human decision holds a recorded mention back.",
+    "inapplicable_reason": "These routes read completed observations and hold nothing pending; a missing profile is a failed or empty read, not a held one."
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "listen",
+    "state": "loading",
+    "ui_receipt": "creators_network_language listen loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "listen",
+    "state": "populated",
+    "ui_receipt": "creators_network_language listen populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "listen",
+    "state": "stale",
+    "ui_receipt": "creators_network_language listen stale reason",
+    "native_data_binding": "fixture",
+    "test_result": "refused",
+    "remaining_gate": "listen_feed selects a seven day window on every read and stamps each row with its own age, but sends no freshness block for the page, so the feed cannot date itself as stale.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "listen",
+    "state": "thin",
+    "ui_receipt": "creators_network_language listen thin reason",
+    "native_data_binding": "fixture",
+    "test_result": "refused",
+    "remaining_gate": "listen_feed returns the rows it read with no floor under them, so a short page is a measured count and not a declared thin state.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "network",
+    "state": "contradictory",
+    "ui_receipt": "creators_network_language network contradictory reason",
+    "native_data_binding": "fixture",
+    "test_result": "refused",
+    "remaining_gate": "The graph pairs one desk run with one build_voices board for the same market; a board that answers for another market is refused as unverified rather than drawn as a disagreement.",
+    "inapplicable_reason": "Contributor and language reads list observed records; they carry no claims that can contradict each other."
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "network",
+    "state": "empty",
+    "ui_receipt": "creators_network_language network empty",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "network",
+    "state": "failed",
+    "ui_receipt": "creators_network_language network failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "network",
+    "state": "held",
+    "ui_receipt": "creators_network_language network held reason",
+    "native_data_binding": "fixture",
+    "test_result": "refused",
+    "remaining_gate": "build_voices returns the reach ranked rows it read and holds nothing back for a decision, so no human decision stands between the two reads and the graph and there is nothing to hold.",
+    "inapplicable_reason": "These routes read completed observations and hold nothing pending; a missing profile is a failed or empty read, not a held one."
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "network",
+    "state": "loading",
+    "ui_receipt": "creators_network_language network loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "network",
+    "state": "populated",
+    "ui_receipt": "creators_network_language network populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "network",
+    "state": "stale",
+    "ui_receipt": "creators_network_language network stale",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "creators_network_language",
+    "entry": "network",
+    "state": "thin",
+    "ui_receipt": "creators_network_language network thin reason",
+    "native_data_binding": "fixture",
+    "test_result": "refused",
+    "remaining_gate": "The graph draws the matches the two reads produce and prints the received and excluded counts beside them; neither the topic rows nor the voice rows carry an evidence floor for a relationship. The evidence_state the same desk answer sends under build_dynamic_discovery belongs to a discovered signal and not to a topic and voice pairing, so no thin state of this graph can be produced.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "discovery_exploration",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "discovery_exploration contradictory",
+    "native_data_binding": "fixture",
+    "test_result": "inapplicable",
+    "remaining_gate": "none",
+    "inapplicable_reason": "Discover lists candidates from one released run and states each candidate's readiness; it does not compare sources against each other."
+  },
+  {
+    "capability_id": "discovery_exploration",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "discovery_exploration empty",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "discovery_exploration",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "discovery_exploration failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "discovery_exploration",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "discovery_exploration held",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "discovery_exploration",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "discovery_exploration loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "discovery_exploration",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "discovery_exploration populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "discovery_exploration",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "discovery_exploration stale",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "discovery_exploration",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "discovery_exploration thin",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "fieldwork",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "fieldwork contradictory",
+    "native_data_binding": "fixture",
+    "test_result": "failed",
+    "remaining_gate": "fieldwork_workspace_v2 projects every research row as unchecked; the producer refuses a contradictory readiness, so no contradictory state can be produced.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "fieldwork",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "fieldwork empty",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "fieldwork",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "fieldwork failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "fieldwork",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "fieldwork held",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "fieldwork",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "fieldwork loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "fieldwork",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "fieldwork populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "fieldwork",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "fieldwork stale",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "fieldwork",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "fieldwork thin",
+    "native_data_binding": "fixture",
+    "test_result": "failed",
+    "remaining_gate": "fieldwork_workspace_v2 projects every research row as unchecked; the producer refuses a thin readiness, so no thin state can be produced.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "history",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "history unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "history",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "history unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "history",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "history unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "history",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "history unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "history",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "history unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "history",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "history unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "history",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "history unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "history",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "history unimplemented",
+    "native_data_binding": "fixture",
+    "test_result": "unimplemented",
+    "remaining_gate": "producer unimplemented",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "investigation_build_review",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "investigation_build_review contradictory",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "investigation_build_review",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "investigation_build_review empty",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "investigation_build_review",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "investigation_build_review failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "investigation_build_review",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "investigation_build_review held",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "investigation_build_review",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "investigation_build_review loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "investigation_build_review",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "investigation_build_review populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "investigation_build_review",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "investigation_build_review stale",
+    "native_data_binding": "fixture",
+    "test_result": "failed",
+    "remaining_gate": "No producer under src/api emits workspace_snapshot_stale or a snapshot age for an investigation read, so the route cannot state a stale age.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "investigation_build_review",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "investigation_build_review thin",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "questions_followups",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "questions_followups contradictory",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "questions_followups",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "questions_followups empty",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "questions_followups",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "questions_followups failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "questions_followups",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "questions_followups held",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "questions_followups",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "questions_followups loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "questions_followups",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "questions_followups populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "questions_followups",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "questions_followups stale",
+    "native_data_binding": "fixture",
+    "test_result": "failed",
+    "remaining_gate": "general_question_detail_v1 carries as_of and a closed window but no freshness state or age, so the route cannot declare a stored answer stale.",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "questions_followups",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "questions_followups thin",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "sources_evidence",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "sources_evidence contradictory",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "sources_evidence",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "sources_evidence empty",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "sources_evidence",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "sources_evidence failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "sources_evidence",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "sources_evidence held",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "sources_evidence",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "sources_evidence loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "sources_evidence",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "sources_evidence populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "sources_evidence",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "sources_evidence stale",
+    "native_data_binding": "fixture",
+    "test_result": "inapplicable",
+    "remaining_gate": "none",
+    "inapplicable_reason": "A receipt is bound to a closed snapshot and window; it is either the record or it is absent, and age is stated on the record rather than as a stale state of the panel."
+  },
+  {
+    "capability_id": "sources_evidence",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "sources_evidence thin",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "today_briefing",
+    "entry": null,
+    "state": "contradictory",
+    "ui_receipt": "today_briefing contradictory",
+    "native_data_binding": "fixture",
+    "test_result": "inapplicable",
+    "remaining_gate": "none",
+    "inapplicable_reason": "The Briefing reads one released run, so it never holds two runs that can disagree; disagreement between sources is a Compare state."
+  },
+  {
+    "capability_id": "today_briefing",
+    "entry": null,
+    "state": "empty",
+    "ui_receipt": "today_briefing empty",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "today_briefing",
+    "entry": null,
+    "state": "failed",
+    "ui_receipt": "today_briefing failed",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "today_briefing",
+    "entry": null,
+    "state": "held",
+    "ui_receipt": "today_briefing held",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "today_briefing",
+    "entry": null,
+    "state": "loading",
+    "ui_receipt": "today_briefing loading",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "today_briefing",
+    "entry": null,
+    "state": "populated",
+    "ui_receipt": "today_briefing populated",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "today_briefing",
+    "entry": null,
+    "state": "stale",
+    "ui_receipt": "today_briefing stale",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  },
+  {
+    "capability_id": "today_briefing",
+    "entry": null,
+    "state": "thin",
+    "ui_receipt": "today_briefing thin",
+    "native_data_binding": "fixture",
+    "test_result": "passed",
+    "remaining_gate": "native staging data",
+    "inapplicable_reason": null
+  }
+]

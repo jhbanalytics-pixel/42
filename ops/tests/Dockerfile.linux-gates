@@ -1,0 +1,72 @@
+ARG APP_RUNTIME_IMAGE
+FROM ${APP_RUNTIME_IMAGE}
+
+USER root
+
+RUN python -I -c "import importlib.util; assert importlib.util.find_spec('pytest') is None; assert importlib.util.find_spec('observer_host') is None" && \
+    /opt/42-engine-venv/bin/python -I -c "import importlib.util; assert importlib.util.find_spec('pytest') is None; assert importlib.util.find_spec('observer_host') is None"
+
+COPY app/requirements-dev.lock /opt/42-gates/locks/app-requirements-dev.lock
+COPY engine/requirements-dev.lock /opt/42-gates/locks/engine-requirements-dev.lock
+RUN echo "8832214c7436bde9f0f826fd27f459fae9464da0a1290280374c7377fa7fb626  /opt/42-gates/locks/app-requirements-dev.lock" | sha256sum -c - && \
+    echo "e2afbc89d94de508377e638fe60380aa09d43e9631a2448bb00b5417bfc47e93  /opt/42-gates/locks/engine-requirements-dev.lock" | sha256sum -c - && \
+    python -m venv --copies /opt/42-app-test-venv && \
+    /opt/42-app-test-venv/bin/python -m pip install --require-hashes --no-compile -r /opt/42-gates/locks/app-requirements-dev.lock && \
+    /opt/42-engine-venv/bin/python -m venv --copies /opt/42-engine-test-venv && \
+    /opt/42-engine-test-venv/bin/python -m pip install --require-hashes --no-compile -r /opt/42-gates/locks/engine-requirements-dev.lock && \
+    /opt/42-app-test-venv/bin/python -I -c "import pytest" && \
+    /opt/42-engine-test-venv/bin/python -I -c "import pytest" && \
+    python -I -c "import importlib.util; assert importlib.util.find_spec('pytest') is None" && \
+    /opt/42-engine-venv/bin/python -I -c "import importlib.util; assert importlib.util.find_spec('pytest') is None"
+
+COPY app/conftest.py /opt/42-gates/app/conftest.py
+COPY app/src/__init__.py /opt/42-gates/app/src/__init__.py
+COPY app/src/api/__init__.py /opt/42-gates/app/src/api/__init__.py
+COPY app/src/api/fieldwork.py /opt/42-gates/app/src/api/fieldwork.py
+COPY app/src/api/question_worker_bundle.py /opt/42-gates/app/src/api/question_worker_bundle.py
+COPY app/src/api/question_worker_controller.py /opt/42-gates/app/src/api/question_worker_controller.py
+COPY app/src/api/question_worker_deadline.py /opt/42-gates/app/src/api/question_worker_deadline.py
+COPY app/src/api/question_worker_process.py /opt/42-gates/app/src/api/question_worker_process.py
+COPY app/src/api/question_worker_protocol.py /opt/42-gates/app/src/api/question_worker_protocol.py
+COPY app/src/api/question_worker_result.py /opt/42-gates/app/src/api/question_worker_result.py
+COPY app/src/api/question_worker_store.py /opt/42-gates/app/src/api/question_worker_store.py
+COPY app/tests/unit/test_question_worker_bundle.py /opt/42-gates/app/tests/unit/test_question_worker_bundle.py
+COPY app/tests/unit/test_question_worker_controller.py /opt/42-gates/app/tests/unit/test_question_worker_controller.py
+COPY app/tests/unit/test_question_worker_deadline.py /opt/42-gates/app/tests/unit/test_question_worker_deadline.py
+COPY app/tests/unit/test_question_worker_process.py /opt/42-gates/app/tests/unit/test_question_worker_process.py
+COPY app/tests/unit/test_question_worker_protocol.py /opt/42-gates/app/tests/unit/test_question_worker_protocol.py
+COPY app/tests/unit/test_question_worker_result.py /opt/42-gates/app/tests/unit/test_question_worker_result.py
+COPY app/tests/unit/test_question_worker_store.py /opt/42-gates/app/tests/unit/test_question_worker_store.py
+COPY app/tests/fixtures/general-question-result-unavailable.json /opt/42-gates/app/tests/fixtures/general-question-result-unavailable.json
+COPY app/tests/unit/test_engine_observer_subprocess.py /opt/42-gates/app/tests/unit/test_engine_observer_subprocess.py
+
+COPY engine/tests/__init__.py /opt/42-gates/engine/tests/__init__.py
+COPY engine/tests/conftest.py /opt/42-gates/engine/tests/conftest.py
+COPY engine/tests/unit/__init__.py /opt/42-gates/engine/tests/unit/__init__.py
+COPY engine/tests/unit/test_general_question_admission.py /opt/42-gates/engine/tests/unit/test_general_question_admission.py
+COPY engine/tests/unit/test_general_question_answer.py /opt/42-gates/engine/tests/unit/test_general_question_answer.py
+COPY engine/tests/unit/test_general_question_calls.py /opt/42-gates/engine/tests/unit/test_general_question_calls.py
+COPY engine/tests/unit/test_general_question_deployment.py /opt/42-gates/engine/tests/unit/test_general_question_deployment.py
+COPY engine/tests/unit/test_general_question_observation.py /opt/42-gates/engine/tests/unit/test_general_question_observation.py
+COPY engine/tests/unit/test_general_question_plan.py /opt/42-gates/engine/tests/unit/test_general_question_plan.py
+COPY engine/tests/unit/test_general_question_policy.py /opt/42-gates/engine/tests/unit/test_general_question_policy.py
+COPY engine/tests/unit/test_general_question_result.py /opt/42-gates/engine/tests/unit/test_general_question_result.py
+COPY engine/tests/unit/test_general_question_runtime.py /opt/42-gates/engine/tests/unit/test_general_question_runtime.py
+COPY engine/tests/unit/test_general_question_store.py /opt/42-gates/engine/tests/unit/test_general_question_store.py
+COPY engine/tests/unit/test_general_question_worker_cli.py /opt/42-gates/engine/tests/unit/test_general_question_worker_cli.py
+
+COPY app/tests/unit/test_pdf_renderer_linux.py /opt/42-gates/pdf/tests/unit/test_pdf_renderer_linux.py
+COPY app/tests/fixtures/pdf/newsreader-chromium151.pdf /opt/42-gates/pdf/tests/fixtures/pdf/newsreader-chromium151.pdf
+
+COPY ops/tests/fixtures/linux_boundary/observer_store.json /opt/42-gates/linux-boundary/observer_store.json
+COPY ops/tests/fixtures/linux_boundary/observer_host.py /opt/42-engine-venv/lib/python3.13/site-packages/observer_host.py
+COPY ops/tests/fixtures/linux_boundary/sitecustomize.py /opt/42-engine-venv/lib/python3.13/site-packages/sitecustomize.py
+COPY ops/tests/fixtures/linux_boundary/manifest.json /opt/42-gates/linux-boundary/manifest.json
+
+WORKDIR /app
+RUN python -c "import hashlib,json; from pathlib import Path; from src.api import pdf_exporter,pdf_renderer_worker; m=json.load(open('/opt/42-gates/linux-boundary/manifest.json')); paths={'app/src/api/pdf_exporter.py':Path(pdf_exporter.__file__).resolve(),'app/src/api/pdf_renderer_worker.py':Path(pdf_renderer_worker.__file__).resolve(),'app/configs/pdf_runtime.json':Path('/app/configs/pdf_runtime.json')}; assert Path(pdf_exporter.__file__).resolve() == Path('/app/src/api/pdf_exporter.py'); assert Path(pdf_renderer_worker.__file__).resolve() == Path('/app/src/api/pdf_renderer_worker.py'); assert all(hashlib.sha256(path.read_bytes()).hexdigest() == m['pdf_runtime_closure'][name] for name,path in paths.items())"
+
+WORKDIR /opt/42-gates/app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1
+RUN chmod -R a-w /opt/42-gates /opt/42-app-test-venv /opt/42-engine-test-venv
+USER 10001:10001

@@ -1,0 +1,146 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_10_custom",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture scope, 18 to 25 August 2026",
+      "sections": [
+        {
+          "body": "Synthetic fixture scope, 18 to 25 August 2026.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "Run a fixture workshop with rotating repair stations and short demonstration handovers [E1] [E2].",
+          "evidence_ids": [
+            "ev_0a010a010a010a010a010a010a010a010a010a010a010a010a010a010a010a01",
+            "ev_0a020a020a020a020a020a020a020a020a020a020a020a020a020a020a020a02"
+          ],
+          "heading": "Finding",
+          "section_id": "finding"
+        },
+        {
+          "body": "Synthetic fixture evidence does not measure population prevalence.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture intelligence brief"
+    },
+    "audience_lenses": [],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [],
+    "evidence": [
+      {
+        "author_label": "@fixture_author_0a_01",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "context",
+        "direction": "rising",
+        "evidence_id": "ev_0a010a010a010a010a010a010a010a010a010a010a010a010a010a010a010a01",
+        "excerpt": "Synthetic fixture workshop requests favor rotating repair stations.",
+        "geo_confidence": 0.91,
+        "metric_label": "15 synthetic workshop requests",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_0a_row_01",
+        "signal_id": "sig_0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "source_family": "forum",
+        "source_label": "Fixture source 0a-01",
+        "url": "https://evidence.invalid/0a/01"
+      },
+      {
+        "author_label": "@fixture_author_0a_02",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "context",
+        "direction": "stable",
+        "evidence_id": "ev_0a020a020a020a020a020a020a020a020a020a020a020a020a020a020a020a02",
+        "excerpt": "Synthetic fixture demonstrations support short station handovers.",
+        "geo_confidence": 0.91,
+        "metric_label": "6 synthetic demonstrations",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_0a_row_02",
+        "signal_id": "sig_0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "source_family": "video",
+        "source_label": "Fixture source 0a-02",
+        "url": "https://evidence.invalid/0a/02"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [],
+      "audience_lenses": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose one unusual synthetic workshop format.",
+      "evidence_requirements": [
+        "workshop request evidence",
+        "demonstration handover evidence"
+      ],
+      "evidence_state": "ready",
+      "historical_comparison": {
+        "required": false,
+        "window_days": 0
+      },
+      "intent": "custom",
+      "market_scope": [
+        "za"
+      ],
+      "markets": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_0a",
+      "run_id": "run_fixture_0a",
+      "source_families": [
+        "forum",
+        "video"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "ready",
+    "expected_intent": "custom",
+    "human_review_required": false,
+    "limitations": [
+      "Synthetic fixture evidence does not measure population prevalence."
+    ],
+    "missing_work": [],
+    "request": {
+      "audience_lens_ids": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose one unusual synthetic workshop format.",
+      "market_scope": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "question": "How should an unusual synthetic repair workshop be structured?",
+      "run_id": "run_fixture_0a",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

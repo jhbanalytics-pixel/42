@@ -1,0 +1,116 @@
+{
+  "feed_id": "ng_pulse",
+  "market": "NG",
+  "kind": "news",
+  "url": "https://www.pulse.ng/",
+  "retrieved_at_utc": "2026-09-30T11:39:25.128804Z",
+  "http_status": 200,
+  "content_type": "text/html; charset=utf-8",
+  "response_bytes": 265404,
+  "response_complete": true,
+  "source_body_sha256": "ae990ff60607de96e0b8dff4afa16f96dd1d54735bb91de20d49c4f1d0046591",
+  "elapsed_seconds": 0.699,
+  "method": "GET",
+  "authentication": "none",
+  "proxy_disabled": true,
+  "redirects_followed": false,
+  "source_body_full_inspected_in_memory": true,
+  "existing_reader_entry_count": 0,
+  "static_primary_html_article_count": 21,
+  "sample_file": "ng_pulse_native_20260930.html",
+  "sample_sha256": "1da9aed90fd008e48e0e1b8fc91aa14a83d72639a7418aacfcc81171d9e0575e",
+  "sample_bytes": 1903,
+  "sample_representation": "sanitized primary response article and title-link DOM fragments",
+  "sanitization": {
+    "allowed_attributes": [
+      "class",
+      "href",
+      "datetime"
+    ],
+    "removed_attributes": [
+      "event handlers",
+      "data attributes",
+      "tokens",
+      "query strings",
+      "fragment identifiers",
+      "all other attributes"
+    ],
+    "removed_elements": [
+      "script",
+      "style",
+      "media",
+      "images",
+      "forms",
+      "navigation",
+      "all non-title sibling content"
+    ],
+    "source_body_saved": false
+  },
+  "static_primary_html_articles": [
+    {
+      "title": "Breaking: Morocco makes history as Fatima Ezzahra El Mansouri becomes first woman prime minister and second woman to lead an Arab government",
+      "url": "https://www.pulse.ng/story/fatima-ezzahra-el-mansouri-morocco-prime-minister-2026093006452521389",
+      "published_at": null,
+      "article_tag": "article",
+      "article_class": "group/icon md:min-h-150 relative -mx-4 flex flex-col sm:-mx-12 md:col-span-3 md:mx-0 md:rounded",
+      "title_tag": "a",
+      "title_class": "font-accent hover:text-primary-100 text-xl font-medium leading-7 text-white transition sm:text-3xl sm:leading-8",
+      "ancestor_path": [
+        {
+          "tag": "article",
+          "class": "group/icon md:min-h-150 relative -mx-4 flex flex-col sm:-mx-12 md:col-span-3 md:mx-0 md:rounded"
+        },
+        {
+          "tag": "div",
+          "class": "bg-primary-600 relative flex h-full grow flex-col gap-3 px-4 pb-4 sm:px-12 md:rounded-b md:px-5 md:py-4"
+        }
+      ]
+    },
+    {
+      "title": "Pastor sets minimum church offering at GH₵50 (about ₦6,000), says transport fare has gone up",
+      "url": "https://www.pulse.ng/story/prophet-sets-ghc50-minimum-church-offering-2026093008461619494",
+      "published_at": null,
+      "article_tag": "article",
+      "article_class": "group/icon relative flex h-full flex-row gap-x-4 border-neutral-100 first:pt-4 sm:first:border-t-0 sm:first:pt-0",
+      "title_tag": "a",
+      "title_class": "font-accent text-base font-medium leading-5 transition sm:text-lg sm:leading-6 text-neutral-900 hover:text-neutral-700",
+      "ancestor_path": [
+        {
+          "tag": "article",
+          "class": "group/icon relative flex h-full flex-row gap-x-4 border-neutral-100 first:pt-4 sm:first:border-t-0 sm:first:pt-0"
+        },
+        {
+          "tag": "div",
+          "class": "relative flex w-full gap-x-4"
+        },
+        {
+          "tag": "div",
+          "class": "flex w-full flex-col gap-y-1 sm:gap-y-2"
+        }
+      ]
+    },
+    {
+      "title": "California just put two Muslim holidays on its official calendar — but it doesn’t mean everyone gets two days off",
+      "url": "https://www.pulse.ng/story/california-eid-holidays-state-calendar-what-it-means-2026093008342338767",
+      "published_at": null,
+      "article_tag": "article",
+      "article_class": "group/icon relative flex h-full flex-row gap-x-4 border-neutral-100 first:pt-4 sm:first:border-t-0 sm:first:pt-0",
+      "title_tag": "a",
+      "title_class": "font-accent text-base font-medium leading-5 transition sm:text-lg sm:leading-6 text-neutral-900 hover:text-neutral-700",
+      "ancestor_path": [
+        {
+          "tag": "article",
+          "class": "group/icon relative flex h-full flex-row gap-x-4 border-neutral-100 first:pt-4 sm:first:border-t-0 sm:first:pt-0"
+        },
+        {
+          "tag": "div",
+          "class": "relative flex w-full gap-x-4"
+        },
+        {
+          "tag": "div",
+          "class": "flex w-full flex-col gap-y-1 sm:gap-y-2"
+        }
+      ]
+    }
+  ]
+}

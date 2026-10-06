@@ -1,0 +1,89 @@
+# Production deploy of 42 (docs/full-42/SETUP.md "Deploys without anyone's PC"). Only Albert starts it,
+# from main, and the production environment holds it for his approval. Every production setting is an
+# environment variable of that environment; with any of them missing the run stops before it signs in.
+# core/setup/deploy_jobs.py deploys to the staging project only, so the last step refuses until it takes a
+# production project: this workflow proves the gates and the production sign-in, and deploys nothing yet.
+name: production
+
+on:
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: Jobs image digest that passed staging (sha256:...)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    if: github.repository == 'jhbanalytics-pixel/42-Ogilvy-Intelligence' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment:
+      name: production
+    steps:
+      - name: Refuse unless every production setting is present and Albert started this run
+        env:
+          PROD_PROJECT: ${{ vars.PROD_PROJECT }}
+          PROD_WIF_PROVIDER: ${{ vars.PROD_WIF_PROVIDER }}
+          PROD_DEPLOYER: ${{ vars.PROD_DEPLOYER }}
+          PROD_ACTOR_ID: ${{ vars.PROD_ACTOR_ID }}
+          ACTOR_ID: ${{ github.actor_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          DIGEST: ${{ inputs.digest }}
+        run: |
+          missing=""
+          for name in PROD_PROJECT PROD_WIF_PROVIDER PROD_DEPLOYER PROD_ACTOR_ID; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::The production environment is missing:$missing. Nothing was deployed."
+            exit 1
+          fi
+          if [ "$PROD_PROJECT" = "ogilvy-trends-v2" ]; then
+            echo "::error::PROD_PROJECT is the staging project. Nothing was deployed."
+            exit 1
+          fi
+          case "$PROD_DEPLOYER" in
+            *"@$PROD_PROJECT.iam.gserviceaccount.com") ;;
+            *) echo "::error::PROD_DEPLOYER is not an account of PROD_PROJECT. Nothing was deployed."; exit 1 ;;
+          esac
+          if [ "$ACTOR_ID" != "$PROD_ACTOR_ID" ]; then
+            echo "::error::Only Albert starts the production workflow. Nothing was deployed."
+            exit 1
+          fi
+          if [ "$RUN_ATTEMPT" != "1" ]; then
+            echo "::error::A production run is never re-run; start a new one. Nothing was deployed."
+            exit 1
+          fi
+          if ! [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::The digest input must be sha256: followed by 64 hex characters. Nothing was deployed."
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.PROD_WIF_PROVIDER }}
+          service_account: ${{ vars.PROD_DEPLOYER }}
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Stop before deploying
+        run: |
+          echo "::error::core/setup/deploy_jobs.py deploys to ogilvy-trends-v2 only. The production deploy waits for it to take PROD_PROJECT. Nothing was deployed."
+          exit 1

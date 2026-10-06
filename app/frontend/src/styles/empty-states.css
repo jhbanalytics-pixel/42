@@ -1,0 +1,124 @@
+/* Section 6 gives a workspace one solid red plane, and it is the workspace's
+   decision. A loading mark is not a decision, so the drum's four bars, the
+   orbit's three satellites and the ring core come off the plane red. The run
+   measured board, network and listen carrying five planes each, four of them
+   these bars. The rule colour reads as a mark rather than as a claim. */
+.ld-rings { position: relative; width: 54px; height: 54px; }
+.ld-rings .ld-ring {
+  position: absolute; inset: 0; border: 2px solid var(--line); border-radius: 50%; opacity: 0.4;
+}
+.ld-rings .ld-ring:nth-child(2) { inset: 9px; opacity: 0.7; }
+.ld-rings .ld-core {
+  position: absolute; top: 22px; left: 22px; width: 10px; height: 10px;
+  border-radius: 50%; background: var(--muted);
+}
+
+.ld-drum { display: flex; align-items: flex-end; gap: 5px; width: 43px; height: 46px; }
+.ld-drum .ld-bar { width: 7px; border-radius: 0; background: var(--muted); }
+.ld-drum .ld-bar:nth-child(1) { height: 46%; }
+.ld-drum .ld-bar:nth-child(2) { height: 72%; }
+.ld-drum .ld-bar:nth-child(3) { height: 58%; }
+.ld-drum .ld-bar:nth-child(4) { height: 88%; }
+
+.ld-orbit { position: relative; width: 50px; height: 50px; }
+.ld-orbit .ld-sat { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.ld-orbit .ld-sat:nth-child(1) { top: 0; left: 21px; }
+.ld-orbit .ld-sat:nth-child(2) { right: 0; bottom: 8px; opacity: 0.55; }
+.ld-orbit .ld-sat:nth-child(3) { bottom: 8px; left: 0; opacity: 0.3; }
+
+.ld-sweep {
+  position: relative; width: 84px; height: 8px; border: 1px solid var(--line); border-radius: 0;
+  background: var(--surface-inset); overflow: hidden;
+}
+.ld-sweep .ld-band {
+  position: absolute; top: 1px; bottom: 1px; left: 25%; width: 50%; border-radius: 0;
+  background: var(--accent); opacity: 0.65;
+}
+
+.es-block {
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  border-radius: 0; background: transparent; box-shadow: none;
+  overflow: hidden; margin-top: 24px; text-align: center;
+}
+.es-block .es-loader { display: flex; justify-content: center; padding: 44px 28px 0; }
+.es-copy { padding: 26px 28px 32px; }
+.es-title {
+  font-family: var(--sans); font-size: var(--type-6); font-weight: 600; letter-spacing: 0;
+  margin: 0 0 10px; color: var(--ink);
+}
+.es-body {
+  max-width: var(--measure); margin: 0 auto 18px; font-size: var(--type-4); line-height: 1.6; color: var(--muted);
+}
+/* The status line reports what the run looked at, the market, the window and
+   the count, so it is the provenance value of section 5 rather than a label:
+   the sans at 14px and 400, muted, in the case its words are written in. The
+   facts and the separators inside it inherit both. */
+.es-status {
+  display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 5px 0;
+  font-family: var(--sans); font-size: var(--type-3); font-weight: 400; letter-spacing: 0; color: var(--muted);
+  margin-bottom: 22px; text-transform: none;
+}
+.es-fact { display: inline-flex; align-items: center; white-space: nowrap; }
+.es-sep { color: var(--muted); padding: 0 12px; }
+.es-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+/* On a phone the actions stack, so a wrapped row never leaves one alone. */
+@media (max-width: 479px) {
+  .es-actions { flex-direction: column; align-items: flex-start; }
+}
+/* The two empty state actions are paper controls at 48px: ink in a 1px rule
+   box, the pointer answered with colour and an inset rule. No red plane
+   here; the one red plane a workspace may carry belongs to its primary
+   action, and an empty state has none. */
+.es-act, .es-act-ghost {
+  font-family: var(--sans); font-size: var(--type-3); font-weight: 600; color: var(--ink);
+  background: transparent; border: 1px solid var(--muted); border-radius: 0; padding: 0 16px;
+  min-height: 48px; min-width: 48px; cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+/* Shell consistency, 2 October 2026: a second empty state action is the same
+   secondary button as the first, ink in a muted rule, not a fainter box that
+   reads as disabled. */
+.es-act-ghost { color: var(--ink); border-color: var(--muted); }
+/* One move in both themes. The package's midnight ghost rule names the row
+   move at a specificity the class alone cannot beat, so the same rule
+   carries the midnight selector and the control move wins there too. */
+.es-act, .es-act-ghost, html[data-dir="midnight"] .es-act-ghost {
+  transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.es-act:hover, .es-act:focus-visible, .es-act-ghost:hover, .es-act-ghost:focus-visible {
+  color: var(--accent-text); border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent);
+}
+/* Section 7, the Active row. The pinned package presses these same two controls
+   from its own sheet, .es-act:active taking the inverse grip and
+   .es-act-ghost:active taking the grip, each at one class and one pseudo-class.
+   Written plainly the rule below carried that same weight, and the two sheets
+   arrive on their own requests, so the colour of the mark was settled by
+   whichever arrived last. The inverse grip is near white, which is right on the
+   filled plane the package draws and invisible on the transparent paper control
+   drawn above. Round 21 read ten daylight cells whose mark is red as the sheets
+   land in this build and near white under the other order, and moving one of
+   the two links reproduced that on the page, 30 samples of 30. Each class is
+   written twice, so the rule carries two of them and outranks both package
+   rules outright and the order stops deciding anything. The package's midnight
+   rule reaches .es-act at that same weight and asks for this same grip, so
+   which of those two wins changes nothing a reader sees. */
+.es-act.es-act:active, .es-act-ghost.es-act-ghost:active { box-shadow: var(--press-grip); }
+
+.es-field {
+  position: relative; height: 148px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: var(--surface-inset);
+}
+.es-field::before {
+  position: absolute; right: 24px; left: 24px; top: 50%; border-top: 1px solid var(--line); content: '';
+}
+.es-field::after {
+  position: absolute; top: 24px; bottom: 24px; left: 50%; border-left: 1px solid var(--line); content: '';
+}
+.es-field-label {
+  position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 9px;
+  font-family: var(--sans); font-size: var(--type-3); letter-spacing: 0; text-transform: none;
+  color: var(--muted); font-weight: 600;
+}
+.es-field-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.es-field .ld-sweep { z-index: 1; width: min(320px, 70%); }

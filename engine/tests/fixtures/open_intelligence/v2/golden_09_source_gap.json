@@ -1,0 +1,148 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_09_source_gap",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture scope, 18 to 25 August 2026",
+      "sections": [
+        {
+          "body": "Synthetic fixture scope, 18 to 25 August 2026.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "The dark audio surface prevents sound-led comparison, and forum evidence cannot close that synthetic source gap [E1] [E2].",
+          "evidence_ids": [
+            "ev_0901090109010901090109010901090109010901090109010901090109010901",
+            "ev_0902090209020902090209020902090209020902090209020902090209020902"
+          ],
+          "heading": "Finding",
+          "section_id": "finding"
+        },
+        {
+          "body": "Synthetic fixture evidence does not measure population prevalence.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture intelligence brief"
+    },
+    "audience_lenses": [],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [],
+    "evidence": [
+      {
+        "author_label": "@fixture_author_09_01",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "context",
+        "direction": "not_applicable",
+        "evidence_id": "ev_0901090109010901090109010901090109010901090109010901090109010901",
+        "excerpt": "Synthetic fixture dark audio surface consequence is an inability to compare sound-led spread.",
+        "geo_confidence": 0.91,
+        "metric_label": "0 qualifying synthetic audio rows in the closed window",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_09_row_01",
+        "signal_id": "sig_0909090909090909090909090909090909090909090909090909090909090909",
+        "source_family": "coverage",
+        "source_label": "Fixture source 09-01",
+        "url": "https://evidence.invalid/09/01"
+      },
+      {
+        "author_label": "@fixture_author_09_02",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "context",
+        "direction": "rising",
+        "evidence_id": "ev_0902090209020902090209020902090209020902090209020902090209020902",
+        "excerpt": "Synthetic fixture forum coverage cannot substitute for missing sound evidence.",
+        "geo_confidence": 0.91,
+        "metric_label": "10 synthetic forum posts",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_09_row_02",
+        "signal_id": "sig_0909090909090909090909090909090909090909090909090909090909090909",
+        "source_family": "forum",
+        "source_label": "Fixture source 09-02",
+        "url": "https://evidence.invalid/09/02"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [],
+      "audience_lenses": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Decide whether to fund a synthetic source pilot.",
+      "evidence_requirements": [
+        "dark surface status",
+        "decision consequence"
+      ],
+      "evidence_state": "thin",
+      "historical_comparison": {
+        "required": false,
+        "window_days": 0
+      },
+      "intent": "source_coverage",
+      "market_scope": [
+        "za"
+      ],
+      "markets": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_09",
+      "run_id": "run_fixture_09",
+      "source_families": [
+        "coverage",
+        "forum"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "thin",
+    "expected_intent": "source_coverage",
+    "human_review_required": false,
+    "limitations": [
+      "Synthetic fixture evidence does not measure population prevalence."
+    ],
+    "missing_work": [
+      "Synthetic fixture audio collection remains dark."
+    ],
+    "request": {
+      "audience_lens_ids": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Decide whether to fund a synthetic source pilot.",
+      "market_scope": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "question": "What is missing because a synthetic source surface is dark?",
+      "run_id": "run_fixture_09",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

@@ -1,0 +1,127 @@
+# Platform-generic tags that ride on every kind of post and name no topic, sound, place or community.
+# A matching item keeps its states but is written to cultural_map with status 'generic', so it is never
+# eligible (item_state.eligible false, DATA.md 3.7); the brief skips ineligible items.
+# core/detect/items.py reads this file through is_generic.
+#
+# Lifted from the old engine: the tag entries of engine/configs/seed_graph_stoplist.yaml and
+# engine/src/scoring/driving_hashtags.py DEFAULT_STOPLIST. The general English words, month and day
+# names, market names and per-market function words in the old list are left out: they stopped
+# tokens in free text, and as hashtags some of them are real topics. Added after the first staging
+# detect run on 28 September 2026 ranked #fyp, #foryou, #viral and their kin at the top of every market.
+#
+# One key per item kind; only hashtags are listed. Every term is written as its canonical key:
+# NFKC, casefolded, without the leading '#'. A test holds the file to that.
+
+hashtag:
+  # For You feed and discovery
+  - fyp
+  - fypシ
+  - fypシ゚
+  - fypシ゚viral
+  - fypp
+  - fyppp
+  - fypppp
+  - fypage
+  - fypviral
+  - fyptiktok
+  - foryou
+  - foryoupage
+  - foryourpage
+  - foryoupageofficiall
+  - 4u
+  - 4you
+  - 4youpage
+  - foru
+  - xyzbca
+  - xybca
+  - explore
+  - explorepage
+  - exploremore
+  - explorepage✨
+  - blowthisup
+  - firstpost
+  # Viral and trending
+  - viral
+  - goviral
+  - makeitviral
+  - viralvideo
+  - viralvideos
+  - viraltiktok
+  - viralreels
+  - viralpost
+  - viralshorts
+  - trend
+  - trends
+  - trending
+  - trendingnow
+  - trendingvideo
+  - trendingreels
+  - trendingshorts
+  # Platform names
+  - tiktok
+  - tiktoker
+  - tiktokers
+  - tiktokviral
+  - tiktokchallenge
+  - instagram
+  - insta
+  - ig
+  - instagood
+  - instadaily
+  - instalike
+  - instareels
+  - youtube
+  - youtuber
+  - facebook
+  - fb
+  - facebookreels
+  - fbreels
+  - twitter
+  - whatsapp
+  # Formats and in-app features
+  - reels
+  - reel
+  - reelsinstagram
+  - reelsvideo
+  - reelitfeelit
+  - shorts
+  - short
+  - youtubeshorts
+  - ytshorts
+  - shortsvideo
+  - shortsfeed
+  - capcut
+  - capcutedit
+  - capcuttemplate
+  - duet
+  - stitch
+  - greenscreen
+  - pov
+  - video
+  - videos
+  - contentcreator
+  # Engagement asks
+  - follow
+  - followme
+  - followforfollow
+  - follow4follow
+  - f4f
+  - like
+  - likes
+  - likeforlike
+  - like4like
+  - l4l
+  - share
+  - comment
+  - subscribe
+  # Catch-all genre tags
+  - funny
+  - funnyvideo
+  - funnyvideos
+  - comedy
+  - comedyvideo
+  - comedyvideos
+  - meme
+  - memes
+  - memesdaily
+  - parody

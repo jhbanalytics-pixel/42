@@ -1,0 +1,250 @@
+# syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
+FROM --platform=linux/amd64 python:3.13-slim@sha256:16f75ad0fbc6c4883a8afd63b2d700c3cf68ccffc1aaeca5304ca0a3a908451f AS build
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+COPY lp/requirements.lock /tmp/lp-requirements.lock
+RUN python -m pip install --require-hashes --no-compile -r /tmp/lp-requirements.lock
+
+COPY ops/build/install_pdf_runtime.py /tmp/pdf-build-tools/install_pdf_runtime.py
+COPY ops/build/pdf_runtime_dependencies.json /tmp/pdf-build-tools/pdf_runtime_dependencies.json
+# The reviewed installer gives each fetch one attempt on its socket timeout and prints only
+# pdf_runtime_install_refused when one fails, which is how a slow snapshot.debian.org
+# answer took the build down without naming a URL. The download runs through this wrapper:
+# it calls the reviewed download code unchanged, reports every fetch with the bytes it
+# received, attempts a fetch again after a transport fault up to three times, never
+# attempts again after a size, digest or redirect refusal, and prints the exception chain
+# before the refusal line when it gives up. The download as a whole runs under a global
+# budget, so a mirror that answers slowly on every fetch stops the build with a readable
+# message instead of running on until the job timeout kills it.
+COPY <<'PDF_DOWNLOAD_EOF' /tmp/pdf-build-tools/download_pdf_runtime.py
+"""Runs the reviewed installer's download with a trace, bounded retries and a global budget.
+
+The reviewed installer at install_pdf_runtime.py is imported unchanged from this directory
+and its download code runs as written. Only its _download is wrapped at runtime: every fetch
+reports the URL, the bytes received and the elapsed time; a fetch that failed on a transport
+fault, which is a timeout, a reset or a 429 or 5xx answer, is attempted again after a pause
+up to the attempt limit; a fetch the installer refused on size, digest or redirect grounds is
+never attempted again. On failure the exception chain is printed before the same refusal
+line the installer prints, so the build log names the URL and the cause.
+
+The download as a whole runs under a global budget, because retries alone turn a mirror that
+stalls on every fetch into a build that hangs until the job timeout kills it, which is a
+slower and worse answer than the one this wrapper replaced. Once the budget has passed no
+further attempt is started: the run says the download exceeded its budget, how many fetches
+completed, the fetch it stopped on and the last transport cause it saw, and then refuses.
+
+The budget is 900 seconds. A passing toolchain stage pulls its Debian archives in under 6
+seconds and the stage that took the build down took 16, so at that degraded rate the 88
+fetches of this download cost well under a minute; 900 seconds leaves an honestly slow
+mirror about 10 seconds a fetch, and room for one fetch to spend its whole retry budget.
+No attempt starts after the budget has passed, so the download can overrun it by at most one
+attempt, which the installer caps at its own total timeout of 180 seconds. The worst case is
+therefore about 1080 seconds, comfortably inside the 3600 second job timeout, with the rest
+of the build still to run and the log still readable.
+"""
+
+import argparse
+import json
+import sys
+import time
+import traceback
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import install_pdf_runtime as installer  # noqa: E402
+
+ATTEMPTS = 3
+PAUSE_SECONDS = 5.0
+BUDGET_SECONDS = 900.0
+RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+CHAIN_LIMIT = 8
+REFUSAL = "pdf_runtime_install_refused"
+BUDGET_REFUSAL = "pdf_runtime_download_budget_exceeded"
+
+
+class DownloadBudgetExceeded(ValueError):
+    """The download passed its global budget, so no further attempt is started."""
+
+
+def transport_fault(error: BaseException) -> bool:
+    cause = error.__cause__
+    if isinstance(cause, urllib.error.HTTPError):
+        return cause.code in RETRY_STATUSES
+    return isinstance(cause, OSError)
+
+
+def immediate_cause(error: BaseException) -> str:
+    cause = error.__cause__ if error.__cause__ is not None else error
+    return f"{type(cause).__name__}: {cause}"
+
+
+def describe(error: BaseException) -> list[str]:
+    lines = []
+    link = error
+    depth = 0
+    while link is not None and depth < CHAIN_LIMIT:
+        lines.append(f"cause {depth} {type(link).__name__}: {link}")
+        if isinstance(link, urllib.error.HTTPError):
+            lines.append(f"cause {depth} http status {link.code}")
+        elif isinstance(link, urllib.error.URLError):
+            lines.append(f"cause {depth} reason {link.reason!r}")
+        if isinstance(link, OSError) and link.errno is not None:
+            lines.append(f"cause {depth} errno {link.errno} {link.strerror}")
+        link = link.__cause__ if link.__cause__ is not None else link.__context__
+        depth += 1
+    return lines
+
+
+def budget_refusal(
+    index: int, url: str, attempt: int, overrun: float, counter: dict
+) -> DownloadBudgetExceeded:
+    summary = (
+        f"{BUDGET_REFUSAL} the pdf runtime download exceeded its budget of"
+        f" {BUDGET_SECONDS:g} seconds by {overrun:.2f}s and stopped before"
+        f" fetch {index} attempt {attempt}/{ATTEMPTS}"
+    )
+    print(summary, flush=True)
+    print(f"budget completed fetches {counter['completed']}", flush=True)
+    print(f"budget stopped on fetch {index} {url}", flush=True)
+    print(f"budget last transport cause {counter['cause']}", flush=True)
+    return DownloadBudgetExceeded(summary)
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--manifest", required=True)
+    parser.add_argument("--manifest-sha256", required=True)
+    parser.add_argument("--download-root", required=True)
+    parser.add_argument("--browser-root", required=True)
+    args = parser.parse_args(argv)
+    counter = {"index": 0, "received": 0, "completed": 0, "cause": "none"}
+    deadline = time.monotonic() + BUDGET_SECONDS
+    reviewed_urlopen = urllib.request.urlopen
+    reviewed_download = installer._download
+
+    def counting_urlopen(*arguments, **keywords):
+        response = reviewed_urlopen(*arguments, **keywords)
+        inner = response.read
+
+        def counting_read(*read_arguments):
+            chunk = inner(*read_arguments)
+            counter["received"] += len(chunk)
+            return chunk
+
+        response.read = counting_read
+        return response
+
+    def traced(url, path, expected, runtime):
+        counter["index"] += 1
+        index = counter["index"]
+        for attempt in range(1, ATTEMPTS + 1):
+            overrun = time.monotonic() - deadline
+            if overrun >= 0:
+                raise budget_refusal(index, url, attempt, overrun, counter)
+            counter["received"] = 0
+            begun = time.monotonic()
+            try:
+                reviewed_download(url, path, expected, runtime)
+            except (OSError, ValueError) as error:
+                print(
+                    f"fetch {index} attempt {attempt}/{ATTEMPTS} failed {url}"
+                    f" received {counter['received']} of {expected['size']} bytes"
+                    f" in {time.monotonic() - begun:.2f}s",
+                    flush=True,
+                )
+                for line in describe(error):
+                    print(line, flush=True)
+                if transport_fault(error):
+                    counter["cause"] = immediate_cause(error)
+                    if attempt < ATTEMPTS:
+                        time.sleep(PAUSE_SECONDS)
+                        continue
+                raise
+            counter["completed"] += 1
+            print(
+                f"fetch {index} attempt {attempt}/{ATTEMPTS} ok {url}"
+                f" received {counter['received']} bytes"
+                f" in {time.monotonic() - begun:.2f}s",
+                flush=True,
+            )
+            return
+
+    urllib.request.urlopen = counting_urlopen
+    installer._download = traced
+    try:
+        manifest = installer.load_build_manifest(Path(args.manifest), args.manifest_sha256)
+        result = installer.download_runtime(
+            manifest, Path(args.download_root), Path(args.browser_root)
+        )
+    except (OSError, ValueError) as error:
+        for line in describe(error):
+            print(line, flush=True)
+        traceback.print_exc()
+        print(REFUSAL, flush=True)
+        return 1
+    print(json.dumps(result, sort_keys=True, separators=(",", ":")), flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+PDF_DOWNLOAD_EOF
+COPY lp/src/api/pdf_exporter.py /tmp/pdf-build-inputs/app/src/api/pdf_exporter.py
+COPY lp/src/api/pdf_renderer_worker.py /tmp/pdf-build-inputs/app/src/api/pdf_renderer_worker.py
+COPY lp/configs/pdf_runtime.json /tmp/pdf-build-inputs/app/configs/pdf_runtime.json
+COPY lp/requirements.lock /tmp/pdf-build-inputs/app/requirements.lock
+COPY ops/build/install_pdf_runtime.py /tmp/pdf-build-inputs/ops/build/install_pdf_runtime.py
+RUN python /tmp/pdf-build-tools/install_pdf_runtime.py verify-inputs \
+      --manifest /tmp/pdf-build-tools/pdf_runtime_dependencies.json \
+      --manifest-sha256 2c07e1ddda21cf937259dc05065910a1156dd1cf0492701985b9e06e817f7e01 \
+      --root /tmp/pdf-build-inputs && \
+    python /tmp/pdf-build-tools/download_pdf_runtime.py \
+      --manifest /tmp/pdf-build-tools/pdf_runtime_dependencies.json \
+      --manifest-sha256 2c07e1ddda21cf937259dc05065910a1156dd1cf0492701985b9e06e817f7e01 \
+      --download-root /tmp/pdf-runtime-downloads \
+      --browser-root /opt/playwright/chromium_headless_shell-1234
+
+COPY engine/ /app/engine/
+RUN python -m venv --copies /opt/42-engine-venv && \
+    /opt/42-engine-venv/bin/python -m pip install --require-hashes --no-compile -r /app/engine/requirements.lock
+
+FROM --platform=linux/amd64 python:3.13-slim@sha256:16f75ad0fbc6c4883a8afd63b2d700c3cf68ccffc1aaeca5304ca0a3a908451f AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+COPY --from=build /usr/local/ /usr/local/
+COPY --from=build /opt/42-engine-venv/ /opt/42-engine-venv/
+COPY --from=build /opt/playwright/ /opt/playwright/
+RUN --mount=type=bind,from=build,source=/tmp/pdf-runtime-downloads/debian,target=/tmp/pdf-runtime-debs,ro \
+    --mount=type=bind,from=build,source=/tmp/pdf-build-tools,target=/tmp/pdf-build-tools,ro \
+    dpkg -i /tmp/pdf-runtime-debs/*.deb && \
+    python /tmp/pdf-build-tools/install_pdf_runtime.py verify-installed \
+      --manifest /tmp/pdf-build-tools/pdf_runtime_dependencies.json \
+      --manifest-sha256 2c07e1ddda21cf937259dc05065910a1156dd1cf0492701985b9e06e817f7e01 \
+      --browser-root /opt/playwright/chromium_headless_shell-1234 \
+      --license-root /app/licenses \
+      --output /app/pdf-runtime-inventory.json
+COPY engine/ /app/engine/
+
+COPY lp/src/ /app/src/
+COPY lp/configs/ /app/configs/
+COPY lp/web/dist/ /app/web/dist/
+COPY runtime-build.json /app/runtime-build.json
+RUN cd /app/engine && /opt/42-engine-venv/bin/python -B -c "from src.analysis.open_intelligence.general_question_host import verify_question_runtime_build; verify_question_runtime_build(engine_root='/app/engine')" && \
+    cd /app && python -B -c "import json; from src.api.question_worker_bundle import verify_bundle; s=json.load(open('/app/runtime-build.json')); verify_bundle('/app/engine','/app/runtime-build.json',expected_lp_commit=s['lp_commit'],expected_bundle_digest=s['engine_bundle_digest'])" && \
+    chmod -R a-w /app/engine /app/runtime-build.json /app/licenses /app/pdf-runtime-inventory.json /opt/playwright && \
+    useradd --create-home --uid 10001 appuser
+USER appuser
+CMD ["sh", "-c", "exec python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1"]

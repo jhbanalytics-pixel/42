@@ -1,0 +1,109 @@
+[
+ {
+  "run_id": "r_collect_20260928_01",
+  "stage": "collect",
+  "run_date": "2026-09-28",
+  "status": "failed",
+  "started_at": "2026-09-28T00:30:00+02:00",
+  "finished_at": "2026-09-28T00:41:12+02:00",
+  "counts": {},
+  "error": "SocialCrawl auth failed"
+ },
+ {
+  "run_id": "r_collect_20260929_01",
+  "stage": "collect",
+  "run_date": "2026-09-29",
+  "status": "ok",
+  "started_at": "2026-09-29T00:30:00+02:00",
+  "finished_at": "2026-09-29T02:05:40+02:00",
+  "counts": {
+   "calls": 214,
+   "items": 1400
+  },
+  "error": null
+ },
+ {
+  "run_id": "r_brief_20260929_01",
+  "stage": "brief",
+  "run_date": "2026-09-29",
+  "status": "ok",
+  "started_at": "2026-09-29T06:00:00+02:00",
+  "finished_at": "2026-09-29T06:12:30+02:00",
+  "counts": {
+   "markets": 2
+  },
+  "error": null
+ },
+ {
+  "run_id": "r_collect_20260930_01",
+  "stage": "collect",
+  "run_date": "2026-09-30",
+  "status": "ok",
+  "started_at": "2026-09-30T00:30:00+02:00",
+  "finished_at": "2026-09-30T02:11:03+02:00",
+  "counts": {
+   "calls": 221,
+   "items": 3032
+  },
+  "error": null
+ },
+ {
+  "run_id": "r_brief_20260930_01",
+  "stage": "brief",
+  "run_date": "2026-09-30",
+  "status": "ok",
+  "started_at": "2026-09-30T06:00:00+02:00",
+  "finished_at": "2026-09-30T06:15:02+02:00",
+  "counts": {
+   "markets": 3
+  },
+  "error": null
+ },
+ {
+  "run_id": "r_ask_20260930_fixture",
+  "stage": "ask",
+  "run_date": "2026-09-30",
+  "status": "failed",
+  "started_at": "2026-09-30T09:02:11+02:00",
+  "finished_at": "2026-09-30T09:02:40+02:00",
+  "counts": {},
+  "error": "agent_unavailable",
+  "answer": null,
+  "record": {
+   "ask_id": "a_20260930_fixture_failed",
+   "question": "What is behind #fixture_za_step in South Africa this week?",
+   "parent_id": null,
+   "market": "ZA",
+   "status": "failed",
+   "created_at": "2026-09-30T09:02:11+02:00",
+   "finished_at": "2026-09-30T09:02:40+02:00",
+   "answer": null,
+   "run": {
+    "run_id": "r_ask_20260930_fixture",
+    "tier": "T1",
+    "mode": "replay",
+    "credits": 0,
+    "tokens": {
+     "input": 0,
+     "output": 0
+    },
+    "seconds": 29,
+    "model_usd": 0.0,
+    "window": {
+     "from": "2026-09-23",
+     "to": "2026-09-29"
+    },
+    "posts": 0,
+    "platforms": 0,
+    "source_status": [],
+    "followups": [],
+    "notices": []
+   },
+   "steps": [],
+   "error": {
+    "error": "agent_unavailable",
+    "message": "The agent did not answer in time"
+   }
+  }
+ }
+]

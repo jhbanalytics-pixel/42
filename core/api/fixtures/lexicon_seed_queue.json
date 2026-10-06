@@ -1,0 +1,14 @@
+[
+ {
+  "item_id": "dc421a437e7bc5b4dc9567815ed539301ce2a133ae84ded9986fb5cdc667eed3",
+  "market": "ZA",
+  "seed_date": "2026-09-26",
+  "lane": "placebo"
+ },
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "ZA",
+  "seed_date": "2026-09-29",
+  "lane": "treatment"
+ }
+]

@@ -1,0 +1,41 @@
+{
+  "probe": "0c",
+  "route": "utility/capabilities",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "capabilities": [
+        "<list of 15>",
+        {
+          "cost": "<str>",
+          "endpoints": [
+            "<list of 10>",
+            "<str>"
+          ],
+          "family": "<str>",
+          "free_values": [
+            "<list of 4>",
+            "<str>"
+          ],
+          "metered_values": [
+            "<list of 4>",
+            "<str>"
+          ],
+          "param": "<str>",
+          "what": "<str>"
+        }
+      ],
+      "count": "<int>",
+      "filters": {
+        "param": "<null>"
+      },
+      "kind": "<str>"
+    },
+    "endpoint": "<str>",
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

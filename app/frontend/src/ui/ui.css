@@ -1,0 +1,648 @@
+/* PULSE ui · styles for the shared primitives in frontend/src/ui/. Imported
+   once from index.js so any route that pulls a component gets its styles.
+   Everything here reads the tokens.css semantic vars, so lanes and themes
+   flow through without per-component overrides. */
+
+/* ===== PageShell / PageHero / PageAside ===== */
+.ui-page-shell {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.ui-page-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: end;
+  gap: 24px 40px;
+  /* Shell consistency, 2 October 2026: no rule and no top padding of its own.
+     The masthead already draws the line under the header, so a second full
+     width hairline 40px lower floated with nothing above it, and the padding
+     pushed the title 58px below where Today, Ask and History start theirs.
+     The package draws the rule too, so it is taken off here, not just left out. */
+  padding: 0 0 var(--s-5);
+  border-top: 0;
+}
+.ui-page-hero-text {
+  min-width: 0;
+}
+.ui-page-hero-eyebrow { margin-bottom: 12px; }
+.ui-page-hero-eyebrow > span:empty { display: none !important; }
+/* Quiet register, 23 Sept 2026, rulebook rules 1 and 19. The hero title is
+   the page title, so it takes the 32px serif page title step every
+   instrument page uses (Briefing, Discover, Ask), not the display size that
+   made Listen and Explorer read as a marketing hero. The hero scope is named
+   so the rule outranks the package's own title rule whichever sheet
+   arrives first. */
+/* One title voice, 2 October 2026: the 42 pages (Today, Ask, Discover,
+   History) set their title in the sans at weight 600, so the hero pages under
+   More now do the same and a reader moving between pages sees one heading
+   style, not two. */
+.ui-page-hero .ui-page-hero-title {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: var(--type-page-title);
+  line-height: var(--leading-page-title);
+  letter-spacing: 0;
+  color: var(--ink);
+  max-width: 32ch;
+  margin: 0;
+  text-wrap: balance;
+}
+/* The sentence under the title is set as History and Alerts set theirs: the
+   body size, muted, at a 66 character measure in balanced lines, so it never
+   ends on one or two words alone. */
+.ui-page-hero-sub {
+  max-width: var(--measure);
+  margin: var(--s-2) 0 0;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  color: var(--muted);
+  text-wrap: pretty;
+}
+.ui-page-hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ui-page-hero-actions :is(a, button, input, select),
+.ui-page-hero-sub :is(a, button, input, select) {
+  min-width: 48px;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+.ui-page-hero-sub a {
+  display: inline-flex;
+  align-items: center;
+}
+@media (max-width: 640px) {
+  .ui-page-hero { grid-template-columns: minmax(0, 1fr); }
+  .ui-page-hero-actions {
+    grid-row: 2;
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+.ui-page-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@media (min-width: 981px) {
+  .ui-page-aside { position: sticky; top: 90px; align-self: start; }
+}
+
+/* ===== StatTile ===== */
+.ui-stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Quiet register, 23 Sept 2026, rulebook rule 7. A figure is read, not
+   compared character by character, so the package sets it in the sans with
+   tabular numerals. This sheet no longer names a family or the MONO axis for
+   it, so the package rule applies. */
+.ui-stat-value {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--type-7);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.ui-stat-label {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  font-weight: 400;
+}
+/* Inside the desk metrics row every tile gets the cell surface and padding,
+   and fills the stretched grid cell so plain tiles and button-wrapped tiles
+   share one top edge: the values sit on a single baseline instead of the
+   zigzag that button vertical-centering produced. */
+.metrics-row .ui-stat-tile {
+  background: var(--surface);
+  padding: 16px 18px;
+  height: 100%;
+  box-sizing: border-box;
+  justify-content: flex-start;
+}
+.metrics-row .ui-stat-value {
+  font-size: var(--type-6);
+}
+
+.metric-tile-link {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: background-color var(--motion-row) var(--motion-standard-easing);
+}
+.metric-tile-link:hover,
+.metric-tile-link:focus-visible {
+  background: var(--surface-2);
+}
+/* A raised plane is a hover answer, not a focus ring. The keyboard keeps the
+   shell's own ring. */
+.metric-tile-link:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+.metric-tile-link .chevron {
+  opacity: 0;
+  transition: opacity var(--motion-row) var(--motion-standard-easing);
+  margin-left: auto;
+}
+.metric-tile-link:hover .chevron,
+.metric-tile-link:focus-visible .chevron {
+  opacity: 1;
+}
+
+/* ===== MomentumPill ===== */
+/* Quiet register, 23 Sept 2026, rulebook rule 13. Momentum is a word beside
+   its item in its state colour: the sans at the 14px step with no tracking,
+   no frame and no padding box. The package states the same rule. */
+.ui-momentum-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 600;
+  color: var(--pill-color, var(--muted));
+  line-height: 1.4;
+  /* The label is one word in a 66 to 78 pixel box, and the run measured Strong
+     and Building laid across two lines on seeds at both widths. A word never
+     breaks, so the pill grows instead. */
+  white-space: nowrap;
+}
+.ui-momentum-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 0;
+  background: var(--pill-color, var(--muted));
+}
+
+/* ===== PlatformGlyph and MarketChip =====
+   Quiet register, 23 Sept 2026, rulebook rule 7. A platform or a market is a
+   name a reader reads. The package sets both as the sans at the 14px step
+   with no tracking, and this sheet used to put back the 11px spaced mono
+   after it. It no longer states their type, so the package rule applies. */
+.ui-platform-glyph {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.ui-market-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+}
+.ui-market-flag { font-size: var(--type-3); line-height: 1; }
+.ui-market-code { font-weight: 600; }
+
+/* Round three, 24 Sept 2026: the DigestChip rules went. No component renders
+   a .digest-chip, so their mono, tracked chip styling reached nothing. */
+
+/* ===== EmptyState ===== */
+.ui-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 64px 24px;
+  max-width: var(--measure);
+  margin: 0 auto;
+}
+.ui-empty-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: var(--type-6);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0;
+}
+.ui-empty-body {
+  font-size: var(--type-3);
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+.ui-empty-cta {
+  margin-top: 8px;
+  font-family: var(--sans);
+  font-size: var(--type-2);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: var(--accent);
+  padding: 10px 20px;
+  border-radius: 0;
+}
+
+/* ===== V3 desk reveal: stagger + skeleton probe hook =====
+   .dStag is the controlled-stagger grammar for the desk reveal (see
+   design_handoff_pulse_v3): each child sets --stag-i (its index) and gets a
+   short, index-scaled entrance so the metric strip and board rows settle in
+   one shallow wave rather than popping in at once. Entrance length and delay
+   both scale with --motion (already 0 under data-motion="off"), and the
+   prefers-reduced-motion query drops the animation outright, per the same
+   guard pattern as .preveal above.
+   .dSkel is a pure DOM-probe alias: it carries no rules of its own so it
+   never changes the shimmer look, it just gives automated checks (and this
+   stylesheet) one stable selector for "this node is a desk skeleton" without
+   caring which variant rendered it. */
+@keyframes dStagIn { from { opacity: 0; transform: translateY(calc(6px * var(--motion, 1))); } to { opacity: 1; transform: none; } }
+.dStag {
+  display: block;
+  opacity: 0;
+  animation: dStagIn var(--motion-handoff) var(--motion-handoff-easing) forwards;
+  animation-delay: calc(min(var(--stag-i, 0), 3) * 80ms);
+}
+.metrics-row .dStag { height: 100%; }
+[data-motion="off"] .dStag { animation: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .dStag { animation: none !important; opacity: 1 !important; }
+}
+
+/* ===== Skeleton ===== */
+.ui-skeleton {
+  display: block;
+  background: var(--surface-2);
+}
+.ui-skeleton-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ===== ProgressRail ===== */
+.ui-progress-rail { display: flex; flex-direction: column; gap: 14px; }
+.ui-progress-rail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.ui-progress-rail-label {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 600;
+  color: var(--ink);
+}
+.ui-progress-rail-pct {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Quiet register, 23 Sept 2026, rulebook rule 7. The percentage is a
+   figure, so it takes the package's sans with tabular numerals; this sheet
+   names no family or MONO axis for it. */
+.ui-progress-rail-num {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--type-3);
+  font-weight: 600;
+  color: var(--muted);
+}
+.ui-progress-rail-badge {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--building);
+  border: 1px solid color-mix(in oklab, var(--building) 40%, transparent);
+  border-radius: 0;
+  padding: 2px 8px;
+}
+.ui-progress-rail-track {
+  height: 6px;
+  border-radius: 0;
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+.ui-progress-rail-fill {
+  height: 100%;
+  border-radius: 0;
+  background: var(--accent);
+  transition: width var(--motion-handoff) var(--motion-handoff-easing);
+}
+.ui-progress-rail-fill.is-degraded { background: var(--building); }
+@media (prefers-reduced-motion: reduce) {
+  .ui-progress-rail-fill { transition: none; }
+}
+/* Focus mode: the rail becomes the one thing the eye should land on while a
+   brief generates. No modal machinery and no focus trap, just a raised stack
+   context and a dim layer sitting behind it; the dim layer is decorative and
+   pointer-events:none so it never blocks a click on whatever it covers. */
+.ui-progress-rail--focus {
+  position: relative;
+  z-index: 2;
+  background: var(--surface);
+  border-radius: 0;
+  padding: 20px;
+  box-shadow: none;
+}
+.ui-progress-rail-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: color-mix(in oklab, var(--canvas) 70%, transparent);
+  pointer-events: none;
+}
+/* Batch theatre: the list-level equivalent of .ui-progress-rail--focus above.
+   Applied to research-batch-progress (researchLib.jsx) while any item's
+   phase is 'running'; the dim layer that covers sibling content is the same
+   .ui-progress-rail-dim, rendered once by the caller (ResearchDocPanel.jsx)
+   rather than per-row, since only the list as a whole gets centre-stage. */
+.research-batch--live {
+  position: relative;
+  z-index: 2;
+  background: var(--surface);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 20px;
+}
+.ui-progress-rail-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+/* Quiet register, 23 Sept 2026, rulebook rule 2. A step name is read, so
+   it sits at the 14px step, as the package sets it. */
+.ui-progress-rail-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--faint);
+}
+.ui-progress-rail-marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-2);
+  background: transparent;
+}
+.ui-progress-rail-step[data-state="done"] { color: var(--ink-2); }
+.ui-progress-rail-step[data-state="done"] .ui-progress-rail-marker {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.ui-progress-rail-step[data-state="current"] { color: var(--ink); font-weight: 600; }
+.ui-progress-rail-step[data-state="current"] .ui-progress-rail-marker {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ===== Skeleton hero ===== */
+.ui-skeleton-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ===== FlowBar ===== */
+/* Pinned console flow strip. Reuses the header pair (--flowbar-bg/-line, both
+   themes alias --header-bg/-line) so the pinned state reads as chrome, same
+   register as the masthead, not as another content card. */
+.ui-flowbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--flowbar-bg);
+  border-bottom: 1px solid var(--flowbar-line);
+}
+.ui-flowbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 20px;
+  flex-wrap: wrap;
+}
+.ui-flowbar-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px 16px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Quiet register, 23 Sept 2026. The package sets the step names, the scope
+   chips, Continue and the count as the sans at the 14px step with no
+   tracking, and the chips as words with no frame. This sheet loads after it
+   and used to put back 12px, spaced mono and the frame, so it no longer
+   states their type or frame and the package rule applies. It keeps only
+   what the host owns: the step colours and the red plane of Continue with its
+   rule-bounded disabled state. */
+.ui-flowbar-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--header-muted);
+  white-space: nowrap;
+}
+.ui-flowbar-step[data-state="done"] { color: var(--ink-2); }
+.ui-flowbar-step[data-state="done"] .ui-progress-rail-marker {
+  background: var(--color-daylight-red-surface);
+  border-color: var(--accent);
+}
+.ui-flowbar-step[data-state="current"] { color: var(--ink); font-weight: 600; }
+.ui-flowbar-step[data-state="current"] .ui-progress-rail-marker {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.ui-flowbar-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.ui-flowbar-chip {
+  min-height: 48px;
+  /* A two-letter market code measured 37px wide, so the floor is reserved
+     in the inline axis too. */
+  min-inline-size: 48px;
+  cursor: pointer;
+}
+.ui-flowbar-cta {
+  min-height: 48px;
+  flex: 0 0 auto;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--white);
+  background: var(--color-daylight-red-surface);
+  border: 2px solid var(--color-daylight-red-surface);
+  border-radius: 0;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.ui-flowbar-cta:hover, .ui-flowbar-cta:focus-visible {
+  box-shadow: inset 0 -2px 0 var(--white);
+}
+/* The red plane is the primary action and appears only when it can be
+   pressed. Disabled, Continue is the rule-bounded control: ink on the ground
+   inside a 2px rule on muted, the boundary colour section 12 gives a control
+   that its boundary alone identifies, never a dimmed plane. The package sheet
+   dims the same class to half at the same specificity, so the release names
+   the element as well as the class and wins on weight rather than on the order
+   the two sheets happen to load in. FlowBar renders this control as a button
+   and nothing else does. */
+button.ui-flowbar-cta[aria-disabled="true"] {
+  color: var(--ink);
+  background: transparent;
+  border-color: var(--muted);
+  box-shadow: none;
+  opacity: 1;
+  cursor: default;
+}
+.ui-flowbar-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* ===== MetaRail ===== */
+.ui-meta-rail {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.ui-meta-rail-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.ui-meta-rail-item:last-child { border-bottom: none; }
+.ui-meta-rail-label {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  font-weight: 400;
+  margin: 0;
+}
+.ui-meta-rail-value {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+  text-align: right;
+}
+.ui-meta-rail-value--mono {
+  font-family: var(--data-mono);
+  font-variation-settings: "MONO" 1, "CASL" 0, "slnt" 0, "CRSV" 0;
+}
+
+/* ===== NextActions ===== */
+/* The next action row under Seeds and Explorer: the provenance label and
+   48px controls in a 1px rule box, the pointer answered with colour and an
+   inset rule on the control move, the same row the workspaces carry. */
+.ui-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.ui-next-label {
+  flex: 0 0 100%;
+  font: 400 var(--type-3)/1.3 var(--sans);
+  color: var(--muted);
+  font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0;
+}
+.ui-next a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--muted);
+  background: transparent;
+  font: 600 var(--type-3)/1 var(--sans);
+  color: var(--ink);
+  text-decoration: none;
+  transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.ui-next a:hover, .ui-next a:focus-visible {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.ui-next a:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+/* Section 7, the Active row. The press answer is written here, beside the hover
+   answer it has to beat, and not in the deferred half where it used to sit.
+   Both rules carry one class, one class and one type, so specificity separates
+   neither of them and the later rule wins. Between two stylesheets that arrive
+   on their own requests there is no later rule, only whichever request finished
+   first. The round 10 reproduction measured what that costs a reader: over 30
+   loads of one cell the grip was drawn 20 times and missing the other 10, and
+   the sheet order predicted the answer in all 30. Read from one sheet, the
+   order is the order written here.
+
+   The arrangement this replaces rested on a premise the build does not hold.
+   ui.css is not part of the render-blocking entry stylesheet. It is built as
+   its own route chunk, the entry stylesheet carries no ui-next rule at all, and
+   moving the press rule in cost that sheet nothing: it stayed at 79,440 bytes
+   against its 80,000 byte ceiling, and the host's share of it stayed at 7,695
+   against 7,700. The grip value is a package token declared in the entry
+   stylesheet, so it resolves as soon as this sheet draws the link. */
+.ui-next a:active {
+  box-shadow: var(--press-grip);
+}
+
+/* V3 desk band: the ranked board (+ markets/heat/tone/pan-african) in the
+   wide column, a sticky Ask/Digest aside in a fixed 340px column, per the
+   design handoff (Pulse Desk: `minmax(0,1fr) 340px`). Below 1100px the aside
+   drops under the board and gives up its sticky position, matching the same
+   breakpoint the old lead/digest band used. */
+.desk-board-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+.desk-board-col { min-width: 0; }
+.desk-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 90px;
+}
+@media (max-width: 1100px) {
+  .desk-board-band { grid-template-columns: 1fr; }
+  .desk-aside { position: static; top: auto; }
+}

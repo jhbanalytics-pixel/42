@@ -1,0 +1,146 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_06_brand_role",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture scope, 18 to 25 August 2026",
+      "sections": [
+        {
+          "body": "Synthetic fixture scope, 18 to 25 August 2026.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "The tutorial space is occupied by fixture creators, while an unmet parts directory is a credible fixture brand role [E1] [E2].",
+          "evidence_ids": [
+            "ev_0601060106010601060106010601060106010601060106010601060106010601",
+            "ev_0602060206020602060206020602060206020602060206020602060206020602"
+          ],
+          "heading": "Finding",
+          "section_id": "finding"
+        },
+        {
+          "body": "Synthetic fixture evidence does not measure population prevalence.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture intelligence brief"
+    },
+    "audience_lenses": [],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [],
+    "evidence": [
+      {
+        "author_label": "@fixture_author_06_01",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "context",
+        "direction": "stable",
+        "evidence_id": "ev_0601060106010601060106010601060106010601060106010601060106010601",
+        "excerpt": "Synthetic fixture occupied tutorial space is already served by fixture creators.",
+        "geo_confidence": 0.91,
+        "metric_label": "7 synthetic tutorial clips",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_06_row_01",
+        "signal_id": "sig_0606060606060606060606060606060606060606060606060606060606060606",
+        "source_family": "video",
+        "source_label": "Fixture source 06-01",
+        "url": "https://evidence.invalid/06/01"
+      },
+      {
+        "author_label": "@fixture_author_06_02",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "context",
+        "direction": "rising",
+        "evidence_id": "ev_0602060206020602060206020602060206020602060206020602060206020602",
+        "excerpt": "Synthetic fixture posts identify an unmet parts directory space.",
+        "geo_confidence": 0.91,
+        "metric_label": "11 synthetic requests for parts listings",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_06_row_02",
+        "signal_id": "sig_0606060606060606060606060606060606060606060606060606060606060606",
+        "source_family": "forum",
+        "source_label": "Fixture source 06-02",
+        "url": "https://evidence.invalid/06/02"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [],
+      "audience_lenses": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose one credible unoccupied fixture brand role.",
+      "evidence_requirements": [
+        "occupied space evidence",
+        "unmet space evidence"
+      ],
+      "evidence_state": "ready",
+      "historical_comparison": {
+        "required": false,
+        "window_days": 0
+      },
+      "intent": "brand_role",
+      "market_scope": [
+        "za"
+      ],
+      "markets": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_06",
+      "run_id": "run_fixture_06",
+      "source_families": [
+        "video",
+        "forum"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "ready",
+    "expected_intent": "brand_role",
+    "human_review_required": false,
+    "limitations": [
+      "Synthetic fixture evidence does not measure population prevalence."
+    ],
+    "missing_work": [],
+    "request": {
+      "audience_lens_ids": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose one credible unoccupied fixture brand role.",
+      "market_scope": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "question": "What role could a fixture brand credibly play and which spaces are occupied?",
+      "run_id": "run_fixture_06",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

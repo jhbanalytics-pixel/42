@@ -1,0 +1,149 @@
+/* PULSE · Topic Dossier V3 hero grid.
+   Editorial column sized to the readable measure (minmax(0,680px)); the
+   instrument aside fills whatever width is left (minmax(300px,1fr)) so
+   there is no dead gap at wide viewports. Scoped to this route only; every
+   other primitive (PageHero text styles, MetaRail rows) is untouched. */
+
+.topic-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 680px) minmax(300px, 1fr);
+  gap: 28px;
+  align-items: stretch;
+}
+@media (max-width: 860px) {
+  .topic-hero { grid-template-columns: minmax(0, 1fr); }
+}
+
+.topic-hero-title {
+  font-size: var(--type-8) !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 0.95 !important;
+}
+
+.topic-instrument {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: none;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.topic-instrument-cap {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--muted);
+  font-weight: 400;
+  margin-bottom: 16px;
+}
+
+.topic-instrument .ui-meta-rail {
+  flex: 1;
+}
+
+/* Instrument-readout treatment for the dossier charts. The header carries the
+   real numbers, so the plot drops its y-axis labels and the right margin they
+   reserved; three reference gridlines and the date x-axis remain. */
+
+.bigchart.bc-readout { margin: 0; }
+.bigchart.bc-readout .bc-plot { margin-right: 0; }
+
+.bc-ro-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.bc-ro-eyebrow {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bc-ro-valuerow {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-top: 9px;
+}
+
+.bc-ro-value {
+  font-family: var(--serif);
+  font-size: var(--type-7);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.bc-ro-unit {
+  font-size: var(--type-4);
+  color: var(--muted);
+}
+
+.bc-ro-delta {
+  font-family: var(--mono);
+  font-size: var(--type-3);
+  font-weight: 600;
+}
+
+.bc-ro-meta {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+/* Quiet register, 23 Sept 2026: the momentum beside the reading is a word in
+   its state colour and the scale note is a muted word, neither framed as a
+   pill (rule 13). */
+.bc-ro-pill {
+  flex-shrink: 0;
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 600;
+}
+
+.bc-ro-tag {
+  flex-shrink: 0;
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--muted);
+}
+
+.bc-caption {
+  font-family: var(--mono);
+  font-size: var(--type-1);
+  letter-spacing: 0.04em;
+  color: var(--faint);
+  margin-top: 4px;
+}
+
+/* Text links inside the story answer the pointer with colour and a rule;
+   the creator card answers on the row move. Neither lifts. */
+.topic-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.topic-link:hover, .topic-link:focus-visible {
+  color: var(--ink);
+  box-shadow: inset 0 -1px 0 var(--accent);
+}
+.topic-card-link {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  transition: border-color var(--motion-row) var(--motion-standard-easing), background var(--motion-row) var(--motion-standard-easing);
+}
+.topic-card-link:hover, .topic-card-link:focus-visible {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}

@@ -1,0 +1,8 @@
+# MODEL_DAILY_USD as it stood until 3 October 2026, when Albert raised it to USD 50 with no window. The brief
+# cap tests work out their arithmetic, and the window's SAST expiry, on this schedule.
+MODEL_DAILY_USD:
+  default: 20
+  temporary:
+    amount: 80
+    starts_on: "2026-10-01"
+    ends_on: "2026-10-02"

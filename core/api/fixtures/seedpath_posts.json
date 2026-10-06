@@ -1,0 +1,219 @@
+[
+  {
+    "post_id": "sp01",
+    "platform": "tiktok",
+    "creator_id": "c_sp01",
+    "text": "new #amapiano mix for the weekend braai",
+    "transcript": null,
+    "hashtags": [
+      "amapiano"
+    ],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-04",
+    "url": "https://example.invalid/tiktok/sp01"
+  },
+  {
+    "post_id": "sp02",
+    "platform": "tiktok",
+    "creator_id": "c_sp02",
+    "text": "amapiano and log drum on repeat",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-06",
+    "url": "https://example.invalid/tiktok/sp02"
+  },
+  {
+    "post_id": "sp03",
+    "platform": "x",
+    "creator_id": "c_sp03",
+    "text": "this amapiano log drum is everything @fixture_dj",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-09",
+    "url": "https://example.invalid/x/sp03"
+  },
+  {
+    "post_id": "sp04",
+    "platform": "tiktok",
+    "creator_id": "c_sp04",
+    "text": "#amapiano dance challenge Soweto",
+    "transcript": null,
+    "hashtags": [
+      "amapiano"
+    ],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-12",
+    "url": "https://example.invalid/tiktok/sp04"
+  },
+  {
+    "post_id": "sp05",
+    "platform": "instagram",
+    "creator_id": "c_sp05",
+    "text": "weekend braai amapiano vibes",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-15",
+    "url": "https://example.invalid/instagram/sp05"
+  },
+  {
+    "post_id": "sp06",
+    "platform": "x",
+    "creator_id": "c_sp06",
+    "text": "Amapiano at the braai again",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-18",
+    "url": "https://example.invalid/x/sp06"
+  },
+  {
+    "post_id": "sp07",
+    "platform": "youtube",
+    "creator_id": "c_sp07",
+    "text": null,
+    "transcript": "the log drum in this amapiano set",
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-21",
+    "url": "https://example.invalid/youtube/sp07"
+  },
+  {
+    "post_id": "sp08",
+    "platform": "tiktok",
+    "creator_id": "c_sp08",
+    "text": "amapiano dance challenge with the crew",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-24",
+    "url": "https://example.invalid/tiktok/sp08"
+  },
+  {
+    "post_id": "sp09",
+    "platform": "instagram",
+    "creator_id": "c_sp09",
+    "text": "Soweto amapiano Sunday",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-26",
+    "url": "https://example.invalid/instagram/sp09"
+  },
+  {
+    "post_id": "sp10",
+    "platform": "tiktok",
+    "creator_id": "c_sp10",
+    "text": "#amapiano #fixture_za_step dance",
+    "transcript": null,
+    "hashtags": [
+      "amapiano",
+      "fixture_za_step"
+    ],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-28",
+    "url": "https://example.invalid/tiktok/sp10"
+  },
+  {
+    "post_id": "sp11",
+    "platform": "twitter",
+    "creator_id": "c_sp11",
+    "text": "log drum amapiano weekend",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-30",
+    "url": "https://example.invalid/twitter/sp11"
+  },
+  {
+    "post_id": "sp12",
+    "platform": "tiktok",
+    "creator_id": "c_sp12",
+    "text": "amapiano",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-08-25",
+    "url": "https://example.invalid/tiktok/sp12"
+  },
+  {
+    "post_id": "sp13",
+    "platform": "tiktok",
+    "creator_id": "c_sp13",
+    "text": "amapiano in Lagos",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-20",
+    "url": "https://example.invalid/tiktok/sp13"
+  },
+  {
+    "post_id": "sp14",
+    "platform": "instagram",
+    "creator_id": "c_sp14",
+    "text": "amapiano from the old engine",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-02",
+    "url": "https://example.invalid/instagram/sp14"
+  },
+  {
+    "post_id": "sp15",
+    "platform": "instagram",
+    "creator_id": "c_sp15",
+    "text": "dance weekend",
+    "transcript": null,
+    "hashtags": [
+      "Amapiano"
+    ],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-29",
+    "url": "https://example.invalid/instagram/sp15"
+  },
+  {
+    "post_id": "sp16",
+    "platform": "tiktok",
+    "creator_id": "c_sp16",
+    "text": "amapianos everywhere",
+    "transcript": null,
+    "hashtags": [],
+    "likes": 10,
+    "comments": 1,
+    "shares": 1,
+    "post_date": "2026-09-27",
+    "url": "https://example.invalid/tiktok/sp16"
+  }
+]

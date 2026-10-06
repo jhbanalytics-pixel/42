@@ -1,0 +1,95 @@
+{
+  "_note": "Unprobed shapes. facebook/profile/posts and twitter/user/tweets use the {post} envelope with author.username null (live-probed quirk in the old connector); tweets carry Twitter's own date format and arrive unsorted. prism/profiles rows (platform, handle, status, author, posts[]) are assumed from the vendor summary 'one canonical Author per row'. Check against the task 0.5 probe samples.",
+  "facebook_posts": {
+    "success": true,
+    "credits_used": 1,
+    "data": {
+      "items": [
+        {
+          "post": {
+            "id": "fb_1",
+            "url": "https://www.facebook.com/eNCAnews/posts/fb_1",
+            "published_at": "2026-09-27T16:00:00Z",
+            "author": {"username": null, "display_name": "eNCA"},
+            "content": {"text": "Breaking: taxi strike in Joburg"},
+            "engagement": {"likes": 2000, "comments": 400, "shares": 150}
+          }
+        },
+        {
+          "post": {
+            "id": "fb_old",
+            "url": "https://www.facebook.com/eNCAnews/posts/fb_old",
+            "published_at": "2026-09-20T16:00:00Z",
+            "author": {"username": null, "display_name": "eNCA"},
+            "content": {"text": "Last week"},
+            "engagement": {"likes": 10}
+          }
+        }
+      ]
+    }
+  },
+  "prism_profiles": {
+    "success": true,
+    "credits_used": 13,
+    "data": {
+      "items": [
+        {
+          "platform": "instagram",
+          "handle": "culture.desk.za",
+          "status": "ok",
+          "author": {"username": "culture.desk.za", "followers": 750000, "location": "Johannesburg"},
+          "posts": [
+            {
+              "post": {
+                "id": "ig_p1",
+                "url": "https://www.instagram.com/p/ig_p1/",
+                "published_at": "2026-09-27T14:00:00Z",
+                "content": {"text": "Who wore it best at the Durban July? #durbanjuly"},
+                "engagement": {"views": 40000, "likes": 3000, "comments": 250}
+              }
+            }
+          ]
+        },
+        {"platform": "tiktok", "handle": "gone.account", "status": "not_found"}
+      ]
+    }
+  },
+  "twitter_tweets": {
+    "success": true,
+    "credits_used": 1,
+    "data": {
+      "items": [
+        {
+          "post": {
+            "id": 1971000000000000002,
+            "url": "https://x.com/SundayTimesZA/status/1971000000000000002",
+            "published_at": "Sat Sep 27 20:15:00 +0000 2026",
+            "author": {"username": null, "display_name": "Sunday Times"},
+            "content": {"text": "Front page tomorrow"},
+            "engagement": {"views": 9000, "likes": 80, "comments": 12, "shares": 30}
+          }
+        },
+        {
+          "post": {
+            "id": "1100000000000000000",
+            "url": "https://x.com/SundayTimesZA/status/1100000000000000000",
+            "published_at": "Wed Oct 30 05:45:03 +0000 2019",
+            "author": {"username": null},
+            "content": {"text": "Pinned from 2019"},
+            "engagement": {"likes": 5}
+          }
+        },
+        {
+          "post": {
+            "id": "1971000000000000001",
+            "url": "https://x.com/SundayTimesZA/status/1971000000000000001",
+            "published_at": "Sat Sep 27 22:30:00 +0000 2026",
+            "author": {"username": null},
+            "content": {"text": "Late edition"},
+            "engagement": {"likes": 40}
+          }
+        }
+      ]
+    }
+  }
+}

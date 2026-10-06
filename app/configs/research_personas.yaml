@@ -1,0 +1,128 @@
+product_frame_presets: []
+
+query_group_hints:
+  economy_sapa_hustle:
+    label: "Sapa hustle economy"
+    hint: "Sapa pressure, side income, and hustle culture from engine briefs and social posts"
+  tech_gemini_ai:
+    label: "Gemini & AI adoption"
+    hint: "AI tool uptake, Gemini mentions, and generative search behaviour"
+  fintech_mpesa:
+    label: "M-Pesa & mobile money"
+    hint: "Mobile money flows, M-Pesa mentions, and fintech adoption signal"
+  economy_hustle:
+    label: "Hustle economy"
+    hint: "Gig work, side hustles, and income-stacking behaviour across markets"
+
+personas:
+  audience_neutral:
+    enabled: true
+    label: "Audience neutral"
+    description: "Evidence-led AI and mobile behaviour across Kenya and Nigeria, with no inferred demographic lens."
+    aliases:
+      - "audience neutral"
+      - "neutral research"
+    default_markets: [ke, ng]
+    product_frame: ""
+    query_groups:
+      - economy_sapa_hustle
+      - tech_gemini_ai
+      - fintech_mpesa
+      - economy_hustle
+    anchor_tokens:
+      - mpesa
+      - m-pesa
+      - hustle
+      - sapa
+      - gemini
+      - ai mode
+      - mobile money
+      - fintech
+    seed_tags:
+      - cross_market
+      - fintech
+      - ai_adoption
+    weights:
+      query_group_exact: 1.00
+      seed_tag_overlap: 0.85
+      anchor_in_brief: 0.75
+      anchor_in_post: 0.65
+      google_trends_term: 0.55
+      lexicon_term: 0.50
+    thresholds:
+      min_relevance: 0.55
+      min_refs_for_inference: 8
+      min_markets_with_signal: 1
+
+  digital_architect_genz:
+    enabled: false
+    label: "Digital Architect Gen Z"
+    description: "Gen Z fintech and AI adopters who stack hustle income on mobile money and treat Google AI Mode as a daily utility across Kenya and Nigeria."
+    aliases:
+      - "digital architect gen z"
+      - "effortless architect"
+    default_markets: [ke, ng]
+    product_frame: "Google AI Mode"
+    query_groups:
+      - economy_sapa_hustle
+      - tech_gemini_ai
+      - fintech_mpesa
+      - economy_hustle
+    anchor_tokens:
+      - mpesa
+      - m-pesa
+      - hustle
+      - sapa
+      - gemini
+      - ai mode
+      - mobile money
+      - fintech
+    seed_tags:
+      - cross_market
+      - fintech
+      - ai_adoption
+    weights:
+      query_group_exact: 1.00
+      seed_tag_overlap: 0.85
+      anchor_in_brief: 0.75
+      anchor_in_post: 0.65
+      google_trends_term: 0.55
+      lexicon_term: 0.50
+    thresholds:
+      min_relevance: 0.55
+      min_refs_for_inference: 8
+      min_markets_with_signal: 1
+
+  hustle_economy_genz:
+    enabled: false
+    label: "Hustle Economy Gen Z"
+    description: "Side-hustle and gig-economy Gen Z who treat sapa pressure as a creative fuel for new income streams in Nigeria and Kenya."
+    aliases: []
+    default_markets: [ng, ke]
+    product_frame: ""
+    query_groups:
+      - economy_sapa_hustle
+      - economy_hustle
+    anchor_tokens:
+      - hustle
+      - sapa
+      - side hustle
+      - gig
+    seed_tags: []
+
+  ai_adopter_genz:
+    enabled: false
+    label: "AI Adopter Gen Z"
+    description: "Early AI tool adopters across ZA, NG and KE who benchmark Gemini, ChatGPT and Google AI Mode against real daily tasks."
+    aliases: []
+    default_markets: [za, ng, ke]
+    product_frame: "Google AI Mode"
+    query_groups:
+      - tech_gemini_ai
+    anchor_tokens:
+      - gemini
+      - ai
+      - google ai
+      - chatgpt
+    seed_tags:
+      - ai_adoption

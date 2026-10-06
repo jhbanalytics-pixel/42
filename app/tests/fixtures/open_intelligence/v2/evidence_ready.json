@@ -1,0 +1,52 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "evidence_ready",
+  "fixture_kind": "evidence_readiness",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "direction_by_family": {
+      "forum": "rising",
+      "video": "rising"
+    },
+    "evidence": [
+      {
+        "author_label": "@fixture_author_0c_01",
+        "availability": "available",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_0c010c010c010c010c010c010c010c010c010c010c010c010c010c010c010c01",
+        "excerpt": "Synthetic fixture readiness evidence records a forum rise.",
+        "geo_confidence": 0.91,
+        "metric_label": "12 synthetic posts",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_0c_row_01",
+        "signal_id": "sig_0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+        "source_family": "forum",
+        "source_label": "Fixture source 0c-01",
+        "url": "https://evidence.invalid/0c/01"
+      },
+      {
+        "author_label": "@fixture_author_0c_02",
+        "availability": "available",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_0c020c020c020c020c020c020c020c020c020c020c020c020c020c020c020c02",
+        "excerpt": "Synthetic fixture readiness evidence records a video rise.",
+        "geo_confidence": 0.91,
+        "metric_label": "7 synthetic clips",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_0c_row_02",
+        "signal_id": "sig_0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+        "source_family": "video",
+        "source_label": "Fixture source 0c-02",
+        "url": "https://evidence.invalid/0c/02"
+      }
+    ],
+    "evidence_state": "ready",
+    "qualifying_family_count": 2,
+    "signal_id": "sig_0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c"
+  },
+  "sanitized": true
+}

@@ -1,0 +1,179 @@
+/* One set of controls for every page.
+
+   The audit of 2 October 2026 measured four secondary button looks (square
+   or 6px corners, a pale or a dark rule, 14px bold or 15px regular, 12px or
+   16px sides) and two primary looks across the pages. A reader learns a
+   control by its look, so the same job must look the same everywhere
+   (Nielsen, heuristic 4, consistency and standards). The ranks are three:
+   primary is the one filled red action on a page, secondary is ink in a
+   rule, and a link that takes you somewhere is a link, not a box. Corners
+   are square, as the 42 design system sets every control (its token check
+   allows 0, or 2px on a form field).
+
+   The page sheets load lazily and in route order, so these rules are tied
+   to #main-content to win over them without !important; the link row adds
+   :not(#none) for one more step of weight over the button rule. Ask is redesigned
+   in its own lane and is left as it is. */
+
+#main-content :is(
+  .t42-button:not(.c42-add),
+  .es-act,
+  .es-act-ghost,
+  .legacy-action:not(.legacy-action--primary),
+  .hi42-button,
+  .ask42-quiet.b42-button,
+  .fieldwork-button,
+  .state-view__action,
+  .cv42-day-step,
+  .dossiers42-empty-link
+):not(main[aria-labelledby="ask42-title"] *) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: var(--target-min);
+  padding: 0 var(--s-4);
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  box-shadow: none;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing);
+}
+#main-content :is(
+  .t42-button:not(.c42-add),
+  .es-act,
+  .es-act-ghost,
+  .legacy-action:not(.legacy-action--primary),
+  .hi42-button,
+  .ask42-quiet.b42-button,
+  .fieldwork-button,
+  .state-view__action,
+  .cv42-day-step,
+  .dossiers42-empty-link
+):not(main[aria-labelledby="ask42-title"] *):is(:hover, :focus-visible):not(:disabled, [aria-disabled="true"]) {
+  border-color: var(--ink);
+}
+#main-content :is(
+  .t42-button,
+  .legacy-action,
+  .hi42-button,
+  .b42-button,
+  .fieldwork-button,
+  .state-view__action,
+  .cv42-day-step,
+  .ask42-primary,
+  .w42-primary
+):is(:disabled, [aria-disabled="true"]):not(main[aria-labelledby="ask42-title"] *) {
+  color: var(--muted);
+  background: transparent;
+  border-color: var(--line);
+  box-shadow: none;
+  cursor: default;
+}
+#main-content .hi42-button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+
+#main-content :is(
+  .ask42-primary,
+  .w42-primary,
+  .legacy-action--primary
+):not(main[aria-labelledby="ask42-title"] *) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target-min);
+  padding: 0 var(--s-5);
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  text-decoration: none;
+}
+
+/* Places to go next are links (NN/g: links navigate, buttons act). The
+   "Next" rows were a strip of boxed buttons under every page, which made
+   navigation outweigh the page's own work. They are now a quiet line of
+   links under a small label, the same on every page that has one. */
+#main-content .ui-next,
+#main-content .legacy-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-5);
+  /* The links' extra reach below (see below) is given back here, so what
+     follows the row sits where it did. */
+  margin-bottom: calc(-2 * var(--next-reach));
+  --next-reach: 11px;
+}
+#main-content :is(.ui-next-label, .legacy-next-label) { flex: 0 0 100%; font-size: var(--type-2); font-weight: 400; color: var(--muted); }
+#main-content:not(#none) :is(.ui-next, .legacy-next) > :is(a, button),
+#main-content:not(#none) :is(.ui-next, .legacy-next) .legacy-action {
+  /* Each link reaches 11px above and below its text, so its target is 44px
+     tall (WCAG 2.5.5). The reach above is given back by a negative margin,
+     so the text sits where it did; the reach below is kept as margin, so
+     links that wrap onto a second line keep their targets apart, and the
+     row gives it back below. */
+  min-height: 0;
+  padding: calc(var(--s-1) + var(--next-reach)) 0;
+  margin: calc(-1 * var(--next-reach)) 0 var(--next-reach);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  font-size: var(--type-3);
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 4px;
+}
+#main-content:not(#none) :is(.ui-next, .legacy-next) > :is(a, button):is(:hover, :focus-visible),
+#main-content:not(#none) :is(.ui-next, .legacy-next) .legacy-action:is(:hover, :focus-visible) {
+  text-decoration-color: currentColor;
+}
+
+/* A section that could not load says so in one calm notice: ink text on
+   the surface, a red rule at its start, the way back beside it. Bare red
+   sentences read as alarms and, at 15px on the page tint, sit near the
+   contrast floor (WCAG 2.2, 1.4.3). A form check that stops an action
+   uses the same notice, so every message a reader must act on looks alike. */
+#main-content :is(
+  .dossiers42-error,
+  .ask42-error,
+  .b42-error,
+  .t42-status
+)[role="alert"]:not(main[aria-labelledby="ask42-title"] *) {
+  max-width: var(--measure);
+  margin: var(--s-3) 0;
+  padding: var(--s-3) var(--s-4);
+  color: var(--ink);
+  font-size: var(--type-3);
+  line-height: 1.5;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-inline-start: 3px solid var(--down);
+  border-radius: 0;
+}
+#main-content .b42 .b42-error[role="alert"] + .b42-button { margin-top: 0; }
+
+/* Form labels: one style. Compare and Discover set 12px muted labels while
+   Alerts, Investigations, Schedules and Build set them in ink at 600, so the
+   same kind of thing read as two (Gestalt similarity). */
+#main-content :is(.c42-label, .c42-legend, .d42-label) {
+  font-size: var(--type-3);
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0;
+  text-transform: none;
+}

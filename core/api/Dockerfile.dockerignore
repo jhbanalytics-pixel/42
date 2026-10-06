@@ -1,0 +1,9 @@
+*
+!core/
+!docs/full-42/reference/sc_routes.json
+!app/frontend/
+app/frontend/node_modules
+app/frontend/test-results
+app/frontend/playwright-report
+**/__pycache__
+**/.pytest_cache

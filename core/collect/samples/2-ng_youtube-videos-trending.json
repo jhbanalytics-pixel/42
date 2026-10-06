@@ -1,0 +1,86 @@
+{
+  "probe": "2-ng",
+  "route": "youtube/videos/trending",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 50>",
+        {
+          "computed": {
+            "content_category": "<str>",
+            "engagement_rate": "<float>",
+            "estimated_reach": "<int>",
+            "language": "<null>"
+          },
+          "post": {
+            "author": {
+              "avatar_url": "<null>",
+              "display_name": "<str>",
+              "username": "<null>",
+              "verified": "<null>"
+            },
+            "content": {
+              "duration_seconds": "<int>",
+              "media_urls": "<null>",
+              "text": "<str>",
+              "thumbnail_url": "<str>"
+            },
+            "engagement": {
+              "comments": "<int>",
+              "likes": "<int>",
+              "saves": "<null>",
+              "shares": "<null>",
+              "views": "<int>"
+            },
+            "ext": {
+              "caption": "<str>",
+              "categoryId": "<str>",
+              "categoryTitle": "<str>",
+              "channel_id": "<str>",
+              "defaultAudioLanguage": "<str>",
+              "default_language": "<str>",
+              "description": "<str>",
+              "duration": "<str>",
+              "hasPaidProductPlacement": "<bool>",
+              "license": "<str>",
+              "madeForKids": "<bool>",
+              "tags": [
+                "<list of 20>",
+                "<str>"
+              ],
+              "topicCategories": [
+                "<list of 2>",
+                "<str>"
+              ]
+            },
+            "flags": {
+              "deleted": "<bool>",
+              "nsfw": "<null>",
+              "pinned": "<null>",
+              "spoiler": "<null>"
+            },
+            "id": "<str>",
+            "published_at": "<str>",
+            "url": "<str>"
+          },
+          "vendor_labels": {}
+        }
+      ],
+      "next_cursor": "<str>",
+      "total": "<int>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<str>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

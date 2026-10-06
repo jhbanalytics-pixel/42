@@ -1,0 +1,62 @@
+/* Quiet register, 23 Sept 2026: the snapshot is a section of the page it sits
+   in, so its heading takes the section step (24px) rather than a second page
+   title, there is no eyebrow above it, and each route is a hairline row that
+   starts on the page's own left edge. A count is a figure in the sans with
+   tabular numerals and its word beside it, not a large serif number over a
+   small label. The summary carries a disclosure marker so it reads as
+   something that opens. */
+.source-snapshot {
+  margin-block: var(--space-6);
+  min-width: 0;
+  color: var(--ink);
+}
+.source-snapshot .source-snapshot__title {
+  margin: 0 0 12px;
+  font: 400 var(--type-6)/1.2 var(--serif);
+  letter-spacing: -.01em;
+}
+.source-snapshot .source-snapshot__scope,
+.source-snapshot .source-snapshot__stamp {
+  margin: 0 0 8px;
+  font: 400 var(--type-3)/1.5 var(--sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.source-snapshot .source-snapshot__row { border-block-end: 1px solid var(--line); }
+.source-snapshot .source-snapshot__row:first-of-type { border-block-start: 1px solid var(--line); }
+.source-snapshot .source-snapshot__summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px 0;
+  list-style: none;
+  cursor: pointer;
+  transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.source-snapshot .source-snapshot__summary::-webkit-details-marker { display: none; }
+.source-snapshot .source-snapshot__summary::before {
+  content: "";
+  flex: none;
+  width: 0;
+  height: 0;
+  border-block: 5px solid transparent;
+  border-inline-start: 6px solid currentColor;
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+.source-snapshot .source-snapshot__row[open] > .source-snapshot__summary::before { transform: rotate(90deg); }
+.source-snapshot .source-snapshot__summary:hover,
+.source-snapshot .source-snapshot__summary:focus-visible { color: var(--accent-text); }
+.source-snapshot .source-snapshot__summary:focus-visible { outline: 2px solid var(--accent); outline-offset: var(--focus-offset); }
+.source-snapshot .source-snapshot__summary:active { box-shadow: var(--press-grip); }
+.source-snapshot .source-snapshot__name { flex: 1 1 auto; min-width: 0; font: 400 var(--type-4)/1.4 var(--sans); overflow-wrap: anywhere; }
+.source-snapshot .source-snapshot__value { flex: none; font: 600 var(--type-4)/1.4 var(--sans); font-variant-numeric: tabular-nums; text-align: end; }
+.source-snapshot .source-snapshot__value span { color: var(--muted); font-weight: 400; }
+.source-snapshot .source-snapshot__detail,
+.source-snapshot .source-snapshot__empty { max-width: var(--measure); padding: 0 0 16px 18px; font: 400 var(--type-3)/1.6 var(--sans); color: var(--muted); }
+.source-snapshot .source-snapshot__empty { padding-inline-start: 0; }
+.source-snapshot .source-snapshot__detail p { margin: 8px 0; }
+@media (prefers-reduced-motion: reduce) {
+  .source-snapshot .source-snapshot__summary { transition: none; }
+  .source-snapshot .source-snapshot__summary::before { transition: none; }
+}

@@ -1,0 +1,940 @@
+# Moments calendar hand list for task 1.4 (docs/full-42/BUILD.md row 1.4).
+# core/collect/calendar.py reads this file together with the date.nager.at
+# public holidays and MERGEs the rows into intelligence_42_core.calendar.
+#
+# A moment is loaded only with a date from date.nager.at, a date stated in
+# docs/full-42, or a stated calendar rule, and the rule text is its source.
+# Everything else sits under pending with what is missing and is never loaded.
+#
+# Markets are the country codes in core/config/markets.yaml.
+# Kinds: holiday, payday, fuel, election, culture, commerce, season, results, sport.
+
+# Rows run from the load date to 90 days later, or to this date if later.
+known_until: 2027-01-31
+
+# Hand list moments that date.nager.at already dates. The nager row takes the
+# hand list name and kind, and the docs reference joins its source.
+nager_renames:
+  - market: NG
+    nager_name: National Day
+    name: Independence Day
+    kind: holiday
+    source: docs/full-42/BUILD.md task 1.4 (NG Independence Day 1 October)
+  - market: KE
+    nager_name: Mashujaa Day
+    name: Mashujaa Day
+    kind: holiday
+    source: docs/full-42/BUILD.md task 1.4 (KE Mashujaa Day 20 October)
+  - market: ZA
+    nager_name: Election Day
+    name: Local elections
+    kind: election
+    source: docs/full-42/BUILD.md task 1.4 (SA local elections 4 November)
+
+# Holidays and observances that fall on one day and month every year, keyed
+# by calendar name as MM-DD. Task 3.6 uses the list only to date last year's
+# analogue when last year's date.nager.at rows are not held; a held row always wins.
+fixed_dates:
+  source: "rule: each entry falls on the same day and month every year, so the analogue is that day and month last year; date.nager.at lists them all as public, but NG Children's Day and National Youth Day are observances, not statutory public holidays"
+  ZA: {"New Year's Day": "01-01", "Human Rights Day": "03-21", "Freedom Day": "04-27", "Workers' Day": "05-01",
+       "Youth Day": "06-16", "National Women's Day": "08-09", "Heritage Day": "09-24",
+       "Day of Reconciliation": "12-16", "Christmas Day": "12-25", "Day of Goodwill": "12-26"}
+  NG: {"New Year's Day": "01-01", "Workers' Day": "05-01", "Children's Day": "05-27", "Democracy Day": "06-12",
+       "Independence Day": "10-01", "National Youth Day": "11-01", "Christmas Day": "12-25", "Boxing Day": "12-26"}
+  KE: {"New Year's Day": "01-01", "Labour Day": "05-01", "Madaraka Day": "06-01", "Mazingira Day": "10-10",
+       "Mashujaa Day": "10-20", "Jamhuri Day": "12-12", "Christmas Day": "12-25", "Boxing Day": "12-26"}
+
+# Recurring moments dated by a stated rule.
+# weekday: 0 is Monday, 2 is Wednesday, 3 is Thursday.
+rules:
+  - market: ZA
+    name: Payday on the 25th
+    kind: payday
+    rule: monthly_day
+    day: 25
+    source: "rule: payday on the 25th of each month (docs/full-42/BUILD.md task 1.4 hand list)"
+  - market: ZA
+    name: Fuel price adjustment
+    kind: fuel
+    rule: monthly_nth_weekday
+    nth: 1
+    weekday: 2
+    source: "rule: SA fuel price adjustment on the first Wednesday of each month"
+  - market: KE
+    name: EPRA fuel price review
+    kind: fuel
+    rule: monthly_day
+    day: 14
+    source: "rule: KE EPRA pump price review on the 14th of each month"
+  - market: [ZA, NG, KE]
+    name: Black Friday
+    kind: commerce
+    rule: yearly_nth_weekday
+    month: 11
+    nth: 4
+    weekday: 3
+    offset_days: 1
+    source: "rule: Black Friday is the day after the fourth Thursday of November"
+  - market: NG
+    name: Detty December starts
+    kind: season
+    rule: yearly_date
+    month: 12
+    day: 1
+    source: "rule: Detty December is the month of December; start row on 1 December"
+  - market: NG
+    name: Detty December ends
+    kind: season
+    rule: yearly_date
+    month: 12
+    day: 31
+    source: "rule: Detty December is the month of December; end row on 31 December"
+
+dated:
+  - market: "ZA"
+    date: "2026-10-01"
+    name: "National Teaching Awards"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 235
+    source_urls: ["https://www.presidency.gov.za/president-ramaphosa-address-annual-national-teaching-awards-ceremony"]
+    supplied_date_text: "2026-10-01"
+  - market: "ZA"
+    date: "2026-10-02"
+    name: "Digger"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 236
+    source_urls: ["https://www.sterkinekor.com/genre/comedy", "https://www.diggerthemovie.com/"]
+    supplied_date_text: "2026-10-02"
+  - market: "ZA"
+    date: "2026-10-02"
+    name: "Verity"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 237
+    source_urls: ["https://www.sterkinekor.com/genre/thriller", "https://www.aboutamazon.com/news/entertainment/verity-colleen-hoover-amazon-mgm-studios"]
+    supplied_date_text: "2026-10-02"
+  - market: "ZA"
+    date: "2026-10-03"
+    name: "South Africa Fashion Awards"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 238
+    source_urls: ["https://safashionawards.co.za/"]
+    supplied_date_text: "2026-10-03"
+  - market: "ZA"
+    date: "2026-10-16"
+    name: "Street Fighter"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 239
+    source_urls: ["https://www.sterkinekor.com/article/street-fighter-the-iconic-game-franchise-finally-lands-its-big-screen-fight"]
+    supplied_date_text: "2026-10-16"
+  - market: "ZA"
+    date: "2026-10-23"
+    name: "Clayface"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 240
+    source_urls: ["https://www.sterkinekor.com/genre/horror", "https://www.clayfacemovie.com/"]
+    supplied_date_text: "2026-10-23"
+  - market: "ZA"
+    date: "2026-10-30"
+    name: "Blxckie: YENA"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 241
+    source_urls: ["https://music.apple.com/us/album/yena/6813267292", "https://music.apple.com/us/label/empire/1546121582"]
+    supplied_date_text: "2026-10-30"
+  - market: "NG"
+    date: "2026-10-01"
+    name: "Agbara Nla: The Return"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 255
+    source_urls: ["https://brandscinemas.com/movies?date=&genre=&q="]
+    supplied_date_text: "2026-10-01"
+  - market: "NG"
+    date: "2026-10-01"
+    name: "BNXN: Still In Charge"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 256
+    source_urls: ["https://music.apple.com/us/album/still-in-charge-ep/6794221106", "https://music.apple.com/us/label/empire/1546121582"]
+    supplied_date_text: "2026-10-01"
+  - market: "NG"
+    date: "2026-10-02"
+    name: "Digger"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 257
+    source_urls: ["https://silverbirdcinemas.com/movie-list/", "https://www.diggerthemovie.com/"]
+    supplied_date_text: "2026-10-02"
+  - market: "NG"
+    date: "2026-10-02"
+    name: "Verity"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 258
+    source_urls: ["https://silverbirdcinemas.com/movie-list/", "https://www.aboutamazon.com/news/entertainment/verity-colleen-hoover-amazon-mgm-studios"]
+    supplied_date_text: "2026-10-02"
+  - market: "NG"
+    date: "2026-10-09"
+    name: "FOLA: 9"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 259
+    source_urls: ["https://music.apple.com/us/album/9/6810267024", "https://music.apple.com/us/label/empire/1546121582"]
+    supplied_date_text: "2026-10-09"
+  - market: "NG"
+    date: "2026-10-16"
+    name: "Fireboy DML: ZUKO!"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 260
+    source_urls: ["https://music.apple.com/us/album/zuko/6811251407", "https://music.apple.com/us/label/empire/1546121582"]
+    supplied_date_text: "2026-10-16"
+  - market: "NG"
+    date: "2026-10-16"
+    name: "First Lady"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 261
+    source_urls: ["https://www.tntheatrical.com/post/desmond-elliot-ibrahim-suleiman-and-fehintola-olulana-lead-new-political-drama-first-lady-in-cinem"]
+    supplied_date_text: "2026-10-16"
+  - market: "NG"
+    date: "2026-10-16"
+    name: "Street Fighter"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 262
+    source_urls: ["https://silverbirdcinemas.com/movie-list/"]
+    supplied_date_text: "2026-10-16"
+  - market: "NG"
+    date: "2026-10-23"
+    name: "Onibọn Oje"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 263
+    source_urls: ["https://www.tntheatrical.com/post/odunlade-adekola-fathia-balogun-and-kolawole-ajeyemi-lead-new-yoruba-epic-onib%E1%BB%8Dn-oje-in-cinemas-oc"]
+    supplied_date_text: "2026-10-23"
+  - market: "NG"
+    date: "2026-10-28"
+    name: "Lagos Fashion Week 2026 starts"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 265
+    source_urls: ["https://www.linkedin.com/posts/lagos-fashion-and-design-week_save-the-date-lagos-fashion-week-2026-28th-activity-7472998523555381250-fuvp"]
+    supplied_date_text: "2026-10-28 to 2026-11-01"
+  - market: "NG"
+    date: "2026-11-01"
+    name: "Lagos Fashion Week 2026 ends"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 265
+    source_urls: ["https://www.linkedin.com/posts/lagos-fashion-and-design-week_save-the-date-lagos-fashion-week-2026-28th-activity-7472998523555381250-fuvp"]
+    supplied_date_text: "2026-10-28 to 2026-11-01"
+  - market: "NG"
+    date: "2026-11-13"
+    name: "National Fair Executive Gala & Enterprise Awards"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 266
+    source_urls: ["https://nationalfairng.com/"]
+    supplied_date_text: "2026-11-13"
+  - market: "KE"
+    date: "2026-10-02"
+    name: "Digger"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 279
+    source_urls: ["https://cinema.angacinemas.com/comingsoon"]
+    supplied_date_text: "2026-10-02"
+  - market: "KE"
+    date: "2026-10-02"
+    name: "Verity"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 280
+    source_urls: ["https://cinema.angacinemas.com/comingsoon"]
+    supplied_date_text: "2026-10-02"
+  - market: "KE"
+    date: "2026-10-10"
+    name: "Whalefall"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 281
+    source_urls: ["https://cinema.angacinemas.com/comingsoon"]
+    supplied_date_text: "2026-10-10"
+  - market: "KE"
+    date: "2026-10-16"
+    name: "Street Fighter"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 282
+    source_urls: ["https://cinema.angacinemas.com/comingsoon"]
+    supplied_date_text: "2026-10-16"
+  - market: "KE"
+    date: "2026-10-23"
+    name: "AA Road Safety Excellence Awards Gala"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 283
+    source_urls: ["https://awards.aakenya.co.ke/"]
+    supplied_date_text: "2026-10-23"
+  - market: "KE"
+    date: "2026-10-23"
+    name: "Clayface"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 284
+    source_urls: ["https://cinema.angacinemas.com/comingsoon"]
+    supplied_date_text: "2026-10-23"
+  - market: "KE"
+    date: "2026-10-30"
+    name: "Call Me Queen"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 285
+    source_urls: ["https://cinema.angacinemas.com/comingsoon"]
+    supplied_date_text: "2026-10-30"
+  - market: "KE"
+    date: "2026-11-13"
+    name: "The Great Beyond"
+    kind: "culture"
+    source: "research_confirmed"
+    active: true
+    source_file: "LOCAL-RESEARCH-2-2026-09-30.md"
+    source_line: 286
+    source_urls: ["https://cinema.angacinemas.com/comingsoon"]
+    supplied_date_text: "2026-11-13"
+
+# Hand list moments with no date from a source. Never loaded until a dated
+# source or a stated rule is added above.
+pending:
+  - market: ZA
+    name: SASSA grant paydays
+    kind: payday
+    missing: SASSA publishes each month's grant payment dates; none are in docs/full-42 and no rule is stated
+  - market: NG
+    name: NG fuel price changes
+    kind: fuel
+    missing: no fixed review day is stated for Nigeria; needs a dated source
+  - market: NG
+    name: BBNaija season dates
+    kind: culture
+    missing: launch, eviction and finale dates for the current season
+  - market: ZA
+    name: BBMzansi season dates
+    kind: culture
+    missing: launch, eviction and finale dates for the current season
+  - market: NG
+    name: Felabration
+    kind: culture
+    missing: festival dates for 2026
+  - market: ZA
+    name: NSC matric results day
+    kind: results
+    missing: release date of the NSC exam results
+  - market: NG
+    name: WAEC results day
+    kind: results
+    missing: release date of the WAEC exam results
+  - market: [ZA, NG, KE]
+    name: Sports fixtures
+    kind: sport
+    missing: no fixtures list in docs/full-42; needs a fixtures source per competition
+
+  - market: "ZA"
+    name: "October campaign months"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 109
+    source_urls: ["https://www.gov.za/SocialDevelopmentMonth2026", "https://www.gov.za/TransportMonth2026", "https://www.gov.za/MarineMonth2026", "https://www.sanews.gov.za/south-africa/statement-cabinet-meeting-wednesday-23-september-2026"]
+    supplied_date_text: "1 to 31 October"
+  - market: "ZA"
+    name: "Sharks vs Leinster and Durban Wine & Food Festival"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 110
+    source_urls: ["https://visitdurban.travel/page/upcoming-events"]
+    supplied_date_text: "3 October"
+  - market: "ZA"
+    name: "Public school Term 4 begins"
+    kind: "season"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 111
+    source_urls: ["https://www.gov.za/sites/default/files/gcis_document/202502/52178gon5901.pdf"]
+    supplied_date_text: "6 October"
+  - market: "ZA"
+    name: "Proteas vs Australia Test series"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 113
+    source_urls: ["https://www.icc-cricket.com/news/south-africa-unveil-schedule-for-key-wtc-series"]
+    supplied_date_text: "9 to 31 October"
+  - market: "ZA"
+    name: "Stormers home fixtures"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 114
+    source_urls: ["https://stormers.co.za/tickets-hub/", "https://www.epcrugby.com/champions-cup/clubs/dhl-stormers/fixtures-results", "https://www.epcrugby.com/champions-cup/content/official-investec-champions-cup-202627-pool-stage-fixtures-confirmed"]
+    supplied_date_text: "10, 17, 24 and 31 October"
+  - market: "ZA"
+    name: "International Day of the Girl Child"
+    kind: "holiday"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 115
+    source_urls: ["https://www.gov.za/news/events?end_date=&field_speech_event_category_tid=112&field_speech_event_date_value%5Bmax%5D%5Bdate%5D=&field_speech_event_date_value%5Bmin%5D%5Bdate%5D=&order=field_speech_event_date&page=1&sort=desc&start_date=&title_field_value="]
+    supplied_date_text: "11 October"
+  - market: "ZA"
+    name: "Open Geospatial Consortium Member Meeting"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 116
+    source_urls: ["https://www.sanews.gov.za/south-africa/statement-cabinet-meeting-wednesday-23-september-2026"]
+    supplied_date_text: "12 to 15 October"
+  - market: "ZA"
+    name: "International Day of Rural Women"
+    kind: "holiday"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 117
+    source_urls: ["https://www.gov.za/InternationalDayofRuralWomen2026"]
+    supplied_date_text: "15 October"
+  - market: "ZA"
+    name: "Galileo Open Air Cinema season begins"
+    kind: "season"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 118
+    source_urls: ["https://www.capetown.travel/whats-on-in-cape-town-this-summer-2026/"]
+    supplied_date_text: "15 October"
+  - market: "ZA"
+    name: "World Food Day"
+    kind: "holiday"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 119
+    source_urls: ["https://www.health.gov.za/wp-content/uploads/2026/01/Health-Awareness-Calendar-for-2026-Final.pdf"]
+    supplied_date_text: "16 October"
+  - market: "ZA"
+    name: "Nelson Mandela Marathon in Cape Town"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 120
+    source_urls: ["https://nelsonmandelamarathon.com/race-week/", "https://www.capetown.travel/whats-on-in-cape-town-this-summer-2026/"]
+    supplied_date_text: "18 October"
+  - market: "ZA"
+    name: "IBF World Blackball Championship"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 121
+    source_urls: ["https://www.capetown.travel/whats-on-in-cape-town-this-summer-2026/"]
+    supplied_date_text: "23 October to 1 November"
+  - market: "ZA"
+    name: "Cape Town International Kite Festival"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 122
+    source_urls: ["https://www.capetown.travel/whats-on-in-cape-town-this-summer-2026/"]
+    supplied_date_text: "24 to 25 October"
+  - market: "ZA"
+    name: "Mind Matters Summit"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 123
+    source_urls: ["https://www.capetown.travel/whats-on-in-cape-town-this-summer-2026/"]
+    supplied_date_text: "29 to 30 October"
+  - market: "ZA"
+    name: "Project Halloween at Traders Time Square"
+    kind: "holiday"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 124
+    source_urls: ["https://new-ux.howler.co.za/events/project-halloween-3123"]
+    supplied_date_text: "31 October to 1 November"
+  - market: "ZA"
+    name: "Local Government Elections and public holiday"
+    kind: "election"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 125
+    source_urls: ["https://www.gov.za/news/media-statements/president-cyril-ramaphosa-declares-election-day", "https://www.gov.za/documents/notices/public-holidays-act-declaration-fourth-day-november-2026-public-holiday"]
+    supplied_date_text: "4 November"
+  - market: "ZA"
+    name: "Springboks vs Italy"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 127
+    source_urls: ["https://www.world.rugby/beta/en/tournaments/nations-championship/2026"]
+    supplied_date_text: "7 November"
+  - market: "ZA"
+    name: "Springboks vs France"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 128
+    source_urls: ["https://www.world.rugby/beta/en/tournaments/nations-championship/2026"]
+    supplied_date_text: "13 November"
+  - market: "ZA"
+    name: "Proteas vs Bangladesh first Test begins"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 129
+    source_urls: ["https://www.icc-cricket.com/news/south-africa-unveil-schedule-for-key-wtc-series"]
+    supplied_date_text: "15 to 19 November"
+  - market: "ZA"
+    name: "UEFA Champions League Matchday 2"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 130
+    source_urls: ["https://www.uefa.com/uefachampionsleague/news/02a8-215821715a96-9a3b43fad585-1000\u002d\u002duefa-champions-league-league-phase-draw/"]
+    supplied_date_text: "13 to 14 October"
+  - market: "ZA"
+    name: "UEFA Champions League Matchday 3"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 131
+    source_urls: ["https://www.uefa.com/uefachampionsleague/news/02a8-215821715a96-9a3b43fad585-1000\u002d\u002duefa-champions-league-league-phase-draw/"]
+    supplied_date_text: "20 to 21 October"
+  - market: "ZA"
+    name: "UEFA Champions League Matchday 4"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 132
+    source_urls: ["https://www.uefa.com/uefachampionsleague/news/02a8-215821715a96-9a3b43fad585-1000\u002d\u002duefa-champions-league-league-phase-draw/"]
+    supplied_date_text: "3 to 4 November"
+  - market: "ZA"
+    name: "Ne-Yo South Africa concerts"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 133
+    source_urls: ["https://www.suninternational.com/grandwest/events", "https://www.suninternational.com/time-square/events"]
+    supplied_date_text: "17 to 18 October"
+  - market: "ZA"
+    name: "Jill Scott concerts"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 135
+    source_urls: ["https://showtime.co.za/jill-scott/", "https://www.ticketmaster.co.za/event/jill-scott-to-whom-this-may-concern-2026-tour-tickets/110610016"]
+    supplied_date_text: "7 and 11 November"
+  - market: "ZA"
+    name: "Francois van Coke & Vriende"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 136
+    source_urls: ["https://www.suninternational.com/time-square/events"]
+    supplied_date_text: "9 October"
+  - market: "NG"
+    name: "Independence Anniversary"
+    kind: "holiday"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 225
+    source_urls: ["https://nigeriahcottawa.ca/public-holidays/"]
+    supplied_date_text: "1 October"
+  - market: "NG"
+    name: "NPFL match weekend"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 226
+    source_urls: ["https://npfl.com.ng/2026/?post_type=sp_event", "https://npfl.com.ng/league/nigeria-premier-football-league/", "https://npfl.com.ng/2026/09/27/kwara-united-suffer-narrow-defeat-at-kun-khalifat/"]
+    supplied_date_text: "3 to 4 October"
+  - market: "NG"
+    name: "National Summit and Exhibition on the Orange Economy"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 227
+    source_urls: ["https://orangeeconomysummitandexhibition.com/"]
+    supplied_date_text: "6 to 8 October"
+  - market: "NG"
+    name: "NCC Telecom Campus Conversation"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 228
+    source_urls: ["https://www.ncc.gov.ng/2026-calender"]
+    supplied_date_text: "8 October"
+  - market: "NG"
+    name: "Design Week Lagos"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 229
+    source_urls: ["https://designweeklagos.com/"]
+    supplied_date_text: "18 to 25 October"
+  - market: "NG"
+    name: "NCC Telecoms Consumer Parliament"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 230
+    source_urls: ["https://www.ncc.gov.ng/2026-calender"]
+    supplied_date_text: "20 October"
+  - market: "NG"
+    name: "MUSON Festival"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 232
+    source_urls: ["https://muson.org/festival-gallery/"]
+    supplied_date_text: "23 October to 8 November"
+  - market: "NG"
+    name: "MUSON programme highlights"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 233
+    source_urls: ["https://muson.org/upcoming-event/"]
+    supplied_date_text: "25 October to 5 November"
+  - market: "NG"
+    name: "International Cybersecurity Conference"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 234
+    source_urls: ["https://www.ncc.gov.ng/2026-calender"]
+    supplied_date_text: "27 to 28 October"
+  - market: "NG"
+    name: "ART X Lagos"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 239
+    source_urls: ["https://www.artxlagos.com/"]
+    supplied_date_text: "5 to 8 November"
+  - market: "NG"
+    name: "CANEX WKND"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 240
+    source_urls: ["https://wknd.canex.africa/"]
+    supplied_date_text: "5 to 8 November"
+  - market: "NG"
+    name: "Lagos International Trade Fair"
+    kind: "commerce"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 241
+    source_urls: ["https://lagosinternationaltradefair.com/empowering-africa-through-trade-the-promise-of-the-2025-lagos-international-trade-fair/"]
+    supplied_date_text: "6 to 15 November"
+  - market: "NG"
+    name: "Lagos International Theatre Festival"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 242
+    source_urls: ["https://app.lagosinternationaltheatrefestival.ng/about-us"]
+    supplied_date_text: "9 to 15 November"
+  - market: "NG"
+    name: "NCC consumer advocacy initiatives"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 243
+    source_urls: ["https://www.ncc.gov.ng/2026-calender"]
+    supplied_date_text: "12 November"
+  - market: "NG"
+    name: "Lagos Biennial begins"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 244
+    source_urls: ["https://lagos-biennial.org/lagos-biennial-to-host-26th-annual-international-biennial-association-iba-board-meeting-this-november/"]
+    supplied_date_text: "14 November to 6 December"
+  - market: "NG"
+    name: "UEFA Champions League Matchday 2"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 245
+    source_urls: ["https://www.uefa.com/uefachampionsleague/news/02a8-215821715a96-9a3b43fad585-1000\u002d\u002duefa-champions-league-league-phase-draw/"]
+    supplied_date_text: "13 to 14 October"
+  - market: "NG"
+    name: "UEFA Champions League Matchday 3"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 246
+    source_urls: ["https://www.uefa.com/uefachampionsleague/news/02a8-215821715a96-9a3b43fad585-1000\u002d\u002duefa-champions-league-league-phase-draw/"]
+    supplied_date_text: "20 to 21 October"
+  - market: "NG"
+    name: "UEFA Champions League Matchday 4"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 247
+    source_urls: ["https://www.uefa.com/uefachampionsleague/news/02a8-215821715a96-9a3b43fad585-1000\u002d\u002duefa-champions-league-league-phase-draw/"]
+    supplied_date_text: "3 to 4 November"
+  - market: "NG"
+    name: "Bovi: Guilty as Charged, Lagos finale"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 248
+    source_urls: ["https://juniorprefect.com/gac"]
+    supplied_date_text: "11 October"
+  - market: "KE"
+    name: "Magical Kenya Travel Expo"
+    kind: "commerce"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 337
+    source_urls: ["https://mkte.co.ke/"]
+    supplied_date_text: "6 to 8 October"
+  - market: "KE"
+    name: "World Mental Health Day"
+    kind: "holiday"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 339
+    source_urls: ["https://www.who.int/campaigns/world-mental-health-day/2026"]
+    supplied_date_text: "10 October"
+  - market: "KE"
+    name: "NBO Film Festival"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 342
+    source_urls: ["https://www.nbofilmfest.com/"]
+    supplied_date_text: "15 to 25 October"
+  - market: "KE"
+    name: "Africa Blockchain Festival"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 343
+    source_urls: ["https://africablockchainfestival.com/"]
+    supplied_date_text: "15 to 17 October"
+  - market: "KE"
+    name: "ASILI Experience"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 344
+    source_urls: ["https://asiliexperience.com/"]
+    supplied_date_text: "17 October"
+  - market: "KE"
+    name: "Big 5 Construct Kenya"
+    kind: "commerce"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 347
+    source_urls: ["https://www.saritexpo.com/events?status=upcoming"]
+    supplied_date_text: "21 to 23 October"
+  - market: "KE"
+    name: "Standard Chartered Nairobi Marathon"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 348
+    source_urls: ["https://nairobimarathon.com/?page_id=1597"]
+    supplied_date_text: "25 October"
+  - market: "KE"
+    name: "Kenya Public Health International Conference"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 349
+    source_urls: ["https://kephic.publichealth.go.ke/programme"]
+    supplied_date_text: "27 to 29 October"
+  - market: "KE"
+    name: "ISK Africa Regional Conference"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 350
+    source_urls: ["https://isk.or.ke/wp-content/uploads/2026/02/ISK-Events-Calendar-for-the-Year-2026-copy-1.pdf"]
+    supplied_date_text: "28 to 30 October"
+  - market: "KE"
+    name: "Getaway Tourism Fair"
+    kind: "commerce"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 351
+    source_urls: ["https://www.saritexpo.com/events?status=upcoming"]
+    supplied_date_text: "29 to 31 October"
+  - market: "KE"
+    name: "Kalapapla Festival and Halloween programming"
+    kind: "holiday"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 352
+    source_urls: ["https://kalapaplafestival.co.ke/", "https://www.kodanairobi.com/tickets", "https://www.ticketsasa.com/events/halloween-fright-night-party", "https://apps.little.africa/events/the-hive-no-going-home-"]
+    supplied_date_text: "30 to 31 October"
+  - market: "KE"
+    name: "World Diabetes Day"
+    kind: "holiday"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 354
+    source_urls: ["https://www.who.int/campaigns/world-diabetes-day/2026"]
+    supplied_date_text: "14 November"
+  - market: "KE"
+    name: "Mandinga Ancestral African Arts Festival begins"
+    kind: "culture"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 355
+    source_urls: ["https://www.inukacenter.org/store/p/mandinga"]
+    supplied_date_text: "14 to 22 November"
+  - market: "KE"
+    name: "UEFA Champions League Matchday 2"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 357
+    source_urls: ["https://www.uefa.com/uefachampionsleague/news/02a8-215821715a96-9a3b43fad585-1000\u002d\u002duefa-champions-league-league-phase-draw/"]
+    supplied_date_text: "13 to 14 October"
+  - market: "KE"
+    name: "UEFA Champions League Matchday 3"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 358
+    source_urls: ["https://www.uefa.com/uefachampionsleague/news/02a8-215821715a96-9a3b43fad585-1000\u002d\u002duefa-champions-league-league-phase-draw/"]
+    supplied_date_text: "20 to 21 October"
+  - market: "KE"
+    name: "UEFA Champions League Matchday 4"
+    kind: "sport"
+    missing: "Source date has no year; held out of the active calendar."
+    source: "research_confirmed"
+    source_file: "LOCAL-RESEARCH-2026-09-30.md"
+    source_line: 359
+    source_urls: ["https://www.uefa.com/uefachampionsleague/news/02a8-215821715a96-9a3b43fad585-1000\u002d\u002duefa-champions-league-league-phase-draw/"]
+    supplied_date_text: "3 to 4 November"

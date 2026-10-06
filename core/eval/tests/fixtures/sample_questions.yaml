@@ -1,0 +1,203 @@
+# The 7 questions in promptfoo_results_sample.json, copied verbatim from core/eval/questions.yaml
+# in the export's order, so the CLI test can pass --questions (test_score_run.py checks the copy).
+
+- description: "NOW-01 | now | ZA | last 7 days"
+  metadata: {family: now, markets: ZA, answerability: answerable}
+  vars:
+    id: NOW-01
+    family: now
+    markets: [ZA]
+    window: last 7 days
+    window_days: 7
+    expected_answerability: answerable
+    question: >-
+      What's South African social actually talking about this week, outside
+      the election and sport? Give me the three conversations with the most
+      momentum right now and show me the posts that prove it.
+    great_answer_must:
+      - Names three specific conversations (a named meme, sound, phrase, event or controversy), not themes like "humour" or "lifestyle"
+      - Shows momentum for each with numbers from the data (post count or engagement against the conversation's own recent baseline), each number traceable to cited posts or a named query
+      - Cites posts from at least two platforms per conversation where they exist, naming handles, dates and quotes, and says where each conversation lives (platform, language, place, community)
+      - Excludes election and sport content as asked, or flags where a conversation overlaps with them
+      - Ends with one line per conversation on whether a brand could join and how
+    fails_if:
+      - Lists evergreen SA topics (braai, taxis, load shedding, Jozi traffic) without posts dated in the last 7 days
+      - Gives momentum words ("blowing up", "viral") with no count or baseline
+      - Ranks conversations by how often the model has heard of them instead of by measured volume or growth
+    min_evidence:
+      posts: 9
+      platforms: 2
+      creators: 6
+      summary: At least 3 cited posts per conversation (9 in total) from 2 or more platforms and 6 or more distinct accounts, all dated in the last 7 days.
+- description: "NOW-02 | now | NG | last 10 days"
+  metadata: {family: now, markets: NG, answerability: answerable}
+  vars:
+    id: NOW-02
+    family: now
+    markets: [NG]
+    window: the 10 days before as_of
+    window_days: 10
+    expected_answerability: answerable
+    question: >-
+      How are Nigerians online talking about the country over the last ten
+      days: pride, jokes, frustration? Show me the mix of tones with real
+      examples, not the generic "patriotism" take.
+    great_answer_must:
+      - Separates at least three distinct tones or framings (for example pride content, sarcasm about the state of the country, diaspora nostalgia) and shows posts for each
+      - Gives an honest sense of proportion from the collected data (share of sampled posts per tone, with the sample size stated) and says the sample is not the whole of Nigerian social
+      - Notes which platforms and which language registers (Pidgin, Yoruba, Igbo, Hausa, English) carry which tone
+      - Flags how the 2027 election campaign is colouring Independence content, with cited posts, or says it did not find that
+      - Gives a brand a concrete do and don't for Independence content this year
+    fails_if:
+      - Describes Independence sentiment from memory of previous years with no posts dated in the window
+      - Presents tone percentages without the number of posts they were computed from
+      - Attributes a tone to a group by age, income or class
+    min_evidence:
+      posts: 8
+      platforms: 2
+      creators: 6
+      summary: At least 8 cited posts from 2 or more platforms and 6 or more accounts, dated inside the 10 days before as_of, with at least 2 posts per tone reported.
+- description: "NOW-03 | now | KE | last 14 days"
+  metadata: {family: now, markets: KE, answerability: answerable}
+  vars:
+    id: NOW-03
+    family: now
+    markets: [KE]
+    window: last 14 days
+    window_days: 14
+    expected_answerability: answerable
+    question: >-
+      What are Kenyan creators and commenters riffing on in the last two
+      weeks: the in-jokes, sounds and Sheng phrases that keep coming up? I need
+      to know what would make a brand post feel current in a Kenyan feed right
+      now.
+    great_answer_must:
+      - Names specific phrases, sounds or formats, each with what it means and how it is used, backed by posts that show the usage in context
+      - Separates things confined to one platform or one community (for example Nairobi TikTok comedy) from things seen across platforms
+      - Says how fresh each item is (first seen in the data, still growing or already fading)
+      - Warns which items would read as forced or risky if a brand used them, with a reason drawn from the comments or context
+    fails_if:
+      - Offers Sheng words from general knowledge with no cited post showing current use
+      - Translates or explains a phrase with no source and no label that the meaning is 42's reading
+      - Cites posts older than 14 days as what is current
+    min_evidence:
+      posts: 8
+      platforms: 2
+      creators: 6
+      summary: At least 8 cited posts from 2 or more platforms and 6 or more accounts, dated in the last 14 days, with at least 2 usage examples per phrase or sound.
+- description: "AUT-01 | authenticity | NG | last 14 days"
+  metadata: {family: authenticity, markets: NG, answerability: answerable}
+  vars:
+    id: AUT-01
+    family: authenticity
+    markets: [NG]
+    window: last 14 days
+    window_days: 14
+    expected_answerability: answerable
+    question: >-
+      There's a lot of paid-influencer noise in the campaign. In the last two
+      weeks, which trending Nigerian political hashtags show signs of
+      coordination (near-identical posts, synchronised timing, new or
+      single-purpose accounts), and which look organic? I need this before any
+      brand goes near those conversations.
+    great_answer_must:
+      - Assesses named hashtags against stated authenticity indicators, with the measured values (share of near-duplicate text, posting-time clustering, share of recently created or single-topic accounts) and cited example posts
+      - Labels each hashtag as flagged, mixed or organic-looking with confidence, and does not call anything a bot network without the indicators to back it
+      - Stays neutral about which party or candidate benefits
+      - Gives a practical brand rule (for example do not reply to or trend-jack flagged tags, keep scheduled posts off peak push times) tied to the findings
+    fails_if:
+      - Alleges a named person or party is paying for coordination without evidence
+      - Calls accounts bots from content alone, with no behavioural indicator
+      - Assesses hashtags from outside the window
+    min_evidence:
+      posts: 8
+      platforms: 1
+      creators: 8
+      summary: At least 8 cited posts by 8 or more distinct accounts from the last 14 days, with the authenticity indicator values stated for every hashtag assessed.
+- description: "AUT-03 | authenticity | KE | last 7 days | thin"
+  metadata: {family: authenticity, markets: KE, answerability: thin}
+  vars:
+    id: AUT-03
+    family: authenticity
+    markets: [KE]
+    window: last 7 days
+    window_days: 7
+    expected_answerability: thin
+    question: >-
+      Someone on the team says a boycott call against a big consumer brand is
+      "all over" Kenyan X this week. Is there one, how big is it really, and is
+      it organic?
+    great_answer_must:
+      - Checks whether such a boycott call exists in the window and answers yes or no up front, with what was searched (platform, terms, date range, counts)
+      - If found, sizes it honestly (posts, distinct accounts, engagement, spread beyond X) and applies authenticity indicators
+      - If not found or small, says so plainly and does not inflate a handful of posts into a movement
+      - Suggests what to watch or how to escalate if the team has a specific brand in mind
+    fails_if:
+      - Invents a boycott, brand name or hashtag to satisfy the premise
+      - Reports "trending" or "all over" without counts
+      - Uses an older boycott episode as if it were this week
+    min_evidence:
+      posts: 5
+      platforms: 1
+      creators: 5
+      summary: To confirm a boycott, at least 5 cited posts by 5 or more unrelated accounts dated in the last 7 days, with counts. Otherwise an explicit "did not find it" answer with the search described is correct.
+- description: "CMP-03 | compare | NG, ZA | last 90 days"
+  metadata: {family: compare, markets: "NG,ZA", answerability: answerable}
+  vars:
+    id: CMP-03
+    family: compare
+    markets: [NG, ZA]
+    window: last 90 days
+    window_days: 90
+    expected_answerability: answerable
+    question: >-
+      Compare the emigration conversation in Nigeria ("japa") with the
+      leaving-SA conversation in South Africa over the last three months, and
+      how it plays out on Reddit versus TikTok. Is the mood shifting in either
+      market?
+    great_answer_must:
+      - Compares both markets on the same platforms and measures, with cited posts from Reddit and TikTok in each market
+      - Shows how the framing differs by platform (for example Reddit advice threads against TikTok storytelling) with examples
+      - Tests whether the mood is shifting (for example toward return stories, regret or staying put) with counts across the 90 days, or says the data cannot tell
+      - Separates cited posts from policy or immigration facts, which must come from dated news sources
+      - Says what the tension means for a brand speaking to people who are staying
+    fails_if:
+      - Presents emigration statistics without a dated source
+      - Declares a mood shift without a within-window comparison
+      - Describes emigrants by age or profession without it being stated in the cited posts
+    min_evidence:
+      posts: 8
+      platforms: 2
+      creators: 6
+      per_market: 4
+      required_platforms: [reddit, tiktok]
+      summary: At least 4 cited posts per market (8 in total) from Reddit and TikTok (both present) and 6 or more accounts, dated in the last 90 days.
+- description: "BRD-01 | brand | ZA | last 30 days"
+  metadata: {family: brand, markets: ZA, answerability: answerable}
+  vars:
+    id: BRD-01
+    family: brand
+    markets: [ZA]
+    window: last 30 days
+    window_days: 30
+    expected_answerability: answerable
+    question: >-
+      How are South African fast-food chicken brands (Nando's, Chicken Licken
+      and KFC are the obvious examples) showing up in organic conversation this
+      month? Which moments are people crediting them for, where are they
+      getting dragged, and where's the gap for a challenger?
+    great_answer_must:
+      - Separates brand-owned posts from organic mentions, and reports organic mentions with cited posts
+      - Names specific moments of praise and specific complaints for each brand discussed, each with cited posts
+      - Says where the data is thin for a brand rather than filling it with the brand's reputation for topical advertising
+      - Identifies a cultural tension or unclaimed territory in the category that a challenger could own, labelled as inferred and tied to evidence
+      - Flags any authenticity concerns (paid posts, giveaway-driven spikes)
+    fails_if:
+      - Recites famous past campaigns as if they were current conversation
+      - Counts brand-owned or paid posts as organic sentiment
+      - Gives share-of-voice percentages without the counts and sample
+    min_evidence:
+      posts: 9
+      platforms: 2
+      creators: 7
+      summary: At least 9 cited organic posts from 2 or more platforms and 7 or more non-brand accounts, dated in the last 30 days, with at least 2 per brand discussed.

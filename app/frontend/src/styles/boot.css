@@ -1,0 +1,161 @@
+:root, .oi-product {
+  --color-ink-canvas: #151214;
+  --color-ink-panel: #1D191C;
+  --color-ink-raised: #2A2529;
+  --color-daylight-ink: #261E23;
+  --color-daylight-paper: #FAF8F9;
+  --color-daylight-paper-secondary: #F2EEF0;
+  --color-white: #FFFFFF;
+  --color-ink-muted: #B6A8AF;
+}
+
+.app .instrument-shell {
+  border-top: 1px solid var(--accent);
+}
+
+#root {
+  display: flex;
+  flex-flow: column;
+  min-height: 100vh;
+}
+
+@media (min-width: 768px) {
+  .app .instrument-shell {
+    grid-template-columns: 200px 1fr;
+  }
+}
+
+/* flow-root because the briefing's loading and held states carry a 48 pixel top
+   margin the loaded briefing does not. With nothing to stop it that margin
+   collapsed out of the page box and moved the page itself, so the whole route
+   jumped when the desk landed. A block formatting context keeps a child's top
+   margin inside the page, and the page's own position stops moving. */
+.page {
+  display: flow-root;
+  flex: 1 0 auto;
+  padding: 0 0 80px;
+}
+
+/* The held card carries the width law on every route: at most 780px wide and
+   centred in the workspace. Discover and Compare wrap the package frame in
+   .explore-state; Briefing's wrapper is a bare div carrying
+   data-briefing-state, which the route assertions pin, so the sheet reaches it
+   by attribute. The law sits here rather than in a route sheet because the
+   Briefing wrapper is the first paint on the desk route.
+
+   The law governs held frames and not loading frames, which is why the
+   Briefing loading wrapper is taken back out of it below. */
+.explore-state,
+div[data-briefing-state] {
+  width: calc(100% - 48px);
+  max-width: 780px;
+  min-height: 420px;
+  margin: 48px auto;
+  padding: 48px;
+}
+
+@media (max-width: 680px) {
+  .explore-state,
+  div[data-briefing-state] {
+    width: calc(100% - 32px);
+    min-height: 0;
+    margin: 24px auto;
+    padding: 32px 20px;
+  }
+}
+
+/* A held card is a composed answer and earns the centring because the held
+   state is the answer. A loading card only holds the place of what is coming,
+   so it takes the geometry of the settle rather than of a sibling state.
+   Briefing settles into the package briefing and Discover into its two column
+   layout, and each of those stands at the workspace's own top left corner.
+   Three declarations undo the card's half of the law and the wrapper becomes
+   the workspace's box: the frame then starts where the settle will start and
+   the reader watches the answer grow once from that corner instead of sliding
+   across. The measure survives, because the wrapper keeps the max-width the
+   law above gives it and the frame carries its own 780px besides, and because
+   the reservation is an origin claim: the card is prose and the workspace is
+   1032 pixels wide at 1280.
+
+   Discover was held out of this until round 19, and the reason written then
+   was that its settle is the selection column of a two column layout, so a
+   full width loading wrapper stands further from it than the centred card
+   does, measured at 221.75px against 47.75px at 1280. That was true of the
+   question then being asked, which measured the origin against whichever
+   settle the fixture reached. The 6 September ruling asks a different one:
+   where the origin claim and the shared composition claim conflict the shared
+   composition wins, and the origin is measured against the part every settle
+   shares. Discover's settles share the page and nothing under it, so the claim
+   is where the page's first child stands, and the answer puts that child at
+   the page's own corner. Both readings hold at once, which is why this is a
+   changed question rather than a reversed answer: the centred card is 126px
+   and 48px from that corner at 1280 and the exempted wrapper is 0 from it.
+
+   The selector names the page and not the element because the two wrappers are
+   different elements, a div on Briefing and a section on Discover, and because
+   it has to outweigh the law above on both: a page's child beats
+   div[data-briefing-state] and .explore-state alike, so undoing the law no
+   longer rests on sitting after the narrow block. It still sits after it. */
+.page > .loading-card {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Loading reserves the geometry of what it fetches. The shell's utility strip
+   gains the freshness stamp when the desk resolves; at narrow widths that wraps
+   the strip to a second row and pushed the workspace down 56 pixels, which is
+   where the mobile CLS came from. Reserving the wrapped height from first paint
+   holds the geometry: the loaded strip measures 121 pixels, so the reservation
+   never adds height of its own. One row's floor, a gap, and a second control
+   row. Measured wrap threshold: the strip wraps at 430 and does not at 480, so
+   the reservation stops below 480 rather than leaving a gap at tablet widths.
+   Only routes that can show desk freshness reserve its second row. */
+@media (max-width: 479px) {
+  /* Both classes, because the package sets the strip's floor from
+     .instrument-utility-strip.instrument-rule-boundary and a single class
+     loses to it. */
+  .app[data-reserve-freshness="true"] .instrument-utility-strip.instrument-rule-boundary {
+    min-block-size: calc(var(--space-8) + var(--space-2) + var(--space-7));
+    /* The strip centres its wrapped rows, so reserving height alone would just
+       move the shift: the single loading row would sit centred and then jump up
+       when the second row arrives. Packing the rows to the top keeps the first
+       row where it lands, and the reserved space waits underneath it. */
+    align-content: flex-start;
+  }
+}
+
+/* Round three, 24 Sept 2026: the sign-in wait is painted before app.css
+   and before the shell's route layer, so it carries the route layer's
+   entrance here, in the sheet that is there at first paint: the same fade and
+   6px rise on the same tokens. The package's reduced-motion rule, also in the
+   first-paint sheet, stops it, and so does [data-motion="off"] once app.css
+   lands. Starting at opacity 0 keeps a quick check from flashing the wait,
+   and keeps Chrome from counting its sentence as the page's largest paint. */
+.page.route-wait-enter { animation: routeWaitIn var(--motion-layer) var(--motion-standard-easing) both; }
+@keyframes routeWaitIn { from { opacity: 0; transform: translateY(calc(6px * var(--motion))); } to { opacity: 1; transform: none; } }
+
+/* The three values below are the one place in the host that must NOT read a
+   package token. This is the frame shown when the package stylesheet itself
+   fails to load, and the task-4 production proof corrupts that stylesheet and
+   then asserts these literals still paint. A token here would make the fallback
+   depend on the sheet it exists to survive. */
+.gate-v4--style-error {
+  padding: 20px;
+  background: #151214 !important;
+  color: #F5F1F3 !important;
+}
+
+.gate-v4-style-error {
+  padding: 48px !important;
+  border-top: 1px solid #9D263B !important;
+  background: #FAF8F9 !important;
+  color: #261E23 !important;
+}
+
+/* Width, 4 October 2026. Pages stopped at 1320px and prose at 60 to 72
+   characters, which left the right half of a laptop or desktop screen
+   empty. The design system pack (2.0.22) sets --maxw to 1320px on :root;
+   the doubled :root outranks it until the pack carries the same values.
+   --measure is the one measure for running prose. */
+:root:root { --maxw: 1760px; --measure: 100ch; }

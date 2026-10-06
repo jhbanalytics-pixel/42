@@ -1,0 +1,23 @@
+{
+  "adapter_contract_version": "seo_visibility_request_v2",
+  "request_id": "seor_01j6m7h24y5t9q3x8k1v6c0bda",
+  "client_scope_id": "scope_public_brand_za",
+  "run_id": "run_20260831_za_public_search",
+  "markets": [
+    "za"
+  ],
+  "window_start": "2026-08-01T00:00:00.000000Z",
+  "window_end": "2026-08-30T23:59:59.000000Z",
+  "queries": [
+    "public transport reliability",
+    "commuter rail service updates"
+  ],
+  "brand_domains": [
+    "example.org"
+  ],
+  "competitor_domains": [
+    "comparison.example"
+  ],
+  "decision": "Assess public search evidence for a cited content opportunity.",
+  "query_authority_receipt_id": "seqa_4cd110f8d8fc42625a9293d0242c98eeb3a1b8fe65e8829fb541a72187f8b6a9"
+}

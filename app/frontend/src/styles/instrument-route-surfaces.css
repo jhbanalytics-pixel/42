@@ -1,0 +1,6 @@
+/* The package's deferred half: every instrument family that is not on screen
+   at first paint. The text here is a placeholder so the route modules can
+   import this file under any runtime, the test runner included; the build
+   replaces it with the split's deferred half (vite.config.mjs), and the same
+   module id is what main.jsx loads after first paint, so the route surfaces
+   and the deferral share one copy. */

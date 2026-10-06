@@ -1,0 +1,16 @@
+# Copy to .env at the repo root and fill in. deploy.sh bakes these into the
+# Cloud Run deploy itself; later service updates get wiped by the next deploy,
+# so this file is the single source of env truth.
+
+GCP_PROJECT=ogilvy-trends-v2
+BQ_DATASET=trends_v2_dev
+
+# Gate for /api/* (except /api/health). Leave empty and the gate is open;
+# /api/health reports passcode: false so a missing value is caught at deploy.
+UI_PASSCODE=
+
+# Ask answer cache TTL in seconds. The engine refreshes daily.
+CACHE_TTL=86400
+
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_LOCATION=us-central1

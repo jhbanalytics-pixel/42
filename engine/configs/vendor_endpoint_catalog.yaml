@@ -1,0 +1,822 @@
+# Vendor endpoint catalog.
+#
+# Source-of-truth registry of documented endpoints per vendor that the
+# discovery loop in scripts/engine_evolve.py cross-references against
+# actual connector code (src/ingestion/connectors/*.py). Surfaces
+# "unused endpoint" candidates so we never accidentally pay for a vendor
+# surface we are not calling.
+#
+# Update this file when:
+# - A vendor publishes a new endpoint we have not catalogued
+# - We deprecate an endpoint (mark deprecated: true)
+# - A vendor's docs change (verify_url updated)
+#
+# Discovery loop output: for each documented endpoint NOT found in the
+# connector code, the watchdog logs a candidate-ship recommendation.
+# Endpoints can be tagged `ship_wave` so the watchdog knows when to
+# stop nagging (item is already on the roadmap).
+
+ensembledata:
+  base_url: "https://ensembledata.com/apis"
+  endpoints:
+    - path: /tt/keyword/search
+      status: in_use
+    - path: /tt/hashtag/posts
+      status: in_use
+    - path: /tt/user/posts
+      status: in_use
+    - path: /tt/trending
+      status: removed_dead  # HTTP 404 + absent from openapi.json (4 Jun 2026); never returned rows
+    - path: /tt/post/comments
+      status: dark_shipped
+      ship_wave: 1
+      ship_commit: b16a3c0
+    - path: /instagram/hashtag/posts
+      status: in_use
+    - path: /instagram/user/posts
+      status: in_use
+    - path: /instagram/reels/keyword/search
+      status: not_shipped
+      ship_wave: 2
+      notes: "Reels-specific endpoint. Currently we pull IG via /user/posts only."
+    - path: /threads/keyword/search
+      status: in_use
+    - path: /threads/user/posts
+      status: in_use
+      ship_wave: 3
+      notes: "Threads handle-specific feed. Same pattern as TikTok user/posts."
+    - path: /reddit/subreddit/posts
+      status: in_use
+    - path: /reddit/post/comments
+      status: in_use
+    - path: /reddit/keyword/search
+      status: in_use
+    - path: /reddit/user/posts
+      status: vendor_not_published
+      ship_wave: 2
+      notes: "13 path variants probed against EnsembleData on 28 May 2026; all returned 404. EnsembleData has not published a Reddit user-posts endpoint. Tracking specific high-signal redditors is unreachable via this vendor. Re-probe quarterly."
+    - path: /reddit/subreddit/about
+      status: not_shipped
+      ship_wave: 3
+      notes: "Sub-level metadata. Use case unclear; low priority."
+    - path: /twitter/keyword/search
+      status: vendor_not_published
+      notes: "Confirmed 28 May docs read - vendor does not expose. Wave 1 ship configured this path but it does not exist."
+    - path: /twitter/hashtag/posts
+      status: vendor_not_published
+      notes: "Confirmed 28 May docs read - vendor does not expose. Wave 1 ship configured this path but it does not exist."
+    - path: /twitter/user/posts
+      status: removed_from_code
+      notes: "Wave 1 ship used this path; vendor actually exposes /twitter/user/tweets. Replaced by /twitter/user/tweets in Wave 1 patch."
+    - path: /twitter/user/tweets
+      status: dark_shipped
+      ship_wave: 1_patch
+      ship_commit: d5628e1
+      notes: "Correct path per official EnsembleData docs (28 May). Replaces /twitter/user/posts."
+    - path: /twitter/user/info
+      status: not_shipped
+      notes: "Profile metadata; documented but not wired for ingestion."
+    - path: /twitter/post/info
+      status: not_shipped
+      notes: "Per-tweet metadata refresh; documented but not wired for ingestion."
+    - path: /twitter/list/posts
+      status: not_shipped
+      ship_wave: 3
+      notes: "Twitter List based feeds. Could mirror Reddit subreddit pattern."
+    # Wave 3 (TBD): EnsembleData dark surfaces.
+    - path: /youtube/channel/shorts
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Channel-level Shorts feed. Replaces Google YouTube Data API Shorts gap."
+    - path: /youtube/video/comments
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Per-video comments via EnsembleData. Higher depth than Google Data API."
+    - path: /youtube/channel/videos
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Channel-level video feed via EnsembleData."
+    - path: /youtube/search
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Keyword search via EnsembleData. Confirmed path (NOT /youtube/keyword/search)."
+    - path: /instagram/post/comments
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Per-post comments. High Gen Z signal."
+    - path: /instagram/user/reels
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "User reels feed. Complements /user/posts."
+    - path: /instagram/user/tagged-posts
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Posts where user is tagged. Surfaces creator collaborations."
+    - path: /threads/post/replies
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Post replies. Confirmed path (NOT /threads/post/info-replies)."
+    - path: /tt/music/posts
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Music-driven trend discovery (sound IDs). Adapts to TikTok's audio-virality pattern."
+    - path: /tt/post/comments-replies
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Per-comment replies. Note: DOUBLE-PLURAL path per vendor docs."
+    - path: /tt/post/info
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Per-video metadata refresh. Was Wave 2 candidate; promoted to Wave 3 dark ship."
+    - path: /tt/post/multi-info
+      status: dark_shipped
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Bulk per-video metadata. Cheaper than N x /tt/post/info."
+    # Free customer endpoints (code_landed_flag_off, engine-pulse consumes immediately).
+    - path: /customer/get-used-units
+      status: code_landed_flag_off
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Free endpoint. engine-pulse reads to confirm live unit spend vs ledger projection."
+    - path: /customer/get-history
+      status: code_landed_flag_off
+      ship_wave: 3
+      ship_commit: d5628e1
+      notes: "Free endpoint. Historical unit-spend by date for drift analysis."
+
+snapchat:
+  base_url: "https://ensembledata.com/apis"
+  notes: "snapchat_content_discovery: vendor_not_published. Vendor offers only /snapchat/user/info. No Spotlight, no keyword search, no hashtag, no trending."
+  endpoints:
+    - path: /snapchat/user/info
+      status: not_shipped
+      notes: "Profile metadata only. Low priority, not useful for trend detection."
+
+twitch:
+  base_url: "https://ensembledata.com/apis"
+  notes: "Documented but not wired for ingestion. SSA Twitch presence is thin."
+  endpoints:
+    - path: /twitch/search
+      status: not_shipped
+      notes: "Confirmed path (NOT /twitch/keyword/search)."
+    - path: /twitch/user/followers
+      status: not_shipped
+      notes: "Per-user follower list."
+
+brand24:
+  # RETIRED 21 Aug 2026, vendor cancelled (configs/sources.yaml enabled: false).
+  # Every endpoint below is permanently_disabled so the discovery loop never
+  # surfaces a flip on a cancelled vendor; the paths stay as a record.
+  base_url: "https://api-data.brand24.com/api-data/v1"
+  endpoints:
+    - path: /project/{pid}/topics
+      status: permanently_disabled
+    - path: /project/{pid}/trending-hashtags
+      status: permanently_disabled
+    - path: /project/{pid}/most-followers
+      status: permanently_disabled
+    - path: /project/{pid}/trending-links
+      status: permanently_disabled
+    - path: /project/{pid}/mentions
+      status: permanently_disabled
+      ship_commit: 97d61c7
+      notes: "Live + flipped 28 May (commit 97d61c7). include_mentions=true across all 3 projects post-vendor-contract validation."
+    - path: /project/{pid}/ai-insights
+      status: permanently_disabled
+      ship_wave: 1
+      ship_commit: b16a3c0
+    - path: /project/{pid}/mentions/sentiment
+      status: permanently_disabled
+      ship_wave: 2
+      ship_commit: 8ad51c7
+      notes: "Per-mention sentiment scores. Pairs with the /mentions stream. include_mentions_sentiment flag default-off per project."
+    - path: /project/{pid}/mentions/reach
+      status: permanently_disabled
+      ship_wave: 2
+      ship_commit: 8ad51c7
+      notes: "Per-mention reach estimates. Adds engagement signal not in /mentions. include_mentions_reach flag default-off per project."
+    - path: /project/{pid}/mentions/count
+      status: permanently_disabled
+      ship_wave: 3
+      notes: "Daily rollup. Useful for the engine-pulse cap math; lower priority than reach."
+    - path: /project/{pid}/daily-metrics
+      status: permanently_disabled
+      ship_wave: 2
+      ship_commit: 8ad51c7
+      notes: "Per-project daily rollup. Adds 'today vs 7-day baseline' health signal at zero unit cost. include_daily_metrics flag default-off per project."
+
+gdelt:
+  base_url: "gdelt-bq.gdeltv2"
+  endpoints:
+    - path: gkg_partitioned
+      status: in_use
+    - path: events_partitioned
+      status: dark_shipped
+      ship_wave: 1
+      ship_commit: b16a3c0
+    - path: gkg_partitioned.GCAM
+      status: dark_shipped
+      ship_wave: 1
+      ship_commit: b16a3c0
+      notes: "Column added to GKG SELECT; schema migration for raw_content.v2gcam still deferred."
+    - path: gkg_partitioned.V2EnhancedThemes
+      status: not_shipped
+      ship_wave: 3
+      notes: "Themes with confidence scores. Adds nuance to topic classification."
+
+youtube:
+  base_url: "https://www.googleapis.com/youtube/v3"
+  endpoints:
+    - path: /search
+      status: in_use
+    - path: /videos
+      status: in_use
+    - path: /videos?chart=mostPopular
+      status: in_use
+    - path: /commentThreads
+      status: in_use
+    - path: /playlistItems
+      status: dark_shipped
+      ship_wave: 2
+      ship_commit: 8ad51c7
+      notes: "Channel-level deep dives. 1 unit/call. Adds long-tail catalog coverage. playlist_items_enabled flag default-off per market."
+    - path: /liveBroadcasts
+      status: not_shipped
+      ship_wave: 3
+      notes: "SSA Gen Z LIVE streams. Hard to assess without first-trial cost."
+    - path: /channels
+      status: not_shipped
+      ship_wave: 3
+      notes: "Channel metadata. Adds subscriber-count signal to watchlist."
+
+spotify:
+  base_url: "https://api.spotify.com/v1"
+  notes: "PERMANENTLY DISABLED. Spotify Web API client_credentials flow deprecated 27 Nov 2024 for new apps; rolling cutoff retires existing apps. Replaced by Apple Music RSS Charts (commit 66abb7a). Catalog block retained as documentation in case Spotify reopens access."
+  endpoints:
+    - path: /playlists/{id}/tracks
+      status: permanently_disabled
+      ship_wave: 1
+      ship_commit: b16a3c0
+      notes: "Shipped Wave 1 b16a3c0 default-off; never activated. Spotify Web API client_credentials flow deprecated; superseded by Apple Music RSS Charts (commit 66abb7a)."
+    - path: /search
+      status: permanently_disabled
+      ship_wave: 3
+      notes: "Superseded by Apple Music RSS Charts (commit 66abb7a). No path forward without Spotify reopening client_credentials access."
+
+bigquery_trends:
+  base_url: "bigquery-public-data.google_trends"
+  endpoints:
+    - path: international_top_rising_terms
+      status: in_use
+    - path: international_top_terms
+      status: dark_shipped
+      ship_wave: 2
+      ship_commit: 8ad51c7
+      notes: "Steady-state terms (not just rising). Adds confidence for cultural staples. top_terms.enabled flag default-off."
+
+apple_music:
+  base_url: "https://rss.marketingtools.apple.com/api/v2"
+  notes: "Replaces Spotify (deprecated client_credentials flow). Free, no auth, no quota. RSS Charts shipped 28 May 2026 (commit 66abb7a)."
+  endpoints:
+    - path: /{market}/music/most-played/50/songs.json
+      status: in_use
+      ship_commit: 66abb7a
+      notes: "Top 50 most-played songs per market (ZA, NG, KE). 50 tracks × 3 markets = 150 rows/day target."
+
+rss_feeds:
+  base_url: "(publisher-owned RSS endpoints; see configs/sources.yaml rss.feeds)"
+  notes: "Direct RSS pulls per publisher. Connector sends a single static polite-bot User-Agent ('Mozilla/5.0 (compatible; OgilvyTrendsEngineV2/1.0; +https://github.com/jhbanalytics-pixel/trends-engine-v2)') on every fetch. No UA rotation, no Referer header. The polite-bot identifier honours publisher robots-policy preferences by declaring the project and a contact URL so traffic is traceable."
+  endpoints:
+    - path: news24.com/rss
+      status: in_use
+      notes: "Polite-bot UA sufficient to bypass default-urllib 403."
+    - path: iol.co.za/cmlink/1.730
+      status: not_shipped
+      notes: "Not present in configs/sources.yaml. IOL listed in connector comment as 403-bot-protected; no active feed entry. Re-probe and add to sources.yaml if unblocked."
+    - path: premiumtimesng.com/feed
+      status: in_use
+      notes: "Polite-bot UA sufficient to bypass default-urllib 403."
+    - path: dailymaverick.co.za/dmrss
+      status: vendor_not_published
+      notes: "WAF-blocked 28 May 2026; Cloudflare challenge page returned on every probe. Polite-bot UA insufficient. No workaround at the connector layer; needs server-side fetch from a non-blocked egress IP. Re-probe quarterly."
+    - path: guardian.ng/feed
+      status: vendor_not_published
+      notes: "WAF-blocked 28 May 2026; Cloudflare challenge page returned on every probe. Polite-bot UA insufficient. No workaround at the connector layer; needs server-side fetch from a non-blocked egress IP. Re-probe quarterly."
+
+socialcrawl:
+  base_url: "https://www.socialcrawl.dev/v1"
+  # 356 endpoints across 46 platforms in the vendor spec. Only the platforms this
+  # engine can actually use are catalogued; linkedin (44), naver (12), github (12),
+  # hackernews, polymarket and the link-in-bio family are out of domain and are
+  # deliberately absent so the discovery loop does not nag about them forever.
+  verify_url: "https://www.socialcrawl.dev/v1 (openapi 3.1.0, pulled 23 Jul 2026)"
+  endpoints:
+    - path: /app_store/app-info
+      status: not_shipped
+    - path: /app_store/app-list
+      status: not_shipped
+    - path: /app_store/app-listings-search
+      status: not_shipped
+    - path: /app_store/app-reviews
+      status: not_shipped
+    - path: /app_store/app-search
+      status: not_shipped
+    - path: /app_store/categories
+      status: not_shipped
+    - path: /app_store/languages
+      status: not_shipped
+    - path: /app_store/locations
+      status: not_shipped
+    - path: /app_store/search-suggestions
+      status: not_shipped
+    - path: /bluesky/post
+      status: not_shipped
+    - path: /bluesky/profile
+      status: not_shipped
+    - path: /bluesky/user/posts
+      status: not_shipped
+      ship_wave: s7_extra_platforms
+    - path: /content_analysis/categories
+      status: not_shipped
+    - path: /content_analysis/category-trends
+      status: not_shipped
+    - path: /content_analysis/filters
+      status: not_shipped
+    - path: /content_analysis/languages
+      status: not_shipped
+    - path: /content_analysis/locations
+      status: not_shipped
+    - path: /content_analysis/phrase-trends
+      status: not_shipped
+    - path: /content_analysis/rating-distribution
+      status: not_shipped
+    - path: /content_analysis/search
+      status: not_shipped
+    - path: /content_analysis/sentiment
+      status: not_shipped
+    - path: /content_analysis/summary
+      status: not_shipped
+    - path: /facebook/adlibrary/ad
+      status: not_shipped
+    - path: /facebook/adlibrary/ad/transcript
+      status: not_shipped
+    - path: /facebook/adlibrary/company/ads
+      status: not_shipped
+    - path: /facebook/adlibrary/search/ads
+      status: not_shipped
+    - path: /facebook/adlibrary/search/companies
+      status: not_shipped
+    - path: /facebook/event/details
+      status: not_shipped
+    - path: /facebook/events
+      status: not_shipped
+    - path: /facebook/events/search
+      status: not_shipped
+    - path: /facebook/group/posts
+      status: not_shipped
+    - path: /facebook/marketplace/item
+      status: not_shipped
+    - path: /facebook/marketplace/location/search
+      status: not_shipped
+    - path: /facebook/marketplace/search
+      status: not_shipped
+    - path: /facebook/post
+      status: not_shipped
+    - path: /facebook/post/comment/replies
+      status: not_shipped
+    - path: /facebook/post/comments
+      status: not_shipped
+    - path: /facebook/post/transcript
+      status: not_shipped
+    - path: /facebook/profile
+      status: not_shipped
+    - path: /facebook/profile/events
+      status: not_shipped
+    - path: /facebook/profile/full
+      status: not_shipped
+    - path: /facebook/profile/photos
+      status: not_shipped
+    - path: /facebook/profile/posts
+      status: not_shipped
+    - path: /facebook/profile/reels
+      status: not_shipped
+    - path: /facebook/profile/reels/full
+      status: not_shipped
+    - path: /google/ad
+      status: not_shipped
+    - path: /google/adlibrary/advertisers/search
+      status: not_shipped
+    - path: /google/business/extended-reviews
+      status: not_shipped
+    - path: /google/business/info
+      status: not_shipped
+    - path: /google/business/questions
+      status: not_shipped
+    - path: /google/business/updates
+      status: not_shipped
+    - path: /google/company/ads
+      status: not_shipped
+    - path: /google/hotels/info
+      status: not_shipped
+    - path: /google/hotels/search
+      status: not_shipped
+    - path: /google/search
+      status: not_shipped
+    - path: /google_news/search
+      status: in_use
+    - path: /google_play/app-info
+      status: not_shipped
+    - path: /google_play/app-list
+      status: not_shipped
+    - path: /google_play/app-listings-search
+      status: not_shipped
+    - path: /google_play/app-reviews
+      status: not_shipped
+    - path: /google_play/app-search
+      status: not_shipped
+    - path: /google_play/categories
+      status: not_shipped
+    - path: /google_play/languages
+      status: not_shipped
+    - path: /google_play/locations
+      status: not_shipped
+    - path: /google_play/search-suggestions
+      status: not_shipped
+    - path: /google_trends/explore
+      status: not_shipped
+    - path: /google_trends/rising
+      status: removed_dead
+      notes: "UPSTREAM_ERROR timeout on probe, refunded; retry later"
+    - path: /instagram/audio/reels
+      status: not_shipped
+    - path: /instagram/basic-profile
+      status: not_shipped
+    - path: /instagram/comment
+      status: not_shipped
+    - path: /instagram/engagement
+      status: not_shipped
+    - path: /instagram/followers
+      status: not_shipped
+    - path: /instagram/following
+      status: not_shipped
+    - path: /instagram/highlight/detail
+      status: not_shipped
+    - path: /instagram/highlights
+      status: not_shipped
+    - path: /instagram/location/posts
+      status: not_shipped
+    - path: /instagram/media/transcript
+      status: not_shipped
+    - path: /instagram/music/trending
+      status: not_shipped
+    - path: /instagram/post
+      status: not_shipped
+    - path: /instagram/post/comments
+      status: not_shipped
+      ship_wave: s8_instagram_comments
+    - path: /instagram/post/likers
+      status: not_shipped
+    - path: /instagram/post/stats
+      status: not_shipped
+    - path: /instagram/profile
+      status: not_shipped
+    - path: /instagram/profile/full
+      status: not_shipped
+    - path: /instagram/profile/posts
+      status: in_use
+    - path: /instagram/profile/posts/full
+      status: not_shipped
+    - path: /instagram/profile/reels
+      status: not_shipped
+    - path: /instagram/profile/reels/full
+      status: not_shipped
+    - path: /instagram/reels/trending
+      status: not_shipped
+    - path: /instagram/search/hashtag
+      status: removed_dead
+      notes: "5 credits, no geo scoping; a ZA query returned a London event"
+    - path: /instagram/search/location
+      status: not_shipped
+    - path: /instagram/search/music
+      status: not_shipped
+    - path: /instagram/search/profiles
+      status: not_shipped
+    - path: /instagram/search/reels
+      status: not_shipped
+    - path: /instagram/similar
+      status: not_shipped
+    - path: /instagram/stories
+      status: not_shipped
+    - path: /instagram/story/download
+      status: not_shipped
+    - path: /instagram/tagged
+      status: not_shipped
+    - path: /instagram/user/embed
+      status: not_shipped
+    - path: /instagram/username-suggestions
+      status: not_shipped
+    - path: /kwai/post
+      status: not_shipped
+    - path: /kwai/profile
+      status: not_shipped
+    - path: /kwai/user/posts
+      status: not_shipped
+    - path: /pinterest/board
+      status: not_shipped
+    - path: /pinterest/pin
+      status: not_shipped
+    - path: /pinterest/search
+      status: not_shipped
+      ship_wave: s7_extra_platforms
+    - path: /pinterest/url-stats
+      status: not_shipped
+    - path: /pinterest/user/boards
+      status: not_shipped
+    - path: /prism/ai-visibility
+      status: not_shipped
+    - path: /prism/answers
+      status: not_shipped
+    - path: /prism/app-reviews
+      status: not_shipped
+    - path: /prism/apps-lookup
+      status: not_shipped
+    - path: /prism/audience-overlap
+      status: not_shipped
+    - path: /prism/audience-questions
+      status: not_shipped
+    - path: /prism/brand-mentions
+      status: not_shipped
+    - path: /prism/campaign
+      status: not_shipped
+    - path: /prism/comment-lookup
+      status: not_shipped
+    - path: /prism/comments
+      status: not_shipped
+    - path: /prism/creator-card
+      status: not_shipped
+    - path: /prism/creator-vet
+      status: not_shipped
+    - path: /prism/crisis-postmortem
+      status: not_shipped
+    - path: /prism/crisis-radar
+      status: not_shipped
+    - path: /prism/demand-signals
+      status: not_shipped
+    - path: /prism/devtool-pulse
+      status: not_shipped
+    - path: /prism/earned-media
+      status: not_shipped
+    - path: /prism/employer-brand
+      status: not_shipped
+    - path: /prism/handle-audit
+      status: not_shipped
+    - path: /prism/korea-gap
+      status: not_shipped
+    - path: /prism/launch-echo
+      status: not_shipped
+    - path: /prism/leads
+      status: not_shipped
+    - path: /prism/lookup
+      status: not_shipped
+    - path: /prism/org-radar
+      status: not_shipped
+    - path: /prism/post-stats
+      status: not_shipped
+    - path: /prism/product-reviews
+      status: not_shipped
+    - path: /prism/profiles
+      status: not_shipped
+    - path: /prism/reputation
+      status: not_shipped
+    - path: /prism/review-integrity
+      status: not_shipped
+    - path: /prism/share-of-voice
+      status: not_shipped
+    - path: /prism/truthsocial-pulse
+      status: not_shipped
+    - path: /prism/video-intel
+      status: not_shipped
+    - path: /prism/voice
+      status: not_shipped
+    - path: /reddit/omni-search
+      status: removed_dead
+      notes: "bills 5 credits against a documented 1 (probed 23 Jul 2026)"
+    - path: /reddit/post
+      status: not_shipped
+    - path: /reddit/post/comments
+      status: not_shipped
+    - path: /reddit/post/transcript
+      status: not_shipped
+    - path: /reddit/search
+      status: in_use
+    - path: /reddit/subreddit
+      status: in_use
+    - path: /reddit/subreddit/details
+      status: not_shipped
+    - path: /reddit/subreddit/search
+      status: not_shipped
+    - path: /rumble/channel/videos
+      status: not_shipped
+    - path: /rumble/search
+      status: not_shipped
+    - path: /rumble/video
+      status: not_shipped
+    - path: /rumble/video/comments
+      status: not_shipped
+    - path: /rumble/video/transcript
+      status: not_shipped
+    - path: /search/everywhere
+      status: not_shipped
+    - path: /search/forums
+      status: not_shipped
+    - path: /snapchat/profile
+      status: not_shipped
+    - path: /spotify/album
+      status: not_shipped
+    - path: /spotify/artist
+      status: not_shipped
+    - path: /spotify/podcast
+      status: not_shipped
+    - path: /spotify/podcast/episodes
+      status: not_shipped
+    - path: /spotify/search
+      status: not_shipped
+    - path: /spotify/track
+      status: not_shipped
+    - path: /threads/post
+      status: not_shipped
+    - path: /threads/profile
+      status: not_shipped
+    - path: /threads/search
+      status: in_use
+    - path: /threads/search/users
+      status: not_shipped
+    - path: /threads/user/posts
+      status: in_use
+    - path: /tiktok/comment
+      status: not_shipped
+    - path: /tiktok/post
+      status: not_shipped
+    - path: /tiktok/post/comments
+      status: not_shipped
+      ship_wave: s4_tiktok_comments
+    - path: /tiktok/post/transcript
+      status: not_shipped
+    - path: /tiktok/profile
+      status: not_shipped
+    - path: /tiktok/profile/full
+      status: not_shipped
+    - path: /tiktok/profile/region
+      status: in_use
+    - path: /tiktok/profile/videos
+      status: in_use
+    - path: /tiktok/search
+      status: removed_dead
+      notes: "returns 0 items with any date_posted or region value (probed 23 Jul 2026)"
+    - path: /tiktok/search/hashtag
+      status: not_shipped
+    - path: /tiktok/search/top
+      status: in_use
+    - path: /tiktok/search/users
+      status: not_shipped
+    - path: /tiktok/song
+      status: not_shipped
+    - path: /tiktok/song/videos
+      status: not_shipped
+    - path: /tiktok/trending
+      status: in_use
+    - path: /tiktok/user/audience
+      status: not_shipped
+      ship_wave: s6_demographics_weekly
+    - path: /tiktok/user/followers
+      status: not_shipped
+    - path: /tiktok/user/following
+      status: not_shipped
+    - path: /tiktok/user/live
+      status: not_shipped
+    - path: /tiktok/video/comment/replies
+      status: not_shipped
+    - path: /twitch/clip
+      status: not_shipped
+    - path: /twitch/profile
+      status: not_shipped
+    - path: /twitch/user/schedule
+      status: not_shipped
+    - path: /twitch/user/videos
+      status: not_shipped
+    - path: /twitter/ai-search
+      status: not_shipped
+    - path: /twitter/community
+      status: not_shipped
+    - path: /twitter/community/tweets
+      status: not_shipped
+    - path: /twitter/profile
+      status: not_shipped
+    - path: /twitter/profile/full
+      status: not_shipped
+    - path: /twitter/tweet
+      status: not_shipped
+    - path: /twitter/tweet/transcript
+      status: not_shipped
+    - path: /twitter/user/tweets
+      status: in_use
+    - path: /web/agent
+      status: not_shipped
+    - path: /web/batch-scrape
+      status: not_shipped
+    - path: /web/crawl
+      status: not_shipped
+    - path: /web/extract
+      status: not_shipped
+    - path: /web/jobs
+      status: not_shipped
+    - path: /web/jobs/{job_id}
+      status: not_shipped
+    - path: /web/map
+      status: not_shipped
+    - path: /web/monitors
+      status: not_shipped
+    - path: /web/monitors/{monitor_id}
+      status: not_shipped
+    - path: /web/monitors/{monitor_id}/checks
+      status: not_shipped
+    - path: /web/parse
+      status: not_shipped
+    - path: /web/scrape
+      status: not_shipped
+    - path: /web/search
+      status: not_shipped
+    - path: /web/sessions
+      status: not_shipped
+    - path: /web/sessions/{session_id}
+      status: not_shipped
+    - path: /web/sessions/{session_id}/execute
+      status: not_shipped
+    - path: /youtube/channel
+      status: not_shipped
+    - path: /youtube/channel/community-posts
+      status: not_shipped
+    - path: /youtube/channel/lives
+      status: not_shipped
+    - path: /youtube/channel/playlists
+      status: not_shipped
+    - path: /youtube/channel/shorts
+      status: not_shipped
+    - path: /youtube/channel/videos
+      status: not_shipped
+    - path: /youtube/channels
+      status: not_shipped
+    - path: /youtube/community-post
+      status: not_shipped
+    - path: /youtube/playlist
+      status: not_shipped
+    - path: /youtube/playlist/items
+      status: not_shipped
+    - path: /youtube/profile/full
+      status: not_shipped
+    - path: /youtube/search
+      status: in_use
+    - path: /youtube/search/advanced
+      status: not_shipped
+    - path: /youtube/search/hashtag
+      status: not_shipped
+    - path: /youtube/search/suggestions
+      status: not_shipped
+    - path: /youtube/shorts/trending
+      status: not_shipped
+    - path: /youtube/transcripts
+      status: not_shipped
+    - path: /youtube/video
+      status: not_shipped
+    - path: /youtube/video/audio
+      status: not_shipped
+    - path: /youtube/video/comment/replies
+      status: not_shipped
+    - path: /youtube/video/comments
+      status: not_shipped
+    - path: /youtube/video/files
+      status: not_shipped
+    - path: /youtube/video/sponsors
+      status: not_shipped
+    - path: /youtube/video/subtitles
+      status: not_shipped
+    - path: /youtube/video/thumbnails
+      status: not_shipped
+    - path: /youtube/video/transcript
+      status: not_shipped
+    - path: /youtube/videos
+      status: not_shipped
+    - path: /youtube/videos/trending
+      status: in_use

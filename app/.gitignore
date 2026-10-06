@@ -1,0 +1,27 @@
+.env
+.env.*
+.venv/
+__pycache__/
+node_modules/
+*.pyc
+web/dist/
+frontend/node_modules/
+# confidential / not part of the app
+_local_preview.py
+*.jpeg
+*.jpg
+*.png
+.playwright-mcp/
+.DS_Store
+*-credentials.json
+*-key.json
+service-account*.json
+# Design prototype exports (reference, not app code)
+design-handoff/
+design-handoff-v2/
+design-handoff-v3/
+
+# code-quality-gate skill ledger (tooling state, not app code)
+.code-quality-gate/
+.local-notes/
+frontend/test-results/

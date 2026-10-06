@@ -1,0 +1,33 @@
+{
+  "contract_version": "wave1-gdelt-dry-run-set-v1",
+  "receipts": [
+    {
+      "dry_run_receipt_id": "gdry_39c40a970e659ca86e9eacea60b97fb89b3fc0163c6de32deacce8892e490217",
+      "name": "events",
+      "sql_digest": "0358d093c32559862016a793ae487d4d6bdc83f60df63e4e4066d495d116bb8d",
+      "start_date": "2026-08-14",
+      "end_date": "2026-08-27",
+      "total_bytes_processed": 478242050,
+      "created_at": "2026-09-01T07:00:12.463000Z",
+      "ended_at": "2026-09-01T07:00:12.991000Z",
+      "principal_email": "jhb.analytics@gmail.com",
+      "etag": "RQZY7J0hNQPaBl5lk5a2+w==",
+      "project": "ogilvy-trends-v2",
+      "location": "US"
+    },
+    {
+      "dry_run_receipt_id": "gdry_fdc039d35cacb0680b9316f28d05b1ff4f7aff66afc603053c606fa747ed0c45",
+      "name": "gcam",
+      "sql_digest": "fde6d16a8e1c105866a2a5b287a82675dbca3bf2dd44bbd89b9ec601c0dc71c4",
+      "start_date": "2026-08-14",
+      "end_date": "2026-08-27",
+      "total_bytes_processed": 37284235082,
+      "created_at": "2026-09-01T09:38:23.403000Z",
+      "ended_at": "2026-09-01T09:38:23.764000Z",
+      "principal_email": "jhb.analytics@gmail.com",
+      "etag": "JQJRyEbCKd7OwjfR/2emOw==",
+      "project": "ogilvy-trends-v2",
+      "location": "US"
+    }
+  ]
+}

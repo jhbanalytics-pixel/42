@@ -1,0 +1,11 @@
+<svg viewBox="0 0 480 120" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="480" height="120" fill="#0B1220"/>
+  <g transform="translate(0,0)">
+    <circle cx="60" cy="60" r="58" fill="#0B1220" stroke="#1E293B" stroke-width="2"/>
+    <path d="M14,62 L34,62 L44,34 L56,92 L66,20 L76,62 L106,62"
+          fill="none" stroke="#00E5A0" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="106" cy="62" r="6" fill="#FFB020"/>
+  </g>
+  <text x="140" y="70" font-family="Segoe UI, Arial, sans-serif" font-size="46" font-weight="700" letter-spacing="2" fill="#FFFFFF">PULSE</text>
+  <text x="141" y="92" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" letter-spacing="5" fill="#94A3B8">SIGNAL DESK</text>
+</svg>

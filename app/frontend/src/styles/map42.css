@@ -1,0 +1,113 @@
+/* The Map (map.jsx): five groups of pages, each a heading and one line on
+   the left and the pages as plain linked cards on the right; one column
+   below 900px. Scoped to .map42 so the old journey map rules in app.css
+   (.map-node) are overridden here, never edited. */
+.map42 .ui-page-hero { border-top: 0; padding-top: 0; }
+.map42 .ui-page-hero-title { text-wrap: balance; }
+.map42 .ui-page-hero-sub { max-width: var(--measure); text-wrap: pretty; }
+
+.map42-group {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: var(--s-4) var(--s-6);
+  align-items: start;
+  padding: var(--s-5) 0;
+  border-top: 1px solid var(--line);
+}
+.map42-group:first-of-type { margin-top: var(--s-6); }
+
+.map42-group-head { display: grid; gap: var(--s-2); }
+.map42-group-title {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: var(--type-section-title);
+  line-height: var(--leading-section-title);
+  font-weight: 600;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.map42-group-blurb {
+  margin: 0;
+  max-width: 40ch;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.map42-nodes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 48rem;
+  gap: var(--s-3);
+}
+.map42-item { display: flex; min-width: 0; }
+
+.map42 .map-node {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--motion-row) var(--motion-standard-easing), background-color var(--motion-row) var(--motion-standard-easing);
+}
+.map42 .map-node:hover { border-color: var(--line-2); background: var(--surface-2); }
+.map42 .map-node:focus-visible {
+  outline: var(--focus-width, 2px) solid var(--accent);
+  outline-offset: var(--focus-offset);
+  border-color: var(--line-2);
+}
+.map42 .map-node[aria-current="page"] { background: var(--canvas); border-color: var(--line-2); }
+
+.map42-node-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: var(--s-1) var(--s-3);
+}
+.map42 .map-node-label {
+  font-family: var(--sans);
+  font-size: var(--type-signal-title);
+  line-height: var(--leading-signal-title);
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.map42-where { font-size: var(--type-body); color: var(--muted); white-space: nowrap; }
+.map42-desc {
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+@media (max-width: 900px) {
+  .map42-group { grid-template-columns: minmax(0, 1fr); }
+  .map42-group-blurb { max-width: var(--measure); }
+}
+@media (max-width: 480px) {
+  .map42-nodes { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map42 .map-node { transition: none; }
+}
+
+/* No AI look pass, 4 October 2026: the pages are a list of rows on a
+   hairline, not a wall of boxes; the page the reader is on is marked by a
+   rule at its start. */
+.map42-nodes { gap: 0 var(--s-6); }
+.map42 .map-node { padding: var(--s-3) 0; background: none; border: 0; border-top: 1px solid var(--line); gap: var(--s-1); }
+.map42 .map-node:hover { background: var(--surface); border-color: var(--line); }
+.map42 .map-node[aria-current="page"] { background: none; box-shadow: inset 2px 0 0 var(--ink); padding-inline-start: var(--s-3); }
+.map42-group { padding-top: 0; }
+.map42-group-head { padding-top: var(--s-3); }
+.map42-nodes { margin-top: -1px; }

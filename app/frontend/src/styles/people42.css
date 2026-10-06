@@ -1,0 +1,122 @@
+.pp42 {
+  --pp42-small: var(--type-body);
+  --pp42-body: var(--type-body);
+  --pp42-lead: var(--type-signal-title);
+  --pp42-head: var(--type-page-title);
+  font-family: var(--sans);
+  font-size: var(--type-body);
+  color: var(--ink);
+  padding: var(--s-6) var(--s-5);
+  max-width: var(--maxw);
+
+  line-height: var(--leading-body);
+}
+
+.pp42 :focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.pp42-head { margin-bottom: var(--s-4); display: grid; gap: var(--s-2); justify-items: start; }
+.pp42-heading { font-size: var(--type-page-title); font-weight: 600; line-height: var(--leading-page-title); margin: 0; overflow-wrap: anywhere; }
+.pp42-sub { font-size: var(--pp42-small); color: var(--muted); margin: 0; }
+.pp42-status { font-size: var(--pp42-body); color: var(--muted); }
+.pp42-line { font-size: var(--pp42-small); color: var(--muted); margin: 0 0 var(--s-3); }
+.pp42-muted { color: var(--muted); }
+.pp42-fig { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+
+.pp42-part { font-size: var(--pp42-small); margin-bottom: var(--s-5); }
+.pp42-part-title { font-size: var(--type-section-title); font-weight: 600; margin: 0 0 var(--s-3);
+  line-height: var(--leading-section-title);
+}
+.pp42-grid { display: grid; gap: var(--s-5); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.pp42-rows { margin: 0; padding-left: var(--s-4); display: grid; gap: var(--s-1); }
+
+.pp42-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-4); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.pp42-card { display: grid; gap: var(--s-2); align-content: start; }
+.pp42-card-list { list-style: none; margin: 0; padding: 0; }
+.pp42-card .pp42-line { margin: 0; }
+
+.pp42-list { list-style: none; margin: 0 0 var(--s-5); padding: 0; border-top: 1px solid var(--line); }
+.pp42-list-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-3); padding: var(--s-3); border-bottom: 1px solid var(--line); font-size: var(--pp42-small); animation: pp42RowIn var(--motion-layer) var(--motion-standard-easing) backwards; animation-delay: calc(min(var(--row-step, 0), 4) * 80ms); transition: background-color var(--motion-row) var(--motion-standard-easing); }
+.pp42-list-row:hover, .pp42-list-row:focus-within { background: var(--surface); }
+.pp42-list > :nth-child(2) { --row-step: 1; }
+.pp42-list > :nth-child(3) { --row-step: 2; }
+.pp42-list > :nth-child(4) { --row-step: 3; }
+.pp42-list > :nth-child(n+5) { --row-step: 4; }
+@keyframes pp42RowIn { from { opacity: 0; transform: translateY(4px); } }
+
+/* An empty list says what happened in ink, then what to do next. */
+.pp42-empty { display: grid; gap: var(--s-1); padding: var(--s-4) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.pp42-empty-title { margin: 0; font-size: var(--pp42-body); font-weight: 600; color: var(--ink); }
+.pp42-empty-next { margin: 0; font-size: var(--pp42-body); color: var(--ink-2); }
+/* Design audit, 2 October 2026: an explanation that is not the state waits
+   in a closed disclosure after it (inverted pyramid; NN/g, empty states are
+   the state and a way on). The look is the Coverage method line,
+   .cv42-method in coverage42.css: one quiet line with a turning chevron and
+   a hairline under it, opening with a short fade. */
+.pp42-about { margin: var(--s-3) 0 0; border-bottom: 1px solid var(--line); }
+.pp42-about > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--ink-2);
+  list-style: none;
+}
+.pp42-about > summary::-webkit-details-marker { display: none; }
+.pp42-about > summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: 2px var(--s-1);
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+.pp42-about[open] > summary::before { transform: rotate(45deg); }
+.pp42-about > summary:is(:hover, :focus-visible) { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.pp42-about-body { margin: 0; padding: 0 0 var(--s-3); color: var(--ink-2); text-wrap: pretty; }
+.pp42-about[open] > .pp42-about-body { animation: pp42AboutIn var(--motion-layer) var(--motion-standard-easing) backwards; }
+@keyframes pp42AboutIn { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .pp42-about[open] > .pp42-about-body { animation: none; }
+  .pp42-about > summary::before { transition: none; }
+}
+.pp42-row-title { font-size: var(--type-signal-title); font-weight: 600; color: var(--ink); overflow-wrap: anywhere;
+  line-height: var(--leading-signal-title);
+}
+
+.pp42-posts { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-4); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.pp42-post { display: flex; gap: var(--s-3); }
+.pp42-thumb { width: 72px; height: 96px; flex: none; object-fit: cover; display: block; background: var(--surface-inset); border: 1px solid var(--line); }
+.pp42-post-body { min-width: 0; }
+.pp42-post-meta { margin: 0; color: var(--muted); }
+.pp42-post-text { margin: var(--s-1) 0; overflow-wrap: anywhere; }
+
+.pp42-link { color: var(--ink); font-size: var(--pp42-small); text-decoration: underline; text-underline-offset: 2px; }
+.pp42-button {
+  font: inherit;
+  font-size: var(--pp42-body);
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line-2);
+  padding: var(--s-1) var(--s-4);
+  min-height: var(--target-min);
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+.pp42-button:hover, .pp42-button:focus-visible { border-color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pp42-list-row { animation: none; }
+}
+
+/* Layout pass two, 4 October 2026: on a phone the workspace already pads
+   the page, so these pages sit on the same 24px gutter as every other. */
+@media (max-width: 479px) {
+  .pp42 { padding-inline: 0; }
+}

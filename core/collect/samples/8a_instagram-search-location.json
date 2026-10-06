@@ -1,0 +1,41 @@
+{
+  "probe": "8a",
+  "route": "instagram/search/location",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 30>",
+        {
+          "location": {
+            "address": "<str>",
+            "city": "<null>",
+            "external_source": "<str>",
+            "facebook_places_id": "<int>",
+            "has_viewer_saved": "<bool>",
+            "lat": "<float>",
+            "lng": "<float>",
+            "name": "<str>",
+            "pk": "<int>",
+            "short_name": "<str>"
+          },
+          "subtitle": "<str>",
+          "title": "<str>",
+          "vendor_labels": {}
+        }
+      ]
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<null>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

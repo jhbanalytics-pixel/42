@@ -1,0 +1,313 @@
+{
+  "_note": "Synthetic values in the key shapes of the 28 September 2026 live probe (run probe-20260928T191308Z). SocialCrawl wraps every route in data.items[] of {computed, post: {author, content, engagement, ext, flags, id, published_at, url}, vendor_labels}; boards and charts carry rank in post.ext.trend; tiktok/hashtag returns one such entry at data level; search/multi names the platform on each item and keeps only call metadata under sources. Every value here is invented.",
+  "tiktok_trending": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 5, "endpoint": "tiktok/trending", "platform": "tiktok",
+    "request_id": "req_t1", "success": true, "pagination": {"has_more": false, "next_cursor": null, "page_size": 2},
+    "data": {
+      "dropped": 0, "total": null,
+      "items": [
+        {
+          "computed": {"content_category": "music", "engagement_rate": 0.05, "estimated_reach": 9000, "language": "zu"},
+          "vendor_labels": {},
+          "post": {
+            "author": {"avatar_url": "https://p16.example/a1.jpg", "display_name": "Kasi Keys", "username": "kasi.keys", "verified": false},
+            "content": {"duration_seconds": 21.4, "media_urls": "https://v16.example/m1.mp4", "text": "Friday groove #kasivibes", "thumbnail_url": "https://p16.example/t1.jpg"},
+            "engagement": {"comments": 30, "likes": 700, "saves": 15, "shares": 9, "views": 11000},
+            "ext": {"author_id": "6900000000000000001", "content_language": "zu", "music_id": "7300000000000000001", "on_screen_texts": ["groove"], "published_at_epoch": 1790546400, "region": "ZA"},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "7500000000000000001",
+            "published_at": "2026-09-27T22:00:00.000Z",
+            "url": "https://www.tiktok.com/@kasi.keys/video/7500000000000000001"
+          }
+        },
+        {
+          "computed": {"content_category": "food", "engagement_rate": 0.02, "estimated_reach": 400, "language": null},
+          "vendor_labels": {},
+          "post": {
+            "author": {"avatar_url": null, "display_name": null, "username": "pap.and.wors", "verified": false},
+            "content": {"duration_seconds": null, "media_urls": null, "text": "Sunday plate", "thumbnail_url": null},
+            "engagement": {"comments": 2, "likes": null, "saves": null, "shares": 1, "views": 350},
+            "ext": {"author_id": "6900000000000000002", "content_language": "en", "music_id": "7300000000000000002", "on_screen_texts": [], "published_at_epoch": 1790506800, "region": "ZA"},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "7500000000000000002",
+            "published_at": null,
+            "url": "https://www.tiktok.com/@pap.and.wors/video/7500000000000000002"
+          }
+        }
+      ]
+    }
+  },
+  "youtube_trending": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 1, "endpoint": "youtube/videos/trending", "platform": "youtube",
+    "request_id": "req_y1", "success": true, "pagination": {"has_more": true, "next_cursor": "c2", "page_size": 1},
+    "data": {
+      "dropped": 0, "next_cursor": "c2", "total": 1,
+      "items": [
+        {
+          "computed": {"content_category": "sport", "engagement_rate": 0.01, "estimated_reach": 50000, "language": null},
+          "vendor_labels": {},
+          "post": {
+            "author": {"avatar_url": null, "display_name": "Pitch Side", "username": null, "verified": null},
+            "content": {"duration_seconds": 612, "media_urls": null, "text": "Derby recap", "thumbnail_url": "https://i.example/yt1.jpg"},
+            "engagement": {"comments": 80, "likes": 2100, "saves": null, "shares": null, "views": 64000},
+            "ext": {"caption": "false", "categoryId": "17", "categoryTitle": "Sports", "channel_id": "UCsyntheticPitch01", "defaultAudioLanguage": "en", "default_language": "en", "description": "Full recap", "duration": "PT10M12S", "hasPaidProductPlacement": false, "license": "youtube", "madeForKids": false, "tags": ["derby", "recap"], "topicCategories": ["https://en.wikipedia.org/wiki/Sport"]},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "ytSynth001",
+            "published_at": "2026-09-27T15:00:00Z",
+            "url": "https://www.youtube.com/watch?v=ytSynth001"
+          }
+        }
+      ]
+    }
+  },
+  "search_top": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 1, "endpoint": "tiktok/search/top", "platform": "tiktok",
+    "request_id": "req_s1", "success": true,
+    "data": {
+      "dropped": 0, "total": null,
+      "walk": {"credits": {"pages": 1, "refunded": 0}, "discarded": {"country_not_included": 0}, "pages": 1, "repeats": 0, "request_ids": ["r1"], "rows_fetched": 1, "rows_returned": 1, "stopped": "exhausted"},
+      "items": [
+        {
+          "computed": {"content_category": "dance", "engagement_rate": 0.04, "estimated_reach": 3000, "language": null},
+          "vendor_labels": {},
+          "post": {
+            "author": {"avatar_url": null, "display_name": "Nai Steps", "username": "nai.steps", "verified": false},
+            "content": {"duration_seconds": 12.0, "media_urls": null, "text": "Matatu moves", "thumbnail_url": null},
+            "engagement": {"comments": 4, "likes": 120, "saves": 3, "shares": 2, "views": 2500},
+            "ext": {"author_followers": 45000, "author_id": "6900000000000000003", "download_count": 1, "music_id": "7300000000000000003", "published_at_epoch": 1790499600, "region": "KE"},
+            "flags": {"deleted": false, "nsfw": null, "pinned": false, "spoiler": null},
+            "id": "7500000000000000003",
+            "published_at": "2026-09-27T07:00:00Z",
+            "url": "https://www.tiktok.com/@nai.steps/video/7500000000000000003"
+          }
+        }
+      ]
+    }
+  },
+  "hashtags_popular": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 6, "endpoint": "tiktok/hashtags/popular", "platform": "tiktok",
+    "request_id": "req_h1", "success": true, "pagination": {"has_more": false, "next_cursor": null, "page_size": 3},
+    "data": {
+      "dropped": 0, "total": null,
+      "items": [
+        {
+          "computed": {"content_category": "music", "engagement_rate": null, "estimated_reach": null, "language": null},
+          "vendor_labels": {},
+          "post": {
+            "author": {"avatar_url": null, "display_name": null, "username": null, "verified": null},
+            "content": {"duration_seconds": null, "media_urls": null, "text": "shebeenfriday", "thumbnail_url": null},
+            "engagement": {"comments": null, "likes": null, "saves": null, "shares": null, "views": null},
+            "ext": {"trend": {
+              "boards": [{"industry": null, "industry_id": null, "industry_label": null, "rank": 2}],
+              "country_code": "ZA", "industry": null, "industry_id": null, "industry_label": null, "period_days": 7,
+              "popularity_curve": [
+                {"date": "2026-09-21", "value": 0}, {"date": "2026-09-22", "value": 12.5}, {"date": "2026-09-23", "value": 30.25},
+                {"date": "2026-09-24", "value": 71.0}, {"date": "2026-09-25", "value": 100}, {"date": "2026-09-26", "value": 88.75},
+                {"date": "2026-09-27", "value": 64.5}],
+              "posts": 4100, "rank": 2,
+              "top_creators": [{"country_code": "ZA", "display_name": "Synth One", "followers": 1200, "url": "https://www.tiktok.com/@synth.one", "username": "synth.one"}],
+              "views": 3300000}},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "1600000000000000001",
+            "published_at": null,
+            "url": "https://www.tiktok.com/tag/shebeenfriday"
+          }
+        },
+        {
+          "computed": {"content_category": "music", "engagement_rate": null, "estimated_reach": null, "language": null},
+          "vendor_labels": {},
+          "post": {
+            "author": {"avatar_url": null, "display_name": null, "username": null, "verified": null},
+            "content": {"duration_seconds": null, "media_urls": null, "text": "KotaRun", "thumbnail_url": null},
+            "engagement": {"comments": null, "likes": null, "saves": null, "shares": null, "views": null},
+            "ext": {"trend": {
+              "boards": [{"industry": null, "industry_id": null, "industry_label": null, "rank": 1}],
+              "country_code": "ZA", "industry": null, "industry_id": null, "industry_label": null, "period_days": 7,
+              "popularity_curve": [
+                {"date": "2026-09-21", "value": 0}, {"date": "2026-09-22", "value": 40.5}, {"date": "2026-09-23", "value": 100},
+                {"date": "2026-09-24", "value": 80.0}, {"date": "2026-09-25", "value": 61.25}, {"date": "2026-09-26", "value": 50.0},
+                {"date": "2026-09-27", "value": 45.5}],
+              "posts": 9800, "rank": 1,
+              "top_creators": [{"country_code": "ZA", "display_name": "Synth Two", "followers": 88000, "url": "https://www.tiktok.com/@synth.two", "username": "synth.two"}],
+              "views": 12000000}},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "1600000000000000002",
+            "published_at": null,
+            "url": "https://www.tiktok.com/tag/kotarun"
+          }
+        },
+        {
+          "computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+          "vendor_labels": {},
+          "post": {
+            "author": {"avatar_url": null, "display_name": null, "username": null, "verified": null},
+            "content": {"duration_seconds": null, "media_urls": null, "text": null, "thumbnail_url": null},
+            "engagement": {"comments": null, "likes": null, "saves": null, "shares": null, "views": null},
+            "ext": {"trend": {
+              "boards": [], "country_code": "ZA", "industry": null, "industry_id": null, "industry_label": null, "period_days": 7,
+              "popularity_curve": [], "posts": 700, "top_creators": [], "views": 90000}},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "1600000000000000003",
+            "published_at": null,
+            "url": "https://www.tiktok.com/tag/taxirankdance"
+          }
+        }
+      ]
+    }
+  },
+  "apple_charts": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 1, "endpoint": "apple_music/charts", "platform": "apple_music",
+    "request_id": "req_a1", "success": true, "pagination": {"has_more": false, "next_cursor": null, "page_size": 3},
+    "data": {
+      "dropped": 0, "total": 3,
+      "items": [
+        {
+          "computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+          "vendor_labels": {},
+          "post": {
+            "author": {"avatar_url": null, "display_name": "Synth Artist A", "username": "synth-artist-a", "verified": null},
+            "content": {"duration_seconds": null, "media_urls": null, "text": "Invented Song One", "thumbnail_url": "https://is1.example/a1.jpg"},
+            "engagement": {"comments": null, "likes": null, "saves": null, "shares": null, "views": null},
+            "ext": {
+              "apple_music": {"artist_id": "900001", "artist_url": "https://music.apple.com/ng/artist/x/900001", "content_advisory": "clean", "genres": ["Afrobeats", "Music"], "kind": "songs", "release_date": "2026-09-01"},
+              "trend": {"chart": "songs", "chart_title": "Top Songs", "country_code": "NG", "rank": 1, "updated_at": "2026-09-28T00:00:00Z"}},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "1800000001",
+            "published_at": "2026-09-01",
+            "url": "https://music.apple.com/ng/album/x/1799999991?i=1800000001"
+          }
+        },
+        {
+          "computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+          "vendor_labels": {},
+          "post": {
+            "author": {"avatar_url": null, "display_name": "Synth Artist B", "username": "synth-artist-b", "verified": null},
+            "content": {"duration_seconds": null, "media_urls": null, "text": "Invented Song Two", "thumbnail_url": "https://is1.example/a2.jpg"},
+            "engagement": {"comments": null, "likes": null, "saves": null, "shares": null, "views": null},
+            "ext": {
+              "apple_music": {"artist_id": "900002", "artist_url": "https://music.apple.com/ng/artist/y/900002", "content_advisory": "clean", "genres": ["Pop"], "kind": "songs", "release_date": "2026-08-15"},
+              "trend": {"chart": "songs", "chart_title": "Top Songs", "country_code": "NG", "rank": 2, "updated_at": "2026-09-28T00:00:00Z"}},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "1800000002",
+            "published_at": "2026-08-15",
+            "url": "https://music.apple.com/ng/album/y/1799999992?i=1800000002"
+          }
+        },
+        {
+          "computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+          "vendor_labels": {},
+          "post": {
+            "author": {"avatar_url": null, "display_name": "Synth Artist C", "username": "synth-artist-c", "verified": null},
+            "content": {"duration_seconds": null, "media_urls": null, "text": "Invented Song Three", "thumbnail_url": null},
+            "engagement": {"comments": null, "likes": null, "saves": null, "shares": null, "views": null},
+            "ext": {"apple_music": {"artist_id": "900003", "artist_url": null, "content_advisory": null, "genres": [], "kind": "songs", "release_date": null}},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "1800000003",
+            "published_at": null,
+            "url": "https://music.apple.com/ng/album/z/1799999993?i=1800000003"
+          }
+        }
+      ]
+    }
+  },
+  "tiktok_hashtag": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 1, "endpoint": "tiktok/hashtag", "platform": "tiktok",
+    "request_id": "req_g1", "success": true,
+    "data": {
+      "computed": {"content_category": null, "engagement_rate": null, "estimated_reach": 7700000, "language": null},
+      "post": {
+        "author": {"avatar_url": null, "display_name": null, "username": null, "verified": false},
+        "content": {"duration_seconds": null, "media_urls": null, "text": "kotarun", "thumbnail_url": null},
+        "engagement": {"comments": null, "likes": null, "saves": null, "shares": null, "views": 7700000},
+        "ext": {"description": "Invented description", "video_count": 43210},
+        "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+        "id": "1600000000000000002",
+        "published_at": null,
+        "url": "https://www.tiktok.com/tag/kotarun"
+      }
+    }
+  },
+  "tiktok_hashtag_no_count": {
+    "success": true,
+    "data": {
+      "computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+      "post": {
+        "author": {"avatar_url": null, "display_name": null, "username": null, "verified": false},
+        "content": {"duration_seconds": null, "media_urls": null, "text": "kotarun", "thumbnail_url": null},
+        "engagement": {"comments": null, "likes": null, "saves": null, "shares": null, "views": null},
+        "ext": {"description": null, "video_count": null},
+        "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+        "id": "1600000000000000002",
+        "published_at": null,
+        "url": "https://www.tiktok.com/tag/kotarun"
+      }
+    }
+  },
+  "search_multi_estimate": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 0, "endpoint": "search/multi", "platform": "multi",
+    "request_id": "req_m0", "success": true,
+    "data": {"estimate": {"base_credits": 6, "label_credits_max": 4, "label_credits_min": 0, "rows_cached": 0, "rows_expected": 60}}
+  },
+  "search_multi": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 7, "endpoint": "search/multi", "platform": "multi",
+    "request_id": "req_m1", "success": true, "pagination": {"has_more": true, "next_cursor": "m2", "page_size": 3},
+    "data": {
+      "credits_charged": 7, "dropped": 0, "duplicates_removed": 1, "methodology_version": "v1", "platforms": ["instagram", "twitter", "reddit"],
+      "query": "invented query", "search_status": "complete", "since": "2026-09-21", "total": 3,
+      "labels": {"cached": 0, "dropped": 0, "dropped_ids": [], "extra_credits": 0, "labelled": 0, "methodology_version": "v1", "mode": "off", "pending": 0, "pending_ids": [], "presets": [], "rows": 3, "skipped": 3, "status": "skipped", "unjudged": 3},
+      "relevance": {"cached": 0, "dropped": 0, "dropped_ids": [], "extra_credits": 0, "kept": 3, "methodology_version": "v1", "mode": "score", "origin": "query", "pending": 0, "pending_ids": [], "rows": 3, "scored": 3, "status": "ok", "threshold": 0.5, "too_short": 0, "topic_source": "query", "unjudged": 0},
+      "sources": {
+        "instagram": {"credits": 3, "endpoint": "instagram/search/posts", "has_more": true, "http_status": 200, "next_cursor": "i2", "request_id": "ri", "rows": 1, "rows_kept": 1, "status": "ok", "warnings": []},
+        "twitter": {"credits": 2, "endpoint": "twitter/search/tweets", "has_more": false, "http_status": 200, "next_cursor": null, "request_id": "rt", "rows": 1, "rows_kept": 1, "status": "ok", "warnings": []},
+        "reddit": {"credits": 2, "endpoint": "reddit/search", "has_more": false, "http_status": 200, "next_cursor": "r2", "request_id": "rr", "rows": 1, "rows_kept": 1, "status": "ok", "warnings": []}
+      },
+      "items": [
+        {
+          "platform": "instagram",
+          "computed": {"content_category": "food", "engagement_rate": 0.03, "estimated_reach": 800, "language": null},
+          "vendor_labels": {"labels": null, "relevance": {"depth": 0.6, "p": 0.8, "sense": "on_topic", "spam": 0.05}},
+          "post": {
+            "author": {"avatar_url": null, "display_name": null, "username": "synth.kitchen", "verified": false},
+            "content": {"duration_seconds": 30.0, "media_urls": null, "text": "Invented caption", "thumbnail_url": null},
+            "engagement": {"comments": 6, "likes": null, "saves": null, "shares": null, "views": 900},
+            "ext": {"author_id": "5100000001", "coauthors": [], "media_type": "clips", "published_at_epoch": 1790485200},
+            "flags": {"deleted": false, "likes_hidden": true, "nsfw": null, "pinned": false, "spoiler": null},
+            "id": "3700000000000000001",
+            "published_at": "2026-09-27T03:00:00Z",
+            "url": "https://www.instagram.com/reel/SynthIG001/"
+          }
+        },
+        {
+          "platform": "twitter",
+          "computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+          "vendor_labels": {"labels": null, "relevance": {"depth": 0.4, "p": 0.7, "sense": "on_topic", "spam": 0.1}},
+          "post": {
+            "author": {"avatar_url": null, "display_name": "Synth Desk", "username": "synthdesk", "verified": false},
+            "content": {"duration_seconds": null, "media_urls": null, "text": "Invented tweet", "thumbnail_url": null},
+            "engagement": {"comments": 1, "likes": 5, "saves": null, "shares": 0, "views": 300},
+            "ext": {"author_id": "44000001"},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "1972000000000000001",
+            "published_at": "2026-09-26T09:00:00Z",
+            "url": "https://x.com/synthdesk/status/1972000000000000001"
+          }
+        },
+        {
+          "platform": "reddit",
+          "computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+          "vendor_labels": {"labels": null, "relevance": {"depth": 0.5, "p": 0.6, "sense": "on_topic", "spam": 0.0}},
+          "post": {
+            "author": {"avatar_url": null, "display_name": null, "username": "synth_redditor", "verified": null},
+            "content": {"duration_seconds": null, "media_urls": null, "text": "Invented thread", "thumbnail_url": null},
+            "engagement": {"comments": 12, "likes": 40, "saves": null, "shares": null, "views": null},
+            "ext": {},
+            "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+            "id": "t3_synth1",
+            "published_at": "2026-09-25T12:00:00Z",
+            "url": "https://www.reddit.com/r/southafrica/comments/synth1/"
+          }
+        }
+      ]
+    }
+  }
+}

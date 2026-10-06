@@ -1,0 +1,47 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "lineage_split",
+  "fixture_kind": "lineage",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "edges": [
+      {
+        "audience_lens_ids": [],
+        "brand_config_id": "fixture_brand",
+        "client_scope_id": "fixture_scope",
+        "contract_version": "2.0.0",
+        "created_at": "2026-08-25T06:44:00Z",
+        "from_signal_id": "sig_1111111111111111111111111111111111111111111111111111111111111111",
+        "market": "za",
+        "market_scope": [
+          "za"
+        ],
+        "overlap_score": 0.81,
+        "relation": "splits_into",
+        "run_id": "run_fixture_lineage_001",
+        "signal_date": "2026-08-25",
+        "theme_id": "fixture_theme",
+        "to_signal_id": "sig_2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      {
+        "audience_lens_ids": [],
+        "brand_config_id": "fixture_brand",
+        "client_scope_id": "fixture_scope",
+        "contract_version": "2.0.0",
+        "created_at": "2026-08-25T06:44:00Z",
+        "from_signal_id": "sig_1111111111111111111111111111111111111111111111111111111111111111",
+        "market": "za",
+        "market_scope": [
+          "za"
+        ],
+        "overlap_score": 0.77,
+        "relation": "splits_into",
+        "run_id": "run_fixture_lineage_001",
+        "signal_date": "2026-08-25",
+        "theme_id": "fixture_theme",
+        "to_signal_id": "sig_3333333333333333333333333333333333333333333333333333333333333333"
+      }
+    ]
+  },
+  "sanitized": true
+}

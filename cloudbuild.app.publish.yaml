@@ -1,0 +1,353 @@
+# Publishes the app image (the general question service) to the staging registry with
+# provenance. Submitted from a connected repository revision at the repository root, because
+# the reviewed context needs both the engine and the app trees, so the workspace is the
+# checkout and COMMIT_SHA is the reviewed revision.
+# The build identity holds artifactregistry.writer on intelligence-42 and logging.logWriter
+# only: logs go to Cloud Logging, nothing reads a secret and nothing writes a bucket.
+# The context builder refuses a working tree that git reports as dirty, so every build
+# product it must not see lives on the reviewed step volume (/reviewed) or under
+# app/web/dist, which app/.gitignore ignores.
+steps:
+  # The engine test image's first stage carries python 3.13, git and node from pinned
+  # manifests; the context builder image adds the pinned bun release on top of it.
+  - id: build-toolchain
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    env:
+      - DOCKER_BUILDKIT=1
+    args:
+      - build
+      - --file
+      - engine/Dockerfile.tests
+      - --target
+      - test-toolchain
+      - --tag
+      - 42-toolchain:${BUILD_ID}
+      - engine
+
+  - id: build-context-builder
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    env:
+      - DOCKER_BUILDKIT=1
+    args:
+      - build
+      - --file
+      - ops/build/Dockerfile.context-builder
+      - --build-arg
+      - TOOLCHAIN_IMAGE=42-toolchain:${BUILD_ID}
+      - --tag
+      - 42-context-builder:${BUILD_ID}
+      - ops/build
+
+  - id: prepare-context-builder-outputs
+    name: 42-toolchain:${BUILD_ID}
+    entrypoint: bash
+    volumes:
+      - name: reviewed
+        path: /reviewed
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        workspace=$${WORKSPACE_ROOT:-/workspace}
+        reviewed=$${REVIEWED_ROOT:-/reviewed}
+        parents=("$$workspace" "$$workspace/app" "$$workspace/app/frontend" "$$workspace/app/web" "$$reviewed")
+        targets=("$$workspace/app/frontend/node_modules" "$$workspace/app/web/dist" "$$reviewed")
+        for path in "$${parents[@]}"; do
+          if [ -L "$$path" ] || { [ -e "$$path" ] && [ ! -d "$$path" ]; }; then
+            echo "prepare-context-builder-outputs: unsafe path $$path" >&2
+            exit 1
+          fi
+          if [ ! -d "$$path" ]; then
+            echo "prepare-context-builder-outputs: missing directory $$path" >&2
+            exit 1
+          fi
+        done
+        for path in "$${targets[@]}"; do
+          if [ -L "$$path" ] || { [ -e "$$path" ] && [ ! -d "$$path" ]; }; then
+            echo "prepare-context-builder-outputs: unsafe path $$path" >&2
+            exit 1
+          fi
+        done
+        for path in "$${targets[@]}"; do
+          mkdir -p "$$path"
+          chown 10001:10001 "$$path"
+        done
+
+  # The boundary manifest's prebuild node runs from the checkout, before any image exists.
+  - id: linux-gate-prebuild
+    name: 42-context-builder:${BUILD_ID}
+    dir: app
+    args:
+      - /opt/42-engine-test-venv/bin/python
+      - -m
+      - pytest
+      - -q
+      - -p
+      - no:cacheprovider
+      - tests/unit/test_engine_observer_subprocess.py::test_linux_gate_recipe_binds_current_bundle_and_test_environments
+
+  - id: frontend-install
+    name: 42-context-builder:${BUILD_ID}
+    dir: app/frontend
+    args:
+      - bun
+      - install
+      - --frozen-lockfile
+
+  - id: frontend-build
+    name: 42-context-builder:${BUILD_ID}
+    dir: app/frontend
+    args:
+      - bun
+      - run
+      - build
+
+  # Generates the review inventory, runs the context builder with its exact flags, then
+  # binds the receipt to the reviewed revision and, when supplied, to the review digest.
+  # The receipt values the later in-image checks need travel on /reviewed/receipt.env.
+  - id: build-context
+    name: 42-context-builder:${BUILD_ID}
+    volumes:
+      - name: reviewed
+        path: /reviewed
+    args:
+      - python
+      - -c
+      - |
+        import hashlib
+        import json
+        import subprocess
+        import sys
+        from pathlib import Path
+        root = Path.cwd()
+        sys.path.insert(0, str(root / "app/scripts"))
+        from build_general_question_context import inventory_source
+        review = {
+            "contract_version": "general_question_context_review_v1",
+            "allow_reviewed_working_tree": False,
+            "engine": inventory_source(root / "engine", kind="engine"),
+            "lp": inventory_source(root / "app", kind="lp"),
+        }
+        reviewed = Path("/reviewed")
+        with (reviewed / "review.json").open("x", encoding="utf-8") as output:
+            json.dump(review, output, sort_keys=True, indent=2)
+            output.write("\n")
+        command = [
+            sys.executable,
+            "app/scripts/build_general_question_context.py",
+            "--engine-root",
+            "engine",
+            "--lp-root",
+            "app",
+            "--destination",
+            "/reviewed/context",
+            "--review-manifest",
+            "/reviewed/review.json",
+            "--receipt",
+            "/reviewed/receipt.json",
+        ]
+        subprocess.run(command, check=True)
+        receipt = json.loads((reviewed / "receipt.json").read_bytes())
+        expected = "${_REVIEW_MANIFEST_SHA256}"
+        recorded = receipt["review_digest"]
+        print(f"build-context review_digest={recorded} expected={expected or 'record-only'} engine_bundle_digest={receipt['engine_bundle_digest']} lp_commit={receipt['lp']['commit']} deployment_ready={receipt['deployment_ready']}")
+        if expected and recorded != expected:
+            raise SystemExit("build-context: review manifest digest mismatch")
+        if receipt["lp"]["commit"] != "${COMMIT_SHA}":
+            raise SystemExit("build-context: the receipt commit is not the reviewed revision")
+        subset = {name: digest for name, digest in receipt["lp"]["files"].items() if name.startswith(("src/", "configs/"))}
+        tree = hashlib.sha256()
+        for name in sorted(subset):
+            tree.update(f"{subset[name]}  {name}\n".encode("utf-8"))
+        (reviewed / "receipt.env").write_text(
+            f"REVIEW_DIGEST={recorded}\n"
+            f"ENGINE_BUNDLE_DIGEST={receipt['engine_bundle_digest']}\n"
+            f"LP_COMMIT={receipt['lp']['commit']}\n"
+            f"APP_TREE_DIGEST={tree.hexdigest()}\n"
+            f"APP_TREE_FILES={len(subset)}\n",
+            encoding="utf-8",
+        )
+
+  - id: build-app-image
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    env:
+      - DOCKER_BUILDKIT=1
+    volumes:
+      - name: reviewed
+        path: /reviewed
+    args:
+      - build
+      - --file
+      - /reviewed/context/Dockerfile.general-question
+      - --tag
+      - us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/listening-post-question:${COMMIT_SHA}
+      - /reviewed/context
+
+  # Runs the built image through its own interpreter: the packaged runtime-build.json must
+  # match the context receipt, and the SHA256 of every file under /app/src and /app/configs
+  # goes to the build log and must reproduce the reviewed inventory's digest.
+  - id: context-inventory-inside-image
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    volumes:
+      - name: reviewed
+        path: /reviewed
+    args:
+      - run
+      - --rm
+      - --network=none
+      - --env-file
+      - /reviewed/receipt.env
+      - --entrypoint
+      - python
+      - us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/listening-post-question:${COMMIT_SHA}
+      - -c
+      - |
+        import hashlib
+        import json
+        import os
+        import pathlib
+        base = pathlib.Path("/app")
+        expected = "${_REVIEW_MANIFEST_SHA256}"
+        recorded = os.environ["REVIEW_DIGEST"]
+        print(f"context-inventory-inside-image review_digest={recorded} expected={expected or 'record-only'}")
+        if expected and recorded != expected:
+            raise SystemExit("context-inventory-inside-image: review manifest digest mismatch")
+        stamp = json.loads((base / "runtime-build.json").read_bytes())
+        if stamp["lp_commit"] != os.environ["LP_COMMIT"] or stamp["engine_bundle_digest"] != os.environ["ENGINE_BUNDLE_DIGEST"]:
+            raise SystemExit("context-inventory-inside-image: runtime-build.json does not match the context receipt")
+        files = []
+        for root in ("src", "configs"):
+            tree = base / root
+            if not tree.is_dir():
+                raise SystemExit(f"context-inventory-inside-image: missing {tree}")
+            files.extend((item.relative_to(base).as_posix(), item) for item in tree.rglob("*") if item.is_file())
+        count = 0
+        summary = hashlib.sha256()
+        for name, path in sorted(files):
+            line = f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {name}"
+            print(line)
+            summary.update(line.encode("utf-8") + b"\n")
+            count += 1
+        digest = summary.hexdigest()
+        print(f"context-inventory-inside-image files={count} sha256={digest} receipt_files={os.environ['APP_TREE_FILES']} receipt_sha256={os.environ['APP_TREE_DIGEST']}")
+        if count != int(os.environ["APP_TREE_FILES"]) or digest != os.environ["APP_TREE_DIGEST"]:
+            raise SystemExit("context-inventory-inside-image: app source and config trees differ from the reviewed inventory")
+
+  # The renderer refuses to run unless its parent sits under a seccomp filter, so the smoke
+  # runs under the reviewed profile at ops/tests/fixtures/pdf/seccomp-profile.json, whose
+  # SHA256 the boundary manifest records as pdf_security_profile.sha256. This step takes
+  # that digest as its last argument and fails closed when the checked-in profile differs.
+  - id: pdf-seccomp-profile-check
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "$$1  ops/tests/fixtures/pdf/seccomp-profile.json" | sha256sum -c -
+        echo "pdf-seccomp-profile-check sha256=$$1"
+      - pdf-seccomp-profile-check
+      - e53c15d248f57bceec0a3a16fad1b4ab0d05a7bddb455f86a60e2dba5612cdf7
+
+  # The exporter smoke the R02 package requires, as the image's non root user with the
+  # boundary manifest's run_pdf_init flags in its order: init as pid 1, no network, a read
+  # only root, the reviewed seccomp profile, an inline document and the packaged font. The
+  # exporter validates the PDF text and fonts itself and raises on a missing font or a
+  # renderer timeout, which fails the build.
+  - id: pdf-runtime-smoke
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    args:
+      - run
+      - --rm
+      - --init
+      - --network=none
+      - --read-only
+      - --tmpfs
+      - /tmp:rw,size=268435456
+      - --cap-drop
+      - ALL
+      - --security-opt
+      - no-new-privileges
+      - --security-opt
+      - seccomp=/workspace/ops/tests/fixtures/pdf/seccomp-profile.json
+      - --user
+      - "10001:10001"
+      - --workdir
+      - /app
+      - --env
+      - PDF_RENDERER_NATIVE=1
+      - --env
+      - PDF_RENDERER_PID1_MODE=init
+      - --entrypoint
+      - python
+      - us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/listening-post-question:${COMMIT_SHA}
+      - -c
+      - |
+        import os
+        import pathlib
+        import sys
+        sys.path.insert(0, "/app")
+        from src.api import pdf_exporter
+        config = pdf_exporter._load_runtime_config()
+        browser = pathlib.Path(config["browser"]["executable"])
+        if not browser.is_file():
+            raise SystemExit(f"pdf-runtime-smoke: packaged browser missing at {browser}")
+        asset_root = pathlib.Path(config["assets"]["root"])
+        font = asset_root / "newsreader-variable-tcB4qQtO.woff2"
+        if not font.is_file():
+            raise SystemExit(f"pdf-runtime-smoke: packaged font missing at {font}")
+        html = (
+            "<style>@font-face{font-family:Newsreader;src:url('" + font.name + "')}"
+            "body{font-family:Newsreader}</style>"
+            "<p>Bounded Linux renderer proof.</p>"
+        ).encode("utf-8")
+        try:
+            result = pdf_exporter.render_stored_html_pdf(html, asset_root=asset_root)
+        except pdf_exporter.PdfExportError as error:
+            raise SystemExit(f"pdf-runtime-smoke: renderer refused with {error}") from None
+        if not result.startswith(b"%PDF-"):
+            raise SystemExit("pdf-runtime-smoke: the renderer returned something other than a PDF")
+        print(f"pdf-runtime-smoke bytes={len(result)} uid={os.getuid()} browser={browser} font={font.name}")
+
+  # ops/tests/fixtures/linux_boundary/manifest.json describes these commands; the gate step
+  # takes that manifest's SHA256 as its last argument, checks the checked-in manifest against
+  # it, and runs the boundary, combined and engine observer node sets it lists.
+  - id: build-linux-gates
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    env:
+      - DOCKER_BUILDKIT=1
+    args:
+      - build
+      - --build-arg
+      - APP_RUNTIME_IMAGE=us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/listening-post-question:${COMMIT_SHA}
+      - -f
+      - ops/tests/Dockerfile.linux-gates
+      - -t
+      - 42-r02-linux-gates:${BUILD_ID}
+      - .
+
+  - id: verify_linux_boundary_tests
+    name: gcr.io/cloud-builders/docker@sha256:e036091375b816e40f07620582d1dfaa0e2c2da58ea5731fdcf560534b2a4a57
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        echo "$$1  ops/tests/fixtures/linux_boundary/manifest.json" | sha256sum -c -
+        docker run --rm --network=none --user 10001:10001 --security-opt no-new-privileges 42-r02-linux-gates:${BUILD_ID} /opt/42-app-test-venv/bin/python -m pytest -q -p no:cacheprovider tests/unit/test_question_worker_process.py::test_execute_requires_exact_result_verification tests/unit/test_question_worker_process.py::test_false_store_verification_cannot_acknowledge tests/unit/test_question_worker_process.py::test_bounds_terminate_the_child_without_returning_its_text[stdout] tests/unit/test_question_worker_process.py::test_bounds_terminate_the_child_without_returning_its_text[stderr] tests/unit/test_question_worker_process.py::test_bounds_terminate_the_child_without_returning_its_text[timeout] tests/unit/test_question_worker_process.py::test_worker_keeps_the_selected_virtual_environment tests/unit/test_question_worker_process.py::test_cancellation_during_launch_waits_for_and_reaps_the_child tests/unit/test_question_worker_process.py::test_deadline_terminates_a_descendant_after_its_parent_exits tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-admitted] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-running] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-complete] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-held] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-admitted] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-running] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-complete] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-held] tests/unit/test_question_worker_controller.py::test_execute_joins_bundle_process_and_exact_result_store tests/unit/test_question_worker_controller.py::test_status_reads_current_scope_without_taking_generation_capacity[admitted] tests/unit/test_question_worker_controller.py::test_status_reads_current_scope_without_taking_generation_capacity[unavailable] tests/unit/test_question_worker_controller.py::test_admission_preserves_original_transport_without_generation_or_result_read tests/unit/test_question_worker_controller.py::test_status_concrete_state_must_match_the_verified_record tests/unit/test_question_worker_controller.py::test_expired_admitted_status_cannot_become_perpetual_pending tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change0] tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change1] tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change2] tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change3] tests/unit/test_question_worker_controller.py::test_result_read_failure_releases_the_slot_without_acknowledgment tests/unit/test_question_worker_controller.py::test_changed_bundle_never_reaches_the_child tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[file] tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[directory] tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[manifest] tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[stamp] tests/unit/test_question_worker_bundle.py::test_case_collisions_are_rejected tests/unit/test_question_worker_bundle.py::test_directory_and_reserved_manifest_case_collisions_are_rejected[files0] tests/unit/test_question_worker_bundle.py::test_directory_and_reserved_manifest_case_collisions_are_rejected[files1]
+        docker run --rm --network=none --user 10001:10001 --security-opt no-new-privileges 42-r02-linux-gates:${BUILD_ID} /opt/42-app-test-venv/bin/python -m pytest -q -p no:cacheprovider tests/unit/test_engine_observer_subprocess.py::test_app_invokes_real_engine_observer_through_sanitized_store_adapter tests/unit/test_engine_observer_subprocess.py::test_changed_bundle_prevents_child_launch
+        docker run --rm --network=none --user 10001:10001 --security-opt no-new-privileges --workdir /app/engine --env PYTHONPATH=/opt/42-gates/engine:/app/engine --env GENERAL_QUESTION_ENGINE_TEST_ROOT=/app/engine 42-r02-linux-gates:${BUILD_ID} /opt/42-engine-test-venv/bin/python -m pytest -q -p no:cacheprovider /opt/42-gates/engine/tests/unit/test_general_question_worker_cli.py::test_observe_cli_returns_inventory_without_status_or_writes /opt/42-gates/engine/tests/unit/test_general_question_worker_cli.py::test_observe_bad_input_refuses_before_host_and_never_echoes[change0] /opt/42-gates/engine/tests/unit/test_general_question_worker_cli.py::test_observe_bad_input_refuses_before_host_and_never_echoes[change1] /opt/42-gates/engine/tests/unit/test_general_question_worker_cli.py::test_observe_bad_input_refuses_before_host_and_never_echoes[change2] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_complete_empty_inventory_requires_observed_ledger_authority /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_selected_terminal_ack_is_exact_and_does_not_release_allowance[unavailable] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_selected_terminal_ack_is_exact_and_does_not_release_allowance[held] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_invalid_required_authority_refuses_detail_and_makes_inventory_partial[request] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_invalid_required_authority_refuses_detail_and_makes_inventory_partial[intake] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_invalid_required_authority_refuses_detail_and_makes_inventory_partial[generation] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_absent_and_cross_scope_detail_share_one_safe_error /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_invalid_selected_terminal_never_inherits_terminal_state /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_read_ceiling_returns_partial_known_count_without_writes /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_missing_metadata_and_expired_read_are_not_complete_zero /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_inventory_counts_precede_display_and_byte_cuts /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_inventory_orders_real_instants_preserving_timestamp_precision /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_narrow_market_request_and_terminal_detail_use_original_scope /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_expired_admission_remains_unconfirmed_and_allowance_unchanged[False] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_expired_admission_remains_unconfirmed_and_allowance_unchanged[True] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_ledger_metadata_generation_must_match_selected_immutable_ledger
+        echo "verify_linux_boundary_tests gate_sha256=$$1"
+      - verify_linux_boundary_tests
+      - ec493defe2a1a2b60fa9473477967d9e8446380156994a344424ad58b8468a8e
+
+images:
+  - us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/listening-post-question:${COMMIT_SHA}
+
+substitutions:
+  _REVIEW_MANIFEST_SHA256: ""
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 3600s

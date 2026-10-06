@@ -1,0 +1,184 @@
+# Composite Trend Scoring Configuration
+# Each weight controls how much a signal contributes to the final trend score (0-1).
+# Weights must sum to 1.0.
+#
+# 6 September 2026 audience neutral defaults. Historical audience proxy
+# fields remain readable but carry no weight in general ranking.
+
+weights:
+  velocity: 0.20              # Rising momentum
+  # Sustained momentum (up on BOTH the 7d and 30d windows, via min). Carved FROM
+  # the velocity weight in code when MOMENTUM_IN_COMPOSITE is on: velocity drops
+  # to 0.13, momentum rides at 0.07, the velocity family total stays 0.20 and the
+  # bundle still sums to 1.0. Inert while the flag is off (no effect on the live
+  # score). Calibrated 20 Jun, see scripts/calibration/momentum_calibration.py.
+  momentum: 0.07
+  genz_score: 0.00            # Historical lexical proxy, retained without influence
+  watchlist_score: 0.00       # Historical curated watchlist, retained without influence
+  engagement: 0.10            # Raw engagement
+  slang_score: 0.10           # Use of local slang terms
+  diversity: 0.16             # Spread across platforms / content types
+  regional_score: 0.12        # Market-specific markers
+  creator_spread: 0.12        # Distinct creator count
+  search_velocity_score: 0.15 # Rising search intent from BigQuery Trends
+  tone_score: 0.05            # Sentiment tone from GDELT V2Tone
+  # GCAM emotional-arousal intensity from GDELT v2gcam (Lexicoder emotion dims).
+  # Ships at 0.00: the reader computes and stores gcam_score but it contributes
+  # nothing until raised.
+  # Intended live weight 0.03, carved FROM tone_score (0.05 -> 0.02), since tone
+  # is valence and GCAM is arousal (complementary). Raise ONLY after 3+ days of
+  # non-zero gcam_rows in trend_scores, else dead_signals FAILs. Recalibrate the
+  # _GCAM_INTENSITY_BOUNDS in enrichment.py against a multi-day distribution first.
+  gcam_score: 0.00
+
+baseline_period_days: 14   # Rolling window for computing baseline averages
+min_items_for_scoring: 3   # Non-binding evidence floor. Live 30-day pull: item_count p10 22, p50 74, only 3 of 801 rows below 3. Guards the degenerate sub-3 case only; new-topic velocity is volume-scaled in velocity.py, not gated here. Not raised toward p10 because that would drop legitimate emerging topics.
+outlier_percentile_cap: 95 # Winsorization percentile reference. The live per-row engagement-per-day cap (engagement_per_day_cap below) sits near p90 of the observed distribution; this records the intended winsorization tier. Not separately enforced.
+
+# Cross-source confirmation, graded by INDEPENDENT CHANNEL FAMILIES (news,
+# ensemble, reddit, brand24, search, music, youtube). Applied after the
+# weighted composite, outside the weight bundle so per-signal balance stays
+# untouched. The bonus scales with the channel count instead of a flat bump:
+#   multiplier = 1 + min(cross_source_bonus_per_channel * (n_channels - 1),
+#                        cross_source_max_bonus)
+# n=1 -> 1.00, n=2 -> 1.05, n=3 -> 1.10, n>=4 -> 1.15 (capped).
+# Keys on channel families (mapped from source in run_rss_now._channel_family),
+# NOT raw platform strings. A flat platform-based 1.15x fired on about 95 percent
+# of topic-days (live 7-day), near-constant inflation with no discrimination,
+# and let Brand24's per-URL platform inference plus 6000+ RSS and GDELT news
+# domains manufacture corroboration. The two constants are fitted so the median
+# topic (4 channels, 37 percent of topic-days) keeps its prior 1.15 multiplier,
+# leaving the tier floors below calibrated.
+cross_source_bonus_per_channel: 0.05
+cross_source_max_bonus: 0.15
+
+# Corroboration scorer (PULSE Intelligence Core, Phase 0). Produces TWO honest
+# numbers per topic, factual and social, NEVER combined, plus a confidence tier
+# and a recency. Shadow columns: nothing reads them yet and trend_score is
+# unchanged. FACTUAL families are news, search, youtube, music; everything else
+# (ensemble, reddit, brand24, ig, threads) is social. A family counts only when
+# its aggregated weight > 0.
+#   factual = clamp01((n_factual_families * factual_family_weight
+#                      + entity_bonus[tone_rows>0]
+#                      + search_bonus[search_velocity>=spike_floor])
+#                     * recency_factor)
+#   social  = clamp01(n_social_families * social_family_weight * recency_factor)
+#   recency_factor = 0.5 ** (hours_since_freshest / recency_half_life_hours),
+#                    or recency_neutral_factor when published_at is unknown.
+# Tier "corroborated" requires factual >= corroborated_floor AND >= 1 factual
+# family; social channels alone can never reach it.
+# FIRST-PASS constants, observed over the first 7 days then recalibrated once
+# (3 Jul 2026) below.
+#
+# RECALIBRATION (3 Jul 2026). Live 14-day BQ read on trends_v2_dev.trend_scores
+# (factual_corroboration IS NOT NULL) showed the 0.40 floor was not
+# discriminating: p50 factual_corroboration 0.83, p80 1.00, and 94.5% of
+# topic-days landed in the "corroborated" tier. Candidate floors 0.85 / 0.90 /
+# 0.95 / 1.00 all returned the identical 27.4% corroborated-rate (55/201 rows),
+# because the distribution has nothing between 0.85 and 1.00 except the 1.00
+# cluster itself. Chose the smallest of that set, 0.85, since it lands inside
+# the target 25-40% discriminating band at the same observed rate as the
+# stricter floors, so there is no accuracy cost to picking the loosest of the
+# tied candidates. New floor: 0.85, observed rate 27.4%. Structural note for a
+# future formula revision: the factual score saturates because each present
+# factual family adds a flat 0.34, so three factual families alone clamp the
+# score to 1.0 before recency is even applied, which is why floors above 0.85
+# cannot separate any further.
+corroboration:
+  factual_family_weight: 0.34       # each present factual family adds this
+  social_family_weight: 0.25        # each present social family adds this
+  factual_entity_bonus: 0.15        # GDELT entities present (tone_rows > 0)
+  factual_search_bonus: 0.15        # a real search spike is present
+  factual_search_spike_floor: 0.30  # search_velocity at/above this = a spike
+  recency_half_life_hours: 48.0     # corroboration weight halves every 48h
+  recency_neutral_factor: 0.5       # factor used when published_at is unknown
+  corroborated_floor: 0.85          # factual floor to earn the "corroborated" tier
+
+# Seed score (Jo, 22 Jun 2026). A 0..1 measure of how worth-seeding a topic is
+# for driving Nanobanana (image) + Lyria (audio) usage, the primary objective of
+# the Google scenario. Built from audience-fit + creative-format-fit only, NOT
+# from the velocity/diversity signals that drive trend_score, so a topic that
+# aligns with the audience and suits image/audio creation surfaces even when it
+# does not rank highly on trend_score.
+#   audience_fit = sum(audience_weights[k] * signal[k])   # signals on 0..1
+#   format_fit   = format_floor + (1 - format_floor) * visual_audio_share
+#   safety_gate  = tone_unsafe_multiplier when GDELT tone is present and below
+#                  tone_safe_threshold, else 1.0
+#   seed_score   = min(audience_fit * format_fit * safety_gate, 1.0)
+seed_score:
+  enabled: true
+  audience_weights:
+    genz: 0.00
+    slang: 0.25
+    engagement: 0.40
+    creator_spread: 0.35
+  creator_spread_cap: 25.0
+  # Channel families (see _channel_family) that a Nanobanana/Lyria activation
+  # rides on. The topic's item share on these families drives format_fit.
+  visual_audio_families: [ensemble, youtube, music]
+  format_floor: 0.5
+  tone_safe_threshold: 0.35
+  tone_unsafe_multiplier: 0.6
+  # Cards render the SEED chip "hot" (accent) at or above this score.
+  chip_hot_threshold: 0.70
+
+# 28 May 2026 RECALIBRATION
+# Old thresholds (Trending 0.60, Emerging 0.40, Monitoring 0.20) were
+# arbitrary anchors carried over from Phase 1 with no link to observed
+# score distribution. 14-day BQ pull on trend_scores showed: max ever
+# observed 0.589 (za/genz_lifestyle 28 May); zero rows ever crossed the
+# 0.60 Trending floor across all 3 markets; medians ZA 0.24, NG 0.32,
+# KE 0.30. Trending tier was effectively unreachable -> every brief
+# rendered as Rising / Emerging, the Key pill never fired.
+# New floors anchored to the actual distribution:
+#   Trending  0.45  (p90 of observed 14-day data)
+#   Emerging  0.30  (p75)
+#   Monitoring 0.18 (p50 of nonzero rows)
+# trend_brief.py status_tag is now 'Key' when trend_score >= 0.45
+# (Trending floor); kept 2-state so daily_summary partitioning stays
+# unchanged. Re-tune again after 30 days of post-recal data lands.
+thresholds:
+  trending: 0.45           # Score >= 0.45 = trending (p90 of 14-day obs)
+  emerging: 0.30           # Score >= 0.30 = emerging (p75)
+  monitoring: 0.18         # Score >= 0.18 = worth monitoring (p50 nonzero)
+  # History on the monitoring floor: Path A on 22 May 2026 (commit
+  # 346ddd3) tried raising this to 0.3 to filter noise; reverted on
+  # 25 May after audits showed the floor was killing legitimate
+  # Emerging topics without solving the root cause (sample-row
+  # thinness, fixed separately via the sample-thinness gate in
+  # generate_briefs). The 28 May recalibration above lowers the
+  # monitoring floor again from 0.20 to 0.18 to match the p50 of
+  # nonzero scores. Tier filtering should not double up as a
+  # noise filter; the sample-thinness gate owns that role.
+
+# Per-content-type engagement weights. Applied to each row's engagement_total
+# before aggregation so commercial music releases and evergreen viral hits
+# do not saturate the composite trend_score. YouTube category IDs are encoded
+# into content_type as "video/<id>" by the YouTube connector. Unknown
+# content_type gets the default weight.
+engagement_weights:
+  default: 1.0
+  video/1: 0.5   # Film & Animation
+  video/2: 0.6   # Autos & Vehicles
+  video/10: 0.2  # Music (commercial releases, not trend signal)
+  video/15: 0.6  # Pets & Animals
+  video/17: 0.5  # Sports
+  video/19: 0.8  # Travel & Events
+  video/20: 0.3  # Gaming
+  video/22: 1.0  # People & Blogs (vlogs, high trend relevance)
+  video/23: 0.8  # Comedy (viral comedy can signal trends)
+  video/24: 0.5  # Entertainment (broad)
+  video/25: 1.0  # News & Politics
+  video/26: 0.9  # Howto & Style (fashion, beauty trends)
+  video/27: 0.6  # Education
+  video/28: 0.8  # Science & Technology
+  video/29: 0.9  # Nonprofits & Activism
+  video/30: 0.3  # Movies
+  video/31: 0.3  # Anime / Animation
+  video/33: 0.3  # Trailers
+  video/35: 0.6  # Documentary
+
+# Views-per-day ceiling applied before engagement aggregation. Old evergreen
+# viral content divides views across many days so a 10M-view 4-year-old
+# music video contributes 6k/day, not 10M.
+engagement_per_day_cap: 50000

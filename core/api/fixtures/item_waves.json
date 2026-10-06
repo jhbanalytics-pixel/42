@@ -1,0 +1,18 @@
+[
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "wave_start": "2025-09-10",
+  "wave_end": "2025-10-02",
+  "peak_date": "2025-09-24",
+  "peak_posts": 240
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "wave_start": "2026-09-12",
+  "wave_end": "2026-09-30",
+  "peak_date": "2026-09-29",
+  "peak_posts": 51
+ }
+]

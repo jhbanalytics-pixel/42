@@ -1,0 +1,69 @@
+{
+  "probe": "7",
+  "route": "youtube/search/advanced",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 50>",
+        {
+          "computed": {
+            "content_category": "<str>",
+            "engagement_rate": "<null>",
+            "estimated_reach": "<null>",
+            "language": "<null>"
+          },
+          "post": {
+            "author": {
+              "avatar_url": "<null>",
+              "display_name": "<str>",
+              "username": "<null>",
+              "verified": "<null>"
+            },
+            "content": {
+              "duration_seconds": "<null>",
+              "media_urls": "<null>",
+              "text": "<str>",
+              "thumbnail_url": "<str>"
+            },
+            "engagement": {
+              "comments": "<null>",
+              "likes": "<null>",
+              "saves": "<null>",
+              "shares": "<null>",
+              "views": "<null>"
+            },
+            "ext": {
+              "channel_id": "<str>",
+              "description": "<str>"
+            },
+            "flags": {
+              "deleted": "<bool>",
+              "nsfw": "<null>",
+              "pinned": "<null>",
+              "spoiler": "<null>"
+            },
+            "id": "<str>",
+            "published_at": "<str>",
+            "url": "<str>"
+          },
+          "vendor_labels": {}
+        }
+      ],
+      "next_cursor": "<str>",
+      "total": "<int>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<str>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

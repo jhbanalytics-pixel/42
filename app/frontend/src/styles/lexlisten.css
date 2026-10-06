@@ -1,0 +1,358 @@
+/* Lexicon and Listen route styles. */
+
+.lex-term-card {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  transition: border-color var(--motion-row) var(--motion-standard-easing), background var(--motion-row) var(--motion-standard-easing);
+}
+.lex-term-card[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: inset 5px 0 0 var(--accent);
+}
+.lex-term-card:hover, .lex-term-card:focus-visible {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.lex-term-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.listen-search {
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+/* The field carried a 46 pixel minimum inline, two under the floor at both 390
+   and 1730. The floor belongs to the sheet with the rest of the control. */
+.listen-search input {
+  border: 0;
+  background: none;
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  font-size: var(--type-4);
+  transition: color var(--motion-control) var(--motion-standard-easing);
+}
+.listen-search input:hover {
+  color: var(--accent-text);
+}
+.listen-search input:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+.listen-clear {
+  width: 48px;
+  height: 48px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: var(--type-4);
+  line-height: 1;
+  transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.listen-clear:hover, .listen-clear:focus-visible {
+  color: var(--accent-text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.listen-clear:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+.listen-search:hover,
+.listen-search:focus-within {
+  border-color: var(--accent);
+}
+
+/* Shell consistency, 2 October 2026: a filter chip is a Today tab
+   (.t42-tab in today42.css), so it reads and answers as the tabs on Today,
+   Discover and History: muted words, the chosen one in ink at 600 over an ink
+   underline, and the pointer answered in ink. The chips stay toggles with
+   aria-pressed, so the chosen state is written on that attribute. */
+.listen-filter-chip {
+  transition: color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.listen-filter-chip:hover, .listen-filter-chip:focus-visible {
+  color: var(--ink);
+}
+.listen-filter-chip.t42-tab[aria-pressed="true"] {
+  color: var(--ink);
+  font-weight: 600;
+}
+.listen-filter-chip.t42-tab[aria-pressed="true"]::after {
+  opacity: 1;
+  transform: none;
+}
+/* Section 7, the Active row. */
+.listen-filter-chip:active { box-shadow: var(--press-grip); }
+.listen-filter-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+/* The loading wrapper reserves the first page as the route last measured
+   it for this market: the row count at its mean row height, gaps included,
+   with the frame sitting at its top. A load with nothing remembered carries
+   no reserve attribute and reserves nothing beyond the frame's own band. */
+.listen-wait {
+  margin-top: 20px;
+}
+.listen-wait[data-reserved-mentions] {
+  min-block-size: calc(var(--reserved-mentions) * var(--reserved-mention-height));
+}
+/* Quiet register, 23 Sept 2026: the title is the 32px page title with a one
+   sentence lead and no rule above it. The page gutter and width are the shared
+   shell rule in app.css, so Listen starts on the same line as Today rather
+   than in a centred 1000px column. */
+.page.listen .ui-page-hero {
+  padding: 0;
+  border-top: 0;
+}
+.page.listen .ui-page-hero-title {
+  max-width: none;
+  text-align: left;
+}
+.page.listen .ui-page-hero-sub {
+  max-width: var(--measure);
+  margin-top: 8px;
+}
+
+/* A filter row is its name, a muted label, above a tab row. The tab row
+   never wraps: a row wider than the page scrolls inside itself, as on Today. */
+.listen-filter-row {
+  margin: var(--s-4) 0 0;
+}
+.listen-filter-label {
+  display: block;
+  margin: 0 0 var(--s-1);
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 400;
+  color: var(--muted);
+}
+.listen-filter-row > .t42-tabs {
+  --t42-body: var(--type-body);
+  margin-bottom: 0;
+}
+.listen-page .ui-page-hero + .listen-filter-row { margin-top: 24px; }
+.listen-search-count {
+  flex: 0 0 auto;
+  font: 400 var(--type-3)/1.4 var(--sans);
+  font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0;
+  color: var(--muted);
+}
+
+/* The sentiment split is a sentence with its figures in the sans. */
+.listen-split {
+  margin: 16px 0 0;
+  font: 400 var(--type-3)/1.5 var(--sans);
+  font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0;
+  color: var(--muted);
+}
+.listen-split .tnum { color: var(--ink); }
+
+/* The mentions are a list: space and a hairline between rows, no frame, no
+   fill and no sentiment stroke. */
+.listen-mentions {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.listen-mention-row {
+  padding: 24px 0 16px;
+  border-bottom: 1px solid var(--line);
+  transition: border-color var(--motion-row) var(--motion-standard-easing);
+}
+/* The row in hand, under the pointer or holding focus, darkens its hairline
+   so a reader keeps their place in a long feed without a fill or a frame. */
+.listen-mention-row:hover,
+.listen-mention-row:focus-within {
+  border-bottom-color: var(--ink-2);
+}
+.listen-mention-quote,
+.listen-mention-empty,
+.listen-mention-body,
+.listen-mention-meta {
+  max-width: var(--measure);
+  margin: 0;
+}
+.listen-mention-quote {
+  font: 400 var(--type-5)/1.45 var(--serif);
+  color: var(--ink);
+}
+.listen-mention-empty {
+  font: italic 400 var(--type-3)/1.5 var(--sans);
+  color: var(--muted);
+}
+.listen-mention-body {
+  margin-top: 8px;
+  font: 400 var(--type-3)/1.55 var(--sans);
+  color: var(--muted);
+}
+.listen-mention-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
+  font: 400 var(--type-3)/1.5 var(--sans);
+  font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.listen-mention-sentiment { font-weight: 600; }
+
+/* The read-the-source link clears the 48px target and answers the pointer
+   with colour, never with a move. It is an ink link, since it repeats on
+   every row and is not the one primary action. */
+.listen-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  font: 400 var(--type-3)/1.4 var(--sans);
+  font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 4px;
+  transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+.listen-source:hover, .listen-source:focus-visible {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+.listen-source:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+.listen-source--none {
+  color: var(--muted);
+  text-decoration: none;
+}
+/* Quiet register, 23 Sept 2026: the failed read is plain words on the page
+   under a hairline, not a framed card of 11.5px red mono. The message is the
+   sans at 14px, the status code stays in mono because a reader quotes it,
+   and Try again is the one red action. */
+/* The tab row's hairline already sits just above the failed read on Listen,
+   so the read draws no second rule 24px under it. */
+.page.listen .intel-down { max-width: var(--measure); margin-top: var(--s-6); padding: 0; border: 0; background: none; }
+.page.listen .intel-down > .legacy-action { margin-top: var(--s-4); }
+.page.listen .intel-down > .workspace-reason { margin-top: var(--s-3); }
+.page.listen .intel-down .id-head { margin: 0; font: 600 var(--type-6)/1.3 var(--sans); color: var(--ink); text-wrap: balance; }
+.page.listen .intel-down .id-msg { margin: 8px 0 0; font: 400 var(--type-3)/1.55 var(--sans); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; color: var(--muted); }
+.page.listen .intel-down > .id-msg { font-size: var(--type-4); line-height: 1.6; text-wrap: pretty; }
+.page.listen .intel-down .id-msg code { font: inherit; font-family: var(--mono); font-variation-settings: "MONO" 1, "CASL" 0, "slnt" 0, "CRSV" 0; color: var(--ink); }
+.listen-no-match {
+  margin: 24px 0 0;
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .listen-filter-chip,
+  .listen-mention-row,
+  .listen-source { transition: none; }
+}
+
+.listen-loadmore {
+  color: var(--muted);
+  transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing);
+}
+.listen-loadmore:hover, .listen-loadmore:focus-visible {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+/* Page port, 3 October 2026: the lexicon lists 42's own words and hashtags
+   for one market. Names are set in the sans, as every 42 page sets them;
+   controls come from controls42.css with square corners; the panel's links
+   are links. A pressed card keeps its red edge and adds no outer shadow. */
+.lexicon-page .lex-markets { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-4); }
+.lexicon-page .lex-shell { display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-areas: "terms decode"; gap: 24px; align-items: start; margin-top: 28px; }
+.lexicon-page .lex-shell--solo { grid-template-columns: minmax(0, 1fr); grid-template-areas: "terms"; }
+.lexicon-page .lex-terms { grid-area: terms; min-width: 0; }
+.lexicon-page .lex-group-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; margin-bottom: 14px; }
+.lexicon-page .lex-group-name { font: 600 var(--type-4)/1.3 var(--sans); color: var(--ink); }
+.lexicon-page .lex-decode { grid-area: decode; min-width: 0; position: sticky; top: 20px; border: 1px solid var(--line); border-radius: 0; background: var(--surface); overflow: hidden; }
+.lexicon-page .lex-decode-head { padding: 20px 20px 16px; border-bottom: 1px solid var(--hairline); background: var(--header-bg); }
+.lexicon-page .lex-decode-title { margin: 0 0 4px; font: 600 var(--type-6)/1.25 var(--sans); letter-spacing: 0; color: var(--ink); overflow-wrap: break-word; }
+.lexicon-page .lex-decode-body { padding: 16px 20px 20px; }
+.lexicon-page .lex-fact { margin: 0 0 12px; font: 400 var(--type-3)/1.55 var(--sans); color: var(--ink-2); text-wrap: pretty; overflow-wrap: break-word; }
+.lexicon-page .lex-quiet { color: var(--muted); }
+.lexicon-page .lex-meta--section { margin-top: 16px; }
+.lexicon-page .lex-links { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); margin-top: 16px; }
+.lexicon-page .lex-link { display: inline-flex; align-items: center; min-height: var(--target-min); font: 600 var(--type-3)/1.2 var(--sans); color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 4px; transition: text-decoration-color var(--motion-control) var(--motion-standard-easing); }
+.lexicon-page .lex-link:hover, .lexicon-page .lex-link:focus-visible { text-decoration-color: currentColor; }
+.lexicon-page .lex-link:focus-visible { outline: 2px solid var(--accent); outline-offset: var(--focus-offset); }
+.lexicon-page .lex-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-top: 0; }
+.lexicon-page .lex-term-card { display: flex; flex-direction: column; justify-content: space-between; min-height: 88px; min-width: 0; text-align: left; padding: 16px; border-radius: 0; cursor: pointer; transition: border-color var(--motion-row) var(--motion-standard-easing), background var(--motion-row) var(--motion-standard-easing); }
+.lexicon-page .lex-term-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 12px; }
+.lexicon-page .lex-term-name { font: 600 var(--type-4)/1.35 var(--sans); letter-spacing: 0; overflow-wrap: break-word; color: var(--ink); }
+.lexicon-page .lex-change { flex-shrink: 0; white-space: nowrap; font: 400 var(--type-2)/1.4 var(--sans); font-variant-numeric: tabular-nums; }
+.lexicon-page .lex-change--new { color: var(--muted); }
+.lexicon-page .lex-meta { font: 400 var(--type-3)/1.4 var(--sans); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; color: var(--muted); margin-bottom: 8px; }
+.lexicon-page .lex-count { margin-top: 8px; font: 400 var(--type-3)/1.4 var(--sans); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; color: var(--muted); }
+.lexicon-page .lex-count .tnum { font: inherit; color: var(--ink); }
+.lexicon-page .lex-notes { margin: 16px 0 0; padding-left: 18px; font: 400 var(--type-2)/1.5 var(--sans); color: var(--muted); }
+.lexicon-page .lex-state { margin-block: var(--s-5); }
+@media (max-width: 1200px) {
+  .lexicon-page .lex-shell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "decode" "terms"; }
+  .lexicon-page .lex-shell--solo { grid-template-areas: "terms"; }
+  .lexicon-page .lex-decode { position: static; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lexicon-page .lex-term-card,
+  .lexicon-page .lex-link { transition: none; }
+}
+
+/* Charts, 3 October 2026: the week chart stands apart from the term cards. */
+.lexicon-page [data-lex-week-chart] { margin-bottom: var(--s-5); }
+
+/* No AI look pass, 4 October 2026. The terms are a list of rows, not boxed
+   cards; before a term is picked, what the term panel will hold stands in
+   its place, so the right of a wide screen is not left empty. */
+.lexicon-page .lex-shell--solo { grid-template-columns: minmax(0, 1fr) 360px; grid-template-areas: "terms decode"; }
+.lexicon-page .lex-guide { grid-area: decode; min-width: 0; }
+.lexicon-page .lex-guide-title { margin: 0 0 var(--s-3); font: 600 var(--type-4)/1.3 var(--sans); color: var(--ink); }
+.lexicon-page .lex-guide-parts { margin: 0; border-top: 1px solid var(--line); }
+.lexicon-page .lex-guide-part { display: grid; align-content: start; gap: var(--s-1); padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
+.lexicon-page .lex-guide-part dt { font-weight: 600; color: var(--ink); }
+.lexicon-page .lex-guide-part dd { margin: 0; color: var(--ink-2); text-wrap: pretty; }
+.lexicon-page .lex-grid { --shape-control: 0; grid-template-columns: minmax(0, 1fr); gap: 0; border-top: 1px solid var(--line); }
+.lexicon-page .lex-term-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-4);
+  min-height: var(--target-min);
+  padding: var(--s-3) var(--s-2);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+.lexicon-page .lex-term-card .lex-term-top { justify-content: flex-start; }
+.lexicon-page .lex-term-card .lex-count { margin: 0; text-align: right; white-space: nowrap; }
+.lexicon-page .lex-term-card:hover, .lexicon-page .lex-term-card:focus-visible { border-color: var(--line); background: var(--surface-2); }
+.lexicon-page .lex-term-card[aria-pressed="true"] { border-color: var(--line); background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
+.lexicon-page .lex-notes { font-size: var(--type-3); max-width: 90ch; }
+@media (max-width: 1200px) {
+  .lexicon-page .lex-shell--solo { grid-template-columns: minmax(0, 1fr); grid-template-areas: "terms" "decode"; }
+  .lexicon-page .lex-guide { margin-top: var(--s-4); }
+  .lexicon-page .lex-guide-parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); column-gap: var(--s-6); border-top: 0; }
+  .lexicon-page .lex-guide-part { border-top: 1px solid var(--line); border-bottom: 0; }
+}
+@media (max-width: 480px) {
+  .lexicon-page .lex-term-card { grid-template-columns: minmax(0, 1fr); }
+  .lexicon-page .lex-term-card .lex-count { text-align: left; }
+}
+
+/* Layout pass two, 4 October 2026: the market row is the loop pages' tab
+   row (loop.css), and the counting notes are one muted paragraph under the
+   list, not a bullet list longer than the list it explains. */
+.lexicon-page .lex-markets { gap: 0 var(--s-5); margin-top: var(--s-4); }
+.lexicon-page .lex-notes { margin: var(--s-3) 0 0; padding: 0; font-size: var(--type-meta); line-height: 1.55; color: var(--muted); max-width: 72ch; text-wrap: pretty; hyphens: manual; }

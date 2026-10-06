@@ -1,0 +1,14 @@
+[
+ {
+  "item_id": "196c5995cccbc7eff97f244b604378afbc28dc4109d809a6d6e3cf7a4201bd97",
+  "market": "ZA",
+  "rule": "G1",
+  "reason": "data_issue"
+ },
+ {
+  "item_id": "7bbb4f7e688b04a917d2b8e744210b7066714a7b925861e236fecd8a3dd4a60d",
+  "market": "NG",
+  "rule": "G5b",
+  "reason": "paid_led"
+ }
+]

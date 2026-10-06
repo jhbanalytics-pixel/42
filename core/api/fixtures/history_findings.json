@@ -1,0 +1,83 @@
+[
+ {
+  "finding_id": "f_step_1",
+  "question": "What is behind #fixture_za_step?",
+  "answer": "A dance step from Soweto.",
+  "as_of": "2026-09-29T10:00:40+02:00",
+  "claims": [
+   {
+    "text": "It started on TikTok in Soweto.",
+    "label": "Supported",
+    "item_ids": [
+     "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e"
+    ],
+    "evidence_post_ids": [
+     "p01",
+     "p02"
+    ],
+    "query_ids": [
+     "q_1"
+    ],
+    "run_ids": [
+     "r_ask_20260929_h1"
+    ],
+    "result_hashes": [
+     "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    ]
+   }
+  ],
+  "valid_from": "2026-09-29T10:00:40+02:00",
+  "valid_to": null,
+  "status": null
+ },
+ {
+  "finding_id": "f_her_1",
+  "question": "Where did #fixture_za_heritage start?",
+  "answer": "It returns each September.",
+  "as_of": "2026-09-30T08:00:40+02:00",
+  "claims": [
+   {
+    "text": "It peaked on 24 September 2025.",
+    "label": "Single source",
+    "item_ids": [
+     "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156"
+    ],
+    "evidence_post_ids": [],
+    "query_ids": [
+     "q_2"
+    ],
+    "run_ids": [
+     "r_ask_20260930_h2"
+    ],
+    "result_hashes": [
+     "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    ]
+   }
+  ],
+  "valid_from": "2026-09-30T08:00:40+02:00",
+  "valid_to": null,
+  "status": null
+ },
+ {
+  "finding_id": "f_step_0",
+  "question": "What is behind #fixture_za_step?",
+  "answer": "An older answer.",
+  "as_of": "2026-09-28T10:00:40+02:00",
+  "claims": [
+   {
+    "text": "Superseded.",
+    "label": "Inferred",
+    "item_ids": [
+     "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e"
+    ],
+    "evidence_post_ids": [],
+    "query_ids": [],
+    "run_ids": [],
+    "result_hashes": []
+   }
+  ],
+  "valid_from": "2026-09-28T10:00:40+02:00",
+  "valid_to": "2026-09-29T10:00:40+02:00",
+  "status": null
+ }
+]

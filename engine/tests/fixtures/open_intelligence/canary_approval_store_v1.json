@@ -1,0 +1,123 @@
+{
+  "fixture_version": "gemini_canary_approval_store_v1",
+  "target": {
+    "project": "ogilvy-trends-v2",
+    "dataset": "trends_v2_staging",
+    "location": "US",
+    "migration_identity": "trends-engine-staging@ogilvy-trends-v2.iam.gserviceaccount.com"
+  },
+  "tables": [
+    {
+      "name": "gemini_canary_planning_outputs_v1",
+      "table_ref": "ogilvy-trends-v2.trends_v2_staging.gemini_canary_planning_outputs_v1",
+      "description": "Immutable validated Gemini canary planning outputs for one frozen caller manifest.",
+      "expiration": null,
+      "partition_expiration": null,
+      "schema_digest": "pse_5069dde6b0ddc7098ac20c8caf70151457fd6a92a4eb1bfbeb27a13083b3bd14",
+      "schema": [
+        {"name": "storage_version", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "planning_output_id", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "manifest_sha256", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "task_ordinal", "type": "INT64", "mode": "REQUIRED"},
+        {"name": "task_id", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "stage", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "plan_id", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "plan_schema_version", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "canonical_plan_json", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "plan_digest", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "canonical_claim_requirements_json", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "claim_requirements_digest", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "planning_receipt_id", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "usage_event_id", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "writer_principal_id", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "persisted_at", "type": "TIMESTAMP", "mode": "REQUIRED"}
+      ]
+    },
+    {
+      "name": "gemini_canary_plan_approvals_v1",
+      "table_ref": "ogilvy-trends-v2.trends_v2_staging.gemini_canary_plan_approvals_v1",
+      "description": "Immutable human approval records for Gemini canary answering plans.",
+      "expiration": null,
+      "partition_expiration": null,
+      "schema_digest": "pse_9cc29d1e3d06713be8f368955429c5fb16d3583375193e0fb1f32b0ca30c0c49",
+      "schema": [
+        {"name": "contract_version", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "manifest_sha256", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "task_id", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "stage", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "plan_id", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "plan_digest", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "claim_requirements", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "approved_by", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "approved_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
+        {"name": "approval_id", "type": "STRING", "mode": "REQUIRED"}
+      ]
+    },
+    {
+      "name": "gemini_canary_approval_companions_v1",
+      "table_ref": "ogilvy-trends-v2.trends_v2_staging.gemini_canary_approval_companions_v1",
+      "description": "Immutable canonical approval companions for complete Gemini canary batches.",
+      "expiration": null,
+      "partition_expiration": null,
+      "schema_digest": "pse_2f9d3f3b3946ba22ef956ae2c4d77e4646a6631f1a94284f6ae82bd8246fea48",
+      "schema": [
+        {"name": "companion_version", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "contract_version", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "manifest_sha256", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "task_count", "type": "INT64", "mode": "REQUIRED"},
+        {"name": "task_ids", "type": "STRING", "mode": "REPEATED"},
+        {"name": "approval_records", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "companion_sha256", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "canonical_companion_json", "type": "STRING", "mode": "REQUIRED"}
+      ]
+    },
+    {
+      "name": "gemini_canary_approval_lock_v1",
+      "table_ref": "ogilvy-trends-v2.trends_v2_staging.gemini_canary_approval_lock_v1",
+      "description": "Singleton mutable transaction lock for Gemini canary planning and approval writes.",
+      "expiration": null,
+      "partition_expiration": null,
+      "schema_digest": "pse_057c12363143e9a4fde0cc4b28dd0ae8dc451a994a75f61ba89d8e7827cf379e",
+      "schema": [
+        {"name": "lock_name", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "approval_contract_version", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "lock_version", "type": "INT64", "mode": "REQUIRED"},
+        {"name": "state", "type": "STRING", "mode": "REQUIRED"},
+        {"name": "last_manifest_sha256", "type": "STRING", "mode": "NULLABLE"},
+        {"name": "created_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
+        {"name": "updated_at", "type": "TIMESTAMP", "mode": "REQUIRED"}
+      ]
+    }
+  ],
+  "lock_seed": {
+    "lock_name": "gemini_canary_approval_v1",
+    "approval_contract_version": "gemini_canary_plan_approval_v1",
+    "lock_version": 0,
+    "state": "ready",
+    "last_manifest_sha256": null,
+    "created_at": "SERVER_CURRENT_TIMESTAMP",
+    "updated_at": "SERVER_CURRENT_TIMESTAMP"
+  },
+  "intended_table_iam_bindings": [
+    {
+      "table": "gemini_canary_planning_outputs_v1",
+      "role": "roles/bigquery.dataEditor",
+      "member": "serviceAccount:trends-engine-canary@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "table": "gemini_canary_approval_lock_v1",
+      "role": "roles/bigquery.dataEditor",
+      "member": "serviceAccount:trends-engine-canary@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "table": "gemini_canary_plan_approvals_v1",
+      "role": "roles/bigquery.dataViewer",
+      "member": "serviceAccount:trends-engine-canary@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "table": "gemini_canary_approval_companions_v1",
+      "role": "roles/bigquery.dataViewer",
+      "member": "serviceAccount:trends-engine-canary@ogilvy-trends-v2.iam.gserviceaccount.com"
+    }
+  ]
+}

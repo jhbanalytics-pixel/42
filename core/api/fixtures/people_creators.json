@@ -1,0 +1,167 @@
+[
+ {
+  "creator_id": "c_ng_macro",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_macro",
+  "followers": 750000,
+  "tier": "macro",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 2
+ },
+ {
+  "creator_id": "c_ng_mega",
+  "platform": "instagram",
+  "handle": "fixture_ng_mega",
+  "followers": 2500000,
+  "tier": "mega",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_mid",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_mid",
+  "followers": 200000,
+  "tier": "mid",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_micro",
+  "platform": "twitter",
+  "handle": "fixture_ng_micro",
+  "followers": 40000,
+  "tier": "micro",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 1
+ },
+ {
+  "creator_id": "c_ng_nano",
+  "platform": "youtube",
+  "handle": "@fixture_ng_nano",
+  "followers": 3000,
+  "tier": "nano",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_hidden",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_hidden",
+  "followers": 900000,
+  "tier": "macro",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_m1",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_m1",
+  "followers": 600000,
+  "tier": "macro",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 3
+ },
+ {
+  "creator_id": "c_ng_m2",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_m2",
+  "followers": 20000,
+  "tier": "micro",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_m3",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_m3",
+  "followers": 20000,
+  "tier": "micro",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_m4",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_m4",
+  "followers": 20000,
+  "tier": "micro",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_m5",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_m5",
+  "followers": 20000,
+  "tier": "micro",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_k1",
+  "platform": "twitter",
+  "handle": "fixture_ng_k1",
+  "followers": 700000,
+  "tier": "macro",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_k2",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_k2",
+  "followers": 5000,
+  "tier": "nano",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_k3",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_k3",
+  "followers": 5000,
+  "tier": "nano",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ },
+ {
+  "creator_id": "c_ng_k4",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_k4",
+  "followers": 5000,
+  "tier": "nano",
+  "account_created_at": "2024-01-01T00:00:00+00:00",
+  "home_market": "NG",
+  "verified_region": null,
+  "coord_score": 0
+ }
+]

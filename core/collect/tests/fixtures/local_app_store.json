@@ -1,0 +1,13 @@
+{
+  "feed": {
+    "title": "Top Free Apps",
+    "id": "https://rss.marketingtools.apple.com/api/v2/za/apps/top-free/50/apps.json",
+    "country": "za",
+    "updated": "Mon, 5 Oct 2026 00:12:40 +0000",
+    "results": [
+      {"artistName": "Invented Grocer Ltd", "id": "1500000001", "name": "Sixty Minute Groceries", "releaseDate": "2020-02-11", "kind": "apps", "url": "https://apps.apple.com/za/app/sixty-minute-groceries/id1500000001"},
+      {"artistName": "Invented Bank Ltd", "id": "1500000002", "name": "Kasi Bank App", "releaseDate": "2016-06-01", "kind": "apps", "url": "https://apps.apple.com/za/app/kasi-bank-app/id1500000002"},
+      {"artistName": "Invented Media", "id": "1500000003", "name": "Braai Radio", "releaseDate": "2019-09-09", "kind": "apps", "url": "https://apps.apple.com/za/app/braai-radio/id1500000003"}
+    ]
+  }
+}

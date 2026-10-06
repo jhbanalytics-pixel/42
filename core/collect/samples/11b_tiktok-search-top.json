@@ -1,0 +1,38 @@
+{
+  "probe": "11b",
+  "route": "tiktok/search/top",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<null>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 0>"
+      ],
+      "total": "<null>",
+      "walk": {
+        "credits": {
+          "pages": "<int>",
+          "refunded": "<int>"
+        },
+        "discarded": {
+          "country_not_included": "<int>"
+        },
+        "pages": "<int>",
+        "repeats": "<int>",
+        "request_ids": [
+          "<list of 1>",
+          "<str>"
+        ],
+        "rows_fetched": "<int>",
+        "rows_returned": "<int>",
+        "stopped": "<str>"
+      }
+    },
+    "endpoint": "<str>",
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

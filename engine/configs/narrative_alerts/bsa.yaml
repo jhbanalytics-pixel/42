@@ -1,0 +1,83 @@
+# Brand South Africa narrative alert preset: the BSA labels and thresholds for the
+# general narrative alert rules in narrative_alerts.py. Risk ids equal the overlay's
+# risk_topics exactly; tariff and trade access is its own rule so its subcluster can
+# trigger without the broader Exports cluster.
+#
+# No narrative rule is calibrated yet. B02's calibrated corpus has not produced a frozen
+# threshold, minimum independent evidence, window or cooldown for any risk, so every
+# narrative rule holds with threshold_uncalibrated until a versioned calibration lands.
+# The two event rules do not depend on volume and are active.
+#
+# The named operational owner and the escalation contact are client inputs that have not
+# been supplied. They stay unknown; an overdue alert reports that gap, it never invents a
+# person. Delivery is the protected test sink only.
+contract_version: narrative_alert_policy_v1
+policy_id: bsa_narrative_alerts
+brand_config_id: bsa
+client_scope_id: bsa_pulse
+collection_cadence: daily
+delivery: test_sink
+acknowledgement:
+  window_seconds: 3600
+  authorized_roles: [narrative_monitor]
+  assigned_role: narrative_monitor
+  operational_owner: unknown
+  escalation_contact: unknown
+narrative_rules:
+  safety_and_crime:
+    label: Safety and crime
+    source: risk_topic
+    evidence_types: [lived_experience, reporting, verified_advisory_revision]
+    counter_signals: []
+    calibration:
+      state: uncalibrated
+  migration_xenophobia_continental_solidarity:
+    label: Migration, xenophobia and continental solidarity
+    source: risk_topic
+    evidence_types: []
+    counter_signals: []
+    calibration:
+      state: uncalibrated
+  land_farm_violence_international_disinformation:
+    label: Land, farm violence and international disinformation
+    source: risk_topic
+    evidence_types: []
+    counter_signals: []
+    calibration:
+      state: uncalibrated
+  corruption_and_state_capacity:
+    label: Corruption and state capacity
+    source: risk_topic
+    evidence_types: []
+    counter_signals: [enforcement_action, asset_recovery]
+    calibration:
+      state: uncalibrated
+  energy_water_infrastructure:
+    label: Energy, water and infrastructure
+    source: risk_topic
+    evidence_types: []
+    counter_signals: []
+    calibration:
+      state: uncalibrated
+  misinformation_targeting_the_nation_brand:
+    label: Misinformation targeting the Nation Brand
+    source: risk_topic
+    evidence_types: []
+    counter_signals: []
+    calibration:
+      state: uncalibrated
+  tariff_trade_access:
+    label: Tariff and trade access
+    source: dimension_subcluster
+    parent_dimension: exports
+    evidence_types: []
+    counter_signals: []
+    calibration:
+      state: uncalibrated
+event_rules:
+  advisory_revision:
+    label: Verified travel advisory revision
+    risk: safety_and_crime
+  official_account_impersonation:
+    label: Official account impersonation
+    risk: misinformation_targeting_the_nation_brand

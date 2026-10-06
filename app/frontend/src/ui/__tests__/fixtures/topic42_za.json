@@ -1,0 +1,567 @@
+{
+ "card": {
+  "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e",
+  "rank": 1,
+  "kind": "hashtag",
+  "title": "#fixture_za_step",
+  "state": "emerging",
+  "flag": "check_pattern",
+  "explained": true,
+  "explanation": "#fixture_za_step is spreading on Tiktok in South Africa, possibly tied to the weekend.",
+  "explanation_claim_ids": [
+   "c1"
+  ],
+  "claims": [
+   {
+    "id": "c1",
+    "text": "31 creators posted #fixture_za_step in South Africa in the last 3 days.",
+    "label": "corroborated",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_za_006",
+     "ig_za_007",
+     "yt_za_008"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_za_006",
+      "text": "Post 6: the #fixture_za_step routine at the taxi rank"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 31,
+      "unit": "creators in 3 days",
+      "query_id": "q_creators3_za_a",
+      "run_id": "r_aggregate_20260930_01",
+      "result_hash": "sha256:e172e7a2a6d7731988a7a2592c1567138ced1f7c6181fd9e195ed469a527a4d5"
+     }
+    ]
+   },
+   {
+    "id": "c2",
+    "text": "The timing of #fixture_za_step may follow the end-of-month weekend.",
+    "label": "inferred",
+    "kind": "interpretation",
+    "evidence_ids": [
+     "tt_za_006"
+    ],
+    "basis": "posts cluster on the weekend",
+    "numbers": []
+   }
+  ],
+  "count_line": "31 creators, 3 days",
+  "numbers": [
+   {
+    "value": 31,
+    "unit": "creators in 3 days",
+    "query_id": "q_creators3_za_a",
+    "run_id": "r_aggregate_20260930_01",
+    "result_hash": "sha256:e172e7a2a6d7731988a7a2592c1567138ced1f7c6181fd9e195ed469a527a4d5"
+   },
+   {
+    "value": 58,
+    "unit": "posts in 3 days",
+    "query_id": "q_posts3_za_a",
+    "run_id": "r_aggregate_20260930_01",
+    "result_hash": "sha256:614158eedeff0e900127deddf6c4a10df2eb22f3e2385d88b7393375295c5f6b"
+   }
+  ],
+  "sparkline": {
+   "unit": "posts a day",
+   "points": [
+    {
+     "date": "2026-09-24",
+     "value": 2,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-25",
+     "value": 5,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-26",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-27",
+     "value": 11,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-28",
+     "value": 14,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-29",
+     "value": 17,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-30",
+     "value": 19,
+     "expected_low": null,
+     "expected_high": null
+    }
+   ]
+  },
+  "thumbnails": [
+   "tt_za_006",
+   "ig_za_007"
+  ],
+  "evidence_ids": [
+   "tt_za_006",
+   "ig_za_007",
+   "yt_za_008"
+  ],
+  "evidence": [
+   {
+    "id": "tt_za_006",
+    "platform": "tiktok",
+    "handle": "@fixture_za_6",
+    "url": "https://example.invalid/tiktok/@fixture_za_6/tt_za_006",
+    "posted_at": "2026-09-26T18:40:00+02:00",
+    "market": "ZA",
+    "text": "Post 6: the #fixture_za_step routine at the taxi rank",
+    "engagement": {
+     "views": 7200,
+     "likes": 540,
+     "comments": 42,
+     "shares": 18
+    },
+    "flags": [],
+    "thumbnail_url": "https://example.invalid/thumb/tt_za_006.jpg",
+    "creator_tier": "nano"
+   },
+   {
+    "id": "ig_za_007",
+    "platform": "instagram",
+    "handle": "@fixture_za_7",
+    "url": "https://example.invalid/instagram/@fixture_za_7/ig_za_007",
+    "posted_at": "2026-09-27T19:40:00+02:00",
+    "market": "ZA",
+    "text": "Post 7: the #fixture_za_step routine at the taxi rank",
+    "engagement": {
+     "views": 8400,
+     "likes": 630,
+     "comments": 49,
+     "shares": 21
+    },
+    "flags": [],
+    "thumbnail_url": "https://example.invalid/thumb/ig_za_007.jpg",
+    "creator_tier": "micro"
+   },
+   {
+    "id": "yt_za_008",
+    "platform": "youtube",
+    "handle": "@fixture_za_8",
+    "url": "https://example.invalid/youtube/@fixture_za_8/yt_za_008",
+    "posted_at": "2026-09-28T20:40:00+02:00",
+    "market": "ZA",
+    "text": "Post 8: the #fixture_za_step routine at the taxi rank",
+    "engagement": {
+     "views": 9600,
+     "likes": 720,
+     "comments": 56,
+     "shares": 24
+    },
+    "flags": [],
+    "thumbnail_url": "https://example.invalid/thumb/yt_za_008.jpg",
+    "creator_tier": "mid"
+   }
+  ],
+  "ask": "What is behind #fixture_za_step in South Africa this week?",
+  "market": "ZA",
+  "date": "2026-09-30",
+  "tag": "moved_up",
+  "state_word": "Emerging",
+  "flag_word": "Check pattern",
+  "explanation_status": "explained",
+  "lifecycle": {
+   "step": 1,
+   "word": "Emerging",
+   "rule": "Significant on 1 day with ratio 2 or more"
+  },
+  "novelty": "recurrence",
+  "last_wave": {
+   "peak_date": "2026-03-14",
+   "peak_posts": {
+    "value": 412,
+    "unit": "posts on the peak day",
+    "query_id": "q_wave_za_a",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:q_wave_za_a"
+   }
+  },
+  "diffusion": "bottom_up",
+  "origin": null,
+  "spread_line": "First seen on TikTok 12 September, X 18 September; 38 creators; Gauteng to Western Cape",
+  "reach": {
+   "value": 38,
+   "unit": "creators in 3 days",
+   "query_id": "q_reach_za_a",
+   "run_id": "r_detect_20260930_01",
+   "result_hash": "sha256:q_reach_za_a"
+  },
+  "growth": {
+   "value": 2.8,
+   "unit": "times usual",
+   "query_id": "q_growth_za_a",
+   "run_id": "r_detect_20260930_01",
+   "result_hash": "sha256:q_growth_za_a"
+  },
+  "order": 1,
+  "watch_id": null
+ },
+ "aliases": [
+  "#fixturezastep",
+  "fixture za step"
+ ],
+ "history": [
+  {
+   "date": "2026-09-27",
+   "state": "new_to_42",
+   "state_word": "New to 42"
+  },
+  {
+   "date": "2026-09-29",
+   "state": "emerging",
+   "state_word": "Emerging"
+  },
+  {
+   "date": "2026-09-28",
+   "state": "spike",
+   "state_word": "Spike"
+  }
+ ],
+ "series": [
+  {
+   "platform": "tiktok",
+   "series": "feed_tiktok",
+   "series_words": "TikTok local feed",
+   "unit": "posts a day",
+   "points": [
+    {
+     "date": "2026-09-24",
+     "value": 2,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-25",
+     "value": 5,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-26",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-27",
+     "value": 11,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-28",
+     "value": 14,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-29",
+     "value": 17,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-30",
+     "value": 21,
+     "expected_low": null,
+     "expected_high": null
+    }
+   ]
+  },
+  {
+   "platform": "x",
+   "series": "panel_x_hub",
+   "series_words": "X hub accounts",
+   "unit": "posts a day",
+   "points": [
+    {
+     "date": "2026-09-24",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-25",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-26",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-27",
+     "value": 1,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-28",
+     "value": 3,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-29",
+     "value": 4,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-30",
+     "value": 6,
+     "expected_low": null,
+     "expected_high": null
+    }
+   ]
+  },
+  {
+   "platform": "instagram",
+   "series": "ig_location",
+   "series_words": "Instagram location posts",
+   "unit": "posts a day",
+   "points": [
+    {
+     "date": "2026-09-24",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-25",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-26",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-27",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-28",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-29",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    },
+    {
+     "date": "2026-09-30",
+     "value": null,
+     "expected_low": null,
+     "expected_high": null
+    }
+   ]
+  }
+ ],
+ "spread": {
+  "platforms": [
+   {
+    "platform": "tiktok",
+    "first_seen": "2026-09-12"
+   },
+   {
+    "platform": "x",
+    "first_seen": "2026-09-18"
+   }
+  ],
+  "tiers": {
+   "nano": {
+    "value": 20,
+    "unit": "creators",
+    "query_id": "q_tier_nano",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:q_tier_nano"
+   },
+   "micro": {
+    "value": 12,
+    "unit": "creators",
+    "query_id": "q_tier_micro",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:q_tier_micro"
+   },
+   "mid": {
+    "value": 4,
+    "unit": "creators",
+    "query_id": "q_tier_mid",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:q_tier_mid"
+   },
+   "macro": {
+    "value": 2,
+    "unit": "creators",
+    "query_id": "q_tier_macro",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:q_tier_macro"
+   },
+   "mega": {
+    "value": 0,
+    "unit": "creators",
+    "query_id": "q_tier_mega",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:q_tier_mega"
+   }
+  },
+  "markets": [
+   {
+    "market": "ZA",
+    "first_seen": "2026-09-12"
+   },
+   {
+    "market": "NG",
+    "first_seen": "2026-09-20"
+   }
+  ]
+ },
+ "waves": [
+  {
+   "peak_date": "2026-03-14",
+   "peak_posts": {
+    "value": 412,
+    "unit": "posts on the peak day",
+    "query_id": "q_wave_za_a",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:q_wave_za_a"
+   }
+  }
+ ],
+ "authenticity": {
+  "flag": "check_pattern",
+  "flag_word": "Check pattern",
+  "signals": [
+   {
+    "signal": "young_accounts",
+    "words": "Accounts under 30 days old",
+    "share": {
+     "value": 0.42,
+     "unit": "share of posts in 7 days",
+     "query_id": "q_young_za_a",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:q_young_za_a"
+    }
+   },
+   {
+    "signal": "near_duplicates",
+    "words": "Near-duplicate posts",
+    "share": {
+     "value": 0.31,
+     "unit": "share of posts in 7 days",
+     "query_id": "q_dup_za_a",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:q_dup_za_a"
+    }
+   }
+  ]
+ },
+ "evidence": [
+  {
+   "id": "tt_za_006",
+   "platform": "tiktok",
+   "handle": "@fixture_za_6",
+   "url": "https://example.invalid/tiktok/@fixture_za_6/tt_za_006",
+   "posted_at": "2026-09-26T18:40:00+02:00",
+   "market": "ZA",
+   "text": "Post 6: the #fixture_za_step routine at the taxi rank",
+   "engagement": {
+    "views": 7200,
+    "likes": 540,
+    "comments": 42,
+    "shares": 18
+   },
+   "flags": [],
+   "thumbnail_url": "https://example.invalid/thumb/tt_za_006.jpg",
+   "creator_tier": "nano"
+  },
+  {
+   "id": "ig_za_007",
+   "platform": "instagram",
+   "handle": "@fixture_za_7",
+   "url": "https://example.invalid/instagram/@fixture_za_7/ig_za_007",
+   "posted_at": "2026-09-27T19:40:00+02:00",
+   "market": "ZA",
+   "text": "Post 7: the #fixture_za_step routine at the taxi rank",
+   "engagement": {
+    "views": 8400,
+    "likes": 630,
+    "comments": 49,
+    "shares": 21
+   },
+   "flags": [],
+   "thumbnail_url": "https://example.invalid/thumb/ig_za_007.jpg",
+   "creator_tier": "micro"
+  },
+  {
+   "id": "yt_za_008",
+   "platform": "youtube",
+   "handle": "@fixture_za_8",
+   "url": "https://example.invalid/youtube/@fixture_za_8/yt_za_008",
+   "posted_at": "2026-09-28T20:40:00+02:00",
+   "market": "ZA",
+   "text": "Post 8: the #fixture_za_step routine at the taxi rank",
+   "engagement": {
+    "views": 9600,
+    "likes": 720,
+    "comments": 56,
+    "shares": 24
+   },
+   "flags": [],
+   "thumbnail_url": "https://example.invalid/thumb/yt_za_008.jpg",
+   "creator_tier": "mid"
+  },
+  {
+   "id": "x_za_009",
+   "platform": "x",
+   "handle": "@fixture_za_9",
+   "url": "javascript:alert(1)",
+   "posted_at": "2026-09-29T08:10:00+02:00",
+   "market": "ZA",
+   "text": "Post 9: the step at the rank again",
+   "engagement": {
+    "views": 5200
+   },
+   "flags": [],
+   "thumbnail_url": "data:image/png;base64,AAAA"
+  }
+ ]
+}

@@ -1,0 +1,87 @@
+{
+  "probe": "4-ke",
+  "route": "apple_music/charts",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 50>",
+        {
+          "computed": {
+            "content_category": "<null>",
+            "engagement_rate": "<null>",
+            "estimated_reach": "<null>",
+            "language": "<null>"
+          },
+          "post": {
+            "author": {
+              "avatar_url": "<null>",
+              "display_name": "<str>",
+              "username": "<str>",
+              "verified": "<null>"
+            },
+            "content": {
+              "duration_seconds": "<null>",
+              "media_urls": "<null>",
+              "text": "<str>",
+              "thumbnail_url": "<str>"
+            },
+            "engagement": {
+              "comments": "<null>",
+              "likes": "<null>",
+              "saves": "<null>",
+              "shares": "<null>",
+              "views": "<null>"
+            },
+            "ext": {
+              "apple_music": {
+                "artist_id": "<str>",
+                "artist_url": "<str>",
+                "content_advisory": "<null>",
+                "genres": [
+                  "<list of 3>",
+                  {
+                    "id": "<str>",
+                    "name": "<str>"
+                  }
+                ],
+                "kind": "<str>",
+                "release_date": "<str>"
+              },
+              "trend": {
+                "chart": "<str>",
+                "chart_title": "<str>",
+                "country_code": "<str>",
+                "rank": "<int>",
+                "updated_at": "<str>"
+              }
+            },
+            "flags": {
+              "deleted": "<bool>",
+              "nsfw": "<null>",
+              "pinned": "<null>",
+              "spoiler": "<null>"
+            },
+            "id": "<str>",
+            "published_at": "<str>",
+            "url": "<str>"
+          },
+          "vendor_labels": {}
+        }
+      ],
+      "total": "<int>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<null>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

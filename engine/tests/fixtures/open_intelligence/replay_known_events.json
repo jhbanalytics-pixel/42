@@ -1,0 +1,22 @@
+{
+  "fixture_scope": "synthetic_test_only",
+  "cutoff": "2026-08-25",
+  "expected_event_ledger_rows": 18693,
+  "known_events": [
+    {
+      "event_id": "known_za",
+      "market": "za",
+      "member_identities": ["za|entity|known za"]
+    },
+    {
+      "event_id": "known_ng",
+      "market": "ng",
+      "member_identities": ["ng|entity|known ng"]
+    },
+    {
+      "event_id": "known_ke",
+      "market": "ke",
+      "member_identities": ["ke|entity|known ke"]
+    }
+  ]
+}

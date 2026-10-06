@@ -1,0 +1,53 @@
+{
+  "_note": "Unprobed shapes. Board and chart entries are not posts. Field names (rank, hashtag_name, trend[].time and value, track.audio_cluster_id, chart id) are assumptions from the old connector, the vendor summary in docs/full-42/research/13-socialcrawl-full-map.md and TikTok Creative Center conventions; check them against the task 0.5 probe samples.",
+  "hashtags_popular": {
+    "success": true,
+    "credits_used": 6,
+    "data": {
+      "items": [
+        {
+          "rank": 2,
+          "hashtag_name": "braai",
+          "posts": 5400,
+          "views": 2100000,
+          "trend": [
+            {"time": 1790380800, "value": 30},
+            {"time": 1790467200, "value": 45}
+          ]
+        },
+        {
+          "rank": 1,
+          "hashtag_name": "Amapiano",
+          "posts": 91000,
+          "views": 88000000,
+          "trend": [
+            {"time": 1790380800, "value": 120},
+            {"time": 1790467200, "value": 200},
+            {"time": 1790553600, "value": 60}
+          ]
+        }
+      ]
+    }
+  },
+  "ig_music_trending": {
+    "success": true,
+    "credits_used": 5,
+    "data": {
+      "items": [
+        {"track": {"audio_cluster_id": "ig_a1", "title": "Tshwala Bam"}},
+        {"track": {"audio_asset_id": "ig_a2", "title": "Water"}}
+      ]
+    }
+  },
+  "apple_charts": {
+    "success": true,
+    "credits_used": 1,
+    "data": {
+      "items": [
+        {"id": "am_1", "name": "First song", "artist_name": "Artist A"},
+        {"id": "am_2", "name": "Second song", "artist_name": "Artist B"},
+        {"id": "am_3", "name": "Third song", "artist_name": "Artist C"}
+      ]
+    }
+  }
+}

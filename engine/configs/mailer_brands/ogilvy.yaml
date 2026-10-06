@@ -1,0 +1,17 @@
+name: PULSE
+lockup: "Ogilvy x Google intelligence"
+tagline: "Sub-Saharan culture, read before your 9am."
+engine_credit: "Powered by Gemini on Vertex"
+# Adaptive light base. ink is the light page canvas, paper is the primary ink
+# text on it (palette() maps paper onto on_ink), accent is the on-paper blue
+# (AA on the paper surfaces). The dark @media override in _style.py flips the
+# locked midnight furniture for readers whose client honours dark mode.
+palette: { ink: "#f3efe6", paper: "#2b2722", accent: "#2f5fd0" }
+# Per-market dot colours. Each must stay clear of the semantic status colours
+# so a market dot never reads as a mood: KE was #c5283d (crimson), nearly the
+# neg-mood red (#c0432b in _table.py), so a Kenya dot on a positive story read
+# as a negative sentiment dot. KE now takes a magenta that collides with no
+# status colour (pos green, neg red, cooling blue, building amber) and no other
+# market (za gold, ng green).
+markets: [za, ng, ke]
+market_colors: { za: "#e0a020", ng: "#1b8a5a", ke: "#b0338a" }

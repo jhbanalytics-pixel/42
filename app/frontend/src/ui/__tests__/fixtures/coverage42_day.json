@@ -1,0 +1,202 @@
+{
+ "date": "2026-09-30",
+ "markets": [
+  {
+   "market": "ZA",
+   "label": "South Africa",
+   "series": [
+    {
+     "platform": "tiktok",
+     "series": "feed_tiktok",
+     "series_words": "TikTok local feed",
+     "calls": 12,
+     "calls_ok": 12,
+     "items": 500,
+     "valid": true,
+     "invalid_reason": null,
+     "located_share": 0.4,
+     "invalid_words": null,
+     "group": "boards",
+     "group_words": "Trending boards and feeds",
+     "located_words": null
+    },
+    {
+     "platform": "tiktok",
+     "series": "board_tiktok_hashtag",
+     "series_words": "TikTok hashtag board",
+     "calls": 6,
+     "calls_ok": 1,
+     "items": 20,
+     "valid": false,
+     "invalid_reason": "calls",
+     "located_share": null,
+     "invalid_words": "calls failed",
+     "group": "boards",
+     "group_words": "Trending boards and feeds",
+     "located_words": "Market board"
+    },
+    {
+     "platform": "youtube",
+     "series": "board_youtube",
+     "series_words": "YouTube trending board",
+     "calls": 12,
+     "calls_ok": 12,
+     "items": 1200,
+     "valid": true,
+     "invalid_reason": null,
+     "located_share": 0.255,
+     "invalid_words": null,
+     "group": "boards",
+     "group_words": "Trending boards and feeds",
+     "located_words": null
+    }
+   ]
+  },
+  {
+   "market": "NG",
+   "label": "Nigeria",
+   "series": [
+    {
+     "platform": "reddit",
+     "series": "list_reddit",
+     "series_words": "Reddit rising and hot",
+     "calls": 8,
+     "calls_ok": 8,
+     "items": 140,
+     "valid": false,
+     "invalid_reason": "drift",
+     "located_share": 0.1,
+     "invalid_words": "feed drifted from usual",
+     "group": "boards",
+     "group_words": "Trending boards and feeds",
+     "located_words": null
+    }
+   ]
+  },
+  {
+   "market": "KE",
+   "label": "Kenya",
+   "series": []
+  }
+ ],
+ "credits": {
+  "total": {
+   "value": 462,
+   "unit": "credits charged",
+   "query_id": "q_credits_total",
+   "run_id": "r_collect_20260930_01",
+   "result_hash": "sha256:q_credits_total"
+  },
+  "rows": [
+   {
+    "market": "ZA",
+    "market_label": "South Africa",
+    "job": "collect",
+    "lane": "feed",
+    "credits": {
+     "value": 310,
+     "unit": "credits charged",
+     "query_id": "q_credits_za_feed",
+     "run_id": "r_collect_20260930_01",
+     "result_hash": "sha256:q_credits_za_feed"
+    },
+    "calls": 40
+   },
+   {
+    "market": "ZA",
+    "market_label": "South Africa",
+    "job": "collect",
+    "lane": "expansion",
+    "credits": {
+     "value": 120,
+     "unit": "credits charged",
+     "query_id": "q_credits_za_exp",
+     "run_id": "r_collect_20260930_01",
+     "result_hash": "sha256:q_credits_za_exp"
+    },
+    "calls": 12
+   },
+   {
+    "market": null,
+    "market_label": "No market",
+    "job": "ask",
+    "lane": "agent_live",
+    "credits": {
+     "value": 32,
+     "unit": "credits charged",
+     "query_id": "q_credits_ask_live",
+     "run_id": "r_ask_01",
+     "result_hash": "sha256:q_credits_ask_live"
+    },
+    "calls": 3
+   }
+  ]
+ },
+ "model_spend": {
+  "usd": {
+   "value": 3.4,
+   "unit": "USD",
+   "query_id": "q_model_usd",
+   "run_id": "r_brief_20260930_01,r_detect_20260930_01",
+   "result_hash": "sha256:q_model_usd"
+  },
+  "cap_usd": 20.0,
+  "stages": [
+   {
+    "stage": "detect",
+    "usd": {
+     "value": 0.4,
+     "unit": "USD",
+     "query_id": "q_model_usd_detect",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:q_model_usd_detect"
+    }
+   },
+   {
+    "stage": "brief",
+    "usd": {
+     "value": 3.0,
+     "unit": "USD",
+     "query_id": "q_model_usd_brief",
+     "run_id": "r_brief_20260930_01",
+     "result_hash": "sha256:q_model_usd_brief"
+    }
+   }
+  ],
+  "text": "USD 3.40 of the USD 20.00 daily model cap"
+ },
+ "runs": [
+  {
+   "run_id": "r_collect_20260930_01",
+   "stage": "collect",
+   "status": "ok",
+   "started_at": "2026-09-30T00:30:00+02:00",
+   "finished_at": "2026-09-30T02:11:03+02:00",
+   "error": null
+  },
+  {
+   "run_id": "r_detect_20260930_01",
+   "stage": "detect",
+   "status": "failed",
+   "started_at": "2026-09-30T03:00:00+02:00",
+   "finished_at": "2026-09-30T03:04:10+02:00",
+   "error": "Detection query timed out"
+  },
+  {
+   "run_id": "r_brief_20260930_01",
+   "stage": "brief",
+   "status": "ok",
+   "started_at": "2026-09-30T06:00:00+02:00",
+   "finished_at": "2026-09-30T06:14:40+02:00",
+   "error": null
+  }
+ ],
+ "not_seen": [
+  "WhatsApp and other private groups",
+  "Official X location trends (the public archive is used only as a seed)",
+  "Pinterest Trends (our data supplier does not cover South Africa, Nigeria or Kenya)",
+  "Google Trends (excluded by rule)"
+ ],
+ "scorecard": null,
+ "scorecard_text": "No weekly scorecard yet. The learn job writes one every Monday at 07:30 SAST, for the week before"
+}

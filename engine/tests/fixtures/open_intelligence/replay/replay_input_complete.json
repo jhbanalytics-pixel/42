@@ -1,0 +1,129 @@
+{
+  "artifact_version": "replay_input_v1",
+  "contract_version": "2.0.0",
+  "cutoff": "2026-08-25",
+  "scope": {
+    "client_scope_id": "synthetic_internal",
+    "market_scope": ["ke", "ng", "za"],
+    "brand_config_id": "synthetic",
+    "audience_lens_ids": [],
+    "theme_id": "open_intelligence",
+    "run_id": "replay_fixture_run"
+  },
+  "source_snapshot": {
+    "fixture_scope": "synthetic_test_only",
+    "snapshot_id": "snapshot_fixture_v1",
+    "captured_at": "2026-08-25T23:00:00Z",
+    "row_counts_by_table": {
+      "enriched_content": 1,
+      "event_ledger": 1,
+      "raw_content": 0,
+      "seed_candidates": 0,
+      "seed_graph": 1,
+      "signal_candidates_v2": 1,
+      "signal_membership_v2": 1
+    },
+    "section_counts": {
+      "components": 1,
+      "event_ledger_candidates": 1,
+      "known_events": 3,
+      "memberships": 1,
+      "observations": 1,
+      "prior_snapshots": 1,
+      "provider_outputs": 1,
+      "receipts": 1,
+      "seed_candidates": 0,
+      "seed_graph_candidates": 1
+    },
+    "section_identity_sets": {
+      "components": ["candidate_fixture"],
+      "event_ledger_candidates": ["ledger_fixture"],
+      "known_events": ["known_ke", "known_ng", "known_za"],
+      "memberships": ["mem_fixture"],
+      "observations": ["za|keyword|fixture"],
+      "prior_snapshots": ["sig_fixture|2026-08-18|prior_run"],
+      "provider_outputs": ["provider_fixture"],
+      "receipts": ["row_fixture"],
+      "seed_candidates": [],
+      "seed_graph_candidates": ["graph_fixture"]
+    },
+    "table_digests": {
+      "enriched_content": "67f4f8f6fc9093efde1e9508cb1e97a82e25ea4487bb938db644675d71f08c87",
+      "event_ledger": "330fea7200fe54241db942b812a533421c61a177467b79e5f2004772ea60ad60",
+      "raw_content": "a2dc8fd48638d74b3ded0ddb6ad8d00a8a2c0bcdf3c175cdc104f0e4f2901021",
+      "seed_candidates": "a2dc8fd48638d74b3ded0ddb6ad8d00a8a2c0bcdf3c175cdc104f0e4f2901021",
+      "seed_graph": "9916df5f90ab60d36972c7813e56c37454f38117a14acb8d3225881d8196c8d0",
+      "signal_candidates_v2": "d99d5648cb5e726bb6bb83b0cdab6766c45df846d2f96c1d34c79d6455844d03",
+      "signal_membership_v2": "09b4a527214ddfb2b9326d1199ef80c03b9d726d074266c1da2d9daafcfa9e44"
+    },
+    "rows_by_table": {
+      "enriched_content": [{"id": "row_fixture", "vendor_family": "rss", "channel_family": "news", "source_family": "news", "market": "za", "collected_at": "2026-08-25T12:00:00Z"}],
+      "event_ledger": [{"ledger_id": "ledger_fixture", "trend_date": "2026-08-25", "market": "za", "entity_key": "fixture"}],
+      "raw_content": [],
+      "seed_candidates": [],
+      "seed_graph": [{"market": "za", "term": "fixture", "trend_date": "2026-08-25", "sample_row_ids": ["row_fixture"]}],
+      "signal_candidates_v2": [{"signal_id": "sig_fixture", "signal_date": "2026-08-18", "market": "za", "run_id": "prior_run"}],
+      "signal_membership_v2": [{"member_id": "mem_fixture", "member_identity": "za|keyword|fixture", "source_families": ["news"], "vendor_families": ["rss"], "channel_families": ["news"], "signal_id": "sig_fixture", "signal_date": "2026-08-18", "run_id": "prior_run"}]
+    },
+    "source_digest": "533624d759300da6ae1d811c12dfd83cab1c69f90e8039ac5ece79043e386597"
+  },
+  "known_event_set": {
+    "fixture_scope": "synthetic_test_only",
+    "set_id": "known_events_fixture_v1",
+    "events": [
+      {"event_id": "known_ke", "market": "ke", "member_identities": ["ke|entity|known ke"]},
+      {"event_id": "known_ng", "market": "ng", "member_identities": ["ng|entity|known ng"]},
+      {"event_id": "known_za", "market": "za", "member_identities": ["za|keyword|fixture"]}
+    ],
+    "digest": "d81ef0a749e70158201360864d0ea8098c29109023115d1ac05ebc8d6b1d781b"
+  },
+  "candidate_inputs": {
+    "event_ledger": [{"candidate_id": "ledger_fixture", "identity": "za|keyword|fixture"}],
+    "seed_graph": [{"candidate_id": "graph_fixture", "identity": "za|keyword|fixture", "sample_row_ids": ["row_fixture"]}],
+    "seed_candidates": []
+  },
+  "observations": [
+    {"identity": "za|keyword|fixture", "source_max_observed_at": "2026-08-25T12:00:00Z"}
+  ],
+  "components_by_candidate": {
+    "candidate_fixture": {"market": "za", "member_identities": ["za|keyword|fixture"]}
+  },
+  "memberships_by_candidate": {
+    "candidate_fixture": [{"member_id": "mem_fixture", "member_identity": "za|keyword|fixture", "row_id": "ledger_fixture"}]
+  },
+  "receipts_by_member": {
+    "za|keyword|fixture": [{"row_id": "row_fixture", "published_at": "2026-08-25T10:00:00Z", "collected_at": "2026-08-25T12:00:00Z"}]
+  },
+  "current_window": {
+    "start_date": "2026-08-19",
+    "end_date": "2026-08-25",
+    "markets": ["ke", "ng", "za"],
+    "source_tables": ["ogilvy-trends-v2.trends_v2_staging.enriched_content", "ogilvy-trends-v2.trends_v2_staging.event_ledger", "ogilvy-trends-v2.trends_v2_staging.raw_content", "ogilvy-trends-v2.trends_v2_staging.seed_candidates", "ogilvy-trends-v2.trends_v2_staging.seed_graph"],
+    "complete_partitions": true
+  },
+  "history_window": {
+    "start_date": "2026-07-22",
+    "end_date": "2026-08-18",
+    "markets": ["ke", "ng", "za"],
+    "source_tables": ["ogilvy-trends-v2.trends_v2_staging.signal_candidates_v2", "ogilvy-trends-v2.trends_v2_staging.signal_membership_v2"],
+    "complete_partitions": true
+  },
+  "prior_snapshots": [
+    {"signal_id": "sig_fixture", "signal_date": "2026-08-18", "market": "za", "run_id": "prior_run", "member_identities": ["za|keyword|fixture"]}
+  ],
+  "provider_outputs": [
+    {
+      "candidate_id": "provider_fixture",
+      "provider_kind": "lexical_similarity",
+      "provider_version": "fixture_lexical_v1",
+      "metering_status": "fixture_complete",
+      "matrix_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "pair_count": 0,
+      "runtime_ms": 0.0,
+      "input_units": 0,
+      "estimated_cost": 0.0,
+      "missing_work": []
+    }
+  ],
+  "human_review_state": "pending"
+}

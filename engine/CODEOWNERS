@@ -1,0 +1,7 @@
+# All changes require Albert's review by default.
+* @AlbertMeintjes
+
+# Infrastructure and configs are gated strictly.
+/infra/ @AlbertMeintjes
+/configs/ @AlbertMeintjes
+/.github/ @AlbertMeintjes

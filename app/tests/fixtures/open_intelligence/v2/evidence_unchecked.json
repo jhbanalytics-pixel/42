@@ -1,0 +1,14 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "evidence_unchecked",
+  "fixture_kind": "evidence_readiness",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "direction_by_family": {},
+    "evidence": [],
+    "evidence_state": "unchecked",
+    "qualifying_family_count": 0,
+    "signal_id": "sig_0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+  },
+  "sanitized": true
+}

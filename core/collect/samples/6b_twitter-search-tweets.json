@@ -1,0 +1,122 @@
+{
+  "probe": "6b",
+  "route": "twitter/search/tweets",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 2>",
+        {
+          "computed": {
+            "content_category": "<str>",
+            "engagement_rate": "<null>",
+            "estimated_reach": "<null>",
+            "language": "<str>"
+          },
+          "post": {
+            "author": {
+              "avatar_url": "<str>",
+              "display_name": "<str>",
+              "username": "<str>",
+              "verified": "<bool>"
+            },
+            "content": {
+              "duration_seconds": "<null>",
+              "media_urls": "<str>",
+              "text": "<str>",
+              "thumbnail_url": "<str>"
+            },
+            "engagement": {
+              "comments": "<int>",
+              "likes": "<int>",
+              "saves": "<int>",
+              "shares": "<int>",
+              "views": "<null>"
+            },
+            "ext": {
+              "<key>": "<null>"
+            },
+            "flags": {
+              "deleted": "<bool>",
+              "nsfw": "<bool>",
+              "pinned": "<bool>",
+              "spoiler": "<null>"
+            },
+            "id": "<str>",
+            "published_at": "<str>",
+            "url": "<str>"
+          },
+          "vendor_labels": {
+            "labels": "<null>",
+            "relevance": {
+              "depth": "<float>",
+              "p": "<float>",
+              "sense": "<str>",
+              "spam": "<float>"
+            }
+          }
+        }
+      ],
+      "labels": {
+        "cached": "<int>",
+        "dropped": "<int>",
+        "dropped_ids": [
+          "<list of 0>"
+        ],
+        "extra_credits": "<int>",
+        "labelled": "<int>",
+        "methodology_version": "<str>",
+        "mode": "<str>",
+        "pending": "<int>",
+        "pending_ids": [
+          "<list of 2>",
+          "<str>"
+        ],
+        "presets": [
+          "<list of 3>",
+          "<str>"
+        ],
+        "rows": "<int>",
+        "skipped": "<int>",
+        "status": "<str>",
+        "unjudged": "<int>"
+      },
+      "relevance": {
+        "cached": "<int>",
+        "dropped": "<int>",
+        "dropped_ids": [
+          "<list of 0>"
+        ],
+        "extra_credits": "<int>",
+        "kept": "<int>",
+        "methodology_version": "<str>",
+        "mode": "<str>",
+        "origin": "<str>",
+        "pending": "<int>",
+        "pending_ids": [
+          "<list of 0>"
+        ],
+        "rows": "<int>",
+        "scored": "<int>",
+        "status": "<str>",
+        "threshold": "<float>",
+        "too_short": "<int>",
+        "topic_source": "<str>",
+        "unjudged": "<int>"
+      },
+      "total": "<null>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<null>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

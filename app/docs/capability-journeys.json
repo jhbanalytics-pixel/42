@@ -1,0 +1,211 @@
+[
+  {
+    "capability_id": "today_briefing",
+    "route_builder": ["parseWorkspaceHash"],
+    "job": "Open #/pulse, the shell Briefing job, and read a dated editorial lead from the released run with its source proof and a useful next investigation action.",
+    "producer": "src/api/desk.py",
+    "contract_version": "desk_dynamic_signal_v2",
+    "primary_action": "Open the lead signal into its topic detail from the Briefing lead, or Open Discover when the run holds no lead.",
+    "proof_panel": "Briefing evidence summary with receipts, run date and the readiness state on the lead card.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      "thin",
+      "stale",
+      {"state": "contradictory", "inapplicable_reason": "The Briefing reads one released run, so it never holds two runs that can disagree; disagreement between sources is a Compare state."},
+      "failed",
+      "held"
+    ]
+  },
+  {
+    "capability_id": "discovery_exploration",
+    "route_builder": ["parseWorkspaceHash", "buildTopicHash", "buildScopedReadHash"],
+    "job": "Open #/explore and read the released candidates with their membership and evidence, then follow a topic deep link (buildTopicHash) or a seed explorer deep link (buildScopedReadHash with the seedpath view) without losing the market scope.",
+    "producer": "src/api/desk.py",
+    "contract_version": "desk_dynamic_signal_v2",
+    "primary_action": "Open a released candidate's topic story under its market scope.",
+    "proof_panel": "Discover candidate rows with membership counts, evidence readiness and the released run identity.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      "thin",
+      "stale",
+      {"state": "contradictory", "inapplicable_reason": "Discover lists candidates from one released run and states each candidate's readiness; it does not compare sources against each other."},
+      "failed",
+      "held"
+    ]
+  },
+  {
+    "capability_id": "compare",
+    "route_builder": ["parseWorkspaceHash"],
+    "job": "Open #/compare and compare released signals in the same units and window against a named comparator, showing where sources agree and differ and what the comparison makes actionable.",
+    "producer": "src/api/desk.py",
+    "contract_version": "desk_dynamic_signal_v2",
+    "primary_action": "Choose the comparator signal and read the agreement or difference row for the selected signals.",
+    "proof_panel": "Comparison strips showing question, unit, time window, comparator and source per row.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      "thin",
+      "stale",
+      "contradictory",
+      "failed",
+      "held"
+    ]
+  },
+  {
+    "capability_id": "sources_evidence",
+    "route_builder": ["buildWorkbenchHash", "buildWorkspaceHash"],
+    "job": "From any cited answer, open the citation panel to read the exact record identity, excerpt, date, link, market and support relationship, and reach the Source Lab inventory for the source routes behind it.",
+    "producer": "src/api/question_worker_result.py",
+    "contract_version": "general_cultural_question_v1",
+    "primary_action": "Open a citation (Open R1) and follow View original source to the record.",
+    "proof_panel": "Cited answer receipt record with citation label, source label, excerpt, published date, market, record reference and the claim's support state.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      "thin",
+      {"state": "stale", "inapplicable_reason": "A receipt is bound to a closed snapshot and window; it is either the record or it is absent, and age is stated on the record rather than as a stale state of the panel."},
+      "contradictory",
+      "failed",
+      "held"
+    ]
+  },
+  {
+    "capability_id": "creators_network_language",
+    "route_builder": ["buildTopicHash", "buildScopedReadHash"],
+    "job": "Open the creator route (#/creator/<handle>), #/network and the scoped listen route (buildScopedReadHash with the listen view) to read broad observed contributors, their actual relationships and language evidence, with no invented demographic authority.",
+    "producer": "src/api/creator.py",
+    "contract_version": "unversioned",
+    "primary_action": "Open a contributor profile from the network or a listen row, and open the topic the contributor belongs to.",
+    "proof_panel": "Creator profile posts wall and reach series, network voices and topic links, and listen mentions with market and sentiment.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      "thin",
+      "stale",
+      {"state": "contradictory", "inapplicable_reason": "Contributor and language reads list observed records; they carry no claims that can contradict each other."},
+      "failed",
+      {"state": "held", "inapplicable_reason": "These routes read completed observations and hold nothing pending; a missing profile is a failed or empty read, not a held one."}
+    ]
+  },
+  {
+    "capability_id": "history",
+    "route_builder": ["buildWorkspaceHash", "parseWorkspaceHash"],
+    "job": "Open buildWorkspaceHash({view: 'historical', investigationId, mode}) in analogue, recurrence or replay mode and read source-bound historical context, or a truthful held state until the historical backend gate passes.",
+    "producer": "unimplemented",
+    "contract_version": "unimplemented",
+    "primary_action": "Open a historical mode for an investigation and return to the Evidence Room plan.",
+    "proof_panel": "Historical rows with claim text, relationship and limitations per item, or the unavailable state with its error code.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      "thin",
+      "stale",
+      "contradictory",
+      "failed",
+      "held"
+    ]
+  },
+  {
+    "capability_id": "questions_followups",
+    "route_builder": ["buildWorkbenchHash", "parseWorkbenchRoute"],
+    "job": "Open #/console?work=ask, ask a question, and read a request-bound answer with its follow-up, challenge and explicit missing coverage.",
+    "producer": "src/api/general_question_routes.py",
+    "contract_version": "general_cultural_question_v1",
+    "primary_action": "Ask the engine, then continue with a follow-up on the same request.",
+    "proof_panel": "Structured reply with admitted claims, receipts, readings, limitations, missing work and the request and usage details disclosure.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      "thin",
+      "stale",
+      "contradictory",
+      "failed",
+      "held"
+    ]
+  },
+  {
+    "capability_id": "fieldwork",
+    "route_builder": ["buildWorkspaceHash", "parseWorkspaceHash"],
+    "job": "Open #/fieldwork to read real source and research operations with their route coverage, follow the Open question link to the exact stored question detail, and recover safely from a failed or stale read.",
+    "producer": "src/api/fieldwork.py",
+    "contract_version": "fieldwork_workspace_v2",
+    "primary_action": "Open question on an operation row, which links to #/console?work=ask&request=<id>.",
+    "proof_panel": "Operation rows with readiness, market scope, status and gaps, the observed operations strip, and the Source Lab snapshot inventory.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      "thin",
+      "stale",
+      "contradictory",
+      "failed",
+      "held"
+    ]
+  },
+  {
+    "capability_id": "coverage_source_lab",
+    "route_builder": ["buildWorkspaceHash", "parseWorkspaceHash"],
+    "job": "Open #/source-lab and read source units, denominators, freshness, unknown states and source-to-product loss for the fixed scope.",
+    "producer": "src/api/source_lab.py",
+    "contract_version": "2.2.0",
+    "primary_action": "Inspect a source route's coverage, credit cost and kill state.",
+    "proof_panel": "Source Lab inventory rows with route status, downstream use, credit budget authority and the catalog snapshot digest.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      "thin",
+      "stale",
+      "contradictory",
+      "failed",
+      {"state": "held", "inapplicable_reason": "Source Lab is a read of a verified catalog snapshot; a snapshot that is not verified is a failed read, and nothing on the route waits on approval."}
+    ]
+  },
+  {
+    "capability_id": "investigation_build_review",
+    "route_builder": ["buildWorkspaceHash", "buildWorkbenchHash", "parseWorkbenchRoute"],
+    "job": "Open buildWorkspaceHash({view: 'console', investigationId, artifactId}) to read the durable investigation frame, its selections, the human review decision and the exact artifact.",
+    "producer": "src/api/intelligence_dossier.py",
+    "contract_version": "intelligence_dossier_v1",
+    "primary_action": "Open an investigation from the index and read or retry its claims, decision and artifact.",
+    "proof_panel": "Evidence Room claims list, decision record and artifact title with the read details disclosure on failure.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      "thin",
+      "stale",
+      "contradictory",
+      "failed",
+      "held"
+    ]
+  },
+  {
+    "capability_id": "bsa_configuration",
+    "route_builder": ["buildWorkbenchHash", "parseWorkbenchRoute"],
+    "job": "Enter through the existing configured research persona (buildWorkbenchHash with persona_id) or an investigation scope lens and read what each property means, the joint view and a scope-preserving follow-up.",
+    "producer": "unimplemented",
+    "contract_version": "unimplemented",
+    "primary_action": "Select the configured persona and markets and generate a brief that keeps that scope.",
+    "proof_panel": "Persona picker with description, default markets, product frame and signal topics, and the investigation scope's audience lens list.",
+    "required_states": [
+      "populated",
+      "loading",
+      "empty",
+      {"state": "thin", "inapplicable_reason": "A configuration entry is present or absent; thinness is a property of the evidence a persona produces, which the questions and investigation rows own."},
+      "stale",
+      {"state": "contradictory", "inapplicable_reason": "A single configured persona cannot contradict itself; conflicting scope requests are refused at the route as invalid."},
+      "failed",
+      "held"
+    ]
+  }
+]

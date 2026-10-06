@@ -1,0 +1,294 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_11_election_brand_role",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture election scope",
+      "sections": [
+        {
+          "body": "Synthetic fixture election scope covers 24 synthetic posts from 18 to 25 August 2026 across forum, video, news, and coverage fixture families.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "A practical access theme appears in 24 synthetic posts in the closed fixture window from 18 to 25 August 2026 across two independent fixture source families [E1] [E2].",
+          "evidence_ids": [
+            "ev_0b010b010b010b010b010b010b010b010b010b010b010b010b010b010b010b01",
+            "ev_0b020b020b020b020b020b020b020b020b020b020b020b020b020b020b020b02"
+          ],
+          "heading": "Conversation themes",
+          "section_id": "conversation_themes"
+        },
+        {
+          "body": "Synthetic posts associate clear venue information with expressed willingness to vote, without establishing cause [E1] [E2].",
+          "evidence_ids": [
+            "ev_0b010b010b010b010b010b010b010b010b010b010b010b010b010b010b010b01",
+            "ev_0b020b020b020b020b020b020b020b020b020b020b020b020b020b020b020b02"
+          ],
+          "heading": "Associated factors",
+          "section_id": "associated_factors"
+        },
+        {
+          "body": "The inferred fixture lens places bounded emphasis on practical logistics with 0.61 confidence [E2].",
+          "evidence_ids": [
+            "ev_0b020b020b020b020b020b020b020b020b020b020b020b020b020b020b020b02"
+          ],
+          "heading": "Audience lenses",
+          "section_id": "audience_lenses"
+        },
+        {
+          "body": "Current fixture brand behavior is absent from the bounded coverage [E5]. An unmet neutral access space is supported by logistics requests [E1] [E2]. Partisan endorsement is a brand safety risk [E3].",
+          "evidence_ids": [
+            "ev_0b010b010b010b010b010b010b010b010b010b010b010b010b010b010b010b01",
+            "ev_0b020b020b020b020b020b020b020b020b020b020b020b020b020b020b020b02",
+            "ev_0b030b030b030b030b030b030b030b030b030b030b030b030b030b030b030b03",
+            "ev_0b050b050b050b050b050b050b050b050b050b050b050b050b050b050b050b05"
+          ],
+          "heading": "Brand roles",
+          "section_id": "brand_roles"
+        },
+        {
+          "body": "The register records one synthetic misinformation flag [E5]. No qualifying polarization cluster appears in the bounded closed window [E4].",
+          "evidence_ids": [
+            "ev_0b040b040b040b040b040b040b040b040b040b040b040b040b040b040b040b04",
+            "ev_0b050b050b050b050b050b050b050b050b050b050b050b050b050b050b050b05"
+          ],
+          "heading": "Safety flags",
+          "section_id": "safety_flags"
+        },
+        {
+          "body": "The election evidence is ready because two qualifying fixture families rise in the same direction [E1] [E2].",
+          "evidence_ids": [
+            "ev_0b010b010b010b010b010b010b010b010b010b010b010b010b010b010b010b01",
+            "ev_0b020b020b020b020b020b020b020b020b020b020b020b020b020b020b020b02"
+          ],
+          "heading": "Evidence readiness",
+          "section_id": "evidence_readiness"
+        },
+        {
+          "body": "Provide neutral voting logistics in any fixture response [E1] [E2]. Avoid partisan endorsement [E3].",
+          "evidence_ids": [
+            "ev_0b010b010b010b010b010b010b010b010b010b010b010b010b010b010b010b01",
+            "ev_0b020b020b020b020b020b020b020b020b020b020b020b020b020b020b020b02",
+            "ev_0b030b030b030b030b030b030b030b030b030b030b030b030b030b030b030b03"
+          ],
+          "heading": "Recommendations",
+          "section_id": "recommendations"
+        },
+        {
+          "body": "Social conversation is not representative polling. Association is not causation, and no population estimate is available. Export remains prohibited until human review.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture election intelligence brief"
+    },
+    "audience_lenses": [
+      {
+        "basis": "inferred",
+        "claim": "The synthetic fixture lens reflects observed practical information cues.",
+        "confidence": 0.61,
+        "lens_id": "fixture_lens",
+        "source": "Synthetic fixture evidence",
+        "window": {
+          "end_date": "2026-08-25",
+          "start_date": "2026-08-18"
+        }
+      }
+    ],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [],
+    "evidence": [
+      {
+        "author_label": "@fixture_author_0b_01",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "context",
+        "direction": "rising",
+        "evidence_id": "ev_0b010b010b010b010b010b010b010b010b010b010b010b010b010b010b010b01",
+        "excerpt": "Synthetic fixture election coverage register shows practical venue access in 14 posts.",
+        "geo_confidence": 0.91,
+        "metric_label": "14 synthetic posts, 18 to 25 August 2026",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_0b_row_01",
+        "signal_id": "sig_0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "source_family": "forum",
+        "source_label": "Fixture source 0b-01",
+        "url": "https://evidence.invalid/0b/01"
+      },
+      {
+        "author_label": "@fixture_author_0b_02",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "context",
+        "direction": "rising",
+        "evidence_id": "ev_0b020b020b020b020b020b020b020b020b020b020b020b020b020b020b020b02",
+        "excerpt": "Synthetic fixture election coverage register shows expressed willingness associated with clear logistics.",
+        "geo_confidence": 0.91,
+        "metric_label": "10 synthetic posts, 18 to 25 August 2026",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_0b_row_02",
+        "signal_id": "sig_0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "source_family": "video",
+        "source_label": "Fixture source 0b-02",
+        "url": "https://evidence.invalid/0b/02"
+      },
+      {
+        "author_label": "@fixture_author_0b_03",
+        "availability": "available",
+        "citation_label": "[E3]",
+        "claim_role": "contradiction",
+        "direction": "not_applicable",
+        "evidence_id": "ev_0b030b030b030b030b030b030b030b030b030b030b030b030b030b030b030b03",
+        "excerpt": "Synthetic fixture brand safety register marks partisan endorsement as a risk.",
+        "geo_confidence": 0.91,
+        "metric_label": "1 synthetic brand safety risk",
+        "platform": "fixture_platform_03",
+        "published_at": "2026-08-24T13:00:00Z",
+        "row_id": "fixture_0b_row_03",
+        "signal_id": "sig_0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "source_family": "news",
+        "source_label": "Fixture source 0b-03",
+        "url": "https://evidence.invalid/0b/03"
+      },
+      {
+        "author_label": "@fixture_author_0b_04",
+        "availability": "available",
+        "citation_label": "[E4]",
+        "claim_role": "context",
+        "direction": "not_applicable",
+        "evidence_id": "ev_0b040b040b040b040b040b040b040b040b040b040b040b040b040b040b040b04",
+        "excerpt": "Synthetic fixture election coverage register records no qualifying polarization cluster in the bounded closed window.",
+        "geo_confidence": 0.91,
+        "metric_label": "0 qualifying synthetic polarization clusters in the closed window",
+        "platform": "fixture_platform_04",
+        "published_at": "2026-08-24T14:00:00Z",
+        "row_id": "fixture_0b_row_04",
+        "signal_id": "sig_0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "source_family": "coverage",
+        "source_label": "Fixture source 0b-04",
+        "url": "https://evidence.invalid/0b/04"
+      },
+      {
+        "author_label": "@fixture_register",
+        "availability": "available",
+        "citation_label": "[E5]",
+        "claim_role": "context",
+        "direction": "not_applicable",
+        "evidence_id": "ev_0b050b050b050b050b050b050b050b050b050b050b050b050b050b050b050b05",
+        "excerpt": "Synthetic fixture current brand register records no observed current fixture brand behavior and one misinformation flag.",
+        "geo_confidence": 0.9,
+        "metric_label": "1 synthetic misinformation flag and 0 observed fixture brand actions",
+        "platform": "fixture_register",
+        "published_at": "2026-08-24T15:00:00Z",
+        "row_id": "fixture_0b_row_05",
+        "signal_id": "sig_0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "source_family": "brand_register",
+        "source_label": "Fixture brand register",
+        "url": "https://evidence.invalid/0b/05"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [
+        "fixture_lens"
+      ],
+      "audience_lenses": [
+        {
+          "basis": "inferred",
+          "claim": "The synthetic fixture lens reflects observed practical information cues.",
+          "confidence": 0.61,
+          "lens_id": "fixture_lens",
+          "source": "Synthetic fixture evidence",
+          "window": {
+            "end_date": "2026-08-25",
+            "start_date": "2026-08-18"
+          }
+        }
+      ],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose a neutral election information response for human review.",
+      "evidence_requirements": [
+        "local conversation themes",
+        "associated factors without causation",
+        "brand role and safety evidence",
+        "human review before export"
+      ],
+      "evidence_state": "ready",
+      "historical_comparison": {
+        "required": false,
+        "window_days": 0
+      },
+      "intent": "brand_role",
+      "market_scope": [
+        "za"
+      ],
+      "markets": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_0b",
+      "run_id": "run_fixture_0b",
+      "source_families": [
+        "forum",
+        "video",
+        "news",
+        "coverage",
+        "brand_register"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "ready",
+    "expected_intent": "brand_role",
+    "export_allowed": false,
+    "human_review_required": true,
+    "limitations": [
+      "Social conversation is not representative polling.",
+      "Association is not causation.",
+      "No population estimate is available."
+    ],
+    "missing_work": [
+      "Human review is required before export or sharing."
+    ],
+    "request": {
+      "audience_lens_ids": [
+        "fixture_lens"
+      ],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose a neutral election information response for human review.",
+      "market_scope": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "question": "What are local fixture posts saying about an upcoming fixture election, which expressed factors are associated with willingness to vote, and what role is expected of fixture brands?",
+      "run_id": "run_fixture_0b",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

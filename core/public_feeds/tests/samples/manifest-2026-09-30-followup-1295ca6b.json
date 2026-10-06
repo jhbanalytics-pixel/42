@@ -1,0 +1,154 @@
+{
+  "sample_date": "2026-09-30",
+  "capture_run": "public-feed-fetch-2026-09-30-followup-103623-1295ca6b",
+  "samples": [
+    {
+      "name": "kbc_english_service_playlist",
+      "market": "KE",
+      "kind": "radio_playlist",
+      "url": "https://radio.co.ke/listen/kbc-english-service/",
+      "retrieved_at_utc": "2026-09-30T10:36:23Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=utf-8"
+      },
+      "bytes_captured": 77650,
+      "response_complete": true,
+      "captured_body_sha256": "4d1269cda2e6325569697d5d0b6a471974bd7d976db1659a7760d6c27154c88a",
+      "sample_file": "ke_kbc_english_service_playlist_20260930.html",
+      "sample_sha256": "792ab7d386e581b7cdcc5708a08a8288c6070c5980e0913d1a12f28db069eda1",
+      "fragments": [
+        {
+          "tag": "div",
+          "class": "cg-nowplaying",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 24770,
+          "source_char_end": 27596,
+          "raw_fragment_sha256": "733a1bd2bb3e63b3fe223d3fda9f6c7fe54858716f1407ab54147170f413a193",
+          "sanitized_fragment_sha256": "ed49d3d93000f31132ada4c4427627906ebdf764a124e9faabdaaf0d318fc0f9",
+          "sanitized_bytes": 446
+        },
+        {
+          "tag": "div",
+          "class": "track-info",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 33579,
+          "source_char_end": 33817,
+          "raw_fragment_sha256": "428bac42b04e7f8c8534b2edeb7371b25cefbc4616deddf2e78a6a9a3b0a5b04",
+          "sanitized_fragment_sha256": "d8d451d2fcf81a43c047fb72a31599c24b0f6f87b4022d06361aba0ef4304a11",
+          "sanitized_bytes": 244
+        },
+        {
+          "tag": "div",
+          "class": "track-info",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 34599,
+          "source_char_end": 34826,
+          "raw_fragment_sha256": "f54872de1adffa22874b8af90e05caa7962e2ea73e050f135c97607ed187be6e",
+          "sanitized_fragment_sha256": "4f59285f24a1701e1f55b4a0e6f5e04ed383d20ab3d1ce354cc09a0009d7e70b",
+          "sanitized_bytes": 233
+        },
+        {
+          "tag": "div",
+          "class": "track-info",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 35614,
+          "source_char_end": 35852,
+          "raw_fragment_sha256": "e101216b4f5ca468a7e8a588cfb81c6ff032a2381938bd4e4b27195d1fa0a946",
+          "sanitized_fragment_sha256": "cefa4f6d057bf986b78e72b182074f683b9f030f6a3d21b69935b4d018468f09",
+          "sanitized_bytes": 244
+        },
+        {
+          "tag": "div",
+          "class": "track-info",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 36400,
+          "source_char_end": 36664,
+          "raw_fragment_sha256": "9829f9cd0395aaede918baa0beb2b0a8dd68bfe78ca6d48696077c7645c885d0",
+          "sanitized_fragment_sha256": "caae25e594e1884a8c2fc0625917a36add11fa45fd885b2a6c7960472b42a1dc",
+          "sanitized_bytes": 274
+        },
+        {
+          "tag": "div",
+          "class": "track-info",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 37449,
+          "source_char_end": 37695,
+          "raw_fragment_sha256": "d0f4e7966d295b34434473319b9b3254ea285e0ae90e991a5548391ef4f44dc2",
+          "sanitized_fragment_sha256": "0b70a23b49872823eb62603424bce33fcb9d5fff57ec8348e4849fc8a44affe9",
+          "sanitized_bytes": 252
+        },
+        {
+          "tag": "div",
+          "class": "track-info",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 38476,
+          "source_char_end": 38718,
+          "raw_fragment_sha256": "e6f64e31e073775bca91507edc04f9eafdfb7a07f9db6d889b91cba0e60871dd",
+          "sanitized_fragment_sha256": "b66f7f2a2168bea08d889a5900fc98dccab878ff54b448460348b61fc8cfcc1c",
+          "sanitized_bytes": 248
+        },
+        {
+          "tag": "div",
+          "class": "track-info",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 39491,
+          "source_char_end": 39718,
+          "raw_fragment_sha256": "41d836a9208cf262d2f03d3b5a5860d77fac465594624a51f873126634ffb5cc",
+          "sanitized_fragment_sha256": "9a5d87e48d0469b916a181e221e1d1ed1313bab21f78966fc520a4535ca828ee",
+          "sanitized_bytes": 233
+        }
+      ],
+      "error": null,
+      "extractor": "listing_cards",
+      "charset": "utf-8",
+      "sample_bytes": 2174,
+      "visible_listing_text": [
+        "Live Grazing In The Grass Hugh Masekela English Classical",
+        "Grazing In The Grass Hugh Masekela 5 mins ago",
+        "Gotta Tell Someone UB40 9 mins ago",
+        "Gotta Go Home - Club Mix Boney M. 14 mins ago",
+        "So Long Too Long Majek Fashek & The Prisoners of Conscience 19 mins ago",
+        "See How The Love Goes The Pointer Sisters 38 mins ago",
+        "Afternoon Delight Starland Vocal Band 40 mins ago",
+        "Butterfly Mariah Carey 45 mins ago"
+      ]
+    },
+    {
+      "name": "mdundo_ke_top_songs",
+      "market": "KE",
+      "kind": "music_chart",
+      "url": "https://play.mdundo.com/top-charts/ke",
+      "retrieved_at_utc": "2026-09-30T10:36:25Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=UTF-8"
+      },
+      "bytes_captured": 1533137,
+      "response_complete": true,
+      "captured_body_sha256": "dabb6a90172064f60ec0b33b1023b26cbad1a47bad22021fc8a86b8d4d4c54e0",
+      "sample_file": null,
+      "sample_sha256": null,
+      "fragments": [],
+      "error": "No native listing or public inline JSON array with repeated title and artist fields was found",
+      "extractor": "listing_cards"
+    }
+  ],
+  "sanitization": "Public listing titles, artist text, safe song/article links, timestamps, ranks and structural markup only; no scripts, hidden content, media attributes, query strings or tokens."
+}

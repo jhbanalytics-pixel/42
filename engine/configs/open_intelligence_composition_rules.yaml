@@ -1,0 +1,16 @@
+# The certified composition rule bundle for open intelligence producing runs.
+# Approved by Albert on 2026-08-29 via
+# 42-composition-authority-approval-request-2026-08-29.md. The rule values are
+# recorded here, beside the certification, so content and approval cannot
+# drift apart. The graph values are exactly the ones the replay evaluation
+# fixtures exercise.
+status: replay_certified
+rule_version: composition_rules_v1
+replay_receipt_id: replay_eval_graph_56f6e5eede2dfb9205b76c9b409925bacfd5499e032d8064d1f28c4ab2e4f8bd
+approved_at: 2026-08-29T20:00:00+00:00
+approved_by: Albert
+expires_at: 2027-08-29T00:00:00+00:00
+graph_rules:
+  semantic_vote_floor: 0.5
+  component_similarity_floor: 0.5
+  temporal_overlap_days: 2

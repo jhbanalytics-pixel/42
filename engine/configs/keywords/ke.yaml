@@ -1,0 +1,147 @@
+# Kenya -- Keywords, Markers, Slang
+market: ke
+market_name: Kenya
+
+topic_groups:
+  kenyan_identity:
+    - kenya
+    - nairobi
+    - mombasa
+    - kisumu
+    - nakuru
+    - "254"
+    - nai
+    - nairobi cbd
+    - kiambu
+    - westlands
+
+  culture_lifestyle:
+    - student life
+    - campus
+    - kplc
+    - mpesa
+    - hustle
+    - side hustle
+    - soft life
+    - adulting
+    - dating
+    - situationship
+
+  music_entertainment:
+    - gengetone
+    - bongo flava
+    - kenyan music
+    - dance challenge
+    - groove
+    - nightlife
+    - dj
+    - concert
+    - reggae
+    - genge
+
+  fashion_beauty:
+    - thrift
+    - mitumba
+    - streetwear
+    - outfit check
+    - fit check
+    - braids
+    - skincare
+    - makeup
+    - kitenge
+
+  food_lifestyle:
+    - nyama choma
+    - ugali
+    - chapati
+    - mandazi
+    - mutura
+    - restaurant
+    - date ideas
+    - cheap eats
+    - pombe
+
+  economic_pressure:
+    - mpesa
+    - fare
+    - hustle
+    - housing
+    - cost of living
+    - rent
+    - unemployment
+    - data bundles
+    - kplc
+    - matatu fare
+    - fuel price
+
+  tech_gaming:
+    - gaming
+    - esports
+    - anime
+    - ai tools
+    - fintech
+    - smartphone
+    - silicon savannah
+    - safaricom
+
+regional_markers:
+  - kenya
+  - nairobi
+  - mombasa
+  - kisumu
+  - nakuru
+  - "254"
+  - nai
+  - nairobi cbd
+  - kiambu
+  - westlands
+
+genz_markers: []
+
+slang:
+  high_signal:
+    terms:
+      - nairobi
+      - nai
+      - matatu
+      - mathree
+      - mpesa
+      - m-pesa
+      - safaricom
+      - gengetone
+      - arbantone
+      - sheng
+      - nyama choma
+      - ugali
+      - mutura
+      - hustler fund
+      - eastlands
+      - westie
+      - kplc
+      - mitumba
+    weight: 1.0
+
+  medium_signal:
+    terms:
+      - sawa
+      - poa
+      - fiti
+      - sema
+      - buda
+      - niaje
+      - mambo
+      - vipi
+      - niko sawa
+      - mbogi
+      - sherehe
+      - msee
+      - mtu wangu
+      - noma
+      - soft life
+      - mboch
+      - dishi
+      - kujipanga
+      - kupanda
+      - form ni gani
+      - wasee
+    weight: 0.5

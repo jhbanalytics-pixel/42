@@ -1,0 +1,293 @@
+# South Africa Creator Watchlists
+# 26 May 2026: curated creator expansion across all 3 platforms.
+# tier_1 = established creators (Tyla, Mihlali, Lasizwe, Sho Madjozi, Boity).
+# tier_2 = secondary creators + amapiano artists.
+# tier_3 = niche / emerging creators.
+#
+# 1 Jul 2026: tier_2 trimmed to 32 curated handles (tiktok 14, instagram 13,
+# threads 5, unchanged). The 11 Jun client influencer seeding (Met Gala +
+# UEFA lists) moved to tier_3, not deleted. Same pass as configs/creators/ng.yaml.
+market: za
+market_name: South Africa
+
+watchlists:
+  tiktok:
+    tier_1:
+      - lasizwe
+      - tyla
+      - mihlali
+      - boity
+      - uncle.waffles
+      - cyan.boujee14
+
+    tier_2:
+      - kabzadesmall
+      - djmaphorisa
+      - mrjazziq
+      - daliwonga
+      - nkosazana_daughter
+      - varsityvibesa
+      - mzansimemes1
+      - zayaan4
+
+    tier_3:
+      - lawdparadox
+      - 0mphyy
+      - focalistic
+      - sjava
+      - bigzulu_sa
+      - rikyrick
+      - anatii
+      # 28 Jul 2026: moved down from tier_1/tier_2. Probed live the same
+      # day: each of these resolves and BILLS a credit, then returns only
+      # posts older than socialcrawl.max_age_days (21), so the engine
+      # dropped every row. 35 credits a day for zero signal. Not deleted,
+      # so a cadence change or a wider window can promote them back.
+      - mihlalindamase
+      - shomadjozi
+      - dbngogo
+      - youngstunna_sa
+      - tylericu
+      - paptasteezy
+      - amapiano_updates
+      - cassper_nyovest
+      - nastyc
+      # 1 Jul 2026: re-tiered down from tier_2 (same rationale as NG,
+      # see configs/creators/ng.yaml). The 11 Jun 2026 client influencer
+      # seeding (Met Gala + UEFA lists) is a ~79-handle micro-influencer/
+      # fan-account blob, too large and too low-reach for a tier_2 flip
+      # under the shared EnsembleData boost budget. Nothing deleted.
+      - phuphogumedek
+      - nandii_mbatha
+      - ilovemelmo
+      - pris.bakala
+      - twinky.o
+      - yaone_refentse
+      - anitamotlhale
+      - tendai.masuta
+      - jessejadeturner
+      - tiyanatelo
+      - curlygirlzo_
+      - lihlep
+      - norraine_scheffers
+      - ursula_mathebula
+      - edjademeyer6
+      - florencemabena
+      - ingagongq
+      - karabomosia4
+      - lisababy06
+      - lucky_luu1
+      - palesa_m03
+      - teaganthings
+      - joanieandvimba
+      - nalediii_ngcobo
+      - zinellqwabe
+      - zanelesibiya3
+      - taysavvsa
+      - mageb.s
+      - iam_monnie_
+      - samkelo.shiar
+      - esethusosibo
+      - waattaa_lil.yy
+      - zoe77robb
+      - aphelelek_
+      - lydiebyart_
+      - tamiamavuso
+      - ___iao
+      - stimlo_vi
+      - babalwamcaciso_official
+      - bratney_m
+      - mitchmatyana
+      - twin.tshego
+      - _catchfooty
+      - shabzin_lungz
+      - ink_acer
+      - zulu_goku
+      - driven_kay
+      - azitavariava
+      - melodymiyavibe
+      - alexnotalexanderokay
+      - jay_mzulu
+      - trismoses
+      - jadenbutnotsmith
+      - zenandefunani
+      - andile_evans
+      - mbalisigidi
+      - kriyagangiah
+      - thereal_waydejooste
+      - chumanileratojele
+      - lithetha274
+      - sjjosman
+      - seth.makuya
+      - thereal.michelle_
+      - khensani_t
+      - nono14_2
+      - ok_amahle
+      - upearl_thabethe
+      - musa_ngobeni07
+      - ladysalah_26
+      - nolucky11
+      - heroemanuel
+      - thulaniquietl
+      - jamie.gounden
+      - phumello.m
+      - nayeemutd11
+      - liinar_mahlatii
+      - iamfez_
+      - lebogang1313
+      - steph_talks_football
+
+  instagram:
+    tier_1:
+      - lasizwe
+      - tyla
+      # 25 Aug 2026: mihlalibrand was a wrong handle string, one of the 12
+      # instagram/profile/posts failures in the dead-handle sweep. Vendor
+      # (Oscar) resolved it via instagram/search/profiles and we re-probed
+      # the same endpoint today: mihlalii_n, verified badge, 2,416,781
+      # followers (req-utPqkFJUAmLVVNxA). Threads copy NOT changed, the
+      # threads string is unverified on that platform.
+      - mihlalii_n
+      - boity
+      - unclewaffles_
+      - dbngogo
+      - cyan.boujee24
+
+    tier_2:
+      # 25 Aug 2026: kabza_de_small and cassper_nyovest were wrong handle
+      # strings from the same sweep, corrected the same way. kabelomotha_
+      # verified, 3,163,987 followers (req-3Yn9Hw8TYDYTlG7I).
+      # casspernyovest verified, 6,535,863 followers (req-hbyh1AldB0mUS3X6).
+      - kabelomotha_
+      - djmaphorisa
+      - mrjazziq_
+      - youngstunna_official
+      - daliwonga.sa
+      - tylericu
+      - paptasteezy
+      - nkosazanadaughter_
+      - varsityvibesa
+      - kreative.kornerr
+      - yomzansi
+      - casspernyovest
+      - nasty_csa
+
+    tier_3:
+      - thick_dudle
+      - nandi_madida
+      - zeexonline
+      - focalistic
+      - sjava_atm
+      - bigzulu_sa
+      # 28 Jul 2026: moved down from tier_1/tier_2. Probed live the same
+      # day: each of these resolves and BILLS a credit, then returns only
+      # posts older than socialcrawl.max_age_days (21), so the engine
+      # dropped every row. 35 credits a day for zero signal. Not deleted,
+      # so a cadence change or a wider window can promote them back.
+      - shomadjozi
+      # 1 Jul 2026: re-tiered down from tier_2, same rationale as tiktok
+      # above (11 Jun 2026 client seeding blob, too large for a tier_2 flip).
+      - sesethu_yabo
+      - fiiloe.vera
+      - simhle
+      - styledbylthiiz
+      - chloethejohnson
+      - calistastylista
+      - chloe.ambre
+      - fikilesokhulu
+      - nalediii_ngcobo
+      - micaelabeaumont
+      - koking_maks
+      - goitsem_
+      - yewonzie
+      - joylakay
+      - brittanykyra
+      - jessica_w_16_
+      - zeddoesthemost
+      - tonymuguio
+      - thulaniquietm
+      - rea.k.m
+      - innocentiap11
+      - ms_esperanza_j
+      - nicolamentor
+      - watermelon_baby23
+      - lutho__mbam
+      - anne_ngwenya
+      - styled_by_mothlake
+      - jihadkurz
+      - noahrene_
+      - mrs_sloka
+      - lailahfield
+      - tha_mavundla
+      - neo_ndemande
+      - __ongezile
+      - perksofbeingammaaradaisey
+      - lulutho_dloto
+      - intezaar_kippie
+      - primo9teen
+      - asado_b
+      - quinton_gotstyle
+      - lelona_daweti
+      - siphosnaps
+      - teekay_m
+      - brucedevilliers99
+      - ricky_schroeder
+      - travisxgraham
+      - siz_jaca
+      - denganet_
+      - keanucharloo
+      - nathankalala_
+      - esethusosibo
+      - gift.makhubu
+      - _nya.kallo
+      - ok.khayalethu
+      - drewlele
+      - _tshiamo.m.m
+      - mrbiglenyora
+      - thato_ini_mzizi
+      - fisomazibuko_
+      - the_tara_lee
+      - tembelacazajr
+      - zeekharperr
+      - kivaan_reddyy
+      - tawandalifts
+      - frypanmfula
+      - molifekumona
+      - mother.plugger
+      - matthewstone
+      - mightyreds_97
+      - themanchesterderby3.0
+
+  threads:
+    tier_1:
+      - lasizwe
+      - tyla
+      - mihlalibrand
+      - shomadjozi
+
+    tier_2:
+      - kreative.kornerr
+      - yomzansi
+      - kabza_de_small
+      - djmaphorisa
+
+    tier_3:
+      - zeexonline
+      - focalistic
+      - paptasteezy
+
+      # 28 Jul 2026: moved down from tier_1/tier_2. Probed live the same
+      # day: each of these resolves and BILLS a credit, then returns only
+      # posts older than socialcrawl.max_age_days (21), so the engine
+      # dropped every row. 35 credits a day for zero signal. Not deleted,
+      # so a cadence change or a wider window can promote them back.
+      - boity
+      - varsityvibesa
+# Documentation only. These values are NOT read at runtime. The authoritative
+# tier weights live in src/ingestion/enrichment.py (_TIER_WEIGHTS). Editing the
+# numbers below changes nothing in scoring; only alignment_audit.py reads this
+# key, and only to confirm it exists. Keep in sync by hand if you change the code.
+tier_weights:
+  tier_1: 1.0
+  tier_2: 0.7
+  tier_3: 0.4

@@ -1,0 +1,186 @@
+[
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "ZA",
+  "metric_date": "2026-08-30",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 50
+ },
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "ZA",
+  "metric_date": "2026-09-05",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 4
+ },
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "ZA",
+  "metric_date": "2026-09-18",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 3
+ },
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "ZA",
+  "metric_date": "2026-09-20",
+  "lane_class": "platform_feed",
+  "platform": "x",
+  "posts": 5
+ },
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "ZA",
+  "metric_date": "2026-09-25",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 3
+ },
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "ZA",
+  "metric_date": "2026-09-25",
+  "lane_class": "platform_feed",
+  "platform": "x",
+  "posts": 2
+ },
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "ZA",
+  "metric_date": "2026-09-25",
+  "lane_class": "search_presence",
+  "platform": "google",
+  "posts": 3
+ },
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "ZA",
+  "metric_date": "2026-09-25",
+  "lane_class": "_any",
+  "platform": "_all",
+  "posts": 9
+ },
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "ZA",
+  "metric_date": "2026-09-29",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 7
+ },
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "market": "NG",
+  "metric_date": "2026-09-25",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 2
+ },
+ {
+  "item_id": "dc421a437e7bc5b4dc9567815ed539301ce2a133ae84ded9986fb5cdc667eed3",
+  "market": "ZA",
+  "metric_date": "2026-09-17",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 10
+ },
+ {
+  "item_id": "dc421a437e7bc5b4dc9567815ed539301ce2a133ae84ded9986fb5cdc667eed3",
+  "market": "ZA",
+  "metric_date": "2026-09-26",
+  "lane_class": "search_presence",
+  "platform": "google",
+  "posts": 50
+ },
+ {
+  "item_id": "dc421a437e7bc5b4dc9567815ed539301ce2a133ae84ded9986fb5cdc667eed3",
+  "market": "ZA",
+  "metric_date": "2026-09-26",
+  "lane_class": "platform_feed",
+  "platform": "instagram",
+  "posts": 2
+ },
+ {
+  "item_id": "dc421a437e7bc5b4dc9567815ed539301ce2a133ae84ded9986fb5cdc667eed3",
+  "market": "ZA",
+  "metric_date": "2026-09-28",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 4
+ },
+ {
+  "item_id": "66c02f8db1294a76141d9d7fbd75713840e605889a2f9276699300c8dd062805",
+  "market": "ZA",
+  "metric_date": "2026-09-27",
+  "lane_class": "platform_feed",
+  "platform": "x",
+  "posts": 3
+ },
+ {
+  "item_id": "023b761cb6a7a01ef425f0293b629e43ca8dcaaf12c09f7b3bb817fc8c725ad9",
+  "market": "ZA",
+  "metric_date": "2026-09-25",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 100
+ },
+ {
+  "item_id": "001c600240c06dd3cf222d8f7e38b8523a6e86ac2d3b656215881534cf7e29b9",
+  "market": "ZA",
+  "metric_date": "2026-09-25",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 90
+ },
+ {
+  "item_id": "ffef2f462e2d6ba8e94ca8c7bb6202eeadd9a53ffe7559b23061ce12b7515b0f",
+  "market": "ZA",
+  "metric_date": "2026-09-25",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 80
+ },
+ {
+  "item_id": "6d6fe31b0dfce706c190d9d7e0acd932386400c1ec8c14dfe14b9faec87bea51",
+  "market": "ZA",
+  "metric_date": "2026-09-25",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 70
+ },
+ {
+  "item_id": "cba78e6bfe35de498efaee734dcdc7cf980eeffecd8a4d0122a6900ce79db0bc",
+  "market": "ZA",
+  "metric_date": "2026-08-20",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 5
+ },
+ {
+  "item_id": "70ae5b2652d77b67b76b0a15d258365799d5cb25f9e4d1ab8e6a05c66300acd2",
+  "market": "ZA",
+  "metric_date": "2026-09-25",
+  "lane_class": "platform_feed",
+  "platform": "tiktok",
+  "posts": 60
+ },
+ {
+  "item_id": "6ff5dd66a07fc42d03f622d543c1884d6d868788ea6419a6ab52d5d83316957a",
+  "market": "NG",
+  "metric_date": "2026-09-19",
+  "lane_class": "platform_feed",
+  "platform": "x",
+  "posts": 2
+ },
+ {
+  "item_id": "6ff5dd66a07fc42d03f622d543c1884d6d868788ea6419a6ab52d5d83316957a",
+  "market": "NG",
+  "metric_date": "2026-09-24",
+  "lane_class": "platform_feed",
+  "platform": "x",
+  "posts": 4
+ }
+]

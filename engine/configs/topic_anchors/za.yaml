@@ -1,0 +1,96 @@
+# Per-topic embedding anchor phrases for the M4 multilingual classifier (D2).
+# Curated 29 May 2026 from real classified enriched_content rows (25-29 May)
+# by per-market distillation and a manual review, plus a
+# geo-verify pass. Each phrase is embedded (text-multilingual-embedding-002)
+# into its own anchor vector; a residual unclassified row classifies into a
+# topic on the BEST cosine over that topic's phrases. Phrases are grounded in
+# genuine in-market posts, authentic voice (pidgin / sheng / kasi), and
+# geo-stripped. The two collision topics were rebuilt from clean rows only:
+# NG economy_sapa_hustle (no Vietnam Sapa / Bahasa / Hindi / Texas pets) and
+# NG fashion_ankara_asoebi (no Ankara Turkey; anchored on asoebi / gele /
+# lace). KE genz_sheng excludes the Chinese / Singapore "sheng" collisions.
+# Edit by re-curating from real classified rows, not by hand, so grounding stays honest.
+
+market: za
+topic_anchors:
+  music_amapiano:
+  - amapiano dance challenge mzansi on fire
+  - new amapiano mix 2026 south african house hits
+  - Uncle Waffles set had the whole place jumping
+  - the amapiano wave went global from South Africa
+  - 3 step piano grooves in Jozi
+  - this amapiano track is gonna be a problem
+  - soulful afrohouse amapiano fusion to lock in
+  - Dlala Thukzin live set in Jozi
+  - ZEP Amapiano 2026 dance challenge
+  genz_lifestyle:
+  - minding my business living the soft life
+  - what are some soft life jobs and how do you start
+  - kasi vibes mzansi tiktok energy
+  - another day another taxi another VW Polo
+  - small side hustle to make extra cash
+  - all black was the mission joburg life
+  - slow living quiet luxury soft life glow up
+  - thrift shopping for a cheap budget find in Joburg
+  infra_power_eskom:
+  - Eskom turned the lights back on but reforms stalled
+  - our geyser chows too much electricity
+  - we use about 20 units a day for two people
+  - Khayelitsha households left in the dark transformers unfixed
+  - Eskom breaks ground on new solar plant for households
+  - Joburg and Eskom broker debt plan to keep the lights on
+  - gas geyser and timer switch cut our electricity bill
+  - stage six load shedding ruined my side hustle
+  food_rituals_braai:
+  - fired up the Weber for a Sunday braai
+  - looking for the best shisa nyama chisa nyama in South Africa
+  - braai boerewors and chakalaka with the family
+  - getting the braai skills ready for Heritage Day
+  - lekker braaivleis braaibroodjie chop and dop
+  - jy bring die vleis ons bring die braai
+  - braai for two beef lamb and chicken on the fire
+  - breaking a world record braai on Heritage Day
+  education_matric_nsfas:
+  - NSFAS portal still says we are receiving funds but we are defunded
+  - matric results came out and I am happy
+  - studytok study tips for the matric exam session
+  - first year student NSFAS application South Africa
+  - last year of school matric class memes
+  - grade 12 geography and accounting study vlog
+  - defunded students cut off mid year by NSFAS
+  - uni for life matric certificate student
+  finance_stokvel:
+  - join a stokvel it will help you save little by little
+  - stokvel season saving stamps at Shoprite
+  - the zikhuntyu girlies stokvel cash out
+  - every stokvel depends on trust between members
+  - start your table charm stokvel walala wasala
+  - modern stokvels moving from saving to investing in shares
+  - ready for December with a frozen finds stokvel
+  - Standard Bank making stokvels cool again savings
+  politics_crises:
+  - Ramaphosa files court papers over Phala Phala panel report
+  - some parties want the impeachment process against the president to continue
+  - court dismisses bid to block municipality corruption report
+  - SASSA biometric verification suspends thousands of grants
+  - Malema calls anti-immigrant activity in South Africa Afrophobia
+  - MK party chief whip charged with defrauding party staff
+  - ANC resolves to show the party official the door
+  - politicians misuse our tax money and there is no service delivery
+  sports_rugby:
+  - resting the Springbok boys for next year
+  - Springbok Women face Madagascar in the Africa Cup
+  - Sundowns and Pirates dominate the South Africa World Cup squad
+  - Bafana Bafana squad named for the World Cup
+  - Betway gives Springbok fans a spot on the team shorts
+  - kaizer chiefs vs chippa united fixture
+  - the future looks bright proudly South African bokke
+  - buying tickets for the Bulls game at Loftus
+  - Bafana Bafana chasing a World Cup qualifier spot
+  - Champions League final night and the whole crew is locked in
+  - Mbappe and Real Madrid lit up the UEFA tie
+  # 11 Jun 2026 Gemini brand lens (stage 1) anchors.
+  tech_gemini_ai:
+  - asked the Gemini app to plan my matric study timetable
+  - nano banana turned my pics into a whole photoshoot mzansi
+  - using google gemini for my side hustle content ideas

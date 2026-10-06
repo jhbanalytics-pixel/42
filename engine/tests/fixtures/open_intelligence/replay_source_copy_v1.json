@@ -1,0 +1,13 @@
+{
+  "copy_run_id": "dynamic_replay_source_copy_20260821_20260903_v1",
+  "copy_contract_version": "dynamic_replay_source_copy_v1",
+  "window_start": "2026-08-21",
+  "window_end": "2026-09-03",
+  "tables": {
+    "event_ledger": [5158, "c9dfd8dde82d86aaca29f125b6b43de0641ea08dedf2e2b3ab7d54d84fb5e465"],
+    "seed_graph": [210000, "418566b2043fcb748a4791f374068dc80f578e4d217d449fc36e079ce2332290"],
+    "seed_candidates": [0, "f69dade361b3d2c792f04091254f78752440ecde380c1caf69b5e01c0d6db0ee"],
+    "enriched_content": [80845, "a2bf50bef58581924060ee3dfa5402599b27837ea61a6ca785f1e232c8620cb3"]
+  },
+  "coverage_digest": "165144e87c2aea395920c8c85253cf00c6ec835b9da98058e8bdcd06f3ccc9d2"
+}

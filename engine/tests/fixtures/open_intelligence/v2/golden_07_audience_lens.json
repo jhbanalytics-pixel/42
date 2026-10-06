@@ -1,0 +1,174 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_07_audience_lens",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture scope, 18 to 25 August 2026",
+      "sections": [
+        {
+          "body": "Synthetic fixture scope, 18 to 25 August 2026.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "The inferred fixture lens fits practical instruction cues across forum and video evidence [E1] [E2].",
+          "evidence_ids": [
+            "ev_0701070107010701070107010701070107010701070107010701070107010701",
+            "ev_0702070207020702070207020702070207020702070207020702070207020702"
+          ],
+          "heading": "Finding",
+          "section_id": "finding"
+        },
+        {
+          "body": "Synthetic fixture evidence does not measure population prevalence.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture intelligence brief"
+    },
+    "audience_lenses": [
+      {
+        "basis": "inferred",
+        "claim": "The synthetic fixture lens reflects observed practical information cues.",
+        "confidence": 0.61,
+        "lens_id": "fixture_lens",
+        "source": "Synthetic fixture evidence",
+        "window": {
+          "end_date": "2026-08-25",
+          "start_date": "2026-08-18"
+        }
+      }
+    ],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [],
+    "evidence": [
+      {
+        "author_label": "@fixture_author_07_01",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "context",
+        "direction": "rising",
+        "evidence_id": "ev_0701070107010701070107010701070107010701070107010701070107010701",
+        "excerpt": "Synthetic fixture inferred practical lens evidence favors step-by-step instructions.",
+        "geo_confidence": 0.91,
+        "metric_label": "13 synthetic instruction posts",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_07_row_01",
+        "signal_id": "sig_0707070707070707070707070707070707070707070707070707070707070707",
+        "source_family": "forum",
+        "source_label": "Fixture source 07-01",
+        "url": "https://evidence.invalid/07/01"
+      },
+      {
+        "author_label": "@fixture_author_07_02",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "context",
+        "direction": "rising",
+        "evidence_id": "ev_0702070207020702070207020702070207020702070207020702070207020702",
+        "excerpt": "Synthetic fixture clips repeat practical instruction cues without demographic measurement.",
+        "geo_confidence": 0.91,
+        "metric_label": "8 synthetic clips",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_07_row_02",
+        "signal_id": "sig_0707070707070707070707070707070707070707070707070707070707070707",
+        "source_family": "video",
+        "source_label": "Fixture source 07-02",
+        "url": "https://evidence.invalid/07/02"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [
+        "fixture_lens"
+      ],
+      "audience_lenses": [
+        {
+          "basis": "inferred",
+          "claim": "The synthetic fixture lens reflects observed practical information cues.",
+          "confidence": 0.61,
+          "lens_id": "fixture_lens",
+          "source": "Synthetic fixture evidence",
+          "window": {
+            "end_date": "2026-08-25",
+            "start_date": "2026-08-18"
+          }
+        }
+      ],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose whether to apply the inferred fixture lens.",
+      "evidence_requirements": [
+        "lens basis source window and confidence",
+        "cross-source fit evidence"
+      ],
+      "evidence_state": "ready",
+      "historical_comparison": {
+        "required": false,
+        "window_days": 0
+      },
+      "intent": "audience",
+      "market_scope": [
+        "za"
+      ],
+      "markets": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_07",
+      "run_id": "run_fixture_07",
+      "source_families": [
+        "forum",
+        "video"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "ready",
+    "expected_intent": "audience",
+    "human_review_required": false,
+    "limitations": [
+      "Synthetic fixture evidence does not measure population prevalence."
+    ],
+    "missing_work": [],
+    "request": {
+      "audience_lens_ids": [
+        "fixture_lens"
+      ],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose whether to apply the inferred fixture lens.",
+      "market_scope": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "question": "Which synthetic audience lens fits the signal?",
+      "run_id": "run_fixture_07",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

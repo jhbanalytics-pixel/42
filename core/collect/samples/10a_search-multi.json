@@ -1,0 +1,22 @@
+{
+  "probe": "10a",
+  "route": "search/multi",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "estimate": {
+        "base_credits": "<int>",
+        "label_credits_max": "<int>",
+        "label_credits_min": "<int>",
+        "rows_cached": "<int>",
+        "rows_expected": "<int>"
+      }
+    },
+    "endpoint": "<str>",
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

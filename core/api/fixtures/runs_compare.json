@@ -1,0 +1,26 @@
+[
+  {
+    "run_id": "r_aggregate_20260929_01",
+    "stage": "aggregate",
+    "run_date": "2026-09-29",
+    "status": "ok",
+    "started_at": "2026-09-29T05:10:00+02:00",
+    "finished_at": "2026-09-29T05:20:00+02:00"
+  },
+  {
+    "run_id": "r_aggregate_20260930_01",
+    "stage": "aggregate",
+    "run_date": "2026-09-30",
+    "status": "ok",
+    "started_at": "2026-09-30T05:10:00+02:00",
+    "finished_at": "2026-09-30T05:20:00+02:00"
+  },
+  {
+    "run_id": "r_aggregate_20261001_01",
+    "stage": "aggregate",
+    "run_date": "2026-10-01",
+    "status": "failed",
+    "started_at": "2026-10-01T05:10:00+02:00",
+    "finished_at": "2026-10-01T05:12:00+02:00"
+  }
+]

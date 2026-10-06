@@ -1,0 +1,2723 @@
+{
+ "ready": {
+  "date": "2026-09-30",
+  "today": "2026-10-02",
+  "latest_day": "2026-09-30",
+  "health_state": "recorded",
+  "health_note": null,
+  "plan_state": "ready",
+  "plan_note": null,
+  "groups": [
+   {
+    "key": "platform",
+    "label": "Platform feeds and trending boards"
+   },
+   {
+    "key": "own",
+    "label": "Own feeds"
+   },
+   {
+    "key": "creators",
+    "label": "Kept creator accounts"
+   },
+   {
+    "key": "charts",
+    "label": "Music and app charts"
+   },
+   {
+    "key": "news",
+    "label": "News sites and RSS"
+   },
+   {
+    "key": "search",
+    "label": "Searches, counts and rechecks"
+   },
+   {
+    "key": "search_interest",
+    "label": "Google search interest"
+   }
+  ],
+  "markets": [
+   {
+    "market": "ZA",
+    "label": "South Africa",
+    "sources": [
+     {
+      "key": "ZA:feed_tiktok",
+      "series": "feed_tiktok",
+      "group": "platform",
+      "name": "TikTok local feed",
+      "members": [],
+      "detail": "3 reads of TikTok's own feed for the market",
+      "planned_calls": 3,
+      "planned_credits": 15,
+      "free": false,
+      "status": "delivered",
+      "status_words": "Delivered",
+      "health": {
+       "status": "delivered",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 540,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:d8601b07a4405f5cf95b137e4d4434ee4932e4734c232cba6734452df305262f"
+       },
+       "located_share": 0.45,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 1,
+       "reasons": []
+      }
+     },
+     {
+      "key": "ZA:board_youtube",
+      "series": "board_youtube",
+      "group": "platform",
+      "name": "YouTube trending charts",
+      "members": [],
+      "detail": "Charts: overall, music, film and animation, gaming, entertainment",
+      "planned_calls": 5,
+      "planned_credits": 5,
+      "free": false,
+      "status": "delivered",
+      "status_words": "Delivered",
+      "health": {
+       "status": "delivered",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 250,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:9ae5ed243d8b6e078736d2111c1533d6c043e01623ab3db1794349452b52be1b"
+       },
+       "located_share": 0.3,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 1,
+       "reasons": []
+      }
+     },
+     {
+      "key": "ZA:board_apple_music",
+      "series": "board_apple_music",
+      "group": "platform",
+      "name": "Apple Music charts",
+      "members": [],
+      "detail": "Top songs and top music videos",
+      "planned_calls": 2,
+      "planned_credits": 2,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:board_tiktok_hashtag",
+      "series": "board_tiktok_hashtag",
+      "group": "platform",
+      "name": "TikTok popular hashtags board",
+      "members": [],
+      "detail": "The market's popular hashtags over seven days",
+      "planned_calls": 1,
+      "planned_credits": 6,
+      "free": false,
+      "status": "failed",
+      "status_words": "Failed: could not be read",
+      "health": {
+       "status": "failed",
+       "calls": 12,
+       "calls_ok": 2,
+       "items": {
+        "value": 0,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:1c465d37bffb759475d982d7b73c7a092a30183ac6aa479dc951e2a92261b40f"
+       },
+       "located_share": null,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 0,
+       "reasons": [
+        "could not be read"
+       ]
+      }
+     },
+     {
+      "key": "ZA:ig_location",
+      "series": "ig_location",
+      "group": "platform",
+      "name": "Instagram posts from local places",
+      "members": [],
+      "detail": "One local place a day, in rotation",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:list_reddit",
+      "series": "list_reddit",
+      "group": "own",
+      "name": "Own subreddits",
+      "members": [
+       "r/southafrica",
+       "r/Amapiano",
+       "r/CapeTown",
+       "r/johannesburg",
+       "r/PersonalFinanceZA",
+       "r/Springboks"
+      ],
+      "detail": "Hot and rising posts; r/Amapiano is read as a genre list, not as the market's own",
+      "planned_calls": 12,
+      "planned_credits": 12,
+      "free": false,
+      "status": "delivered",
+      "status_words": "Delivered",
+      "health": {
+       "status": "delivered",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 180,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:ef959b758328e6fe3666cf20a4fdbf3dd6bb7760b4cb83e2b894d1b6b1517d58"
+       },
+       "located_share": 0.52,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 1,
+       "reasons": []
+      }
+     },
+     {
+      "key": "ZA:panel_fb_hub",
+      "series": "panel_fb_hub",
+      "group": "own",
+      "name": "Facebook news pages",
+      "members": [],
+      "detail": "4 news and radio pages, posts since yesterday",
+      "planned_calls": 4,
+      "planned_credits": 4,
+      "free": false,
+      "status": "delivered",
+      "status_words": "Delivered",
+      "health": {
+       "status": "delivered",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 320,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:55eb9e947f9eb57a885710ef3cf60daaad941fb44d3cc81c6a1e755f9194a0db"
+       },
+       "located_share": 0.61,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 1,
+       "reasons": []
+      }
+     },
+     {
+      "key": "ZA:panel_x_hub",
+      "series": "panel_x_hub",
+      "group": "own",
+      "name": "X accounts",
+      "members": [
+       "@SundayTimesZA",
+       "@Newzroom405",
+       "@IOL",
+       "@Soccer_Laduma",
+       "@News24",
+       "@casspernyovest",
+       "@DjMaphorisa",
+       "@AdvoBarryRoux"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 8,
+      "planned_credits": 8,
+      "free": false,
+      "status": "delivered",
+      "status_words": "Delivered",
+      "health": {
+       "status": "delivered",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 410,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:15d9efa417854b14a6f1d23e6322ae9fee6e234dde154226b53181b0833542f5"
+       },
+       "located_share": 0.38,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 1,
+       "reasons": []
+      }
+     },
+     {
+      "key": "ZA:panel_ig_gossip",
+      "series": "panel_ig_gossip",
+      "group": "own",
+      "name": "Gossip and entertainment accounts on Instagram",
+      "members": [
+       "@maphephandaba",
+       "@zalebs",
+       "@tshisalive"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 1,
+      "planned_credits": 6,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:panel_culture_desk",
+      "series": "panel_culture_desk",
+      "group": "creators",
+      "name": "Culture desk and kept creator accounts",
+      "members": [],
+      "detail": "12 culture desk accounts and 20 kept creator accounts in today's rotation, from 124 kept for this market",
+      "planned_calls": 2,
+      "planned_credits": 64,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:board_kworb_spotify",
+      "series": "board_kworb_spotify",
+      "group": "charts",
+      "name": "Spotify daily chart (via Kworb)",
+      "members": [],
+      "detail": "The market's daily top songs on Spotify",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:board_boomplay",
+      "series": "board_boomplay",
+      "group": "charts",
+      "name": "Boomplay trending songs",
+      "members": [],
+      "detail": "Songs trending in the market on Boomplay",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:board_audiomack",
+      "series": "board_audiomack",
+      "group": "charts",
+      "name": "Audiomack trending",
+      "members": [],
+      "detail": "Songs trending in the market on Audiomack",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:board_shazam",
+      "series": "board_shazam",
+      "group": "charts",
+      "name": "Shazam national chart",
+      "members": [],
+      "detail": "The songs most looked up in the market",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:board_shazam_city",
+      "series": "board_shazam_city",
+      "group": "charts",
+      "name": "Shazam city chart",
+      "members": [],
+      "detail": "The songs most looked up in Johannesburg",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:board_app_store_iphone",
+      "series": "board_app_store_iphone",
+      "group": "charts",
+      "name": "App Store top free apps (iPhone)",
+      "members": [],
+      "detail": "The 50 most downloaded free iPhone apps",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": true,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:news_rss",
+      "series": "news_rss",
+      "group": "news",
+      "name": "News sites and RSS feeds",
+      "members": [
+       "Briefly (RSS)",
+       "ZAlebs (RSS)",
+       "eNCA",
+       "GroundUp",
+       "TimesLIVE",
+       "IOL",
+       "The Citizen",
+       "Mail & Guardian",
+       "Business Day",
+       "Bizcommunity South Africa",
+       "Cape Town Etc",
+       "SABC News",
+       "The South African",
+       "BusinessTech",
+       "Sowetan News",
+       "Current Affairs ZA",
+       "The Herald"
+      ],
+      "detail": "Headlines guide what 42 looks into; they are never evidence on their own",
+      "planned_calls": 17,
+      "planned_credits": 0,
+      "free": true,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:search",
+      "series": "search",
+      "group": "search",
+      "name": "Searches for the day's candidates and seeds",
+      "members": [],
+      "detail": "25 TikTok searches in the market and 7 searches across other platforms",
+      "planned_calls": 32,
+      "planned_credits": 95,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:counter_post_views",
+      "series": "counter_post_views",
+      "group": "search",
+      "name": "Evidence post rechecks",
+      "members": [],
+      "detail": "Up to 20 posts behind the day's evidence, reread for their latest counts",
+      "planned_calls": 1,
+      "planned_credits": 40,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "ZA:google_trends",
+      "series": "google_trends",
+      "group": "search_interest",
+      "name": "Google Trends trending searches",
+      "members": [],
+      "detail": "Trending searches of the day guide what 42 looks into. They are never evidence, never a count of posts and never proof of place. The free Google Trends tables add top and rising terms.",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "no_record",
+      "status_words": "Not reported by this day's collection",
+      "health": null,
+      "credits_spent": null
+     }
+    ],
+    "counts": {
+     "delivered": 5,
+     "partial": 0,
+     "failed": 1,
+     "no_record": 14,
+     "waiting": 0,
+     "off": 0
+    },
+    "planned_credits": 272
+   },
+   {
+    "market": "NG",
+    "label": "Nigeria",
+    "sources": [
+     {
+      "key": "NG:feed_tiktok",
+      "series": "feed_tiktok",
+      "group": "platform",
+      "name": "TikTok local feed",
+      "members": [],
+      "detail": "3 reads of TikTok's own feed for the market",
+      "planned_calls": 3,
+      "planned_credits": 15,
+      "free": false,
+      "status": "delivered",
+      "status_words": "Delivered",
+      "health": {
+       "status": "delivered",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 610,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:de65a8d197eb1c7881f2ac6714cc84c2fc39a8156f73f347f85031a92dfc3d0c"
+       },
+       "located_share": 0.4,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 1,
+       "reasons": []
+      }
+     },
+     {
+      "key": "NG:board_youtube",
+      "series": "board_youtube",
+      "group": "platform",
+      "name": "YouTube trending charts",
+      "members": [],
+      "detail": "Charts: overall, music, film and animation, gaming, entertainment",
+      "planned_calls": 5,
+      "planned_credits": 5,
+      "free": false,
+      "status": "delivered",
+      "status_words": "Delivered",
+      "health": {
+       "status": "delivered",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 200,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:d9cacc6515d810c9ba79d37ebfd62b7562df3f6e1686e2fe9eec067b9e837d68"
+       },
+       "located_share": 0.25,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 1,
+       "reasons": []
+      }
+     },
+     {
+      "key": "NG:board_apple_music",
+      "series": "board_apple_music",
+      "group": "platform",
+      "name": "Apple Music charts",
+      "members": [],
+      "detail": "Top songs and top music videos",
+      "planned_calls": 2,
+      "planned_credits": 2,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:ig_location",
+      "series": "ig_location",
+      "group": "platform",
+      "name": "Instagram posts from local places",
+      "members": [],
+      "detail": "One local place a day, in rotation",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:list_reddit",
+      "series": "list_reddit",
+      "group": "own",
+      "name": "Own subreddits",
+      "members": [
+       "r/Nigeria",
+       "r/Lagos",
+       "r/NigerianFood"
+      ],
+      "detail": "Hot and rising posts",
+      "planned_calls": 6,
+      "planned_credits": 6,
+      "free": false,
+      "status": "failed",
+      "status_words": "Failed: post count far from usual",
+      "health": {
+       "status": "failed",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 12,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:32044a6446d6840dc28bc798ce0d873db132a28c5bb73f7234e4c01da4232f76"
+       },
+       "located_share": 0.5,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 0,
+       "reasons": [
+        "post count far from usual"
+       ]
+      }
+     },
+     {
+      "key": "NG:panel_fb_hub",
+      "series": "panel_fb_hub",
+      "group": "own",
+      "name": "Facebook news pages",
+      "members": [],
+      "detail": "2 news and radio pages, posts since yesterday",
+      "planned_calls": 2,
+      "planned_credits": 2,
+      "free": false,
+      "status": "delivered",
+      "status_words": "Delivered",
+      "health": {
+       "status": "delivered",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 280,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:1889b5ee007471c4fbf1022b9d4bb40544bd6d4ab5dc9c309d87109fac6e438b"
+       },
+       "located_share": 0.55,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 1,
+       "reasons": []
+      }
+     },
+     {
+      "key": "NG:panel_x_hub",
+      "series": "panel_x_hub",
+      "group": "own",
+      "name": "X accounts",
+      "members": [
+       "@ARISEtv",
+       "@vanguardngrnews",
+       "@GuardianNigeria",
+       "@channelstv",
+       "@PremiumTimesng",
+       "@davido",
+       "@burnaboy"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 7,
+      "planned_credits": 7,
+      "free": false,
+      "status": "failed",
+      "status_words": "Failed: too few accounts checked",
+      "health": {
+       "status": "failed",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 90,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:4c5c2241fe4827dfba310beb533a89f4824900f2a0ac62fdc84225208e1dc06e"
+       },
+       "located_share": 0.3,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 0,
+       "reasons": [
+        "too few accounts checked"
+       ]
+      }
+     },
+     {
+      "key": "NG:panel_ig_gossip",
+      "series": "panel_ig_gossip",
+      "group": "own",
+      "name": "Gossip and entertainment accounts on Instagram",
+      "members": [
+       "@instablog9ja",
+       "@lindaikejiblogofficial",
+       "@gossipmilltv"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 1,
+      "planned_credits": 6,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:panel_culture_desk",
+      "series": "panel_culture_desk",
+      "group": "creators",
+      "name": "Culture desk and kept creator accounts",
+      "members": [],
+      "detail": "12 culture desk accounts and 20 kept creator accounts in today's rotation, from 155 kept for this market",
+      "planned_calls": 2,
+      "planned_credits": 64,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:board_nairaland",
+      "series": "board_nairaland",
+      "group": "charts",
+      "name": "Nairaland front page",
+      "members": [],
+      "detail": "The threads on Nigeria's largest forum front page",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:board_turntable",
+      "series": "board_turntable",
+      "group": "charts",
+      "name": "TurnTable Top 100",
+      "members": [],
+      "detail": "Nigeria's official music chart",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:board_kworb_spotify",
+      "series": "board_kworb_spotify",
+      "group": "charts",
+      "name": "Spotify daily chart (via Kworb)",
+      "members": [],
+      "detail": "The market's daily top songs on Spotify",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:board_boomplay",
+      "series": "board_boomplay",
+      "group": "charts",
+      "name": "Boomplay trending songs",
+      "members": [],
+      "detail": "Songs trending in the market on Boomplay",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:board_audiomack",
+      "series": "board_audiomack",
+      "group": "charts",
+      "name": "Audiomack trending",
+      "members": [],
+      "detail": "Songs trending in the market on Audiomack",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:board_shazam",
+      "series": "board_shazam",
+      "group": "charts",
+      "name": "Shazam national chart",
+      "members": [],
+      "detail": "The songs most looked up in the market",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:board_shazam_city",
+      "series": "board_shazam_city",
+      "group": "charts",
+      "name": "Shazam city chart",
+      "members": [],
+      "detail": "The songs most looked up in Lagos",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:board_app_store_iphone",
+      "series": "board_app_store_iphone",
+      "group": "charts",
+      "name": "App Store top free apps (iPhone)",
+      "members": [],
+      "detail": "The 50 most downloaded free iPhone apps",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": true,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:board_music_country",
+      "series": "board_music_country",
+      "group": "charts",
+      "name": "Country music charts",
+      "members": [
+       "TurnTable Official Nigeria Top 100"
+      ],
+      "detail": "The market's own music chart",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": true,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:news_rss",
+      "series": "news_rss",
+      "group": "news",
+      "name": "News sites and RSS feeds",
+      "members": [
+       "BellaNaija (RSS)",
+       "Punch (RSS)",
+       "Legit (RSS)",
+       "Nairametrics (RSS)",
+       "Channels Television",
+       "Arise News",
+       "Punch",
+       "Premium Times",
+       "The Guardian Nigeria",
+       "TheCable",
+       "BellaNaija",
+       "Notjustok",
+       "tooXclusive",
+       "Vanguard",
+       "Legit Nigeria",
+       "Pulse Nigeria",
+       "Nairametrics",
+       "PM News"
+      ],
+      "detail": "Headlines guide what 42 looks into; they are never evidence on their own",
+      "planned_calls": 18,
+      "planned_credits": 0,
+      "free": true,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:search",
+      "series": "search",
+      "group": "search",
+      "name": "Searches for the day's candidates and seeds",
+      "members": [],
+      "detail": "25 TikTok searches in the market and 7 searches across other platforms",
+      "planned_calls": 32,
+      "planned_credits": 95,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:counter_post_views",
+      "series": "counter_post_views",
+      "group": "search",
+      "name": "Evidence post rechecks",
+      "members": [],
+      "detail": "Up to 20 posts behind the day's evidence, reread for their latest counts",
+      "planned_calls": 1,
+      "planned_credits": 40,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "NG:google_trends",
+      "series": "google_trends",
+      "group": "search_interest",
+      "name": "Google Trends trending searches",
+      "members": [],
+      "detail": "Trending searches of the day guide what 42 looks into. They are never evidence, never a count of posts and never proof of place. The free Google Trends tables add top and rising terms.",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "no_record",
+      "status_words": "Not reported by this day's collection",
+      "health": null,
+      "credits_spent": null
+     }
+    ],
+    "counts": {
+     "delivered": 3,
+     "partial": 0,
+     "failed": 2,
+     "no_record": 17,
+     "waiting": 0,
+     "off": 0
+    },
+    "planned_credits": 259
+   },
+   {
+    "market": "KE",
+    "label": "Kenya",
+    "sources": [
+     {
+      "key": "KE:feed_tiktok",
+      "series": "feed_tiktok",
+      "group": "platform",
+      "name": "TikTok local feed",
+      "members": [],
+      "detail": "One read of TikTok's own feed",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "failed",
+      "status_words": "Failed: could not be read",
+      "health": {
+       "status": "failed",
+       "calls": 12,
+       "calls_ok": 2,
+       "items": {
+        "value": 0,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:358f081ffc57ae6ea652a7f6a4ff0fd800b219e26386e394e49e9080ff86751d"
+       },
+       "located_share": null,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 0,
+       "reasons": [
+        "could not be read"
+       ]
+      }
+     },
+     {
+      "key": "KE:board_youtube",
+      "series": "board_youtube",
+      "group": "platform",
+      "name": "YouTube trending charts",
+      "members": [],
+      "detail": "Charts: overall, music, film and animation, gaming, entertainment",
+      "planned_calls": 5,
+      "planned_credits": 5,
+      "free": false,
+      "status": "delivered",
+      "status_words": "Delivered",
+      "health": {
+       "status": "delivered",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 150,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:64c570541c06e240354de93038c8ecbb4abd86f7c7c7598e6610320e59a169df"
+       },
+       "located_share": 0.2,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 1,
+       "reasons": []
+      }
+     },
+     {
+      "key": "KE:board_apple_music",
+      "series": "board_apple_music",
+      "group": "platform",
+      "name": "Apple Music charts",
+      "members": [],
+      "detail": "Top songs and top music videos",
+      "planned_calls": 2,
+      "planned_credits": 2,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:ig_location",
+      "series": "ig_location",
+      "group": "platform",
+      "name": "Instagram posts from local places",
+      "members": [],
+      "detail": "One local place a day, in rotation",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:list_reddit",
+      "series": "list_reddit",
+      "group": "own",
+      "name": "Own subreddits",
+      "members": [
+       "r/Kenya",
+       "r/Nairobi",
+       "r/Kenyans"
+      ],
+      "detail": "Hot and rising posts",
+      "planned_calls": 6,
+      "planned_credits": 6,
+      "free": false,
+      "status": "failed",
+      "status_words": "Failed: mix of posts far from usual",
+      "health": {
+       "status": "failed",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 40,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:eae44e992f4ed272be8cdbc71691811b55fe38551704ab145ccd862529773fbc"
+       },
+       "located_share": 0.3,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 0,
+       "reasons": [
+        "mix of posts far from usual"
+       ]
+      }
+     },
+     {
+      "key": "KE:panel_fb_hub",
+      "series": "panel_fb_hub",
+      "group": "own",
+      "name": "Facebook news pages",
+      "members": [],
+      "detail": "3 news and radio pages, posts since yesterday",
+      "planned_calls": 3,
+      "planned_credits": 3,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:panel_x_hub",
+      "series": "panel_x_hub",
+      "group": "own",
+      "name": "X accounts",
+      "members": [
+       "@StandardKenya",
+       "@NTVKenya",
+       "@CitizenTVKenya",
+       "@BahatiKenya"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 4,
+      "planned_credits": 4,
+      "free": false,
+      "status": "delivered",
+      "status_words": "Delivered",
+      "health": {
+       "status": "delivered",
+       "calls": 12,
+       "calls_ok": 12,
+       "items": {
+        "value": 90,
+        "unit": "items collected",
+        "query_id": "q_fieldwork_health",
+        "run_id": "r_collect_20260930_01",
+        "result_hash": "sha256:16b199b7a6f6c542624f35f6ba5c8e94fd1dc12562b85cc64cfd631f2b76caf3"
+       },
+       "located_share": 0.33,
+       "located_range": null,
+       "parts": 1,
+       "parts_usable": 1,
+       "reasons": []
+      }
+     },
+     {
+      "key": "KE:panel_ig_gossip",
+      "series": "panel_ig_gossip",
+      "group": "own",
+      "name": "Gossip and entertainment accounts on Instagram",
+      "members": [
+       "@nairobi_gossip_club",
+       "@edaily_kenya",
+       "@mpashogram"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 1,
+      "planned_credits": 6,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:panel_culture_desk",
+      "series": "panel_culture_desk",
+      "group": "creators",
+      "name": "Culture desk and kept creator accounts",
+      "members": [],
+      "detail": "12 culture desk accounts and 20 kept creator accounts in today's rotation, from 129 kept for this market",
+      "planned_calls": 2,
+      "planned_credits": 64,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:board_boomplay",
+      "series": "board_boomplay",
+      "group": "charts",
+      "name": "Boomplay trending songs",
+      "members": [],
+      "detail": "Songs trending in the market on Boomplay",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:board_audiomack",
+      "series": "board_audiomack",
+      "group": "charts",
+      "name": "Audiomack trending",
+      "members": [],
+      "detail": "Songs trending in the market on Audiomack",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:board_shazam",
+      "series": "board_shazam",
+      "group": "charts",
+      "name": "Shazam national chart",
+      "members": [],
+      "detail": "The songs most looked up in the market",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:board_google_play",
+      "series": "board_google_play",
+      "group": "charts",
+      "name": "Google Play top free apps",
+      "members": [],
+      "detail": "The most downloaded free Android apps",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": false,
+      "status": "off",
+      "status_words": "Off: the data supplier has no price for it yet, so it is never called",
+      "health": null
+     },
+     {
+      "key": "KE:board_app_store_iphone",
+      "series": "board_app_store_iphone",
+      "group": "charts",
+      "name": "App Store top free apps (iPhone)",
+      "members": [],
+      "detail": "The 50 most downloaded free iPhone apps",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": true,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:board_music_country",
+      "series": "board_music_country",
+      "group": "charts",
+      "name": "Country music charts",
+      "members": [
+       "Mdundo Top Songs: Kenya"
+      ],
+      "detail": "The market's own music chart",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": true,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:radio_playlist",
+      "series": "radio_playlist",
+      "group": "charts",
+      "name": "Radio playlists",
+      "members": [
+       "KBC English Service playlist via Radio.co",
+       "Capital FM playlist via Radio.co"
+      ],
+      "detail": "What national radio played",
+      "planned_calls": 2,
+      "planned_credits": 0,
+      "free": true,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:news_rss",
+      "series": "news_rss",
+      "group": "news",
+      "name": "News sites and RSS feeds",
+      "members": [
+       "Tuko (RSS)",
+       "Kenyans.co.ke (RSS)",
+       "Citizen Digital",
+       "The Standard",
+       "K24 Digital",
+       "Capital FM Kenya",
+       "Ghafla Kenya",
+       "Mpasho",
+       "KBC Digital",
+       "Tuko",
+       "Kenyans.co.ke",
+       "The Star Kenya",
+       "Techweez"
+      ],
+      "detail": "Headlines guide what 42 looks into; they are never evidence on their own",
+      "planned_calls": 13,
+      "planned_credits": 0,
+      "free": true,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:search",
+      "series": "search",
+      "group": "search",
+      "name": "Searches for the day's candidates and seeds",
+      "members": [],
+      "detail": "35 TikTok searches in the market and 7 searches across other platforms",
+      "planned_calls": 42,
+      "planned_credits": 105,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:counter_post_views",
+      "series": "counter_post_views",
+      "group": "search",
+      "name": "Evidence post rechecks",
+      "members": [],
+      "detail": "Up to 20 posts behind the day's evidence, reread for their latest counts",
+      "planned_calls": 1,
+      "planned_credits": 40,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "KE:google_trends",
+      "series": "google_trends",
+      "group": "search_interest",
+      "name": "Google Trends trending searches",
+      "members": [],
+      "detail": "Trending searches of the day guide what 42 looks into. They are never evidence, never a count of posts and never proof of place.",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "no_record",
+      "status_words": "Not reported by this day's collection",
+      "health": null,
+      "credits_spent": null
+     }
+    ],
+    "counts": {
+     "delivered": 2,
+     "partial": 0,
+     "failed": 2,
+     "no_record": 15,
+     "waiting": 0,
+     "off": 1
+    },
+    "planned_credits": 253
+   },
+   {
+    "market": "GLOBAL",
+    "label": "Across markets",
+    "sources": [
+     {
+      "key": "GLOBAL:board_global_music",
+      "series": "board_global_music",
+      "group": "platform",
+      "name": "Global music boards",
+      "members": [],
+      "detail": "YouTube Shorts and Instagram music trending, read once for all markets",
+      "planned_calls": 2,
+      "planned_credits": 10,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "GLOBAL:curve_tiktok_sound",
+      "series": "curve_tiktok_sound",
+      "group": "search",
+      "name": "TikTok sound curves",
+      "members": [],
+      "detail": "Daily use of the TikTok sounds 42 is following",
+      "planned_calls": 18,
+      "planned_credits": 18,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "GLOBAL:counter_tiktok_sound",
+      "series": "counter_tiktok_sound",
+      "group": "search",
+      "name": "TikTok sound counts",
+      "members": [],
+      "detail": "Post counts for the TikTok sounds 42 is following",
+      "planned_calls": 15,
+      "planned_credits": 15,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     },
+     {
+      "key": "GLOBAL:counter_tiktok_hashtag",
+      "series": "counter_tiktok_hashtag",
+      "group": "search",
+      "name": "TikTok hashtag counts",
+      "members": [],
+      "detail": "Post counts for the TikTok hashtags 42 is following",
+      "planned_calls": 15,
+      "planned_credits": 15,
+      "free": false,
+      "status": "no_record",
+      "status_words": "No record for this day",
+      "health": null
+     }
+    ],
+    "counts": {
+     "delivered": 0,
+     "partial": 0,
+     "failed": 0,
+     "no_record": 4,
+     "waiting": 0,
+     "off": 0
+    },
+    "planned_credits": 58
+   }
+  ],
+  "off": [
+   {
+    "market": "ZA",
+    "name": "EWN RSS feed",
+    "why": "Its feed address now leads nowhere and EWN has published no replacement."
+   },
+   {
+    "market": "ZA",
+    "name": "Google Play top free apps",
+    "why": "Planned for Mondays, but the data supplier has no price for it yet."
+   },
+   {
+    "market": "ZA",
+    "name": "TshisaLIVE RSS feed",
+    "why": "TimesLIVE's feed addresses stopped answering in July 2026."
+   },
+   {
+    "market": "NG",
+    "name": "Google Play top free apps",
+    "why": "Planned for Tuesdays, but the data supplier has no price for it yet."
+   },
+   {
+    "market": "NG",
+    "name": "Pulse RSS feed",
+    "why": "Its feeds stopped answering in July 2026."
+   },
+   {
+    "market": "KE",
+    "name": "Citizen Digital RSS feed",
+    "why": "Its feed refused requests in July 2026."
+   },
+   {
+    "market": "KE",
+    "name": "Google Trends free tables",
+    "why": "The public tables held no rows for this market when last checked."
+   },
+   {
+    "market": "KE",
+    "name": "Mpasho RSS feed",
+    "why": "Its feed address serves a web page with no stories."
+   },
+   {
+    "market": "KE",
+    "name": "Pulse RSS feed",
+    "why": "Its feeds stopped answering in July 2026."
+   },
+   {
+    "market": "KE",
+    "name": "Spotify daily chart (via Kworb)",
+    "why": "Kworb publishes no Kenya Spotify chart; its Kenya page stopped answering in September 2026."
+   },
+   {
+    "market": "KE",
+    "name": "rotation.africa Kenya chart",
+    "why": "Not read: where its chart comes from is not confirmed yet."
+   },
+   {
+    "market": "GLOBAL",
+    "name": "Google Trends explore and rising searches",
+    "why": "Parked until after the 6 October demo; only each market's trending searches are read."
+   },
+   {
+    "market": "GLOBAL",
+    "name": "X trends archive",
+    "why": "Off until legal approves reading it."
+   }
+  ],
+  "credits": {
+   "state": "recorded",
+   "cap": 1000,
+   "planned": 842,
+   "spent": {
+    "value": 265.0,
+    "unit": "credits charged",
+    "query_id": "q_fieldwork_credits",
+    "run_id": "r_collect_20260930_01",
+    "result_hash": "sha256:bf7f0ad4a5cd7c4c60fa494fe28ffb04c629e8c11d59f646d0492fc0558b9d43"
+   },
+   "markets": [
+    {
+     "market": "ZA",
+     "label": "South Africa",
+     "spent": {
+      "value": 160.0,
+      "unit": "credits charged",
+      "query_id": "q_fieldwork_credits",
+      "run_id": "r_collect_20260930_01",
+      "result_hash": "sha256:989f7533c965f5a5438bf7a484af66afa5be491eefda761edf4070edbfa34998"
+     }
+    },
+    {
+     "market": "NG",
+     "label": "Nigeria",
+     "spent": {
+      "value": 100.0,
+      "unit": "credits charged",
+      "query_id": "q_fieldwork_credits",
+      "run_id": "r_collect_20260930_01",
+      "result_hash": "sha256:c94f8594c006800f2ffc6ad8e2358d00ff2f4526a243e2bcce39798b483b4785"
+     }
+    },
+    {
+     "market": "GLOBAL",
+     "label": "Across markets",
+     "spent": {
+      "value": 5.0,
+      "unit": "credits charged",
+      "query_id": "q_fieldwork_credits",
+      "run_id": "r_collect_20260930_01",
+      "result_hash": "sha256:630f2f8036e8cba2aeb2a237121783f8834d1bfb5443a60ad2a894b40aaf36ef"
+     }
+    }
+   ]
+  },
+  "collect_run": {
+   "run_id": "r_collect_20260930_01",
+   "status": "ok",
+   "started_at": "2026-09-30T00:30:00+02:00",
+   "finished_at": "2026-09-30T02:11:03+02:00",
+   "error": null
+  },
+  "next_collection": {
+   "at": "2026-10-03T02:00:00+02:00",
+   "date": "2026-10-03",
+   "time": "02:00",
+   "zone": "SAST",
+   "collects_for": "2026-10-03"
+  }
+ },
+ "absent": {
+  "date": "2026-10-01",
+  "today": "2026-10-02",
+  "latest_day": "2026-09-30",
+  "health_state": "absent",
+  "health_note": "No collection record for this day yet. The roster below is what the 02:00 collection is set to read.",
+  "plan_state": "ready",
+  "plan_note": null,
+  "groups": [
+   {
+    "key": "platform",
+    "label": "Platform feeds and trending boards"
+   },
+   {
+    "key": "own",
+    "label": "Own feeds"
+   },
+   {
+    "key": "creators",
+    "label": "Kept creator accounts"
+   },
+   {
+    "key": "charts",
+    "label": "Music and app charts"
+   },
+   {
+    "key": "news",
+    "label": "News sites and RSS"
+   },
+   {
+    "key": "search",
+    "label": "Searches, counts and rechecks"
+   },
+   {
+    "key": "search_interest",
+    "label": "Google search interest"
+   }
+  ],
+  "markets": [
+   {
+    "market": "ZA",
+    "label": "South Africa",
+    "sources": [
+     {
+      "key": "ZA:feed_tiktok",
+      "series": "feed_tiktok",
+      "group": "platform",
+      "name": "TikTok local feed",
+      "members": [],
+      "detail": "3 reads of TikTok's own feed for the market",
+      "planned_calls": 3,
+      "planned_credits": 15,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:board_youtube",
+      "series": "board_youtube",
+      "group": "platform",
+      "name": "YouTube trending charts",
+      "members": [],
+      "detail": "Charts: overall, music, film and animation, gaming, entertainment",
+      "planned_calls": 5,
+      "planned_credits": 5,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:board_apple_music",
+      "series": "board_apple_music",
+      "group": "platform",
+      "name": "Apple Music charts",
+      "members": [],
+      "detail": "Top songs and top music videos",
+      "planned_calls": 2,
+      "planned_credits": 2,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:board_tiktok_hashtag",
+      "series": "board_tiktok_hashtag",
+      "group": "platform",
+      "name": "TikTok popular hashtags board",
+      "members": [],
+      "detail": "The market's popular hashtags over seven days",
+      "planned_calls": 2,
+      "planned_credits": 102,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:ig_location",
+      "series": "ig_location",
+      "group": "platform",
+      "name": "Instagram posts from local places",
+      "members": [],
+      "detail": "One local place a day, in rotation",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:list_reddit",
+      "series": "list_reddit",
+      "group": "own",
+      "name": "Own subreddits",
+      "members": [
+       "r/southafrica",
+       "r/Amapiano",
+       "r/CapeTown",
+       "r/johannesburg",
+       "r/PersonalFinanceZA",
+       "r/Springboks"
+      ],
+      "detail": "Hot and rising posts; r/Amapiano is read as a genre list, not as the market's own",
+      "planned_calls": 12,
+      "planned_credits": 12,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:panel_fb_hub",
+      "series": "panel_fb_hub",
+      "group": "own",
+      "name": "Facebook news pages",
+      "members": [],
+      "detail": "4 news and radio pages, posts since yesterday",
+      "planned_calls": 4,
+      "planned_credits": 4,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:panel_x_hub",
+      "series": "panel_x_hub",
+      "group": "own",
+      "name": "X accounts",
+      "members": [
+       "@SundayTimesZA",
+       "@Newzroom405",
+       "@IOL",
+       "@Soccer_Laduma",
+       "@News24",
+       "@casspernyovest",
+       "@DjMaphorisa",
+       "@AdvoBarryRoux"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 8,
+      "planned_credits": 8,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:panel_ig_gossip",
+      "series": "panel_ig_gossip",
+      "group": "own",
+      "name": "Gossip and entertainment accounts on Instagram",
+      "members": [
+       "@maphephandaba",
+       "@zalebs",
+       "@tshisalive"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 1,
+      "planned_credits": 6,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:panel_culture_desk",
+      "series": "panel_culture_desk",
+      "group": "creators",
+      "name": "Culture desk and kept creator accounts",
+      "members": [],
+      "detail": "12 culture desk accounts and 20 kept creator accounts in today's rotation, from 124 kept for this market",
+      "planned_calls": 2,
+      "planned_credits": 64,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:board_kworb_spotify",
+      "series": "board_kworb_spotify",
+      "group": "charts",
+      "name": "Spotify daily chart (via Kworb)",
+      "members": [],
+      "detail": "The market's daily top songs on Spotify",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:board_boomplay",
+      "series": "board_boomplay",
+      "group": "charts",
+      "name": "Boomplay trending songs",
+      "members": [],
+      "detail": "Songs trending in the market on Boomplay",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:board_audiomack",
+      "series": "board_audiomack",
+      "group": "charts",
+      "name": "Audiomack trending",
+      "members": [],
+      "detail": "Songs trending in the market on Audiomack",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:board_shazam",
+      "series": "board_shazam",
+      "group": "charts",
+      "name": "Shazam national chart",
+      "members": [],
+      "detail": "The songs most looked up in the market",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:board_shazam_city",
+      "series": "board_shazam_city",
+      "group": "charts",
+      "name": "Shazam city chart",
+      "members": [],
+      "detail": "The songs most looked up in Johannesburg",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:board_app_store_iphone",
+      "series": "board_app_store_iphone",
+      "group": "charts",
+      "name": "App Store top free apps (iPhone)",
+      "members": [],
+      "detail": "The 50 most downloaded free iPhone apps",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": true,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:news_rss",
+      "series": "news_rss",
+      "group": "news",
+      "name": "News sites and RSS feeds",
+      "members": [
+       "Briefly (RSS)",
+       "ZAlebs (RSS)",
+       "eNCA",
+       "GroundUp",
+       "TimesLIVE",
+       "IOL",
+       "The Citizen",
+       "Mail & Guardian",
+       "Business Day",
+       "Bizcommunity South Africa",
+       "Cape Town Etc",
+       "SABC News",
+       "The South African",
+       "BusinessTech",
+       "Sowetan News",
+       "Current Affairs ZA",
+       "The Herald"
+      ],
+      "detail": "Headlines guide what 42 looks into; they are never evidence on their own",
+      "planned_calls": 17,
+      "planned_credits": 0,
+      "free": true,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:search",
+      "series": "search",
+      "group": "search",
+      "name": "Searches for the day's candidates and seeds",
+      "members": [],
+      "detail": "25 TikTok searches in the market and 7 searches across other platforms",
+      "planned_calls": 32,
+      "planned_credits": 95,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:counter_post_views",
+      "series": "counter_post_views",
+      "group": "search",
+      "name": "Evidence post rechecks",
+      "members": [],
+      "detail": "Up to 20 posts behind the day's evidence, reread for their latest counts",
+      "planned_calls": 1,
+      "planned_credits": 40,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "ZA:google_trends",
+      "series": "google_trends",
+      "group": "search_interest",
+      "name": "Google Trends trending searches",
+      "members": [],
+      "detail": "Trending searches of the day guide what 42 looks into. They are never evidence, never a count of posts and never proof of place. The free Google Trends tables add top and rising terms.",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null,
+      "credits_spent": null
+     }
+    ],
+    "counts": {
+     "delivered": 0,
+     "partial": 0,
+     "failed": 0,
+     "no_record": 0,
+     "waiting": 20,
+     "off": 0
+    },
+    "planned_credits": 368
+   },
+   {
+    "market": "NG",
+    "label": "Nigeria",
+    "sources": [
+     {
+      "key": "NG:feed_tiktok",
+      "series": "feed_tiktok",
+      "group": "platform",
+      "name": "TikTok local feed",
+      "members": [],
+      "detail": "3 reads of TikTok's own feed for the market",
+      "planned_calls": 3,
+      "planned_credits": 15,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_youtube",
+      "series": "board_youtube",
+      "group": "platform",
+      "name": "YouTube trending charts",
+      "members": [],
+      "detail": "Charts: overall, music, film and animation, gaming, entertainment",
+      "planned_calls": 5,
+      "planned_credits": 5,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_apple_music",
+      "series": "board_apple_music",
+      "group": "platform",
+      "name": "Apple Music charts",
+      "members": [],
+      "detail": "Top songs and top music videos",
+      "planned_calls": 2,
+      "planned_credits": 2,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:ig_location",
+      "series": "ig_location",
+      "group": "platform",
+      "name": "Instagram posts from local places",
+      "members": [],
+      "detail": "One local place a day, in rotation",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:list_reddit",
+      "series": "list_reddit",
+      "group": "own",
+      "name": "Own subreddits",
+      "members": [
+       "r/Nigeria",
+       "r/Lagos",
+       "r/NigerianFood"
+      ],
+      "detail": "Hot and rising posts",
+      "planned_calls": 6,
+      "planned_credits": 6,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:panel_fb_hub",
+      "series": "panel_fb_hub",
+      "group": "own",
+      "name": "Facebook news pages",
+      "members": [],
+      "detail": "2 news and radio pages, posts since yesterday",
+      "planned_calls": 2,
+      "planned_credits": 2,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:panel_x_hub",
+      "series": "panel_x_hub",
+      "group": "own",
+      "name": "X accounts",
+      "members": [
+       "@ARISEtv",
+       "@vanguardngrnews",
+       "@GuardianNigeria",
+       "@channelstv",
+       "@PremiumTimesng",
+       "@davido",
+       "@burnaboy"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 7,
+      "planned_credits": 7,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:panel_ig_gossip",
+      "series": "panel_ig_gossip",
+      "group": "own",
+      "name": "Gossip and entertainment accounts on Instagram",
+      "members": [
+       "@instablog9ja",
+       "@lindaikejiblogofficial",
+       "@gossipmilltv"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 1,
+      "planned_credits": 6,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:panel_culture_desk",
+      "series": "panel_culture_desk",
+      "group": "creators",
+      "name": "Culture desk and kept creator accounts",
+      "members": [],
+      "detail": "12 culture desk accounts and 20 kept creator accounts in today's rotation, from 155 kept for this market",
+      "planned_calls": 2,
+      "planned_credits": 64,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_nairaland",
+      "series": "board_nairaland",
+      "group": "charts",
+      "name": "Nairaland front page",
+      "members": [],
+      "detail": "The threads on Nigeria's largest forum front page",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_turntable",
+      "series": "board_turntable",
+      "group": "charts",
+      "name": "TurnTable Top 100",
+      "members": [],
+      "detail": "Nigeria's official music chart",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_kworb_spotify",
+      "series": "board_kworb_spotify",
+      "group": "charts",
+      "name": "Spotify daily chart (via Kworb)",
+      "members": [],
+      "detail": "The market's daily top songs on Spotify",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_boomplay",
+      "series": "board_boomplay",
+      "group": "charts",
+      "name": "Boomplay trending songs",
+      "members": [],
+      "detail": "Songs trending in the market on Boomplay",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_audiomack",
+      "series": "board_audiomack",
+      "group": "charts",
+      "name": "Audiomack trending",
+      "members": [],
+      "detail": "Songs trending in the market on Audiomack",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_shazam",
+      "series": "board_shazam",
+      "group": "charts",
+      "name": "Shazam national chart",
+      "members": [],
+      "detail": "The songs most looked up in the market",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_shazam_city",
+      "series": "board_shazam_city",
+      "group": "charts",
+      "name": "Shazam city chart",
+      "members": [],
+      "detail": "The songs most looked up in Lagos",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_app_store_iphone",
+      "series": "board_app_store_iphone",
+      "group": "charts",
+      "name": "App Store top free apps (iPhone)",
+      "members": [],
+      "detail": "The 50 most downloaded free iPhone apps",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": true,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:board_music_country",
+      "series": "board_music_country",
+      "group": "charts",
+      "name": "Country music charts",
+      "members": [
+       "TurnTable Official Nigeria Top 100"
+      ],
+      "detail": "The market's own music chart",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": true,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:news_rss",
+      "series": "news_rss",
+      "group": "news",
+      "name": "News sites and RSS feeds",
+      "members": [
+       "BellaNaija (RSS)",
+       "Punch (RSS)",
+       "Legit (RSS)",
+       "Nairametrics (RSS)",
+       "Channels Television",
+       "Arise News",
+       "Punch",
+       "Premium Times",
+       "The Guardian Nigeria",
+       "TheCable",
+       "BellaNaija",
+       "Notjustok",
+       "tooXclusive",
+       "Vanguard",
+       "Legit Nigeria",
+       "Pulse Nigeria",
+       "Nairametrics",
+       "PM News"
+      ],
+      "detail": "Headlines guide what 42 looks into; they are never evidence on their own",
+      "planned_calls": 18,
+      "planned_credits": 0,
+      "free": true,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:search",
+      "series": "search",
+      "group": "search",
+      "name": "Searches for the day's candidates and seeds",
+      "members": [],
+      "detail": "25 TikTok searches in the market and 7 searches across other platforms",
+      "planned_calls": 32,
+      "planned_credits": 95,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:counter_post_views",
+      "series": "counter_post_views",
+      "group": "search",
+      "name": "Evidence post rechecks",
+      "members": [],
+      "detail": "Up to 20 posts behind the day's evidence, reread for their latest counts",
+      "planned_calls": 1,
+      "planned_credits": 40,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "NG:google_trends",
+      "series": "google_trends",
+      "group": "search_interest",
+      "name": "Google Trends trending searches",
+      "members": [],
+      "detail": "Trending searches of the day guide what 42 looks into. They are never evidence, never a count of posts and never proof of place. The free Google Trends tables add top and rising terms.",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null,
+      "credits_spent": null
+     }
+    ],
+    "counts": {
+     "delivered": 0,
+     "partial": 0,
+     "failed": 0,
+     "no_record": 0,
+     "waiting": 22,
+     "off": 0
+    },
+    "planned_credits": 259
+   },
+   {
+    "market": "KE",
+    "label": "Kenya",
+    "sources": [
+     {
+      "key": "KE:feed_tiktok",
+      "series": "feed_tiktok",
+      "group": "platform",
+      "name": "TikTok local feed",
+      "members": [],
+      "detail": "One read of TikTok's own feed",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:board_youtube",
+      "series": "board_youtube",
+      "group": "platform",
+      "name": "YouTube trending charts",
+      "members": [],
+      "detail": "Charts: overall, music, film and animation, gaming, entertainment",
+      "planned_calls": 5,
+      "planned_credits": 5,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:board_apple_music",
+      "series": "board_apple_music",
+      "group": "platform",
+      "name": "Apple Music charts",
+      "members": [],
+      "detail": "Top songs and top music videos",
+      "planned_calls": 2,
+      "planned_credits": 2,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:ig_location",
+      "series": "ig_location",
+      "group": "platform",
+      "name": "Instagram posts from local places",
+      "members": [],
+      "detail": "One local place a day, in rotation",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:list_reddit",
+      "series": "list_reddit",
+      "group": "own",
+      "name": "Own subreddits",
+      "members": [
+       "r/Kenya",
+       "r/Nairobi",
+       "r/Kenyans"
+      ],
+      "detail": "Hot and rising posts",
+      "planned_calls": 6,
+      "planned_credits": 6,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:panel_fb_hub",
+      "series": "panel_fb_hub",
+      "group": "own",
+      "name": "Facebook news pages",
+      "members": [],
+      "detail": "3 news and radio pages, posts since yesterday",
+      "planned_calls": 3,
+      "planned_credits": 3,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:panel_x_hub",
+      "series": "panel_x_hub",
+      "group": "own",
+      "name": "X accounts",
+      "members": [
+       "@StandardKenya",
+       "@NTVKenya",
+       "@CitizenTVKenya",
+       "@BahatiKenya"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 4,
+      "planned_credits": 4,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:panel_ig_gossip",
+      "series": "panel_ig_gossip",
+      "group": "own",
+      "name": "Gossip and entertainment accounts on Instagram",
+      "members": [
+       "@nairobi_gossip_club",
+       "@edaily_kenya",
+       "@mpashogram"
+      ],
+      "detail": "Posts since yesterday",
+      "planned_calls": 1,
+      "planned_credits": 6,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:panel_culture_desk",
+      "series": "panel_culture_desk",
+      "group": "creators",
+      "name": "Culture desk and kept creator accounts",
+      "members": [],
+      "detail": "12 culture desk accounts and 20 kept creator accounts in today's rotation, from 129 kept for this market",
+      "planned_calls": 2,
+      "planned_credits": 64,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:board_boomplay",
+      "series": "board_boomplay",
+      "group": "charts",
+      "name": "Boomplay trending songs",
+      "members": [],
+      "detail": "Songs trending in the market on Boomplay",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:board_audiomack",
+      "series": "board_audiomack",
+      "group": "charts",
+      "name": "Audiomack trending",
+      "members": [],
+      "detail": "Songs trending in the market on Audiomack",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:board_shazam",
+      "series": "board_shazam",
+      "group": "charts",
+      "name": "Shazam national chart",
+      "members": [],
+      "detail": "The songs most looked up in the market",
+      "planned_calls": 1,
+      "planned_credits": 1,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:board_app_store_iphone",
+      "series": "board_app_store_iphone",
+      "group": "charts",
+      "name": "App Store top free apps (iPhone)",
+      "members": [],
+      "detail": "The 50 most downloaded free iPhone apps",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": true,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:board_music_country",
+      "series": "board_music_country",
+      "group": "charts",
+      "name": "Country music charts",
+      "members": [
+       "Mdundo Top Songs: Kenya"
+      ],
+      "detail": "The market's own music chart",
+      "planned_calls": 1,
+      "planned_credits": 0,
+      "free": true,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:radio_playlist",
+      "series": "radio_playlist",
+      "group": "charts",
+      "name": "Radio playlists",
+      "members": [
+       "KBC English Service playlist via Radio.co",
+       "Capital FM playlist via Radio.co"
+      ],
+      "detail": "What national radio played",
+      "planned_calls": 2,
+      "planned_credits": 0,
+      "free": true,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:news_rss",
+      "series": "news_rss",
+      "group": "news",
+      "name": "News sites and RSS feeds",
+      "members": [
+       "Tuko (RSS)",
+       "Kenyans.co.ke (RSS)",
+       "Citizen Digital",
+       "The Standard",
+       "K24 Digital",
+       "Capital FM Kenya",
+       "Ghafla Kenya",
+       "Mpasho",
+       "KBC Digital",
+       "Tuko",
+       "Kenyans.co.ke",
+       "The Star Kenya",
+       "Techweez"
+      ],
+      "detail": "Headlines guide what 42 looks into; they are never evidence on their own",
+      "planned_calls": 13,
+      "planned_credits": 0,
+      "free": true,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:search",
+      "series": "search",
+      "group": "search",
+      "name": "Searches for the day's candidates and seeds",
+      "members": [],
+      "detail": "35 TikTok searches in the market and 7 searches across other platforms",
+      "planned_calls": 42,
+      "planned_credits": 105,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:counter_post_views",
+      "series": "counter_post_views",
+      "group": "search",
+      "name": "Evidence post rechecks",
+      "members": [],
+      "detail": "Up to 20 posts behind the day's evidence, reread for their latest counts",
+      "planned_calls": 1,
+      "planned_credits": 40,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "KE:google_trends",
+      "series": "google_trends",
+      "group": "search_interest",
+      "name": "Google Trends trending searches",
+      "members": [],
+      "detail": "Trending searches of the day guide what 42 looks into. They are never evidence, never a count of posts and never proof of place.",
+      "planned_calls": 1,
+      "planned_credits": 5,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null,
+      "credits_spent": null
+     }
+    ],
+    "counts": {
+     "delivered": 0,
+     "partial": 0,
+     "failed": 0,
+     "no_record": 0,
+     "waiting": 19,
+     "off": 0
+    },
+    "planned_credits": 253
+   },
+   {
+    "market": "GLOBAL",
+    "label": "Across markets",
+    "sources": [
+     {
+      "key": "GLOBAL:board_global_music",
+      "series": "board_global_music",
+      "group": "platform",
+      "name": "Global music boards",
+      "members": [],
+      "detail": "YouTube Shorts and Instagram music trending, read once for all markets",
+      "planned_calls": 2,
+      "planned_credits": 10,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "GLOBAL:curve_tiktok_sound",
+      "series": "curve_tiktok_sound",
+      "group": "search",
+      "name": "TikTok sound curves",
+      "members": [],
+      "detail": "Daily use of the TikTok sounds 42 is following",
+      "planned_calls": 18,
+      "planned_credits": 18,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "GLOBAL:counter_tiktok_sound",
+      "series": "counter_tiktok_sound",
+      "group": "search",
+      "name": "TikTok sound counts",
+      "members": [],
+      "detail": "Post counts for the TikTok sounds 42 is following",
+      "planned_calls": 15,
+      "planned_credits": 15,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     },
+     {
+      "key": "GLOBAL:counter_tiktok_hashtag",
+      "series": "counter_tiktok_hashtag",
+      "group": "search",
+      "name": "TikTok hashtag counts",
+      "members": [],
+      "detail": "Post counts for the TikTok hashtags 42 is following",
+      "planned_calls": 15,
+      "planned_credits": 15,
+      "free": false,
+      "status": "waiting",
+      "status_words": "Not recorded yet",
+      "health": null
+     }
+    ],
+    "counts": {
+     "delivered": 0,
+     "partial": 0,
+     "failed": 0,
+     "no_record": 0,
+     "waiting": 4,
+     "off": 0
+    },
+    "planned_credits": 58
+   }
+  ],
+  "off": [
+   {
+    "market": "ZA",
+    "name": "EWN RSS feed",
+    "why": "Its feed address now leads nowhere and EWN has published no replacement."
+   },
+   {
+    "market": "ZA",
+    "name": "Google Play top free apps",
+    "why": "Planned for Mondays, but the data supplier has no price for it yet."
+   },
+   {
+    "market": "ZA",
+    "name": "TshisaLIVE RSS feed",
+    "why": "TimesLIVE's feed addresses stopped answering in July 2026."
+   },
+   {
+    "market": "NG",
+    "name": "Google Play top free apps",
+    "why": "Planned for Tuesdays, but the data supplier has no price for it yet."
+   },
+   {
+    "market": "NG",
+    "name": "Pulse RSS feed",
+    "why": "Its feeds stopped answering in July 2026."
+   },
+   {
+    "market": "KE",
+    "name": "Citizen Digital RSS feed",
+    "why": "Its feed refused requests in July 2026."
+   },
+   {
+    "market": "KE",
+    "name": "Google Play top free apps",
+    "why": "Planned for Wednesdays, but the data supplier has no price for it yet."
+   },
+   {
+    "market": "KE",
+    "name": "Google Trends free tables",
+    "why": "The public tables held no rows for this market when last checked."
+   },
+   {
+    "market": "KE",
+    "name": "Mpasho RSS feed",
+    "why": "Its feed address serves a web page with no stories."
+   },
+   {
+    "market": "KE",
+    "name": "Pulse RSS feed",
+    "why": "Its feeds stopped answering in July 2026."
+   },
+   {
+    "market": "KE",
+    "name": "Spotify daily chart (via Kworb)",
+    "why": "Kworb publishes no Kenya Spotify chart; its Kenya page stopped answering in September 2026."
+   },
+   {
+    "market": "KE",
+    "name": "rotation.africa Kenya chart",
+    "why": "Not read: where its chart comes from is not confirmed yet."
+   },
+   {
+    "market": "GLOBAL",
+    "name": "Google Trends explore and rising searches",
+    "why": "Parked until after the 6 October demo; only each market's trending searches are read."
+   },
+   {
+    "market": "GLOBAL",
+    "name": "X trends archive",
+    "why": "Off until legal approves reading it."
+   }
+  ],
+  "credits": {
+   "state": "none",
+   "cap": 1000,
+   "planned": 938,
+   "spent": null,
+   "markets": []
+  },
+  "collect_run": null,
+  "next_collection": {
+   "at": "2026-10-03T02:00:00+02:00",
+   "date": "2026-10-03",
+   "time": "02:00",
+   "zone": "SAST",
+   "collects_for": "2026-10-03"
+  }
+ }
+}

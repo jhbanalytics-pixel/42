@@ -1,0 +1,30 @@
+# Alert Configuration
+# Controls spike detection, notification channels, and pipeline health checks.
+
+spike_detection:
+  engagement_multiplier: 3.0   # Alert when engagement > 3x daily average
+  min_posts_threshold: 10      # Minimum posts before alerting
+  check_interval_minutes: 30
+
+notifications:
+  slack:
+    webhook_env: SLACK_WEBHOOK_URL
+    channel: "#trends-alerts"
+  email:
+    recipients:
+      - albert.meintjes@ogilvy.co.za
+      - thapelo.masebe@ogilvy.co.za
+
+pipeline_health:
+  max_hours_between_runs: 8
+  min_rows_per_connector: 1       # Alert if any source returns 0 rows
+  # Per-market floors for the bigquery_trends connector. Wires the alerting
+  # hook to the same expectation map the connector enforces: KE has no rows in
+  # the public dataset (verified 28 May 2026; only KR in K-prefix codes), so
+  # its floor is 0. If ZA or NG drop to 0 the connector ERROR-logs AND this
+  # floor trips. Keep in lockstep with the connector's
+  # DEFAULT_EXPECTED_PER_MARKET map and sources.yaml expected_per_market.
+  bigquery_trends_per_market_min:
+    za: 1
+    ng: 1
+    ke: 0

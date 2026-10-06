@@ -1,0 +1,262 @@
+{
+ "_note": "search/multi body copied from lane L1 core/collect/tests/fixtures/parse_live.json (key search_multi, branch full-42-l1). Synthetic values in the key shapes of the 28 September 2026 live probe (run probe-20260928T191308Z). SocialCrawl wraps every route in data.items[] of {computed, post: {author, content, engagement, ext, flags, id, published_at, url}, vendor_labels}; boards and charts carry rank in post.ext.trend; tiktok/hashtag returns one such entry at data level; search/multi names the platform on each item and keeps only call metadata under sources. Every value here is invented.",
+ "search_multi": {
+  "cached": false,
+  "credits_remaining": 1000,
+  "credits_used": 7,
+  "endpoint": "search/multi",
+  "platform": "multi",
+  "request_id": "req_m1",
+  "success": true,
+  "pagination": {
+   "has_more": true,
+   "next_cursor": "m2",
+   "page_size": 3
+  },
+  "data": {
+   "credits_charged": 7,
+   "dropped": 0,
+   "duplicates_removed": 1,
+   "methodology_version": "v1",
+   "platforms": [
+    "instagram",
+    "twitter",
+    "reddit"
+   ],
+   "query": "invented query",
+   "search_status": "complete",
+   "since": "2026-09-21",
+   "total": 3,
+   "labels": {
+    "cached": 0,
+    "dropped": 0,
+    "dropped_ids": [],
+    "extra_credits": 0,
+    "labelled": 0,
+    "methodology_version": "v1",
+    "mode": "off",
+    "pending": 0,
+    "pending_ids": [],
+    "presets": [],
+    "rows": 3,
+    "skipped": 3,
+    "status": "skipped",
+    "unjudged": 3
+   },
+   "relevance": {
+    "cached": 0,
+    "dropped": 0,
+    "dropped_ids": [],
+    "extra_credits": 0,
+    "kept": 3,
+    "methodology_version": "v1",
+    "mode": "score",
+    "origin": "query",
+    "pending": 0,
+    "pending_ids": [],
+    "rows": 3,
+    "scored": 3,
+    "status": "ok",
+    "threshold": 0.5,
+    "too_short": 0,
+    "topic_source": "query",
+    "unjudged": 0
+   },
+   "sources": {
+    "instagram": {
+     "credits": 3,
+     "endpoint": "instagram/search/posts",
+     "has_more": true,
+     "http_status": 200,
+     "next_cursor": "i2",
+     "request_id": "ri",
+     "rows": 1,
+     "rows_kept": 1,
+     "status": "ok",
+     "warnings": []
+    },
+    "twitter": {
+     "credits": 2,
+     "endpoint": "twitter/search/tweets",
+     "has_more": false,
+     "http_status": 200,
+     "next_cursor": null,
+     "request_id": "rt",
+     "rows": 1,
+     "rows_kept": 1,
+     "status": "ok",
+     "warnings": []
+    },
+    "reddit": {
+     "credits": 2,
+     "endpoint": "reddit/search",
+     "has_more": false,
+     "http_status": 200,
+     "next_cursor": "r2",
+     "request_id": "rr",
+     "rows": 1,
+     "rows_kept": 1,
+     "status": "ok",
+     "warnings": []
+    }
+   },
+   "items": [
+    {
+     "platform": "instagram",
+     "computed": {
+      "content_category": "food",
+      "engagement_rate": 0.03,
+      "estimated_reach": 800,
+      "language": null
+     },
+     "vendor_labels": {
+      "labels": null,
+      "relevance": {
+       "depth": 0.6,
+       "p": 0.8,
+       "sense": "on_topic",
+       "spam": 0.05
+      }
+     },
+     "post": {
+      "author": {
+       "avatar_url": null,
+       "display_name": null,
+       "username": "synth.kitchen",
+       "verified": false
+      },
+      "content": {
+       "duration_seconds": 30.0,
+       "media_urls": null,
+       "text": "Invented caption",
+       "thumbnail_url": null
+      },
+      "engagement": {
+       "comments": 6,
+       "likes": null,
+       "saves": null,
+       "shares": null,
+       "views": 900
+      },
+      "ext": {
+       "author_id": "5100000001",
+       "coauthors": [],
+       "media_type": "clips",
+       "published_at_epoch": 1790485200
+      },
+      "flags": {
+       "deleted": false,
+       "likes_hidden": true,
+       "nsfw": null,
+       "pinned": false,
+       "spoiler": null
+      },
+      "id": "3700000000000000001",
+      "published_at": "2026-09-27T03:00:00Z",
+      "url": "https://www.instagram.com/reel/SynthIG001/"
+     }
+    },
+    {
+     "platform": "twitter",
+     "computed": {
+      "content_category": null,
+      "engagement_rate": null,
+      "estimated_reach": null,
+      "language": null
+     },
+     "vendor_labels": {
+      "labels": null,
+      "relevance": {
+       "depth": 0.4,
+       "p": 0.7,
+       "sense": "on_topic",
+       "spam": 0.1
+      }
+     },
+     "post": {
+      "author": {
+       "avatar_url": null,
+       "display_name": "Synth Desk",
+       "username": "synthdesk",
+       "verified": false
+      },
+      "content": {
+       "duration_seconds": null,
+       "media_urls": null,
+       "text": "Invented tweet",
+       "thumbnail_url": null
+      },
+      "engagement": {
+       "comments": 1,
+       "likes": 5,
+       "saves": null,
+       "shares": 0,
+       "views": 300
+      },
+      "ext": {
+       "author_id": "44000001"
+      },
+      "flags": {
+       "deleted": false,
+       "nsfw": null,
+       "pinned": null,
+       "spoiler": null
+      },
+      "id": "1972000000000000001",
+      "published_at": "2026-09-26T09:00:00Z",
+      "url": "https://x.com/synthdesk/status/1972000000000000001"
+     }
+    },
+    {
+     "platform": "reddit",
+     "computed": {
+      "content_category": null,
+      "engagement_rate": null,
+      "estimated_reach": null,
+      "language": null
+     },
+     "vendor_labels": {
+      "labels": null,
+      "relevance": {
+       "depth": 0.5,
+       "p": 0.6,
+       "sense": "on_topic",
+       "spam": 0.0
+      }
+     },
+     "post": {
+      "author": {
+       "avatar_url": null,
+       "display_name": null,
+       "username": "synth_redditor",
+       "verified": null
+      },
+      "content": {
+       "duration_seconds": null,
+       "media_urls": null,
+       "text": "Invented thread",
+       "thumbnail_url": null
+      },
+      "engagement": {
+       "comments": 12,
+       "likes": 40,
+       "saves": null,
+       "shares": null,
+       "views": null
+      },
+      "ext": {},
+      "flags": {
+       "deleted": false,
+       "nsfw": null,
+       "pinned": null,
+       "spoiler": null
+      },
+      "id": "t3_synth1",
+      "published_at": "2026-09-25T12:00:00Z",
+      "url": "https://www.reddit.com/r/southafrica/comments/synth1/"
+     }
+    }
+   ]
+  }
+ }
+}

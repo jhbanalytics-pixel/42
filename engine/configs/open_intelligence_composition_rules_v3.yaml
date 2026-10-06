@@ -1,0 +1,15 @@
+status: uncertified
+rule_version: composition_rules_v3
+cluster_build_version: hybrid_graph_v3
+contract_version: 2.0.0
+channel_taxonomy_version: channel_family_v2
+approval_contract_sha256: ff7a1ac1f9a531fe4a48c2dc4a9f45c4b0a82a61c8367e0c416a3194bcdfab4a
+replay_receipt_id: null
+approved_at: null
+approved_by: null
+expires_at: null
+graph_rules:
+  semantic_anchor_floor: 0.5
+  temporal_overlap_days: 2
+  pair_ceiling: 250000
+  component_member_ceiling: 50

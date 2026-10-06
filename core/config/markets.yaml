@@ -1,0 +1,238 @@
+# Market config for the Stage 1A collect job (task 1.3, SOURCES.md costed
+# rows 1 to 8, 11, 12, 14, 16, 22). Lifted in task 0.7 from engine/configs.
+# Every list names the file and key it came from. Nothing here was added by
+# hand beyond the lift; terms tied to a life stage or schooling, client brand
+# lens tags and every retired trend-search source were left behind.
+# Topic groups and slang lists are not lifted: 42 scores candidates with no
+# slang or audience weight (SOURCES.md, the morning seed loop).
+# Audiences are described by language, place, interest, community and
+# creator type only.
+
+markets:
+  za:
+    name: South Africa
+    country_code: ZA
+    country_code_source: engine/configs/sources.yaml (youtube_queries.za.region_code)
+    timezone:
+      value: Africa/Johannesburg
+      source: docs/full-42/SETUP.md (schedulers), docs/full-42/DATA.md (SAST market day)
+    languages:
+      codes: [en, zu, xh, af, st, tn, nso, ts]
+      source: engine/configs/topic_overlays/bsa.yaml (languages.domestic), docs/full-42/SOURCES.md (languages to add)
+    terms:
+      source: engine/configs/sources.yaml (socialcrawl.markets.za.terms)
+      values:
+        - amapiano
+        - mzansi
+        - kasi
+        - stokvel
+        - braai
+        - jozi
+        - soft life south africa
+        - side hustle south africa
+        - amapiano challenge
+        - south african creators
+        - kasi vibes
+        - load shedding
+    subreddits:
+      source: engine/configs/sources.yaml (socialcrawl.markets.za.subreddits)
+      values:
+        - southafrica
+        - Amapiano
+        - CapeTown
+        - johannesburg
+        - PersonalFinanceZA
+        - Springboks
+        - SouthAfricanMusic
+        - AskSouthAfrica
+        - Durban
+      own: [southafrica, CapeTown, johannesburg, PersonalFinanceZA, Springboks, SouthAfricanMusic, AskSouthAfrica, Durban]
+    twitter_handles:
+      source: engine/configs/sources.yaml (socialcrawl.markets.za.twitter_handles)
+      values: [GovernmentZA, SundayTimesZA, PresidencyZA, Newzroom405, IOL]
+    facebook_pages:
+      # eNCA, News24, Sowetan, TimesLIVE, SABC, Metro FM, IOL
+      source: engine/configs/sources.yaml (socialcrawl.markets.za.facebook_pages)
+      values:
+        - "100068189748310"
+        - "100064817165112"
+        - "100064830964890"
+        - "100064903473480"
+        - "100064604417137"
+        - "100070150435861"
+        - "100064471732809"
+    instagram_locations:
+      source: instagram/search/location query Soweto in probe run probe-20260928T191308Z (8a)
+      values: ["320191774775153", "137545546357317", "143217589108151", "1491469801081593", "306914259384281"]
+    hashtags:
+      source: engine/configs/sources.yaml (ensembledata.za.tiktok_hashtags, ensembledata.za.instagram_hashtags)
+      tiktok:
+        - amapiano
+        - mzansi
+        - mzansitiktok
+        - southafrica
+        - kasi
+        - softlife
+        - sidehustle
+        - jozi
+        - braai
+        - stokvel
+        - rockingthedaisies
+      instagram:
+        - amapiano
+        - mzansi
+        - kasi
+        - braai
+        - stokvel
+        - jozi
+        - southafrica
+        - softlife
+        - sidehustle
+        - rockingthedaisies
+
+  ng:
+    name: Nigeria
+    country_code: NG
+    country_code_source: engine/configs/sources.yaml (youtube_queries.ng.region_code)
+    timezone:
+      value: Africa/Lagos
+      source: docs/full-42/DATA.md (WAT market day)
+    languages:
+      codes: [en, pcm, yo, ha, ig]
+      source: docs/full-42/SOURCES.md (language strata and Wikipedia projects)
+    terms:
+      source: engine/configs/sources.yaml (socialcrawl.markets.ng.terms)
+      values:
+        - afrobeats
+        - naija
+        - japa
+        - owambe
+        - nollywood
+        - jollof
+        - sapa naija
+        - detty december
+        - ankara style
+        - lagos street
+        - naija hustle
+        - burna boy
+        - calabar carnival
+        - afrobeats challenge
+    subreddits:
+      source: engine/configs/sources.yaml (socialcrawl.markets.ng.subreddits), reordered so the market's own come first
+      values: [Nigeria, Lagos, NigerianFood, Afrobeats]
+      own: [Nigeria, Lagos, NigerianFood]
+    twitter_handles:
+      source: engine/configs/sources.yaml (socialcrawl.markets.ng.twitter_handles)
+      values: [ARISEtv, NGRPresident, NNPCLimited, vanguardngrnews, GuardianNigeria]
+    facebook_pages:
+      # Vanguard, Pulse Nigeria
+      source: engine/configs/sources.yaml (socialcrawl.markets.ng.facebook_pages)
+      values: ["100064873830467", "100064733586762"]
+    instagram_locations:
+      source: instagram/search/location results reviewed from probe run probe-ig-20260929T190632Z
+      values: ["104481218205279", "213703378694790", "700978393", "110423998980756", "498032420"]
+    hashtags:
+      source: engine/configs/sources.yaml (ensembledata.ng.tiktok_hashtags, ensembledata.ng.instagram_hashtags)
+      tiktok:
+        - naija
+        - naijatiktok
+        - lagos
+        - afrobeats
+        - nollywood
+        - japa
+        - owambe
+        - naijasapa
+        - sapanaija
+        - jollof
+        - ankara
+        - "9ja"
+        - burnaboy
+        - calabarcarnival
+        - dettydecember
+      instagram:
+        - afrobeats
+        - naija
+        - lagos
+        - ankara
+        - owambe
+        - nollywood
+        - asoebi
+        - japa
+        - naijasapa
+        - sapanaija
+        - jollof
+        - calabarcarnival
+
+  ke:
+    name: Kenya
+    country_code: KE
+    country_code_source: engine/configs/sources.yaml (youtube_queries.ke.region_code)
+    timezone:
+      value: Africa/Nairobi
+      source: docs/full-42/DATA.md (EAT market day)
+    languages:
+      codes: [en, sw]
+      varieties: [sheng]
+      source: docs/full-42/SOURCES.md (language strata and Wikipedia projects)
+    terms:
+      source: engine/configs/sources.yaml (socialcrawl.markets.ke.terms)
+      values:
+        - gengetone
+        - arbantone
+        - sheng
+        - mpesa
+        - matatu
+        - mitumba kenya
+        - nairobi hustle
+        - mama mboga business
+        - jua kali kenya
+        - harambee stars
+        - kenyan creators
+        - maandamano
+        - nyama choma
+        - finance bill kenya
+    subreddits:
+      source: engine/configs/sources.yaml (socialcrawl.markets.ke.subreddits), reordered so the market's own come first
+      values: [Kenya, Nairobi, Kenyans, Africa, AfricanMusic]
+      own: [Kenya, Nairobi, Kenyans]
+    twitter_handles:
+      source: engine/configs/sources.yaml (socialcrawl.markets.ke.twitter_handles)
+      values: [StandardKenya, InteriorKE, StateHouseKenya, NTVKenya, CitizenTVKenya]
+    facebook_pages:
+      # NTV Kenya, Standard Digital, Tuko
+      source: engine/configs/sources.yaml (socialcrawl.markets.ke.facebook_pages)
+      values: ["100053076714173", "100064794367851", "100067867727102"]
+    instagram_locations:
+      source: instagram/search/location results reviewed from probe run probe-ig-20260929T190632Z
+      values: ["100485515208886", "110776560676783", "342842389725871", "254991622"]
+    hashtags:
+      source: engine/configs/sources.yaml (ensembledata.ke.tiktok_hashtags, ensembledata.ke.instagram_hashtags)
+      tiktok:
+        - kenya
+        - nairobi
+        - "254"
+        - gengetone
+        - matatu
+        - mpesa
+        - nyamachoma
+        - maandamano
+        - sheng
+        - mitumba
+        - juakali
+        - mamamboga
+        - mtaani
+        - kenyatiktok
+        - kenyan
+        - mashujaaday
+      instagram:
+        - gengetone
+        - nairobi
+        - mpesa
+        - matatu
+        - nyamachoma
+        - maandamano
+        - mitumba
+        - "254"
+        - sheng
+        - kenya
+        - kenyamusicfestival

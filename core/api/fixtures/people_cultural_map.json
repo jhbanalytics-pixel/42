@@ -1,0 +1,74 @@
+[
+ {
+  "item_id": "84206424f5061968e55478e6b502e1fcda82fd7c58905b5fc8c17992ecc8f39f",
+  "kind": "topic",
+  "canonical_key": "fixture ng election topic",
+  "label": "fixture ng election topic",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-09-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "9217fef145bc52df6588503059242e1156a6ba49b7f63336a557499523e55858",
+  "kind": "hashtag",
+  "canonical_key": "#fyp",
+  "label": "#fyp",
+  "aliases": [
+   "#foryou"
+  ],
+  "status": "generic",
+  "first_seen": "2026-01-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "afe0117aa6b96951c93fbebd594da1eebc52301fe61e1178cfee9a515e3f42b9",
+  "kind": "hashtag",
+  "canonical_key": "#fixture_ng_board",
+  "label": "#fixture_ng_board",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-09-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "00bdbafa661fcc57fa9b49a86b955c795dcef12b9338de25655069875b7d5d11",
+  "kind": "hashtag",
+  "canonical_key": "#fixture_ng_small_1",
+  "label": "#fixture_ng_small_1",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-09-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "e59e373a749469c88c13255f81f0522785009ff91b5bf35529f7592fb23d7db7",
+  "kind": "hashtag",
+  "canonical_key": "#fixture_ng_small_2",
+  "label": "#fixture_ng_small_2",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-09-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "b57dbb59b25346860057e041b1488ecc854303f77a481f2c7e5c27b8fd8d3def",
+  "kind": "hashtag",
+  "canonical_key": "#fixture_ng_small_3",
+  "label": "#fixture_ng_small_3",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-09-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "3dec136054c79e29232da399ebc4af80e35075ecaf6e22df8474359322ab172a",
+  "kind": "hashtag",
+  "canonical_key": "#fixture_ng_jollof",
+  "label": "#fixture_ng_jollof",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-09-01",
+  "valid_to": null
+ }
+]

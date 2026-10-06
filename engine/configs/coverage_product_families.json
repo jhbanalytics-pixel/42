@@ -1,0 +1,64 @@
+{
+  "families": {
+    "news": {
+      "routes": [
+        "rss",
+        "gdelt"
+      ]
+    },
+    "search": {
+      "routes": [
+        "bigquery_trends",
+        "semrush",
+        "google_trends_rss"
+      ]
+    },
+    "social_conversation": {
+      "routes": [
+        "ensemble",
+        "reddit",
+        "socialcrawl",
+        "bluesky",
+        "pulsar"
+      ]
+    },
+    "comments": {
+      "measured_by": "not_in_collection_window",
+      "reason": "Comment and reply rows arrive through the ensemble and reddit routes together with posts, so a per route window row cannot separate them."
+    },
+    "music_sounds": {
+      "routes": [
+        "apple_music",
+        "spotify",
+        "audiomack"
+      ]
+    },
+    "apps": {
+      "routes": [
+        "app_charts"
+      ]
+    },
+    "creators": {
+      "measured_by": "not_in_collection_window",
+      "reason": "No connector key collects creators alone; creator channel uploads arrive through the youtube route together with search and trending videos."
+    },
+    "events": {
+      "measured_by": "not_in_collection_window",
+      "reason": "No connector key in the run registry collects events."
+    },
+    "phrases": {
+      "measured_by": "not_in_collection_window",
+      "reason": "No connector key in the run registry collects phrases."
+    },
+    "unseeded_discovery": {
+      "measured_by": "not_in_collection_window",
+      "reason": "Unseeded discovery lives in signal candidates, not in collected raw rows."
+    }
+  },
+  "unassigned_routes": {
+    "youtube": "The run maps youtube to its own youtube channel family, which is none of the product families.",
+    "youtube_scrape": "The run maps youtube_scrape to its own youtube channel family, which is none of the product families.",
+    "wikipedia": "The run maps wikipedia to its own wikipedia channel family, which is none of the product families.",
+    "cloudflare_radar": "The run maps cloudflare_radar to its own web_attention channel family, which is none of the product families."
+  }
+}

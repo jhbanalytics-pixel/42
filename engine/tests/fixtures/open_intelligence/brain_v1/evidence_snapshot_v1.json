@@ -1,0 +1,33 @@
+{
+  "fixture_id": "brain_evidence_snapshot_v1",
+  "signal_id": "sig_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "signal_date": "2026-08-28",
+  "client_scope_id": "fixture_scope",
+  "market_scope": ["za", "ng"],
+  "brand_config_id": "fixture_brand",
+  "audience_lens_ids": [],
+  "theme_id": "fixture_theme",
+  "as_of": "2026-08-28T10:00:00.000000Z",
+  "evidence_state": "ready",
+  "evidence_ids": ["ev_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "ev_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
+  "source_family_ids": ["forum", "video"],
+  "market_ids": ["za", "ng"],
+  "historical_object_ids": ["hist_fixture_1"],
+  "prediction_ids": ["pred_fixture_1"],
+  "outcome_ids": ["out_fixture_1"],
+  "prediction": {"prediction_id":"pred_fixture_1","expected_direction":"growing","expected_window_start":"2026-08-01","expected_window_end":"2026-08-20"},
+  "outcomes": [{"outcome_id":"out_fixture_1","prediction_id":"pred_fixture_1","observed_at":"2026-08-20T00:00:00.000000Z"}],
+  "measurements": [
+    {"measurement_id":"bm_novelty","metric_name":"novelty","value":0.74,"unit":"index","method_id":"novelty_v1","market":"za"},
+    {"measurement_id":"bm_velocity","metric_name":"velocity","value":0.68,"unit":"index","method_id":"velocity_v1","market":"za"},
+    {"measurement_id":"bm_breadth","metric_name":"breadth","value":0.62,"unit":"index","method_id":"breadth_v1","market":"za"},
+    {"measurement_id":"bm_independence","metric_name":"source_independence","value":0.71,"unit":"index","method_id":"independence_v1","market":"za"},
+    {"measurement_id":"bm_persistence","metric_name":"persistence","value":0.55,"unit":"index","method_id":"persistence_v1","market":"za"},
+    {"measurement_id":"bm_creator","metric_name":"creator_spread","value":0.45,"unit":"index","method_id":"creator_v1","market":"za"},
+    {"measurement_id":"bm_engagement","metric_name":"engagement_quality","value":0.51,"unit":"index","method_id":"engagement_v1","market":"za"},
+    {"measurement_id":"bm_search","metric_name":"search_movement","value":0.58,"unit":"index","method_id":"search_v1","market":"za"},
+    {"measurement_id":"bm_geo","metric_name":"geographic_movement","value":0.49,"unit":"index","method_id":"geo_v1","market":"ng"},
+    {"measurement_id":"bm_rarity","metric_name":"historical_rarity","value":0.66,"unit":"index","method_id":"rarity_v1","market":"za"}
+  ],
+  "historical": {"historical_object_id":"hist_fixture_1","source_created_at":"2026-08-01T00:00:00.000000Z","source_first_observed_at":"2026-08-02T00:00:00.000000Z","source_last_observed_at":"2026-08-20T00:00:00.000000Z","selection_cutoff":"2026-08-27T00:00:00.000000Z"}
+}

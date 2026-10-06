@@ -1,0 +1,46 @@
+.page.creator-page { padding: 40px clamp(24px, 4vw, 64px) 80px; }
+.creator-back { display: inline-flex; align-items: center; min-height: 48px; margin-bottom: 28px; color: var(--ink-2); }
+.creator-back, .creator-post > a { transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing); }
+.creator-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; }
+.creator-header > div:first-child { min-width: 0; }
+.creator-eyebrow { font-family: var(--sans); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; font-size: var(--type-3); font-weight: 400; color: var(--muted); }
+.creator-header h1 { margin: 10px 0 16px; font-family: var(--serif); font-size: var(--type-8); font-weight: 400; line-height: 1.04; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.creator-intro { font-size: var(--type-4); color: var(--ink-2); }
+.creator-actions { display: flex; flex-wrap: wrap; gap: 8px; max-width: 340px; }
+.creator-actions button, .creator-actions a, .creator-topics a { display: inline-flex; justify-content: center; align-items: center; min-height: 48px; padding: 12px 16px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; text-decoration: none; cursor: pointer; transition: color var(--motion-control) var(--motion-standard-easing), background var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing); }
+.creator-actions [aria-pressed="true"] { border-color: var(--accent-text); color: var(--accent-text); }
+.creator-scope { margin-top: 32px; padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--ink-2); font-size: var(--type-2); line-height: 1.6; }
+.creator-scope p { margin: 0; max-width: var(--measure); }
+.creator-scope p + p { margin-top: 8px; color: var(--muted); }
+.creator-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 32px 0 12px; }
+.creator-stats > div { padding: 0 20px; border-left: 1px solid var(--line); }
+.creator-stats > div:first-child { padding-left: 0; border-left: 0; }
+.creator-stats dt { font-size: var(--type-2); color: var(--muted); }
+.creator-stats dd { margin: 12px 0 0; font-family: var(--serif); font-size: var(--type-6); line-height: 1.15; overflow-wrap: anywhere; }
+.creator-note { font-size: var(--type-2); color: var(--muted); line-height: 1.6; }
+.creator-series { margin-top: 36px; }
+.creator-topics, .creator-wall { margin-top: 48px; }
+.creator-page h2 { font-family: var(--serif); font-size: var(--type-5); font-weight: 400; margin: 0 0 16px; }
+.creator-topics > p { color: var(--muted); font-size: var(--type-2); }
+.creator-topics > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.creator-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.creator-section-heading > span { font-family: var(--mono); font-variation-settings: "MONO" 1, "CASL" 0, "slnt" 0, "CRSV" 0; font-size: 11px; font-weight: 400; letter-spacing: .12em; color: var(--muted); }
+.creator-post { padding: 24px 0; border-top: 1px solid var(--line); }
+.creator-post header, .creator-post-dates { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; color: var(--muted); font-size: var(--type-2); }
+.creator-post-text { max-width: var(--measure); font-size: var(--type-3); line-height: 1.65; overflow-wrap: anywhere; }
+.creator-post > a { display: inline-flex; align-items: center; min-height: 48px; color: var(--ink); text-underline-offset: 5px; }
+.creator-page :is(a, button):hover { color: var(--accent-text); }
+.creator-actions :is(a, button):hover, .creator-topics a:hover { background: var(--surface); border-color: var(--ink-2); }
+.creator-page :is(a, button):focus-visible { outline: 2px solid var(--accent); outline-offset: var(--focus-offset); }
+.creator-page :is(a, button):active { box-shadow: inset 0 -2px 0 var(--accent-text); }
+@media (max-width: 900px) {
+  .creator-header { flex-direction: column; gap: 12px; }
+  .creator-header h1 { font-size: var(--type-7); }
+  .creator-actions { max-width: none; }
+  .creator-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 0; }
+  .creator-stats > div:nth-child(odd) { border-left: 0; padding-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .creator-page :is(a, button) { transition: none; }
+  .creator-page :is(a, button):active { transform: none; }
+}

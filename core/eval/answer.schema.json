@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "42 answer",
+  "description": "The one answer contract (core/eval/rubric.md section 1). Run metadata travels beside the answer, never inside it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "as_of", "short_answer", "claims", "evidence", "so_what", "watch_next", "gaps"],
+  "properties": {
+    "status": {"enum": ["complete", "partial", "insufficient_evidence", "refused"]},
+    "as_of": {"type": "string", "format": "date-time"},
+    "short_answer": {"type": "string"},
+    "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "so_what": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "claim_ids"],
+        "properties": {
+          "text": {"type": "string"},
+          "claim_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "watch_next": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "claim_ids", "forecast"],
+        "properties": {
+          "text": {"type": "string"},
+          "claim_ids": {"type": "array", "items": {"type": "string"}},
+          "forecast": {"type": "boolean"}
+        }
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["what", "searched", "why"],
+        "properties": {
+          "what": {"type": "string"},
+          "searched": {"type": "string"},
+          "why": {"type": "string"}
+        }
+      }
+    },
+    "context": {"type": "string"}
+  },
+  "$defs": {
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "label", "kind", "evidence_ids"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "text": {"type": "string"},
+        "label": {"enum": ["observed", "corroborated", "single_source", "inferred"]},
+        "kind": {"enum": ["observation", "interpretation", "recommendation", "proposal"]},
+        "evidence_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "quotes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["evidence_id", "text"],
+            "properties": {
+              "evidence_id": {"type": "string", "minLength": 1},
+              "text": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "numbers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["value", "unit", "query_id", "run_id", "result_hash"],
+            "properties": {
+              "value": {"type": "number"},
+              "unit": {"type": "string"},
+              "query_id": {"type": "string", "minLength": 1},
+              "run_id": {"type": "string", "minLength": 1},
+              "result_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+            }
+          }
+        },
+        "basis": {"type": "string"},
+        "falsifier": {"type": "string"}
+      },
+      "if": {"properties": {"kind": {"const": "proposal"}}, "required": ["kind"]},
+      "then": {"required": ["basis", "falsifier"]}
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "platform", "handle", "url", "posted_at", "market", "text"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "platform": {
+          "enum": ["tiktok", "instagram", "youtube", "reddit", "x", "threads", "bluesky", "facebook", "linkedin", "telegram", "news", "music_chart", "wikipedia", "web"]
+        },
+        "handle": {"type": "string", "minLength": 1},
+        "url": {"type": "string", "minLength": 1},
+        "posted_at": {"type": "string", "format": "date-time"},
+        "market": {"enum": ["ZA", "NG", "KE"]},
+        "source_market": {"enum": ["ZA", "NG", "KE", null]},
+        "text": {"type": "string", "minLength": 1},
+        "engagement": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0}},
+        "flags": {"type": "array", "items": {"type": "string"}},
+        "thumbnail_url": {"type": "string", "pattern": "^https?://\\S+$"},
+        "duration_s": {"type": "number", "minimum": 0},
+        "transcript_span": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start_s", "end_s", "text"],
+          "properties": {
+            "start_s": {"type": "number", "minimum": 0},
+            "end_s": {"type": "number", "minimum": 0},
+            "text": {"type": "string"}
+          }
+        },
+        "creator_tier": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

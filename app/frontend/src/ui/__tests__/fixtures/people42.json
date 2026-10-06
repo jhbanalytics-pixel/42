@@ -1,0 +1,1723 @@
+{
+ "creator": {
+  "creator": {
+   "creator_id": "c_ng_macro",
+   "platform": "tiktok",
+   "handle": "@fixture_ng_macro",
+   "tier": "macro",
+   "followers": {
+    "value": 750000,
+    "unit": "followers",
+    "query_id": "q_creator",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:abbb22264f8963b54e882b962795cd3add269ab230bc1a0e0cfcb73151d94204"
+   },
+   "home_market": "NG",
+   "profile_url": "https://tiktok.com/@fixture_ng_macro"
+  },
+  "market": "NG",
+  "date": "2026-09-30",
+  "window": {
+   "from": "2026-09-03",
+   "to": "2026-09-30",
+   "days": 28
+  },
+  "recent_posts": [
+   {
+    "id": "pp_macro_1",
+    "platform": "tiktok",
+    "handle": "@fixture_ng_macro",
+    "url": "https://example.invalid/tiktok/fixture_ng_macro/pp_macro_1",
+    "posted_at": "2026-09-28T18:00:00+01:00",
+    "market": "NG",
+    "text": "Fixture post pp_macro_1",
+    "engagement": {
+     "views": 120000,
+     "likes": 6000,
+     "comments": 300,
+     "shares": 120
+    },
+    "flags": [],
+    "thumbnail_url": "https://example.invalid/thumb/pp_macro_1.jpg",
+    "duration_s": 15.0,
+    "creator_tier": "macro"
+   },
+   {
+    "id": "pp_macro_2",
+    "platform": "tiktok",
+    "handle": "@fixture_ng_macro",
+    "url": "https://example.invalid/tiktok/fixture_ng_macro/pp_macro_2",
+    "posted_at": "2026-09-27T18:00:00+01:00",
+    "market": "NG",
+    "text": "Fixture post pp_macro_2",
+    "engagement": {
+     "views": 80000,
+     "likes": 4000,
+     "comments": 200,
+     "shares": 80
+    },
+    "flags": [],
+    "thumbnail_url": "https://example.invalid/thumb/pp_macro_2.jpg",
+    "duration_s": 15.0,
+    "creator_tier": "macro"
+   },
+   {
+    "id": "pp_macro_3",
+    "platform": "tiktok",
+    "handle": "@fixture_ng_macro",
+    "url": "https://example.invalid/tiktok/fixture_ng_macro/pp_macro_3",
+    "posted_at": "2026-09-26T18:00:00+01:00",
+    "market": "NG",
+    "text": "Fixture post pp_macro_3",
+    "engagement": {
+     "views": 50000,
+     "likes": 2500,
+     "comments": 125,
+     "shares": 50
+    },
+    "flags": [],
+    "thumbnail_url": "https://example.invalid/thumb/pp_macro_3.jpg",
+    "duration_s": 15.0,
+    "creator_tier": "macro"
+   },
+   {
+    "id": "pp_macro_6",
+    "platform": "tiktok",
+    "handle": "@fixture_ng_macro",
+    "url": "https://example.invalid/tiktok/fixture_ng_macro/pp_macro_6",
+    "posted_at": "2026-09-20T18:00:00+01:00",
+    "market": "NG",
+    "text": "Fixture post pp_macro_6",
+    "engagement": {
+     "views": 60000,
+     "likes": 3000,
+     "comments": 150,
+     "shares": 60
+    },
+    "flags": [],
+    "thumbnail_url": "https://example.invalid/thumb/pp_macro_6.jpg",
+    "duration_s": 15.0,
+    "creator_tier": "macro"
+   }
+  ],
+  "recent_posts_note": null,
+  "items": [
+   {
+    "card": {
+     "item_id": "7f2ab79603408ca60b74cc340171539579ae87710894abaebf234f04648bc35d",
+     "rank": 1,
+     "kind": "hashtag",
+     "title": "#fixture_ng_owambe",
+     "state": "fading",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_ng_owambe is spreading on Tiktok in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "24 creators posted #fixture_ng_owambe in Nigeria in the last 3 days.",
+       "label": "corroborated",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_ng_003",
+        "ig_ng_004",
+        "yt_ng_005"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_ng_003",
+         "text": "Post 3: #fixture_ng_owambe outfits for Saturday in Lagos"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 24,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_a",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+        }
+       ]
+      }
+     ],
+     "count_line": "24 creators, 3 days",
+     "numbers": [
+      {
+       "value": 24,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_a",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+      },
+      {
+       "value": 40,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_a",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:10df6023d759feef6454687cc1bb7246947035d20fe561d3d28c59468f94e6dd"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 13,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [],
+     "evidence_ids": [
+      "tt_ng_003",
+      "ig_ng_004",
+      "yt_ng_005"
+     ],
+     "evidence": [],
+     "ask": "What is behind #fixture_ng_owambe in Nigeria this week?",
+     "market": "NG",
+     "date": "2026-09-30",
+     "tag": null,
+     "state_word": "Fading",
+     "flag_word": null,
+     "explanation_status": "explained",
+     "lifecycle": {
+      "step": 5,
+      "word": "Fading",
+      "rule": "At or below 60% of its peak on each of the last 3 days"
+     },
+     "novelty": "ongoing",
+     "last_wave": null,
+     "diffusion": "bottom_up",
+     "origin": null,
+     "spread_line": null,
+     "reach": {
+      "value": 25,
+      "unit": "creators in 3 days",
+      "query_id": "q_discover_items",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:a41520525d839661a81b0575c14af95fca49f52a948f6cb7ede3bc567eccae2e"
+     },
+     "growth": null,
+     "order": 2,
+     "watch_id": null
+    },
+    "posts": {
+     "value": 2,
+     "unit": "posts in 28 days",
+     "query_id": "q_creator_items",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:f9e8e5dfc54d3b944d4c84159632f4c274099317a44de2004e1489549c6f2635"
+    }
+   },
+   {
+    "card": {
+     "item_id": "d446222d56050176e27da32b1f13586cb9ca5359066bacbee8b56e83a8522593",
+     "market": "NG",
+     "date": "2026-09-30",
+     "rank": null,
+     "kind": "sound",
+     "title": "fixture ng peaking sound",
+     "tag": null,
+     "explanation": null,
+     "explanation_claim_ids": [],
+     "claims": [],
+     "count_line": "60 creators, 3 days",
+     "numbers": [
+      {
+       "value": 60,
+       "unit": "creators in 3 days",
+       "query_id": "q_discover_items",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:581779649738d7b8262ce7a7c7d5004a3b6e6afa0dd4d609c5a923b65d3b6eea"
+      }
+     ],
+     "sparkline": null,
+     "thumbnails": [],
+     "evidence_ids": [],
+     "evidence": [],
+     "ask": "What is behind fixture ng peaking sound in Nigeria this week?",
+     "state": "peaking",
+     "state_word": "Peaking",
+     "flag": null,
+     "flag_word": null,
+     "explained": false,
+     "explanation_status": "not_run",
+     "lifecycle": {
+      "step": 3,
+      "word": "Peaking",
+      "rule": "Growth slowing while posting stays near its high"
+     },
+     "novelty": "ongoing",
+     "last_wave": null,
+     "diffusion": "bottom_up",
+     "origin": null,
+     "spread_line": null,
+     "reach": {
+      "value": 60,
+      "unit": "creators in 3 days",
+      "query_id": "q_discover_items",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:581779649738d7b8262ce7a7c7d5004a3b6e6afa0dd4d609c5a923b65d3b6eea"
+     },
+     "growth": null,
+     "order": 1,
+     "watch_id": null
+    },
+    "posts": {
+     "value": 2,
+     "unit": "posts in 28 days",
+     "query_id": "q_creator_items",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:161447401c2e0a530d6d3dcb02c70033068faae019d876d1d5cd98edbb9c207b"
+    }
+   }
+  ],
+  "formats": [
+   {
+    "format": "duet",
+    "posts": {
+     "value": 2,
+     "unit": "posts in 28 days",
+     "query_id": "q_creator_formats",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:e08362c4e6069feb34c327d3373f0b0d5679bd06ba5bfb7d889849123d824888"
+    }
+   },
+   {
+    "format": "stitch",
+    "posts": {
+     "value": 1,
+     "unit": "posts in 28 days",
+     "query_id": "q_creator_formats",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:b1cb7a0f316d185104ceb973f45b9fc8dd33a322f9967cd52c8d1d76c9608b35"
+    }
+   }
+  ],
+  "reach": {
+   "median_views": {
+    "value": 75000.0,
+    "unit": "views on the middle post",
+    "query_id": "q_creator_reach",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:211148672bfd36f8832dad337ca9394730adb6040e88afd1c1743db5343040f3"
+   },
+   "posts_28d": {
+    "value": 10,
+    "unit": "posts in 28 days",
+    "query_id": "q_creator_reach",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:211148672bfd36f8832dad337ca9394730adb6040e88afd1c1743db5343040f3"
+   }
+  },
+  "community": {
+   "label": "#fixture_ng_jollof, #fixture_ng_owambe, fixture ng peaking sound",
+   "community_id": "f3613d97018d357c9d48d28ed94bd0d1f6d065f5fe216a36a5dc81cb75d3fdee"
+  },
+  "note": null
+ },
+ "creator_before": {
+  "creator": {
+   "creator_id": "c_ng_macro",
+   "platform": "tiktok",
+   "handle": "@fixture_ng_macro",
+   "tier": "macro",
+   "followers": {
+    "value": 750000,
+    "unit": "followers",
+    "query_id": "q_creator",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:abbb22264f8963b54e882b962795cd3add269ab230bc1a0e0cfcb73151d94204"
+   },
+   "home_market": "NG",
+   "profile_url": "https://tiktok.com/@fixture_ng_macro"
+  },
+  "market": "NG",
+  "date": "2026-09-30",
+  "window": {
+   "from": "2026-09-03",
+   "to": "2026-09-30",
+   "days": 28
+  },
+  "recent_posts": null,
+  "recent_posts_note": "Recent posts appear once 42 can keep sensitive topics off named pages",
+  "items": null,
+  "formats": [
+   {
+    "format": "duet",
+    "posts": {
+     "value": 2,
+     "unit": "posts in 28 days",
+     "query_id": "q_creator_formats",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:e08362c4e6069feb34c327d3373f0b0d5679bd06ba5bfb7d889849123d824888"
+    }
+   },
+   {
+    "format": "stitch",
+    "posts": {
+     "value": 1,
+     "unit": "posts in 28 days",
+     "query_id": "q_creator_formats",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:b1cb7a0f316d185104ceb973f45b9fc8dd33a322f9967cd52c8d1d76c9608b35"
+    }
+   }
+  ],
+  "reach": {
+   "median_views": {
+    "value": 75000.0,
+    "unit": "views on the middle post",
+    "query_id": "q_creator_reach",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:211148672bfd36f8832dad337ca9394730adb6040e88afd1c1743db5343040f3"
+   },
+   "posts_28d": {
+    "value": 10,
+    "unit": "posts in 28 days",
+    "query_id": "q_creator_reach",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:211148672bfd36f8832dad337ca9394730adb6040e88afd1c1743db5343040f3"
+   }
+  },
+  "community": null,
+  "note": "Topics per creator appear once 42 can keep sensitive topics off named pages"
+ },
+ "communities": {
+  "market": "NG",
+  "date": "2026-09-30",
+  "window": {
+   "from": "2026-09-03",
+   "to": "2026-09-30",
+   "days": 28
+  },
+  "method": "shared_items",
+  "interaction": "Grouped by shared topics; interaction not yet measured",
+  "note": null,
+  "communities": [
+   {
+    "community_id": "f3613d97018d357c9d48d28ed94bd0d1f6d065f5fe216a36a5dc81cb75d3fdee",
+    "method": "shared_items",
+    "label": "#fixture_ng_jollof, #fixture_ng_owambe, fixture ng peaking sound",
+    "creators": {
+     "value": 6,
+     "unit": "creators",
+     "query_id": "q_communities",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:4d5bf5d9a6f5b33b799958566bf93765bbf3bbaadae140199e50c578fcf185aa"
+    },
+    "members": [
+     {
+      "creator_id": "c_ng_mega",
+      "platform": "instagram",
+      "handle": "fixture_ng_mega",
+      "tier": "mega",
+      "profile_url": "https://instagram.com/fixture_ng_mega"
+     },
+     {
+      "creator_id": "c_ng_macro",
+      "platform": "tiktok",
+      "handle": "@fixture_ng_macro",
+      "tier": "macro",
+      "profile_url": "https://tiktok.com/@fixture_ng_macro"
+     }
+    ],
+    "top_items": [
+     {
+      "item_id": "7f2ab79603408ca60b74cc340171539579ae87710894abaebf234f04648bc35d",
+      "rank": 1,
+      "kind": "hashtag",
+      "title": "#fixture_ng_owambe",
+      "state": "fading",
+      "flag": null,
+      "explained": true,
+      "explanation": "#fixture_ng_owambe is spreading on Tiktok in Nigeria, possibly tied to the weekend.",
+      "explanation_claim_ids": [
+       "c1"
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "text": "24 creators posted #fixture_ng_owambe in Nigeria in the last 3 days.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": [
+         "tt_ng_003",
+         "ig_ng_004",
+         "yt_ng_005"
+        ],
+        "quotes": [
+         {
+          "evidence_id": "tt_ng_003",
+          "text": "Post 3: #fixture_ng_owambe outfits for Saturday in Lagos"
+         }
+        ],
+        "numbers": [
+         {
+          "value": 24,
+          "unit": "creators in 3 days",
+          "query_id": "q_creators3_ng_a",
+          "run_id": "r_aggregate_20260930_01",
+          "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+         }
+        ]
+       }
+      ],
+      "count_line": "24 creators, 3 days",
+      "numbers": [
+       {
+        "value": 24,
+        "unit": "creators in 3 days",
+        "query_id": "q_creators3_ng_a",
+        "run_id": "r_aggregate_20260930_01",
+        "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+       },
+       {
+        "value": 40,
+        "unit": "posts in 3 days",
+        "query_id": "q_posts3_ng_a",
+        "run_id": "r_aggregate_20260930_01",
+        "result_hash": "sha256:10df6023d759feef6454687cc1bb7246947035d20fe561d3d28c59468f94e6dd"
+       }
+      ],
+      "sparkline": {
+       "unit": "posts a day",
+       "points": [
+        {
+         "date": "2026-09-24",
+         "value": 2,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-25",
+         "value": 5,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-26",
+         "value": null,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-27",
+         "value": 11,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-28",
+         "value": 14,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-29",
+         "value": 17,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-30",
+         "value": 13,
+         "expected_low": null,
+         "expected_high": null
+        }
+       ]
+      },
+      "thumbnails": [],
+      "evidence_ids": [
+       "tt_ng_003",
+       "ig_ng_004",
+       "yt_ng_005"
+      ],
+      "evidence": [],
+      "ask": "What is behind #fixture_ng_owambe in Nigeria this week?",
+      "market": "NG",
+      "date": "2026-09-30",
+      "tag": null,
+      "state_word": "Fading",
+      "flag_word": null,
+      "explanation_status": "explained",
+      "lifecycle": {
+       "step": 5,
+       "word": "Fading",
+       "rule": "At or below 60% of its peak on each of the last 3 days"
+      },
+      "novelty": "ongoing",
+      "last_wave": null,
+      "diffusion": "bottom_up",
+      "origin": null,
+      "spread_line": null,
+      "reach": {
+       "value": 25,
+       "unit": "creators in 3 days",
+       "query_id": "q_discover_items",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:a41520525d839661a81b0575c14af95fca49f52a948f6cb7ede3bc567eccae2e"
+      },
+      "growth": null,
+      "order": 2,
+      "watch_id": null
+     },
+     {
+      "item_id": "d446222d56050176e27da32b1f13586cb9ca5359066bacbee8b56e83a8522593",
+      "market": "NG",
+      "date": "2026-09-30",
+      "rank": null,
+      "kind": "sound",
+      "title": "fixture ng peaking sound",
+      "tag": null,
+      "explanation": null,
+      "explanation_claim_ids": [],
+      "claims": [],
+      "count_line": "60 creators, 3 days",
+      "numbers": [
+       {
+        "value": 60,
+        "unit": "creators in 3 days",
+        "query_id": "q_discover_items",
+        "run_id": "r_detect_20260930_01",
+        "result_hash": "sha256:581779649738d7b8262ce7a7c7d5004a3b6e6afa0dd4d609c5a923b65d3b6eea"
+       }
+      ],
+      "sparkline": null,
+      "thumbnails": [],
+      "evidence_ids": [],
+      "evidence": [],
+      "ask": "What is behind fixture ng peaking sound in Nigeria this week?",
+      "state": "peaking",
+      "state_word": "Peaking",
+      "flag": null,
+      "flag_word": null,
+      "explained": false,
+      "explanation_status": "not_run",
+      "lifecycle": {
+       "step": 3,
+       "word": "Peaking",
+       "rule": "Growth slowing while posting stays near its high"
+      },
+      "novelty": "ongoing",
+      "last_wave": null,
+      "diffusion": "bottom_up",
+      "origin": null,
+      "spread_line": null,
+      "reach": {
+       "value": 60,
+       "unit": "creators in 3 days",
+       "query_id": "q_discover_items",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:581779649738d7b8262ce7a7c7d5004a3b6e6afa0dd4d609c5a923b65d3b6eea"
+      },
+      "growth": null,
+      "order": 1,
+      "watch_id": null
+     }
+    ],
+    "platforms": [
+     "instagram",
+     "tiktok",
+     "x",
+     "youtube"
+    ],
+    "languages": [
+     {
+      "lang": "en",
+      "posts": {
+       "value": 2,
+       "unit": "posts in 28 days",
+       "query_id": "q_community_languages",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:d5e2d8069b103dd04199164845d83fd64be16b8762118f7aeb0ba59153452f1c"
+      }
+     },
+     {
+      "lang": "pcm",
+      "posts": {
+       "value": 1,
+       "unit": "posts in 28 days",
+       "query_id": "q_community_languages",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:c69cc38fc3f9912e0886ade67cd3191c4e28324b8e95d47456f4b874c45860fd"
+      }
+     },
+     {
+      "lang": "yo",
+      "posts": {
+       "value": 1,
+       "unit": "posts in 28 days",
+       "query_id": "q_community_languages",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:c52f2dd6cd685200988d12bb555fff1e1db2436ce5c0ef17ee284da481687716"
+      }
+     }
+    ],
+    "example_posts": [
+     {
+      "id": "pp_macro_1",
+      "platform": "tiktok",
+      "handle": "@fixture_ng_macro",
+      "url": "https://example.invalid/tiktok/fixture_ng_macro/pp_macro_1",
+      "posted_at": "2026-09-28T18:00:00+01:00",
+      "market": "NG",
+      "text": "Fixture post pp_macro_1",
+      "engagement": {
+       "views": 120000,
+       "likes": 6000,
+       "comments": 300,
+       "shares": 120
+      },
+      "flags": [],
+      "thumbnail_url": "https://example.invalid/thumb/pp_macro_1.jpg",
+      "duration_s": 15.0,
+      "creator_tier": "macro"
+     },
+     {
+      "id": "pp_macro_2",
+      "platform": "tiktok",
+      "handle": "@fixture_ng_macro",
+      "url": "https://example.invalid/tiktok/fixture_ng_macro/pp_macro_2",
+      "posted_at": "2026-09-27T18:00:00+01:00",
+      "market": "NG",
+      "text": "Fixture post pp_macro_2",
+      "engagement": {
+       "views": 80000,
+       "likes": 4000,
+       "comments": 200,
+       "shares": 80
+      },
+      "flags": [],
+      "thumbnail_url": "https://example.invalid/thumb/pp_macro_2.jpg",
+      "duration_s": 15.0,
+      "creator_tier": "macro"
+     },
+     {
+      "id": "pp_macro_3",
+      "platform": "tiktok",
+      "handle": "@fixture_ng_macro",
+      "url": "https://example.invalid/tiktok/fixture_ng_macro/pp_macro_3",
+      "posted_at": "2026-09-26T18:00:00+01:00",
+      "market": "NG",
+      "text": "Fixture post pp_macro_3",
+      "engagement": {
+       "views": 50000,
+       "likes": 2500,
+       "comments": 125,
+       "shares": 50
+      },
+      "flags": [],
+      "thumbnail_url": "https://example.invalid/thumb/pp_macro_3.jpg",
+      "duration_s": 15.0,
+      "creator_tier": "macro"
+     },
+     {
+      "id": "pp_mega_3",
+      "platform": "instagram",
+      "handle": "fixture_ng_mega",
+      "url": "https://example.invalid/instagram/fixture_ng_mega/pp_mega_3",
+      "posted_at": "2026-09-23T18:00:00+01:00",
+      "market": "NG",
+      "text": "Fixture post pp_mega_3",
+      "engagement": {
+       "views": 400003,
+       "likes": 20000,
+       "comments": 1000,
+       "shares": 400
+      },
+      "flags": [],
+      "thumbnail_url": "https://example.invalid/thumb/pp_mega_3.jpg",
+      "duration_s": 15.0,
+      "creator_tier": "mega"
+     },
+     {
+      "id": "pp_mega_2",
+      "platform": "instagram",
+      "handle": "fixture_ng_mega",
+      "url": "https://example.invalid/instagram/fixture_ng_mega/pp_mega_2",
+      "posted_at": "2026-09-22T18:00:00+01:00",
+      "market": "NG",
+      "text": "Fixture post pp_mega_2",
+      "engagement": {
+       "views": 400002,
+       "likes": 20000,
+       "comments": 1000,
+       "shares": 400
+      },
+      "flags": [],
+      "thumbnail_url": "https://example.invalid/thumb/pp_mega_2.jpg",
+      "duration_s": 15.0,
+      "creator_tier": "mega"
+     },
+     {
+      "id": "pp_mega_1",
+      "platform": "instagram",
+      "handle": "fixture_ng_mega",
+      "url": "https://example.invalid/instagram/fixture_ng_mega/pp_mega_1",
+      "posted_at": "2026-09-21T18:00:00+01:00",
+      "market": "NG",
+      "text": "Fixture post pp_mega_1",
+      "engagement": {
+       "views": 400001,
+       "likes": 20000,
+       "comments": 1000,
+       "shares": 400
+      },
+      "flags": [],
+      "thumbnail_url": "https://example.invalid/thumb/pp_mega_1.jpg",
+      "duration_s": 15.0,
+      "creator_tier": "mega"
+     }
+    ]
+   }
+  ]
+ },
+ "communities_before": {
+  "market": "NG",
+  "date": "2026-09-30",
+  "window": {
+   "from": "2026-09-03",
+   "to": "2026-09-30",
+   "days": 28
+  },
+  "method": "shared_items",
+  "interaction": "Grouped by shared topics; interaction not yet measured",
+  "note": "Topics per creator appear once 42 can keep sensitive topics off named pages",
+  "communities": [
+   {
+    "community_id": "09f698a531ad4228bc1727d78588dbc4fb271c4eb61c20c0d4e4921956e4b391",
+    "method": "shared_items",
+    "label": "#fixture_ng_jollof, fixture ng peaking sound, #fixture_ng_owambe",
+    "creators": {
+     "value": 11,
+     "unit": "creators",
+     "query_id": "q_communities",
+     "run_id": "r_detect_20260930_01",
+     "result_hash": "sha256:71292fb9b381c8bdd6d357718e0e604f3a260b82af174ba981e83f6d83fc2c46"
+    },
+    "members": null,
+    "top_items": [
+     {
+      "item_id": "d446222d56050176e27da32b1f13586cb9ca5359066bacbee8b56e83a8522593",
+      "market": "NG",
+      "date": "2026-09-30",
+      "rank": null,
+      "kind": "sound",
+      "title": "fixture ng peaking sound",
+      "tag": null,
+      "explanation": null,
+      "explanation_claim_ids": [],
+      "claims": [],
+      "count_line": "60 creators, 3 days",
+      "numbers": [
+       {
+        "value": 60,
+        "unit": "creators in 3 days",
+        "query_id": "q_discover_items",
+        "run_id": "r_detect_20260930_01",
+        "result_hash": "sha256:581779649738d7b8262ce7a7c7d5004a3b6e6afa0dd4d609c5a923b65d3b6eea"
+       }
+      ],
+      "sparkline": null,
+      "thumbnails": [],
+      "evidence_ids": [],
+      "evidence": [],
+      "ask": "What is behind fixture ng peaking sound in Nigeria this week?",
+      "state": "peaking",
+      "state_word": "Peaking",
+      "flag": null,
+      "flag_word": null,
+      "explained": false,
+      "explanation_status": "not_run",
+      "lifecycle": {
+       "step": 3,
+       "word": "Peaking",
+       "rule": "Growth slowing while posting stays near its high"
+      },
+      "novelty": "ongoing",
+      "last_wave": null,
+      "diffusion": "bottom_up",
+      "origin": null,
+      "spread_line": null,
+      "reach": {
+       "value": 60,
+       "unit": "creators in 3 days",
+       "query_id": "q_discover_items",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:581779649738d7b8262ce7a7c7d5004a3b6e6afa0dd4d609c5a923b65d3b6eea"
+      },
+      "growth": null,
+      "order": 1,
+      "watch_id": null
+     },
+     {
+      "item_id": "7f2ab79603408ca60b74cc340171539579ae87710894abaebf234f04648bc35d",
+      "rank": 1,
+      "kind": "hashtag",
+      "title": "#fixture_ng_owambe",
+      "state": "fading",
+      "flag": null,
+      "explained": true,
+      "explanation": "#fixture_ng_owambe is spreading on Tiktok in Nigeria, possibly tied to the weekend.",
+      "explanation_claim_ids": [
+       "c1"
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "text": "24 creators posted #fixture_ng_owambe in Nigeria in the last 3 days.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": [
+         "tt_ng_003",
+         "ig_ng_004",
+         "yt_ng_005"
+        ],
+        "quotes": [
+         {
+          "evidence_id": "tt_ng_003",
+          "text": "Post 3: #fixture_ng_owambe outfits for Saturday in Lagos"
+         }
+        ],
+        "numbers": [
+         {
+          "value": 24,
+          "unit": "creators in 3 days",
+          "query_id": "q_creators3_ng_a",
+          "run_id": "r_aggregate_20260930_01",
+          "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+         }
+        ]
+       }
+      ],
+      "count_line": "24 creators, 3 days",
+      "numbers": [
+       {
+        "value": 24,
+        "unit": "creators in 3 days",
+        "query_id": "q_creators3_ng_a",
+        "run_id": "r_aggregate_20260930_01",
+        "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+       },
+       {
+        "value": 40,
+        "unit": "posts in 3 days",
+        "query_id": "q_posts3_ng_a",
+        "run_id": "r_aggregate_20260930_01",
+        "result_hash": "sha256:10df6023d759feef6454687cc1bb7246947035d20fe561d3d28c59468f94e6dd"
+       }
+      ],
+      "sparkline": {
+       "unit": "posts a day",
+       "points": [
+        {
+         "date": "2026-09-24",
+         "value": 2,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-25",
+         "value": 5,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-26",
+         "value": null,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-27",
+         "value": 11,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-28",
+         "value": 14,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-29",
+         "value": 17,
+         "expected_low": null,
+         "expected_high": null
+        },
+        {
+         "date": "2026-09-30",
+         "value": 13,
+         "expected_low": null,
+         "expected_high": null
+        }
+       ]
+      },
+      "thumbnails": [],
+      "evidence_ids": [
+       "tt_ng_003",
+       "ig_ng_004",
+       "yt_ng_005"
+      ],
+      "evidence": [],
+      "ask": "What is behind #fixture_ng_owambe in Nigeria this week?",
+      "market": "NG",
+      "date": "2026-09-30",
+      "tag": null,
+      "state_word": "Fading",
+      "flag_word": null,
+      "explanation_status": "explained",
+      "lifecycle": {
+       "step": 5,
+       "word": "Fading",
+       "rule": "At or below 60% of its peak on each of the last 3 days"
+      },
+      "novelty": "ongoing",
+      "last_wave": null,
+      "diffusion": "bottom_up",
+      "origin": null,
+      "spread_line": null,
+      "reach": {
+       "value": 25,
+       "unit": "creators in 3 days",
+       "query_id": "q_discover_items",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:a41520525d839661a81b0575c14af95fca49f52a948f6cb7ede3bc567eccae2e"
+      },
+      "growth": null,
+      "order": 2,
+      "watch_id": null
+     }
+    ],
+    "platforms": [
+     "instagram",
+     "tiktok",
+     "x",
+     "youtube"
+    ],
+    "languages": [
+     {
+      "lang": "en",
+      "posts": {
+       "value": 2,
+       "unit": "posts in 28 days",
+       "query_id": "q_community_languages",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:28ddec54102df1b0cbda0a4a3599943df5bb353951170aba8da0d1f450ba2d70"
+      }
+     },
+     {
+      "lang": "pcm",
+      "posts": {
+       "value": 1,
+       "unit": "posts in 28 days",
+       "query_id": "q_community_languages",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:a22f2980a619beab3570ac6d35189fc505de2f01164323af20d0ff805cfe2b03"
+      }
+     },
+     {
+      "lang": "yo",
+      "posts": {
+       "value": 1,
+       "unit": "posts in 28 days",
+       "query_id": "q_community_languages",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:5a5c9f85fdd4d4ec0f72284027e9e439c97bef0cc3c7112b8dc97e7c33b3b715"
+      }
+     }
+    ],
+    "example_posts": null
+   }
+  ]
+ },
+ "community": {
+  "market": "NG",
+  "date": "2026-09-30",
+  "window": {
+   "from": "2026-09-03",
+   "to": "2026-09-30",
+   "days": 28
+  },
+  "method": "shared_items",
+  "interaction": "Grouped by shared topics; interaction not yet measured",
+  "note": null,
+  "community": {
+   "community_id": "f3613d97018d357c9d48d28ed94bd0d1f6d065f5fe216a36a5dc81cb75d3fdee",
+   "method": "shared_items",
+   "label": "#fixture_ng_jollof, #fixture_ng_owambe, fixture ng peaking sound",
+   "creators": {
+    "value": 6,
+    "unit": "creators",
+    "query_id": "q_communities",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:4d5bf5d9a6f5b33b799958566bf93765bbf3bbaadae140199e50c578fcf185aa"
+   },
+   "members": [
+    {
+     "creator_id": "c_ng_mega",
+     "platform": "instagram",
+     "handle": "fixture_ng_mega",
+     "tier": "mega",
+     "profile_url": "https://instagram.com/fixture_ng_mega"
+    },
+    {
+     "creator_id": "c_ng_macro",
+     "platform": "tiktok",
+     "handle": "@fixture_ng_macro",
+     "tier": "macro",
+     "profile_url": "https://tiktok.com/@fixture_ng_macro"
+    }
+   ],
+   "top_items": [
+    {
+     "item_id": "7f2ab79603408ca60b74cc340171539579ae87710894abaebf234f04648bc35d",
+     "rank": 1,
+     "kind": "hashtag",
+     "title": "#fixture_ng_owambe",
+     "state": "fading",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_ng_owambe is spreading on Tiktok in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "24 creators posted #fixture_ng_owambe in Nigeria in the last 3 days.",
+       "label": "corroborated",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_ng_003",
+        "ig_ng_004",
+        "yt_ng_005"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_ng_003",
+         "text": "Post 3: #fixture_ng_owambe outfits for Saturday in Lagos"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 24,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_a",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+        }
+       ]
+      }
+     ],
+     "count_line": "24 creators, 3 days",
+     "numbers": [
+      {
+       "value": 24,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_a",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+      },
+      {
+       "value": 40,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_a",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:10df6023d759feef6454687cc1bb7246947035d20fe561d3d28c59468f94e6dd"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 13,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [],
+     "evidence_ids": [
+      "tt_ng_003",
+      "ig_ng_004",
+      "yt_ng_005"
+     ],
+     "evidence": [],
+     "ask": "What is behind #fixture_ng_owambe in Nigeria this week?",
+     "market": "NG",
+     "date": "2026-09-30",
+     "tag": null,
+     "state_word": "Fading",
+     "flag_word": null,
+     "explanation_status": "explained",
+     "lifecycle": {
+      "step": 5,
+      "word": "Fading",
+      "rule": "At or below 60% of its peak on each of the last 3 days"
+     },
+     "novelty": "ongoing",
+     "last_wave": null,
+     "diffusion": "bottom_up",
+     "origin": null,
+     "spread_line": null,
+     "reach": {
+      "value": 25,
+      "unit": "creators in 3 days",
+      "query_id": "q_discover_items",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:a41520525d839661a81b0575c14af95fca49f52a948f6cb7ede3bc567eccae2e"
+     },
+     "growth": null,
+     "order": 2,
+     "watch_id": null
+    },
+    {
+     "item_id": "d446222d56050176e27da32b1f13586cb9ca5359066bacbee8b56e83a8522593",
+     "market": "NG",
+     "date": "2026-09-30",
+     "rank": null,
+     "kind": "sound",
+     "title": "fixture ng peaking sound",
+     "tag": null,
+     "explanation": null,
+     "explanation_claim_ids": [],
+     "claims": [],
+     "count_line": "60 creators, 3 days",
+     "numbers": [
+      {
+       "value": 60,
+       "unit": "creators in 3 days",
+       "query_id": "q_discover_items",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:581779649738d7b8262ce7a7c7d5004a3b6e6afa0dd4d609c5a923b65d3b6eea"
+      }
+     ],
+     "sparkline": null,
+     "thumbnails": [],
+     "evidence_ids": [],
+     "evidence": [],
+     "ask": "What is behind fixture ng peaking sound in Nigeria this week?",
+     "state": "peaking",
+     "state_word": "Peaking",
+     "flag": null,
+     "flag_word": null,
+     "explained": false,
+     "explanation_status": "not_run",
+     "lifecycle": {
+      "step": 3,
+      "word": "Peaking",
+      "rule": "Growth slowing while posting stays near its high"
+     },
+     "novelty": "ongoing",
+     "last_wave": null,
+     "diffusion": "bottom_up",
+     "origin": null,
+     "spread_line": null,
+     "reach": {
+      "value": 60,
+      "unit": "creators in 3 days",
+      "query_id": "q_discover_items",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:581779649738d7b8262ce7a7c7d5004a3b6e6afa0dd4d609c5a923b65d3b6eea"
+     },
+     "growth": null,
+     "order": 1,
+     "watch_id": null
+    }
+   ],
+   "platforms": [
+    "instagram",
+    "tiktok",
+    "x",
+    "youtube"
+   ],
+   "languages": [
+    {
+     "lang": "en",
+     "posts": {
+      "value": 2,
+      "unit": "posts in 28 days",
+      "query_id": "q_community_languages",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:d5e2d8069b103dd04199164845d83fd64be16b8762118f7aeb0ba59153452f1c"
+     }
+    },
+    {
+     "lang": "pcm",
+     "posts": {
+      "value": 1,
+      "unit": "posts in 28 days",
+      "query_id": "q_community_languages",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:c69cc38fc3f9912e0886ade67cd3191c4e28324b8e95d47456f4b874c45860fd"
+     }
+    },
+    {
+     "lang": "yo",
+     "posts": {
+      "value": 1,
+      "unit": "posts in 28 days",
+      "query_id": "q_community_languages",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:c52f2dd6cd685200988d12bb555fff1e1db2436ce5c0ef17ee284da481687716"
+     }
+    }
+   ],
+   "example_posts": [
+    {
+     "id": "pp_macro_1",
+     "platform": "tiktok",
+     "handle": "@fixture_ng_macro",
+     "url": "https://example.invalid/tiktok/fixture_ng_macro/pp_macro_1",
+     "posted_at": "2026-09-28T18:00:00+01:00",
+     "market": "NG",
+     "text": "Fixture post pp_macro_1",
+     "engagement": {
+      "views": 120000,
+      "likes": 6000,
+      "comments": 300,
+      "shares": 120
+     },
+     "flags": [],
+     "thumbnail_url": "https://example.invalid/thumb/pp_macro_1.jpg",
+     "duration_s": 15.0,
+     "creator_tier": "macro"
+    },
+    {
+     "id": "pp_macro_2",
+     "platform": "tiktok",
+     "handle": "@fixture_ng_macro",
+     "url": "https://example.invalid/tiktok/fixture_ng_macro/pp_macro_2",
+     "posted_at": "2026-09-27T18:00:00+01:00",
+     "market": "NG",
+     "text": "Fixture post pp_macro_2",
+     "engagement": {
+      "views": 80000,
+      "likes": 4000,
+      "comments": 200,
+      "shares": 80
+     },
+     "flags": [],
+     "thumbnail_url": "https://example.invalid/thumb/pp_macro_2.jpg",
+     "duration_s": 15.0,
+     "creator_tier": "macro"
+    },
+    {
+     "id": "pp_macro_3",
+     "platform": "tiktok",
+     "handle": "@fixture_ng_macro",
+     "url": "https://example.invalid/tiktok/fixture_ng_macro/pp_macro_3",
+     "posted_at": "2026-09-26T18:00:00+01:00",
+     "market": "NG",
+     "text": "Fixture post pp_macro_3",
+     "engagement": {
+      "views": 50000,
+      "likes": 2500,
+      "comments": 125,
+      "shares": 50
+     },
+     "flags": [],
+     "thumbnail_url": "https://example.invalid/thumb/pp_macro_3.jpg",
+     "duration_s": 15.0,
+     "creator_tier": "macro"
+    },
+    {
+     "id": "pp_mega_3",
+     "platform": "instagram",
+     "handle": "fixture_ng_mega",
+     "url": "https://example.invalid/instagram/fixture_ng_mega/pp_mega_3",
+     "posted_at": "2026-09-23T18:00:00+01:00",
+     "market": "NG",
+     "text": "Fixture post pp_mega_3",
+     "engagement": {
+      "views": 400003,
+      "likes": 20000,
+      "comments": 1000,
+      "shares": 400
+     },
+     "flags": [],
+     "thumbnail_url": "https://example.invalid/thumb/pp_mega_3.jpg",
+     "duration_s": 15.0,
+     "creator_tier": "mega"
+    },
+    {
+     "id": "pp_mega_2",
+     "platform": "instagram",
+     "handle": "fixture_ng_mega",
+     "url": "https://example.invalid/instagram/fixture_ng_mega/pp_mega_2",
+     "posted_at": "2026-09-22T18:00:00+01:00",
+     "market": "NG",
+     "text": "Fixture post pp_mega_2",
+     "engagement": {
+      "views": 400002,
+      "likes": 20000,
+      "comments": 1000,
+      "shares": 400
+     },
+     "flags": [],
+     "thumbnail_url": "https://example.invalid/thumb/pp_mega_2.jpg",
+     "duration_s": 15.0,
+     "creator_tier": "mega"
+    },
+    {
+     "id": "pp_mega_1",
+     "platform": "instagram",
+     "handle": "fixture_ng_mega",
+     "url": "https://example.invalid/instagram/fixture_ng_mega/pp_mega_1",
+     "posted_at": "2026-09-21T18:00:00+01:00",
+     "market": "NG",
+     "text": "Fixture post pp_mega_1",
+     "engagement": {
+      "views": 400001,
+      "likes": 20000,
+      "comments": 1000,
+      "shares": 400
+     },
+     "flags": [],
+     "thumbnail_url": "https://example.invalid/thumb/pp_mega_1.jpg",
+     "duration_s": 15.0,
+     "creator_tier": "mega"
+    }
+   ]
+  }
+ },
+ "community_before": {
+  "market": "NG",
+  "date": "2026-09-30",
+  "window": {
+   "from": "2026-09-03",
+   "to": "2026-09-30",
+   "days": 28
+  },
+  "method": "shared_items",
+  "interaction": "Grouped by shared topics; interaction not yet measured",
+  "note": "Topics per creator appear once 42 can keep sensitive topics off named pages",
+  "community": {
+   "community_id": "09f698a531ad4228bc1727d78588dbc4fb271c4eb61c20c0d4e4921956e4b391",
+   "method": "shared_items",
+   "label": "#fixture_ng_jollof, fixture ng peaking sound, #fixture_ng_owambe",
+   "creators": {
+    "value": 11,
+    "unit": "creators",
+    "query_id": "q_communities",
+    "run_id": "r_detect_20260930_01",
+    "result_hash": "sha256:71292fb9b381c8bdd6d357718e0e604f3a260b82af174ba981e83f6d83fc2c46"
+   },
+   "members": null,
+   "top_items": [
+    {
+     "item_id": "d446222d56050176e27da32b1f13586cb9ca5359066bacbee8b56e83a8522593",
+     "market": "NG",
+     "date": "2026-09-30",
+     "rank": null,
+     "kind": "sound",
+     "title": "fixture ng peaking sound",
+     "tag": null,
+     "explanation": null,
+     "explanation_claim_ids": [],
+     "claims": [],
+     "count_line": "60 creators, 3 days",
+     "numbers": [
+      {
+       "value": 60,
+       "unit": "creators in 3 days",
+       "query_id": "q_discover_items",
+       "run_id": "r_detect_20260930_01",
+       "result_hash": "sha256:581779649738d7b8262ce7a7c7d5004a3b6e6afa0dd4d609c5a923b65d3b6eea"
+      }
+     ],
+     "sparkline": null,
+     "thumbnails": [],
+     "evidence_ids": [],
+     "evidence": [],
+     "ask": "What is behind fixture ng peaking sound in Nigeria this week?",
+     "state": "peaking",
+     "state_word": "Peaking",
+     "flag": null,
+     "flag_word": null,
+     "explained": false,
+     "explanation_status": "not_run",
+     "lifecycle": {
+      "step": 3,
+      "word": "Peaking",
+      "rule": "Growth slowing while posting stays near its high"
+     },
+     "novelty": "ongoing",
+     "last_wave": null,
+     "diffusion": "bottom_up",
+     "origin": null,
+     "spread_line": null,
+     "reach": {
+      "value": 60,
+      "unit": "creators in 3 days",
+      "query_id": "q_discover_items",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:581779649738d7b8262ce7a7c7d5004a3b6e6afa0dd4d609c5a923b65d3b6eea"
+     },
+     "growth": null,
+     "order": 1,
+     "watch_id": null
+    },
+    {
+     "item_id": "7f2ab79603408ca60b74cc340171539579ae87710894abaebf234f04648bc35d",
+     "rank": 1,
+     "kind": "hashtag",
+     "title": "#fixture_ng_owambe",
+     "state": "fading",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_ng_owambe is spreading on Tiktok in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "24 creators posted #fixture_ng_owambe in Nigeria in the last 3 days.",
+       "label": "corroborated",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_ng_003",
+        "ig_ng_004",
+        "yt_ng_005"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_ng_003",
+         "text": "Post 3: #fixture_ng_owambe outfits for Saturday in Lagos"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 24,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_a",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+        }
+       ]
+      }
+     ],
+     "count_line": "24 creators, 3 days",
+     "numbers": [
+      {
+       "value": 24,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_a",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+      },
+      {
+       "value": 40,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_a",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:10df6023d759feef6454687cc1bb7246947035d20fe561d3d28c59468f94e6dd"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 13,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [],
+     "evidence_ids": [
+      "tt_ng_003",
+      "ig_ng_004",
+      "yt_ng_005"
+     ],
+     "evidence": [],
+     "ask": "What is behind #fixture_ng_owambe in Nigeria this week?",
+     "market": "NG",
+     "date": "2026-09-30",
+     "tag": null,
+     "state_word": "Fading",
+     "flag_word": null,
+     "explanation_status": "explained",
+     "lifecycle": {
+      "step": 5,
+      "word": "Fading",
+      "rule": "At or below 60% of its peak on each of the last 3 days"
+     },
+     "novelty": "ongoing",
+     "last_wave": null,
+     "diffusion": "bottom_up",
+     "origin": null,
+     "spread_line": null,
+     "reach": {
+      "value": 25,
+      "unit": "creators in 3 days",
+      "query_id": "q_discover_items",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:a41520525d839661a81b0575c14af95fca49f52a948f6cb7ede3bc567eccae2e"
+     },
+     "growth": null,
+     "order": 2,
+     "watch_id": null
+    }
+   ],
+   "platforms": [
+    "instagram",
+    "tiktok",
+    "x",
+    "youtube"
+   ],
+   "languages": [
+    {
+     "lang": "en",
+     "posts": {
+      "value": 2,
+      "unit": "posts in 28 days",
+      "query_id": "q_community_languages",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:28ddec54102df1b0cbda0a4a3599943df5bb353951170aba8da0d1f450ba2d70"
+     }
+    },
+    {
+     "lang": "pcm",
+     "posts": {
+      "value": 1,
+      "unit": "posts in 28 days",
+      "query_id": "q_community_languages",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:a22f2980a619beab3570ac6d35189fc505de2f01164323af20d0ff805cfe2b03"
+     }
+    },
+    {
+     "lang": "yo",
+     "posts": {
+      "value": 1,
+      "unit": "posts in 28 days",
+      "query_id": "q_community_languages",
+      "run_id": "r_detect_20260930_01",
+      "result_hash": "sha256:5a5c9f85fdd4d4ec0f72284027e9e439c97bef0cc3c7112b8dc97e7c33b3b715"
+     }
+    }
+   ],
+   "example_posts": null
+  }
+ }
+}

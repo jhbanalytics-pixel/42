@@ -1,0 +1,1056 @@
+# Terms that put an item in the sensitive set (contract section 12.1, rule 2): items that never appear next
+# to a named creator. The political reason also takes every market's list in core/brief/political.yaml, the
+# G4b list; the political terms here are protest and campaign stems the brief's gate does not need.
+# A floor, not a complete list: it hides obvious cases; anything it misses is not safe to show next to a
+# named person. Add a term when a real item slips past it.
+#
+# core/detect/sqlrun.py renders both files into v_sensitive_items (sql/agent_views.sql) as an ARRAY literal
+# at apply time, so these files are the one source. In a label or an alias a term matches as whole words, in
+# any case unless it is written in capitals or with a capital inside a word (IFP, PrEP); a name with no
+# spaces, such as a hashtag, is also split where its capitals change, so #VoteANC reads as Vote ANC, while
+# KwaZulu-Natal floods is left whole and does not read Zulu. A canonical key is a lowercase compound
+# such as hivawareness, so a key matches when it is the term, holds the term among its words, holds a term of
+# five letters or more anywhere inside it, or starts or ends with a term of three or four letters from this
+# file (hivpositive, endgbv). Five lists change that for the terms they name, each of which also sits under
+# its reason, and gives_way_to changes what a match takes away:
+#   labels_only: the term matches labels and aliases only, never a key: PrEP, whose key would be #prep, and
+#     419, which has no letters. A term with a digit needs a boundary that is neither letter nor digit, so
+#     #419 matches and #dance1419 does not.
+#   keys_only: the term never reads a label or alias, only the key, and there only as the key or one of its
+#     words: tb, which a split label would find in #TBThursday.
+#   whole_words_in_keys: the key must be the term or hold it among its words, nothing inside. For a token
+#     that sits in ordinary words at any length: sti (stickers), gnu (gnuplot), coup (coupon), pope
+#     (popeyes), condom (condominium), tik (tiki), killing (upskilling). Where its compounds are often
+#     ordinary (TikTok, killing it, find your tribe), the ordinary list at the end takes the reason back.
+#   start_of_keys: the key may also start with the term, never end with it or hold it inside: eid
+#     (eidmubarak, not apartheid or reid), rape (rapeculture, not grapes or drape), aids (not braids).
+#   anywhere_in_keys: the term matches anywhere inside a key whatever its length.
+# A verb plus one of the narrow terms (endtb, stoprape, happyeid) is listed as its own compound.
+# gives_way_to names, for a term, longer terms that hold it and that take its reason away when they match
+# the same item and every occurrence of the term, across the key and the names, sits inside one of them:
+# TB Joshua reads religion and not health and #protestant religion and not political, but
+# #ProtestantChurchProtest keeps political. Nothing else takes a reason away, so an item keeps every reason
+# its terms carry, and a compound is listed under every reason it carries (police brutality is political and
+# crime, Biafra political and race_ethnicity).
+# A false hit only keeps a topic off creator pages, the safe direction, but it also gives the topic a wrong
+# reason, so a short term that sits inside common words goes on one of the narrower lists. political.yaml's
+# own names and acronyms keep the G4b key rules, since at the edge of a key they would take ordinary tags
+# such as #nairobi (Obi) and #zumba (Zuma). Christmas, Easter, Good Friday and Lent are left out until Albert
+# decides on them.
+#
+# never_sensitive is checked first: an item whose canonical key, letters only, is one of these is never in
+# the set, because an edge or inside rule would otherwise catch it for an ordinary reason (goddess, racecar).
+# Keep it short; each entry must name a real false hit.
+#
+# One key per reason, plus the five rule lists, gives_way_to, never_sensitive and ordinary. No term here describes a
+# person's age, and none may. v_sensitive_items stamps each row with list_version, a hash of both lists as
+# rendered.
+
+never_sensitive:
+  - goddess
+  - godfather
+  - godzilla
+  - gangnamstyle
+  - racecar
+  - raceday
+  - racehorse
+  - prideandprejudice
+  - pridelands
+  - hive
+  - hivemind
+  - unisex
+  - sussex
+  - essex
+  - middlesex
+  - drugstore
+  - jailbreak
+  - scampi
+  - grandtheftauto
+  - eidolon
+  - cancerseason
+  - godmother
+  - godson
+  - goddessbraids
+  - racer
+  - racetrack
+  - penaltyshootout
+  - moneyheist
+  - drugstoremakeup
+  - presidentscup
+  - godofwar
+  - pornstarmartini
+  - gabrieljesus
+  - templerun
+  - frace               # #F1Race, letters only
+  - racecourse
+  - maasaimara
+  - gangstasparadise
+  - ministerofsound
+  - obiwankenobi
+  - bbnaijavote
+  - foodporn
+  - carporn
+  - fordescort
+
+gives_way_to:
+  tb: [tb joshua]
+  protest: [protestant]
+  gay: [gayton mckenzie]
+  pride: [coloured pride]
+
+labels_only:
+  - PrEP
+  - '419'
+
+keys_only:
+  - tb
+
+whole_words_in_keys:
+  - sti
+  - stds
+  - arvs
+  - hospital
+  - gnu
+  - IFP
+  - actionsa
+  - pedi
+  - boer
+  - boers
+  - tiv
+  - coup
+  - pope
+  - ifa
+  - crusade
+  - blessed
+  - rabbi
+  - condom
+  - condoms
+  - tik
+  - tribe
+  - tribal
+  - coloured
+  - indian
+  - hawks
+  - amen
+  - sona
+  - trans
+  - juju
+  - bail
+  - convict
+  - convicts
+  - killing
+  - killed
+  - indians
+  - killings
+  - boere
+  - heist
+  - muti
+  - npa
+  - dci
+  - nhi
+  - shif
+  - fwb
+  - anal
+  - slur
+  - slurs
+  - kaffir
+  - stis
+  - kink
+
+start_of_keys:
+  - eid
+  - rape
+  - raped
+  - aids
+  - race
+  - pray
+  - stroke
+  - std
+  - arv
+  - ocd
+  - luo
+  - escort
+  - rapist
+  - alcoholic
+
+anywhere_in_keys:
+  - gbv
+  - gay
+
+political:
+  - endsars
+  - finance bill
+  - protest
+  - mustgo
+  - peter obi
+  - obidient
+  - mustfall
+  - put south africans first
+  - politics
+  - political
+  - politician
+  - government
+  - government of national unity
+  - gnu
+  - democracy
+  - coup
+  - president
+  - senate
+  - governor
+  - impeach
+  - opposition
+  - referendum
+  - constitution
+  - ballot
+  - secession
+  - budget speech
+  - minister of finance
+  - finance minister
+  - police brutality
+  - abduction
+  - senator
+  - junta
+  - coup detat
+  - zondo
+  - gayton mckenzie
+  - minister
+  - presidency
+  - state house
+  - national assembly
+  - cabinet reshuffle
+  - electoral
+  - voter
+  - nigeria decides
+  - south africa votes
+  - democratic alliance
+  - economic freedom fighters
+  - african national congress
+  - land reform
+  - all progressives congress
+  - peoples democratic party
+  - coalition
+  - coalition talks
+  - afriforum
+  - black first land first
+  - kill the boer
+  - sunday igboho
+  - ohanaeze
+  # South Africa
+  - sona
+  - state of the nation
+  - sona debate
+  - post sona
+  - tribe before nation
+  - state capture
+  - cadre deployment
+  - tenderpreneur
+  - expropriation
+  - IFP
+  - actionsa
+  - patriotic alliance
+  - rise mzansi
+  - phala phala
+  - rhodes must fall
+  - vote anc
+  - vote eff
+  - vote mk
+  - mashatile
+  - steenhuisen
+  - mbeki
+  - mbalula
+  - hlabisa
+  - mashaba
+  - lesufi
+  - godongwana
+  # Nigeria
+  - buhari
+  - shettima
+  - kwankwaso
+  - obasanjo
+  - wike
+  - biafra
+  - ipob
+  - nnamdi kanu
+  - bad governance
+  - fuel subsidy
+  - vote apc
+  - vote pdp
+  # Kenya
+  - kenyatta
+  - uhuru
+  - kalonzo
+  - musyoka
+  - kenya kwanza
+  - maandamano
+  - housing levy
+  - vote uda
+  - vote odm
+
+religion:
+  - religion
+  - religious
+  - church
+  - chapel
+  - mosque
+  - temple
+  - synagogue
+  - shrine
+  - tabernacle
+  - congregation
+  - christian
+  - christianity
+  - muslim
+  - islam
+  - islamic
+  - jewish
+  - judaism
+  - hindu
+  - hinduism
+  - catholic
+  - protestant
+  - pentecostal
+  - evangelist
+  - evangelical
+  - baptist
+  - baptism
+  - born again
+  - atheist
+  - atheism
+  - pastor
+  - prophet
+  - bishop
+  - apostle
+  - apostolic
+  - priest
+  - reverend
+  - preacher
+  - preaching
+  - sermon
+  - pope
+  - pope francis
+  - pope leo
+  - imam
+  - rabbi
+  - bible
+  - quran
+  - koran
+  - torah
+  - sharia
+  - madrasa
+  - ramadan
+  - pilgrimage
+  - hajj
+  - diwali
+  - jesus
+  - messiah
+  - holy spirit
+  - holy ghost
+  - god
+  - allah
+  - eid
+  - eid mubarak
+  - happy eid
+  - blessed eid
+  - sallah
+  - jumma
+  - halal
+  - prayer
+  - pray
+  - praying
+  - let us pray
+  - gospel
+  - worship
+  - praise
+  - hymn
+  - amen
+  - hallelujah
+  - alhamdulillah
+  - say amen
+  - type amen
+  - amen and amen
+  - juju oath
+  - faith
+  - blessed
+  - spiritual
+  - tithe
+  - anoint
+  - deliverance
+  - crusade
+  - salvation
+  - rosary
+  - sunday service
+  - zcc
+  - shembe
+  - akorino
+  - akurinu
+  - legio maria
+  - rccg
+  - scoan
+  - tb joshua
+  - bushiri
+  - mboro
+  - hijab
+  - sangoma
+  - inyanga
+  - traditional healer
+  - ancestors
+  - amadlozi
+  - idlozi
+  - witchcraft
+  - witch doctor
+  - juju
+  - babalawo
+  - orisha
+  - ifa
+  - voodoo
+  - occult
+  - satan
+  - exorcism
+  - devotional
+  - umrah
+  - pentecost
+  - evangelism
+  - baptised
+  - baptized
+  - holy communion
+  - ancestral calling
+  - thwasa
+  - twasa
+  - traditional healing
+  - agnostic
+  - kabbalah
+  - deeper life
+  - mountain of fire
+  - christ embassy
+  - ancestral
+  - muti
+  - anglican
+  - methodist
+  - seventh day adventist
+  - adventist
+  - lutheran
+  - presbyterian
+  - dutch reformed
+  - coptic
+  - mormon
+  - jehovah
+  - celestial church
+  - cherubim and seraphim
+  - vatican
+  - makkah
+  - adeboye
+  - oyedepo
+  - kumuyi
+  - oyakhilome
+  - odumeje
+  - uebert angel
+  - makandiwa
+  - kanyari
+  - ezekiel odero
+  - shakahola
+
+health:
+  - hiv
+  - aids
+  - end aids
+  - world aids day
+  - PrEP
+  - arv
+  - arvs
+  - antiretroviral
+  - tb
+  - end tb
+  - stop tb
+  - tb free
+  - world tb day
+  - tuberculosis
+  - cancer
+  - tumour
+  - tumor
+  - leukemia
+  - leukaemia
+  - chemo
+  - diabetes
+  - hypertension
+  - stroke
+  - asthma
+  - lupus
+  - epilepsy
+  - obesity
+  - kidney failure
+  - kidney disease
+  - dialysis
+  - dementia
+  - alzheimer
+  - sickle cell
+  - covid
+  - coronavirus
+  - pandemic
+  - epidemic
+  - outbreak
+  - mpox
+  - monkeypox
+  - ebola
+  - lassa fever
+  - measles
+  - polio
+  - cholera
+  - malaria
+  - hepatitis
+  - vaccine
+  - vaccination
+  - vaccinated
+  - vax
+  - std
+  - stds
+  - sti
+  - herpes
+  - syphilis
+  - hpv
+  - illness
+  - disease
+  - diagnosed
+  - hospital
+  - hospitalised
+  - hospitalized
+  - surgery
+  - pregnancy
+  - pregnant
+  - postpartum
+  - miscarriage
+  - stillbirth
+  - infertility
+  - ivf
+  - endometriosis
+  - pcos
+  - menopause
+  - abortion
+  - disability
+  - disabled
+  - wheelchair
+  - down syndrome
+  - autism
+  - autistic
+  - adhd
+  - ocd
+  - depression
+  - depressed
+  - anxiety
+  - bipolar
+  - ptsd
+  - schizophrenia
+  - mental health
+  - mental illness
+  - eating disorder
+  - anorexia
+  - bulimia
+  - suicide
+  - self harm
+  - grief
+  - therapy
+  - rehab
+  - sobriety
+  - addiction
+  - alcoholism
+  - overdose
+  - codeine
+  - tramadol
+  - weight loss
+  - ozempic
+  - hiv positive
+  - tb awareness
+  - diabetic
+  - blood pressure
+  - heart attack
+  - cardiac arrest
+  - kidney stone
+  - panic attack
+  - schizophrenic
+  - dyslexia
+  - cerebral palsy
+  - deaf
+  - blindness
+  - amputee
+  - paralysed
+  - paralyzed
+  - paralysis
+  - chronic pain
+  - fibromyalgia
+  - fertility
+  - breastfeeding
+  - alcoholic
+  - sober
+  - therapist
+  - psychiatrist
+  - psychiatric
+  - icu
+  - contraception
+  - contraceptive
+  - family planning
+  - tb treatment
+  - tb test
+  - insulin
+  - hypertensive
+  - surgeon
+  - national health insurance
+  - nhi
+  - nhif
+  - shif
+  - medical aid
+  - universal health coverage
+  - gonorrhea
+  - gonorrhoea
+  - chlamydia
+  - stis
+  - genital warts
+  - erectile dysfunction
+  - impotence
+  - viagra
+  - morning after pill
+
+sex_life:
+  - sex
+  - sexual
+  - sexuality
+  - lgbt
+  - lgbtq
+  - gay
+  - lesbian
+  - bisexual
+  - transgender
+  - trans
+  - trans rights
+  - trans women
+  - trans woman
+  - trans men
+  - trans lives matter
+  - trans visibility
+  - trans day of visibility
+  - queer
+  - nonbinary
+  - gender identity
+  - same sex
+  - drag queen
+  - drag race
+  - moffie
+  - stabane
+  - homophobia
+  - coming out
+  - pride
+  - onlyfans
+  - porn
+  - nudes
+  - leaked video
+  - escort
+  - hookup
+  - condom
+  - condoms
+  - contraception
+  - contraceptive
+  - birth control
+  - virginity
+  - polyamory
+  - sugar daddy
+  - sugar mummy
+  - sugar mommy
+  - blesser
+  - trans man
+  - homophobic
+  - drag show
+  - gender fluid
+  - nsfw
+  - leaked tape
+  - family planning
+  - sugar daddies
+  - sugar mama
+  - polyamorous
+  - condom use
+  - sti
+  - stis
+  - std
+  - stds
+  - syphilis
+  - herpes
+  - gonorrhea
+  - gonorrhoea
+  - chlamydia
+  - hpv
+  - genital warts
+  - body count
+  - orgasm
+  - libido
+  - sex drive
+  - erectile dysfunction
+  - erection
+  - ejaculation
+  - impotence
+  - viagra
+  - sildenafil
+  - morning after pill
+  - emergency contraception
+  - friends with benefits
+  - fwb
+  - one night stand
+  - threesome
+  - foursome
+  - orgy
+  - bdsm
+  - kink
+  - fetish
+  - masturbation
+  - masturbate
+  - foreplay
+  - anal
+  - sexting
+  - horny
+  - vibrator
+  - dildo
+  - celibacy
+  - celibate
+  - abstinence
+  - kamasutra
+  - strip club
+  - stripper
+  - mjolo
+  - infidelity
+
+race_ethnicity:
+  - race
+  - racism
+  - racist
+  - racial
+  - ethnic
+  - ethnicity
+  - tribe
+  - tribal
+  - tribalism
+  - tribalist
+  - xenophobia
+  - xenophobic
+  - dudula
+  - amakwerekwere
+  - kwerekwere
+  - foreigners must go
+  - put south africans first
+  - black lives matter
+  - blm
+  - white privilege
+  - white genocide
+  - farm murders
+  - farm attacks
+  - black excellence
+  - black girl magic
+  - black tax
+  - melanin
+  - colourism
+  - apartheid
+  - colonialism
+  - colonisation
+  - colonization
+  - rhodes must fall
+  - bbbee
+  - black economic empowerment
+  - tribal war
+  - coloured people
+  - foreign nationals
+  - afrophobia
+  - black pride
+  - black is beautiful
+  - white supremacy
+  - white supremacist
+  - decolonise
+  - decolonize
+  - decolonisation
+  - decolonization
+  - genocide
+  - indian culture
+  - indians
+  - indian community
+  - anti indian
+  - indian south african
+  - coloured community
+  - coloured lives matter
+  - coloured pride
+  - tribal clashes
+  - tribal clash
+  - tribal hate
+  - tribe before nation
+  - employment equity
+  - boere
+  - coloured culture
+  - khoikhoi
+  - tribal politics
+  - black owned
+  - white monopoly capital
+  - land reform
+  - colonial rule
+  - afrophobic
+  - colorism
+  - skin bleaching
+  - skin lightening
+  - hate speech
+  - anti black
+  - slur
+  - slurs
+  - kaffir
+  - k word
+  - n word
+  - oduduwa
+  - arewa
+  - biafra
+  - ipob
+  - ohanaeze
+  - afenifere
+  - miyetti allah
+  - sunday igboho
+  - madoadoa
+  - orania
+  - volkstaat
+  - afriforum
+  - kill the boer
+  - dubul ibhunu
+  - shoot the boer
+  - black first land first
+  - affirmative action
+  - immigrant
+  - migrant
+  - illegal immigrants
+  # South Africa
+  - zulu
+  - xhosa
+  - sotho
+  - tswana
+  - venda
+  - tsonga
+  - pedi
+  - bapedi
+  - sepedi
+  - ndebele
+  - swati
+  - afrikaner
+  - boer
+  - boers
+  - boer lives matter
+  - coloured
+  - cape coloured
+  - khoisan
+  - khoekhoe
+  - indian
+  # Nigeria
+  - yoruba
+  - igbo
+  - hausa
+  - fulani
+  - ijaw
+  - ibibio
+  - kanuri
+  - urhobo
+  - efik
+  - tiv
+  # Kenya
+  - kikuyu
+  - luo
+  - luhya
+  - kalenjin
+  - kamba
+  - maasai
+  - masai
+  - kisii
+  - somali
+
+crime:
+  - crime
+  - criminal
+  - murder
+  - murdered
+  - homicide
+  - manslaughter
+  - assassination
+  - killed
+  - killing
+  - ritual killing
+  - money ritual
+  - shot dead
+  - gunshot
+  - gunpoint
+  - gunman
+  - gunmen
+  - shooting
+  - stabbing
+  - stabbed
+  - rape
+  - raped
+  - rape culture
+  - stop rape
+  - end rape
+  - molest
+  - abuse
+  - assault
+  - violence
+  - femicide
+  - gbv
+  - am i next
+  - justice for
+  - police brutality
+  - farm murders
+  - genocide
+  - robbery
+  - burglar
+  - heist
+  - cit heist
+  - cash in transit
+  - hijack
+  - hijacking
+  - hijacked
+  - carjack
+  - kidnap
+  - kidnapping
+  - kidnapped
+  - abduct
+  - abduction
+  - missing person
+  - hostage
+  - trafficking
+  - smuggling
+  - smuggler
+  - looting
+  - shoplifting
+  - pickpocket
+  - mugging
+  - mugged
+  - tik lolly
+  - hawks raid
+  - hawks investigation
+  - bail denied
+  - no bail
+  - bail application
+  - escaped convict
+  - convict escapes
+  - convicts released
+  - mob killing
+  - stop the killing
+  - stop killing
+  - killing of women
+  - women killed
+  - stop tik
+  - theft
+  - stolen
+  - fraud
+  - scam
+  - scammer
+  - '419'
+  - yahoo boy
+  - yahoo yahoo
+  - bribe
+  - corruption
+  - extort
+  - launder
+  - drug
+  - cocaine
+  - tik
+  - mandrax
+  - nyaope
+  - arrest
+  - arrested
+  - convict
+  - convicted
+  - sentenced
+  - bail
+  - jail
+  - prison
+  - inmate
+  - police
+  - saps
+  - hawks
+  - npa
+  - dci
+  - efcc
+  - gang
+  - cultism
+  - cultist
+  - mob justice
+  - necklacing
+  - vigilante
+  - lynching
+  - lynched
+  - bandit
+  - herdsmen
+  - boko haram
+  - iswap
+  - shabaab
+  - terror
+  - zama zama
+  - illegal mining
+  - poaching
+  - poacher
+  - killings
+  - shot and killed
+  - gunfire
+  - shootout
+  - bank heist
+  - robber
+  - housebreaking
+  - rapist
+  - court case
+  - ritualist
+  - illegal miner
+  - lynch mob
+  - corrupt
+  - trafficker
+  - assassinated
+  - shoplifter
+  - serial killer
+  - harassment
+  - convicts
+  - bail hearing
+  - ritual killer
+  - cult clash
+  - taxi war
+  - smuggle
+  - senzo meyiwa
+  - thabo bester
+  - shakahola
+
+# Ordinary words and phrases, never a reason. A term inside one gives way to it, occurrence by occurrence, as
+# under gives_way_to: tik inside TikTok, killing inside killing it, drug inside drug resistant. This reaches
+# plain topics (tik tok trends, find your tribe) and every spelling of a hashtag, which never_sensitive, one
+# exact key at a time, does not.
+ordinary:
+  - tiktok
+  - kwazulu
+  - killing it
+  - killing the game
+  - killing the challenge
+  - killing time
+  - killed the look
+  - killed that dance
+  - find your tribe
+  - trending tribe
+  - tribe called quest
+  - tribe vibes
+  - tribe goals
+  - mom tribe
+  - book tribe
+  - fitness tribe
+  - fit tribe
+  - fitfam tribe
+  - sneaker tribe
+  - tribal print
+  - tribal tattoo
+  - tribal makeup
+  - coloured contact
+  - coloured lenses
+  - coloured hair
+  - indian ocean
+  - indian food
+  - indian curry
+  - indian cuisine
+  - indian restaurant
+  - indian premier league
+  - indian summer
+  - atlanta hawks
+  - hawks nation
+  - amen corner
+  - juju music
+  - juju on that beat
+  - convict conditioning

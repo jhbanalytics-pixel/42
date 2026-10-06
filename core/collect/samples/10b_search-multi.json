@@ -1,0 +1,228 @@
+{
+  "probe": "10b",
+  "route": "search/multi",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "credits_charged": "<int>",
+      "dropped": "<int>",
+      "duplicates_removed": "<int>",
+      "items": [
+        "<list of 78>",
+        {
+          "computed": {
+            "content_category": "<str>",
+            "engagement_rate": "<float>",
+            "estimated_reach": "<int>",
+            "language": "<null>"
+          },
+          "platform": "<str>",
+          "post": {
+            "author": {
+              "avatar_url": "<str>",
+              "display_name": "<null>",
+              "username": "<str>",
+              "verified": "<bool>"
+            },
+            "content": {
+              "duration_seconds": "<float>",
+              "media_urls": "<str>",
+              "text": "<str>",
+              "thumbnail_url": "<str>"
+            },
+            "engagement": {
+              "comments": "<int>",
+              "likes": "<null>",
+              "saves": "<null>",
+              "shares": "<null>",
+              "views": "<int>"
+            },
+            "ext": {
+              "author_id": "<str>",
+              "coauthors": [
+                "<list of 0>"
+              ],
+              "media_type": "<str>",
+              "published_at_epoch": "<int>"
+            },
+            "flags": {
+              "deleted": "<bool>",
+              "likes_hidden": "<bool>",
+              "nsfw": "<null>",
+              "pinned": "<bool>",
+              "spoiler": "<null>"
+            },
+            "id": "<str>",
+            "published_at": "<str>",
+            "url": "<str>"
+          },
+          "vendor_labels": {
+            "labels": "<null>",
+            "relevance": {
+              "depth": "<float>",
+              "p": "<float>",
+              "sense": "<str>",
+              "spam": "<float>"
+            }
+          }
+        }
+      ],
+      "labels": {
+        "cached": "<int>",
+        "dropped": "<int>",
+        "dropped_ids": [
+          "<list of 0>"
+        ],
+        "extra_credits": "<int>",
+        "labelled": "<int>",
+        "methodology_version": "<str>",
+        "mode": "<str>",
+        "pending": "<int>",
+        "pending_ids": [
+          "<list of 36>",
+          "<str>"
+        ],
+        "presets": [
+          "<list of 3>",
+          "<str>"
+        ],
+        "rows": "<int>",
+        "skipped": "<int>",
+        "status": "<str>",
+        "unjudged": "<int>"
+      },
+      "methodology_version": "<str>",
+      "platforms": [
+        "<list of 6>",
+        "<str>"
+      ],
+      "query": "<str>",
+      "relevance": {
+        "cached": "<int>",
+        "dropped": "<int>",
+        "dropped_ids": [
+          "<list of 0>"
+        ],
+        "extra_credits": "<int>",
+        "kept": "<int>",
+        "methodology_version": "<str>",
+        "mode": "<str>",
+        "origin": "<str>",
+        "pending": "<int>",
+        "pending_ids": [
+          "<list of 36>",
+          "<str>"
+        ],
+        "rows": "<int>",
+        "scored": "<int>",
+        "status": "<str>",
+        "threshold": "<float>",
+        "too_short": "<int>",
+        "topic_source": "<str>",
+        "unjudged": "<int>"
+      },
+      "search_status": "<str>",
+      "since": "<str>",
+      "sources": {
+        "facebook": {
+          "credits": "<int>",
+          "endpoint": "<str>",
+          "has_more": "<bool>",
+          "http_status": "<int>",
+          "next_cursor": "<str>",
+          "request_id": "<str>",
+          "rows": "<int>",
+          "rows_kept": "<int>",
+          "status": "<str>",
+          "warnings": [
+            "<list of 0>"
+          ]
+        },
+        "instagram": {
+          "credits": "<int>",
+          "endpoint": "<str>",
+          "has_more": "<bool>",
+          "http_status": "<int>",
+          "next_cursor": "<str>",
+          "request_id": "<str>",
+          "rows": "<int>",
+          "rows_kept": "<int>",
+          "status": "<str>",
+          "warnings": [
+            "<list of 1>",
+            "<str>"
+          ]
+        },
+        "reddit": {
+          "credits": "<int>",
+          "endpoint": "<str>",
+          "has_more": "<bool>",
+          "http_status": "<int>",
+          "next_cursor": "<str>",
+          "request_id": "<str>",
+          "rows": "<int>",
+          "rows_kept": "<int>",
+          "status": "<str>",
+          "warnings": [
+            "<list of 0>"
+          ]
+        },
+        "threads": {
+          "credits": "<int>",
+          "endpoint": "<str>",
+          "has_more": "<bool>",
+          "http_status": "<int>",
+          "next_cursor": "<str>",
+          "request_id": "<str>",
+          "rows": "<int>",
+          "rows_kept": "<int>",
+          "status": "<str>",
+          "warnings": [
+            "<list of 0>"
+          ]
+        },
+        "twitter": {
+          "credits": "<int>",
+          "endpoint": "<str>",
+          "has_more": "<bool>",
+          "http_status": "<int>",
+          "next_cursor": "<null>",
+          "request_id": "<str>",
+          "rows": "<int>",
+          "rows_kept": "<int>",
+          "status": "<str>",
+          "warnings": [
+            "<list of 0>"
+          ]
+        },
+        "youtube": {
+          "credits": "<int>",
+          "endpoint": "<str>",
+          "has_more": "<bool>",
+          "http_status": "<int>",
+          "next_cursor": "<str>",
+          "request_id": "<str>",
+          "rows": "<int>",
+          "rows_kept": "<int>",
+          "status": "<str>",
+          "warnings": [
+            "<list of 1>",
+            "<str>"
+          ]
+        }
+      },
+      "total": "<int>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<null>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

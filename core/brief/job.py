@@ -1,0 +1,1181 @@
+"""The morning brief Cloud Run job (BUILD.md 1.12 and 1.13, ENGINE.md sections 1 and 3, TRUST.md section 2).
+
+A fixed pipeline, not agent runs. Per market: the top 10 candidates of the current detect run by worth_raw, named
+items first, with a candidate held for invalid data days (G1) not taking one of the 10 slots, so the next ranked
+rows of the top 90 are judged in its place (_candidates), an SQL evidence pack each, the publish gate (core/trust/gate.py, plus G4 for items detect marked
+likely coordinated, which gate_card does not read), then one card per set of posts: a Today-bound candidate with
+fewer than 3 posts not already on a higher card merges into the card it shares most posts with, listed there under
+also and recorded in the counts, before any confirm or model spend, one confirm search each for the Today-bound ones inside the confirm share, then
+for the ones held only by the post floors (fewer than 3 posts it can show or 2 local), with
+what it found added to the pack facts as presence only, then one structured explanation each, 5 at a time in
+rank order across the markets. Confirm results also go into posts and post_observations through lane L1's
+core.collect.parse.ingest (not in replay mode; "unavailable" in the counts while this branch lacks it), counted
+per market. A Today-bound candidate's pack is not read again after confirm, so those posts are citable for it only
+from the next evidence read; a floor-held candidate whose search wrote posts has its pack read again and is gated
+again with the same floors, so it can become a card in the same run (counts "regrown"). Seasonal items (G8) go to moments and are neither confirmed nor explained. The
+confirm-share SocialCrawl client is built right after chain.begin; if it cannot be built, confirm is skipped
+with a thin-coverage note and the brief goes on. No explanation starts once
+chain.past_deadline is true, once the run is FINISH_MARGIN short of its task timeout (chain.TIMEOUTS), or once
+the day's model spend reaches the current cap; whatever is unexplained then publishes as numbers and posts only
+(G10). No G1 backfill round, and no market's confirm or regrow, starts past the deadline or that time limit
+either. The gate runs again with each explanation's result, and one briefs row per market (payload: the Market
+object of core/api/contract.md section 4) plus the claim_checks rows are appended. Brief is the last stage of
+lane L1's chain, so nothing is started after it.
+
+The suppression list (SETUP.md data protection) is read once before anything else, as f42-api reads it: a
+suppressed creator's posts never enter a pack, and a label, title or text naming them is masked before the model
+reads it and again on the stored payload. A list that cannot be read stops the brief with SuppressionUnreadable,
+the run finishing failed with nothing written: a stored brief is kept for good, and one written with its authors
+masked could no longer be matched to the list when Today reads it.
+
+When the upstream stage is not ok: before 06:15 SAST the job exits 1 without writing, so a retry can still
+publish a full brief; from 06:15 it publishes a data-issue row for every market and finishes the run.
+
+A finished brief run is recorded ok, also when a market row is partial or data_issue: the row carries that
+status, and v_briefs_current shows only briefs whose run is ok.
+
+Entry point: python -m core.brief.job. Environment: RUN_DATE (the brief date, else today in SAST), FORCE_RERUN=1
+and CLOUD_RUN_EXECUTION (both read by lane L1's chain.begin). Credentials are the job's own identity.
+"""
+
+import json
+import os
+import re
+import sys
+import threading
+import traceback
+from collections import Counter
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from datetime import datetime, time, timedelta, timezone
+from pathlib import Path
+
+from core.brief import confirm as confirm_lane
+from core.brief import gatectx
+from core.api.store import creator_key
+from core.api.today import without_hidden
+from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
+from core.brief.explain import explain_trend
+from core.brief.market_scope import read_market_scope
+from core.brief.payload import _worth, brief_row, build_market_payload
+from core.brief.specificity import MIN_EVIDENCE, assess_specificity, local_posts, showable_posts
+from core.collect import chain as collect_chain
+from core.config.caps import model_daily_usd
+from core.detect import sqlrun
+from core.detect.job import PROJECT, RULE_VERSION
+from core.detect.sqlrun import AGENT, CORE
+from core.trust.gate import Decision, gate_card, market_banner
+
+MARKETS = ("ZA", "NG", "KE")
+WORKERS = 1
+PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
+WARMUP_DAYS = 14
+WINDOW_DAYS = 7
+BOARD_ENTRIES = 10
+CANDIDATES = 10  # per market: candidates judged that G1 does not hold
+# per market: brief.sql candidates' top 90, the most candidates prepared and gated. Its LIMIT must equal POOL
+# (test_brief_job pins the two). 90 leaves room for 10 judged when G1 holds most of the top: on 3 Oct staging held
+# about 27 youtube-led items per market. Rows are prepared only as needed (_candidates), so judged work stays 10.
+POOL = 90
+INSERT_BATCH = 500
+SAST = timezone(timedelta(hours=2), "SAST")
+SQL = Path(__file__).parent / "sql" / "brief.sql"
+BOARD_WORDS = {"board_tiktok_hashtag": "TikTok hashtag board", "board_youtube": "YouTube trending board",
+               "board_apple_music": "Apple Music chart"}
+NO_CONFIRM = {"kind": "thin_coverage",
+              "text": "Cross-platform confirmation did not run today: cards rest on 42's own collection only"}
+PACK_MAX, PER_CREATOR = 12, 2  # core/brief/sql/evidence.sql: at most 12 posts in a pack and 2 per creator
+# What the brief's task timeout (chain.TIMEOUTS["brief"]) must leave once the last explanation has started: that
+# explanation (about 80 s, up to about 2 min more for each model call that stalls to GEMINI_TIMEOUT_S and its retry),
+# then the boards and moments reads, the claim_checks and briefs inserts and chain.finish (about a minute), plus the
+# start-up before run() reads the clock. 8 minutes covers two stalled calls on top of that.
+FINISH_MARGIN = timedelta(minutes=8)
+UPSTREAM = {"kind": "data_issue",
+            "text": "Data issue: the steps before the brief did not finish by 06:15, so no trends were checked today"}
+
+# Keys that are ids, not names: a 64-hex item hash, or a YouTube channel id (uc plus 22 or more id characters).
+_HASH_ID = re.compile(r"[0-9a-f]{64}", re.IGNORECASE)
+_CHANNEL_ID = re.compile(r"uc[a-z0-9_-]{22,}", re.IGNORECASE)
+# Platform ids, with or without a leading # or @: an all-digit post, sound or account id of 8 or more digits, a
+# TikTok default handle (user plus 6 or more digits) and a Reddit fullname (t1_ to t6_ plus its base-36 id).
+# A handle someone chose, such as virtual-mycologist13, is a name.
+_PLATFORM_ID = re.compile(r"[#@]?(?:\d{8,}|user\d{6,}|t[1-6]_[a-z0-9]{4,})", re.IGNORECASE)
+FAILED_CHECKS = {"breach", "failed_checks", "too_few_claims"}
+_NAME = re.compile(r"^--\s*name:\s*(\w+)\s*$", re.MULTILINE)
+QUERIES = {_NAME.search(s).group(1): s for s in sqlrun.split(SQL.read_text(encoding="utf-8"))}
+
+# Held reasons (TRUST.md section 2). claim_checks.reason and a card's failed_reason carry fixed wording per rule,
+# never the check's detail: model text and the claim text inside code details can carry names, post text or an age
+# reading that no word list catches. The critic's explanation is named only by the menu item its words match.
+REASON_MAX = 300
+HELD_MAX = 160
+REPAIR = "before repair: "
+RULE_NAMES = {"K1": "Quote check", "K2": "Number check", "K3": "Place check", "K4": "Support check",
+              "K5": "Label check", "K6": "Banned term check", "K8": "Translation check", "K10": "Status check",
+              "specificity": "Specificity check"}
+CLAIM_WORDS = {
+    "K1": "a quote or evidence id in a claim did not check out",
+    "K2": "a claim had a number not pinned to its query",
+    "K3": "a claim cited a post outside the window or market, or named a place no cited post is located in",
+    "K4": "a claim was not supported by its posts",
+    "K6": "a claim used a banned term or generated evidence",
+    "K8": "a claim had an unmarked translation",
+}
+SENTENCE_WORDS = {
+    "K2": "the explanation had a number not pinned to its query",
+    "K3": "the explanation named a place no cited post is located in",
+    "K4": "the explanation sentence was not supported by its posts",
+    "K6": "the explanation used a banned term",
+    # core/brief/specificity.py: the sentence rests on 2 local posts and a quote copied exactly from one of them.
+    "specificity": "the explanation did not rest on 2 local posts and a quote copied exactly from one of them",
+}
+# K3 names the part of the place check that failed, matched on core/trust/claims.py _k3 and place_fault details;
+# the detail's post ids, times and place names are never copied. A detail matching none keeps the K3 wording above.
+K3_PARTS = (
+    (re.compile(r"outside the window$|has no readable posted_at$"), "cited a post outside the window"),
+    (re.compile(r"is located in .+, not [A-Z]{2}$"), "cited a post located in another market"),
+    (re.compile(r"but cites no record located there or from its feeds$"),
+     "named a place no cited post is located in or comes from its feeds"),
+    (re.compile(r"in feed wording but cites no record with source market [A-Z]{2}$"),
+     "used a market's feed wording without a post from that market's feeds"),
+    (re.compile(r"on source-market evidence without feed-scoped wording$|outside its feed-scoped phrase; source "
+                r"evidence cannot support place or people claims$"),
+     "described a place or people from posts only seen in that market's feeds"),
+)
+OTHER_WORDS = {"K5": "the label was lowered to what the evidence allows",
+               "K10": "the status was lowered as claims were cut"}
+NOT_PASSED = "did not pass"
+TOO_FEW = "Claim checks: fewer than 2 claims passed"
+NO_REST = "Claim checks: the explanation did not rest on claims that passed"
+# CRITIC_SYSTEM's menu of non-cultural explanations, in its order, each with the words that name it.
+CRITIC_MENU = (
+    ("a paid campaign", r"paid|sponsor\w*|campaign\w*|advert\w*|promot\w*|brand\s+push"),
+    ("a platform feature change", r"platform\s+(?:features?|changes?|updates?)|features?\s+(?:changes?|updates?|launch)"
+                                  r"|algorithm\w*"),
+    ("a coordinated push", r"bots?|coordinated|inauthentic|astroturf\w*"),
+    ("a news or scheduled event", r"news|scheduled|events?|fixtures?|holidays?|release"),
+    ("a scraping or collection artefact", r"scrap\w*|collection|collected|collecting|collects|artefacts?|artifacts?|crawl\w*"),
+    ("one viral post or creator", r"viral|(?:one|single)\s+(?:creator|post|account)"),
+)
+_MENU = tuple((words, re.compile(rf"\b(?:{pattern})\b", re.I)) for words, pattern in CRITIC_MENU)
+_NEGATION = re.compile(r"\b(?:not|no|never|rather\s+than|instead\s+of|unlike|without)\b", re.I)
+_CRITIC = re.compile(r"^critic: simplest non-cultural explanation: (.*?); (?:(?:not )?ruled out|(?:news|event)-driven "
+                     r"with local reaction): ", re.S)
+_CRITIC_PARTS = re.compile(r"^critic: simplest non-cultural explanation: .*?; (not ruled out|ruled out|news-driven with "
+                           r"local reaction|event-driven with local reaction): ", re.S)
+# A critic pass on a news event that local creators react to (Albert, 2 Oct); never worded as ruled out.
+NEWS_PASS = "Critic: news-driven, local creators react in their own words"
+# The same pass on a scheduled event: a release, match, holiday or scheduled cultural moment (Albert, 3 Oct).
+EVENT_PASS = "Critic: event-driven, local creators react in their own words"
+# The standings of a news or scheduled event that passed on local reaction; a cut there failed the why-now only.
+REACTION_STANDINGS = ("news-driven with local reaction", "event-driven with local reaction")
+
+def _query(client, name, params, core, agent):
+    return sqlrun.query(client, QUERIES[name], params, core=core, agent=agent)
+
+
+def warmup_banner(client, d, core=CORE, agent=AGENT):
+    first = _query(client, "first_collect", {"d": d}, core, agent)[0]["first_day"]
+    if first is None:
+        return None
+    day = (d - first).days + 1
+    return {"kind": "warming_up", "text": f"Warming up: day {day} of {WARMUP_DAYS}"} if day <= WARMUP_DAYS else None
+
+
+def moments(client, d, market, core=CORE, agent=AGENT):
+    return [{"date": r["moment_date"].isoformat(), "name": r["name"], "kind": r["kind"], "source": "calendar",
+             "item_ids": list(r["item_ids"] or [])}
+            for r in _query(client, "moments", {"d": d, "market": market}, core, agent)]
+
+
+def _id_like(value):
+    return bool(_HASH_ID.fullmatch(value) or _CHANNEL_ID.fullmatch(value) or _PLATFORM_ID.fullmatch(value))
+
+
+def readable_title(label, key):
+    """The label, else a canonical key that is a name rather than an id, else None."""
+    for value in (label, key):
+        if value and not _id_like(value):
+            return value
+    return None
+
+
+def _raw_creator(row):
+    """(platform, raw id) when a creator item's label is only the id its canonical key "{platform}:{handle}" was
+    built from (core/detect/items.py), else None. The same rule as core/api/discover.py _raw_creator."""
+    key = row.get("canonical_key")
+    if (row.get("kind") or row.get("map_kind")) != "creator" or not isinstance(key, str) or ":" not in key:
+        return None
+    platform, raw = key.split(":", 1)
+    label = str(row.get("label") or "").strip().lstrip("@").casefold()
+    return (platform, raw) if not label or label in (raw, key.casefold()) else None
+
+
+def creator_names(client, rows, hidden, core=CORE, agent=AGENT):
+    """Set creator_name on each creator row whose label is only its id (_raw_creator): the creators row's display
+    name, else its @handle when the handle is neither the id nor itself an id (the rule of core/api/discover.py
+    _creator_names). One read for all the rows. A suppressed creator is never named: the read leaves out
+    v_suppressed_creators, and hidden (what read_hidden returned) is checked again by id and creator_key. A failed
+    read names nobody, so those rows keep the title readable_title gives them, or are held as nameless."""
+    raw = [(r, _raw_creator(r)) for r in rows]
+    keys = sorted({f"{p}:{i}".lower() for _, pair in raw if pair for p, i in [pair]})
+    if not keys:
+        return rows
+    from google.cloud import bigquery
+
+    param = bigquery.ArrayQueryParameter("keys", "STRUCT", [
+        bigquery.StructQueryParameter(None, bigquery.ScalarQueryParameter("key", "STRING", k)) for k in keys])
+    try:
+        job = client.query(sqlrun.render(QUERIES["creator_names"], core, agent),
+                           job_config=bigquery.QueryJobConfig(query_parameters=[param]))
+        found = {str(c["key"]): c for c in (dict(row.items()) for row in job.result())}
+    except Exception as e:  # noqa: BLE001 - names are optional; the brief must not fail on them
+        print(f"brief: creator names read failed: {type(e).__name__}: {e}", file=sys.stderr)
+        return rows
+    hidden_keys, hidden_ids, _ = hidden
+    for r, pair in raw:
+        if not pair:
+            continue
+        platform, ident = pair
+        c = found.get(f"{platform}:{ident}".lower())
+        if not c or c.get("creator_id") in hidden_ids or creator_key(platform, c.get("handle") or ident) in hidden_keys:
+            continue
+        handle = str(c.get("handle") or "").strip().lstrip("@")
+        name = str(c.get("display_name") or "").strip()
+        if not name and handle and handle.casefold() != ident.casefold() and not _id_like(handle):
+            name = "@" + handle
+        if name:
+            r["creator_name"] = name
+    return rows
+
+
+def card_title(row):
+    """The title a candidate shows: readable_title, except that a creator whose label is only its id takes its
+    creator_name (creator_names), and with none is unnamed when that id is not itself a readable handle."""
+    title = readable_title(row.get("label"), row.get("canonical_key"))
+    pair = _raw_creator(row)
+    if pair is None:
+        return title
+    return row.get("creator_name") or (None if _id_like(pair[1]) else title)
+
+
+def _unnamed_issue(n):
+    return [f"{n} board {'entry' if n == 1 else 'entries'} without a name"] if n else []
+
+
+def boards(client, d, market, core=CORE, agent=AGENT, hidden=None):
+    """(boards, entries left out because they have no readable name). An entry is titled as a card is (card_title):
+    a creator whose label is only the id its key was built from, such as a YouTube channel id, takes its creators
+    name (creator_names, through hidden, what read_hidden returned) and with none is left out, so a board never
+    shows "youtube:uc..." as a name. Without hidden no creator name is read and such an entry is left out."""
+    out, unnamed = {}, 0
+    rows = _query(client, "boards", {"d": d, "market": market}, core, agent)
+    if hidden is not None:
+        creator_names(client, rows, hidden, core, agent)
+    for r in rows:
+        title = card_title(r)
+        if title is None:
+            unnamed += 1
+            continue
+        board = out.setdefault((r["platform"], r["series"]), {
+            "platform": r["platform"], "list": BOARD_WORDS.get(r["series"], r["series"].replace("_", " ")),
+            "entries": []})
+        entries = board["entries"]
+        if len(entries) < BOARD_ENTRIES:
+            rank = int(r["best_rank"]) if r["best_rank"] is not None else None
+            entries.append({"rank": rank, "title": title, "item_id": r["item_id"]})
+    return list(out.values()), unnamed
+
+
+def spent_today(client, d, core=CORE, agent=AGENT):
+    return float(_query(client, "spent_today", {"d": d}, core, agent)[0]["usd"] or 0)
+
+
+def _window(d, market):
+    tz = timezone(timedelta(hours=OFFSETS[market]))
+    return (datetime.combine(d - timedelta(days=WINDOW_DAYS - 1), time(), tz),
+            datetime.combine(d, time(23, 59, 59), tz))
+
+
+def post_set(client, d, market, item_id, core=CORE, agent=AGENT):
+    """The ids of every post the item's card could rest on over the pack's window (brief.sql post_set)."""
+    start = _window(d, market)[0]
+    params = {"item_id": item_id, "market": market, "d": d, "start": start,
+              "end": start + timedelta(days=WINDOW_DAYS)}
+    return {r["post_id"] for r in _query(client, "post_set", params, core, agent)}
+
+
+def _coordinated():
+    return Decision(publish=False, where="held_back", flag="Likely coordinated",
+                    reason="Likely coordinated: detection found a coordinated posting pattern", rule="G4",
+                    numbers_only=False)
+
+
+def _held(reason_text, rule=None):
+    return Decision(publish=False, where="held_back", flag=None, reason=reason_text, rule=rule, numbers_only=False)
+
+
+def _gate(cand, passed):
+    """gate_card plus the brief's own holds, each with its contract reason code in cand["held_reason"]: a
+    platform-generic tag is not a trend (G2), and a card needs at least 3 posts 42 can show. Invalid data days
+    (G1) are checked before the brief's own holds, so the data-issue count is never undercounted. A market scope
+    that could not be read is held as unreadable evidence, not as global."""
+    cand["held_reason"], cand["floor_held"] = None, False
+    if cand.get("error"):
+        cand["held_reason"] = "data_issue"
+        return _held("Evidence could not be read")
+    ctx = cand["ctx"]
+    # G5 reads the larger of item_state's sponsored share and the evidence share of paid-post markers.
+    card = {**cand["row"], "sponsored_share": max(cand["row"].get("sponsored_share") or 0,
+                                                  ctx.get("sponsored_share") or 0)}
+    decision = gate_card(card, {**ctx, "explanation_passed": passed})
+    if decision.rule == "G1":
+        return decision
+    if cand.get("scope_error"):
+        cand["held_reason"] = "data_issue"
+        return _held("Evidence could not be read")
+    if cand["row"].get("map_status") == "generic":
+        cand["held_reason"] = "not_confirmed"
+        return _held("Platform-generic tag", "G2")
+    if cand["row"].get("nameless"):
+        cand["held_reason"] = "not_confirmed"
+        return _held("No readable name")
+    if ctx.get("paid_key"):
+        return _held(f"Paid-led: #{ctx['paid_key']} marks paid posts", "G5b")
+    if cand["row"].get("authenticity") == "likely_coordinated":
+        return _coordinated()
+    evidence = cand["pack"]["evidence"]
+    local = local_posts(evidence, cand["market"])
+    showable = showable_posts(evidence, cand["market"])
+    if decision.where == "today" and len(showable) < MIN_EVIDENCE:
+        cand["held_reason"], cand["floor_held"] = "not_confirmed", True
+        return _held("Fewer than 3 posts 42 can show")
+    if decision.where == "today" and len(local) < 2:
+        cand["held_reason"], cand["floor_held"] = "not_confirmed", True
+        return _held("Fewer than 2 supported local posts")
+    return decision
+
+
+def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_terms, core, agent, hidden=None,
+             calendar=()):
+    """One candidate: its evidence pack and gate context. A pack or market scope that fails leaves the candidate to
+    be held back with its reason (scope_error for the scope); a gate context that fails fails the run. A label or key that names a suppressed person is
+    masked before anything reads it. hidden: what read_hidden returned, read here when not given. calendar: the
+    market's moments (moments()), which the pack's day lines name on their dates."""
+    hidden = read_hidden(client, core=core, agent=agent) if hidden is None else hidden
+    row = without_hidden(row, hidden)
+    row["kind"] = row.get("kind") or row.get("map_kind")
+    title = card_title(row)
+    row["title"], row["nameless"] = without_hidden(title or f"Unnamed {row['kind']}", hidden), title is None
+    row["seen_platforms"] = list(row.get("seen_platforms") or [])
+    scope = {"market_scope": "global", "market_posts7": None, "total_posts7": None, "market_share7": None}
+    scope_error = False
+    try:
+        basis = read_market_scope(client, row, d, market, core=core, agent=agent)
+        if isinstance(basis, dict):
+            scope.update(basis)
+    except Exception:
+        scope_error = True
+        print(f"brief {d.isoformat()}: market_scope_read_failed", file=sys.stderr)
+    if scope.get("market_scope") != "market":
+        scope["market_scope"] = "global"
+    row.update(scope)
+    cand = {"row": row, "market": market, "sparkline": None, "rerun": None, "ctx": {},
+            "pack": {"evidence": [], "numbers": [], "facts": []}, "scope_error": scope_error}
+    try:
+        cand["pack"], cand["sparkline"], cand["rerun"] = build_pack(client, row, d, market, core=core, agent=agent,
+                                                                    hidden=hidden, moments=calendar)
+        cand["posts"] = (post_set(client, d, market, row["item_id"], core, agent)
+                         | {e["id"] for e in cand["pack"]["evidence"]})
+    except Exception as e:
+        cand["error"] = f"{type(e).__name__}: {e}"
+        return cand
+    cand["ctx"] = build_ctx(client, row, d, market, cand["pack"]["evidence"], campaign_hashtags=campaign_hashtags,
+                            political_terms=political_terms, numbers=cand["pack"]["numbers"], core=core, agent=agent)
+    return cand
+
+
+def _ranked(rows):
+    """At most POOL rows in the query's order, rows without a readable title (card_title) after every named row,
+    so a platform id never takes a slot from a named item. Unnamed rows still fill slots named rows leave empty, and
+    are held there as having no readable name."""
+    named = [r for r in rows if card_title(r) is not None]
+    return (named + [r for r in rows if card_title(r) is None])[:POOL]
+
+
+def _held_g1(cand):
+    """Held by G1: an invalid baseline feed day on the item's main platform in d to d-2."""
+    return cand["decision"].rule == "G1"
+
+
+def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, core, agent, hidden=None, chain=None,
+                clock=None, started=None, calendar=None):
+    """{market: candidates in rank order}, packs and contexts built PACK_WORKERS at a time across the markets.
+
+    Each market judges up to CANDIDATES candidates that G1 does not hold. A candidate G1 holds stays in the list,
+    and so in held_back with its G1 reason, but does not take one of those slots: the next ranked rows are prepared
+    and gated in rounds until CANDIDATES candidates not held by G1 have been judged or the market's POOL rows run
+    out, so at most POOL candidates are prepared per market. G1 reads only the gate context, so it is decided here,
+    before any confirm search or model call; G1 candidates are never confirmed or explained (_for_today).
+    hidden: what read_hidden returned, read here when not given. With chain and clock, no round after the first
+    starts past the deadline (_brief_deadline) or the time limit (_out_of_time from started); a market then judges
+    fewer than CANDIDATES, and its G1 holds stay in held_back. Creator rows are named first (creator_names), in one
+    read. calendar: {market: moments()} for the packs' day lines, none when not given."""
+    calendar = calendar or {}
+    hidden = read_hidden(client, core=core, agent=agent) if hidden is None else hidden
+    pools = {m: _query(client, "candidates", {"d": d, "market": m}, core, agent) for m in MARKETS}
+    creator_names(client, [r for m in MARKETS for r in pools[m]], hidden, core, agent)
+    ranked = {m: _ranked(pools[m]) for m in MARKETS}
+    by_market = {m: [] for m in MARKETS}
+    taken = dict.fromkeys(MARKETS, 0)
+    with ThreadPoolExecutor(max_workers=PACK_WORKERS) as pool:
+        first = True
+        while True:
+            if not first and clock is not None and chain is not None:
+                now = clock()
+                if _brief_deadline(now, d, chain)[0] or _out_of_time(now, started):
+                    return by_market
+            first = False
+            rows = []
+            for m in MARKETS:
+                need = CANDIDATES - sum(1 for c in by_market[m] if not _held_g1(c))
+                batch = ranked[m][taken[m]:taken[m] + max(need, 0)]
+                taken[m] += len(batch)
+                rows += [(m, row) for row in batch]
+            if not rows:
+                return by_market
+            cands = list(pool.map(lambda mr: _prepare(client, d, mr[0], mr[1], build_ctx=build_ctx,
+                                                      campaign_hashtags=campaign_hashtags,
+                                                      political_terms=political_terms[mr[0]], hidden=hidden,
+                                                      calendar=calendar.get(mr[0], ()), core=core, agent=agent),
+                                  rows))
+            for cand in cands:
+                cand["decision"] = _gate(cand, None)
+                by_market[cand["market"]].append(cand)
+
+
+def _absorb(into, cand):
+    """Merge cand into the kept card: its title goes on the card's also list, and its pack posts join the card's
+    pack while the pack has room, at most PER_CREATOR per handle. The card's numbers stay its own item's."""
+    into["also"].append({"item_id": cand["row"]["item_id"], "title": cand["row"]["title"]})
+    into["posts"].update(cand["posts"])
+    evidence = into["pack"]["evidence"]
+    have = {e["id"] for e in evidence}
+    per = Counter(e.get("handle") for e in evidence)
+    for e in cand["pack"]["evidence"]:
+        if len(evidence) >= PACK_MAX:
+            break
+        if e["id"] in have or (e.get("handle") and per[e["handle"]] >= PER_CREATOR):
+            continue
+        evidence.append(e)
+        have.add(e["id"])
+        per[e.get("handle")] += 1
+
+
+def _merge(by_market):
+    """One card per set of posts. Per market, the Today-bound candidates in rank order: one with fewer than
+    MIN_EVIDENCE posts not already on a higher kept card is not a card of its own, and merges into the kept card it
+    shares most posts with (the higher one on a tie). Held candidates keep their hold and claim no posts. Merged
+    candidates leave by_market, so they are neither confirmed, explained, shown nor held. Returns
+    [{market, into, item_id}] in rank order."""
+    merged = []
+    for m in MARKETS:
+        kept, claimed, gone = [], set(), set()
+        for cand in sorted((c for c in by_market[m] if _for_today(c)), key=lambda c: _worth(c["row"])):
+            posts = cand["posts"]
+            best = max(((len(posts & k["posts"]), -i) for i, k in enumerate(kept)), default=(0, 0))
+            if len(posts - claimed) < MIN_EVIDENCE and best[0] > 0:
+                into = kept[-best[1]]
+                _absorb(into, cand)
+                claimed |= posts
+                merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"]})
+                gone.add(id(cand))
+            else:
+                cand["also"] = []
+                kept.append(cand)
+                claimed |= posts
+        by_market[m] = [c for c in by_market[m] if id(c) not in gone]
+    return merged
+
+
+class ModelUnavailable(Exception):
+    """Raised instead of calling the model once the breaker has tripped."""
+
+
+def _rate_limited(e):
+    """An error class named RateLimitError (matched by class name through the MRO, so no SDK need be imported), a 429
+    status_code or status, or Vertex's RESOURCE_EXHAUSTED in the text. A 429 elsewhere in the text, such as
+    inside a request id, does not count."""
+    if any(k.__name__ == "RateLimitError" for k in type(e).__mro__):
+        return True
+    if any(str(getattr(e, name, None)) == "429" for name in ("status_code", "status", "code")):
+        return True
+    return "RESOURCE_EXHAUSTED" in str(e)
+
+
+class _Breaker:
+    """Wraps the model for one run. Until one call has gone through, calls are made one at a time; the first
+    quota or rate-limit error (see _rate_limited) trips the breaker and every
+    later call raises ModelUnavailable without reaching the model, so a quota outage costs one call, not a
+    retry storm per card."""
+
+    def __init__(self, model):
+        self.model = model
+        self.tripped = None
+        self._proven = False
+        self._first = threading.Lock()
+
+    def complete_json(self, **kw):
+        if not self._proven:
+            with self._first:
+                if not self._proven:
+                    return self._call(kw, prove=True)
+        return self._call(kw)
+
+    def _call(self, kw, prove=False):
+        if self.tripped:
+            raise ModelUnavailable(self.tripped)
+        try:
+            out = self.model.complete_json(**kw)
+        except Exception as e:
+            if _rate_limited(e):
+                self.tripped = f"{type(e).__name__}: {e}"
+            raise
+        self._proven = self._proven or prove
+        return out
+
+
+def _menu(detail):
+    """The CRITIC_MENU wording the critic's explanation matches first, or None. Only the menu wording is returned."""
+    m = _CRITIC.match(str(detail or ""))
+    if not m:
+        return None
+    text = m.group(1)
+    hits = [words for words, rx in _MENU if rx.search(text)]
+    # Only one unambiguous menu item is named; a contrast or negation ("not a paid campaign") could flip it.
+    if len(hits) != 1 or _NEGATION.search(text):
+        return None
+    return hits[0]
+
+
+def _critic_parts(detail):
+    """(standing, local_why_now) as explain._critic_row recorded them in a critic row's detail: standing is
+    "ruled out", "news-driven with local reaction", "event-driven with local reaction", "not ruled out" or None when
+    unreadable."""
+    detail = str(detail or "")
+    m = _CRITIC_PARTS.match(detail)
+    return (m.group(1) if m else None), detail.endswith("local why-now checked")
+
+
+def _wording(chk, rested=False):
+    """The fixed wording for one check row. rested: the row cuts a claim the explanation sentence rests on."""
+    rule, verdict = chk["rule"], chk["verdict"]
+    if rule == "critic":
+        menu = _menu(chk.get("detail"))
+        standing, local = _critic_parts(chk.get("detail"))
+        news = standing == "news-driven with local reaction"
+        event = standing == "event-driven with local reaction"
+        if verdict == "pass":
+            head = NEWS_PASS if news else EVENT_PASS if event else "Critic: the simpler explanation was ruled out"
+            return f"{head}: {menu}" if menu else head
+        # A cut names the part that failed: the simpler explanation, the local why-now, or both.
+        ruled_out = standing == "ruled out" or standing in REACTION_STANDINGS
+        if ruled_out and not local:
+            return "Critic: local why-now not shown"
+        head = "Critic: a simpler explanation was not ruled out"
+        head = f"{head}: {menu}" if menu else head
+        return head if local or ruled_out else f"{head}; local why-now not shown"
+    name = RULE_NAMES.get(rule, "Claim checks")
+    if verdict == "pass":
+        return f"{name}: passed"
+    if rule in OTHER_WORDS:
+        return f"{name}: {OTHER_WORDS[rule]}"
+    words = (SENTENCE_WORDS.get(rule) if chk.get("claim_id") is None else None) or CLAIM_WORDS.get(rule, NOT_PASSED)
+    if rule == "K3":
+        part = next((w for rx, w in K3_PARTS if rx.search(str(chk.get("detail") or "").strip())), None)
+        if part is not None:
+            words = f"{'the explanation' if chk.get('claim_id') is None else 'a claim'} {part}"
+    if rested:
+        words = words.replace("a claim", "a claim the explanation rests on", 1)
+    return f"{name}: {words}"
+
+
+def check_reason(chk):
+    """claim_checks.reason for one check row: its rule's fixed wording, marked when the row is from before the
+    repair round."""
+    prefix = REPAIR if str(chk.get("detail") or "").startswith(REPAIR) else ""
+    return (prefix + _wording(chk))[:REASON_MAX]
+
+
+def failed_reason(result):
+    """A card's failed_reason once its explanation failed its checks: the fixed wording of the row that held it.
+    That is, in order, a cut on a claim the sentence rests on, the sentence's support check, the place fault, the
+    critic, then a fault in the sentence itself; rows from before the repair round did not hold the card."""
+    if result.get("reason") == "too_few_claims":
+        return TOO_FEW
+    rests_on = set(result.get("rests_on") or [])
+    rows = [c for c in result.get("checks") or [] if not str(c.get("detail") or "").startswith(REPAIR)]
+    breaches = [c for c in rows if c["verdict"] == "breach"]
+    if result.get("reason") == "breach" and breaches:
+        # Any breach holds the whole card, rested on or not: name the breach itself.
+        row = next((c for c in breaches if c["claim_id"] in rests_on), breaches[0])
+        return _wording(row, rested=row["claim_id"] in rests_on)[:HELD_MAX]
+    failed = breaches or [c for c in rows if c["verdict"] == "cut"]
+    for held in (lambda c: c["claim_id"] in rests_on,
+                 lambda c: c["claim_id"] is None and c["rule"] == "K4",
+                 lambda c: c["claim_id"] is None and c["rule"] == "K3",
+                 lambda c: c["rule"] == "critic",
+                 lambda c: c["claim_id"] is None):
+        row = next((c for c in failed if held(c)), None)
+        if row is not None:
+            return _wording(row, rested=row["claim_id"] in rests_on)[:HELD_MAX]
+    return NO_REST
+
+
+class _Drafts:
+    """Passes model calls through and keeps the explanation_claim_ids of the latest writer draft, which
+    explain_trend does not return when the explanation fails."""
+
+    def __init__(self, model):
+        self.model = model
+        self.rests_on = []
+
+    def complete_json(self, **kw):
+        out, usage = self.model.complete_json(**kw)
+        if "explanation_claim_ids" in kw["schema"]["properties"] and isinstance(out, dict):
+            self.rests_on = [x for x in out.get("explanation_claim_ids") or [] if isinstance(x, str)]
+        return out, usage
+
+
+def _explain_one(cand, *, model, spent_before, d, model_call_guard):
+    start, end = _window(d, cand["market"])
+    row = cand["row"]
+    drafts = _Drafts(model)
+    try:
+        result = explain_trend(row, cand["pack"], model=drafts, spent_today_usd=spent_before, window_start=start,
+                               window_end=end, market=cand["market"], rerun=cand["rerun"],
+                               model_call_guard=model_call_guard, second_draft=True)
+    except Exception as exc:
+        # One bad trend publishes as numbers and posts; it never costs the other markets their brief.
+        return {"explanation": None, "explanation_claim_ids": [], "claims": [], "numbers_only": True,
+                "reason": "job_error", "usage_usd": 0.0, "checks": [], "error": f"{type(exc).__name__}: {exc}",
+                "rests_on": []}
+    return {**result, "rests_on": drafts.rests_on}
+
+
+def _recovery_deadline(now, d):
+    local = now.astimezone(SAST)
+    value = os.environ.get("BRIEF_RECOVERY_UNTIL")
+    if (os.environ.get("FORCE_RERUN") != "1" or os.environ.get("RUN_DATE") != local.date().isoformat()
+            or d != local.date() or not isinstance(value, str)
+            or re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value) is None):
+        return None
+    hour, minute = (int(part) for part in value.split(":"))
+    return datetime.combine(local.date(), time(hour, minute), SAST)
+
+
+def _brief_deadline(now, d, chain):
+    recovery = _recovery_deadline(now, d)
+    if recovery is not None:
+        return now.astimezone(SAST) >= recovery, recovery
+    return chain.past_deadline(now, d), None
+
+
+def _out_of_time(now, started):
+    """True once the run that started at started is FINISH_MARGIN short of the brief's task timeout."""
+    return started is not None and now - started >= collect_chain.TIMEOUTS["brief"] - FINISH_MARGIN
+
+
+def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, started=None):
+    """Run explanations in task order, one at a time. No new one starts past the deadline or the time limit
+    (_out_of_time from started, stopped as at the deadline, with limit task_timeout in the stop), outside the
+    current SAST accounting day, or over the model cap, or once the model breaker has tripped. spend["usd"] grows
+    as explanations finish. Returns
+    ({id(cand): result}, the breaker's error or None)."""
+    results, running, capped = {}, {}, False
+    explanation_stop = None
+    breaker = _Breaker(model)
+    workers = 1
+
+    def collect(done):
+        nonlocal capped
+        for fut in done:
+            cand = running.pop(fut)
+            result = fut.result()
+            results[id(cand)] = result
+            spend["usd"] += result["usage_usd"]
+            capped = capped or result["reason"] == "model_cap"
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for index, cand in enumerate(tasks):
+            while len(running) >= workers:
+                done, _ = wait(list(running), return_when=FIRST_COMPLETED)
+                collect(done)
+            now = clock()
+            if (capped or breaker.tripped or base_usd + spend["usd"] >= model_daily_usd()
+                    or d != now.astimezone(SAST).date()):
+                break
+            past_deadline, _ = _brief_deadline(now, d, chain)
+            out_of_time = _out_of_time(now, started)
+            if past_deadline or out_of_time:
+                explanation_stop = {"reason": "deadline", "attempted": len(results),
+                    "skipped": [{"market": item["market"], "item_id": item["row"]["item_id"]}
+                        for item in tasks[index:]]}
+                if out_of_time and not past_deadline:
+                    explanation_stop["limit"] = "task_timeout"
+                break
+            fut = pool.submit(_explain_one, cand, model=breaker, spent_before=base_usd + spend["usd"], d=d,
+                              model_call_guard=lambda: d == clock().astimezone(SAST).date())
+            running[fut] = cand
+        collect(wait(list(running))[0])
+    return results, breaker.tripped, explanation_stop
+
+
+def _for_today(cand):
+    """Only published, current-market cards enter Today's confirmation and explanation paths."""
+    return (cand["decision"].publish and cand["decision"].where == "today"
+            and cand["row"].get("market_scope") == "market")
+
+
+def _floor_held(cand):
+    """A current-market candidate held only for too few posts it can show or too few local posts. Confirm searches
+    it too (ENGINE.md section 3: one search on each top candidate), since the posts confirm finds are the only way
+    its pack can grow; every other hold stands whatever a search finds, so those are never searched."""
+    return (bool(cand.get("floor_held")) and not cand.get("error")
+            and cand["row"].get("market_scope") == "market")
+
+
+def _in_rank_order(by_market):
+    """Each market's Today-bound candidates interleaved by rank, so every market's top trends go first."""
+    lists = [[c for c in by_market[m] if _for_today(c)] for m in MARKETS]
+    return [lst[i] for i in range(max(map(len, lists), default=0)) for lst in lists if i < len(lst)]
+
+
+def _payload_candidate(cand, result, specificity=None):
+    row, pack = cand["row"], cand["pack"]
+    reason = result.get("reason") if isinstance(result, dict) else None
+    explained = (isinstance(result, dict) and "reason" in result and reason is None
+                 and result.get("numbers_only") is False)
+    status = "not_run" if not isinstance(result, dict) or "reason" not in result else (
+        "explained" if explained else "failed_checks" if reason in FAILED_CHECKS else "not_run")
+    return {
+        **row, "decision": cand["decision"], "explanation_status": status, "numbers": pack["numbers"],
+        "evidence": pack["evidence"], "sparkline": cand["sparkline"], "held_reason": cand.get("held_reason"),
+        "failed_reason": failed_reason(result) if status == "failed_checks" else None,
+        "explanation": result.get("explanation") if explained else None,
+        "explanation_claim_ids": result.get("explanation_claim_ids") if explained else [],
+        "claims": result.get("claims") if explained else [], "also": cand.get("also") or [],
+        "specificity": specificity, "news_driven": explained and result.get("news_driven") is True,
+        # The critic's own answer, kept for audit only: the payload stores it apart from cards and held items.
+        "critic": result.get("critic") if isinstance(result, dict) else None,
+    }
+
+
+def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues):
+    # A candidate whose market scope could not be read is not known to be global, so it stays, held for its
+    # unreadable evidence.
+    local_cands = [c for c in cands if c["row"].get("market_scope") == "market" or c.get("scope_error")]
+    items = []
+    for c in local_cands:
+        result = results.get(id(c))
+        decision = c["decision"]
+        publish = decision.get("publish") if isinstance(decision, dict) else decision.publish
+        where = decision.get("where") if isinstance(decision, dict) else decision.where
+        numbers_only = decision.get("numbers_only") if isinstance(decision, dict) else decision.numbers_only
+        specificity = None
+        if where == "today":
+            checked = result if isinstance(result, dict) else {}
+            specificity = assess_specificity(
+                explanation=checked.get("explanation"), claims=checked.get("claims"),
+                explanation_claim_ids=checked.get("explanation_claim_ids"), evidence=c["pack"]["evidence"],
+                market=market, local_why_now=checked.get("local_why_now_checked") is True,
+            )
+        item = _payload_candidate(c, result, specificity)
+        if where == "today" and (item["explanation_status"] != "explained" or publish is not True
+                                 or numbers_only is not False or specificity["status"] != "pass"):
+            item["decision"] = _held("Explanation failed its checks", "G10")
+            item["held_reason"] = "explanation_failed"
+        items.append(item)
+    # An evidence read that failed is a data problem too, so it counts with G1 toward the over-30% banner. The
+    # denominator is every current-market candidate considered: the G1 holds that _candidates backfilled past as well
+    # as the candidates judged, so the banner still shows how much of what was looked at bad data blocked.
+    data = []
+    for c in local_cands:
+        if c.get("error") or c.get("scope_error"):
+            data.append(_held("", "G1"))
+            continue
+        decision = c["decision"]
+        if isinstance(decision, dict):
+            decision = Decision(*(decision.get(name) for name in
+                                  ("publish", "where", "flag", "reason", "rule", "numbers_only")))
+        data.append(decision)
+    if market_banner(data):
+        n = sum(1 for x in data if x.rule == "G1")
+        banners = banners + [{"kind": "data_issue", "text": f"Data issue: {n} of {len(local_cands)} candidates held for "
+                                                            "invalid collection days or unreadable evidence"}]
+    payload = build_market_payload(market, d, items, moments=moments_, boards=boards_, banners=banners,
+                                   issues=issues)
+    top = payload["cards"][0] if payload["cards"] else None
+    if top and top["explained"]:
+        headline = {"text": top["explanation"], "item_id": top["item_id"], "claim_ids": top["explanation_claim_ids"]}
+        payload = build_market_payload(market, d, items, moments=moments_, boards=boards_, banners=banners,
+                                       headline=headline, issues=issues)
+    return payload
+
+
+def _insert(client, table, rows):
+    for i in range(0, len(rows), INSERT_BATCH):
+        batch = json.loads(json.dumps(rows[i:i + INSERT_BATCH], default=str))
+        errors = client.insert_rows_json(table, batch)
+        if errors:
+            raise RuntimeError(f"append to {table} failed: {errors}")
+
+
+def _briefs_rows(rows):
+    return [{**r, "payload": json.dumps(r["payload"], ensure_ascii=False, default=str)} for r in rows]
+
+
+def _open_sc(make_sc, run_id):
+    """(client, None) or (None, why confirm is skipped). Any failure to build the client skips confirm; it never
+    stops the brief."""
+    if make_sc is None:
+        return None, "no SocialCrawl client configured"
+    try:
+        return make_sc(run_id), None
+    except Exception as e:
+        return None, f"no SocialCrawl client ({type(e).__name__}: {e})"
+
+
+def _open_ingest(client, sc):
+    """(lane L1's ingest bound for the confirm lane, or None; its status), loaded once per run. No ingest in
+    replay mode or without a BigQuery client; "unavailable" while this branch does not have
+    core.collect.parse.ingest yet."""
+    if client is None:
+        return None, "no_client"
+    if getattr(sc, "mode", None) == "replay":
+        return None, "replay"
+    ingest = confirm_lane.load_ingest()
+    return ingest, "ok" if ingest is not None else "unavailable"
+
+
+def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chain, clock, started=None):
+    """Confirm the Today-bound candidates of each market inside one confirm share, then the candidates held only by
+    the post floors (_floor_held), so the share goes to Today-bound ones first. Other held items are skipped: a
+    search on them would spend credits without changing any decision, since presence never lifts a hold. Each
+    item's platforms_found goes into its pack facts as a presence line, never as evidence, so it cannot count
+    towards a corroboration label. When ingest is given, the confirm results also go into posts and
+    post_observations; the evidence packs were built before confirm and are not read again in this run, so those
+    posts become citable only from the next evidence read. ingested gets {market: {posts, observations, errors}}.
+    No market and no search starts past the deadline or the time limit (_out_of_time from started), and a market
+    stopped that way is not confirmed, so a slow vendor cannot push explanations past 06:15 or the task timeout; a confirm call that raises, or a market whose
+    searches the lane stopped (its share used, or the client's cap_reached, balance_floor or insufficient_credits),
+    stops confirming for the rest of the run, leaves that market unconfirmed and keeps the credits already recorded.
+    Returns ({market: {item_id: platforms_found}} for the items found anywhere, the set of markets confirmed, and
+    why confirming stopped or None)."""
+    found_by_market, confirmed, why = {}, set(), {}
+
+    def stop():
+        now = clock()
+        past_deadline, recovery = _brief_deadline(now, d, chain)
+        if past_deadline:
+            cutoff = recovery.strftime("%H:%M") if recovery is not None else "06:15"
+            why["note"] = f"stopped at the {cutoff} deadline"
+        elif _out_of_time(now, started):
+            why["note"] = "stopped at the task time limit"
+        return "note" in why
+
+    for m in MARKETS:
+        if stop():
+            return found_by_market, confirmed, why["note"]
+        cands = ([c for c in by_market[m] if _for_today(c)]
+                 + [c for c in by_market[m] if not _for_today(c) and _floor_held(c)])
+        if not cands:
+            confirmed.add(m)
+            continue
+        try:
+            found = confirm([c["row"] for c in cands], sc=sc, market=m, d=d, share_used=spend["credits"],
+                            seen=None, client=client, ingest=ingest, clock=clock, stop=stop)
+        except Exception as e:
+            return found_by_market, confirmed, f"stopped in {m} ({type(e).__name__}: {e})"
+        spend["credits"] += sum(r["credits"] for r in found.values())
+        if ingest is not None:
+            tally = ingested.setdefault(m, {"posts": 0, "observations": 0, "errors": 0})
+            for item_id, r in found.items():
+                for k in tally:
+                    tally[k] += (r.get("ingest") or {}).get(k, 0)
+                for call in r.get("calls") or []:
+                    if call.get("ingest_error"):
+                        print(f"brief {d.isoformat()}: ingest {m}:{item_id} {call['route']}: {call['ingest_error']}",
+                              file=sys.stderr)
+        for c in cands:
+            c["confirm_posts"] = ((found.get(c["row"]["item_id"]) or {}).get("ingest") or {}).get("posts", 0)
+            platforms = (found.get(c["row"]["item_id"]) or {}).get("platforms_found") or []
+            if platforms:
+                since = c["row"].get("first_seen") or d - timedelta(days=confirm_lane.SINCE_DAYS)
+                c["pack"]["facts"].append(f"Also found by search since {since.isoformat()}: {', '.join(platforms)}")
+                found_by_market.setdefault(m, {})[c["row"]["item_id"]] = list(platforms)
+        stopped = [r for r in found.values() if r.get("status") == "stopped"]
+        if stopped:
+            if "note" in why:
+                return found_by_market, confirmed, why["note"]
+            halts = [call["status"] for r in stopped for call in r.get("calls") or []
+                     if call.get("status") in confirm_lane.HALT]
+            return found_by_market, confirmed, f"stopped in {m} ({halts[0] if halts else 'confirm share used'})"
+        confirmed.add(m)
+    return found_by_market, confirmed, None
+
+
+def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags, political_terms, core, agent,
+            hidden=None, started=None, calendar=None):
+    """Read the pack again for each floor-held candidate whose confirm search wrote posts, and gate it again with
+    the same floors (MIN_EVIDENCE showable, 2 local), so posts confirm found can lift a hold in the run that found
+    them, read through the same suppression list (hidden) as the first packs. Today-bound candidates keep the pack
+    they were confirmed with. A rebuilt candidate that is now
+    Today-bound merges into a kept card when it adds fewer than MIN_EVIDENCE new posts, as _merge does; one whose
+    read fails keeps its hold. Past the deadline or the time limit (_out_of_time from started) nothing is read
+    again. Returns [{market, item_id, posts_before, posts_after, held}] for the candidates read again, and the
+    merges, in rank order."""
+    grown, merged = [], []
+    for m in MARKETS:
+        now = clock()
+        if _brief_deadline(now, d, chain)[0] or _out_of_time(now, started):
+            break
+        for i, cand in enumerate(list(by_market[m])):
+            if not (_floor_held(cand) and cand.get("confirm_posts")):
+                continue
+            new = _prepare(client, d, m, cand["row"], build_ctx=build_ctx, campaign_hashtags=campaign_hashtags,
+                           political_terms=political_terms[m], hidden=hidden, core=core, agent=agent,
+                           calendar=(calendar or {}).get(m, ()))
+            if new.get("error"):
+                print(f"brief {d.isoformat()}: regrow {m}:{cand['row']['item_id']}: {new['error']}", file=sys.stderr)
+                continue
+            new["pack"]["facts"].extend(f for f in cand["pack"]["facts"] if f not in new["pack"]["facts"])
+            new["decision"] = _gate(new, None)
+            by_market[m][i] = new
+            grown.append({"market": m, "item_id": cand["row"]["item_id"],
+                          "posts_before": len(cand["pack"]["evidence"]), "posts_after": len(new["pack"]["evidence"]),
+                          "held": not _for_today(new)})
+        kept = [c for c in by_market[m] if _for_today(c) and "also" in c]
+        claimed = set().union(*(c["posts"] for c in kept))
+        for cand in sorted((c for c in by_market[m] if _for_today(c) and "also" not in c),
+                           key=lambda c: _worth(c["row"])):
+            posts = cand["posts"]
+            best = max(((len(posts & k["posts"]), -j) for j, k in enumerate(kept)), default=(0, 0))
+            if len(posts - claimed) < MIN_EVIDENCE and best[0] > 0:
+                into = kept[-best[1]]
+                _absorb(into, cand)
+                merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"]})
+                by_market[m] = [c for c in by_market[m] if c is not cand]
+            else:
+                cand["also"] = []
+                kept.append(cand)
+            claimed |= posts
+    return grown, merged
+
+
+def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, confirm, campaign_hashtags,
+           political_terms, workers, spend, core, agent, started=None):
+    hidden = read_hidden(client, core=core, agent=agent)  # raises SuppressionUnreadable before anything is spent
+    warm = warmup_banner(client, d, core, agent)
+    base_usd = spent_today(client, d, core, agent)
+    calendar = {m: moments(client, d, m, core, agent) for m in MARKETS}
+
+    by_market = _candidates(client, d, build_ctx=build_ctx, campaign_hashtags=campaign_hashtags,
+                            political_terms=political_terms, hidden=hidden, core=core, agent=agent, chain=chain,
+                            clock=clock, started=started, calendar=calendar)
+    merged = _merge(by_market)
+
+    found, confirmed, note = {}, set(), sc_skipped and f"skipped: {sc_skipped}"
+    ingest_status, ingested = None, {}
+    if sc is not None:
+        ingest, ingest_status = _open_ingest(client, sc)
+        if ingest_status == "unavailable":
+            print(f"brief {d.isoformat()}: ingest unavailable, confirm finds are not written to posts",
+                  file=sys.stderr)
+        found, confirmed, note = _confirm(by_market, d, client=client, sc=sc, confirm=confirm, ingest=ingest,
+                                          ingested=ingested, spend=spend, chain=chain, clock=clock,
+                                          started=started)
+    if note:
+        print(f"brief {d.isoformat()}: confirm {note}", file=sys.stderr)
+    grown, late_merged = _regrow(client, d, by_market, chain=chain, clock=clock, build_ctx=build_ctx,
+                                 campaign_hashtags=campaign_hashtags, political_terms=political_terms, hidden=hidden,
+                                 core=core, agent=agent, started=started, calendar=calendar)
+    merged += late_merged
+
+    tasks = _in_rank_order(by_market)
+    results, unavailable, explanation_stop = _explain_all(tasks, model=model, base_usd=base_usd, spend=spend,
+                                                           clock=clock, chain=chain, d=d, workers=workers,
+                                                           started=started)
+
+    brief_rows, check_rows, cards, held = [], [], 0, 0
+    published_at = clock()
+    recovery = _recovery_deadline(published_at, d)
+    late_banner = None
+    if recovery is not None:
+        late_banner = {"kind": "late_run",
+            "text": f"Late run: checked at {published_at.astimezone(SAST).strftime('%H:%M')}"}
+    for m in MARKETS:
+        cands = by_market[m]
+        for c in cands:
+            result = results.get(id(c))
+            if _for_today(c):
+                c["decision"] = _gate(c, result is not None and result["reason"] is None)
+            for chk in (result or {}).get("checks") or []:
+                check_rows.append({"answer_or_brief_id": f"{run.run_id}:{m}:{c['row']['item_id']}",
+                                   "claim_id": chk["claim_id"], "rule": chk["rule"], "verdict": chk["verdict"],
+                                   "checker": chk["checker"], "run_id": run.run_id,
+                                   "reason": check_reason(chk)})
+        banners = [b for b in (warm, None if m in confirmed else NO_CONFIRM, late_banner) if b]
+        boards_, unnamed = boards(client, d, m, core, agent, hidden=hidden)
+        payload = _market_payload(m, d, cands, results, banners=banners, moments_=calendar[m],
+                                  boards_=boards_, issues=_unnamed_issue(unnamed))
+        # Titles, aliases and model text never name a suppressed person either, as Today reads them.
+        payload = without_hidden(payload, hidden)
+        cards += len(payload["cards"]) + len(payload["more"])
+        held += payload["held_back"]["count"]
+        brief_rows.append(brief_row(m, d, run.run_id, published_at, payload, RULE_VERSION))
+
+    if check_rows:
+        _insert(client, f"{agent}.claim_checks", check_rows)
+    _insert(client, f"{agent}.briefs", _briefs_rows(brief_rows))
+    counts = {"markets": len(MARKETS), "cards": cards, "held": held, "credits": spend["credits"],
+              "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
+    if explanation_stop is not None:
+        counts["explanation_stop"] = explanation_stop
+    pack_errors = {f"{c['market']}:{c['row']['item_id']}": c["error"] for m in MARKETS for c in by_market[m]
+                   if c.get("error")}
+    if pack_errors:
+        counts["pack_errors"] = pack_errors
+    if unavailable:
+        counts["model"] = {"reason": "model_unavailable", "error": unavailable, "numbers_only": [
+            c["row"]["item_id"] for c in tasks if (results.get(id(c)) or {}).get("reason", "not_started")]}
+    if note:
+        counts["confirm"] = note
+    if grown:
+        counts["regrown"] = grown
+    if ingest_status is not None:
+        counts["ingest"] = {"status": ingest_status, "by_market": ingested} if ingest_status == "ok" else {
+            "status": ingest_status}
+    return counts
+
+
+def _publish_data_issue(client, d, run, error, *, clock, core, agent):
+    warm = warmup_banner(client, d, core, agent)
+    banners = [b for b in (warm, UPSTREAM) if b]
+    published_at = clock()
+    rows = []
+    for m in MARKETS:
+        boards_, unnamed = boards(client, d, m, core, agent)
+        payload = build_market_payload(m, d, [], moments=moments(client, d, m, core, agent), boards=boards_,
+                                       banners=banners, issues=_unnamed_issue(unnamed))
+        rows.append(brief_row(m, d, run.run_id, published_at, payload, RULE_VERSION))
+    _insert(client, f"{agent}.briefs", _briefs_rows(rows))
+    return {"markets": len(MARKETS), "cards": 0, "held": 0, "credits": 0, "model_usd": 0.0}
+
+
+def run(client, d, *, chain, model, make_sc, clock, build_ctx=gatectx.build_ctx, confirm=confirm_lane.confirm,
+        campaign_hashtags=None, political_terms=None, workers=WORKERS, core=CORE, agent=AGENT):
+    """The brief for day d. Returns the counts it finished the run with. Raises chain.AlreadyDone, and
+    chain.UpstreamNotReady before the deadline; any other failure after begin finishes the run failed and
+    re-raises. make_sc(run_id) builds the confirm-share SocialCrawl client once the run has begun; None, or a
+    factory that raises, skips confirm with a coverage note. political_terms: {market: [term]}; both lists
+    default to core/brief's yaml files. The run's time limit (_out_of_time) counts from clock() here."""
+    started = clock()
+    if campaign_hashtags is None:
+        campaign_hashtags = gatectx.load_campaign_hashtags()
+    if political_terms is None:
+        political_terms = {m: gatectx.load_political_terms(m) for m in MARKETS}
+
+    error = None
+    try:
+        brief = chain.begin("brief", d)
+    except chain.UpstreamNotReady as e:
+        if not chain.past_deadline(clock(), d):
+            raise
+        brief, error = e.run, str(e)
+
+    spend = {"usd": 0.0, "credits": 0}
+    try:
+        if error is not None:
+            counts = _publish_data_issue(client, d, brief, error, clock=clock, core=core, agent=agent)
+        else:
+            sc, sc_skipped = _open_sc(make_sc, brief.run_id)
+            counts = _brief(client, d, brief, chain=chain, model=model, sc=sc, sc_skipped=sc_skipped, clock=clock,
+                            build_ctx=build_ctx, confirm=confirm, campaign_hashtags=campaign_hashtags,
+                            political_terms=political_terms, workers=workers, spend=spend, core=core, agent=agent,
+                            started=started)
+    except Exception as e:
+        counts = {"markets": 0, "cards": 0, "held": 0, "credits": spend["credits"],
+                  "model_usd": round(spend["usd"], 6)}
+        chain.finish(brief, "failed", counts, error=f"{type(e).__name__}: {e}")
+        raise
+    chain.finish(brief, "ok", counts, error=error)
+    return counts
+
+
+def live_socialcrawl(client, clock):
+    """The factory main() hands to run: lane L1's SocialCrawlClient on the confirm share, live, writing its
+    ledger and raw_responses rows through L1's BigQuery stores. Imported only when called."""
+    def make(run_id):
+        from core.collect.socialcrawl_client import SocialCrawlClient, requests_http
+        from core.collect.stores import BigQueryLedgerStore, BigQueryRawStore
+
+        return SocialCrawlClient(share="confirm", run_id=run_id, mode="live",
+                                 ledger=BigQueryLedgerStore(client, PROJECT), raw=BigQueryRawStore(client, PROJECT),
+                                 http=requests_http, clock=clock)
+    return make
+
+
+# Seconds one Gemini HTTP attempt may run; the SDK default has no limit, so one stalled call could hold the brief
+# past 06:15. With the SDK's one retry a stalled call ends after about two minutes. A timeout raises like any
+# model error: that card publishes numbers only and the rest go on.
+GEMINI_TIMEOUT_S = 60
+
+
+def brief_model():
+    """The brief's structured-output client: GeminiModel with GEMINI_TIMEOUT_S."""
+    from core.llm.gemini import GeminiModel
+    from core.llm.provider import provider
+
+    provider()
+    return GeminiModel(project=PROJECT, timeout_s=GEMINI_TIMEOUT_S)
+
+
+_AUTO = object()
+
+
+def main(client=None, chain=None, model=None, make_sc=_AUTO, clock=None, **kw):
+    """Exit code: 0 on a published brief or AlreadyDone, 1 on UpstreamNotReady before the deadline or any failure.
+    Nothing here raises. kw passes through to run (build_ctx, confirm, campaign_hashtags, political_terms,
+    workers, core, agent)."""
+    try:
+        if chain is None:
+            from core.collect import chain
+        if client is None:
+            from google.cloud import bigquery
+            client = bigquery.Client(project=PROJECT)
+        if model is None:
+            model = brief_model()
+        clock = clock or (lambda: datetime.now(SAST))
+        if make_sc is _AUTO:
+            make_sc = live_socialcrawl(client, clock)
+        d = chain.today(clock())
+    except Exception:
+        traceback.print_exc()
+        return 1
+    try:
+        counts = run(client, d, chain=chain, model=model, make_sc=make_sc, clock=clock, **kw)
+    except chain.AlreadyDone as e:
+        print(f"brief {d.isoformat()}: nothing to do, {e}")
+        return 0
+    except chain.UpstreamNotReady as e:
+        print(f"brief {d.isoformat()}: {e}", file=sys.stderr)
+        return 1
+    except Exception:
+        traceback.print_exc()
+        return 1
+    print(json.dumps({"brief": d.isoformat(), "counts": counts}, default=str))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

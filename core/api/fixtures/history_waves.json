@@ -1,0 +1,42 @@
+[
+ {
+  "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e",
+  "market": "ZA",
+  "wave_start": "2026-09-26",
+  "wave_end": "2026-09-30",
+  "peak_date": "2026-09-30",
+  "peak_posts": 12
+ },
+ {
+  "item_id": "447e6354b5e51acf11942783fda98f72ce4003b53c18f62d2e35753c3c44ade3",
+  "market": "ZA",
+  "wave_start": "2026-05-01",
+  "wave_end": "2026-05-20",
+  "peak_date": "2026-05-08",
+  "peak_posts": 80
+ },
+ {
+  "item_id": "196c5995cccbc7eff97f244b604378afbc28dc4109d809a6d6e3cf7a4201bd97",
+  "market": "ZA",
+  "wave_start": "2026-09-20",
+  "wave_end": "2026-09-30",
+  "peak_date": "2026-09-28",
+  "peak_posts": 30
+ },
+ {
+  "item_id": "7f4c4b0a0f6c1e36013ef91407c68fc75dac4c06f10de9d3df6a5d04179b3429",
+  "market": "KE",
+  "wave_start": "2026-03-01",
+  "wave_end": "2026-03-20",
+  "peak_date": "2026-03-05",
+  "peak_posts": 60
+ },
+ {
+  "item_id": "4b942b2ea393cbe2c2e4e883ed5be7441b361229e446c6c5bbcb7fdba540fa33",
+  "market": "ZA",
+  "wave_start": "2026-01-01",
+  "wave_end": "2026-01-10",
+  "peak_date": "2026-01-01",
+  "peak_posts": 5
+ }
+]

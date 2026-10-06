@@ -1,0 +1,78 @@
+/* Hidden people (#/people/hidden, people42.jsx HiddenPeoplePage42). Builds on
+   the shared pp42 page rules without changing them: a short explanation at a
+   reading measure, then one row per hide with the person and why on the left
+   and who hid them and when on the right; stacked below 720px. Rows are
+   records, not links, so they take no hover state. */
+.hp42 .pp42-heading { text-wrap: balance; }
+
+.hp42-head { gap: var(--s-3); margin-bottom: var(--s-5); }
+/* One measure for the intro, the empty state and the failure, so their
+   text and rules end at the same edge. */
+.hp42 { --hp42-measure: 66ch; }
+/* Design audit, 2 October 2026: what hiding does is a closed disclosure
+   after the state (inverted pyramid, NN/g on empty states), drawn by the
+   shared .pp42-about rule in people42.css. */
+.hp42-about { margin-top: var(--s-5); max-width: var(--hp42-measure); }
+.hp42-about .pp42-about-body { display: grid; gap: var(--s-2); }
+.hp42-about p { margin: 0; color: var(--ink-2); text-wrap: pretty; }
+
+.hp42-status { margin: 0 0 var(--s-4); max-width: var(--hp42-measure); text-wrap: pretty; }
+
+.hp42-count { margin: 0 0 var(--s-2); color: var(--muted); }
+
+.hp42-list { border-top: 1px solid var(--line); }
+.hp42-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, max-content);
+  grid-template-areas: "who meta" "reason meta";
+  gap: var(--s-1) var(--s-6);
+  align-items: baseline;
+  padding: var(--s-3) var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+.hp42-who { grid-area: who; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-3); min-width: 0; }
+.hp42-tag { color: var(--muted); white-space: nowrap; }
+.hp42-reason { grid-area: reason; margin: 0; max-width: var(--measure); color: var(--ink-2); overflow-wrap: break-word; text-wrap: pretty; }
+.hp42-meta { grid-area: meta; margin: 0; color: var(--muted); text-align: right; overflow-wrap: normal; }
+
+.hp42-empty { gap: var(--s-2); max-width: var(--hp42-measure); }
+.hp42-empty .pp42-empty-next { text-wrap: pretty; }
+.hp42-next { margin: 0; }
+.hp42-next .pp42-link { display: inline-flex; align-items: center; min-height: var(--target-min); white-space: nowrap; }
+
+.hp42-failed { display: grid; gap: var(--s-2); justify-items: start; max-width: var(--hp42-measure); padding: var(--s-4) 0; border-top: 1px solid var(--line); }
+.hp42-failed .hp42-status { margin: 0; }
+
+@media (max-width: 720px) {
+  .hp42-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "who" "reason" "meta"; }
+  .hp42-meta { text-align: left; }
+  .hp42-dot { display: none; }
+  .hp42-meta time { display: block; }
+}
+
+/* No AI look pass, 4 October 2026: the state and the policy in a main
+   column, where a hide applies beside it, so the page uses its width. */
+.hp42 { max-width: none; }
+.hp42 .hp42-head { margin-bottom: var(--s-2); }
+.hp42 .hp42-intro { max-width: 90ch; margin: 0 0 var(--s-5); text-wrap: pretty; }
+.hp42-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
+.hp42-main { min-width: 0; }
+.hp42-main > .hp42-empty, .hp42-main > .hp42-about, .hp42-main > .hp42-failed, .hp42-main > .hp42-status { max-width: none; }
+.hp42-aside-title { font-size: var(--t-4); font-weight: 600; margin: 0 0 var(--s-3); color: var(--ink); }
+.hp42-reach { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.hp42-reach > li { padding: var(--s-3) 0; border-bottom: 1px solid var(--line); color: var(--ink-2); }
+.hp42-reach > li:last-child { border-bottom: 0; }
+@media (min-width: 1100px) {
+  .hp42-grid { grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); gap: var(--s-7); }
+}
+
+/* Layout pass two, 4 October 2026: one open block. What hiding is reads on
+   the left at a measure and where a hide applies sits beside it on a wide
+   screen, under it on a narrow one. */
+.hp42 .hp42-about { max-width: none; }
+.hp42 .hp42-about-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); padding-top: var(--s-2); }
+.hp42-about-text { display: grid; gap: var(--s-2); align-content: start; max-width: var(--hp42-measure); }
+.hp42 .hp42-about-body .hp42-aside-title { font-size: var(--t-4); }
+@media (min-width: 1000px) {
+  .hp42 .hp42-about-body { grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr); gap: var(--s-7); }
+}

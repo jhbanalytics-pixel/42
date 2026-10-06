@@ -1,0 +1,427 @@
+.app:has(.explore-page) {
+  overflow-x: clip;
+}
+
+/* Quiet register, 23 Sept 2026, rulebook rule 2. The meta step is the
+   smallest size a reader reads on Discover, so it is 14px, not 12px. */
+.explore-page {
+  --oi-type-meta: 14px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  color: var(--oi-ink);
+  background: var(--oi-paper);
+  scroll-behavior: smooth;
+}
+
+.explore-page :is(a, button) {
+  min-width: 48px;
+  min-height: 48px;
+}
+
+/* Quiet register, 23 Sept 2026, rulebook rules 10, 11 and 19. The folio was
+   a third column beside the package's list and detail, so at 1280 the page
+   read as three cramped columns: the run's name broke over two lines and the
+   selected title over two more. The folio is now a band over the whole
+   workspace, the title on its own line, the run and the story link on one
+   row under it and the run reference on its own line below, closed by a
+   hairline, so opening the reference moves nothing sideways. The list and the
+   detail below take the full width. The layout adds no side gutter to the
+   one the shell's workspace gives, so Discover starts on the Briefing's and
+   Fieldwork's left edge, and at 390 the filter row keeps its four words on
+   one line. */
+.explore-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 48px 0 72px;
+}
+
+.explore-folio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 24px;
+  min-width: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--oi-rule);
+}
+
+.explore-folio > p {
+  margin: 0;
+}
+
+/* The reference takes a line of its own under the run's row. */
+.explore-folio__run-reference {
+  flex: 1 0 100%;
+  min-width: 0;
+}
+
+/* The title takes the band's first line; the run's row sits close under it,
+   with the 48px targets giving the row its own air. */
+.explore-folio h1 {
+  flex: 1 0 100%;
+  margin: 8px 0;
+  font: 400 var(--type-7)/0.95 var(--oi-serif);
+  letter-spacing: -0.02em;
+}
+
+.explore-index h2 {
+  margin: 8px 0 20px;
+  font: 400 var(--type-7)/0.95 var(--oi-serif);
+  letter-spacing: -0.02em;
+}
+
+/* Provenance labels: the sans at type-3 and 400, sentence case with no
+   tracking. The variation axis is stated because Recursive Sans and
+   Recursive Mono share one file. */
+.explore-state__kicker,
+.explore-folio__market,
+.explore-folio__window,
+.explore-receipts__source,
+.explore-receipts__meta {
+  font: 400 var(--type-3)/1.4 var(--oi-sans);
+  font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0;
+}
+
+/* The run id is a reference a reader quotes rather than reads, so it waits
+   under the run's name. Its summary is a control and takes the 48px target
+   the Source Lab and Evidence Room references give theirs. Quiet register,
+   23 Sept 2026: it is written in the ink with the turning triangle the
+   Fieldwork and workspace Details draw, because muted words with no mark read
+   as a label whose value is missing. */
+.explore-folio__run-reference summary {
+  display: inline-flex;
+  gap: 8px;
+  min-width: 48px;
+  min-height: 48px;
+  align-items: center;
+  list-style: none;
+  cursor: pointer;
+  color: var(--ink);
+  font: 400 var(--type-3)/1.3 var(--oi-sans, var(--sans));
+}
+
+.explore-folio__run-reference summary::-webkit-details-marker {
+  display: none;
+}
+
+.explore-folio__run-reference summary::before {
+  content: "";
+  flex: none;
+  width: 0;
+  height: 0;
+  border-block: 5px solid transparent;
+  border-inline-start: 6px solid currentColor;
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+
+.explore-folio__run-reference[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.explore-folio__run-reference summary:hover,
+.explore-folio__run-reference summary:focus-visible {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.explore-folio__run-reference code {
+  display: block;
+  font-size: var(--type-3);
+  overflow-wrap: break-word;
+  font-family: var(--oi-mono, var(--mono));
+  font-variation-settings: "MONO" 1, "CASL" 0, "slnt" 0, "CRSV" 0;
+}
+
+.explore-folio__window {
+  display: grid;
+  gap: 10px;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--oi-rule);
+  overflow-wrap: break-word;
+}
+
+.explore-selection {
+  min-width: 0;
+  scroll-margin-top: 96px;
+  transform: translateY(0);
+  transition: transform var(--motion-row) var(--motion-standard-easing);
+  container-type: inline-size;
+}
+
+/* The package turns Discover into a candidate column plus a detail column on
+   viewport width, but the host gives it only a fraction of that: the selection
+   column measures 372px at a 768 viewport and 529px at 1024, where an 18rem
+   candidate column leaves the detail 68px and its tiles overflow the page. The
+   column count follows the container instead, so Discover stacks until its own
+   box can hold both columns, and the package rules take over from 700px up
+   where the detail column is 345px or wider. Two classes so this wins over the
+   package rule whichever sheet lands last. */
+@container (max-width: 699px) {
+  .explore-selection .discover-instrument {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.explore-index {
+  min-width: 0;
+  padding-top: 32px;
+  border-top: 1px solid var(--oi-rule);
+}
+
+.explore-index h2 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.explore-index__rows {
+  display: grid;
+}
+
+.explore-index__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 16px;
+  min-width: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--oi-rule);
+}
+
+.explore-index__row[data-selected="true"] {
+  border-left: 3px solid var(--oi-red);
+}
+
+.explore-index__select {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(12ch, 1.3fr) repeat(3, minmax(9ch, 0.65fr));
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  padding: 12px;
+  color: var(--oi-ink);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.explore-index__select strong {
+  font: 400 1.125rem/1.25 var(--oi-serif);
+}
+
+.explore-index__select:focus-visible {
+  outline: 3px solid var(--oi-red);
+  outline-offset: var(--focus-offset);
+}
+
+.explore-index__evidence {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The held wrapper's width law, at most 780px and centred, lives in
+   styles/boot.css with the Briefing wrapper's, because Briefing paints
+   before any route sheet lands and every held card carries the same law. */
+
+.explore-receipts {
+  display: grid;
+  gap: 20px;
+  margin: 0;
+  padding-left: 24px;
+}
+
+.explore-receipts li {
+  padding: 0 0 20px 8px;
+  border-bottom: 1px solid var(--oi-rule);
+}
+
+.explore-receipts p {
+  margin: 0 0 8px;
+}
+
+.explore-receipts a {
+  display: inline-flex;
+  align-items: center;
+  color: var(--oi-ink);
+  text-decoration-color: var(--oi-red);
+}
+
+.explore-page .evidence-drawer {
+  transition: transform var(--motion-layer) var(--motion-standard-easing), opacity var(--motion-layer) var(--motion-standard-easing);
+}
+
+@media (max-width: 680px) {
+  .explore-layout {
+    padding: 28px 0 56px;
+  }
+
+
+  .explore-folio__window {
+    margin-top: 16px;
+  }
+
+  .explore-index__row,
+  .explore-index__select {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .explore-index__evidence {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explore-page {
+    scroll-behavior: auto;
+  }
+
+  .explore-index__select::after { transition-duration: 0.001ms; }
+
+  .explore-folio__run-reference summary::before { transition: none; }
+
+  .explore-selection {
+    transition: none;
+  }
+
+  .explore-page .evidence-drawer {
+    transition: none;
+  }
+}
+
+/* Round three, 24 Sept 2026: no route renders an .explore-filters bar, a
+   signal-qualities list, a compare picker or an .explore-index__select span,
+   so the mono capitals their rules set reached nothing and the rules went.
+   The filter count line below is still rendered and stays. */
+.explore-filters__count { font-family: var(--oi-sans, var(--sans)); font-size: var(--oi-type-meta); font-variant-numeric: tabular-nums; color: var(--muted); margin: 0; font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; }
+.explore-state--filtered-empty { padding: 32px 0; }
+
+/* The same red wipe the briefing uses under a receipt. The row you are about
+   to select states it from the leading edge on hover and on focus alike. The
+   rule scales and the row never does. */
+.explore-index__select::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--oi-red, currentColor);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+.explore-index__select:is(:hover, :focus-visible)::after { transform: scaleX(1); }
+
+
+/* Compare: aligned strips. Same field, same column, always. Rules organize the
+   grid; nothing is boxed. A differing row carries the red rule that means
+   position and difference everywhere else in the product. */
+.page.compare-page { color: var(--oi-ink); background: var(--oi-paper); padding: 24px 0 64px; }
+.compare-controls { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: flex-end; margin: 16px 0 24px; }
+.compare-strip { display: grid; gap: 0; margin-top: 8px; }
+.compare-strip__head,
+.compare-strip__row { display: grid; grid-template-columns: minmax(140px, 1fr) repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; padding: 12px 0; border-bottom: 1px solid currentColor; align-items: baseline; }
+.compare-strip__head { border-bottom-width: 2px; }
+.compare-strip__label { font-family: var(--oi-sans); font-size: var(--type-3); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; }
+.compare-strip__signal { font-weight: 700; }
+.compare-strip__value { font-family: var(--oi-sans); font-size: var(--type-3); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; }
+.compare-strip__value[data-value="unmeasured"] { opacity: 0.62; }
+.compare-strip__row[data-differs="true"] { border-left: 2px solid var(--oi-red, currentColor); padding-left: 12px; }
+.compare-strip--empty { padding: 24px 0; }
+
+/* Package 2.0.21 sets each Compare ribbon as a plot beside its end values,
+   and from a 768px viewport it lays the signals out one column each. The
+   end values keep their own width first, so the drawing gets what is left:
+   beside the 224px rail the three columns are 163px at a 768 viewport, the
+   chart 16px, and the dates run out of it; at 1024 and 1280 the chart is
+   still narrower than its two dates. The end values, the gap and the
+   selected marker take about 167px of a column, so from 360px the chart
+   keeps about 193px for its two dates, which need 169px. The floor sits well
+   under the 387px a column gets at 1440, because a classic 17px scrollbar,
+   as Windows Chrome draws it, takes its width from the page, and a floor
+   within a few pixels of 387px drops the third signal to a row of its own
+   there. So the columns take the width the page gives: one beside the rail
+   at 768, two up at 1024 and 1280, and three up from about 1360, as the
+   package draws them at 1440 with or without a scrollbar. The package keeps
+   the rows each column shares, and a second band starts its own. Two classes
+   so this wins over the package rule whichever sheet lands last.
+   Round three, 24 Sept 2026: package 2.0.22 drops the end values under the
+   chart once its plot is narrower than 440px, so a column only has to hold
+   the chart and its two dates, about 170px, beside the selected marker's
+   21px. The floor comes down to 320px, so the three signals stand in one
+   row from 1240 (320px columns), at 1280 (333px columns, 327px with a
+   classic scrollbar) and at 1423 and 1440, and are read across rather than
+   down.
+   Round three, 24 Sept 2026: from 1024 the floor is 232px, so the three
+   signals share one row there too, 248px columns (242px with a classic
+   scrollbar), and each chart still holds its two dates. 1024 had kept two
+   signals up with the third starting a band of its own only because the
+   layout check read the ribbon's visually hidden caption, which paints
+   nothing, as running past its column; the check now skips text clipped to
+   nothing. Three across puts every signal in view at once, where two up
+   left the third a scroll below beside an empty column. 768 keeps the
+   320px floor and one signal to a row beside the rail. */
+@media (min-width: 768px) {
+  .compare-page .comparison-instrument__ribbons {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .compare-page .comparison-instrument__ribbons {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 232px), 1fr));
+  }
+}
+
+/* Round three, 24 Sept 2026: the package gives only the selected signal its
+   red rule and the space beside it, 21px of its column, so that column's
+   chart drew narrower and shorter than the other two, its dates sat about
+   10px higher and at 1024 its end value dropped to a line of its own. Every
+   signal now keeps the same inline start, the rule's width and the same
+   space beside it, and the selected signal paints its rule there as an
+   inset shadow of the same weight, which takes no inline space of its own.
+   A border left transparent on the others would bevel the start of their
+   top rule, so the rule is a shadow on the selected signal alone. The three
+   charts share one width and one date line, and choosing another signal
+   moves nothing, only the rule. Four classes and an attribute, so this wins
+   over the package rule whichever sheet lands last. */
+.compare-page .comparison-instrument .comparison-instrument__ribbons .comparison-instrument__signal[data-comparison-signal] {
+  border-inline-start: 0;
+  padding-inline-start: calc(var(--active-route-width) + var(--space-4));
+  transition: box-shadow var(--motion-row) var(--motion-standard-easing);
+}
+.compare-page .comparison-instrument .comparison-instrument__ribbons .comparison-instrument__signal[data-comparison-signal][data-selected="true"] {
+  box-shadow: inset var(--active-route-width) 0 0 var(--ogilvy-red);
+}
+/* Forced colours drop every shadow, so there the selected signal draws its
+   rule as a border of the same width and gives the same width back from its
+   padding, and its text still starts where the others' does. */
+@media (forced-colors: active) {
+  .compare-page .comparison-instrument .comparison-instrument__ribbons .comparison-instrument__signal[data-comparison-signal][data-selected="true"] {
+    border-inline-start: var(--active-route-width) solid CanvasText;
+    padding-inline-start: var(--space-4);
+  }
+}
+
+/* The package prints "Pick a candidate" whenever the selected candidate has no
+   detail to show. Discover always has a candidate selected, filtered[0] where
+   the reader has picked none, so the prompt only ever applies where more than
+   one candidate is on offer. At one it asks the reader to choose between one
+   thing, so it is held back there. The durable fix is a package prop; this
+   holds the consumer's own route to the ruling until the package carries it. */
+.explore-selection[data-candidate-count="1"] .discover-instrument__next {
+  display: none;
+}
+
+/* The run's name line. Its id waits in the reference disclosure below it. */
+.explore-folio__run { margin: 0; }

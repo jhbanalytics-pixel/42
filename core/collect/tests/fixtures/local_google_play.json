@@ -1,0 +1,12 @@
+{
+  "_note": "Invented body for google_play/app-list. The route is not priced in the client yet, so the real envelope is unprobed; this is a guess in the shape of the other boards.",
+  "success": true,
+  "credits_used": 5,
+  "data": {
+    "items": [
+      {"rank": 1, "app_id": "com.example.sixty", "title": "Sixty Minute Groceries"},
+      {"rank": 2, "app_id": "com.example.kasibank", "title": "Kasi Bank App"},
+      {"rank": 3, "app_id": "com.example.taxi", "title": "Jozi Taxi"}
+    ]
+  }
+}

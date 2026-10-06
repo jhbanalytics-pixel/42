@@ -1,0 +1,28 @@
+{
+  "_note": "Invented values in the shapes of parse_live.json (the 28 September 2026 live probe): tiktok/hashtag and tiktok/song return one {computed, post} entry at data level with the running total in post.ext.video_count; tiktok/trending feed=local returns data.items of {computed, post, vendor_labels}.",
+  "tiktok/hashtag": {
+    "success": true, "credits_used": 1, "endpoint": "tiktok/hashtag", "platform": "tiktok",
+    "data": {"computed": {"estimated_reach": 5100000}, "post": {"author": {"username": null},
+      "content": {"text": "amapiano"}, "engagement": {"views": 5100000}, "ext": {"video_count": 91000},
+      "id": "1600000000000000011", "published_at": null, "url": "https://www.tiktok.com/tag/amapiano"}}
+  },
+  "tiktok/song": {
+    "success": true, "credits_used": 1, "endpoint": "tiktok/song", "platform": "tiktok",
+    "data": {"computed": {}, "post": {"author": {"username": null}, "content": {"text": "Original sound"},
+      "engagement": {}, "ext": {"video_count": 15400}, "id": "7300000000000000001", "published_at": null,
+      "url": "https://www.tiktok.com/music/original-sound-7300000000000000001"}}
+  },
+  "tiktok/trending": {
+    "success": true, "credits_used": 5, "endpoint": "tiktok/trending", "platform": "tiktok",
+    "data": {"items": [
+      {"computed": {"language": "zu"}, "vendor_labels": {}, "post": {"author": {"username": "kasi.keys"},
+        "content": {"text": "Afternoon groove #amapiano"}, "engagement": {"views": 12000, "likes": 800, "comments": 31, "shares": 9},
+        "ext": {"music_id": "7300000000000000001", "region": "ZA"}, "id": "7500000000000000101",
+        "published_at": "2026-10-05T10:00:00.000Z", "url": "https://www.tiktok.com/@kasi.keys/video/7500000000000000101"}},
+      {"computed": {"language": "en"}, "vendor_labels": {}, "post": {"author": {"username": "pap.and.wors"},
+        "content": {"text": "Lunch plate #kotarun"}, "engagement": {"views": 400, "likes": 20, "comments": 2, "shares": 1},
+        "ext": {"music_id": "7300000000000000002", "region": "ZA"}, "id": "7500000000000000102",
+        "published_at": "2026-10-05T09:00:00.000Z", "url": "https://www.tiktok.com/@pap.and.wors/video/7500000000000000102"}}
+    ]}
+  }
+}

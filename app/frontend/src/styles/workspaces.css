@@ -1,0 +1,192 @@
+/* Quiet register, 23 Sept 2026: one left edge. The shell's workspace already
+   holds the page off the rail (24px on a phone), so a workspace page adds no
+   side padding of its own: its title starts where the Briefing's does, the
+   phone gutter is 24px in total rather than 40, and inside the Build stage
+   the Evidence Room lines up with the brief beside it. */
+.workspace-page { width: 100%; max-width: var(--maxw); min-width: 0; margin: 0; padding: 40px 0 96px; overflow-wrap: break-word; }
+.workspace-page h1 { margin: 8px 0 16px; font: 400 var(--type-7)/1.1 var(--serif); letter-spacing: -0.01em; }
+.workspace-page h2 { margin: 32px 0 12px; font: 400 var(--type-6)/1.15 var(--serif); }
+.workspace-page > p:not(.workspace-kicker), .workspace-lead > p:not(.workspace-kicker) { max-width: var(--measure); font: 400 var(--type-4)/1.6 var(--sans); font-variant-numeric: tabular-nums; }
+.workspace-kicker, .workspace-state { font: 400 var(--type-3)/1.3 var(--sans); color: var(--muted); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; }
+/* A state is read, not shouted: sentence case in the body face beside the
+   thing it describes. Quiet register, 23 Sept 2026: only the Evidence Room
+   lead, whose state has a colour of its own, keeps the short rule in front;
+   elsewhere the word stands alone, and the weight is the sans 600 of the two
+   weights the register allows. */
+.workspace-state { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; color: var(--ink); font: 600 var(--type-3)/1.3 var(--sans); letter-spacing: 0; text-transform: none; font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; }
+[data-evidence-state] .workspace-lead .workspace-state::before { content: ""; width: 12px; height: 2px; background: var(--muted); }
+[data-evidence-state="ready"] .workspace-lead .workspace-state::before { background: var(--up); }
+[data-evidence-state="thin"] .workspace-lead .workspace-state::before, [data-evidence-state="unchecked"] .workspace-lead .workspace-state::before { background: var(--building); }
+[data-evidence-state="contradictory"] .workspace-lead .workspace-state::before { background: var(--down); }
+/* Quiet register, 23 Sept 2026: Funding control was the one framed box on
+   the page. It is a section like the budget above it, so it is separated by
+   the same space instead of a border and a fill. */
+.workspace-funding { margin-top: 32px; padding: 0; border: 0; background: none; }
+.workspace-funding dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.workspace-funding dd { font-variant-numeric: tabular-nums; }
+.workspace-funding dt, .workspace-row dt { color: var(--muted); font: var(--type-3) var(--sans); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; }
+.workspace-funding dd, .workspace-row dd { margin: 4px 0 0; }
+.workspace-limitation { max-width: var(--measure); color: var(--muted); }
+.workspace-rows { min-width: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.workspace-row { min-width: 0; padding: 18px 0; border-bottom: 1px solid var(--line); transition: background var(--motion-row) var(--motion-standard-easing); }
+.workspace-row:hover, .workspace-row:focus-within { background: var(--surface-2); }
+/* Quiet register, 23 Sept 2026: the line under a row's name is a label a
+   reader reads, the funding account, so it is the sans at 14px in the muted
+   colour. It used to be mono at 12px, and because it outranked the state rule
+   it set the claim state "Ready" in mono too; the state is excluded here so
+   its own rule holds. Mono is kept for the codes a reader copies. */
+.workspace-row span:not(.workspace-state) { display: block; color: var(--muted); font: 400 var(--type-3)/1.4 var(--sans); font-variant-numeric: tabular-nums; font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; }
+.workspace-row code, .workspace-reference p, .workspace-reason code { font: 400 var(--type-3)/1.5 var(--mono); font-variation-settings: "MONO" 1, "CASL" 0, "slnt" 0, "CRSV" 0; overflow-wrap: break-word; }
+.workspace-row summary, .workspace-page button, .workspace-row a { display: inline-flex; min-width: 48px; min-height: 48px; align-items: center; margin-top: 8px; color: var(--ink); cursor: pointer; }
+/* Every disclosure on a workspace page shows that it opens: a small ink
+   triangle in front of the words, turned down once it is open. The browser's
+   own marker is gone because the summary is a flex box, so it is drawn here. */
+.workspace-page details > summary:not(.source-snapshot__summary) { list-style: none; gap: 8px; }
+.workspace-page details > summary:not(.source-snapshot__summary)::-webkit-details-marker { display: none; }
+.workspace-page details > summary:not(.source-snapshot__summary)::before { content: ""; flex: none; width: 0; height: 0; border-block: 5px solid transparent; border-inline-start: 6px solid currentColor; transition: transform var(--motion-control) var(--motion-standard-easing); }
+.workspace-page details[open] > summary:not(.source-snapshot__summary)::before { transform: rotate(90deg); }
+.workspace-page details > summary:not(.source-snapshot__summary) { display: inline-flex; align-items: center; min-width: 48px; min-height: 48px; color: var(--ink); cursor: pointer; }
+/* Every control on a workspace page is a paper control: ink in a 1px rule
+   box at 48px on the body step, answering the pointer with colour and an
+   inset rule on the control move. */
+.workspace-page button { padding: 0 16px; border: 1px solid var(--muted); background: transparent; font: 600 var(--type-3)/1 var(--sans); text-decoration: none; transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing); }
+.workspace-row summary, .workspace-row a { transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing); }
+.workspace-page button:hover, .workspace-page button:focus-visible, .workspace-row summary:hover, .workspace-row summary:focus-visible, .workspace-row a:hover, .workspace-row a:focus-visible { color: var(--accent-text); border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+/* Section 7, the Active row. */
+.workspace-page button:active, .workspace-row summary:active, .workspace-row a:active { box-shadow: var(--press-grip); }
+.workspace-more { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin: 20px 0 0; }
+.workspace-more span { font: 400 var(--type-3)/1.4 var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; }
+/* The evidence a row opens onto sits in the row's own column, under a
+   hairline, with no inset fill: a filled panel inside a row is a box in a box. */
+.workspace-row details dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 0; padding: 12px 0 8px; background: none; }
+/* The ruled place for a reference a reader cites rather than reads. The summary
+   is a control, so it takes the same 48px paper control the rest of the page
+   gives, and the reference inside it keeps the mono provenance role. */
+.workspace-reference summary { display: inline-flex; min-width: 48px; min-height: 48px; align-items: center; color: var(--ink); cursor: pointer; font: 400 var(--type-3)/1.3 var(--sans); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing); }
+.workspace-reference summary:hover, .workspace-reference summary:focus-visible { color: var(--accent-text); box-shadow: inset 0 -2px 0 var(--accent); }
+.workspace-reference p { margin: 4px 0; color: var(--muted); }
+.workspace-error code { display: block; margin-top: 10px; }
+.workspace-skeleton { width: 100%; min-height: 280px; margin-top: 24px; background: var(--surface); border: 1px solid var(--line); }
+/* Task 65. The inventory band reserved 2,600 pixels for the budget block, the
+   funding block and the first page of twenty five rows, which is the geometry
+   of one of the route's three settles. On a desk whose snapshot does not
+   verify, Source Lab settles to a 340 pixel error card, and the round 16 sweep
+   measured the page collapsing by 2,550 pixels at both widths as the data
+   landed. A loading branch may reserve only what every settle of its route
+   shares, because a reservation the route cannot honour moves the page twice
+   instead of letting it grow once.
+
+   Round 18 measured the 280 pixel band still wrong the same way: 570.36
+   loading against 340.36 settled at 1280 and 554 against 324 at 390, a 230
+   pixel collapse at both widths. Two guesses at one number was enough, so
+   Source Lab stopped guessing and now reserves the title and the sentence its
+   three settles actually share. The band stays here for Historical and the
+   Evidence Room, whose loading and settled pages measured equal in the same
+   round. */
+/* The claims are what a reviewer came for, so they take the wide reading
+   column; the plan and the decision sit beside them as reference. */
+.evidence-room-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(220px, 1fr); grid-template-areas: "claims plan" "claims decision"; align-items: start; gap: 8px 48px; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+.evidence-room-grid > aside:first-child { grid-area: plan; }
+.evidence-room-grid > main { grid-area: claims; }
+.evidence-room-grid > aside:last-child { grid-area: decision; }
+.evidence-room-grid h2 { margin-top: 0; }
+.evidence-room-grid > aside { padding-bottom: 24px; }
+.evidence-room-grid > * { min-width: 0; }
+/* Section 5 allows the sans at 400 to 600 and carries no 700 anywhere in the
+   scale. Round 8 named these two headings and the package reset stops at
+   .intelligence-console, which never reaches this workspace page, so the reset
+   is stated here. */
+.evidence-room-grid h3 { font: 600 var(--type-4)/1.3 var(--sans); }
+@media (max-width: 600px) { .workspace-page { padding: 28px 0 96px; } .workspace-funding dl, .workspace-row details dl, .evidence-room-grid { grid-template-columns: 1fr; } .evidence-room-grid { grid-template-areas: "plan" "claims" "decision"; gap: 24px; } }
+@media (prefers-reduced-motion: reduce) { .workspace-page *, .workspace-page *::before { scroll-behavior: auto !important; transition-duration: 0s !important; animation-duration: 0s !important; } }
+
+/* Credit budget: lanes as rows, with what is measured and what is not stated
+   in the same column every time. A lane that nothing counts reads dimmer
+   without hiding, because an uncounted lane is still a lane. */
+/* The budget follows a list that already ends on a hairline, so the section
+   is separated by space alone; a second rule 24px under the first read as a
+   heavy double line. */
+.workspace-budget { margin: 32px 0; border-top: 0; padding-top: 0; }
+.workspace-budget .workspace-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px 24px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.workspace-budget dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px 16px; margin: 0; }
+.workspace-budget dt { font-family: var(--sans); font-size: var(--type-3); font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; }
+/* A lane figure is a count, so it is the sans with tabular numerals and read
+   at the label's own size, 25 000 rather than a mono 25000. */
+.workspace-budget dd { margin: 0; font-family: var(--sans); font-size: var(--type-4); font-variant-numeric: tabular-nums; font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0; }
+
+/* On a phone the lane's name and its figures stack, so the lane's sentence
+   keeps a readable measure and the figures sit two to a line under it. */
+@media (max-width: 600px) { .workspace-budget .workspace-row { grid-template-columns: minmax(0, 1fr); } }
+/* A failed read states what happened first; the reason code sits under a
+   closed Details line for support rather than as the next line of copy. */
+.workspace-reason { margin-top: 12px; color: var(--muted); }
+/* The Details line is a control, so it reads in ink with its marker, not as
+   a muted stray word. */
+.workspace-reason > summary { display: inline-flex; align-items: center; min-width: 48px; min-height: 48px; color: var(--ink); cursor: pointer; font-family: var(--sans); font-size: var(--type-3); }
+/* Round three, 24 Sept 2026: the flex box drops the browser's own marker, and
+   Ask, Listen and Network hold this line outside a workspace page, so the line
+   draws the same ink triangle the workspace disclosures draw, turned down once
+   it is open. The action after it keeps the 16px gap it has on a workspace
+   error wherever the line sits. */
+.workspace-reason > summary { list-style: none; gap: 8px; }
+.workspace-reason > summary::-webkit-details-marker { display: none; }
+.workspace-reason > summary::before { content: ""; flex: none; width: 0; height: 0; border-block: 5px solid transparent; border-inline-start: 6px solid currentColor; transition: transform var(--motion-control) var(--motion-standard-easing); }
+.workspace-reason[open] > summary::before { transform: rotate(90deg); }
+.workspace-reason + button { margin-top: 16px; }
+/* The Evidence Room head is a label, a title and a state, set close together.
+   The console's lead size would open each of them into a display line box. */
+.evidence-room .workspace-lead { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 0 0 16px; font-size: var(--type-4); font-weight: 400; }
+.evidence-room .workspace-lead h1 { margin: 0; }
+.evidence-room .workspace-reference summary { min-height: 48px; color: var(--ink); font: 400 var(--type-3)/1.3 var(--sans); letter-spacing: 0; text-transform: none; font-variation-settings: normal; }
+.evidence-room-grid aside h3 { margin: 16px 0 4px; color: var(--muted); }
+.evidence-room-grid main h3 { margin: 4px 0 8px; color: var(--ink); font: 400 var(--type-5)/1.35 var(--serif); }
+.evidence-room .workspace-reference { margin-bottom: 8px; }
+.evidence-room-grid aside p, .evidence-room-grid aside ol { margin-top: 0; }
+/* Quiet register, 23 Sept 2026, rulebook rules 1, 10 and 11. Inside Build
+   brief the room is a part of the page, not a page: the page title is "Build
+   brief" at the display step, so the room's title takes the step below it
+   and its sections take the step the brief controls under it use. The room
+   starts on the rail's first line with a group's space under it, not a
+   page's 96px, and the plan sits a group's space under the reference, not
+   80px. Where the stage is narrower than two readable columns, 680px at
+   1280, the plan, the claims and the decision stack in one column; side by
+   side they left a 397px claims column with 210px of empty page under it
+   and a 233px plan column that broke every line. The plan's labels are
+   labels: 14px, 400, muted. Decision and Artifact are two facts, each a
+   group, so the second stands a group's space below the first. */
+.workspace-page.evidence-room { container: evidence-room / inline-size; }
+.workbench-stage > .workspace-page { padding: 0 0 48px; }
+.workspace-page.evidence-room .evidence-room-grid { margin-top: 8px; }
+.evidence-room .workspace-lead h1 { font-size: var(--type-6); }
+.evidence-room-grid h2 { font-size: var(--type-5); }
+.evidence-room-grid aside h3 { font: 400 var(--type-3)/1.4 var(--sans); }
+.evidence-room-grid > aside h2 ~ h2 { margin-top: 24px; }
+@container evidence-room (max-width: 759px) {
+  .evidence-room-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "plan" "claims" "decision"; gap: 32px; }
+  .evidence-room-grid > aside { padding-bottom: 0; }
+}
+/* The actions a failed read offers sit on one row: the re-read first, the
+   way back beside it. */
+.workspace-actions { display: flex; flex-wrap: wrap; gap: 12px 16px; margin: 16px 0 0; }
+.workspace-actions button { margin-top: 0; }
+
+/* Dossier review: the working sequence and the approved Client Read. Every
+   control is a 48px target; checkboxes are 24px so the row, not the box, is
+   what a finger lands on. Exported text wraps at word boundaries and breaks a
+   word only when it is longer than the line, as the width law requires. */
+.dossier-review__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 12px 0; }
+.dossier-review__form { display: grid; gap: 12px; margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--line); }
+.dossier-review__form label { display: grid; gap: 6px; }
+.dossier-review__receipt, .dossier-review__select { display: flex; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; transition: color var(--motion-control) var(--motion-standard-easing); }
+.dossier-review__receipt:hover, .dossier-review__select:hover { color: var(--accent-text); }
+.dossier-review__receipt:focus-within, .dossier-review__select:focus-within { color: var(--accent-text); }
+.dossier-review__signin-button { min-height: 48px; }
+.dossier-review input[type="checkbox"] { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--accent); }
+.dossier-review select, .dossier-review textarea { box-sizing: border-box; width: 100%; min-height: 48px; padding: 12px; border: 1px solid var(--muted); border-radius: 0; background: transparent; color: var(--ink); font: inherit; }
+.dossier-review__export { max-height: 60vh; overflow: auto; padding: 12px; border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: break-word; font-family: var(--mono); font-variation-settings: "MONO" 1; font-size: var(--type-3); }
+.dossier-client-read__frame { display: block; width: 100%; min-height: 70vh; border: 1px solid var(--line); background: #fff; }
+/* The workspace button rule outranks the shared primary action, so the step's
+   one primary action is restated here with its fill and its own hover. */
+.dossier-review .legacy-action--primary, .dossier-client-read .legacy-action--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.dossier-review .legacy-action--primary:hover, .dossier-review .legacy-action--primary:focus-visible, .dossier-client-read .legacy-action--primary:hover, .dossier-client-read .legacy-action--primary:focus-visible { color: var(--accent-ink); border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent-ink); }
+.dossier-review .legacy-action:disabled { opacity: 0.55; cursor: not-allowed; }

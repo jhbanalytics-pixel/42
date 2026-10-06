@@ -1,0 +1,465 @@
+{
+  "sample_date": "2026-09-30",
+  "capture_run": "public-feed-fetch-2026-09-30-recovery-102715-32ce4b00",
+  "sanitization": {
+    "kept": "public listing headings, title or track links, times, chart cells, and structural tags/classes",
+    "removed": "scripts, styles, hidden content, forms, inputs, media tags/URLs, event/data attributes, URL queries/fragments, profile links"
+  },
+  "samples": [
+    {
+      "name": "sabc_news",
+      "market": "ZA",
+      "kind": "news_listing",
+      "url": "https://www.sabcnews.com/sabcnews/",
+      "retrieved_at_utc": "2026-09-30T10:27:15Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=UTF-8",
+        "Last-Modified": "Wed, 30 Sep 2026 10:16:57 GMT"
+      },
+      "bytes_captured": 574745,
+      "response_complete": true,
+      "captured_body_sha256": "80762ee39f948b25f6a3125b7ab4b303d627df1d448b953e7d584a608f2a16af",
+      "sample_file": "za_sabc_news_20260930.html",
+      "sample_sha256": "aad59aa1b74a0cb1dfe0fcb8567794b357fa5763adda7a5f9502549db928319e",
+      "fragments": [
+        {
+          "tag": "section",
+          "class": "elementor-section elementor-top-section elementor-element elementor-element-85e4325 frontpage-latest-news elementor-section-boxed elementor-section-height-default elementor-section-height-default",
+          "headings": [
+            "LATEST NEWS",
+            "ActionSA calls for probe into eThekwini contract awarded to Moriel",
+            "Former homelands lack proper infrastructure: Holomisa",
+            "Joe Sibanyoni questioned over ‘our own 30%’ PUTCO comment",
+            "Two people gunned down in Wynberg taxi attack"
+          ],
+          "times": [
+            "30 September 2026, 12:16 [SAST]",
+            "30 September 2026, 11:59 [SAST]",
+            "30 September 2026, 11:37 [SAST]",
+            "30 September 2026, 11:11 [SAST]"
+          ],
+          "anchor_count": 8,
+          "source_char_start": 449869,
+          "source_char_end": 457472,
+          "raw_fragment_sha256": "47805d9918cf14941b2af6bdc22a0085e2dc72e094abd9a9dd00cfee164d923c",
+          "sanitized_fragment_sha256": "aad59aa1b74a0cb1dfe0fcb8567794b357fa5763adda7a5f9502549db928319e",
+          "sanitized_bytes": 2986
+        }
+      ],
+      "error": null,
+      "extractor": "listing_cards",
+      "charset": "UTF-8",
+      "sample_bytes": 2986
+    },
+    {
+      "name": "groundup",
+      "market": "ZA",
+      "kind": "news_listing",
+      "url": "https://groundup.news/",
+      "retrieved_at_utc": "2026-09-30T10:27:16Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=utf-8"
+      },
+      "bytes_captured": 177193,
+      "response_complete": true,
+      "captured_body_sha256": "2bd7d5d903436d4b3f6fbe5c8ec8146bd6a85fb14f19b265b82bbf5771b6f995",
+      "sample_file": "za_groundup_20260930.html",
+      "sample_sha256": "c0842d52e6331ea06a2a484e83c9ade00587c6b65e3868af4e0297af2a22b468",
+      "fragments": [
+        {
+          "tag": "div",
+          "class": "home__article__summary",
+          "headings": [
+            "Woodstock land occupiers lose bid to appeal eviction"
+          ],
+          "times": [],
+          "anchor_count": 3,
+          "source_char_start": 103010,
+          "source_char_end": 104412,
+          "raw_fragment_sha256": "2ac5ea8b38b32443b7538a8af36aad908a314e435b77041513ec270536d8e6d7",
+          "sanitized_fragment_sha256": "edff98412c24c0df43dee724ea986b0a361a75d1179c449983a858b80e73c36f",
+          "sanitized_bytes": 354
+        },
+        {
+          "tag": "div",
+          "class": "home__article__summary",
+          "headings": [
+            "Scrap metal reclaimers battle to make ends meet"
+          ],
+          "times": [],
+          "anchor_count": 3,
+          "source_char_start": 104458,
+          "source_char_end": 105949,
+          "raw_fragment_sha256": "6e44594bc18f689d7084c2d295d2757e3a48db391f8e52eebf30ffed42c4781a",
+          "sanitized_fragment_sha256": "e22e094c3370c9f8675cfb3bde0a62e20f28bd6e3424566a0faf9b9f9e8d33ac",
+          "sanitized_bytes": 383
+        },
+        {
+          "tag": "div",
+          "class": "home__article__summary",
+          "headings": [
+            "Inside Gauteng’s welfare corruption investigation"
+          ],
+          "times": [],
+          "anchor_count": 5,
+          "source_char_start": 105995,
+          "source_char_end": 107563,
+          "raw_fragment_sha256": "8754d773c9b8450cd774729065e6063277c6e0a26e175fa7b26433fb1a30d3c6",
+          "sanitized_fragment_sha256": "6985e1d812a669a19630a60368853cc76813158420b4d5417b9ea52f352dddad",
+          "sanitized_bytes": 352
+        }
+      ],
+      "error": null,
+      "extractor": "listing_cards",
+      "charset": "utf-8",
+      "sample_bytes": 1089
+    },
+    {
+      "name": "enca",
+      "market": "ZA",
+      "kind": "news_listing",
+      "url": "https://www.enca.com/",
+      "retrieved_at_utc": "2026-09-30T10:27:16Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=UTF-8"
+      },
+      "bytes_captured": 95947,
+      "response_complete": true,
+      "captured_body_sha256": "261ba23aa00a98f6288808a610ca27b7d6d2d3a1e8f93d97c389d359d4dc4aa0",
+      "sample_file": "za_enca_20260930.html",
+      "sample_sha256": "90189b758de46ce2815c7868c6a55b26d73f91de24d00b3a9391eecdf7ef0ad4",
+      "fragments": [
+        {
+          "tag": "div",
+          "class": "postheader",
+          "headings": [
+            "Top News",
+            "GBV cases must move from reports to convictions, Commission says",
+            "Yellow Level 2 weather warning for Limpopo, NW, Gauteng",
+            "Ad hoc committee | MPs near completion of report",
+            "Latest News"
+          ],
+          "times": [],
+          "anchor_count": 27,
+          "source_char_start": 16978,
+          "source_char_end": 42516,
+          "raw_fragment_sha256": "ac4a5d66d16b6e762cf3d6a74402f30d057021f744a6ea3f4e93598b534bb5d3",
+          "sanitized_fragment_sha256": "90189b758de46ce2815c7868c6a55b26d73f91de24d00b3a9391eecdf7ef0ad4",
+          "sanitized_bytes": 8166
+        }
+      ],
+      "error": null,
+      "extractor": "listing_cards",
+      "charset": "UTF-8",
+      "sample_bytes": 8166
+    },
+    {
+      "name": "channels_tv",
+      "market": "NG",
+      "kind": "news_listing",
+      "url": "https://www.channelstv.com/",
+      "retrieved_at_utc": "2026-09-30T10:27:17Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=UTF-8"
+      },
+      "bytes_captured": 279110,
+      "response_complete": true,
+      "captured_body_sha256": "07862a7e552c39b0ea56620ae12eb67b4beffc8c7a5bcc7e8d12124872f19bbd",
+      "sample_file": "ng_channels_tv_20260930.html",
+      "sample_sha256": "9e77d13b2ed9dd8f8b94a8dbad8371dc50ad9b793cadb8be8e24f14b1929a02a",
+      "fragments": [
+        {
+          "tag": "div",
+          "class": "article_wrapper",
+          "headings": [
+            "NSCDC Deploys 3,000 Personnel Across Abuja For Independence Anniversary",
+            "The Big Reset: Will Nigerians Feel It?",
+            "Dangote $16bn East Africa Refinery Groundbreaking Holds In Kenya",
+            "US-Led Troops Exit Iraq",
+            "Nuclear Weapon: Tinubu Asks UN Security Council To Provide Leadership, Impose Sanctions"
+          ],
+          "times": [],
+          "anchor_count": 22,
+          "source_char_start": 36928,
+          "source_char_end": 54757,
+          "raw_fragment_sha256": "72698b526931251c8244de2780b229b2f70756690c49fe6db9e1135851f91aef",
+          "sanitized_fragment_sha256": "9e77d13b2ed9dd8f8b94a8dbad8371dc50ad9b793cadb8be8e24f14b1929a02a",
+          "sanitized_bytes": 6323
+        }
+      ],
+      "error": null,
+      "extractor": "listing_cards",
+      "charset": "UTF-8",
+      "sample_bytes": 6323
+    },
+    {
+      "name": "punch",
+      "market": "NG",
+      "kind": "news_listing",
+      "url": "https://punchng.com/",
+      "retrieved_at_utc": "2026-09-30T10:27:17Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=UTF-8"
+      },
+      "bytes_captured": 328036,
+      "response_complete": true,
+      "captured_body_sha256": "3437bd9d0a86fe65e72cce2c7b544dae4d52606387f24ea1d7e7ed5418a29604",
+      "sample_file": "ng_punch_20260930.html",
+      "sample_sha256": "530491e2c5c01c19c188f06c5ea8cd69909d898530ae905f61bb3bc46d54dc31",
+      "fragments": [
+        {
+          "tag": "section",
+          "class": "news-section-one",
+          "headings": [
+            "Latest News",
+            "EPL: Everything Guardiola said about Man City’s 115 charges - Report",
+            "Building collapse kills one in Anambra",
+            "Solar wiring sparks fire in Kwara building",
+            "Security operatives move to rescue 47 abducted farmers in Niger"
+          ],
+          "times": [],
+          "anchor_count": 25,
+          "source_char_start": 57077,
+          "source_char_end": 81455,
+          "raw_fragment_sha256": "829a40250033fe1288de118da519dfd3d2abdd0ec4303cf39f9d619d0b7dab26",
+          "sanitized_fragment_sha256": "530491e2c5c01c19c188f06c5ea8cd69909d898530ae905f61bb3bc46d54dc31",
+          "sanitized_bytes": 4135
+        }
+      ],
+      "error": null,
+      "extractor": "listing_cards",
+      "charset": "UTF-8",
+      "sample_bytes": 4135
+    },
+    {
+      "name": "the_standard",
+      "market": "KE",
+      "kind": "news_listing",
+      "url": "https://www.standardmedia.co.ke/",
+      "retrieved_at_utc": "2026-09-30T10:27:18Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=UTF-8"
+      },
+      "bytes_captured": 505321,
+      "response_complete": true,
+      "captured_body_sha256": "60d4886dde6a0bf9ea20c0ded0cdb3c6d8d5452a32359a9ff2e29e6019cca416",
+      "sample_file": "ke_the_standard_20260930.html",
+      "sample_sha256": "d1bab47f8454004d8b8a0eee28c9a2f9105e68e93f8bccd78ed5087fa711771e",
+      "fragments": [
+        {
+          "tag": "div",
+          "class": "card border-0 ",
+          "headings": [
+            "Iran says received US response to its proposal to end war"
+          ],
+          "times": [],
+          "anchor_count": 3,
+          "source_char_start": 167532,
+          "source_char_end": 169996,
+          "raw_fragment_sha256": "0519359135a591ed20c1f5cb247784c7e60b115bf1913fbfd2a38812c7ce1d00",
+          "sanitized_fragment_sha256": "a4e75942254b0f900c2492178f199ed3dd8c019be40efb72f8915415141e67be",
+          "sanitized_bytes": 702
+        },
+        {
+          "tag": "div",
+          "class": "card border-0",
+          "headings": [
+            "Nairobi, Mombasa and North Eastern major electricity consumers"
+          ],
+          "times": [],
+          "anchor_count": 3,
+          "source_char_start": 242543,
+          "source_char_end": 245942,
+          "raw_fragment_sha256": "b9f5900ce15624aeea554758c13f8eb1ecdc19fd318a67ee53b0e8e344f8128c",
+          "sanitized_fragment_sha256": "9e23450f254ae643022bb4b99b41d4fddac2e7f5f6d29a66f6a402c0343abfcd",
+          "sanitized_bytes": 575
+        }
+      ],
+      "error": null,
+      "extractor": "listing_cards",
+      "charset": "UTF-8",
+      "sample_bytes": 1277
+    },
+    {
+      "name": "mdundo_ke_top_songs",
+      "market": "KE",
+      "kind": "music_chart",
+      "url": "https://play.mdundo.com/top-charts/ke",
+      "retrieved_at_utc": "2026-09-30T10:27:20Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=UTF-8"
+      },
+      "bytes_captured": 1533137,
+      "response_complete": true,
+      "captured_body_sha256": "ad95f863894b3cb6ec4a5f5aae3f3854b9b3b9a55921e0b4d2a984cb3291332f",
+      "sample_file": null,
+      "sample_sha256": null,
+      "fragments": [],
+      "error": "No complete public listing fragment matched the local extractor",
+      "extractor": "listing_cards",
+      "charset": "UTF-8"
+    },
+    {
+      "name": "turntable_ng_top_100",
+      "market": "NG",
+      "kind": "music_chart",
+      "url": "https://www.turntablecharts.com/charts/1",
+      "retrieved_at_utc": "2026-09-30T10:27:21Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Length": "323120",
+        "ETag": "\"4ee30-uhjogblMgrp6+uzst5G6oOk5bN4\""
+      },
+      "bytes_captured": 323120,
+      "response_complete": true,
+      "captured_body_sha256": "39ef94c2a5eb3f9a60e48a6c8a489f0a0378b059f1b153310cdddaf6c4b9fc14",
+      "sample_file": "ng_turntable_ng_top_100_20260930.html",
+      "sample_sha256": "4e5b3b1d1527279e9637b74aa1d1285fc13d7a6ec138e10db30cbf6181a8cb77",
+      "fragments": [
+        {
+          "tag": "tr",
+          "class": "",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 78718,
+          "source_char_end": 79171,
+          "raw_fragment_sha256": "8ee411d35177023c15c4f01eca036bbdd34aa33c227fc720946f7ebd1772eedc",
+          "sanitized_fragment_sha256": "1f52240e8dc7157e2e1b3d75ffad7374fccbbd4da632fb7d876a857e43079efc",
+          "sanitized_bytes": 359
+        },
+        {
+          "tag": "tr",
+          "class": "TableRow__Tr-sc-1ydm416-0 qPaeE border",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 79206,
+          "source_char_end": 81581,
+          "raw_fragment_sha256": "e42ffb802cdf313c265951bf1458c2f430748d9b5f6f2b245f684b6c7668e955",
+          "sanitized_fragment_sha256": "e36813cec1de711747ab658c6c334ed4eb8172a9b68d60f4855e8f24e9b165cd",
+          "sanitized_bytes": 866
+        },
+        {
+          "tag": "tr",
+          "class": "TableRow__Tr-sc-1ydm416-0 qPaeE border",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 81581,
+          "source_char_end": 83487,
+          "raw_fragment_sha256": "1157c5689bad541f27aec4c62ba5562d728744cdb80f1cf5e6981b293113c4f2",
+          "sanitized_fragment_sha256": "9e3d62aa19044e0a04fe730e0af54b681e2971f86f5b4b11ca3e5894ad44509f",
+          "sanitized_bytes": 833
+        },
+        {
+          "tag": "tr",
+          "class": "TableRow__Tr-sc-1ydm416-0 qPaeE border",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 83487,
+          "source_char_end": 85860,
+          "raw_fragment_sha256": "d4b71847ba25ab4b07868d869e949a65b336aa2166dccfb727476d1b318e390f",
+          "sanitized_fragment_sha256": "b62ded95d43ba550f3cebb76417c7c74ba3cb7ab717cd71c3566814373b61250",
+          "sanitized_bytes": 865
+        },
+        {
+          "tag": "tr",
+          "class": "TableRow__Tr-sc-1ydm416-0 qPaeE border",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 85860,
+          "source_char_end": 87777,
+          "raw_fragment_sha256": "bc429a66ea0ddb536c3209dc5ed52a26376b2157a63b95c4ee9a91757535110b",
+          "sanitized_fragment_sha256": "ae8ae6d4b8b50c35f18cab93e6775a8c9726f3be26f60691d3367f8805927304",
+          "sanitized_bytes": 839
+        },
+        {
+          "tag": "tr",
+          "class": "TableRow__Tr-sc-1ydm416-0 qPaeE border",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 87777,
+          "source_char_end": 90156,
+          "raw_fragment_sha256": "00b9ba25e3b06ae5126f7be5d81b48713c52d6812092bf073f05f5e144d64b36",
+          "sanitized_fragment_sha256": "55db49e344544502e98f8d5735b530816cff89169b86031bc9d6d23e5a1c1a4a",
+          "sanitized_bytes": 868
+        },
+        {
+          "tag": "tr",
+          "class": "TableRow__Tr-sc-1ydm416-0 qPaeE border",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 90156,
+          "source_char_end": 92091,
+          "raw_fragment_sha256": "48d0a320701397a4b050d20c448803d86fe8034ad79d22f37604f885d0033577",
+          "sanitized_fragment_sha256": "a2d08f08e008b8a98c76d8bc21e13084296b9fd1f91ad7a297106252c1b26027",
+          "sanitized_bytes": 861
+        },
+        {
+          "tag": "tr",
+          "class": "TableRow__Tr-sc-1ydm416-0 qPaeE border",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 92091,
+          "source_char_end": 94464,
+          "raw_fragment_sha256": "62ed57a7494e7ca8a549280eef8555cec61fb7be79dac30c50a8081e73f5e6e1",
+          "sanitized_fragment_sha256": "41e199926f17bdcf69783167b962027fd26cda7572b8230ee3ad11d9aaaf1e07",
+          "sanitized_bytes": 865
+        },
+        {
+          "tag": "tr",
+          "class": "TableRow__Tr-sc-1ydm416-0 qPaeE border",
+          "headings": [],
+          "times": [],
+          "anchor_count": 0,
+          "source_char_start": 94464,
+          "source_char_end": 96412,
+          "raw_fragment_sha256": "1841d68f700356f6a6819e964da3cb40bd233aba960724e70ec7837163e06be0",
+          "sanitized_fragment_sha256": "e0f6f8cc0a80895449806d2ae6ded3a12bcfabfd3ec6dde3ac2d78a4c607c062",
+          "sanitized_bytes": 884
+        }
+      ],
+      "error": null,
+      "extractor": "table_header_and_first_rows",
+      "charset": "utf-8",
+      "sample_bytes": 7240
+    },
+    {
+      "name": "capital_fm_radio_playlist",
+      "market": "KE",
+      "kind": "radio_playlist",
+      "url": "https://radio.co.ke/listen/capital-fm/",
+      "retrieved_at_utc": "2026-09-30T10:27:21Z",
+      "http_status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=utf-8"
+      },
+      "bytes_captured": 76819,
+      "response_complete": true,
+      "captured_body_sha256": "cf83fcbccfac8f26ad28004dfb2744c76f74fa94da3765c8895f278e66671d28",
+      "sample_file": null,
+      "sample_sha256": null,
+      "fragments": [],
+      "error": "Rejected as a playlist sample; station details are not track history. Exact sanitized bytes are lost and not reconstructed.",
+      "extractor": "listing_cards",
+      "charset": "utf-8",
+      "sample_status": "rejected_sample_lost",
+      "rejected_source_fragment": "The former sanitized 964-byte sample contained Capital FM station details, frequencies, coverage, languages, and ownership, not recent-play rows.",
+      "loss": "The local sample file was deleted before the correction instruction. The raw HTML body was not stored, and the remaining metadata cannot reconstruct or prove the exact sample bytes. Treat the sample as lost and unproven."
+    }
+  ]
+}

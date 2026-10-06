@@ -1,0 +1,149 @@
+{
+  "probe": "9b",
+  "route": "facebook/search/posts",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 5>",
+        {
+          "computed": {
+            "content_category": "<str>",
+            "engagement_rate": "<null>",
+            "estimated_reach": "<null>",
+            "language": "<str>"
+          },
+          "post": {
+            "author": {
+              "avatar_url": "<null>",
+              "display_name": "<str>",
+              "username": "<str>",
+              "verified": "<null>"
+            },
+            "content": {
+              "duration_seconds": "<null>",
+              "media_urls": "<null>",
+              "text": "<str>",
+              "thumbnail_url": "<null>"
+            },
+            "engagement": {
+              "comments": "<int>",
+              "likes": "<int>",
+              "saves": "<null>",
+              "shares": "<null>",
+              "views": "<null>"
+            },
+            "ext": {
+              "published_at_epoch": "<int>",
+              "reaction_counts": [
+                "<list of 3>",
+                {
+                  "count": "<int>",
+                  "type": "<str>"
+                }
+              ]
+            },
+            "flags": {
+              "deleted": "<bool>",
+              "nsfw": "<null>",
+              "pinned": "<null>",
+              "spoiler": "<null>"
+            },
+            "id": "<str>",
+            "published_at": "<str>",
+            "url": "<str>"
+          },
+          "vendor_labels": {
+            "labels": {
+              "intent": {
+                "buyer": "<bool>",
+                "confidence": "<float>",
+                "fits_offer": "<null>",
+                "label": "<str>",
+                "seller": "<float>",
+                "urgency": "<float>"
+              },
+              "niche": {
+                "confidence": "<float>",
+                "label": "<str>",
+                "taxonomy": "<str>"
+              },
+              "sponsored": {
+                "brand": "<null>",
+                "disclosed": "<bool>",
+                "p": "<float>",
+                "undisclosed": "<bool>"
+              }
+            },
+            "relevance": {
+              "depth": "<float>",
+              "p": "<float>",
+              "sense": "<str>",
+              "spam": "<float>"
+            }
+          }
+        }
+      ],
+      "labels": {
+        "cached": "<int>",
+        "dropped": "<int>",
+        "dropped_ids": [
+          "<list of 0>"
+        ],
+        "extra_credits": "<int>",
+        "labelled": "<int>",
+        "methodology_version": "<str>",
+        "mode": "<str>",
+        "pending": "<int>",
+        "pending_ids": [
+          "<list of 0>"
+        ],
+        "presets": [
+          "<list of 3>",
+          "<str>"
+        ],
+        "rows": "<int>",
+        "skipped": "<int>",
+        "status": "<str>",
+        "unjudged": "<int>"
+      },
+      "next_cursor": "<str>",
+      "relevance": {
+        "cached": "<int>",
+        "dropped": "<int>",
+        "dropped_ids": [
+          "<list of 0>"
+        ],
+        "extra_credits": "<int>",
+        "kept": "<int>",
+        "methodology_version": "<str>",
+        "mode": "<str>",
+        "origin": "<str>",
+        "pending": "<int>",
+        "pending_ids": [
+          "<list of 0>"
+        ],
+        "rows": "<int>",
+        "scored": "<int>",
+        "status": "<str>",
+        "threshold": "<float>",
+        "too_short": "<int>",
+        "topic_source": "<str>",
+        "unjudged": "<int>"
+      },
+      "total": "<null>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<str>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

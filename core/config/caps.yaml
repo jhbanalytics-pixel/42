@@ -1,0 +1,36 @@
+# SocialCrawl credit caps. The caps table in docs/full-42/SETUP.md ("Cost and credit guards") is
+# the one source; core/config/tests/test_caps.py fails when a number here drifts from it.
+# core/collect/socialcrawl_client.py reads this file.
+
+ENGINE_DAILY:
+  total: 2400
+  collect: 2000
+  confirm: 300
+  reserve: 100
+
+ASK_DAILY: 600
+SCHEDULED_DAILY: 120   # the share of ASK_DAILY scheduled questions may spend
+
+PULSE_DAILY: 60        # the intraday pulse's own share, outside ENGINE_DAILY
+
+VIDEO_DAILY:           # video reading's own share, outside ENGINE_DAILY; both above 0 or nothing runs
+  clips: 60            # clips read a day (model spend counts against MODEL_DAILY_USD)
+  credits: 600         # transcript and screen-text credits a day (Albert, raised 3 October)
+
+EVAL_DAILY:
+  live: 0        # evaluations run in replay mode
+  refresh: 100   # a deliberate refresh only
+
+BUILD_DAILY:
+  before_schedule: 600
+  after_schedule: 150
+
+MONTHLY:
+  total: 80000
+  throttle_order: [ask, build]           # stopped first when the month runs out
+  protected: [collect, confirm, reserve] # the morning run, stopped only by the balance floor
+
+BALANCE_FLOOR: 20000
+
+MODEL_DAILY_USD:
+  default: 50

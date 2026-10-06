@@ -1,0 +1,217 @@
+{
+  "ask_id": "a_20260928_0000000b",
+  "question": "Is there anything thin on #fixture in Kenya?",
+  "parent_id": null,
+  "market": "KE",
+  "status": "complete",
+  "created_at": "2026-09-28T07:12:10+03:00",
+  "finished_at": "2026-09-28T07:12:44+03:00",
+  "answer": {
+    "status": "partial",
+    "as_of": "2026-09-28T07:12:40+03:00",
+    "short_answer": "There is only a thin trace of #fixture in Kenya: 9 TikTok posts from 21 to 27 September, and the two we could read come from one Nairobi creator and a reply to them. That is too little to call it a trend here yet; Instagram was rate limited, so part of the picture is missing.",
+    "claims": [
+      {
+        "id": "c1",
+        "text": "TikTok posts tagged #fixture in Kenya numbered 9 in the week of 21 to 27 September, and the posts we read trace back to one Nairobi creator.",
+        "label": "single_source",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_fixture_ke_1",
+          "tt_fixture_ke_2"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "tt_fixture_ke_1",
+            "text": "tunajaribu hii #fixture ya Mzansi"
+          },
+          {
+            "evidence_id": "tt_fixture_ke_2",
+            "text": "saw this on your page"
+          }
+        ],
+        "numbers": [
+          {
+            "value": 9,
+            "unit": "TikTok posts tagged #fixture in Kenya in 7 days",
+            "query_id": "q_fixture_ke_tt_tag_7d",
+            "run_id": "r_20260928_0500",
+            "result_hash": "sha256:961ee15f7c7e72261ed42a699daf0228a841bf894a1bc0f79df0733735ac08e3"
+          }
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "tt_fixture_ke_1",
+        "platform": "tiktok",
+        "handle": "@fixture_ke_1",
+        "url": "https://example.invalid/tiktok/@fixture_ke_1/video/9001",
+        "posted_at": "2026-09-25T20:15:00+03:00",
+        "market": "KE",
+        "text": "Nairobi edition: tunajaribu hii #fixture ya Mzansi (we are trying this #fixture from South Africa)",
+        "engagement": {
+          "views": 6200,
+          "likes": 410,
+          "comments": 22,
+          "shares": 9
+        },
+        "flags": [],
+        "thumbnail_url": "https://example.invalid/thumbs/tt_fixture_ke_1.jpg",
+        "duration_s": 17.5,
+        "transcript_span": {
+          "start_s": 1.0,
+          "end_s": 4.6,
+          "text": "tunajaribu hii #fixture ya Mzansi"
+        },
+        "creator_tier": "nano"
+      },
+      {
+        "id": "tt_fixture_ke_2",
+        "platform": "tiktok",
+        "handle": "@fixture_ke_2",
+        "url": "https://example.invalid/tiktok/@fixture_ke_2/video/9002",
+        "posted_at": "2026-09-26T18:30:00+03:00",
+        "market": "KE",
+        "text": "@fixture_ke_1 saw this on your page, doing it with the neighbours tonight #fixture",
+        "engagement": {
+          "views": 1100,
+          "likes": 60,
+          "comments": 4,
+          "shares": 1
+        },
+        "flags": [],
+        "thumbnail_url": "https://example.invalid/thumbs/tt_fixture_ke_2.jpg",
+        "duration_s": 12.0,
+        "creator_tier": "nano"
+      }
+    ],
+    "so_what": [
+      {
+        "text": "Do not build a Kenya plan on #fixture yet; one creator and a reply is a spark, not a movement. Look again next week before briefing anything.",
+        "claim_ids": [
+          "c1"
+        ]
+      }
+    ],
+    "watch_next": [
+      {
+        "text": "Watch for a second unrelated Kenyan creator using the format; that would lift this from single source.",
+        "claim_ids": [
+          "c1"
+        ],
+        "forecast": false
+      }
+    ],
+    "gaps": [
+      {
+        "what": "No Instagram data",
+        "searched": "instagram/hashtag #fixture, Kenya, 21 to 27 September",
+        "why": "rate_limited"
+      },
+      {
+        "what": "No X posts about #fixture from Kenya",
+        "searched": "x/search #fixture, Kenya, 21 to 27 September: 0 found",
+        "why": "empty"
+      }
+    ],
+    "context": ""
+  },
+  "run": {
+    "run_id": "r_20260928_0000000b",
+    "tier": "T0",
+    "mode": "live",
+    "credits": 38,
+    "tokens": {
+      "input": 6400,
+      "output": 720
+    },
+    "seconds": 34,
+    "model_usd": 0.0,
+    "window": {
+      "from": "2026-09-21",
+      "to": "2026-09-27"
+    },
+    "posts": 9,
+    "platforms": 1,
+    "source_status": [
+      {
+        "platform": "tiktok",
+        "route": "tiktok/hashtag",
+        "status": "ok",
+        "items": 9
+      },
+      {
+        "platform": "instagram",
+        "route": "instagram/hashtag",
+        "status": "rate_limited",
+        "items": 0
+      },
+      {
+        "platform": "x",
+        "route": "x/search",
+        "status": "empty",
+        "items": 0
+      }
+    ],
+    "followups": [
+      "Ask again next week: has #fixture spread past one Nairobi creator?",
+      "Retry Instagram for #fixture in Kenya once the rate limit clears",
+      "How big is #fixture in South Africa, where it started?"
+    ],
+    "notices": [
+      "Instagram was rate limited during this run; the answer uses TikTok only"
+    ]
+  },
+  "steps": [
+    {
+      "seq": 1,
+      "at": "2026-09-28T07:12:11+03:00",
+      "kind": "plan",
+      "text": "Planning 3 searches for #fixture, Kenya, 21 to 27 September",
+      "platform": null,
+      "count": 3
+    },
+    {
+      "seq": 2,
+      "at": "2026-09-28T07:12:16+03:00",
+      "kind": "search",
+      "text": "Reading TikTok posts tagged #fixture, Kenya, 21 to 27 September: 9 found",
+      "platform": "tiktok",
+      "count": 9
+    },
+    {
+      "seq": 4,
+      "at": "2026-09-28T07:12:22+03:00",
+      "kind": "search",
+      "text": "Reading Instagram posts tagged #fixture, Kenya: rate limited, 0 read",
+      "platform": "instagram",
+      "count": 0
+    },
+    {
+      "seq": 6,
+      "at": "2026-09-28T07:12:27+03:00",
+      "kind": "search",
+      "text": "Reading X posts mentioning #fixture, Kenya, 21 to 27 September: 0 found",
+      "platform": "x",
+      "count": 0
+    },
+    {
+      "seq": 7,
+      "at": "2026-09-28T07:12:33+03:00",
+      "kind": "check",
+      "text": "Checking 1 claim against 2 posts",
+      "platform": null,
+      "count": 1
+    },
+    {
+      "seq": 10,
+      "at": "2026-09-28T07:12:39+03:00",
+      "kind": "write",
+      "text": "Writing a partial answer from 1 checked claim and 2 gaps",
+      "platform": null,
+      "count": 1
+    }
+  ],
+  "error": null
+}

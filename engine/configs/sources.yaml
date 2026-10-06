@@ -1,0 +1,1313 @@
+# Unified Sources Configuration
+# RSS feeds, YouTube queries, GDELT queries, and social ensemble settings per market.
+
+# ---------------------------------------------------------------------------
+# RSS Feeds -- per market
+# ---------------------------------------------------------------------------
+rss_feeds:
+  za:
+    # Removed as of 22 Apr 2026 scheduled run:
+    #   News24 (later re-added then dropped again 1 Jul 2026), Daily Maverick, IOL:
+    #   all 403'd under the old default UA. Re-probed 1 Jul 2026: IOL + Daily Maverick
+    #   OK under OgilvyTrendsEngineV2 bot UA; News24 301s to dead feeds.24.com.
+    - name: SABC News
+      url: https://www.sabcnews.com/sabcnews/feed/
+    # MyBroadband 403'd from Cloud Run 1 Jul 2026; BusinessTech same lane, bot-polite UA OK.
+    - name: BusinessTech
+      url: https://businesstech.co.za/news/feed/
+    - name: Mail & Guardian
+      url: https://mg.co.za/rss/
+    - name: TechCentral
+      url: https://techcentral.co.za/feed/
+    - name: AllAfrica South Africa
+      url: https://allafrica.com/tools/headlines/rdf/southafrica/headlines.rdf
+    # News24 feeds.news24.com 301s to dead feeds.24.com (DNS fail) as of 1 Jul 2026.
+    - name: IOL News
+      url: https://www.iol.co.za/rss/
+    # TimesLIVE + OkayAfrica RSS paths 404'd 1 Jul 2026; replacements probed live.
+    # Htxt www host 403s the bot UA (Cloudflare); apex host serves the same feed (200), 3 Jul 2026.
+    - name: Htxt Africa
+      url: https://htxt.co.za/feed/
+    - name: The South African
+      url: https://www.thesouthafrican.com/feed/
+    - name: Daily Maverick
+      url: https://www.dailymaverick.co.za/rss/
+
+  ng:
+    # Removed as of 22 Apr 2026:
+    #   Premium Times main, Guardian Nigeria: both 403 bot protection
+    - name: Punch
+      url: https://punchng.com/feed/
+    - name: Vanguard
+      url: https://www.vanguardngr.com/feed/
+    - name: BellaNaija
+      url: https://www.bellanaija.com/feed/
+    - name: The Nerve Africa
+      url: https://thenerveafrica.com/feed/
+    - name: Premium Times Sport
+      url: https://www.premiumtimesng.com/category/sports/feed
+    - name: AllAfrica Nigeria
+      url: https://allafrica.com/tools/headlines/rdf/nigeria/headlines.rdf
+    # BBC News Pidgin added 28 May 2026 (research-validated, 23 entries).
+    # Pidgin language = strong NG Gen Z slang signal; pairs with the gdelt
+    # slang filter post-V2Persons fix.
+    - name: BBC News Pidgin
+      url: https://feeds.bbci.co.uk/pidgin/rss.xml
+    # Pulse + OkayAfrica RSS 404'd 1 Jul 2026; NG lifestyle replacements probed live.
+    - name: Information Nigeria
+      url: https://www.informationng.com/feed/
+    - name: Within Nigeria
+      url: https://www.withinnigeria.com/feed/
+
+  ke:
+    # Removed as of 22 Apr 2026:
+    #   Daily Nation paywall, Business Daily 404, Tuko 405, Citizen Digital 500
+    - name: The Standard
+      url: https://www.standardmedia.co.ke/rss/headlines.php
+    - name: Nation Africa
+      url: https://nation.africa/kenya/rss.xml
+    - name: AllAfrica Kenya
+      url: https://allafrica.com/tools/headlines/rdf/kenya/headlines.rdf
+    # Tuko Kenya added 28 May 2026 (research-validated, 30 entries, KE lifestyle).
+    - name: Tuko Kenya
+      url: https://www.tuko.co.ke/rss/all.rss
+    # Gen Z lifestyle outlets added 26 May 2026
+    - name: Capital FM Kenya Lifestyle
+      url: https://www.capitalfm.co.ke/lifestyle/feed/
+    # The Star + Pulse Live RSS 404'd 1 Jul 2026; KE lifestyle replacements probed live.
+    - name: Ghafla Kenya
+      url: https://www.ghafla.co.ke/feed/
+    - name: Kenyan Post
+      url: https://www.kenyan-post.com/feeds/posts/default
+    # Added 13 Jul 2026, all live-probed same-day (200, real items, fresh
+    # pubDates), to lift KE factual volume for the event ledger. Probed and
+    # REJECTED the same day: Mpasho / People Daily / K24 (200 but HTML, zero
+    # feed items), Citizen Digital /rss (400), The Star (404, matches 1 Jul).
+    - name: Capital FM Kenya News
+      url: https://www.capitalfm.co.ke/news/feed/
+    - name: Standard Entertainment
+      url: https://www.standardmedia.co.ke/rss/entertainment.php
+    - name: KBC
+      url: https://www.kbc.co.ke/feed/
+    - name: Nairobi Wire
+      url: https://nairobiwire.com/feed/
+    - name: Kahawa Tungu
+      url: https://www.kahawatungu.com/feed/
+
+# ---------------------------------------------------------------------------
+# BigQuery Google Trends Public Dataset
+# ---------------------------------------------------------------------------
+# Source: bigquery-public-data.google_trends.international_top_rising_terms
+# active=true keeps the connector live; flip to false to skip it entirely.
+# days+limit pass through to infra/bigquery_queries/search_velocity_terms.sql.
+# expected_per_market declares which markets should return non-zero rows.
+# KE is intentionally False: verified 28 May 2026 the public dataset has zero
+# KE rows all-time (only KR present in K-prefix codes). If a True market
+# returns 0, the connector ERROR-logs and the per-market floor in
+# configs/alerts.yaml (pipeline_health.bigquery_trends_per_market_min) trips.
+# Override here if Google adds KE coverage; keep alerts.yaml in lockstep.
+bigquery_trends:
+  active: true
+  days: 7
+  limit: 100
+  expected_per_market:
+    za: true
+    ng: true
+    ke: false
+  # Wave 2 dark (28 May 2026): international_top_terms steady-state feed.
+  # Flip after live probe per validate-vendor rule. KE has zero coverage
+  # in the public dataset (verified 28 May), so expected=false on KE.
+  top_terms:
+    enabled: true
+    days: 7
+    limit: 100
+    expected_per_market:
+      za: true
+      ng: true
+      ke: false
+
+# ---------------------------------------------------------------------------
+# YouTube Queries -- per market with region codes
+#
+# Quota budget: each market issues at most max_calls_per_run search.list
+# calls per run (100 units each). Keep the list at 4 high-signal terms per
+# market so 3 markets x 4 calls = 1200 quota units, leaving ~8800 units of
+# daily buffer for retries. See src/ingestion/connectors/youtube.py for
+# the full quota math. Do NOT re-add generic "gen z" / "student life"
+# terms here. GDELT and Ensemble already cover that ground and the
+# culturally-distinctive terms (amapiano, afrobeats, gengetone, japa,
+# nightlife) carry the actual signal on YouTube.
+# ---------------------------------------------------------------------------
+youtube_queries:
+  za:
+    region_code: ZA
+    # yt-dlp uncapped YouTube search (free, no API key, no 10K quota). Enabled
+    # 3 Jul 2026. android player-client survives Cloud Run datacenter IPs. Bounded
+    # + fail-safe: a yt-dlp error is a non-fatal degradation, not a market failure.
+    scrape_enabled: true
+    scrape_max_results: 30
+    scrape_max_terms: 25
+    trending_enabled: true            # /videos.list chart=mostPopular (1 unit each)
+    comment_threads_enabled: true     # commentThreads top 5 videos/market (5 units)
+    comment_videos_per_run: 5
+    max_calls_per_run: 7  # 21 Jun 2026: cover all 7 terms (4 evergreen + 2 event seeds + gemini lens), 7x100x3mkt = 2100/10000 units
+    queries:
+      - amapiano south africa
+      - jozi nightlife
+      - south african creators
+      - south africa side hustle
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - rocking the daisies festival
+      - youth day south africa
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - google gemini south africa
+    # YouTube playlistItems config (Wave 2 8ad51c7; default off).
+    # Handles research-validated 28 May 2026.
+    playlist_items_enabled: true
+    playlist_items_per_creator: 20
+    playlist_creator_handles:
+      - "@TYLAOfficial"       # 5.87M, last upload 2026-04-27
+      - "@lasizwedambuza"     # 1.19M, last upload 2026-05-28 (very active)
+      - "@MihlaliN"           # 468K, last upload 2025-11-22
+      - "@ShoMadjozi"         # 283K, last upload 2024-12-13
+      - "@DBNGogoOfficial"    # 185K, last upload 2026-03-20
+
+  ng:
+    region_code: NG
+    # yt-dlp uncapped YouTube search (free, no API key, no 10K quota). Enabled
+    # 3 Jul 2026. android player-client survives Cloud Run datacenter IPs. Bounded
+    # + fail-safe: a yt-dlp error is a non-fatal degradation, not a market failure.
+    scrape_enabled: true
+    scrape_max_results: 30
+    scrape_max_terms: 25
+    trending_enabled: true            # /videos.list chart=mostPopular (1 unit each)
+    comment_threads_enabled: true     # commentThreads top 5 videos/market (5 units)
+    comment_videos_per_run: 5
+    max_calls_per_run: 7  # 21 Jun 2026: cover all 7 terms (4 evergreen + 2 event seeds + gemini lens), 7x100x3mkt = 2100/10000 units
+    queries:
+      - afrobeats nigeria
+      - lagos nightlife
+      - nigerian creators
+      - nigeria japa
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - calabar carnival
+      - detty december lagos
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - google gemini nigeria
+    # YouTube playlistItems config (Wave 2 8ad51c7; default off).
+    playlist_items_enabled: true
+    playlist_items_per_creator: 20
+    playlist_creator_handles:
+      - "@DavidoOfficial"     # research-validated agent 28 May
+      - "@brodashaggi"        # 2.24M, last upload 2026-04-24
+      - "@sydneytalker"       # 775K, last upload 2026-02-04
+      - "@kortyeo"            # 430K, last upload 2026-03-18
+      - "@layiwasabi"         # 137K, last upload 2026-05-27 (very active)
+
+  ke:
+    region_code: KE
+    # yt-dlp uncapped YouTube search (free, no API key, no 10K quota). Enabled
+    # 3 Jul 2026. android player-client survives Cloud Run datacenter IPs. Bounded
+    # + fail-safe: a yt-dlp error is a non-fatal degradation, not a market failure.
+    scrape_enabled: true
+    scrape_max_results: 30
+    scrape_max_terms: 25
+    trending_enabled: true            # /videos.list chart=mostPopular (1 unit each)
+    comment_threads_enabled: true     # commentThreads top 5 videos/market (5 units)
+    comment_videos_per_run: 5
+    max_calls_per_run: 7  # 21 Jun 2026: cover all 7 terms (4 evergreen + 2 event seeds + gemini lens), 7x100x3mkt = 2100/10000 units
+    queries:
+      - gengetone kenya
+      - nairobi nightlife
+      - kenyan creators
+      - kenya hustle
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - kenya music festival
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - google gemini kenya
+    # YouTube playlistItems config (Wave 2 8ad51c7; default off).
+    playlist_items_enabled: true
+    playlist_items_per_creator: 20
+    playlist_creator_handles:
+      - "@diana_bahati"             # 1.38M, last upload 2026-05-28
+      - "@flaqo"                    # 900K, last upload 2026-05-24
+      - "@talesofthecrazykennar"    # 715K, last upload 2026-05-27
+      - "@ericomondi"               # 593K, last upload 2026-05-27
+      - "@mulamwahh"                # 271K, last upload 2026-04-28
+      - "@sautisol"                 # research-validated music
+      - "@Octopizzo"                # research-validated music
+
+# ---------------------------------------------------------------------------
+# GDELT GKG (BigQuery public dataset) -- global settings
+# ---------------------------------------------------------------------------
+gdelt:
+  active: true
+  # days=2 (not 1): _PARTITIONTIME is day-truncated, so at the early 00:30
+  # UTC primary fire a 1-day window resolves to only the ~33 min current-day
+  # partition. 2 spans the full prior-day partition and restores GDELT volume.
+  days: 2
+  limit: 2000
+  # Phase 2 (27 May 2026): slang_filter_enabled biases GDELT GKG row intake
+  # toward market-native slang rather than generic country news that
+  # dominates the raw feed. Pattern built from gdelt_slang.<market> below.
+  # Empty list disables the filter and falls through to country-only.
+  slang_filter_enabled: true
+  # Wave 1 (b16a3c0, 28 May 2026): GCAM emotional cognitive dimensions
+  # (100+ dims per article; 5-dim parser surfaces anger/anxiety/joy/etc).
+  # Schema migration for raw_content.v2gcam column deferred; parser logs
+  # signal so we can validate before committing to the column.
+  gcam_enabled: true
+  # Wave 1 (b16a3c0, 28 May 2026): GDELT Events table (gdelt-bq.gdeltv2
+  # .events_partitioned). Row-level civil unrest / protest / assault /
+  # fight signal. CAMEO 3-letter country codes (SAF/NGA/KEN) NOT FIPS.
+  # event_root_filter default captures protest/force/coerce/assault/fight.
+  gdelt_events_enabled: true
+  event_days: 1
+  event_limit: 500
+  gdelt_event_root_filter: "^(14|15|17|18|19)$"
+
+# GDELT slang patterns per market. Each term is regex-escaped + lower-cased
+# then OR'd into a single alternation. Multi-word terms (e.g. "jua kali")
+# match literally. Keep terms culturally specific; "south africa" or
+# "kenya" would re-include the country-wide noise we are filtering out.
+gdelt_slang:
+  # 28 May 2026 fix: SQL filter now matches V2Persons only (not the full
+  # themes+persons+orgs concat which dropped daily volume ~99%). Lists
+  # expanded with named entities (politicians, musicians, athletes) that
+  # V2Persons actually surfaces for our markets. Original cultural slang
+  # is retained -- the match is OR'd, so any single hit qualifies the row.
+  za:
+    - amapiano
+    - kasi
+    - softlife
+    - sidehustle
+    - mzansi
+    - stokvel
+    - nsfas
+    - braai
+    - bafana
+    - springboks
+    - tyla
+    - kabza
+    - focalistic
+    - cassper
+    - ramaphosa
+    - malema
+  ng:
+    - afrobeats
+    - sapa
+    - japa
+    - naija
+    - owambe
+    - jollof
+    - nollywood
+    - ankara
+    - asoebi
+    - super eagles
+    - tinubu
+    - davido
+    - wizkid
+    - asake
+    - burna
+    - rema
+    - tems
+    - atiku
+    - osimhen
+    - lookman
+  ke:
+    - gengetone
+    - sheng
+    - mtaani
+    - jua kali
+    - mama mboga
+    - arbantone
+    - finance bill
+    - matatu
+    - mitumba
+    - harambee stars
+    - ruto
+    - raila
+    - sauti sol
+    - octopizzo
+    - eric omondi
+    - mulamwah
+    - crazy kennar
+    - harambee
+
+# ---------------------------------------------------------------------------
+# GDELT Queries -- per market (legacy DOC 2.0 terms, retained for reference)
+# ---------------------------------------------------------------------------
+gdelt_queries:
+  za:
+    - South Africa
+    - South Africa youth
+    - South Africa Gen Z
+    - South Africa amapiano
+    - South Africa unemployment
+    - South Africa nightlife
+
+  ng:
+    - Nigeria
+    - Nigeria youth
+    - Nigeria Gen Z
+    - Nigeria afrobeats
+    - Nigeria unemployment
+    - Nigeria japa
+
+  ke:
+    - Kenya
+    - Kenya youth
+    - Kenya Gen Z
+    - Kenya gengetone
+    - Kenya unemployment
+    - Kenya Nairobi
+
+# ---------------------------------------------------------------------------
+# EnsembleData Budget -- global limits per pipeline run
+# ---------------------------------------------------------------------------
+ensemble_budget:
+  enabled: false  # RETIRED 23 Jul 2026, vendor cancelled; surfaces moved to socialcrawl
+  budget_units_per_run: 3000           # raised 1 Jul 2026 for richer behaviour-scan proof examples; still under 5000/day Bronze cap with Reddit share
+  per_market_units: 1000               # per-market slice so za, ng, ke each get headroom when budget is raised
+  max_tiktok_hashtags: 2
+  max_tiktok_keywords: 2
+  max_tiktok_users: 0
+  max_threads_keywords: 1
+  max_instagram_hashtags: 1
+  max_instagram_users: 0
+  max_pages_per_query: 2
+
+# ---------------------------------------------------------------------------
+# EnsembleData Queries -- per market
+# ---------------------------------------------------------------------------
+ensembledata:
+  # Hashtag + keyword pools per market. ensemble_budget above caps how many
+  # of these actually fire per run. Pools are intentionally kept to
+  # market-native terms only. Globally-generic terms (nightlife, streetwear,
+  # studentlife, dating) were removed 24 Apr PM after Thapelo flagged that
+  # TikTok was pulling out-of-region content. TikTok's own API does not
+  # expose geographic filtering, so keeping the hashtag set native is the
+  # primary levers. Connector also drops posts written in non-Latin scripts
+  # as a second line of defence.
+  za:
+    creator_endpoints_enabled: true   # /tt/user/posts + /instagram/user/posts + /threads/user/posts
+    creator_tier_cap: tier_1          # peak Gen Z anchors only
+    # Wave 1 patch (28 May): only /twitter/user/tweets exists in vendor docs. Keyword/hashtag paths removed.
+    # 2 Jul 2026: ZA flipped on. WPP legal approved X for the Google-facing
+    # product (Albert, 2 Jul 2026); D1 gate cleared, probe in
+    # docs/twitter-probe-2026-07-02.md. All 5 handles verified live via
+    # /twitter/user/info this date. ~30 units/day worst case (5 x 2 resolve
+    # + 5 x 4 tweets). NG and KE flipped 3 Jul 2026. Connector prepends twitter
+    # endpoints before creator/hashtag spend so budget cannot skip them.
+    twitter_handles_enabled: true
+    twitter_handles:
+      - News24          # rest_id 14697575, national news anchor
+      - casspernyovest  # rest_id 183253150, music/entertainment, 4.9M followers
+      - Soccer_Laduma   # rest_id 59110226, football/sports, 1.1M followers
+      - DjMaphorisa     # rest_id 182573602, amapiano scene, 2.1M followers
+      - AdvoBarryRoux   # rest_id 2449502355, Mzansi culture/commentary, 2.5M followers
+    # Wave 3 (TBD): EnsembleData dark surfaces. Default off, flip after live probe.
+    yt_shorts_enabled: false
+    yt_video_comments_enabled: false
+    yt_channel_videos_enabled: false
+    yt_keyword_search_enabled: false
+    ig_post_comments_enabled: true    # ZA pilot 27 Jun 2026: bounded to 5 calls/run; IG hashtag posts (76% classify) seed the comment fetch
+    ig_user_reels_enabled: false
+    ig_user_tagged_posts_enabled: false
+    threads_post_replies_enabled: false
+    tt_music_posts_enabled: false
+    tt_post_comment_replies_enabled: false
+    tt_post_info_enabled: false
+    # Wave 1: TikTok comments enrichment. Default off.
+    tt_comments_enabled: true
+    tt_comment_videos_per_run: 5
+    # Wave 3 term lists (empty -> per-term dispatch is a no-op).
+    # Populate before flipping the matching _enabled flag.
+    ig_user_ids: []
+    yt_channel_browse_ids: []
+    yt_keywords: []
+    tt_music_ids: []
+    tiktok_hashtags:
+      - amapiano
+      - mzansi
+      - mzansitiktok
+      - southafrica
+      - kasi
+      - softlife
+      - sidehustle
+      - jozi
+      - braai
+      - nsfas
+      - stokvel
+      - matric
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - rockingthedaisies
+      - youthday
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - googlegemini
+      - nanobanana
+
+    tiktok_keywords:
+      - amapiano challenge
+      - mzansi tiktok
+      - soft life south africa
+      - side hustle south africa
+      - stokvel
+      - nsfas
+      - matric
+      - braai
+      - kasi vibes
+      - south african creators
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - rocking the daisies
+      - spring fiesta
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - google gemini
+      - nano banana
+
+    threads_keywords:
+      - amapiano
+      - mzansi
+      - soft life
+      - side hustle
+      - stokvel
+      - nsfas
+      - matric
+      - braai
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - youth day
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - google gemini
+
+    instagram_hashtags:
+      - amapiano
+      - mzansi
+      - kasi
+      - braai
+      - stokvel
+      - jozi
+      - southafrica
+      - matric
+      - softlife
+      - sidehustle
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - rockingthedaisies
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - googlegemini
+
+  ng:
+    creator_endpoints_enabled: true   # /tt/user/posts + /instagram/user/posts + /threads/user/posts
+    creator_tier_cap: tier_1          # peak Gen Z anchors only
+    creator_tier_cap_boost: tier_2    # NG widen to trimmed 41-handle tier_2 pool; loader reads _boost under CREATOR_INGEST_BOOST=true
+    # Wave 1 patch (28 May): only /twitter/user/tweets exists in vendor docs. Keyword/hashtag paths removed.
+    # 3 Jul 2026: NG live. Handles live-probed via verify_live ensemble-probe twitter_user.
+    twitter_handles_enabled: true
+    twitter_handles:
+      - channelstv       # national news anchor
+      - GuardianNigeria  # news
+      - PremiumTimesng   # news
+      - davido           # afrobeats
+      - burnaboy         # afrobeats
+    # Wave 3 (TBD): EnsembleData dark surfaces. Default off, flip after live probe.
+    yt_shorts_enabled: false
+    yt_video_comments_enabled: false
+    yt_channel_videos_enabled: false
+    yt_keyword_search_enabled: false
+    ig_post_comments_enabled: false
+    ig_user_reels_enabled: false
+    ig_user_tagged_posts_enabled: false
+    threads_post_replies_enabled: false
+    tt_music_posts_enabled: false
+    tt_post_comment_replies_enabled: false
+    tt_post_info_enabled: false
+    # Wave 1: TikTok comments enrichment. Default off.
+    tt_comments_enabled: true
+    tt_comment_videos_per_run: 5
+    # Wave 3 term lists (empty -> per-term dispatch is a no-op).
+    # Populate before flipping the matching _enabled flag.
+    ig_user_ids: []
+    yt_channel_browse_ids: []
+    yt_keywords: []
+    tt_music_ids: []
+    tiktok_hashtags:
+      - naija
+      - naijatiktok
+      - lagos
+      - afrobeats
+      - nollywood
+      - japa
+      - owambe
+      - naijasapa
+      - sapanaija
+      - jollof
+      - ankara
+      - 9ja
+      - burnaboy
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - calabarcarnival
+      - dettydecember
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - googlegemini
+      - nanobanana
+
+    tiktok_keywords:
+      - afrobeats challenge
+      - japa
+      - owambe
+      - naija hustle
+      - sapa naija
+      - sapa nigeria
+      - kuku sapa
+      - jollof
+      - nollywood
+      - ankara style
+      - burna boy
+      - lagos street
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - calabar carnival
+      - detty december
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - google gemini
+      - nano banana
+
+    threads_keywords:
+      - afrobeats
+      - japa
+      - owambe
+      - naija
+      - sapa naija
+      - broke naija
+      - jollof
+      - burna boy
+      - nollywood
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - detty december
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - google gemini
+
+    instagram_hashtags:
+      - afrobeats
+      - naija
+      - lagos
+      - ankara
+      - owambe
+      - nollywood
+      - asoebi
+      - japa
+      - naijasapa
+      - sapanaija
+      - jollof
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - calabarcarnival
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - googlegemini
+
+  ke:
+    creator_endpoints_enabled: true   # /tt/user/posts + /instagram/user/posts + /threads/user/posts
+    creator_tier_cap: tier_1          # peak Gen Z anchors only
+    # Wave 1 patch (28 May): only /twitter/user/tweets exists in vendor docs. Keyword/hashtag paths removed.
+    # 3 Jul 2026: KE live. Handles live-probed via verify_live ensemble-probe twitter_user.
+    twitter_handles_enabled: true
+    twitter_handles:
+      - NTVKenya         # national news anchor
+      - CitizenTVKenya   # news
+      - StandardKenya    # news
+      - BahatiKenya      # music/entertainment
+      - KenyaPower       # utility/culture pulse
+    # Wave 3 (TBD): EnsembleData dark surfaces. Default off, flip after live probe.
+    yt_shorts_enabled: false
+    yt_video_comments_enabled: false
+    yt_channel_videos_enabled: false
+    yt_keyword_search_enabled: false
+    ig_post_comments_enabled: false
+    ig_user_reels_enabled: false
+    ig_user_tagged_posts_enabled: false
+    threads_post_replies_enabled: false
+    tt_music_posts_enabled: false
+    tt_post_comment_replies_enabled: false
+    tt_post_info_enabled: false
+    # Wave 1: TikTok comments enrichment. Default off.
+    tt_comments_enabled: true
+    tt_comment_videos_per_run: 5
+    # Wave 3 term lists (empty -> per-term dispatch is a no-op).
+    # Populate before flipping the matching _enabled flag.
+    ig_user_ids: []
+    yt_channel_browse_ids: []
+    yt_keywords: []
+    tt_music_ids: []
+    tiktok_hashtags:
+      - kenya
+      - nairobi
+      - "254"
+      - gengetone
+      - matatu
+      - mpesa
+      - nyamachoma
+      - maandamano
+      - sheng
+      - mitumba
+      - juakali
+      - mamamboga
+      - mtaani
+      - kenyatiktok
+      - kenyan
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - mashujaaday
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - googlegemini
+      - nanobanana
+
+    tiktok_keywords:
+      - gengetone
+      - arbantone
+      - mpesa
+      - sheng
+      - finance bill kenya
+      - mitumba kenya
+      - jua kali kenya
+      - mama mboga business
+      - mtaani hustle
+      - harambee stars
+      - nairobi hustle
+      - kenyan creators
+      - kenyan tiktok
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - kenya music festival
+      - nairobi squid game challenge
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - google gemini
+      - nano banana
+
+    threads_keywords:
+      - gengetone
+      - maandamano
+      - mpesa
+      - matatu
+      - sheng
+      - nyama choma
+      - jua kali
+      - mama mboga
+      - nairobi
+      - kenyan
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - kenya music festival
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - google gemini
+
+    instagram_hashtags:
+      - gengetone
+      - nairobi
+      - mpesa
+      - matatu
+      - nyamachoma
+      - maandamano
+      - mitumba
+      - "254"
+      - sheng
+      - kenya
+      # 11 Jun 2026 client event-calendar seeding (R2 forecast)
+      - kenyamusicfestival
+      # 11 Jun 2026 Gemini brand lens (stage 1)
+      - googlegemini
+
+# ---------------------------------------------------------------------------
+# Reddit (7th connector, shipped 27 May 2026)
+# ---------------------------------------------------------------------------
+# Routes through EnsembleData /reddit/* endpoints. SHARES the EnsembleConnector
+# unit ledger so combined daily spend stays under the Bronze 5000-unit cap.
+# Per-run target ~1475 units across all markets (hot+rising+top posts on ~45
+# subreddits, top-5 post comments per sub, ~25 slang keyword searches across
+# r/all). Pan-African subs are listed once and process-deduped across markets.
+#
+# enabled=false on Day 0: connector is wired into CONNECTORS but produces zero
+# rows until Albert flips the flag after Day 1 validation that the vendor
+# endpoint paths match expectation (404s mark subs as dead and skip them
+# automatically). Flip to true via Bash + Python hook bypass when ready.
+#
+# Endpoint paths can be hot-patched via the optional `endpoints:` block below
+# (commented out). Defaults live in src/ingestion/connectors/reddit.py.
+reddit:
+  enabled: false  # RETIRED 23 Jul 2026, vendor cancelled; surfaces moved to socialcrawl
+  budget_units_per_run: 1500           # ~30% of Bronze cap, leaves ~1855 headroom
+  sort_modes: [hot, rising, top]
+  top_period: day                      # for sort=top, look-back window
+  posts_per_sort: 25
+  comment_posts_per_sub: 5             # top N posts per sub get comment fetch
+  comments_per_post: 20
+  keyword_search_max: 10               # trimmed 27 Jun: cut r/all foreign drama-sub false positives
+  # 27 Jun 2026: REPLACES the code default (Turkish subs only). Adds the PH/Chinese/Turkish
+  # drama + finance subs that leaked false SSA classifications through r/all keyword search.
+  keyword_search_exclude_subreddits:
+    - ankara
+    - askturkey
+    - askmiddleeast
+    - turkey
+    - istanbul
+    - offmychestph
+    - dramarush
+    - cdramasfans
+    - cdrama
+    - donghua
+    - puer
+    - tantrasadhaks
+    - borsavefon
+    - hotwheelssatistakastr
+  # endpoints:                         # Uncomment to override vendor paths
+  #   subreddit_posts: /reddit/subreddit/posts
+  #   post_comments:   /reddit/post/comments
+  #   keyword_search:  /reddit/keyword/search
+
+  subreddits:
+    za:
+      - southafrica
+      - Amapiano
+      - CapeTown
+      - johannesburg
+      - PersonalFinanceZA
+      - Springboks
+      - SouthAfricanMusic
+      - MzansiTV
+      - AskSouthAfrica
+      - DStvComedy
+      - SouthAfricanLeftPolitics
+      - BraaiMeat
+    ng:
+      - Nigeria
+      - Lagos
+      - Naija
+      - Afrobeats
+      - Nollywood
+      - 9ja
+      - NaijaMarketplace
+      - NigerianLifestyle
+      - Wizkid
+      - BurnaBoy
+      - NaijaFood
+      - NigeriaInOurHeart
+      - NigerianTechies
+    ke:
+      - Kenya              # ACTIVE: high-volume general KE sub (verified 28 May)
+      - Nairobi            # ACTIVE: capital city sub (verified 28 May)
+      # Removed 28 May 2026 after research probe:
+      #   - KenyaGenZ: 404
+      #   - Gengetone: 404 (memory note 27 May)
+      #   - KenyaPolitics: 404 (alt spelling not on Reddit)
+      # Kept (dead-sub cache absorbs cost on dormant ones):
+      - KenyaAtheists      # dormant; left in for completeness
+      - MitumbaKenya       # mid-traffic, niche commerce signal
+      - Mpesa              # fintech signal
+      - KenyaFootball      # dormant; football signal
+      - Sheng              # active slang sub
+    pan_african:
+      - Africa
+      - AfricaBeats
+      - AfricanDiaspora
+      - Afroaesthetic
+      - AfricanFashion
+      - AfricanMusic
+      - AfricanFood
+      - AfricanPolitics
+
+  # Slang keywords used by /reddit/keyword/search across r/all. Catches SSA
+  # Gen Z chatter that surfaces in non-SSA subreddits (diaspora conversation,
+  # crossover commentary). Same term lists as the GDELT slang filter so the
+  # signal stays coherent across both connectors.
+  slang_keywords:
+    za:
+      - amapiano
+      - kasi
+      - softlife
+      - sidehustle
+      - mzansi
+      - stokvel
+      - nsfas
+      - braai
+      - bafana
+    ng:
+      - afrobeats
+      - sapa
+      - japa
+      - naija
+      - owambe
+      - jollof
+      - nollywood
+      - ankara
+      - asoebi
+    ke:
+      - gengetone
+      - sheng
+      - mtaani
+      - jua kali
+      - mpesa
+      - mitumba
+      - arbantone
+
+
+
+# ---------------------------------------------------------------------------
+# Apple Music RSS Charts (28 May 2026)
+# Free public RSS feed, no auth, no rate limits. Returns 50 tracks per
+# market with name + artist + genre. Direct verification of music_amapiano
+# / music_afrobeats / music_gengetone scoring. Pulls ~150 rows/day across
+# ZA + NG + KE at zero cost. Replaces Spotify for the Wave 1 chart slot.
+# ---------------------------------------------------------------------------
+apple_music:
+  active: true
+  tracks: 50
+  markets:
+    za:
+      active: true
+    ng:
+      active: true
+    ke:
+      active: true
+
+# ---------------------------------------------------------------------------
+# App Store top-charts RSS (dark, 4 Jul 2026)
+# Free, no auth, official Apple marketing-tools feed generator, same family
+# as apple_music. One HTTP GET per (market, chart) combination.
+# Flip enabled: true after a clean day-1 observation window.
+# ---------------------------------------------------------------------------
+app_charts:
+  enabled: true  # flipped 5 Jul 2026: three-market live probe clean (za/ng/ke top-free JSON), consumer wired, app_charts_rows column live
+  limit: 25
+  charts:
+    - top-free
+  markets:
+    za:
+      storefront: za
+    ng:
+      storefront: ng
+    ke:
+      storefront: ke
+
+# ---------------------------------------------------------------------------
+# Spotify Charts (Wave 1 b16a3c0)
+# Requires SPOTIFY_CLIENT_ID + SPOTIFY_CLIENT_SECRET in env / Secret Manager.
+# Pulls editorial Top 50 + Viral 50 playlists per market via Web API
+# /v1/playlists/{id}/tracks with OAuth client_credentials flow. No incremental
+# cost. ~6 HTTP calls/day (1 token + 5 playlists). Adds direct verification
+# of music_amapiano / music_afrobeats / music_gengetone scoring.
+#
+# Flip enabled: true after (1) Spotify dev app registered at
+# developer.spotify.com, (2) client_id + client_secret stored in GCP Secret
+# Manager via Console UI, (3) live probe one playlist confirms response shape.
+# ---------------------------------------------------------------------------
+spotify:
+  # PERMANENTLY DISABLED 28 May 2026 - Spotify Web API client_credentials
+  # blocks all playlist access (editorial + community return 403 / 404 per
+  # live probe). Replaced by apple_music connector below. Code left wired
+  # in case Spotify reopens access or we add user-OAuth flow.
+  enabled: false
+  active: true
+  tracks_per_chart: 50
+  markets:
+    za:
+      charts:
+        regional: 37i9dQZEVXbMH2jvi6jeGq   # Top 50 - South Africa
+        viral: 37i9dQZEVXbLiRSasKsNU9      # Viral 50 - South Africa
+    ng:
+      charts:
+        regional: 37i9dQZEVXbKY7jLzlJ11V   # Top 50 - Nigeria
+        viral: 37i9dQZEVXbLQoEbCY3eRy      # Viral 50 - Nigeria
+    ke:
+      charts:
+        regional: 37i9dQZEVXbKqiTGXuCOsB   # Top 50 - Kenya
+        viral: 37i9dQZEVXbJOu05PtUcCH      # Viral 50 - Kenya
+
+# ---------------------------------------------------------------------------
+# Brand24 Projects -- one or more monitored project ids per market.
+# Requires BRAND24_API_KEY env var. When the projects list for a market is
+# empty the connector returns an empty DataFrame; pipeline keeps running.
+# Populate with real project ids from the Brand24 dashboard once keywords
+# are set up per market. Business tier = 25 keywords, 100K mentions / month.
+# ---------------------------------------------------------------------------
+brand24:
+  # RETIRED 21 Aug 2026, vendor cancelled. The account kept serving after
+  # cancellation (live probe returned HTTP 200 on project 1397483532/topics
+  # the same afternoon), so the cycle runs to 24 Aug 2026 and this flag is
+  # what stops the calls. The per-market blocks below are left intact so the
+  # project ids and flag history survive for anyone reading back.
+  enabled: false
+  za:
+    projects:
+      - id: "1397483532"
+        name: "South Africa trends"
+        query_group: "brand24_sa"
+        # Flipped 28 May 2026 after live vendor probe + CI green (0798665 contract fix + b16a3c0 + 4f9a498).
+        include_mentions: true
+        # Per-project cap at 600 (vs module default 800) keeps shared
+        # monthly mention cap math safe: 3 projects x 600 x 30 days = 54K of 100K cap.
+        mentions_max_per_run: 600
+        # Brand24 ai-insights endpoint (b16a3c0 dark ship). Flip after
+        # validating the 4 narrative fields populate in raw_content.
+        include_ai_insights: true
+        ai_insights_lookback_days: 7
+        # Wave 2 (TBD): Brand24 mention surface flags. Default off.
+        include_mentions_sentiment: true  # flipped 29 May 2026 after live probe (HTTP 200, per-day data, Business-tier included)
+        include_mentions_reach: true  # flipped 29 May 2026 after live probe (HTTP 200, per-day data, Business-tier included)
+        include_daily_metrics: true  # flipped 29 May 2026 after live probe (HTTP 200, per-day data, Business-tier included)
+  ng:
+    projects:
+      - id: "1397483537"
+        name: "Nigeria trends"
+        query_group: "brand24_ng"
+        # Flipped 28 May 2026 after live vendor probe + CI green (0798665 contract fix + b16a3c0 + 4f9a498).
+        include_mentions: true
+        # Per-project cap at 600 (vs module default 800) keeps shared
+        # monthly mention cap math safe: 3 projects x 600 x 30 days = 54K of 100K cap.
+        mentions_max_per_run: 600
+        # Brand24 ai-insights endpoint (b16a3c0 dark ship). Flip after
+        # validating the 4 narrative fields populate in raw_content.
+        include_ai_insights: true
+        ai_insights_lookback_days: 7
+        # Wave 2 (TBD): Brand24 mention surface flags. Default off.
+        include_mentions_sentiment: true  # flipped 29 May 2026 after live probe (HTTP 200, per-day data, Business-tier included)
+        include_mentions_reach: true  # flipped 29 May 2026 after live probe (HTTP 200, per-day data, Business-tier included)
+        include_daily_metrics: true  # flipped 29 May 2026 after live probe (HTTP 200, per-day data, Business-tier included)
+  ke:
+    projects:
+      - id: "1397483539"
+        name: "Kenya trends"
+        query_group: "brand24_ke"
+        # Flipped 28 May 2026 after live vendor probe + CI green (0798665 contract fix + b16a3c0 + 4f9a498).
+        include_mentions: true
+        # Per-project cap at 600 (vs module default 800) keeps shared
+        # monthly mention cap math safe: 3 projects x 600 x 30 days = 54K of 100K cap.
+        mentions_max_per_run: 600
+        # Brand24 ai-insights endpoint (b16a3c0 dark ship). Flip after
+        # validating the 4 narrative fields populate in raw_content.
+        include_ai_insights: true
+        ai_insights_lookback_days: 7
+        # Wave 2 (TBD): Brand24 mention surface flags. Default off.
+        include_mentions_sentiment: true  # flipped 29 May 2026 after live probe (HTTP 200, per-day data, Business-tier included)
+        include_mentions_reach: true  # flipped 29 May 2026 after live probe (HTTP 200, per-day data, Business-tier included)
+        include_daily_metrics: true  # flipped 29 May 2026 after live probe (HTTP 200, per-day data, Business-tier included)
+
+# ---------------------------------------------------------------------------
+# Semrush keyword metrics (v4 Keywords API)
+# Requires SEMRUSH_API_KEY env var (JHP Analytics account). 20 API units per
+# keyword call. budget_units_per_run caps spend per market per cron run.
+# Dark on ship: flip enabled after live probe (scripts/verify_live.py semrush).
+# MCP for local dev-time only: https://mcp.semrush.com/v2/mcp
+# ---------------------------------------------------------------------------
+semrush:
+  enabled: false
+  budget_units_per_run: 60
+  units_per_keyword: 20
+  markets:
+    za:
+      keywords:
+        - term: "mpesa"
+          query_group: "fintech_mpesa"
+        - term: "side hustle south africa"
+          query_group: "economy_hustle"
+        - term: "google gemini ai"
+          query_group: "tech_gemini_ai"
+    ng:
+      keywords:
+        - term: "sapa hustle"
+          query_group: "economy_sapa_hustle"
+        - term: "afrobeats nigeria"
+          query_group: "music_afrobeats"
+        - term: "google ai mode"
+          query_group: "tech_gemini_ai"
+    ke:
+      keywords:
+        - term: "m-pesa kenya"
+          query_group: "fintech_mpesa"
+        - term: "gengetone"
+          query_group: "music_gengetone"
+        - term: "side hustle kenya"
+          query_group: "economy_hustle"
+# ---------------------------------------------------------------------------
+# SocialCrawl. PRIMARY social ingestion vendor from 23 Jul 2026, when
+# EnsembleData was cancelled. One x-api-key, unified {computed, post} schema,
+# pay-as-you-go credits (20,000 bought 23 Jul). Rows land as source=socialcrawl
+# with the REAL platform in the platform column, so scoring, seed_graph and the
+# creator watchlist treat them exactly as they treated the EnsembleData rows.
+#
+# Spend model. budget_credits_per_run is a per-RUN cap shared across all three
+# markets, not a target. phase_share splits that cap so a fat phase cannot
+# starve a later one; creators takes the largest share to collect curated
+# creator posts. caps bound the per-surface fan-out inside each phase.
+#
+# Do not read a daily burn rate, or a runway, out of this file. The numbers
+# that used to sit here described a cap that was raised on 27 Jul 2026, and
+# several different figures have been quoted as the burn since. Measure it:
+# SUM(socialcrawl_credits) per day from pipeline_runs. Runway is bounded by the
+# BALANCE, a free call to GET /v1/credits/balance, not by any modelled day
+# rate. Same warning lives in configs/engine_capacity.yaml under
+# connectors.socialcrawl; neither file is a source of truth for spend.
+#
+# Surface choices are live-probed, not docs-derived (23 Jul 2026,
+# docs/socialcrawl-probe-2026-07-23.md). Three traps, each of which returns
+# zero rows silently if you follow the OpenAPI spec:
+#   - tiktok/search returns 0 items with ANY date_posted or region value, so
+#     TikTok keyword search runs on tiktok/search/top + publish_time instead.
+#   - youtube/search uploadDate is `this_week`, not `week`.
+#   - twitter/user/tweets is unsorted, dates are Twitter-format, and
+#     author.username is null; max_age_days does the filtering.
+# google_trends/rising is deliberately absent: it timed out upstream on probe.
+#
+# Rollback: enabled false returns an empty frame and makes zero network calls.
+# ---------------------------------------------------------------------------
+socialcrawl:
+  enabled: true
+  # Raised 500 -> 620 on 27 Jul 2026 to fund the facebook phase and the reddit
+  # sort sweep. This is the per-RUN breaker, not the target. It was sized
+  # against a day rate modelled at the time of the raise, which was never a
+  # measurement and has not been reconciled against pipeline_runs since.
+  budget_credits_per_run: 620
+  max_age_days: 21
+  timeout: 45
+  phases: [discover, creators, search, reddit, accounts, news, facebook]
+  # Reweighted for seven phases. Each share is the phase's modelled need plus
+  # roughly a quarter of headroom, summing to 0.95 so no phase can starve a
+  # later one and the run still keeps 5% slack.
+  phase_share:
+    discover: 0.06
+    creators: 0.32
+    search: 0.22
+    reddit: 0.16
+    accounts: 0.04
+    news: 0.05
+    facebook: 0.10
+  caps:
+    creators_per_platform: 40
+    search_terms: 14
+    threads_terms: 8
+    subreddits: 10
+    reddit_queries: 6
+    twitter_handles: 5
+    news_queries: 6
+    youtube_trending: 25
+    # Reddit sort sweep. Measured 27 Jul 2026 per subreddit, 1 credit a call:
+    # hot page 1 = 23-24 rows, hot page 2 = +23-24 unique, top/week = +13-17
+    # unique. `rising` is excluded in code because it returns hot's exact set.
+    # Restores depth lost when the EnsembleData Reddit connector retired: it
+    # swept three sorts for 1,657 rows/day against this connector's 419.
+    reddit_pages: 2
+    # Facebook. Pages answer THREE posts a call, so volume is paging not
+    # breadth, and the honest rate is ~3 rows per credit, the worst on the
+    # vendor. That is the price of the channel: there is no keyword post
+    # search for Facebook at any price (only adlibrary, marketplace and
+    # events), so a curated id list is the only route in.
+    facebook_pages: 8
+    facebook_page_pages: 3
+    facebook_groups: 2
+    # Verified creator country via tiktok/profile/region, 1 credit per handle
+    # and 0 on a vendor cache hit. Stamps v2locations. Live check on the 26
+    # tier_1 TikTok handles, 23 Jul 2026: 17 verified in-market, 3 registered
+    # to a DIFFERENT country (a ZA-watchlist handle registered NG, an NG one
+    # US, a KE one SA), 6 unresolved. EnsembleData could not see this at any
+    # price. Read it as the account's region setting, not audience geography.
+    geo_verify: 12
+  markets:
+    za:
+      creator_tiers: [tier_1, tier_2]
+      # Same market-native pools the EnsembleData block used, so the switch
+      # does not also change what the engine is looking for.
+      terms:
+        - amapiano
+        - mzansi
+        - kasi
+        - stokvel
+        - nsfas
+        - matric
+        - braai
+        - jozi
+        - soft life south africa
+        - side hustle south africa
+        - amapiano challenge
+        - south african creators
+        - kasi vibes
+        - load shedding
+      # Pruned 27 Jul 2026: MzansiTV and BraaiMeat returned zero rows under
+      # every sort and still billed a credit each. Durban added, probed live
+      # at 24 posts all inside 7 days.
+      subreddits:
+        [southafrica, Amapiano, CapeTown, johannesburg, PersonalFinanceZA, Springboks,
+         SouthAfricanMusic, AskSouthAfrica, Durban]
+      reddit_queries:
+        ["south africa culture", "amapiano", "load shedding", "nsfas", "mzansi", "stokvel"]
+      # Rebuilt 3 Aug 2026 on FRESH-POST COUNT, not newest-post date. A handle
+      # answers either ~20 rows nearly all from the last week, or ~100 rows of
+      # archive carrying a single recent post, so row count reads backwards:
+      # the SHORT response is the live one. Kept handles return 18-20 fresh
+      # posts a day each; IOL is the best of the 1-fresh fillers. Dropped as
+      # stale: News24 (newest 2025-10-25), casspernyovest (2025-02-07),
+      # DjMaphorisa (2025-10-24), AdvoBarryRoux (2026-03-22). Soccer_Laduma
+      # resolves but yields 1 fresh post a day and loses its slot.
+      twitter_handles: [GovernmentZA, SundayTimesZA, PresidencyZA, Newzroom405, IOL]
+      news_queries:
+        ["South Africa culture", "amapiano", "South Africa economy", "Bafana Bafana",
+         "South Africa load shedding", "Mzansi entertainment"]
+      # eNCA, News24, Sowetan, TimesLIVE, SABC, Metro FM, IOL. Every id
+      # harvested from post.ext.author_id and verified serving same-day posts
+      # on 27 Jul 2026.
+      facebook_pages:
+        ["100068189748310", "100064817165112", "100064830964890", "100064903473480",
+         "100064604417137", "100070150435861", "100064471732809"]
+      facebook_groups: ["369205615472953"]
+    ng:
+      creator_tiers: [tier_1, tier_2]
+      terms:
+        - afrobeats
+        - naija
+        - japa
+        - owambe
+        - nollywood
+        - jollof
+        - sapa naija
+        - detty december
+        - ankara style
+        - lagos street
+        - naija hustle
+        - burna boy
+        - calabar carnival
+        - afrobeats challenge
+      # Pruned 27 Jul 2026: of ten configured only three ever returned rows.
+      # Naija, NigerianTechies, 9ja, NigerianLifestyle and NaijaFood are empty;
+      # Nollywood and BurnaBoy resolve but have had no post in over a week.
+      # NigerianFood added, probed live at 24 posts all inside 7 days.
+      subreddits:
+        [Nigeria, Lagos, Afrobeats, NigerianFood]
+      reddit_queries:
+        ["nigeria culture", "afrobeats", "japa", "nigeria economy", "nollywood", "lagos"]
+      # Rebuilt 3 Aug 2026, same fresh-count method as za. NG is the thinnest
+      # market: only three handles clear the bar (ARISEtv 20 fresh, NGRPresident
+      # 11, NNPCLimited 9) and all three are institutional, so the X feed here
+      # skews news and state rather than youth culture. Worth another hunt pass
+      # for NG creator accounts. Dropped as stale: channelstv (newest
+      # 2025-03-11), PremiumTimesng (2025-11-15), burnaboy (2025-09-22), davido
+      # (2026-06-29). GuardianNigeria kept as a 1-fresh filler.
+      twitter_handles: [ARISEtv, NGRPresident, NNPCLimited, vanguardngrnews, GuardianNigeria]
+      news_queries:
+        ["Nigeria culture", "afrobeats", "Nigeria economy", "Nollywood",
+         "Lagos", "Nigeria japa"]
+      # Vanguard, Pulse Nigeria. Thin because the NG slugs mostly failed:
+      # PunchNewspapers and LindaIkejiBlog returned zero rows, dailypostngr
+      # and LegitNewsNigeria 404, BellaNaijaOnline resolved to a page whose
+      # newest post is 2018. Widen once more ids are verified.
+      facebook_pages: ["100064873830467", "100064733586762"]
+      facebook_groups: []
+    ke:
+      creator_tiers: [tier_1, tier_2]
+      terms:
+        - gengetone
+        - arbantone
+        - sheng
+        - mpesa
+        - matatu
+        - mitumba kenya
+        - nairobi hustle
+        - mama mboga business
+        - jua kali kenya
+        - harambee stars
+        - kenyan creators
+        - maandamano
+        - nyama choma
+        - finance bill kenya
+      # Pruned 27 Jul 2026: MitumbaKenya, KenyaFootball, Sheng, KenyaAtheists
+      # and AfricaBeats return zero; Mpesa returns two stale posts.
+      # Kenyans added, probed live at 8 posts inside 7 days.
+      subreddits:
+        [Kenya, Nairobi, Africa, AfricanMusic, Kenyans]
+      reddit_queries:
+        ["kenya culture", "gengetone", "kenya finance bill", "nairobi", "sheng", "mpesa"]
+      # Rebuilt 3 Aug 2026, same fresh-count method as za. StandardKenya (21
+      # fresh) and InteriorKE (19) carry this market; StateHouseKenya adds 5.
+      # NTVKenya and CitizenTVKenya both resolve and look healthy on row count
+      # but yield 1 fresh post a day each, kept only as fillers. Dropped as
+      # stale: BahatiKenya (newest 2026-04-25), KenyaPower (2025-10-15).
+      twitter_handles: [StandardKenya, InteriorKE, StateHouseKenya, NTVKenya, CitizenTVKenya]
+      news_queries:
+        ["Kenya culture", "gengetone", "Kenya economy", "Nairobi",
+         "Kenya finance bill", "Harambee Stars"]
+      # NTV Kenya, Standard Digital, Tuko. citizentvkenya returned zero rows
+      # and K24TV resolved to an impostor page last posting in 2021.
+      facebook_pages: ["100053076714173", "100064794367851", "100067867727102"]
+      facebook_groups: ["1349193758522324"]
+
+
+# ---------------------------------------------------------------------------
+# Pulsar social-listening eval (DARK, added 14 Jul 2026). Read-only GraphQL
+# post pull from configured search hashes. enabled:false is the safe-disconnect
+# default: the connector makes ZERO network calls and returns an empty frame
+# while off, so an expired trial token cannot affect a run. Token in Secret
+# Manager as PULSAR_API_TOKEN. search_hashes are per market; none set yet
+# because the trial only exposes a shared demo domain (a licensed seat with our
+# own SSA searches is required before this is flipped, see the recon report).
+# Fully removable: this block + the CONNECTORS entry + src/.../pulsar.py.
+# ---------------------------------------------------------------------------
+pulsar:
+  enabled: false
+  endpoint: https://data.pulsarplatform.com/graphql/trac
+  budget_requests_per_run: 12
+  max_posts: 100
+  markets:
+    za:
+      search_hashes: []
+    ng:
+      search_hashes: []
+    ke:
+      search_hashes: []
+
+# ---------------------------------------------------------------------------
+# Google Trends daily-trending RSS (dark, 3 Jul 2026). Free public feed, no
+# auth, no rate limits documented. One GET per market at
+# https://trends.google.com/trending/rss?geo={GEO}. Live-verified shape:
+# RSS 2.0, each item carries the search term, ht:approx_traffic, pubDate,
+# and one or more ht:news_item blocks. Dark on ship: enabled false.
+# ---------------------------------------------------------------------------
+google_trends_rss:
+  enabled: true  # flipped 4 Jul 2026 after three-market live probe (ZA/NG/KE all 200, real terms)
+  markets:
+    za:
+      geo: ZA
+    ng:
+      geo: NG
+    ke:
+      geo: KE
+
+# Wikipedia per-country top pageviews (free, no auth, CC BY-SA aggregates).
+# Flip proposed 3 Jul 2026 after a three-market live probe: ZA 200 with 39
+# articles (real signal, e.g. Yusuf Cassim trending), NG 200 with 9 (Michael
+# Olise, World Cup), KE 200 with 4 (sparse under privacy rounding, harmless).
+# Family is "wikipedia" (attention), not news; corroboration counts it as its
+# own channel. Rollback: enabled false.
+wikipedia:
+  enabled: true
+  limit: 40
+  days: 3
+
+# Audiomack trending (dark, 4 Jul 2026). NG-dominant streaming platform.
+# OAuth1 consumer keys requested from Audiomack; connector returns empty
+# without AUDIOMACK_CONSUMER_KEY/_SECRET even when enabled. The API is not
+# geo-scoped, so market attribution here is a per-market genre pool
+# heuristic only, not real geo-scoping; genre slugs are docs-derived and
+# must be validated in the pre-flip live probe.
+audiomack:
+  enabled: false
+  markets:
+    za:
+      genres: [amapiano, house]
+    ng:
+      genres: [afrobeats, afropop]
+    ke:
+      genres: [afrobeats, gengetone]
+
+# Cloudflare Radar per-country top domains (dark, 4 Jul 2026). Free API
+# token (CLOUDFLARE_RADAR_TOKEN), data CC BY 4.0, cite Cloudflare Radar.
+# Response envelope is docs-derived; validate in the pre-flip live probe.
+cloudflare_radar:
+  enabled: true  # flip gated on Secret Manager wiring; probe 4 Jul: 10 rows/market via live token
+  limit: 25
+  markets:
+    za:
+      location: ZA
+    ng:
+      location: NG
+    ke:
+      location: KE

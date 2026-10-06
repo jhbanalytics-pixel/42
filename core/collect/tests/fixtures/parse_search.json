@@ -1,0 +1,80 @@
+{
+  "_note": "Unprobed shapes. tiktok/search/top and instagram/location/posts use the {post} envelope; search/multi is assumed to group rows under data.sources.<platform>.items. vendor_labels sit on each row because the client moves the vendor's model labels there before the body is stored. Check against the task 0.5 probe samples.",
+  "search_top": {
+    "success": true,
+    "credits_used": 1,
+    "data": {
+      "items": [
+        {
+          "computed": {"language": "zu"},
+          "vendor_labels": {"relevance": 0.91, "labels": {"sponsored": false, "intent": "entertain"}},
+          "post": {
+            "id": "7400000000000000002",
+            "url": "https://www.tiktok.com/@kasi.beats/video/7400000000000000002",
+            "published_at": "2026-09-26T10:00:00Z",
+            "author": {"username": "kasi.beats"},
+            "content": {"text": "Soweto dance challenge"},
+            "engagement": {"views": 5400, "likes": 300, "comments": 12, "shares": 4},
+            "ext": {"region": "ZA"}
+          }
+        }
+      ]
+    }
+  },
+  "search_multi": {
+    "success": true,
+    "credits_used": 6,
+    "data": {
+      "sources": {
+        "instagram": {
+          "items": [
+            {
+              "vendor_labels": {"relevance": 0.7},
+              "post": {
+                "id": "ig_s1",
+                "url": "https://www.instagram.com/reel/ig_s1/",
+                "published_at": "2026-09-27T07:00:00Z",
+                "author": {"username": "mzansi.food"},
+                "content": {"text": "Stokvel season"},
+                "engagement": {"likes": 900, "comments": 40}
+              }
+            }
+          ]
+        },
+        "youtube": {
+          "items": [
+            {
+              "post": {
+                "id": "yt_s1",
+                "url": "https://www.youtube.com/watch?v=yt_s1",
+                "published_at": "2026-09-25T07:00:00Z",
+                "author": {"id": "UC_s"},
+                "content": {"title": "Stokvel explained"},
+                "engagement": {"views": 12000}
+              }
+            }
+          ]
+        },
+        "reddit": {"items": []}
+      }
+    }
+  },
+  "ig_location": {
+    "success": true,
+    "credits_used": 5,
+    "data": {
+      "items": [
+        {
+          "post": {
+            "id": "ig_l1",
+            "url": "https://www.instagram.com/p/ig_l1/",
+            "published_at": "2026-09-27T15:00:00Z",
+            "author": {"username": "sandton.life", "followers": 12000},
+            "content": {"text": "Sunset at Nelson Mandela Square"},
+            "engagement": {"likes": 300, "comments": 9}
+          }
+        }
+      ]
+    }
+  }
+}

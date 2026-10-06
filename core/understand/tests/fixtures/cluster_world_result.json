@@ -1,0 +1,449 @@
+{
+ "counts": {
+  "market": "za",
+  "posts": 120,
+  "today_posts": 42,
+  "clusters": 3,
+  "members": 42,
+  "merge_review_total": 0,
+  "matched": 1,
+  "recurrences": 0,
+  "variants": 1,
+  "new": 1,
+  "net_failed": false,
+  "net_relabelled": 0,
+  "net_keywords_dropped": 0,
+  "model_usd": 0.0012,
+  "booked_usd": 0.0012
+ },
+ "merge_review": [],
+ "clusters": [
+  {
+   "cluster_id": "20260928-za-000",
+   "item_id": "item_a",
+   "match_kind": "match",
+   "label": "drum, log, log drum",
+   "keywords": [
+    "drum",
+    "log",
+    "log drum",
+    "dancefloor",
+    "dance",
+    "groove",
+    "vibe",
+    "step",
+    "amapiano",
+    "challenge"
+   ],
+   "centroid": {
+    "n": 768,
+    "norm": 25.9487,
+    "sum": -23.2155,
+    "head": [
+     0.3061,
+     -0.8804,
+     0.6476,
+     1.0294,
+     -1.9654,
+     -1.3098,
+     0.1006,
+     -0.3043
+    ]
+   }
+  },
+  {
+   "cluster_id": "20260928-za-001",
+   "item_id": "e5ca046d70a2a592ed351cb18e0b3d23a3736c138b922684132fbd2028e7dc27",
+   "match_kind": "new",
+   "label": "#jollofwars",
+   "keywords": [
+    "party",
+    "pepper",
+    "debate",
+    "pot",
+    "rice",
+    "smoky",
+    "ghana",
+    "jollof",
+    "naija"
+   ],
+   "centroid": {
+    "n": 768,
+    "norm": 24.3601,
+    "sum": -68.4919,
+    "head": [
+     0.4933,
+     -1.5053,
+     -0.8181,
+     1.0016,
+     -0.0803,
+     0.4667,
+     0.0795,
+     -0.1084
+    ]
+   }
+  },
+  {
+   "cluster_id": "20260928-za-002",
+   "item_id": "f6ec464a7c672ac3f257c5311182598c9cf47b8b66a17abb9fd4dad839145a9d",
+   "match_kind": "variant",
+   "label": "schedule, loadshedding, cut",
+   "keywords": [
+    "schedule",
+    "loadshedding",
+    "cut",
+    "power cut",
+    "power",
+    "stage",
+    "generator",
+    "blackout",
+    "inverter",
+    "eskom"
+   ],
+   "centroid": {
+    "n": 768,
+    "norm": 26.6687,
+    "sum": -10.5535,
+    "head": [
+     -0.9439,
+     1.8063,
+     1.4839,
+     1.2414,
+     0.5083,
+     1.2823,
+     -0.049,
+     0.4265
+    ]
+   }
+  }
+ ],
+ "members": [
+  [
+   "20260928-za-000",
+   "amapiano_00",
+   1.0
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_03",
+   1.0
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_06",
+   1.0
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_09",
+   0.864917
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_12",
+   0.964554
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_15",
+   0.990307
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_18",
+   0.941351
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_21",
+   0.911674
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_24",
+   1.0
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_27",
+   0.990307
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_30",
+   0.908806
+  ],
+  [
+   "20260928-za-000",
+   "amapiano_33",
+   0.928036
+  ],
+  [
+   "20260928-za-000",
+   "ml_pcm",
+   0.908796
+  ],
+  [
+   "20260928-za-000",
+   "ml_zu",
+   0.987993
+  ],
+  [
+   "20260928-za-000",
+   "noise_03",
+   0.706575
+  ],
+  [
+   "20260928-za-001",
+   "jollof_00",
+   0.995214
+  ],
+  [
+   "20260928-za-001",
+   "jollof_03",
+   0.897217
+  ],
+  [
+   "20260928-za-001",
+   "jollof_06",
+   0.87622
+  ],
+  [
+   "20260928-za-001",
+   "jollof_09",
+   0.772056
+  ],
+  [
+   "20260928-za-001",
+   "jollof_12",
+   0.823789
+  ],
+  [
+   "20260928-za-001",
+   "jollof_15",
+   1.0
+  ],
+  [
+   "20260928-za-001",
+   "jollof_18",
+   0.861243
+  ],
+  [
+   "20260928-za-001",
+   "jollof_21",
+   0.913221
+  ],
+  [
+   "20260928-za-001",
+   "jollof_24",
+   1.0
+  ],
+  [
+   "20260928-za-001",
+   "jollof_27",
+   1.0
+  ],
+  [
+   "20260928-za-001",
+   "jollof_30",
+   0.923175
+  ],
+  [
+   "20260928-za-001",
+   "jollof_33",
+   0.892981
+  ],
+  [
+   "20260928-za-001",
+   "noise_00",
+   0.671869
+  ],
+  [
+   "20260928-za-001",
+   "noise_09",
+   0.833878
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_00",
+   0.921286
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_03",
+   0.95747
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_06",
+   0.999254
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_09",
+   0.967072
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_12",
+   0.94782
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_15",
+   0.900803
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_18",
+   1.0
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_21",
+   1.0
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_24",
+   1.0
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_27",
+   1.0
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_30",
+   0.889662
+  ],
+  [
+   "20260928-za-002",
+   "loadshedding_33",
+   1.0
+  ],
+  [
+   "20260928-za-002",
+   "noise_06",
+   0.770975
+  ]
+ ],
+ "map": [
+  {
+   "item_id": "e5ca046d70a2a592ed351cb18e0b3d23a3736c138b922684132fbd2028e7dc27",
+   "label": "#jollofwars",
+   "parent_item_id": null,
+   "last_seen": "2026-09-28",
+   "recurrences": 0,
+   "status": "active",
+   "centroid": {
+    "n": 768,
+    "norm": 24.3601,
+    "sum": -68.4919,
+    "head": [
+     0.4933,
+     -1.5053,
+     -0.8181,
+     1.0016,
+     -0.0803,
+     0.4667,
+     0.0795,
+     -0.1084
+    ]
+   }
+  },
+  {
+   "item_id": "f6ec464a7c672ac3f257c5311182598c9cf47b8b66a17abb9fd4dad839145a9d",
+   "label": "schedule, loadshedding, cut",
+   "parent_item_id": "item_b",
+   "last_seen": "2026-09-28",
+   "recurrences": 0,
+   "status": "active",
+   "centroid": {
+    "n": 768,
+    "norm": 26.6687,
+    "sum": -10.5535,
+    "head": [
+     -0.9439,
+     1.8063,
+     1.4839,
+     1.2414,
+     0.5083,
+     1.2823,
+     -0.049,
+     0.4265
+    ]
+   }
+  },
+  {
+   "item_id": "item_a",
+   "label": "item_a",
+   "parent_item_id": null,
+   "last_seen": "2026-09-28",
+   "recurrences": 0,
+   "status": "active",
+   "centroid": {
+    "n": 768,
+    "norm": 26.868,
+    "sum": -29.0985,
+    "head": [
+     0.6725,
+     -1.3501,
+     0.9949,
+     0.9655,
+     -2.1114,
+     -1.0866,
+     -0.055,
+     -0.0565
+    ]
+   }
+  },
+  {
+   "item_id": "item_b",
+   "label": "item_b",
+   "parent_item_id": null,
+   "last_seen": "2026-07-30",
+   "recurrences": 0,
+   "status": "active",
+   "centroid": {
+    "n": 768,
+    "norm": 28.3318,
+    "sum": -27.4968,
+    "head": [
+     -1.3857,
+     0.8569,
+     1.163,
+     1.9149,
+     0.3569,
+     1.4219,
+     0.0797,
+     1.107
+    ]
+   }
+  },
+  {
+   "item_id": "item_z",
+   "label": "item_z",
+   "parent_item_id": null,
+   "last_seen": "2026-09-27",
+   "recurrences": 0,
+   "status": "active",
+   "centroid": {
+    "n": 768,
+    "norm": 27.5002,
+    "sum": 17.065,
+    "head": [
+     0.5256,
+     0.9448,
+     -1.0228,
+     -0.4221,
+     -0.2767,
+     0.3698,
+     1.4564,
+     -0.2686
+    ]
+   }
+  }
+ ]
+}

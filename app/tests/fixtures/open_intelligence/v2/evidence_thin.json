@@ -1,0 +1,34 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "evidence_thin",
+  "fixture_kind": "evidence_readiness",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "direction_by_family": {
+      "forum": "rising"
+    },
+    "evidence": [
+      {
+        "author_label": null,
+        "availability": "available",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_0d010d010d010d010d010d010d010d010d010d010d010d010d010d010d010d01",
+        "excerpt": "Synthetic fixture thin evidence records one qualifying family.",
+        "geo_confidence": 0.91,
+        "metric_label": "5 synthetic posts",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_0d_row_01",
+        "signal_id": "sig_0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+        "source_family": "forum",
+        "source_label": "Fixture source 0d-01",
+        "url": "https://evidence.invalid/0d/01"
+      }
+    ],
+    "evidence_state": "thin",
+    "qualifying_family_count": 1,
+    "signal_id": "sig_0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+  },
+  "sanitized": true
+}

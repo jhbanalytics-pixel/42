@@ -1,0 +1,22 @@
+{
+  "name": "projects/590353929363/locations/us-central1/builds/6b0e1e79-c819-4732-b189-df736dc09b16",
+  "id": "6b0e1e79-c819-4732-b189-df736dc09b16",
+  "projectId": "ogilvy-trends-v2",
+  "status": "SUCCESS",
+  "source": {
+    "connectedRepository": {
+      "repository": "projects/ogilvy-trends-v2/locations/us-central1/connections/tev2-gh/repositories/jhbanalytics-pixel-trends-engine-v2",
+      "revision": "dddafd6a7af284c39c42afe1b1eb387e2aafb2b6"
+    }
+  },
+  "sourceProvenance": {},
+  "results": {
+    "images": [
+      {
+        "name": "us-central1-docker.pkg.dev/ogilvy-trends-v2/pipeline/trends-engine:dddafd6a7af284c39c42afe1b1eb387e2aafb2b6",
+        "digest": "sha256:8afb12031c74d85f557fb2f68c503a8e9b9f141cf588efd1c330b87c63cd249e"
+      }
+    ]
+  },
+  "finishTime": "2026-09-01T12:00:50.236089Z"
+}

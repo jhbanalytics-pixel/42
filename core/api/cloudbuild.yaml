@@ -1,0 +1,11 @@
+# Builds the f42-api and f42-agent image in Cloud Build as f42-deployer (SETUP.md:
+# until GitHub Actions exists, images build in Cloud Build). Started by core/api/deploy.sh.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    env:
+      - DOCKER_BUILDKIT=1
+    args: [build, --file, core/api/Dockerfile, --tag, "${_IMAGE}", .]
+images:
+  - "${_IMAGE}"
+options:
+  logging: CLOUD_LOGGING_ONLY

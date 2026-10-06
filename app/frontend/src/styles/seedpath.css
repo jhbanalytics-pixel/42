@@ -1,0 +1,444 @@
+/* Seed path (#/seedpath). Scoped to .seedpath; shared loop styles stay in
+   loop.css. Sections are set apart by rules and space, never boxes inside
+   boxes. The chart is one shared day axis, a row per platform. Headings
+   balance their lines and body copy is held to a readable measure so no
+   sentence ends on a lone word. */
+.seedpath {
+  --sp-name: 13.5rem;
+  --sp-count: 6rem;
+  --sp-measure: 68ch;
+}
+
+.seedpath .sp-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin: var(--s-5) 0 0;
+}
+.seedpath .sp-input {
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 var(--s-4);
+  font-family: var(--sans);
+  font-size: var(--type-4);
+  color: var(--ink);
+  background: var(--surface);
+}
+.seedpath .sp-markets { display: flex; gap: var(--s-1); }
+.seedpath .sp-markets .legacy-chip,
+.seedpath .sp-form .legacy-action { white-space: nowrap; }
+/* Narrow: the field takes the full row, then the three markets and Trace sit
+   together on the next row, Trace at its right edge. */
+@media (max-width: 760px) {
+  .seedpath .sp-form { grid-template-columns: minmax(0, 1fr) max-content; }
+  .seedpath .sp-input { grid-column: 1 / -1; }
+  .seedpath .sp-markets { gap: 0; }
+}
+@media (max-width: 400px) {
+  .seedpath .sp-markets .legacy-chip { padding: 0 6px; }
+}
+/* Narrower still, the markets take their own row and Trace sits under them,
+   so no chip is squeezed against another. */
+@media (max-width: 374px) {
+  .seedpath .sp-form { grid-template-columns: minmax(0, 1fr); justify-items: start; }
+  .seedpath .sp-input { justify-self: stretch; }
+  .seedpath .sp-markets { gap: var(--s-1); }
+}
+
+.seedpath .sp-label,
+.seedpath .sp-quiet,
+.seedpath .sp-section-sub,
+.seedpath .sp-caption,
+.seedpath .sp-notes {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 400;
+  color: var(--muted);
+  line-height: var(--leading-body);
+  text-wrap: pretty;
+  max-width: var(--sp-measure);
+}
+.seedpath .sp-try { margin-top: var(--s-4); }
+.seedpath .sp-try .sp-label { margin-bottom: var(--s-2); }
+.seedpath .sp-try-list { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-2); }
+.seedpath .sp-try-list .legacy-chip { white-space: nowrap; }
+.seedpath .sp-loading { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-7) 0; }
+
+.seedpath .sp-fig { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* The answer */
+.seedpath .sp-result { margin-top: var(--s-6); border-top: 1px solid var(--line); padding-top: var(--s-5); }
+.seedpath .sp-summary { display: grid; gap: var(--s-3); justify-items: start; }
+.seedpath .sp-term {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: var(--type-section-title);
+  line-height: var(--leading-section-title);
+  font-weight: 600;
+  color: var(--ink);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.seedpath .sp-lead {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  color: var(--ink-2);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+.seedpath .sp-section { margin-top: var(--s-6); }
+.seedpath .sp-section-title {
+  margin: 0 0 var(--s-2);
+  font-family: var(--sans);
+  font-size: var(--type-signal-title);
+  line-height: var(--leading-signal-title);
+  font-weight: 600;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.seedpath .sp-section-sub { margin: 0 0 var(--s-3); }
+
+/* The platform timeline: one grid of name, bars and count, each row a
+   subgrid so every count sits flush beside the bars, and the axis in its own
+   last row under the bar column. */
+.seedpath .sp-chart { margin: var(--s-3) 0 0; }
+.seedpath .sp-grid {
+  display: grid;
+  grid-template-columns: var(--sp-name) minmax(0, 1fr) max-content;
+  column-gap: var(--s-4);
+}
+.seedpath .sp-rows { list-style: none; margin: 0; padding: 0; grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
+.seedpath .sp-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: end;
+  padding: var(--s-3) 0;
+  border-top: 1px solid var(--line);
+}
+.seedpath .sp-row:first-child { border-top: 0; }
+.seedpath .sp-row-name { display: grid; gap: 2px; align-self: center; }
+.seedpath .sp-platform { font-family: var(--sans); font-size: var(--type-body); font-weight: 600; color: var(--ink); }
+.seedpath .sp-first { font-family: var(--sans); font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); text-wrap: pretty; }
+.seedpath .sp-before { display: block; }
+.seedpath .sp-row-count { font-family: var(--sans); font-size: var(--type-3); color: var(--ink-2); align-self: end; line-height: 1; }
+
+.seedpath .sp-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--sp-days), minmax(0, 1fr));
+  grid-template-rows: 56px;
+  column-gap: 2px;
+  border-bottom: 1px solid var(--muted);
+  background-image: linear-gradient(to right, var(--line) 50%, transparent 0);
+  background-size: 6px 1px;
+  background-repeat: repeat-x;
+  background-position: top left;
+}
+.seedpath .sp-bar {
+  grid-row: 1;
+  align-self: end;
+  justify-self: center;
+  width: min(100%, 12px);
+  height: calc(var(--sp-h) * 100%);
+  min-height: 3px;
+  background: var(--ink-2);
+  position: relative;
+  z-index: 1;
+}
+.seedpath .sp-bar.is-zero { min-height: 0; height: 0; }
+.seedpath .sp-bar.is-first { background: var(--accent); }
+.seedpath .sp-earlier {
+  position: absolute;
+  left: -1px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: repeating-linear-gradient(to bottom, var(--accent) 0 4px, transparent 4px 7px);
+}
+
+.seedpath .sp-axis { grid-column: 2; }
+.seedpath .sp-axis-line { position: relative; height: 1.75rem; }
+.seedpath .sp-axis-tick {
+  position: absolute;
+  top: 0;
+  left: calc(var(--sp-at) * 100%);
+  padding-top: var(--s-1);
+  font-family: var(--sans);
+  font-size: var(--type-meta);
+  color: var(--muted);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.seedpath .sp-axis-tick::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 4px;
+  background: var(--muted);
+}
+.seedpath .sp-axis-tick:first-child { transform: none; left: 0; }
+.seedpath .sp-axis-tick:first-child::before { left: 0; }
+.seedpath .sp-axis-tick.is-end { transform: none; left: auto; right: 0; }
+.seedpath .sp-axis-tick.is-end::before { left: auto; right: 0; }
+
+/* The legend is closed by default, as on Fieldwork and Coverage. */
+.seedpath .sp-caption { margin: var(--s-2) 0 0; max-width: var(--sp-measure); }
+.seedpath .sp-how { border-bottom: 1px solid var(--line); }
+.seedpath .sp-how > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--ink-2);
+  list-style: none;
+}
+.seedpath .sp-how > summary::-webkit-details-marker { display: none; }
+.seedpath .sp-how > summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: 2px var(--s-1);
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+.seedpath .sp-how[open] > summary::before { transform: rotate(45deg); }
+.seedpath .sp-how > summary:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.seedpath .sp-how > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: var(--focus-offset); }
+.seedpath .sp-how > p { margin: 0 0 var(--s-3); }
+
+/* Words and topics side by side, then stacked */
+.seedpath .sp-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-7); }
+.seedpath .sp-words,
+.seedpath .sp-topics { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--line); }
+.seedpath .sp-words > li,
+.seedpath .sp-topics > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  column-gap: var(--s-4);
+  min-height: 48px;
+  border-top: 1px solid var(--line);
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--ink-2);
+}
+.seedpath .sp-word,
+.seedpath .sp-topic {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--sans);
+  font-size: var(--type-body);
+  color: var(--ink);
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: text-decoration-color var(--motion-control) var(--motion-standard-easing), color var(--motion-control) var(--motion-standard-easing);
+}
+.seedpath .sp-topic { display: inline-flex; align-items: center; }
+.seedpath .sp-word:hover, .seedpath .sp-word:focus-visible,
+.seedpath .sp-topic:hover, .seedpath .sp-topic:focus-visible { color: var(--accent-text); text-decoration-color: var(--accent); }
+.seedpath .sp-word:focus-visible,
+.seedpath .sp-topic:focus-visible { outline: 2px solid var(--accent); outline-offset: var(--focus-offset); }
+.seedpath .sp-topics > li { grid-template-columns: minmax(0, 1fr) max-content; grid-template-rows: auto auto; padding: var(--s-2) 0; }
+.seedpath .sp-topics .sp-topic { grid-column: 1; grid-row: 1; min-height: 32px; }
+.seedpath .sp-topics .sp-topic-meta { grid-column: 1; grid-row: 2; font-size: var(--type-meta); color: var(--muted); }
+.seedpath .sp-topics .sp-fig { grid-column: 2; grid-row: 1; align-self: center; }
+.seedpath .sp-notes { margin: var(--s-6) 0 0; padding-left: var(--s-4); display: grid; gap: var(--s-1); }
+
+@media (max-width: 760px) {
+  .seedpath .sp-pair { grid-template-columns: minmax(0, 1fr); }
+  .seedpath .sp-grid { grid-template-columns: minmax(0, 1fr) max-content; }
+  .seedpath .sp-row { row-gap: var(--s-2); }
+  .seedpath .sp-row-name { grid-column: 1; grid-row: 1; }
+  .seedpath .sp-row-count { grid-column: 2; grid-row: 1; align-self: center; }
+  .seedpath .sp-track { grid-column: 1 / -1; grid-row: 2; }
+  .seedpath .sp-axis { grid-column: 1 / -1; }
+}
+
+
+
+/* Every paragraph on the page, the shared empty states included, avoids a
+   lone last word. */
+.seedpath p { text-wrap: pretty; }
+.seedpath h2, .seedpath h3 { text-wrap: balance; }
+
+/* Hero and stage rail on this page: one layout at every width. The intro
+   runs full width with no rule above it, and the three steps sit under it as
+   one horizontal strip whose label, name and description share rows. The
+   strip starts at the left edge and keeps its steps together, as the same
+   trio does on Seeds; stretched across the page the three read as unrelated
+   (Gestalt proximity). On a phone the strip scrolls sideways. */
+.seedpath .loop-hero-band { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+.seedpath .loop-hero-band .ui-page-hero { border-top: 0; padding: var(--s-2) 0 var(--s-5); flex: none; }
+.seedpath .loop-hero-band .loop-rail {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  grid-template-rows: auto auto auto;
+  justify-content: start;
+  gap: 0 var(--s-6);
+  margin: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+.seedpath .loop-hero-band .loop-rail-arrow { display: none; }
+.seedpath .loop-rail .loop-stage {
+  grid-row: 1 / span 3;
+  display: grid;
+  grid-template-rows: subgrid;
+  align-content: start;
+  row-gap: var(--s-1);
+  padding: var(--s-3) var(--s-4);
+  scroll-snap-align: start;
+}
+.seedpath .loop-rail .loop-stage-eyebrow { font-size: var(--type-meta); line-height: var(--leading-meta); }
+.seedpath .loop-rail .loop-stage-name { margin: 0; font-size: var(--type-signal-title); line-height: var(--leading-signal-title); white-space: nowrap; }
+.seedpath .loop-rail .loop-stage-desc { text-wrap: pretty; }
+.seedpath .loop-rail .loop-stage:focus-visible { outline: 2px solid var(--accent); outline-offset: calc(var(--focus-offset) * -1); }
+@media (max-width: 760px) {
+  .seedpath .loop-hero-band .loop-rail { grid-template-columns: repeat(3, minmax(11.5rem, 1fr)); }
+}
+
+/* Suggestions are real terms, drawn as wrapping chips. */
+.seedpath .sp-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+.seedpath .sp-chip:hover, .seedpath .sp-chip:focus-visible { border-color: var(--accent); text-decoration-color: currentColor; }
+.seedpath .sp-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: var(--focus-offset); }
+.seedpath .sp-try-list { gap: var(--s-2); }
+
+/* Rhythm: a state's action sits close to the quiet Next row, and Next reads
+   as links rather than heavier buttons than the content above. */
+.seedpath .es-copy { padding-bottom: var(--s-4); }
+.seedpath .ui-next { margin-top: var(--s-6); padding-top: var(--s-3); gap: var(--s-1) var(--s-5); }
+.seedpath .ui-next a {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  font-weight: 400;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+}
+.seedpath .ui-next a:hover, .seedpath .ui-next a:focus-visible { box-shadow: none; text-decoration-color: currentColor; }
+
+@media (prefers-reduced-motion: reduce) {
+  .seedpath .sp-word, .seedpath .sp-topic, .seedpath .sp-chip { transition: none; }
+}
+
+.seedpath .sp-keep { white-space: nowrap; }
+
+/* Phone: a progress indicator never scrolls. Below 640px the three steps
+   stack as compact rows, "Step 2 of 3 · Seed path", the current one marked by
+   the maroon left rule (aria-current comes from the shared rail), and the
+   descriptions are dropped. Suggestion chips get tighter padding so two fit
+   on a row where they can. */
+@media (max-width: 639px) {
+  .seedpath .loop-hero-band .loop-rail {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    gap: var(--s-1);
+    overflow: visible;
+    scroll-snap-type: none;
+    padding-bottom: 0;
+  }
+  .seedpath .loop-rail .loop-stage {
+    grid-row: auto;
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    min-height: 44px;
+    padding: var(--s-2) var(--s-4);
+    align-content: normal;
+  }
+  .seedpath .loop-rail .loop-stage-eyebrow { white-space: nowrap; }
+  .seedpath .loop-rail .loop-stage-eyebrow::after { content: "\00b7"; margin-left: var(--s-2); color: var(--muted); }
+  .seedpath .loop-rail .loop-stage-name { font-size: var(--type-body); }
+  .seedpath .loop-rail .loop-stage-desc { display: none; }
+  .seedpath .sp-chip { padding: 0 6px; }
+  .seedpath .sp-try-list { gap: var(--s-2) var(--s-1); }
+}
+
+/* No AI look pass, 4 October 2026. The three steps are one line of words, as
+   on Seeds, at every width; a stacked or boxed strip spent a screen of
+   phone on navigation. */
+.seedpath .loop-hero-band .loop-rail { display: flex; flex-wrap: wrap; gap: 0 var(--s-5); margin: 0 0 var(--s-4); overflow: visible; padding: 0; scroll-snap-type: none; }
+.seedpath .loop-rail .loop-stage { display: inline-flex; grid-row: auto; padding: 0; min-height: var(--target-min); }
+.seedpath .loop-rail .loop-stage-desc { display: none; }
+.seedpath .loop-rail .loop-stage-name { font-size: var(--type-body); }
+
+/* Before a trace: the state and the terms to try in the main column, what a
+   trace will show beside it. */
+.seedpath .sp-idle { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; margin-top: var(--s-5); }
+.seedpath .sp-idle-main > :first-child { margin-top: 0; }
+.seedpath .sp-try { margin-top: 0; }
+.seedpath .sp-idle-main { min-width: 0; }
+.seedpath .sp-idle-main .es-block { margin-top: 0; border-top: 0; }
+.seedpath .sp-idle-main .es-copy { padding-top: 0; padding-bottom: var(--s-4); }
+.seedpath .sp-idle-title { font-size: var(--t-4); font-weight: 600; margin: 0 0 var(--s-3); color: var(--ink); }
+.seedpath .sp-idle-parts { margin: 0; border-top: 1px solid var(--line); }
+.seedpath .sp-idle-part { display: grid; gap: var(--s-1); padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
+.seedpath .sp-idle-part dt { font-weight: 600; color: var(--ink); }
+.seedpath .sp-idle-part dd { margin: 0; color: var(--ink-2); text-wrap: pretty; }
+@media (min-width: 1100px) {
+  .seedpath .sp-idle { grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); gap: var(--s-7); }
+}
+
+/* Terms to try read as words to press, not filled badges. */
+.seedpath .sp-chip {
+  min-height: var(--target-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--type-body);
+  color: var(--ink);
+  text-decoration-color: var(--line-2);
+}
+.seedpath .sp-chip:hover, .seedpath .sp-chip:focus-visible { color: var(--accent-text); text-decoration-color: currentColor; }
+.seedpath .sp-try-list { gap: 0 var(--s-5); }
+@media (max-width: 639px) {
+  .seedpath .sp-chip { padding: 0; }
+  .seedpath .sp-try-list { gap: 0 var(--s-4); }
+}
+
+/* Layout pass two, 4 October 2026: the market choice in the form uses the
+   loop pages' tab look (loop.css), its hairline ending level with the
+   field's bottom edge. */
+.seedpath .sp-markets { gap: 0 var(--s-4); margin: 0; align-self: stretch; }
+@media (max-width: 760px) {
+  .seedpath .sp-markets { gap: 0 var(--s-3); }
+  .seedpath .sp-markets .legacy-chip.loop-tab { padding: 0; }
+}

@@ -1,0 +1,200 @@
+# SocialCrawl staged rollout ladder.
+#
+# Read by scripts/socialcrawl_rollout.py, which runs read-only, evaluates every
+# gate against BigQuery and the live credit balance, and PROPOSES at most one
+# stage per day. It never writes configs/sources.yaml. The morning check
+# surfaces the proposal as one line and Albert applies it by hand.
+#
+# The policy this encodes (decided 24 Jul 2026): the 20,000 credits bought on
+# 23 Jul are all we get. No top-up is assumed. So the ramp does not trust a
+# hand-picked daily ceiling; it derives one from the balance:
+#
+#     allowed_daily = balance / min_runway_days
+#
+# At 19,607 credits and a 45-day floor that is 435/day. As the balance falls the
+# allowed rate falls with it, the headroom closes, and the ramp stops on its own.
+# No stage can push projected runway below the floor. The ladder below is
+# deliberately LONGER than the budget can fund: the gate decides where it stops,
+# not the author.
+#
+# ORDERING IS QUALITY FIRST, VOLUME SECOND (revised 24 Jul 2026). An earlier
+# draft ordered by rows per credit, which is a volume ordering wearing a quality
+# label. The goal is not to beat EnsembleData's 5,886 rows a day; it is rich,
+# accurate, trustworthy rows. Volume is scaled only once quality is stable.
+#
+# So the first three stages buy accuracy and richness and add almost no rows:
+# verified creator country, comment threads, audience demographics. Pagination,
+# which is pure volume, comes fourth. Note that the first stage needs NO
+# connector work at all, so it can fire as soon as the crons are clean.
+#
+# Every rows_per_day figure traces to the 23 Jul pre-flight (2,257 rows for 217
+# credits) or to a single live probe of that surface.
+
+policy:
+  credential_lane: jhb_core    # the lane these stages are for: the cron that reads
+                               # configs/sources.yaml on SOCIALCRAWL_API_KEY. The
+                               # proposer reads the funded account's balance and
+                               # ledger, so a ladder on this lane is held with a
+                               # named reason until a ladder is declared for the
+                               # ogilvy_funded lane.
+  min_runway_days: 45          # hard floor; a stage that breaches it is never proposed
+  max_stages_per_day: 1        # one change at a time, so a regression has one cause
+  clean_crons_required: 3      # consecutive clean crons before the next stage opens
+  lift_tolerance_pct: 60       # a stage must deliver >= 60% of its predicted rows
+                               # before the following stage is allowed to open
+  balance_floor_hard: 5000     # below this, propose nothing and raise a reorder flag
+  burn_overrun_pct: 25         # actual burn >25% over model pauses the ramp
+  min_row_integrity_pct: 90    # QUALITY GATE. Share of ingested rows carrying a
+                               # parseable date, a resolvable author and a real
+                               # url. A stage that drops this below the floor is
+                               # rolled back, however many rows it added. Volume
+                               # is never allowed to buy its way past this.
+  quality_before_volume: true  # ORDERING GATE (added with the source estate
+                               # reconciliation). The ladder was authored quality
+                               # first and nothing enforced it, so a volume stage
+                               # could open while an accuracy stage was still
+                               # waiting. scripts/socialcrawl_rollout.py builds
+                               # every proposal through evaluate_route_activation,
+                               # which refuses a volume increment while any
+                               # quality increment, a stage that adds no rows,
+                               # is unactivated.
+  max_increments_open: 1       # increments in flight at once. Its own key: this
+                               # is a count of open increments, not the
+                               # max_stages_per_day rate above, and reading one
+                               # for the other made them move together.
+  min_probe_observations: 20   # a response shape probe below this observes too
+                               # little for the integrity share to mean anything:
+                               # one observation would meet a 90 percent floor.
+
+# Capabilities the connector must already have for a stage to be proposable.
+# A stage naming a capability the code does not ship is skipped with a note
+# rather than proposed, so the ladder can describe work that is not built yet.
+capabilities:
+  pagination: true             # cursor paging on tiktok/search/top, youtube/search
+                               # and reddit/subreddit, shipped 27 Jul 2026. Off
+                               # until a *_pages cap is raised above 1.
+  comment_surfaces: false      # tiktok/instagram post comments, NOT built
+  audience: false              # tiktok/user/audience demographics, NOT built
+  extra_platforms: false       # bluesky/pinterest via socialcrawl, NOT built
+
+stages:
+  - id: s5_geo_full_watchlist
+    description: "Creator geo verification across the whole watchlist, not the capped slice."
+    activation_route: tiktok/profile/region
+    requires_capability: null
+    config_delta:
+      socialcrawl.caps.geo_verify: 60
+    credits_per_day: 12
+    expect_rows_per_day: 0
+    rationale: >
+      Adds no rows. Adds a verified country to rows already being ingested.
+      Costs a credit per NEW handle only, because the vendor caches the lookup,
+      so the steady-state price collapses toward zero after the first week.
+      The 23 Jul sample found 3 of 26 tier_1 handles registered to the wrong
+      market; this sizes that across all 740.
+
+  - id: s4_tiktok_comments
+    description: "tiktok/post/comments on the top ten posts per market. Restores comment sentiment."
+    activation_route: tiktok/post/comments
+    requires_capability: comment_surfaces
+    config_delta:
+      socialcrawl.caps.tiktok_comment_posts: 10
+    credits_per_day: 30
+    expect_rows_per_day: 350
+    rationale: >
+      COMMENT_SENTIMENT_ENABLED is true in the cron env but has had no comment
+      rows to read since EnsembleData was cancelled. This is a dead flag until
+      this stage lands, so it buys back a feature rather than adding one.
+
+  - id: s6_demographics_weekly
+    description: "tiktok/user/audience on tier_1 handles, once a week."
+    activation_route: tiktok/user/audience
+    requires_capability: audience
+    config_delta:
+      socialcrawl.caps.audience_tier_1_weekly: true
+    credits_per_day: 19
+    expect_rows_per_day: 0
+    rationale: >
+      130 credits once a week, amortised. Audience mix does not move daily.
+      This is the stage that matters commercially: every market currently
+      hardcodes Gen Z, and the BSA brief prices "broaden the audience" as a
+      ground-up rebuild. Measured audience data turns that rebuild into a
+      config change. Read it as creator audience composition, not our own
+      audience, and it is aggregate vendor analytics, never row-level PII.
+
+  - id: s1_tiktok_page2
+    description: "Second page on tiktok/search/top for every market term."
+    activation_route: tiktok/search/top
+    requires_capability: pagination
+    config_delta:
+      socialcrawl.caps.tiktok_search_pages: 2
+    credits_per_day: 42
+    expect_rows_per_day: 900
+    rationale: >
+      Best measured value per credit on the whole ladder. tiktok/search/top
+      returned 30 fresh rows per call on probe, all inside 7 days, at 1 credit.
+      A second page is the cheapest row in the catalogue.
+
+  - id: s2_youtube_page2
+    description: "Second page on youtube/search for every market term."
+    activation_route: youtube/search
+    requires_capability: pagination
+    config_delta:
+      socialcrawl.caps.youtube_search_pages: 2
+    credits_per_day: 42
+    expect_rows_per_day: 600
+
+  - id: s3_reddit_depth
+    description: "Second page on reddit/subreddit plus four more subreddits per market."
+    activation_route: reddit/subreddit
+    requires_capability: pagination
+    config_delta:
+      socialcrawl.caps.subreddits: 14
+      socialcrawl.caps.reddit_pages: 2
+    credits_per_day: 30
+    expect_rows_per_day: 400
+
+  - id: s7_extra_platforms
+    description: "Bluesky and Pinterest per-market search through the same key."
+    # No single vendor route: the stage names two platforms and neither is
+    # in the connector's own route table, so no probe can be bound to it and
+    # the activation gate refuses it until the route is declared.
+    activation_route: null
+    requires_capability: extra_platforms
+    config_delta:
+      socialcrawl.markets.*.extra_platforms: [bluesky, pinterest]
+    credits_per_day: 20
+    expect_rows_per_day: 250
+
+  - id: s8_instagram_comments
+    description: "instagram/post/comments on the top five posts per market."
+    activation_route: instagram/post/comments
+    requires_capability: comment_surfaces
+    config_delta:
+      socialcrawl.caps.instagram_comment_posts: 5
+    credits_per_day: 75
+    expect_rows_per_day: 200
+    rationale: >
+      Deliberately last. 5 credits a call against TikTok's 1, for fewer rows.
+      Only worth opening if the balance is healthy and every cheaper stage has
+      already been banked.
+
+# Retained response shape probes, one per vendor route. A probe is the retained
+# body of one authorized call plus the digest of the payload the normalization
+# test read, and the reference names the retained object BY that digest so the
+# two digests are tied to something a reader can fetch. The rollout proposer
+# hands the probe for a stage's route to evaluate_route_activation, which
+# refuses the increment without one.
+#
+# Empty: no probe has been retained for any route yet, so every increment on the
+# ladder above is refused today with probe_missing. Adding a probe here is the
+# operator step that lets the proposer propose again.
+#
+#   retained_probes:
+#     tiktok/search/top:
+#       retained_reference: gs://staging-probes/<payload digest>.json
+#       payload_digest: <64 hex>
+#       normalizer_digest: <64 hex>
+#       observations: 30
+#       integrity_observations: 29
+retained_probes: {}

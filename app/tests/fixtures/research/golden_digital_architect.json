@@ -1,0 +1,114 @@
+{
+  "trend_date": "2026-06-15",
+  "persona_id": "digital_architect_genz",
+  "markets": ["ke", "ng"],
+  "expected_query_groups": [
+    "economy_sapa_hustle",
+    "tech_gemini_ai",
+    "fintech_mpesa",
+    "economy_hustle"
+  ],
+  "golden_ref_hash": "8f3c2a1b9e0d4c7a6f5e2d1b0a9c8e7f",
+  "seeds": [
+    {
+      "trend_date": "2026-06-15",
+      "rank": 1,
+      "behaviour": "Mobile money as default wallet for side hustles",
+      "the_shift": "Gen Z treats M-Pesa rails as the operating system for gig income",
+      "evidence": ["ke/fintech_mpesa - P2P velocity up", "ng/economy_hustle - hustle framing"],
+      "why_hidden": "Banks still message savings; youth message cash flow",
+      "timing": "Now",
+      "markets": ["ke", "ng"],
+      "brand_opportunity": "Show AI helping price and pitch hustle offers",
+      "signal_strength": "strong"
+    }
+  ],
+  "briefs": [
+    {
+      "market": "ke",
+      "query_group": "fintech_mpesa",
+      "trend_score": 0.82,
+      "velocity_score": 0.71,
+      "search_velocity_score": 0.65,
+      "item_count": 120,
+      "trend_date": "2026-06-15",
+      "headline": "M-Pesa rails power the hustle stack in Kenya",
+      "trend_synthesis": "Youth founders route gig payouts through mobile money and Gemini for pricing copy",
+      "cultural_context": "Hustle is respectability; fintech is infrastructure",
+      "sentiment_summary": "Pragmatic optimism"
+    },
+    {
+      "market": "ng",
+      "query_group": "economy_sapa_hustle",
+      "trend_score": 0.79,
+      "velocity_score": 0.68,
+      "search_velocity_score": 0.58,
+      "item_count": 98,
+      "trend_date": "2026-06-15",
+      "headline": "Sapa hustle framing meets AI side gigs in Lagos",
+      "trend_synthesis": "Creators pitch hustle survival with Gemini scripts for client DMs",
+      "cultural_context": "Sapa is shared vocabulary for economic pressure",
+      "sentiment_summary": "Anxious but inventive"
+    },
+    {
+      "market": "ng",
+      "query_group": "tech_gemini_ai",
+      "trend_score": 0.74,
+      "velocity_score": 0.62,
+      "search_velocity_score": 0.72,
+      "item_count": 85,
+      "trend_date": "2026-06-15",
+      "headline": "Gemini AI Mode enters hustle workflows",
+      "trend_synthesis": "AI mode prompts circulate for pitch decks and customer replies",
+      "cultural_context": "Google AI is a craft tool not a corporate toy",
+      "sentiment_summary": "Curious adoption"
+    }
+  ],
+  "rising_terms": [
+    {
+      "market": "ke",
+      "query_group": "fintech_mpesa",
+      "search_velocity_score": 0.65,
+      "trend_score": 0.82,
+      "trend_date": "2026-06-15"
+    },
+    {
+      "market": "ng",
+      "query_group": "tech_gemini_ai",
+      "search_velocity_score": 0.72,
+      "trend_score": 0.74,
+      "trend_date": "2026-06-15"
+    }
+  ],
+  "posts": [
+    {
+      "id": "p1",
+      "market": "ke",
+      "platform": "tiktok",
+      "text": "My hustle runs on M-Pesa and Gemini drafts for clients",
+      "author_handle": "hustle_ke",
+      "engagement_total": 12000,
+      "topic_groups": ["fintech_mpesa"]
+    },
+    {
+      "id": "p2",
+      "market": "ng",
+      "platform": "instagram",
+      "text": "Sapa season but AI mode helps me price my gigs",
+      "author_handle": "lagos_build",
+      "engagement_total": 9000,
+      "topic_groups": ["economy_sapa_hustle"]
+    }
+  ],
+  "lexicon": [
+    {"term": "sapa", "market": "ng", "n": 44},
+    {"term": "mpesa", "market": "ke", "n": 38}
+  ],
+  "digest": {
+    "trend_date": "2026-06-15",
+    "through_line": "Hustle infrastructure meets AI craft tools",
+    "summary_text": "Mobile money and Gemini adoption cluster around gig economy narratives",
+    "seed_recommend": "Follow fintech_mpesa in KE for AI-mode activation"
+  },
+  "expected_evidence_hash": "PLACEHOLDER"
+}

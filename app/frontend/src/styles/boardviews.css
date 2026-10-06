@@ -1,0 +1,159 @@
+/* PULSE · My Board / Method / Browse.
+   Targeted focus-visible, hover and media-query states that inline style
+   objects cannot express (board.jsx and views.jsx keep layout, colour and
+   type inline, same split as topic.css / voices.css / loop.css). Scoped to
+   these three routes only. */
+
+.board-tab-seg button:focus-visible,
+.board-card a:focus-visible {
+  border-color: var(--accent);
+}
+
+/* The close control sits in its own 48px column at the top right of the card;
+   the card reserves that column so the momentum pill never runs under it. */
+.board-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 48px;
+  height: 48px;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: var(--type-4);
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.board-close:hover, .board-close:focus-visible {
+  color: var(--accent-text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.board-close:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+
+.board-card {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 18px 68px 18px 20px;
+  transition: border-color var(--motion-row) var(--motion-standard-easing), background var(--motion-row) var(--motion-standard-easing);
+}
+.board-card--topic { border-left: 2px solid var(--board-momentum); }
+.board-card:hover, .board-card:focus-within {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.board-card-link {
+  text-align: left;
+  display: block;
+  min-height: 48px;
+  text-decoration: none;
+  color: var(--ink);
+  width: 100%;
+  transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.board-card-link:hover, .board-card-link:focus-visible {
+  color: var(--accent-text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.board-card-link:focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+.board-card-link:active, .board-close:active { box-shadow: var(--press-grip); }
+.board-card-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+.board-topic-name { display: inline-flex; align-items: baseline; gap: 7px; min-width: 0; max-width: 100%; }
+.board-title { min-width: 0; max-width: 100%; font-family: var(--serif); font-size: var(--type-6); font-weight: 400; line-height: 1.15; overflow-wrap: break-word; }
+.board-handle { font-family: var(--serif); font-size: var(--type-5); font-weight: 400; line-height: 1.2; }
+.board-identifier { min-width: 0; max-width: 100%; overflow-wrap: break-word; }
+.board-momentum, .board-metadata {
+  font-family: var(--sans);
+  font-variation-settings: "MONO" 0, "CASL" 0, "slnt" 0, "CRSV" 0;
+  font-size: var(--type-3);
+}
+.board-momentum { font-weight: 400; color: var(--board-momentum); border: 1px solid color-mix(in srgb, var(--board-momentum) 30%, transparent); padding: 3px 8px; white-space: nowrap; }
+.board-metadata { font-weight: 400; color: var(--muted); }
+.board-reach { color: var(--accent-text); font-weight: 400; }
+.board-market-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.board-market-choices .legacy-action { max-width: 100%; padding: 12px; line-height: 1.3; }
+.board-legacy-pin > p { font-size: var(--type-2); color: var(--muted); line-height: 1.5; }
+
+/* The search is one rule box at 48px; the field and the Search control sit
+   inside it, the control as a paper control rather than a second red plane. */
+.brw-search-form {
+  min-height: 48px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+.brw-search-form:hover,
+.brw-search-form:focus-within {
+  border-color: var(--accent);
+}
+/* An input's automatic minimum size is its own intrinsic width, so a flex item
+   with flex: 1 still refuses to go below it. Once the Search control stopped
+   shrinking the field had nothing left to give and the row pushed the document
+   to 415 pixels inside 390. min-width: 0 lets the zero basis the field already
+   carries actually yield, and the control keeps its one word on one line. */
+.brw-search-input {
+  min-height: 48px;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  transition: color var(--motion-control) var(--motion-standard-easing);
+}
+.brw-search-input:hover {
+  color: var(--accent-text);
+}
+.brw-search-input:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+/* The control word is one word. At 390 the row squeezed the button to its own
+   48 pixel minimum and the browser laid Search across five lines inside it, so
+   the button holds its word and the field gives up the room instead. */
+.brw-search-btn {
+  min-height: 48px;
+  min-width: 48px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 0 16px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: 600 var(--type-3)/1 var(--sans);
+  cursor: pointer;
+  transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.brw-search-btn:hover,
+.brw-search-btn:focus-visible {
+  color: var(--accent-text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+/* Section 7, the Active row. */
+.brw-search-btn:active { box-shadow: var(--press-grip); }
+.brw-search-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+
+.brw-trend-card {
+  transition: border-color var(--motion-row) var(--motion-standard-easing), background var(--motion-row) var(--motion-standard-easing);
+}
+.brw-trend-card:hover, .brw-trend-card:focus-visible {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+@media (max-width: 720px) {
+  .board-grid,
+  .brw-vol-row {
+    grid-template-columns: 1fr !important;
+  }
+  .brw-quote-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

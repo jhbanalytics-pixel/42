@@ -1,0 +1,68 @@
+# syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
+FROM --platform=linux/amd64 python:3.13-slim@sha256:16f75ad0fbc6c4883a8afd63b2d700c3cf68ccffc1aaeca5304ca0a3a908451f AS test-toolchain
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONNOUSERSITE=1
+
+COPY requirements-dev.lock /tmp/requirements-dev.lock
+RUN python -m venv --copies /opt/42-engine-test-venv && \
+    /opt/42-engine-test-venv/bin/python -m pip install --require-hashes --no-compile -r /tmp/requirements-dev.lock
+
+COPY tests/build/install_ci_tools.py /tmp/ci-tools/install_ci_tools.py
+COPY tests/build/ci_git_dependencies.json /tmp/ci-tools/ci_git_dependencies.json
+COPY tests/build/ci_node_runtime.json /tmp/ci-tools/ci_node_runtime.json
+RUN python /tmp/ci-tools/install_ci_tools.py download \
+      --manifest /tmp/ci-tools/ci_git_dependencies.json \
+      --manifest-sha256 1f596f0f894e8b25e33f8eff9940d07b59227aa8f59082275b7b828f52f79455 \
+      --destination /tmp/ci-git-archives && \
+    dpkg -i /tmp/ci-git-archives/*.deb && \
+    python /tmp/ci-tools/install_ci_tools.py verify-installed \
+      --manifest /tmp/ci-tools/ci_git_dependencies.json \
+      --manifest-sha256 1f596f0f894e8b25e33f8eff9940d07b59227aa8f59082275b7b828f52f79455 \
+      --license-root /opt/42-ci/licenses \
+      --output /opt/42-ci/installed.json && \
+    test -x /usr/bin/git && \
+    test "$(git --version)" = "git version 2.47.3"
+
+RUN python /tmp/ci-tools/install_ci_tools.py install-node \
+      --manifest /tmp/ci-tools/ci_node_runtime.json \
+      --manifest-sha256 adf631b83e653a953e7a3091ebfacb2178a0ab3c28718fb133480ab88d484462 \
+      --destination /opt/42-ci/node \
+      --output /opt/42-ci/node/installed.json && \
+    test -x /opt/42-ci/node/node && \
+    test "$(/opt/42-ci/node/node --version)" = "v24.18.1"
+
+ENV NODE_BINARY=/opt/42-ci/node/node
+
+RUN useradd --create-home --uid 10001 testuser && \
+    mkdir -p /workspace/engine && \
+    chown -R 10001:10001 /workspace/engine /opt/42-engine-test-venv /opt/42-ci
+
+FROM test-toolchain AS test
+
+COPY . /workspace/engine
+RUN chown -R 10001:10001 /workspace/engine
+
+USER 10001:10001
+WORKDIR /workspace/engine
+RUN git init --quiet --template= && \
+    test -d .git && \
+    test "$(git rev-parse --show-toplevel)" = "/workspace/engine" && \
+    test -z "$(git remote)" && \
+    ! git rev-parse --verify HEAD && \
+    ! git config --local --get user.name && \
+    ! git config --local --get user.email && \
+    { test ! -d .git/hooks || ! find .git/hooks -type f -perm /111 | grep -q .; } && \
+    test "$(stat -c '%u:%g' .)" = "10001:10001" && \
+    test -f tests/fixtures/socialcrawl_catalog_2026_08_26.json && \
+    ! git check-ignore --quiet tests/fixtures/socialcrawl_catalog_2026_08_26.json && \
+    printf '{}\n' > unrelated.json && \
+    git check-ignore --quiet unrelated.json && \
+    rm unrelated.json
+
+RUN --network=none /opt/42-engine-test-venv/bin/python -m pytest tests/unit/ -q
+
+CMD ["/opt/42-engine-test-venv/bin/python", "-m", "pytest", "tests/unit/", "-q"]

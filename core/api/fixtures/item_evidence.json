@@ -1,0 +1,50 @@
+[
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "post_id": "tt_her_001",
+  "platform": "tiktok",
+  "handle": "@fixture_heritage_1",
+  "url": "https://example.invalid/tiktok/@fixture_heritage_1/tt_her_001",
+  "published_at": "2026-09-29T17:10:00+02:00",
+  "excerpt": "Heritage day fit check, fixture post",
+  "views": 18400,
+  "likes": 1200,
+  "comments": 45,
+  "shares": 30,
+  "thumbnail_url": "https://example.invalid/thumb/tt_her_001.jpg",
+  "creator_tier": "micro"
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "post_id": "x_her_002",
+  "platform": "x",
+  "handle": "@fixture_heritage_2",
+  "url": "https://example.invalid/x/@fixture_heritage_2/x_her_002",
+  "published_at": "2026-09-30T08:02:00+02:00",
+  "excerpt": "Braai plans for the long weekend, fixture post",
+  "views": 2100,
+  "likes": 88,
+  "comments": 9,
+  "shares": 12,
+  "thumbnail_url": null,
+  "creator_tier": "nano"
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "NG",
+  "post_id": "tt_her_ng_003",
+  "platform": "tiktok",
+  "handle": "@fixture_ng_x",
+  "url": "https://example.invalid/tiktok/@fixture_ng_x/tt_her_ng_003",
+  "published_at": "2026-09-29T12:00:00+01:00",
+  "excerpt": "Other market, fixture post",
+  "views": 300,
+  "likes": 10,
+  "comments": 1,
+  "shares": 0,
+  "thumbnail_url": null,
+  "creator_tier": "nano"
+ }
+]

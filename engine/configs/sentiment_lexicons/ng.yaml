@@ -1,0 +1,123 @@
+# Nigeria social sentiment lexicon (Wave 2, Group A).
+# Seed positive / negative term lists for the heuristic scorer in
+# src/enrichment/sentiment_lexicon.py. General English polarity plus Naija
+# pidgin / slang. Single words or short phrases, lowercase.
+market: ng
+market_name: Nigeria
+
+positive:
+  # general
+  - good
+  - great
+  - love
+  - loved
+  - amazing
+  - awesome
+  - happy
+  - excited
+  - beautiful
+  - perfect
+  - best
+  - win
+  - winning
+  - proud
+  - blessed
+  - grateful
+  - enjoy
+  - enjoyed
+  - thank you
+  - thanks
+  - congrats
+  - congratulations
+  - recommend
+  - worth it
+  # naija slang / pidgin positive
+  - lit
+  - fire
+  - sweet
+  - correct
+  - mad o
+  - no wahala
+  - jare
+  - vibe
+  - vibes
+  - banger
+  - slaps
+  - dope
+  - gbedu
+  - omo see
+  - soft
+  - japa win
+  - blessing
+  - levels
+  - chop life
+  - sabi
+
+negative:
+  # general
+  - bad
+  - worst
+  - hate
+  - hated
+  - terrible
+  - awful
+  - horrible
+  - sad
+  - angry
+  - disappointed
+  - disappointing
+  - broken
+  - fail
+  - failed
+  - failure
+  - scam
+  - fraud
+  - rubbish
+  - nonsense
+  - useless
+  - waste
+  - problem
+  - trash
+  - cancelled
+  - boring
+  - cried
+  - struggling
+  - struggle
+  # naija slang / pidgin negative
+  - wahala
+  - palava
+  - sapa
+  - broke
+  - stress
+  - stressed
+  - yawa
+  - gbese
+  - wayo
+  - ole
+  - fraudstar
+  - jagaban fail
+  - hardship
+  - suffer
+  - suffering
+  - mtchew
+  - rubbish o
+  - na lie
+  - dey pain
+  - corrupt
+  - corruption
+
+negators:
+  - no
+  - never
+  - nothing
+  - abeg no
+
+intensifiers:
+  well: 1.5
+  die: 1.6
+  gan: 1.5
+  scatter: 1.6
+
+downtoners:
+  small: 0.6
+  small small: 0.5

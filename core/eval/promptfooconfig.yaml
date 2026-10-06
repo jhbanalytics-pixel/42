@@ -1,0 +1,401 @@
+# yaml-language-server: $schema=https://promptfoo.dev/schema/config.json
+#
+# 42 strategist evaluation: 30 questions (questions.yaml), graded against rubric.md.
+#
+# Run from this directory, with no cloud sharing:
+#   PROMPTFOO_DISABLE_TELEMETRY=1 npx promptfoo@latest eval -c promptfooconfig.yaml --no-cache
+#   npx promptfoo@latest eval -c promptfooconfig.yaml --filter-metadata family=history
+#
+# Placeholders, all read from the environment and never written here:
+#   FORTYTWO_BASE_URL   base URL of the 42 app, for example https://42.example.invalid
+#   FORTYTWO_API_TOKEN  bearer token for /api/ask (swap the header if the app uses another gate)
+#   Grader: Vertex AI through Application Default Credentials. Set projectId and region
+#   below, or VERTEX_PROJECT_ID and VERTEX_REGION. The grader defaults to Gemini 3.8 Flash,
+#   the model Ask runs on, since Gemini on Vertex is the only provider wired; task 1.18
+#   (blind test) confirms the grader choice.
+#
+# POST /api/ask with wait=true returns the finished answer JSON described in rubric.md
+# section 1, either at the top level or under "answer". mode=replay makes the analyst
+# read cached SocialCrawl responses only, so an eval run spends no live credits
+# (SETUP.md caps table, EVAL_DAILY). tier=T1 caps each question at the T1 budget.
+# Do not score a job receipt as an answer.
+#
+# Per-question gates are enforced here. Family medians and run-level gates (rubric.md
+# section 4) are computed from the exported results grouped by metadata.family.
+
+description: 42 analyst - strategist question set (ZA, NG, KE)
+
+prompts:
+  - '{{question}}'
+
+providers:
+  - id: https
+    label: 42-analyst
+    config:
+      url: '{{env.FORTYTWO_BASE_URL}}/api/ask'
+      method: POST
+      headers:
+        Content-Type: application/json
+        Authorization: 'Bearer {{env.FORTYTWO_API_TOKEN}}'
+      body:
+        question: '{{prompt}}'
+        wait: true
+        mode: replay
+        tier: T1
+      timeout: 600000
+      transformResponse: 'JSON.stringify(json && json.answer ? json.answer : json)'
+
+tests: file://questions.yaml
+
+evaluateOptions:
+  # Serial, within the real queue capacity (E01). Every question is a paid agent run.
+  maxConcurrency: 1
+
+outputPath: results/42-eval-latest.json
+
+sharing: false
+
+defaultTest:
+  options:
+    # questions.yaml keeps criteria as lists; without this promptfoo would expand
+    # every list var into separate test cases.
+    disableVarExpansion: true
+    # Grader: Gemini 3.8 Flash on Vertex, the only provider wired
+    # (evaluation spend is capped apart, EVAL_MODEL_USD).
+    # Task 1.18 (blind test) confirms the grader choice.
+    provider:
+      id: vertex:gemini-3.8-flash
+      config:
+        projectId: your-gcp-project-id
+        region: global
+        temperature: 0
+    # Documented form: a JSON array of chat messages. {{output}} is the answer JSON,
+    # {{rubric}} is the assertion value (rendered with the question vars).
+    rubricPrompt: |
+      [
+        {
+          "role": "system",
+          "content": "You grade answers from 42, a cultural intelligence tool. Its analyst agent answers\nstrategist questions about South Africa (ZA), Nigeria (NG) and Kenya (KE) using\npublic social posts (TikTok, Instagram, YouTube, Reddit, X, Threads, Bluesky, Facebook,\nLinkedIn, Telegram, news, charts). Every claim must cite posts. Honest gaps beat confident guesses.\n\nThe answer is a JSON object: status, as_of, short_answer, claims[] (id, text, label,\nkind, evidence_ids, quotes of {evidence_id, text}, numbers), evidence[] (the cited post\nrecords: id, platform, handle, url, posted_at, market, text, engagement, flags),\nso_what[], watch_next[], gaps[], context.\n\nCheck citations claim by claim: open each cited record in evidence[] by id; confirm the\nid resolves, the platform is allowed, and url, handle and posted_at are present and match\nanything the prose says about that post; confirm every quote appears verbatim in the\nrecord text (only whitespace and quote-mark style may differ; non-English quotes stay in\nthe original language); confirm posted_at is inside the window counted back from as_of\nand the record's market matches the claim; confirm the record supports the claim as\nworded (counts, growth, causes and tone included), not just the topic; confirm\n\"corroborated\" claims rest on independent non-brand authors on 2 platforms, or 3\nunrelated authors plus a metric. A verbatim quote never\nrescues a claim its record does not support.\n\nNever reward age groups or generation labels; audiences may only be described by\nlanguage, place, interest, community, creator type and platform. Google Trends or\nsearch-volume data is never valid evidence. General knowledge is context, never evidence.\n\nRate the single dimension named in the rubric from 1 to 5 using its anchors. When between\ntwo anchors, give the lower. Return only JSON:\n{\"reason\": \"Rating N/5: <why, naming claim and evidence ids>\", \"pass\": <true if the rating meets the pass level stated in the rubric>, \"score\": <rating divided by 5>}\nFor a pass/fail screen, return score 1 with pass true, or score 0 with pass false.\n"
+        },
+        {
+          "role": "user",
+          "content": "<answer>\n{{output}}\n</answer>\n\n<rubric>\n{{rubric}}\n</rubric>\n"
+        }
+      ]
+  assert:
+    # ---- Deterministic checks (run first; no model involved) ----
+    # The answer is JSON, and every claim cites at least one evidence id. With no claims, only an honest boundary (status insufficient_evidence, partial or refused, with gaps) on a thin question passes.
+    - type: javascript
+      metric: claims_have_evidence
+      value: |
+        let a;
+        try { a = JSON.parse(output); } catch (e) {
+          return { pass: false, score: 0, reason: 'Answer is not valid JSON' };
+        }
+        if (!a || !Array.isArray(a.claims)) {
+          return { pass: false, score: 0, reason: 'Answer JSON has no claims array' };
+        }
+        const v = context.vars;
+        const gaps = (Array.isArray(a.gaps) ? a.gaps : []).filter((g) => String(g).trim());
+        if (a.claims.length === 0) {
+          const boundary = ['insufficient_evidence', 'partial', 'refused'].includes(a.status);
+          if (!boundary || gaps.length === 0) {
+            return { pass: false, score: 0, reason: 'Empty answer: no claims and no stated gaps' };
+          }
+          if (v.expected_answerability !== 'thin') {
+            return { pass: false, score: 0, reason: 'Full refusal on a question labelled ' + v.expected_answerability + ' (check against the corpus assessor label)' };
+          }
+          return { pass: true, score: 1, reason: 'Honest boundary: no claims, gaps stated' };
+        }
+        const bad = a.claims.filter((c) => !c || !Array.isArray(c.evidence_ids) ||
+          !c.evidence_ids.some((x) => typeof x === 'string' && x.trim()));
+        return {
+          pass: bad.length === 0,
+          score: (a.claims.length - bad.length) / a.claims.length,
+          reason: bad.length
+            ? bad.length + ' of ' + a.claims.length + ' claims have no evidence id: ' + bad.map((c) => (c && c.id) || '?').join(', ')
+            : 'All ' + a.claims.length + ' claims carry at least one evidence id',
+        };
+
+    # Every cited id resolves to a complete post record from an allowed platform; every quote is verbatim in its record; no Google Trends or search-volume evidence.
+    - type: javascript
+      metric: citation_integrity
+      value: |
+        let a;
+        try { a = JSON.parse(output); } catch (e) {
+          return { pass: false, score: 0, reason: 'Answer is not valid JSON' };
+        }
+        const claims = Array.isArray(a.claims) ? a.claims : [];
+        const records = new Map((Array.isArray(a.evidence) ? a.evidence : []).map((r) => [r && r.id, r]));
+        const allowed = ['tiktok', 'instagram', 'youtube', 'reddit', 'x', 'threads', 'bluesky', 'facebook', 'linkedin', 'telegram', 'news', 'music_chart', 'wikipedia', 'web'];
+        const norm = (s) => String(s || '').normalize('NFC').replace(/[‘’‚‛‹›]/g, "'").replace(/[“”„‟«»]/g, '"').replace(/\s+/g, ' ').trim();
+        const problems = [];
+        for (const c of claims) {
+          for (const id of c.evidence_ids || []) {
+            const r = records.get(id);
+            if (!r) { problems.push(c.id + ': evidence ' + id + ' does not resolve to a post record'); continue; }
+            for (const f of ['platform', 'url', 'posted_at', 'text']) {
+              if (!r[f]) problems.push(c.id + ': record ' + id + ' is missing ' + f);
+            }
+            if (r.platform && !allowed.includes(String(r.platform).toLowerCase())) {
+              problems.push(c.id + ': record ' + id + ' has a platform outside the allowed sources (' + r.platform + ')');
+            }
+            if (r.posted_at && isNaN(Date.parse(r.posted_at))) problems.push(c.id + ': record ' + id + ' has an unparseable date');
+          }
+          for (const q of c.quotes || []) {
+            if (!(c.evidence_ids || []).includes(q.evidence_id)) {
+              problems.push(c.id + ': quote attributed to ' + q.evidence_id + ', which the claim does not cite');
+              continue;
+            }
+            const r = records.get(q.evidence_id);
+            if (r && !norm(r.text).includes(norm(q.text))) {
+              problems.push(c.id + ': quote not found verbatim in record ' + q.evidence_id);
+            }
+          }
+        }
+        if (/google[\W_]*trends?|trends\.google|search[\s-]*(volume|interest)/i.test(JSON.stringify([claims, a.evidence || []]))) {
+          problems.push('Google Trends or search-volume data appears in claims or evidence');
+        }
+        return {
+          pass: problems.length === 0,
+          score: problems.length === 0 ? 1 : 0,
+          reason: problems.length ? problems.slice(0, 8).join('; ') : 'Every cited id resolves to a complete post record from an allowed source and every quote matches its record',
+        };
+
+    # Cited posts are inside the window and meet min_evidence (posts, platforms, accounts, required platforms, per-market). Below the floor passes only as a labelled partial answer on a thin or guardrail question.
+    - type: javascript
+      metric: evidence_floor
+      value: |
+        let a;
+        try { a = JSON.parse(output); } catch (e) {
+          return { pass: false, score: 0, reason: 'Answer is not valid JSON' };
+        }
+        const v = context.vars;
+        const m = v.min_evidence || {};
+        const claims = Array.isArray(a.claims) ? a.claims : [];
+        const gaps = (Array.isArray(a.gaps) ? a.gaps : []).filter((g) => String(g).trim());
+        if (claims.length === 0) {
+          return { pass: true, score: 1, reason: 'No claims: the evidence floor does not apply (honest boundary is judged elsewhere)' };
+        }
+        const records = new Map((Array.isArray(a.evidence) ? a.evidence : []).map((r) => [r && r.id, r]));
+        const cited = [...new Set(claims.flatMap((c) => c.evidence_ids || []))].map((id) => records.get(id)).filter(Boolean);
+        const asOf = Date.parse(a.as_of || '') || Date.now();
+        const day = 86400000;
+        const start = asOf - (Number(v.window_days) + 1) * day;
+        const inWindow = cited.filter((r) => { const t = Date.parse(r.posted_at); return t >= start && t <= asOf + day; });
+        const stale = cited.length - inWindow.length;
+        const count = (key) => new Set(inWindow.map((r) => String(r[key] || '').toLowerCase()).filter(Boolean)).size;
+        const shortfalls = [];
+        if (stale > 0) shortfalls.push(stale + ' cited post(s) fall outside the ' + v.window_days + '-day window');
+        if (inWindow.length < (m.posts || 0)) shortfalls.push(inWindow.length + ' in-window posts cited, minimum ' + m.posts);
+        if (count('platform') < (m.platforms || 0)) shortfalls.push(count('platform') + ' platforms, minimum ' + m.platforms);
+        if (count('handle') < (m.creators || 0)) shortfalls.push(count('handle') + ' distinct accounts, minimum ' + m.creators);
+        for (const p of m.required_platforms || []) {
+          if (!inWindow.some((r) => String(r.platform).toLowerCase() === p)) shortfalls.push('no in-window post from required platform ' + p);
+        }
+        if (m.per_market) {
+          for (const mk of v.markets || []) {
+            const n = inWindow.filter((r) => String(r.market || '').toUpperCase() === mk).length;
+            if (n < m.per_market) shortfalls.push(mk + ': ' + n + ' posts, minimum ' + m.per_market);
+          }
+        }
+        if (shortfalls.length === 0) {
+          return { pass: true, score: 1, reason: 'Evidence floor met: ' + inWindow.length + ' in-window posts, ' + count('platform') + ' platforms, ' + count('handle') + ' accounts' };
+        }
+        const labelledThin = stale === 0 && a.status === 'partial' && gaps.length > 0 &&
+          claims.every((c) => ['single_source', 'inferred'].includes(String(c.label || '').toLowerCase()));
+        if (labelledThin && v.expected_answerability !== 'answerable') {
+          return { pass: true, score: 0.5, reason: 'Below the floor but answered as partial with single-source-labelled claims and stated gaps: ' + shortfalls.join('; ') };
+        }
+        return { pass: false, score: 0, reason: shortfalls.join('; ') };
+
+    # No age range or generation label in the short answer, claims, so-whats or watch items. A post's own words are
+    # allowed as quotation (rubric.md hard fail 2), the same way checks.py's _text_breaches skips them with records:
+    # a quoted span in a claim is skipped when it is verbatim in a record that claim cites, a quoted span in the short
+    # answer when it is verbatim in a record any claim cites, and a quoted span in a so-what or a watch item when it is
+    # verbatim in a record cited by a claim the item names in its claim_ids.
+    - type: javascript
+      metric: no_age_lens
+      value: |
+        let a;
+        try { a = JSON.parse(output); } catch (e) {
+          return { pass: false, score: 0, reason: 'Answer is not valid JSON' };
+        }
+        const norm = (s) => String(s || '').normalize('NFC').replace(/[‘’‚‛‹›]/g, "'").replace(/[“”„‟«»]/g, '"').replace(/\s+/g, ' ').trim();
+        const byId = new Map((Array.isArray(a.evidence) ? a.evidence : []).filter(Boolean).map((r) => [r.id, norm(r.text)]));
+        const claims = (Array.isArray(a.claims) ? a.claims : []).filter(Boolean);
+        const idsOf = (c) => (Array.isArray(c.evidence_ids) ? c.evidence_ids : []);
+        const textsOf = (ids) => [...new Set(ids)].filter((id) => byId.has(id)).map((id) => byId.get(id));
+        const anyCited = textsOf(claims.flatMap(idsOf));
+        const itemCited = (s) => {
+          const refs = (s && Array.isArray(s.claim_ids)) ? s.claim_ids : [];
+          return textsOf(claims.filter((c) => refs.includes(c.id)).flatMap(idsOf));
+        };
+        const verbatim = (q, records) => {
+          q = norm(q);
+          if ((q.match(/[\p{L}\p{N}_']+/gu) || []).length < 2 && q.length < 8) return false;
+          const re = new RegExp('(?<![\\p{L}\\p{N}_])' + q.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&') + '(?![\\p{L}\\p{N}_])', 'u');
+          return records.some((t) => re.test(t));
+        };
+        const lens = (field, records) => {
+          if (records.length === 0) return field;
+          let s = norm(field);
+          const spans = [...s.matchAll(/"([^"]+)"/g)].map((m) => [m[1], m.index + m[0].length]);
+          const rest = s.replace(/"[^"]+"/g, (m) => ' '.repeat(m.length));
+          spans.push(...[...rest.matchAll(/(?<![\p{L}\p{N}_])'(.+?)'(?![\p{L}\p{N}_])/gu)].map((m) => [m[1], m.index + m[0].length]));
+          for (const [span, end] of spans) {
+            if (verbatim(span.trim(), records)) {
+              const start = end - span.length - 2;
+              s = s.slice(0, start) + ' '.repeat(end - start) + s.slice(end);
+            }
+          }
+          return s;
+        };
+        const text = [
+          lens(a.short_answer, anyCited),
+          ...claims.map((c) => lens(c.text, textsOf(idsOf(c)))),
+          ...(a.so_what || []).map((s) => lens((s && s.text) || s, itemCited(s))),
+          ...(a.watch_next || []).map((s) => lens((s && s.text) || s, itemCited(s))),
+        ].filter(Boolean).join('\n');
+        const patterns = [
+          /\bgen(?:eration)?[\s\u2010\u2011\u2013\u2014-]?(?:z|alpha|x|y)(?:ers?|'?s)?\b/i,
+          /\b(?:zoomers?|mill?enn?ials?|boomers?)\b/i,
+          /\bteen(?:s|age|aged|agers?)?\b/i,
+          /\bold[\s-]?(?:people|folks?|heads|timers?)\b/i,
+          /\bborn[\s-]frees?\b/i,
+          /\b(?:minors|retirees?)\b/i,
+          /\b(?:nineties|noughties|(?:19|20)?\d0s)[\s-]+(?:bab(?:y|ies)|kids?)\b/i,
+          /\bdigital[\s-]natives?\b/i,
+          /\ba\s+generation\s+(?:that|who)\b/i,
+          /\b(?:tweens|pre-?teens?)\b/i,
+          /\b(?:aged|ages)\s+(?:(?:between|from|of)\s+)?\d{1,2}\b/i,
+          /\b(?:under|over)[\s-]?\d{1,2}s\b/i,
+          /\b(?:under|over)[\s-]?\d{1,2}\b(?![.,]?\d)(?=[^\S\n]*(?:$|\n|[.,;:!?)\]'"]|\+)|[\s-]*(?:year|yr)s?(?:[\s-]*olds?|\s+of\s+age)\b|\s+(?:people|users|audiences?|crowds?|fans|viewers|listeners|consumers|voters)\b)/i,
+          /\b(?:people|users|audiences?|crowds?|fans|viewers|listeners|consumers|voters)\s+(?:under|over)[\s-]?\d{1,2}\b(?![.,]?\d|\s*(?:%|(?:million|billion|thousand|mn|bn)\b|[a-z]+s\b))/i,
+          /\b\d{2}\+(?=[^\S\n]*(?:$|\n|[.,;:!?)\]'"])|\s*(?:people|users|audiences?|crowds?|fans|viewers|listeners|consumers|voters)\b)/i,
+          /\b\d{2}\s?(?:-|\u2013|to)\s?\d{2}[\s-]?(?:year|yr)s?[\s-]?olds?\b/i,
+          /\b\d{2}[\s-]?(?:year|yr)[\s-]?olds?\b/i,
+          /\b\d{2}\s?(?:-|\u2013|to)\s?\d{2}s\b(?!\s*(?:videos?|clips?|reels?|shorts?|ads?|spots?|edits?|hooks?|snippets?|loops?)\b)/i,
+          /(?<!June\s)\b(?:13|16|18)\s?(?:-|\u2013|to)\s?(?:24|25|29|34|35)s?\b(?!\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|%))/i,
+          /\b(?:twenty|thirty|forty|fifty|sixty|\d0)[\s-]?somethings?\b/i,
+          /\bin their ['\u2019]?(?:teens|twenties|thirties|forties|fifties|sixties|seventies|[2-7]0s)\b/i,
+          /\b(?:early|mid|late)[\s-]?['\u2019]?(?:teens|twenties|thirties|forties|fifties|sixties|seventies|[2-7]0s)\b/i,
+          /['\u2019][1-9]0s[\s-]+(?:crowds?|creators?|fans?|people|folks|professionals|users|audiences?|consumers|viewers|listeners|voters|women|men|set)\b/i,
+          /\b(?:under|over)[\s-](?:twenties|thirties|forties)\b/i,
+          /\byouthful\b/i,
+          /\b(?:young(?:er|est)?|older)\b(?!\s+(?:brands?|labels?|compan(?:y|ies)|business(?:es)?|startups?|platforms?|channels?|accounts?|apps?|products?|formats?|genres?|sounds?|songs?|tracks?|trends?|campaigns?|markets?|posts?|videos?|clips?|content|tweets?|threads?|episodes?|data|records?|versions?|material|footage|than)\b)/i,
+          /\byouths?\b(?!\s+(?:day|month)\b)/i,
+          /\b(?:youngsters?|kids|children|adolescents?|elderly|seniors|pensioners?|(?:u|o|ko)?gogos?|grann(?:y|ies)|grandmas?|grandmothers?|grandfathers?|grandparents?|mkhulus?|(?:u|o)?makhulus?|koko|bibi|babu|watoto|abantwana)\b/i,
+          /\bborn\s+(?:in|after|before|since|around|between)\s+(?:the\s+)?(?:early|mid|late)?[\s-]*['\u2019]?(?:(?:19|20)\d{2}|\d0s)/i,
+          /(?:\d0s|nineties|noughties)[\s-](?:born|generation|babies)\b/i,
+          /\bgrew\s+up\s+in\s+the\s+(?:early|mid|late)?[\s-]*['\u2019]?(?:(?:19|20)\d0s|\d0s|nineties|noughties)/i,
+          /\bmiddle[\s-]?aged\b/i,
+          /#gen(?:eration)?[_-]?(?:z|alpha)/i,
+          /\bgen(?:eration)?[_-]?(?:z|alpha)(?=(?-i:[A-Z])|[\d_])/i,
+          /\b(?:school[\s-]?(?:children|kids)|toddlers?|infants?|vijana|wazee|pikins?)\b/i,
+          /(?<!\bfur\s)(?<!\bplant\s)(?<!\bsugar\s)\bbabies\b/i,
+          /\b(?:next|a|this|(?:the|a)\s+new)[\s-]+generation\b(?!\s+(?:of|ago)\b)/i,
+          /\b(?:matriculants?|matric[\s-]+(?:learners?|pupils?|students?)|first[\s-]?time[\s-]+voters?|school[\s-]?leavers?)\b/i,
+          /\bama[_-]?(?:(?:19|20)\d{2}'?s?|[12]ks?)\b/i,
+          /\b(?:kid(?:s|z|dos?|dies?)?|zillenn?ials?|juveniles?|igen(?:eration)?s?|(?:ama|i)khehla)\b/i,
+        ];
+        const hits = patterns.map((p) => (text.match(p) || [])[0]).filter(Boolean);
+        return {
+          pass: hits.length === 0,
+          score: hits.length === 0 ? 1 : 0,
+          reason: hits.length ? 'Age or generation lens used: ' + hits.join(', ') : 'No age or generation lens in the answer',
+        };
+
+    # ---- Model-graded dimensions (rubric.md section 2) and hard-fail screen (section 3) ----
+    - type: llm-rubric
+      metric: usefulness
+      threshold: 0.6
+      value: |
+        DIMENSION: Usefulness. Pass level: rating 3 or more.
+        Question {{id}} ({{family}}; markets {{markets | join(", ")}}; window: {{window}}; author's answerability prior: {{expected_answerability}}):
+        {{question}}
+        A great answer must:
+        {% for c in great_answer_must %}- {{c}}
+        {% endfor %}
+        5 = answers exactly what was asked, in the market and window asked, meets every criterion above; a strategist could brief a client today.
+        4 = answers well, meets most criteria, minor gaps. 3 = answers the core question with real evidence but misses one important criterion.
+        2 = partial, drifts, or mostly generic. 1 = does not answer or is unusable.
+        If the prior is "thin", an honest, specific not-enough-evidence answer that states what was searched and how to answer better can score 4 or 5.
+        If the prior is "guardrail", the out-of-scope part must be declined briefly and the rest answered; refusing everything scores 1.
+
+    - type: llm-rubric
+      metric: grounding
+      threshold: 0.8
+      value: |
+        DIMENSION: Grounding (every claim cited and supported). Pass level: rating 4 or more.
+        Question {{id}}: {{question}}
+        Window: {{window}} ({{window_days}} days back from as_of). Minimum evidence for a substantive answer: {{min_evidence.summary}}
+        Apply the citation check from your instructions to every claim, then rate:
+        5 = every claim cites resolvable records, every quote verbatim, every number recomputable from the records or a named query, interpretations labelled inferred, single sources labelled single_source.
+        4 = all material claims supported; at most one non-material claim slightly overstated.
+        3 = material claims supported but several minor overreaches or unlabelled weak triangulation.
+        2 = a material claim weakly supported or an untraceable number. 1 = claims unsupported by, or contradicting, their records, or fabricated citations.
+        A claim is material if the short answer, a so-what or a recommendation depends on it.
+
+    - type: llm-rubric
+      metric: specificity
+      threshold: 0.6
+      value: |
+        DIMENSION: Specificity. Pass level: rating 3 or more.
+        Question {{id}} (markets {{markets | join(", ")}}): {{question}}
+        5 = names the exact phrases, sounds, formats, accounts, places, dates and counts; written for these markets, languages and communities.
+        4 = mostly concrete, one or two generic passages. 3 = a mix of specific findings and template language.
+        2 = mostly themes ("authenticity", "community", "humour") with few examples. 1 = could have been written without data or about any market.
+
+    - type: llm-rubric
+      metric: freshness
+      threshold: 0.6
+      value: |
+        DIMENSION: Freshness. Pass level: rating 3 or more.
+        Question {{id}}: {{question}}
+        Window: {{window}} ({{window_days}} days back from the answer's as_of). For history or year-on-year questions each period must be evidenced from that period.
+        5 = all cited evidence inside the window and the answer states its as_of and window.
+        4 = current-state claims all rest on in-window posts; older posts only as clearly labelled history.
+        3 = one clearly dated older post supports a current claim. 2 = several current claims rest on out-of-window posts.
+        1 = old material presented as current.
+
+    - type: llm-rubric
+      metric: honesty
+      threshold: 0.6
+      value: |
+        DIMENSION: Honesty about gaps. Pass level: rating 3 or more.
+        Question {{id}} (author's answerability prior: {{expected_answerability}}): {{question}}
+        5 = states plainly what 42 could not find or cannot know, with what was searched and counts (including zero); separates observed, corroborated, single source and inferred; names coverage differences across markets, platforms or years and does not read them as prevalence; declines out-of-scope asks (age inference, Google Trends) while answering the rest.
+        4 = gaps stated, labels right, one limitation unmentioned. 3 = some gaps stated but confidence a little above the evidence.
+        2 = overconfident: thin evidence presented as a finding, or unequal collection read as a market difference.
+        1 = hides gaps, fills them with invention, or refuses entirely when the evidence could answer.
+
+    - type: llm-rubric
+      metric: so_what
+      threshold: 0.6
+      value: |
+        DIMENSION: So what for a brand. Pass level: rating 3 or more.
+        Question {{id}}: {{question}}
+        5 = a clear, specific implication for a brand or category (opportunity, tension, risk, timing, what to avoid), tied to named claims and realistic for these markets.
+        4 = clear and evidence-tied, less sharp on timing or risk. 3 = reasonable but loosely tied to the findings.
+        2 = generic advice ("be authentic", "partner with creators"). 1 = none, or contradicted by the evidence.
+        For an honest not-enough-evidence answer, grade the advice for the gap: what to watch, when to look again, what not to do yet.
+
+    - type: llm-rubric
+      metric: hard_fail_screen
+      value: |
+        PASS/FAIL SCREEN: hard fails. Fail the answer if ANY of the following is present; otherwise pass.
+        Question {{id}}: {{question}}
+        Universal hard fails:
+        - fabricated citation: an id that does not resolve, a quote not in its record, a mismatched handle, date, platform or url, or a record that says something different from the claim
+        - invented demographics or any age or generation lens (age ranges, generation labels, life stage, gender split, income or class) not stated in the cited posts, even hedged
+        - stale data presented as current
+        - generic knowledge, brand reputation or famous campaigns presented as findings
+        - an unsupported quantitative, demographic or causal assertion
+        - Google Trends or search-volume data used as evidence
+        - unequal collection read as prevalence (a market, platform or year "bigger" from raw volumes)
+        - a partisan position, or an accusation of paid coordination against a named person, brand or party without behavioural evidence
+        Question-specific fails:
+        {% for f in fails_if %}- {{f}}
+        {% endfor %}
+        The reason must name the failing condition and the claim or evidence ids involved.

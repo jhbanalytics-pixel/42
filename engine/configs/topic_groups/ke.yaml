@@ -1,0 +1,358 @@
+# Kenya topic taxonomy. See ZA file for curation rules.
+# 26 May 2026: aggressive Gen Z keyword expansion + sports_football topic add
+# + economy_hustle tighten (removed fintech-spillover terms that leaked into
+# fintech_mpesa).
+market: ke
+
+topic_groups:
+  politics_maandamano:
+    description: >
+      Protests, the anti-Ruto movement, opposition politics and finance
+      bill mobilisation in Kenya.
+    keywords:
+    - maandamano
+    - finance bill
+    - finance bill 2024
+    - finance bill 2025
+    - reject finance bill
+    - "#rejectfinancebill"
+    - "#rejectfinancebill2024"
+    - "#financebill2025"
+    - occupy statehouse
+    - siri ni numbers
+    - ruto
+    - gachagua
+    - uda
+    - odm
+    - kenya kwanza
+    - anguka nayo
+    - "#angukanayo"
+    - protest kenya
+    - protest nairobi
+    - tear gas kenya
+    - police brutality kenya
+
+    - wantam
+    - occupy state house
+    - murkomen
+
+    # 29 May 2026 KE coverage expansion: named activists/politicians + protest coinage
+    - morara
+    - orengo
+    - cherargei
+    - tutam
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): national
+    # civic days (Oct 10 Huduma, Oct 20 Mashujaa, Dec 12 Jamhuri).
+    - huduma day
+    - mashujaa day
+    - jamhuri day
+  music_gengetone:
+    description: >
+      Gengetone, arbantone, bongo flava and the Kenyan music scene.
+    keywords:
+    - gengetone
+    - arbantone
+    - "#arbantone"
+    - "#gengetone"
+    - bongo flava
+    - benga
+    - genge
+    - kapuka
+    - drill ke
+    - kenyan drill
+    - khaligraph jones
+    - sauti sol
+    - bahati
+    - nyashinski
+    - octopizzo
+    - king kaka
+    - femi one
+    - wakadinali
+    - buruklyn boyz
+    - boutross
+    - trio mio
+    - kenyan music
+    - new kenyan music
+    - tumechukua kalenjin music
+    - kenya hit
+
+    - mejja
+    - mbogi genje
+    - ssaru
+    - fathermoh
+
+    # 29 May 2026 KE coverage expansion: KE street/riddim artists (distinctive multi-word)
+    - ndovu kuu
+    - colloblue
+    - eastlands millionaire
+    - rietboss
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): upcoming
+    # KE music event windows Jun to Aug 2026.
+    - kenya music festival
+    - mkisii fest
+    - world music day
+    - samuel folabi
+  fintech_mpesa:
+    description: Mobile money, banking, daily-life fintech anchors.
+    keywords:
+    - mpesa
+    - m-pesa
+    - safaricom
+    - hustler fund
+    - equitel
+    - airtel money
+    - telkom
+    - family bank
+    - pesa
+    - fuliza
+    - kcb mpesa
+    - mshwari
+    - tala
+    - branch
+    - okolea
+    - lipa na mpesa
+    - mpesa till
+    - paybill
+    - send money
+    - withdraw mpesa
+    - mobile money services
+
+  transport_matatu:
+    description: Matatu culture, boda boda and Nairobi traffic.
+    keywords:
+    - matatu
+    - boda boda
+    - tuk tuk
+    - piki piki
+    - uber kenya
+    - bolt
+    - little cabs
+    - nairobi traffic
+    - expressway
+    - nairobi expressway
+    - matatu culture
+    - matwana culture
+    - graffiti matatu
+    - nganya
+    - sounds matatu
+    - umoinner
+    - rongai matatu
+    - thika matatu
+    - 14 seater
+    - sgr nairobi
+    - madaraka express
+
+    - thika road
+    - kiambu road
+    - nairobi expressway traffic
+  economy_hustle:
+    description: Small business, jua kali, mama mboga and hustle culture.
+    # 26 May 2026: removed fintech-spillover terms (mpesa till, uber driver,
+    # boda boda hustle) which were leaking into fintech_mpesa and
+    # transport_matatu topics.
+    keywords:
+    - hustle culture
+    - entrepreneur
+    - biashara
+    - mkulima
+    - farmer
+    - side gig
+    - kenyan creators
+    - jua kali
+    - "#juakali"
+    - mama mboga
+    - "#mamamboga"
+    - mtaani business
+    - mtaani hustle
+    - "#mtaani"
+    - kazi ya mkono
+    - kazi ya kiganja
+    - side hustle kenya
+    - small business kenya
+    - mtu wa side biz
+    - freelance kenya
+    - jua kali artisan
+    - jua kali sector
+    - informal economy
+    - tap tap kenya
+    - shop owner kenya
+
+    - mamamboga
+    - juakali
+    - mtaanikwetu
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): retail and
+    # school-calendar spending moments (late Aug, Nov 27 to Nov 30).
+    - black friday
+    - cyber monday
+    - back to school
+  food_nyamachoma:
+    description: "KE food: nyama choma, ugali, Swahili food culture."
+    keywords:
+    - nyama choma
+    - "#nyamachoma"
+    - ugali
+    - chapati
+    - mandazi
+    - mutura
+    - pilau
+    - biryani
+    - swahili food
+    - kenyan food
+    - kenyan cuisine
+    - sukuma wiki
+    - githeri
+    - mukimo
+    - tilapia
+    - njuguna's place
+    - choma joint
+    - kenyan recipes
+    - kenyan kitchen
+
+    - nyamachoma
+    - mishkaki
+    - mishikaki
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): Aug 22
+    # World Jollof Rice Day lands on the KE client calendar too.
+    - world jollof rice day
+  fashion_mitumba:
+    description: Thrift, kitenge, Maasai prints and Kenyan fashion subcultures.
+    keywords:
+    - mitumba
+    - "#mitumba"
+    - "#mitumbastyle"
+    - thrift
+    - thrift kenya
+    - thrift haul
+    - second hand fashion
+    - kitenge
+    - shuka
+    - leso
+    - maasai
+    - kenyan fashion
+    - outfit check
+    - gikomba
+    - gikomba market
+    - toi market
+    - eastlands fashion
+    - campus fashion kenya
+    - sustainable fashion kenya
+    - kenya streetwear
+
+    # 29 May 2026 KE coverage expansion: "thrift" \b-anchored misses "thrifting"
+    - thrifting
+
+  genz_sheng:
+    description: Sheng language and Nairobi conversation markers.
+    keywords:
+    - sheng
+    - campus
+    - mpenzi
+    - mzee
+    - bae
+    - msichana
+    - vibe
+    - niko kadi
+    - tuko kadi
+    - "#nikokadi"
+    - una diglo
+    - mafrumbanya
+    - "#kenyantiktok"
+    - kenyan tiktok
+    - tiktok kenya
+    - mtaani slang
+    - nairobi slang
+    - kabambe
+    - sweep
+    - sherehe
+    - msee
+
+    - nairobitiktokers
+    - kenyansinusa
+    - kenyansinuk
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): Sep 2026.
+    - squid game challenge
+    - international youth day
+    - day of the african child
+    - father's day
+    - halloween
+  sports_football:
+    description: >
+      Harambee Stars football, KPL, Premier League fandom (Arsenal Kenya),
+      Kenyan football culture across social platforms.
+    keywords:
+    - harambee stars
+    - "#harambeestars"
+    - kenyan premier league
+    - kpl
+    - gor mahia
+    - afc leopards
+    - arsenal kenya
+    - arsenal nairobi
+    - "#arsenalkenya"
+    - premier league fans kenya
+    - epl kenya
+    - world cup qualifiers harambee
+    - football kenya
+    - mahia derby
+    - michael olunga
+    - victor wanyama
+    - mariga
+    - dennis oliech
+    - kenya football
+    - chan kenya
+    - cecafa
+    - mashemeji derby
+    - bettingtipskenya
+    # 9 Jun 2026 football/FIFA pickup: global competitions + top clubs +
+    # marquee players. KE already carries harambee stars + arsenal kenya +
+    # epl fandom; these add FIFA / AFCON / UEFA / World Cup + the wider club
+    # and player surface. Unambiguous low-collision terms.
+    - "fifa"
+    - "uefa"
+    - "afcon"
+    - "world cup"
+    - "champions league"
+    - "europa league"
+    - "real madrid"
+    - "barcelona"
+    - "manchester united"
+    - "manchester city"
+    - "liverpool"
+    - "arsenal"
+    - "chelsea"
+    - "psg"
+    - "bayern munich"
+    - "juventus"
+    - "inter milan"
+    - "ac milan"
+    - "mbappe"
+    - "haaland"
+    - "messi"
+    - "ronaldo"
+    - "salah"
+
+  # 11 Jun 2026 Gemini brand lens (stage 1). Zodiac and horoscope "gemini"
+  # collisions are stripped at classification time via
+  # src/utils/geo_blocklist.py TOPIC_GEO_BLOCKLIST["tech_gemini_ai"].
+  # 17 Jun 2026 (KE precision): bare "gemini" and bare "veo" dropped. Over 30
+  # days they pulled about 1018 KE noise rows (zodiac, the Wright Gemini bus,
+  # the Tory Burch Gemini tote, a Vietnamese singer, foreign-language AI
+  # chatter) against about 559 genuine; the AI-context keywords below keep 557
+  # of the 559 while cutting the noise. The blocklist above is the safety net.
+  tech_gemini_ai:
+    description: >
+      Google Gemini brand conversation: Gemini app adoption, Nano Banana
+      image edits, Veo video generation, everyday Google AI use.
+    keywords:
+    - google gemini
+    - gemini app
+    - gemini ai
+    - gemini pro
+    - gemini flash
+    - gemini nano
+    - gemini advanced
+    - gemini 2.5
+    - nano banana
+    - google ai
+    - veo 3
+    - google veo

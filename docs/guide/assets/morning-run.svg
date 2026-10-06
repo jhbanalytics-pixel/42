@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-labelledby="t"><title id="t">The morning run, times in SAST</title>
+<rect width="1200" height="300" rx="14" fill="#141114"/>
+<text x="60" y="44" font-family="Helvetica, Arial, sans-serif" font-size="14" letter-spacing="2" fill="#b8aeb5">THE MORNING RUN · SAST · EACH STAGE STARTS ONLY WHEN THE ONE BEFORE IT FINISHED CLEAN</text>
+<line x1="120" y1="130" x2="1080" y2="130" stroke="#3a3238" stroke-width="2"/>
+<circle cx="120" cy="130" r="7" fill="#141114" stroke="#e8e2e6" stroke-width="2"/>
+<text x="120" y="102" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">01:30</text>
+<text x="120" y="172" text-anchor="middle" font-family="Georgia, serif" font-size="21" fill="#f4eff2">GDELT</text>
+<text x="120" y="200" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">News events become</text>
+<text x="120" y="219" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">search seeds</text>
+<circle cx="280" cy="130" r="9" fill="#c8102e" stroke="#c8102e" stroke-width="2"/>
+<text x="280" y="102" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">02:00</text>
+<text x="280" y="172" text-anchor="middle" font-family="Georgia, serif" font-size="21" fill="#f4eff2">Collect</text>
+<text x="280" y="200" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">Every channel, every</text>
+<text x="280" y="219" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">market, capped credits</text>
+<circle cx="440" cy="130" r="7" fill="#141114" stroke="#e8e2e6" stroke-width="2"/>
+<text x="440" y="102" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">chained</text>
+<text x="440" y="172" text-anchor="middle" font-family="Georgia, serif" font-size="21" fill="#f4eff2">Understand</text>
+<text x="440" y="200" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">Embeddings, topics,</text>
+<text x="440" y="219" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">clusters, video reading</text>
+<circle cx="600" cy="130" r="7" fill="#141114" stroke="#e8e2e6" stroke-width="2"/>
+<text x="600" y="102" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">chained</text>
+<text x="600" y="172" text-anchor="middle" font-family="Georgia, serif" font-size="21" fill="#f4eff2">Detect</text>
+<text x="600" y="200" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">Baselines, states,</text>
+<text x="600" y="219" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">spread, authenticity</text>
+<circle cx="760" cy="130" r="7" fill="#141114" stroke="#e8e2e6" stroke-width="2"/>
+<text x="760" y="102" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">chained</text>
+<text x="760" y="172" text-anchor="middle" font-family="Georgia, serif" font-size="21" fill="#f4eff2">Brief</text>
+<text x="760" y="200" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">Confirm, explain,</text>
+<text x="760" y="219" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">trust gate</text>
+<circle cx="920" cy="130" r="9" fill="#c8102e" stroke="#c8102e" stroke-width="2"/>
+<text x="920" y="102" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">06:15</text>
+<text x="920" y="172" text-anchor="middle" font-family="Georgia, serif" font-size="21" fill="#f4eff2">Today</text>
+<text x="920" y="200" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">Publishes whatever</text>
+<text x="920" y="219" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">passed the checks</text>
+<circle cx="1080" cy="130" r="7" fill="#141114" stroke="#e8e2e6" stroke-width="2"/>
+<text x="1080" y="102" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">06:45</text>
+<text x="1080" y="172" text-anchor="middle" font-family="Georgia, serif" font-size="21" fill="#f4eff2">Digest</text>
+<text x="1080" y="200" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">Alert email to</text>
+<text x="1080" y="219" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#b8aeb5">the team</text>
+<text x="60" y="270" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#8c8189">Weekly on Monday: calendar 06:30, seed drift 07:00, learn 07:30. Nightly: credit reconcile 23:30. Watchdog every 15 minutes through the morning.</text></svg>

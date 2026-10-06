@@ -1,0 +1,57 @@
+{
+  "probe": "13",
+  "route": "prism/post-stats",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "legs": [
+        "<list of 3>",
+        {
+          "credits_used": "<int>",
+          "endpoint": "<str>",
+          "error": "<null>",
+          "latency_ms": "<int>",
+          "status": "<int>"
+        }
+      ],
+      "results": [
+        "<list of 3>",
+        {
+          "cost": "<int>",
+          "engagement": {
+            "comments": "<int>",
+            "likes": "<int>",
+            "reposts": "<null>",
+            "saves": "<int>",
+            "shares": "<int>",
+            "views": "<int>"
+          },
+          "fetched_at": "<str>",
+          "id": "<str>",
+          "platform": "<str>",
+          "shortcode": "<null>",
+          "status": "<str>",
+          "url": "<str>",
+          "vendor_labels": {}
+        }
+      ],
+      "summary": {
+        "coverage": "<int>",
+        "credits_charged": "<int>",
+        "credits_refunded": "<int>",
+        "deferred": "<int>",
+        "error": "<int>",
+        "not_found": "<int>",
+        "ok": "<int>",
+        "total": "<int>",
+        "unsupported": "<int>"
+      }
+    },
+    "endpoint": "<str>",
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

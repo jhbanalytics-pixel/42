@@ -1,0 +1,240 @@
+.hi42 {
+  --hi42-small: var(--type-body);
+  --hi42-body: var(--type-body);
+  --hi42-lead: var(--type-signal-title);
+  --hi42-head: var(--type-page-title);
+  font-family: var(--sans);
+  font-size: var(--type-body);
+  color: var(--ink);
+  padding: var(--s-6) var(--s-5);
+  max-width: var(--maxw);
+
+  line-height: var(--leading-body);
+}
+
+.hi42 :focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.hi42-head { margin-bottom: var(--s-4); display: grid; gap: var(--s-2); }
+.hi42-heading { font-size: var(--type-page-title); font-weight: 600; line-height: var(--leading-page-title); margin: 0; overflow-wrap: anywhere; }
+.hi42-sub { font-size: var(--type-body); color: var(--muted); margin: 0; max-width: var(--measure); text-wrap: pretty;
+  line-height: var(--leading-body);
+}
+/* Which market the lists show, from the header's picker. */
+.hi42-scope { font-size: var(--type-body); line-height: var(--leading-body); color: var(--muted); margin: 0; }
+.hi42-lead { font-family: var(--serif); font-size: var(--type-signal-title); line-height: var(--leading-signal-title); margin: 0; }
+.hi42-status { font-size: var(--type-body); color: var(--muted);
+  line-height: var(--leading-body);
+}
+.hi42-line { font-size: var(--type-body); color: var(--muted); margin: 0 0 var(--s-3);
+  line-height: var(--leading-body);
+}
+.hi42-muted { color: var(--muted); }
+.hi42-fig { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+
+/* The same tab row as Today and Discover (.t42-tabs, .t42-tab in today42.css):
+   one line that scrolls inside itself, the same padding, rule and underline. */
+.hi42-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--s-2);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--s-4);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  scroll-padding-inline: var(--s-5);
+}
+.hi42-tabs::-webkit-scrollbar { display: none; }
+.hi42-tab {
+  font: inherit;
+  font-size: var(--type-body);
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: var(--s-2) var(--s-3);
+  min-height: var(--target-min);
+  flex: 0 0 auto;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing);
+
+  line-height: var(--leading-body);}
+.hi42-tab:hover, .hi42-tab:focus-visible { color: var(--ink); border-bottom-color: var(--line-2); }
+.hi42-tabs > .hi42-tab:focus-visible { outline-offset: calc(var(--focus-offset) * -1); }
+.hi42-tab[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+
+.hi42-part { font-size: var(--hi42-small); margin-bottom: var(--s-5); }
+.hi42-part-title { font-size: var(--type-section-title); font-weight: 600; margin: 0 0 var(--s-3);
+  line-height: var(--leading-section-title);
+}
+.hi42-grid { display: grid; gap: var(--s-5); grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.hi42-rows { margin: 0; padding-left: var(--s-4); display: grid; gap: var(--s-1); }
+
+.hi42-list { list-style: none; margin: 0 0 var(--s-4); padding: 0; border-top: 1px solid var(--line); }
+.hi42-row { display: grid; gap: var(--s-1); padding: var(--s-3); border-bottom: 1px solid var(--line); font-size: var(--hi42-small); animation: hi42RowIn var(--motion-layer) var(--motion-standard-easing) backwards; animation-delay: calc(min(var(--row-step, 0), 4) * 80ms); transition: background-color var(--motion-row) var(--motion-standard-easing); }
+/* A row answers the pointer with a lifted surface; the entrance is a short
+   rise, staggered over the first rows only, and off under reduced motion. */
+.hi42-row:hover, .hi42-row:focus-within { background: var(--surface); }
+.hi42-list > :nth-child(2) { --row-step: 1; }
+.hi42-list > :nth-child(3) { --row-step: 2; }
+.hi42-list > :nth-child(4) { --row-step: 3; }
+.hi42-list > :nth-child(n+5) { --row-step: 4; }
+@keyframes hi42RowIn { from { opacity: 0; transform: translateY(4px); } }
+/* Date and status scan down the list: the time in tabular figures, the
+   status in ink after a small square mark in its own colour. */
+.hi42-when { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s-3); }
+/* The middle dot stays in the text for copy and paste; the square mark does
+   its job on screen. */
+.hi42-when > [aria-hidden="true"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.hi42-when time { font-variant-numeric: tabular-nums; }
+.hi42-state { display: inline-flex; align-items: baseline; gap: var(--s-2); color: var(--ink); font-weight: 500; }
+.hi42-state::before { content: ""; flex: none; width: 8px; height: 8px; align-self: center; background: var(--line-2); }
+.hi42-state[data-status="answered"]::before { background: var(--up); }
+.hi42-state[data-status="partial"]::before { background: var(--building); }
+.hi42-state[data-status="failed"]::before { background: var(--down); }
+.hi42-state[data-status="running"]::before { background: var(--ink); }
+.hi42-row-title { font-size: var(--type-signal-title); font-weight: 600; color: var(--ink); overflow-wrap: anywhere;
+  line-height: var(--leading-signal-title);
+  /* A question that wraps breaks into even lines, never leaving its last word
+     alone under a long hashtag. */
+  text-wrap: balance;
+}
+.hi42-answer { margin: 0; font-size: var(--type-body);
+  line-height: var(--leading-body);
+}
+.hi42-row-compact, .hi42-finding { min-width: 0; min-height: 64px; box-sizing: border-box; padding: var(--s-2) 0; }
+.hi42-row-compact { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-4); }
+.hi42-list-region { min-width: 0; }
+.hi42-row-content { display: grid; gap: var(--s-1); min-width: 0; }
+.hi42-row-compact > .hi42-link { display: inline-flex; align-items: center; min-block-size: var(--target-min); }
+.hi42-row .hi42-muted, .hi42-answer, .hi42-claims li, .hi42-evidence li { min-width: 0; overflow-wrap: anywhere; }
+.hi42-claims, .hi42-evidence { margin: var(--s-1) 0 0; padding-left: var(--s-4); display: grid; gap: var(--s-1); }
+.hi42-evidence li { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-2); align-items: baseline; }
+.hi42-label { font-weight: 600; }
+.hi42-flag { padding: 0 var(--s-1); border: 1px solid var(--line-2); }
+.hi42-post-text { overflow-wrap: anywhere; }
+
+.hi42-search { display: flex; flex-wrap: wrap; align-items: end; gap: var(--s-3); margin-bottom: var(--s-4); }
+.hi42-field { display: grid; gap: var(--s-2); font-size: var(--type-body); font-weight: 600; color: var(--ink);
+  line-height: var(--leading-body);
+}
+.hi42-field input, .hi42-field select {
+  font: inherit;
+  font-size: var(--type-body);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  padding: var(--s-1) var(--s-2);
+  min-height: var(--target-min);
+
+  line-height: var(--leading-body);
+}
+.hi42-field input { min-width: 240px; }
+
+.hi42-actions { margin: 0; }
+.hi42-link { color: var(--ink); font-size: var(--type-body); text-decoration: underline; text-underline-offset: 2px;
+  line-height: var(--leading-body);
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+}
+/* On a phone the workspace already pads the page by --space-5, so the page
+   adds none of its own. It never reaches past the workspace edge, which would
+   make the workspace scroll sideways (wide-tables.test.jsx). */
+@media (max-width: 479px) {
+  .hi42 { padding-inline: 0; }
+  .hi42-tab { padding-inline: var(--s-2); }
+  /* On a phone a compact row gives its words the full width and puts its link
+     under them, so a question is not squeezed into 208px beside the link. */
+  .hi42-row-compact { grid-template-columns: minmax(0, 1fr); }
+  .hi42-row-compact > .hi42-link { justify-self: start; margin-top: calc(var(--s-2) * -1); }
+}
+/* Shell consistency, 2 October 2026: the secondary button is the one box the
+   More pages share (.legacy-action): 48px, 16px sides, a 1px muted rule and
+   the 14px sans at 600. A pressed toggle keeps its ink rule and adds an ink
+   underline, since the weight no longer tells it apart. */
+.hi42-button {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--muted);
+  padding: 0 var(--s-4);
+  min-height: var(--target-min);
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.hi42-button:hover, .hi42-button:focus-visible { border-color: var(--ink); }
+.hi42-button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+.hi42-button + .hi42-list-region > .hi42-list { margin-top: var(--s-4); }
+a.hi42-button { display: inline-flex; align-items: center; text-decoration: none; box-sizing: border-box; }
+.hi42-next { margin-bottom: var(--s-4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hi42-row { animation: none; }
+  .hi42-button { transition: none; }
+}
+.hi42-technical summary { cursor: pointer; }
+
+/* Layout pass, 4 October 2026. The list keeps the main column; beside it a
+   column says what the other tabs hold, each with its way in. The Show all
+   toggle sits at the end of a line that says what the list shows, rather
+   than alone on a row of its own. */
+.hi42-body { display: grid; gap: var(--s-6) var(--s-7); }
+.hi42-main { min-width: 0; }
+.hi42-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-4);
+  margin-bottom: var(--s-3);
+}
+.hi42-toolbar-note { flex: 1 1 auto; min-width: 0; text-wrap: pretty; margin: 0; color: var(--muted); line-height: var(--leading-body); }
+.hi42-toolbar + .hi42-list-region > .hi42-list { margin-top: 0; }
+.hi42-aside { min-width: 0; }
+.hi42-aside-title { font-size: var(--type-signal-title); line-height: var(--leading-signal-title); font-weight: 600; margin: 0 0 var(--s-2); }
+.hi42-guide { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.hi42-guide > li { display: grid; gap: var(--s-1); padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
+.hi42-guide-go {
+  font: inherit;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  margin-block: calc(var(--s-2) * -1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-weight: 600;
+  text-align: start;
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+.hi42-guide-go:hover, .hi42-guide-go:focus-visible { text-decoration-color: var(--ink); }
+.hi42-guide-what { color: var(--ink-2); line-height: var(--leading-body); text-wrap: pretty; }
+
+@media (min-width: 1200px) {
+  .hi42-body { grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); align-items: start; }
+  /* The side column starts level with the tab row's rule. */
+  .hi42-aside { padding-top: var(--s-2); }
+}
+.hi42-toolbar > .hi42-button { flex: none; }
+@media (prefers-reduced-motion: reduce) {
+  .hi42-guide-go { transition: none; }
+}

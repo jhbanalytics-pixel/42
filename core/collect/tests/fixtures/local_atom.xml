@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Invented Nairobi Wire</title>
+  <id>https://news.example.ke/</id>
+  <updated>2026-10-05T02:30:00+03:00</updated>
+  <entry>
+    <title>Harambee Stars coach names squad for Nations Cup qualifier</title>
+    <link href="https://news.example.ke/harambee-squad"/>
+    <id>https://news.example.ke/harambee-squad</id>
+    <updated>2026-10-05T01:00:00+03:00</updated>
+  </entry>
+  <entry>
+    <title>Wavy K and Lulu West headline Nairobi festival</title>
+    <link href="https://news.example.ke/festival"/>
+    <id>https://news.example.ke/festival</id>
+    <published>2026-10-04T20:00:00+03:00</published>
+  </entry>
+  <entry>
+    <title>Matatu fares rise as Harambee Stars fans travel</title>
+    <link href="https://news.example.ke/matatu-fares"/>
+    <id>https://news.example.ke/matatu-fares</id>
+    <published>2026-10-04T15:00:00+03:00</published>
+  </entry>
+  <entry>
+    <title>Wavy K drops Nairobi Nights remix</title>
+    <link href="https://news.example.ke/remix"/>
+    <id>https://news.example.ke/remix</id>
+    <published>2026-10-04T11:00:00+03:00</published>
+  </entry>
+</feed>

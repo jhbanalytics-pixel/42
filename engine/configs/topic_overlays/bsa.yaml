@@ -1,0 +1,375 @@
+# Brand South Africa topic overlay: a versioned optional lens inside general 42.
+# Entity property names and aliases are copied exactly from the source brief named
+# below; disambiguation rules are paraphrased. The overlay never widens market
+# authority: the study markets outside za, ng and ke stay explicit gaps.
+contract_version: topic_overlay_v1
+overlay_id: bsa
+brand_config_id: bsa
+client_scope_id: bsa_pulse
+provenance:
+  source_document: Brand South Africa Pulse Brief 02092026.docx
+  source_sha256: c6a24db66063de5176d98b2ea6004823ce4446893f44049541d989662997da4a
+authorized_markets: [za, ng, ke]
+uncovered_markets:
+  - United States
+  - United Kingdom
+  - Germany
+  - Netherlands
+  - France
+  - China
+  - India
+  - UAE
+  - Ghana
+  - Egypt
+  - Australia
+audience_framing:
+  default_generation_language: none
+  named_audience: requested_sample
+  sample_to_population: refused
+entities:
+  entity_bsa:
+    property: Brand South Africa
+    qualifier: organisation
+    rule: exact_phrase_or_handle
+    aliases:
+      - Brand South Africa
+      - BrandSA
+      - Brand SA
+      - "#BrandSouthAfrica"
+      - "#BrandSA"
+      - brandsouthafrica.com
+      - Nation Brand
+      - State of the Nation Brand
+      - Nation Brand Forum
+    pending_inputs:
+      - official account handles across X, Facebook, Instagram, LinkedIn, TikTok and YouTube (verify)
+    exclusions:
+      - biggest brand in South Africa
+      - brands in South Africa
+      - brand of the year
+    exclusion_note: retail and commercial uses of brand are not the organisation; Brand SA resolving to an unrelated abbreviation is excluded
+  entity_gsa:
+    property: Global South Africans
+    rule: exclude_global_south
+    aliases:
+      - Global South Africans
+      - "#GlobalSouthAfricans"
+      - South African diaspora
+      - South Africans abroad
+      - expat South Africans
+      - Saffa
+      - Saffas
+      - South African expats in London / Dubai / Sydney / Toronto / Amsterdam
+    pending_inputs:
+      - alumni and chapter networks
+    exclusions:
+      - Global South
+    exclusion_note: Global South plus Africa or African is a different geopolitical conversation and never collapses into this cluster
+  entity_pyp:
+    property: Play Your Part
+    rule: require_south_africa_cooccurrence
+    aliases:
+      - Play Your Part
+      - "#PlayYourPart"
+      - "#PlayYourPartSA"
+      - Play Your Part ambassador
+      - active citizenship
+      - active citizenry
+    pending_inputs:
+      - ambassador names as supplied by the account team
+    cooccurrence_any:
+      - hashtag_form
+      - south_africa_entity_term
+      - known_ambassador_handle
+    known_ambassador_handles: []
+negative_fixtures:
+  entity_gsa:
+    - Global South Academy
+    - Global South Africa trade summit
+    - a Global South African perspective on trade
+  entity_bsa:
+    - the biggest brand in South Africa this year
+    - brand of the year awards
+  entity_pyp:
+    - everyone must play your part in the office cleanup
+dimensions:
+  tourism:
+    label: Tourism
+    terms:
+      - visit South Africa
+      - travel to South Africa
+      - is South Africa safe to visit
+      - South Africa itinerary
+      - safari
+      - Kruger
+      - Table Mountain
+      - Garden Route
+      - Cape Town
+      - Drakensberg
+      - Soweto tour
+      - wine route
+      - "#ShotLeft"
+      - "#MeetSouthAfrica"
+      - visa waiver
+      - e-visa
+      - flight routes and new air links
+    rule: separate planning intent from review content; review content is the third party ownership signal
+    distinctions:
+      travel_intent:
+        - '\b(?:planning|plan|planned)\s+(?:a|our|my|the)\s+(?:trip|visit|holiday|safari)\b'
+        - '\b(?:should\s+i|can\s+i|want\s+to|going\s+to|thinking\s+of|thinking\s+about)\s+(?:visit|travel\s+to|go\s+to|fly\s+to)\b'
+        - '\b(?:itinerary|book(?:ed|ing)?\s+(?:flights?|a\s+trip)|is\s+south\s+africa\s+safe\s+to\s+visit|travel\s+advice)\b'
+      review:
+        - '\b(?:tripadvisor|booking\.com|expedia|airbnb\s+review|google\s+review|(?:one|two|three|four|five)[- ]star|stars?\s+review|we\s+stayed\s+(?:at|in)|our\s+stay\s+(?:at|in)|reviewed|would\s+(?:not\s+)?recommend|hotel\s+review|lodge\s+review)\b'
+        - '\b\d\s*(?:/|out\s+of)\s*5\b'
+  investment:
+    label: Investment
+    terms:
+      - invest in South Africa
+      - foreign direct investment
+      - South Africa Investment Conference
+      - JSE
+      - B-BBEE
+      - ease of doing business
+      - greylisting and FATF
+      - sovereign credit rating
+      - Moody’s
+      - S&P
+      - Fitch
+      - Eskom
+      - Transnet
+      - port and rail reform
+      - Operation Vulindlela
+      - special economic zones
+      - doing business in South Africa
+    rule: weight for author authority rather than volume because financial wire content skews neutral
+  exports:
+    label: Exports
+    terms:
+      - made in South Africa
+      - proudly South African
+      - AGOA
+      - tariffs and trade terms
+      - AfCFTA
+      - citrus
+      - wine
+      - macadamia
+      - rooibos
+      - automotive manufacture and exports
+      - platinum group metals
+      - mining output
+      - South African wine
+      - South African produce
+    rule: tariff and trade access stories carry their own momentum threshold; South African wine and South African produce count in destination markets only
+  talent:
+    label: Talent
+    terms:
+      - working in South Africa
+      - moving to South Africa
+      - moving back to South Africa
+      - remote work and digital nomad visa
+      - critical skills visa
+      - work permit
+      - leaving South Africa
+      - emigration
+      - brain drain
+      - semigration
+      - jobs in South Africa
+      - university and research rankings
+    rule: track inbound and outbound intent as two directions of one cluster
+    distinctions:
+      inbound:
+        - '\b(?:moving|move|relocat\w+|coming|come|migrat\w+)\s+(?:back\s+)?to\s+south\s+africa\b'
+        - '\b(?:critical\s+skills\s+visa|work\s+permit|digital\s+nomad\s+visa|jobs?\s+in\s+south\s+africa|working\s+in\s+south\s+africa|hiring\s+in\s+south\s+africa)\b'
+      outbound:
+        - '\b(?:leaving|leave|left|emigrat\w+|semigrat\w+|brain\s+drain|moving\s+(?:abroad|overseas|out\s+of\s+south\s+africa)|move\s+(?:abroad|overseas)|relocating\s+(?:abroad|overseas))\b'
+        - '\bsouth\s+africans?\s+(?:leaving|emigrating|relocating\s+abroad)\b'
+  prominence:
+    label: Prominence
+    terms:
+      - G20 and South Africa’s hosting year
+      - BRICS
+      - African Union
+      - United Nations addresses
+      - ICJ
+      - state visits and bilateral summits
+      - Springboks
+      - Amapiano and global music breakouts
+      - film and streaming productions shot in South Africa
+    rule: report volume and reach against comparator nations, not sentiment alone
+    distinctions:
+      mention_share:
+        - '\b(?:share\s+of\s+(?:mentions?|voice|conversation)|mention\s+share|mentions?\s+(?:share|volume|count)|how\s+often\s+(?:is\s+)?south\s+africa\s+(?:mentioned|talked\s+about)|being\s+talked\s+about)\b'
+      reach:
+        - '\b(?:reach|impressions?|views|audience\s+size|viewership|potential\s+reach|circulation)\b'
+      comparator:
+        - '\b(?:compared\s+(?:with|to)|versus|against|benchmark(?:ed|ing)?|comparator|relative\s+to|rank(?:ed|ing|s)?\s+(?:against|among|alongside))\b[^.?!]{0,40}\b(?:kenya|nigeria|egypt|morocco|rwanda|brazil|mexico|turkiye|turkey|uae|australia|new\s+zealand|comparator\s+nations?|other\s+nation\s+brands?|peers?)\b'
+        - '\b(?:kenya|nigeria|egypt|morocco|rwanda|brazil|mexico|turkiye|turkey|uae|australia|new\s+zealand)\b[^.?!]{0,40}\b(?:compared|versus|vs|against|benchmark\w*)\b'
+# Client overlay block, compiled by client_overlay.compile_client_overlay. Verified
+# handles and ambassador references are empty until B01 supplies a verified value with
+# its observation time; the protected client input file holds the placeholders and the
+# compiler refuses a placeholder, so nothing unverified can reach a compiled lens.
+client_overlay_contract_version: client_overlay_v1
+verified_handles: []
+ambassador_refs: []
+spokesperson_policy:
+  role: mention_context_only
+  individual_profiling: refused
+  official_sentiment_scoring: refused
+risk_topics:
+  - safety_and_crime
+  - migration_xenophobia_continental_solidarity
+  - land_farm_violence_international_disinformation
+  - corruption_and_state_capacity
+  - energy_water_infrastructure
+  - misinformation_targeting_the_nation_brand
+languages:
+  domestic: [en, af, zu, xh, st, tn]
+  international: [de, fr, nl, pt, zh-Hans, ar]
+comparator_set_ref: bsa_comparator_set_v1
+search_visibility_policy_ref: bsa_search_visibility_policy_v1
+purpose_policy:
+  policy_version: client_purpose_policy_v1
+  source_definition: >-
+    Brief section Boundaries: No political-party, electoral or voter-targeting use cases in
+    the demo, and no individual profiling. Where a live conversation is used as the demo
+    example, show it as a monitored narrative only. Do not editorialise on any matter under
+    regulatory review, and do not display anything that could read as the agency taking a
+    position on the client's behalf.
+  prohibited_purposes:
+    - code: political_party_purpose
+      patterns:
+        - '\b(?:political|ruling|opposition|governing)\s+part(?:y|ies)\b'
+        - '\bparty\s+(?:manifesto|manifestos|campaign|campaigns|messaging|list|lists|candidate|candidates|supporters|base)\b'
+        - '\bcampaign(?:s|ing)?\s+for\s+(?:the\s+|a\s+)?party\b'
+    - code: electoral_purpose
+      patterns:
+        - '\belect(?:ion|ions|oral|ioneering)\b'
+        - '\bballot(?:s|ing)?\b'
+        - '\bpolling\s+(?:day|station|stations)\b'
+    - code: voter_targeting_purpose
+      patterns:
+        - '\b(?:target|targeting|targeted|reach|reaching|segment|segmenting|persuade|persuading|mobili[sz]e|mobili[sz]ing|swing|undecided|first[- ]time)\b[^.?!]{0,60}\bvoters?\b'
+        - '\bvoters?\b[^.?!]{0,60}\b(?:target|targeting|targeted|segment|segments|persuasion|turnout|mobili[sz]ation)\b'
+        - '\bget\s+out\s+the\s+vote\b'
+    - code: agency_position_live_regulatory_matter
+      position_claim_patterns:
+        - '\b(?:should|must|ought\s+to)\s+(?:we|the\s+agency|ogilvy|brand\s+south\s+africa|brand\s*sa|the\s+client)\s+(?:oppose|support|back|endorse|reject|take\s+a\s+(?:position|stance|side))\b'
+        - "\\b(?:our|the\\s+agency(?:'s)?|ogilvy(?:'s)?|brand\\s+south\\s+africa(?:'s)?|brand\\s*sa(?:'s)?)\\s+(?:position|stance|side|view)\\s+on\\b"
+        - '\bdraft\s+(?:a|an|our|the)\s+(?:position|stance|statement\s+(?:of\s+support|opposing|supporting)|response\s+(?:opposing|supporting))\b'
+        - '\b(?:recommend|argue|state|say)\s+(?:that\s+)?(?:we|the\s+agency|ogilvy|brand\s+south\s+africa|brand\s*sa)\s+(?:oppose|support|back|endorse|reject)\b'
+        - '\b(?:take|adopt)\s+(?:a|an|the)\s+(?:public\s+)?(?:position|stance|side)\s+on\b'
+      regulatory_matter_patterns:
+        - '\b(?:regulat(?:ory|ion|ions|or|ors)|under\s+review\s+by|tribunal|inquiry|commission\s+of\s+inquiry|public\s+hearings?|draft\s+bill|the\s+bill|legislation|licen[cs]e\s+(?:review|hearing|decision|renewal)|court\s+ruling|ruling\s+on|competition\s+commission|icasa|nersa|sarb|the\s+reserve\s+bank|fsca|expropriation\s+act)\b'
+lens_policy:
+  policy_version: client_lens_policy_v1
+  clusters:
+    investment:
+      priority_basis: source_authority_over_volume
+      source_note: >-
+        Brief, Investment handling note: Financial-wire content skews neutral; weight for
+        author authority rather than volume or it will drown the cluster.
+    energy:
+      priority_basis: verified_independent_international_pickup
+      source_note: >-
+        Brief, Energy, water and infrastructure handling note: Domestically saturated and
+        heavily sarcastic. Weight by international pick-up, otherwise it will dominate
+        every daily summary.
+    land:
+      priority_basis: author_geography_reported_explicitly
+      source_note: >-
+        Brief, Land, farm violence and international disinformation handling note:
+        Overwhelmingly driven from outside South Africa. This is where the
+        originator-versus-amplifier split matters most; report author geography
+        explicitly.
+  authority_definition:
+    basis: admitted_metadata_and_reviewed_source_roles
+    authoritative_source_roles:
+      - official_statement
+      - regulator
+      - ratings_agency
+      - exchange_notice
+      - financial_wire_original
+      - named_analyst
+    minimum_authoritative_origins: 1
+    missing: unknown
+  pickup_definition:
+    basis: admitted_metadata_and_reviewed_source_roles
+    international_source_roles:
+      - international_outlet
+      - international_wire
+      - foreign_public_broadcaster
+    requires_established_origin: true
+    missing: unknown
+  geography_rule:
+    subject_fills_author_geography: false
+    missing: unknown
+noise_controls:
+  policy_version: client_noise_policy_v1
+  source_definition: >-
+    Brief, Exclusions and noise filters: Strip betting and odds accounts, crypto and forex
+    promotion, ticket resale, adult content, giveaway and follow-farming, and pure fixture
+    or scoreline posts where South Africa is only a team name. Suppress the retail sense of
+    brand entirely.
+  exclusions:
+    - code: betting_spam
+      definition: betting and odds accounts
+      patterns:
+        - '\b(?:odds|bet\s+now|betting\s+tips?|sure\s+bets?|accumulator|acca|free\s+bets?|betway|hollywoodbets|sportingbet|1xbet|bookie|bookies)\b'
+      retain_when:
+        - '\b(?:gambling\s+(?:regulator|board|commission|harm|addiction)|match[- ]fixing|betting\s+(?:scandal|inquiry|investigation|law|bill|levy|tax))\b'
+    - code: crypto_forex_promotion
+      definition: crypto and forex promotion
+      patterns:
+        - '\b(?:forex\s+(?:signals?|mentor|trading\s+academy|profits?)|crypto\s+(?:signals?|pump|giveaway|airdrop)|airdrop|100x|guaranteed\s+(?:returns?|profits?)|dm\s+(?:me\s+)?(?:for|to)\s+(?:trade|invest|profit)|join\s+my\s+(?:trading|forex|crypto)\s+(?:group|channel|academy))\b'
+      retain_when:
+        - '\b(?:reserve\s+bank|sarb|fsca|regulator|regulation|rand|exchange\s+rate|interest\s+rate|inflation|jse|treasury|budget|greylist(?:ed|ing)?|fatf|crypto\s+(?:regulation|tax|law|licen[cs]e))\b'
+    - code: giveaways
+      definition: giveaway posts
+      patterns:
+        - '\b(?:giveaway|give\s+away|win\s+(?:a|an|the|this|free)|retweet\s+to\s+win|tag\s+(?:a|two|three|\d+)\s+friends?\s+to\s+win|winner\s+(?:will\s+be\s+)?announced)\b'
+      retain_when:
+        - '\b(?:tourism\s+(?:board|authority|campaign)|official\s+(?:campaign|competition)|bursar(?:y|ies)|scholarship|grant|tender|awarded\s+(?:for|to))\b'
+    - code: ticket_resale
+      definition: ticket resale
+      patterns:
+        - '\b(?:tickets?\s+(?:for\s+sale|available|resale)|selling\s+(?:my\s+|\d+\s+)?tickets?|resell(?:ing)?\s+tickets?|dm\s+for\s+tickets?|ticket\s+(?:plug|hookup)|viagogo|stubhub)\b'
+      retain_when:
+        - '\b(?:sold\s+out|attendance|stadium\s+(?:capacity|record)|ticketing\s+(?:policy|scandal|fraud)|fans?\s+(?:travel|travelled|travelling)|crowd\s+of)\b'
+    - code: promotional_adult_content
+      definition: adult content
+      patterns:
+        - '\b(?:onlyfans|only\s+fans|escorts?|sugar\s+(?:daddy|baby)|hookups?|adult\s+content|xxx|nudes?|link\s+in\s+bio\s+for\s+(?:adult|spicy|nudes))\b'
+      retain_when:
+        - '\b(?:gender[- ]based\s+violence|gbv|trafficking|exploitation|sex\s+work(?:er|ers)?\s+(?:rights|law|bill|decriminali[sz]ation)|court|arrest(?:ed)?|police)\b'
+    - code: follow_farming
+      definition: follow-farming
+      patterns:
+        - '\b(?:follow\s+(?:for\s+follow|back|4\s+follow|train)|f4f|followback|gain\s+followers|follow\s+everyone\s+who|ifb|retweet\s+(?:for|to)\s+gain|mutuals?\s+(?:only|train))\b'
+      retain_when:
+        - '\b(?:follow(?:ing)?\s+(?:the|this)\s+(?:story|case|hearing|inquiry|debate|summit|match|series)|followed\s+by\s+(?:a|an|the))\b'
+    - code: pure_scoreline_noise
+      definition: pure fixture or scoreline posts where South Africa is only a team name
+      patterns:
+        - '\b(?:south\s+africa|springboks|bokke|bafana\s+bafana|banyana\s+banyana|proteas)\b\s*(?:\d{1,3}\s*[-:]\s*\d{1,3}|(?:v|vs\.?|versus)\s+[A-Za-z][\w\s]{2,30}\s+\d{1,3}\s*[-:]\s*\d{1,3})'
+        - '\b(?:ft|full[- ]time|half[- ]time|ht|final\s+score|kick[- ]off|lineups?|starting\s+xv|team\s+sheet)\b.{0,40}\b(?:south\s+africa|springboks|bokke|bafana\s+bafana|banyana\s+banyana|proteas)\b'
+      retain_when:
+        - '\b(?:flypast|anthem|crowd|fans|stadium|tourism|visitors?|travel(?:led|ling)?|economy|boost|pride|unity|nation|celebrat\w+|heritage|protest|injur\w+|racism|disciplinary|inquiry|broadcast\s+rights|record\s+viewership)\b'
+  watch_rules:
+    opportunity:
+      definition: >-
+        Brief, Pride, sport and culture layer: Springboks, Bokke, Rugby Championship, Bafana
+        Bafana, Banyana Banyana, Proteas, Comrades Marathon, Olympic and Paralympic teams,
+        Amapiano, Tyla and global music breakouts, Miss South Africa, Netflix and streaming
+        titles shot locally, heritage and national days. Feeds the content mix.
+      patterns:
+        - '\b(?:springboks?|bokke|rugby\s+championship|bafana\s+bafana|banyana\s+banyana|proteas|comrades\s+marathon|olympic|paralympic|amapiano|tyla|miss\s+south\s+africa|netflix|streaming\s+(?:title|series|production)|heritage\s+day|national\s+day|freedom\s+day|shot\s+(?:in|on\s+location\s+in)\s+south\s+africa|global\s+(?:music\s+)?breakout|record\s+(?:tourist|visitor)\s+(?:arrivals|numbers))\b'
+    event:
+      definition: >-
+        Brief, Event and moment triggers: the September Test window and the flypast
+        conversation attached to it; G20 and associated summits; BRICS; investment
+        conferences; State of the Nation Address and Budget; major festivals and marathons;
+        any moment placing a global camera on South Africa. Configured as a watch layer,
+        not sport or event reporting.
+      patterns:
+        - '\b(?:test\s+window|flypast|g20|brics|investment\s+conference|state\s+of\s+the\s+nation|sona|budget\s+speech|festival|marathon|world\s+cup|summit|state\s+visit|bilateral\s+summit|global\s+camera)\b'

@@ -1,0 +1,57 @@
+{
+  "fixture_scope": "synthetic_test_only",
+  "snapshot_id": "task5c_adapter_snapshot_v1",
+  "captured_at": "2026-08-25T23:00:00Z",
+  "row_counts_by_table": {
+    "enriched_content": 1,
+    "event_ledger": 1,
+    "raw_content": 0,
+    "seed_candidates": 1,
+    "seed_graph": 1,
+    "signal_candidates_v2": 0,
+    "signal_membership_v2": 0
+  },
+  "section_counts": {
+    "components": 0,
+    "event_ledger_candidates": 1,
+    "known_events": 3,
+    "memberships": 0,
+    "observations": 3,
+    "prior_snapshots": 0,
+    "provider_outputs": 0,
+    "receipts": 2,
+    "seed_candidates": 1,
+    "seed_graph_candidates": 1
+  },
+  "section_identity_sets": {
+    "components": [],
+    "event_ledger_candidates": ["ledger_za_alpha"],
+    "known_events": ["known_ke", "known_ng", "known_za"],
+    "memberships": [],
+    "observations": ["za|keyword|alpha", "za|keyword|beta", "za|keyword|gamma"],
+    "prior_snapshots": [],
+    "provider_outputs": [],
+    "receipts": ["za|keyword|beta|shared", "za|keyword|gamma|shared"],
+    "seed_candidates": ["candidate_gamma"],
+    "seed_graph_candidates": ["za|keyword|beta"]
+  },
+  "table_digests": {
+    "enriched_content": "e734da2ec6263f2e33adc08b922cf32b59b0bcc4a689af77e4b680e734362285",
+    "event_ledger": "2328d31ca74b4a95f27839749b66e1547959af66f380a8e19bc8217aa5bfa687",
+    "raw_content": "a2dc8fd48638d74b3ded0ddb6ad8d00a8a2c0bcdf3c175cdc104f0e4f2901021",
+    "seed_candidates": "a7d88fdff06f288b460201137e6fd7dc0ca022ce0f89db473869b1d43d07b0c8",
+    "seed_graph": "fcfb1b5ae5901a683741e1017b26ba06cc1d7c2aa1f1ad0eaba943713f7f7d61",
+    "signal_candidates_v2": "a2dc8fd48638d74b3ded0ddb6ad8d00a8a2c0bcdf3c175cdc104f0e4f2901021",
+    "signal_membership_v2": "a2dc8fd48638d74b3ded0ddb6ad8d00a8a2c0bcdf3c175cdc104f0e4f2901021"
+  },
+  "rows_by_table": {
+    "enriched_content": [{"id": "shared", "source": "rss", "platform": "news", "vendor_family": "rss", "channel_family": "news", "source_family": "news", "market": "za", "published_at": "2026-08-25T10:00:00Z", "collected_at": "2026-08-25T12:00:00Z"}],
+    "event_ledger": [{"ledger_id": "ledger_za_alpha", "trend_date": "2026-08-25", "market": "za", "entity_key": "alpha", "entity_aliases": ["alpha alias"], "event_kind": "search_term", "state_label": "emerging", "as_of": "2026-08-25T12:00:00Z", "corroborating_sources": ["rss", "gdelt"], "source_count": 2, "confidence": 0.8}],
+    "raw_content": [],
+    "seed_candidates": [{"candidate_id": "candidate_gamma", "proposed_date": "2026-08-25", "market": "za", "candidate_type": "keyword", "candidate_value": "gamma", "source": "seed_graph", "lane": "weekly", "score": 0.7, "evidence_topics": ["music"], "sample_row_ids": ["shared"], "status": "approved"}],
+    "seed_graph": [{"market": "za", "term": "beta", "term_type": "token", "platform": "youtube", "trend_date": "2026-08-25", "event_date": "2026-08-25", "row_count": 4, "topic_groups": ["music"], "near_topics": [], "co_occur_terms": ["alpha"], "sample_row_ids": ["shared"]}],
+    "signal_candidates_v2": [],
+    "signal_membership_v2": []
+  },
+  "source_digest": "7c2f16b7c280e1854d6a4895959b9b72babfdad28a1440dc61b34f8928397392"
+}

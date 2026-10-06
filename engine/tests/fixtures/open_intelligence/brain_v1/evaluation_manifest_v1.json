@@ -1,0 +1,17 @@
+{"fixture_version":"brain_evaluation_manifest_v1","tasks":[
+{"task_id":"emerging_without_keyword","fixture_id":"task_01_emerging_without_keyword.json"},
+{"task_id":"why_moving","fixture_id":"task_02_why_moving.json"},
+{"task_id":"cross_market_difference","fixture_id":"task_03_cross_market_difference.json"},
+{"task_id":"carrier_creator_analysis","fixture_id":"task_04_carrier_creator_analysis.json"},
+{"task_id":"historical_analogue","fixture_id":"task_05_historical_analogue.json"},
+{"task_id":"recurrence","fixture_id":"task_06_recurrence.json"},
+{"task_id":"brand_role","fixture_id":"task_07_brand_role.json"},
+{"task_id":"audience_availability","fixture_id":"task_08_audience_availability.json"},
+{"task_id":"source_agreement","fixture_id":"task_09_source_agreement.json"},
+{"task_id":"source_contradiction","fixture_id":"task_10_source_contradiction.json"},
+{"task_id":"missing_evidence_refusal","fixture_id":"task_11_missing_evidence_refusal.json"},
+{"task_id":"election_restraint","fixture_id":"task_12_election_restraint.json"},
+{"task_id":"causal_claim_rejection","fixture_id":"task_13_causal_claim_rejection.json"},
+{"task_id":"client_citation_accuracy","fixture_id":"task_14_client_citation_accuracy.json"},
+{"task_id":"prediction_review","fixture_id":"task_15_prediction_review.json"}
+]}

@@ -1,0 +1,41 @@
+[
+  {
+    "amendment": "f",
+    "approval": {
+      "applied": false,
+      "approved_at": null,
+      "approved_by": null,
+      "state": "proposed"
+    },
+    "bindings": [
+      {
+        "condition": null,
+        "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: the route A bridge capture runs as the daily account on intelligence-42-daily-staging and binds each collection receipt to the funded run's approval ledger chain; ledger_reader submits _RESULT_SQL_V2 as the caller, a direct statement that reads open_intelligence_execution_approvals_v2 itself rather than through sp_read_open_intelligence_execution_result_chain_v2, so no routine authorization covers it, and a dataset level grant on trends_v2_staging_approvals is refused as legacy reach, so the read is granted on this table alone (amendment f)",
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/tables/open_intelligence_execution_approvals_v2",
+        "role": "roles/bigquery.dataViewer"
+      },
+      {
+        "condition": null,
+        "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: the route A bridge capture runs as the daily account on intelligence-42-daily-staging and binds each collection receipt to the funded run's approval ledger chain; ledger_reader submits _RESULT_SQL_V2 as the caller, a direct statement that reads open_intelligence_execution_consumptions_v2 itself rather than through sp_read_open_intelligence_execution_result_chain_v2, so no routine authorization covers it, and a dataset level grant on trends_v2_staging_approvals is refused as legacy reach, so the read is granted on this table alone (amendment f)",
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/tables/open_intelligence_execution_consumptions_v2",
+        "role": "roles/bigquery.dataViewer"
+      },
+      {
+        "condition": null,
+        "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: the route A bridge capture runs as the daily account on intelligence-42-daily-staging and binds each collection receipt to the funded run's approval ledger chain; ledger_reader submits _RESULT_SQL_V2 as the caller, a direct statement that reads open_intelligence_execution_results_v2 itself rather than through sp_read_open_intelligence_execution_result_chain_v2, so no routine authorization covers it, and a dataset level grant on trends_v2_staging_approvals is refused as legacy reach, so the read is granted on this table alone (amendment f)",
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/tables/open_intelligence_execution_results_v2",
+        "role": "roles/bigquery.dataViewer"
+      },
+      {
+        "condition": null,
+        "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: the route A bridge capture runs as the daily account and reads the funded pilot execution each receipt binds with one Cloud Run v2 GET (BridgeFundedExecutions.read), which needs run.executions.get; the account's roles/run.invoker on this job does not carry it, and roles/run.viewer is the narrowest predefined role that does, bound on this one job (amendment f)",
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging",
+        "role": "roles/run.viewer"
+      }
+    ]
+  }
+]

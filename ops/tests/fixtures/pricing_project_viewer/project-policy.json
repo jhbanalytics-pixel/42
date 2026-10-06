@@ -1,0 +1,277 @@
+{
+  "bindings": [
+    {
+      "members": [
+        "serviceAccount:fixture-b00-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "projects/ogilvy-trends-v2/roles/CaptureJobRead"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b01-m00@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b01-m01@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "projects/ogilvy-trends-v2/roles/QuestionQuotaUse"
+    },
+    {
+      "condition": {
+        "expression": "request.time < timestamp('2026-09-30T23:59:59Z')",
+        "title": "question_prediction_expiry"
+      },
+      "members": [
+        "serviceAccount:fixture-b02-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "projects/ogilvy-trends-v2/roles/QuestionVertexPredict"
+    },
+    {
+      "condition": {
+        "expression": "request.time < timestamp('2026-12-31T23:59:59Z')",
+        "title": "42 iam delta v1 e73aabb8f8234f18"
+      },
+      "members": [
+        "serviceAccount:fixture-b03-m00@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b03-m01@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "projects/ogilvy-trends-v2/roles/QuestionVertexPredict"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b04-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/aiplatform.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b05-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/aiplatform.user"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b06-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/artifactregistry.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b07-m00@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b07-m01@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b07-m02@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/artifactregistry.writer"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b08-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/bigquery.dataEditor"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b09-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/bigquery.dataViewer"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b10-m00@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m01@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m02@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m03@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m04@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m05@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m06@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m07@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m08@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m09@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m10@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m11@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m12@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m13@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m14@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m15@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m16@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m17@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m18@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m19@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m20@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m21@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b10-m22@example-project.iam.gserviceaccount.com",
+        "user:fixture-b10-m23@example.invalid"
+      ],
+      "role": "roles/bigquery.jobUser"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b11-m00@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b11-m01@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/bigquery.readSessionUser"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b12-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/bigquery.user"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b13-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/bigquerydatatransfer.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b14-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudbuild.builds.builder"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b15-m00@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b15-m01@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudbuild.builds.editor"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b16-m00@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m01@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m02@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m03@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m04@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m05@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m06@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m07@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m08@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m09@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m10@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b16-m11@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudbuild.builds.viewer"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b17-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudbuild.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b18-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudfunctions.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b19-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudscheduler.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b20-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudtasks.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b21-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/compute.instanceGroupManagerServiceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b22-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/compute.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b23-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/container.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b24-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/containerregistry.ServiceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b25-m00@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b25-m01@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/editor"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b26-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b27-m00@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b27-m01@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/logging.logWriter"
+    },
+    {
+      "members": [
+        "user:fixture-b28-m00@example.invalid"
+      ],
+      "role": "roles/owner"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b29-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/pubsub.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b30-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/run.admin"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b31-m00@example-project.iam.gserviceaccount.com",
+        "serviceAccount:fixture-b31-m01@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/run.developer"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b32-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/run.serviceAgent"
+    },
+    {
+      "condition": {
+        "expression": "request.time < timestamp(\"2026-06-27T10:56:45.903Z\")",
+        "title": "cloudbuild-connection-setup"
+      },
+      "members": [
+        "serviceAccount:fixture-b33-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/secretmanager.admin"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b34-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/serviceusage.serviceUsageConsumer"
+    },
+    {
+      "members": [
+        "serviceAccount:fixture-b35-m00@example-project.iam.gserviceaccount.com"
+      ],
+      "role": "roles/storage.admin"
+    }
+  ],
+  "etag": "BwSyntheticPolicyEtag=",
+  "version": 3
+}

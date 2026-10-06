@@ -1,0 +1,38 @@
+# Terms that mark an item as election or political (TRUST.md section 2, G4b). A starter list.
+# core/brief/gatectx.py reads "all" plus the market's own list. A term written in capitals (ANC, DA, IEC)
+# matches only in capitals in running text; any other term matches in any case, as whole words. A hashtag
+# or canonical key matches when it is the term itself, when the term is among its words (split on capitals,
+# digits and underscores), or, for a term of five letters or more, when the term sits anywhere inside it.
+all:
+  - election
+  - elections
+  - vote
+  - voting
+  - parliament
+  - manifesto
+  - local elections
+ZA:
+  - IEC
+  - ANC
+  - DA
+  - EFF
+  - MK party
+  - Ramaphosa
+  - Zuma
+  - Malema
+NG:
+  - INEC
+  - APC
+  - PDP
+  - Labour Party
+  - Tinubu
+  - Atiku
+  - Obi
+KE:
+  - IEBC
+  - UDA
+  - ODM
+  - Azimio
+  - Ruto
+  - Raila
+  - Gachagua

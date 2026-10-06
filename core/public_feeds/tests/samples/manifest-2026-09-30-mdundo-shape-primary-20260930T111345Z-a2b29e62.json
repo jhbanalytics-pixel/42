@@ -1,0 +1,538 @@
+{
+  "feed_id": "ke_mdundo_top_songs",
+  "market": "KE",
+  "kind": "music_chart",
+  "url": "https://play.mdundo.com/top-charts/ke",
+  "retrieved_at_utc": "2026-09-30T11:13:45Z",
+  "http_status": 200,
+  "content_type": "text/html; charset=UTF-8",
+  "response_bytes": 1533137,
+  "response_complete": true,
+  "source_body_sha256": "a073c6f3eb20195cf838da3594d2862c9ba68656ac0a6153ee841c24b52b8068",
+  "sample_file": "ke_mdundo_native_20260930.html",
+  "sample_sha256": "f818e715c80cc82df65ccdb8d514b70a60596a2098826d4b8cf7314395f220b9",
+  "sample_bytes": 13682,
+  "sample_representation": "sanitized primary response card fragments",
+  "static_primary_html_card_count": 150,
+  "static_primary_html_rows": [
+    {
+      "public_track_id": "2028427",
+      "rank": 1,
+      "title": "ONLY YOU JESUS",
+      "artist": "Ada Ehi"
+    },
+    {
+      "public_track_id": "6222692",
+      "rank": 2,
+      "title": "Rapudo",
+      "artist": "Prince Indah"
+    },
+    {
+      "public_track_id": "6795469",
+      "rank": 3,
+      "title": "Love Per Day",
+      "artist": "Elisha Toto Official"
+    },
+    {
+      "public_track_id": "6222143",
+      "rank": 4,
+      "title": "Rembo",
+      "artist": "Prince Indah"
+    },
+    {
+      "public_track_id": "5672375",
+      "rank": 5,
+      "title": "Inama",
+      "artist": "KHARISHMA"
+    },
+    {
+      "public_track_id": "7025545",
+      "rank": 6,
+      "title": "Kitemeo",
+      "artist": "Zien Kapitani"
+    },
+    {
+      "public_track_id": "2021787",
+      "rank": 7,
+      "title": "Congratulations",
+      "artist": "Ada Ehi"
+    },
+    {
+      "public_track_id": "2086370",
+      "rank": 8,
+      "title": "Nakupenda",
+      "artist": "Jay Melody"
+    },
+    {
+      "public_track_id": "6567834",
+      "rank": 9,
+      "title": "Natafuta Doo",
+      "artist": "Elisha Toto Official"
+    },
+    {
+      "public_track_id": "6222123",
+      "rank": 10,
+      "title": "Osiepe",
+      "artist": "Prince Indah"
+    },
+    {
+      "public_track_id": "5877584",
+      "rank": 11,
+      "title": "Tegemeo Letu",
+      "artist": "Mt kizito makuburi"
+    },
+    {
+      "public_track_id": "6583335",
+      "rank": 12,
+      "title": "Remember me",
+      "artist": "Lucky Dube"
+    },
+    {
+      "public_track_id": "7094773",
+      "rank": 13,
+      "title": "God Bless The Woman",
+      "artist": "Lucky Dube"
+    },
+    {
+      "public_track_id": "6222957",
+      "rank": 14,
+      "title": "Nyar Jaduong",
+      "artist": "Prince Indah"
+    },
+    {
+      "public_track_id": "7111309",
+      "rank": 15,
+      "title": "Mshamba",
+      "artist": "Click Master"
+    },
+    {
+      "public_track_id": "6897748",
+      "rank": 16,
+      "title": "Hisia",
+      "artist": "Jay Melody"
+    },
+    {
+      "public_track_id": "6512872",
+      "rank": 17,
+      "title": "Mdomo Uliponza Kichwa",
+      "artist": "Soul Touch Brand"
+    },
+    {
+      "public_track_id": "7108330",
+      "rank": 18,
+      "title": "Stay Strong.",
+      "artist": "Folasin Valentine (Cool Songs)"
+    },
+    {
+      "public_track_id": "7094963",
+      "rank": 19,
+      "title": "HEBU NIELEZE KWA SAUTI YA UPOLE",
+      "artist": "Riba Gospel"
+    },
+    {
+      "public_track_id": "3138144",
+      "rank": 20,
+      "title": "Uzima FEAT Dj Kezz",
+      "artist": "Guardian Angel"
+    },
+    {
+      "public_track_id": "7187486",
+      "rank": 21,
+      "title": "Ubaya",
+      "artist": "Chege"
+    },
+    {
+      "public_track_id": "2005625",
+      "rank": 22,
+      "title": "Alcohol",
+      "artist": "Joeboy"
+    },
+    {
+      "public_track_id": "1670216",
+      "rank": 23,
+      "title": "Kungulu Kwangala",
+      "artist": "Mutulani Kasheshe"
+    },
+    {
+      "public_track_id": "6222683",
+      "rank": 24,
+      "title": "Believe Me",
+      "artist": "Prince Indah"
+    },
+    {
+      "public_track_id": "6795470",
+      "rank": 25,
+      "title": "Penzi Bila Pesa Ni Scam",
+      "artist": "Elisha Toto Official"
+    }
+  ],
+  "rendered_transport_note": "The browser accessibility and DOM capture exposed ten cards. This sample uses primary response fragments only when the literal observed card structure was present in this complete response.",
+  "method": "GET",
+  "authentication": "none",
+  "proxy_disabled": true,
+  "redirects_followed": false,
+  "source_body_full_inspected_in_memory": true,
+  "browser_network_observation": {
+    "browser_context": "isolated public context",
+    "listed_request_count": 128,
+    "primary_document": {
+      "reqid": 1,
+      "method": "GET",
+      "host": "play.mdundo.com",
+      "path": "/top-charts/ke",
+      "status": 200
+    },
+    "separate_chart_fetch_path_observed": false,
+    "mdundo_fetch_paths": [
+      {
+        "host": "2fplay.mdundo.com",
+        "path": "/",
+        "methods": [
+          "GET",
+          "POST"
+        ],
+        "statuses": [
+          200,
+          204
+        ]
+      },
+      {
+        "host": "play.mdundo.com",
+        "path": "/",
+        "methods": [
+          "GET"
+        ],
+        "statuses": [
+          204
+        ]
+      }
+    ],
+    "unclassified_root_requests": "The root-path requests were not treated as chart data."
+  },
+  "separate_chart_fetch_path_observed": false,
+  "sample_scope": "First 25 Kenya top chart rows, ranks 1 through 25, in primary response source order",
+  "source_primary_html_card_count": 150,
+  "source_primary_html_chart_rows_captured": 25,
+  "rendered_sample_file": "ke_mdundo_20260930.html",
+  "rendered_sample_sha256": "24fcf8e7e9568b16735d387b31a9df14fc9c5166fb316078fb4303a59f170973",
+  "rendered_sample_bytes": 5441,
+  "rendered_sample_scope": "First ten Kenya top chart rows from rendered DOM",
+  "outgroup_sample_file": "ke_mdundo_new_releases_outgroup_20260930.html",
+  "outgroup_sample_sha256": "e73a37a069dd35a288cc921670aab2fe6eba19e5362df92935d637ef34912892",
+  "outgroup_sample_bytes": 1142,
+  "outgroup_sample_scope": "First two Kenya new release rows, kept separate from the top chart",
+  "browser_observation": {
+    "observed_at_utc": "2026-09-30T11:17:19Z",
+    "source": "read-only DevTools DOM inspection in isolated public browser context",
+    "primary_page_url": "https://play.mdundo.com/top-charts/ke",
+    "scope_id_prefix": "songlist-top-charts-ke-id",
+    "scope_card_count": 100,
+    "unique_public_track_id_count": 100,
+    "rank_count": 100,
+    "minimum_rank": 1,
+    "maximum_rank": 100,
+    "missing_ranks": [],
+    "repeated_ranks": [],
+    "rank_frequency_by_value": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "7": 1,
+      "8": 1,
+      "9": 1,
+      "10": 1,
+      "11": 1,
+      "12": 1,
+      "13": 1,
+      "14": 1,
+      "15": 1,
+      "16": 1,
+      "17": 1,
+      "18": 1,
+      "19": 1,
+      "20": 1,
+      "21": 1,
+      "22": 1,
+      "23": 1,
+      "24": 1,
+      "25": 1,
+      "26": 1,
+      "27": 1,
+      "28": 1,
+      "29": 1,
+      "30": 1,
+      "31": 1,
+      "32": 1,
+      "33": 1,
+      "34": 1,
+      "35": 1,
+      "36": 1,
+      "37": 1,
+      "38": 1,
+      "39": 1,
+      "40": 1,
+      "41": 1,
+      "42": 1,
+      "43": 1,
+      "44": 1,
+      "45": 1,
+      "46": 1,
+      "47": 1,
+      "48": 1,
+      "49": 1,
+      "50": 1,
+      "51": 1,
+      "52": 1,
+      "53": 1,
+      "54": 1,
+      "55": 1,
+      "56": 1,
+      "57": 1,
+      "58": 1,
+      "59": 1,
+      "60": 1,
+      "61": 1,
+      "62": 1,
+      "63": 1,
+      "64": 1,
+      "65": 1,
+      "66": 1,
+      "67": 1,
+      "68": 1,
+      "69": 1,
+      "70": 1,
+      "71": 1,
+      "72": 1,
+      "73": 1,
+      "74": 1,
+      "75": 1,
+      "76": 1,
+      "77": 1,
+      "78": 1,
+      "79": 1,
+      "80": 1,
+      "81": 1,
+      "82": 1,
+      "83": 1,
+      "84": 1,
+      "85": 1,
+      "86": 1,
+      "87": 1,
+      "88": 1,
+      "89": 1,
+      "90": 1,
+      "91": 1,
+      "92": 1,
+      "93": 1,
+      "94": 1,
+      "95": 1,
+      "96": 1,
+      "97": 1,
+      "98": 1,
+      "99": 1,
+      "100": 1
+    },
+    "first_25_browser_rows_match_native_primary_html": true,
+    "first_25_match_fields": [
+      "public_track_id",
+      "rank",
+      "title",
+      "artist"
+    ],
+    "first_10_accessibility_matches": [
+      {
+        "rank": 1,
+        "public_track_id": "2028427",
+        "title": "ONLY YOU JESUS",
+        "artist": "Ada Ehi",
+        "row_id": "songlist-top-charts-ke-id--song-2028427"
+      },
+      {
+        "rank": 2,
+        "public_track_id": "6222692",
+        "title": "Rapudo",
+        "artist": "Prince Indah",
+        "row_id": "songlist-top-charts-ke-id--song-6222692"
+      },
+      {
+        "rank": 3,
+        "public_track_id": "6795469",
+        "title": "Love Per Day",
+        "artist": "Elisha Toto Official",
+        "row_id": "songlist-top-charts-ke-id--song-6795469"
+      },
+      {
+        "rank": 4,
+        "public_track_id": "6222143",
+        "title": "Rembo",
+        "artist": "Prince Indah",
+        "row_id": "songlist-top-charts-ke-id--song-6222143"
+      },
+      {
+        "rank": 5,
+        "public_track_id": "5672375",
+        "title": "Inama",
+        "artist": "KHARISHMA",
+        "row_id": "songlist-top-charts-ke-id--song-5672375"
+      },
+      {
+        "rank": 6,
+        "public_track_id": "7025545",
+        "title": "Kitemeo",
+        "artist": "Zien Kapitani",
+        "row_id": "songlist-top-charts-ke-id--song-7025545"
+      },
+      {
+        "rank": 7,
+        "public_track_id": "2021787",
+        "title": "Congratulations",
+        "artist": "Ada Ehi",
+        "row_id": "songlist-top-charts-ke-id--song-2021787"
+      },
+      {
+        "rank": 8,
+        "public_track_id": "2086370",
+        "title": "Nakupenda",
+        "artist": "Jay Melody",
+        "row_id": "songlist-top-charts-ke-id--song-2086370"
+      },
+      {
+        "rank": 9,
+        "public_track_id": "6567834",
+        "title": "Natafuta Doo",
+        "artist": "Elisha Toto Official",
+        "row_id": "songlist-top-charts-ke-id--song-6567834"
+      },
+      {
+        "rank": 10,
+        "public_track_id": "6222123",
+        "title": "Osiepe",
+        "artist": "Prince Indah",
+        "row_id": "songlist-top-charts-ke-id--song-6222123"
+      }
+    ],
+    "other_list_group": {
+      "id_prefix": "songlist-top-charts-new-releases-ke-id",
+      "card_count": 50,
+      "unique_public_track_id_count": 50,
+      "rank_count": 50,
+      "minimum_rank": 1,
+      "maximum_rank": 50,
+      "missing_ranks": [],
+      "repeated_ranks": [],
+      "outgroup_fixture_rows": [
+        {
+          "rank": 1,
+          "public_track_id": "7215362",
+          "title": "My Darling",
+          "artist": "Fayloh",
+          "row_id": "songlist-top-charts-new-releases-ke-id--song-7215362"
+        },
+        {
+          "rank": 2,
+          "public_track_id": "7203769",
+          "title": "Nivumilie. Rolex ft Mape Gold",
+          "artist": "Rolex Ndundi",
+          "row_id": "songlist-top-charts-new-releases-ke-id--song-7203769"
+        }
+      ]
+    },
+    "card_structure": {
+      "root": {
+        "tag": "div",
+        "classes": [
+          "md-playlist-song-item",
+          "md-player-song-id-{public_track_id}"
+        ]
+      },
+      "rank": {
+        "tag": "span",
+        "class": "md-playlist-song-item-number"
+      },
+      "text_wrapper": {
+        "tag": "div",
+        "classes": [
+          "text-white",
+          "grow",
+          "flex",
+          "flex-col"
+        ]
+      },
+      "title": {
+        "tag": "div",
+        "class": "md-player-song-active-color",
+        "text_child_index": 0
+      },
+      "artist": {
+        "tag": "div",
+        "classes": [
+          "pb-1",
+          "px-1",
+          "text-xs",
+          "text-slate-400"
+        ],
+        "text_child_index": 1
+      },
+      "duration": {
+        "tag": "div",
+        "classes": [
+          "text-slate-500",
+          "text-right",
+          "text-sm",
+          "pl-2",
+          "pr-5",
+          "pt-[17px]",
+          "hidden",
+          "lg:block"
+        ],
+        "duration_text_retained": false
+      },
+      "first_25_link_count": 0,
+      "first_10_link_count": 0,
+      "outgroup_link_count": 0
+    }
+  },
+  "network_observation": {
+    "isolated_context": true,
+    "listed_request_count": 128,
+    "primary_document": {
+      "reqid": 1,
+      "method": "GET",
+      "host": "play.mdundo.com",
+      "path": "/top-charts/ke",
+      "status": 200
+    },
+    "primary_document_request_auth_or_cookie_header_present": false,
+    "separate_chart_fetch_path_observed": false,
+    "unclassified_mdundo_root_paths": [
+      {
+        "host": "2fplay.mdundo.com",
+        "path": "/",
+        "methods": [
+          "GET",
+          "POST"
+        ],
+        "statuses": [
+          200,
+          204
+        ]
+      },
+      {
+        "host": "play.mdundo.com",
+        "path": "/",
+        "methods": [
+          "GET"
+        ],
+        "statuses": [
+          204
+        ]
+      }
+    ],
+    "query_values_and_header_values_recorded": false
+  },
+  "rank_meaning": "Printed position in this dated page capture; not a stable consumption measure.",
+  "sanitization": "Only public row IDs, rank, title, artist, duration structure, and selected structural classes were retained. No links, scripts, media attributes, query values, credentials, or unrelated page data were retained."
+}

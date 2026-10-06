@@ -1,0 +1,134 @@
+{
+  "qualification_version": "scoring_qualification_v1",
+  "mode": "fixture_dry_run",
+  "source_snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "provider_bundle_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "rule_candidate_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "records": [
+    {
+      "qualification_version": "scoring_qualification_v1",
+      "source_snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "provider_bundle_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "rule_candidate_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "signal_id": "sig_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "market": "za",
+      "signal_date": "2026-08-25",
+      "discovery_mode": "replay",
+      "rule_version": "decision_rules_fixture_v1",
+      "component_proofs": [
+        {
+          "name": "velocity",
+          "state": "measured",
+          "value": "0.1",
+          "source_rows": [{"row_id": "velocity-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}],
+          "window_start": "2026-08-24T00:00:00.000000+00:00",
+          "window_end": "2026-08-25T23:59:59.999999+00:00",
+          "numerator": 1,
+          "denominator": 10,
+          "missing_reason": null
+        },
+        {
+          "name": "breadth",
+          "state": "measured",
+          "value": "0.15",
+          "source_rows": [{"row_id": "breadth-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}],
+          "window_start": "2026-08-24T00:00:00.000000+00:00",
+          "window_end": "2026-08-25T23:59:59.999999+00:00",
+          "numerator": 3,
+          "denominator": 20,
+          "missing_reason": null
+        },
+        {
+          "name": "source_independence",
+          "state": "measured",
+          "value": "0.09",
+          "source_rows": [{"row_id": "independence-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}],
+          "window_start": "2026-08-24T00:00:00.000000+00:00",
+          "window_end": "2026-08-25T23:59:59.999999+00:00",
+          "numerator": 9,
+          "denominator": 100,
+          "missing_reason": null
+        },
+        {
+          "name": "source_integrity",
+          "state": "measured",
+          "value": "0.9",
+          "source_rows": [{"row_id": "integrity-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}],
+          "window_start": "2026-08-24T00:00:00.000000+00:00",
+          "window_end": "2026-08-25T23:59:59.999999+00:00",
+          "numerator": 9,
+          "denominator": 10,
+          "missing_reason": null
+        },
+        {
+          "name": "geo_confidence",
+          "state": "measured",
+          "value": "0.075",
+          "source_rows": [{"row_id": "geo-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}],
+          "window_start": "2026-08-24T00:00:00.000000+00:00",
+          "window_end": "2026-08-25T23:59:59.999999+00:00",
+          "numerator": 3,
+          "denominator": 40,
+          "missing_reason": null
+        },
+        {
+          "name": "qualifying_source_families",
+          "state": "measured",
+          "value": "0.75",
+          "source_rows": [{"row_id": "families-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}],
+          "window_start": "2026-08-24T00:00:00.000000+00:00",
+          "window_end": "2026-08-25T23:59:59.999999+00:00",
+          "numerator": 3,
+          "denominator": 4,
+          "missing_reason": null
+        },
+        {
+          "name": "qualifying_current_receipts",
+          "state": "measured",
+          "value": "0.625",
+          "source_rows": [{"row_id": "receipts-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}],
+          "window_start": "2026-08-24T00:00:00.000000+00:00",
+          "window_end": "2026-08-25T23:59:59.999999+00:00",
+          "numerator": 5,
+          "denominator": 8,
+          "missing_reason": null
+        }
+      ],
+      "gate_proofs": [
+        {"name": "evidence_state", "state": "measured", "observed_value": "ready", "source_rows": [{"row_id": "evidence-state-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}], "window_start": "2026-08-24T00:00:00.000000+00:00", "window_end": "2026-08-25T23:59:59.999999+00:00", "missing_reason": null},
+        {"name": "foreign_market_sample_reviewed", "state": "measured", "observed_value": "true", "source_rows": [{"row_id": "foreign-review-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}], "window_start": "2026-08-24T00:00:00.000000+00:00", "window_end": "2026-08-25T23:59:59.999999+00:00", "missing_reason": null},
+        {"name": "foreign_market_leakage", "state": "measured", "observed_value": "0", "source_rows": [{"row_id": "foreign-leakage-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}], "window_start": "2026-08-24T00:00:00.000000+00:00", "window_end": "2026-08-25T23:59:59.999999+00:00", "missing_reason": null},
+        {"name": "duplicate_identity", "state": "measured", "observed_value": "false", "source_rows": [{"row_id": "duplicate-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}], "window_start": "2026-08-24T00:00:00.000000+00:00", "window_end": "2026-08-25T23:59:59.999999+00:00", "missing_reason": null},
+        {"name": "factual_conflict", "state": "measured", "observed_value": "false", "source_rows": [{"row_id": "factual-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}], "window_start": "2026-08-24T00:00:00.000000+00:00", "window_end": "2026-08-25T23:59:59.999999+00:00", "missing_reason": null},
+        {"name": "directional_conflict", "state": "measured", "observed_value": "false", "source_rows": [{"row_id": "directional-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}], "window_start": "2026-08-24T00:00:00.000000+00:00", "window_end": "2026-08-25T23:59:59.999999+00:00", "missing_reason": null},
+        {"name": "membership_receipts_complete", "state": "measured", "observed_value": "true", "source_rows": [{"row_id": "membership-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}], "window_start": "2026-08-24T00:00:00.000000+00:00", "window_end": "2026-08-25T23:59:59.999999+00:00", "missing_reason": null},
+        {"name": "cluster_build_version", "state": "measured", "observed_value": "hybrid_graph_v1", "source_rows": [{"row_id": "cluster-row", "observed_at": "2026-08-25T12:00:00.000000+00:00"}], "window_start": "2026-08-24T00:00:00.000000+00:00", "window_end": "2026-08-25T23:59:59.999999+00:00", "missing_reason": null}
+      ],
+      "mathematical_proof": {
+        "trust_gate_eligible": true,
+        "velocity": "0.1",
+        "breadth": "0.15",
+        "source_independence": "0.09",
+        "evidence_strength": "0.750000000000",
+        "geo_confidence": "0.075",
+        "scorer_decision_strength": "0.150000000000",
+        "independent_decision_strength": "0.150000000000",
+        "scorer_matches_independent": true,
+        "missing_reasons": []
+      },
+      "candidate_comparisons": [],
+      "source_dominance": [],
+      "missing_reasons": [],
+      "canonical_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+  ],
+  "cohort_distributions": [],
+  "signal_percentiles": [],
+  "correlations": [],
+  "missing_reasons": [],
+  "certified": false,
+  "recommendation": null,
+  "promotion_authorized": false,
+  "human_review_state": "pending",
+  "canonical_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+}

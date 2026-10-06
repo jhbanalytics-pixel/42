@@ -1,0 +1,38 @@
+{
+  "probe": "15",
+  "route": "credits/transactions",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 50>",
+        {
+          "amount": "<int>",
+          "balance_after": "<int>",
+          "created_at": "<str>",
+          "credit_tier": "<str>",
+          "description": "<str>",
+          "endpoint": "<str>",
+          "id": "<str>",
+          "platform": "<str>",
+          "request_id": "<str>",
+          "type": "<str>",
+          "vendor_labels": {}
+        }
+      ],
+      "next_cursor": "<str>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<str>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

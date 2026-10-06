@@ -1,0 +1,29 @@
+[
+ {
+  "post_id": "pp_macro_1",
+  "langs": [
+   "en",
+   "yo"
+  ],
+  "formats": [
+   "duet"
+  ]
+ },
+ {
+  "post_id": "pp_macro_2",
+  "langs": [
+   "pcm"
+  ],
+  "formats": [
+   "duet",
+   "stitch"
+  ]
+ },
+ {
+  "post_id": "pp_mega_1",
+  "langs": [
+   "en"
+  ],
+  "formats": []
+ }
+]

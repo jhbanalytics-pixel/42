@@ -1,0 +1,640 @@
+{
+  "checked_at": "2026-09-07T12:50:30.324383+00:00",
+  "scope": "Named operator table metadata only; no row reads or freshness/coverage claim",
+  "tables": {
+    "trends_v2_dev.event_ledger": {
+      "status": 200,
+      "type": "TABLE",
+      "etag": "Va9y0t9p8cfMUMMQg4Ki6g==",
+      "lastModifiedTime": "1788743864031",
+      "numRows": "23414",
+      "schema": {
+        "fields": [
+          {
+            "name": "ledger_id",
+            "type": "STRING"
+          },
+          {
+            "name": "trend_date",
+            "type": "DATE"
+          },
+          {
+            "name": "market",
+            "type": "STRING"
+          },
+          {
+            "name": "entity_key",
+            "type": "STRING"
+          },
+          {
+            "name": "entity_aliases",
+            "type": "STRING",
+            "mode": "REPEATED"
+          },
+          {
+            "name": "event_kind",
+            "type": "STRING"
+          },
+          {
+            "name": "state_label",
+            "type": "STRING"
+          },
+          {
+            "name": "state_text",
+            "type": "STRING"
+          },
+          {
+            "name": "as_of",
+            "type": "TIMESTAMP"
+          },
+          {
+            "name": "evidence_quote",
+            "type": "STRING"
+          },
+          {
+            "name": "corroborating_sources",
+            "type": "STRING",
+            "mode": "REPEATED"
+          },
+          {
+            "name": "source_count",
+            "type": "INTEGER"
+          },
+          {
+            "name": "confidence",
+            "type": "FLOAT"
+          },
+          {
+            "name": "resolved_by",
+            "type": "STRING"
+          },
+          {
+            "name": "gemini_model",
+            "type": "STRING"
+          },
+          {
+            "name": "generated_at",
+            "type": "TIMESTAMP",
+            "defaultValueExpression": "CURRENT_TIMESTAMP()"
+          }
+        ]
+      },
+      "timePartitioning": {
+        "type": "DAY",
+        "field": "trend_date"
+      },
+      "missing_required_columns": []
+    },
+    "trends_v2_dev.seed_graph": {
+      "status": 200,
+      "type": "TABLE",
+      "etag": "0T8A/wR6np04Q0B2xed23Q==",
+      "lastModifiedTime": "1788748395564",
+      "numRows": "1229338",
+      "schema": {
+        "fields": [
+          {
+            "name": "market",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "term",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "term_type",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "platform",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "trend_date",
+            "type": "DATE",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "event_date",
+            "type": "DATE"
+          },
+          {
+            "name": "row_count",
+            "type": "INTEGER"
+          },
+          {
+            "name": "avg_genz_score",
+            "type": "FLOAT"
+          },
+          {
+            "name": "slang_row_share",
+            "type": "FLOAT"
+          },
+          {
+            "name": "topic_groups",
+            "type": "STRING",
+            "mode": "REPEATED"
+          },
+          {
+            "name": "near_topics",
+            "type": "STRING",
+            "mode": "REPEATED"
+          },
+          {
+            "name": "co_occur_terms",
+            "type": "STRING",
+            "mode": "REPEATED"
+          },
+          {
+            "name": "sample_row_ids",
+            "type": "STRING",
+            "mode": "REPEATED"
+          },
+          {
+            "name": "generated_at",
+            "type": "TIMESTAMP"
+          }
+        ]
+      },
+      "timePartitioning": {
+        "type": "DAY",
+        "expirationMs": "31536000000",
+        "field": "trend_date"
+      },
+      "missing_required_columns": []
+    },
+    "trends_v2_dev.seed_candidates": {
+      "status": 200,
+      "type": "TABLE",
+      "etag": "qUZAx1zfg4EP0tb4rPWjbg==",
+      "lastModifiedTime": "1788743055230",
+      "numRows": "447",
+      "schema": {
+        "fields": [
+          {
+            "name": "candidate_id",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "proposed_date",
+            "type": "DATE",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "market",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "candidate_type",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "candidate_value",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "source",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "lane",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "score",
+            "type": "FLOAT"
+          },
+          {
+            "name": "seed_fit",
+            "type": "RECORD",
+            "fields": [
+              {
+                "name": "genz",
+                "type": "FLOAT"
+              },
+              {
+                "name": "slang",
+                "type": "FLOAT"
+              },
+              {
+                "name": "visual_audio",
+                "type": "FLOAT"
+              },
+              {
+                "name": "co_occur",
+                "type": "FLOAT"
+              }
+            ]
+          },
+          {
+            "name": "safety_flags",
+            "type": "STRING",
+            "mode": "REPEATED"
+          },
+          {
+            "name": "evidence_topics",
+            "type": "STRING",
+            "mode": "REPEATED"
+          },
+          {
+            "name": "sample_row_ids",
+            "type": "STRING",
+            "mode": "REPEATED"
+          },
+          {
+            "name": "status",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "status_by",
+            "type": "STRING"
+          },
+          {
+            "name": "status_at",
+            "type": "TIMESTAMP"
+          },
+          {
+            "name": "rationale",
+            "type": "STRING"
+          }
+        ]
+      },
+      "timePartitioning": {
+        "type": "DAY",
+        "field": "proposed_date"
+      },
+      "missing_required_columns": []
+    },
+    "trends_v2_dev.enriched_content": {
+      "status": 200,
+      "type": "TABLE",
+      "etag": "M3BiYJZd08TAUbYTq3VVrA==",
+      "lastModifiedTime": "1788742872942",
+      "numRows": "1599441",
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "source",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "platform",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "market",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "content_type",
+            "type": "STRING"
+          },
+          {
+            "name": "query_group",
+            "type": "STRING"
+          },
+          {
+            "name": "query_term",
+            "type": "STRING"
+          },
+          {
+            "name": "author_name",
+            "type": "STRING"
+          },
+          {
+            "name": "author_handle",
+            "type": "STRING"
+          },
+          {
+            "name": "author_handle_norm",
+            "type": "STRING"
+          },
+          {
+            "name": "title",
+            "type": "STRING"
+          },
+          {
+            "name": "text",
+            "type": "STRING"
+          },
+          {
+            "name": "url",
+            "type": "STRING"
+          },
+          {
+            "name": "published_at",
+            "type": "TIMESTAMP"
+          },
+          {
+            "name": "collected_at",
+            "type": "TIMESTAMP",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "hashtags",
+            "type": "STRING"
+          },
+          {
+            "name": "views",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "likes",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "comments",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "shares",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "engagement_total",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "regional_score",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "genz_score",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "creator_watchlist_tier",
+            "type": "STRING"
+          },
+          {
+            "name": "creator_watchlist_score",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "slang_terms",
+            "type": "STRING"
+          },
+          {
+            "name": "slang_score",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "pipeline_run_id",
+            "type": "STRING"
+          },
+          {
+            "name": "search_velocity_score",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "v2tone",
+            "type": "STRING"
+          },
+          {
+            "name": "v2persons",
+            "type": "STRING"
+          },
+          {
+            "name": "v2orgs",
+            "type": "STRING"
+          },
+          {
+            "name": "v2locations",
+            "type": "STRING"
+          },
+          {
+            "name": "tone_avg",
+            "type": "FLOAT"
+          },
+          {
+            "name": "tone_polarity",
+            "type": "FLOAT"
+          },
+          {
+            "name": "topic_groups",
+            "type": "STRING",
+            "mode": "REPEATED"
+          },
+          {
+            "name": "v2gcam",
+            "type": "STRING"
+          },
+          {
+            "name": "classification_layer",
+            "type": "STRING"
+          },
+          {
+            "name": "sentiment_lexicon_score",
+            "type": "FLOAT"
+          },
+          {
+            "name": "near_topic",
+            "type": "STRING"
+          },
+          {
+            "name": "near_cosine",
+            "type": "FLOAT"
+          }
+        ]
+      },
+      "timePartitioning": {
+        "type": "DAY",
+        "field": "collected_at"
+      },
+      "missing_required_columns": [
+        "channel_family",
+        "endpoint",
+        "geo_method_id",
+        "geo_receipt_id",
+        "native_id",
+        "source_family",
+        "source_family_map_version",
+        "vendor_family"
+      ]
+    },
+    "trends_v2_dev.raw_content": {
+      "status": 200,
+      "type": "TABLE",
+      "etag": "Ltz9HcSPxwdUCRZ3Gx906A==",
+      "lastModifiedTime": "1788742774948",
+      "numRows": "1388846",
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "source",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "platform",
+            "type": "STRING",
+            "mode": "REQUIRED"
+          },
+          {
+            "name": "market",
+            "type": "STRING"
+          },
+          {
+            "name": "content_type",
+            "type": "STRING"
+          },
+          {
+            "name": "query_group",
+            "type": "STRING"
+          },
+          {
+            "name": "query_term",
+            "type": "STRING"
+          },
+          {
+            "name": "author_name",
+            "type": "STRING"
+          },
+          {
+            "name": "author_handle",
+            "type": "STRING"
+          },
+          {
+            "name": "title",
+            "type": "STRING"
+          },
+          {
+            "name": "text",
+            "type": "STRING"
+          },
+          {
+            "name": "url",
+            "type": "STRING"
+          },
+          {
+            "name": "published_at",
+            "type": "TIMESTAMP"
+          },
+          {
+            "name": "collected_at",
+            "type": "TIMESTAMP",
+            "mode": "REQUIRED",
+            "defaultValueExpression": "CURRENT_TIMESTAMP()"
+          },
+          {
+            "name": "hashtags",
+            "type": "STRING"
+          },
+          {
+            "name": "views",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "likes",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "comments",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "shares",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "engagement_total",
+            "type": "FLOAT",
+            "defaultValueExpression": "0"
+          },
+          {
+            "name": "pipeline_run_id",
+            "type": "STRING"
+          },
+          {
+            "name": "v2tone",
+            "type": "STRING"
+          },
+          {
+            "name": "v2persons",
+            "type": "STRING"
+          },
+          {
+            "name": "v2orgs",
+            "type": "STRING"
+          },
+          {
+            "name": "v2locations",
+            "type": "STRING"
+          },
+          {
+            "name": "v2gcam",
+            "type": "STRING"
+          }
+        ]
+      },
+      "timePartitioning": {
+        "type": "DAY",
+        "expirationMs": "31536000000",
+        "field": "collected_at"
+      },
+      "missing_required_columns": [
+        "channel_family",
+        "endpoint",
+        "geo_method_id",
+        "geo_receipt_id",
+        "native_id",
+        "source_family",
+        "source_family_map_version",
+        "vendor_family"
+      ]
+    },
+    "trends_v2.event_ledger": {
+      "status": 404
+    },
+    "trends_v2.seed_graph": {
+      "status": 404
+    },
+    "trends_v2.seed_candidates": {
+      "status": 404
+    },
+    "trends_v2.enriched_content": {
+      "status": 404
+    },
+    "trends_v2.raw_content": {
+      "status": 404
+    }
+  }
+}

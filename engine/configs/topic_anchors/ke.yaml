@@ -1,0 +1,107 @@
+# Per-topic embedding anchor phrases for the M4 multilingual classifier (D2).
+# Curated 29 May 2026 from real classified enriched_content rows (25-29 May)
+# by per-market distillation and a manual review, plus a
+# geo-verify pass. Each phrase is embedded (text-multilingual-embedding-002)
+# into its own anchor vector; a residual unclassified row classifies into a
+# topic on the BEST cosine over that topic's phrases. Phrases are grounded in
+# genuine in-market posts, authentic voice (pidgin / sheng / kasi), and
+# geo-stripped. The two collision topics were rebuilt from clean rows only:
+# NG economy_sapa_hustle (no Vietnam Sapa / Bahasa / Hindi / Texas pets) and
+# NG fashion_ankara_asoebi (no Ankara Turkey; anchored on asoebi / gele /
+# lace). KE genz_sheng excludes the Chinese / Singapore "sheng" collisions.
+# Edit by re-curating from real classified rows, not by hand, so grounding stays honest.
+
+market: ke
+topic_anchors:
+  politics_maandamano:
+  - reject finance bill 2026 maandamano loading in
+  - Ruto must go campaign trending across
+  - Gen Z protests against fuel price hikes
+  - maandamano Monday live outside parliament
+  - Finance Bill 2026 proposes 25 percent mobile phone levy
+  - Gachagua exposing Ruto government deals from abroad
+  - shilling at 180 and cost of living crisis
+  - Mr Speaker Sir Gen Z protest icon resurfaces
+  music_gengetone:
+  - bring back gengetone street energy
+  - best arbantone latest video mix 2026
+  - Ethic Entertainment new gengetone banger Daktari
+  - gengetone dance challenge pale TikTok
+  - how Mejja survived every era of music
+  - bongo flava swahili anthem loading
+  - Sailors Gang Pekejeng gengetone throwback
+  - arbantone old is gold tunes
+  fintech_mpesa:
+  - M-Pesa confirmation ding every business owner loves
+  - new M-Pesa app and Safaricom payments
+  - got scammed leaving the Safaricom shop
+  - borrow pay off KCB Mpesa then borrow again
+  - VAT on M-Pesa digital payment transfers Finance Bill
+  - send money via the Mpesa app to family
+  - njaanuary broke after mpesa and safaricom bills
+  - Boost ya biashara Safaricom KCB business payments
+  transport_matatu:
+  - matwana matatu culture nganya spotting
+  - if the bass isn't shaking the windows wrong bus
+  - matatu strike leaves commuters stranded
+  - Rongai nganya brawl out matatu galore
+  - fuel strike brings transport to a standstill
+  - CBD matatu lookout my ears are ringing
+  - boda boda and matatu operators day off protest
+  - most loved matatu driver loves his hustle
+  economy_hustle:
+  - start a biashara with fresh mitumba bales
+  - Gen Z mama mboga at work baddie challenge
+  - jua kali leo grinding the hustle
+  - hustle culture draining everyone but crushing it
+  - no business too small to know its numbers mama mboga
+  - small business entrepreneurs daily grind
+  - side hustle salon hardware boda biashara
+  food_nyamachoma:
+  - best nyama choma spot straight off the grill
+  - goat ribs choma juicy tender smoky finish
+  - nyama choma na ugali na kachumbari
+  - how to marinate nyama choma the right way
+  - friday choma has entered the chat Kisumu
+  - I'm from the ugali side food
+  - nyama choma joint Ruiru we welcome you
+  - Njuguna's place best nyama choma
+  fashion_mitumba:
+  - fresh mitumba bales available nationwide delivery
+  - best mtumba plug in town premium UK bales
+  - Gikomba market secondhand mitumba clothes
+  - venturing into mitumba business is easy
+  - opening your first mitumba bale roho hudunda
+  - quality mitumba grade 1 thrift finds
+  - Africans built fashion industries from secondhand clothes
+  - kiddies mitumba cargo pants for teens
+  genz_sheng:
+  - add more sheng words in the comments
+  - trying to teach ChatGPT some sheng
+  - sheng lesson slang twende rivas
+  - bro kuna mtu alitupia fake dollars Oloolua
+  - Sheng speaker reacts to matatu fare
+  - sasa kuna zile wameeka CCTV kila msee aangalie
+  - sheng memes fashion
+  sports_football:
+  - Arsenal fans celebrate Premier League victory
+  - Gor Mahia edge AFC Leopards in Mashemeji derby
+  - FIFA rejects suspension of FKF boss Hussein Mohamed
+  - Gor Mahia champions elect face Mara Sugar FKF
+  - Kariobangi Sharks drown in relegation waters
+  - FKF Premier League leadership row at High Court
+  - Gunners party in Arsenal celebration
+  - Harambee Stars chasing a FIFA World Cup qualifier
+  - Champions League final night and Nairobi is buzzing
+  - Salah and Liverpool top the UEFA talk in the group
+  # 11 Jun 2026 Gemini brand lens (stage 1) anchors.
+  # 17 Jun 2026 (KE precision): re-anchored on explicit AI-tool semantics. The
+  # old anchors carried generic youth tokens (tiktok, ziko fiti, hustle page)
+  # so the rescue pulled Sheng chatter into this topic. These name the tool.
+  tech_gemini_ai:
+  - gemini app imenisaidia na assignment yangu leo
+  - nano banana ai photo edit ya profile imekuwa safi
+  - nimetumia google gemini kuandika content ya page yangu
+  - chatgpt na gemini ai zinasaidia wanafunzi na revision
+  - google ai overviews zimebadilisha jinsi tunatafuta google
+  - nimeuliza gemini ai swali ngumu nikapata jibu fiti

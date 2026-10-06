@@ -1,0 +1,109 @@
+/* Build, #/console. Three ways in, set side by side on a desktop and
+   stacked on a phone, then the recent work in two columns. Sections are
+   separated by hairlines, never boxed. */
+.b42 { max-width: var(--maxw); }
+.b42 h1, .b42 h2 { text-wrap: balance; }
+.b42 p { text-wrap: pretty; }
+/* Short notes of one to three lines read best evened out, with no
+   stray word left on a last line. */
+.b42 .b42-lede, .b42 .b42-help, .b42 .b42-empty, .b42 .b42-error p, .b42 p.b42-error { text-wrap: pretty; }
+.b42 a { color: var(--ink); }
+
+.b42-title { margin-bottom: var(--s-3); }
+.b42-lede { max-width: var(--measure); margin: 0 0 var(--s-6); color: var(--ink-2); font-size: var(--type-body); line-height: var(--leading-body); }
+
+.b42-section-title { margin: 0; font-size: var(--type-section-title); font-weight: 600; line-height: var(--leading-section-title); }
+
+/* ---- the two forms ----
+   Ask and Investigate share their rows (heading, intro, label, field,
+   actions, notes), so every part lines up across the columns whatever
+   wraps. On a phone the same rows stack one form after the other. */
+.b42-starts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--s-7);
+  border-top: 1px solid var(--line);
+  padding-top: var(--s-5);
+}
+.b42-start { grid-row: span 6; display: grid; grid-template-rows: subgrid; row-gap: var(--s-2); min-width: 0; }
+.b42-start > .b42-help { margin-bottom: var(--s-2); }
+.b42-form { grid-row: span 4; display: grid; grid-template-rows: subgrid; row-gap: var(--s-2); margin: 0; min-width: 0; }
+.b42-help { margin: 0; max-width: 46ch; color: var(--ink-2); font-size: var(--type-body); line-height: var(--leading-body); }
+.b42-label { font-size: var(--type-body); font-weight: 600; color: var(--ink); line-height: var(--leading-meta); white-space: nowrap; }
+.b42 .ask42-input { width: 100%; box-sizing: border-box; }
+/* The market and the button share one row, the button on the field's baseline. */
+.b42-actions { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--s-3); margin-top: var(--s-2); }
+.b42-field { display: grid; gap: var(--s-2); flex: 1 1 0; min-width: 0; }
+.b42-field .ask42-select { width: 100%; }
+.b42 .b42-button { flex: 0 0 auto; white-space: nowrap; min-width: 8.5rem; }
+.b42-notes:empty { display: none; }
+
+/* ---- starting a dossier, full width below the forms ---- */
+.b42-dossier-start { display: grid; gap: var(--s-3); margin-top: var(--s-7); padding-top: var(--s-5); border-top: 1px solid var(--line); }
+.b42-dossier-start .b42-help { max-width: var(--measure); }
+
+.b42-quiet { margin: 0; color: var(--muted); font-size: var(--type-body); line-height: var(--leading-body); }
+.b42-empty { margin: 0; max-width: var(--measure); color: var(--ink-2); font-size: var(--type-body); line-height: var(--leading-body); }
+.b42-error { margin: 0; color: var(--down); font-size: var(--type-body); line-height: var(--leading-body); }
+.b42-error p { margin: 0 0 var(--s-2); max-width: var(--measure); }
+
+/* The answers a dossier can be made from. */
+.b42-sources { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.b42-source {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s-1) var(--s-3);
+  align-items: center;
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.b42-source-title { grid-column: 1; font-weight: 600; line-height: var(--leading-body); text-wrap: pretty; overflow-wrap: anywhere; }
+.b42-source .b42-meta { grid-column: 1; }
+.b42-source-action { grid-column: 2; grid-row: 1 / span 2; }
+.b42-source-error { grid-column: 1 / -1; }
+
+/* ---- recent work: one band, its four lists under it ---- */
+.b42-band { margin-top: var(--s-8); padding-top: var(--s-5); border-top: 1px solid var(--line); }
+.b42-band-title { margin: 0 0 var(--s-5); font-size: var(--type-section-title); font-weight: 600; line-height: var(--leading-section-title); }
+.b42-list-title { margin: 0; font-size: var(--type-body); font-weight: 600; color: var(--ink-2); line-height: var(--leading-body); }
+.b42-recents {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-6) var(--s-7);
+}
+.b42-recent { display: grid; align-content: start; gap: var(--s-3); min-width: 0; }
+.b42-recent-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-1) var(--s-4); }
+.b42-more { font-size: var(--type-body); white-space: nowrap; }
+.b42-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.b42-row {
+  display: grid;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-2);
+  border-bottom: 1px solid var(--line);
+  transition: background-color var(--motion-row) var(--motion-standard-easing);
+}
+.b42-row:hover, .b42-row:focus-within { background: var(--surface); }
+.b42-row-title { font-size: var(--type-body); font-weight: 600; line-height: var(--leading-body); text-wrap: pretty; overflow-wrap: anywhere; }
+.b42-meta { color: var(--muted); font-size: var(--type-meta); line-height: var(--leading-meta); }
+/* Each detail stays whole; a line only breaks between details. */
+.b42-meta-part { white-space: nowrap; }
+.b42-meta-part:not(:last-child)::after { content: " \00b7"; }
+.b42-state { color: var(--ink-2); white-space: nowrap; }
+.b42-state[data-state="running"] { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 760px) {
+  .b42-starts, .b42-recents { grid-template-columns: minmax(0, 1fr); }
+  /* Stacked, the second form needs air above its heading. */
+  .b42-start + .b42-start > .b42-section-title { margin-top: var(--s-6); }
+}
+
+@media (max-width: 479px) {
+  /* On a phone the workspace already pads the page, as on Investigations. */
+  .ask42.b42 { padding-inline: 0; }
+  .b42-source { grid-template-columns: minmax(0, 1fr); }
+  .b42-source-action { grid-column: 1; grid-row: auto; justify-self: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b42-row { transition: none; }
+}

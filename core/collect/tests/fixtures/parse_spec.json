@@ -1,0 +1,111 @@
+{
+  "_note": "Spec-shaped, not live. tiktok/search/hashtag, tiktok/profile/videos and instagram/audio/reels were not in the 28 September 2026 probe, and docs/full-42/reference/sc_routes.json gives their parameters but no response body. These bodies take the routes and parameters from sc_routes.json and the probed data.items[] of {computed, post, vendor_labels} envelope from parse_live.json. Where an Instagram audio page carries its reel total is a guess (data.audio.media_count). Replace each with one stored live body once the route has been called. All values are synthetic.",
+  "search_hashtag": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 1, "endpoint": "tiktok/search/hashtag",
+    "platform": "tiktok", "request_id": "req_sh1", "success": true,
+    "data": {
+      "dropped": 0, "total": null,
+      "walk": {"credits": {"pages": 1, "refunded": 0}, "pages": 1, "repeats": 0, "request_ids": ["req_sh1"],
+               "rows_fetched": 2, "rows_returned": 2, "stopped": "max_pages"},
+      "items": [
+        {"computed": {"content_category": "food", "engagement_rate": 0.05, "estimated_reach": 40000, "language": "en"},
+         "post": {"author": {"avatar_url": null, "display_name": "Kota Queen", "username": "kota.queen", "verified": false},
+                  "content": {"duration_seconds": 18.0, "media_urls": null, "text": "Best kota in Soweto #kotarun #food",
+                              "thumbnail_url": "https://p16.example/sh1.jpg"},
+                  "engagement": {"comments": 30, "likes": 800, "saves": 5, "shares": 20, "views": 21000},
+                  "ext": {"author_followers": 42000, "author_id": "6900000000000000001", "music_id": "7300000000000000009",
+                          "published_at_epoch": 1790499600, "region": "ZA"},
+                  "flags": {"deleted": false, "nsfw": null, "pinned": false, "spoiler": null},
+                  "id": "7400000000000000101", "published_at": "2026-09-27T09:00:00Z",
+                  "url": "https://www.tiktok.com/@kota.queen/video/7400000000000000101"},
+         "vendor_labels": {"labels": {"sponsored": false, "intent": "entertain", "niche": "food"}}},
+        {"computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+         "post": {"author": {"avatar_url": null, "display_name": null, "username": "lagos.bites", "verified": false},
+                  "content": {"duration_seconds": null, "media_urls": null, "text": "#kotarun in Lagos?", "thumbnail_url": null},
+                  "engagement": {"comments": null, "likes": null, "saves": null, "shares": null, "views": 900},
+                  "ext": {"region": "NG"},
+                  "flags": {"deleted": false, "nsfw": null, "pinned": false, "spoiler": null},
+                  "id": "7400000000000000102", "published_at": null,
+                  "url": "https://www.tiktok.com/@lagos.bites/video/7400000000000000102"},
+         "vendor_labels": {}}
+      ]
+    }
+  },
+  "profile_videos": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 1, "endpoint": "tiktok/profile/videos",
+    "platform": "tiktok", "request_id": "req_pv1", "success": true,
+    "pagination": {"has_more": true, "next_cursor": "pv2", "page_size": 3},
+    "data": {
+      "dropped": 0, "total": null,
+      "items": [
+        {"computed": {"content_category": "music", "engagement_rate": 0.04, "estimated_reach": 9000, "language": "en"},
+         "post": {"author": {"avatar_url": null, "display_name": "Kasi Keys", "username": "kasi.keys", "verified": false},
+                  "content": {"duration_seconds": 30.0, "media_urls": null, "text": "New one #amapiano",
+                              "thumbnail_url": "https://p16.example/pv1.jpg"},
+                  "engagement": {"comments": 12, "likes": 300, "saves": 2, "shares": 8, "views": 5200},
+                  "ext": {"author_followers": 8500, "music_id": "7300000000000000001", "region": "ZA"},
+                  "flags": {"deleted": false, "nsfw": null, "pinned": false, "spoiler": null},
+                  "id": "7400000000000000201", "published_at": "2026-09-26T18:00:00Z",
+                  "url": "https://www.tiktok.com/@kasi.keys/video/7400000000000000201"},
+         "vendor_labels": {"labels": {"sponsored": false}}},
+        {"computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+         "post": {"author": {"avatar_url": null, "display_name": null, "username": null, "verified": false},
+                  "content": {"duration_seconds": 12.0, "media_urls": null, "text": "Studio day", "thumbnail_url": null},
+                  "engagement": {"comments": 3, "likes": 90, "saves": 0, "shares": 1, "views": 1400},
+                  "ext": {"published_at_epoch": 1788350400, "region": "ZA"},
+                  "flags": {"deleted": false, "nsfw": null, "pinned": true, "spoiler": null},
+                  "id": "7400000000000000202", "published_at": null,
+                  "url": "https://www.tiktok.com/@kasi.keys/video/7400000000000000202"},
+         "vendor_labels": {}}
+      ]
+    }
+  },
+  "ig_audio_reels": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 1, "endpoint": "instagram/audio/reels",
+    "platform": "instagram", "request_id": "req_ar1", "success": true,
+    "pagination": {"has_more": true, "next_cursor": "ar2", "page_size": 2},
+    "data": {
+      "dropped": 0, "total": 2,
+      "audio": {"id": "ig_audio_77", "title": "Synthetic groove", "media_count": 5400},
+      "items": [
+        {"computed": {"content_category": "dance", "engagement_rate": 0.06, "estimated_reach": 30000, "language": "en"},
+         "post": {"author": {"avatar_url": null, "display_name": "Jozi Moves", "username": "jozi.moves", "verified": false},
+                  "content": {"duration_seconds": 15.0, "media_urls": null, "text": "Friday steps #jozi",
+                              "thumbnail_url": "https://cdn.example/ar1.jpg"},
+                  "engagement": {"comments": 40, "likes": 2100, "saves": 11, "shares": 55, "views": 33000},
+                  "ext": {"author_followers": 120000},
+                  "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+                  "id": "3700000000000000301", "published_at": "2026-09-27T15:00:00Z",
+                  "url": "https://www.instagram.com/reel/SynthAr1/"},
+         "vendor_labels": {}},
+        {"computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+         "post": {"author": {"avatar_url": null, "display_name": null, "username": "nairobi.nights", "verified": false},
+                  "content": {"duration_seconds": null, "media_urls": null, "text": "Same sound, Nairobi", "thumbnail_url": null},
+                  "engagement": {"comments": null, "likes": 70, "saves": null, "shares": null, "views": null},
+                  "ext": {"audio_id": "ig_audio_77"},
+                  "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+                  "id": "3700000000000000302", "published_at": null,
+                  "url": "https://www.instagram.com/reel/SynthAr2/"},
+         "vendor_labels": {}}
+      ]
+    }
+  },
+  "ig_audio_reels_no_total": {
+    "cached": false, "credits_remaining": 1000, "credits_used": 1, "endpoint": "instagram/audio/reels",
+    "platform": "instagram", "request_id": "req_ar2", "success": true,
+    "data": {
+      "dropped": 0, "total": 1,
+      "items": [
+        {"computed": {"content_category": null, "engagement_rate": null, "estimated_reach": null, "language": null},
+         "post": {"author": {"avatar_url": null, "display_name": null, "username": "jozi.moves", "verified": false},
+                  "content": {"duration_seconds": null, "media_urls": null, "text": "Again", "thumbnail_url": null},
+                  "engagement": {"comments": 1, "likes": 10, "saves": null, "shares": 0, "views": 400},
+                  "ext": {},
+                  "flags": {"deleted": false, "nsfw": null, "pinned": null, "spoiler": null},
+                  "id": "3700000000000000303", "published_at": "2026-09-27T16:00:00Z",
+                  "url": "https://www.instagram.com/reel/SynthAr3/"},
+         "vendor_labels": {}}
+      ]
+    }
+  }
+}

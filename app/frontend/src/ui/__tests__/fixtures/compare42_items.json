@@ -1,0 +1,61 @@
+{
+  "mode": "items",
+  "window": {"from": "2026-09-24", "to": "2026-09-30", "days": 7},
+  "subjects": [
+    {"key": "s1", "label": "#fixture_za_step", "item_id": "i_step", "market": "ZA", "platform": null, "matched_by": "linked",
+     "card": {"item_id": "i_step", "market": "ZA", "title": "#fixture_za_step", "state": "emerging", "state_word": "Emerging"}},
+    {"key": "s2", "label": "Fixture Cola", "item_id": "i_cola", "market": "ZA", "platform": null, "matched_by": "keyword", "card": null},
+    {"key": "s3", "label": "#fixture_za_ring", "item_id": "i_ring", "market": "ZA", "platform": null, "matched_by": "linked",
+     "card": {"item_id": "i_ring", "market": "ZA", "title": "#fixture_za_ring", "state": "spike", "state_word": "Spike",
+              "held_back": {"rule": "G4", "reason": "likely_coordinated", "reason_text": "Likely coordinated: many new accounts posting the same words"}}}
+  ],
+  "series": [
+    {"key": "s1", "unit": "posts a day", "points": [
+      {"date": "2026-09-24", "value": null}, {"date": "2026-09-25", "value": null}, {"date": "2026-09-26", "value": null},
+      {"date": "2026-09-27", "value": 2}, {"date": "2026-09-28", "value": 0}, {"date": "2026-09-29", "value": 3}, {"date": "2026-09-30", "value": 3}]},
+    {"key": "s2", "unit": "posts a day", "points": [
+      {"date": "2026-09-24", "value": null}, {"date": "2026-09-25", "value": null}, {"date": "2026-09-26", "value": null},
+      {"date": "2026-09-27", "value": 1}, {"date": "2026-09-28", "value": null}, {"date": "2026-09-29", "value": 0}, {"date": "2026-09-30", "value": 1}]},
+    {"key": "s3", "unit": "posts a day", "points": [
+      {"date": "2026-09-24", "value": null}, {"date": "2026-09-25", "value": null}, {"date": "2026-09-26", "value": null},
+      {"date": "2026-09-27", "value": 0}, {"date": "2026-09-28", "value": 1}, {"date": "2026-09-29", "value": 0}, {"date": "2026-09-30", "value": 0}]}
+  ],
+  "rows": [
+    {"metric": "posts", "words": "Posts in the window", "values": {
+      "s1": {"value": 8, "unit": "posts in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:p1"},
+      "s2": {"value": 2, "unit": "posts in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:p2"},
+      "s3": {"value": 1, "unit": "posts in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:p3"}}},
+    {"metric": "creators", "words": "Distinct creators in the window", "values": {
+      "s1": {"value": 5, "unit": "creators in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:c1"},
+      "s2": {"value": 2, "unit": "creators in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:c2"},
+      "s3": {"value": 1, "unit": "creators in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:c3"}}},
+    {"metric": "engagement", "words": "Engagement (likes, comments, shares, as each platform counts them)", "values": {
+      "s1": {"value": 188, "unit": "likes, comments and shares in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:e1"},
+      "s2": {"value": 9, "unit": "likes, comments and shares in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:e2"},
+      "s3": {"value": 16, "unit": "likes, comments and shares in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:e3"}}},
+    {"metric": "first_seen", "words": "First seen in 42's collection (all time, not clipped to the window)", "values": {
+      "s1": {"value": "2026-09-10", "unit": "first sighting day", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:f1"},
+      "s2": {"value": "2026-09-26", "unit": "first sighting day", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:f2"},
+      "s3": {"value": null, "unit": "first sighting day", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:f3"}}},
+    {"metric": "growth", "words": "Growth against its own baseline", "values": {
+      "s1": {"value": 2.8, "unit": "times its usual level", "query_id": "q_discover_items", "run_id": "r_detect_20260930_01", "result_hash": "sha256:g1"},
+      "s2": null,
+      "s3": {"value": 1.4, "unit": "times its usual level", "query_id": "q_discover_items", "run_id": "r_detect_20260930_01", "result_hash": "sha256:g3"}}},
+    {"metric": "reach", "words": "Creators in the last 3 days", "values": {
+      "s1": {"value": 31, "unit": "creators in 3 days", "query_id": "q_discover_items", "run_id": "r_detect_20260930_01", "result_hash": "sha256:r1"},
+      "s2": null,
+      "s3": {"value": 4, "unit": "creators in 3 days", "query_id": "q_discover_items", "run_id": "r_detect_20260930_01", "result_hash": "sha256:r3"}}},
+    {"metric": "state", "words": "State", "values": {
+      "s1": {"value": "emerging", "word": "Emerging", "unit": "state", "query_id": "q_discover_items", "run_id": "r_detect_20260930_01", "result_hash": "sha256:s1"},
+      "s2": null,
+      "s3": {"value": "spike", "word": "Spike", "unit": "state", "query_id": "q_discover_items", "run_id": "r_detect_20260930_01", "result_hash": "sha256:s3"}}},
+    {"metric": "platforms", "words": "Platforms seen on", "values": {
+      "s1": {"value": 3, "unit": "platforms in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:l1"},
+      "s2": {"value": 2, "unit": "platforms in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:l2"},
+      "s3": {"value": 1, "unit": "platforms in 7 days", "query_id": "q_compare", "run_id": "r_agg_20260930", "result_hash": "sha256:l3"}}}
+  ],
+  "notes": [
+    "Coverage: 4 of 7 South Africa series-days usable over the window",
+    "Fixture Cola matched by name in post text; may include unrelated uses"
+  ]
+}

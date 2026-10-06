@@ -1,0 +1,1962 @@
+{
+  "runtime_loadable": false,
+  "reason": "Source URLs were not supplied in the date inputs. Keep as a local seed fallback for lead review.",
+  "identity_fields": [
+    "start_date",
+    "end_date",
+    "market",
+    "event"
+  ],
+  "venue_conflicts_are_held": true,
+  "topic_variants_are_preserved_without_holding": true,
+  "source_urls_provided": false,
+  "records_added": [
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-09-30",
+        "end_date": "2026-09-30",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "Eritrea vs Bafana Bafana - AFCON Qualifier",
+        "venue": "Al-Salam Stadium, Cairo",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-03",
+        "end_date": "2026-10-11",
+        "market": "ZA",
+        "topic": "Culture / Entertainment / Education",
+        "event": "Toyota Stellenbosch Woordfees",
+        "venue": "Stellenbosch",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-04",
+        "end_date": "2026-10-04",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "Egypt vs South Africa - International Friendly",
+        "venue": "Cairo International Stadium",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-04",
+        "end_date": "2026-10-04",
+        "market": "ZA",
+        "topic": "Music / Entertainment",
+        "event": "In The City Festival",
+        "venue": "Johannesburg",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-07",
+        "end_date": "2026-10-07",
+        "market": "ZA",
+        "topic": "Lifestyle / Education",
+        "event": "Fuel Price Adjustment - DMRE",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-08",
+        "end_date": "2026-10-11",
+        "market": "ZA",
+        "topic": "Culture / Lifestyle / Entertainment",
+        "event": "Design Week South Africa",
+        "venue": "Various locations Johannesburg",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-09",
+        "end_date": "2026-10-13",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "SA vs Australia 1st Test",
+        "venue": "Durban",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-18",
+        "end_date": "2026-10-18",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "SA vs Australia 2nd Test",
+        "venue": "Gqeberha",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-25",
+        "end_date": "2026-10-28",
+        "market": "ZA",
+        "topic": "Music / Education / Culture",
+        "event": "ACCES Songwriting Camp",
+        "venue": "Johannesburg",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-27",
+        "end_date": "2026-10-31",
+        "market": "ZA",
+        "topic": "Sport / Music / Entertainment",
+        "event": "SA vs Australia 3rd Test + ACCES Industry Nights",
+        "venue": "Cape Town / Johannesburg",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-28",
+        "end_date": "2026-10-31",
+        "market": "ZA",
+        "topic": "Music / Education / Entertainment",
+        "event": "Pretty Loud Summit + Music Exchange MEX26",
+        "venue": "Cape Town",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-28",
+        "end_date": "2026-11-01",
+        "market": "ZA",
+        "topic": "Culture / Entertainment",
+        "event": "Cape Town City Ballet - Dracula",
+        "venue": "Artscape Theatre Centre, Cape Town",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-04",
+        "end_date": "2026-11-04",
+        "market": "ZA",
+        "topic": "Culture / Education / History",
+        "event": "PUBLIC HOLIDAY - Local Government Elections",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-05",
+        "end_date": "2026-11-05",
+        "market": "ZA",
+        "topic": "Lifestyle / Agriculture",
+        "event": "Fuel Price + Post-Election",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-07",
+        "end_date": "2026-11-07",
+        "market": "ZA",
+        "topic": "Culture / Music / Food / Lifestyle / Entertainment",
+        "event": "Soweto Culture Festival",
+        "venue": "Soweto",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-11",
+        "end_date": "2026-11-11",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "Bafana Bafana vs Kenya - AFCON Qualifier",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-01",
+        "end_date": "2026-10-01",
+        "market": "NG",
+        "topic": "Culture / History / Entertainment / Music / Food",
+        "event": "Independence Day + One Nation Festival",
+        "venue": "Nautica Beach Resort, Lagos",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-06",
+        "end_date": "2026-10-06",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "Nigeria vs Russia - International Friendly",
+        "venue": "Nizhny Novgorod Stadium, Russia",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-07",
+        "end_date": "2026-10-07",
+        "market": "NG",
+        "topic": "Lifestyle / Education",
+        "event": "Fuel Price Review - NNPC",
+        "venue": "Nigeria",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-23",
+        "end_date": "2026-11-08",
+        "market": "NG",
+        "topic": "Music / Culture / Entertainment / Education",
+        "event": "MUSON Festival",
+        "venue": "MUSON Centre, Onikan, Lagos",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-23",
+        "end_date": "2026-10-25",
+        "market": "NG",
+        "topic": "Music / Entertainment / Culture",
+        "event": "18th Headies Awards",
+        "venue": "Toronto, Canada",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-28",
+        "end_date": "2026-11-01",
+        "market": "NG",
+        "topic": "Culture / Entertainment / Lifestyle",
+        "event": "Lagos Fashion Week SS26",
+        "venue": "Federal Palace Hotel, Lagos",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-05",
+        "end_date": "2026-11-08",
+        "market": "NG",
+        "topic": "Culture / Music / Entertainment / Education / Storytelling",
+        "event": "CANEX WKND - Creative Africa Nexus Weekend",
+        "venue": "Lagos",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-11",
+        "end_date": "2026-11-11",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "Nigeria vs Tanzania - AFCON Qualifier",
+        "venue": "Nigeria",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-14",
+        "end_date": "2026-11-15",
+        "market": "NG",
+        "topic": "Culture / Storytelling / Entertainment / Education",
+        "event": "Lagos International Theatre Festival (LITF)",
+        "venue": "MUSON Centre, Lagos",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-09-28",
+        "end_date": "2026-10-04",
+        "market": "KE",
+        "topic": "Agriculture / Education / Culture / Impact",
+        "event": "Nairobi International Trade Fair",
+        "venue": "Jamhuri Park Showground, Nairobi",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-01",
+        "end_date": "2026-10-01",
+        "market": "KE",
+        "topic": "Sport",
+        "event": "Guinea vs Kenya - AFCON Qualifier",
+        "venue": "28 September Stadium, Conakry",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-04",
+        "end_date": "2026-10-04",
+        "market": "KE",
+        "topic": "Culture / Music / Food / Entertainment / Comedy",
+        "event": "Oktobafest Kickoff",
+        "venue": "Carnivore Grounds, Nairobi",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-05",
+        "end_date": "2026-10-05",
+        "market": "KE",
+        "topic": "Sport",
+        "event": "Rwanda vs Kenya - Friendly",
+        "venue": "Amahoro Stadium, Kigali",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-06",
+        "end_date": "2026-10-08",
+        "market": "KE",
+        "topic": "Culture / Music / Food / Fashion / History / Impact / Entertainment",
+        "event": "Spirit of Africa Festival - official side-event of Magical Kenya Travel Expo",
+        "venue": "Uhuru Gardens, Nairobi",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-10",
+        "end_date": "2026-10-10",
+        "market": "KE",
+        "topic": "Culture / History / Impact / Entertainment",
+        "event": "Mazingira Day PUBLIC HOLIDAY + Cultural Clash Festival",
+        "venue": "Uhuru Park, Nairobi",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-14",
+        "end_date": "2026-10-14",
+        "market": "KE",
+        "topic": "Impact / Lifestyle",
+        "event": "EPRA Fuel Price Review",
+        "venue": "Kenya",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-15",
+        "end_date": "2026-10-25",
+        "market": "KE",
+        "topic": "Culture / Storytelling / Animation / Education / Entertainment",
+        "event": "NBO Film Festival",
+        "venue": "4 venues, Nairobi",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-20",
+        "end_date": "2026-10-20",
+        "market": "KE",
+        "topic": "Culture / History / Impact",
+        "event": "Mashujaa Day PUBLIC HOLIDAY",
+        "venue": "Kenya",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-24",
+        "end_date": "2026-10-24",
+        "market": "KE",
+        "topic": "Sport",
+        "event": "Qatar vs Kenya - Cricket Challenge League",
+        "venue": "Nairobi",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thapelo_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-11",
+        "end_date": "2026-11-11",
+        "market": "KE",
+        "topic": "Sport",
+        "event": "South Africa vs Kenya - AFCON Qualifier",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_thapelo_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-05",
+        "end_date": "2026-11-05",
+        "market": "ZA",
+        "topic": "Culture / Lifestyle",
+        "event": "Guy Fawkes Night (fireworks rules and pet safety talk)",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-10",
+        "end_date": "2026-10-10",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "DHL Stormers vs Hollywoodbets Sharks - URC SA Derby",
+        "venue": "DHL Stadium, Cape Town",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-07",
+        "end_date": "2026-11-07",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "Italy vs South Africa (Springboks) - Nations Series opener",
+        "venue": "Turin",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-03",
+        "end_date": "2026-10-03",
+        "market": "ZA",
+        "topic": "Music / Entertainment",
+        "event": "Dave (UK rap) live",
+        "venue": "Pretoria / Cape Town",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-03",
+        "end_date": "2026-10-04",
+        "market": "ZA",
+        "topic": "Music / Entertainment",
+        "event": "Isaiah Rashad at In The City festival",
+        "venue": "The Ostrich, Cape Town / Montecasino, Johannesburg",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-17",
+        "end_date": "2026-10-17",
+        "market": "ZA",
+        "topic": "Music / Entertainment",
+        "event": "Ne-Yo Live and Kip Moore Live",
+        "venue": "Grand Arena, Cape Town / SuperSport Park, Centurion",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-30",
+        "end_date": "2026-10-31",
+        "market": "ZA",
+        "topic": "Music / Entertainment",
+        "event": "Brian McKnight Live",
+        "venue": "SunBet Arena, Pretoria",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-06",
+        "end_date": "2026-11-08",
+        "market": "ZA",
+        "topic": "Sport / Lifestyle",
+        "event": "Surf Expo Africa",
+        "venue": "CTICC, Cape Town",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-07",
+        "end_date": "2026-11-11",
+        "market": "ZA",
+        "topic": "Music / Entertainment",
+        "event": "Jill Scott Live (7 Nov Pretoria; 11 Nov Cape Town)",
+        "venue": "SunBet Arena, Pretoria / GrandWest, Cape Town",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-08",
+        "end_date": "2026-11-08",
+        "market": "KE",
+        "topic": "Culture / Religion",
+        "event": "Diwali Festival of Lights",
+        "venue": "Nairobi, Kisumu, Mombasa",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-09",
+        "end_date": "2026-10-10",
+        "market": "KE",
+        "topic": "Music / Entertainment",
+        "event": "Don Carlos & Family reggae festival",
+        "venue": "Carnivore Grounds, Nairobi",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-10",
+        "end_date": "2026-10-10",
+        "market": "KE",
+        "topic": "Music / Entertainment",
+        "event": "Koffi Olomide - #MachokaAt50 Concert",
+        "venue": "Ulinzi Sports Complex, Nairobi",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-20",
+        "end_date": "2026-10-20",
+        "market": "KE",
+        "topic": "Music / Entertainment",
+        "event": "Ne-Yo Live in Nairobi (One Night Only: The Brunch Edition)",
+        "venue": "Ulinzi Sports Complex, Nairobi",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-06",
+        "end_date": "2026-11-15",
+        "market": "NG",
+        "topic": "Business / Trade",
+        "event": "Lagos International Trade Fair (LITF 2026)",
+        "venue": "Tafawa Balewa Square, Lagos",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-02",
+        "end_date": "2026-11-07",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "All Africa Challenge Trophy (women's amateur golf)",
+        "venue": "IBB International Golf & Country Club, Abuja",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-07",
+        "end_date": "2026-11-07",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "Athletic Heat 10th Anniversary Track & Field Meet",
+        "venue": "Yabatech Sports Complex, Lagos",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-10",
+        "end_date": "2026-10-10",
+        "market": "NG",
+        "topic": "Comedy / Entertainment",
+        "event": "The District ABJ / Funny Mic 5.0",
+        "venue": "Abuja",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-31",
+        "end_date": "2026-10-31",
+        "market": "NG",
+        "topic": "Music / Religion",
+        "event": "Limoblaze Live (Solid Ground)",
+        "venue": "Lagos",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-20",
+        "end_date": "2026-10-20",
+        "market": "NG",
+        "topic": "Film / Entertainment",
+        "event": "Abuja International Film Festival",
+        "venue": "Silverbird Cinemas, Abuja",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-31",
+        "end_date": "2026-11-13",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "Dakar 2026 Youth Olympic Games (pan-African talk)",
+        "venue": "Dakar, Senegal",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-31",
+        "end_date": "2026-11-13",
+        "market": "KE",
+        "topic": "Sport",
+        "event": "Dakar 2026 Youth Olympic Games (pan-African talk)",
+        "venue": "Dakar, Senegal",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-10-31",
+        "end_date": "2026-11-13",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "Dakar 2026 Youth Olympic Games (pan-African talk)",
+        "venue": "Dakar, Senegal",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-01",
+        "end_date": "2026-11-15",
+        "market": "ZA",
+        "topic": "Shopping",
+        "event": "Black November early sales (Takealot SA; Jumia NG/KE; Kilimall KE)",
+        "venue": "Online",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-01",
+        "end_date": "2026-11-15",
+        "market": "KE",
+        "topic": "Shopping",
+        "event": "Black November early sales (Takealot SA; Jumia NG/KE; Kilimall KE)",
+        "venue": "Online",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-01",
+        "end_date": "2026-11-15",
+        "market": "NG",
+        "topic": "Shopping",
+        "event": "Black November early sales (Takealot SA; Jumia NG/KE; Kilimall KE)",
+        "venue": "Online",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-11",
+        "end_date": "2026-11-11",
+        "market": "ZA",
+        "topic": "Shopping",
+        "event": "Singles' Day sales (11/11)",
+        "venue": "Online",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-11",
+        "end_date": "2026-11-11",
+        "market": "KE",
+        "topic": "Shopping",
+        "event": "Singles' Day sales (11/11)",
+        "venue": "Online",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "added_candidate",
+      "record": {
+        "start_date": "2026-11-11",
+        "end_date": "2026-11-11",
+        "market": "NG",
+        "topic": "Shopping",
+        "event": "Singles' Day sales (11/11)",
+        "venue": "Online",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-04",
+        "end_date": "2026-10-04",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "Egypt vs South Africa - Friendly",
+        "venue": "Cairo International Stadium",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-28",
+        "end_date": "2026-10-31",
+        "market": "ZA",
+        "topic": "Music / Education / Entertainment",
+        "event": "Pretty Loud Summit + MEX26",
+        "venue": "Cape Town",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-06",
+        "end_date": "2026-10-11",
+        "market": "ZA",
+        "topic": "Culture / Music / Comedy",
+        "event": "Aardklop Festival",
+        "venue": "Potchefstroom",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-09",
+        "end_date": "2026-10-18",
+        "market": "ZA",
+        "topic": "Culture / Music / Food",
+        "event": "Macufe - Mangaung African Cultural Festival",
+        "venue": "Bloemfontein",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-11",
+        "end_date": "2026-10-11",
+        "market": "ZA",
+        "topic": "Sport / Entertainment",
+        "event": "Soweto Derby - Kaizer Chiefs vs Orlando Pirates - PSL",
+        "venue": "FNB Stadium, Johannesburg",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-12",
+        "end_date": "2026-10-12",
+        "market": "ZA",
+        "topic": "Food / Lifestyle",
+        "event": "DSTV Delicious Festival Build Week + Joburg Food Markets",
+        "venue": "Johannesburg",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-18",
+        "end_date": "2026-10-18",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "Mamelodi Sundowns vs Kaizer Chiefs - PSL",
+        "venue": "Loftus Versfeld, Pretoria",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-21",
+        "end_date": "2026-11-20",
+        "market": "ZA",
+        "topic": "Education",
+        "event": "Matric Final Exams Start - NSC",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-25",
+        "end_date": "2026-10-25",
+        "market": "ZA",
+        "topic": "Sport / Entertainment",
+        "event": "Orlando Pirates vs Mamelodi Sundowns - PSL",
+        "venue": "Orlando Stadium",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-26",
+        "end_date": "2026-10-26",
+        "market": "ZA",
+        "topic": "Comedy / Entertainment",
+        "event": "Comedy Central Live - Skhumba, Mpho Popps, Celeste Ntuli",
+        "venue": "Emperors Palace, Joburg",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-01",
+        "end_date": "2026-11-01",
+        "market": "ZA",
+        "topic": "Food / Music / Lifestyle",
+        "event": "Soweto Kota Festival + Sunday Chillas",
+        "venue": "Soweto",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-02",
+        "end_date": "2026-11-02",
+        "market": "ZA",
+        "topic": "Culture / Religion / Entertainment",
+        "event": "Hillsong Conference + Joyous Celebration Live",
+        "venue": "Johannesburg / Pretoria",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-08",
+        "end_date": "2026-11-08",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "Mamelodi Sundowns vs Sekhukhune United - PSL",
+        "venue": "Pretoria",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-09",
+        "end_date": "2026-11-09",
+        "market": "ZA",
+        "topic": "Music / Lifestyle",
+        "event": "Amapiano Album Drops + Listening Parties",
+        "venue": "Johannesburg",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-06",
+        "end_date": "2026-10-06",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "Nigeria vs Russia - Friendly",
+        "venue": "Nizhny Novgorod Stadium",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-05",
+        "end_date": "2026-11-08",
+        "market": "NG",
+        "topic": "Culture / Music / Entertainment / Education / Storytelling",
+        "event": "CANEX WKND - Creative Africa Nexus",
+        "venue": "Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-05",
+        "end_date": "2026-10-05",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "NPFL Matchday - Enyimba vs Remo Stars",
+        "venue": "Aba / Ikenne",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-12",
+        "end_date": "2026-10-19",
+        "market": "NG",
+        "topic": "Music / Culture / History",
+        "event": "Felabration 2026 - Fela Kuti Festival",
+        "venue": "New Afrika Shrine, Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-12",
+        "end_date": "2026-10-12",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "NPFL Matchday - Kano Pillars vs Rangers",
+        "venue": "Kano",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-15",
+        "end_date": "2026-10-15",
+        "market": "NG",
+        "topic": "Food / Culture",
+        "event": "Lagos Food Festival Prep + Street Food Week",
+        "venue": "Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-19",
+        "end_date": "2026-10-19",
+        "market": "NG",
+        "topic": "Sport / Entertainment",
+        "event": "NPFL Matchday - Sporting Lagos vs Insurance",
+        "venue": "Onikan, Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-20",
+        "end_date": "2026-10-20",
+        "market": "NG",
+        "topic": "Comedy / Entertainment",
+        "event": "Basketmouth Uncensored + Bovi Live - Comedy Shows",
+        "venue": "Eko Hotel, Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-26",
+        "end_date": "2026-10-26",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "NPFL Matchday - Rivers United vs Lobi Stars",
+        "venue": "Port Harcourt",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-27",
+        "end_date": "2026-10-27",
+        "market": "NG",
+        "topic": "Education / Entertainment",
+        "event": "JAMB 2027 Registration Talk + Campus Gist",
+        "venue": "Nigeria",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-02",
+        "end_date": "2026-11-02",
+        "market": "NG",
+        "topic": "Sport / Entertainment",
+        "event": "NPFL Matchday - Remo Stars vs Enyimba Return",
+        "venue": "Ikenne",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-06",
+        "end_date": "2026-11-06",
+        "market": "NG",
+        "topic": "Culture / Religion / Music",
+        "event": "The Experience Lagos - Build-up + Choir Rehearsals Trending",
+        "venue": "Tafawa Balewa Square, Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-09",
+        "end_date": "2026-11-09",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "NPFL Matchday - Rangers vs Kano Pillars",
+        "venue": "Enugu",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-10",
+        "end_date": "2026-11-10",
+        "market": "NG",
+        "topic": "Food / Lifestyle / Music",
+        "event": "Detty December Early Announcements + Afrobeats Single Drops",
+        "venue": "Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-06",
+        "end_date": "2026-10-08",
+        "market": "KE",
+        "topic": "Culture / Music / Food / Fashion / History / Impact",
+        "event": "Spirit of Africa Festival - MKTE Side-Event",
+        "venue": "Uhuru Gardens, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-04",
+        "end_date": "2026-10-04",
+        "market": "KE",
+        "topic": "Music / Culture / Entertainment",
+        "event": "Blankets & Wine October Edition",
+        "venue": "Kasarani Indoor Arena, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-12",
+        "end_date": "2026-10-12",
+        "market": "KE",
+        "topic": "Sport / Entertainment",
+        "event": "FKFPL - Gor Mahia vs Tusker FC",
+        "venue": "Nyayo Stadium, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-15",
+        "end_date": "2026-10-26",
+        "market": "KE",
+        "topic": "Food / Culture / Lifestyle",
+        "event": "Nairobi Restaurant Week",
+        "venue": "Various restaurants, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-19",
+        "end_date": "2026-10-19",
+        "market": "KE",
+        "topic": "Sport / Entertainment",
+        "event": "Mashemeji Derby - Gor Mahia vs AFC Leopards - FKFPL",
+        "venue": "Nyayo Stadium, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-21",
+        "end_date": "2026-11-15",
+        "market": "KE",
+        "topic": "Education / Impact",
+        "event": "KCSE National Exams Start",
+        "venue": "Kenya",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-26",
+        "end_date": "2026-10-26",
+        "market": "KE",
+        "topic": "Sport",
+        "event": "FKFPL - AFC Leopards vs Tusker",
+        "venue": "Kasarani, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-10-31",
+        "end_date": "2026-10-31",
+        "market": "KE",
+        "topic": "Comedy / Entertainment",
+        "event": "Nairobi Comedy Festival + Eric Omondi + Mulamwah Shows",
+        "venue": "KICC, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-01",
+        "end_date": "2026-11-01",
+        "market": "KE",
+        "topic": "Music / Culture / Food",
+        "event": "Blankets & Wine November Edition + Nyama Choma Festival",
+        "venue": "Carnivore Grounds, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-02",
+        "end_date": "2026-11-02",
+        "market": "KE",
+        "topic": "Culture / Religion / Music",
+        "event": "Groove Awards Nominees + Gospel Kesha Nights",
+        "venue": "Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-08",
+        "end_date": "2026-11-08",
+        "market": "KE",
+        "topic": "Sport / Culture",
+        "event": "Safari 7s Rugby Build-up + Safari Rally Dust",
+        "venue": "Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-09",
+        "end_date": "2026-11-09",
+        "market": "KE",
+        "topic": "Food / Lifestyle / Music",
+        "event": "Gengetone / Arbantone Single Drops + TikTok Challenges",
+        "venue": "Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "added_unverified_candidate",
+      "record": {
+        "start_date": "2026-11-10",
+        "end_date": "2026-11-10",
+        "market": "KE",
+        "topic": "Culture / Impact / Education",
+        "event": "Nairobi LitFest Pre-events + Storytelling Nights",
+        "venue": "Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    }
+  ],
+  "records_deduped": [
+    {
+      "source_tag": "ogilvy_thabang_confirmed",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-20",
+        "end_date": "2026-10-20",
+        "market": "KE",
+        "topic": "Culture / History",
+        "event": "Mashujaa Day PUBLIC HOLIDAY",
+        "venue": "Kenya",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-09-30",
+        "end_date": "2026-09-30",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "Eritrea vs Bafana Bafana - AFCON Qualifier",
+        "venue": "Al-Salam Stadium, Cairo",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-03",
+        "end_date": "2026-10-11",
+        "market": "ZA",
+        "topic": "Culture / Entertainment / Education",
+        "event": "Toyota Stellenbosch Woordfees",
+        "venue": "Stellenbosch",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-04",
+        "end_date": "2026-10-04",
+        "market": "ZA",
+        "topic": "Music / Entertainment",
+        "event": "In The City Festival",
+        "venue": "Johannesburg",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-07",
+        "end_date": "2026-10-07",
+        "market": "ZA",
+        "topic": "Lifestyle / Education",
+        "event": "Fuel Price Adjustment - DMRE",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-09",
+        "end_date": "2026-10-13",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "SA vs Australia 1st Test",
+        "venue": "Durban",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-18",
+        "end_date": "2026-10-18",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "SA vs Australia 2nd Test",
+        "venue": "Gqeberha",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-25",
+        "end_date": "2026-10-28",
+        "market": "ZA",
+        "topic": "Music / Education / Culture",
+        "event": "ACCES Songwriting Camp",
+        "venue": "Johannesburg",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-27",
+        "end_date": "2026-10-31",
+        "market": "ZA",
+        "topic": "Sport / Music / Entertainment",
+        "event": "SA vs Australia 3rd Test + ACCES Industry Nights",
+        "venue": "Cape Town / Johannesburg",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-11-04",
+        "end_date": "2026-11-04",
+        "market": "ZA",
+        "topic": "Culture / Education / History",
+        "event": "PUBLIC HOLIDAY - Local Government Elections",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-11-05",
+        "end_date": "2026-11-05",
+        "market": "ZA",
+        "topic": "Lifestyle / Agriculture",
+        "event": "Fuel Price + Post-Election",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-11-07",
+        "end_date": "2026-11-07",
+        "market": "ZA",
+        "topic": "Culture / Music / Food / Lifestyle / Entertainment",
+        "event": "Soweto Culture Festival",
+        "venue": "Soweto",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-11-11",
+        "end_date": "2026-11-11",
+        "market": "ZA",
+        "topic": "Sport",
+        "event": "Bafana Bafana vs Kenya - AFCON Qualifier",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-01",
+        "end_date": "2026-10-01",
+        "market": "NG",
+        "topic": "Culture / History / Entertainment / Music / Food",
+        "event": "Independence Day + One Nation Festival",
+        "venue": "Nautica Beach Resort, Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-07",
+        "end_date": "2026-10-07",
+        "market": "NG",
+        "topic": "Lifestyle / Education",
+        "event": "Fuel Price Review - NNPC",
+        "venue": "Nigeria",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-23",
+        "end_date": "2026-11-08",
+        "market": "NG",
+        "topic": "Music / Culture / Entertainment / Education",
+        "event": "MUSON Festival",
+        "venue": "MUSON Centre, Onikan, Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-23",
+        "end_date": "2026-10-25",
+        "market": "NG",
+        "topic": "Music / Entertainment / Culture",
+        "event": "18th Headies Awards",
+        "venue": "Toronto, Canada",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-28",
+        "end_date": "2026-11-01",
+        "market": "NG",
+        "topic": "Culture / Entertainment / Lifestyle",
+        "event": "Lagos Fashion Week SS26",
+        "venue": "Federal Palace Hotel, Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-11-11",
+        "end_date": "2026-11-11",
+        "market": "NG",
+        "topic": "Sport",
+        "event": "Nigeria vs Tanzania - AFCON Qualifier",
+        "venue": "Nigeria",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-11-14",
+        "end_date": "2026-11-15",
+        "market": "NG",
+        "topic": "Culture / Storytelling / Entertainment / Education",
+        "event": "Lagos International Theatre Festival (LITF)",
+        "venue": "MUSON Centre, Lagos",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-09-28",
+        "end_date": "2026-10-04",
+        "market": "KE",
+        "topic": "Agriculture / Education / Culture / Impact",
+        "event": "Nairobi International Trade Fair",
+        "venue": "Jamhuri Park Showground, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-04",
+        "end_date": "2026-10-04",
+        "market": "KE",
+        "topic": "Culture / Music / Food / Entertainment / Comedy",
+        "event": "Oktobafest Kickoff",
+        "venue": "Carnivore Grounds, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-05",
+        "end_date": "2026-10-05",
+        "market": "KE",
+        "topic": "Sport",
+        "event": "Rwanda vs Kenya - Friendly",
+        "venue": "Amahoro Stadium, Kigali",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-10",
+        "end_date": "2026-10-10",
+        "market": "KE",
+        "topic": "Culture / History / Impact / Entertainment",
+        "event": "Mazingira Day PUBLIC HOLIDAY + Cultural Clash Festival",
+        "venue": "Uhuru Park, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-14",
+        "end_date": "2026-10-14",
+        "market": "KE",
+        "topic": "Impact / Lifestyle",
+        "event": "EPRA Fuel Price Review",
+        "venue": "Kenya",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-15",
+        "end_date": "2026-10-25",
+        "market": "KE",
+        "topic": "Culture / Storytelling / Animation / Education / Entertainment",
+        "event": "NBO Film Festival",
+        "venue": "4 venues, Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-20",
+        "end_date": "2026-10-20",
+        "market": "KE",
+        "topic": "Culture / History / Impact",
+        "event": "Mashujaa Day PUBLIC HOLIDAY",
+        "venue": "Kenya",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-10-24",
+        "end_date": "2026-10-24",
+        "market": "KE",
+        "topic": "Sport",
+        "event": "Qatar vs Kenya - Cricket Challenge League",
+        "venue": "Nairobi",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "deduped_tag_addition",
+      "record": {
+        "start_date": "2026-11-11",
+        "end_date": "2026-11-11",
+        "market": "KE",
+        "topic": "Sport",
+        "event": "South Africa vs Kenya - AFCON Qualifier",
+        "venue": "South Africa",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    }
+  ],
+  "records_held": [
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "held_venue_conflict",
+      "record": {
+        "start_date": "2026-10-08",
+        "end_date": "2026-10-11",
+        "market": "ZA",
+        "topic": "Culture / Lifestyle / Entertainment",
+        "event": "Design Week South Africa",
+        "venue": "Johannesburg",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "held_venue_conflict",
+      "record": {
+        "start_date": "2026-10-28",
+        "end_date": "2026-11-01",
+        "market": "ZA",
+        "topic": "Culture / Entertainment",
+        "event": "Cape Town City Ballet - Dracula",
+        "venue": "Artscape Theatre, Cape Town",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    },
+    {
+      "source_tag": "ogilvy_expanded_unverified",
+      "status": "held_venue_conflict",
+      "record": {
+        "start_date": "2026-10-01",
+        "end_date": "2026-10-01",
+        "market": "KE",
+        "topic": "Sport",
+        "event": "Guinea vs Kenya - AFCON Qualifier",
+        "venue": "Conakry",
+        "source_tag": "ogilvy_expanded_unverified"
+      },
+      "source_url_status": "not_provided"
+    }
+  ],
+  "topic_variants": [
+    {
+      "source_row": 11,
+      "market": "KE",
+      "market_row": 11,
+      "classification": "base_identity_topic_variant_preserved",
+      "held": false,
+      "record": {
+        "start_date": "2026-10-20",
+        "end_date": "2026-10-20",
+        "market": "KE",
+        "topic": "Culture / History",
+        "event": "Mashujaa Day PUBLIC HOLIDAY",
+        "venue": "Kenya",
+        "source_tag": "ogilvy_thabang_confirmed"
+      },
+      "source_url_status": "not_provided",
+      "base_source_tag": "ogilvy_thapelo_confirmed",
+      "base_source_file": "Dated-Topics.csv",
+      "base_source_row": 35,
+      "source_tag_append": "ogilvy_thabang_confirmed",
+      "topic_variant_preserved": true,
+      "base_topic": "Culture / History / Impact"
+    }
+  ]
+}

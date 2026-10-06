@@ -1,0 +1,79 @@
+{
+  "_note": "Small recorded-shape samples of SocialCrawl responses, built from the envelope the old connector parsed (engine/src/ingestion/connectors/socialcrawl.py and engine/tests/unit/test_socialcrawl.py) and the judgments shape in docs/full-42/research/13-socialcrawl-full-map.md. No live call made them.",
+  "balance": {"success": true, "credits_used": 0, "data": {"balance": 250000}},
+  "trending": {
+    "success": true,
+    "credits_used": 5,
+    "data": {
+      "items": [
+        {
+          "computed": {"engagement_rate": 0.05, "language": "en"},
+          "post": {
+            "id": "7400000000000000001",
+            "url": "https://www.tiktok.com/@dj.x/video/7400000000000000001",
+            "published_at": "2026-09-27T18:04:11Z",
+            "author": {"username": "dj.x", "display_name": "DJ X"},
+            "content": {"text": "Amapiano Sunday #fyp"},
+            "engagement": {"views": 12000, "likes": 900, "comments": 41, "shares": 12},
+            "ext": {"region": "ZA"}
+          }
+        }
+      ],
+      "next_cursor": "24",
+      "has_more": true
+    }
+  },
+  "search_top": {
+    "success": true,
+    "credits_used": 1,
+    "data": {
+      "items": [
+        {
+          "computed": {
+            "engagement_rate": 0.03,
+            "language": "en",
+            "relevance": 0.91,
+            "labels": {"sponsored": false, "intent": "entertain", "niche": "music"}
+          },
+          "judgments": {"model": "vendor"},
+          "post": {
+            "id": "7400000000000000002",
+            "url": "https://www.tiktok.com/@kasi.beats/video/7400000000000000002",
+            "published_at": "2026-09-26T10:00:00Z",
+            "author": {"username": "kasi.beats"},
+            "content": {"text": "Soweto dance challenge"},
+            "engagement": {"views": 5400, "likes": 300, "comments": 12, "shares": 4}
+          }
+        },
+        {
+          "computed": {
+            "language": "zu",
+            "relevance": 0.40,
+            "sponsored": true,
+            "intent": "sell",
+            "niche": "fashion"
+          },
+          "post": {
+            "id": "7400000000000000003",
+            "url": "https://www.tiktok.com/@shop.jozi/video/7400000000000000003",
+            "published_at": "2026-09-26T11:30:00Z",
+            "author": {"username": "shop.jozi"},
+            "content": {"text": "New drop this Friday"},
+            "engagement": {"views": 800, "likes": 20, "comments": 1, "shares": 0}
+          }
+        }
+      ]
+    }
+  },
+  "empty_page": {"success": true, "credits_used": 0, "data": {"items": []}},
+  "insufficient_credits": {
+    "success": false,
+    "credits_used": 0,
+    "error": {"type": "INSUFFICIENT_CREDITS", "message": "Not enough credits for this request"}
+  },
+  "not_found": {
+    "success": false,
+    "credits_used": 0,
+    "error": {"type": "RESOURCE_NOT_FOUND", "message": "No such page"}
+  }
+}

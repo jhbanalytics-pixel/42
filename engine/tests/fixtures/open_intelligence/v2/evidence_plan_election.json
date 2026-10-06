@@ -1,0 +1,70 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "evidence_plan_election",
+  "fixture_kind": "evidence_plan",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "audience_lens_ids": [
+      "fixture_lens"
+    ],
+    "audience_lenses": [
+      {
+        "basis": "inferred",
+        "claim": "The synthetic fixture lens reflects observed practical information cues.",
+        "confidence": 0.61,
+        "lens_id": "fixture_lens",
+        "source": "Synthetic fixture evidence",
+        "window": {
+          "end_date": "2026-08-25",
+          "start_date": "2026-08-18"
+        }
+      }
+    ],
+    "brand_config_id": "fixture_brand",
+    "client_scope_id": "fixture_scope",
+    "contract_version": "2.0.0",
+    "decision": "Choose a neutral election information response for human review.",
+    "evidence_requirements": [
+      "local conversation themes",
+      "associated factors without causation",
+      "brand role and safety evidence",
+      "human review before export"
+    ],
+    "evidence_state": "ready",
+    "export_allowed": false,
+    "historical_comparison": {
+      "required": false,
+      "window_days": 0
+    },
+    "human_review_required": true,
+    "intent": "brand_role",
+    "limitations": [
+      "Social conversation is not representative polling."
+    ],
+    "market_scope": [
+      "za"
+    ],
+    "markets": [
+      "za"
+    ],
+    "missing_work": [
+      "Human review is required before export or sharing."
+    ],
+    "output_form": "cited_brief",
+    "plan_id": "ep_fixture_0b",
+    "run_id": "run_fixture_0b",
+    "source_families": [
+      "forum",
+      "video",
+      "news",
+      "coverage",
+      "brand_register"
+    ],
+    "theme_id": "fixture_theme",
+    "window": {
+      "end_date": "2026-08-25",
+      "start_date": "2026-08-18"
+    }
+  },
+  "sanitized": true
+}

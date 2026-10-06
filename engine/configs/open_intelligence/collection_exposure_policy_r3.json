@@ -1,0 +1,129 @@
+{
+  "policy_version": "collection_exposure_policy_r3_v3",
+  "run_id": "run_20260903_dynamic_apply_v2_r16",
+  "window_start": "2026-08-21",
+  "window_end": "2026-09-03",
+  "collection_record": {
+    "project": "ogilvy-trends-v2",
+    "dataset": "trends_v2_dev",
+    "table": "pipeline_runs",
+    "markets": [
+      "za",
+      "ng",
+      "ke"
+    ],
+    "complete_status": "success",
+    "note": "The rows copied into the R3 window were collected by the dev pipeline; its pipeline_runs table is the record of which market-days completed."
+  },
+  "source_copy": {
+    "project": "ogilvy-trends-v2",
+    "dataset": "trends_v2_staging",
+    "table": "open_intelligence_source_copy_receipts_v1"
+  },
+  "families": {
+    "news": {
+      "collection_sources": [
+        "gdelt",
+        "rss"
+      ],
+      "evidence_tables": [
+        "event_ledger",
+        "enriched_content"
+      ],
+      "quota": {
+        "applicability": "unmetered",
+        "authority": "GDELT public export and publisher RSS feeds carry no vendor quota."
+      }
+    },
+    "search": {
+      "collection_sources": [
+        "Google Trends",
+        "bigquery_trends",
+        "google_trends_rss"
+      ],
+      "evidence_tables": [
+        "event_ledger",
+        "enriched_content"
+      ],
+      "quota": {
+        "applicability": "unmetered",
+        "authority": "Google Trends RSS and the public BigQuery trends dataset carry no vendor quota."
+      }
+    },
+    "music": {
+      "collection_sources": [
+        "apple_music"
+      ],
+      "evidence_tables": [
+        "event_ledger",
+        "enriched_content"
+      ],
+      "quota": {
+        "applicability": "unmetered",
+        "authority": "Apple Music public charts carry no vendor quota."
+      }
+    },
+    "youtube": {
+      "collection_sources": [
+        "youtube",
+        "youtube_scrape"
+      ],
+      "evidence_tables": [
+        "event_ledger",
+        "enriched_content"
+      ],
+      "quota": {
+        "applicability": "metered",
+        "unit": "youtube_data_api_units",
+        "limit": 10000,
+        "record": {
+          "column": "youtube_rows",
+          "units_per_market_day": 406,
+          "authority": "src/ingestion/connectors/youtube.py quota accounting: four search.list calls at 100 units, one videos.list at 1 unit and five comment units per market per run against the YouTube Data API v3 daily budget of 10000. A market-day counts as collected when the pipeline_runs row is success and youtube_rows is above zero; the channel scrape carries no vendor quota."
+        }
+      }
+    },
+    "reddit": {
+      "collection_sources": [
+        "socialcrawl"
+      ],
+      "evidence_tables": [
+        "event_ledger",
+        "enriched_content"
+      ],
+      "quota": {
+        "applicability": "metered",
+        "unit": "socialcrawl_credits",
+        "limit": 1860,
+        "record": {
+          "column": "socialcrawl_rows",
+          "usage_column": "socialcrawl_credits",
+          "authority": "Opened 4 Sep 2026 on Albert's word. Both families are collected by the SocialCrawl connector (src/ingestion/connectors/socialcrawl.py phases discover, creators, search, reddit, accounts). The pipeline_runs record counts their rows in socialcrawl_rows and the credits each market run actually spent in socialcrawl_credits, which is the usage; the bound is the socialcrawl.budget_credits_per_run breaker in configs/sources.yaml (620) times the three market runs a day, 1860. A market-day counts as collected when the pipeline_runs row is success and socialcrawl_rows is above zero."
+        }
+      }
+    },
+    "short_video": {
+      "collection_sources": [
+        "socialcrawl"
+      ],
+      "evidence_tables": [
+        "event_ledger",
+        "enriched_content"
+      ],
+      "quota": {
+        "applicability": "metered",
+        "unit": "socialcrawl_credits",
+        "limit": 1860,
+        "record": {
+          "column": "socialcrawl_rows",
+          "usage_column": "socialcrawl_credits",
+          "authority": "Opened 4 Sep 2026 on Albert's word. Both families are collected by the SocialCrawl connector (src/ingestion/connectors/socialcrawl.py phases discover, creators, search, reddit, accounts). The pipeline_runs record counts their rows in socialcrawl_rows and the credits each market run actually spent in socialcrawl_credits, which is the usage; the bound is the socialcrawl.budget_credits_per_run breaker in configs/sources.yaml (620) times the three market runs a day, 1860. A market-day counts as collected when the pipeline_runs row is success and socialcrawl_rows is above zero."
+        }
+      }
+    }
+  },
+  "excluded_families": {
+    "ensemble": "Retired vendor family name; its TikTok, Instagram and Threads rows now arrive through SocialCrawl as short_video, threads and twitter.",
+    "brand24": "Vendor contract ended; no quota record for the window."
+  }
+}

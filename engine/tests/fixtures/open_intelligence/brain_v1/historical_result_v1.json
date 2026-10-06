@@ -1,0 +1,10 @@
+{
+  "fixture_version": "historical_result_v1",
+  "relationship_state": "analogue",
+  "relevance_reasons": ["trajectory similarity"],
+  "material_differences": ["market context differs"],
+  "transferable_lessons": ["test the participation mechanic"],
+  "nontransferable_lessons": ["do not transfer audience prevalence"],
+  "diffusion_state": "diffusion_shadow",
+  "display_eligible": false
+}

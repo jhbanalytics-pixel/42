@@ -1,0 +1,158 @@
+# PENDING CONFIG CHANGE, 23 Jul 2026.
+#
+# configs/sources.yaml is guarded by the protect-paths PreToolUse hook, so this
+# block is staged here instead. Apply it by replacing the existing `socialcrawl:`
+# block in configs/sources.yaml (and applying the two flag flips at the bottom
+# of this file) before the next cron.
+
+# ---------------------------------------------------------------------------
+# SocialCrawl. PRIMARY social ingestion vendor from 23 Jul 2026, when
+# EnsembleData was cancelled. One x-api-key, unified {computed, post} schema,
+# pay-as-you-go credits (20,000 bought 23 Jul). Rows land as source=socialcrawl
+# with the REAL platform in the platform column, so scoring, seed_graph and the
+# creator watchlist treat them exactly as they treated the EnsembleData rows.
+#
+# Spend model. budget_credits_per_run is a per-RUN cap shared across all three
+# markets, not a target: expected steady state is ~310 credits/day against the
+# 500 cap, which is ~64 days of runway on 20,000. phase_share splits that cap so
+# a fat phase cannot starve a later one; creators takes the largest share
+# because creator posts are the only source of the creator_watchlist signal.
+# caps bound the per-surface fan-out inside each phase.
+#
+# Surface choices are live-probed, not docs-derived (23 Jul 2026,
+# docs/socialcrawl-probe-2026-07-23.md). Three traps, each of which returns
+# zero rows silently if you follow the OpenAPI spec:
+#   - tiktok/search returns 0 items with ANY date_posted or region value, so
+#     TikTok keyword search runs on tiktok/search/top + publish_time instead.
+#   - youtube/search uploadDate is `this_week`, not `week`.
+#   - twitter/user/tweets is unsorted, dates are Twitter-format, and
+#     author.username is null; max_age_days does the filtering.
+# google_trends/rising is deliberately absent: it timed out upstream on probe.
+#
+# Rollback: enabled false returns an empty frame and makes zero network calls.
+# ---------------------------------------------------------------------------
+socialcrawl:
+  enabled: true
+  budget_credits_per_run: 500
+  max_age_days: 21
+  timeout: 45
+  phases: [discover, creators, search, reddit, accounts, news]
+  phase_share:
+    discover: 0.10
+    creators: 0.45
+    search: 0.25
+    reddit: 0.10
+    accounts: 0.05
+    news: 0.05
+  caps:
+    creators_per_platform: 40
+    search_terms: 14
+    threads_terms: 8
+    subreddits: 10
+    reddit_queries: 6
+    twitter_handles: 5
+    news_queries: 6
+    youtube_trending: 25
+    # Verified creator country via tiktok/profile/region, 1 credit per handle
+    # and 0 on a vendor cache hit. Stamps v2locations. Live check on the 26
+    # tier_1 TikTok handles, 23 Jul 2026: 17 verified in-market, 3 registered
+    # to a DIFFERENT country (a ZA-watchlist handle registered NG, an NG one
+    # US, a KE one SA), 6 unresolved. EnsembleData could not see this at any
+    # price. Read it as the account's region setting, not audience geography.
+    geo_verify: 12
+  markets:
+    za:
+      creator_tiers: [tier_1, tier_2]
+      # Same market-native pools the EnsembleData block used, so the switch
+      # does not also change what the engine is looking for.
+      terms:
+        - amapiano
+        - mzansi
+        - kasi
+        - stokvel
+        - nsfas
+        - matric
+        - braai
+        - jozi
+        - soft life south africa
+        - side hustle south africa
+        - amapiano challenge
+        - south african creators
+        - kasi vibes
+        - load shedding
+      subreddits:
+        [southafrica, Amapiano, CapeTown, johannesburg, PersonalFinanceZA, Springboks,
+         SouthAfricanMusic, MzansiTV, AskSouthAfrica, BraaiMeat]
+      reddit_queries:
+        ["south africa youth", "amapiano", "load shedding", "nsfas", "mzansi", "stokvel"]
+      twitter_handles: [News24, casspernyovest, Soccer_Laduma, DjMaphorisa, AdvoBarryRoux]
+      news_queries:
+        ["South Africa youth", "amapiano", "South Africa economy", "Bafana Bafana",
+         "South Africa load shedding", "Mzansi entertainment"]
+    ng:
+      creator_tiers: [tier_1, tier_2]
+      terms:
+        - afrobeats
+        - naija
+        - japa
+        - owambe
+        - nollywood
+        - jollof
+        - sapa naija
+        - detty december
+        - ankara style
+        - lagos street
+        - naija hustle
+        - burna boy
+        - calabar carnival
+        - afrobeats challenge
+      subreddits:
+        [Nigeria, Lagos, Naija, Afrobeats, Nollywood, NigerianTechies, 9ja,
+         NigerianLifestyle, NaijaFood, BurnaBoy]
+      reddit_queries:
+        ["nigeria youth", "afrobeats", "japa", "nigeria economy", "nollywood", "lagos"]
+      twitter_handles: [channelstv, GuardianNigeria, PremiumTimesng, davido, burnaboy]
+      news_queries:
+        ["Nigeria youth", "afrobeats", "Nigeria economy", "Nollywood",
+         "Lagos", "Nigeria japa"]
+    ke:
+      creator_tiers: [tier_1, tier_2]
+      terms:
+        - gengetone
+        - arbantone
+        - sheng
+        - mpesa
+        - matatu
+        - mitumba kenya
+        - nairobi hustle
+        - mama mboga business
+        - jua kali kenya
+        - harambee stars
+        - kenyan creators
+        - maandamano
+        - nyama choma
+        - finance bill kenya
+      subreddits:
+        [Kenya, Nairobi, MitumbaKenya, Mpesa, KenyaFootball, Sheng, KenyaAtheists,
+         Africa, AfricanMusic, AfricaBeats]
+      reddit_queries:
+        ["kenya youth", "gengetone", "kenya finance bill", "nairobi", "sheng", "mpesa"]
+      twitter_handles: [NTVKenya, CitizenTVKenya, StandardKenya, BahatiKenya, KenyaPower]
+      news_queries:
+        ["Kenya youth", "gengetone", "Kenya economy", "Nairobi",
+         "Kenya finance bill", "Harambee Stars"]
+
+# ---------------------------------------------------------------------------
+# Two flag flips in the SAME file, both one line each. EnsembleData was
+# cancelled, so its token will start returning auth errors; leaving these on
+# spends the whole ingestion window retrying a dead vendor before the
+# replacement surfaces run.
+#
+#   ensemble_budget.enabled:  true  ->  false   (line ~370)
+#   reddit.enabled:           true  ->  false   (line ~1000, the Reddit
+#                                                connector bills the dead
+#                                                EnsembleData ledger; its
+#                                                subreddit + keyword coverage
+#                                                moves to the socialcrawl
+#                                                `reddit` phase above)
+# ---------------------------------------------------------------------------

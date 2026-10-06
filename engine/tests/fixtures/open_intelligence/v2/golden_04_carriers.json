@@ -1,0 +1,146 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_04_carriers",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture scope, 18 to 25 August 2026",
+      "sections": [
+        {
+          "body": "Synthetic fixture scope, 18 to 25 August 2026.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "Fixture maker one carried the move first at 09:00, and fixture spreader two extended it to video at 11:00 [E1] [E2].",
+          "evidence_ids": [
+            "ev_0401040104010401040104010401040104010401040104010401040104010401",
+            "ev_0402040204020402040204020402040204020402040204020402040204020402"
+          ],
+          "heading": "Finding",
+          "section_id": "finding"
+        },
+        {
+          "body": "Synthetic fixture evidence does not measure population prevalence.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture intelligence brief"
+    },
+    "audience_lenses": [],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [],
+    "evidence": [
+      {
+        "author_label": "@fixture_maker_one",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "identity",
+        "direction": "rising",
+        "evidence_id": "ev_0401040104010401040104010401040104010401040104010401040104010401",
+        "excerpt": "Synthetic fixture first carrier timestamp records fixture maker one at 09:00.",
+        "geo_confidence": 0.91,
+        "metric_label": "first synthetic post at 09:00",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_04_row_01",
+        "signal_id": "sig_0404040404040404040404040404040404040404040404040404040404040404",
+        "source_family": "forum",
+        "source_label": "Fixture source 04-01",
+        "url": "https://evidence.invalid/04/01"
+      },
+      {
+        "author_label": "@fixture_spreader_two",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "identity",
+        "direction": "rising",
+        "evidence_id": "ev_0402040204020402040204020402040204020402040204020402040204020402",
+        "excerpt": "Synthetic fixture spread record shows fixture spreader two repeated the move at 11:00.",
+        "geo_confidence": 0.91,
+        "metric_label": "synthetic spread post at 11:00",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_04_row_02",
+        "signal_id": "sig_0404040404040404040404040404040404040404040404040404040404040404",
+        "source_family": "video",
+        "source_label": "Fixture source 04-02",
+        "url": "https://evidence.invalid/04/02"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [],
+      "audience_lenses": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose which carrier sequence to investigate.",
+      "evidence_requirements": [
+        "first carrier timestamps",
+        "spread sequence receipts"
+      ],
+      "evidence_state": "ready",
+      "historical_comparison": {
+        "required": false,
+        "window_days": 0
+      },
+      "intent": "creator",
+      "market_scope": [
+        "za"
+      ],
+      "markets": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_04",
+      "run_id": "run_fixture_04",
+      "source_families": [
+        "forum",
+        "video"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "ready",
+    "expected_intent": "creator",
+    "human_review_required": false,
+    "limitations": [
+      "Synthetic fixture evidence does not measure population prevalence."
+    ],
+    "missing_work": [],
+    "request": {
+      "audience_lens_ids": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose which carrier sequence to investigate.",
+      "market_scope": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "question": "Which synthetic creators or communities carried the move first and who spread it?",
+      "run_id": "run_fixture_04",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

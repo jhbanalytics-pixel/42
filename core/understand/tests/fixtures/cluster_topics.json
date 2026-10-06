@@ -1,0 +1,45 @@
+{
+  "note": "Synthetic posts for test_cluster.py. Each topic's embeddings are drawn around one seeded centre in the test; the text only feeds c-TF-IDF keywords. Topic jollof repeats an age word in every post so its keyword label fails the age scan and falls back to its top hashtag. Topic kota, under age_topics, is read only by the gen world: every post leads with Gen Z or Gen Alpha, ends with the hashtags in text_tags, which the vectorizer reads as the words genzkota, genzprotests, kenyangenz and kidsoftiktok, and its top hashtag starts with genz, so neither its keywords nor its hashtag may become the label. The multilingual pair is two posts of topic amapiano in isiZulu and Nigerian Pidgin that share no words.",
+  "topics": {
+    "amapiano": {
+      "words": ["amapiano", "dance", "challenge", "log drum", "step", "groove", "dancefloor", "piano", "vibe", "yanos"],
+      "hashtags": ["amapiano", "dancechallenge"],
+      "sound": "snd_amapiano_1",
+      "creators": ["cr_a1", "cr_a2", "cr_a3", "cr_a4", "cr_a5"]
+    },
+    "loadshedding": {
+      "words": ["loadshedding", "stage", "eskom", "schedule", "candles", "power cut", "inverter", "generator", "blackout", "grid"],
+      "hashtags": ["loadshedding", "eskom"],
+      "sound": "snd_eskom_2",
+      "creators": ["cr_b1", "cr_b2", "cr_b3", "cr_b4", "cr_b5"]
+    },
+    "jollof": {
+      "lead": "youth",
+      "words": ["jollof", "rice", "party", "smoky", "pot", "debate", "ghana", "naija", "pepper", "tomato"],
+      "hashtags": ["jollofwars", "jollof"],
+      "sound": "snd_jollof_3",
+      "creators": ["cr_c1", "cr_c2", "cr_c3", "cr_c4", "cr_c5"]
+    }
+  },
+  "age_topics": {
+    "kota": {
+      "leads": ["Gen Z", "Gen Alpha"],
+      "text_tags": ["#GenZKota", "#GenZProtests", "#KenyanGenZ", "#kidsoftiktok"],
+      "words": ["kota", "kasi", "spinning", "sneakers", "street", "drip", "kicks", "soweto", "atchar", "polony"],
+      "hashtags": ["genzkota", "kasikota"],
+      "sound": "snd_kota_4",
+      "creators": ["cr_k1", "cr_k2", "cr_k3", "cr_k4", "cr_k5"]
+    }
+  },
+  "multilingual": {
+    "topic": "amapiano",
+    "posts": [
+      {"post_id": "ml_zu", "text": "Le ngoma iyashisa kakhulu, wonke umuntu uyasina ebusuku"},
+      {"post_id": "ml_pcm", "text": "This jam dey burst my head, everybody dey shake body tonight"}
+    ]
+  },
+  "noise": ["weather looks fine for the weekend", "new phone battery lasts long", "traffic on the highway this morning",
+            "cooking pasta for supper tonight", "watching a documentary about whales", "my cat sleeps all day",
+            "fixed the leaking tap finally", "reading a novel on the train", "the gym was quiet at six",
+            "bought new running shoes"]
+}

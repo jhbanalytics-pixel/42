@@ -1,0 +1,29 @@
+# Gitleaks configuration.
+#
+# extend.useDefault is load bearing. A config file in the scanned tree REPLACES
+# the default ruleset; without this line the file would define zero rules and
+# the scanner would silently pass everything, which a canary test caught on the
+# first attempt at writing this file.
+
+[extend]
+useDefault = true
+
+# Every allowlist entry must describe a value that CANNOT be a credential, and
+# say why it must keep its exact shape. A real secret never belongs here; a
+# real exposure is fixed by rotation, not by allowlisting.
+
+[allowlist]
+regexes = [
+  # The GCP project id. A public identifier, not a credential: table
+  # references, ADC project assertions and the migration's literal identity
+  # guard all compare the exact string, so a placeholder would break the
+  # checks it feeds.
+  '''^ogilvy-trends-v2$''',
+  # A bare identifier ending in '=' with nothing after it, e.g. an env var
+  # name in documentation (SEMRUSH_API_KEY=) or a kwarg name the generic rule
+  # swallowed. An empty assignment cannot be a credential.
+  '''^[A-Za-z0-9_]+=$''',
+  # An identifier assigned a single digit, e.g. a metric counter in a proof
+  # line (..._mentions=0). One digit cannot be a credential either.
+  '''^[A-Za-z0-9_]+=[0-9]$''',
+]

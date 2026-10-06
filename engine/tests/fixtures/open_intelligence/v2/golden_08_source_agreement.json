@@ -1,0 +1,191 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_08_source_agreement",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture scope, 18 to 25 August 2026",
+      "sections": [
+        {
+          "body": "Synthetic fixture scope, 18 to 25 August 2026.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "Forum and video agree on rising repair discussion, fixture news disagrees by declining, and fixture audio is absent from the closed window [E1] [E2] [E3] [E4].",
+          "evidence_ids": [
+            "ev_0801080108010801080108010801080108010801080108010801080108010801",
+            "ev_0802080208020802080208020802080208020802080208020802080208020802",
+            "ev_0803080308030803080308030803080308030803080308030803080308030803",
+            "ev_0804080408040804080408040804080408040804080408040804080408040804"
+          ],
+          "heading": "Finding",
+          "section_id": "finding"
+        },
+        {
+          "body": "Synthetic fixture evidence does not measure population prevalence.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture intelligence brief"
+    },
+    "audience_lenses": [],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [
+      "Synthetic fixture news declines while forum and video rise."
+    ],
+    "evidence": [
+      {
+        "author_label": "@fixture_author_08_01",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_0801080108010801080108010801080108010801080108010801080108010801",
+        "excerpt": "Synthetic fixture agreement disagreement and absence register shows forum rising.",
+        "geo_confidence": 0.91,
+        "metric_label": "12 synthetic forum posts",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_08_row_01",
+        "signal_id": "sig_0808080808080808080808080808080808080808080808080808080808080808",
+        "source_family": "forum",
+        "source_label": "Fixture source 08-01",
+        "url": "https://evidence.invalid/08/01"
+      },
+      {
+        "author_label": "@fixture_author_08_02",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_0802080208020802080208020802080208020802080208020802080208020802",
+        "excerpt": "Synthetic fixture video evidence agrees with the forum rise.",
+        "geo_confidence": 0.91,
+        "metric_label": "9 synthetic clips",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_08_row_02",
+        "signal_id": "sig_0808080808080808080808080808080808080808080808080808080808080808",
+        "source_family": "video",
+        "source_label": "Fixture source 08-02",
+        "url": "https://evidence.invalid/08/02"
+      },
+      {
+        "author_label": "@fixture_author_08_03",
+        "availability": "available",
+        "citation_label": "[E3]",
+        "claim_role": "contradiction",
+        "direction": "declining",
+        "evidence_id": "ev_0803080308030803080308030803080308030803080308030803080308030803",
+        "excerpt": "Synthetic fixture news evidence declines against its own baseline.",
+        "geo_confidence": 0.91,
+        "metric_label": "index declined from 8 to 5 synthetic points",
+        "platform": "fixture_platform_03",
+        "published_at": "2026-08-24T13:00:00Z",
+        "row_id": "fixture_08_row_03",
+        "signal_id": "sig_0808080808080808080808080808080808080808080808080808080808080808",
+        "source_family": "news",
+        "source_label": "Fixture source 08-03",
+        "url": "https://evidence.invalid/08/03"
+      },
+      {
+        "author_label": "@fixture_author_08_04",
+        "availability": "available",
+        "citation_label": "[E4]",
+        "claim_role": "context",
+        "direction": "not_applicable",
+        "evidence_id": "ev_0804080408040804080408040804080408040804080408040804080408040804",
+        "excerpt": "Synthetic fixture coverage register records the audio family as absent.",
+        "geo_confidence": 0.91,
+        "metric_label": "0 qualifying synthetic audio rows in the closed window",
+        "platform": "fixture_platform_04",
+        "published_at": "2026-08-24T14:00:00Z",
+        "row_id": "fixture_08_row_04",
+        "signal_id": "sig_0808080808080808080808080808080808080808080808080808080808080808",
+        "source_family": "coverage",
+        "source_label": "Fixture source 08-04",
+        "url": "https://evidence.invalid/08/04"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [],
+      "audience_lenses": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Decide whether source disagreement blocks action.",
+      "evidence_requirements": [
+        "agreement evidence",
+        "disagreement evidence",
+        "absence register"
+      ],
+      "evidence_state": "contradictory",
+      "historical_comparison": {
+        "required": false,
+        "window_days": 0
+      },
+      "intent": "source_coverage",
+      "market_scope": [
+        "za"
+      ],
+      "markets": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_08",
+      "run_id": "run_fixture_08",
+      "source_families": [
+        "forum",
+        "video",
+        "news",
+        "coverage"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "contradictory",
+    "expected_intent": "source_coverage",
+    "human_review_required": false,
+    "limitations": [
+      "Synthetic fixture evidence does not measure population prevalence."
+    ],
+    "missing_work": [
+      "Synthetic fixture audio remains absent."
+    ],
+    "request": {
+      "audience_lens_ids": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Decide whether source disagreement blocks action.",
+      "market_scope": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "question": "Which source families agree, disagree, or remain absent?",
+      "run_id": "run_fixture_08",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

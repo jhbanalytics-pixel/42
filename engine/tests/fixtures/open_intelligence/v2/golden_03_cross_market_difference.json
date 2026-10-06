@@ -1,0 +1,172 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_03_cross_market_difference",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture scope, 18 to 25 August 2026",
+      "sections": [
+        {
+          "body": "Synthetic fixture scope, 18 to 25 August 2026.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "ZA emphasizes repair steps, NG emphasizes group swap events, and KE emphasizes price comparison in the same synthetic move [E1] [E2] [E3].",
+          "evidence_ids": [
+            "ev_0301030103010301030103010301030103010301030103010301030103010301",
+            "ev_0302030203020302030203020302030203020302030203020302030203020302",
+            "ev_0303030303030303030303030303030303030303030303030303030303030303"
+          ],
+          "heading": "Finding",
+          "section_id": "finding"
+        },
+        {
+          "body": "Synthetic fixture evidence does not measure population prevalence.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture intelligence brief"
+    },
+    "audience_lenses": [],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [],
+    "evidence": [
+      {
+        "author_label": "@fixture_author_03_01",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "context",
+        "direction": "rising",
+        "evidence_id": "ev_0301030103010301030103010301030103010301030103010301030103010301",
+        "excerpt": "Synthetic fixture three fixture markets evidence shows ZA emphasizes repair steps.",
+        "geo_confidence": 0.91,
+        "metric_label": "12 ZA synthetic posts",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_03_row_01",
+        "signal_id": "sig_0303030303030303030303030303030303030303030303030303030303030303",
+        "source_family": "za_forum",
+        "source_label": "Fixture source 03-01",
+        "url": "https://evidence.invalid/03/01"
+      },
+      {
+        "author_label": "@fixture_author_03_02",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "context",
+        "direction": "rising",
+        "evidence_id": "ev_0302030203020302030203020302030203020302030203020302030203020302",
+        "excerpt": "Synthetic fixture NG evidence emphasizes group swap events.",
+        "geo_confidence": 0.91,
+        "metric_label": "10 NG synthetic clips",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_03_row_02",
+        "signal_id": "sig_0303030303030303030303030303030303030303030303030303030303030303",
+        "source_family": "ng_video",
+        "source_label": "Fixture source 03-02",
+        "url": "https://evidence.invalid/03/02"
+      },
+      {
+        "author_label": "@fixture_author_03_03",
+        "availability": "available",
+        "citation_label": "[E3]",
+        "claim_role": "context",
+        "direction": "stable",
+        "evidence_id": "ev_0303030303030303030303030303030303030303030303030303030303030303",
+        "excerpt": "Synthetic fixture KE evidence emphasizes price comparison.",
+        "geo_confidence": 0.91,
+        "metric_label": "8 KE synthetic searches",
+        "platform": "fixture_platform_03",
+        "published_at": "2026-08-24T13:00:00Z",
+        "row_id": "fixture_03_row_03",
+        "signal_id": "sig_0303030303030303030303030303030303030303030303030303030303030303",
+        "source_family": "ke_search",
+        "source_label": "Fixture source 03-03",
+        "url": "https://evidence.invalid/03/03"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [],
+      "audience_lenses": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose one market adaptation for the synthetic move.",
+      "evidence_requirements": [
+        "one receipt per fixture market",
+        "cross-market comparable window"
+      ],
+      "evidence_state": "ready",
+      "historical_comparison": {
+        "required": false,
+        "window_days": 0
+      },
+      "intent": "comparison",
+      "market_scope": [
+        "za",
+        "ng",
+        "ke"
+      ],
+      "markets": [
+        "za",
+        "ng",
+        "ke"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_03",
+      "run_id": "run_fixture_03",
+      "source_families": [
+        "za_forum",
+        "ng_video",
+        "ke_search"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "ready",
+    "expected_intent": "comparison",
+    "human_review_required": false,
+    "limitations": [
+      "Synthetic fixture evidence does not measure population prevalence."
+    ],
+    "missing_work": [],
+    "request": {
+      "audience_lens_ids": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose one market adaptation for the synthetic move.",
+      "market_scope": [
+        "za",
+        "ng",
+        "ke"
+      ],
+      "output_form": "cited_brief",
+      "question": "How does the same synthetic cultural move differ across ZA, NG, and KE?",
+      "run_id": "run_fixture_03",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

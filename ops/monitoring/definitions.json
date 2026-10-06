@@ -1,0 +1,658 @@
+{
+  "alert_policies": [
+    {
+      "body": {
+        "combiner": "OR",
+        "conditions": [
+          {
+            "conditionPrometheusQueryLanguage": {
+              "disableMetricValidation": true,
+              "duration": "21600s",
+              "evaluationInterval": "300s",
+              "query": "absent_over_time(logging_googleapis_com:user_intelligence_42_daily_success{monitored_resource=\"cloud_run_job\"}[24h])"
+            },
+            "displayName": "intelligence_42_daily_success absent for 24h, held 21600s"
+          }
+        ],
+        "displayName": "42 daily job success absent for more than 30h",
+        "documentation": {
+          "content": "No daily job result line with mode daily and status succeeded (ops/runners/managed_runtime.py:1349) for 24h, held 6h: 30h since the last success. Check the latest intelligence-42-daily-staging execution.",
+          "mimeType": "text/markdown"
+        },
+        "enabled": false,
+        "severity": "WARNING",
+        "userLabels": {
+          "managed_by": "intelligence-42-monitoring",
+          "monitoring_key": "daily-success-absent-30h"
+        }
+      },
+      "key": "daily-success-absent-30h",
+      "notification_channel_keys": [
+        "owner_email"
+      ]
+    },
+    {
+      "body": {
+        "combiner": "OR",
+        "conditions": [
+          {
+            "conditionPrometheusQueryLanguage": {
+              "disableMetricValidation": true,
+              "duration": "86400s",
+              "evaluationInterval": "300s",
+              "query": "absent_over_time(logging_googleapis_com:user_intelligence_42_daily_success{monitored_resource=\"cloud_run_job\"}[24h])"
+            },
+            "displayName": "intelligence_42_daily_success absent for 24h, held 86400s"
+          }
+        ],
+        "displayName": "42 daily job success absent for more than 48h",
+        "documentation": {
+          "content": "No daily job success line for 24h, held 24h: 48h since the last success. Data on the desk is at least two cycles old.",
+          "mimeType": "text/markdown"
+        },
+        "enabled": false,
+        "severity": "CRITICAL",
+        "userLabels": {
+          "managed_by": "intelligence-42-monitoring",
+          "monitoring_key": "daily-success-absent-48h"
+        }
+      },
+      "key": "daily-success-absent-48h",
+      "notification_channel_keys": [
+        "owner_email"
+      ]
+    },
+    {
+      "body": {
+        "combiner": "OR",
+        "conditions": [
+          {
+            "conditionPrometheusQueryLanguage": {
+              "disableMetricValidation": true,
+              "duration": "21600s",
+              "evaluationInterval": "300s",
+              "query": "absent_over_time(logging_googleapis_com:user_intelligence_42_price_renewal_success{monitored_resource=\"cloud_run_job\"}[24h])"
+            },
+            "displayName": "intelligence_42_price_renewal_success absent for 24h, held 21600s"
+          }
+        ],
+        "displayName": "42 pricing renewal success absent for more than 30h",
+        "documentation": {
+          "content": "No renew-unattended summary with state activated or already_activated (ops/deploy/refresh_question_policy.py:1627) for 30h. The service refuses questions once the pricing review is older than 24h.",
+          "mimeType": "text/markdown"
+        },
+        "enabled": false,
+        "severity": "ERROR",
+        "userLabels": {
+          "managed_by": "intelligence-42-monitoring",
+          "monitoring_key": "price-renewal-success-absent-30h"
+        }
+      },
+      "key": "price-renewal-success-absent-30h",
+      "notification_channel_keys": [
+        "owner_email"
+      ]
+    },
+    {
+      "body": {
+        "combiner": "OR",
+        "conditions": [
+          {
+            "conditionThreshold": {
+              "aggregations": [
+                {
+                  "alignmentPeriod": "300s",
+                  "crossSeriesReducer": "REDUCE_SUM",
+                  "perSeriesAligner": "ALIGN_SUM"
+                }
+              ],
+              "comparison": "COMPARISON_GT",
+              "duration": "0s",
+              "filter": "resource.type = \"cloud_run_revision\" AND metric.type = \"logging.googleapis.com/user/intelligence_42_question_policy_refused\"",
+              "thresholdValue": 0,
+              "trigger": {
+                "count": 1
+              }
+            },
+            "displayName": "service admission refused at policy_freshness"
+          },
+          {
+            "conditionThreshold": {
+              "aggregations": [
+                {
+                  "alignmentPeriod": "300s",
+                  "crossSeriesReducer": "REDUCE_SUM",
+                  "perSeriesAligner": "ALIGN_SUM"
+                }
+              ],
+              "comparison": "COMPARISON_GT",
+              "duration": "0s",
+              "filter": "resource.type = \"cloud_run_job\" AND metric.type = \"logging.googleapis.com/user/intelligence_42_renewal_policy_refused\"",
+              "thresholdValue": 0,
+              "trigger": {
+                "count": 1
+              }
+            },
+            "displayName": "renewal refused observation_stale or policy_expired"
+          }
+        ],
+        "displayName": "42 question refused: pricing review stale or policy expired",
+        "documentation": {
+          "content": "The service refused a question at the policy_freshness admission stage, or the pricing renewal job refused with observation_stale or policy_expired. Run the pricing renewal.",
+          "mimeType": "text/markdown"
+        },
+        "enabled": true,
+        "severity": "ERROR",
+        "userLabels": {
+          "managed_by": "intelligence-42-monitoring",
+          "monitoring_key": "question-policy-refused"
+        }
+      },
+      "key": "question-policy-refused",
+      "notification_channel_keys": [
+        "owner_email"
+      ]
+    },
+    {
+      "body": {
+        "combiner": "OR",
+        "conditions": [
+          {
+            "conditionThreshold": {
+              "aggregations": [
+                {
+                  "alignmentPeriod": "300s",
+                  "crossSeriesReducer": "REDUCE_SUM",
+                  "perSeriesAligner": "ALIGN_SUM"
+                }
+              ],
+              "comparison": "COMPARISON_GT",
+              "duration": "0s",
+              "filter": "resource.type = \"cloud_run_job\" AND resource.labels.job_name = \"intelligence-42-daily-staging\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"failed\"",
+              "thresholdValue": 0,
+              "trigger": {
+                "count": 1
+              }
+            },
+            "displayName": "daily job execution completed as failed"
+          },
+          {
+            "conditionThreshold": {
+              "aggregations": [
+                {
+                  "alignmentPeriod": "300s",
+                  "crossSeriesReducer": "REDUCE_SUM",
+                  "perSeriesAligner": "ALIGN_SUM"
+                }
+              ],
+              "comparison": "COMPARISON_GT",
+              "duration": "0s",
+              "filter": "resource.type = \"cloud_run_job\" AND metric.type = \"logging.googleapis.com/user/intelligence_42_daily_failure\"",
+              "thresholdValue": 0,
+              "trigger": {
+                "count": 1
+              }
+            },
+            "displayName": "daily job refused or daily cycle failed"
+          }
+        ],
+        "displayName": "42 daily job execution failed",
+        "documentation": {
+          "content": "A daily job execution ended failed (non-zero exit, timeout or crash), or the runner printed a refusal (exit 1) or a failed daily cycle.",
+          "mimeType": "text/markdown"
+        },
+        "enabled": true,
+        "severity": "ERROR",
+        "userLabels": {
+          "managed_by": "intelligence-42-monitoring",
+          "monitoring_key": "daily-job-failure"
+        }
+      },
+      "key": "daily-job-failure",
+      "notification_channel_keys": [
+        "owner_email"
+      ]
+    },
+    {
+      "body": {
+        "combiner": "OR",
+        "conditions": [
+          {
+            "conditionThreshold": {
+              "aggregations": [
+                {
+                  "alignmentPeriod": "300s",
+                  "crossSeriesReducer": "REDUCE_SUM",
+                  "perSeriesAligner": "ALIGN_SUM"
+                }
+              ],
+              "comparison": "COMPARISON_GT",
+              "duration": "0s",
+              "filter": "resource.type = \"cloud_run_job\" AND metric.type = \"logging.googleapis.com/user/intelligence_42_vendor_failure\"",
+              "thresholdValue": 0,
+              "trigger": {
+                "count": 1
+              }
+            },
+            "displayName": "connector fetch failed or vendor out of credits"
+          }
+        ],
+        "displayName": "42 vendor connector failure",
+        "documentation": {
+          "content": "A connector logged Failed to fetch from (engine/src/ingestion/connectors/base.py:166) or the socialcrawl vendor is out of credits.",
+          "mimeType": "text/markdown"
+        },
+        "enabled": true,
+        "severity": "WARNING",
+        "userLabels": {
+          "managed_by": "intelligence-42-monitoring",
+          "monitoring_key": "vendor-failure"
+        }
+      },
+      "key": "vendor-failure",
+      "notification_channel_keys": [
+        "owner_email"
+      ]
+    },
+    {
+      "body": {
+        "combiner": "OR",
+        "conditions": [
+          {
+            "conditionThreshold": {
+              "aggregations": [
+                {
+                  "alignmentPeriod": "300s",
+                  "crossSeriesReducer": "REDUCE_SUM",
+                  "perSeriesAligner": "ALIGN_SUM"
+                }
+              ],
+              "comparison": "COMPARISON_GT",
+              "duration": "0s",
+              "filter": "resource.type = \"cloud_run_job\" AND metric.type = \"logging.googleapis.com/user/intelligence_42_semantic_canary_failed\"",
+              "thresholdValue": 0,
+              "trigger": {
+                "count": 1
+              }
+            },
+            "displayName": "qa_semantic_canary_failed line"
+          }
+        ],
+        "displayName": "42 QA semantic canary failed",
+        "documentation": {
+          "content": "The managed run wrote the qa_semantic_canary_failed alarm line. Read the failed_cases, or the error and detail fields, of that log entry.",
+          "mimeType": "text/markdown"
+        },
+        "enabled": true,
+        "severity": "ERROR",
+        "userLabels": {
+          "managed_by": "intelligence-42-monitoring",
+          "monitoring_key": "semantic-canary-failed"
+        }
+      },
+      "key": "semantic-canary-failed",
+      "notification_channel_keys": [
+        "owner_email"
+      ]
+    }
+  ],
+  "contract_version": "42_monitoring_v1",
+  "log_metrics": [
+    {
+      "body": {
+        "description": "Daily job result line with mode daily and status succeeded.",
+        "filter": "resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"intelligence-42-daily-staging\" AND logName=\"projects/ogilvy-trends-v2/logs/run.googleapis.com%2Fstdout\" AND jsonPayload.mode=\"daily\" AND jsonPayload.status=\"succeeded\"",
+        "metricDescriptor": {
+          "metricKind": "DELTA",
+          "unit": "1",
+          "valueType": "INT64"
+        },
+        "name": "intelligence_42_daily_success"
+      },
+      "key": "intelligence_42_daily_success",
+      "sources": [
+        {
+          "line": 1526,
+          "literal": "sys.stdout.write(json.dumps(result",
+          "path": "ops/runners/managed_runtime.py"
+        },
+        {
+          "line": 1072,
+          "literal": "\"mode\": \"daily\",",
+          "path": "ops/runners/managed_runtime.py"
+        },
+        {
+          "line": 1073,
+          "literal": "\"status\": result[\"state\"],",
+          "path": "ops/runners/managed_runtime.py"
+        },
+        {
+          "line": 166,
+          "literal": "{\"state\": \"succeeded\", \"operation_id\": operation_id, \"stage\": \"release\"}",
+          "path": "engine/src/analysis/open_intelligence/daily_cycle.py"
+        }
+      ]
+    },
+    {
+      "body": {
+        "description": "Daily job refusal line (exit 1) or a daily cycle that ended failed.",
+        "filter": "resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"intelligence-42-daily-staging\" AND logName=\"projects/ogilvy-trends-v2/logs/run.googleapis.com%2Fstdout\" AND (jsonPayload.status=\"refused\" OR (jsonPayload.mode=\"daily\" AND jsonPayload.status=\"failed\"))",
+        "metricDescriptor": {
+          "metricKind": "DELTA",
+          "unit": "1",
+          "valueType": "INT64"
+        },
+        "name": "intelligence_42_daily_failure"
+      },
+      "key": "intelligence_42_daily_failure",
+      "sources": [
+        {
+          "line": 1523,
+          "literal": "json.dumps({\"status\": \"refused\", \"error\": str(exc)}",
+          "path": "ops/runners/managed_runtime.py"
+        },
+        {
+          "line": 1072,
+          "literal": "\"mode\": \"daily\",",
+          "path": "ops/runners/managed_runtime.py"
+        },
+        {
+          "line": 1073,
+          "literal": "\"status\": result[\"state\"],",
+          "path": "ops/runners/managed_runtime.py"
+        },
+        {
+          "line": 29,
+          "literal": "\"succeeded\", \"failed\"",
+          "path": "engine/src/analysis/open_intelligence/daily_cycle.py"
+        }
+      ]
+    },
+    {
+      "body": {
+        "description": "Pricing renewal summary line with state activated or already_activated.",
+        "filter": "resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"intelligence-42-price-policy-staging\" AND logName=\"projects/ogilvy-trends-v2/logs/run.googleapis.com%2Fstdout\" AND jsonPayload.command=\"renew-unattended\" AND jsonPayload.state=(\"activated\" OR \"already_activated\")",
+        "metricDescriptor": {
+          "metricKind": "DELTA",
+          "unit": "1",
+          "valueType": "INT64"
+        },
+        "name": "intelligence_42_price_renewal_success"
+      },
+      "key": "intelligence_42_price_renewal_success",
+      "sources": [
+        {
+          "line": 2419,
+          "literal": "print(json.dumps(summary, sort_keys=True))",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 2044,
+          "literal": "command = \"renew-unattended\"",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 2096,
+          "literal": "\"command\": command,",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 2093,
+          "literal": "\"state\": receipt[\"state\"],",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 1423,
+          "literal": "_SUCCESS_STATES = (\"activated\", \"already_activated\")",
+          "path": "ops/deploy/refresh_question_policy.py"
+        }
+      ]
+    },
+    {
+      "body": {
+        "description": "Service admission refused at the policy_freshness stage (pricing review stale, question policy expired, or another admission policy check).",
+        "filter": "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"listening-post-staging\" AND logName=\"projects/ogilvy-trends-v2/logs/run.googleapis.com%2Fstderr\" AND jsonPayload.contract_version=\"general_question_admission_stage_v1\" AND jsonPayload.stage=\"policy_freshness\" AND jsonPayload.state=\"failed\" AND jsonPayload.error_code=\"approval_required\"",
+        "metricDescriptor": {
+          "metricKind": "DELTA",
+          "unit": "1",
+          "valueType": "INT64"
+        },
+        "name": "intelligence_42_question_policy_refused"
+      },
+      "key": "intelligence_42_question_policy_refused",
+      "sources": [
+        {
+          "line": 286,
+          "literal": "raise ValueError(\"pricing review is stale\")",
+          "path": "engine/src/analysis/open_intelligence/general_question_policy.py"
+        },
+        {
+          "line": 289,
+          "literal": "raise ValueError(\"question policy is expired\")",
+          "path": "engine/src/analysis/open_intelligence/general_question_policy.py"
+        },
+        {
+          "line": 191,
+          "literal": "raise QuestionStoreError(\"approval_required\") from exc",
+          "path": "engine/src/analysis/open_intelligence/general_question_admission.py"
+        },
+        {
+          "line": 225,
+          "literal": "with admission_stage(\"policy_freshness\"):",
+          "path": "engine/src/analysis/open_intelligence/general_question_admission.py"
+        },
+        {
+          "line": 190,
+          "literal": "\"contract_version\": \"general_question_admission_stage_v1\",",
+          "path": "engine/src/analysis/open_intelligence/general_question_parent_context.py"
+        },
+        {
+          "line": 192,
+          "literal": "\"stage\": stage,",
+          "path": "engine/src/analysis/open_intelligence/general_question_parent_context.py"
+        },
+        {
+          "line": 193,
+          "literal": "\"state\": state,",
+          "path": "engine/src/analysis/open_intelligence/general_question_parent_context.py"
+        },
+        {
+          "line": 194,
+          "literal": "\"error_code\": code,",
+          "path": "engine/src/analysis/open_intelligence/general_question_parent_context.py"
+        },
+        {
+          "line": 205,
+          "literal": "emit(\"failed\", error)",
+          "path": "engine/src/analysis/open_intelligence/general_question_parent_context.py"
+        },
+        {
+          "line": 474,
+          "literal": "json.dumps(value, sort_keys=True",
+          "path": "app/src/api/question_worker_process.py"
+        },
+        {
+          "line": 57,
+          "literal": "logging.Formatter(\"%(message)s\")",
+          "path": "app/src/api/question_worker_process.py"
+        }
+      ]
+    },
+    {
+      "body": {
+        "description": "Pricing renewal refused because the admission check found the pricing review stale or the question policy expired.",
+        "filter": "resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"intelligence-42-price-policy-staging\" AND logName=\"projects/ogilvy-trends-v2/logs/run.googleapis.com%2Fstdout\" AND jsonPayload.command=\"renew-unattended\" AND jsonPayload.state=\"refused\" AND jsonPayload.error=(\"observation_stale\" OR \"policy_expired\")",
+        "metricDescriptor": {
+          "metricKind": "DELTA",
+          "unit": "1",
+          "valueType": "INT64"
+        },
+        "name": "intelligence_42_renewal_policy_refused"
+      },
+      "key": "intelligence_42_renewal_policy_refused",
+      "sources": [
+        {
+          "line": 94,
+          "literal": "\"pricing review is stale\": \"observation_stale\",",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 96,
+          "literal": "\"question policy is expired\": \"policy_expired\",",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 995,
+          "literal": "_refuse(_ADMISSION_ERRORS.get(str(error)",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 2083,
+          "literal": "receipt.update(state=\"refused\", error=str(error))",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 2044,
+          "literal": "command = \"renew-unattended\"",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 2096,
+          "literal": "\"command\": command,",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 2093,
+          "literal": "\"state\": receipt[\"state\"],",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 2102,
+          "literal": "\"error\",",
+          "path": "ops/deploy/refresh_question_policy.py"
+        },
+        {
+          "line": 2419,
+          "literal": "print(json.dumps(summary, sort_keys=True))",
+          "path": "ops/deploy/refresh_question_policy.py"
+        }
+      ]
+    },
+    {
+      "body": {
+        "description": "Connector fetch failure or vendor credit exhaustion in a collecting job.",
+        "filter": "resource.type=\"cloud_run_job\" AND resource.labels.job_name=(\"intelligence-42-daily-staging\" OR \"intelligence-42-ingest-staging\") AND logName=\"projects/ogilvy-trends-v2/logs/run.googleapis.com%2Fstderr\" AND (textPayload:\"Failed to fetch from \" OR textPayload:\"socialcrawl account out of credits\")",
+        "metricDescriptor": {
+          "metricKind": "DELTA",
+          "unit": "1",
+          "valueType": "INT64"
+        },
+        "name": "intelligence_42_vendor_failure"
+      },
+      "key": "intelligence_42_vendor_failure",
+      "sources": [
+        {
+          "line": 166,
+          "literal": "\"Failed to fetch from %s (market=%s): %s\",",
+          "path": "engine/src/ingestion/connectors/base.py"
+        },
+        {
+          "line": 659,
+          "literal": "self.logger.error(\"socialcrawl account out of credits, halting all surfaces\")",
+          "path": "engine/src/ingestion/connectors/socialcrawl.py"
+        },
+        {
+          "line": 96,
+          "literal": "logging.basicConfig(level=logging.INFO, format=\"%(asctime)s %(levelname)s %(message)s\")",
+          "path": "engine/scripts/run_rss_now.py"
+        },
+        {
+          "line": 255,
+          "literal": "from scripts.run_rss_now import _run_impl",
+          "path": "engine/scripts/staging/collect_42_sources.py"
+        },
+        {
+          "line": 80,
+          "literal": "INGEST_JOB = \"intelligence-42-ingest-staging\"",
+          "path": "engine/scripts/staging/collect_42_sources.py"
+        }
+      ]
+    },
+    {
+      "body": {
+        "description": "QA semantic canary alarm line written to stderr after a managed run.",
+        "filter": "resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"intelligence-42-daily-staging\" AND logName=\"projects/ogilvy-trends-v2/logs/run.googleapis.com%2Fstderr\" AND severity=\"ERROR\" AND jsonPayload.message=\"qa_semantic_canary_failed\"",
+        "metricDescriptor": {
+          "metricKind": "DELTA",
+          "unit": "1",
+          "valueType": "INT64"
+        },
+        "name": "intelligence_42_semantic_canary_failed"
+      },
+      "key": "intelligence_42_semantic_canary_failed",
+      "sources": [
+        {
+          "line": 1463,
+          "literal": "\"severity\": \"ERROR\",",
+          "path": "ops/runners/managed_runtime.py",
+          "ref": "17ea74ceaa9a1787496ca4b66857206f3b6562f2"
+        },
+        {
+          "line": 1464,
+          "literal": "\"message\": \"qa_semantic_canary_failed\",",
+          "path": "ops/runners/managed_runtime.py",
+          "ref": "17ea74ceaa9a1787496ca4b66857206f3b6562f2"
+        },
+        {
+          "line": 1474,
+          "literal": "out.write(module.render_alarm(result)",
+          "path": "ops/runners/managed_runtime.py",
+          "ref": "17ea74ceaa9a1787496ca4b66857206f3b6562f2"
+        },
+        {
+          "line": 1527,
+          "literal": "if run_semantic_canary_check(root, resources) != \"passed\":",
+          "path": "ops/runners/managed_runtime.py",
+          "ref": "17ea74ceaa9a1787496ca4b66857206f3b6562f2"
+        },
+        {
+          "line": 48,
+          "literal": "ALARM_CODE = \"qa_semantic_canary_failed\"",
+          "path": "engine/scripts/staging/run_42_semantic_canaries.py",
+          "ref": "17ea74ceaa9a1787496ca4b66857206f3b6562f2"
+        },
+        {
+          "line": 456,
+          "literal": "\"severity\": \"ERROR\",",
+          "path": "engine/scripts/staging/run_42_semantic_canaries.py",
+          "ref": "17ea74ceaa9a1787496ca4b66857206f3b6562f2"
+        },
+        {
+          "line": 457,
+          "literal": "\"message\": ALARM_CODE,",
+          "path": "engine/scripts/staging/run_42_semantic_canaries.py",
+          "ref": "17ea74ceaa9a1787496ca4b66857206f3b6562f2"
+        }
+      ]
+    }
+  ],
+  "notification_channels": [
+    {
+      "body": {
+        "displayName": "42 owner email",
+        "enabled": true,
+        "labels": {
+          "email_address": "jhb.analytics@gmail.com"
+        },
+        "type": "email",
+        "userLabels": {
+          "managed_by": "intelligence-42-monitoring",
+          "monitoring_key": "owner_email"
+        }
+      },
+      "key": "owner_email"
+    }
+  ],
+  "owner_label": "intelligence-42-monitoring",
+  "project": "ogilvy-trends-v2"
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "term": "fixture query ZA",
+    "market": "ZA",
+    "source": "google_bq",
+    "rank": null,
+    "refreshed_at": "2026-09-30"
+  },
+  {
+    "term": "fixture query NG",
+    "market": "NG",
+    "source": "google_trending",
+    "rank": 3,
+    "refreshed_at": "2026-09-30T12:34:56Z"
+  },
+  {
+    "term": "fixture query KE",
+    "market": "KE",
+    "source": "google_bq",
+    "rank": null,
+    "refreshed_at": "2026-09-30"
+  }
+]

@@ -1,0 +1,113 @@
+{
+  "ask_id": "a_20260928_0000000a",
+  "question": "What is behind #fixture in South Africa this week?",
+  "parent_id": null,
+  "market": "ZA",
+  "status": "complete",
+  "created_at": "2026-09-28T06:09:20+02:00",
+  "finished_at": "2026-09-28T06:10:01+02:00",
+  "answer": {
+    "status": "complete",
+    "as_of": "2026-09-28T06:10:00+02:00",
+    "short_answer": "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle.",
+    "claims": [
+      {
+        "id": "c1",
+        "text": "TikTok posts tagged #fixture in South Africa reached 312 in the week of 21 to 27 September, most of them the kitchen-table dance format, and X posters quote its opening line.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": ["tt_fixture_1", "x_fixture_2"],
+        "quotes": [
+          {"evidence_id": "tt_fixture_1", "text": "kitchen table, one pot, everybody dances"},
+          {"evidence_id": "x_fixture_2", "text": "everybody dances"}
+        ],
+        "numbers": [
+          {"value": 312, "unit": "TikTok posts tagged #fixture in 7 days", "query_id": "q_fixture_tt_tag_7d", "run_id": "r_20260928_0500", "result_hash": "sha256:2ebb6f8d9336ff3fe001f80923fb088e2443633c6018c52d8817a288aa1325d0"},
+          {"value": 48, "unit": "X posts mentioning #fixture in 7 days", "query_id": "q_fixture_x_mentions_7d", "run_id": "r_20260928_0500", "result_hash": "sha256:b3b46fe30487a7ea81636021cc135e083d6102cbaa28096207074212630009b8"}
+        ]
+      },
+      {
+        "id": "c2",
+        "text": "The format likely spreads because the shared-pot setting is easy to copy at home with no props, which is how the X posters describe joining in.",
+        "label": "inferred",
+        "kind": "interpretation",
+        "evidence_ids": ["tt_fixture_1", "x_fixture_2"],
+        "quotes": [
+          {"evidence_id": "x_fixture_2", "text": "no props needed, just the family pot"}
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "tt_fixture_1",
+        "platform": "tiktok",
+        "handle": "@fixture_za_1",
+        "url": "https://example.invalid/tiktok/@fixture_za_1/video/7431",
+        "posted_at": "2026-09-24T19:40:00+02:00",
+        "market": "ZA",
+        "text": "Sunday lunch rules: kitchen table, one pot, everybody dances #fixture",
+        "engagement": {"views": 184000, "likes": 9100, "comments": 300, "shares": 120},
+        "flags": [],
+        "thumbnail_url": "https://example.invalid/thumbs/tt_fixture_1.jpg",
+        "duration_s": 21.0,
+        "transcript_span": {"start_s": 4.2, "end_s": 9.8, "text": "kitchen table, one pot, everybody dances"},
+        "creator_tier": "micro"
+      },
+      {
+        "id": "x_fixture_2",
+        "platform": "x",
+        "handle": "@fixture_za_2",
+        "url": "https://example.invalid/x/fixture_za_2/status/2210",
+        "posted_at": "2026-09-26T12:05:00+02:00",
+        "market": "ZA",
+        "text": "Tried the #fixture thing with my cousins in Cape Town, no props needed, just the family pot and everybody dances",
+        "engagement": {"views": 12400, "likes": 610, "comments": 42, "shares": 88},
+        "flags": [],
+        "thumbnail_url": "https://example.invalid/thumbs/x_fixture_2.jpg",
+        "creator_tier": "nano"
+      }
+    ],
+    "so_what": [
+      {"text": "A food or home brand can join with a shared-pot moment this week, as long as the pot and the dance stay the point and the product stays in the background.", "claim_ids": ["c1", "c2"]}
+    ],
+    "watch_next": [
+      {"text": "Watch whether Instagram Reels picks up the opening line in the next 7 days; a second platform would confirm the spread.", "claim_ids": ["c1"], "forecast": false}
+    ],
+    "gaps": [
+      {"what": "No Instagram posts in the window", "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found", "why": "empty"}
+    ],
+    "context": ""
+  },
+  "run": {
+    "run_id": "r_20260928_0000000a",
+    "tier": "T1",
+    "mode": "live",
+    "credits": 214,
+    "tokens": {"input": 18200, "output": 1650},
+    "seconds": 41,
+    "model_usd": 0.0,
+    "window": {"from": "2026-09-21", "to": "2026-09-27"},
+    "posts": 214,
+    "platforms": 2,
+    "source_status": [
+      {"platform": "tiktok", "route": "tiktok/hashtag", "status": "ok", "items": 312},
+      {"platform": "x", "route": "x/search", "status": "ok", "items": 48},
+      {"platform": "instagram", "route": "instagram/hashtag", "status": "empty", "items": 0}
+    ],
+    "followups": [
+      "Is #fixture showing up on Instagram Reels yet?",
+      "Which South African creators started the kitchen-table format?",
+      "Is the same format moving in Nigeria or Kenya?"
+    ],
+    "notices": []
+  },
+  "steps": [
+    {"seq": 1, "at": "2026-09-28T06:09:21+02:00", "kind": "plan", "text": "Planning 3 searches for #fixture, South Africa, 21 to 27 September", "platform": null, "count": 3},
+    {"seq": 2, "at": "2026-09-28T06:09:27+02:00", "kind": "search", "text": "Reading TikTok posts tagged #fixture, South Africa, 21 to 27 September: 312 found", "platform": "tiktok", "count": 312},
+    {"seq": 4, "at": "2026-09-28T06:09:33+02:00", "kind": "search", "text": "Reading X posts mentioning #fixture, South Africa, 21 to 27 September: 48 found", "platform": "x", "count": 48},
+    {"seq": 6, "at": "2026-09-28T06:09:44+02:00", "kind": "transcribe", "text": "Transcribing 24 videos", "platform": "tiktok", "count": 24},
+    {"seq": 7, "at": "2026-09-28T06:09:52+02:00", "kind": "check", "text": "Checking 2 claims against 2 posts", "platform": null, "count": 2},
+    {"seq": 10, "at": "2026-09-28T06:09:58+02:00", "kind": "write", "text": "Writing the answer from 2 checked claims", "platform": null, "count": 2}
+  ],
+  "error": null
+}

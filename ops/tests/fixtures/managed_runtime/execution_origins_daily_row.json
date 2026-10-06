@@ -1,0 +1,64 @@
+{
+  "contract_version": "open_intelligence_execution_origin_registry_v1",
+  "rows": [
+    {
+      "allowed_execution_modes": [
+        "historical_read",
+        "historical_replay",
+        "new_approval",
+        "new_consume"
+      ],
+      "contract_digests": [
+        "7777777777777777777777777777777777777777777777777777777777777777"
+      ],
+      "contract_file": "configs/open_intelligence/origin_contracts/successor-source-snapshot-capture.json",
+      "datasets": [
+        "trends_v2_staging"
+      ],
+      "exact_operation_bindings": {
+        "collection_exposure_issue": {
+          "datasets": [
+            "trends_v2_staging"
+          ],
+          "job_resource": "projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com"
+        },
+        "r3_apply": {
+          "datasets": [
+            "trends_v2_staging"
+          ],
+          "job_resource": "projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com"
+        },
+        "r3_proof_issue": {
+          "datasets": [
+            "trends_v2_staging"
+          ],
+          "job_resource": "projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com"
+        },
+        "r3_release": {
+          "datasets": [
+            "trends_v2_staging"
+          ],
+          "job_resource": "projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com"
+        },
+        "source_snapshot_capture": {
+          "datasets": [
+            "trends_v2_staging"
+          ],
+          "job_resource": "projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com"
+        }
+      },
+      "job_resources": [
+        "projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging"
+      ],
+      "manifest_version": "open_intelligence_execution_manifest_v2",
+      "service_identities": [
+        "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com"
+      ]
+    }
+  ]
+}

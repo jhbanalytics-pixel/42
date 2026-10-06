@@ -1,0 +1,34 @@
+# Keep the Cloud Run image lean + secret-free. Only src/scripts/configs/infra
+# + the dependency manifests are COPYied in the Dockerfile; everything else is
+# excluded so build context stays small and nothing sensitive or local ships.
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+tests
+docs/*
+!docs/contracts
+deck
+.msg_extract
+*.eml
+*.msg
+*.bak
+.env
+.env.*
+*.html
+preview_digest.html
+data/embedding_cache.json
+node_modules
+.DS_Store
+
+# Local-only operator scripts (underscore-prefixed) + the offline roadmap
+# generator are gitignored; keep them out of the image too so an email-sender
+# (_send_pulse_test.py) and a Secret-Manager writer (_setup_spotify_secrets.py)
+# never ship in the runtime that holds BigQuery + Vertex + Secret Manager scope.
+scripts/_*.py
+scripts/build_carla_roadmap_xlsx.py

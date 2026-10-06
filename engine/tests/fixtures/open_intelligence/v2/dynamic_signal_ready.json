@@ -1,0 +1,74 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "dynamic_signal_ready",
+  "fixture_kind": "dynamic_signal",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "audience_lens_ids": [],
+    "brand_config_id": "fixture_brand",
+    "client_scope_id": "fixture_scope",
+    "contract_version": "2.0.0",
+    "evidence": [
+      {
+        "author_label": "@fixture_author_1",
+        "availability": "available",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "excerpt": "Synthetic fixture excerpt 1 describing an observed repair routine.",
+        "geo_confidence": 0.96,
+        "metric_label": "synthetic count: 12 interactions",
+        "platform": "forum",
+        "published_at": "2026-08-24T19:20:00Z",
+        "row_id": "fixture_row_001",
+        "signal_id": "sig_1111111111111111111111111111111111111111111111111111111111111111",
+        "source_family": "forum",
+        "source_label": "Fixture source 1",
+        "url": "https://evidence.invalid/items/fixture-1"
+      },
+      {
+        "author_label": "@fixture_author_2",
+        "availability": "available",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "excerpt": "Synthetic fixture excerpt 2 describing an observed repair routine.",
+        "geo_confidence": 0.93,
+        "metric_label": "synthetic count: 7 interactions",
+        "platform": "video",
+        "published_at": "2026-08-24T21:00:00Z",
+        "row_id": "fixture_row_002",
+        "signal_id": "sig_1111111111111111111111111111111111111111111111111111111111111111",
+        "source_family": "video",
+        "source_label": "Fixture source 2",
+        "url": "https://evidence.invalid/items/fixture-2"
+      }
+    ],
+    "market_scope": [
+      "za"
+    ],
+    "run_id": "run_fixture_001",
+    "signal": {
+      "breadth_score": 0.62,
+      "evidence_ids": [
+        "ev_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ev_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ],
+      "evidence_state": "ready",
+      "geo_confidence": 0.94,
+      "historical_similarity": 0.33,
+      "independence_score": 0.71,
+      "label": "Fixture repair routine",
+      "market": "za",
+      "novelty_score": 0.74,
+      "possible_response": "Show a synthetic repair sequence and cite the fixture makers.",
+      "signal_date": "2026-08-25",
+      "signal_id": "sig_1111111111111111111111111111111111111111111111111111111111111111",
+      "topic_tags": [],
+      "velocity_score": 0.68,
+      "why_now": "Two synthetic source families moved against their fixture baselines."
+    },
+    "theme_id": "fixture_theme"
+  },
+  "sanitized": true
+}

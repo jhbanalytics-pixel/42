@@ -1,0 +1,112 @@
+[
+ {
+  "series_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156|ZA|feed_tiktok|feed_tiktok_p1",
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "platform": "tiktok",
+  "series": "feed_tiktok",
+  "protocol": "feed_tiktok_p1",
+  "lane_class": "unbiased_rank",
+  "day": "2026-09-24",
+  "value": 3
+ },
+ {
+  "series_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156|ZA|feed_tiktok|feed_tiktok_p1",
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "platform": "tiktok",
+  "series": "feed_tiktok",
+  "protocol": "feed_tiktok_p1",
+  "lane_class": "unbiased_rank",
+  "day": "2026-09-25",
+  "value": 5
+ },
+ {
+  "series_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156|ZA|feed_tiktok|feed_tiktok_p1",
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "platform": "tiktok",
+  "series": "feed_tiktok",
+  "protocol": "feed_tiktok_p1",
+  "lane_class": "unbiased_rank",
+  "day": "2026-09-26",
+  "value": 8
+ },
+ {
+  "series_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156|ZA|feed_tiktok|feed_tiktok_p1",
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "platform": "tiktok",
+  "series": "feed_tiktok",
+  "protocol": "feed_tiktok_p1",
+  "lane_class": "unbiased_rank",
+  "day": "2026-09-27",
+  "value": null
+ },
+ {
+  "series_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156|ZA|feed_tiktok|feed_tiktok_p1",
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "platform": "tiktok",
+  "series": "feed_tiktok",
+  "protocol": "feed_tiktok_p1",
+  "lane_class": "unbiased_rank",
+  "day": "2026-09-28",
+  "value": 14
+ },
+ {
+  "series_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156|ZA|feed_tiktok|feed_tiktok_p1",
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "platform": "tiktok",
+  "series": "feed_tiktok",
+  "protocol": "feed_tiktok_p1",
+  "lane_class": "unbiased_rank",
+  "day": "2026-09-29",
+  "value": 20
+ },
+ {
+  "series_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156|ZA|feed_tiktok|feed_tiktok_p1",
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "platform": "tiktok",
+  "series": "feed_tiktok",
+  "protocol": "feed_tiktok_p1",
+  "lane_class": "unbiased_rank",
+  "day": "2026-09-30",
+  "value": 18
+ },
+ {
+  "series_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156|ZA|panel_x_hub|panel_x_hub_p1",
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "platform": "x",
+  "series": "panel_x_hub",
+  "protocol": "panel_x_hub_p1",
+  "lane_class": "panel",
+  "day": "2026-09-28",
+  "value": 2.0
+ },
+ {
+  "series_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156|ZA|panel_x_hub|panel_x_hub_p1",
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "platform": "x",
+  "series": "panel_x_hub",
+  "protocol": "panel_x_hub_p1",
+  "lane_class": "panel",
+  "day": "2026-09-29",
+  "value": 6.5
+ },
+ {
+  "series_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156|ZA|panel_x_hub|panel_x_hub_p1",
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "platform": "x",
+  "series": "panel_x_hub",
+  "protocol": "panel_x_hub_p1",
+  "lane_class": "panel",
+  "day": "2026-09-30",
+  "value": 4.0
+ }
+]

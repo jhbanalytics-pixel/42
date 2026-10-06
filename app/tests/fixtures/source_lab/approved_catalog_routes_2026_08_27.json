@@ -1,0 +1,2807 @@
+{
+  "expectation_version": "socialcrawl_catalog_2026_08_27",
+  "catalog_digest": "f843d6ad934e36b005090c1c642eb4b8e920bf2ca5d8828d7b9c1e7e4f143daa",
+  "route_count": 400,
+  "routes": [
+    {
+      "endpoint_id": "endpoint_96faeb71710377051eac1ea6b22368986030deac266a50fdac003a156ea34dfa",
+      "http_method": "DELETE",
+      "route_path": "/v1/web/jobs/{job_id}",
+      "platform": "web",
+      "resource": "jobs/{job_id}"
+    },
+    {
+      "endpoint_id": "endpoint_8ef2b49772871adab0202863e3d02ebe47658c220d74829c4c1a86fc8a1e0f20",
+      "http_method": "DELETE",
+      "route_path": "/v1/web/monitors/{monitor_id}",
+      "platform": "web",
+      "resource": "monitors/{monitor_id}"
+    },
+    {
+      "endpoint_id": "endpoint_d0cc4d32e97dd1fe4c2f5de3d62ec903f2c6d9fe8f59317a84378f3f6d478a71",
+      "http_method": "DELETE",
+      "route_path": "/v1/web/sessions/{session_id}",
+      "platform": "web",
+      "resource": "sessions/{session_id}"
+    },
+    {
+      "endpoint_id": "endpoint_05199ff0f19fc948ab0137c7ebd750d91da6927e2b28ed7ae2efb4cef9fe13f0",
+      "http_method": "GET",
+      "route_path": "/v1/amazon/product",
+      "platform": "amazon",
+      "resource": "product"
+    },
+    {
+      "endpoint_id": "endpoint_c3d3a6be2ae094a92d1e850391c2b14c5bf1462cb3daf9441c6938efa4d509f0",
+      "http_method": "GET",
+      "route_path": "/v1/amazon/product-search",
+      "platform": "amazon",
+      "resource": "product-search"
+    },
+    {
+      "endpoint_id": "endpoint_30c7cbcce09d1517d91eb0b26daade47e540403a4283898551ab9d3e6f05c90c",
+      "http_method": "GET",
+      "route_path": "/v1/amazon/reviews",
+      "platform": "amazon",
+      "resource": "reviews"
+    },
+    {
+      "endpoint_id": "endpoint_8e75f62bcd43ceb166113d799ecd59f34c03ad5fc624ce039ef4279cbf3f39a9",
+      "http_method": "GET",
+      "route_path": "/v1/amazon/sellers",
+      "platform": "amazon",
+      "resource": "sellers"
+    },
+    {
+      "endpoint_id": "endpoint_abf7f3d0ca83d6377fc565f31792ec626568d439a9c8c0f15a030074a0b23d12",
+      "http_method": "GET",
+      "route_path": "/v1/amazon/shop",
+      "platform": "amazon",
+      "resource": "shop"
+    },
+    {
+      "endpoint_id": "endpoint_9dc5a88c5db9cbf67b841f02d69ec52ba4102b8b85698a95f4ac4d9901b05f90",
+      "http_method": "GET",
+      "route_path": "/v1/app_store/app-info",
+      "platform": "app_store",
+      "resource": "app-info"
+    },
+    {
+      "endpoint_id": "endpoint_c53f3095f0951b395cef29c9733aea530bc090d59460aebc25ec36a101ed7f2f",
+      "http_method": "GET",
+      "route_path": "/v1/app_store/app-list",
+      "platform": "app_store",
+      "resource": "app-list"
+    },
+    {
+      "endpoint_id": "endpoint_3259ee9106ab7257f863c8d99276e756b456d769ff443e13d00af6c432f3930c",
+      "http_method": "GET",
+      "route_path": "/v1/app_store/app-listings-search",
+      "platform": "app_store",
+      "resource": "app-listings-search"
+    },
+    {
+      "endpoint_id": "endpoint_0206406a4c1dd8a73fb770e4a00b5f9c8b11907a62f26507b2262cf7b2705754",
+      "http_method": "GET",
+      "route_path": "/v1/app_store/app-reviews",
+      "platform": "app_store",
+      "resource": "app-reviews"
+    },
+    {
+      "endpoint_id": "endpoint_39163245b7381196100f6957e3910c3bff22eaa19ae0682f27b40b84d36ea764",
+      "http_method": "GET",
+      "route_path": "/v1/app_store/app-search",
+      "platform": "app_store",
+      "resource": "app-search"
+    },
+    {
+      "endpoint_id": "endpoint_856165644139e6336a8440f20c513ad1ee8bba1b67bcd2102c374f859785e178",
+      "http_method": "GET",
+      "route_path": "/v1/app_store/categories",
+      "platform": "app_store",
+      "resource": "categories"
+    },
+    {
+      "endpoint_id": "endpoint_2c37c715d1be3fedc13f3032260a2a26ca2d85937a4b940eaeba08806b5a3c44",
+      "http_method": "GET",
+      "route_path": "/v1/app_store/languages",
+      "platform": "app_store",
+      "resource": "languages"
+    },
+    {
+      "endpoint_id": "endpoint_3f84be809999ede42ee8301071722f79d564ca78bb8f7c612d1df0d98eef3da6",
+      "http_method": "GET",
+      "route_path": "/v1/app_store/locations",
+      "platform": "app_store",
+      "resource": "locations"
+    },
+    {
+      "endpoint_id": "endpoint_a2794fe2a2b0db209960a46a84ed267e6483fb58947598c8045b34d3d41dd6ce",
+      "http_method": "GET",
+      "route_path": "/v1/app_store/search-suggestions",
+      "platform": "app_store",
+      "resource": "search-suggestions"
+    },
+    {
+      "endpoint_id": "endpoint_3829cb00a2013d20e8f520f60876e476b9ec785c1d72bf977740869762ca1c0f",
+      "http_method": "GET",
+      "route_path": "/v1/apple_music/album",
+      "platform": "apple_music",
+      "resource": "album"
+    },
+    {
+      "endpoint_id": "endpoint_39e69b8730a58a1482675a52c8fddcf66ae2f9e0d74470d5f784101bb5e1577d",
+      "http_method": "GET",
+      "route_path": "/v1/apple_music/artist",
+      "platform": "apple_music",
+      "resource": "artist"
+    },
+    {
+      "endpoint_id": "endpoint_4a745ff54ab3416fcf01154c7cfe34070b30570bcf75ea257b2a2b34ce78a06d",
+      "http_method": "GET",
+      "route_path": "/v1/apple_music/search",
+      "platform": "apple_music",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_113df50bcaa5b8ab01fed770b44d944a23980f4613b3da032590d3c936db7df1",
+      "http_method": "GET",
+      "route_path": "/v1/apple_music/track",
+      "platform": "apple_music",
+      "resource": "track"
+    },
+    {
+      "endpoint_id": "endpoint_46356a601cfbbeb4ae81b3220e0e982a9bf2e3022f8fda219ddc5466c1c1c1dd",
+      "http_method": "GET",
+      "route_path": "/v1/bluesky/post",
+      "platform": "bluesky",
+      "resource": "post"
+    },
+    {
+      "endpoint_id": "endpoint_ff3d66c793955cd4dd8953e8542d689ce7732b02598720f9a9d924bed5163edd",
+      "http_method": "GET",
+      "route_path": "/v1/bluesky/profile",
+      "platform": "bluesky",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_7ee7afa06dadbef2e60eac9f8582f336260df4bd7ba8782c3b8b55cd092bdf88",
+      "http_method": "GET",
+      "route_path": "/v1/bluesky/user/posts",
+      "platform": "bluesky",
+      "resource": "user/posts"
+    },
+    {
+      "endpoint_id": "endpoint_dbb764a169b924a8fcaac754cb4206468f2882181d58f394125baa7ec10956fb",
+      "http_method": "GET",
+      "route_path": "/v1/content_analysis/categories",
+      "platform": "content_analysis",
+      "resource": "categories"
+    },
+    {
+      "endpoint_id": "endpoint_e1d2b5b41d61651a45ed2a9635edc849a9c760d24ec682b6521bda58324d671c",
+      "http_method": "GET",
+      "route_path": "/v1/content_analysis/category-trends",
+      "platform": "content_analysis",
+      "resource": "category-trends"
+    },
+    {
+      "endpoint_id": "endpoint_b4d4054e0b4a152b6deffa6360d006eadf1e2e62181025681e3274cdaf2ea2bf",
+      "http_method": "GET",
+      "route_path": "/v1/content_analysis/filters",
+      "platform": "content_analysis",
+      "resource": "filters"
+    },
+    {
+      "endpoint_id": "endpoint_8162135055f89cb2fb9c8ec9513e16820dbbc9e88b30a0ce9308e2f052232140",
+      "http_method": "GET",
+      "route_path": "/v1/content_analysis/languages",
+      "platform": "content_analysis",
+      "resource": "languages"
+    },
+    {
+      "endpoint_id": "endpoint_4d568f26ec22ec9fdffe4845eb29455c16d3f6071047e65739298d51d7812fc9",
+      "http_method": "GET",
+      "route_path": "/v1/content_analysis/locations",
+      "platform": "content_analysis",
+      "resource": "locations"
+    },
+    {
+      "endpoint_id": "endpoint_f29215db412631b5af83b78d2404e397822d5e4c88140f6c19b776728a9cfb10",
+      "http_method": "GET",
+      "route_path": "/v1/content_analysis/phrase-trends",
+      "platform": "content_analysis",
+      "resource": "phrase-trends"
+    },
+    {
+      "endpoint_id": "endpoint_1f89653ed1bd4b70f2659a9563dc6f093cb3af8bcee574849d0b21c479e744c0",
+      "http_method": "GET",
+      "route_path": "/v1/content_analysis/rating-distribution",
+      "platform": "content_analysis",
+      "resource": "rating-distribution"
+    },
+    {
+      "endpoint_id": "endpoint_fda3e04d8c30e59fc71fb2a2846183c2719962fadf9454facd45e20d467ee87a",
+      "http_method": "GET",
+      "route_path": "/v1/content_analysis/search",
+      "platform": "content_analysis",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_9f5c7e6dfddb723f2da853459fdde363f32497336da649a07e2e4ea69096a7e6",
+      "http_method": "GET",
+      "route_path": "/v1/content_analysis/sentiment",
+      "platform": "content_analysis",
+      "resource": "sentiment"
+    },
+    {
+      "endpoint_id": "endpoint_653b2956f96b9e5f6197206dcf313726624970a53756a06efc6f5dcddf63ab2d",
+      "http_method": "GET",
+      "route_path": "/v1/content_analysis/summary",
+      "platform": "content_analysis",
+      "resource": "summary"
+    },
+    {
+      "endpoint_id": "endpoint_72cab97ea1aaee4f5e712a6789de33e86d92509b7c270b6dd1a1e19c7b305627",
+      "http_method": "GET",
+      "route_path": "/v1/ebay/product",
+      "platform": "ebay",
+      "resource": "product"
+    },
+    {
+      "endpoint_id": "endpoint_7108341a5c57986229b68889606eb6517a59dee5b36c8090277c77200c08703a",
+      "http_method": "GET",
+      "route_path": "/v1/ebay/search",
+      "platform": "ebay",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_71bb8411471040b300bcc61fcd1c884fa0b031fcf65e96b5e1b191c14fc81d81",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/adlibrary/ad",
+      "platform": "facebook",
+      "resource": "adlibrary/ad"
+    },
+    {
+      "endpoint_id": "endpoint_cd9e03ce5fd5d34633ee3de635d03a784abb1b26e6d884515dfe88a6fa84521f",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/adlibrary/ad/transcript",
+      "platform": "facebook",
+      "resource": "adlibrary/ad/transcript"
+    },
+    {
+      "endpoint_id": "endpoint_0686f28d35fef30edf2a5d851083c87bd3106e4d38ae8ed52f2a35ce8ee388ab",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/adlibrary/company/ads",
+      "platform": "facebook",
+      "resource": "adlibrary/company/ads"
+    },
+    {
+      "endpoint_id": "endpoint_65d35576dac37e7eb2acdbe5b1281d272197c01789106a3c2dbc8de8a5462ee1",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/adlibrary/search/ads",
+      "platform": "facebook",
+      "resource": "adlibrary/search/ads"
+    },
+    {
+      "endpoint_id": "endpoint_8700dbca703e2bce29f2fc986b866957f949cea458851680e1e14ee534e98dd7",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/adlibrary/search/companies",
+      "platform": "facebook",
+      "resource": "adlibrary/search/companies"
+    },
+    {
+      "endpoint_id": "endpoint_058df98f7adb638ab1725c9a8572092437160d90bf988a1d31cc4f84b140dd9f",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/event/details",
+      "platform": "facebook",
+      "resource": "event/details"
+    },
+    {
+      "endpoint_id": "endpoint_0008fe3e07123efcc5faa86cbe770fa3026c7522cdc0ce3d02fe1d9fa2f60e26",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/events",
+      "platform": "facebook",
+      "resource": "events"
+    },
+    {
+      "endpoint_id": "endpoint_5f71c8bc4f0736b30abbb0eac78f9929c696d1000a19cadd8229ca333651928b",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/events/search",
+      "platform": "facebook",
+      "resource": "events/search"
+    },
+    {
+      "endpoint_id": "endpoint_b2108312a37d95d0b18f535ddd0e2a8c1af0bdcb0549fdd1073b2871318c0273",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/group",
+      "platform": "facebook",
+      "resource": "group"
+    },
+    {
+      "endpoint_id": "endpoint_ca38bfd962d1e2d599a8c381abb3580405038d555af81a148fa041506d01192c",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/group/posts",
+      "platform": "facebook",
+      "resource": "group/posts"
+    },
+    {
+      "endpoint_id": "endpoint_4ebe54dbf489e149bae3ea6f3fcd28ee6a5282e231c80a7839cdff19b385afed",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/marketplace/item",
+      "platform": "facebook",
+      "resource": "marketplace/item"
+    },
+    {
+      "endpoint_id": "endpoint_d123dc7e56598b3fb7b7d46a83ab101abbfdf9d6efd6816b0b7dc6bf0a17b2f6",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/marketplace/location/search",
+      "platform": "facebook",
+      "resource": "marketplace/location/search"
+    },
+    {
+      "endpoint_id": "endpoint_6d0648c1cd9fac8e8b84af99128a860df6fb0125527be0c40a786c65113a1c22",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/marketplace/search",
+      "platform": "facebook",
+      "resource": "marketplace/search"
+    },
+    {
+      "endpoint_id": "endpoint_bfe15011ad636ab5de126504049892b3a393dac7e59054873fd09dc82824d55f",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/post",
+      "platform": "facebook",
+      "resource": "post"
+    },
+    {
+      "endpoint_id": "endpoint_0e4b590b77798180c5f197f47a19c3826028eac426701e3998a4ba5a824ee621",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/post/comment/replies",
+      "platform": "facebook",
+      "resource": "post/comment/replies"
+    },
+    {
+      "endpoint_id": "endpoint_4edecc1f694cc84b7dbc3990f2c3f735b20acee433dd7e042956027ee909465f",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/post/comments",
+      "platform": "facebook",
+      "resource": "post/comments"
+    },
+    {
+      "endpoint_id": "endpoint_506af68ab77b646c2bb2090787b6c8a450d3b05c7f29c0c9373a6a9d7bc372a9",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/post/transcript",
+      "platform": "facebook",
+      "resource": "post/transcript"
+    },
+    {
+      "endpoint_id": "endpoint_e72ebd6780de36cc33219a90ebdee79abccb560e5fffa8fd8af9334672b33258",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/profile",
+      "platform": "facebook",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_3d2243be94bbb7504753571e5e0df88f7eac840cbbfabefa6c8983c44483f118",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/profile/events",
+      "platform": "facebook",
+      "resource": "profile/events"
+    },
+    {
+      "endpoint_id": "endpoint_9959e25011bba10274dac366608b43416d0586f69ff229c7693977d6f9185081",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/profile/full",
+      "platform": "facebook",
+      "resource": "profile/full"
+    },
+    {
+      "endpoint_id": "endpoint_eaabafbad432f84dd8b345c0c5070309dcb583693754323f911e2ce8fe887022",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/profile/photos",
+      "platform": "facebook",
+      "resource": "profile/photos"
+    },
+    {
+      "endpoint_id": "endpoint_01a7332d895ee985d47cac9908f25fea7a3425be82d884ac39b1024bae950c2d",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/profile/posts",
+      "platform": "facebook",
+      "resource": "profile/posts"
+    },
+    {
+      "endpoint_id": "endpoint_dde823dc301b829645233e5c226c50ab8f40a0c7c0e01c9e495612c1fd1fac53",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/profile/reels",
+      "platform": "facebook",
+      "resource": "profile/reels"
+    },
+    {
+      "endpoint_id": "endpoint_24f62480a3185ef188cc0516654d2f70735ab403fdf8869cd8a3f9ac077d3795",
+      "http_method": "GET",
+      "route_path": "/v1/facebook/profile/reels/full",
+      "platform": "facebook",
+      "resource": "profile/reels/full"
+    },
+    {
+      "endpoint_id": "endpoint_566113625d8f47aa02c70982930a738f48f642ed2a248315d3a958c98124fcd4",
+      "http_method": "GET",
+      "route_path": "/v1/github/issue",
+      "platform": "github",
+      "resource": "issue"
+    },
+    {
+      "endpoint_id": "endpoint_0558e7e9dd34e293c56dc3f6fa3e655671cbab6a12e99e0f7f4c906cb1814d2e",
+      "http_method": "GET",
+      "route_path": "/v1/github/issue/comments",
+      "platform": "github",
+      "resource": "issue/comments"
+    },
+    {
+      "endpoint_id": "endpoint_e5bfddd45737a52f50bace9037c1572bfcbb67408e1ead4f27688cbdc3a149b1",
+      "http_method": "GET",
+      "route_path": "/v1/github/profile",
+      "platform": "github",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_2845dec4be3cd02b20a964bc9d09a1ac87dc78375a96620418a0583e22efec64",
+      "http_method": "GET",
+      "route_path": "/v1/github/profile/repos",
+      "platform": "github",
+      "resource": "profile/repos"
+    },
+    {
+      "endpoint_id": "endpoint_fcceb6f5818323ea466c597300b19f3b3f51e7edd302231f23b01b0d654ba606",
+      "http_method": "GET",
+      "route_path": "/v1/github/repo",
+      "platform": "github",
+      "resource": "repo"
+    },
+    {
+      "endpoint_id": "endpoint_1c98d2e2954cbf29269db6fd7f2cdf069442ed45e4f8c2646b478738cff6992a",
+      "http_method": "GET",
+      "route_path": "/v1/github/repo/dossier",
+      "platform": "github",
+      "resource": "repo/dossier"
+    },
+    {
+      "endpoint_id": "endpoint_52b51a768f4d949d5f95f84a25a73b53a862864c9d1291aa48a2ed76cb0dd57d",
+      "http_method": "GET",
+      "route_path": "/v1/github/repo/issues",
+      "platform": "github",
+      "resource": "repo/issues"
+    },
+    {
+      "endpoint_id": "endpoint_e4423749f5e6f24b89c208192ade3caf7fbf3a2ee34f5c6117eec8e344bf4e9a",
+      "http_method": "GET",
+      "route_path": "/v1/github/repo/readme",
+      "platform": "github",
+      "resource": "repo/readme"
+    },
+    {
+      "endpoint_id": "endpoint_370c2b6a9b498b9ec3de27c08e4d62c32e9be166d5445b2ef8160a3ab8ae9d16",
+      "http_method": "GET",
+      "route_path": "/v1/github/repo/releases",
+      "platform": "github",
+      "resource": "repo/releases"
+    },
+    {
+      "endpoint_id": "endpoint_eef60da8755895a883ff908a6a6a29357033aab3e1cf0d35c6ab43e7a9d2f477",
+      "http_method": "GET",
+      "route_path": "/v1/github/repo/top-issues",
+      "platform": "github",
+      "resource": "repo/top-issues"
+    },
+    {
+      "endpoint_id": "endpoint_27436e2110c662fe141dd3ea3778b4ca73b7ad86c8eff5794bcf32f2150595d9",
+      "http_method": "GET",
+      "route_path": "/v1/github/search",
+      "platform": "github",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_e9dd505b6b0eb8539797d0b7217915cbeacd38dae875c54e836f9c17b09268ee",
+      "http_method": "GET",
+      "route_path": "/v1/github/user/profile-velocity",
+      "platform": "github",
+      "resource": "user/profile-velocity"
+    },
+    {
+      "endpoint_id": "endpoint_715a9289293785cf3f65986c67615c0cb1f68155409b4a09df6889e9548c72da",
+      "http_method": "GET",
+      "route_path": "/v1/google/ad",
+      "platform": "google",
+      "resource": "ad"
+    },
+    {
+      "endpoint_id": "endpoint_524f7e739081ae2caadf4f446404c7dfc8cc6e44c79de1bc63b639a7de5160e1",
+      "http_method": "GET",
+      "route_path": "/v1/google/adlibrary/advertisers/search",
+      "platform": "google",
+      "resource": "adlibrary/advertisers/search"
+    },
+    {
+      "endpoint_id": "endpoint_dade6058e11a8e0d667e7a123ae9f07d06c5077d1d57c5f037077a9059650c01",
+      "http_method": "GET",
+      "route_path": "/v1/google/business/extended-reviews",
+      "platform": "google",
+      "resource": "business/extended-reviews"
+    },
+    {
+      "endpoint_id": "endpoint_71559e7156bfc18476976e437a42c8e813ab83346ffe1359a880f810b5641e0d",
+      "http_method": "GET",
+      "route_path": "/v1/google/business/info",
+      "platform": "google",
+      "resource": "business/info"
+    },
+    {
+      "endpoint_id": "endpoint_b58201bff6b5e3f9081ce8b265df0cb8c690a7dc789e9298a738067847607398",
+      "http_method": "GET",
+      "route_path": "/v1/google/business/questions",
+      "platform": "google",
+      "resource": "business/questions"
+    },
+    {
+      "endpoint_id": "endpoint_aee7b03db390d4e60c68d6489067c7722c97e2c56e527474ffc7aa59e8f5318c",
+      "http_method": "GET",
+      "route_path": "/v1/google/business/updates",
+      "platform": "google",
+      "resource": "business/updates"
+    },
+    {
+      "endpoint_id": "endpoint_e011d7ee25985f5983225753470f8e50c6c92fa636a5cda42e8922d38bff4b47",
+      "http_method": "GET",
+      "route_path": "/v1/google/company/ads",
+      "platform": "google",
+      "resource": "company/ads"
+    },
+    {
+      "endpoint_id": "endpoint_de3c70bf41ceee04e68ce73fb60444b958f222052581aba6705173665c06a3b4",
+      "http_method": "GET",
+      "route_path": "/v1/google/hotels/info",
+      "platform": "google",
+      "resource": "hotels/info"
+    },
+    {
+      "endpoint_id": "endpoint_00f87d2d43e5df20628c9c28845017e8d013d9202339cb1ee13f4b9ab090188b",
+      "http_method": "GET",
+      "route_path": "/v1/google/hotels/search",
+      "platform": "google",
+      "resource": "hotels/search"
+    },
+    {
+      "endpoint_id": "endpoint_ba64ee6461de617a9e582326f6c84bfdf571680221d7040912e850da15fb65ec",
+      "http_method": "GET",
+      "route_path": "/v1/google/search",
+      "platform": "google",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_5364c85fbbb7dc936fbc14acb1b4a17c8309efb55c7c73105a0144bfbb6018ea",
+      "http_method": "GET",
+      "route_path": "/v1/google_finance/markets",
+      "platform": "google_finance",
+      "resource": "markets"
+    },
+    {
+      "endpoint_id": "endpoint_e6e017ad654e86a2a0deb8ee8749a883f7955a908ff348a0517d4fefb411f874",
+      "http_method": "GET",
+      "route_path": "/v1/google_finance/quote",
+      "platform": "google_finance",
+      "resource": "quote"
+    },
+    {
+      "endpoint_id": "endpoint_f8b9cc4c33ac90e369411fa2b30f5407d251129c5906cb634f29bb685c4ac975",
+      "http_method": "GET",
+      "route_path": "/v1/google_finance/ticker-search",
+      "platform": "google_finance",
+      "resource": "ticker-search"
+    },
+    {
+      "endpoint_id": "endpoint_4cf321d2ff40a4259999cbdcb889d48b7abb08d2859283590091ace39405e0d7",
+      "http_method": "GET",
+      "route_path": "/v1/google_news/search",
+      "platform": "google_news",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_c0fabd906c63ad16c028c6a9abf75206e05ab7b7737a60b04b06677fd4a5ecae",
+      "http_method": "GET",
+      "route_path": "/v1/google_play/app-info",
+      "platform": "google_play",
+      "resource": "app-info"
+    },
+    {
+      "endpoint_id": "endpoint_292b5abca592e07e215eb85b2e0fdb6b038632590c6fed53c2028aaeff279095",
+      "http_method": "GET",
+      "route_path": "/v1/google_play/app-list",
+      "platform": "google_play",
+      "resource": "app-list"
+    },
+    {
+      "endpoint_id": "endpoint_7829ddc08518128b3b49e024b3a6ddc0cdc642f21e6e6912e4407f07e4c588a4",
+      "http_method": "GET",
+      "route_path": "/v1/google_play/app-listings-search",
+      "platform": "google_play",
+      "resource": "app-listings-search"
+    },
+    {
+      "endpoint_id": "endpoint_ecd84899db75c88232362c4c2ef7fe8cf9b1f885d3279f2fec05f1f9010db570",
+      "http_method": "GET",
+      "route_path": "/v1/google_play/app-reviews",
+      "platform": "google_play",
+      "resource": "app-reviews"
+    },
+    {
+      "endpoint_id": "endpoint_676a096d5551afa4b754f638ff78f0f0e186e745acd7e35ecb43f40f02dc3eed",
+      "http_method": "GET",
+      "route_path": "/v1/google_play/app-search",
+      "platform": "google_play",
+      "resource": "app-search"
+    },
+    {
+      "endpoint_id": "endpoint_9a2ff907d60b0ad3853a53d67012c919ee26e5cd58e92685ea69185a7b61e544",
+      "http_method": "GET",
+      "route_path": "/v1/google_play/categories",
+      "platform": "google_play",
+      "resource": "categories"
+    },
+    {
+      "endpoint_id": "endpoint_af109cb7d0a7d0acc31cf8656b17713c5c666d01aec7b082f9739875445e9493",
+      "http_method": "GET",
+      "route_path": "/v1/google_play/languages",
+      "platform": "google_play",
+      "resource": "languages"
+    },
+    {
+      "endpoint_id": "endpoint_72ff0cd302c58567299f72108ca4374bef20b5f2769815e5c545ea039b6890dd",
+      "http_method": "GET",
+      "route_path": "/v1/google_play/locations",
+      "platform": "google_play",
+      "resource": "locations"
+    },
+    {
+      "endpoint_id": "endpoint_70b2c1c76e74ef5a20a0cd63bbbd9679ee7765a12de0cd96aac2d9262a60e5ac",
+      "http_method": "GET",
+      "route_path": "/v1/google_play/search-suggestions",
+      "platform": "google_play",
+      "resource": "search-suggestions"
+    },
+    {
+      "endpoint_id": "endpoint_124a87d313504b03167d339b35cd3c3651c17e025c6b64538279131eeb7d66de",
+      "http_method": "GET",
+      "route_path": "/v1/google_shopping/product",
+      "platform": "google_shopping",
+      "resource": "product"
+    },
+    {
+      "endpoint_id": "endpoint_5c62c56ec08755a1f7f62b8ab5276451fcd9a77ab62f1d9e2e22d213754f09b8",
+      "http_method": "GET",
+      "route_path": "/v1/google_shopping/product-search",
+      "platform": "google_shopping",
+      "resource": "product-search"
+    },
+    {
+      "endpoint_id": "endpoint_2a2bf93a8c785380ffd0fa83ee5fcbb8694fd208c66632ef4b9a2341186cf5d5",
+      "http_method": "GET",
+      "route_path": "/v1/google_shopping/reviews",
+      "platform": "google_shopping",
+      "resource": "reviews"
+    },
+    {
+      "endpoint_id": "endpoint_03879e268857d36e6c5c1095930a4c5995056bb6ec00f0ecd2f33b1585b83e83",
+      "http_method": "GET",
+      "route_path": "/v1/google_shopping/sellers",
+      "platform": "google_shopping",
+      "resource": "sellers"
+    },
+    {
+      "endpoint_id": "endpoint_2c696091a0bb3270b10811d9c13dbdcd0549981c79c65cd02347a09ca064c23b",
+      "http_method": "GET",
+      "route_path": "/v1/google_trends/explore",
+      "platform": "google_trends",
+      "resource": "explore"
+    },
+    {
+      "endpoint_id": "endpoint_1b930f0e47362d0cab9a55c77d77e1b320987cc866a0ba984ca39f0f9b8083cf",
+      "http_method": "GET",
+      "route_path": "/v1/google_trends/rising",
+      "platform": "google_trends",
+      "resource": "rising"
+    },
+    {
+      "endpoint_id": "endpoint_3a92161677fd919d747f95d0dca97058ce378bd68fef54a524ffc8576f0e3c4e",
+      "http_method": "GET",
+      "route_path": "/v1/hackernews/profile",
+      "platform": "hackernews",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_5590d3402667324da1635c47f0705f245bbeb945df1e47205dc9bdbbe3e7d139",
+      "http_method": "GET",
+      "route_path": "/v1/hackernews/search",
+      "platform": "hackernews",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_3e2f47b8a27790e46d87bcf5eb2d4eb8eea5c8af81de7e51f5f44030ed33913f",
+      "http_method": "GET",
+      "route_path": "/v1/hackernews/story",
+      "platform": "hackernews",
+      "resource": "story"
+    },
+    {
+      "endpoint_id": "endpoint_28da3587cf826ab0579f68ea982efe66f898202ae059072d088ba7d6a6076718",
+      "http_method": "GET",
+      "route_path": "/v1/hackernews/story/comments",
+      "platform": "hackernews",
+      "resource": "story/comments"
+    },
+    {
+      "endpoint_id": "endpoint_9464c8d63748fdad5a574fe4bf06d2c6e9ce6355deadeadc1c4af1a86cad91ce",
+      "http_method": "GET",
+      "route_path": "/v1/home_depot/category",
+      "platform": "home_depot",
+      "resource": "category"
+    },
+    {
+      "endpoint_id": "endpoint_1fc2c2be8c4838c9b25f83f3c78ca9d056ead9c399b01d1d580191a2a4103268",
+      "http_method": "GET",
+      "route_path": "/v1/home_depot/product",
+      "platform": "home_depot",
+      "resource": "product"
+    },
+    {
+      "endpoint_id": "endpoint_ace998c01665443013e808baf4a315a1220a894287b34dc404b2616caafd52e1",
+      "http_method": "GET",
+      "route_path": "/v1/home_depot/reviews",
+      "platform": "home_depot",
+      "resource": "reviews"
+    },
+    {
+      "endpoint_id": "endpoint_31730d1c2fc0db17637e8727e6685744941c688d8ef00caab8ba9564f5d01101",
+      "http_method": "GET",
+      "route_path": "/v1/home_depot/search",
+      "platform": "home_depot",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_22994c094e5c0e95ec6624160b0373d04b08b1a30756b4fa3db1c66ad2472e86",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/audio/reels",
+      "platform": "instagram",
+      "resource": "audio/reels"
+    },
+    {
+      "endpoint_id": "endpoint_79a6ba50597c3fc092e57ae98f4e13a3d642899e45b96eff78f786ef3e9cebc3",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/basic-profile",
+      "platform": "instagram",
+      "resource": "basic-profile"
+    },
+    {
+      "endpoint_id": "endpoint_0fd9891d74771fad39cadce5a6e6aa0c38c550f93e87804b96a872d21f04c53b",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/comment",
+      "platform": "instagram",
+      "resource": "comment"
+    },
+    {
+      "endpoint_id": "endpoint_209e5a616f3924b3af25489e870bb6cccf7db20604a5035003d867e169c618f9",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/engagement",
+      "platform": "instagram",
+      "resource": "engagement"
+    },
+    {
+      "endpoint_id": "endpoint_968aea311240ff1e32d4e4b4717d3ec17c83ce8418b406ff5731f68a102ecb61",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/followers",
+      "platform": "instagram",
+      "resource": "followers"
+    },
+    {
+      "endpoint_id": "endpoint_12aa80f242593f707c864f5959ce2410b4e0bf9e1148aee661512de4f2d84460",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/following",
+      "platform": "instagram",
+      "resource": "following"
+    },
+    {
+      "endpoint_id": "endpoint_8324248f43c5553081d02f7addad7b85f241492c5a8b4d7deca092c00a0c0c39",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/highlight/detail",
+      "platform": "instagram",
+      "resource": "highlight/detail"
+    },
+    {
+      "endpoint_id": "endpoint_ffdb26e27d22e451f300572207dfa8725c8bb965efd2c8146eb83796cd5ebfeb",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/highlights",
+      "platform": "instagram",
+      "resource": "highlights"
+    },
+    {
+      "endpoint_id": "endpoint_90dce689a68f1a3eda781a00c8547010c0383147ee8e40879dc088ae227bf166",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/location/posts",
+      "platform": "instagram",
+      "resource": "location/posts"
+    },
+    {
+      "endpoint_id": "endpoint_c92a784049fb96fab3260354a5509c0c0a17cde8e5a2720f229492f0c0409646",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/media/transcript",
+      "platform": "instagram",
+      "resource": "media/transcript"
+    },
+    {
+      "endpoint_id": "endpoint_3c52f153674460a5e5d30dc101460327482f419fec34b72e9e8cefacb5b12870",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/music/trending",
+      "platform": "instagram",
+      "resource": "music/trending"
+    },
+    {
+      "endpoint_id": "endpoint_79f5a9901d5cf0395abecb87488304e920c74fe02b2ae4f446a36b8325574c60",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/post",
+      "platform": "instagram",
+      "resource": "post"
+    },
+    {
+      "endpoint_id": "endpoint_42b304edc2d4f154ecd89da1ebf8b85ffad1615ee00c0f96c965948537c07922",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/post/comment/replies",
+      "platform": "instagram",
+      "resource": "post/comment/replies"
+    },
+    {
+      "endpoint_id": "endpoint_de5f89726b524a12c2cb641ac4abfdb29718760736dc78b1ef35cbac2a496f19",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/post/comments",
+      "platform": "instagram",
+      "resource": "post/comments"
+    },
+    {
+      "endpoint_id": "endpoint_7f59c0d65138ea413fb5823c5eaca8d1111cd5ae6a92fe09aaa068295f0a3c27",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/post/likers",
+      "platform": "instagram",
+      "resource": "post/likers"
+    },
+    {
+      "endpoint_id": "endpoint_1f404619e2669ce0352ac15b886c83e1cb78c8a119cecd42af2161b04837d017",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/post/stats",
+      "platform": "instagram",
+      "resource": "post/stats"
+    },
+    {
+      "endpoint_id": "endpoint_98e731f335d99f7e012af8b1548ec9c54a559d0fd8f8826ed14a8884fd0f3b48",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/profile",
+      "platform": "instagram",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_283ea1d6a8dc953b7fb666ea0c719fc49b02ca53cad38bbb0bf45472cf81e2cd",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/profile/full",
+      "platform": "instagram",
+      "resource": "profile/full"
+    },
+    {
+      "endpoint_id": "endpoint_1221ad4066faa0b978b7dd60f442ee88faa2b36dcfb78e917ae335ccf9cb628b",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/profile/posts",
+      "platform": "instagram",
+      "resource": "profile/posts"
+    },
+    {
+      "endpoint_id": "endpoint_f850ae447aa8957d715fa80ffe084bd31c81bbbce7886e42dc741bf5cecb558e",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/profile/posts/full",
+      "platform": "instagram",
+      "resource": "profile/posts/full"
+    },
+    {
+      "endpoint_id": "endpoint_c67339ebf614209d0ba0fe4fde56b49c4a3fdc1da37fd45bde9e85f3fd177319",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/profile/reels",
+      "platform": "instagram",
+      "resource": "profile/reels"
+    },
+    {
+      "endpoint_id": "endpoint_fb3b34bec38b9c9c23c6af41aceca61e2fc4e2d4443e4e11700760bf5f7b3984",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/profile/reels/full",
+      "platform": "instagram",
+      "resource": "profile/reels/full"
+    },
+    {
+      "endpoint_id": "endpoint_ead09698225cc191be833c7723c451e19b37df96f9d298736504d831cc1af92a",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/reels/trending",
+      "platform": "instagram",
+      "resource": "reels/trending"
+    },
+    {
+      "endpoint_id": "endpoint_decc7d473ade712e1ae54bb879f5b5a69a22818bf741bcd0d3a518618c12dfc7",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/search",
+      "platform": "instagram",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_4ba5398a641f21e5a9137d7ef4b9e2d2026336d27144c19e0f2541a6965967d9",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/search/hashtag",
+      "platform": "instagram",
+      "resource": "search/hashtag"
+    },
+    {
+      "endpoint_id": "endpoint_b0ee43ff53e69087bbb342f313441c70e8296bd17e01802300306b116ebdd1ee",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/search/location",
+      "platform": "instagram",
+      "resource": "search/location"
+    },
+    {
+      "endpoint_id": "endpoint_ff5580b92e0b3f4beef57179717e7004212bcb01673968727af1dc63e60c74a9",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/search/music",
+      "platform": "instagram",
+      "resource": "search/music"
+    },
+    {
+      "endpoint_id": "endpoint_fc57089bd2e32a5511f17a1bd688f382d4cbc0bd57965fe68aa76811312478c6",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/search/popular",
+      "platform": "instagram",
+      "resource": "search/popular"
+    },
+    {
+      "endpoint_id": "endpoint_7b65041d1422119b7e69f5ff214ef6d66bac58c3104c9562f079f1a51256b561",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/search/profiles",
+      "platform": "instagram",
+      "resource": "search/profiles"
+    },
+    {
+      "endpoint_id": "endpoint_d906e35135650a2da6ffeeae2760f4f048e1eee1503bd4db18e828e086fedba4",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/search/reels",
+      "platform": "instagram",
+      "resource": "search/reels"
+    },
+    {
+      "endpoint_id": "endpoint_c925b6033288b80af4e4609956b478c0a5141d6f6df9041063ad9adcf596d105",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/similar",
+      "platform": "instagram",
+      "resource": "similar"
+    },
+    {
+      "endpoint_id": "endpoint_2e6dbf8f71ea50aaa64a624cbd8c4f582c7f4f0d4e5704435c7d261aa488a426",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/stories",
+      "platform": "instagram",
+      "resource": "stories"
+    },
+    {
+      "endpoint_id": "endpoint_776badd776b6e429702fe7c3f0551adfbaa71573b2894a91049d82e236afaa37",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/story/download",
+      "platform": "instagram",
+      "resource": "story/download"
+    },
+    {
+      "endpoint_id": "endpoint_5311ad464dba5cee36a9bbb1dae08e7c4e5d2c466ed38177e575a019355f57f9",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/tagged",
+      "platform": "instagram",
+      "resource": "tagged"
+    },
+    {
+      "endpoint_id": "endpoint_9277382fccbebedcdd0e3c2fbfb86af82fdd21d899b4ef15170d1dc26081d519",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/user/embed",
+      "platform": "instagram",
+      "resource": "user/embed"
+    },
+    {
+      "endpoint_id": "endpoint_984761a0926ba5132ef09a52e5f4875b33dbe9843f365ce6cc27b76038049f19",
+      "http_method": "GET",
+      "route_path": "/v1/instagram/username-suggestions",
+      "platform": "instagram",
+      "resource": "username-suggestions"
+    },
+    {
+      "endpoint_id": "endpoint_3257d46e55b51ab634254cc00340589f6fcc5401edc8c829f46230a512e60ae5",
+      "http_method": "GET",
+      "route_path": "/v1/kick/clip",
+      "platform": "kick",
+      "resource": "clip"
+    },
+    {
+      "endpoint_id": "endpoint_7c350ebb5888b1e074d45aa32ba9fe8eab25cb301e3218a4cfba422dc4abb483",
+      "http_method": "GET",
+      "route_path": "/v1/komi/page",
+      "platform": "komi",
+      "resource": "page"
+    },
+    {
+      "endpoint_id": "endpoint_07118d9c54ca34f17a70903691c43c48bf03c3085fca8caa20e8b20aa76cd10f",
+      "http_method": "GET",
+      "route_path": "/v1/kwai/post",
+      "platform": "kwai",
+      "resource": "post"
+    },
+    {
+      "endpoint_id": "endpoint_44b49957d88a9b27d4f8d81afeea915856e7d9cac47083c9a50276088a0ce3ce",
+      "http_method": "GET",
+      "route_path": "/v1/kwai/profile",
+      "platform": "kwai",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_ea7ea8f2060bfbc81b30371918f7c59e8678b98ae31d9fdd632104544e2ddf36",
+      "http_method": "GET",
+      "route_path": "/v1/kwai/user/posts",
+      "platform": "kwai",
+      "resource": "user/posts"
+    },
+    {
+      "endpoint_id": "endpoint_eea66b71586978b6972ceb08633e2ad30cfab54ad11931eee33b5ec23d583b3e",
+      "http_method": "GET",
+      "route_path": "/v1/linkbio/page",
+      "platform": "linkbio",
+      "resource": "page"
+    },
+    {
+      "endpoint_id": "endpoint_1654d2530d755937e987280c31d60e0a7b51a26070363bac8afe0799bc8bfd8f",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/ad",
+      "platform": "linkedin",
+      "resource": "ad"
+    },
+    {
+      "endpoint_id": "endpoint_ef627b2b421b7c64b0abcb549db5fd0f721df5689a65f48897db3e741840fb6e",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/ads/search",
+      "platform": "linkedin",
+      "resource": "ads/search"
+    },
+    {
+      "endpoint_id": "endpoint_653c1fc7070aeb4c2ea3cfd6796e2ceff17c0ca31e3918ab67eaa0f1024dbdb8",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/company",
+      "platform": "linkedin",
+      "resource": "company"
+    },
+    {
+      "endpoint_id": "endpoint_bdfb5ac7d037dc20b597717eab6cfcc641a26e1b2e45394e52687cd60ad4be76",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/company/affiliated-pages",
+      "platform": "linkedin",
+      "resource": "company/affiliated-pages"
+    },
+    {
+      "endpoint_id": "endpoint_d73ddaed2583ef96079de3a563cf16a6175c7b468e64b69b090a8b07cd32ae45",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/company/insights",
+      "platform": "linkedin",
+      "resource": "company/insights"
+    },
+    {
+      "endpoint_id": "endpoint_92950c01c55e68c2ba91d222c9f6c85b87e83cc758721c46a1f57261f672cc2d",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/company/job-count",
+      "platform": "linkedin",
+      "resource": "company/job-count"
+    },
+    {
+      "endpoint_id": "endpoint_bc95e3ec7aae146360c89877899a1c0bf098448521244f807fb724ccdce14816",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/company/jobs",
+      "platform": "linkedin",
+      "resource": "company/jobs"
+    },
+    {
+      "endpoint_id": "endpoint_c8b07ddcb18574c568af24dcf1e5c58766e4066c13aa4f8785cd2b930aed5bce",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/company/people",
+      "platform": "linkedin",
+      "resource": "company/people"
+    },
+    {
+      "endpoint_id": "endpoint_2a1d19c55ddec11f629ae73816cf6c6cd62c8155b3af445e2cd862fd85e75618",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/company/posts",
+      "platform": "linkedin",
+      "resource": "company/posts"
+    },
+    {
+      "endpoint_id": "endpoint_494e31e4334397bdc60d07332b92737db237e21b0f3bcad57907d310aa78070e",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/group",
+      "platform": "linkedin",
+      "resource": "group"
+    },
+    {
+      "endpoint_id": "endpoint_e6257f6ac9f806527919e1e82a08b159e2d4b6d06d2cf29821065d864ac826eb",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/group/posts",
+      "platform": "linkedin",
+      "resource": "group/posts"
+    },
+    {
+      "endpoint_id": "endpoint_7021df2da84ff10f38375de93fed9916402811d87515d2613237e9c8bf6fb710",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/job",
+      "platform": "linkedin",
+      "resource": "job"
+    },
+    {
+      "endpoint_id": "endpoint_2c7593000429df7b468da3d54ac728f9623f82a288192ae886c2373947764468",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/post",
+      "platform": "linkedin",
+      "resource": "post"
+    },
+    {
+      "endpoint_id": "endpoint_3b61764744dd06a3deb4306b1b3cabc5ac635a0897dc783b2e81d6ec1e3c2370",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/post/comments",
+      "platform": "linkedin",
+      "resource": "post/comments"
+    },
+    {
+      "endpoint_id": "endpoint_bbb0d66b6e0c7d578993dd31361c70d9ed839955470831b1601dd7069991d23e",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/post/comments/replies",
+      "platform": "linkedin",
+      "resource": "post/comments/replies"
+    },
+    {
+      "endpoint_id": "endpoint_5f956ef1cdfdfbea66736af2c7a1c5119ffc51ea4b082a5fbc2b5e3511ca32ca",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/post/reactions",
+      "platform": "linkedin",
+      "resource": "post/reactions"
+    },
+    {
+      "endpoint_id": "endpoint_cd10cd14685ee34fd0b09e01d1b88b222deabd5d485d7634012b7869b41aa329",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/post/reposts",
+      "platform": "linkedin",
+      "resource": "post/reposts"
+    },
+    {
+      "endpoint_id": "endpoint_f792b7ed5d717a2d9e59ae7b5f62f3d9647aa06a86a31c3edfdb5ea97410400f",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/post/transcript",
+      "platform": "linkedin",
+      "resource": "post/transcript"
+    },
+    {
+      "endpoint_id": "endpoint_b20713c93c47fec2ce743255bd0dbfe5815f64c5298b2ab4c03c7910a55d0aa9",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile",
+      "platform": "linkedin",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_37dadee6f05fbbb606cdc165336ec519925b4ea5f6da6c5d593b3605bd22ffb8",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/about",
+      "platform": "linkedin",
+      "resource": "profile/about"
+    },
+    {
+      "endpoint_id": "endpoint_4a96942cce552f93bd866b11d534a5cf7b08e3ce2c3569cc103e27a2f17ede95",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/certifications",
+      "platform": "linkedin",
+      "resource": "profile/certifications"
+    },
+    {
+      "endpoint_id": "endpoint_92fa7fe8cc292d85845cf3e1c64016e2db9cea9f3e3e3b8a5399d43cc86d5c72",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/comments",
+      "platform": "linkedin",
+      "resource": "profile/comments"
+    },
+    {
+      "endpoint_id": "endpoint_87523af04a92c3006b14de50c1b9a8e3c13ba1e82927bbc943db65e958b88d30",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/contact",
+      "platform": "linkedin",
+      "resource": "profile/contact"
+    },
+    {
+      "endpoint_id": "endpoint_66f0a9efa5cb49d48591381ccbdbc8b2926c0937b559d61601d0c495c82687ef",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/educations",
+      "platform": "linkedin",
+      "resource": "profile/educations"
+    },
+    {
+      "endpoint_id": "endpoint_d0a7a3b554a9bebc6048f0005dd01f19ae03890bde500884b94b7129a516363e",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/experiences",
+      "platform": "linkedin",
+      "resource": "profile/experiences"
+    },
+    {
+      "endpoint_id": "endpoint_f7301bb2b1ace21e85ed7c62775987dbe75fd88c11b03be1b69bded060a8f232",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/full",
+      "platform": "linkedin",
+      "resource": "profile/full"
+    },
+    {
+      "endpoint_id": "endpoint_41ce40ddfd5a56ec5c9d348a3269bdd145f4b01b194b76c4e27e77cd4ae8e0bf",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/honors",
+      "platform": "linkedin",
+      "resource": "profile/honors"
+    },
+    {
+      "endpoint_id": "endpoint_ce97ae61b02e941a26a26ad683bc52e235407808c08b76ae7c8457832e0fd57b",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/images",
+      "platform": "linkedin",
+      "resource": "profile/images"
+    },
+    {
+      "endpoint_id": "endpoint_b45b6dceb628d206b508a9659d15813728f2050670ea675c802584036685d0d6",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/interests/companies",
+      "platform": "linkedin",
+      "resource": "profile/interests/companies"
+    },
+    {
+      "endpoint_id": "endpoint_0ba70acbb5a6fe38dcf843c6c7a904638b3d9a587ad4df81f4f416adedffe64d",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/interests/groups",
+      "platform": "linkedin",
+      "resource": "profile/interests/groups"
+    },
+    {
+      "endpoint_id": "endpoint_22917d5ca86ea3e15f9950a706f7366d6c29dc791969074f6d95481dae0cf6d6",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/posts",
+      "platform": "linkedin",
+      "resource": "profile/posts"
+    },
+    {
+      "endpoint_id": "endpoint_0265290dbca7bf1ca678a7c2926ba10c849bbb5399de8132118de429ae757514",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/publications",
+      "platform": "linkedin",
+      "resource": "profile/publications"
+    },
+    {
+      "endpoint_id": "endpoint_16d5ee82f19b75ecf4c8a7a6fd6850158ac9ead83d4f2681d4827386e5e4b9d0",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/reactions",
+      "platform": "linkedin",
+      "resource": "profile/reactions"
+    },
+    {
+      "endpoint_id": "endpoint_ac05e006e7eda5e6b0c75dc763908ae2e278be60f149cfc5332632c9b6deedae",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/recommendations",
+      "platform": "linkedin",
+      "resource": "profile/recommendations"
+    },
+    {
+      "endpoint_id": "endpoint_c84e10316a286a1ec66b7c38411efbbc253277cba5f6826be45f642cd3ef9abe",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/skills",
+      "platform": "linkedin",
+      "resource": "profile/skills"
+    },
+    {
+      "endpoint_id": "endpoint_8465b1541d5cba7c1d9125fec5430b83b73ca5fa14cf541b04f9353b3c325b5f",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/stats",
+      "platform": "linkedin",
+      "resource": "profile/stats"
+    },
+    {
+      "endpoint_id": "endpoint_7588afa352428cea05d6a019089d99645ed7350a209593cbeb8631d1b0828f34",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/videos",
+      "platform": "linkedin",
+      "resource": "profile/videos"
+    },
+    {
+      "endpoint_id": "endpoint_6fc6a561358f7867bbefd4b1940095452274da01af8c2392d5277a571fc56a04",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/profile/volunteers",
+      "platform": "linkedin",
+      "resource": "profile/volunteers"
+    },
+    {
+      "endpoint_id": "endpoint_bcaf37531138b92d0d6a9280d460fde8d15b5e8fd8fe3dfa5115841a2efd83b2",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/search/industry",
+      "platform": "linkedin",
+      "resource": "search/industry"
+    },
+    {
+      "endpoint_id": "endpoint_69e5682513736abc947c2b8837db3e99ca5e49b635e6fc1a92637c2943536fbf",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/search/jobs",
+      "platform": "linkedin",
+      "resource": "search/jobs"
+    },
+    {
+      "endpoint_id": "endpoint_58bead32ab3198138c6e2d325f0a0684537863463addda9b7d17c338a01feedf",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/search/location",
+      "platform": "linkedin",
+      "resource": "search/location"
+    },
+    {
+      "endpoint_id": "endpoint_6a47d15499840fbb48a1e535355de8bd4f3262ac25b67cffc7d48779241a1329",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/search/people",
+      "platform": "linkedin",
+      "resource": "search/people"
+    },
+    {
+      "endpoint_id": "endpoint_f4b85a20aeb72c112b3b6e474a17eb196b3618f8253cb353cf5eff4e654068f2",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/search/posts",
+      "platform": "linkedin",
+      "resource": "search/posts"
+    },
+    {
+      "endpoint_id": "endpoint_c49dfa3de48fa0723f925a60c7886550bc284e8a9ec6b3d8a150e7d20ae763a0",
+      "http_method": "GET",
+      "route_path": "/v1/linkedin/search/schools",
+      "platform": "linkedin",
+      "resource": "search/schools"
+    },
+    {
+      "endpoint_id": "endpoint_b9a4b24046b4399c4a8771a970c5aec2cc67f45d7a5b6456164f9d3868fcd46a",
+      "http_method": "GET",
+      "route_path": "/v1/linkme/page",
+      "platform": "linkme",
+      "resource": "page"
+    },
+    {
+      "endpoint_id": "endpoint_f3e17195beb20a331b86ac272f6981b2190433ae890b2eb393c8e7070c6ff676",
+      "http_method": "GET",
+      "route_path": "/v1/linktree/page",
+      "platform": "linktree",
+      "resource": "page"
+    },
+    {
+      "endpoint_id": "endpoint_20b7d53279c0382197a5437deea8f8149b4c32542aa1768bb9e36c9f4f656785",
+      "http_method": "GET",
+      "route_path": "/v1/naver/adult",
+      "platform": "naver",
+      "resource": "adult"
+    },
+    {
+      "endpoint_id": "endpoint_1a851d0665e74b7d10d3ead55aa07881017ce638f2530f00216d8f7c4ebc459a",
+      "http_method": "GET",
+      "route_path": "/v1/naver/blog/search",
+      "platform": "naver",
+      "resource": "blog/search"
+    },
+    {
+      "endpoint_id": "endpoint_91106c45faea6234262023ab50a46743c248d34f51434032dbde904b0d37ba1d",
+      "http_method": "GET",
+      "route_path": "/v1/naver/brief",
+      "platform": "naver",
+      "resource": "brief"
+    },
+    {
+      "endpoint_id": "endpoint_f830eb36e50b070d1ec9066d54604804c7e67a11140225fd369c0b6f9164cc8e",
+      "http_method": "GET",
+      "route_path": "/v1/naver/cafearticle/search",
+      "platform": "naver",
+      "resource": "cafearticle/search"
+    },
+    {
+      "endpoint_id": "endpoint_983e6fe174d911a980fb77d52377af5fa473e3dec2e6a7159f2dd74390b9340a",
+      "http_method": "GET",
+      "route_path": "/v1/naver/encyc/search",
+      "platform": "naver",
+      "resource": "encyc/search"
+    },
+    {
+      "endpoint_id": "endpoint_b79f97ec89290aa367d063e6c079547728e1dad97440dad9e4a59b419793c94c",
+      "http_method": "GET",
+      "route_path": "/v1/naver/errata",
+      "platform": "naver",
+      "resource": "errata"
+    },
+    {
+      "endpoint_id": "endpoint_515ca8b4aac97b8b12b70702dd7a174fb35897915754caa5b103c47b73b676d7",
+      "http_method": "GET",
+      "route_path": "/v1/naver/image/search",
+      "platform": "naver",
+      "resource": "image/search"
+    },
+    {
+      "endpoint_id": "endpoint_b9f7860ec73941776eaa0c4a74a83214e4367e258ad6bcf210c6de2f7c7cbde3",
+      "http_method": "GET",
+      "route_path": "/v1/naver/kin/search",
+      "platform": "naver",
+      "resource": "kin/search"
+    },
+    {
+      "endpoint_id": "endpoint_bad73961d263134504e8f654469ae9e4fecd9336f07a6d6fb1dfe30881beebb3",
+      "http_method": "GET",
+      "route_path": "/v1/naver/local/search",
+      "platform": "naver",
+      "resource": "local/search"
+    },
+    {
+      "endpoint_id": "endpoint_c7ae99d7fa61a6a19cea7e82fd02abcfa17830a49982db75a6efe6504dd651f0",
+      "http_method": "GET",
+      "route_path": "/v1/naver/news/search",
+      "platform": "naver",
+      "resource": "news/search"
+    },
+    {
+      "endpoint_id": "endpoint_49c7fc5750d9c459e76f2eb1b20978c25be30b7046bb07e8fb44b415dd6a225f",
+      "http_method": "GET",
+      "route_path": "/v1/naver/search-trend",
+      "platform": "naver",
+      "resource": "search-trend"
+    },
+    {
+      "endpoint_id": "endpoint_150affbac1f0fb8ede5167fe482ceb004143f1630a1ed83ccaa38018afd985fc",
+      "http_method": "GET",
+      "route_path": "/v1/naver/shopping-insight/category",
+      "platform": "naver",
+      "resource": "shopping-insight/category"
+    },
+    {
+      "endpoint_id": "endpoint_b5ed808db3b99fbaad69c39dc611ddd20e1cf8547ae15194261ba5e32649449b",
+      "http_method": "GET",
+      "route_path": "/v1/naver/shopping-insight/keyword",
+      "platform": "naver",
+      "resource": "shopping-insight/keyword"
+    },
+    {
+      "endpoint_id": "endpoint_54e28a9fc1dea2f9675c1eb6d993727cfd2a213e9e9be81e568674d521318fdc",
+      "http_method": "GET",
+      "route_path": "/v1/naver/webkr/search",
+      "platform": "naver",
+      "resource": "webkr/search"
+    },
+    {
+      "endpoint_id": "endpoint_73cd0e1d57617cc43f5c108c0e808358ada21126f84ff060c4687c5b57e76901",
+      "http_method": "GET",
+      "route_path": "/v1/perplexity/research",
+      "platform": "perplexity",
+      "resource": "research"
+    },
+    {
+      "endpoint_id": "endpoint_84f46682bb21a271376d03b2d5f358a6f3df0929e14ee51ace2718bac30cb8a6",
+      "http_method": "GET",
+      "route_path": "/v1/pillar/page",
+      "platform": "pillar",
+      "resource": "page"
+    },
+    {
+      "endpoint_id": "endpoint_031ae09d8fe5f0986e65a38040fd50388230923f595866fc26032563d9ed6974",
+      "http_method": "GET",
+      "route_path": "/v1/pinterest/board",
+      "platform": "pinterest",
+      "resource": "board"
+    },
+    {
+      "endpoint_id": "endpoint_0602c559455edcb43aa5aa1d8d4bd9f07894f3873ce68527583f94f71e2d0504",
+      "http_method": "GET",
+      "route_path": "/v1/pinterest/pin",
+      "platform": "pinterest",
+      "resource": "pin"
+    },
+    {
+      "endpoint_id": "endpoint_c9d12da429d61c99f488c2381fa3b9de3cbafa6fc680c60ae96c4b1ddd4e6f60",
+      "http_method": "GET",
+      "route_path": "/v1/pinterest/search",
+      "platform": "pinterest",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_94c174b0313e1b2a1e01b864b33c498413041271f0d837aada8b23a408242fcb",
+      "http_method": "GET",
+      "route_path": "/v1/pinterest/url-stats",
+      "platform": "pinterest",
+      "resource": "url-stats"
+    },
+    {
+      "endpoint_id": "endpoint_d5838ae6918cc4fd55657ae712d437960cb1dd79b883e55040a1517c64350dec",
+      "http_method": "GET",
+      "route_path": "/v1/pinterest/user/boards",
+      "platform": "pinterest",
+      "resource": "user/boards"
+    },
+    {
+      "endpoint_id": "endpoint_5b9ab31a1e2688929c50c8f607add8028919a12bd827afa7bd6ce62a63023d49",
+      "http_method": "GET",
+      "route_path": "/v1/polymarket/research",
+      "platform": "polymarket",
+      "resource": "research"
+    },
+    {
+      "endpoint_id": "endpoint_e684f89264d8128306b464c48b934edb15042883df1f1ccea510ef8f4ad6f3e7",
+      "http_method": "GET",
+      "route_path": "/v1/prism/ai-visibility",
+      "platform": "prism",
+      "resource": "ai-visibility"
+    },
+    {
+      "endpoint_id": "endpoint_f218bacb52056c20e644b77c2b11a7a28d737045e766556d63265e9e8a8b64b4",
+      "http_method": "GET",
+      "route_path": "/v1/prism/answers",
+      "platform": "prism",
+      "resource": "answers"
+    },
+    {
+      "endpoint_id": "endpoint_2426a2a858c2e11de38c346895f9cb46616eb42ef827dfe40db6fbfd76b33e96",
+      "http_method": "GET",
+      "route_path": "/v1/prism/app-reviews",
+      "platform": "prism",
+      "resource": "app-reviews"
+    },
+    {
+      "endpoint_id": "endpoint_495145654ec53d4e2d9e1ec1ab44a743c53b8d2dd20019c252fd45ec15579ae0",
+      "http_method": "GET",
+      "route_path": "/v1/prism/apps-lookup",
+      "platform": "prism",
+      "resource": "apps-lookup"
+    },
+    {
+      "endpoint_id": "endpoint_11212ab3f5783ee07752b79b158245fb4e4f40152dd2e5d91bb3f6da3f980c2e",
+      "http_method": "GET",
+      "route_path": "/v1/prism/audience-overlap",
+      "platform": "prism",
+      "resource": "audience-overlap"
+    },
+    {
+      "endpoint_id": "endpoint_75d524f0bdcb2736dfa0bb54bd76a7abf59b16618082e53a5dce1c2267b5b35f",
+      "http_method": "GET",
+      "route_path": "/v1/prism/audience-questions",
+      "platform": "prism",
+      "resource": "audience-questions"
+    },
+    {
+      "endpoint_id": "endpoint_64aa107a1d3ee84b47372c77ab1e1a722e8db55ffda7bcf69060088acb026ab2",
+      "http_method": "GET",
+      "route_path": "/v1/prism/brand-mentions",
+      "platform": "prism",
+      "resource": "brand-mentions"
+    },
+    {
+      "endpoint_id": "endpoint_4e41adc08ff077364bb46ceb6c288712d28b3a6a652a945edcf511451e9b3259",
+      "http_method": "GET",
+      "route_path": "/v1/prism/campaign",
+      "platform": "prism",
+      "resource": "campaign"
+    },
+    {
+      "endpoint_id": "endpoint_bce778678ca26c00eb54ac3bf32f79ccdbbc61971527f7b3b01421e4f7386c37",
+      "http_method": "GET",
+      "route_path": "/v1/prism/comments",
+      "platform": "prism",
+      "resource": "comments"
+    },
+    {
+      "endpoint_id": "endpoint_fd9f957c575f775c9b2f70d410c934024cf3edcba475e878b3774f58bbbc7eeb",
+      "http_method": "GET",
+      "route_path": "/v1/prism/creator-card",
+      "platform": "prism",
+      "resource": "creator-card"
+    },
+    {
+      "endpoint_id": "endpoint_6edf55f504225a6dcf0acb59588b66727758b3e9fec8b2e4992ca4f97abc2f6e",
+      "http_method": "GET",
+      "route_path": "/v1/prism/creator-vet",
+      "platform": "prism",
+      "resource": "creator-vet"
+    },
+    {
+      "endpoint_id": "endpoint_e9946d3394e5da1acd6f3ba087ce0c60c81a3a93a576a5d054f99072ee295c90",
+      "http_method": "GET",
+      "route_path": "/v1/prism/crisis-postmortem",
+      "platform": "prism",
+      "resource": "crisis-postmortem"
+    },
+    {
+      "endpoint_id": "endpoint_703d068414e27b35ed6321aee04454e36b08f91be7e37b0e5432d74d2a171dae",
+      "http_method": "GET",
+      "route_path": "/v1/prism/crisis-radar",
+      "platform": "prism",
+      "resource": "crisis-radar"
+    },
+    {
+      "endpoint_id": "endpoint_99a721bb676a8591125ae3a2c462369e29be3c464b12474d05e9dc276d87b9be",
+      "http_method": "GET",
+      "route_path": "/v1/prism/demand-signals",
+      "platform": "prism",
+      "resource": "demand-signals"
+    },
+    {
+      "endpoint_id": "endpoint_240ec0202673e58b780c271947384a97840c38913200d6e18791823506bc254c",
+      "http_method": "GET",
+      "route_path": "/v1/prism/devtool-pulse",
+      "platform": "prism",
+      "resource": "devtool-pulse"
+    },
+    {
+      "endpoint_id": "endpoint_435417668abea3b8d525a6602b71521c9780b1ed51b1533c50422f508629cb3a",
+      "http_method": "GET",
+      "route_path": "/v1/prism/earned-media",
+      "platform": "prism",
+      "resource": "earned-media"
+    },
+    {
+      "endpoint_id": "endpoint_b3acf57df430d524187fe417a84f2e7c89bb7ac9f83e9df8cf2a174051153d87",
+      "http_method": "GET",
+      "route_path": "/v1/prism/employer-brand",
+      "platform": "prism",
+      "resource": "employer-brand"
+    },
+    {
+      "endpoint_id": "endpoint_74f7db78cf0737b9cf3de42ae6c39ca092b7dc469eab00ef58dfe2cee394afd4",
+      "http_method": "GET",
+      "route_path": "/v1/prism/handle-audit",
+      "platform": "prism",
+      "resource": "handle-audit"
+    },
+    {
+      "endpoint_id": "endpoint_6a5a02c5aa5ed41cc5383b421e89818982f6e78bb0bbdd53c270d3ecd496d359",
+      "http_method": "GET",
+      "route_path": "/v1/prism/korea-gap",
+      "platform": "prism",
+      "resource": "korea-gap"
+    },
+    {
+      "endpoint_id": "endpoint_b09251e70d385f66a5d6cd9fd224270b96a22d663f698e6b4f9d536a87019c8a",
+      "http_method": "GET",
+      "route_path": "/v1/prism/launch-echo",
+      "platform": "prism",
+      "resource": "launch-echo"
+    },
+    {
+      "endpoint_id": "endpoint_5e43bdd2b6d1ce1a6335ff20bb7ad3e073d888a01884789cbadf4a993ebd4f3e",
+      "http_method": "GET",
+      "route_path": "/v1/prism/leads",
+      "platform": "prism",
+      "resource": "leads"
+    },
+    {
+      "endpoint_id": "endpoint_8b7ded245a60e98fe195170b4a2ae62f2653659bba27148c0eaeb4d21754a8f6",
+      "http_method": "GET",
+      "route_path": "/v1/prism/lookup",
+      "platform": "prism",
+      "resource": "lookup"
+    },
+    {
+      "endpoint_id": "endpoint_4fd6d2bd12e83aefa436dcb1670c03b747b5e291cbc4a3dc998802a8e9cde6f1",
+      "http_method": "GET",
+      "route_path": "/v1/prism/org-radar",
+      "platform": "prism",
+      "resource": "org-radar"
+    },
+    {
+      "endpoint_id": "endpoint_69d97c88cddc47b6a80189c73a6ba61d0125b5891f6168a8d1c5568611cc5949",
+      "http_method": "GET",
+      "route_path": "/v1/prism/product-reviews",
+      "platform": "prism",
+      "resource": "product-reviews"
+    },
+    {
+      "endpoint_id": "endpoint_d31f76213c15497b4a5acaf53a5aee330c4241c5eb1b1e49f2ad1ab0fe8e64d3",
+      "http_method": "GET",
+      "route_path": "/v1/prism/reputation",
+      "platform": "prism",
+      "resource": "reputation"
+    },
+    {
+      "endpoint_id": "endpoint_e497e1cf70a74c54a00fc8d0dfb2bf324bda6e6bcec0592e2d13d714c9a57c97",
+      "http_method": "GET",
+      "route_path": "/v1/prism/review-integrity",
+      "platform": "prism",
+      "resource": "review-integrity"
+    },
+    {
+      "endpoint_id": "endpoint_cd768dfa784a8ee60abbf9880808438c4bae0b6f170906e35480b0f79002fa3f",
+      "http_method": "GET",
+      "route_path": "/v1/prism/share-of-voice",
+      "platform": "prism",
+      "resource": "share-of-voice"
+    },
+    {
+      "endpoint_id": "endpoint_27148b198b7d830651b257d5721d9c284289277b69b6e5f895cffb1e7652d73c",
+      "http_method": "GET",
+      "route_path": "/v1/prism/truthsocial-pulse",
+      "platform": "prism",
+      "resource": "truthsocial-pulse"
+    },
+    {
+      "endpoint_id": "endpoint_c3c7ae892e900c6e21970b47a126025549d6c126e231eaecfd487d97e28e39d4",
+      "http_method": "GET",
+      "route_path": "/v1/prism/video-intel",
+      "platform": "prism",
+      "resource": "video-intel"
+    },
+    {
+      "endpoint_id": "endpoint_957ce76e7d67f06b67b26ab9168d906a378b6cea1e2054630c9ead114f2d8302",
+      "http_method": "GET",
+      "route_path": "/v1/prism/voice",
+      "platform": "prism",
+      "resource": "voice"
+    },
+    {
+      "endpoint_id": "endpoint_dabdaf9498e7f12a1242a797d5392e1ab5c5fc01f980c91051cef2a8506c94b2",
+      "http_method": "GET",
+      "route_path": "/v1/reddit/omni-search",
+      "platform": "reddit",
+      "resource": "omni-search"
+    },
+    {
+      "endpoint_id": "endpoint_d817b6c2e4e02a725f7727b429d93ff492f142514b526a50764c182501a35b29",
+      "http_method": "GET",
+      "route_path": "/v1/reddit/post",
+      "platform": "reddit",
+      "resource": "post"
+    },
+    {
+      "endpoint_id": "endpoint_b723fa8489fe4ead1c5b62234a94bdea8eadfa2a07651b0df73071f0a3a6c8c7",
+      "http_method": "GET",
+      "route_path": "/v1/reddit/post/comments",
+      "platform": "reddit",
+      "resource": "post/comments"
+    },
+    {
+      "endpoint_id": "endpoint_a2945ba6036cc5b6d47f0120d0afa26694db446f2989ee3be4ddc03b22f01f1a",
+      "http_method": "GET",
+      "route_path": "/v1/reddit/post/transcript",
+      "platform": "reddit",
+      "resource": "post/transcript"
+    },
+    {
+      "endpoint_id": "endpoint_65c9995ccb3aebf145f098b35f5f9f7863fe677bf811a3fdb53cdf577a4dd424",
+      "http_method": "GET",
+      "route_path": "/v1/reddit/search",
+      "platform": "reddit",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_e5ae3ba84d02c19ab63d596cd60a763a8823315afc0bc90a10e312ec65c2ddd3",
+      "http_method": "GET",
+      "route_path": "/v1/reddit/subreddit",
+      "platform": "reddit",
+      "resource": "subreddit"
+    },
+    {
+      "endpoint_id": "endpoint_574fd52b6dbbcbb5741db83a410e8e413c258cf8d61cf0d07ae50ad140f45a6f",
+      "http_method": "GET",
+      "route_path": "/v1/reddit/subreddit/details",
+      "platform": "reddit",
+      "resource": "subreddit/details"
+    },
+    {
+      "endpoint_id": "endpoint_71796de89b9da5d6cc1f090c91c519551d512a7c062798cfdd52ceca580e7d8a",
+      "http_method": "GET",
+      "route_path": "/v1/reddit/subreddit/search",
+      "platform": "reddit",
+      "resource": "subreddit/search"
+    },
+    {
+      "endpoint_id": "endpoint_7a0925e4b855c4bbc5f24ae5d846fbe8101962275f4189d6d4245f522526e401",
+      "http_method": "GET",
+      "route_path": "/v1/rumble/channel/videos",
+      "platform": "rumble",
+      "resource": "channel/videos"
+    },
+    {
+      "endpoint_id": "endpoint_a07e03c4a913a23372ca2e6b76d19eaac22aabef907be0ca2e67b17661aad052",
+      "http_method": "GET",
+      "route_path": "/v1/rumble/search",
+      "platform": "rumble",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_91c8ca48b87e65e115ad3b46e84ebcc6ebf142b7469dc97335a03ca9b90d1b3e",
+      "http_method": "GET",
+      "route_path": "/v1/rumble/video",
+      "platform": "rumble",
+      "resource": "video"
+    },
+    {
+      "endpoint_id": "endpoint_b81012d7133ec0671b0c8c0b463b458bf5c2da494ffca9fb95542c2b91e2c943",
+      "http_method": "GET",
+      "route_path": "/v1/rumble/video/comments",
+      "platform": "rumble",
+      "resource": "video/comments"
+    },
+    {
+      "endpoint_id": "endpoint_abd8ced9c13b97420bcab6b5002cff983c62ec5d039584231dcadad3b7bff949",
+      "http_method": "GET",
+      "route_path": "/v1/rumble/video/transcript",
+      "platform": "rumble",
+      "resource": "video/transcript"
+    },
+    {
+      "endpoint_id": "endpoint_3f5839c1b945a4e1b99a1463497aa1d42f3564db525c2f398f6136ce54a90351",
+      "http_method": "GET",
+      "route_path": "/v1/search/creators",
+      "platform": "search",
+      "resource": "creators"
+    },
+    {
+      "endpoint_id": "endpoint_d0c860216f2cb1d8501ec42687f0433d35619e14b36c9b336f319eafa93828ee",
+      "http_method": "GET",
+      "route_path": "/v1/search/everywhere",
+      "platform": "search",
+      "resource": "everywhere"
+    },
+    {
+      "endpoint_id": "endpoint_94063bc1a5e3cc62aab44ee321dd4a6865992f1c408813616f4dc33db61cb7d7",
+      "http_method": "GET",
+      "route_path": "/v1/search/forums",
+      "platform": "search",
+      "resource": "forums"
+    },
+    {
+      "endpoint_id": "endpoint_72a87e61d50efe360f52641119974a270dac8d0ba4715ed7663e3117418395d0",
+      "http_method": "GET",
+      "route_path": "/v1/search/news",
+      "platform": "search",
+      "resource": "news"
+    },
+    {
+      "endpoint_id": "endpoint_18e4e3d9145aa1c79d7f7a56505008795b2a3840bcce196a78792645a7aac490",
+      "http_method": "GET",
+      "route_path": "/v1/snapchat/profile",
+      "platform": "snapchat",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_81a881f330b198b07ffc26dba8da58879cd9333cf7dd9452382b9c051a8d03bf",
+      "http_method": "GET",
+      "route_path": "/v1/snapchat/spotlight/comments",
+      "platform": "snapchat",
+      "resource": "spotlight/comments"
+    },
+    {
+      "endpoint_id": "endpoint_1f5f37ecfa01899ec08786114d1314636ca6161e9eeb2bebe83a1face7e516dd",
+      "http_method": "GET",
+      "route_path": "/v1/spotify/album",
+      "platform": "spotify",
+      "resource": "album"
+    },
+    {
+      "endpoint_id": "endpoint_697f4ff3d23378586ef1f02743e4c1b15d45031aa11944bcde01b62022a4f485",
+      "http_method": "GET",
+      "route_path": "/v1/spotify/artist",
+      "platform": "spotify",
+      "resource": "artist"
+    },
+    {
+      "endpoint_id": "endpoint_71ac82a2871f614b6e0b238e15d5d157bf462df310a72ebb351f0beaea4c9163",
+      "http_method": "GET",
+      "route_path": "/v1/spotify/podcast",
+      "platform": "spotify",
+      "resource": "podcast"
+    },
+    {
+      "endpoint_id": "endpoint_bba1a897124376081c2f8cb13f25dc8b039c0a8022b94880f2d84449627d45ab",
+      "http_method": "GET",
+      "route_path": "/v1/spotify/podcast/episodes",
+      "platform": "spotify",
+      "resource": "podcast/episodes"
+    },
+    {
+      "endpoint_id": "endpoint_642722c136bbdf03fd23be22f5ece778b47f942a72629b93c540ff66635d0a8f",
+      "http_method": "GET",
+      "route_path": "/v1/spotify/search",
+      "platform": "spotify",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_21a0145881602cbc4f11cc61f8fe2956a404776db3feacf6b21acfddc5be77e5",
+      "http_method": "GET",
+      "route_path": "/v1/spotify/track",
+      "platform": "spotify",
+      "resource": "track"
+    },
+    {
+      "endpoint_id": "endpoint_5b9e85bf58bba0c9d947b79ef6fb02c0cbaee4047a38823ba105d9d5740fea40",
+      "http_method": "GET",
+      "route_path": "/v1/target/categories",
+      "platform": "target",
+      "resource": "categories"
+    },
+    {
+      "endpoint_id": "endpoint_d6b582f673085eb0d0e916500e22e0bc881e9d90ba884aedd7f85ea047e2993f",
+      "http_method": "GET",
+      "route_path": "/v1/target/category",
+      "platform": "target",
+      "resource": "category"
+    },
+    {
+      "endpoint_id": "endpoint_13c135bf22d9e11fa47e64deb081b87082adf4f7aa7b36ddcb8eb9542f4f0e6b",
+      "http_method": "GET",
+      "route_path": "/v1/target/product",
+      "platform": "target",
+      "resource": "product"
+    },
+    {
+      "endpoint_id": "endpoint_b70f110b8356fa1f41b90a2591df5e9acee2b99573b691811a9e85286d692db3",
+      "http_method": "GET",
+      "route_path": "/v1/target/reviews",
+      "platform": "target",
+      "resource": "reviews"
+    },
+    {
+      "endpoint_id": "endpoint_efceb476a9fd2cb3c2782def8d2e2c0472637c431273eb24eed8c158a9c60de2",
+      "http_method": "GET",
+      "route_path": "/v1/target/stores",
+      "platform": "target",
+      "resource": "stores"
+    },
+    {
+      "endpoint_id": "endpoint_4749917e12a26198f16e49da5dfa8073234436bad3dd0a89649650756fb432f0",
+      "http_method": "GET",
+      "route_path": "/v1/tavily/crawl",
+      "platform": "tavily",
+      "resource": "crawl"
+    },
+    {
+      "endpoint_id": "endpoint_3a86b941ccde175b5d5c9b1fb41d4c6a4eb17eed218812a7b6eaa80d691ac23d",
+      "http_method": "GET",
+      "route_path": "/v1/tavily/extract",
+      "platform": "tavily",
+      "resource": "extract"
+    },
+    {
+      "endpoint_id": "endpoint_6f9aaebb0e9066090ccbe01e586f90a5a551fa08c8caf60a1f8dcd1400ed53ea",
+      "http_method": "GET",
+      "route_path": "/v1/tavily/map",
+      "platform": "tavily",
+      "resource": "map"
+    },
+    {
+      "endpoint_id": "endpoint_0bb4feb54b3cc0af674465ae375af4560bc182410f5b6461f65e884e26668689",
+      "http_method": "GET",
+      "route_path": "/v1/tavily/search",
+      "platform": "tavily",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_1c98f915fed01c3073c0e0cf85e518879201ac7d22adc51e086f2afa861d0f1c",
+      "http_method": "GET",
+      "route_path": "/v1/threads/post",
+      "platform": "threads",
+      "resource": "post"
+    },
+    {
+      "endpoint_id": "endpoint_4fdaf587eedf2b9eeaf49d2039a921fcf5d3a7b31c1326fe78e050d6711acc8b",
+      "http_method": "GET",
+      "route_path": "/v1/threads/post/comments",
+      "platform": "threads",
+      "resource": "post/comments"
+    },
+    {
+      "endpoint_id": "endpoint_51985333745352c7c964ed05b6ec3e000a1e18d581370eb7dc3ef0ea66eaab9c",
+      "http_method": "GET",
+      "route_path": "/v1/threads/profile",
+      "platform": "threads",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_8e0dfdb2f571a8cc981b42ef080db8f613da49c8587ac2d0633be0830a566cb7",
+      "http_method": "GET",
+      "route_path": "/v1/threads/search",
+      "platform": "threads",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_2db5b0e743c1da9f7c8c13b16be75a04690d66d8703aa12a5924f38e283e1786",
+      "http_method": "GET",
+      "route_path": "/v1/threads/search/users",
+      "platform": "threads",
+      "resource": "search/users"
+    },
+    {
+      "endpoint_id": "endpoint_1c1d249361afdb5a5d2586998483272bb2adb665f4f39719fb8ea2c4ca35ea13",
+      "http_method": "GET",
+      "route_path": "/v1/threads/user/posts",
+      "platform": "threads",
+      "resource": "user/posts"
+    },
+    {
+      "endpoint_id": "endpoint_185eb5d4f883402661dc03f79ced7c8db881a3a9f1634cde7df1568116713e3a",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/adlibrary/ad",
+      "platform": "tiktok",
+      "resource": "adlibrary/ad"
+    },
+    {
+      "endpoint_id": "endpoint_1f007ac257e8a384eaa1892ffb293b7ccd33b51ba8c94c23025172827b958da1",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/adlibrary/search",
+      "platform": "tiktok",
+      "resource": "adlibrary/search"
+    },
+    {
+      "endpoint_id": "endpoint_eca7f389c3dfad1cc6e3d55a0976054c68b81fec9429a5783aec68dcce2855e5",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/collection/videos",
+      "platform": "tiktok",
+      "resource": "collection/videos"
+    },
+    {
+      "endpoint_id": "endpoint_05e0aa1abde7476c8aa4a845fbac3feac70e2ea971c582344f48eda9ee390d0b",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/comment",
+      "platform": "tiktok",
+      "resource": "comment"
+    },
+    {
+      "endpoint_id": "endpoint_739b65515e9863dbca9da910a5bdb9f98dd1c15c178ea3ae263a403d59ef30ea",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/post",
+      "platform": "tiktok",
+      "resource": "post"
+    },
+    {
+      "endpoint_id": "endpoint_ffcc3045b42a39a4fbd317349a961f63cc0a8f7496a3e42a244556e180efa1cd",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/post/comments",
+      "platform": "tiktok",
+      "resource": "post/comments"
+    },
+    {
+      "endpoint_id": "endpoint_368e5a7a37bdcff457fe6127287be2b5e908aa8d3273e99c45dc401ccaed58a9",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/post/transcript",
+      "platform": "tiktok",
+      "resource": "post/transcript"
+    },
+    {
+      "endpoint_id": "endpoint_23bce0075b3252e109489439f6483cb390493b9b22f4005ee0efee1e05ab3348",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/profile",
+      "platform": "tiktok",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_c2c1ea797d5f40f1ba641b196eb8cd03e3bc375ec21ba7261383493aba64494e",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/profile/full",
+      "platform": "tiktok",
+      "resource": "profile/full"
+    },
+    {
+      "endpoint_id": "endpoint_65e0d0253a017b974ce9903736733a3e8636648c49ec24e06247664df84afd2a",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/profile/region",
+      "platform": "tiktok",
+      "resource": "profile/region"
+    },
+    {
+      "endpoint_id": "endpoint_5951f0d2f537ef83fb4e44f1842f861f7c836f97cde2b5bed49e0a3403515145",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/profile/videos",
+      "platform": "tiktok",
+      "resource": "profile/videos"
+    },
+    {
+      "endpoint_id": "endpoint_22dbef860543d68c38eeb65050cfe36675918a4c4b1dcdebfc8ffacab20d644d",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/search",
+      "platform": "tiktok",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_0c8c9ea2f5e9c743b4f529fa8aa8bd69cc571227e838c4b9c3988609e1a29082",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/search/hashtag",
+      "platform": "tiktok",
+      "resource": "search/hashtag"
+    },
+    {
+      "endpoint_id": "endpoint_d4a4258754deffbef3871b001f01b47f024c2dd7447ea030631bc7105a90db78",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/search/suggestions",
+      "platform": "tiktok",
+      "resource": "search/suggestions"
+    },
+    {
+      "endpoint_id": "endpoint_835955dfb65adf8ad6d12596adc733bf9559ee72d87330c699b71a7530119d9f",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/search/top",
+      "platform": "tiktok",
+      "resource": "search/top"
+    },
+    {
+      "endpoint_id": "endpoint_b45b5f9733ab03826df65f75f8ddf6c011066d929355fb4b28b49dd15e323163",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/search/users",
+      "platform": "tiktok",
+      "resource": "search/users"
+    },
+    {
+      "endpoint_id": "endpoint_a746ae3e709fc40dcae8367cc1b6560d91886dada260831518ac0fd625bb8a2f",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/song",
+      "platform": "tiktok",
+      "resource": "song"
+    },
+    {
+      "endpoint_id": "endpoint_ecae02468e3727f50d2b21e4e2c128290eb4b3a3007a2c4f30a72f275bcb8d47",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/song/videos",
+      "platform": "tiktok",
+      "resource": "song/videos"
+    },
+    {
+      "endpoint_id": "endpoint_b4491b79cc8fcaa4441bc9aaa0eafdd58ee33fd64f28776ed9c3b56ba84385a5",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/trending",
+      "platform": "tiktok",
+      "resource": "trending"
+    },
+    {
+      "endpoint_id": "endpoint_5c923681d74ed1e61dec6eb1dedc24ce66fb59eb711fa24c5c1e1b2670eae665",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/user/audience",
+      "platform": "tiktok",
+      "resource": "user/audience"
+    },
+    {
+      "endpoint_id": "endpoint_c1a18a032451e952855b3e6d5b1c4d18bd9a12f3f79582e357f0ecb5e4f28a60",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/user/followers",
+      "platform": "tiktok",
+      "resource": "user/followers"
+    },
+    {
+      "endpoint_id": "endpoint_bd940e61cdf189ce2dd848a77c927b6aa83e0d0edfe4cf0826677db97ff455a4",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/user/following",
+      "platform": "tiktok",
+      "resource": "user/following"
+    },
+    {
+      "endpoint_id": "endpoint_526ec1a06cf760d2566c5cc169ed815ae1a2487eeb79cb9e34dcf9d4188611e9",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/user/live",
+      "platform": "tiktok",
+      "resource": "user/live"
+    },
+    {
+      "endpoint_id": "endpoint_d72d75f76aea495d80321502469f72e76f926dc95d5a4e5229acf584e27e5d7e",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/video/comment/replies",
+      "platform": "tiktok",
+      "resource": "video/comment/replies"
+    },
+    {
+      "endpoint_id": "endpoint_2bfd021f1b2ca40503da7c978e6d442089f0dfe73ef923cf1718e9b052ec7f73",
+      "http_method": "GET",
+      "route_path": "/v1/tiktok/video/screen-text",
+      "platform": "tiktok",
+      "resource": "video/screen-text"
+    },
+    {
+      "endpoint_id": "endpoint_0d139cd7062d510707ec7f447d9d6324a79438c173099ab0ac6c403cdf4dd409",
+      "http_method": "GET",
+      "route_path": "/v1/tiktokshop/product",
+      "platform": "tiktokshop",
+      "resource": "product"
+    },
+    {
+      "endpoint_id": "endpoint_52664765e7771437f2db24f99caa8cbc84c87afe43aac60540a9565e2ddaaa10",
+      "http_method": "GET",
+      "route_path": "/v1/tiktokshop/product/reviews",
+      "platform": "tiktokshop",
+      "resource": "product/reviews"
+    },
+    {
+      "endpoint_id": "endpoint_11c413e43dba8a49b58dcc24b5fb4c229f790380a29eb0679da5c33e93671190",
+      "http_method": "GET",
+      "route_path": "/v1/tiktokshop/products",
+      "platform": "tiktokshop",
+      "resource": "products"
+    },
+    {
+      "endpoint_id": "endpoint_4a8ba25c79e42bf9d47e987601360d70aaaa620e0ffa6e99290792c4d5473833",
+      "http_method": "GET",
+      "route_path": "/v1/tiktokshop/search",
+      "platform": "tiktokshop",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_df01fa6e2efc1ab44c29c14fd7d56912ee3f75e88c67d44c73ddcb0e9c234c32",
+      "http_method": "GET",
+      "route_path": "/v1/tiktokshop/user/showcase",
+      "platform": "tiktokshop",
+      "resource": "user/showcase"
+    },
+    {
+      "endpoint_id": "endpoint_2489b74cfbcbc5c1993828e9cab45b3b34e15eabb6d4f47cebc9c537c8947780",
+      "http_method": "GET",
+      "route_path": "/v1/tripadvisor/reviews",
+      "platform": "tripadvisor",
+      "resource": "reviews"
+    },
+    {
+      "endpoint_id": "endpoint_498faef8fdd51692c11bc9765612b1bf8856aa0efcc80d2317031dbb39cc1d6d",
+      "http_method": "GET",
+      "route_path": "/v1/tripadvisor/search",
+      "platform": "tripadvisor",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_e0dc3f3c17a7d767aa42e3d67530fd020a0eae96922ce45bbdab55d031e84765",
+      "http_method": "GET",
+      "route_path": "/v1/trustpilot/business-search",
+      "platform": "trustpilot",
+      "resource": "business-search"
+    },
+    {
+      "endpoint_id": "endpoint_6d86a103df10c13f3b3220af964b7dd14bcf7b9c4a37434f2347447976ebb2c5",
+      "http_method": "GET",
+      "route_path": "/v1/trustpilot/reviews",
+      "platform": "trustpilot",
+      "resource": "reviews"
+    },
+    {
+      "endpoint_id": "endpoint_a0141979d382686b4b61366d87133671bf758e3510b85c1357f9b587226cafa8",
+      "http_method": "GET",
+      "route_path": "/v1/truthsocial/post",
+      "platform": "truthsocial",
+      "resource": "post"
+    },
+    {
+      "endpoint_id": "endpoint_48eacb03a4dbff2ccdb550ad108a36316a11031a030f815806a1b24639945233",
+      "http_method": "GET",
+      "route_path": "/v1/truthsocial/profile",
+      "platform": "truthsocial",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_85991b8769f0eac912dde6b33a3f9b0c2734fa27b1be73cf54f5742d0fccc9d8",
+      "http_method": "GET",
+      "route_path": "/v1/truthsocial/user/posts",
+      "platform": "truthsocial",
+      "resource": "user/posts"
+    },
+    {
+      "endpoint_id": "endpoint_1cf78a95100e1d4990c1ca1f918e30788eb88fe4dbef1fb26d6f6fd0aa95279f",
+      "http_method": "GET",
+      "route_path": "/v1/twitch/clip",
+      "platform": "twitch",
+      "resource": "clip"
+    },
+    {
+      "endpoint_id": "endpoint_db3fe8058d7ae55a0a59ed3e2b2f39823f8c608abcc5bc263948a91d51b2b699",
+      "http_method": "GET",
+      "route_path": "/v1/twitch/profile",
+      "platform": "twitch",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_b5b02aadcea710f58bb343752c673c92a75135703184a86723f278f16a031bb0",
+      "http_method": "GET",
+      "route_path": "/v1/twitch/user/schedule",
+      "platform": "twitch",
+      "resource": "user/schedule"
+    },
+    {
+      "endpoint_id": "endpoint_690144a89d173df0ddfed251de5959e04be22e773ec381e459cba53ce569815b",
+      "http_method": "GET",
+      "route_path": "/v1/twitch/user/videos",
+      "platform": "twitch",
+      "resource": "user/videos"
+    },
+    {
+      "endpoint_id": "endpoint_5c6f9a35f77e95e9ed93347e28bf8d281c8d8543e2d1b3d739066059742cc7c7",
+      "http_method": "GET",
+      "route_path": "/v1/twitter/ai-search",
+      "platform": "twitter",
+      "resource": "ai-search"
+    },
+    {
+      "endpoint_id": "endpoint_456440637875f8b401058d13bd4982e986da33aaf223059e6a871092900f9ba4",
+      "http_method": "GET",
+      "route_path": "/v1/twitter/community",
+      "platform": "twitter",
+      "resource": "community"
+    },
+    {
+      "endpoint_id": "endpoint_c1d4f707f3fbf36ed4e6b688a45e968632b7bb357a2649d372b752f50ce21655",
+      "http_method": "GET",
+      "route_path": "/v1/twitter/community/tweets",
+      "platform": "twitter",
+      "resource": "community/tweets"
+    },
+    {
+      "endpoint_id": "endpoint_216c21dc2455bc02194c3ee6272eb4d505029a085daeac60b83830029164d018",
+      "http_method": "GET",
+      "route_path": "/v1/twitter/profile",
+      "platform": "twitter",
+      "resource": "profile"
+    },
+    {
+      "endpoint_id": "endpoint_0c9f26321909bcf13e8b963ec8cbaea723443d40bf0e561b6e7413128c095b3f",
+      "http_method": "GET",
+      "route_path": "/v1/twitter/profile/full",
+      "platform": "twitter",
+      "resource": "profile/full"
+    },
+    {
+      "endpoint_id": "endpoint_e71284fe2725f4b25dca592394cabc23342af66d3136813a85e8ce8f343397f7",
+      "http_method": "GET",
+      "route_path": "/v1/twitter/tweet",
+      "platform": "twitter",
+      "resource": "tweet"
+    },
+    {
+      "endpoint_id": "endpoint_b2d90520715aaa8823c768ee24961230d1dd13155d6fbe51d14fb3ece9ae7452",
+      "http_method": "GET",
+      "route_path": "/v1/twitter/tweet/transcript",
+      "platform": "twitter",
+      "resource": "tweet/transcript"
+    },
+    {
+      "endpoint_id": "endpoint_a102106ac484ff24c959d87c89ccbdd509d7d334beaefacdde75002d7fac0012",
+      "http_method": "GET",
+      "route_path": "/v1/twitter/user/tweets",
+      "platform": "twitter",
+      "resource": "user/tweets"
+    },
+    {
+      "endpoint_id": "endpoint_f297fcf2577932f2142619368afa296ed355a92aac270beb88d972f8c1157b24",
+      "http_method": "GET",
+      "route_path": "/v1/utility/endpoint",
+      "platform": "utility",
+      "resource": "endpoint"
+    },
+    {
+      "endpoint_id": "endpoint_26bae3f1fee074000ee3879334087c2c14b59631a4f157d7e75251bd6901c2a5",
+      "http_method": "GET",
+      "route_path": "/v1/utility/endpoints",
+      "platform": "utility",
+      "resource": "endpoints"
+    },
+    {
+      "endpoint_id": "endpoint_2d1978bffc6835498e42c77ea55c127331580a3ef8ad4831fa22d949ebc3855d",
+      "http_method": "GET",
+      "route_path": "/v1/utility/llms",
+      "platform": "utility",
+      "resource": "llms"
+    },
+    {
+      "endpoint_id": "endpoint_e1f54a3830c4f5c314ac51f712385bb4415ed70366a74e60e1f6f7c41cba7878",
+      "http_method": "GET",
+      "route_path": "/v1/utility/quickstart",
+      "platform": "utility",
+      "resource": "quickstart"
+    },
+    {
+      "endpoint_id": "endpoint_f846fb465f1e6e75f0fd4dcbb4d868ccb1ac592c94872986e936a4152812c812",
+      "http_method": "GET",
+      "route_path": "/v1/walmart/category",
+      "platform": "walmart",
+      "resource": "category"
+    },
+    {
+      "endpoint_id": "endpoint_208f5901789e3a3fe56a17e37209366cf5f283e076d54f7524c67f297d715b7a",
+      "http_method": "GET",
+      "route_path": "/v1/walmart/offers",
+      "platform": "walmart",
+      "resource": "offers"
+    },
+    {
+      "endpoint_id": "endpoint_041dd2b04376e4e03e7b37ece18f7999d9442edb4209eee29089e1d3babf74f8",
+      "http_method": "GET",
+      "route_path": "/v1/walmart/product",
+      "platform": "walmart",
+      "resource": "product"
+    },
+    {
+      "endpoint_id": "endpoint_a695f48c05792270f1cbbb9f52982e4a4f619120ea392590a385b3344a481caf",
+      "http_method": "GET",
+      "route_path": "/v1/walmart/reviews",
+      "platform": "walmart",
+      "resource": "reviews"
+    },
+    {
+      "endpoint_id": "endpoint_a4afd8d768ab4faf82eeb283ac9ff3cd18cb3d303dbe983f2f7a74a8858d12ba",
+      "http_method": "GET",
+      "route_path": "/v1/walmart/search",
+      "platform": "walmart",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_3ad6165fe10c391fd011b9502549bb7d7040acff1fdf58925e3afba6be00cc77",
+      "http_method": "GET",
+      "route_path": "/v1/wayfair/product",
+      "platform": "wayfair",
+      "resource": "product"
+    },
+    {
+      "endpoint_id": "endpoint_121b0802c73cbc747d3a97f09bd298ab5fe8f978ff79a7fa88a26e62141fe5f2",
+      "http_method": "GET",
+      "route_path": "/v1/wayfair/reviews",
+      "platform": "wayfair",
+      "resource": "reviews"
+    },
+    {
+      "endpoint_id": "endpoint_b7340a7e101f158dcac6d686055f7417d83d923d402c8ad0fcc31025528ed06d",
+      "http_method": "GET",
+      "route_path": "/v1/wayfair/search",
+      "platform": "wayfair",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_82e19756ba80c5f233c2214a464f7c7b4ad72408f9fc9e98c18ea62110cadcb6",
+      "http_method": "GET",
+      "route_path": "/v1/web/extract",
+      "platform": "web",
+      "resource": "extract"
+    },
+    {
+      "endpoint_id": "endpoint_75cd62a079cac00c35f7207316fa09897b24758b115da8def6305160a0c0ce76",
+      "http_method": "GET",
+      "route_path": "/v1/web/jobs",
+      "platform": "web",
+      "resource": "jobs"
+    },
+    {
+      "endpoint_id": "endpoint_39da377ff632ac40e3c758de8f1009bb483bcc487f5c022ade15f4be7894e012",
+      "http_method": "GET",
+      "route_path": "/v1/web/jobs/{job_id}",
+      "platform": "web",
+      "resource": "jobs/{job_id}"
+    },
+    {
+      "endpoint_id": "endpoint_775245729732c25f5cfc94ba412d9c5a8d45857050e70d6b5444b21042fb3665",
+      "http_method": "GET",
+      "route_path": "/v1/web/map",
+      "platform": "web",
+      "resource": "map"
+    },
+    {
+      "endpoint_id": "endpoint_9e7bf1bf19b73d17f70c99848220049ba8d39f93718ddb6eaa7099bc5167f322",
+      "http_method": "GET",
+      "route_path": "/v1/web/monitors",
+      "platform": "web",
+      "resource": "monitors"
+    },
+    {
+      "endpoint_id": "endpoint_4337d024ec70633519377dfea4081e3ac82eb26635fb2982bfd5cf13dde18525",
+      "http_method": "GET",
+      "route_path": "/v1/web/monitors/{monitor_id}",
+      "platform": "web",
+      "resource": "monitors/{monitor_id}"
+    },
+    {
+      "endpoint_id": "endpoint_56f72ca4f447e877951f63be190945b8281117b77b2c9c76a546ed5e64532ac3",
+      "http_method": "GET",
+      "route_path": "/v1/web/monitors/{monitor_id}/checks",
+      "platform": "web",
+      "resource": "monitors/{monitor_id}/checks"
+    },
+    {
+      "endpoint_id": "endpoint_3e0902bf9f162e748b1ee1253d8647bc7aab14f2f3be4c5da1a7aa10e5f37d05",
+      "http_method": "GET",
+      "route_path": "/v1/web/scrape",
+      "platform": "web",
+      "resource": "scrape"
+    },
+    {
+      "endpoint_id": "endpoint_5f895e8df59d760956246fda191a35ac9843a947504cf11e266bcea2e54e5496",
+      "http_method": "GET",
+      "route_path": "/v1/web/search",
+      "platform": "web",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_cb2c514b23d4d8da6312ac3aa81230145b82106e056a5b767871347fdacae800",
+      "http_method": "GET",
+      "route_path": "/v1/web/sessions",
+      "platform": "web",
+      "resource": "sessions"
+    },
+    {
+      "endpoint_id": "endpoint_9a350c832ea120b9cfca55c1bc8620ef1b21370055e62dae440e560ffeb2c040",
+      "http_method": "GET",
+      "route_path": "/v1/web/sessions/{session_id}",
+      "platform": "web",
+      "resource": "sessions/{session_id}"
+    },
+    {
+      "endpoint_id": "endpoint_b0001a0c8a19f69d3be823d6f31cc011ba1da658228858fc56118a779d35ef63",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/channel",
+      "platform": "youtube",
+      "resource": "channel"
+    },
+    {
+      "endpoint_id": "endpoint_8a8cf974bd733e200c0f7a158c3201ea1ebd70e426df43e521ada0478bbf876a",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/channel/community-posts",
+      "platform": "youtube",
+      "resource": "channel/community-posts"
+    },
+    {
+      "endpoint_id": "endpoint_df5989a162dbf9c0bd09460c9d1d02bc5b45f92086eed4939fef18b8431f3072",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/channel/lives",
+      "platform": "youtube",
+      "resource": "channel/lives"
+    },
+    {
+      "endpoint_id": "endpoint_8024722db9a24b40a1959badeefdbba777e372581fe6a635a15d19451b7f0c98",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/channel/playlists",
+      "platform": "youtube",
+      "resource": "channel/playlists"
+    },
+    {
+      "endpoint_id": "endpoint_34cd25fa34d422425ac031adb3195cdd1f8aaebee7f894c54ed8b4024e03c904",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/channel/shorts",
+      "platform": "youtube",
+      "resource": "channel/shorts"
+    },
+    {
+      "endpoint_id": "endpoint_213d2a2fc0b3401255c135f1e21f6afa391f822bc51c0b3b7e16e9e5e10d8b7e",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/channel/videos",
+      "platform": "youtube",
+      "resource": "channel/videos"
+    },
+    {
+      "endpoint_id": "endpoint_51123ecfe89b3c196108cc11d7d5bad5f6fe8d078b33a1d1e7fb402e34ca88e4",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/community-post",
+      "platform": "youtube",
+      "resource": "community-post"
+    },
+    {
+      "endpoint_id": "endpoint_5524300861429b1b55a04d2cf4075e05b2aa605e94538bc703d4fb04a29d5c05",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/playlist",
+      "platform": "youtube",
+      "resource": "playlist"
+    },
+    {
+      "endpoint_id": "endpoint_5049e0a36bab3a0af91f90f2090aee1142a4b227956ed61cc788ba7e854a7bbf",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/playlist/items",
+      "platform": "youtube",
+      "resource": "playlist/items"
+    },
+    {
+      "endpoint_id": "endpoint_3fec0bfe0de912f3700c5e7ee220ad9a2594b484358f295453a17f4665c54b8e",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/profile/full",
+      "platform": "youtube",
+      "resource": "profile/full"
+    },
+    {
+      "endpoint_id": "endpoint_8c16128ab0160ebf37da9b6a621e7c4e23eb9478f99decab4cc80ee362c37fb4",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/search",
+      "platform": "youtube",
+      "resource": "search"
+    },
+    {
+      "endpoint_id": "endpoint_b84b5eb3f6ff461aa2334bb401756d43882e2f03257b5a879e7b5f89e62aee46",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/search/advanced",
+      "platform": "youtube",
+      "resource": "search/advanced"
+    },
+    {
+      "endpoint_id": "endpoint_31d5fa95b9ff777be598b43aa9cb1058c10b6519043e13b2a99e3dea1118a7b1",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/search/hashtag",
+      "platform": "youtube",
+      "resource": "search/hashtag"
+    },
+    {
+      "endpoint_id": "endpoint_3dbaa75bc71778b44cc23b27d545bfe1c4ef01f59c894fa7a8818df7c5c70b73",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/search/suggestions",
+      "platform": "youtube",
+      "resource": "search/suggestions"
+    },
+    {
+      "endpoint_id": "endpoint_702e28eb8dfb25dd95e6b18a9923cc47249ac80176b4da033cb3393bd755b3fa",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/shorts/trending",
+      "platform": "youtube",
+      "resource": "shorts/trending"
+    },
+    {
+      "endpoint_id": "endpoint_14f55c649d91af175f22ab75d556ae6f15f3037080a2b033888a9ff359042ae5",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/video",
+      "platform": "youtube",
+      "resource": "video"
+    },
+    {
+      "endpoint_id": "endpoint_652269ed5d1a381d11c90a262787c0dffab3ce07609509352cd10f652a76706b",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/video/audio",
+      "platform": "youtube",
+      "resource": "video/audio"
+    },
+    {
+      "endpoint_id": "endpoint_b74bac5f02728f2010008b59b7e27ba1beaa89be204377561b6b5e6476611503",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/video/comment/replies",
+      "platform": "youtube",
+      "resource": "video/comment/replies"
+    },
+    {
+      "endpoint_id": "endpoint_2ef35fe1a753eee053659feb22c96d1a04acf6ae00fc4af8bc962a099a6edf53",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/video/comments",
+      "platform": "youtube",
+      "resource": "video/comments"
+    },
+    {
+      "endpoint_id": "endpoint_1a26dd983975ecef749fff57900541eadfd7eb93c90c2de7d96c9d4dd740a19c",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/video/files",
+      "platform": "youtube",
+      "resource": "video/files"
+    },
+    {
+      "endpoint_id": "endpoint_4648fbc155fc80d39114806e28dd096ed39c6d3eaffa293d2066ca98d11e67a3",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/video/sponsors",
+      "platform": "youtube",
+      "resource": "video/sponsors"
+    },
+    {
+      "endpoint_id": "endpoint_536a50ffc863b2440bc41fce75ce5f98d61b53786261b7c982650f4fa5ad6322",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/video/subtitles",
+      "platform": "youtube",
+      "resource": "video/subtitles"
+    },
+    {
+      "endpoint_id": "endpoint_75ea4524f7e1fda685001c3d4d23503e3511fa1262e08675ecec1703e029e06b",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/video/thumbnails",
+      "platform": "youtube",
+      "resource": "video/thumbnails"
+    },
+    {
+      "endpoint_id": "endpoint_1909b4a9eb183e23e994e1016de661b137bb934275fca918fbd09ff502f1f817",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/video/transcript",
+      "platform": "youtube",
+      "resource": "video/transcript"
+    },
+    {
+      "endpoint_id": "endpoint_d610810b077a9d7038091d295a5138034dffbb8c9d5cc8afb7f9e5178c8f1931",
+      "http_method": "GET",
+      "route_path": "/v1/youtube/videos/trending",
+      "platform": "youtube",
+      "resource": "videos/trending"
+    },
+    {
+      "endpoint_id": "endpoint_de25e4aca082e99c390f11cd0b8a2494d0676665c9336c872387c23b1f2274ba",
+      "http_method": "PATCH",
+      "route_path": "/v1/web/monitors/{monitor_id}",
+      "platform": "web",
+      "resource": "monitors/{monitor_id}"
+    },
+    {
+      "endpoint_id": "endpoint_d12c42a5232f6c5dd686074cb9d22af7631e75f795a12a6dffd5f9508bc16ec5",
+      "http_method": "POST",
+      "route_path": "/v1/prism/comment-lookup",
+      "platform": "prism",
+      "resource": "comment-lookup"
+    },
+    {
+      "endpoint_id": "endpoint_bfa52837c68ca26a16db969e826ddbd6db6d04d48f42c6763bae0b634fe95ee2",
+      "http_method": "POST",
+      "route_path": "/v1/prism/post-stats",
+      "platform": "prism",
+      "resource": "post-stats"
+    },
+    {
+      "endpoint_id": "endpoint_47a465c71d3a605c34324742bf5f3db4cb25c292d413591097f3516aef43a133",
+      "http_method": "POST",
+      "route_path": "/v1/prism/profiles",
+      "platform": "prism",
+      "resource": "profiles"
+    },
+    {
+      "endpoint_id": "endpoint_f6f4f3d2e3c2bd83eec9e14576b0cafba4304e614cfa8cc5a15fc87971eb8b82",
+      "http_method": "POST",
+      "route_path": "/v1/web/agent",
+      "platform": "web",
+      "resource": "agent"
+    },
+    {
+      "endpoint_id": "endpoint_70717809f9c8bcc67767673ec2949d662a06a02e61b269c17808ba97a1c4d908",
+      "http_method": "POST",
+      "route_path": "/v1/web/batch-scrape",
+      "platform": "web",
+      "resource": "batch-scrape"
+    },
+    {
+      "endpoint_id": "endpoint_2ed384f85e0c788144351cad27c3a2aaaf6f9e5d9af597822e72e51180bf113b",
+      "http_method": "POST",
+      "route_path": "/v1/web/crawl",
+      "platform": "web",
+      "resource": "crawl"
+    },
+    {
+      "endpoint_id": "endpoint_3dcc88166236905990404d5817d9befd083ab04ff7a61ac9736802ef16a8af0d",
+      "http_method": "POST",
+      "route_path": "/v1/web/monitors",
+      "platform": "web",
+      "resource": "monitors"
+    },
+    {
+      "endpoint_id": "endpoint_94c81f053c90e2a1e51e0c9ecb0ee5b8a0bb5981288ddeb532d74ec54785736e",
+      "http_method": "POST",
+      "route_path": "/v1/web/parse",
+      "platform": "web",
+      "resource": "parse"
+    },
+    {
+      "endpoint_id": "endpoint_a6acf90dc22f2cdc365f23b7fd031ead788e3bca825ea79c7354cf36afaaa20b",
+      "http_method": "POST",
+      "route_path": "/v1/web/sessions",
+      "platform": "web",
+      "resource": "sessions"
+    },
+    {
+      "endpoint_id": "endpoint_0250de2425db9416d1edf335383da5d735c26a75adff636974b790fe79b2a5b7",
+      "http_method": "POST",
+      "route_path": "/v1/web/sessions/{session_id}/execute",
+      "platform": "web",
+      "resource": "sessions/{session_id}/execute"
+    },
+    {
+      "endpoint_id": "endpoint_c06a78916b0c3049f6547f572fb6ab732eef0399edab26328613f4232c820921",
+      "http_method": "POST",
+      "route_path": "/v1/youtube/channels",
+      "platform": "youtube",
+      "resource": "channels"
+    },
+    {
+      "endpoint_id": "endpoint_9fcd572cd3985c99c0abcff74a0b385dd86b351cc5c9bc900600a5bca72c86c8",
+      "http_method": "POST",
+      "route_path": "/v1/youtube/transcripts",
+      "platform": "youtube",
+      "resource": "transcripts"
+    },
+    {
+      "endpoint_id": "endpoint_cc6778c5ae2259ec9104f0e3fdf5f1fe3a6d5c3060198dbc96cc3acf1ab325a0",
+      "http_method": "POST",
+      "route_path": "/v1/youtube/videos",
+      "platform": "youtube",
+      "resource": "videos"
+    }
+  ]
+}

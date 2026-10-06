@@ -1,0 +1,140 @@
+/* 42 Dossiers. Sizes come from the shared type roles (page title, section
+   title, signal title, body), so the list reads like History and
+   Investigations. Red (the accent)
+   only on the one primary action: Freeze on a draft, Export PDF on a frozen
+   version. Chips, the source panel and confidence words come from ask42.css. */
+
+.dossiers42 { max-width: var(--maxw); margin: 0 auto; padding: var(--s-6) var(--s-5); font-family: var(--sans); font-size: var(--type-body); color: var(--ink); }
+/* On a phone the workspace already pads the page, so the page adds no gutter
+   of its own and the title starts on the line Today and History start on. */
+@media (max-width: 479px) {
+  .dossiers42 { padding-inline: 0; }
+}
+.dossiers42-title { font-size: var(--type-page-title); line-height: var(--leading-page-title); font-weight: 600; margin: 0 0 var(--s-2); }
+/* The sentence under the title is muted at a 66 character measure, as on
+   History, Alerts and every More page. */
+.dossiers42-lede { font-size: var(--type-body); color: var(--muted); margin: 0 0 var(--s-5); max-width: var(--measure); text-wrap: pretty; }
+.dossiers42-muted { color: var(--muted); font-size: var(--type-body); }
+.dossiers42-meta { font-size: var(--type-body); color: var(--muted); margin: 0 0 var(--s-4); }
+.dossiers42-error { color: var(--down); font-size: var(--type-body); }
+.dossiers42-error p { margin: 0 0 var(--s-2); }
+
+.dossiers42 button { font: inherit; font-size: var(--type-body); cursor: pointer; }
+.dossiers42 button:disabled { cursor: default; opacity: 0.6; }
+/* Shell consistency, 2 October 2026: the secondary button is the one box the
+   More pages share (.legacy-action): 48px, 16px sides, a 1px muted rule and
+   the 14px sans at 600. */
+.dossiers42-quiet { min-height: var(--target-min); padding: 0 var(--s-4); background: transparent; color: var(--ink); border: 1px solid var(--muted); border-radius: 0; font-size: var(--type-3); font-weight: 600; transition: border-color var(--motion-control) var(--motion-standard-easing); }
+.dossiers42-quiet:hover, .dossiers42-quiet:focus-visible { border-color: var(--ink); }
+.dossiers42-primary { min-height: var(--target-min); padding: 0 var(--s-5); background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); border-radius: 0; font-weight: 600; }
+.dossiers42 :focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+.dossiers42 a { color: var(--ink); }
+
+.dossiers42-list { list-style: none; margin: 0 0 var(--s-5); padding: 0; display: grid; border-top: 1px solid var(--line); }
+.dossiers42-row { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--s-1) var(--s-3); align-items: baseline; padding: var(--s-3); border-bottom: 1px solid var(--line); animation: dossiers42RowIn var(--motion-layer) var(--motion-standard-easing) backwards; animation-delay: calc(min(var(--row-step, 0), 4) * 80ms); transition: background-color var(--motion-row) var(--motion-standard-easing); }
+.dossiers42-row:hover, .dossiers42-row:focus-within { background: var(--surface); }
+.dossiers42-list > :nth-child(2) { --row-step: 1; }
+.dossiers42-list > :nth-child(3) { --row-step: 2; }
+.dossiers42-list > :nth-child(4) { --row-step: 3; }
+.dossiers42-list > :nth-child(n+5) { --row-step: 4; }
+@keyframes dossiers42RowIn { from { opacity: 0; transform: translateY(4px); } }
+.dossiers42-row .dossiers42-muted { grid-column: 2; }
+.dossiers42-row-title { font-size: var(--type-signal-title); line-height: var(--leading-signal-title); font-weight: 600; }
+.dossiers42-state { font-size: var(--type-body); color: var(--muted); }
+.dossiers42-state[data-state="frozen"] { color: var(--ink); }
+/* Shell consistency, 2 October 2026: the empty list is the one empty state
+   every page uses: a hairline, a short bold title, one sentence, then one
+   bordered action under it, rather than a ruled row with the button pushed
+   to its far end. */
+.dossiers42-empty { display: block; margin-top: var(--s-5); padding: var(--s-5) 0 0; border-top: 1px solid var(--line); }
+.dossiers42-empty-copy { min-width: 0; }
+.dossiers42-empty-title { font-size: var(--type-6); line-height: 1.3; font-weight: 600; margin: 0; text-wrap: balance; }
+.dossiers42-empty-copy p { max-width: var(--measure); font-size: var(--type-4); line-height: 1.6; color: var(--muted); margin: var(--s-2) 0 0; text-wrap: pretty; }
+.dossiers42 .dossiers42-empty-link { display: inline-flex; align-items: center; justify-content: center; min-height: var(--target-min); margin-top: var(--s-4); padding: 0 var(--s-4); border: 1px solid var(--muted); color: var(--ink); font-size: var(--type-3); font-weight: 600; text-decoration: none; white-space: nowrap; transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing); }
+.dossiers42 .dossiers42-empty-link:hover, .dossiers42 .dossiers42-empty-link:focus-visible { color: var(--accent-text); border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.dossiers42 .dossiers42-empty-link:active { box-shadow: var(--press-grip); }
+
+.dossiers42-body { min-width: 0; }
+.dossiers42-summary { font-family: var(--serif); font-size: var(--type-section-title); line-height: 1.45; margin: 0 0 var(--s-5); }
+.dossiers42-title-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin: 0 0 var(--s-5); }
+.dossiers42-label { font-size: var(--type-body); color: var(--ink); font-weight: 600; }
+.dossiers42-input { font: inherit; font-size: var(--type-body); padding: var(--s-2) var(--s-3); background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); border-radius: 0; }
+.dossiers42-title-form .dossiers42-input { flex: 1 1 320px; min-height: var(--target-min); }
+
+.dossiers42-claims { list-style: none; margin: 0 0 var(--s-6); padding: 0; display: grid; gap: var(--s-5); }
+.dossiers42-claim { display: grid; gap: var(--s-2); line-height: 1.5; padding-bottom: var(--s-4); border-bottom: 1px solid var(--line); }
+.dossiers42-claim textarea { resize: vertical; }
+.dossiers42-claim-head { display: block; }
+.dossiers42-claim-text { font-size: var(--type-body); }
+.dossiers42-quote { margin: 0; padding-left: var(--s-3); border-left: 2px solid var(--line-2); font-size: var(--type-body); }
+.dossiers42-note { font-size: var(--type-body); color: var(--ink-2); }
+.dossiers42-review { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.dossiers42-tick { display: inline-flex; align-items: center; gap: var(--s-2); min-height: var(--target-min); font-size: var(--type-body); }
+.dossiers42-tick input { width: 20px; height: 20px; }
+.dossiers42-needs { font-size: var(--type-meta); color: var(--ink); border: 1px solid var(--line-2); padding: 0 var(--s-2); }
+.dossiers42-save-note { justify-self: start; }
+.dossiers42-removed .dossiers42-claim-text { color: var(--muted); }
+
+.dossiers42-section { margin: 0 0 var(--s-6); }
+.dossiers42-section-title { font-size: var(--type-body); font-weight: 600; margin: 0 0 var(--s-3); }
+.dossiers42-plain-list { margin: 0; padding-left: var(--s-5); display: grid; gap: var(--s-2); line-height: 1.5; }
+
+.dossiers42-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); margin: 0 0 var(--s-4); }
+.dossiers42-share { font-size: var(--type-body); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dossiers42-row { animation: none; }
+  .dossiers42-quiet,
+  .dossiers42 .dossiers42-empty-link { transition: none; }
+}
+
+/* Layout pass, 4 October 2026. The empty list is one compact block: the
+   title, its sentence and Go to Ask on the left, and on the right the four
+   steps a dossier goes through, so the page shows what it will hold. */
+.dossiers42-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0 var(--s-5); }
+.dossiers42-steps > li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: var(--s-1) var(--s-3);
+  align-content: start;
+  padding: var(--s-3) 0;
+  border-top: 1px solid var(--line);
+}
+.dossiers42-step-n { grid-row: span 2; font-size: var(--type-signal-title); line-height: var(--leading-signal-title); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dossiers42-steps strong { font-weight: 600; color: var(--ink); line-height: var(--leading-signal-title); font-size: var(--type-signal-title); }
+.dossiers42-steps span:last-child { color: var(--ink-2); line-height: var(--leading-body); text-wrap: pretty; }
+
+@media (min-width: 640px) {
+  .dossiers42-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 640px) {
+  .dossiers42-steps { border-bottom: 1px solid var(--line); }
+}
+
+/* Layout pass two, 4 October 2026. The empty page reads top to bottom at
+   full width: what is missing with Go to Ask at the end of its line, the
+   four steps across, then the finished answers that could start one. */
+.dossiers42-empty-start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-3) var(--s-6);
+  margin-bottom: var(--s-5);
+}
+.dossiers42-empty-start > .dossiers42-empty-copy { flex: 1 1 20rem; }
+.dossiers42 .dossiers42-empty-start > .dossiers42-empty-link { margin-top: 0; }
+@media (min-width: 1200px) {
+  .dossiers42-steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.dossiers42-ready { margin-top: var(--s-7); }
+.dossiers42-ready-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-2) var(--s-5); margin-bottom: var(--s-3); }
+.dossiers42-ready-title { margin: 0; font-size: var(--type-section-title); line-height: var(--leading-section-title); font-weight: 600; }
+.dossiers42 .dossiers42-ready-all { display: inline-flex; align-items: center; min-height: var(--target-min); color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 4px; }
+.dossiers42-ready-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0 var(--s-6); border-top: 1px solid var(--line); }
+.dossiers42-ready-row { display: grid; gap: var(--s-1); align-content: start; padding: var(--s-3) 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.dossiers42 .dossiers42-ready-q { font-size: var(--type-signal-title); line-height: var(--leading-signal-title); font-weight: 600; color: var(--ink); overflow-wrap: anywhere; text-wrap: pretty; }
+.dossiers42-ready > .dossiers42-muted { margin: 0; }
+@media (min-width: 1000px) {
+  .dossiers42-ready-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

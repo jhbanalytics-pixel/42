@@ -1,0 +1,268 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1196" width="1680" height="1196" role="img" aria-label="Trends Engine data flow, from twelve live connectors through classification, scoring and the Vertex Gemini brief stage to the PULSE digest, Listening Post and Looker Studio">
+<title>Trends Engine, end-to-end data flow</title>
+<defs>
+  <style>
+    .bg    { fill:#0b1220; }
+    .band  { fill:#111c2f; stroke:#1e2d47; stroke-width:1; }
+    .src   { fill:#0e2a47; stroke:#38bdf8; stroke-width:1.2; }
+    .store { fill:#0b3d2e; stroke:#10b981; stroke-width:1.2; }
+    .stage { fill:#1a2337; stroke:#818cf8; stroke-width:1.2; }
+    .gate  { fill:#330b28; stroke:#f472b6; stroke-width:1.2; }
+    .ai    { fill:#2a1063; stroke:#a78bfa; stroke-width:1.4; }
+    .out   { fill:#3a2d0b; stroke:#f59e0b; stroke-width:1.2; }
+    .shadow{ fill:#161d2c; stroke:#475569; stroke-width:1.2; stroke-dasharray:5 3; }
+    text   { font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; fill:#e2e8f0; }
+    .h1    { font-size:30px; font-weight:700; fill:#f8fafc; }
+    .h2    { font-size:14px; font-weight:600; fill:#7dd3fc; letter-spacing:1.6px; }
+    .sub   { font-size:14px; fill:#94a3b8; }
+    .lbl   { font-size:16px; font-weight:650; }
+    .sm    { font-size:12.5px; fill:#b6c2d4; }
+    .xs    { font-size:11.5px; fill:#8fa0b8; }
+    .num   { font-size:12.5px; font-weight:700; fill:#5eead4; }
+    .step  { font-size:12px; font-weight:700; fill:#64748b; letter-spacing:1.4px; }
+    .edge  { stroke:#64748b; stroke-width:1.8; fill:none; marker-end:url(#a); }
+    .edgeh { stroke:#38bdf8; stroke-width:2.6; fill:none; marker-end:url(#ab); }
+    .edged { stroke:#475569; stroke-width:1.6; fill:none; stroke-dasharray:5 4; marker-end:url(#a); }
+    .elbl  { font-size:11.5px; fill:#94a3b8; }
+  </style>
+  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="#64748b"/>
+  </marker>
+  <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="#38bdf8"/>
+  </marker>
+</defs>
+
+<rect class="bg" width="1680" height="1196"/>
+
+<text class="h1" x="48" y="58">Trends Engine, end to end</text>
+<text class="sub" x="48" y="84">One daily Cloud Run job. Twelve live connectors, three markets (ZA, NG, KE), one editorial digest.</text>
+<text class="sub" x="48" y="103">Row figures are declared daily targets from configs/engine_capacity.yaml, not observed volumes.</text>
+
+<!-- legend -->
+<g transform="translate(1090,44)">
+  <rect class="src"   x="0"   y="0" width="15" height="15" rx="3"/><text class="xs" x="21"  y="12">source</text>
+  <rect class="stage" x="80"  y="0" width="15" height="15" rx="3"/><text class="xs" x="101" y="12">process</text>
+  <rect class="store" x="168" y="0" width="15" height="15" rx="3"/><text class="xs" x="189" y="12">BigQuery</text>
+  <rect class="ai"    x="264" y="0" width="15" height="15" rx="3"/><text class="xs" x="285" y="12">Vertex</text>
+  <rect class="out"   x="344" y="0" width="15" height="15" rx="3"/><text class="xs" x="365" y="12">deliverable</text>
+  <rect class="shadow" x="0"  y="24" width="15" height="15" rx="3"/><text class="xs" x="21"  y="36">shadow, renders nothing</text>
+  <rect class="gate"  x="168" y="24" width="15" height="15" rx="3"/><text class="xs" x="189" y="36">gate or schedule</text>
+</g>
+
+<!-- ============ 1 SOURCES ============ -->
+<text class="step" x="48" y="140">STEP 1</text>
+<text class="h2" x="110" y="140">SOURCES, PULLED FRESH EVERY DAY PER MARKET</text>
+<rect class="band" x="48" y="154" width="1584" height="150" rx="10"/>
+
+<g>
+  <rect class="src" x="66" y="172" width="248" height="114" rx="8"/>
+  <text class="lbl" x="82" y="196">News and world events</text>
+  <text class="sm"  x="82" y="218">rss, 30 publisher feeds</text>
+  <text class="sm"  x="82" y="236">gdelt, GKG themes and tone</text>
+  <text class="num" x="82" y="262">3,440 rows/day declared</text>
+  <text class="xs"  x="82" y="278">the largest single input</text>
+</g>
+<g>
+  <rect class="src" x="330" y="172" width="248" height="114" rx="8"/>
+  <text class="lbl" x="346" y="196">Social conversation</text>
+  <text class="sm"  x="346" y="218">socialcrawl, 7 phases</text>
+  <text class="sm"  x="346" y="236">brand24, mention stream</text>
+  <text class="num" x="346" y="262">3,275 rows/day declared</text>
+  <text class="xs"  x="346" y="278">the only paid-vendor spend</text>
+</g>
+<g>
+  <rect class="src" x="594" y="172" width="248" height="114" rx="8"/>
+  <text class="lbl" x="610" y="196">Video</text>
+  <text class="sm"  x="610" y="218">youtube, API plus comments</text>
+  <text class="sm"  x="610" y="236">youtube_scrape, free breadth</text>
+  <text class="num" x="610" y="262">420 rows/day declared</text>
+  <text class="xs"  x="610" y="278">scraper has no declared floor</text>
+</g>
+<g>
+  <rect class="src" x="858" y="172" width="248" height="114" rx="8"/>
+  <text class="lbl" x="874" y="196">Search demand</text>
+  <text class="sm"  x="874" y="218">bigquery_trends</text>
+  <text class="sm"  x="874" y="236">google_trends_rss</text>
+  <text class="num" x="874" y="262">200 rows/day declared</text>
+  <text class="xs"  x="874" y="278">no upstream KE coverage</text>
+</g>
+<g>
+  <rect class="src" x="1122" y="172" width="248" height="114" rx="8"/>
+  <text class="lbl" x="1138" y="196">Charts and consumption</text>
+  <text class="sm"  x="1138" y="218">apple_music, top songs</text>
+  <text class="sm"  x="1138" y="236">app_charts, top free apps</text>
+  <text class="num" x="1138" y="262">150 rows/day declared</text>
+  <text class="xs"  x="1138" y="278">confirms chatter against play</text>
+</g>
+<g>
+  <rect class="src" x="1386" y="172" width="228" height="114" rx="8"/>
+  <text class="lbl" x="1402" y="196">Open web</text>
+  <text class="sm"  x="1402" y="218">wikipedia pageviews</text>
+  <text class="sm"  x="1402" y="236">cloudflare_radar domains</text>
+  <text class="num" x="1402" y="262">not declared</text>
+  <text class="xs"  x="1402" y="278">cheap sanity check</text>
+</g>
+
+<!-- ============ 2 INGEST ============ -->
+<path class="edgeh" d="M190 286 L190 316"/>
+<path class="edgeh" d="M454 286 L454 316"/>
+<path class="edgeh" d="M718 286 L718 316"/>
+<path class="edgeh" d="M982 286 L982 316"/>
+<path class="edgeh" d="M1246 286 L1246 316"/>
+<path class="edgeh" d="M1500 286 L1500 316"/>
+
+<text class="step" x="48" y="344">STEP 2</text>
+<g>
+  <rect class="stage" x="110" y="320" width="740" height="92" rx="8"/>
+  <text class="lbl" x="130" y="348">Ingest, one sequential daily job</text>
+  <text class="sm"  x="130" y="370">Nineteen connectors registered, twelve live. SocialCrawl spends a shared credit ledger across</text>
+  <text class="sm"  x="130" y="388">seven fixed-order phases; creators claims its share first, so the breaker only trims the tail.</text>
+  <text class="xs"  x="130" y="404">A market whose run already succeeded today is skipped, so the fallback cannot double-count.</text>
+</g>
+<g>
+  <rect class="store" x="900" y="320" width="300" height="92" rx="8"/>
+  <text class="lbl" x="920" y="348">raw_content</text>
+  <text class="sm"  x="920" y="370">Source-of-truth dump, INSERT</text>
+  <text class="sm"  x="920" y="388">90-day expiry</text>
+  <text class="xs"  x="920" y="404">every connector lands here before processing</text>
+</g>
+<path class="edgeh" d="M850 366 L896 366"/>
+
+<!-- ============ 3 CLASSIFY ============ -->
+<path class="edgeh" d="M1050 412 L1050 448 L560 448 L560 484"/>
+<text class="step" x="48" y="512">STEP 3</text>
+<g>
+  <rect class="stage" x="110" y="488" width="740" height="118" rx="8"/>
+  <text class="lbl" x="130" y="516">Classify and enrich, six layers in order</text>
+  <text class="sm"  x="130" y="538">language guard (dark) into Brand24 label map into taxonomy regex into GDELT theme rescue</text>
+  <text class="sm"  x="130" y="556">into slang fallback into multilingual-embedding rescue at cosine 0.65, margin 0.05</text>
+  <text class="xs"  x="130" y="578">Attaches slang and Gen Z lexicon hits, regional markers, watchlist creators, comment sentiment, GDELT tone.</text>
+  <text class="xs"  x="130" y="594">A geo-strip pass drops foreign-collision rows on known-collision topics.</text>
+</g>
+<g>
+  <rect class="store" x="900" y="488" width="300" height="118" rx="8"/>
+  <text class="lbl" x="920" y="516">enriched_content</text>
+  <text class="sm"  x="920" y="538">One-to-one with raw, INSERT</text>
+  <text class="sm"  x="920" y="556">plus topic groups and tone</text>
+  <text class="xs"  x="920" y="578">Labelling rate is tracked per market</text>
+  <text class="xs"  x="920" y="594">on every run in pipeline_runs.</text>
+</g>
+<path class="edgeh" d="M850 547 L896 547"/>
+
+<!-- ============ 4 SCORE ============ -->
+<path class="edgeh" d="M1050 606 L1050 642 L560 642 L560 678"/>
+<text class="step" x="48" y="706">STEP 4</text>
+<g>
+  <rect class="stage" x="110" y="682" width="740" height="132" rx="8"/>
+  <text class="lbl" x="130" y="710">Score every topic, deterministic</text>
+  <text class="sm"  x="130" y="732">Signals weighted per scoring.yaml, keyed on (market, topic_group, trend_date). Velocity 0.20.</text>
+  <text class="sm"  x="130" y="750">genz_score, watchlist_score retained at 0.00. GDELT gaps redistribute weight, never a penalty.</text>
+  <text class="num" x="130" y="776">Cross-source bonus: 1 + min(0.05 x (channel families - 1), 0.15)</text>
+  <text class="xs"  x="130" y="794">Graded on independent channel families, not raw platforms. Two families 1.05, four or more 1.15.</text>
+  <text class="xs"  x="130" y="808">Corroboration scores factual and social families separately, so social-only chatter cannot read as confirmed.</text>
+</g>
+<g>
+  <rect class="store" x="900" y="682" width="300" height="132" rx="8"/>
+  <text class="lbl" x="920" y="710">trend_scores</text>
+  <text class="sm"  x="920" y="732">MERGE, safe on rerun</text>
+  <text class="xs"  x="920" y="754">Tier labels, not filters:</text>
+  <text class="xs"  x="920" y="770">Trending 0.45, Emerging 0.30,</text>
+  <text class="xs"  x="920" y="786">Monitoring 0.18, else Below threshold.</text>
+  <text class="xs"  x="920" y="804">Labels drive emphasis and alerting.</text>
+</g>
+<path class="edgeh" d="M850 748 L896 748"/>
+
+<!-- shadow intelligence -->
+<g>
+  <rect class="shadow" x="1250" y="682" width="364" height="132" rx="8"/>
+  <text class="lbl" x="1270" y="710">Intelligence layer, shadow</text>
+  <text class="sm"  x="1270" y="732">seed_graph, per-market term graph</text>
+  <text class="sm"  x="1270" y="750">seed_candidates, taxonomy proposals</text>
+  <text class="sm"  x="1270" y="768">event_ledger and reconcile_actions</text>
+  <text class="xs"  x="1270" y="790">Builds the cross-source event-state trail</text>
+  <text class="xs"  x="1270" y="806">and an audit record. Renders nothing yet.</text>
+</g>
+<path class="edged" d="M1200 748 L1246 748"/>
+
+<!-- ============ 5 GATE + GEMINI ============ -->
+<path class="edgeh" d="M1050 814 L1050 850 L260 850 L260 886"/>
+<text class="step" x="48" y="912">STEP 5</text>
+<g>
+  <rect class="gate" x="110" y="888" width="300" height="88" rx="8"/>
+  <text class="lbl" x="130" y="916">Selection is a rank</text>
+  <text class="sm"  x="130" y="938">Top eight topics per market</text>
+  <text class="sm"  x="130" y="956">by score. Floor is 0.0.</text>
+  <text class="xs"  x="130" y="970">No threshold decides what gets briefed.</text>
+</g>
+<g>
+  <rect class="ai" x="452" y="888" width="300" height="88" rx="8"/>
+  <text class="lbl" x="472" y="916">Vertex Gemini 3.5 Flash</text>
+  <text class="sm"  x="472" y="938">Structured JSON, eleven</text>
+  <text class="sm"  x="472" y="956">required fields per brief</text>
+  <text class="xs"  x="472" y="970">Handles and URLs never model-generated.</text>
+</g>
+<g>
+  <rect class="store" x="794" y="888" width="300" height="88" rx="8"/>
+  <text class="lbl" x="814" y="916">trend_analysis</text>
+  <text class="sm"  x="814" y="938">The creative brief, INSERT</text>
+  <text class="sm"  x="814" y="956">plus a render_payload update</text>
+  <text class="xs"  x="814" y="970">At most 24 briefs a day.</text>
+</g>
+<g>
+  <rect class="store" x="1136" y="888" width="240" height="88" rx="8"/>
+  <text class="lbl" x="1156" y="916">daily_summary</text>
+  <text class="sm"  x="1156" y="938">One cross-market</text>
+  <text class="sm"  x="1156" y="956">narrative header</text>
+  <text class="xs"  x="1156" y="970">Second Gemini pass.</text>
+</g>
+<path class="edgeh" d="M410 932 L448 932"/>
+<path class="edgeh" d="M752 932 L790 932"/>
+<path class="edgeh" d="M1094 932 L1132 932"/>
+<text class="elbl" x="1160" y="880">read: reuses an existing non-empty row</text>
+
+<!-- ============ 6 OUTPUTS ============ -->
+<text class="step" x="48" y="1058">STEP 6</text>
+<g>
+  <rect class="out" x="110" y="1024" width="360" height="106" rx="8"/>
+  <text class="lbl" x="130" y="1052">PULSE daily digest</text>
+  <text class="sm"  x="130" y="1074">Lean inbox teaser over Gmail SMTP, plus the</text>
+  <text class="sm"  x="130" y="1092">full read hosted on Cloud Storage.</text>
+  <text class="xs"  x="130" y="1112">The split keeps a busy day under the Gmail clip limit.</text>
+</g>
+<g>
+  <rect class="out" x="500" y="1024" width="360" height="106" rx="8"/>
+  <text class="lbl" x="520" y="1052">Listening Post</text>
+  <text class="sm"  x="520" y="1074">Passcode-gated team desk: mention ticker,</text>
+  <text class="sm"  x="520" y="1092">topic board, per-market listen feed.</text>
+  <text class="xs"  x="520" y="1112">Its own Cloud Run service. Reads BigQuery, never writes.</text>
+</g>
+<g>
+  <rect class="out" x="890" y="1024" width="360" height="106" rx="8"/>
+  <text class="lbl" x="910" y="1052">Looker Studio</text>
+  <text class="sm"  x="910" y="1074">Seven views on a 30-day rolling window,</text>
+  <text class="sm"  x="910" y="1092">array columns unnested to avoid fan-out.</text>
+  <text class="xs"  x="910" y="1112">v_pipeline_health carries freshness and error state.</text>
+</g>
+<path class="edgeh" d="M944 976 L944 1000 L290 1000 L290 1020"/>
+<path class="edged" d="M944 1000 L680 1000 L680 1020"/>
+<path class="edged" d="M1070 976 L1070 1020"/>
+
+<!-- ============ CONTROL LOOP ============ -->
+<g>
+  <rect class="gate" x="1290" y="1024" width="324" height="120" rx="8"/>
+  <text class="lbl" x="1310" y="1052">Control loop, GCP-native</text>
+  <text class="sm"  x="1310" y="1074">Cloud Scheduler 00:30 primary, 02:30</text>
+  <text class="sm"  x="1310" y="1092">fallback, 06:30 watchdog, all UTC.</text>
+  <text class="xs"  x="1310" y="1112">Cloud Build deploys four jobs on push.</text>
+  <text class="xs"  x="1310" y="1126">GitHub runs CI only, never execution.</text>
+</g>
+<g>
+  <rect class="store" x="1290" y="888" width="324" height="88" rx="8"/>
+  <text class="lbl" x="1310" y="916">pipeline_runs, system_events</text>
+  <text class="sm"  x="1310" y="938">Per-phase status, row counts,</text>
+  <text class="sm"  x="1310" y="956">errors, labelling rate, heartbeat</text>
+  <text class="xs"  x="1310" y="970">Every stage writes here.</text>
+</g>
+<path class="edge" d="M1452 1020 L1452 980"/>
+</svg>

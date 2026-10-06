@@ -1,0 +1,2436 @@
+{
+  "_note": "Redacted SocialCrawl bodies from probe runs in the --bodies mode: every value is its type name, a list shows its length and at most three elements, and a dict with a key that is not a field name shows one <key> entry. Never evidence.",
+  "tiktok/post/comments": {
+    "probe": "c1",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "cached": "<bool>",
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "data": {
+        "comment_language": {
+          "abstained": "<int>",
+          "judged_by": {
+            "choice": "<int>",
+            "script": "<int>"
+          },
+          "n": "<int>",
+          "policy_version": "<str>",
+          "shares": {
+            "en": {
+              "abstained": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<float>",
+              "n": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 3>",
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                }
+              ],
+              "share": "<float>",
+              "too_few": "<bool>"
+            },
+            "es": {
+              "abstained": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<float>",
+              "n": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 2>",
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                }
+              ],
+              "share": "<float>",
+              "too_few": "<bool>"
+            },
+            "pt": {
+              "abstained": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<float>",
+              "n": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 1>",
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                }
+              ],
+              "share": "<float>",
+              "too_few": "<bool>"
+            },
+            "ru": {
+              "abstained": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<float>",
+              "n": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 2>",
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                }
+              ],
+              "share": "<float>",
+              "too_few": "<bool>"
+            }
+          }
+        },
+        "comment_recency": {
+          "<key>": "<int>"
+        },
+        "dropped": "<int>",
+        "items": [
+          "<list of 49>",
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "ext": {
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<bool>"
+              },
+              "id": "<str number>",
+              "parent_id": "<null>",
+              "post_id": "<str number>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<null>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "complaint": {
+                  "p": "<float>"
+                },
+                "purchase_intent": {
+                  "p": "<float>"
+                },
+                "question": {
+                  "p": "<float>"
+                },
+                "sentiment": {
+                  "<key>": "<float>"
+                }
+              }
+            }
+          },
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "ext": {
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<bool>"
+              },
+              "id": "<str number>",
+              "parent_id": "<null>",
+              "post_id": "<str number>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<null>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "complaint": {
+                  "p": "<float>"
+                },
+                "purchase_intent": {
+                  "p": "<float>"
+                },
+                "question": {
+                  "p": "<float>"
+                },
+                "sentiment": {
+                  "<key>": "<float>"
+                }
+              }
+            }
+          },
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "ext": {
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<bool>"
+              },
+              "id": "<str number>",
+              "parent_id": "<null>",
+              "post_id": "<str number>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<null>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "complaint": {
+                  "p": "<float>"
+                },
+                "purchase_intent": {
+                  "p": "<float>"
+                },
+                "question": {
+                  "p": "<float>"
+                },
+                "sentiment": {
+                  "<key>": "<float>"
+                }
+              }
+            }
+          }
+        ],
+        "label_share": {
+          "policy_version": "<str>",
+          "presets": {
+            "complaint": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "purchase_intent": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "question": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "sentiment": {
+              "negative": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<float>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 1>",
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  }
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              },
+              "neutral": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<float>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 3>",
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  }
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              },
+              "positive": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<float>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 2>",
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  }
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              }
+            }
+          }
+        },
+        "labels": {
+          "cached": "<int>",
+          "dropped": "<int>",
+          "dropped_ids": [
+            "<list of 0>"
+          ],
+          "extra_credits": "<int>",
+          "labelled": "<int>",
+          "methodology_version": "<str>",
+          "mode": "<str>",
+          "pending": "<int>",
+          "pending_ids": [
+            "<list of 36>",
+            "<str number>",
+            "<str number>",
+            "<str number>"
+          ],
+          "presets": [
+            "<list of 4>",
+            "<str>",
+            "<str>",
+            "<str>"
+          ],
+          "rows": "<int>",
+          "skipped": "<int>",
+          "status": "<str>",
+          "unjudged": "<int>"
+        },
+        "next_cursor": "<str>",
+        "total": "<int>"
+      },
+      "endpoint": "<str>",
+      "pagination": {
+        "has_more": "<bool>",
+        "next_cursor": "<str>",
+        "page_size": "<int>"
+      },
+      "platform": "<str>",
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  },
+  "instagram/post/comments": {
+    "probe": "c2",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "cached": "<bool>",
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "data": {
+        "comment_language": {
+          "abstained": "<int>",
+          "judged_by": {
+            "choice": "<int>",
+            "script": "<int>"
+          },
+          "n": "<int>",
+          "policy_version": "<str>",
+          "shares": {
+            "en": {
+              "abstained": "<int>",
+              "counted": "<int>",
+              "high": "<int>",
+              "low": "<float>",
+              "n": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 3>",
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                }
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            }
+          }
+        },
+        "comment_recency": {
+          "<key>": "<int>"
+        },
+        "dropped": "<int>",
+        "items": [
+          "<list of 15>",
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<null>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str number>",
+              "parent_id": "<null>",
+              "post_id": "<str>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<str url>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "complaint": {
+                  "p": "<float>"
+                },
+                "purchase_intent": {
+                  "p": "<float>"
+                },
+                "question": {
+                  "p": "<float>"
+                },
+                "sentiment": {
+                  "<key>": "<float>"
+                }
+              }
+            }
+          },
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<null>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str number>",
+              "parent_id": "<null>",
+              "post_id": "<str>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<str url>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "complaint": {
+                  "p": "<float>"
+                },
+                "purchase_intent": {
+                  "p": "<float>"
+                },
+                "question": {
+                  "p": "<float>"
+                },
+                "sentiment": {
+                  "<key>": "<float>"
+                }
+              }
+            }
+          },
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<null>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str number>",
+              "parent_id": "<null>",
+              "post_id": "<str>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<str url>"
+            },
+            "computed": {
+              "language": "<null>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "complaint": {
+                  "p": "<float>"
+                },
+                "purchase_intent": {
+                  "p": "<float>"
+                },
+                "question": {
+                  "p": "<float>"
+                },
+                "sentiment": {
+                  "<key>": "<float>"
+                }
+              }
+            }
+          }
+        ],
+        "label_share": {
+          "policy_version": "<str>",
+          "presets": {
+            "complaint": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "purchase_intent": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "question": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "sentiment": {
+              "negative": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<float>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 3>",
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  }
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              },
+              "neutral": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<float>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 2>",
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  }
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              },
+              "positive": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<float>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 3>",
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  }
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              }
+            }
+          }
+        },
+        "labels": {
+          "cached": "<int>",
+          "dropped": "<int>",
+          "dropped_ids": [
+            "<list of 0>"
+          ],
+          "extra_credits": "<int>",
+          "labelled": "<int>",
+          "methodology_version": "<str>",
+          "mode": "<str>",
+          "pending": "<int>",
+          "pending_ids": [
+            "<list of 0>"
+          ],
+          "presets": [
+            "<list of 4>",
+            "<str>",
+            "<str>",
+            "<str>"
+          ],
+          "rows": "<int>",
+          "skipped": "<int>",
+          "status": "<str>",
+          "unjudged": "<int>"
+        },
+        "next_cursor": "<str>",
+        "total": "<int>"
+      },
+      "endpoint": "<str>",
+      "pagination": {
+        "has_more": "<bool>",
+        "next_cursor": "<str>",
+        "page_size": "<int>"
+      },
+      "platform": "<str>",
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  },
+  "youtube/video/comments": {
+    "probe": "c3",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "cached": "<bool>",
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "data": {
+        "comment_language": {
+          "abstained": "<int>",
+          "judged_by": {
+            "choice": "<int>",
+            "script": "<int>"
+          },
+          "n": "<int>",
+          "policy_version": "<str>",
+          "shares": {
+            "en": {
+              "abstained": "<int>",
+              "counted": "<int>",
+              "high": "<int>",
+              "low": "<float>",
+              "n": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 3>",
+                {
+                  "id": "<str>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str>",
+                  "text": "<str>"
+                }
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            }
+          }
+        },
+        "comment_recency": {
+          "<key>": "<int>"
+        },
+        "dropped": "<int>",
+        "items": [
+          "<list of 100>",
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<null>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "ext": {
+                "author_channel_id": "<str>",
+                "author_url": "<str url>",
+                "replies_token": "<str>",
+                "text_original": "<str>",
+                "updated_at": "<str date>",
+                "viewer_rating": "<str>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str>",
+              "parent_id": "<null>",
+              "post_id": "<str>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<null>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": "<null>"
+            }
+          },
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<null>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "ext": {
+                "author_channel_id": "<str>",
+                "author_url": "<str url>",
+                "replies_token": "<str>",
+                "text_original": "<str>",
+                "updated_at": "<str date>",
+                "viewer_rating": "<str>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str>",
+              "parent_id": "<null>",
+              "post_id": "<str>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<null>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": "<null>"
+            }
+          },
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<null>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "ext": {
+                "author_channel_id": "<str>",
+                "author_url": "<str url>",
+                "replies_token": "<str>",
+                "text_original": "<str>",
+                "updated_at": "<str date>",
+                "viewer_rating": "<str>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str>",
+              "parent_id": "<null>",
+              "post_id": "<str>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<null>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": "<null>"
+            }
+          }
+        ],
+        "label_share": {
+          "policy_version": "<str>",
+          "presets": {
+            "complaint": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<null>",
+              "low": "<null>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<null>",
+              "too_few": "<bool>"
+            },
+            "purchase_intent": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<null>",
+              "low": "<null>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<null>",
+              "too_few": "<bool>"
+            },
+            "question": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<null>",
+              "low": "<null>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<null>",
+              "too_few": "<bool>"
+            },
+            "sentiment": {
+              "negative": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<null>",
+                "low": "<null>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 0>"
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              },
+              "neutral": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<null>",
+                "low": "<null>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 0>"
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              },
+              "positive": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<null>",
+                "low": "<null>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 0>"
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              }
+            }
+          }
+        },
+        "labels": {
+          "cached": "<int>",
+          "dropped": "<int>",
+          "dropped_ids": [
+            "<list of 0>"
+          ],
+          "extra_credits": "<int>",
+          "labelled": "<int>",
+          "methodology_version": "<str>",
+          "mode": "<str>",
+          "pending": "<int>",
+          "pending_ids": [
+            "<list of 48>",
+            "<str>",
+            "<str>",
+            "<str>"
+          ],
+          "presets": [
+            "<list of 4>",
+            "<str>",
+            "<str>",
+            "<str>"
+          ],
+          "rows": "<int>",
+          "skipped": "<int>",
+          "status": "<str>",
+          "unjudged": "<int>"
+        },
+        "next_cursor": "<str>",
+        "total": "<null>"
+      },
+      "endpoint": "<str>",
+      "pagination": {
+        "has_more": "<bool>",
+        "next_cursor": "<str>",
+        "page_size": "<int>"
+      },
+      "platform": "<str>",
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  },
+  "reddit/post/comments": {
+    "probe": "c4",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "cached": "<bool>",
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "data": {
+        "comment_language": {
+          "abstained": "<int>",
+          "judged_by": {
+            "choice": "<int>",
+            "script": "<int>"
+          },
+          "n": "<int>",
+          "policy_version": "<str>",
+          "shares": {
+            "en": {
+              "abstained": "<int>",
+              "counted": "<int>",
+              "high": "<int>",
+              "low": "<float>",
+              "n": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 3>",
+                {
+                  "id": "<str>",
+                  "text": "<str url>"
+                },
+                {
+                  "id": "<str>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str>",
+                  "text": "<str>"
+                }
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            }
+          }
+        },
+        "comment_recency": {
+          "<key>": "<int>"
+        },
+        "dropped": "<int>",
+        "items": [
+          "<list of 11>",
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<null>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<null>"
+              },
+              "ext": {
+                "depth": "<int>",
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str>",
+              "parent_id": "<str>",
+              "post_id": "<str>",
+              "published_at": "<str date>",
+              "text": "<str url>",
+              "url": "<str url>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "complaint": {
+                  "p": "<float>"
+                },
+                "purchase_intent": {
+                  "p": "<float>"
+                },
+                "question": {
+                  "p": "<float>"
+                },
+                "sentiment": {
+                  "<key>": "<float>"
+                }
+              }
+            }
+          },
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<null>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<null>"
+              },
+              "ext": {
+                "depth": "<int>",
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str>",
+              "parent_id": "<str>",
+              "post_id": "<str>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<str url>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "complaint": {
+                  "p": "<float>"
+                },
+                "purchase_intent": {
+                  "p": "<float>"
+                },
+                "question": {
+                  "p": "<float>"
+                },
+                "sentiment": {
+                  "<key>": "<int>"
+                }
+              }
+            }
+          },
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<null>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "ext": {
+                "depth": "<int>",
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str>",
+              "parent_id": "<str>",
+              "post_id": "<str>",
+              "published_at": "<str date>",
+              "replies": [
+                "<list of 5>",
+                {
+                  "author": {
+                    "avatar_url": "<str url>",
+                    "display_name": "<str>",
+                    "username": "<str>",
+                    "verified": "<null>"
+                  },
+                  "engagement": {
+                    "likes": "<int>",
+                    "replies": "<null>"
+                  },
+                  "ext": {
+                    "depth": "<int>",
+                    "published_at_epoch": "<int>"
+                  },
+                  "flags": {
+                    "deleted": "<bool>",
+                    "pinned": "<null>"
+                  },
+                  "id": "<str>",
+                  "parent_id": "<str>",
+                  "post_id": "<str>",
+                  "published_at": "<str date>",
+                  "text": "<str>",
+                  "url": "<str url>"
+                },
+                {
+                  "author": {
+                    "avatar_url": "<str url>",
+                    "display_name": "<str>",
+                    "username": "<str>",
+                    "verified": "<null>"
+                  },
+                  "engagement": {
+                    "likes": "<int>",
+                    "replies": "<null>"
+                  },
+                  "ext": {
+                    "depth": "<int>",
+                    "published_at_epoch": "<int>"
+                  },
+                  "flags": {
+                    "deleted": "<bool>",
+                    "pinned": "<null>"
+                  },
+                  "id": "<str>",
+                  "parent_id": "<str>",
+                  "post_id": "<str>",
+                  "published_at": "<str date>",
+                  "text": "<str>",
+                  "url": "<str url>"
+                },
+                {
+                  "author": {
+                    "avatar_url": "<str url>",
+                    "display_name": "<str>",
+                    "username": "<str>",
+                    "verified": "<null>"
+                  },
+                  "engagement": {
+                    "likes": "<int>",
+                    "replies": "<int>"
+                  },
+                  "ext": {
+                    "depth": "<int>",
+                    "published_at_epoch": "<int>"
+                  },
+                  "flags": {
+                    "deleted": "<bool>",
+                    "pinned": "<null>"
+                  },
+                  "id": "<str>",
+                  "parent_id": "<str>",
+                  "post_id": "<str>",
+                  "published_at": "<str date>",
+                  "replies": [
+                    "<list of 1>",
+                    {
+                      "author": {
+                        "avatar_url": "<str url>",
+                        "display_name": "<str>",
+                        "username": "<str>",
+                        "verified": "<null>"
+                      },
+                      "engagement": {
+                        "likes": "<int>",
+                        "replies": "<null>"
+                      },
+                      "ext": {
+                        "depth": "<int>",
+                        "published_at_epoch": "<int>"
+                      },
+                      "flags": {
+                        "deleted": "<bool>",
+                        "pinned": "<null>"
+                      },
+                      "id": "<str>",
+                      "parent_id": "<str>",
+                      "post_id": "<str>",
+                      "published_at": "<str date>",
+                      "text": "<str>",
+                      "url": "<str url>"
+                    }
+                  ],
+                  "text": "<str>",
+                  "url": "<str url>"
+                }
+              ],
+              "text": "<str>",
+              "url": "<str url>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "complaint": {
+                  "p": "<float>"
+                },
+                "purchase_intent": {
+                  "p": "<float>"
+                },
+                "question": {
+                  "p": "<float>"
+                },
+                "sentiment": {
+                  "<key>": "<float>"
+                }
+              }
+            }
+          }
+        ],
+        "label_share": {
+          "policy_version": "<str>",
+          "presets": {
+            "complaint": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "purchase_intent": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "question": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "sentiment": {
+              "negative": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<float>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 3>",
+                  {
+                    "id": "<str>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str>",
+                    "text": "<str>"
+                  }
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              },
+              "neutral": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<float>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 1>",
+                  {
+                    "id": "<str>",
+                    "text": "<str url>"
+                  }
+                ],
+                "share": "<null>",
+                "too_few": "<bool>"
+              },
+              "positive": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<int>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 0>"
+                ],
+                "share": "<int>",
+                "too_few": "<bool>"
+              }
+            }
+          }
+        },
+        "labels": {
+          "cached": "<int>",
+          "dropped": "<int>",
+          "dropped_ids": [
+            "<list of 0>"
+          ],
+          "extra_credits": "<int>",
+          "labelled": "<int>",
+          "methodology_version": "<str>",
+          "mode": "<str>",
+          "pending": "<int>",
+          "pending_ids": [
+            "<list of 0>"
+          ],
+          "presets": [
+            "<list of 4>",
+            "<str>",
+            "<str>",
+            "<str>"
+          ],
+          "rows": "<int>",
+          "skipped": "<int>",
+          "status": "<str>",
+          "unjudged": "<int>"
+        },
+        "total": "<null>",
+        "truncated": "<bool>"
+      },
+      "endpoint": "<str>",
+      "pagination": {
+        "has_more": "<bool>",
+        "next_cursor": "<null>",
+        "page_size": "<int>"
+      },
+      "platform": "<str>",
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  },
+  "twitter/tweet/replies": {
+    "probe": "c5",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "cached": "<bool>",
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "data": {
+        "comment_language": {
+          "abstained": "<int>",
+          "judged_by": {
+            "choice": "<int>",
+            "script": "<int>"
+          },
+          "n": "<int>",
+          "policy_version": "<str>",
+          "shares": {
+            "en": {
+              "abstained": "<int>",
+              "counted": "<int>",
+              "high": "<int>",
+              "low": "<float>",
+              "n": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 3>",
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                },
+                {
+                  "id": "<str number>",
+                  "text": "<str>"
+                }
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            }
+          }
+        },
+        "comment_recency": {
+          "<key>": "<int>"
+        },
+        "dropped": "<int>",
+        "items": [
+          "<list of 36>",
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "ext": {
+                "author_followers": "<int>",
+                "author_following": "<int>",
+                "author_posts_count": "<int>",
+                "content_language": "<str>",
+                "quote_count": "<int>",
+                "saves": "<int>",
+                "views": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str number>",
+              "parent_id": "<str number>",
+              "post_id": "<str number>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<str url>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": "<null>"
+            }
+          },
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "ext": {
+                "author_followers": "<int>",
+                "author_following": "<int>",
+                "author_posts_count": "<int>",
+                "content_language": "<str>",
+                "quote_count": "<int>",
+                "saves": "<int>",
+                "views": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str number>",
+              "parent_id": "<str number>",
+              "post_id": "<str number>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<str url>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": "<null>"
+            }
+          },
+          {
+            "comment": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "engagement": {
+                "likes": "<int>",
+                "replies": "<int>"
+              },
+              "ext": {
+                "author_followers": "<int>",
+                "author_following": "<int>",
+                "author_posts_count": "<int>",
+                "content_language": "<str>",
+                "quote_count": "<int>",
+                "saves": "<int>",
+                "views": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "pinned": "<null>"
+              },
+              "id": "<str number>",
+              "parent_id": "<str number>",
+              "post_id": "<str number>",
+              "published_at": "<str date>",
+              "text": "<str>",
+              "url": "<str url>"
+            },
+            "computed": {
+              "language": "<str>"
+            },
+            "vendor_labels": {
+              "labels": "<null>"
+            }
+          }
+        ],
+        "label_share": {
+          "policy_version": "<str>",
+          "presets": {
+            "complaint": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "purchase_intent": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "question": {
+              "abstained": "<int>",
+              "at_cut": "<int>",
+              "counted": "<int>",
+              "high": "<float>",
+              "low": "<int>",
+              "low_confidence": "<int>",
+              "n": "<int>",
+              "nulls": "<int>",
+              "policy_version": "<str>",
+              "receipts": [
+                "<list of 0>"
+              ],
+              "share": "<int>",
+              "too_few": "<bool>"
+            },
+            "sentiment": {
+              "negative": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<int>",
+                "low": "<float>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 3>",
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  },
+                  {
+                    "id": "<str number>",
+                    "text": "<str>"
+                  }
+                ],
+                "share": "<int>",
+                "too_few": "<bool>"
+              },
+              "neutral": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<int>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 0>"
+                ],
+                "share": "<int>",
+                "too_few": "<bool>"
+              },
+              "positive": {
+                "abstained": "<int>",
+                "at_cut": "<int>",
+                "counted": "<int>",
+                "high": "<float>",
+                "low": "<int>",
+                "low_confidence": "<int>",
+                "n": "<int>",
+                "nulls": "<int>",
+                "policy_version": "<str>",
+                "receipts": [
+                  "<list of 0>"
+                ],
+                "share": "<int>",
+                "too_few": "<bool>"
+              }
+            }
+          }
+        },
+        "labels": {
+          "cached": "<int>",
+          "dropped": "<int>",
+          "dropped_ids": [
+            "<list of 0>"
+          ],
+          "extra_credits": "<int>",
+          "labelled": "<int>",
+          "methodology_version": "<str>",
+          "mode": "<str>",
+          "pending": "<int>",
+          "pending_ids": [
+            "<list of 24>",
+            "<str number>",
+            "<str number>",
+            "<str number>"
+          ],
+          "presets": [
+            "<list of 4>",
+            "<str>",
+            "<str>",
+            "<str>"
+          ],
+          "rows": "<int>",
+          "skipped": "<int>",
+          "status": "<str>",
+          "unjudged": "<int>"
+        },
+        "next_cursor": "<str>",
+        "total": "<null>"
+      },
+      "endpoint": "<str>",
+      "pagination": {
+        "has_more": "<bool>",
+        "next_cursor": "<str>",
+        "page_size": "<int>"
+      },
+      "platform": "<str>",
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  },
+  "youtube/video/transcript": {
+    "probe": "t1",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "cached": "<bool>",
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "data": {
+        "transcript": [
+          "<list of 2568>",
+          {
+            "duration": "<float>",
+            "lang": "<str>",
+            "offset": "<float>",
+            "speechRate": "<int>",
+            "text": "<str>",
+            "wordCount": "<int>"
+          },
+          {
+            "duration": "<float>",
+            "lang": "<str>",
+            "offset": "<float>",
+            "speechRate": "<int>",
+            "text": "<str>",
+            "wordCount": "<int>"
+          },
+          {
+            "duration": "<float>",
+            "lang": "<str>",
+            "offset": "<float>",
+            "speechRate": "<int>",
+            "text": "<str>",
+            "wordCount": "<int>"
+          }
+        ]
+      },
+      "endpoint": "<str>",
+      "platform": "<str>",
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  },
+  "tiktok/post/transcript": {
+    "probe": "t2",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "error": {
+        "details": {
+          "reason": "<str>"
+        },
+        "doc_url": "<str url>",
+        "message": "<str>",
+        "retryable": "<bool>",
+        "status": "<int>",
+        "type": "<str>"
+      },
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  },
+  "instagram/media/transcript": {
+    "probe": "t3",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "error": {
+        "doc_url": "<str url>",
+        "message": "<str>",
+        "retryable": "<bool>",
+        "status": "<int>",
+        "type": "<str>"
+      },
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  },
+  "twitter/tweet/transcript": {
+    "probe": "t4",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "error": {
+        "doc_url": "<str url>",
+        "message": "<str>",
+        "retryable": "<bool>",
+        "status": "<int>",
+        "type": "<str>"
+      },
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  },
+  "tiktok/search/hashtag": {
+    "probe": "p1",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "cached": "<bool>",
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "data": {
+        "dropped": "<int>",
+        "items": [
+          "<list of 14>",
+          {
+            "computed": {
+              "content_category": "<str>",
+              "engagement_rate": "<float>",
+              "estimated_reach": "<int>",
+              "language": "<null>"
+            },
+            "post": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "content": {
+                "duration_seconds": "<float>",
+                "media_urls": "<str url>",
+                "text": "<str>",
+                "thumbnail_url": "<str url>"
+              },
+              "engagement": {
+                "comments": "<int>",
+                "likes": "<int>",
+                "saves": "<int>",
+                "shares": "<int>",
+                "views": "<int>"
+              },
+              "ext": {
+                "author_id": "<str number>",
+                "download_count": "<int>",
+                "music_id": "<str number>",
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "nsfw": "<null>",
+                "pinned": "<bool>",
+                "spoiler": "<null>"
+              },
+              "id": "<str number>",
+              "published_at": "<str date>",
+              "url": "<str url>"
+            },
+            "vendor_labels": {
+              "labels": "<null>"
+            }
+          },
+          {
+            "computed": {
+              "content_category": "<str>",
+              "engagement_rate": "<float>",
+              "estimated_reach": "<int>",
+              "language": "<str>"
+            },
+            "post": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "content": {
+                "duration_seconds": "<int>",
+                "media_urls": "<str url>",
+                "text": "<str>",
+                "thumbnail_url": "<str url>"
+              },
+              "engagement": {
+                "comments": "<int>",
+                "likes": "<int>",
+                "saves": "<int>",
+                "shares": "<int>",
+                "views": "<int>"
+              },
+              "ext": {
+                "author_id": "<str number>",
+                "download_count": "<int>",
+                "music_id": "<str number>",
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "nsfw": "<null>",
+                "pinned": "<bool>",
+                "spoiler": "<null>"
+              },
+              "id": "<str number>",
+              "published_at": "<str date>",
+              "url": "<str url>"
+            },
+            "vendor_labels": {
+              "labels": "<null>"
+            }
+          },
+          {
+            "computed": {
+              "content_category": "<str>",
+              "engagement_rate": "<float>",
+              "estimated_reach": "<int>",
+              "language": "<null>"
+            },
+            "post": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "content": {
+                "duration_seconds": "<int>",
+                "media_urls": "<str url>",
+                "text": "<str>",
+                "thumbnail_url": "<str url>"
+              },
+              "engagement": {
+                "comments": "<int>",
+                "likes": "<int>",
+                "saves": "<int>",
+                "shares": "<int>",
+                "views": "<int>"
+              },
+              "ext": {
+                "author_id": "<str number>",
+                "download_count": "<int>",
+                "music_id": "<str number>",
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "nsfw": "<null>",
+                "pinned": "<bool>",
+                "spoiler": "<null>"
+              },
+              "id": "<str number>",
+              "published_at": "<str date>",
+              "url": "<str url>"
+            },
+            "vendor_labels": {
+              "labels": "<null>"
+            }
+          }
+        ],
+        "labels": {
+          "cached": "<int>",
+          "dropped": "<int>",
+          "dropped_ids": [
+            "<list of 0>"
+          ],
+          "extra_credits": "<int>",
+          "labelled": "<int>",
+          "methodology_version": "<str>",
+          "mode": "<str>",
+          "pending": "<int>",
+          "pending_ids": [
+            "<list of 12>",
+            "<str number>",
+            "<str number>",
+            "<str number>"
+          ],
+          "presets": [
+            "<list of 3>",
+            "<str>",
+            "<str>",
+            "<str>"
+          ],
+          "rows": "<int>",
+          "skipped": "<int>",
+          "status": "<str>",
+          "unjudged": "<int>"
+        },
+        "next_cursor": "<str>",
+        "total": "<null>"
+      },
+      "endpoint": "<str>",
+      "pagination": {
+        "has_more": "<bool>",
+        "next_cursor": "<str>",
+        "page_size": "<int>"
+      },
+      "platform": "<str>",
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  },
+  "tiktok/profile/videos": {
+    "probe": "p2",
+    "run": "probe-bodies-20260929T101355Z",
+    "body": {
+      "cached": "<bool>",
+      "credits_remaining": "<int>",
+      "credits_used": "<int>",
+      "data": {
+        "creator_baseline": {
+          "baseline": "<null>",
+          "cadence": "<str>",
+          "reason": "<str>",
+          "rows_used": "<int>"
+        },
+        "dropped": "<int>",
+        "items": [
+          "<list of 10>",
+          {
+            "computed": {
+              "content_category": "<str>",
+              "engagement_rate": "<float>",
+              "estimated_reach": "<int>",
+              "language": "<null>",
+              "vs_creator": {
+                "metric": "<null>",
+                "ratio": "<null>",
+                "reason": "<str>"
+              }
+            },
+            "post": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "content": {
+                "duration_seconds": "<float>",
+                "media_urls": "<str url>",
+                "text": "<str>",
+                "thumbnail_url": "<str url>"
+              },
+              "engagement": {
+                "comments": "<int>",
+                "likes": "<int>",
+                "saves": "<int>",
+                "shares": "<int>",
+                "views": "<int>"
+              },
+              "ext": {
+                "author_followers": "<int>",
+                "author_id": "<str number>",
+                "download_count": "<int>",
+                "music_id": "<str number>",
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "nsfw": "<null>",
+                "pinned": "<bool>",
+                "spoiler": "<null>"
+              },
+              "id": "<str number>",
+              "published_at": "<str date>",
+              "url": "<str url>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "intent": {
+                  "buyer": "<bool>",
+                  "confidence": "<float>",
+                  "fits_offer": "<null>",
+                  "label": "<null>",
+                  "seller": "<float>",
+                  "urgency": "<int>"
+                },
+                "niche": {
+                  "confidence": "<null>",
+                  "label": "<null>",
+                  "taxonomy": "<str>"
+                },
+                "sponsored": {
+                  "brand": "<null>",
+                  "disclosed": "<bool>",
+                  "p": "<float>",
+                  "undisclosed": "<bool>"
+                }
+              }
+            }
+          },
+          {
+            "computed": {
+              "content_category": "<str>",
+              "engagement_rate": "<float>",
+              "estimated_reach": "<int>",
+              "language": "<null>",
+              "vs_creator": {
+                "metric": "<null>",
+                "ratio": "<null>",
+                "reason": "<str>"
+              }
+            },
+            "post": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "content": {
+                "duration_seconds": "<float>",
+                "media_urls": "<str url>",
+                "text": "<str>",
+                "thumbnail_url": "<str url>"
+              },
+              "engagement": {
+                "comments": "<int>",
+                "likes": "<int>",
+                "saves": "<int>",
+                "shares": "<int>",
+                "views": "<int>"
+              },
+              "ext": {
+                "author_followers": "<int>",
+                "author_id": "<str number>",
+                "download_count": "<int>",
+                "music_id": "<str number>",
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "nsfw": "<null>",
+                "pinned": "<bool>",
+                "spoiler": "<null>"
+              },
+              "id": "<str number>",
+              "published_at": "<str date>",
+              "url": "<str url>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "intent": {
+                  "buyer": "<bool>",
+                  "confidence": "<float>",
+                  "fits_offer": "<null>",
+                  "label": "<str>",
+                  "seller": "<float>",
+                  "urgency": "<float>"
+                },
+                "niche": {
+                  "confidence": "<float>",
+                  "label": "<str>",
+                  "taxonomy": "<str>"
+                },
+                "sponsored": {
+                  "brand": "<null>",
+                  "disclosed": "<bool>",
+                  "p": "<float>",
+                  "undisclosed": "<bool>"
+                }
+              }
+            }
+          },
+          {
+            "computed": {
+              "content_category": "<str>",
+              "engagement_rate": "<float>",
+              "estimated_reach": "<int>",
+              "language": "<str>",
+              "vs_creator": {
+                "metric": "<null>",
+                "ratio": "<null>",
+                "reason": "<str>"
+              }
+            },
+            "post": {
+              "author": {
+                "avatar_url": "<str url>",
+                "display_name": "<str>",
+                "username": "<str>",
+                "verified": "<bool>"
+              },
+              "content": {
+                "duration_seconds": "<float>",
+                "media_urls": "<str url>",
+                "text": "<str>",
+                "thumbnail_url": "<str url>"
+              },
+              "engagement": {
+                "comments": "<int>",
+                "likes": "<int>",
+                "saves": "<int>",
+                "shares": "<int>",
+                "views": "<int>"
+              },
+              "ext": {
+                "author_followers": "<int>",
+                "author_id": "<str number>",
+                "download_count": "<int>",
+                "music_id": "<str number>",
+                "published_at_epoch": "<int>"
+              },
+              "flags": {
+                "deleted": "<bool>",
+                "nsfw": "<null>",
+                "pinned": "<bool>",
+                "spoiler": "<null>"
+              },
+              "id": "<str number>",
+              "published_at": "<str date>",
+              "url": "<str url>"
+            },
+            "vendor_labels": {
+              "labels": {
+                "intent": {
+                  "buyer": "<bool>",
+                  "confidence": "<float>",
+                  "fits_offer": "<null>",
+                  "label": "<null>",
+                  "seller": "<float>",
+                  "urgency": "<int>"
+                },
+                "niche": {
+                  "confidence": "<float>",
+                  "label": "<str>",
+                  "taxonomy": "<str>"
+                },
+                "sponsored": {
+                  "brand": "<null>",
+                  "disclosed": "<bool>",
+                  "p": "<float>",
+                  "undisclosed": "<bool>"
+                }
+              }
+            }
+          }
+        ],
+        "labels": {
+          "cached": "<int>",
+          "dropped": "<int>",
+          "dropped_ids": [
+            "<list of 0>"
+          ],
+          "extra_credits": "<int>",
+          "labelled": "<int>",
+          "methodology_version": "<str>",
+          "mode": "<str>",
+          "pending": "<int>",
+          "pending_ids": [
+            "<list of 0>"
+          ],
+          "presets": [
+            "<list of 3>",
+            "<str>",
+            "<str>",
+            "<str>"
+          ],
+          "rows": "<int>",
+          "skipped": "<int>",
+          "status": "<str>",
+          "unjudged": "<int>"
+        },
+        "next_cursor": "<str>",
+        "total": "<null>"
+      },
+      "endpoint": "<str>",
+      "pagination": {
+        "has_more": "<bool>",
+        "next_cursor": "<str>",
+        "page_size": "<int>"
+      },
+      "platform": "<str>",
+      "request_id": "<str>",
+      "success": "<bool>"
+    }
+  }
+}

@@ -1,0 +1,447 @@
+/* Discover and the shared trend card's Stage 2 lines. Same four type sizes
+   as Today (13, 16, 21 and 32 px, held in the --t42 variables). No red: a
+   flag is told apart by shape, never by colour, and Discover has no primary
+   action of its own. */
+.d42-title { font-size: var(--type-section-title); font-weight: 600; margin: 0 0 var(--s-3);
+  line-height: var(--leading-section-title);
+}
+.d42-kinds { margin-bottom: var(--s-4); }
+
+.d42-filters { display: flex; flex-wrap: wrap; gap: var(--s-4); margin-bottom: var(--s-5); }
+/* On a phone the three filters share one even grid, Sort by across the full
+   width, so no filter wraps onto a row by itself at its own width. */
+@media (max-width: 479px) {
+  .d42-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
+  .d42-filters > :last-child { grid-column: 1 / -1; }
+  .d42-filters .d42-select { width: 100%; min-width: 0; }
+}
+.d42-choice { display: flex; flex-direction: column; gap: var(--s-1); }
+.d42-label { font-size: var(--t42-small); color: var(--muted); }
+.d42-select {
+  font: inherit;
+  font-size: var(--t42-body);
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+}
+
+.d42-feed { margin-bottom: var(--s-6); }
+.d42-feed > .t42-button { margin-top: var(--s-2); }
+.d42-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+.d42-loading-card { box-sizing: border-box; border: 1px solid var(--line); }
+.d42-held .t42-cards { margin-top: var(--s-3); }
+/* The page's one not-yet sentence shares its words evenly on a phone. */
+.d42-not-yet { text-wrap: pretty; }
+.d42-global-scope { margin: 0; font-size: var(--t42-small); color: var(--muted); }
+.d42-market-evidence { margin: 0; font-size: var(--t42-small); color: var(--muted); }
+
+/* Radar */
+.d42-radar { margin-bottom: var(--s-6); }
+.d42-scatter { display: block; width: 100%; max-width: 720px; height: auto; overflow: visible; }
+.d42-axis { stroke: var(--line-2); stroke-width: 1; }
+.d42-usual { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 4 4; }
+.d42-tick, .d42-axis-title, .d42-point-label { font-family: var(--sans); font-size: var(--t42-small); fill: var(--muted); }
+.d42-point { outline: none; }
+.d42-leader { fill: none; stroke: var(--line-2); stroke-width: 1; pointer-events: none; }
+.d42-mark { fill: var(--ink-2); stroke: none; stroke-width: 1.5; }
+.d42-mark-flagged { fill: none; stroke: var(--ink); stroke-width: 2; }
+.d42-point-label { fill: var(--ink); }
+.d42-point:hover .d42-point-label, .d42-point:focus .d42-point-label { display: inline; font-weight: 600; }
+.d42-point:focus-visible .d42-mark { stroke: var(--accent-text); stroke-width: 3; }
+.d42-radar-held, .d42-note { margin: var(--s-2) 0 0; }
+
+/* Radar's notes: the warm-up note leads in ink, the scale and the short
+   collection days follow as one quiet block at the reading measure. */
+.d42-radar .d42-note { font-size: var(--type-3); font-weight: 600; color: var(--ink); }
+.d42-radar [data-window-short] { margin: 0; text-wrap: pretty; font-size: var(--t42-small); color: var(--muted); }
+.d42-radar .d42-radar-held { margin-top: var(--s-2); font-size: var(--t42-small); color: var(--muted); }
+.d42-strip-caption { margin: 0; text-wrap: pretty; font-size: var(--t42-small); color: var(--muted); }
+/* The strip is a ruled table at the page's full width: name, a fixed 12rem
+   track, the number right-aligned in tabular figures, then the row's facts
+   in words in the widest column, so a sentence of facts runs on one line
+   instead of wrapping in a narrow column. */
+.d42-strip {
+  list-style: none;
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) 12rem minmax(5ch, max-content) minmax(0, 1fr);
+  column-gap: var(--s-5);
+  border-bottom: 1px solid var(--line);
+}
+/* Each row shares the list's columns, so the name column is only as wide as
+   the longest name and every row's facts start on one line. */
+.d42-strip li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  min-block-size: var(--target-min);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--line);
+  box-sizing: border-box;
+  font-size: var(--type-3);
+}
+.d42-strip li > .t42-link { font-size: var(--type-3); font-weight: 600; overflow-wrap: anywhere; }
+.d42-bar { display: block; align-self: center; height: 8px; background: var(--surface-2); }
+.d42-bar > span { display: block; height: 100%; background: var(--ink-2); }
+/* A row under the floor has no level to draw, so it shows no empty track. */
+.d42-strip li[data-thin] > .d42-bar { background: transparent; }
+.d42-bar-value { text-align: end; font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+.d42-bar-flag { color: var(--ink-2, var(--muted)); text-wrap: pretty; }
+.d42-bar-flag:empty { display: none; }
+/* No row over the floor: the name and its facts, nothing else. */
+.d42-strip.d42-strip-words { grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr); }
+.d42-strip.d42-strip-words li > .d42-bar,
+.d42-strip.d42-strip-words li > .d42-bar-value { display: none; }
+/* On a phone the name takes its own line and the track, number and flag
+   share the line under it, so no column is squeezed. */
+@media (max-width: 599px) {
+  .d42-strip,
+  .d42-strip.d42-strip-words { display: block; }
+  .d42-strip li { grid-template-columns: minmax(0, 1fr) minmax(4ch, max-content); column-gap: var(--s-3); row-gap: var(--s-1); padding-inline: 0; }
+  .d42-strip li > .t42-link { grid-column: 1 / -1; }
+  .d42-strip li > .d42-bar-flag { grid-column: 1 / -1; }
+  .d42-strip li[data-thin] > .d42-bar,
+  .d42-strip li[data-thin] > .d42-bar-value { display: none; }
+  .d42-strip.d42-strip-words li { grid-template-columns: minmax(0, 1fr); }
+  /* Ask, Watch and Compare with keep one line at phone width. */
+  .t42 .d42-feed .t42-actions > .t42-action { padding-inline: var(--s-1); }
+  .t42 .d42-feed .t42-actions { margin-inline-start: calc(var(--s-1) * -1); }
+}
+
+/* Warm-up Radar with measures is a ruled table: the trend, then one
+   labelled column per measure, so each row reads across like a spreadsheet
+   instead of one long sentence. A missing measure is a muted word.
+   Every row sits on one line at desktop and laptop widths: figures never
+   wrap, each figure's qualifier is a smaller muted word beside it, numeric
+   columns and their headers share a right edge, and the creators bar sits
+   in the same cell as its count so it reads with its trend. */
+.d42-table-wrap { inline-size: 100%; overflow-x: auto; margin: var(--s-3) 0 0; }
+.d42-table {
+  inline-size: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--type-3);
+  font-variant-numeric: tabular-nums;
+}
+.d42-table th,
+.d42-table td {
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--line);
+  text-align: start;
+  vertical-align: middle;
+  font-weight: 400;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.d42-table th:first-child,
+.d42-table td:first-child { padding-inline-start: 0; }
+.d42-table thead th {
+  padding-block: var(--s-1) var(--s-2);
+  font-size: var(--t42-small);
+  font-weight: 600;
+  color: var(--muted);
+  border-top: 0;
+  vertical-align: bottom;
+}
+.d42-table thead th[title] { cursor: help; }
+.d42-table tbody th { inline-size: 1%; }
+.d42-table tbody th > .t42-link {
+  display: inline-block;
+  max-inline-size: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  font-size: var(--type-3);
+  font-weight: 600;
+}
+.d42-table [data-col="posts"],
+.d42-table [data-col="boards"],
+.d42-table [data-col="views"],
+.d42-table [data-col="place"] { text-align: end; }
+.d42-creators-head { padding-inline-start: var(--s-3); }
+.d42-creators-in {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.d42-creators .d42-bar-value {
+  flex: 0 0 4ch;
+  text-align: end;
+  font-weight: 600;
+}
+.d42-creators .d42-bar { flex: 0 0 10rem; height: 8px; }
+.d42-table tr[data-thin] .d42-creators .d42-bar-value { flex-basis: auto; text-align: start; font-weight: 400; }
+.d42-table tr[data-thin] .d42-bar { display: none; }
+.d42-figure-value { font-weight: 600; }
+.d42-figure-note,
+.d42-platform-more { color: var(--muted); font-size: var(--t42-small); }
+.d42-platform { white-space: nowrap; }
+.d42-platform-more { cursor: help; }
+.d42-unknown { color: var(--muted); }
+.d42-table .d42-unmeasured { color: var(--muted); }
+/* Laptop: the bar shortens and a figure's qualifier moves under it, so the
+   whole row still fits without a sideways scroll. */
+@media (max-width: 1199px) {
+  .d42-creators .d42-bar { flex-basis: 4rem; }
+  .d42-creators-in { gap: var(--s-2); }
+  .d42-table tbody th > .t42-link { max-inline-size: 10rem; }
+  .d42-table th, .d42-table td { padding-inline: var(--s-2); }
+  .d42-table [data-col="views"] .d42-figure-note { display: block; line-height: 1.2; }
+  .d42-table td[data-col="platforms"] { white-space: normal; min-inline-size: 9rem; }
+}
+/* On a phone each row becomes a compact card: the trend and its creators
+   bar on top, then the four counts side by side with small labels above,
+   then the platforms on one line. */
+@media (max-width: 767px) {
+  .d42-table-wrap { overflow: visible; }
+  .d42-table, .d42-table tbody { display: block; }
+  .d42-table thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .d42-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--s-2) var(--s-3);
+    padding: var(--s-3) 0;
+    border-top: 1px solid var(--line);
+  }
+  .d42-table tbody th,
+  .d42-table tbody td { display: block; inline-size: auto; padding: 0; border: 0; text-align: start; white-space: normal; }
+  .d42-table tbody th > .t42-link { max-inline-size: 100%; }
+  .d42-table tbody [data-col] { text-align: start; }
+  .d42-table tbody th,
+  .d42-table .d42-unmeasured,
+  .d42-table td.d42-creators,
+  .d42-table [data-col="platforms"],
+  .d42-table [data-col="flag"] { grid-column: 1 / -1; }
+  .d42-table tbody th { grid-column: 1 / 3; align-self: center; }
+  .d42-table.d42-strip-words tbody th { grid-column: 1 / -1; }
+  .d42-table td.d42-creators { grid-column: 3 / -1; align-self: center; }
+  .d42-table tbody th,
+  .d42-table tbody td { min-inline-size: 0; }
+  .d42-creators-in { justify-content: flex-end; }
+  .d42-creators .d42-bar { flex: 0 0 4rem; }
+  .d42-table tr[data-thin] .d42-creators .d42-bar-value { text-align: end; }
+  .d42-table [data-col="views"] .d42-figure-note { display: block; }
+  .d42-table [data-col="place"] .d42-figure-note { display: inline; }
+  .d42-table [data-col="platforms"] { order: 2; }
+  .d42-table [data-col="flag"] { order: 3; }
+  .d42-table [data-col="platforms"] { white-space: normal; }
+  .d42-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--t42-small);
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .d42-table td.d42-creators[data-label]::before,
+  .d42-table td[data-col="platforms"][data-label]::before { content: none; }
+}
+
+/* The shared card's Stage 2 lines */
+.tc-title-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+.tc-title-link:hover, .tc-title-link:focus-visible { text-decoration-color: currentColor; }
+.tc-spread, .tc-novelty, .tc-figures { margin: 0; font-size: var(--t42-small); color: var(--muted); }
+.tc-figures { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); }
+.tc-figure { color: var(--ink); }
+.tc-watching { font-size: var(--t42-small); color: var(--muted); }
+
+.tc-lifecycle-row { margin: 0; }
+.tc-lifecycle { position: relative; display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--t42-small); color: var(--ink); }
+/* The stage word says where the trend is; a row of five unlabelled ticks
+   beside it said nothing more, so it is not drawn. The steps stay in the
+   label read to screen readers ("Rising, step 2 of 5"). */
+.tc-steps { display: none; }
+/* The lifecycle reads as one short track of five steps beside its word:
+   the steps reached in ink, the rest in the rule colour, no outlines. */
+.tc-step { width: 14px; height: 4px; border: 0; background: var(--line-2); }
+.tc-step-on { background: var(--ink); }
+.tc-lifecycle:focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+.tc-rule {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 2;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.tc-lifecycle:focus .tc-rule, .tc-lifecycle:focus-visible .tc-rule, .tc-lifecycle:hover .tc-rule {
+  width: max-content;
+  max-width: 280px;
+  height: auto;
+  clip-path: none;
+  white-space: normal;
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  font-size: var(--t42-small);
+  color: var(--ink);
+}
+
+
+
+/* Discover's trends are one list of rows: title first, then the line, then
+   one facts row that carries the search label, and one action row with Ask
+   as the primary action and Watch and Compare beside it. */
+.d42-feed > .t42-cards {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.d42-feed > .t42-cards > .d42-cell { min-block-size: 64px; }
+.t42 .d42-feed .t42-card {
+  box-sizing: border-box;
+  min-block-size: 64px;
+  padding: var(--s-4) var(--s-3);
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+.t42 .d42-feed .t42-card:hover,
+.t42 .d42-feed .t42-card:focus-within { background-color: var(--surface); }
+/* A Discover row: the title with its state, the whole summary sentence, and
+   one metadata line in one weight and colour joined by middots, with the
+   search label as its muted prefix. The actions stand in a column to the
+   right. Each fact is an inline block that carries its own middot, so the
+   line breaks between facts and never inside "31 creators, 3 days". */
+.t42 .d42-feed .t42-card .t42-card-metrics { display: block; gap: 0; }
+.t42 .d42-feed .t42-card .t42-card-metrics > * { display: inline-block; max-width: 100%; }
+.t42 .d42-feed .t42-card .t42-card-metrics > *:not(:last-child)::after,
+.t42 .d42-feed .t42-card .t42-card-metrics .tc-figure:not(:last-child)::after { content: " ·"; }
+/* The word space after each middot sits outside its block, as a margin, since
+   a trailing space inside an inline block collapses. */
+.t42 .d42-feed .t42-card .t42-card-metrics > *:not(:last-child),
+.t42 .d42-feed .t42-card .t42-card-metrics .tc-figure:not(:last-child) { margin-inline-end: 0.3em; }
+.t42 .d42-feed .t42-card .t42-card-metrics .tc-figure { display: inline-block; max-width: 100%; color: inherit; }
+.t42 .d42-feed .t42-card .t42-card-metrics > .tc-figures { display: inline; }
+/* From 769px a row is two columns: the words, facts and actions read down
+   the left, and the figures stand in a fixed column on the right, so every
+   row's numbers line up down the list and the actions sit under the words
+   they act on rather than floating at the far edge. */
+@media (min-width: 769px) {
+  .t42 .d42-feed .t42-card {
+    display: grid;
+    grid-template-columns: minmax(0, 46rem) minmax(12rem, 15rem);
+    justify-content: start;
+    column-gap: var(--s-7);
+    row-gap: var(--s-2);
+    align-items: start;
+  }
+  .t42 .d42-feed .t42-card > * { grid-column: 1; }
+  .t42 .d42-feed .t42-card > .t42-card-aside { grid-column: 2; grid-row: 1 / span 3; margin-top: 0; }
+  .t42 .d42-feed .t42-card .t42-card-head { justify-content: flex-start; }
+  .t42 .d42-feed .t42-card .t42-card-head > .t42-card-title { flex: 0 1 auto; }
+}
+/* A row with no explanation yet shows its title, facts and figures; the
+   line that only said "No explanation yet" is kept for screen readers. An
+   explanation held back by the checks stays visible. */
+.t42 .d42-feed .t42-card.d42-cell-not-run > .t42-held-line {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.t42 .d42-feed .t42-card { position: relative; }
+.t42 .d42-feed .t42-card > .t42-explanation { font-size: var(--type-3); max-width: none; }
+.t42 .d42-feed .t42-card-foot { margin-top: var(--s-1); }
+
+/* A section's title and its one-line status share a baseline, so the line
+   reads as the title's subhead rather than a stray row of grey type. */
+.d42-feed,
+.d42-radar,
+.d42-held {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--s-4);
+}
+.d42-feed > *,
+.d42-radar > *,
+.d42-held > * { flex: 1 1 100%; min-width: 0; }
+.d42-feed > .d42-title,
+.d42-radar > .d42-title,
+.d42-held > .d42-title { flex: 0 0 auto; margin-bottom: var(--s-2); }
+.d42-feed > .d42-title + .t42-status,
+.d42-radar > .d42-title + .d42-note,
+.d42-held > .d42-title + .t42-line-text { flex: 1 1 12rem; margin: 0 0 var(--s-2); font-size: var(--t42-small); color: var(--muted); }
+.d42-radar > .d42-title + .d42-note { color: var(--ink); }
+.d42-feed > .d42-not-yet { margin: 0 0 var(--s-3); font-size: var(--t42-small); }
+.d42-feed > .t42-button { flex: 0 0 auto; }
+.d42-radar > .d42-radar-more { flex: 0 0 auto; margin-top: var(--s-3); }
+.d42-global-scope,
+.d42-market-evidence { min-width: 0; overflow-wrap: anywhere; }
+.d42-held .t42-rows { list-style: none; padding: 0; gap: 0; }
+.d42-held .t42-rows > li {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-block-size: 64px;
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.d42-held-reason { margin: 0; color: var(--muted); }
+/* On a wide screen each held row reads name, then reason, in two aligned
+   columns, so the list scans down either one (alignment, scannability). */
+@media (min-width: 769px) {
+  /* Name and reason share one line here, so the row takes Today's held row
+     height and size: the same list must look the same on both pages
+     (Gestalt similarity). The 64px floor stays for the stacked phone row.
+     The name column is only as wide as the longest name, so each reason
+     sits beside its topic rather than across a gap. */
+  .d42-held .t42-rows {
+    display: grid;
+    grid-template-columns: minmax(10rem, max-content) minmax(0, 1fr);
+    column-gap: var(--s-6);
+    border-bottom: 1px solid var(--line);
+  }
+  .d42-held .t42-rows > li {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: baseline;
+    min-block-size: var(--target-min);
+    padding-block: var(--s-1);
+    font-size: var(--type-3);
+  }
+  .d42-held .t42-rows > li > .t42-held-detail { grid-column: 1 / -1; }
+}
+/* From 1200px the short rows run in two columns of the same name | reason
+   pairs, so six held topics take three rows of the width, not six. An open
+   row takes the full width for its card. */
+@media (min-width: 1200px) {
+  .d42-held .t42-rows {
+    grid-template-columns: minmax(10rem, max-content) minmax(0, 1fr) minmax(10rem, max-content) minmax(0, 1fr);
+  }
+  .d42-held .t42-rows > li { grid-column: span 2; }
+  .d42-held .t42-rows > li:has(> .t42-held-detail) { grid-column: 1 / -1; grid-template-columns: minmax(10rem, max-content) minmax(0, 1fr); }
+}

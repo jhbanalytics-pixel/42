@@ -1,0 +1,97 @@
+{
+  "probe": "3",
+  "route": "tiktok/hashtags/popular",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 3>",
+        {
+          "computed": {
+            "content_category": "<str>",
+            "engagement_rate": "<null>",
+            "estimated_reach": "<null>",
+            "language": "<null>"
+          },
+          "post": {
+            "author": {
+              "avatar_url": "<null>",
+              "display_name": "<null>",
+              "username": "<null>",
+              "verified": "<null>"
+            },
+            "content": {
+              "duration_seconds": "<null>",
+              "media_urls": "<null>",
+              "text": "<str>",
+              "thumbnail_url": "<null>"
+            },
+            "engagement": {
+              "comments": "<null>",
+              "likes": "<null>",
+              "saves": "<null>",
+              "shares": "<null>",
+              "views": "<null>"
+            },
+            "ext": {
+              "trend": {
+                "boards": [
+                  "<list of 1>",
+                  {
+                    "industry": "<null>",
+                    "industry_id": "<null>",
+                    "industry_label": "<null>",
+                    "rank": "<int>"
+                  }
+                ],
+                "country_code": "<str>",
+                "industry": "<null>",
+                "industry_id": "<null>",
+                "industry_label": "<null>",
+                "period_days": "<int>",
+                "popularity_curve": [
+                  "<list of 7>",
+                  {
+                    "<key>": "<str>"
+                  }
+                ],
+                "posts": "<int>",
+                "rank": "<int>",
+                "top_creators": [
+                  "<list of 3>",
+                  {
+                    "<key>": "<str>"
+                  }
+                ],
+                "views": "<int>"
+              }
+            },
+            "flags": {
+              "deleted": "<bool>",
+              "nsfw": "<null>",
+              "pinned": "<null>",
+              "spoiler": "<null>"
+            },
+            "id": "<str>",
+            "published_at": "<null>",
+            "url": "<str>"
+          },
+          "vendor_labels": {}
+        }
+      ],
+      "total": "<null>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<null>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "bucket_name": "listening-post-staging-cache",
+  "contract_version": "r02_linux_observer_store_v1",
+  "deployment_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "objects": [
+    {
+      "body": {
+        "active_deployment_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "allowance_id": "general_cultural_question_staging_eval_v1",
+        "bindings": {"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd": "d0dea8979246c9f3c90105588a2a770bda10b5e8f2f0240348a21241ee82a4fc"},
+        "contract_version": "general_question_allowance_v1",
+        "requests": {
+          "00000000-0000-0000-0000-000000000001": {
+            "admitted_at": "2026-09-06T20:00:00.000000Z",
+            "client_scope_id": "ogilvy_default",
+            "deadline_at": "2026-09-06T20:04:00.000000Z",
+            "deployment_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "execution": {"calls": {}, "queries": {}},
+            "intake_digest": "97fb4e9100b070bde954834d05bddf54970cecc6127f01819cf51daa30933b02",
+            "intake_generation": "4",
+            "policy_digest": "d0dea8979246c9f3c90105588a2a770bda10b5e8f2f0240348a21241ee82a4fc",
+            "request_digest": "74c489eded949cba2744413207cc16c083f8185da5e773cffb8392f2d9e2197d",
+            "request_generation": "3",
+            "reserved_microusd": 100000
+          }
+        },
+        "reserved_microusd": 100000
+      },
+      "generation": 5,
+      "name": "open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json"
+    },
+    {
+      "body": {
+        "api_version": "v1",
+        "approval_contract_digest": "519a658ad91b3b4d447298611d259421bbac5b7765d7c0f0049dc8bdd08c5857",
+        "contract_version": "general_question_policy_v1",
+        "expires_at": "2026-09-30T23:59:59Z",
+        "limits": {"billed_bytes": 1000000000, "calls_per_request": 2, "candidate_records": 1000, "deadline_seconds": 240, "evidence_records": 200, "input_tokens": 32000, "model_timeout_seconds": 60, "output_tokens": 4000, "query_jobs": 8, "request_microusd": 100000, "requests": 100, "reserved_microusd": 10000000},
+        "location": "global",
+        "model": "gemini-3.5-flash",
+        "policy_digest": "d0dea8979246c9f3c90105588a2a770bda10b5e8f2f0240348a21241ee82a4fc",
+        "policy_id": "general_cultural_question_staging_eval_v1",
+        "pricing": {"input_usd_per_million": "1.500000", "output_usd_per_million": "9.000000", "source_url": "https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing", "verified_at": "2026-09-06T20:00:00.000000Z"},
+        "project": "ogilvy-trends-v2",
+        "service_tier": "standard",
+        "stages": {"answering": {"input_tokens": 32000, "output_tokens": 4000, "thinking_level": "LOW"}, "planning": {"input_tokens": 8000, "output_tokens": 800, "thinking_level": "LOW"}}
+      },
+      "generation": 1,
+      "name": "open-intelligence/v2/staging/general-questions/policies/d0dea8979246c9f3c90105588a2a770bda10b5e8f2f0240348a21241ee82a4fc/policy.json"
+    },
+    {
+      "body": {"captured_at": "2026-09-06T20:00:00.000000Z", "contract_version": "general_question_intake_context_v1", "intake_digest": "97fb4e9100b070bde954834d05bddf54970cecc6127f01819cf51daa30933b02", "request_digest": "74c489eded949cba2744413207cc16c083f8185da5e773cffb8392f2d9e2197d", "request_id": "00000000-0000-0000-0000-000000000001", "selected_market": "za"},
+      "generation": 4,
+      "name": "open-intelligence/v2/staging/general-questions/requests/00000000-0000-0000-0000-000000000001/intake.json"
+    },
+    {
+      "body": {"as_of": "2026-09-06T20:00:00.000000Z", "audience_lens_ids": [], "brand_config_id": null, "client_scope_id": "ogilvy_default", "contract_version": "general_cultural_question_v1", "decision": null, "history": [], "history_omitted_turns": 0, "market_scope": ["ke", "ng", "za"], "output_form": "answer", "policy_digest": "d0dea8979246c9f3c90105588a2a770bda10b5e8f2f0240348a21241ee82a4fc", "question": "Explain mobility question 1", "request_digest": "74c489eded949cba2744413207cc16c083f8185da5e773cffb8392f2d9e2197d", "request_id": "00000000-0000-0000-0000-000000000001", "requested_window": null, "run_id": "question_00000000000000000000000000000001", "theme_id": null},
+      "generation": 3,
+      "name": "open-intelligence/v2/staging/general-questions/requests/00000000-0000-0000-0000-000000000001/request.json"
+    }
+  ],
+  "policy": {
+    "api_version": "v1",
+    "approval_contract_digest": "519a658ad91b3b4d447298611d259421bbac5b7765d7c0f0049dc8bdd08c5857",
+    "contract_version": "general_question_policy_v1",
+    "expires_at": "2026-09-30T23:59:59Z",
+    "limits": {"billed_bytes": 1000000000, "calls_per_request": 2, "candidate_records": 1000, "deadline_seconds": 240, "evidence_records": 200, "input_tokens": 32000, "model_timeout_seconds": 60, "output_tokens": 4000, "query_jobs": 8, "request_microusd": 100000, "requests": 100, "reserved_microusd": 10000000},
+    "location": "global",
+    "model": "gemini-3.5-flash",
+    "policy_digest": "d0dea8979246c9f3c90105588a2a770bda10b5e8f2f0240348a21241ee82a4fc",
+    "policy_id": "general_cultural_question_staging_eval_v1",
+    "pricing": {"input_usd_per_million": "1.500000", "output_usd_per_million": "9.000000", "source_url": "https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing", "verified_at": "2026-09-06T20:00:00.000000Z"},
+    "project": "ogilvy-trends-v2",
+    "service_tier": "standard",
+    "stages": {"answering": {"input_tokens": 32000, "output_tokens": 4000, "thinking_level": "LOW"}, "planning": {"input_tokens": 8000, "output_tokens": 800, "thinking_level": "LOW"}}
+  },
+  "updated_at": "2026-09-06T20:00:00Z"
+}

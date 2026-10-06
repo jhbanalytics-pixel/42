@@ -1,0 +1,369 @@
+/* Intelligence Loop shared grammar (Discover / Explorer / Seeds).
+   Structural rules only; every color is a token so light/dark and the
+   accent picker both carry through untouched. No lane invents a hue: the
+   three stages read as one investigation via this one card shape. */
+
+/* Layout pass two, 4 October 2026: one tab look for the loop pages and
+   Lexicon, the Today tab row's: muted words on one hairline, the chosen one
+   in ink at 600 over a 2px ink underline, a hovered one answered in ink with
+   a faint underline. The Discover, Seed path, Seeds line and every market
+   row on these pages use it, so navigation reads the same everywhere. */
+.loop-rail,
+.loop-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0 var(--s-5);
+  margin: 0 0 var(--s-5);
+  border-bottom: 1px solid var(--line);
+}
+
+/* The rail sits under the hero at every width: a line of three words does
+   not need a column of its own beside the title. */
+.loop-hero-band {
+  display: flex;
+  flex-direction: column;
+}
+
+.loop-stage {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--type-body);
+  font-weight: 400;
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.loop-stage[aria-current="step"] {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.loop-stage:hover, .loop-stage:focus-visible {
+  color: var(--ink);
+}
+.loop-stage:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+/* Section 7, the Active row. */
+.loop-stage:active { box-shadow: var(--press-grip); }
+
+/* A market row is the same tab look on toggle buttons: the shared chip's
+   red under-rule and its padding give way to the ink underline. */
+.loop-tabs > .loop-tab {
+  position: relative;
+  min-height: var(--target-min);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--type-body);
+  font-weight: 400;
+  color: var(--muted);
+  box-shadow: none;
+  transition: color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.loop-tabs > .loop-tab:hover, .loop-tabs > .loop-tab:focus-visible { color: var(--ink); box-shadow: none; }
+.loop-tabs > .loop-tab[aria-pressed="true"] { color: var(--ink); font-weight: 600; box-shadow: none; }
+.loop-tabs > .loop-tab:focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+.loop-stage::after,
+.loop-tabs > .loop-tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--ink);
+  opacity: 0;
+  transform: scaleX(.4);
+  transition: opacity var(--motion-layer) var(--motion-standard-easing), transform var(--motion-layer) var(--motion-standard-easing);
+}
+.loop-stage:hover::after,
+.loop-tabs > .loop-tab:hover::after { opacity: .3; transform: none; }
+.loop-stage[aria-current="step"]::after,
+.loop-tabs > .loop-tab[aria-pressed="true"]::after { opacity: 1; transform: none; }
+
+/* The step words are for a screen reader only; the order of the line says
+   the same thing to the eye. Faint is not a text token, so it stays muted. */
+.loop-stage-eyebrow {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.loop-stage-name {
+  font-family: var(--sans);
+}
+
+/* The Explorer keyword field answers the pointer on the control move. */
+.seed-field {
+  border: 1px solid var(--line);
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+.seed-field:hover {
+  border-color: var(--accent);
+}
+/* The run walked 1,778 Tab stops and found one with no ring at all, this one,
+   because the hover rule took the outline off both states at once. The rule
+   goes red under the pointer and the ring stays where the keyboard can see
+   it, on the shell's own focus width and offset. */
+.seed-field:focus-visible {
+  border-color: var(--accent);
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.loop-card {
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: none;
+  padding: 20px 22px;
+}
+
+.loop-card-accented {
+  border-left: 3px solid var(--accent);
+}
+
+.loop-card-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--muted);
+}
+
+.loop-card-headline {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+
+.loop-card-sub {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.loop-card-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.loop-meta {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--muted);
+}
+
+/* Fit bars: shared across Discover candidate cards and Explorer graph fit. */
+.loop-fitgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px 16px;
+  margin-bottom: 16px;
+}
+
+.loop-fitrow-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.loop-fitrow-label {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--muted);
+}
+
+.loop-fitrow-value {
+  font-family: var(--mono);
+  font-size: var(--type-1);
+  color: var(--faint);
+}
+
+.loop-fitrow-track {
+  height: 6px;
+  border-radius: 0;
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+
+.loop-fitrow-fill {
+  height: 100%;
+  border-radius: 0;
+  background: var(--accent);
+}
+
+/* Evidence links: shared between Explorer's evidence list and Seeds'
+   evidence-per-card, tap-to-open styling. */
+.loop-evidence {
+  display: inline-flex;
+  align-items: baseline;
+  min-height: 48px;
+  gap: 7px;
+  background: var(--surface-inset);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 8px 12px;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color var(--motion-row) var(--motion-standard-easing);
+}
+
+.loop-evidence:hover, .loop-evidence:focus-visible {
+  border-color: var(--accent);
+}
+
+.loop-evidence-market {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.loop-evidence-label {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.loop-evidence-open {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--accent-text);
+}
+
+/* Explorer trace path nodes: distinct structure (a chained path), same
+   type grammar (serif label, mono kind eyebrow). */
+.loop-trace {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+.loop-trace-node {
+  display: block;
+  font-family: var(--serif);
+  font-size: var(--type-4);
+  font-weight: 400;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface-inset);
+  padding: 12px 16px;
+  white-space: nowrap;
+}
+
+.loop-trace-node.is-behaviour {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.loop-trace-node-kind {
+  display: block;
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.loop-trace-edge {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--type-1);
+  padding: 0 8px;
+}
+
+.seeds .seed-evidence-row > .loop-evidence { flex: 1; }
+
+/* The seed strength key is a line of words under the page sentence, not a
+   box beside the hero: the label, the three strengths and what they mean,
+   set apart by space. */
+.seed-key {
+  max-width: var(--measure);
+  margin: var(--s-3) 0 0;
+  font-size: var(--type-3);
+  line-height: var(--leading-body);
+  color: var(--muted);
+  text-wrap: balance;
+}
+/* The space trails each part, so a part that wraps to a new line starts on
+   the column edge rather than indented. */
+.seed-key > * { margin-inline-end: var(--s-3); }
+
+
+.seeds .loop-evidence-open,
+.seeds .copy-btn,
+.seedpath .loop-evidence-open,
+.seedpath .loop-trace-node-kind {
+  font-variation-settings: 'CASL' 0, 'CRSV' 0, 'MONO' 0, 'slnt' 0;
+}
+
+.seeds .copy-btn,
+.seeds .loop-evidence-open,
+.seedpath .loop-evidence-open {
+  font-weight: 400;
+}
+
+.seeds .loop-evidence { text-align: left; align-items: flex-start; }
+
+@media (max-width: 760px) {
+  .seeds .seed-evidence-row { flex-wrap: wrap; }
+  .seeds .seed-evidence-row > .loop-evidence { flex-basis: 100%; }
+}
+
+.seedpath .loop-trace { gap: 8px; }
+.seedpath .loop-trace > span { min-width: 0; max-width: 100%; }
+.seedpath .loop-trace-node { white-space: normal; max-width: 100%; overflow-x: auto; }
+.seedpath .loop-trace-node-kind {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.seeds .copy-btn,
+.seeds .loop-evidence,
+.seedpath .loop-evidence {
+  transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.seeds .copy-btn:active,
+.seeds .loop-evidence:active,
+.seedpath .loop-evidence:active { box-shadow: var(--press-grip); }
+
+@media (prefers-reduced-motion: reduce) {
+  .loop-stage::after,
+  .loop-tabs > .loop-tab::after,
+  .loop-tabs > .loop-tab,
+  .loop-stage,
+  .seeds .copy-btn,
+  .seeds .loop-evidence,
+  .seedpath .loop-evidence { transition: none; }
+}

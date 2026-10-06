@@ -1,0 +1,24 @@
+{
+  "note": "Fixture only. Bounded error payloads for the Fieldwork workspace.",
+  "provenance": "fixture-only",
+  "disabled": {
+    "code": "fieldwork_disabled",
+    "message": "Fieldwork is unavailable in this environment."
+  },
+  "stale": {
+    "code": "fieldwork_snapshot_stale",
+    "message": "The Fieldwork reading is no longer current."
+  },
+  "authentication_required": {
+    "code": "authentication_required",
+    "message": "Sign in to continue."
+  },
+  "contract_version_unsupported": {
+    "code": "contract_version_unsupported",
+    "message": "Workspace contract version is unsupported."
+  },
+  "workspace_request_invalid": {
+    "code": "workspace_request_invalid",
+    "message": "Workspace request is invalid."
+  }
+}

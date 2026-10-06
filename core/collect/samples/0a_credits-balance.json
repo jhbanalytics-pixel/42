@@ -1,0 +1,17 @@
+{
+  "probe": "0a",
+  "route": "credits/balance",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "balance": "<int>",
+      "recent_deductions": "<int>"
+    },
+    "endpoint": "<str>",
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

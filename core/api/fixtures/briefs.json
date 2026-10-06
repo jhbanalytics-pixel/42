@@ -1,0 +1,4087 @@
+[
+ {
+  "brief_date": "2026-09-29",
+  "market": "ZA",
+  "run_id": "r_brief_20260929_01",
+  "published_at": "2026-09-29T06:12:05+02:00",
+  "status": "published",
+  "payload": {
+   "market": "ZA",
+   "label": "South Africa",
+   "status": "published",
+   "headline": {
+    "text": "fixture za sound one is new to 42 in South Africa, heard across Durban posts.",
+    "item_id": "cc92e3e759247d2b4a84960a28baa0cd63fa63efd283e1e89d8cf48ddb01f76e",
+    "claim_ids": [
+     "c1"
+    ]
+   },
+   "banners": [],
+   "cards": [
+    {
+     "item_id": "cc92e3e759247d2b4a84960a28baa0cd63fa63efd283e1e89d8cf48ddb01f76e",
+     "rank": 1,
+     "kind": "sound",
+     "title": "fixture za sound one",
+     "state": "new_to_42",
+     "flag": "not_assessed",
+     "explained": true,
+     "explanation": "fixture za sound one is spreading on Tiktok in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture za sound one in South Africa in the last 3 days.",
+       "label": "single_source",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_za_001"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_za_001",
+         "text": "Post 1: this fixture za sound one on repeat in Durban"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_b",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:182bd90bfa4d3a94742355bd96420adefc1fedd7fdcf1aac8b6afe353099e895"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_b",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:182bd90bfa4d3a94742355bd96420adefc1fedd7fdcf1aac8b6afe353099e895"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_b",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:1663ef9c669775d9e8b394ad1771c263851d7dead47b4d9c9eeef6f12951cb84"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "tt_za_001",
+      "tt_za_002"
+     ],
+     "evidence_ids": [
+      "tt_za_001",
+      "tt_za_002"
+     ],
+     "evidence": [
+      {
+       "id": "tt_za_001",
+       "platform": "tiktok",
+       "handle": "@fixture_za_1",
+       "url": "https://example.invalid/tiktok/@fixture_za_1/tt_za_001",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 1: this fixture za sound one on repeat in Durban",
+       "engagement": {
+        "views": 1200,
+        "likes": 90,
+        "comments": 7,
+        "shares": 3
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_001.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "tt_za_002",
+       "platform": "tiktok",
+       "handle": "@fixture_za_2",
+       "url": "https://example.invalid/tiktok/@fixture_za_2/tt_za_002",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 2: this fixture za sound one on repeat in Durban",
+       "engagement": {
+        "views": 2400,
+        "likes": 180,
+        "comments": 14,
+        "shares": 6
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_002.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind fixture za sound one in South Africa this week?"
+    },
+    {
+     "item_id": "6170b93ed5a14be710ef21f037c67673a5c178dd666cef5a3c8b2db5c2774bb4",
+     "rank": 2,
+     "kind": "topic",
+     "title": "fixture za taxi fares",
+     "state": "spike",
+     "flag": null,
+     "explained": true,
+     "explanation": "fixture za taxi fares is spreading on X in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture za taxi fares in South Africa in the last 3 days.",
+       "label": "observed",
+       "kind": "observation",
+       "evidence_ids": [
+        "x_za_003"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "x_za_003",
+         "text": "Post 3: fixture za taxi fares went up again on my route"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_d",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:fda0487430bfbceb8bac31370b07f64398535e4faf351f4d8ec7973061774b97"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_d",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:fda0487430bfbceb8bac31370b07f64398535e4faf351f4d8ec7973061774b97"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_d",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:86096f3bb950e7e52a308781a5070b0c94cffbadab5a8510a96ae9f268cb0aa9"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "x_za_003",
+      "rd_za_004"
+     ],
+     "evidence_ids": [
+      "x_za_003",
+      "rd_za_004",
+      "fb_za_005"
+     ],
+     "evidence": [
+      {
+       "id": "x_za_003",
+       "platform": "x",
+       "handle": "@fixture_za_3",
+       "url": "https://example.invalid/x/@fixture_za_3/x_za_003",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 3: fixture za taxi fares went up again on my route",
+       "engagement": {
+        "views": 3600,
+        "likes": 270,
+        "comments": 21,
+        "shares": 9
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/x_za_003.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "rd_za_004",
+       "platform": "reddit",
+       "handle": "@fixture_za_4",
+       "url": "https://example.invalid/reddit/@fixture_za_4/rd_za_004",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 4: fixture za taxi fares went up again on my route",
+       "engagement": {
+        "views": 4800,
+        "likes": 360,
+        "comments": 28,
+        "shares": 12
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/rd_za_004.jpg",
+       "creator_tier": "micro"
+      },
+      {
+       "id": "fb_za_005",
+       "platform": "facebook",
+       "handle": "@fixture_za_5",
+       "url": "https://example.invalid/facebook/@fixture_za_5/fb_za_005",
+       "posted_at": "2026-09-28T20:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 5: fixture za taxi fares went up again on my route",
+       "engagement": {
+        "views": 6000,
+        "likes": 450,
+        "comments": 35,
+        "shares": 15
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/fb_za_005.jpg",
+       "creator_tier": "mid"
+      }
+     ],
+     "ask": "What is behind fixture za taxi fares in South Africa this week?"
+    },
+    {
+     "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e",
+     "rank": 3,
+     "kind": "hashtag",
+     "title": "#fixture_za_step",
+     "state": "new_to_42",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_za_step is spreading on Tiktok in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted #fixture_za_step in South Africa in the last 3 days.",
+       "label": "corroborated",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_za_006",
+        "ig_za_007",
+        "yt_za_008"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_za_006",
+         "text": "Post 6: the #fixture_za_step routine at the taxi rank"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_a",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:b1a8490dc66331d7a04b3902b7c6c85e01bd7477185d1f3445c0dbb5a6746574"
+        }
+       ]
+      },
+      {
+       "id": "c2",
+       "text": "The timing of #fixture_za_step may follow the end-of-month weekend.",
+       "label": "inferred",
+       "kind": "interpretation",
+       "evidence_ids": [
+        "tt_za_006"
+       ],
+       "basis": "posts cluster on the weekend",
+       "numbers": []
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_a",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:b1a8490dc66331d7a04b3902b7c6c85e01bd7477185d1f3445c0dbb5a6746574"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_a",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:ba76ef6d8e22981f76b241882248341e995df9c180271337e962ae04cefd1629"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "tt_za_006",
+      "ig_za_007"
+     ],
+     "evidence_ids": [
+      "tt_za_006",
+      "ig_za_007",
+      "yt_za_008"
+     ],
+     "evidence": [
+      {
+       "id": "tt_za_006",
+       "platform": "tiktok",
+       "handle": "@fixture_za_6",
+       "url": "https://example.invalid/tiktok/@fixture_za_6/tt_za_006",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 6: the #fixture_za_step routine at the taxi rank",
+       "engagement": {
+        "views": 7200,
+        "likes": 540,
+        "comments": 42,
+        "shares": 18
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_006.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "ig_za_007",
+       "platform": "instagram",
+       "handle": "@fixture_za_7",
+       "url": "https://example.invalid/instagram/@fixture_za_7/ig_za_007",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 7: the #fixture_za_step routine at the taxi rank",
+       "engagement": {
+        "views": 8400,
+        "likes": 630,
+        "comments": 49,
+        "shares": 21
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_za_007.jpg",
+       "creator_tier": "micro"
+      },
+      {
+       "id": "yt_za_008",
+       "platform": "youtube",
+       "handle": "@fixture_za_8",
+       "url": "https://example.invalid/youtube/@fixture_za_8/yt_za_008",
+       "posted_at": "2026-09-28T20:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 8: the #fixture_za_step routine at the taxi rank",
+       "engagement": {
+        "views": 9600,
+        "likes": 720,
+        "comments": 56,
+        "shares": 24
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/yt_za_008.jpg",
+       "creator_tier": "mid"
+      }
+     ],
+     "ask": "What is behind #fixture_za_step in South Africa this week?"
+    },
+    {
+     "item_id": "bac4e2a4418491ed1c4fc19d1e9b414e88942d7e86891b43a353b67c3f815f7a",
+     "rank": 4,
+     "kind": "hashtag",
+     "title": "#fixture_za_picnic",
+     "state": "new_to_42",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_za_picnic is spreading on Instagram in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted #fixture_za_picnic in South Africa in the last 3 days.",
+       "label": "observed",
+       "kind": "observation",
+       "evidence_ids": [
+        "ig_za_009"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "ig_za_009",
+         "text": "Post 9: #fixture_za_picnic spot by the river"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_x",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:d0d04f52f37cfcd0f244e9dc04fb7fe937ca2dd3692c07e41a319956c7fda6bb"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_x",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:d0d04f52f37cfcd0f244e9dc04fb7fe937ca2dd3692c07e41a319956c7fda6bb"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_x",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:3b08e66a85ec80dad74715145c1b15d4757d9eb2cc90ac0d512d7a5098d86801"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "ig_za_009",
+      "tt_za_010"
+     ],
+     "evidence_ids": [
+      "ig_za_009",
+      "tt_za_010"
+     ],
+     "evidence": [
+      {
+       "id": "ig_za_009",
+       "platform": "instagram",
+       "handle": "@fixture_za_9",
+       "url": "https://example.invalid/instagram/@fixture_za_9/ig_za_009",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 9: #fixture_za_picnic spot by the river",
+       "engagement": {
+        "views": 10800,
+        "likes": 810,
+        "comments": 63,
+        "shares": 27
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_za_009.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "tt_za_010",
+       "platform": "tiktok",
+       "handle": "@fixture_za_10",
+       "url": "https://example.invalid/tiktok/@fixture_za_10/tt_za_010",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 10: #fixture_za_picnic spot by the river",
+       "engagement": {
+        "views": 12000,
+        "likes": 900,
+        "comments": 70,
+        "shares": 30
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_010.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind #fixture_za_picnic in South Africa this week?"
+    },
+    {
+     "item_id": "93eabf843a318b1c274276e365a05d865702f261dba176fd3083e6a5bc194c50",
+     "rank": 5,
+     "kind": "topic",
+     "title": "fixture za late train",
+     "state": "spike",
+     "flag": null,
+     "explained": true,
+     "explanation": "fixture za late train is spreading on X in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture za late train in South Africa in the last 3 days.",
+       "label": "single_source",
+       "kind": "observation",
+       "evidence_ids": [
+        "x_za_011"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "x_za_011",
+         "text": "Post 11: fixture za late train again this morning"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_y",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:280185b95588f4a9050d80e66cba7bb833aca119426db952e64576039520a385"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_y",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:280185b95588f4a9050d80e66cba7bb833aca119426db952e64576039520a385"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_y",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:078bce4ad614af3d2bf1e9f22be4a7da5089ba567f689d1795f8c50b541a70b3"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "x_za_011",
+      "rd_za_012"
+     ],
+     "evidence_ids": [
+      "x_za_011",
+      "rd_za_012"
+     ],
+     "evidence": [
+      {
+       "id": "x_za_011",
+       "platform": "x",
+       "handle": "@fixture_za_11",
+       "url": "https://example.invalid/x/@fixture_za_11/x_za_011",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 11: fixture za late train again this morning",
+       "engagement": {
+        "views": 13200,
+        "likes": 990,
+        "comments": 77,
+        "shares": 33
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/x_za_011.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "rd_za_012",
+       "platform": "reddit",
+       "handle": "@fixture_za_12",
+       "url": "https://example.invalid/reddit/@fixture_za_12/rd_za_012",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 12: fixture za late train again this morning",
+       "engagement": {
+        "views": 14400,
+        "likes": 1080,
+        "comments": 84,
+        "shares": 36
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/rd_za_012.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind fixture za late train in South Africa this week?"
+    }
+   ],
+   "more": [
+    {
+     "item_id": "61630394e1e1b568691c9bd46f796024ae8d2ffb5e716557621564a158dbccc7",
+     "rank": 6,
+     "kind": "hashtag",
+     "title": "#fixture_za_spring",
+     "state": "new_to_42",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_za_spring is spreading on Instagram in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted #fixture_za_spring in South Africa in the last 3 days.",
+       "label": "observed",
+       "kind": "observation",
+       "evidence_ids": [
+        "ig_za_013"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "ig_za_013",
+         "text": "Post 13: #fixture_za_spring picnic plans for the weekend"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_c",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:e7114f5037b0820750761701f23254aa50155381a1906f831664ff938e3997d7"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_c",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:e7114f5037b0820750761701f23254aa50155381a1906f831664ff938e3997d7"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_c",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:fe888227a94d8b6774f6810fa19c3c65a99714e193bc3fed9c819b7646d55de1"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "ig_za_013",
+      "tt_za_014"
+     ],
+     "evidence_ids": [
+      "ig_za_013",
+      "tt_za_014"
+     ],
+     "evidence": [
+      {
+       "id": "ig_za_013",
+       "platform": "instagram",
+       "handle": "@fixture_za_13",
+       "url": "https://example.invalid/instagram/@fixture_za_13/ig_za_013",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 13: #fixture_za_spring picnic plans for the weekend",
+       "engagement": {
+        "views": 15600,
+        "likes": 1170,
+        "comments": 91,
+        "shares": 39
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_za_013.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "tt_za_014",
+       "platform": "tiktok",
+       "handle": "@fixture_za_14",
+       "url": "https://example.invalid/tiktok/@fixture_za_14/tt_za_014",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 14: #fixture_za_spring picnic plans for the weekend",
+       "engagement": {
+        "views": 16800,
+        "likes": 1260,
+        "comments": 98,
+        "shares": 42
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_014.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind #fixture_za_spring in South Africa this week?"
+    },
+    {
+     "item_id": "af9bcaca791414589469218be2ed5ad9121b31aca30b95a40647e300b54f0333",
+     "rank": 7,
+     "kind": "hashtag",
+     "title": "#fixture_za_small",
+     "state": "new_to_42",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_za_small is spreading on Tiktok in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted #fixture_za_small in South Africa in the last 3 days.",
+       "label": "single_source",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_za_015"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_za_015",
+         "text": "Post 15: #fixture_za_small from our street stall"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_h",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:1835f0b67d47f4a30a1111a41a3c3fc0b711210cba1cf89574b0572a8334e394"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_h",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:1835f0b67d47f4a30a1111a41a3c3fc0b711210cba1cf89574b0572a8334e394"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_h",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:695d87c0d2712f48acac1a44a9b10e04899ee6ecf62d7e88c49679e7e694fc81"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "tt_za_015"
+     ],
+     "evidence_ids": [
+      "tt_za_015"
+     ],
+     "evidence": [
+      {
+       "id": "tt_za_015",
+       "platform": "tiktok",
+       "handle": "@fixture_za_15",
+       "url": "https://example.invalid/tiktok/@fixture_za_15/tt_za_015",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 15: #fixture_za_small from our street stall",
+       "engagement": {
+        "views": 18000,
+        "likes": 1350,
+        "comments": 105,
+        "shares": 45
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_015.jpg",
+       "creator_tier": "nano"
+      }
+     ],
+     "ask": "What is behind #fixture_za_small in South Africa this week?"
+    }
+   ],
+   "held_back": {
+    "count": 0,
+    "text": "Nothing held back",
+    "items": []
+   },
+   "moments": [],
+   "boards": [
+    {
+     "platform": "tiktok",
+     "list": "Hashtag board, 7 days",
+     "entries": [
+      {
+       "rank": 1,
+       "title": "fixture za sound one",
+       "item_id": "cc92e3e759247d2b4a84960a28baa0cd63fa63efd283e1e89d8cf48ddb01f76e"
+      }
+     ]
+    }
+   ]
+  },
+  "rule_version": "r42.1.0"
+ },
+ {
+  "brief_date": "2026-09-29",
+  "market": "NG",
+  "run_id": "r_brief_20260929_01",
+  "published_at": "2026-09-29T05:12:30+01:00",
+  "status": "published",
+  "payload": {
+   "market": "NG",
+   "label": "Nigeria",
+   "status": "published",
+   "headline": {
+    "text": "fixture ng fuel queue spiked in Nigeria posts on X and Facebook.",
+    "item_id": "7a1034bd52562fae437997f211cd8cb10d7e985885f5fbfc001bdecdf364707d",
+    "claim_ids": [
+     "c1"
+    ]
+   },
+   "banners": [],
+   "cards": [
+    {
+     "item_id": "7a1034bd52562fae437997f211cd8cb10d7e985885f5fbfc001bdecdf364707d",
+     "rank": 1,
+     "kind": "topic",
+     "title": "fixture ng fuel queue",
+     "state": "spike",
+     "flag": null,
+     "explained": true,
+     "explanation": "fixture ng fuel queue is spreading on X in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture ng fuel queue in Nigeria in the last 3 days.",
+       "label": "observed",
+       "kind": "observation",
+       "evidence_ids": [
+        "x_ng_001"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "x_ng_001",
+         "text": "Post 1: fixture ng fuel queue na wa this morning"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_c",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:bd0506b9e3d8ba3eea9bf62a6961aa441175f577001cbc8c6059cfe8e1ac0b9f"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_c",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:bd0506b9e3d8ba3eea9bf62a6961aa441175f577001cbc8c6059cfe8e1ac0b9f"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_c",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:b27d808a06da7381893c48b2680dca4867f55f8d513770f6d6c212fedececd45"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "x_ng_001",
+      "fb_ng_002"
+     ],
+     "evidence_ids": [
+      "x_ng_001",
+      "fb_ng_002"
+     ],
+     "evidence": [
+      {
+       "id": "x_ng_001",
+       "platform": "x",
+       "handle": "@fixture_ng_1",
+       "url": "https://example.invalid/x/@fixture_ng_1/x_ng_001",
+       "posted_at": "2026-09-26T18:40:00+01:00",
+       "market": "NG",
+       "text": "Post 1: fixture ng fuel queue na wa this morning",
+       "engagement": {
+        "views": 1200,
+        "likes": 90,
+        "comments": 7,
+        "shares": 3
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/x_ng_001.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "fb_ng_002",
+       "platform": "facebook",
+       "handle": "@fixture_ng_2",
+       "url": "https://example.invalid/facebook/@fixture_ng_2/fb_ng_002",
+       "posted_at": "2026-09-27T19:40:00+01:00",
+       "market": "NG",
+       "text": "Post 2: fixture ng fuel queue na wa this morning",
+       "engagement": {
+        "views": 2400,
+        "likes": 180,
+        "comments": 14,
+        "shares": 6
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/fb_ng_002.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind fixture ng fuel queue in Nigeria this week?"
+    },
+    {
+     "item_id": "7f2ab79603408ca60b74cc340171539579ae87710894abaebf234f04648bc35d",
+     "rank": 2,
+     "kind": "hashtag",
+     "title": "#fixture_ng_owambe",
+     "state": "new_to_42",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_ng_owambe is spreading on Tiktok in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted #fixture_ng_owambe in Nigeria in the last 3 days.",
+       "label": "corroborated",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_ng_003",
+        "ig_ng_004",
+        "yt_ng_005"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_ng_003",
+         "text": "Post 3: #fixture_ng_owambe outfits for Saturday in Lagos"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_a",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:6575ecf3a7142125233253a19f417c8c2240cf72d9e691156e507344ce5ad0a5"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_a",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:6575ecf3a7142125233253a19f417c8c2240cf72d9e691156e507344ce5ad0a5"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_a",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:f9ee1b98730a31957678c8b60efdbf7d7310eca30607406068c114c227a1bd24"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "tt_ng_003",
+      "ig_ng_004"
+     ],
+     "evidence_ids": [
+      "tt_ng_003",
+      "ig_ng_004",
+      "yt_ng_005"
+     ],
+     "evidence": [
+      {
+       "id": "tt_ng_003",
+       "platform": "tiktok",
+       "handle": "@fixture_ng_3",
+       "url": "https://example.invalid/tiktok/@fixture_ng_3/tt_ng_003",
+       "posted_at": "2026-09-26T18:40:00+01:00",
+       "market": "NG",
+       "text": "Post 3: #fixture_ng_owambe outfits for Saturday in Lagos",
+       "engagement": {
+        "views": 3600,
+        "likes": 270,
+        "comments": 21,
+        "shares": 9
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_ng_003.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "ig_ng_004",
+       "platform": "instagram",
+       "handle": "@fixture_ng_4",
+       "url": "https://example.invalid/instagram/@fixture_ng_4/ig_ng_004",
+       "posted_at": "2026-09-27T19:40:00+01:00",
+       "market": "NG",
+       "text": "Post 4: #fixture_ng_owambe outfits for Saturday in Lagos",
+       "engagement": {
+        "views": 4800,
+        "likes": 360,
+        "comments": 28,
+        "shares": 12
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_ng_004.jpg",
+       "creator_tier": "micro"
+      },
+      {
+       "id": "yt_ng_005",
+       "platform": "youtube",
+       "handle": "@fixture_ng_5",
+       "url": "https://example.invalid/youtube/@fixture_ng_5/yt_ng_005",
+       "posted_at": "2026-09-28T20:40:00+01:00",
+       "market": "NG",
+       "text": "Post 5: #fixture_ng_owambe outfits for Saturday in Lagos",
+       "engagement": {
+        "views": 6000,
+        "likes": 450,
+        "comments": 35,
+        "shares": 15
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/yt_ng_005.jpg",
+       "creator_tier": "mid"
+      }
+     ],
+     "ask": "What is behind #fixture_ng_owambe in Nigeria this week?"
+    },
+    {
+     "item_id": "7bbb4f7e688b04a917d2b8e744210b7066714a7b925861e236fecd8a3dd4a60d",
+     "rank": 3,
+     "kind": "hashtag",
+     "title": "#fixture_ng_promo",
+     "state": "new_to_42",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_ng_promo is spreading on Instagram in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted #fixture_ng_promo in Nigeria in the last 3 days.",
+       "label": "single_source",
+       "kind": "observation",
+       "evidence_ids": [
+        "ig_ng_006"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "ig_ng_006",
+         "text": "Post 6: #fixture_ng_promo use my code at checkout"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_z",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:61885f8e58a75d95273e3e3ad4276da303ef7d7aa3e67a6034148295f5229cdf"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_z",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:61885f8e58a75d95273e3e3ad4276da303ef7d7aa3e67a6034148295f5229cdf"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_z",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:c3bae668e94e8a57c3f1d60b325412f7cfddb724bb7bf47af88bbfaa0cc2400c"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "ig_ng_006",
+      "tt_ng_007"
+     ],
+     "evidence_ids": [
+      "ig_ng_006",
+      "tt_ng_007"
+     ],
+     "evidence": [
+      {
+       "id": "ig_ng_006",
+       "platform": "instagram",
+       "handle": "@fixture_ng_6",
+       "url": "https://example.invalid/instagram/@fixture_ng_6/ig_ng_006",
+       "posted_at": "2026-09-26T18:40:00+01:00",
+       "market": "NG",
+       "text": "Post 6: #fixture_ng_promo use my code at checkout",
+       "engagement": {
+        "views": 7200,
+        "likes": 540,
+        "comments": 42,
+        "shares": 18
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_ng_006.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "tt_ng_007",
+       "platform": "tiktok",
+       "handle": "@fixture_ng_7",
+       "url": "https://example.invalid/tiktok/@fixture_ng_7/tt_ng_007",
+       "posted_at": "2026-09-27T19:40:00+01:00",
+       "market": "NG",
+       "text": "Post 7: #fixture_ng_promo use my code at checkout",
+       "engagement": {
+        "views": 8400,
+        "likes": 630,
+        "comments": 49,
+        "shares": 21
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_ng_007.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind #fixture_ng_promo in Nigeria this week?"
+    },
+    {
+     "item_id": "1e7e4a6144d9cd628718863c4c2e2e328b093e1a8dfa6b6178be3c2833d96f44",
+     "rank": 4,
+     "kind": "hashtag",
+     "title": "#fixture_ng_skit",
+     "state": "new_to_42",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_ng_skit is spreading on Youtube in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted #fixture_ng_skit in Nigeria in the last 3 days.",
+       "label": "observed",
+       "kind": "observation",
+       "evidence_ids": [
+        "yt_ng_008"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "yt_ng_008",
+         "text": "Post 8: #fixture_ng_skit part three is out"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_d",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:688a471b0f0dc3eee1e3fa2d988f8e4c69c51889eaca7874a96568e2d70ed860"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_d",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:688a471b0f0dc3eee1e3fa2d988f8e4c69c51889eaca7874a96568e2d70ed860"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_d",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:796e89a9a363884c5a95b04c99441632f9d5ce6ed43ecd4c3749c2063e80fd0d"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "yt_ng_008",
+      "tt_ng_009"
+     ],
+     "evidence_ids": [
+      "yt_ng_008",
+      "tt_ng_009"
+     ],
+     "evidence": [
+      {
+       "id": "yt_ng_008",
+       "platform": "youtube",
+       "handle": "@fixture_ng_8",
+       "url": "https://example.invalid/youtube/@fixture_ng_8/yt_ng_008",
+       "posted_at": "2026-09-26T18:40:00+01:00",
+       "market": "NG",
+       "text": "Post 8: #fixture_ng_skit part three is out",
+       "engagement": {
+        "views": 9600,
+        "likes": 720,
+        "comments": 56,
+        "shares": 24
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/yt_ng_008.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "tt_ng_009",
+       "platform": "tiktok",
+       "handle": "@fixture_ng_9",
+       "url": "https://example.invalid/tiktok/@fixture_ng_9/tt_ng_009",
+       "posted_at": "2026-09-27T19:40:00+01:00",
+       "market": "NG",
+       "text": "Post 9: #fixture_ng_skit part three is out",
+       "engagement": {
+        "views": 10800,
+        "likes": 810,
+        "comments": 63,
+        "shares": 27
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_ng_009.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind #fixture_ng_skit in Nigeria this week?"
+    },
+    {
+     "item_id": "e4a966ccf4e304fd96561727def830a75b239feb48e18b6c1df03e18fa2da38f",
+     "rank": 5,
+     "kind": "topic",
+     "title": "fixture ng rain",
+     "state": "spike",
+     "flag": null,
+     "explained": true,
+     "explanation": "fixture ng rain is spreading on X in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture ng rain in Nigeria in the last 3 days.",
+       "label": "single_source",
+       "kind": "observation",
+       "evidence_ids": [
+        "x_ng_010"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "x_ng_010",
+         "text": "Post 10: fixture ng rain flooded the road in Ikeja"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_y",
+         "run_id": "r_aggregate_20260929_01",
+         "result_hash": "sha256:ee6add6f97565a595d474ee7b3ebe0135bde7e7bb10fc03f8047f4c5cb2d088f"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_y",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:ee6add6f97565a595d474ee7b3ebe0135bde7e7bb10fc03f8047f4c5cb2d088f"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_y",
+       "run_id": "r_aggregate_20260929_01",
+       "result_hash": "sha256:764edd11d9e13bb3f2fb55900f832e5d30b4f753ae915dbf332c17cef823aa59"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-23",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-24",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "x_ng_010"
+     ],
+     "evidence_ids": [
+      "x_ng_010"
+     ],
+     "evidence": [
+      {
+       "id": "x_ng_010",
+       "platform": "x",
+       "handle": "@fixture_ng_10",
+       "url": "https://example.invalid/x/@fixture_ng_10/x_ng_010",
+       "posted_at": "2026-09-26T18:40:00+01:00",
+       "market": "NG",
+       "text": "Post 10: fixture ng rain flooded the road in Ikeja",
+       "engagement": {
+        "views": 12000,
+        "likes": 900,
+        "comments": 70,
+        "shares": 30
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/x_ng_010.jpg",
+       "creator_tier": "nano"
+      }
+     ],
+     "ask": "What is behind fixture ng rain in Nigeria this week?"
+    }
+   ],
+   "more": [],
+   "held_back": {
+    "count": 0,
+    "text": "Nothing held back",
+    "items": []
+   },
+   "moments": [],
+   "boards": []
+  },
+  "rule_version": "r42.1.0"
+ },
+ {
+  "brief_date": "2026-09-30",
+  "market": "ZA",
+  "run_id": "r_brief_20260930_01",
+  "published_at": "2026-09-30T06:14:40+02:00",
+  "status": "published",
+  "payload": {
+   "market": "ZA",
+   "label": "South Africa",
+   "status": "published",
+   "headline": {
+    "text": "#fixture_za_step is the biggest mover in South Africa, posted by 31 creators in 3 days.",
+    "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e",
+    "claim_ids": [
+     "c1"
+    ]
+   },
+   "banners": [],
+   "cards": [
+    {
+     "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e",
+     "rank": 1,
+     "kind": "hashtag",
+     "title": "#fixture_za_step",
+     "state": "emerging",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_za_step is spreading on Tiktok in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "specificity": {
+      "status": "pass",
+      "local_evidence_ids": [
+       "tt_za_006",
+       "ig_za_007",
+       "yt_za_008"
+      ],
+      "quote": {
+       "evidence_id": "tt_za_006",
+       "text": "Post 6: the #fixture_za_step routine at the taxi rank"
+      },
+      "why_now": "#fixture_za_step is spreading on Tiktok in South Africa, possibly tied to the weekend.",
+      "reason": null
+     },
+     "claims": [
+      {
+       "id": "c1",
+       "text": "31 creators posted #fixture_za_step in South Africa in the last 3 days.",
+       "label": "corroborated",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_za_006",
+        "ig_za_007",
+        "yt_za_008"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_za_006",
+         "text": "Post 6: the #fixture_za_step routine at the taxi rank"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 31,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_a",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:e172e7a2a6d7731988a7a2592c1567138ced1f7c6181fd9e195ed469a527a4d5"
+        }
+       ]
+      },
+      {
+       "id": "c2",
+       "text": "The timing of #fixture_za_step may follow the end-of-month weekend.",
+       "label": "inferred",
+       "kind": "interpretation",
+       "evidence_ids": [
+        "tt_za_006"
+       ],
+       "basis": "posts cluster on the weekend",
+       "numbers": []
+      }
+     ],
+     "count_line": "31 creators, 3 days",
+     "numbers": [
+      {
+       "value": 31,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_a",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:e172e7a2a6d7731988a7a2592c1567138ced1f7c6181fd9e195ed469a527a4d5"
+      },
+      {
+       "value": 58,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_a",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:614158eedeff0e900127deddf6c4a10df2eb22f3e2385d88b7393375295c5f6b"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 19,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "tt_za_006",
+      "ig_za_007"
+     ],
+     "evidence_ids": [
+      "tt_za_006",
+      "ig_za_007",
+      "yt_za_008"
+     ],
+     "evidence": [
+      {
+       "id": "tt_za_006",
+       "platform": "tiktok",
+       "handle": "@fixture_za_6",
+       "url": "https://example.invalid/tiktok/@fixture_za_6/tt_za_006",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "source_market": "ZA",
+       "text": "Post 6: the #fixture_za_step routine at the taxi rank",
+       "engagement": {
+        "views": 7200,
+        "likes": 540,
+        "comments": 42,
+        "shares": 18
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_006.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "ig_za_007",
+       "platform": "instagram",
+       "handle": "@fixture_za_7",
+       "url": "https://example.invalid/instagram/@fixture_za_7/ig_za_007",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "source_market": "ZA",
+       "text": "Post 7: the #fixture_za_step routine at the taxi rank",
+       "engagement": {
+        "views": 8400,
+        "likes": 630,
+        "comments": 49,
+        "shares": 21
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_za_007.jpg",
+       "creator_tier": "micro"
+      },
+      {
+       "id": "yt_za_008",
+       "platform": "youtube",
+       "handle": "@fixture_za_8",
+       "url": "https://example.invalid/youtube/@fixture_za_8/yt_za_008",
+       "posted_at": "2026-09-28T20:40:00+02:00",
+       "market": "ZA",
+       "source_market": "ZA",
+       "text": "Post 8: the #fixture_za_step routine at the taxi rank",
+       "engagement": {
+        "views": 9600,
+        "likes": 720,
+        "comments": 56,
+        "shares": 24
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/yt_za_008.jpg",
+       "creator_tier": "mid"
+      }
+     ],
+     "ask": "What is behind #fixture_za_step in South Africa this week?"
+    },
+    {
+     "item_id": "cc92e3e759247d2b4a84960a28baa0cd63fa63efd283e1e89d8cf48ddb01f76e",
+     "rank": 2,
+     "kind": "sound",
+     "title": "fixture za sound one",
+     "state": "new_to_42",
+     "flag": "not_assessed",
+     "explained": true,
+     "explanation": "fixture za sound one is spreading on Tiktok in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture za sound one in South Africa in the last 3 days.",
+       "label": "single_source",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_za_001"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_za_001",
+         "text": "Post 1: this fixture za sound one on repeat in Durban"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_b",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:b95040d04119e6c4ef19ac484ead55a8e4f10b99bc2c02e7a0eaa6ee8f167026"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_b",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:b95040d04119e6c4ef19ac484ead55a8e4f10b99bc2c02e7a0eaa6ee8f167026"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_b",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:16be9d5cebca52a5cc06af9afb55d66e6966711d2c3f0878fcd8b211db22525b"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "tt_za_001",
+      "tt_za_002"
+     ],
+     "evidence_ids": [
+      "tt_za_001",
+      "tt_za_002"
+     ],
+     "evidence": [
+      {
+       "id": "tt_za_001",
+       "platform": "tiktok",
+       "handle": "@fixture_za_1",
+       "url": "https://example.invalid/tiktok/@fixture_za_1/tt_za_001",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 1: this fixture za sound one on repeat in Durban",
+       "engagement": {
+        "views": 1200,
+        "likes": 90,
+        "comments": 7,
+        "shares": 3
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_001.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "tt_za_002",
+       "platform": "tiktok",
+       "handle": "@fixture_za_2",
+       "url": "https://example.invalid/tiktok/@fixture_za_2/tt_za_002",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 2: this fixture za sound one on repeat in Durban",
+       "engagement": {
+        "views": 2400,
+        "likes": 180,
+        "comments": 14,
+        "shares": 6
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_002.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind fixture za sound one in South Africa this week?"
+    },
+    {
+     "item_id": "61630394e1e1b568691c9bd46f796024ae8d2ffb5e716557621564a158dbccc7",
+     "rank": 3,
+     "kind": "hashtag",
+     "title": "#fixture_za_spring",
+     "state": "seasonal",
+     "flag": "market_unconfirmed",
+     "explained": false,
+     "explanation": null,
+     "explanation_claim_ids": [],
+     "claims": [],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_c",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:2d5733439d5573e4209a4c6d7937db2ea56b2ab1429bd32171380f0eb3ffb410"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_c",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:7e5126aaf75063d12a57054dbe8a7f69577edd7b6b132af69832a9d0428c222e"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "ig_za_013",
+      "tt_za_014"
+     ],
+     "evidence_ids": [
+      "ig_za_013",
+      "tt_za_014"
+     ],
+     "evidence": [
+      {
+       "id": "ig_za_013",
+       "platform": "instagram",
+       "handle": "@fixture_za_13",
+       "url": "https://example.invalid/instagram/@fixture_za_13/ig_za_013",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 13: #fixture_za_spring picnic plans for the weekend",
+       "engagement": {
+        "views": 15600,
+        "likes": 1170,
+        "comments": 91,
+        "shares": 39
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_za_013.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "tt_za_014",
+       "platform": "tiktok",
+       "handle": "@fixture_za_14",
+       "url": "https://example.invalid/tiktok/@fixture_za_14/tt_za_014",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 14: #fixture_za_spring picnic plans for the weekend",
+       "engagement": {
+        "views": 16800,
+        "likes": 1260,
+        "comments": 98,
+        "shares": 42
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_014.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind #fixture_za_spring in South Africa this week?"
+    },
+    {
+     "item_id": "6170b93ed5a14be710ef21f037c67673a5c178dd666cef5a3c8b2db5c2774bb4",
+     "rank": 4,
+     "kind": "topic",
+     "title": "fixture za taxi fares",
+     "state": "spike",
+     "flag": null,
+     "explained": true,
+     "explanation": "fixture za taxi fares is spreading on X in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture za taxi fares in South Africa in the last 3 days.",
+       "label": "observed",
+       "kind": "observation",
+       "evidence_ids": [
+        "x_za_003"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "x_za_003",
+         "text": "Post 3: fixture za taxi fares went up again on my route"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_d",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:e4c977d525b43a098c055ddc04c9dd30ce8b85023d6cf56c813e4e0c8da15b72"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_d",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:e4c977d525b43a098c055ddc04c9dd30ce8b85023d6cf56c813e4e0c8da15b72"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_d",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:5c15affc0d4fd9f29ccacb0486b0a37a19e1a8d340318c99ff1576d47086e040"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "x_za_003",
+      "rd_za_004"
+     ],
+     "evidence_ids": [
+      "x_za_003",
+      "rd_za_004",
+      "fb_za_005"
+     ],
+     "evidence": [
+      {
+       "id": "x_za_003",
+       "platform": "x",
+       "handle": "@fixture_za_3",
+       "url": "https://example.invalid/x/@fixture_za_3/x_za_003",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 3: fixture za taxi fares went up again on my route",
+       "engagement": {
+        "views": 3600,
+        "likes": 270,
+        "comments": 21,
+        "shares": 9
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/x_za_003.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "rd_za_004",
+       "platform": "reddit",
+       "handle": "@fixture_za_4",
+       "url": "https://example.invalid/reddit/@fixture_za_4/rd_za_004",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 4: fixture za taxi fares went up again on my route",
+       "engagement": {
+        "views": 4800,
+        "likes": 360,
+        "comments": 28,
+        "shares": 12
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/rd_za_004.jpg",
+       "creator_tier": "micro"
+      },
+      {
+       "id": "fb_za_005",
+       "platform": "facebook",
+       "handle": "@fixture_za_5",
+       "url": "https://example.invalid/facebook/@fixture_za_5/fb_za_005",
+       "posted_at": "2026-09-28T20:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 5: fixture za taxi fares went up again on my route",
+       "engagement": {
+        "views": 6000,
+        "likes": 450,
+        "comments": 35,
+        "shares": 15
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/fb_za_005.jpg",
+       "creator_tier": "mid"
+      }
+     ],
+     "ask": "What is behind fixture za taxi fares in South Africa this week?"
+    },
+    {
+     "item_id": "447e6354b5e51acf11942783fda98f72ce4003b53c18f62d2e35753c3c44ade3",
+     "rank": 5,
+     "kind": "hashtag",
+     "title": "#fixture_za_board",
+     "state": "on_the_boards",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_za_board is spreading on Tiktok in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted #fixture_za_board in South Africa in the last 3 days.",
+       "label": "observed",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_za_016"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_za_016",
+         "text": "Post 16: #fixture_za_board challenge, round two"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_e",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:041465e1d55f951d1e03c7af1314d41229a049357a9a6ed8f7f019a0505ad334"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_e",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:041465e1d55f951d1e03c7af1314d41229a049357a9a6ed8f7f019a0505ad334"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_e",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:444a6498746faa24a4acc7f6a7248a7ff1c0bd8486ac6952a083eae6165a256b"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "tt_za_016",
+      "yt_za_017"
+     ],
+     "evidence_ids": [
+      "tt_za_016",
+      "yt_za_017"
+     ],
+     "evidence": [
+      {
+       "id": "tt_za_016",
+       "platform": "tiktok",
+       "handle": "@fixture_za_16",
+       "url": "https://example.invalid/tiktok/@fixture_za_16/tt_za_016",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 16: #fixture_za_board challenge, round two",
+       "engagement": {
+        "views": 19200,
+        "likes": 1440,
+        "comments": 112,
+        "shares": 48
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_016.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "yt_za_017",
+       "platform": "youtube",
+       "handle": "@fixture_za_17",
+       "url": "https://example.invalid/youtube/@fixture_za_17/yt_za_017",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 17: #fixture_za_board challenge, round two",
+       "engagement": {
+        "views": 20400,
+        "likes": 1530,
+        "comments": 119,
+        "shares": 51
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/yt_za_017.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind #fixture_za_board in South Africa this week?"
+    }
+   ],
+   "more": [
+    {
+     "item_id": "6ed42d508328c3576f7e3da65de78728c6feed3af9f877c85bd5bd72975cb524",
+     "rank": 6,
+     "kind": "format",
+     "title": "fixture za duet format",
+     "state": "new_to_42",
+     "flag": null,
+     "explained": true,
+     "explanation": "fixture za duet format is spreading on Tiktok in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture za duet format in South Africa in the last 3 days.",
+       "label": "observed",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_za_018"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_za_018",
+         "text": "Post 18: fixture za duet format with my cousin in Soweto"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_f",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:021e481a417021fc768b79dd7618bae048b32786f341525229d8b2c174184454"
+        }
+       ]
+      },
+      {
+       "id": "c2",
+       "text": "The timing of fixture za duet format may follow the end-of-month weekend.",
+       "label": "inferred",
+       "kind": "interpretation",
+       "evidence_ids": [
+        "tt_za_018"
+       ],
+       "basis": "posts cluster on the weekend",
+       "numbers": []
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_f",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:021e481a417021fc768b79dd7618bae048b32786f341525229d8b2c174184454"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_f",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:03469c8dfdccb5d4559204e859e549da4d10660afa6dce040b0ac59cf51b733d"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "tt_za_018",
+      "ig_za_019"
+     ],
+     "evidence_ids": [
+      "tt_za_018",
+      "ig_za_019"
+     ],
+     "evidence": [
+      {
+       "id": "tt_za_018",
+       "platform": "tiktok",
+       "handle": "@fixture_za_18",
+       "url": "https://example.invalid/tiktok/@fixture_za_18/tt_za_018",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 18: fixture za duet format with my cousin in Soweto",
+       "engagement": {
+        "views": 21600,
+        "likes": 1620,
+        "comments": 126,
+        "shares": 54
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_za_018.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "ig_za_019",
+       "platform": "instagram",
+       "handle": "@fixture_za_19",
+       "url": "https://example.invalid/instagram/@fixture_za_19/ig_za_019",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 19: fixture za duet format with my cousin in Soweto",
+       "engagement": {
+        "views": 22800,
+        "likes": 1710,
+        "comments": 133,
+        "shares": 57
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_za_019.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind fixture za duet format in South Africa this week?"
+    },
+    {
+     "item_id": "f9b3fe29b24c82e6febc8d3adf10416b7f72de8a02b7cbb0c53821d2b5b81a22",
+     "rank": 7,
+     "kind": "meme",
+     "title": "fixture za meme",
+     "state": "spike",
+     "flag": "check_pattern",
+     "explained": true,
+     "explanation": "fixture za meme is spreading on X in South Africa, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture za meme in South Africa in the last 3 days.",
+       "label": "single_source",
+       "kind": "observation",
+       "evidence_ids": [
+        "x_za_020"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "x_za_020",
+         "text": "Post 20: fixture za meme about load schedules"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_za_g",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:892067b7670e61ee0fa6fc9209ebd3181030674a7bcab26a383ddcb34ae72f7f"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_za_g",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:892067b7670e61ee0fa6fc9209ebd3181030674a7bcab26a383ddcb34ae72f7f"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_za_g",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:32d49d7be3a71dfe3cda0bc9fb44bb6d1b4983be2fc01c61e610739d09cae8cb"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "x_za_020",
+      "ig_za_021"
+     ],
+     "evidence_ids": [
+      "x_za_020",
+      "ig_za_021"
+     ],
+     "evidence": [
+      {
+       "id": "x_za_020",
+       "platform": "x",
+       "handle": "@fixture_za_20",
+       "url": "https://example.invalid/x/@fixture_za_20/x_za_020",
+       "posted_at": "2026-09-26T18:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 20: fixture za meme about load schedules",
+       "engagement": {
+        "views": 24000,
+        "likes": 1800,
+        "comments": 140,
+        "shares": 60
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/x_za_020.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "ig_za_021",
+       "platform": "instagram",
+       "handle": "@fixture_za_21",
+       "url": "https://example.invalid/instagram/@fixture_za_21/ig_za_021",
+       "posted_at": "2026-09-27T19:40:00+02:00",
+       "market": "ZA",
+       "text": "Post 21: fixture za meme about load schedules",
+       "engagement": {
+        "views": 25200,
+        "likes": 1890,
+        "comments": 147,
+        "shares": 63
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_za_021.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind fixture za meme in South Africa this week?"
+    }
+   ],
+   "held_back": {
+    "count": 2,
+    "text": "2 held back: too few creators, data issue",
+    "items": [
+     {
+      "item_id": "af9bcaca791414589469218be2ed5ad9121b31aca30b95a40647e300b54f0333",
+      "title": "#fixture_za_small",
+      "rule": "G2",
+      "reason": "too_few_creators",
+      "reason_text": "Too few creators",
+      "evidence_ids": [
+       "tt_za_015"
+      ],
+      "evidence": [
+       {
+        "id": "tt_za_015",
+        "platform": "tiktok",
+        "handle": "@fixture_za_15",
+        "url": "https://example.invalid/tiktok/@fixture_za_15/tt_za_015",
+        "posted_at": "2026-09-26T18:40:00+02:00",
+        "market": "ZA",
+        "text": "Post 15: #fixture_za_small from our street stall",
+        "engagement": {
+         "views": 18000,
+         "likes": 1350,
+         "comments": 105,
+         "shares": 45
+        },
+        "flags": [],
+        "thumbnail_url": "https://example.invalid/thumb/tt_za_015.jpg",
+        "creator_tier": "nano"
+       }
+      ]
+     },
+     {
+      "item_id": "196c5995cccbc7eff97f244b604378afbc28dc4109d809a6d6e3cf7a4201bd97",
+      "title": "#fixture_za_outage",
+      "rule": "G1",
+      "reason": "data_issue",
+      "reason_text": "Data issue on TikTok in the last 3 days",
+      "evidence_ids": [
+       "tt_za_022"
+      ],
+      "evidence": [
+       {
+        "id": "tt_za_022",
+        "platform": "tiktok",
+        "handle": "@fixture_za_22",
+        "url": "https://example.invalid/tiktok/@fixture_za_22/tt_za_022",
+        "posted_at": "2026-09-26T18:40:00+02:00",
+        "market": "ZA",
+        "text": "Post 22: #fixture_za_outage clips keep failing to load",
+        "engagement": {
+         "views": 26400,
+         "likes": 1980,
+         "comments": 154,
+         "shares": 66
+        },
+        "flags": [],
+        "thumbnail_url": "https://example.invalid/thumb/tt_za_022.jpg",
+        "creator_tier": "nano"
+       }
+      ]
+     }
+    ]
+   },
+   "moments": [],
+   "boards": [
+    {
+     "platform": "tiktok",
+     "list": "Hashtag board, 7 days",
+     "entries": [
+      {
+       "rank": 1,
+       "title": "#fixture_za_board",
+       "item_id": "447e6354b5e51acf11942783fda98f72ce4003b53c18f62d2e35753c3c44ade3"
+      },
+      {
+       "rank": 2,
+       "title": "#fixture_za_step",
+       "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e"
+      }
+     ]
+    }
+   ]
+  },
+  "rule_version": "r42.1.0"
+ },
+ {
+  "brief_date": "2026-09-30",
+  "market": "NG",
+  "run_id": "r_brief_20260930_01",
+  "published_at": "2026-09-30T05:13:10+01:00",
+  "status": "published",
+  "payload": {
+   "market": "NG",
+   "label": "Nigeria",
+   "status": "published",
+   "headline": {
+    "text": "#fixture_ng_owambe is climbing in Nigeria, posted by 24 creators in 3 days.",
+    "item_id": "7f2ab79603408ca60b74cc340171539579ae87710894abaebf234f04648bc35d",
+    "claim_ids": [
+     "c1"
+    ]
+   },
+   "banners": [],
+   "cards": [
+    {
+     "item_id": "7f2ab79603408ca60b74cc340171539579ae87710894abaebf234f04648bc35d",
+     "rank": 1,
+     "kind": "hashtag",
+     "title": "#fixture_ng_owambe",
+     "state": "emerging",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_ng_owambe is spreading on Tiktok in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "specificity": {
+      "status": "pass",
+      "local_evidence_ids": [
+       "tt_ng_003",
+       "ig_ng_004",
+       "yt_ng_005"
+      ],
+      "quote": {
+       "evidence_id": "tt_ng_003",
+       "text": "Post 3: #fixture_ng_owambe outfits for Saturday in Lagos"
+      },
+      "why_now": "#fixture_ng_owambe is spreading on Tiktok in Nigeria, possibly tied to the weekend.",
+      "reason": null
+     },
+     "claims": [
+      {
+       "id": "c1",
+       "text": "24 creators posted #fixture_ng_owambe in Nigeria in the last 3 days.",
+       "label": "corroborated",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_ng_003",
+        "ig_ng_004",
+        "yt_ng_005"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_ng_003",
+         "text": "Post 3: #fixture_ng_owambe outfits for Saturday in Lagos"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 24,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_a",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+        }
+       ]
+      }
+     ],
+     "count_line": "24 creators, 3 days",
+     "numbers": [
+      {
+       "value": 24,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_a",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:75a7adb5e3e0ba18c2e310179ca7550032a13268db12531119ef7cd28e9e0949"
+      },
+      {
+       "value": 40,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_a",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:10df6023d759feef6454687cc1bb7246947035d20fe561d3d28c59468f94e6dd"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 13,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "tt_ng_003",
+      "ig_ng_004"
+     ],
+     "evidence_ids": [
+      "tt_ng_003",
+      "ig_ng_004",
+      "yt_ng_005"
+     ],
+     "evidence": [
+      {
+       "id": "tt_ng_003",
+       "platform": "tiktok",
+       "handle": "@fixture_ng_3",
+       "url": "https://example.invalid/tiktok/@fixture_ng_3/tt_ng_003",
+       "posted_at": "2026-09-26T18:40:00+01:00",
+       "market": "NG",
+       "source_market": "NG",
+       "text": "Post 3: #fixture_ng_owambe outfits for Saturday in Lagos",
+       "engagement": {
+        "views": 3600,
+        "likes": 270,
+        "comments": 21,
+        "shares": 9
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_ng_003.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "ig_ng_004",
+       "platform": "instagram",
+       "handle": "@fixture_ng_4",
+       "url": "https://example.invalid/instagram/@fixture_ng_4/ig_ng_004",
+       "posted_at": "2026-09-27T19:40:00+01:00",
+       "market": "NG",
+       "source_market": "NG",
+       "text": "Post 4: #fixture_ng_owambe outfits for Saturday in Lagos",
+       "engagement": {
+        "views": 4800,
+        "likes": 360,
+        "comments": 28,
+        "shares": 12
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_ng_004.jpg",
+       "creator_tier": "micro"
+      },
+      {
+       "id": "yt_ng_005",
+       "platform": "youtube",
+       "handle": "@fixture_ng_5",
+       "url": "https://example.invalid/youtube/@fixture_ng_5/yt_ng_005",
+       "posted_at": "2026-09-28T20:40:00+01:00",
+       "market": "NG",
+       "source_market": "NG",
+       "text": "Post 5: #fixture_ng_owambe outfits for Saturday in Lagos",
+       "engagement": {
+        "views": 6000,
+        "likes": 450,
+        "comments": 35,
+        "shares": 15
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/yt_ng_005.jpg",
+       "creator_tier": "mid"
+      }
+     ],
+     "ask": "What is behind #fixture_ng_owambe in Nigeria this week?"
+    },
+    {
+     "item_id": "ba35ff7f7e69af0cc433bb619495194831377e0177665cd827df5b204a6ea41d",
+     "rank": 2,
+     "kind": "sound",
+     "title": "fixture ng sound one",
+     "state": "new_to_42",
+     "flag": null,
+     "explained": true,
+     "explanation": "fixture ng sound one is spreading on Tiktok in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture ng sound one in Nigeria in the last 3 days.",
+       "label": "single_source",
+       "kind": "observation",
+       "evidence_ids": [
+        "tt_ng_011"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "tt_ng_011",
+         "text": "Post 11: fixture ng sound one in every bus"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_b",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:143d2ae0c0255853dc1987e33934b961362de20f571306acdcaa5561599e94d9"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_b",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:143d2ae0c0255853dc1987e33934b961362de20f571306acdcaa5561599e94d9"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_b",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:6a81d617164dd200135fcd3d3d81d6da3d182bb5748c6764357375eaf15a4d1f"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "tt_ng_011",
+      "ig_ng_012"
+     ],
+     "evidence_ids": [
+      "tt_ng_011",
+      "ig_ng_012"
+     ],
+     "evidence": [
+      {
+       "id": "tt_ng_011",
+       "platform": "tiktok",
+       "handle": "@fixture_ng_11",
+       "url": "https://example.invalid/tiktok/@fixture_ng_11/tt_ng_011",
+       "posted_at": "2026-09-26T18:40:00+01:00",
+       "market": "NG",
+       "text": "Post 11: fixture ng sound one in every bus",
+       "engagement": {
+        "views": 13200,
+        "likes": 990,
+        "comments": 77,
+        "shares": 33
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_ng_011.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "ig_ng_012",
+       "platform": "instagram",
+       "handle": "@fixture_ng_12",
+       "url": "https://example.invalid/instagram/@fixture_ng_12/ig_ng_012",
+       "posted_at": "2026-09-27T19:40:00+01:00",
+       "market": "NG",
+       "text": "Post 12: fixture ng sound one in every bus",
+       "engagement": {
+        "views": 14400,
+        "likes": 1080,
+        "comments": 84,
+        "shares": 36
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_ng_012.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind fixture ng sound one in Nigeria this week?"
+    },
+    {
+     "item_id": "7a1034bd52562fae437997f211cd8cb10d7e985885f5fbfc001bdecdf364707d",
+     "rank": 3,
+     "kind": "topic",
+     "title": "fixture ng fuel queue",
+     "state": "spike",
+     "flag": null,
+     "explained": true,
+     "explanation": "fixture ng fuel queue is spreading on X in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture ng fuel queue in Nigeria in the last 3 days.",
+       "label": "observed",
+       "kind": "observation",
+       "evidence_ids": [
+        "x_ng_001"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "x_ng_001",
+         "text": "Post 1: fixture ng fuel queue na wa this morning"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_c",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:672b20a123ff7e7838fb9815c44a65018684f791e94d117dd96f207859949d6a"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_c",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:672b20a123ff7e7838fb9815c44a65018684f791e94d117dd96f207859949d6a"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_c",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:6293abb46880a554dfc2168c09b66d20791c87fc3636c8525097cce21a076e8a"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "x_ng_001",
+      "fb_ng_002"
+     ],
+     "evidence_ids": [
+      "x_ng_001",
+      "fb_ng_002"
+     ],
+     "evidence": [
+      {
+       "id": "x_ng_001",
+       "platform": "x",
+       "handle": "@fixture_ng_1",
+       "url": "https://example.invalid/x/@fixture_ng_1/x_ng_001",
+       "posted_at": "2026-09-26T18:40:00+01:00",
+       "market": "NG",
+       "text": "Post 1: fixture ng fuel queue na wa this morning",
+       "engagement": {
+        "views": 1200,
+        "likes": 90,
+        "comments": 7,
+        "shares": 3
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/x_ng_001.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "fb_ng_002",
+       "platform": "facebook",
+       "handle": "@fixture_ng_2",
+       "url": "https://example.invalid/facebook/@fixture_ng_2/fb_ng_002",
+       "posted_at": "2026-09-27T19:40:00+01:00",
+       "market": "NG",
+       "text": "Post 2: fixture ng fuel queue na wa this morning",
+       "engagement": {
+        "views": 2400,
+        "likes": 180,
+        "comments": 14,
+        "shares": 6
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/fb_ng_002.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind fixture ng fuel queue in Nigeria this week?"
+    },
+    {
+     "item_id": "1e7e4a6144d9cd628718863c4c2e2e328b093e1a8dfa6b6178be3c2833d96f44",
+     "rank": 4,
+     "kind": "hashtag",
+     "title": "#fixture_ng_skit",
+     "state": "new_to_42",
+     "flag": null,
+     "explained": true,
+     "explanation": "#fixture_ng_skit is spreading on Youtube in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted #fixture_ng_skit in Nigeria in the last 3 days.",
+       "label": "observed",
+       "kind": "observation",
+       "evidence_ids": [
+        "yt_ng_008"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "yt_ng_008",
+         "text": "Post 8: #fixture_ng_skit part three is out"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_d",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:246605f952f2317710799528526b3a4b6fd2b9557a5a45cb8fc79aa32b1ec527"
+        }
+       ]
+      },
+      {
+       "id": "c2",
+       "text": "The timing of #fixture_ng_skit may follow the end-of-month weekend.",
+       "label": "inferred",
+       "kind": "interpretation",
+       "evidence_ids": [
+        "yt_ng_008"
+       ],
+       "basis": "posts cluster on the weekend",
+       "numbers": []
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_d",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:246605f952f2317710799528526b3a4b6fd2b9557a5a45cb8fc79aa32b1ec527"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_d",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:f6fdf68184d608aa488ba7f66e409c2df02dc82652cc280244f8e5107eb0a775"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "yt_ng_008",
+      "tt_ng_009"
+     ],
+     "evidence_ids": [
+      "yt_ng_008",
+      "tt_ng_009"
+     ],
+     "evidence": [
+      {
+       "id": "yt_ng_008",
+       "platform": "youtube",
+       "handle": "@fixture_ng_8",
+       "url": "https://example.invalid/youtube/@fixture_ng_8/yt_ng_008",
+       "posted_at": "2026-09-26T18:40:00+01:00",
+       "market": "NG",
+       "text": "Post 8: #fixture_ng_skit part three is out",
+       "engagement": {
+        "views": 9600,
+        "likes": 720,
+        "comments": 56,
+        "shares": 24
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/yt_ng_008.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "tt_ng_009",
+       "platform": "tiktok",
+       "handle": "@fixture_ng_9",
+       "url": "https://example.invalid/tiktok/@fixture_ng_9/tt_ng_009",
+       "posted_at": "2026-09-27T19:40:00+01:00",
+       "market": "NG",
+       "text": "Post 9: #fixture_ng_skit part three is out",
+       "engagement": {
+        "views": 10800,
+        "likes": 810,
+        "comments": 63,
+        "shares": 27
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/tt_ng_009.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind #fixture_ng_skit in Nigeria this week?"
+    },
+    {
+     "item_id": "2f4f1d70537f72e4fae77863d19bdefad316dac7c2551a4700a86000cbb9c390",
+     "rank": 5,
+     "kind": "meme",
+     "title": "fixture ng meme",
+     "state": "new_to_42",
+     "flag": "not_assessed",
+     "explained": true,
+     "explanation": "fixture ng meme is spreading on X in Nigeria, possibly tied to the weekend.",
+     "explanation_claim_ids": [
+      "c1"
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "text": "12 creators posted fixture ng meme in Nigeria in the last 3 days.",
+       "label": "single_source",
+       "kind": "observation",
+       "evidence_ids": [
+        "x_ng_013"
+       ],
+       "quotes": [
+        {
+         "evidence_id": "x_ng_013",
+         "text": "Post 13: fixture ng meme about the landlord"
+        }
+       ],
+       "numbers": [
+        {
+         "value": 12,
+         "unit": "creators in 3 days",
+         "query_id": "q_creators3_ng_e",
+         "run_id": "r_aggregate_20260930_01",
+         "result_hash": "sha256:099f41c52036c35ddc360fe019aa0dd6a87db4a07ccd1cf210ba3a1701bd7005"
+        }
+       ]
+      }
+     ],
+     "count_line": "12 creators, 3 days",
+     "numbers": [
+      {
+       "value": 12,
+       "unit": "creators in 3 days",
+       "query_id": "q_creators3_ng_e",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:099f41c52036c35ddc360fe019aa0dd6a87db4a07ccd1cf210ba3a1701bd7005"
+      },
+      {
+       "value": 20,
+       "unit": "posts in 3 days",
+       "query_id": "q_posts3_ng_e",
+       "run_id": "r_aggregate_20260930_01",
+       "result_hash": "sha256:bbf65355f889d17513ccbcf9fdfde341586e765f92a750d362b61d12414127de"
+      }
+     ],
+     "sparkline": {
+      "unit": "posts a day",
+      "points": [
+       {
+        "date": "2026-09-24",
+        "value": 2,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-25",
+        "value": 5,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-26",
+        "value": null,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-27",
+        "value": 11,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-28",
+        "value": 14,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-29",
+        "value": 17,
+        "expected_low": null,
+        "expected_high": null
+       },
+       {
+        "date": "2026-09-30",
+        "value": 6,
+        "expected_low": null,
+        "expected_high": null
+       }
+      ]
+     },
+     "thumbnails": [
+      "x_ng_013",
+      "ig_ng_014"
+     ],
+     "evidence_ids": [
+      "x_ng_013",
+      "ig_ng_014"
+     ],
+     "evidence": [
+      {
+       "id": "x_ng_013",
+       "platform": "x",
+       "handle": "@fixture_ng_13",
+       "url": "https://example.invalid/x/@fixture_ng_13/x_ng_013",
+       "posted_at": "2026-09-26T18:40:00+01:00",
+       "market": "NG",
+       "text": "Post 13: fixture ng meme about the landlord",
+       "engagement": {
+        "views": 15600,
+        "likes": 1170,
+        "comments": 91,
+        "shares": 39
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/x_ng_013.jpg",
+       "creator_tier": "nano"
+      },
+      {
+       "id": "ig_ng_014",
+       "platform": "instagram",
+       "handle": "@fixture_ng_14",
+       "url": "https://example.invalid/instagram/@fixture_ng_14/ig_ng_014",
+       "posted_at": "2026-09-27T19:40:00+01:00",
+       "market": "NG",
+       "text": "Post 14: fixture ng meme about the landlord",
+       "engagement": {
+        "views": 16800,
+        "likes": 1260,
+        "comments": 98,
+        "shares": 42
+       },
+       "flags": [],
+       "thumbnail_url": "https://example.invalid/thumb/ig_ng_014.jpg",
+       "creator_tier": "micro"
+      }
+     ],
+     "ask": "What is behind fixture ng meme in Nigeria this week?"
+    }
+   ],
+   "more": [],
+   "held_back": {
+    "count": 1,
+    "text": "1 held back: paid-led",
+    "items": [
+     {
+      "item_id": "7bbb4f7e688b04a917d2b8e744210b7066714a7b925861e236fecd8a3dd4a60d",
+      "title": "#fixture_ng_promo",
+      "rule": "G5",
+      "reason": "paid_led",
+      "reason_text": "Paid-led: most posts are sponsored",
+      "evidence_ids": [
+       "ig_ng_006",
+       "tt_ng_007"
+      ],
+      "evidence": [
+       {
+        "id": "ig_ng_006",
+        "platform": "instagram",
+        "handle": "@fixture_ng_6",
+        "url": "https://example.invalid/instagram/@fixture_ng_6/ig_ng_006",
+        "posted_at": "2026-09-26T18:40:00+01:00",
+        "market": "NG",
+        "text": "Post 6: #fixture_ng_promo use my code at checkout",
+        "engagement": {
+         "views": 7200,
+         "likes": 540,
+         "comments": 42,
+         "shares": 18
+        },
+        "flags": [],
+        "thumbnail_url": "https://example.invalid/thumb/ig_ng_006.jpg",
+        "creator_tier": "nano"
+       },
+       {
+        "id": "tt_ng_007",
+        "platform": "tiktok",
+        "handle": "@fixture_ng_7",
+        "url": "https://example.invalid/tiktok/@fixture_ng_7/tt_ng_007",
+        "posted_at": "2026-09-27T19:40:00+01:00",
+        "market": "NG",
+        "text": "Post 7: #fixture_ng_promo use my code at checkout",
+        "engagement": {
+         "views": 8400,
+         "likes": 630,
+         "comments": 49,
+         "shares": 21
+        },
+        "flags": [],
+        "thumbnail_url": "https://example.invalid/thumb/tt_ng_007.jpg",
+        "creator_tier": "micro"
+       }
+      ]
+     }
+    ]
+   },
+   "moments": [],
+   "boards": [
+    {
+     "platform": "youtube",
+     "list": "Trending videos, today",
+     "entries": [
+      {
+       "rank": 1,
+       "title": "#fixture_ng_skit",
+       "item_id": "1e7e4a6144d9cd628718863c4c2e2e328b093e1a8dfa6b6178be3c2833d96f44"
+      }
+     ]
+    }
+   ]
+  },
+  "rule_version": "r42.1.0"
+ },
+ {
+  "brief_date": "2026-09-30",
+  "market": "KE",
+  "run_id": "r_brief_20260930_01",
+  "published_at": "2026-09-30T07:10:00+03:00",
+  "status": "data_issue",
+  "payload": {
+   "market": "KE",
+   "label": "Kenya",
+   "status": "data_issue",
+   "headline": null,
+   "banners": [],
+   "cards": [],
+   "more": [],
+   "held_back": {
+    "count": 1,
+    "text": "1 held back: data issue",
+    "items": [
+     {
+      "item_id": "4affc90c6e7ec9dae041f8d4a601461b789925a66ecd8cc30cd961d92113f186",
+      "title": "#fixture_ke_match",
+      "rule": "G1",
+      "reason": "data_issue",
+      "reason_text": "Data issue on TikTok in the last 3 days",
+      "evidence_ids": [
+       "x_ke_001",
+       "tt_ke_002"
+      ],
+      "evidence": [
+       {
+        "id": "x_ke_001",
+        "platform": "x",
+        "handle": "@fixture_ke_1",
+        "url": "https://example.invalid/x/@fixture_ke_1/x_ke_001",
+        "posted_at": "2026-09-26T18:40:00+03:00",
+        "market": "KE",
+        "text": "Post 1: #fixture_ke_match highlights from Kasarani",
+        "engagement": {
+         "views": 1200,
+         "likes": 90,
+         "comments": 7,
+         "shares": 3
+        },
+        "flags": [],
+        "thumbnail_url": "https://example.invalid/thumb/x_ke_001.jpg",
+        "creator_tier": "nano"
+       },
+       {
+        "id": "tt_ke_002",
+        "platform": "tiktok",
+        "handle": "@fixture_ke_2",
+        "url": "https://example.invalid/tiktok/@fixture_ke_2/tt_ke_002",
+        "posted_at": "2026-09-27T19:40:00+03:00",
+        "market": "KE",
+        "text": "Post 2: #fixture_ke_match highlights from Kasarani",
+        "engagement": {
+         "views": 2400,
+         "likes": 180,
+         "comments": 14,
+         "shares": 6
+        },
+        "flags": [],
+        "thumbnail_url": "https://example.invalid/thumb/tt_ke_002.jpg",
+        "creator_tier": "micro"
+       }
+      ]
+     }
+    ]
+   },
+   "moments": [],
+   "boards": []
+  },
+  "rule_version": "r42.1.0"
+ }
+]

@@ -1,0 +1,123 @@
+.tp42 {
+  --tp42-small: var(--type-meta);
+  --tp42-body: var(--type-body);
+  --tp42-lead: var(--type-signal-title);
+  --tp42-head: var(--type-page-title);
+  font-family: var(--sans);
+  font-size: var(--type-body);
+  color: var(--ink);
+  padding: var(--s-6) var(--s-5);
+  max-width: var(--maxw);
+
+  line-height: var(--leading-body);
+}
+
+.tp42 :focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.tp42-head { margin-bottom: var(--s-5); }
+.tp42-heading { font-size: var(--type-page-title); font-weight: 600; line-height: var(--leading-page-title); margin: 0 0 var(--s-2); overflow-wrap: break-word; hyphens: none; }
+.tp42-sub { font-size: var(--tp42-small); color: var(--muted); margin: 0; }
+.tp42-held {
+  font-size: var(--tp42-small);
+  font-weight: 600;
+  margin: var(--s-3) 0 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+}
+.tp42-status { font-size: var(--tp42-body); color: var(--muted); }
+
+.tp42-card { max-width: 420px; margin-bottom: var(--s-6); }
+.tp42-card-list { list-style: none; margin: 0; padding: 0; }
+.tp42-card .t42-card-title { display: none; }
+.tp42-card-label { font-size: var(--tp42-small); color: var(--muted); margin: 0 0 var(--s-2); }
+.tp42-card[data-held] .t42-card-meta,
+.tp42-card[data-held] .tc-lifecycle { opacity: 0.7; filter: grayscale(1); }
+
+.tp42-grid { display: grid; gap: var(--s-5); grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-bottom: var(--s-6); }
+.tp42-part { font-size: var(--tp42-small); }
+.tp42-part-title { font-size: var(--type-section-title); font-weight: 600; margin: 0 0 var(--s-2);
+  line-height: var(--leading-section-title);
+}
+.tp42-line { margin: 0 0 var(--s-2); color: var(--muted); }
+.tp42-lead { font-family: var(--serif); font-size: var(--type-signal-title); line-height: var(--leading-signal-title); margin: 0 0 var(--s-3); }
+.tp42-rows { margin: 0 0 var(--s-2); padding-left: var(--s-4); display: grid; gap: var(--s-1); }
+.tp42-flag { display: inline-block; margin: 0 0 var(--s-2); padding: 0 var(--s-1); border: 1px solid var(--line-2); }
+.tp42-fig { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* The timeline is quiet: a thin rule and small dots, no colour. */
+.tp42-timeline { list-style: none; margin: 0; padding: 0 0 0 var(--s-3); border-left: 1px solid var(--line); display: grid; gap: var(--s-2); }
+.tp42-timeline li { position: relative; color: var(--ink-2); }
+.tp42-timeline li::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--s-3) - 3px);
+  top: 0.5em;
+  width: 5px;
+  height: 5px;
+  background: var(--line-2);
+}
+.tp42-timeline li:last-child { color: var(--ink); font-weight: 600; }
+.tp42-timeline li:last-child::before { background: var(--ink); }
+
+.tp42-series { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.tp42-series-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.tp42-series-name { overflow-wrap: anywhere; }
+.tp42-series-row .tp42-line { margin: 0; }
+.tp42-spark { display: block; flex: none; }
+.tp42-spark .tp42-line { stroke: var(--ink); stroke-width: 1.5; }
+/* A measured day on a series: a quiet column over its point that asks why it jumped. */
+/* Room above and below the line so each day column is a full-height tap target. */
+.tp42-spark-days { position: relative; display: block; flex: none; box-sizing: content-box; padding-block: var(--s-2); }
+.tp42-day {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  opacity: 1;
+  cursor: pointer;
+  transition: background-color var(--motion-control) var(--motion-standard-easing);
+}
+.tp42-day:hover, .tp42-day:focus-visible { background-color: var(--line); }
+
+.tp42-evidence { border-top: 1px solid var(--line); padding-top: var(--s-4); margin-bottom: var(--s-5); }
+.tp42-posts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0 var(--s-5); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+/* Posts are rows split by a hairline, not boxed cards (no boxes in boxes). */
+.tp42-post { display: flex; gap: var(--s-3); min-width: 0; padding: var(--s-3) 0; border-top: 1px solid var(--line); }
+.tp42-thumb { width: 72px; height: 96px; flex: none; object-fit: cover; display: block; background: var(--surface-inset); }
+.tp42-post-body { min-width: 0; }
+.tp42-post-meta { margin: 0; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.tp42-post-text { margin: var(--s-1) 0; overflow-wrap: anywhere; }
+.tp42-post-body > .tp42-link { display: inline-flex; align-items: center; min-block-size: var(--target-min); }
+
+.tp42-actions { margin: 0; }
+.tp42-actions .tp42-link { display: inline-flex; align-items: center; min-height: 32px; color: var(--accent-text); overflow-wrap: anywhere; }
+.tp42-link { color: var(--ink); font-size: var(--tp42-small); text-decoration: underline; text-underline-offset: 2px; }
+.tp42-button {
+  font: inherit;
+  font-size: var(--tp42-small);
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line-2);
+  padding: var(--s-1) var(--s-3);
+  min-height: 32px;
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+.tp42-button:hover, .tp42-button:focus-visible { border-color: var(--ink); }
+
+/* On a phone the workspace already pads the page by --space-5, so the page
+   adds none of its own. It never reaches past the workspace edge, which would
+   make the workspace scroll sideways (wide-tables.test.jsx). A
+   long hashtag title steps down toward the section size before it would
+   ever break inside the word. */
+@media (max-width: 479px) {
+  .tp42 { padding-inline: 0; }
+  .tp42 .tp42-heading { font-size: clamp(var(--type-section-title), 7vw, var(--type-page-title)); }
+}

@@ -1,0 +1,28 @@
+# Runtime packages of the 42 jobs image, pinned to the versions the unit tests run against.
+google-cloud-bigquery==3.25.0
+# 2.59.0 because google-genai 2.25.0 needs google-auth 2.56.0 or later.
+google-auth==2.59.0
+requests==2.33.1
+PyYAML==6.0.3
+# zoneinfo data for core/collect/calendar.py, in case the slim base has no system tz database.
+tzdata==2026.1
+# Gemini on Vertex (google-genai, vertexai=True), the only model provider; no API key, the job identity authenticates.
+google-genai==2.25.0
+# Checks the JSON the Gemini path returns against its schema.
+jsonschema==4.25.1
+# Full statistics (1.19) and authenticity (2.11) in f42-detect, at the versions lane L2 tests with; imported lazily.
+numpy==2.4.4
+scipy==1.18.1
+statsmodels==0.15.0
+datasketch==2.0.0
+networkx==3.7
+# The f42-understand spend-read path reaches core.agent.tools.sql_query; f42-scheduled-asks asks through Ask too.
+sqlglot==30.20.0
+# f42-scheduled-asks (core/api/scheduled.py) imports core.api.agent_app and runs Ask on this image: fastapi and
+# starlette at the versions the core/api tests run against.
+fastapi==0.142.2
+starlette==1.7.0
+# statsmodels' own dependencies, pinned to what the tests ran against.
+pandas==2.3.3
+patsy==1.0.3
+formulaic==1.2.2

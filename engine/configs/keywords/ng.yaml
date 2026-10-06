@@ -1,0 +1,162 @@
+# Nigeria -- Keywords, Markers, Slang
+market: ng
+market_name: Nigeria
+
+topic_groups:
+  naija_identity:
+    - nigeria
+    - naija
+    - lagos
+    - abuja
+    - ibadan
+    - port harcourt
+    - 9ja
+    - eko
+    - lekki
+    - victoria island
+
+  culture_lifestyle:
+    - student life
+    - campus
+    - nysc
+    - japa
+    - sapa
+    - side hustle
+    - hustle
+    - soft life
+    - adulting
+    - broke
+    - dating
+    - situationship
+
+  music_entertainment:
+    - afrobeats
+    - amapiano
+    - nigerian music
+    - nollywood
+    - dance challenge
+    - groove
+    - nightlife
+    - dj
+    - concert
+    - vibes
+
+  fashion_beauty:
+    - ankara
+    - aso ebi
+    - streetwear
+    - thrift
+    - outfit check
+    - fit check
+    - braids
+    - gele
+    - lace
+    - skincare
+    - makeup
+
+  food_lifestyle:
+    - suya
+    - jollof
+    - amala
+    - pepper soup
+    - small chops
+    - restaurant
+    - date ideas
+    - cheap eats
+    - owambe
+
+  economic_pressure:
+    - fuel scarcity
+    - naira
+    - japa
+    - cost of living
+    - petrol price
+    - transport
+    - danfo
+    - rent
+    - unemployment
+    - data bundles
+    - nepa
+    - no light
+    - nepa light
+    - sapa
+
+  tech_gaming:
+    - gaming
+    - esports
+    - anime
+    - ai tools
+    - fintech
+    - smartphone
+    - tech twitter
+    - paystack
+    - flutterwave
+
+regional_markers:
+  - nigeria
+  - naija
+  - lagos
+  - abuja
+  - ibadan
+  - port harcourt
+  - 9ja
+  - eko
+  - lekki
+  - victoria island
+
+genz_markers: []
+
+slang:
+  high_signal:
+    terms:
+      - naija
+      - 9ja
+      - japa
+      - sapa
+      - omo
+      - wahala
+      - no wahala
+      - e choke
+      - shege
+      - lagos
+      - abuja
+      - nepa
+      - danfo
+      - owambe
+      - asuu
+      - nysc
+      - naira
+      - afrobeats
+      - nollywood
+      - jollof
+    weight: 1.0
+
+  medium_signal:
+    terms:
+      - abeg
+      - dey
+      - werey
+      - bants
+      - cruise
+      - vibes
+      - las las
+      - as e dey hot
+      - God when
+      - sabi
+      - ehen
+      - shey
+      - wahala no dey finish
+      - commot
+      - ginger
+      - pepper dem
+      - soft life
+      - billing
+      - flex
+      - chop life
+      - no cap
+      - soro soke
+      - obidient
+      - jand
+      - ajebo
+      - agbero
+    weight: 0.5

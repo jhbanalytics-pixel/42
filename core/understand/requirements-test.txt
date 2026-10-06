@@ -1,0 +1,4 @@
+# Test-only packages for core/understand (the fixture tests run embed.sql on DuckDB through sqlglot).
+duckdb==1.5.6
+sqlglot==30.20.0
+pytest==8.3.3

@@ -1,0 +1,196 @@
+{
+  "contract_version": "r02_linux_gate_manifest_v1",
+  "source_packet_sha256": "71e6328c638ec44526e4127f7c30496becfcb5b7634da6d390773b93ac24c071",
+  "runtime": {
+    "app_python": "/usr/local/bin/python",
+    "engine_python": "/opt/42-engine-venv/bin/python",
+    "app_test_python": "/opt/42-app-test-venv/bin/python",
+    "engine_test_python": "/opt/42-engine-test-venv/bin/python",
+    "engine_root": "/app/engine",
+    "runtime_build": "/app/runtime-build.json",
+    "app_test_root": "/opt/42-gates/app",
+    "network": "disabled",
+    "forbidden_paths": [
+      "/workspace/source",
+      "/workspace/ops"
+    ],
+    "app_image_binding": "external_immutable_image"
+  },
+  "engine_bundle": {
+    "file_count": 561,
+    "files_map_sha256": "d40c4a408958699edad455adb4045d403c6a5625f2c5c6befeddd7ef54cd3c3b",
+    "bundle_manifest_sha256": "0773c66e3aca8d617ce02f1e52c74be4bf3f8aedb488e56e635fbd0a7ce49b06",
+    "entrypoint": "engine/scripts/staging/run_general_question_worker.py",
+    "entrypoint_sha256": "ab7ff137cb13d63db28f0429cbaf21f2a5860e3718df0dfc0574d383f5495771"
+  },
+  "test_dependency_closure": {
+    "app/requirements-dev.lock": "8832214c7436bde9f0f826fd27f459fae9464da0a1290280374c7377fa7fb626",
+    "engine/requirements-dev.lock": "e2afbc89d94de508377e638fe60380aa09d43e9631a2448bb00b5417bfc47e93"
+  },
+  "adapter_hashes": {
+    "observer_host.py": "32ae4307a4e491b17972f27dac80000073da1ac73e71fbc25b5597983fb52bfb",
+    "observer_store.json": "558bb6f80694360bffa2f0d421502ae8ecfc9f0e369dc282595921fac6c21e2d",
+    "sitecustomize.py": "1995a52bc73db5860d9a0500e646f95f59ffb66896fe035a1cbc9d01b7725b8c"
+  },
+  "app_test_closure": {
+    "app/conftest.py": "f5685704c45998bc3b3307abb3dfbcdee3bdbff1f4e4b5289757c41fbde3f585",
+    "app/src/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/src/api/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/src/api/fieldwork.py": "744017e40027d5a05911ad3403afe50f7704d29c283c3e6fdd91e441144d97d4",
+    "app/src/api/question_worker_bundle.py": "95cbaee44f21ba7ff9c14cba430775e4fadbcf96a4c35bbe47bed0c0fc068ebe",
+    "app/src/api/question_worker_controller.py": "a0c4550ab5b61939fb1cd2a4c5c4cbb69fcebf94caab291a84e7199ffca786fd",
+    "app/src/api/question_worker_deadline.py": "510a7f6558d0999d273e2ca7ef2bf45a764583d103c1c16969522ce124dde72d",
+    "app/src/api/question_worker_process.py": "3252403a1d0af78a879f568ae68dd6a1affc5f711cc5fc0bb9a9f341987a8e36",
+    "app/src/api/question_worker_protocol.py": "4ae327bc6265c3f8f344ee79922456a953ae0193caaf300cc96efa87a61f4544",
+    "app/src/api/question_worker_result.py": "8d76946ae35e1f82a53eefc53b2115263203a1b5c4ff51315f27fe2bba9a56fd",
+    "app/src/api/question_worker_store.py": "22276213167bfe25fd3f99fe3a1205fac049ee23847776dab4a438a39fa10eec",
+    "app/tests/unit/test_question_worker_bundle.py": "3452916968653dc93e632b75a2583d43b8663b37878ae467129678dd5b56d296",
+    "app/tests/unit/test_engine_observer_subprocess.py": "f0f85155692f6d8d85367392492313a8a1e0ce5858560e20e2f18c736a66a8b6",
+    "app/tests/unit/test_question_worker_controller.py": "950bd39439624a28ce77dfa91bf4fd86524e07f7c1c57b36d7c40d22a026aebd",
+    "app/tests/unit/test_question_worker_deadline.py": "90f8f3d43705e80484f3df4a5f1348fea8cdfa93a2b76e3ed2d570612e08676d",
+    "app/tests/unit/test_question_worker_process.py": "5d29a5d53f3a645948415a5674ec82bf9796fddcb70cb61ac98045750c423e5e",
+    "app/tests/unit/test_question_worker_protocol.py": "f5d80524a08fb07371566a982338e58810fb96f3621103be4be01601d46faa7d",
+    "app/tests/unit/test_question_worker_result.py": "fbab33127c02826ac881dec3cee968ae61a88a3384f9c8cc5b2c8e48adaf0e66",
+    "app/tests/unit/test_question_worker_store.py": "0a672ec3acc9ffc0f17831902db348afcc3b74d41dce7c4a96c4f28c23e56bf5",
+    "app/tests/fixtures/general-question-result-unavailable.json": "12f88cc6df5957af047efeb333fb07bacd186b4d8307aa8163378d364fe1629e"
+  },
+  "linux_node_ids": [
+    "tests/unit/test_question_worker_process.py::test_execute_requires_exact_result_verification",
+    "tests/unit/test_question_worker_process.py::test_false_store_verification_cannot_acknowledge",
+    "tests/unit/test_question_worker_process.py::test_bounds_terminate_the_child_without_returning_its_text[stdout]",
+    "tests/unit/test_question_worker_process.py::test_bounds_terminate_the_child_without_returning_its_text[stderr]",
+    "tests/unit/test_question_worker_process.py::test_bounds_terminate_the_child_without_returning_its_text[timeout]",
+    "tests/unit/test_question_worker_process.py::test_worker_keeps_the_selected_virtual_environment",
+    "tests/unit/test_question_worker_process.py::test_cancellation_during_launch_waits_for_and_reaps_the_child",
+    "tests/unit/test_question_worker_process.py::test_deadline_terminates_a_descendant_after_its_parent_exits",
+    "tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-admitted]",
+    "tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-running]",
+    "tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-complete]",
+    "tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-held]",
+    "tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-admitted]",
+    "tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-running]",
+    "tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-complete]",
+    "tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-held]",
+    "tests/unit/test_question_worker_controller.py::test_execute_joins_bundle_process_and_exact_result_store",
+    "tests/unit/test_question_worker_controller.py::test_status_reads_current_scope_without_taking_generation_capacity[admitted]",
+    "tests/unit/test_question_worker_controller.py::test_status_reads_current_scope_without_taking_generation_capacity[unavailable]",
+    "tests/unit/test_question_worker_controller.py::test_admission_preserves_original_transport_without_generation_or_result_read",
+    "tests/unit/test_question_worker_controller.py::test_status_concrete_state_must_match_the_verified_record",
+    "tests/unit/test_question_worker_controller.py::test_expired_admitted_status_cannot_become_perpetual_pending",
+    "tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change0]",
+    "tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change1]",
+    "tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change2]",
+    "tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change3]",
+    "tests/unit/test_question_worker_controller.py::test_result_read_failure_releases_the_slot_without_acknowledgment",
+    "tests/unit/test_question_worker_controller.py::test_changed_bundle_never_reaches_the_child",
+    "tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[file]",
+    "tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[directory]",
+    "tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[manifest]",
+    "tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[stamp]",
+    "tests/unit/test_question_worker_bundle.py::test_case_collisions_are_rejected",
+    "tests/unit/test_question_worker_bundle.py::test_directory_and_reserved_manifest_case_collisions_are_rejected[files0]",
+    "tests/unit/test_question_worker_bundle.py::test_directory_and_reserved_manifest_case_collisions_are_rejected[files1]"
+  ],
+  "prebuild_node_id": "tests/unit/test_engine_observer_subprocess.py::test_linux_gate_recipe_binds_current_bundle_and_test_environments",
+  "combined_node_ids": [
+    "tests/unit/test_engine_observer_subprocess.py::test_app_invokes_real_engine_observer_through_sanitized_store_adapter",
+    "tests/unit/test_engine_observer_subprocess.py::test_changed_bundle_prevents_child_launch"
+  ],
+  "combined_image_static_paths": [
+    "/app/engine/bundle-manifest.json",
+    "/app/engine/requirements.lock",
+    "/app/engine/scripts/staging/run_general_question_worker.py",
+    "/app/runtime-build.json",
+    "/opt/42-app-test-venv/bin/python",
+    "/opt/42-engine-test-venv/bin/python",
+    "/opt/42-engine-venv/bin/python",
+    "/opt/42-gates/app/src/api/fieldwork.py",
+    "/opt/42-gates/app/tests/unit/test_engine_observer_subprocess.py",
+    "/opt/42-gates/linux-boundary/manifest.json",
+    "/opt/42-gates/linux-boundary/observer_store.json"
+  ],
+  "commands": {
+    "build": "docker build --build-arg APP_RUNTIME_IMAGE=<approved-immutable-image> -f ops/tests/Dockerfile.linux-gates -t 42-r02-linux-gates:<packet-sha> .",
+    "run_prebuild": "cd app && py -3.13 -m pytest -q tests/unit/test_engine_observer_subprocess.py::test_linux_gate_recipe_binds_current_bundle_and_test_environments",
+    "run_35": "docker run --rm --network=none --user 10001:10001 --security-opt no-new-privileges 42-r02-linux-gates:<packet-sha> /opt/42-app-test-venv/bin/python -m pytest -q -p no:cacheprovider tests/unit/test_question_worker_process.py::test_execute_requires_exact_result_verification tests/unit/test_question_worker_process.py::test_false_store_verification_cannot_acknowledge tests/unit/test_question_worker_process.py::test_bounds_terminate_the_child_without_returning_its_text[stdout] tests/unit/test_question_worker_process.py::test_bounds_terminate_the_child_without_returning_its_text[stderr] tests/unit/test_question_worker_process.py::test_bounds_terminate_the_child_without_returning_its_text[timeout] tests/unit/test_question_worker_process.py::test_worker_keeps_the_selected_virtual_environment tests/unit/test_question_worker_process.py::test_cancellation_during_launch_waits_for_and_reaps_the_child tests/unit/test_question_worker_process.py::test_deadline_terminates_a_descendant_after_its_parent_exits tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-admitted] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-running] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-complete] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[True-held] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-admitted] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-running] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-complete] tests/unit/test_question_worker_process.py::test_status_operation_verifies_terminal_results_but_not_pending[False-held] tests/unit/test_question_worker_controller.py::test_execute_joins_bundle_process_and_exact_result_store tests/unit/test_question_worker_controller.py::test_status_reads_current_scope_without_taking_generation_capacity[admitted] tests/unit/test_question_worker_controller.py::test_status_reads_current_scope_without_taking_generation_capacity[unavailable] tests/unit/test_question_worker_controller.py::test_admission_preserves_original_transport_without_generation_or_result_read tests/unit/test_question_worker_controller.py::test_status_concrete_state_must_match_the_verified_record tests/unit/test_question_worker_controller.py::test_expired_admitted_status_cannot_become_perpetual_pending tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change0] tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change1] tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change2] tests/unit/test_question_worker_controller.py::test_status_cannot_project_a_result_outside_current_authenticated_scope[scope_change3] tests/unit/test_question_worker_controller.py::test_result_read_failure_releases_the_slot_without_acknowledgment tests/unit/test_question_worker_controller.py::test_changed_bundle_never_reaches_the_child tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[file] tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[directory] tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[manifest] tests/unit/test_question_worker_bundle.py::test_symlinks_cannot_supply_verified_runtime_bytes[stamp] tests/unit/test_question_worker_bundle.py::test_case_collisions_are_rejected tests/unit/test_question_worker_bundle.py::test_directory_and_reserved_manifest_case_collisions_are_rejected[files0] tests/unit/test_question_worker_bundle.py::test_directory_and_reserved_manifest_case_collisions_are_rejected[files1]",
+    "run_combined": "docker run --rm --network=none --user 10001:10001 --security-opt no-new-privileges 42-r02-linux-gates:<packet-sha> /opt/42-app-test-venv/bin/python -m pytest -q -p no:cacheprovider tests/unit/test_engine_observer_subprocess.py::test_app_invokes_real_engine_observer_through_sanitized_store_adapter tests/unit/test_engine_observer_subprocess.py::test_changed_bundle_prevents_child_launch",
+    "run_engine_observer": "docker run --rm --network=none --user 10001:10001 --security-opt no-new-privileges --workdir /app/engine --env PYTHONPATH=/opt/42-gates/engine:/app/engine --env GENERAL_QUESTION_ENGINE_TEST_ROOT=/app/engine 42-r02-linux-gates:<packet-sha> /opt/42-engine-test-venv/bin/python -m pytest -q -p no:cacheprovider /opt/42-gates/engine/tests/unit/test_general_question_worker_cli.py::test_observe_cli_returns_inventory_without_status_or_writes /opt/42-gates/engine/tests/unit/test_general_question_worker_cli.py::test_observe_bad_input_refuses_before_host_and_never_echoes[change0] /opt/42-gates/engine/tests/unit/test_general_question_worker_cli.py::test_observe_bad_input_refuses_before_host_and_never_echoes[change1] /opt/42-gates/engine/tests/unit/test_general_question_worker_cli.py::test_observe_bad_input_refuses_before_host_and_never_echoes[change2] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_complete_empty_inventory_requires_observed_ledger_authority /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_selected_terminal_ack_is_exact_and_does_not_release_allowance[unavailable] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_selected_terminal_ack_is_exact_and_does_not_release_allowance[held] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_invalid_required_authority_refuses_detail_and_makes_inventory_partial[request] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_invalid_required_authority_refuses_detail_and_makes_inventory_partial[intake] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_invalid_required_authority_refuses_detail_and_makes_inventory_partial[generation] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_absent_and_cross_scope_detail_share_one_safe_error /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_invalid_selected_terminal_never_inherits_terminal_state /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_read_ceiling_returns_partial_known_count_without_writes /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_missing_metadata_and_expired_read_are_not_complete_zero /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_inventory_counts_precede_display_and_byte_cuts /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_inventory_orders_real_instants_preserving_timestamp_precision /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_narrow_market_request_and_terminal_detail_use_original_scope /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_expired_admission_remains_unconfirmed_and_allowance_unchanged[False] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_expired_admission_remains_unconfirmed_and_allowance_unchanged[True] /opt/42-gates/engine/tests/unit/test_general_question_observation.py::test_ledger_metadata_generation_must_match_selected_immutable_ledger",
+    "run_pdf_no_init": "docker run --rm --network=none --read-only --tmpfs /tmp:rw,size=268435456 --cap-drop ALL --security-opt no-new-privileges --security-opt seccomp=<reviewed-seccomp-profile-host-path> --user 10001:10001 --workdir /app --env PDF_RENDERER_NATIVE=1 --env PDF_RENDERER_PID1_MODE=no-init <immutable-derived-image> /opt/42-app-test-venv/bin/python -m pytest -q -p no:cacheprovider /opt/42-gates/pdf/tests/unit/test_pdf_renderer_linux.py::test_timeout_or_cancellation_removes_detached_descendant_group[False] /opt/42-gates/pdf/tests/unit/test_pdf_renderer_linux.py::test_timeout_or_cancellation_removes_detached_descendant_group[True] /opt/42-gates/pdf/tests/unit/test_pdf_renderer_linux.py::test_actual_linux_renderer_requires_packaged_browser_and_native_gate /opt/42-gates/pdf/tests/unit/test_pdf_renderer_linux.py::test_root_exit_with_detached_pipe_holder_is_bounded_and_reaped",
+    "run_pdf_init": "docker run --rm --init --network=none --read-only --tmpfs /tmp:rw,size=268435456 --cap-drop ALL --security-opt no-new-privileges --security-opt seccomp=<reviewed-seccomp-profile-host-path> --user 10001:10001 --workdir /app --env PDF_RENDERER_NATIVE=1 --env PDF_RENDERER_PID1_MODE=init <immutable-derived-image> /opt/42-app-test-venv/bin/python -m pytest -q -p no:cacheprovider /opt/42-gates/pdf/tests/unit/test_pdf_renderer_linux.py::test_timeout_or_cancellation_removes_detached_descendant_group[False] /opt/42-gates/pdf/tests/unit/test_pdf_renderer_linux.py::test_timeout_or_cancellation_removes_detached_descendant_group[True] /opt/42-gates/pdf/tests/unit/test_pdf_renderer_linux.py::test_actual_linux_renderer_requires_packaged_browser_and_native_gate /opt/42-gates/pdf/tests/unit/test_pdf_renderer_linux.py::test_root_exit_with_detached_pipe_holder_is_bounded_and_reaped"
+  },
+  "engine_test_closure": {
+    "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tests/conftest.py": "172fe91c89576b029ad0a54f8dd19fbf515333551362420319ff98eacc955aa6",
+    "tests/unit/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tests/unit/test_general_question_admission.py": "d866710a59fbe3d13d4d46e801a89bd8fd0e3820a57d307d2505f4f2dc33dcd0",
+    "tests/unit/test_general_question_answer.py": "14f4c2b688382894f2489763c828c2ea86eb9b32c403c4a19c369b86feb0d7a9",
+    "tests/unit/test_general_question_calls.py": "3ac35be933f48ce379aa85b98d1282e83fec8e093d011be378031f5e8098b4dd",
+    "tests/unit/test_general_question_deployment.py": "4298923d6d487a6a7e1f430b5dc2e83de15d7a8084f6103995d1cb5521cb573f",
+    "tests/unit/test_general_question_observation.py": "a8675a74653b3b25b85b6cbf531615bddb8d5fa3800b84a3819450b73a015da9",
+    "tests/unit/test_general_question_plan.py": "a2417dbe310650a98a0e170c4445df1c9a4487d4be4cadfb5f9df3c9e905f83f",
+    "tests/unit/test_general_question_policy.py": "a28325da6e42eb1068945468a886381d2da1944515247fd571718cd90bfcf62b",
+    "tests/unit/test_general_question_result.py": "7cca8efea7be3c61221f510e48fd0a4028dc6cbfd6aef8b157e2bdaaeaa11a7d",
+    "tests/unit/test_general_question_runtime.py": "d38f0e772cdb78d634452d05eea0407671f5bc89b44219742e443686e1fd6dfb",
+    "tests/unit/test_general_question_store.py": "2f33f96ab25226d71a4be6712b6e056e5ac8b297ab1ae5013199e0a842828b0b",
+    "tests/unit/test_general_question_worker_cli.py": "40f8c8fc6e1a91b4cf5078769ee0b842e87aeead85c0e2b0fd8f42134377fb99"
+  },
+  "engine_observer_node_ids": [
+    "tests/unit/test_general_question_worker_cli.py::test_observe_cli_returns_inventory_without_status_or_writes",
+    "tests/unit/test_general_question_worker_cli.py::test_observe_bad_input_refuses_before_host_and_never_echoes[change0]",
+    "tests/unit/test_general_question_worker_cli.py::test_observe_bad_input_refuses_before_host_and_never_echoes[change1]",
+    "tests/unit/test_general_question_worker_cli.py::test_observe_bad_input_refuses_before_host_and_never_echoes[change2]",
+    "tests/unit/test_general_question_observation.py::test_complete_empty_inventory_requires_observed_ledger_authority",
+    "tests/unit/test_general_question_observation.py::test_selected_terminal_ack_is_exact_and_does_not_release_allowance[unavailable]",
+    "tests/unit/test_general_question_observation.py::test_selected_terminal_ack_is_exact_and_does_not_release_allowance[held]",
+    "tests/unit/test_general_question_observation.py::test_invalid_required_authority_refuses_detail_and_makes_inventory_partial[request]",
+    "tests/unit/test_general_question_observation.py::test_invalid_required_authority_refuses_detail_and_makes_inventory_partial[intake]",
+    "tests/unit/test_general_question_observation.py::test_invalid_required_authority_refuses_detail_and_makes_inventory_partial[generation]",
+    "tests/unit/test_general_question_observation.py::test_absent_and_cross_scope_detail_share_one_safe_error",
+    "tests/unit/test_general_question_observation.py::test_invalid_selected_terminal_never_inherits_terminal_state",
+    "tests/unit/test_general_question_observation.py::test_read_ceiling_returns_partial_known_count_without_writes",
+    "tests/unit/test_general_question_observation.py::test_missing_metadata_and_expired_read_are_not_complete_zero",
+    "tests/unit/test_general_question_observation.py::test_inventory_counts_precede_display_and_byte_cuts",
+    "tests/unit/test_general_question_observation.py::test_inventory_orders_real_instants_preserving_timestamp_precision",
+    "tests/unit/test_general_question_observation.py::test_narrow_market_request_and_terminal_detail_use_original_scope",
+    "tests/unit/test_general_question_observation.py::test_expired_admission_remains_unconfirmed_and_allowance_unchanged[False]",
+    "tests/unit/test_general_question_observation.py::test_expired_admission_remains_unconfirmed_and_allowance_unchanged[True]",
+    "tests/unit/test_general_question_observation.py::test_ledger_metadata_generation_must_match_selected_immutable_ledger"
+  ],
+  "execution_evidence": {
+    "storage": "external_receipt",
+    "required_fields": [
+      "input_manifest_sha256",
+      "parent_image_id",
+      "expanded_build_arg",
+      "derived_image_id",
+      "parent_layer_prefix_verified",
+      "commands",
+      "exit_codes",
+      "log_sha256",
+      "platform",
+      "uid",
+      "gid",
+      "network",
+      "security_settings"
+    ]
+  },
+  "pdf_runtime_closure": {
+    "app/configs/pdf_runtime.json": "f2d8221e31bdb5f08b52b70d2aac763e0922dad53259cffc859f4a0db80ec30a",
+    "app/src/api/pdf_exporter.py": "19b5d9786fc6e27f1abaa72dbb4390aa5366030b787acd619660bb15f5c6b894",
+    "app/src/api/pdf_renderer_worker.py": "ce5f5640ff1d0c1471b66d5fc86bafa92e5330c04d9454f81ccb13b13b71f648"
+  },
+  "pdf_test_closure": {
+    "app/tests/fixtures/pdf/newsreader-chromium151.pdf": "9c665218a6a7f3d4aff65d47a1aa593120ffb3dece3d8912b51c632d21fbd577",
+    "app/tests/unit/test_pdf_renderer_linux.py": "fb532bc0b95f8decc53f741064c139cf84048a9f18c2a78a05b46b4105ef9629"
+  },
+  "pdf_native_node_ids": [
+    "tests/unit/test_pdf_renderer_linux.py::test_timeout_or_cancellation_removes_detached_descendant_group[False]",
+    "tests/unit/test_pdf_renderer_linux.py::test_timeout_or_cancellation_removes_detached_descendant_group[True]",
+    "tests/unit/test_pdf_renderer_linux.py::test_actual_linux_renderer_requires_packaged_browser_and_native_gate",
+    "tests/unit/test_pdf_renderer_linux.py::test_root_exit_with_detached_pipe_holder_is_bounded_and_reaped"
+  ],
+  "pdf_security_profile": {
+    "host_path": "<reviewed-seccomp-profile-host-path>",
+    "sha256": "e53c15d248f57bceec0a3a16fad1b4ab0d05a7bddb455f86a60e2dba5612cdf7"
+  }
+}

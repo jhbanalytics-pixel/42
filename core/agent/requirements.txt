@@ -1,0 +1,9 @@
+# Packages for the f42-agent image, installed by core/api/Dockerfile.
+google-auth==2.59.0
+google-cloud-bigquery==3.25.0
+sqlglot==30.20.0
+jsonschema==4.25.1
+pyyaml==6.0.3
+tzdata==2026.1
+# Gemini on Vertex (google-genai), the only model provider, core/llm/gemini.py.
+google-genai==2.25.0

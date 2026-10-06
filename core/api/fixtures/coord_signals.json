@@ -1,0 +1,13 @@
+[
+ {
+  "metric_date": "2026-09-30",
+  "item_id": "4b942b2ea393cbe2c2e4e883ed5be7441b361229e446c6c5bbcb7fdba540fa33",
+  "market": "ZA",
+  "run_id": "r_coaction_20260930_01",
+  "signal": "coaction",
+  "component_id": "c7",
+  "accounts": 6,
+  "item_posts_share": 0.12,
+  "rule_version": "v1"
+ }
+]

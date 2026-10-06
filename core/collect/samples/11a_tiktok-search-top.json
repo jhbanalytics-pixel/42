@@ -1,0 +1,85 @@
+{
+  "probe": "11a",
+  "route": "tiktok/search/top",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "dropped": "<int>",
+      "items": [
+        "<list of 16>",
+        {
+          "computed": {
+            "content_category": "<str>",
+            "engagement_rate": "<float>",
+            "estimated_reach": "<int>",
+            "language": "<null>"
+          },
+          "post": {
+            "author": {
+              "avatar_url": "<str>",
+              "display_name": "<str>",
+              "username": "<str>",
+              "verified": "<bool>"
+            },
+            "content": {
+              "duration_seconds": "<float>",
+              "media_urls": "<str>",
+              "text": "<str>",
+              "thumbnail_url": "<str>"
+            },
+            "engagement": {
+              "comments": "<int>",
+              "likes": "<int>",
+              "saves": "<int>",
+              "shares": "<int>",
+              "views": "<int>"
+            },
+            "ext": {
+              "author_followers": "<int>",
+              "author_id": "<str>",
+              "download_count": "<int>",
+              "music_id": "<str>",
+              "published_at_epoch": "<int>",
+              "region": "<str>"
+            },
+            "flags": {
+              "deleted": "<bool>",
+              "nsfw": "<null>",
+              "pinned": "<bool>",
+              "spoiler": "<null>"
+            },
+            "id": "<str>",
+            "published_at": "<str>",
+            "url": "<str>"
+          },
+          "vendor_labels": {}
+        }
+      ],
+      "total": "<null>",
+      "walk": {
+        "credits": {
+          "pages": "<int>",
+          "refunded": "<int>"
+        },
+        "discarded": {
+          "country_not_included": "<int>"
+        },
+        "pages": "<int>",
+        "repeats": "<int>",
+        "request_ids": [
+          "<list of 1>",
+          "<str>"
+        ],
+        "rows_fetched": "<int>",
+        "rows_returned": "<int>",
+        "stopped": "<str>"
+      }
+    },
+    "endpoint": "<str>",
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

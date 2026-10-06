@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# Staging deploy of f42-agent and f42-api (task 1.14) from Albert's PC, run as
+# f42-builder (SETUP.md). Staging only: project ogilvy-trends-v2.
+# Needs, before the first run: bootstrap.py applied (identities, UI_PASSCODE
+# secret with f42-web access) and the runs columns answer and record (L1).
+#   bash core/api/deploy.sh               build in Cloud Build, deploy both, smoke test
+#   bash core/api/deploy.sh --local-build build with local Docker, push as f42-builder
+#   bash core/api/deploy.sh --no-build    redeploy the image of the current commit
+#   add --no-traffic to any of these to deploy and check but leave traffic where it is
+# After the health check passes, both services send 100% of traffic to their newest revision.
+set -euo pipefail
+
+PROJECT=ogilvy-trends-v2
+REGION=us-central1
+TAG=$(git rev-parse --short=12 HEAD)
+IMAGE="us-central1-docker.pkg.dev/${PROJECT}/intelligence-42/f42-web:${TAG}"
+SA() { echo "$1@${PROJECT}.iam.gserviceaccount.com"; }
+
+BUILD=cloud
+TRAFFIC=yes
+for arg in "$@"; do
+  case "$arg" in
+    --no-build|--local-build) BUILD="$arg" ;;
+    --no-traffic) TRAFFIC=no ;;
+    *) echo "deploy.sh: unknown option $arg" >&2; exit 64 ;;
+  esac
+done
+
+case "$BUILD" in
+  --no-build) ;;
+  --local-build)
+    # A private Docker config sends the push through gcloud's credential helper,
+    # so it runs as the impersonated f42-builder and never as a stored login.
+    DOCKER_CONFIG=$(mktemp -d)
+    export DOCKER_CONFIG
+    echo '{"credHelpers": {"us-central1-docker.pkg.dev": "gcloud"}}' > "$DOCKER_CONFIG/config.json"
+    DOCKER_BUILDKIT=1 docker build -f core/api/Dockerfile -t "$IMAGE" .
+    docker push "$IMAGE"
+    ;;
+  *)
+    gcloud builds submit --project "$PROJECT" --region "$REGION" \
+      --config core/api/cloudbuild.yaml --substitutions "_IMAGE=${IMAGE}" \
+      --service-account "projects/${PROJECT}/serviceAccounts/$(SA f42-deployer)" .
+    ;;
+esac
+
+# Both services' Cloud Run flags, env and secrets live in deploy_flags.env,
+# which .github/workflows/staging-app.yml reads too.
+source core/api/deploy_flags.env
+
+gcloud run deploy f42-agent --project "$PROJECT" --region "$REGION" --image "$IMAGE" \
+  --service-account "$(SA "$AGENT_SA")" $AGENT_FLAGS \
+  --set-env-vars "$AGENT_ENV" \
+  --set-secrets "$AGENT_SECRETS"
+
+AGENT_URL=$(gcloud run services describe f42-agent --project "$PROJECT" --region "$REGION" --format 'value(status.url)')
+
+gcloud run deploy f42-api --project "$PROJECT" --region "$REGION" --image "$IMAGE" \
+  --service-account "$(SA "$API_SA")" $API_FLAGS \
+  --set-env-vars "${API_ENV},AGENT_URL=${AGENT_URL}" \
+  --set-secrets "$API_SECRETS"
+
+API_URL=$(gcloud run services describe f42-api --project "$PROJECT" --region "$REGION" --format 'value(status.url)')
+
+# Health check. With F42_SMOKE_PASSCODE set, the full smoke test; without it, health and the passcode gate only,
+# as the staging workflow checks. A failure stops the script here, before any traffic moves. The full smoke test
+# prints how old the Today brief is; set F42_SMOKE_TODAY_MAX_AGE_HOURS to also fail it on a brief older than that.
+if [ -n "${F42_SMOKE_PASSCODE:-}" ]; then
+  py -3.13 core/api/smoke.py "$API_URL"
+else
+  echo "F42_SMOKE_PASSCODE is not set: checking health and the passcode gate only." >&2
+  py -3.13 - "$API_URL" <<'PY'
+import sys
+import httpx
+from core.api import smoke
+base = sys.argv[1].rstrip("/")
+results = []
+with httpx.Client(timeout=smoke.TIMEOUT) as client:
+    for name, check in (("health", smoke.check_health), ("gate", smoke.check_gate)):
+        try:
+            results.append((name, *check(client, base)))
+        except Exception as exc:
+            results.append((name, False, smoke._failed(exc)))
+for name, ok, evidence in results:
+    print(f"{'PASS' if ok else 'FAIL'} {name}: {evidence}", flush=True)
+sys.exit(0 if all(ok for _, ok, _ in results) else 1)
+PY
+fi
+
+if [ "$TRAFFIC" = no ]; then
+  echo "--no-traffic: traffic left where it was on f42-agent and f42-api." >&2
+  exit 0
+fi
+
+# Route all traffic to the newest revision, the agent first since f42-api calls it.
+for service in f42-agent f42-api; do
+  gcloud run services update-traffic "$service" --project "$PROJECT" --region "$REGION" --to-latest
+done
+
+# f42-api now serves this commit: its /api/health reports F42_VERSION, which is TAG.
+py -3.13 - "$API_URL" "$TAG" <<'PY'
+import sys
+import httpx
+base, tag = sys.argv[1].rstrip("/"), sys.argv[2]
+try:
+    version = httpx.get(f"{base}/api/health", timeout=30.0).json().get("version")
+except Exception as exc:
+    version = f"nothing readable ({type(exc).__name__})"
+print(f"{'PASS' if version == tag else 'FAIL'} version: f42-api serves {version}, this commit is {tag}", flush=True)
+sys.exit(0 if version == tag else 1)
+PY

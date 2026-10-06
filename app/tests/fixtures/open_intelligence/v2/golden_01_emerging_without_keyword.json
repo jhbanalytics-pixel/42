@@ -1,0 +1,146 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_01_emerging_without_keyword",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture scope, 18 to 25 August 2026",
+      "sections": [
+        {
+          "body": "Synthetic fixture scope, 18 to 25 August 2026.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "Unprompted fixture repair circles emerged across forum and video evidence without a supplied keyword [E1] [E2].",
+          "evidence_ids": [
+            "ev_0101010101010101010101010101010101010101010101010101010101010101",
+            "ev_0102010201020102010201020102010201020102010201020102010201020102"
+          ],
+          "heading": "Finding",
+          "section_id": "finding"
+        },
+        {
+          "body": "Synthetic fixture evidence does not measure population prevalence.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture intelligence brief"
+    },
+    "audience_lenses": [],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [],
+    "evidence": [
+      {
+        "author_label": "@fixture_author_01_01",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "identity",
+        "direction": "rising",
+        "evidence_id": "ev_0101010101010101010101010101010101010101010101010101010101010101",
+        "excerpt": "Synthetic fixture unprompted phrase clusters formed around repair circles.",
+        "geo_confidence": 0.91,
+        "metric_label": "18 synthetic posts, 18 to 25 August 2026",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_01_row_01",
+        "signal_id": "sig_0101010101010101010101010101010101010101010101010101010101010101",
+        "source_family": "forum",
+        "source_label": "Fixture source 01-01",
+        "url": "https://evidence.invalid/01/01"
+      },
+      {
+        "author_label": "@fixture_author_01_02",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_0102010201020102010201020102010201020102010201020102010201020102",
+        "excerpt": "Synthetic fixture clips repeated the same unprompted repair circle routine.",
+        "geo_confidence": 0.91,
+        "metric_label": "9 synthetic clips, 18 to 25 August 2026",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_01_row_02",
+        "signal_id": "sig_0101010101010101010101010101010101010101010101010101010101010101",
+        "source_family": "video",
+        "source_label": "Fixture source 01-02",
+        "url": "https://evidence.invalid/01/02"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [],
+      "audience_lenses": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Select the unprompted move to investigate.",
+      "evidence_requirements": [
+        "unprompted discovery evidence",
+        "two independent source families"
+      ],
+      "evidence_state": "ready",
+      "historical_comparison": {
+        "required": false,
+        "window_days": 0
+      },
+      "intent": "landscape",
+      "market_scope": [
+        "za"
+      ],
+      "markets": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_01",
+      "run_id": "run_fixture_01",
+      "source_families": [
+        "forum",
+        "video"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "ready",
+    "expected_intent": "landscape",
+    "human_review_required": false,
+    "limitations": [
+      "Synthetic fixture evidence does not measure population prevalence."
+    ],
+    "missing_work": [],
+    "request": {
+      "audience_lens_ids": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Select the unprompted move to investigate.",
+      "market_scope": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "question": "What is newly emerging without a supplied keyword?",
+      "run_id": "run_fixture_01",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

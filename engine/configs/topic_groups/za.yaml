@@ -1,0 +1,356 @@
+# South Africa topic taxonomy. Drives the keyword-match classifier that
+# assigns enriched rows to conversation-area topics for trend scoring.
+# Curation is a living document; revisit weekly based on
+# pipeline_runs.unclassified_rows drift and any noise spotted in the
+# daily email digest.
+# 26 May 2026: aggressive Gen Z keyword expansion + sports_rugby extension
+# with bafana football + softlife/delulu lifestyle add.
+market: za
+
+topic_groups:
+  music_amapiano:
+    description: >
+      Amapiano music scene, dance challenges, top artists and producers.
+      Dominant SA music conversation April 2026.
+    keywords:
+    - amapiano
+    - "#amapiano"
+    - amapian0
+    - piano log drum
+    - log drum
+    - kabza
+    - kabza de small
+    - dj maphorisa
+    - mr jazziq
+    - nkosazana daughter
+    - nkosazana
+    - daliwonga
+    - tyler icu
+    - young stunna
+    - mzansipiano
+    - dance challenge
+    - yeyi
+    - gana ma
+    - skwekwekwe
+    - south african music
+    - groove
+    - gqom
+    - asambeni
+    - woza july
+    - focalistic
+    - sjava
+    - big zulu
+    - cassper nyovest
+    - nasty c
+    - tyla
+    - paptasteezy
+    - "#paptasteezy"
+    - sa music
+    - mzansi music
+    - amapianodancechallenge2026
+    - ziyakhalaejozie
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "mampintsha"
+    - "dj sumbody"
+    - "mandoza"
+    - "ba bethe gashoazen"
+    - "optimist music za"
+    - "r/southafricanmusic"
+    - "#afrohouse"
+    - "shxolin gang"
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): upcoming
+    # ZA music event windows Jun to Dec 2026.
+    - "national youth jazz festival"
+    - "ndlovu youth choir"
+    - "scl on tour"
+    - "world music day"
+    - "rocking the daisies"
+    - "#rockingthedaisies"
+    - "spring fiesta"
+    - "sem lefevre"
+
+  genz_lifestyle:
+    description: >
+      Soft life aesthetics, side hustles, student finance, dating and
+      adulting language in South Africa.
+    keywords:
+    - soft life
+    - softlife
+    - "#softlife"
+    - softlife era
+    - soft girl era
+    - delulu
+    - "#delulu"
+    - demure
+    - side hustle
+    - student life
+    - varsity
+    - campus life
+    - adulting
+    - situationship
+    - mzansi tiktok
+    - "#mzansitiktok"
+    - mzansi
+    - kasi
+    - kasi vibes
+    - "#kasi"
+    - "#sadancers"
+    - "#tiktoksa"
+    - "#tiktoksouthafrica"
+    - zesty
+    - dating
+    - jozi
+    - johannesburg
+    - durban
+    - cape town
+    - sho madjozi
+    - lasizwe
+    - mihlali
+    - boity
+    - tyla
+    - tyla yaweh
+    - main character energy
+    - born free generation
+
+    - moneytok
+    - '#moneytok'
+    - ai side hustle
+    - side hustle ideas
+    - '#sidehustleideas'
+    - '#sidehustle'
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "grwm"
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): national moments.
+    - "youth day"
+    - "#youthday"
+    - "women's day"
+    - "day of reconciliation"
+    - "father's day"
+    - "halloween"
+  infra_power_eskom:
+    description: >
+      Electricity grid, Eskom, load shedding (even in post-load-shedding
+      era 2026 the infrastructure conversation continues).
+    keywords:
+    - eskom
+    - load shedding
+    - loadshedding
+    - stage 6
+    - stage 4
+    - stage 2
+    - power cuts
+    - grid
+    - electricity
+    - rolling blackouts
+    - substation
+    - generation capacity
+    - surplus
+    - eaf
+    - energy availability factor
+    - blackout sa
+    - loadshedding schedule
+    - eskom outage
+    - solar sa
+    - inverter sa
+    - generator sa
+
+  food_rituals_braai:
+    description: Food, social rituals, heritage-day cooking, braai culture.
+    keywords:
+    - braai
+    - "#braai"
+    - potjie
+    - kota
+    - boerewors
+    - pap
+    - chakalaka
+    - bunny chow
+    - heritage day
+    - shisanyama
+    - braai day
+    - meat market
+    - charcoal braai
+    - sasko bread
+    - vetkoek
+    - mogodu
+    - smileys
+    - amagwinya
+    - umngqusho
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "pronutro"
+    - "white star"
+
+  education_matric_nsfas:
+    description: >
+      SA education: matric final year, NSFAS student funding,
+      university application cycle.
+    keywords:
+    - matric
+    - "#matric"
+    - matric results
+    - matric 2026
+    - matric ball
+    - nsfas
+    - "#nsfas"
+    - bursary
+    - university application
+    - rewrite
+    - uct
+    - wits
+    - tuks
+    - university of pretoria
+    - up tuks
+    - ukzn
+    - stellenbosch
+    - student finance sa
+    - student loan sa
+    - varsity sa
+    - bachelors degree
+    - degree results
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "llb student"
+
+  finance_stokvel:
+    description: Community savings, tax, informal finance anchors.
+    keywords:
+    - stokvel
+    - "#stokvel"
+    - savings club
+    - burial society
+    - sars
+    - financial hustle
+    - co-op
+    - stokvel-tok
+    - motshelo
+    - savings tok
+    - tax season sa
+    - sars efiling
+    - retirement annuity sa
+    - shoprite saving stamps
+    - capitec savings
+    - tymebank
+    - investec
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "r/personalfinanceza"
+    # 11 Jun 2026 client event-calendar seeding (R2 forecast): retail and
+    # festive spending moments (Nov 27 to Dec window).
+    - "black friday"
+    - "cyber monday"
+    - "festive season"
+
+  politics_crises:
+    description: Political figures, scandals, corruption narratives.
+    keywords:
+    - ramaphosa
+    - cyril ramaphosa
+    - malema
+    - julius malema
+    - eff
+    - anc
+    - democratic alliance
+    - the da
+    - mk party
+    - scandal
+    - police chief
+    - corruption
+    - sassa
+    - sassa grant
+    - basic income grant
+    - load shedding compensation
+    - state capture
+    - phala phala
+    - electoral act
+    - 2026 elections
+    - coalition government
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "xenophobia"
+    - "#stopxenophobia"
+    - "#endxenophobia"
+    - "land reform"
+    - "apartheid"
+
+  sports_rugby:
+    description: >
+      Rugby (Springboks, Currie Cup), soccer (Bafana, PSL clubs),
+      cricket (Proteas) and major South African sports teams.
+    keywords:
+    - springboks
+    - "#springboks"
+    - "#bokke"
+    - bokke
+    - springbok
+    - springbokrugby
+    - rugby
+    - rugby championship
+    - all blacks tour
+    - currie cup
+    - sa rugby
+    - "#sarugby"
+    - rassie erasmus
+    - bafana bafana
+    - bafana
+    - psl
+    - premier soccer league
+    - soccer
+    - cricket
+    - orlando pirates
+    - kaizer chiefs
+    - mamelodi sundowns
+    - supersport united
+    - proteas
+    - united rugby championship
+    - sportsontiktok
+    - kolisi
+    - lukhanyo am
+    - faf de klerk
+    - cheslin kolbe
+    # 29 May 2026 NG+ZA coverage expansion (reviewed)
+    - "#safootball"
+    - "#soccersa"
+    # 9 Jun 2026 football/FIFA pickup: global competitions + top clubs +
+    # marquee players. ZA carried almost no football coverage; these are
+    # unambiguous low-collision terms that catch World Cup / UCL fandom.
+    - "fifa"
+    - "uefa"
+    - "world cup"
+    - "afcon"
+    - "champions league"
+    - "europa league"
+    - "real madrid"
+    - "barcelona"
+    - "manchester united"
+    - "manchester city"
+    - "liverpool"
+    - "arsenal"
+    - "chelsea"
+    - "psg"
+    - "bayern munich"
+    - "juventus"
+    - "inter milan"
+    - "ac milan"
+    - "mbappe"
+    - "haaland"
+    - "messi"
+    - "ronaldo"
+    - "salah"
+
+  # 11 Jun 2026 Gemini brand lens (stage 1). Zodiac and horoscope "gemini"
+  # collisions are stripped at classification time via
+  # src/utils/geo_blocklist.py TOPIC_GEO_BLOCKLIST["tech_gemini_ai"].
+  tech_gemini_ai:
+    description: >
+      Google Gemini brand conversation: Gemini app adoption, Nano Banana
+      image edits, Veo video generation, everyday Google AI use.
+    keywords:
+    - google gemini
+    - gemini app
+    - gemini ai
+    - gemini pro
+    - gemini flash
+    - gemini nano
+    - gemini advanced
+    - gemini 2.5
+    - nano banana
+    - google ai
+    - veo 3
+    - google veo

@@ -1,0 +1,119 @@
+# South Africa social sentiment lexicon (Wave 2, Group A).
+# Seed positive / negative term lists for the heuristic scorer in
+# src/enrichment/sentiment_lexicon.py. Mix of general English polarity words and
+# Mzansi slang. Terms may be single words or short phrases (matched as a
+# contiguous token run, apostrophes stripped). Keep terms lowercase.
+market: za
+market_name: South Africa
+
+positive:
+  # general
+  - good
+  - great
+  - love
+  - loved
+  - amazing
+  - awesome
+  - happy
+  - excited
+  - beautiful
+  - perfect
+  - best
+  - win
+  - winning
+  - proud
+  - blessed
+  - grateful
+  - enjoy
+  - enjoyed
+  - thank you
+  - thanks
+  - congrats
+  - congratulations
+  - recommend
+  - worth it
+  # mzansi slang / local positive
+  - lit
+  - fire
+  - sharp sharp
+  - ayoba
+  - soft life
+  - vibe
+  - vibes
+  - groove
+  - bhebha
+  - heita
+  - banger
+  - slaps
+  - sweet
+  - dope
+  - mooi
+  - lekker
+  - heng good
+  - on point
+  - no stress
+
+negative:
+  # general
+  - bad
+  - worst
+  - hate
+  - hated
+  - terrible
+  - awful
+  - horrible
+  - sad
+  - angry
+  - disappointed
+  - disappointing
+  - broken
+  - fail
+  - failed
+  - failure
+  - scam
+  - fraud
+  - rubbish
+  - nonsense
+  - useless
+  - waste
+  - problem
+  - trash
+  - cancelled
+  - boring
+  - cried
+  - struggling
+  - struggle
+  # mzansi slang / local negative
+  - eish
+  - yoh
+  - load shedding
+  - loadshedding
+  - sapa
+  - broke
+  - stress
+  - stressed
+  - skelm
+  - dodgy
+  - cap
+  - mxm
+  - tsotsi
+  - corrupt
+  - corruption
+  - gatvol
+  - moer
+
+# Per-market extensions to the shared heuristic vocab. Merged on top of the
+# module defaults; they do not replace them.
+negators:
+  - haibo
+  - hayi
+  - nah
+
+intensifiers:
+  baie: 1.6
+  sho: 1.4
+  serious: 1.4
+
+downtoners:
+  small: 0.6
+  bietjie: 0.6

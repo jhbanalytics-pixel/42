@@ -1,0 +1,62 @@
+[
+  {
+    "amendment": "g",
+    "approval": {
+      "applied": false,
+      "approved_at": null,
+      "approved_by": null,
+      "state": "proposed"
+    },
+    "bindings": [
+      {
+        "condition": "request.time < timestamp('2026-12-31T23:59:59Z')",
+        "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: Ask calls Vertex AI as the serving identity through the retained custom role QuestionVertexPredict, whose retained project binding ends at 2026-09-30T23:59:59Z (retained row, r03-native-project-iam.json), while the question policy now runs to 2026-12-31T23:59:59Z (general_question_policy.py, the policy expiry release); this row binds the same role to the same member at project level with the time bound moved to 2026-12-31T23:59:59Z. The role is neither defined nor changed here, and the retained binding is left to lapse (amendment g)",
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionVertexPredict"
+      },
+      {
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json' && request.time < timestamp('2026-12-31T23:59:59Z')",
+        "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: Ask admission replaces the allowance ledger object under a generation match as the serving identity through the retained custom role QuestionControlReplace, whose retained binding on this one object ends at 2026-09-30T23:59:59Z (retained row, r03-native-evidence-bucket-iam.json); this row binds the same role to the same member on the same exact object with the time bound moved to 2026-12-31T23:59:59Z to match the extended question policy. The role is neither defined nor changed here, and the retained binding is left to lapse (amendment g)",
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionControlReplace"
+      },
+      {
+        "condition": "resource.type == 'storage.googleapis.com/Bucket' && resource.name == 'projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging'",
+        "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: the route A capture runs as the daily account and, before it reads an input or stores a capture, reloads ogilvy-trends-v2-oi-source-artifacts-staging to check its location, uniform access, public access prevention, retention and lifecycle (SourceCaptureObjects.preflight in production_snapshot_storage.py, called from _bridge_operation in capture_protected_production_snapshot.py); that is one storage.buckets.get, which no object role carries. roles/storage.bucketViewer is the narrowest predefined role that carries it, and its storage.buckets.list does nothing on a bucket policy; the condition names this bucket itself and no object (amendment g)",
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging",
+        "role": "roles/storage.bucketViewer"
+      },
+      {
+        "condition": "resource.type == 'storage.googleapis.com/Object' && (resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging/objects/inputs/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging/objects/captures/'))",
+        "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: the route A capture reads its manifest inputs under inputs/ (SourceCaptureObjects.read_input, inputs/<sha256>/<name>.json) and reads back by generation each capture it stores under captures/ (SourceCaptureObjects.read_capture, captures/<manifest>/<sha256>/capture.json), the input_prefix and output_prefix the staging capture policy fixes (staging_source_profile.py); roles/storage.objectViewer, conditioned on those two prefixes (amendment g)",
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging",
+        "role": "roles/storage.objectViewer"
+      },
+      {
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging/objects/captures/')",
+        "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: the route A capture creates each capture artifact once under captures/ with ifGenerationMatch 0 (SourceCaptureObjects.store_capture) and never replaces or deletes one; roles/storage.objectCreator carries storage.objects.create without storage.objects.delete, so a second write of a stored name is refused, conditioned on captures/ alone (amendment g)",
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging",
+        "role": "roles/storage.objectCreator"
+      },
+      {
+        "condition": "resource.type == 'storage.googleapis.com/Object' && (resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging/objects/inputs/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging/objects/captures/'))",
+        "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: Ask admits a route A capture by reading, as the serving identity, the stored capture under captures/ (SourceCaptureObjects.read_stored_capture) and its manifest inputs under inputs/ (SourceCaptureObjects.read_input), both through BridgeObjects in bridge_native_clients.py; the serving_bridge_reads item believed this read already granted live, but no row records it, so this row grants it: roles/storage.objectViewer on the two prefixes, read only (amendment g)",
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging",
+        "role": "roles/storage.objectViewer"
+      },
+      {
+        "condition": "request.time < timestamp('2026-12-31T23:59:59Z')",
+        "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "purpose": "derived: daily_composition_apply funds up to 100 model calls on the daily job, which runs as the daily account; when models are funded the daily product boundary (daily_product_boundary.py) builds the Vertex AI client with native_model_sdk (daily_product_io.py) and every call goes through MeteredModels.generate_content under the compose budget. The daily account holds no Vertex role, and the only Vertex role on the project is the retained custom role QuestionVertexPredict the serving identity holds; this row binds that role to the daily account at project level, bounded by 2026-12-31T23:59:59Z like the serving row. The role is neither defined nor changed here (amendment g)",
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionVertexPredict"
+      }
+    ]
+  }
+]

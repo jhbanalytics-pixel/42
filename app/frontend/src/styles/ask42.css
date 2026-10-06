@@ -1,0 +1,465 @@
+/* Ask starts at the same left edge as every other page at any width. */
+.ask42 { max-width: var(--maxw); margin: 0; padding: var(--s-6) var(--s-5); font-family: var(--sans); font-size: var(--type-body); color: var(--ink);
+  line-height: var(--leading-body);
+}
+.ask42-title { font-size: var(--type-page-title); font-weight: 600; margin: 0 0 var(--s-5);
+  line-height: var(--leading-page-title);
+}
+.ask42-muted { color: var(--muted); font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+}
+
+.ask42-form { display: grid; gap: var(--s-2); margin-bottom: var(--s-6); max-width: 760px; }
+.ask42-label { font-size: var(--type-meta); color: var(--muted);
+  line-height: var(--leading-meta);
+}
+.ask42-input { font: inherit; font-size: var(--type-body); padding: var(--s-3); background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); border-radius: var(--shape-control); resize: vertical; }
+.ask42-form-row { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+/* The Market label shares the control's line box: clicking it focuses the
+   select, so it is a full 44px target (Fitts) on the row's one centre line. */
+.ask42-form-row > .ask42-label { display: inline-flex; align-items: center; min-height: var(--target-min); }
+.ask42-select { font: inherit; font-size: var(--type-body); min-height: var(--target-min); padding: 0 var(--s-3); background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); border-radius: var(--shape-control); }
+
+/* :where keeps this base at element weight, so .ask42-primary's 600 wins. */
+:where(.ask42) button { font: inherit; font-size: var(--type-body); cursor: pointer;
+  border-radius: var(--shape-control);
+}
+.ask42 button:disabled { cursor: default; opacity: 0.6; }
+.ask42-submit, .ask42-quiet { min-height: var(--target-min); padding: 0 var(--s-4); background: transparent; color: var(--ink); border: 1px solid var(--line-2); border-radius: var(--shape-control); }
+.ask42-primary { min-height: var(--target-min); padding: 0 var(--s-5); background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); border-radius: var(--shape-control); font-weight: 600; }
+
+.ask42 :focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+
+.ask42-question { font-size: var(--type-signal-title); font-weight: 600; margin: 0 0 var(--s-2);
+  line-height: var(--leading-signal-title);
+}
+.ask42-meta { font-size: var(--type-meta); color: var(--muted); margin: 0 0 var(--s-4);
+  line-height: var(--leading-meta);
+}
+.ask42-status { font-size: var(--type-body); color: var(--ink-2); margin: 0 0 var(--s-3);
+  line-height: var(--leading-body);
+}
+.ask42-short { font-family: var(--serif); font-size: var(--type-body); line-height: var(--leading-body); margin: 0 0 var(--s-5); }
+
+.ask42-notices { list-style: none; margin: 0 0 var(--s-4); padding: var(--s-3) var(--s-4); border-left: 2px solid var(--accent); background: var(--surface); font-size: var(--type-body);
+  line-height: var(--leading-body);
+  border-radius: var(--shape-card);
+}
+
+/* One column until a source is pinned; the source column opens beside the
+   answer only while the panel is there, and never on a phone. */
+.ask42-answer-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
+.ask42-answer-layout:has(> .ask42-source) { grid-template-columns: minmax(0, 1fr) 320px; }
+@media (max-width: 900px) { .ask42-answer-layout, .ask42-answer-layout:has(> .ask42-source) { grid-template-columns: 1fr; } }
+
+.ask42-claims { list-style: none; margin: 0 0 var(--s-6); padding: 0; display: grid; gap: var(--s-4); }
+.ask42-claim { display: grid; gap: var(--s-1); line-height: 1.5; }
+/* A claim reads first; under it one quiet line says how sure 42 is and which
+   posts it rests on, as a written citation ("Corroborated · TikTok · @handle
+   and 1 more"), not a row of badges and boxed chips. */
+.ask42-claim { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s-2); row-gap: 0; }
+.ask42-claim > .ask42-claim-text { order: -1; flex: 1 1 100%; margin-bottom: var(--s-1); }
+.ask42-confidence { font-size: var(--type-meta); color: var(--muted); display: inline-flex; align-items: center; gap: var(--s-1); margin-right: var(--s-2);
+  line-height: var(--leading-meta);
+}
+.ask42-confidence-shape { display: none; }
+.ask42-confidence { margin-right: 0; color: var(--ink-2); }
+.ask42-confidence[data-label="inferred"],
+.ask42-confidence[data-label="single_source"] { color: var(--muted); font-style: italic; }
+.ask42-chips { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s-2); margin-top: 0; font-size: var(--type-meta); line-height: var(--leading-meta); }
+.ask42-confidence { margin-inline-end: var(--s-2); }
+.ask42-chip-wrap { position: relative; display: inline-block; }
+.ask42-chip { display: inline-flex; align-items: center; gap: var(--s-1); min-height: 32px; padding: 0; font-size: var(--type-meta); background: transparent; color: var(--ink-2); border: 0; border-radius: 0;
+  line-height: var(--leading-meta);
+}
+.ask42 .ask42-chip { font-size: var(--type-meta); }
+.ask42-chip .ui-platform-glyph { color: var(--muted); }
+.ask42-chip .ui-platform-glyph::after { content: "\00a0\00b7"; }
+.ask42-chip-handle,
+.ask42-chip-more { text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.ask42-chip-handle { color: var(--ink); }
+.ask42-chip-more { color: var(--muted); transition: color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing); }
+.ask42-chip:hover .ask42-chip-handle,
+.ask42-chip:focus-visible .ask42-chip-handle,
+.ask42-chip-more:hover,
+.ask42-chip-more:focus-visible { text-decoration-color: currentColor; }
+.ask42-chip[aria-pressed="true"] .ask42-chip-handle { color: var(--accent); text-decoration-color: var(--accent); }
+.ask42-popover { position: absolute; z-index: 5; top: calc(100% + var(--s-1)); left: 0; width: 280px; display: flex; gap: var(--s-3); padding: var(--s-3); background: var(--surface-2); border: 1px solid var(--line-2); font-size: var(--type-body);
+  line-height: var(--leading-body);
+  border-radius: var(--shape-card);
+}
+.ask42-popover-thumb { width: 54px; aspect-ratio: 9 / 16; object-fit: cover; flex: none; }
+.ask42-popover-body { display: grid; gap: var(--s-1); }
+.ask42-popover-meta { color: var(--muted); }
+.ask42 mark { background: var(--accent-soft); color: var(--ink); }
+
+.ask42-section { margin: 0 0 var(--s-6); }
+.ask42-section-title { font-size: var(--type-section-title); font-weight: 600; margin: 0 0 var(--s-3);
+  line-height: var(--leading-section-title);
+}
+.ask42-list { margin: 0; padding-left: var(--s-5); display: grid; gap: var(--s-2); line-height: 1.5; }
+.ask42-context { border-left: 2px solid var(--line-2); padding-left: var(--s-4); }
+
+.ask42-posts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--s-4); }
+.ask42-post { display: grid; gap: var(--s-1); font-size: var(--type-body);
+  line-height: var(--leading-body);
+}
+.ask42-post-frame { position: relative; display: block; aspect-ratio: 9 / 16; background: var(--surface-inset); overflow: hidden; }
+.ask42-post-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ask42-post-blank { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: var(--s-1); padding: var(--s-2); color: var(--muted); text-align: center; }
+.ask42-post-duration { position: absolute; right: var(--s-1); bottom: var(--s-1); padding: 0 var(--s-1); background: var(--canvas); color: var(--ink); font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+}
+.ask42-post-creator { font-weight: 600; }
+
+.ask42-figure { margin: 0 0 var(--s-2); display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: baseline; }
+
+.ask42-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin: 0 0 var(--s-5); }
+.ask42-footer { font-size: var(--type-meta); color: var(--muted); display: grid; gap: var(--s-2); border-top: 1px solid var(--line); padding-top: var(--s-3);
+  line-height: var(--leading-meta);
+}
+.ask42-form[hidden] { display: none; }
+.ask42-technical summary { cursor: pointer; color: var(--muted); }
+.ask42-details { display: grid; grid-template-columns: max-content 1fr; gap: var(--s-1) var(--s-4); margin: var(--s-2) 0 0; }
+.ask42-details dd { margin: 0; }
+
+.ask42-source { position: sticky; top: var(--s-5); padding: var(--s-4); background: var(--surface); border: 1px solid var(--line); display: grid; gap: var(--s-3); font-size: var(--type-body);
+  line-height: var(--leading-body);
+  border-radius: var(--shape-card);
+}
+.ask42-source-title { font-size: var(--type-signal-title); font-weight: 600; margin: 0;
+  line-height: var(--leading-signal-title);
+}
+.ask42-source-thumb { width: 100%; max-width: 180px; aspect-ratio: 9 / 16; object-fit: cover; }
+.ask42-source-thumb-empty { display: grid; place-items: center; background: var(--surface-inset); border: 1px solid var(--line); color: var(--muted); text-align: center; }
+.ask42-source-text, .ask42-source-span { margin: 0; font-size: var(--type-body); line-height: var(--leading-body); }
+.ask42-source-actions { display: flex; gap: var(--s-3); align-items: center; margin: 0; }
+.ask42-source a { color: var(--ink); }
+
+.ask42-running { display: grid; gap: var(--s-4); margin-bottom: var(--s-6); }
+.ask42-log { margin: 0 0 var(--s-5); font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+}
+.ask42-log summary { cursor: pointer; color: var(--muted); }
+.ask42-log-steps { margin: var(--s-2) 0 0; padding-left: var(--s-5); display: grid; gap: var(--s-1); font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+}
+.ask42-gathered { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.ask42-gathered img { width: 36px; aspect-ratio: 9 / 16; object-fit: cover; display: block; }
+.ask42-checking { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.ask42-checking li[data-check="cut"] .ask42-claim-text { text-decoration: line-through; color: var(--muted); }
+
+.ask42-failed { display: grid; gap: var(--s-3); margin-bottom: var(--s-5); }
+.ask42-failed p { margin: 0; }
+/* Ask controls answer the pointer like every other 42 control: a 90ms colour
+   or inset rule move, never geometry. Disclosures and the evidence popover
+   arrive as one quiet layer, on open only, so a refresh never replays them. */
+.ask42-submit, .ask42-quiet, .ask42-primary { transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing), opacity var(--motion-control) var(--motion-standard-easing); }
+.ask42-submit:hover:not(:disabled), .ask42-quiet:hover:not(:disabled), .ask42-submit:focus-visible, .ask42-quiet:focus-visible { border-color: var(--ink); }
+.ask42-primary:hover:not(:disabled), .ask42-primary:focus-visible { box-shadow: inset 0 0 0 2px var(--accent-ink); }
+.ask42-chip, .ask42-chip-handle { transition: color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing); }
+@keyframes ask42Reveal { from { opacity: 0; transform: translateY(calc(4px * var(--motion, 1))); } to { opacity: 1; transform: none; } }
+.ask42-popover,
+.ask42 details[open] > :not(summary) { animation: ask42Reveal var(--motion-layer) var(--motion-standard-easing) backwards; }
+.ask42-error { color: var(--down); font-size: var(--type-body);
+  line-height: var(--leading-body);
+}
+.ask42-followup-open { margin: var(--s-4) 0 var(--s-6); }
+
+/* The composer has one primary action. While no answer is on screen, Ask is
+   that action and carries the accent fill; once an answer is showing, Add to
+   dossier is the primary and Ask steps back to the quiet outline, so the
+   screen never offers two filled buttons at once. */
+.ask42:not(:has(.ask42-done)) .ask42-submit:not(:disabled) { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; padding: 0 var(--s-5); }
+.ask42:not(:has(.ask42-done)) .ask42-submit:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--accent-ink); border-color: var(--accent); }
+.ask42-submit:disabled { opacity: 1; color: var(--muted); border-color: var(--line); }
+
+/* The field reads as the place to write: a calm resting rule, the accent on
+   focus, and a placeholder that suggests the kind of question that works. */
+.ask42-input { min-height: 112px; line-height: var(--leading-body); transition: border-color var(--motion-control) var(--motion-standard-easing); }
+.ask42-input::placeholder { color: var(--muted); opacity: 1; }
+.ask42-input:hover { border-color: var(--ink-2, var(--ink)); }
+.ask42-input:focus-visible { outline: 2px solid var(--accent); outline-offset: var(--focus-offset); border-color: var(--accent); }
+.ask42-status[data-ask-state="empty"] { max-width: var(--measure); color: var(--muted); font-size: var(--type-meta); line-height: var(--leading-meta); }
+
+/* A finished answer arrives in reading order: the question, the short
+   answer, then each claim a beat after the one above, capped so a long
+   answer is never kept waiting. */
+.ask42-answer > * { animation: ask42Reveal var(--motion-layer) var(--motion-standard-easing) backwards; }
+.ask42-claims > li { animation: ask42Reveal var(--motion-layer) var(--motion-standard-easing) backwards; animation-delay: calc(min(var(--claim-step, 0), 3) * 80ms); }
+.ask42-claims > li:nth-child(2) { --claim-step: 1; }
+.ask42-claims > li:nth-child(3) { --claim-step: 2; }
+.ask42-claims > li:nth-child(n+4) { --claim-step: 3; }
+@media (prefers-reduced-motion: reduce) {
+  .ask42-input, .ask42-submit { transition: none; }
+  .ask42-answer > *, .ask42-claims > li { animation: none; }
+}
+.ask42-failed > button { justify-self: start; }
+
+/* Width, 4 October 2026. The answer used to stop at a 72 character measure
+   and left half of a wide screen empty. Now the answer reads down a main
+   column and its evidence (the posts, the numbers, what each platform
+   returned) sits in a column beside it once the answer is 1000px wide or
+   more, so the page fills the screen while prose lines stay readable. The
+   main column keeps a generous measure; below 1000px it is one column. */
+.ask42-answer { container-type: inline-size; }
+.ask42-answer-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
+.ask42-answer-main, .ask42-answer-side { min-width: 0; }
+.ask42-answer-side > .ask42-section:first-child { margin-top: 0; }
+@container (min-width: 1000px) {
+  .ask42-answer-body { grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: var(--s-7); }
+  /* The side column runs the full height of the answer: the posts, the
+     numbers, what each platform returned and where to ask next. It scrolls
+     with the page, since it can be taller than the screen. */
+  .ask42-answer-side { border-left: 1px solid var(--line); padding-left: var(--s-6); }
+  .ask42-answer-side .ask42-footer { border-top: 0; padding-top: 0; }
+}
+.ask42-answer > .ask42-question,
+.ask42-answer-main > .ask42-short,
+.ask42-answer-main > .ask42-claims,
+.ask42-answer .ask42-list,
+.ask42-answer .ask42-context p { max-width: var(--measure); }
+
+/* Once answered, the question is the page's subject and the short answer is
+   its lead, so both step up a size from body text. */
+.ask42-answer .ask42-question { font-size: var(--type-6); line-height: 1.25; margin-bottom: var(--s-2); text-wrap: pretty; }
+.ask42-answer .ask42-short { font-size: var(--type-5); line-height: 1.55; color: var(--ink); text-wrap: pretty; }
+/* Claims and list items fill their line and only keep a lone last word off
+   the final line. Balanced wrapping broke claims after half a line, so a
+   sentence read as cut off (Albert, 4 October 2026). */
+.ask42-claim-text,
+.ask42-answer .ask42-list > li,
+.ask42-log-steps > li { text-wrap: pretty; }
+
+/* Suggested next questions: a quiet list of full-width rows that read as
+   questions, with a small arrow that moves on hover. */
+.ask42-next { margin: var(--s-6) 0 0; max-width: var(--measure); }
+.ask42-next-list { list-style: none; margin: var(--s-3) 0 0; padding: 0; display: grid; border-bottom: 1px solid var(--line); }
+.ask42 .ask42-next-question { transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing); width: 100%; display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); text-align: start; padding: var(--s-3) 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; text-wrap: pretty; }
+.ask42 .ask42-next-question:hover:not(:disabled),
+.ask42 .ask42-next-question:focus-visible { color: var(--ink); background: transparent; }
+.ask42-next-question::after { content: "\2192"; color: var(--muted); transition: transform var(--motion-control) var(--motion-standard-easing), color var(--motion-control) var(--motion-standard-easing); }
+.ask42-next-question:hover:not(:disabled)::after,
+.ask42-next-question:focus-visible::after { transform: translateX(3px); color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .ask42-next-question::after { transition: none; } }
+
+/* The two closing disclosures were 16px-tall lines of 12px text stacked with
+   no gap, hard to hit and easy to miss. Each summary is now a 44px target
+   that darkens on hover. */
+.ask42-technical > summary,
+details.ask42-log > summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; color: var(--muted); font-size: var(--type-3); transition: color var(--motion-control) var(--motion-standard-easing); }
+.ask42-technical > summary:hover,
+details.ask42-log > summary:hover { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .ask42-technical > summary, details.ask42-log > summary { transition: none; } }
+/* A flex summary drops the native disclosure triangle, so draw one that turns
+   when the section opens. */
+.ask42-technical > summary,
+details.ask42-log > summary { gap: var(--s-2); list-style: none; }
+.ask42-technical > summary::-webkit-details-marker,
+details.ask42-log > summary::-webkit-details-marker { display: none; }
+.ask42-technical > summary::before,
+details.ask42-log > summary::before { content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform var(--motion-control) var(--motion-standard-easing); }
+.ask42-technical[open] > summary::before,
+details.ask42-log[open] > summary::before { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .ask42-technical > summary::before, details.ask42-log > summary::before { transition: none; } }
+
+/* On a phone the workspace already sets the page gutter, so Ask adds none of
+   its own and lines up with Today and History. */
+@media (max-width: 479px) { .ask42 { padding-inline: 0; } }
+
+/* Under an answer, Add to dossier is the one button. Saving, exporting and
+   scheduling are secondary, so they read as a row of underlined text actions
+   beside it, each still a 44px target. */
+.ask42-actions { align-items: center; gap: var(--s-2) var(--s-4); }
+.ask42-actions { column-gap: var(--s-5); }
+.ask42-actions-more { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--s-2) var(--s-4); }
+.ask42-actions .ask42-actions-more .ask42-quiet { padding: 0; }
+/* On a phone the button takes the row and the text actions stack under it,
+   each a full row to tap, so none is left alone at the end of a line. */
+@media (max-width: 639px) {
+  .ask42-actions { flex-direction: column; align-items: stretch; }
+  .ask42-actions-more { flex-direction: column; align-items: flex-start; gap: 0; }
+}
+.ask42-actions .ask42-quiet { border-color: transparent; padding: 0 var(--s-1); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 4px; color: var(--ink-2); }
+.ask42-actions .ask42-quiet:hover:not(:disabled),
+.ask42-actions .ask42-quiet:focus-visible { border-color: transparent; color: var(--ink); text-decoration-color: currentColor; }
+
+/* An empty Ask is a composition, not a narrow column beside a dead area. On a
+   wide screen the question and its starting points stand side by side: the
+   composer on the left, the trends 42 is following and a few examples on the
+   right, each a full row to choose. On a phone they stack, composer first. */
+.ask42-start { display: grid; gap: var(--s-6); }
+@media (min-width: 1024px) {
+  .ask42-start.ask42-start-idle { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s-7, 48px); align-items: start; }
+  /* The field stays the size of a question; what an answer holds sits under
+     the composer, so the column beside the starting points carries content
+     rather than an empty writing box. */
+  /* The market select gives way so Ask always stays on the row beside it. */
+  .ask42-start-idle .ask42-form-row { flex-wrap: nowrap; }
+  .ask42-start-idle .ask42-form-row > .ask42-select { flex: 0 1 auto; min-width: 0; }
+  .ask42-start-idle .ask42-form-row > .ask42-label,
+  .ask42-start-idle .ask42-form-row > .ask42-submit { flex: none; }
+}
+.ask42-compose > .ask42-form { max-width: none; margin-bottom: var(--s-4); }
+/* About three lines to start, growing with the question up to a limit. */
+.ask42-start-idle .ask42-input { min-height: 120px; max-height: 40vh; font-size: var(--type-4); field-sizing: content; resize: none; }
+/* Under the field, the how-to line, then the market and Ask together: Ask
+   follows the select directly, so the row reads as one setting and its
+   action with no hole between them. */
+.ask42-form > .ask42-status[data-ask-state="empty"] { margin: 0 0 var(--s-2); }
+.ask42-form-row > .ask42-submit { min-width: 7rem; }
+/* Until there is a question to send, Ask is a quiet outline, not a dimmed
+   red plane; it takes the accent fill once three characters are typed. */
+.ask42:not(:has(.ask42-done)) .ask42-submit:disabled { background: transparent; color: var(--muted); border-color: var(--line-2); font-weight: 600; padding: 0 var(--s-5); }
+
+/* What you get back: four short rows under the composer, each a bold term
+   with one line of detail, ruled like the starting points beside them. */
+.ask42-returns { display: grid; gap: var(--s-2); margin-top: var(--s-5); }
+.ask42-returns-title { margin: 0; font-size: var(--type-section-title); line-height: var(--leading-section-title); font-weight: 600; color: var(--ink); }
+.ask42-returns-list { margin: 0; border-bottom: 1px solid var(--line); }
+.ask42-returns-list > div { display: grid; gap: 2px; padding: var(--s-3) 0; border-top: 1px solid var(--line); }
+.ask42-returns-list dt { font-size: var(--type-body); line-height: var(--leading-body); font-weight: 600; color: var(--ink); }
+.ask42-returns-list dd { margin: 0; font-size: var(--type-3); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; max-width: var(--measure); }
+
+.ask42-starters { display: grid; gap: var(--s-2); }
+.ask42-starters-title { font-size: var(--type-section-title); line-height: var(--leading-section-title); font-weight: 600; margin: 0; }
+.ask42-starters-subtitle { font-size: var(--type-3); font-weight: 600; color: var(--muted); margin: var(--s-4) 0 0; }
+.ask42-starters-note { margin: 0 0 var(--s-2); color: var(--muted); font-size: var(--type-3); max-width: var(--measure); }
+.ask42-starter-list { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--line); }
+.ask42 .ask42-starter {
+  width: 100%;
+  min-height: var(--target-min);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px var(--s-4);
+  text-align: start;
+  padding: var(--s-3) var(--s-2);
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  transition: background-color var(--motion-control) var(--motion-standard-easing), color var(--motion-control) var(--motion-standard-easing);
+}
+.ask42 .ask42-starter:hover,
+.ask42 .ask42-starter:focus-visible { background-color: var(--surface); color: var(--accent-text, var(--ink)); }
+.ask42-starter-text { font-size: var(--type-body); line-height: var(--leading-body); text-wrap: pretty; }
+.ask42-starter-meta { font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .ask42 .ask42-starter { transition: none; } }
+/* On a phone Ask takes the full width of its own row under the market, an
+   easy thumb target, rather than wrapping alone at the row's end. */
+@media (max-width: 479px) {
+  .ask42-form-row > .ask42-submit { flex: 1 1 100%; margin-inline-start: 0; }
+  .ask42-form-row > .ask42-select { flex: 1 1 auto; min-width: 0; }
+}
+
+/* Credit pass, 3 October 2026: the cost of a question, said beside the
+   button that spends it. */
+.ask42-cost { margin: var(--s-2) 0 0; font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Research in progress, 4 October 2026. While 42 researches the page is an
+   instrument panel rather than a raw list of tool calls: the step in hand as
+   one plain line, live counts of what has been read, a scan line sweeping a
+   faint grid, and Stop as an ordinary secondary button. Earlier steps sit in
+   a quiet log beside it on a wide screen and under it on a phone. Motion moves
+   only opacity and transform, and stops for readers who ask for less. */
+.ask42-running { gap: var(--s-5); }
+.ask42-running > .ask42-question { font-size: var(--type-6); line-height: 1.25; text-wrap: pretty; margin: 0; max-width: var(--measure); }
+.ask42-scan { display: grid; gap: var(--s-6); margin: 0; font-size: var(--type-body); line-height: var(--leading-body); }
+@media (min-width: 900px) {
+  .ask42-scan { grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); align-items: start; }
+}
+.ask42-scan-main { display: grid; gap: var(--s-5); min-width: 0; }
+.ask42-scan-panel { position: relative; overflow: hidden; display: grid; gap: var(--s-4); padding: var(--s-5); background: var(--surface-inset); border: 1px solid var(--line-2); border-top: 2px solid var(--accent); isolation: isolate; }
+.ask42-scan-field { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.35;
+}
+/* The scan line: a soft accent wash with a bright leading edge that travels
+   down the panel. At rest (and for readers who ask for less motion) it is
+   parked out of sight above the panel. */
+.ask42-scan-sweep { position: absolute; left: 0; right: 0; top: 0; height: 45%;
+  background: linear-gradient(to bottom, transparent, var(--accent-soft) 96%, var(--accent) 96.5%, transparent 99%);
+  transform: translateY(-100%);
+}
+.ask42-scan-head { display: flex; align-items: center; gap: var(--s-2); margin: calc(var(--s-2) * -1) 0; }
+.ask42-scan-beacon { width: 8px; height: 8px; background: var(--accent); flex: none; }
+.ask42-scan-title { margin: 0; font-size: var(--t-4); font-weight: 600; line-height: 1.3; color: var(--ink); }
+.ask42-scan-clock { margin-inline-start: auto; font-size: var(--t-3); color: var(--muted); font-variant-numeric: tabular-nums; }
+.ask42-scan-now { margin: 0; font-size: var(--t-6); line-height: 1.3; font-weight: 500; color: var(--ink); text-wrap: pretty; max-width: 40ch; animation: ask42Reveal var(--motion-layer) var(--motion-standard-easing) backwards; }
+.ask42-scan-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: var(--s-4); margin: 0; padding-top: var(--s-4); border-top: 1px solid var(--line); }
+.ask42-scan-counts > div { display: flex; flex-direction: column-reverse; gap: var(--s-1); min-width: 0; }
+.ask42-scan-counts dt { font-size: var(--t-3); line-height: 1.3; color: var(--muted); }
+.ask42-scan-counts dd { margin: 0; font-size: var(--t-7); line-height: 1; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+/* The step under way sits right above its line, so the panel reads top to
+   bottom without a gap: which step, what it is doing, what has been read.
+   Beside the words a short row of cells lights in turn, an activity meter
+   with no scale; for readers who ask for less motion it is not drawn. */
+.ask42-scan-step { display: flex; align-items: center; gap: var(--s-3); margin: 0 0 calc(var(--s-4) * -1 + var(--s-1)); }
+.ask42-scan-step-label { font-size: var(--t-3); line-height: 1.3; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ask42-scan-cells { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; width: 8rem; height: 4px; }
+.ask42-scan-cells > span { background: var(--accent); opacity: 0.15; }
+.ask42-scan-actions { display: flex; margin-inline-start: var(--s-2); }
+.ask42 .ask42-stop { min-width: 6rem; background: var(--canvas); }
+/* The live research loops, 4 October 2026 (Albert asked for a striking
+   research view). They are the one place a host sheet loops: each runs only
+   while research is in progress, moves only opacity or a vertical translate,
+   and only for readers who have not asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .ask42-scan-field { animation: ask42GridPulse 3.2s ease-in-out infinite; }
+  .ask42-scan-sweep { animation: ask42Sweep 2.8s cubic-bezier(0.45, 0, 0.25, 1) infinite; }
+  .ask42-scan-beacon { animation: ask42Beacon 1.2s ease-in-out infinite; }
+  .ask42-scan-cells > span { animation: ask42Cell 1.2s ease-in-out infinite; animation-delay: calc(min(var(--cell, 0), 9) * 80ms); }
+}
+@keyframes ask42Sweep { from { transform: translateY(-100%); } to { transform: translateY(225%); } }
+@keyframes ask42Beacon { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+@keyframes ask42GridPulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.5; } }
+@keyframes ask42Cell { 0%, 100% { opacity: 0.15; } 40% { opacity: 1; } }
+
+.ask42-scan-block { display: grid; gap: var(--s-2); }
+.ask42-scan-log { min-width: 0; display: grid; gap: var(--s-2); align-content: start; }
+.ask42-scan-log-title { margin: 0; font-size: var(--t-3); line-height: 1.3; font-weight: 600; color: var(--muted); }
+.ask42-scan-log .ask42-log-steps { list-style: none; margin: 0; padding: 0; gap: 0; border-bottom: 1px solid var(--line); counter-reset: none; }
+.ask42-scan-log .ask42-log-steps > li { padding: var(--s-2) 0; border-top: 1px solid var(--line); color: var(--ink-2); font-size: var(--t-3); line-height: 1.4; }
+.ask42-scan-log .ask42-log-steps:empty { display: none; }
+.ask42-log-times { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ask42-gathered { gap: var(--s-1) var(--s-3); align-items: center; }
+.ask42-gathered-handle, .ask42-gathered-more { font-size: var(--t-3); line-height: 1.4; color: var(--ink-2); }
+.ask42-gathered-more { color: var(--muted); }
+.ask42-checking { gap: 0; border-bottom: 1px solid var(--line); }
+.ask42-checking > li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s-2); padding: var(--s-2) 0; border-top: 1px solid var(--line); }
+.ask42-checking > li > .ask42-claim-text { order: 1; flex: 1 1 100%; }
+.ask42-checking li[data-check="verified"] .ask42-confidence { color: var(--up); }
+.ask42-checking li[data-check="checking"] .ask42-confidence { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  .ask42-scan-now { animation: none; }
+  .ask42-scan-cells { display: none; }
+}
+
+/* The research record and the follow-up sit at the foot of the answer column,
+   level with the evidence beside it, not stranded under the whole page. */
+.ask42-answer-tail { margin-top: var(--s-5); }
+.ask42-answer-tail .ask42-followup-open { margin: var(--s-3) 0 0; }
+/* In one column the evidence follows the answer, and the research record and
+   the follow-up still close the page rather than sitting above the posts. */
+@container (max-width: 999px) {
+  .ask42-answer-body { gap: 0; }
+  .ask42-answer-main { display: contents; }
+  .ask42-answer-side { margin-top: var(--s-6); }
+  .ask42-answer-tail { order: 1; }
+}
+
+/* Ask a follow-up stands beside Add to dossier as the outlined second
+   button, ahead of the text actions, rather than alone under the record. */
+.ask42-actions > .ask42-followup-open { margin: 0; padding: 0 var(--s-4); border-color: var(--line-2); text-decoration: none; color: var(--ink); transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing); }
+.ask42-actions > .ask42-followup-open:hover:not(:disabled),
+.ask42-actions > .ask42-followup-open:focus-visible { border-color: var(--ink); }
+/* In one column the starting points follow the composer directly, since
+   choosing one is the quicker way in on a phone; the summary of what an
+   answer holds is kept for the side by side layout. */
+@media (max-width: 1023px) { .ask42-returns { display: none; } }

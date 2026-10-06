@@ -1,0 +1,49 @@
+{
+  "probe": "14-za",
+  "route": "web/scrape",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "page": {
+        "answer": "<null>",
+        "change_tracking": "<null>",
+        "content": {
+          "html": "<null>",
+          "markdown": "<str>",
+          "raw_html": "<null>",
+          "summary": "<null>"
+        },
+        "extraction": "<null>",
+        "fetch": {
+          "cache_state": "<str>",
+          "cached_at": "<str>",
+          "proxy_tier": "<null>"
+        },
+        "fetched_at": "<null>",
+        "final_url": "<str>",
+        "highlights": "<null>",
+        "media": {
+          "audio_url": "<null>",
+          "screenshot_url": "<null>",
+          "video_url": "<null>"
+        },
+        "page_count": "<null>",
+        "page_state": {
+          "confidence": "<int>",
+          "skipped_judge": "<bool>",
+          "value": "<str>"
+        },
+        "scrape_id": "<str>",
+        "status_code": "<int>",
+        "total_page_count": "<null>",
+        "url": "<str>"
+      }
+    },
+    "endpoint": "<str>",
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

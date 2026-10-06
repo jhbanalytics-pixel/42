@@ -1,0 +1,27 @@
+{
+  "fixture_scope": "synthetic_test_only",
+  "artifact_version": "replay_trajectory_candidates_v1",
+  "evaluation_date": "2026-08-25",
+  "metric_rows": [
+    {"metric_id": "metric_fading", "observed_at": "2026-08-25T10:00:00Z", "velocity": 0.3, "breadth": 0.3, "missing_work": []},
+    {"metric_id": "metric_growing", "observed_at": "2026-08-25T11:00:00Z", "velocity": 0.8, "breadth": 0.7, "missing_work": []},
+    {"metric_id": "metric_missing", "observed_at": "2026-08-25T12:00:00Z", "velocity": null, "breadth": 0.5, "missing_work": ["velocity_score_unavailable"]},
+    {"metric_id": "metric_peaked", "observed_at": "2026-08-25T13:00:00Z", "velocity": 0.65, "breadth": 0.4, "missing_work": []},
+    {"metric_id": "metric_sustained", "observed_at": "2026-08-25T14:00:00Z", "velocity": 0.65, "breadth": 0.65, "missing_work": []}
+  ],
+  "candidates": [
+    {"candidate_id": "baseline_predictions_v1", "version": "predictions_py_baseline_v1", "source": "predictions_py_baseline", "evaluation_days": 14, "rules": [
+      {"trajectory_name": "growing", "minimum_velocity": 0.75, "minimum_breadth": 0.6, "target_velocity": 0.7, "target_breadth": 0.6, "invalidation_metric": "velocity", "invalidation_threshold": 0.7},
+      {"trajectory_name": "sustained", "minimum_velocity": 0.6, "minimum_breadth": 0.6, "target_velocity": 0.6, "target_breadth": 0.6, "invalidation_metric": "breadth", "invalidation_threshold": 0.6},
+      {"trajectory_name": "peaked", "minimum_velocity": 0.6, "minimum_breadth": 0.0, "target_velocity": 0.4, "target_breadth": 0.45, "invalidation_metric": "velocity", "invalidation_threshold": 0.4},
+      {"trajectory_name": "fading", "minimum_velocity": 0.0, "minimum_breadth": 0.0, "target_velocity": 0.35, "target_breadth": 0.35, "invalidation_metric": "breadth", "invalidation_threshold": 0.35}
+    ], "rules_digest": "4266493be2c157c8d5fca47a152680f666d247772e6741d22168c1952d65a51d"},
+    {"candidate_id": "conservative_fixture_v1", "version": "conservative_fixture_rules_v1", "source": "fixture_candidate", "evaluation_days": 21, "rules": [
+      {"trajectory_name": "growing", "minimum_velocity": 0.8, "minimum_breadth": 0.65, "target_velocity": 0.75, "target_breadth": 0.65, "invalidation_metric": "velocity", "invalidation_threshold": 0.72},
+      {"trajectory_name": "sustained", "minimum_velocity": 0.65, "minimum_breadth": 0.55, "target_velocity": 0.62, "target_breadth": 0.55, "invalidation_metric": "breadth", "invalidation_threshold": 0.52},
+      {"trajectory_name": "peaked", "minimum_velocity": 0.55, "minimum_breadth": 0.0, "target_velocity": 0.38, "target_breadth": 0.4, "invalidation_metric": "velocity", "invalidation_threshold": 0.38},
+      {"trajectory_name": "fading", "minimum_velocity": 0.0, "minimum_breadth": 0.0, "target_velocity": 0.3, "target_breadth": 0.3, "invalidation_metric": "breadth", "invalidation_threshold": 0.3}
+    ], "rules_digest": "8c4d6ea0d987357a2151d3d3e4786dbb1678eecb112313f9e5a37a863aca6a23"}
+  ],
+  "fixture_digest": "9ea3314efb2a8adc99a62ad4b630878d0f631c5a410b8ef98bee1e679d60393f"
+}

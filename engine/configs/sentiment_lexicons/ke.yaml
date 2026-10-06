@@ -1,0 +1,121 @@
+# Kenya social sentiment lexicon (Wave 2, Group A).
+# Seed positive / negative term lists for the heuristic scorer in
+# src/enrichment/sentiment_lexicon.py. General English polarity plus Sheng /
+# Swahili slang. Single words or short phrases, lowercase.
+market: ke
+market_name: Kenya
+
+positive:
+  # general
+  - good
+  - great
+  - love
+  - loved
+  - amazing
+  - awesome
+  - happy
+  - excited
+  - beautiful
+  - perfect
+  - best
+  - win
+  - winning
+  - proud
+  - blessed
+  - grateful
+  - enjoy
+  - enjoyed
+  - thank you
+  - thanks
+  - congrats
+  - congratulations
+  - recommend
+  - worth it
+  # sheng / swahili positive
+  - lit
+  - fire
+  - poa
+  - poa sana
+  - fiti
+  - safi
+  - moto
+  - vibe
+  - vibes
+  - banger
+  - slaps
+  - dope
+  - noma
+  - mzuri
+  - mzuri sana
+  - bomba
+  - rieng
+  - ngori good
+  - sweet
+  - asante
+
+negative:
+  # general
+  - bad
+  - worst
+  - hate
+  - hated
+  - terrible
+  - awful
+  - horrible
+  - sad
+  - angry
+  - disappointed
+  - disappointing
+  - broken
+  - fail
+  - failed
+  - failure
+  - scam
+  - fraud
+  - rubbish
+  - nonsense
+  - useless
+  - waste
+  - problem
+  - trash
+  - cancelled
+  - boring
+  - cried
+  - struggling
+  - struggle
+  # sheng / swahili negative
+  - mbaya
+  - mbaya sana
+  - shida
+  - stress
+  - stressed
+  - broke
+  - sapa
+  - umeffi
+  - takataka
+  - wizi
+  - mwizi
+  - korti
+  - maumivu
+  - ghasia
+  - fala
+  - ngori
+  - hasara
+  - uchungu
+  - corrupt
+  - corruption
+  - ufisadi
+
+negators:
+  - hapana
+  - si
+  - hakuna
+
+intensifiers:
+  sana: 1.6
+  kabisa: 1.7
+  ushai: 1.4
+
+downtoners:
+  kidogo: 0.6
+  doo: 0.7

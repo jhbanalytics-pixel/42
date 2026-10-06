@@ -1,0 +1,99 @@
+{
+  "investigationId": "inv_e8ba013427d303ec643f1adeaffa8bed72b3f67991e2f84087ff69894225ed5a",
+  "question": "Is repair becoming social?",
+  "status": {
+    "investigation_id": "inv_e8ba013427d303ec643f1adeaffa8bed72b3f67991e2f84087ff69894225ed5a",
+    "client_scope_id": "ogilvy_default",
+    "market_scope": [
+      "za",
+      "ng",
+      "ke"
+    ],
+    "brand_config_id": null,
+    "audience_lens_ids": [],
+    "theme_id": null,
+    "run_id": "investigation_run_001",
+    "contract_version": "2.1.0",
+    "research_role_id": null,
+    "research_role_version": null,
+    "status": "plan_ready",
+    "research_plan": {
+      "questions": [
+        "Is repair becoming social?",
+        "What changed inside the declared market and time horizon?",
+        "What evidence supports and opposes acting now?",
+        "Which materially different responses should be compared?"
+      ],
+      "required_source_families": [
+        "social",
+        "search",
+        "news",
+        "history"
+      ],
+      "socialcrawl_lanes": [],
+      "historical_window_days": 365,
+      "credit_ceiling": 0,
+      "token_budget": {},
+      "stopping_conditions": [
+        "Stop if a factual claim has no resolvable receipt.",
+        "Stop if a blocking contradiction remains unresolved.",
+        "Stop before any paid source call without an approved funding gate."
+      ],
+      "known_gaps": [
+        "optional_socialcrawl_funding_unverified"
+      ]
+    },
+    "budget_state": {
+      "credit_ceiling": 0,
+      "credits_reserved": 0,
+      "credits_used": 0,
+      "token_ceiling": null,
+      "tokens_reserved": null,
+      "tokens_used": null,
+      "state": "not_configured"
+    },
+    "source_calls": [],
+    "completed_work": [],
+    "missing_work": [
+      "optional_socialcrawl_funding_unverified"
+    ],
+    "claim_ids": [],
+    "decision_id": null,
+    "artifact_ids": [],
+    "created_at": "2026-08-28T08:00:00Z",
+    "updated_at": "2026-08-28T08:00:00Z"
+  },
+  "claims": {
+    "investigation_id": "inv_e8ba013427d303ec643f1adeaffa8bed72b3f67991e2f84087ff69894225ed5a",
+    "client_scope_id": "ogilvy_default",
+    "market_scope": [
+      "za",
+      "ng",
+      "ke"
+    ],
+    "brand_config_id": null,
+    "audience_lens_ids": [],
+    "theme_id": null,
+    "run_id": "investigation_run_001",
+    "contract_version": "2.1.0",
+    "artifact_version": "unsealed",
+    "claims": [],
+    "updated_at": "2026-08-28T08:00:00Z"
+  },
+  "decision": {
+    "investigation_id": "inv_e8ba013427d303ec643f1adeaffa8bed72b3f67991e2f84087ff69894225ed5a",
+    "client_scope_id": "ogilvy_default",
+    "market_scope": [
+      "za",
+      "ng",
+      "ke"
+    ],
+    "brand_config_id": null,
+    "audience_lens_ids": [],
+    "theme_id": null,
+    "run_id": "investigation_run_001",
+    "contract_version": "2.1.0",
+    "decision": null,
+    "updated_at": "2026-08-28T08:00:00Z"
+  }
+}

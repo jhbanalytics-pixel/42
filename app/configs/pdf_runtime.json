@@ -1,0 +1,80 @@
+{
+  "assets": {
+    "fonts": {
+      "newsreader-variable-tcB4qQtO.woff2": {
+        "family": "Newsreader",
+        "sha256": "1faa3380ac0e87e057b180e03fd94bd708a612afb67d2590677be4508909fae9"
+      },
+      "recursive-variable-C3fm0w2j.woff2": {
+        "families": [
+          "Recursive Mono",
+          "Recursive Sans"
+        ],
+        "sha256": "145e9fc086d13403528384bdace7f2a4d5ecef72a2b10a749e99382dbecfce79"
+      }
+    },
+    "root": "/app/web/dist/assets"
+  },
+  "browser": {
+    "archive_sha256": "3cfc2bd00d1bafcf8a68dc74c9c92bb7150ddc8d26ade948a776316e1cec4f14",
+    "executable": "/opt/playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell",
+    "executable_sha256": "e11fc9ce65c96313476f7ee9844b6fb6a9220fb048693cfe9eee00acf4170a9f",
+    "revision": "1234",
+    "version": "151.0.7922.34"
+  },
+  "contract_version": "pdf_runtime_v1",
+  "driver": {
+    "browser_manifest_sha256": "f306eed529599b1eaf2f8a85db9de2b23e1a3fe36c2b66434b7c9434fb627a99",
+    "generated_environment": {
+      "PW_CLI_DISPLAY_VERSION": "1.62.0",
+      "PW_LANG_NAME": "python",
+      "PW_LANG_NAME_VERSION": "3.13"
+    },
+    "node_sha256": "f3432a45b03b2da0d270095fdd8813dc34cbea73f5fc8b18c7a384b7cf9b333a",
+    "source_sha256": "9a15469de4b0e15773169d32df12a2a694298a8b03ee68655c504532a27d4eaa"
+  },
+  "limits": {
+    "max_asset_bytes": 26214400,
+    "max_asset_files": 128,
+    "max_input_bytes": 5242880,
+    "max_output_bytes": 26214400,
+    "timeout_seconds": 15
+  },
+  "packages": {
+    "greenlet": {
+      "version": "3.5.5",
+      "wheel_sha256": "2eabb980975cba5b93a95f6f69287d05fc05ac955bfd6a320a7c083eeb52c0b0"
+    },
+    "playwright": {
+      "version": "1.62.0",
+      "wheel_sha256": "ba33bae6a13b3d9d354c751cb618af357d20fe1d57767cbcce52079bbef17ad3"
+    },
+    "pyee": {
+      "version": "13.0.0",
+      "wheel_sha256": "48195a3cddb3b1515ce0695ed76036b5ccc2ef3a9f963ff9f77aec0139845498"
+    },
+    "pypdf": {
+      "version": "6.18.1",
+      "wheel_sha256": "ee93a2665670ecf57ee81d197a4ca548f3dc15f9cefc56e59b8140866aaa3de5"
+    },
+    "typing-extensions": {
+      "version": "4.16.0",
+      "wheel_sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+    },
+    "tinycss2": {
+      "version": "1.5.1",
+      "wheel_sha256": "3415ba0f5839c062696996998176c4a3751d18b7edaaeeb658c9ce21ec150661"
+    },
+    "webencodings": {
+      "version": "0.6.1",
+      "wheel_sha256": "7fab6269c8bf237c657876b52058ccb182e861518d1c695c1a9aaa8c1c105d5b"
+    }
+  },
+  "sandbox": true,
+  "worker_environment": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "PATH": "/usr/local/bin:/usr/bin:/bin",
+    "TZ": "UTC"
+  }
+}

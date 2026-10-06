@@ -1,0 +1,721 @@
+.oi-product {
+  --oi-ink: #171412;
+  --oi-paper: #f3efe7;
+  --oi-white: #fffaf1;
+  --oi-red: #d71920;
+  --oi-amber: #aa6a00;
+  --oi-green: #1f6a44;
+  --oi-rule: #aaa198;
+  --oi-serif: "Ogilvy Serif", OgilvySerif, Georgia, "Times New Roman", serif;
+  --oi-sans: "Ogilvy Sans", OgilvySans, Arial, Helvetica, sans-serif;
+  --oi-mono: Consolas, "Courier New", monospace;
+  scroll-behavior: smooth;
+}
+
+.oi-folio {
+  font-family: var(--oi-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.oi-display {
+  font-family: var(--oi-serif);
+  font-size: clamp(2.5rem, 7vw, 5.5rem);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  line-height: 0.94;
+}
+
+.oi-heading {
+  font-family: var(--oi-serif);
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  font-weight: 400;
+  line-height: 1.05;
+}
+
+.oi-body {
+  font-family: var(--oi-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.oi-small {
+  font-family: var(--oi-sans);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.oi-navigation {
+  font-family: var(--oi-sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.oi-metadata {
+  font-family: var(--oi-mono);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.oi-provenance {
+  font-family: var(--oi-mono);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.oi-shell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.oi-shell__masthead {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: var(--oi-ink);
+  border-bottom: 1px solid var(--oi-rule);
+}
+
+.oi-shell__row {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  max-width: var(--maxw);
+  min-height: 64px;
+  margin: 0 auto;
+  padding: 8px 24px;
+}
+
+.oi-shell__action {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 14px;
+  color: var(--oi-white);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font: 400 1rem var(--oi-sans);
+  cursor: pointer;
+  transition: color var(--motion-control) var(--motion-standard-easing);
+}
+
+.oi-shell__action:hover {
+  color: var(--oi-red);
+}
+.oi-shell__action:focus-visible {
+  outline: 3px solid var(--oi-white);
+  outline-offset: calc(var(--focus-offset) * -2);
+}
+
+.oi-shell__brand {
+  justify-content: flex-start;
+  gap: 16px;
+  padding-left: 0;
+}
+
+.oi-shell__mark {
+  font: 400 1.75rem var(--oi-serif);
+  line-height: 1;
+}
+
+.oi-shell__identity {
+  padding-left: 16px;
+  border-left: 1px solid var(--oi-rule);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.oi-shell__jobs {
+  display: flex;
+  align-items: stretch;
+  margin-left: 24px;
+}
+
+.oi-shell__job {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.oi-shell__job[aria-current="page"]::after {
+  position: absolute;
+  right: 14px;
+  bottom: 4px;
+  left: 14px;
+  height: 2px;
+  background: var(--oi-red);
+  content: '';
+}
+
+.oi-shell__scope {
+  display: flex;
+  align-items: stretch;
+  margin-left: auto;
+  border-left: 1px solid var(--oi-rule);
+}
+
+.oi-shell__market {
+  padding: 0 10px;
+  font: 400 0.6875rem var(--oi-mono);
+  letter-spacing: 0.08em;
+  transition: color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing);
+}
+
+.oi-shell__market:hover, .oi-shell__market:focus-visible {
+  color: var(--oi-red);
+}
+.oi-shell__market[aria-current="page"] {
+  color: var(--oi-ink);
+  background: var(--oi-white);
+}
+
+.oi-shell__market[aria-current="page"]:focus-visible {
+  outline: 3px solid var(--oi-red);
+}
+
+.oi-shell__freshness {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--oi-rule);
+  font: 400 0.6875rem var(--oi-mono);
+  white-space: nowrap;
+}
+
+.oi-shell__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.oi-shell__utility {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--oi-ink);
+  border-top: 1px solid var(--oi-rule);
+}
+
+.oi-shell__utility a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 10px;
+  color: var(--oi-paper);
+  font: 400 0.6875rem/1 var(--oi-mono);
+  text-decoration: none;
+}
+
+.oi-briefing {
+  display: grid;
+  grid-template-areas:
+    "folio lead proof"
+    "folio lead decision"
+    "folio queue queue";
+  grid-template-columns: minmax(96px, 0.22fr) minmax(0, 1.35fr) minmax(260px, 0.8fr);
+  gap: 32px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 48px 24px 72px;
+  color: var(--oi-ink);
+  background: var(--oi-paper);
+}
+
+.oi-briefing > * {
+  min-width: 0;
+}
+
+.oi-briefing__folio {
+  grid-area: folio;
+  padding-right: 20px;
+  border-right: 1px solid var(--oi-rule);
+}
+
+.oi-briefing__folio p,
+.oi-briefing__receipts p,
+.oi-briefing__decisions p {
+  margin: 0 0 12px;
+}
+
+.oi-briefing__lead {
+  grid-area: lead;
+}
+
+.oi-briefing__lead h1,
+.oi-briefing__lead h2,
+.oi-briefing__proof h2,
+.oi-briefing__decisions h2,
+.oi-briefing__queue h2 {
+  margin-top: 0;
+}
+
+.oi-briefing__lead section {
+  margin-top: 32px;
+}
+
+.oi-briefing__chapter-nav {
+  display: grid;
+  position: relative;
+  counter-reset: live-margin;
+  margin: 32px 0 40px;
+  padding-left: 18px;
+}
+
+.oi-briefing__chapter-nav::before {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 1px;
+  background: var(--oi-rule);
+  content: '';
+}
+
+.oi-briefing__chapter-nav::after {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 2px;
+  background: var(--oi-red);
+  content: '';
+  transform: scaleY(var(--live-margin-progress, 0.25));
+  transform-origin: top;
+  transition: transform var(--motion-handoff) var(--motion-handoff-easing);
+}
+
+.oi-briefing__chapter-nav button {
+  display: grid;
+  position: relative;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  min-height: 48px;
+  padding: 0 4px;
+  color: var(--oi-ink);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font: 700 0.75rem var(--oi-sans);
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.oi-briefing__chapter-nav button::before {
+  color: var(--oi-red);
+  content: counter(live-margin, decimal-leading-zero);
+  counter-increment: live-margin;
+  font: 400 0.6875rem var(--oi-mono);
+  transform: translateX(0);
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+
+.oi-briefing__chapter-nav button::after {
+  position: absolute;
+  right: 4px;
+  bottom: 5px;
+  left: 32px;
+  height: 2px;
+  background: var(--oi-red);
+  content: '';
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+
+.oi-briefing__chapter-nav button:hover::before,
+.oi-briefing__chapter-nav button:focus-visible::before,
+.oi-briefing__chapter-nav button[data-active="true"]::before {
+  transform: translateX(4px);
+}
+
+.oi-briefing__chapter-nav button:hover::after,
+.oi-briefing__chapter-nav button:focus-visible::after,
+.oi-briefing__chapter-nav button[data-active="true"]::after {
+  transform: scaleX(1);
+}
+
+.oi-briefing__chapter-nav button:focus-visible {
+  outline: 3px solid var(--oi-red);
+  outline-offset: var(--focus-offset);
+}
+
+.oi-briefing__proof {
+  grid-area: proof;
+  align-self: start;
+  padding: 0 0 24px 24px;
+  border-left: 1px solid var(--oi-red);
+}
+
+.oi-briefing__receipts {
+  margin: 24px 0 0;
+  padding-left: 28px;
+}
+
+.oi-briefing__receipts li {
+  margin-bottom: 24px;
+  padding-left: 12px;
+}
+
+.oi-receipt {
+  position: relative;
+  transition: background-color var(--motion-row) var(--motion-standard-easing);
+}
+
+.oi-receipt::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 2px;
+  background: var(--oi-amber);
+  content: '';
+  transition: background-color var(--motion-row) var(--motion-standard-easing);
+}
+
+.oi-receipt:hover,
+.oi-receipt:focus-within {
+  background-color: var(--oi-white);
+}
+
+.oi-receipt:hover::before,
+.oi-receipt:focus-within::before {
+  background: var(--oi-red);
+}
+
+.oi-briefing__receipt-link {
+  display: inline-flex;
+  align-items: center;
+  min-width: 48px;
+  min-height: 48px;
+  color: var(--oi-ink);
+  text-decoration-color: var(--oi-red);
+  text-underline-offset: 3px;
+  position: relative;
+}
+
+/* Premium interaction craft. One idea applied wherever a reader is about to
+   open something: a red rule wipes in from the leading edge under the target.
+   It marks a relationship the page already asserts and answers keyboard focus
+   exactly as it answers a pointer. Nothing lifts or glows or follows the
+   cursor. The scale belongs to the rule and never to the element. */
+.oi-briefing__receipt-link:focus-visible {
+  outline: 3px solid var(--oi-red);
+  outline-offset: var(--focus-offset);
+}
+
+
+.oi-briefing__receipt-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  height: 1px;
+  background: var(--oi-red);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+.oi-briefing__receipt-link:is(:hover, :focus-visible)::after { transform: scaleX(1); }
+
+
+
+.oi-briefing__decisions {
+  display: grid;
+  grid-area: decision;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  padding: 28px 0 24px 24px;
+  border-left: 1px solid var(--oi-red);
+}
+
+.oi-briefing__decisions h3 {
+  margin: 18px 0 4px;
+  text-transform: uppercase;
+}
+
+.oi-briefing__queue {
+  grid-area: queue;
+  padding-top: 28px;
+  border-top: 1px solid var(--oi-rule);
+}
+
+.oi-briefing__queue-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 20px;
+  background: var(--oi-rule);
+}
+
+.oi-briefing__queue-list button,
+.oi-briefing__queue-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  min-height: 112px;
+  padding: 16px;
+  color: var(--oi-ink);
+  background: var(--oi-white);
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+}
+
+.oi-briefing__queue-list button {
+  cursor: pointer;
+}
+
+.oi-briefing__queue-list strong {
+  margin: 10px 0 auto;
+  font: 400 1.125rem var(--oi-serif);
+}
+
+.oi-briefing__notice {
+  padding: 18px 20px;
+  border: 1px solid var(--oi-rule);
+  border-radius: 0;
+}
+
+.oi-briefing__notice {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  font: 400 0.75rem/1.4 var(--oi-mono);
+}
+
+.oi-briefing-state__copy {
+  max-width: 720px;
+}
+
+.oi-briefing-state__kicker {
+  margin: 0;
+  font: 400 0.6875rem/1.4 var(--oi-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.oi-briefing-state__title {
+  max-width: 8ch;
+  margin: 16px 0 28px;
+  font: 400 clamp(2.5rem, 7vw, 5.5rem)/0.94 var(--oi-serif);
+  letter-spacing: -0.04em;
+}
+
+.oi-briefing-state__body {
+  max-width: 48ch;
+  margin: 0 0 32px;
+  color: var(--oi-paper);
+  font: 400 clamp(1.125rem, 2vw, 1.5rem)/1.5 var(--oi-sans);
+}
+
+.oi-briefing-state__time {
+  display: block;
+  padding: 18px 0;
+  border-top: 1px solid var(--oi-rule);
+  border-bottom: 1px solid var(--oi-rule);
+  font: 400 0.75rem/1.4 var(--oi-mono);
+}
+
+.oi-briefing-state__note {
+  max-width: var(--measure);
+  margin: 24px 0 0;
+  color: var(--oi-rule);
+  font: 400 0.8125rem/1.4 var(--oi-sans);
+}
+
+/* The masthead wraps on its own measurement, not the lead's.
+
+   The brand label collided with the first job button from 800px up to the
+   row's natural width: probed overlapping at 800, 900 and, once a freshness
+   stamp is present, at 1100. The sticky-lead boundary at 800px is a separate
+   judgement about reading position and stays where it is, so the jobs take
+   their own row until the single row genuinely fits. */
+@media (max-width: 1199px) {
+  .oi-shell__row {
+    flex-wrap: wrap;
+  }
+
+  .oi-shell__jobs {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;
+    border-top: 1px solid var(--oi-rule);
+  }
+
+  .oi-shell__job {
+    flex: 1 0 auto;
+  }
+}
+
+@media (min-width: 800px) {
+  .oi-briefing__lead-margin {
+    position: sticky;
+    top: 96px;
+    align-self: start;
+  }
+}
+
+@media (max-width: 799px) {
+  .oi-briefing__lead-margin {
+    position: static;
+  }
+
+  .oi-shell__row {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+
+  .oi-shell__jobs {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;
+    border-top: 1px solid var(--oi-rule);
+  }
+
+  .oi-shell__job {
+    flex: 1 0 auto;
+  }
+
+  .oi-shell__freshness {
+    display: none;
+  }
+}
+
+/* Mobile recommendation cue: on a phone the response chapter sits far below
+   the fold, so the lead carries a one-line evidence-backed response cue.
+   Hidden on desktop where the full chapter is in view. */
+.oi-briefing__response-cue { display: none; }
+
+@media (max-width: 560px) {
+  .oi-briefing__response-cue {
+    display: block;
+    border-left: 2px solid var(--oi-red);
+    padding-left: 12px;
+    margin: 12px 0 0;
+  }
+
+  .oi-briefing {
+    grid-template-areas:
+      "folio lead"
+      "folio proof"
+      "folio decision"
+      "folio queue";
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 24px 16px;
+    padding: 24px 12px 48px;
+  }
+
+  .oi-briefing__folio {
+    box-sizing: border-box;
+    width: 58px;
+    padding-right: 8px;
+  }
+
+  .oi-briefing__lead h1 {
+    font-size: clamp(2rem, 11vw, 3.25rem);
+  }
+
+  .oi-briefing__proof,
+  .oi-briefing__decisions,
+  .oi-briefing__queue {
+    grid-column: 2;
+  }
+
+  .oi-briefing__decisions,
+  .oi-briefing__queue-list {
+    grid-template-columns: 1fr;
+  }
+
+  .oi-briefing__notice {
+    flex-direction: column;
+  }
+
+  .oi-shell__brand {
+    gap: 8px;
+  }
+
+  .oi-shell__mark {
+    font-size: 1.5rem;
+  }
+
+  .oi-shell__identity {
+    padding-left: 8px;
+    font-size: 0.625rem;
+    letter-spacing: 0.04em;
+  }
+
+  .oi-shell__scope {
+    border-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .oi-shell__utility {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oi-product {
+    scroll-behavior: auto !important;
+  }
+
+  .oi-product *, .oi-product *::before, .oi-product *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The audience refusal. Rules and type, no box: it is a statement about what
+   is absent, not a card presenting a finding. */
+.audience-unavailable {
+  border-top: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  padding: 24px 0;
+  margin: 24px 0;
+  display: grid;
+  gap: 12px;
+}
+.audience-unavailable__eyebrow {
+  font-family: var(--oi-mono);
+  font-size: var(--dossier-type-meta);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+.audience-unavailable__title {
+  font-family: var(--oi-serif);
+  font-size: var(--dossier-type-heading);
+  margin: 0;
+}
+.audience-unavailable__body {
+  font-size: var(--dossier-type-body);
+  max-width: var(--measure);
+  margin: 0;
+}

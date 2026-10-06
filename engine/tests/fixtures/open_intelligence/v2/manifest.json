@@ -1,0 +1,95 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_count": 22,
+  "fixtures": [
+    {
+      "fixture_id": "cited_answer_election",
+      "sha256": "1966aa54c89b928d0ae7ae857881c65071f2ba0f1235386bcfc82caecdc7218c"
+    },
+    {
+      "fixture_id": "dynamic_signal_ready",
+      "sha256": "49df0551537c0d4f3190669a919b3ba03c46a846904e495134f75bf68fe2a0b5"
+    },
+    {
+      "fixture_id": "evidence_contradictory",
+      "sha256": "b86e79f5cefb7c50c7e9f897fae563861fbe64820c1c5fcbe5602c535a2f325a"
+    },
+    {
+      "fixture_id": "evidence_plan_election",
+      "sha256": "c77286aea8694b0da8a2c6ed8f76d6ada43f346ced19228400be734865fe794b"
+    },
+    {
+      "fixture_id": "evidence_ready",
+      "sha256": "653ffc44d0e42742d6f34b12d8fa3b4d7d74ce5d4ba102cfa11a67eea8131bf0"
+    },
+    {
+      "fixture_id": "evidence_thin",
+      "sha256": "647ae94d7f26a315cb6b86e1206be79b9304797ab14bacb48268dfaf3f0ad6ff"
+    },
+    {
+      "fixture_id": "evidence_unchecked",
+      "sha256": "8f1a6615893e09d405331b895431ee41df81287a6946e90b4ad01d3fdf1a99df"
+    },
+    {
+      "fixture_id": "golden_01_emerging_without_keyword",
+      "sha256": "55a2ff548432335e4732690bac9a0775bd2213b9ce581f0ec9c9822b19db3ab8"
+    },
+    {
+      "fixture_id": "golden_02_why_moving",
+      "sha256": "67075f20079b11442c81a297525dc8dadba2f85b57056e4bbcacafbbdbbcd776"
+    },
+    {
+      "fixture_id": "golden_03_cross_market_difference",
+      "sha256": "d95fa805ff5a8c04e018e390211995bfb80abf99ccc4c262a0ba9cf04fae8825"
+    },
+    {
+      "fixture_id": "golden_04_carriers",
+      "sha256": "367f11e88d51154be37bfa56d3ba000473f2f847f830d63d33f5603c3d3c06f3"
+    },
+    {
+      "fixture_id": "golden_05_history",
+      "sha256": "8becb77baeb2004e372545ec652b8c962a0b636e123dcb532f6982887320f069"
+    },
+    {
+      "fixture_id": "golden_06_brand_role",
+      "sha256": "48a7299e6a1861884e774eb18d91fc444469609eda38ec10a8f3d060dd69c743"
+    },
+    {
+      "fixture_id": "golden_07_audience_lens",
+      "sha256": "a228bcd04babc831613c3958fc5ef06c4e902baac57f971f9734867345d482f8"
+    },
+    {
+      "fixture_id": "golden_08_source_agreement",
+      "sha256": "ca1dd5f4c1d2eed17ea71e2b1e35d5d6cbabf37353d3939127528e32e8acf98f"
+    },
+    {
+      "fixture_id": "golden_09_source_gap",
+      "sha256": "2287aec3a49ddbbffe0e841229a722c4276bac062eed276ae8f8604743bb962e"
+    },
+    {
+      "fixture_id": "golden_10_custom",
+      "sha256": "2725a603f11bfcfee2f11030251c71f362a1bd29ae840d438a8d338a5e183cc3"
+    },
+    {
+      "fixture_id": "golden_11_election_brand_role",
+      "sha256": "0bf5501eb1b3732827617fb8c3bbd9a9e4b5d3ef49de6ac1d6249c0cf9e51501"
+    },
+    {
+      "fixture_id": "lineage_merge",
+      "sha256": "3cf86b34328a724e3b9a75e254fa2b048f1d4647563b85d4b2cdf941b23e30b4"
+    },
+    {
+      "fixture_id": "lineage_split",
+      "sha256": "dd2f013390b3bdd3f5aa478a598b9dfd141f4c3a83e8e7d717e08e22084c6e0b"
+    },
+    {
+      "fixture_id": "pulse_watched_signal_line",
+      "sha256": "95c81be2e282c858052b936b8fa9fc5a9344b05a71ab45cb67a78e938672834b"
+    },
+    {
+      "fixture_id": "source_lab_all_statuses",
+      "sha256": "e3f05efe7e8489959651c506a423ef8c9c4150be6084f8037763585d85185465"
+    }
+  ],
+  "manifest_sha256": "3440cd263099157f43e107ea55a6a56c835bbc1a5e7e86ef8519ce1abd181ebf"
+}

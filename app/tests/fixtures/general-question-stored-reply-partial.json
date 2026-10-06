@@ -1,0 +1,1198 @@
+{
+  "as_of": "2026-09-20T16:28:23.050784Z",
+  "claims": [
+    {
+      "claim_id": "c1",
+      "falsifier": null,
+      "kind": "observation",
+      "limitations": [
+        "Source record only; prevalence and representativeness are not measured."
+      ],
+      "parent_claim_ids": [],
+      "reading_ids": [],
+      "receipt_ids": [
+        "gqctx_4a88f529a5b59299d7fc1cb0dfe892906af9f23dac80893008a81c0f9262f70b"
+      ],
+      "support_state": "source_record",
+      "text": "Welcome to South Africa | Amapiano Celebration of Love, Culture & Good Vibes | Afafa To The World"
+    },
+    {
+      "claim_id": "c2",
+      "falsifier": null,
+      "kind": "observation",
+      "limitations": [
+        "Source record only; prevalence and representativeness are not measured."
+      ],
+      "parent_claim_ids": [],
+      "reading_ids": [],
+      "receipt_ids": [
+        "gqctx_fd08049261d539e8e19a363a09320ddb76f0864569f8e1f38b5e2022ce47aa1d"
+      ],
+      "support_state": "source_record",
+      "text": "NIGHTLIFE in Johannesburg, South Africa  **The Only Guide You Need**"
+    },
+    {
+      "claim_id": "c3",
+      "falsifier": null,
+      "kind": "observation",
+      "limitations": [
+        "Source record only; prevalence and representativeness are not measured."
+      ],
+      "parent_claim_ids": [],
+      "reading_ids": [],
+      "receipt_ids": [
+        "gqctx_d3eb1a08b0a783c2f998553669ac1f5c98e18c3ebd1eba9f3d9634d7a60ec11c"
+      ],
+      "support_state": "source_record",
+      "text": "Johannesburg Nightlife_ South Africa After Dark"
+    },
+    {
+      "claim_id": "c4",
+      "falsifier": null,
+      "kind": "observation",
+      "limitations": [
+        "Source record only; prevalence and representativeness are not measured."
+      ],
+      "parent_claim_ids": [],
+      "reading_ids": [],
+      "receipt_ids": [
+        "gqctx_d93e9941cedfbd8f720271ecef13ae04e95846ed10aeec7b3c67945d060d0dba"
+      ],
+      "support_state": "source_record",
+      "text": "South Africa Celebrates Youth Day During World Cup"
+    },
+    {
+      "claim_id": "c5",
+      "falsifier": null,
+      "kind": "observation",
+      "limitations": [
+        "Source record only; prevalence and representativeness are not measured."
+      ],
+      "parent_claim_ids": [],
+      "reading_ids": [],
+      "receipt_ids": [
+        "gqctx_a59f2137e7ed7a37ed352a00adff67a75aed5276838109771cefe21dacedfe1b"
+      ],
+      "support_state": "source_record",
+      "text": "National Youth Day South Africa | Education Matters | FuseSchool"
+    },
+    {
+      "claim_id": "c6",
+      "falsifier": null,
+      "kind": "observation",
+      "limitations": [
+        "Source record only; prevalence and representativeness are not measured."
+      ],
+      "parent_claim_ids": [],
+      "reading_ids": [],
+      "receipt_ids": [
+        "gqctx_572510817428a43859bc7c2c5003507de741851ec7153df5b7664c02d539198e"
+      ],
+      "support_state": "source_record",
+      "text": "#WeeklyVlog |Week in My Life as a South African Influencer |Content Creation, Gym, Date Night & More"
+    },
+    {
+      "claim_id": "c7",
+      "falsifier": null,
+      "kind": "observation",
+      "limitations": [
+        "Source record only; prevalence and representativeness are not measured."
+      ],
+      "parent_claim_ids": [],
+      "reading_ids": [],
+      "receipt_ids": [
+        "gqctx_5bd668889465576aa9180857a08897d6ad655da9d65f9afb598ad70bfa369101"
+      ],
+      "support_state": "source_record",
+      "text": "ISHOWSPEED Humbles SOUTH AFRICAN Creators KING OUMAR SIV BRUCE NOTA EB THE KID DJ SBU & MPHO POPS"
+    },
+    {
+      "claim_id": "c8",
+      "falsifier": null,
+      "kind": "observation",
+      "limitations": [
+        "Bounded reading only; population prevalence is not measured."
+      ],
+      "parent_claim_ids": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_ids": [
+        "gqctx_4a88f529a5b59299d7fc1cb0dfe892906af9f23dac80893008a81c0f9262f70b",
+        "gqctx_4e3bafc31ce07d95b45a64478a6ef730e6d9c536892d83c76d93035bd0110af3",
+        "gqctx_1f7da8b2fe6a1bee9268b21cc79a6bde4b848a222e1fa14641f3778f15f8a604",
+        "gqctx_1b473adb9c12421c3d26ad489ce4e6b1db5f4aad435c787bef344547ede20d15",
+        "gqctx_2988777b9436f5321f01573d84f6ce82a487637ef3152b3825f3b9407ab0e963",
+        "gqctx_7872a0e4a07e8b097a1b4dadf73118c353147d93f66564b3f3e8c8fcf4054753",
+        "gqctx_d93e9941cedfbd8f720271ecef13ae04e95846ed10aeec7b3c67945d060d0dba",
+        "gqctx_572510817428a43859bc7c2c5003507de741851ec7153df5b7664c02d539198e",
+        "gqctx_bf45d860b56307eaf5efca230eb9d424016ff536a6392149d78be6efc00f0bc8",
+        "gqctx_fd08049261d539e8e19a363a09320ddb76f0864569f8e1f38b5e2022ce47aa1d",
+        "gqctx_a59f2137e7ed7a37ed352a00adff67a75aed5276838109771cefe21dacedfe1b",
+        "gqctx_9d91cfc4d2e3b240e9d2911c7d2ce792da208ff61df7ee777d5b897adb79be11",
+        "gqctx_8e8c625101200bf547d87422f797e115f4f8b64b0f2bfa999b15fa2a9ed57a25",
+        "gqctx_9015ae0fd7dd9d1e3f36b90f614a2b4aa063f5799dae9f087f06789e818611ec",
+        "gqctx_6e7e59828c678fe8374bce29f960aa144dd43ed03a206e278264dc257c3a4f3a",
+        "gqctx_decebb99df3f83073056aed42720dcdbc0b882101fe643b42e1acff2a162c64d",
+        "gqctx_f4e5c62a1b572602372b30db81358dbab3819a525827831138a9ee0cad13a8ea",
+        "gqctx_045a13a205b0feec9bbfde14d9b8c5eb502b46d609e348c70873e8fd5d8f2982",
+        "gqctx_b429d9bd41ba7a8e6ca47077244e16af17632e4d80e6d99515ebc4a4b6d8362c",
+        "gqctx_5bd668889465576aa9180857a08897d6ad655da9d65f9afb598ad70bfa369101",
+        "gqctx_c0aeeea54a3bd746402818e93add78d3ff36533095aa14b62f6f63d21dcc9d49",
+        "gqctx_9b68810c47246bac4fd0fef118d855707932d976022a3a7db7961e064a2fae07",
+        "gqctx_d3eb1a08b0a783c2f998553669ac1f5c98e18c3ebd1eba9f3d9634d7a60ec11c",
+        "gqctx_3790ee2848184b55d822065fbcd482aed869ebfde8ad4abefec5b1fdab08a1a0"
+      ],
+      "support_state": "source_record",
+      "text": "selected_receipt_count: 24 records (2026-08-25 to 2026-09-07)."
+    },
+    {
+      "claim_id": "c9",
+      "falsifier": null,
+      "kind": "interpretation",
+      "limitations": [
+        "This evidence does not establish population-level rates or market-wide trends.",
+        "Independent corroboration has not been established for this interpretation."
+      ],
+      "parent_claim_ids": [
+        "c1",
+        "c2",
+        "c3"
+      ],
+      "reading_ids": [],
+      "receipt_ids": [],
+      "support_state": "derived",
+      "text": "Hypothesis: Observed contextual material reflects focal topics around South African music celebrations and urban nightlife scenes."
+    },
+    {
+      "claim_id": "c10",
+      "falsifier": null,
+      "kind": "interpretation",
+      "limitations": [
+        "This evidence does not establish population-level rates or market-wide trends.",
+        "Independent corroboration has not been established for this interpretation."
+      ],
+      "parent_claim_ids": [
+        "c4",
+        "c5",
+        "c6",
+        "c7"
+      ],
+      "reading_ids": [],
+      "receipt_ids": [],
+      "support_state": "derived",
+      "text": "Hypothesis: Recorded video titles feature discussions centered on Youth Day observances alongside creator and influencer lifestyle subjects."
+    },
+    {
+      "claim_id": "c11",
+      "falsifier": null,
+      "kind": "inference",
+      "limitations": [
+        "This evidence does not establish population-level rates or market-wide trends.",
+        "Independent corroboration has not been established for this interpretation.",
+        "This evidence does not establish demographic differences or breakdowns."
+      ],
+      "parent_claim_ids": [
+        "c9",
+        "c10"
+      ],
+      "reading_ids": [],
+      "receipt_ids": [],
+      "support_state": "derived",
+      "text": "Hypothesis: Public attention in the captured video samples aligns around recurring themes of local creative culture, urban nightlife, and commemorative occasions."
+    },
+    {
+      "claim_id": "c12",
+      "falsifier": "Systematic collection across next quarter shows these cultural subjects entirely absent from top South African content feeds.",
+      "kind": "proposal",
+      "limitations": [
+        "This evidence does not establish population-level rates or market-wide trends.",
+        "Independent corroboration has not been established for this interpretation."
+      ],
+      "parent_claim_ids": [
+        "c11"
+      ],
+      "reading_ids": [],
+      "receipt_ids": [],
+      "support_state": "proposed",
+      "text": "Track broader media feeds across subsequent collection cycles to evaluate whether Amapiano, nightlife, and creator topics sustain presence beyond current contextual samples."
+    }
+  ],
+  "clarification": null,
+  "contract_version": "general_cultural_question_v1",
+  "limitations": [
+    "Contextual evidence is not promoted signal or release authority.",
+    "Enriched_index selection was truncated to 24 of 5856 matching records.",
+    "Authenticated parent continuity was not supplied; prior conversation prose is context only.",
+    "Coverage counts name their units: 24 collected records, 24 unique observations, 0 source families, 0 verified independent origins; 24 observations carry no verified origin. None of these counts is population prevalence.",
+    "Cited evidence names its units: 24 collected records, 24 unique observations, 0 source families, 0 verified independent origins; 24 cited observations carry no verified origin. None of these counts is population prevalence.",
+    "Origin authority is not projected for these records, so zero verified independent origins is an absent projection and not a measured zero.",
+    "Independence is unknown for 24 cited observations; an unverified origin is never independent support.",
+    "Source record only; prevalence and representativeness are not measured.",
+    "Bounded reading only; population prevalence is not measured.",
+    "This evidence does not establish population-level rates or market-wide trends.",
+    "Independent corroboration has not been established for this interpretation.",
+    "This evidence does not establish demographic differences or breakdowns.",
+    "Contextual records do not carry promoted signal authority.",
+    "Publication time is unavailable; collection time bounds selection, not publication claims.",
+    "This selected-record count is not population prevalence.",
+    "Challenge search: incomplete. Absence of a contrary record is not evidence of consensus."
+  ],
+  "missing_work": [
+    "req_trending_topics_za",
+    "Missing required evidence: What topics, cultural events, and conversations are trending in South Africa during the observation window?",
+    "Challenge search incomplete: no challenge requirement was planned."
+  ],
+  "readings": [
+    {
+      "denominator": null,
+      "limitations": [
+        "This selected-record count is not population prevalence."
+      ],
+      "method": "selected_receipt_count",
+      "reading_id": "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78",
+      "source_receipt_ids": [
+        "gqctx_4a88f529a5b59299d7fc1cb0dfe892906af9f23dac80893008a81c0f9262f70b",
+        "gqctx_4e3bafc31ce07d95b45a64478a6ef730e6d9c536892d83c76d93035bd0110af3",
+        "gqctx_1f7da8b2fe6a1bee9268b21cc79a6bde4b848a222e1fa14641f3778f15f8a604",
+        "gqctx_1b473adb9c12421c3d26ad489ce4e6b1db5f4aad435c787bef344547ede20d15",
+        "gqctx_2988777b9436f5321f01573d84f6ce82a487637ef3152b3825f3b9407ab0e963",
+        "gqctx_7872a0e4a07e8b097a1b4dadf73118c353147d93f66564b3f3e8c8fcf4054753",
+        "gqctx_d93e9941cedfbd8f720271ecef13ae04e95846ed10aeec7b3c67945d060d0dba",
+        "gqctx_572510817428a43859bc7c2c5003507de741851ec7153df5b7664c02d539198e",
+        "gqctx_bf45d860b56307eaf5efca230eb9d424016ff536a6392149d78be6efc00f0bc8",
+        "gqctx_fd08049261d539e8e19a363a09320ddb76f0864569f8e1f38b5e2022ce47aa1d",
+        "gqctx_a59f2137e7ed7a37ed352a00adff67a75aed5276838109771cefe21dacedfe1b",
+        "gqctx_9d91cfc4d2e3b240e9d2911c7d2ce792da208ff61df7ee777d5b897adb79be11",
+        "gqctx_8e8c625101200bf547d87422f797e115f4f8b64b0f2bfa999b15fa2a9ed57a25",
+        "gqctx_9015ae0fd7dd9d1e3f36b90f614a2b4aa063f5799dae9f087f06789e818611ec",
+        "gqctx_6e7e59828c678fe8374bce29f960aa144dd43ed03a206e278264dc257c3a4f3a",
+        "gqctx_decebb99df3f83073056aed42720dcdbc0b882101fe643b42e1acff2a162c64d",
+        "gqctx_f4e5c62a1b572602372b30db81358dbab3819a525827831138a9ee0cad13a8ea",
+        "gqctx_045a13a205b0feec9bbfde14d9b8c5eb502b46d609e348c70873e8fd5d8f2982",
+        "gqctx_b429d9bd41ba7a8e6ca47077244e16af17632e4d80e6d99515ebc4a4b6d8362c",
+        "gqctx_5bd668889465576aa9180857a08897d6ad655da9d65f9afb598ad70bfa369101",
+        "gqctx_c0aeeea54a3bd746402818e93add78d3ff36533095aa14b62f6f63d21dcc9d49",
+        "gqctx_9b68810c47246bac4fd0fef118d855707932d976022a3a7db7961e064a2fae07",
+        "gqctx_d3eb1a08b0a783c2f998553669ac1f5c98e18c3ebd1eba9f3d9634d7a60ec11c",
+        "gqctx_3790ee2848184b55d822065fbcd482aed869ebfde8ad4abefec5b1fdab08a1a0"
+      ],
+      "unit": "records",
+      "value": 24,
+      "window": {
+        "closed": true,
+        "end": "2026-09-07",
+        "start": "2026-08-25"
+      }
+    }
+  ],
+  "ready_for_downstream": false,
+  "receipts": [
+    {
+      "author": null,
+      "citation_label": "R1",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "4a88f529a5b59299d7fc1cb0dfe892906af9f23dac80893008a81c0f9262f70b",
+      "evidence_purposes": [
+        {
+          "claim_id": "c1",
+          "evidence_purpose": "context"
+        },
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "Welcome to South Africa | Amapiano Celebration of Love, Culture & Good Vibes | Afafa To The World",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [
+        {
+          "claim_id": "c1",
+          "content_digest": "4a88f529a5b59299d7fc1cb0dfe892906af9f23dac80893008a81c0f9262f70b",
+          "end": 97,
+          "quote_sha256": "4ba3622c5932a99f320b2239b6b9bd484c5fb59ebfc321def91b671bb8c3fb76",
+          "source_field": "excerpt",
+          "start": 0
+        }
+      ],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_4a88f529a5b59299d7fc1cb0dfe892906af9f23dac80893008a81c0f9262f70b",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "socialcrawl",
+      "source_row_id": "0a3a5163-3aaf-467b-a7d1-c31c537f0668",
+      "url": "https://www.youtube.com/watch?v=z9Ck44e-4UQ"
+    },
+    {
+      "author": "UCt_sWSlCU_0b32qIlw-_vEA",
+      "citation_label": "R2",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "fd08049261d539e8e19a363a09320ddb76f0864569f8e1f38b5e2022ce47aa1d",
+      "evidence_purposes": [
+        {
+          "claim_id": "c2",
+          "evidence_purpose": "context"
+        },
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "NIGHTLIFE in Johannesburg, South Africa  **The Only Guide You Need**",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [
+        {
+          "claim_id": "c2",
+          "content_digest": "fd08049261d539e8e19a363a09320ddb76f0864569f8e1f38b5e2022ce47aa1d",
+          "end": 68,
+          "quote_sha256": "1baccd9fd374eeeb4c1567e1c4194b0ed2a65f298a7cda3e951591bc94f387c1",
+          "source_field": "excerpt",
+          "start": 0
+        }
+      ],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_fd08049261d539e8e19a363a09320ddb76f0864569f8e1f38b5e2022ce47aa1d",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "23331e9f-784c-4e04-98ad-7310b9458342",
+      "url": "https://www.youtube.com/watch?v=-dv6-sYRTRg"
+    },
+    {
+      "author": "UC1ZEFtrOnj1geCLSk8lXjGg",
+      "citation_label": "R3",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "d3eb1a08b0a783c2f998553669ac1f5c98e18c3ebd1eba9f3d9634d7a60ec11c",
+      "evidence_purposes": [
+        {
+          "claim_id": "c3",
+          "evidence_purpose": "context"
+        },
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "Johannesburg Nightlife_ South Africa After Dark",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [
+        {
+          "claim_id": "c3",
+          "content_digest": "d3eb1a08b0a783c2f998553669ac1f5c98e18c3ebd1eba9f3d9634d7a60ec11c",
+          "end": 47,
+          "quote_sha256": "33a77b4fdb51e9a512f50815bc8bcf6c55a1d21ccefa254a2f373a92fb7f9976",
+          "source_field": "excerpt",
+          "start": 0
+        }
+      ],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_d3eb1a08b0a783c2f998553669ac1f5c98e18c3ebd1eba9f3d9634d7a60ec11c",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "47e81c71-0f90-48c5-9c74-e386ad12ba2d",
+      "url": "https://www.youtube.com/watch?v=_iynihHAf7M"
+    },
+    {
+      "author": "UCVSNOxehfALut52NbkfRBaA",
+      "citation_label": "R4",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "d93e9941cedfbd8f720271ecef13ae04e95846ed10aeec7b3c67945d060d0dba",
+      "evidence_purposes": [
+        {
+          "claim_id": "c4",
+          "evidence_purpose": "context"
+        },
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "South Africa Celebrates Youth Day During World Cup",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [
+        {
+          "claim_id": "c4",
+          "content_digest": "d93e9941cedfbd8f720271ecef13ae04e95846ed10aeec7b3c67945d060d0dba",
+          "end": 50,
+          "quote_sha256": "13cb0c948048ae9af12692e635915719ac664e0db978eb27a3ec1812ae3ec8d7",
+          "source_field": "excerpt",
+          "start": 0
+        }
+      ],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_d93e9941cedfbd8f720271ecef13ae04e95846ed10aeec7b3c67945d060d0dba",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "205184c3-bbed-47b6-b027-0ffe6c55e18b",
+      "url": "https://www.youtube.com/watch?v=GO_NKM4hEGs"
+    },
+    {
+      "author": "UCS3wWlfGUijnRIf745lRl2A",
+      "citation_label": "R5",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "a59f2137e7ed7a37ed352a00adff67a75aed5276838109771cefe21dacedfe1b",
+      "evidence_purposes": [
+        {
+          "claim_id": "c5",
+          "evidence_purpose": "context"
+        },
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "National Youth Day South Africa | Education Matters | FuseSchool",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [
+        {
+          "claim_id": "c5",
+          "content_digest": "a59f2137e7ed7a37ed352a00adff67a75aed5276838109771cefe21dacedfe1b",
+          "end": 64,
+          "quote_sha256": "19bfa1efcd0b02c319384518bb141b6a2b3623c5ab6d8671fd085f75a3229d24",
+          "source_field": "excerpt",
+          "start": 0
+        }
+      ],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_a59f2137e7ed7a37ed352a00adff67a75aed5276838109771cefe21dacedfe1b",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "25432052-325d-4105-9652-b8d13f50de3e",
+      "url": "https://www.youtube.com/watch?v=UPmrs2v4Vbk"
+    },
+    {
+      "author": "UCpEquK2QpZrwIFzxwnr9-Gg",
+      "citation_label": "R6",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "572510817428a43859bc7c2c5003507de741851ec7153df5b7664c02d539198e",
+      "evidence_purposes": [
+        {
+          "claim_id": "c6",
+          "evidence_purpose": "context"
+        },
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "#WeeklyVlog |Week in My Life as a South African Influencer |Content Creation, Gym, Date Night & More",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [
+        {
+          "claim_id": "c6",
+          "content_digest": "572510817428a43859bc7c2c5003507de741851ec7153df5b7664c02d539198e",
+          "end": 100,
+          "quote_sha256": "2c279727431d491e8c8332f7b85ca5128f0106e053d93b130511f978245ac9f7",
+          "source_field": "excerpt",
+          "start": 0
+        }
+      ],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_572510817428a43859bc7c2c5003507de741851ec7153df5b7664c02d539198e",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "210ba1d9-4d00-49dc-bfc6-6fba77fe988a",
+      "url": "https://www.youtube.com/watch?v=ig_RADCf8Qc"
+    },
+    {
+      "author": "UC65R7OczGelks8S2eYgnWWQ",
+      "citation_label": "R7",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "5bd668889465576aa9180857a08897d6ad655da9d65f9afb598ad70bfa369101",
+      "evidence_purposes": [
+        {
+          "claim_id": "c7",
+          "evidence_purpose": "context"
+        },
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "ISHOWSPEED Humbles SOUTH AFRICAN Creators KING OUMAR SIV BRUCE NOTA EB THE KID DJ SBU & MPHO POPS",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [
+        {
+          "claim_id": "c7",
+          "content_digest": "5bd668889465576aa9180857a08897d6ad655da9d65f9afb598ad70bfa369101",
+          "end": 97,
+          "quote_sha256": "203bc972bbdd29fee2303042f2f081cb514e1ccb1ab1ff11753e2a3a68c65304",
+          "source_field": "excerpt",
+          "start": 0
+        }
+      ],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_5bd668889465576aa9180857a08897d6ad655da9d65f9afb598ad70bfa369101",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "44b82221-a803-4aec-af2d-9dc8db97aabd",
+      "url": "https://www.youtube.com/watch?v=QP8IwcD1NQE"
+    },
+    {
+      "author": "UC7QteRlErpm27bkZ6izFwKg",
+      "citation_label": "R8",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "4e3bafc31ce07d95b45a64478a6ef730e6d9c536892d83c76d93035bd0110af3",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "People React To Stunning South African's Tiktok! South Africa is HOT!!",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_4e3bafc31ce07d95b45a64478a6ef730e6d9c536892d83c76d93035bd0110af3",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "0be64ff4-9c52-4058-8593-5bd01fff9593",
+      "url": "https://www.youtube.com/watch?v=U82F5QjmgYE"
+    },
+    {
+      "author": "UCjT6rEQHAvXcRLM58Z1D51g",
+      "citation_label": "R9",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "1f7da8b2fe6a1bee9268b21cc79a6bde4b848a222e1fa14641f3778f15f8a604",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "Summit club Hillbrow | South Africa",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_1f7da8b2fe6a1bee9268b21cc79a6bde4b848a222e1fa14641f3778f15f8a604",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "180d9d52-fa48-4389-ba23-9cd419b91e0f",
+      "url": "https://www.youtube.com/watch?v=a5VAb6-vjoA"
+    },
+    {
+      "author": "UC2UZIesHaWPWf6ZTx3twqcg",
+      "citation_label": "R10",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "1b473adb9c12421c3d26ad489ce4e6b1db5f4aad435c787bef344547ede20d15",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "VLOG: Building A Home 🏠 | Homemaker | South African YouTuber",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_1b473adb9c12421c3d26ad489ce4e6b1db5f4aad435c787bef344547ede20d15",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "1c02a13d-72c1-4c88-abbe-71cf3f3ab727",
+      "url": "https://www.youtube.com/watch?v=LiUTurjPQGQ"
+    },
+    {
+      "author": "UCAhFXSbJz9ZLlzSPBQUrDDw",
+      "citation_label": "R11",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "2988777b9436f5321f01573d84f6ce82a487637ef3152b3825f3b9407ab0e963",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "Top South African YouTubers 2025",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_2988777b9436f5321f01573d84f6ce82a487637ef3152b3825f3b9407ab0e963",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "1d8b4bbd-3538-4df2-83d7-08740141027c",
+      "url": "https://www.youtube.com/watch?v=02xbVAhFViA"
+    },
+    {
+      "author": "UChgv34ru-ayIEWYXkOuqNJQ",
+      "citation_label": "R12",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "7872a0e4a07e8b097a1b4dadf73118c353147d93f66564b3f3e8c8fcf4054753",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "Youth Day Documentary (June 16 South Africa)",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_7872a0e4a07e8b097a1b4dadf73118c353147d93f66564b3f3e8c8fcf4054753",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "204de6fb-782b-4bf4-980c-8fc17d9e80a1",
+      "url": "https://www.youtube.com/watch?v=6Xt1ov8D2EE"
+    },
+    {
+      "author": null,
+      "citation_label": "R13",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "bf45d860b56307eaf5efca230eb9d424016ff536a6392149d78be6efc00f0bc8",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "Rakai X Tyla Sister (Sydney) *South Africa* 🇿🇦",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_bf45d860b56307eaf5efca230eb9d424016ff536a6392149d78be6efc00f0bc8",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "socialcrawl",
+      "source_row_id": "2176bc4f-7605-422e-98d2-5f4c92045fc0",
+      "url": "https://www.youtube.com/watch?v=b-5wqVab5lA"
+    },
+    {
+      "author": "UCXFIO9gUUoEc0UphDDiIT0Q",
+      "citation_label": "R14",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "9d91cfc4d2e3b240e9d2911c7d2ce792da208ff61df7ee777d5b897adb79be11",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "I Spent the NIGHT in South Africa's Wildest Slum (Alexandra Township)",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_9d91cfc4d2e3b240e9d2911c7d2ce792da208ff61df7ee777d5b897adb79be11",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "2db7ebe8-9356-4ce9-af44-68a77ad3e5cc",
+      "url": "https://www.youtube.com/watch?v=QBQLJQze4E8"
+    },
+    {
+      "author": "UCzKY52jc174vg6g3T6OXn1w",
+      "citation_label": "R15",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "8e8c625101200bf547d87422f797e115f4f8b64b0f2bfa999b15fa2a9ed57a25",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "How AI Search Is Changing SEO in South Africa",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_8e8c625101200bf547d87422f797e115f4f8b64b0f2bfa999b15fa2a9ed57a25",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "30f9c1aa-cb66-40e4-b67c-8a0cc18e4c46",
+      "url": "https://www.youtube.com/watch?v=KZG4wQW69rk"
+    },
+    {
+      "author": "UCDPej6jEjfGKzJpWaThLOfQ",
+      "citation_label": "R16",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "9015ae0fd7dd9d1e3f36b90f614a2b4aa063f5799dae9f087f06789e818611ec",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "How South African Creators Can Get Brand Deals  3 Platforms to Try",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_9015ae0fd7dd9d1e3f36b90f614a2b4aa063f5799dae9f087f06789e818611ec",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "3330a4d3-b944-41bb-80af-47df0f7872c3",
+      "url": "https://www.youtube.com/watch?v=aYYzD5qgnzM"
+    },
+    {
+      "author": "UClJ0_ugwdAPkQ6LjVkadITg",
+      "citation_label": "R17",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "6e7e59828c678fe8374bce29f960aa144dd43ed03a206e278264dc257c3a4f3a",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "How much YouTube pays me with 3k Subs [South Africa]",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_6e7e59828c678fe8374bce29f960aa144dd43ed03a206e278264dc257c3a4f3a",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "36fa04d7-1cf7-43ec-a82c-b725501a3b9c",
+      "url": "https://www.youtube.com/watch?v=y4i_GTQIniU"
+    },
+    {
+      "author": "UCI2HSs9-slUtQIVzb-LsUvg",
+      "citation_label": "R18",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "decebb99df3f83073056aed42720dcdbc0b882101fe643b42e1acff2a162c64d",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "10 Side Hustles That Actually Work in South Africa (2025 Edition)",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_decebb99df3f83073056aed42720dcdbc0b882101fe643b42e1acff2a162c64d",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "38c635f4-b205-4d80-bef0-c14108cd2a33",
+      "url": "https://www.youtube.com/watch?v=v_A0uNsbyPM"
+    },
+    {
+      "author": "UCsCV5niAD3cNm6jVyFqw_Gw",
+      "citation_label": "R19",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "f4e5c62a1b572602372b30db81358dbab3819a525827831138a9ee0cad13a8ea",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "The June 16, 1976, Soweto Uprising in South Africa",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_f4e5c62a1b572602372b30db81358dbab3819a525827831138a9ee0cad13a8ea",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "39f3a58c-f055-4d96-a0b5-9f6a6e820c21",
+      "url": "https://www.youtube.com/watch?v=NWGJcwpzKek"
+    },
+    {
+      "author": "UCS4Q11NQYAgx3pKBr6O8FdA",
+      "citation_label": "R20",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "045a13a205b0feec9bbfde14d9b8c5eb502b46d609e348c70873e8fd5d8f2982",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "how much YouTube paid me | South African vlogger with 1.3k Subscribers",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_045a13a205b0feec9bbfde14d9b8c5eb502b46d609e348c70873e8fd5d8f2982",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "3d62023a-e166-4426-8881-0a92a1559d08",
+      "url": "https://www.youtube.com/watch?v=aOkPgj6UvIs"
+    },
+    {
+      "author": null,
+      "citation_label": "R21",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "b429d9bd41ba7a8e6ca47077244e16af17632e4d80e6d99515ebc4a4b6d8362c",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "South Africans if are an artist or a business person or an important person in the society do some",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_b429d9bd41ba7a8e6ca47077244e16af17632e4d80e6d99515ebc4a4b6d8362c",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "socialcrawl",
+      "source_row_id": "41914d38-32c1-4f5b-acdd-90bb11237dfc",
+      "url": "https://www.youtube.com/watch?v=KmgqgEsiyBM"
+    },
+    {
+      "author": "UC8yH-uI81UUtEMDsowQyx1g",
+      "citation_label": "R22",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "c0aeeea54a3bd746402818e93add78d3ff36533095aa14b62f6f63d21dcc9d49",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "Youth Day 2026 | What is the state of education in South Africa, 50 years after the Soweto Uprising?",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_c0aeeea54a3bd746402818e93add78d3ff36533095aa14b62f6f63d21dcc9d49",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "4543aac8-3ed5-46af-ada5-96febc0ece48",
+      "url": "https://www.youtube.com/watch?v=vMEkd5Oq7yg"
+    },
+    {
+      "author": "UCvHeh__RFFonMM8vaKda82Q",
+      "citation_label": "R23",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "9b68810c47246bac4fd0fef118d855707932d976022a3a7db7961e064a2fae07",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "crazy night life in South Africa 🇿🇦",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority.",
+        "Publication time is unavailable; collection time bounds selection, not publication claims."
+      ],
+      "market": "za",
+      "platform": "youtube",
+      "published_at": null,
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_9b68810c47246bac4fd0fef118d855707932d976022a3a7db7961e064a2fae07",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "youtube_scrape",
+      "source_row_id": "467a0e8f-4e4f-4eeb-8e00-7d76f1a1e875",
+      "url": "https://www.youtube.com/watch?v=pG6rDLXDlfo"
+    },
+    {
+      "author": null,
+      "citation_label": "R24",
+      "collected_at": "2026-09-07T00:32:13.092962+00:00",
+      "content_digest": "3790ee2848184b55d822065fbcd482aed869ebfde8ad4abefec5b1fdab08a1a0",
+      "evidence_purposes": [
+        {
+          "claim_id": "c8",
+          "evidence_purpose": "context"
+        }
+      ],
+      "excerpt": "GoTyme Bank | South Africa",
+      "kind": "content",
+      "limitations": [
+        "Contextual records do not carry promoted signal authority."
+      ],
+      "market": "za",
+      "platform": "app_store",
+      "published_at": "2026-09-07T00:32:21.631926+00:00",
+      "quote_bindings": [],
+      "reading_ids": [
+        "gqrd_7f13eff29bf1a93984d0ca8fb7064ea3f129f0360e19e3511ead65936d99dd78"
+      ],
+      "receipt_id": "gqctx_3790ee2848184b55d822065fbcd482aed869ebfde8ad4abefec5b1fdab08a1a0",
+      "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+      "source_family": null,
+      "source_label": "app_charts",
+      "source_row_id": "0f7964b3-302d-4595-bfa4-152249e39456",
+      "url": "https://apps.apple.com/za/app/gotyme-bank-south-africa/id6752971179"
+    }
+  ],
+  "request_digest": "e558c7d9d7f6386dcf9a0731f8655bd7797f1e0879607ae74dccd172a60769db",
+  "request_id": "60a5fd02-0b31-483e-bfba-263d0ba596dc",
+  "resolved_scope": {
+    "audience_lens_ids": [],
+    "brand_config_id": null,
+    "client_scope_id": "ogilvy_default",
+    "market_scope": [
+      "za"
+    ],
+    "theme_id": null
+  },
+  "review_required": true,
+  "sections": [
+    {
+      "claim_ids": [
+        "c11"
+      ],
+      "kind": "answer"
+    },
+    {
+      "claim_ids": [
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5",
+        "c6",
+        "c7",
+        "c8"
+      ],
+      "kind": "evidence"
+    },
+    {
+      "claim_ids": [
+        "c9",
+        "c10"
+      ],
+      "kind": "interpretation"
+    },
+    {
+      "claim_ids": [
+        "c12"
+      ],
+      "kind": "actions"
+    }
+  ],
+  "snapshot_id": "gqs_59523ef50726290355cf2b4e5b5816e02fd6d35dc8df2dcb06fc7b899b2d52f3",
+  "status": "partial",
+  "usage": {
+    "call_receipt_ids": [
+      "3b35704b52ab9a3fd238d48d7edc7626ed5f0c0c1d66a8a50f6f1a6aebe4c1d6",
+      "5f9c18073e775108e7866f1b4d6777074f9b40cefee58494915be0c5824e94b7"
+    ],
+    "input_tokens": 10989,
+    "model_calls": 2,
+    "output_tokens": 1313,
+    "reason": null,
+    "reservation_ids": [
+      "60a5fd02-0b31-483e-bfba-263d0ba596dc"
+    ],
+    "reserved_cost_usd": "0.100000",
+    "status": "resolved",
+    "usage_receipt_ids": [
+      "usage_4830aa8d7ba948ff99179864e23484ac665b824de3638c759f8ba3f96f45c23b",
+      "usage_9c2857168b6f094afa6ddf8efdf51b6b6fb1aa4d1cca4d821c886e9b28770beb"
+    ]
+  },
+  "window": {
+    "closed": true,
+    "end": "2026-09-07",
+    "start": "2026-08-25"
+  }
+}

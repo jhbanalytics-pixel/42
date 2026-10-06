@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>42. Ogilvy Intelligence</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230d0d0f'/%3E%3Ccircle cx='8' cy='8' r='4' fill='%23ec3a1e'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --m-bg:#0d0d0f;
+  --m-text:#f4efe4;
+  --m-soft:#ddd3bd;
+  --m-mute:#8c826c;
+  --m-dim:#998e76;
+  --m-accent:#ec3a1e;
+  --m-pos:#2f9e6b;
+  --m-neu:#b8902a;
+  --m-line:#2c2820;
+  --bg:#0d0d0f;
+  --surface:#121216;
+  --text:#f4efe4;
+  --text-soft:#ddd3bd;
+  --text-mute:#8c826c;
+  --accent:#ec3a1e;
+  --pos:#2f9e6b;
+  --neu:#b8902a;
+  --neg:#df604f;
+  --line:#2c2820;
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px;
+  --t-1:11px; --t-2:12px; --t-3:13px; --t-4:15px; --t-5:17px; --t-6:21px; --t-7:26px; --t-8:34px; --t-9:46px;
+  --r-1:4px; --r-2:10px; --r-3:16px;
+  --e-1:0 1px 2px rgba(0,0,0,0.25);
+  --e-2:0 10px 32px rgba(0,0,0,0.35);
+  --font-display:'Newsreader',Georgia,'Times New Roman',serif;
+  --font-body:'Inter',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',Consolas,monospace;
+}
+[data-theme="light"]{
+  --bg:#ece4d4;
+  --surface:#f4efe4;
+  --text:#0d0d0f;
+  --text-soft:#3a352b;
+  --text-mute:#6b6354;
+  --accent:#b62a12;
+  --pos:#1c6e47;
+  --neu:#7a5c10;
+  --neg:#a33326;
+  --line:#d2c5aa;
+  --e-1:0 1px 2px rgba(58,53,43,0.12);
+  --e-2:0 10px 32px rgba(58,53,43,0.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:var(--t-4);line-height:1.6;min-height:100vh}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--r-1)}
+.serif{font-family:var(--font-display)}
+.mono{font-family:var(--font-mono)}
+
+/* Masthead, theme invariant: the dark editorial register in both themes */
+.masthead{background:var(--m-bg);color:var(--m-text);border-bottom:1px solid var(--m-line);padding:var(--s-5) var(--s-5) var(--s-4)}
+.masthead-inner{max-width:1060px;margin:0 auto}
+.mast-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s-4);flex-wrap:wrap}
+.lockup{display:block;text-align:left}
+.wordmark{font-family:var(--font-display);font-weight:700;font-size:var(--t-8);letter-spacing:0.02em;line-height:1.05;color:var(--m-text)}
+.wordmark .stop{color:var(--m-accent)}
+.lockup-sub{font-family:var(--font-display);font-style:italic;font-size:var(--t-5);color:var(--m-soft);margin-top:2px}
+.lockup-prov{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.14em;text-transform:uppercase;color:var(--m-dim);margin-top:var(--s-2)}
+.mast-controls{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--m-mute);border-radius:var(--r-2);overflow:hidden}
+.seg button{font-family:var(--font-mono);font-size:var(--t-2);letter-spacing:0.08em;padding:6px 12px;color:var(--m-soft)}
+.seg button[aria-pressed="true"]{background:var(--m-text);color:var(--m-bg);font-weight:700}
+.theme-btn{font-family:var(--font-mono);font-size:var(--t-2);letter-spacing:0.08em;color:var(--m-soft);border:1px solid var(--m-mute);border-radius:var(--r-2);padding:6px 12px}
+.mast-bottom{display:flex;align-items:center;justify-content:space-between;gap:var(--s-4);flex-wrap:wrap;margin-top:var(--s-4)}
+.nav{display:flex;gap:var(--s-2);flex-wrap:wrap}
+.nav button{font-family:var(--font-mono);font-size:var(--t-2);letter-spacing:0.12em;text-transform:uppercase;color:var(--m-mute);padding:6px 10px;border-radius:var(--r-1)}
+.nav button[aria-current="page"]{color:var(--m-text);box-shadow:inset 0 -2px 0 var(--m-accent)}
+.nav button:hover{color:var(--m-soft)}
+.stamp{display:inline-flex;align-items:center;gap:var(--s-2);font-family:var(--font-mono);font-size:var(--t-2);color:var(--m-soft)}
+.stamp .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.stamp .dot.fresh{background:var(--m-pos)}
+.stamp .dot.stale{background:var(--m-neu)}
+.stamp.unknown{color:var(--m-mute)}
+
+/* Page scaffold */
+.page{max-width:1060px;margin:0 auto;padding:var(--s-6) var(--s-5) var(--s-7)}
+.section-label{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.16em;text-transform:uppercase;color:var(--text-mute);margin-bottom:var(--s-3)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-3);box-shadow:var(--e-1);padding:var(--s-5)}
+.tile{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-2);padding:var(--s-4)}
+
+/* Search */
+.searchbar{margin-bottom:var(--s-4)}
+.searchbar form{display:flex;gap:var(--s-3)}
+.searchbar input{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-2);padding:var(--s-3) var(--s-4);font:inherit;font-size:var(--t-5);color:var(--text)}
+.searchbar input::placeholder{color:var(--text-mute);opacity:1}
+.btn-solid{background:var(--m-accent);color:var(--m-bg);font-weight:600;border-radius:var(--r-2);padding:var(--s-3) var(--s-5);font-size:var(--t-4)}
+.btn{border:1px solid var(--accent);color:var(--accent);border-radius:var(--r-2);padding:var(--s-2) var(--s-4);font-size:var(--t-3);font-weight:500}
+.btn.tiny{padding:2px 10px;font-size:var(--t-2);font-family:var(--font-mono)}
+.recent{display:flex;align-items:center;gap:var(--s-2);flex-wrap:wrap;margin-bottom:var(--s-5)}
+.recent .lbl{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.12em;text-transform:uppercase;color:var(--text-mute)}
+.recent-chip{font-family:var(--font-mono);font-size:var(--t-2);color:var(--text-soft);border:1px solid var(--line);border-radius:var(--r-2);padding:3px 10px}
+.recent-chip:hover{border-color:var(--text-mute)}
+.recent-clear{color:var(--text-mute);font-size:var(--t-4);line-height:1;padding:2px 6px}
+
+/* Rails strip */
+.rails{margin-bottom:var(--s-6)}
+.rails-head{margin-bottom:var(--s-3)}
+.rails-head .section-label{margin-bottom:2px}
+.rails-sub{font-size:var(--t-3);color:var(--text-mute);max-width:60ch}
+.rail-chips{display:flex;gap:var(--s-2);flex-wrap:wrap}
+.rail-chip{display:inline-flex;align-items:center;gap:var(--s-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-2);padding:6px 12px;text-align:left;transition:border-color 0.15s ease,transform 0.15s ease}
+.rail-chip:hover{border-color:var(--text-mute);transform:translateY(-1px)}
+.rail-chip .topic{font-weight:500;font-size:var(--t-3);color:var(--text)}
+.rail-chip .mkt{font-family:var(--font-mono);font-size:var(--t-1);text-transform:uppercase;color:var(--text-mute)}
+
+/* Verdict panel: ink in both themes, PULSE mailer register */
+.verdict{background:var(--m-bg);color:var(--m-text);border:1px solid var(--m-line);border-radius:var(--r-3);box-shadow:var(--e-2);padding:var(--s-6);margin-bottom:var(--s-6)}
+.verdict .kicker{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.16em;text-transform:uppercase;color:var(--m-dim);margin-bottom:var(--s-3)}
+.verdict h2{font-family:var(--font-display);font-weight:600;font-size:var(--t-8);line-height:1.15;color:var(--m-text)}
+.verdict .summary{color:var(--m-soft);margin-top:var(--s-4);max-width:62ch}
+.verdict .cta{display:flex;align-items:baseline;gap:var(--s-3);margin-top:var(--s-5);border-left:3px solid var(--m-accent);padding-left:var(--s-4);color:var(--m-text)}
+.verdict .cta-label{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.14em;text-transform:uppercase;color:var(--m-accent);flex:none}
+.verdict .vchips{display:flex;gap:var(--s-2);flex-wrap:wrap;margin-top:var(--s-5)}
+.verdict .vchip{font-family:var(--font-mono);font-size:var(--t-2);color:var(--m-soft);border:1px solid var(--m-mute);border-radius:var(--r-2);padding:3px 10px}
+.verdict .vchip:hover{border-color:var(--m-soft)}
+.verdict .vchips .lbl{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.12em;text-transform:uppercase;color:var(--m-dim);align-self:center}
+
+/* Chips and badges */
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-2);color:var(--text-soft);border:1px solid var(--line);border-radius:var(--r-2);padding:2px 10px}
+.chip.mono{font-family:var(--font-mono)}
+.chip .dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.pos{background:var(--pos)} .dot.neu{background:var(--neu)} .dot.neg{background:var(--neg)} .dot.mute{background:var(--text-mute)}
+.momentum{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:var(--t-2);font-weight:500;border:1px solid currentColor;border-radius:var(--r-2);padding:2px 10px}
+.momentum.pos{color:var(--pos)} .momentum.neu{color:var(--neu)} .momentum.neg{color:var(--neg)} .momentum.mute{color:var(--text-mute)}
+.momentum.mini{border:none;padding:0}
+
+/* Brief cards: the Prompt Pulse lens layout */
+.brief{margin-bottom:var(--s-5);padding:var(--s-6);transition:border-color 0.18s ease,box-shadow 0.18s ease}
+.brief:hover{border-color:var(--text-mute);box-shadow:var(--e-2)}
+.brief-top{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap;margin-bottom:var(--s-4)}
+.topic-tag{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.12em;text-transform:uppercase;color:var(--text);border:1px solid var(--line);border-radius:var(--r-1);padding:3px 10px}
+.brief-top .mkt{font-family:var(--font-mono);font-size:var(--t-2);color:var(--text-mute)}
+.brief-top .sep{color:var(--text-mute)}
+.brief-top .score{font-family:var(--font-mono);font-size:var(--t-2);color:var(--text-mute);margin-left:auto}
+
+/* A lens is one labeled section of the Prompt Pulse structure. */
+.lens{margin-top:var(--s-5);padding-top:var(--s-5);border-top:1px solid var(--line)}
+.lens:first-of-type{margin-top:0;padding-top:0;border-top:none}
+.lens-lbl,.inline-lbl,.seen-on .lbl{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.14em;text-transform:uppercase;color:var(--text-mute);display:block;margin-bottom:var(--s-3)}
+
+.brief h3{font-family:var(--font-display);font-weight:600;font-size:var(--t-7);line-height:1.2;color:var(--text);max-width:34ch;margin-bottom:var(--s-3)}
+.trend-state{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap;margin-bottom:var(--s-3)}
+.badges{display:flex;gap:var(--s-2);flex-wrap:wrap;margin-bottom:var(--s-4)}
+.badge-state{font-weight:700}
+.badge-state.up{color:var(--pos);border-color:var(--pos)}
+.badge-state.down{color:var(--neg);border-color:var(--neg)}
+.badge-state.flat{color:var(--text-soft)}
+.seen-on{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap;margin-bottom:var(--s-4)}
+.seen-on .lbl{display:inline-block;margin-bottom:0}
+.seen-chip{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-2);color:var(--text-soft)}
+.seen-chip .w{font-family:var(--font-mono);color:var(--text-mute)}
+.brief .body{color:var(--text);max-width:68ch;line-height:1.6}
+.brief .body.lead{font-size:var(--t-5)}
+.brief .body.soft{color:var(--text-soft)}
+.search-line{font-family:var(--font-mono);font-size:var(--t-2);color:var(--text-mute);margin-top:var(--s-3)}
+
+/* The calm sentiment indicator: a small dot plus a quiet word. */
+.mood{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-2);color:var(--text-soft)}
+.mood .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.mood .mood-word{text-transform:capitalize}
+
+/* The mood pill: a calm coloured label for the plain mood word, with the
+   jargon-stripped read alongside it. */
+.mood-pill{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-2);font-weight:500;border:1px solid currentColor;border-radius:var(--r-2);padding:3px 10px}
+.mood-pill.pos{color:var(--pos)} .mood-pill.neu{color:var(--neu)} .mood-pill.neg{color:var(--neg)}
+.mood-pill .dot{width:7px;height:7px;border-radius:50%;flex:none;background:currentColor}
+.sentiment-line{display:flex;align-items:baseline;gap:var(--s-3);flex-wrap:wrap;margin-top:var(--s-3)}
+.sentiment-read{font-size:var(--t-3);color:var(--text-soft);max-width:64ch}
+
+/* The relevance stat tiles: a big value over a small plain label. */
+.stat-tiles{display:flex;gap:var(--s-3);flex-wrap:wrap;margin-bottom:var(--s-4)}
+.stat-tile{flex:1 1 auto;min-width:120px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-2);padding:var(--s-3) var(--s-4)}
+.stat-tile .v{font-family:var(--font-display);font-weight:600;font-size:var(--t-6);line-height:1.1;color:var(--text)}
+.stat-tile .k{font-size:var(--t-2);color:var(--text-mute);margin-top:2px}
+.stat-tile.solo .v{font-size:var(--t-4);font-weight:500}
+
+/* The chip-legend toggle: a quiet inline affordance that expands one plain
+   sentence per chip type. Subtle by default, never a modal. */
+.chip-row-wrap{margin-bottom:var(--s-4)}
+.legend-toggle{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.08em;text-transform:uppercase;color:var(--text-mute);border:1px solid var(--line);border-radius:var(--r-2);padding:2px 9px;margin-left:var(--s-2)}
+.legend-toggle:hover{color:var(--text-soft);border-color:var(--text-mute)}
+.legend{margin-top:var(--s-3);background:var(--bg);border:1px solid var(--line);border-radius:var(--r-2);padding:var(--s-3) var(--s-4)}
+.legend dl{display:grid;grid-template-columns:auto 1fr;gap:4px var(--s-3)}
+.legend dt{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.08em;text-transform:uppercase;color:var(--text-mute);white-space:nowrap}
+.legend dd{font-size:var(--t-2);color:var(--text-soft);line-height:1.5}
+
+/* THE PLAY: the leverage lens, the visual centre of gravity of the card. */
+.lens.play{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--r-2);padding:var(--s-5);margin-top:var(--s-5)}
+.lens.play .lens-lbl{color:var(--accent)}
+.lens.play .play-frame{font-size:var(--t-3);color:var(--text-mute);margin:calc(var(--s-2) * -1 + 2px) 0 var(--s-4)}
+.lens.play .play-idea{font-family:var(--font-display);font-size:var(--t-5);line-height:1.45;color:var(--text);max-width:68ch}
+.lens.play .play-anchor{margin-top:var(--s-4)}
+.lens.play .play-anchor .inline-lbl{display:block;margin-bottom:var(--s-2)}
+.lens.play .play-anchor p{color:var(--text-soft);max-width:68ch;line-height:1.6}
+
+.room{margin-top:var(--s-4)}
+.room p{color:var(--text-soft);max-width:68ch;margin:var(--s-2) 0 var(--s-3)}
+.chips-row{display:flex;gap:var(--s-2);flex-wrap:wrap}
+
+/* The driving-hashtag chip: tag in mono, share muted. */
+.tag-chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:var(--t-2);color:var(--text-soft);background:var(--bg);border:1px solid var(--line);border-radius:var(--r-2);padding:3px 10px;transition:border-color 0.15s ease}
+.tag-chip:hover{border-color:var(--text-mute)}
+.tag-chip .pct{color:var(--text-mute)}
+.relevance-meta{margin-top:var(--s-4)}
+
+.kit summary{font-family:var(--font-mono);font-size:var(--t-2);letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);cursor:pointer;list-style:none}
+.kit summary::before{content:'+ '}
+.kit[open] summary::before{content:'\00d7 '}
+.kit-note{font-size:var(--t-2);color:var(--text-mute);margin:var(--s-2) 0 0;text-transform:none;letter-spacing:normal}
+.kit-block{margin-top:var(--s-4)}
+.kit-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s-3);margin-bottom:var(--s-2)}
+.kit-pre{font-family:var(--font-mono);font-size:var(--t-3);color:var(--text-soft);white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-2);padding:var(--s-4);line-height:1.6}
+.idea-anchor{font-size:var(--t-3);color:var(--text-mute);margin-top:var(--s-3)}
+.brief-foot{display:flex;flex-direction:column;gap:var(--s-3)}
+.foot-row{display:flex;align-items:baseline;gap:var(--s-3);flex-wrap:wrap}
+.foot-row .inline-lbl{display:inline-block;margin-bottom:0}
+.creator-chip{font-family:var(--font-mono);font-size:var(--t-2);color:var(--text-soft);border:1px solid var(--line);border-radius:var(--r-1);padding:2px 8px}
+.ref-link{font-size:var(--t-2);color:var(--accent);word-break:break-all}
+.foot-note{font-size:var(--t-3);color:var(--text-mute)}
+
+/* Answer page */
+.answer-head{margin-bottom:var(--s-6)}
+.answer-head h1{font-family:var(--font-display);font-weight:600;font-size:var(--t-9);line-height:1.05;text-transform:lowercase}
+.answer-sub{display:flex;align-items:center;gap:var(--s-4);flex-wrap:wrap;margin-top:var(--s-3)}
+.answer-sub .n{font-family:var(--font-mono);font-size:var(--t-3);color:var(--text-mute)}
+.overall-read{font-family:var(--font-display);font-size:var(--t-6);line-height:1.4;color:var(--text-soft);max-width:64ch;margin-bottom:var(--s-6)}
+.trend-card{margin-bottom:var(--s-4)}
+.trend-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s-4);flex-wrap:wrap}
+.trend-card h3{font-family:var(--font-display);font-weight:600;font-size:var(--t-6);line-height:1.25;max-width:56ch}
+.trend-meta{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap;margin-top:var(--s-3);font-size:var(--t-2);color:var(--text-mute)}
+.trend-meta .ev{font-family:var(--font-mono)}
+.howto{display:flex;gap:var(--s-3);align-items:baseline;border-left:3px solid var(--accent);padding-left:var(--s-4);margin-top:var(--s-4)}
+.howto .lbl{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);flex:none}
+.howto p{color:var(--text);max-width:62ch}
+.quote-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--s-3)}
+.quote{display:flex;flex-direction:column;gap:var(--s-3)}
+.quote blockquote{font-family:var(--font-display);font-size:var(--t-4);line-height:1.5;color:var(--text)}
+.quote-foot{display:flex;align-items:center;gap:var(--s-2);flex-wrap:wrap;font-family:var(--font-mono);font-size:var(--t-1);color:var(--text-mute);margin-top:auto}
+.limited-note{font-family:var(--font-mono);font-size:var(--t-2);color:var(--neu);margin-top:var(--s-3)}
+.slang-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--s-3)}
+.slang-item .term{font-family:var(--font-mono);font-weight:700;font-size:var(--t-4);color:var(--text)}
+.slang-item .meaning{color:var(--text-soft);font-size:var(--t-3);margin-top:var(--s-1)}
+.creator-rows{display:flex;flex-direction:column;gap:var(--s-2)}
+.creator-row{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s-3);border-bottom:1px solid var(--line);padding-bottom:var(--s-2)}
+.creator-row .h{font-family:var(--font-mono);font-size:var(--t-3);color:var(--text)}
+.creator-row .m{font-family:var(--font-mono);font-size:var(--t-2);color:var(--text-mute)}
+.pulse-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--s-4)}
+.spark-wrap svg{width:100%;height:auto;display:block}
+.spark-meta{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:var(--t-1);color:var(--text-mute);margin-top:var(--s-2)}
+.split-row{display:grid;grid-template-columns:110px 1fr 64px;align-items:center;gap:var(--s-3);margin-bottom:var(--s-2)}
+.split-row .nm{display:flex;align-items:center;gap:6px;font-size:var(--t-2);color:var(--text-soft);white-space:nowrap}
+.split-track{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-1);height:10px;overflow:hidden}
+.split-fill{background:var(--text-soft);height:100%}
+.split-row .ct{font-family:var(--font-mono);font-size:var(--t-1);color:var(--text-mute);text-align:right}
+.thin-state{border-left:3px solid var(--neu);padding-left:var(--s-4);margin-bottom:var(--s-6)}
+.thin-state h2{font-family:var(--font-display);font-size:var(--t-7);font-weight:600}
+.thin-state p{color:var(--text-soft);margin-top:var(--s-2)}
+.section{margin-bottom:var(--s-6)}
+
+/* Browse */
+.browse-group{margin-bottom:var(--s-6)}
+.browse-group h2{font-family:var(--font-display);font-weight:600;font-size:var(--t-7);margin-bottom:var(--s-4)}
+.browse-row{display:flex;align-items:baseline;gap:var(--s-4);width:100%;text-align:left;border-bottom:1px solid var(--line);padding:var(--s-3) var(--s-2)}
+.browse-row:hover{background:var(--surface)}
+.browse-row .topic{font-family:var(--font-display);font-size:var(--t-5);font-weight:500;color:var(--text);flex:none}
+.browse-row .tier{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.1em;text-transform:uppercase;color:var(--text-mute);flex:none}
+.browse-row .read{font-size:var(--t-3);color:var(--text-soft);flex:1;min-width:200px}
+
+/* Method */
+.method{max-width:68ch}
+.method h2{font-family:var(--font-display);font-weight:600;font-size:var(--t-8);margin-bottom:var(--s-5)}
+.method p{color:var(--text-soft);margin-bottom:var(--s-4)}
+.method strong{color:var(--text);font-weight:600}
+
+/* States */
+.skel{border-radius:var(--r-2);background:var(--surface);border:1px solid var(--line)}
+.skel-anim{animation:skelpulse 1.6s ease-in-out infinite}
+@keyframes skelpulse{0%,100%{opacity:1}50%{opacity:0.55}}
+.skel-note{font-family:var(--font-mono);font-size:var(--t-2);color:var(--text-mute);margin-bottom:var(--s-4)}
+.state-card{text-align:center;padding:var(--s-7) var(--s-5)}
+.state-card h2{font-family:var(--font-display);font-size:var(--t-7);font-weight:600;margin-bottom:var(--s-3)}
+.state-card p{color:var(--text-soft);max-width:48ch;margin:0 auto var(--s-4)}
+.state-card .detail{font-family:var(--font-mono);font-size:var(--t-2);color:var(--text-mute)}
+
+/* Passcode screen */
+.pass-screen{min-height:100vh;background:var(--m-bg);color:var(--m-text);display:flex;align-items:center;justify-content:center;padding:var(--s-5)}
+.pass-box{max-width:420px;width:100%;text-align:center}
+.pass-box .wordmark{font-size:var(--t-9)}
+.pass-box .lockup-sub{font-size:var(--t-6)}
+.pass-box form{margin-top:var(--s-6);display:flex;flex-direction:column;gap:var(--s-3)}
+.pass-box input{background:var(--m-bg);border:1px solid var(--m-mute);border-radius:var(--r-2);padding:var(--s-3) var(--s-4);font-family:var(--font-mono);font-size:var(--t-5);color:var(--m-text);text-align:center;letter-spacing:0.2em}
+.pass-box input::placeholder{color:var(--m-mute);opacity:1;letter-spacing:normal}
+.pass-note{font-size:var(--t-3);color:var(--m-soft);margin-top:var(--s-4)}
+.pass-error{font-family:var(--font-mono);font-size:var(--t-2);color:var(--m-accent);margin-top:var(--s-3)}
+
+/* Guide overlay */
+.overlay{position:fixed;inset:0;background:rgba(13,13,15,0.72);display:flex;align-items:center;justify-content:center;padding:var(--s-5);z-index:40}
+.guide{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:var(--r-3);box-shadow:var(--e-2);max-width:460px;width:100%;padding:var(--s-6)}
+.guide .step-k{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.16em;text-transform:uppercase;color:var(--accent);margin-bottom:var(--s-2)}
+.guide h2{font-family:var(--font-display);font-weight:600;font-size:var(--t-7);margin-bottom:var(--s-3)}
+.guide p{color:var(--text-soft);margin-bottom:var(--s-5)}
+.guide-foot{display:flex;align-items:center;justify-content:space-between;gap:var(--s-3)}
+.guide-dots{display:flex;gap:var(--s-2)}
+.guide-dots .gd{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.guide-dots .gd.on{background:var(--accent)}
+.guide-btns{display:flex;gap:var(--s-2)}
+.btn-ghost{color:var(--text-mute);font-size:var(--t-3);padding:var(--s-2) var(--s-3)}
+
+/* Boot loader: the branded first paint, shown before React attaches and
+   replaced on mount. The wordmark is fully visible with or without the
+   animation, so reduced motion never hides it. */
+.boot{position:fixed;inset:0;background:var(--m-bg);color:var(--m-text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s-4);z-index:60}
+.boot .wordmark{font-size:var(--t-9)}
+.boot .lockup-sub{font-size:var(--t-5)}
+.boot .boot-bar{width:120px;height:3px;border-radius:999px;background:var(--m-line);overflow:hidden;margin-top:var(--s-2)}
+.boot .boot-bar span{display:block;height:100%;width:40%;background:var(--m-accent);border-radius:999px;animation:bootslide 1.2s ease-in-out infinite}
+.boot .boot-note{font-family:var(--font-mono);font-size:var(--t-1);letter-spacing:0.16em;text-transform:uppercase;color:var(--m-dim)}
+@keyframes bootslide{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+
+/* Footer */
+.foot{border-top:1px solid var(--line);margin-top:var(--s-7);padding-top:var(--s-5);font-family:var(--font-mono);font-size:var(--t-1);color:var(--text-mute);display:flex;flex-direction:column;gap:var(--s-2)}
+
+@media (max-width:720px){
+  .wordmark{font-size:var(--t-7)}
+  .answer-head h1{font-size:var(--t-8)}
+  .verdict h2{font-size:var(--t-7)}
+  .split-row{grid-template-columns:90px 1fr 52px}
+  .page{padding:var(--s-5) var(--s-4) var(--s-6)}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<div id="root"><div class="boot"><div class="lockup" style="text-align:center"><div class="wordmark">42<span class="stop">.</span></div><div class="lockup-sub">Ogilvy Intelligence</div></div><div class="boot-bar"><span></span></div><div class="boot-note">Reading the signal</div></div></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+<script type="text/babel" data-presets="react">
+const {useState, useEffect, useRef, useMemo} = React;
+
+const PASS_KEY = 'pulse_passcode';
+const GUIDE_KEY = 'pulse_guide_seen';
+const RECENT_KEY = 'pulse_recent_searches';
+const THEME_KEY = 'pulse_theme';
+const MARKETS = [['za','ZA'],['ng','NG'],['ke','KE'],['all','All']];
+
+/* Data access. One in-session cache; the engine refreshes daily. */
+const cache = new Map();
+function apiGet(path){
+  if (cache.has(path)) return cache.get(path);
+  const p = fetch(path, {headers: {'X-Passcode': localStorage.getItem(PASS_KEY) || ''}})
+    .then(res => {
+      if (res.status === 401){ const e = new Error('Passcode required'); e.auth = true; throw e; }
+      if (!res.ok) throw new Error('The server answered ' + res.status + '.');
+      return res.json();
+    })
+    .catch(err => { cache.delete(path); throw err; });
+  cache.set(path, p);
+  return p;
+}
+
+function useApi(path, refreshKey, onAuth){
+  const [s, setS] = useState({state:'loading'});
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setS({state:'loading'});
+    apiGet(path).then(d => { if (live) setS({state:'ready', data:d}); })
+      .catch(e => {
+        if (!live) return;
+        if (e && e.auth){ onAuth && onAuth(); setS({state:'auth'}); }
+        else setS({state:'error', message: e && e.message ? e.message : 'Unknown failure'});
+      });
+    return () => { live = false; };
+  }, [path, tick, refreshKey]);
+  return [s, () => setTick(t => t + 1)];
+}
+
+/* Formatting helpers */
+function humanize(n){
+  if (n == null || isNaN(n)) return null;
+  const a = Math.abs(n);
+  const one = x => { const v = Math.round(x * 10) / 10; return v >= 10 ? String(Math.round(v)) : String(v); };
+  if (a >= 1e6) return one(n / 1e6) + 'M';
+  if (a >= 1e3) return one(n / 1e3) + 'K';
+  return String(Math.round(n));
+}
+function truncateWords(t, max){
+  if (!t) return t;
+  const s = String(t).trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max + 1);
+  const i = cut.lastIndexOf(' ');
+  const head = i > 40 ? cut.slice(0, i) : s.slice(0, max);
+  return head.replace(/[\s,.;:]+$/, '') + '...';
+}
+function fmtWeight(w){
+  if (w == null || isNaN(w)) return '';
+  const v = w <= 1 ? w * 100 : w;
+  return Math.round(v) + '%';
+}
+function fmtDate(iso){
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00Z');
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'UTC'});
+}
+function loadRecent(){
+  try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+  catch(e){ return []; }
+}
+function pushRecent(q){
+  const list = [q].concat(loadRecent().filter(x => x.toLowerCase() !== q.toLowerCase())).slice(0, 6);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+}
+
+/* One platform glyph set: simple monochrome marks, full names. */
+const PLATFORM_LABELS = {tiktok:'TikTok', instagram:'Instagram', threads:'Threads', reddit:'Reddit', youtube:'YouTube', news:'News', web:'Web'};
+function platformLabel(p){
+  const k = String(p || '').toLowerCase();
+  if (PLATFORM_LABELS[k]) return PLATFORM_LABELS[k];
+  return k ? k.charAt(0).toUpperCase() + k.slice(1) : '';
+}
+function PlatformMark({name}){
+  const k = String(name || '').toLowerCase();
+  const common = {width:12, height:12, viewBox:'0 0 12 12', fill:'none', stroke:'currentColor', strokeWidth:1.2, strokeLinecap:'round', strokeLinejoin:'round', 'aria-hidden':true};
+  let inner = null;
+  if (k === 'tiktok') inner = (<g><path d="M7.4 1.6v6a2.4 2.4 0 1 1-2.1-2.38"/><path d="M7.4 2.6c.5 1.1 1.4 1.8 2.7 2"/></g>);
+  else if (k === 'instagram') inner = (<g><rect x="1.6" y="1.6" width="8.8" height="8.8" rx="2.6"/><circle cx="6" cy="6" r="2"/><circle cx="8.7" cy="3.3" r="0.5" fill="currentColor" stroke="none"/></g>);
+  else if (k === 'threads') inner = (<g><path d="M6 10.4c-2.5 0-4-1.7-4-4.4S3.5 1.6 6 1.6c2 0 3.4 1 3.8 2.7"/><path d="M4.6 6.9c0-1 .8-1.6 1.9-1.6 1.6 0 2.4.8 2.4 2 0 1.3-.9 2.1-2.2 2.1-1 0-1.7-.5-1.7-1.3 0-.7.6-1.2 1.6-1.2h2.3"/></g>);
+  else if (k === 'reddit') inner = (<g><ellipse cx="6" cy="7.2" rx="4.2" ry="3"/><circle cx="4.4" cy="7" r="0.5" fill="currentColor" stroke="none"/><circle cx="7.6" cy="7" r="0.5" fill="currentColor" stroke="none"/><path d="M6 4.2l.7-2.4 2.2.6"/></g>);
+  else if (k === 'youtube') inner = (<g><rect x="1.4" y="2.6" width="9.2" height="6.8" rx="1.8"/><path d="M5.1 4.6v2.8L7.6 6z" fill="currentColor" stroke="none"/></g>);
+  else if (k === 'news') inner = (<g><rect x="1.8" y="2" width="8.4" height="8" rx="1"/><path d="M3.6 4.4h4.8M3.6 6.2h4.8M3.6 8h3"/></g>);
+  else if (k === 'web') inner = (<g><circle cx="6" cy="6" r="4.4"/><ellipse cx="6" cy="6" rx="2" ry="4.4"/><path d="M1.6 6h8.8"/></g>);
+  else inner = (<circle cx="6" cy="6" r="3.5"/>);
+  return <svg {...common}>{inner}</svg>;
+}
+function PlatformTag({name}){
+  return (<span className="seen-chip"><PlatformMark name={name}/><span>{platformLabel(name)}</span></span>);
+}
+
+/* One momentum chip. The value always comes from the API; unknown values render as given, muted. */
+const MOMENTUM_MAP = {rising:{cls:'pos', mark:'↑'}, building:{cls:'neu', mark:'↗'}, cooling:{cls:'neg', mark:'↓'}, steady:{cls:'mute', mark:'→'}};
+function MomentumChip({value, mini}){
+  if (!value) return null;
+  const m = MOMENTUM_MAP[String(value).toLowerCase()] || {cls:'mute', mark:''};
+  return (
+    <span className={'momentum ' + m.cls + (mini ? ' mini' : '')} title={'Momentum: ' + value}>
+      {m.mark && <span aria-hidden="true">{m.mark}</span>}
+      <span>{value}</span>
+    </span>
+  );
+}
+
+/* Plain-language map for the engine's state badge. The raw value (SUSTAINED,
+   EMERGING and so on) reads as jargon, so it is rewritten into words a brand
+   team understands. Unknown values are title-cased rather than dropped. */
+const STATE_WORDS = {
+  sustained:'Holding strong', holding:'Holding strong', steady:'Holding strong',
+  emerging:'Breaking out', breakout:'Breaking out', nascent:'Breaking out',
+  surging:'Surging', spiking:'Surging', rising:'Surging', accelerating:'Surging',
+  fading:'Cooling', cooling:'Cooling', declining:'Cooling', waning:'Cooling'
+};
+function titleCase(s){
+  return String(s || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+function plainState(text){
+  if (!text) return '';
+  const key = String(text).trim().toLowerCase();
+  return STATE_WORDS[key] || titleCase(text);
+}
+
+/* The trend-state chip in the card header. Coloured by direction when the
+   engine gives one, otherwise a calm neutral chip for the status tag. Shown
+   in plain words, never the raw engine token. */
+function MomentumStateChip({text, display}){
+  if (!text) return null;
+  const dir = display && display.state ? String(display.state.direction || '').toLowerCase() : '';
+  const cls = dir.indexOf('up') >= 0 ? 'up' : (dir.indexOf('down') >= 0 ? 'down' : 'flat');
+  return <span className={'chip mono badge-state ' + cls}>{plainState(text)}</span>;
+}
+
+function CopyButton({text, what}){
+  const [done, setDone] = useState(false);
+  const click = () => {
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch(e){}
+      document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).catch(fallback);
+    } else fallback();
+    setDone(true);
+    setTimeout(() => setDone(false), 1600);
+  };
+  return <button className="btn tiny" onClick={click} aria-label={'Copy ' + (what || 'prompt')}>{done ? 'Copied' : 'Copy'}</button>;
+}
+
+function Sparkline({series}){
+  const pts = (series || []).map(d => (d && typeof d.n === 'number' && d.n >= 0) ? d.n : 0);
+  if (pts.length < 2) return null;
+  const max = Math.max.apply(null, pts.concat([1]));
+  const w = 320, h = 64, pad = 5;
+  const step = (w - pad * 2) / (pts.length - 1);
+  const y = n => h - pad - (n / max) * (h - pad * 2);
+  const path = pts.map((n, i) => (i === 0 ? 'M' : 'L') + (pad + i * step).toFixed(1) + ' ' + y(n).toFixed(1)).join(' ');
+  const first = series[0] && series[0].date;
+  const last = series[series.length - 1] && series[series.length - 1].date;
+  return (
+    <div className="spark-wrap">
+      <svg viewBox={'0 0 ' + w + ' ' + h} role="img" aria-label={'Daily volume over ' + pts.length + ' days, peaking at ' + humanize(max)}>
+        <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="var(--line)" strokeWidth="1"/>
+        <path d={path} stroke="var(--accent)" strokeWidth="1.6" fill="none"/>
+        <circle cx={pad + (pts.length - 1) * step} cy={y(pts[pts.length - 1])} r="2.6" fill="var(--accent)"/>
+      </svg>
+      <div className="spark-meta"><span>{first}</span><span>peak {humanize(max)}/day</span><span>{last}</span></div>
+    </div>
+  );
+}
+
+function SplitBars({items, nameKey, withGlyph}){
+  const rows = (items || []).filter(x => x && x[nameKey] != null);
+  if (!rows.length) return null;
+  const max = Math.max.apply(null, rows.map(x => x.n || 0).concat([1]));
+  return (
+    <div>
+      {rows.map((x, i) => (
+        <div className="split-row" key={i}>
+          <span className="nm">
+            {withGlyph && <PlatformMark name={x[nameKey]}/>}
+            <span>{withGlyph ? platformLabel(x[nameKey]) : String(x[nameKey]).toUpperCase()}</span>
+          </span>
+          <span className="split-track"><span className="split-fill" style={{width: Math.max(2, Math.round((x.n || 0) / max * 100)) + '%', display:'block'}}/></span>
+          <span className="ct">{humanize(x.n || 0)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Shared states */
+function ErrorState({title, message, onRetry}){
+  return (
+    <div className="card state-card" role="alert">
+      <h2 className="serif">{title || 'The desk could not load.'}</h2>
+      <p>Check the connection and try again. Nothing was lost.</p>
+      {message && <p className="detail">{message}</p>}
+      {onRetry && <button className="btn" onClick={onRetry}>Retry</button>}
+    </div>
+  );
+}
+function EmptyState({title, body}){
+  return (
+    <div className="card state-card">
+      <h2 className="serif">{title}</h2>
+      <p>{body}</p>
+    </div>
+  );
+}
+function Skeleton({note, blocks}){
+  return (
+    <div aria-busy="true" aria-live="polite">
+      <p className="skel-note">{note}</p>
+      {(blocks || [120, 200, 200]).map((hgt, i) => (
+        <div className="skel skel-anim" key={i} style={{height: hgt + 'px', marginBottom: 'var(--s-4)'}}/>
+      ))}
+    </div>
+  );
+}
+
+/* Masthead */
+function FreshnessStamp({freshness}){
+  if (!freshness || freshness.age_hours == null){
+    return <span className="stamp unknown">Freshness unavailable</span>;
+  }
+  const h = Number(freshness.age_hours);
+  const fresh = h < 3;
+  const label = h < 1 ? 'Updated under 1h ago' : 'Updated ' + Math.round(h) + 'h ago';
+  return (
+    <span className="stamp">
+      <span className={'dot ' + (fresh ? 'fresh' : 'stale')} aria-hidden="true"/>
+      <span>{label}</span>
+    </span>
+  );
+}
+
+function Lockup({big}){
+  return (
+    <div className="lockup">
+      <div className="wordmark">42<span className="stop">.</span></div>
+      <div className="lockup-sub">Ogilvy Intelligence</div>
+      <div className="lockup-prov">Google x Ogilvy {'·'} Trends Engine</div>
+    </div>
+  );
+}
+
+function Masthead({route, navigate, market, setMarket, theme, setTheme, freshness}){
+  const navItems = [['today','Today'],['browse','Browse'],['method','Method']];
+  return (
+    <header className="masthead">
+      <div className="masthead-inner">
+        <div className="mast-top">
+          <a href="#/today" style={{textDecoration:'none'}} aria-label="42 home"><Lockup/></a>
+          <div className="mast-controls">
+            <div className="seg" role="group" aria-label="Market">
+              {MARKETS.map(([k, label]) => (
+                <button key={k} aria-pressed={market === k} onClick={() => setMarket(k)}>{label}</button>
+              ))}
+            </div>
+            <button className="theme-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-pressed={theme === 'light'}>
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </button>
+          </div>
+        </div>
+        <div className="mast-bottom">
+          <nav className="nav" aria-label="Views">
+            {navItems.map(([k, label]) => (
+              <button key={k} aria-current={route.view === k ? 'page' : undefined} onClick={() => navigate('#/' + k)}>{label}</button>
+            ))}
+            {route.view === 'ask' && <button aria-current="page">Ask</button>}
+          </nav>
+          <FreshnessStamp freshness={freshness}/>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* Search */
+function SearchBox({onAsk, autoFocus}){
+  const [v, setV] = useState('');
+  return (
+    <div className="searchbar">
+      <form role="search" onSubmit={e => { e.preventDefault(); const q = v.trim(); if (q) onAsk(q); }}>
+        <input
+          type="search"
+          value={v}
+          onChange={e => setV(e.target.value)}
+          placeholder="Search any topic. FIFA, load shedding, matric dance..."
+          aria-label="Search any topic"
+          autoFocus={autoFocus}
+        />
+        <button type="submit" className="btn-solid">Ask</button>
+      </form>
+    </div>
+  );
+}
+function RecentRow({onAsk}){
+  const [items, setItems] = useState(loadRecent());
+  if (!items.length) return null;
+  return (
+    <div className="recent">
+      <span className="lbl">Recent</span>
+      {items.map((q, i) => (
+        <button key={i} className="recent-chip" onClick={() => onAsk(q)}>{q}</button>
+      ))}
+      <button className="recent-clear" aria-label="Clear recent searches"
+        onClick={() => { localStorage.removeItem(RECENT_KEY); setItems([]); }}>{'×'}</button>
+    </div>
+  );
+}
+
+/* Today view */
+function RailsStrip({rails, onAsk, market}){
+  if (rails.state === 'loading') return <div className="rails"><div className="skel skel-anim" style={{height:'38px'}}/></div>;
+  if (rails.state === 'error') return null;
+  if (rails.state !== 'ready') return null;
+  const list = (rails.data && rails.data.rails) || [];
+  if (!list.length) return null;
+  return (
+    <section className="rails" aria-label="Moving this week">
+      <div className="rails-head">
+        <h2 className="section-label">Moving this week</h2>
+        <p className="rails-sub">This week's tracked topics, ranked by live momentum from observed signal. The fastest movers lead.</p>
+      </div>
+      <div className="rail-chips">
+        {list.map((r, i) => (
+          <button key={i} className="rail-chip" onClick={() => onAsk(r.topic)} title={r.read || undefined}>
+            <MomentumChip value={r.momentum} mini/>
+            <span className="topic">{r.topic_label || r.topic}</span>
+            {market === 'all' && r.market_label && <span className="mkt">{r.market_label}</span>}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function VerdictPanel({date, verdict, onAsk}){
+  if (!verdict) return null;
+  const keyTopics = verdict.key_topics || [];
+  const risingTopics = verdict.rising_topics || [];
+  return (
+    <section className="verdict" aria-label="The day's verdict">
+      <p className="kicker">{fmtDate(date)} {'·'} The day's verdict</p>
+      {verdict.through_line && <h2>{verdict.through_line}</h2>}
+      {verdict.summary_text && <p className="summary">{verdict.summary_text}</p>}
+      {verdict.call_to_action && (
+        <p className="cta"><span className="cta-label">The move</span><span>{verdict.call_to_action}</span></p>
+      )}
+      {(keyTopics.length > 0 || risingTopics.length > 0) && (
+        <div className="vchips">
+          {keyTopics.length > 0 && <span className="lbl">Key</span>}
+          {keyTopics.map((t, i) => <button key={'k' + i} className="vchip" onClick={() => onAsk(t)}>{t}</button>)}
+          {risingTopics.length > 0 && <span className="lbl">Rising</span>}
+          {risingTopics.map((t, i) => <button key={'r' + i} className="vchip" onClick={() => onAsk(t)}>{t}</button>)}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* Pull the source count out of a confidence string like "9 channels agree"
+   so it can be restated in plain language. */
+function sourceCount(conf){
+  const m = String(conf || '').match(/(\d+)/);
+  return m ? m[1] : null;
+}
+/* Pull the window phrase out of a phase or window string, e.g. "build, 2 to 3
+   weeks" -> "2 to 3 weeks". Falls back to the whole string. */
+function windowPhrase(s){
+  const t = String(s || '').trim();
+  const m = t.match(/(\d[\d\s.]*(?:to|-)?[\d\s.]*\s*(?:days?|weeks?|months?))/i);
+  return m ? m[1].replace(/\s{2,}/g, ' ').trim() : t;
+}
+
+/* The evidence chips for the relevance lens, rewritten into plain language.
+   The state badge is shown in the card header, so it is not repeated here. A
+   quiet "what these mean" toggle expands one plain sentence per chip type. */
+function DisplayBadges({display}){
+  const [open, setOpen] = useState(false);
+  const conf = display.confidence != null ? String(display.confidence) : null;
+  const count = sourceCount(conf);
+  const win = display.phase || display.window;
+  const has = win || display.in_market_pct != null || conf;
+  if (!has) return null;
+  const phaseLed = display.phase && /build|emerg|grow/i.test(display.phase);
+  const winText = win ? (phaseLed ? 'Building over ' + windowPhrase(win) : 'Window: ' + windowPhrase(win)) : null;
+  return (
+    <div className="chip-row-wrap">
+      <div className="badges">
+        {winText && <span className="chip mono">{winText}</span>}
+        {display.in_market_pct != null && <span className="chip mono">{Math.round(display.in_market_pct)}% local conversation</span>}
+        {conf && <span className="chip">{count ? 'High confidence (' + count + ' sources agree)' : titleCase(conf)}</span>}
+        <button className="legend-toggle" aria-expanded={open} onClick={() => setOpen(o => !o)}>{open ? 'Hide' : 'What these mean'}</button>
+      </div>
+      {open && (
+        <div className="legend">
+          <dl>
+            <dt>State</dt><dd>How the trend is moving right now: breaking out, surging, holding strong, or cooling.</dd>
+            {winText && <><dt>Window</dt><dd>The rough timeframe this trend is expected to stay live and worth acting on.</dd></>}
+            {display.in_market_pct != null && <><dt>Local</dt><dd>The share of the conversation coming from inside the target market, not spillover from elsewhere.</dd></>}
+            {conf && <><dt>Confidence</dt><dd>How many independent sources show the same trend. More agreeing sources means a more reliable read.</dd></>}
+          </dl>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* The relevance stat tiles. Each campaign-angle string is split into a big
+   value and a small label where it reads naturally ("Peak post engagement
+   110.4M" -> 110.4M / peak post engagement). Strings that do not split
+   cleanly render whole. Nothing is computed: the values are the engine's. */
+function splitAngle(s){
+  const t = String(s || '').trim();
+  if (!t) return null;
+  const lead = t.match(/^([\d.,]+\s*[KMB%+]*)\s+(.+)$/i);
+  if (lead && lead[2].length >= 2) return {v: lead[1].trim(), k: lead[2].trim().toLowerCase()};
+  const trail = t.match(/^(.+?)\s+([\d.,]+\s*[KMB%+]*)$/i);
+  if (trail && trail[1].length >= 2) return {v: trail[2].trim(), k: trail[1].trim().toLowerCase()};
+  return {v: t, solo: true};
+}
+function StatTiles({angles}){
+  const tiles = (angles || []).map(splitAngle).filter(Boolean).slice(0, 3);
+  if (!tiles.length) return null;
+  return (
+    <div className="stat-tiles">
+      {tiles.map((t, i) => (
+        <div className={'stat-tile' + (t.solo ? ' solo' : '')} key={i}>
+          <div className="v">{t.v}</div>
+          {!t.solo && <div className="k">{t.k}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* The calm mood pill plus the jargon-stripped read. The raw tone score and the
+   sentiment_summary are never shown; only mood_label and sentiment_read. */
+function SentimentRead({moodLabel, read}){
+  if (!moodLabel && !read) return null;
+  return (
+    <div className="sentiment-line">
+      {moodLabel && (
+        <span className={'mood-pill ' + moodCls(moodLabel)}>
+          <span className="dot" aria-hidden="true"/>
+          <span>{moodLabel}</span>
+        </span>
+      )}
+      {read && <span className="sentiment-read">{read}</span>}
+    </div>
+  );
+}
+
+function SeenOn({channels}){
+  const rows = (channels || []).filter(c => Array.isArray(c) && c.length >= 1);
+  if (!rows.length) return null;
+  return (
+    <div className="seen-on">
+      <span className="lbl">Seen on</span>
+      {rows.map((c, i) => (
+        <span key={i} className="seen-chip">
+          <PlatformMark name={c[0]}/><span>{platformLabel(c[0])}</span>
+          {c[1] != null && <span className="w">{fmtWeight(c[1])}</span>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* Map a plain mood word ("Warming up", "Cooling off", "Split opinion",
+   "Running tense", "Steady and balanced") to a calm colour token. */
+function moodCls(mood){
+  const m = String(mood || '').toLowerCase();
+  if (m.indexOf('warm') >= 0 || m.indexOf('pos') >= 0 || m.indexOf('up') >= 0) return 'pos';
+  if (m.indexOf('cool') >= 0 || m.indexOf('tense') >= 0 || m.indexOf('neg') >= 0 || m.indexOf('down') >= 0) return 'neg';
+  return 'neu';
+}
+
+/* The driving-hashtag chips: tag in mono, share muted. Capped, click to ask. */
+function TagChips({tags, onAsk, max}){
+  const list = (tags || []).filter(h => h && h.tag).slice(0, max || 6);
+  if (!list.length) return null;
+  return (
+    <div className="chips-row">
+      {list.map((h, i) => {
+        const tag = String(h.tag || '').replace(/^#/, '');
+        return (
+          <button key={i} className="tag-chip" onClick={() => onAsk(tag)} title="Ask about this tag">
+            <span>#{tag}</span>
+            {h.share_pct != null && <span className="pct">{Math.round(h.share_pct)}%</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function BriefCard({brief, onAsk}){
+  let display = null;
+  if (brief.display && typeof brief.display === 'object') display = brief.display;
+  const stateBadge = display && display.state && display.state.badge ? display.state.badge : null;
+  const stateChip = stateBadge || brief.status_tag || null;
+  const themes = brief.comment_themes || [];
+  const hashtags = brief.driving_hashtags || [];
+  const creators = brief.top_creators || [];
+  const refs = brief.social_refs || [];
+  const angles = brief.campaign_angles || [];
+  const channels = display && Array.isArray(display.channels) ? display.channels : null;
+  const platforms = brief.platforms || [];
+  const topicTag = brief.topic_label || brief.topic;
+
+  // Lens 2, THE RELEVANCE: present if any scale or proof signal exists.
+  const hasRelevance = !!(angles.length || display || platforms.length ||
+    brief.mood_label || brief.sentiment_read || hashtags.length);
+  // Lens 3, THE PLAY: the activation idea and the concrete visual to make.
+  const hasPlay = !!(brief.context || brief.visual_anchor);
+  // Lens 4, THE PROMPT: present only when a model prompt exists.
+  const hasKit = !!(brief.nano_banana_prompt || brief.lyria_prompt);
+  const hasRoom = brief.comment_sentiment || themes.length > 0;
+  const hasFoot = creators.length > 0 || refs.length > 0;
+
+  return (
+    <article className="card brief">
+      <div className="brief-top">
+        {topicTag && <span className="topic-tag">{topicTag}</span>}
+        {brief.market_label && <span className="mkt">{brief.market_label}</span>}
+        {stateChip && <MomentumStateChip text={stateChip} display={display}/>}
+        {typeof brief.trend_score === 'number' && <span className="score">score {brief.trend_score.toFixed(2)}</span>}
+      </div>
+
+      {/* Lens 1, THE TREND: headline + the synthesis. The lead element. */}
+      <section className="lens">
+        <span className="lens-lbl">The trend {'·'} what is moving</span>
+        {brief.headline && <h3 className="serif">{brief.headline}</h3>}
+        {brief.synthesis && <p className="body lead">{brief.synthesis}</p>}
+      </section>
+
+      {/* Lens 2, THE RELEVANCE: the scale proof, channels, mood, hashtags. */}
+      {hasRelevance && (
+        <section className="lens">
+          <span className="lens-lbl">The relevance {'·'} how big and how real</span>
+          <StatTiles angles={angles}/>
+          {display && <DisplayBadges display={display}/>}
+          {channels && channels.length > 0
+            ? <SeenOn channels={channels}/>
+            : (platforms.length > 0 && (
+                <div className="seen-on">
+                  <span className="lbl">Seen on</span>
+                  {platforms.map((p, i) => <PlatformTag key={i} name={p}/>)}
+                </div>
+              ))}
+          {display && display.search && <p className="search-line">Search {'·'} {display.search}</p>}
+          <SentimentRead moodLabel={brief.mood_label} read={brief.sentiment_read}/>
+          {hashtags.length > 0 && (
+            <div className="relevance-meta">
+              <span className="inline-lbl">Driving the conversation</span>
+              <TagChips tags={hashtags} onAsk={onAsk}/>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* The room, rendered only when the conversation layer is populated. */}
+      {hasRoom && (
+        <section className="lens room">
+          <span className="lens-lbl">The room {'·'} what the comments say</span>
+          {brief.comment_sentiment && <p>{brief.comment_sentiment}</p>}
+          {themes.length > 0 && (
+            <div className="chips-row">{themes.map((t, i) => <span key={i} className="chip">{t}</span>)}</div>
+          )}
+        </section>
+      )}
+
+      {/* Lens 3, THE PLAY: how to turn this into a cultural activation moment.
+          The activation idea is the lead; the visual anchor is the concrete
+          asset to make. This is the leverage, so it carries the most weight. */}
+      {hasPlay && (
+        <section className="lens play">
+          <span className="lens-lbl">The play {'·'} turn this into a Nano Banana moment</span>
+          <p className="play-frame">How to make this a cultural moment with Gemini Nano Banana and Lyria.</p>
+          {brief.context && <p className="play-idea">{brief.context}</p>}
+          {brief.visual_anchor && (
+            <div className="play-anchor">
+              <span className="inline-lbl">The visual to make</span>
+              <p>{brief.visual_anchor}</p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Lens 4, THE PROMPT: the ready-to-run model instructions, collapsed. */}
+      {hasKit && (
+        <section className="lens">
+          <details className="kit">
+            <summary>The prompt {'·'} ready to run</summary>
+            <p className="kit-note">Paste straight into Nano Banana or Lyria.</p>
+            {brief.nano_banana_prompt && (
+              <div className="kit-block">
+                <div className="kit-head">
+                  <span className="inline-lbl">Visual prompt {'·'} Nano Banana</span>
+                  <CopyButton text={brief.nano_banana_prompt} what="visual prompt"/>
+                </div>
+                <div className="kit-pre">{brief.nano_banana_prompt}</div>
+              </div>
+            )}
+            {brief.lyria_prompt && (
+              <div className="kit-block">
+                <div className="kit-head">
+                  <span className="inline-lbl">Audio prompt {'·'} Lyria</span>
+                  <CopyButton text={brief.lyria_prompt} what="audio prompt"/>
+                </div>
+                <div className="kit-pre">{brief.lyria_prompt}</div>
+              </div>
+            )}
+          </details>
+        </section>
+      )}
+
+      {/* Who is driving it. Named creators and the source list, rendered only
+          when present. Anon ids are dropped upstream, so an empty list hides
+          the whole section rather than showing faceless "creator" repeats. */}
+      {hasFoot && (
+        <section className="lens">
+          <div className="brief-foot">
+            {creators.length > 0 && (
+              <div className="foot-row">
+                <span className="inline-lbl">Who is driving it</span>
+                {creators.map((c, i) => <span key={i} className="creator-chip">{c}</span>)}
+              </div>
+            )}
+            {refs.length > 0 && (
+              <div className="foot-row">
+                <span className="inline-lbl">Sources</span>
+                {refs.map((r, i) => /^https?:\/\//.test(String(r))
+                  ? <a key={i} className="ref-link" href={r} target="_blank" rel="noopener noreferrer">{truncateWords(r, 64)}</a>
+                  : <span key={i} className="foot-note">{r}</span>)}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+    </article>
+  );
+}
+
+function TodayView({today, retryToday, rails, onAsk, market}){
+  return (
+    <div>
+      <SearchBox onAsk={onAsk}/>
+      <RecentRow onAsk={onAsk}/>
+      <RailsStrip rails={rails} onAsk={onAsk} market={market}/>
+      {today.state === 'loading' && <Skeleton note="42 is setting today's desk..." blocks={[180, 260, 260]}/>}
+      {today.state === 'error' && <ErrorState title="Today could not load." message={today.message} onRetry={retryToday}/>}
+      {today.state === 'ready' && (() => {
+        const d = today.data || {};
+        const briefs = (d.briefs || []).slice().sort((a, b) => (b.trend_score || 0) - (a.trend_score || 0));
+        return (
+          <div>
+            <VerdictPanel date={d.date} verdict={d.verdict} onAsk={onAsk}/>
+            {briefs.length === 0
+              ? <EmptyState title="No briefs landed for this market today." body="The engine writes briefs each morning. Switch market or come back after the next run."/>
+              : briefs.map((b, i) => <BriefCard key={i} brief={b} onAsk={onAsk}/>)}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+/* Answer (Ask results) view */
+function TrendCard({trend}){
+  return (
+    <article className="card trend-card">
+      <div className="trend-top">
+        {trend.statement && <h3 className="serif">{trend.statement}</h3>}
+        <MomentumChip value={trend.momentum}/>
+      </div>
+      <div className="trend-meta">
+        {trend.evidence_count != null && <span className="ev">Backed by {humanize(trend.evidence_count)} posts</span>}
+        {(trend.platforms || []).map((p, i) => <PlatformTag key={i} name={p}/>)}
+        {(trend.markets || []).length > 0 && <span className="ev">{trend.markets.map(m => String(m).toUpperCase()).join(' ')}</span>}
+      </div>
+      {trend.how_to_use && (
+        <div className="howto">
+          <span className="lbl">How to use it</span>
+          <p>{trend.how_to_use}</p>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function QuoteWall({quotes, limited}){
+  const list = (quotes || []).filter(q => q && q.text).slice(0, 12);
+  if (!list.length) return null;
+  return (
+    <section className="section" aria-label="The voice">
+      <h2 className="section-label">The voice</h2>
+      <div className="quote-grid">
+        {list.map((q, i) => (
+          <figure className="tile quote" key={i}>
+            <blockquote>{'“'}{truncateWords(q.text, 220)}{'”'}</blockquote>
+            <figcaption className="quote-foot">
+              <PlatformMark name={q.platform}/>
+              <span>{platformLabel(q.platform)}</span>
+              {q.handle && <span>{q.handle}</span>}
+              {q.market && <span>{String(q.market).toUpperCase()}</span>}
+              {q.engagement != null && <span>{humanize(q.engagement)} engagement</span>}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      {limited && <p className="limited-note">Limited voice sample: few clean quotes survived the filters for this topic.</p>}
+    </section>
+  );
+}
+
+function PulseSection({data}){
+  const hasSeries = (data.volume_series || []).length > 1;
+  const hasPlat = (data.platform_split || []).length > 0;
+  const hasMkt = (data.market_split || []).length > 0;
+  if (!hasSeries && !hasPlat && !hasMkt) return null;
+  return (
+    <section className="section" aria-label="The pulse">
+      <h2 className="section-label">The pulse</h2>
+      <div className="card">
+        <div className="pulse-grid">
+          {hasSeries && (
+            <div>
+              <p className="inline-lbl" style={{display:'block', marginBottom:'var(--s-3)'}}>30 day volume</p>
+              <Sparkline series={data.volume_series}/>
+            </div>
+          )}
+          {hasPlat && (
+            <div>
+              <p className="inline-lbl" style={{display:'block', marginBottom:'var(--s-3)'}}>By platform</p>
+              <SplitBars items={data.platform_split} nameKey="platform" withGlyph/>
+            </div>
+          )}
+          {hasMkt && (
+            <div>
+              <p className="inline-lbl" style={{display:'block', marginBottom:'var(--s-3)'}}>By market</p>
+              <SplitBars items={data.market_split} nameKey="market"/>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AskView({q, market, onAsk, onAuth, refreshKey}){
+  const path = '/api/ask?' + new URLSearchParams({q: q, market: market}).toString();
+  const [s, retry] = useApi(path, refreshKey, onAuth);
+  if (!q){
+    return (
+      <div>
+        <SearchBox onAsk={onAsk} autoFocus/>
+        <EmptyState title="Ask the desk anything." body="Type a topic above. The desk retrieves real posts from the last 30 days and names the trends inside them."/>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <SearchBox onAsk={onAsk}/>
+      {s.state === 'loading' && <Skeleton note={'42 is reading the signal on “' + q + '”...'} blocks={[140, 220, 180]}/>}
+      {s.state === 'error' && <ErrorState title="The answer could not load." message={s.message} onRetry={retry}/>}
+      {s.state === 'ready' && (() => {
+        const d = s.data || {};
+        const trends = d.trends || [];
+        const cardHref = '/card/' + encodeURIComponent(d.query || q) + '?market=' + encodeURIComponent(market);
+        return (
+          <div>
+            <header className="answer-head">
+              <p className="section-label">Asked</p>
+              <h1>{d.query || q}</h1>
+              <div className="answer-sub">
+                {d.total_matches != null && <span className="n">{humanize(d.total_matches)} matched posts {'·'} last 30 days</span>}
+                <a className="btn" href={cardHref} target="_blank" rel="noopener noreferrer">Open the one-pager</a>
+              </div>
+            </header>
+            {d.overall_read && <p className="overall-read serif">{d.overall_read}</p>}
+            {d.thin ? (
+              <div className="thin-state">
+                <h2 className="serif">No clear trend yet on this topic.</h2>
+                <p>Here is the early noise: the matches are below the floor the desk trusts for naming a trend, so it shows the raw signal instead of inventing one.</p>
+              </div>
+            ) : (
+              trends.length > 0 && (
+                <section className="section" aria-label="The trends inside this topic">
+                  <h2 className="section-label">The trends inside this topic</h2>
+                  {trends.map((t, i) => <TrendCard key={i} trend={t}/>)}
+                </section>
+              )
+            )}
+            <QuoteWall quotes={d.quotes} limited={d.limited_voice}/>
+            {(d.slang || []).length > 0 && (
+              <section className="section" aria-label="The slang it is carried in">
+                <h2 className="section-label">The slang it is carried in</h2>
+                <div className="slang-list">
+                  {d.slang.map((t, i) => (
+                    <div className="tile slang-item" key={i}>
+                      <div className="term">{t.term}</div>
+                      {t.meaning && <div className="meaning">{t.meaning}</div>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+            {(d.creators || []).length > 0 && (
+              <section className="section" aria-label="Who is driving it">
+                <h2 className="section-label">Who is driving it</h2>
+                <div className="card creator-rows">
+                  {d.creators.map((c, i) => (
+                    <div className="creator-row" key={i}>
+                      <span className="h">{c.handle}</span>
+                      {c.mentions != null && <span className="m">{humanize(c.mentions)} mentions</span>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+            <PulseSection data={d}/>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+/* Browse view */
+function BrowseView({market, onAsk, onAuth, refreshKey}){
+  const path = '/api/rails?' + new URLSearchParams({market: market}).toString();
+  const [s, retry] = useApi(path, refreshKey, onAuth);
+  if (s.state === 'loading') return <Skeleton note="42 is laying out the rails..." blocks={[160, 160, 160]}/>;
+  if (s.state === 'error') return <ErrorState title="Browse could not load." message={s.message} onRetry={retry}/>;
+  if (s.state !== 'ready') return null;
+  const rails = (s.data && s.data.rails) || [];
+  if (!rails.length) return <EmptyState title="Nothing on the rails." body="No curated topics landed for this market on the latest run. Switch market or come back after the next run."/>;
+  const groups = [];
+  const byLabel = {};
+  rails.forEach(r => {
+    const k = r.market_label || String(r.market || '').toUpperCase() || 'Market';
+    if (!byLabel[k]){ byLabel[k] = []; groups.push(k); }
+    byLabel[k].push(r);
+  });
+  return (
+    <div>
+      {groups.map(g => (
+        <section className="browse-group" key={g} aria-label={g}>
+          <h2 className="serif">{g}</h2>
+          {byLabel[g].map((r, i) => (
+            <button className="browse-row" key={i} onClick={() => onAsk(r.topic)}>
+              <span className="topic">{r.topic_label || r.topic}</span>
+              {r.tier && <span className="tier">{r.tier}</span>}
+              <MomentumChip value={r.momentum}/>
+              {r.read && <span className="read">{r.read}</span>}
+            </button>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/* Method view */
+function MethodView({openGuide}){
+  return (
+    <div className="method">
+      <h2 className="serif">How the desk works.</h2>
+      <p><strong>Eight live sources.</strong> Every day the engine reads news feeds across South Africa, Nigeria and Kenya, Google search interest, YouTube, the GDELT global news graph, TikTok with Instagram and Threads, Reddit, a social listening service, and Apple Music charts. Everything lands in BigQuery on Google Cloud.</p>
+      <p><strong>The engine.</strong> The intake is clustered into curated topic groups per market, tagged for slang, and scored on volume, velocity and audience signals. A daily synthesis pass on Vertex AI Gemini writes the briefs you read on Today. This is the same intelligence the PULSE email carries.</p>
+      <p><strong>Retrieval first, synthesis second.</strong> When you search, the desk pulls real posts from the last 30 days that match your topic. The model then clusters and restates only what was retrieved. It cannot add a post, a number, or a slang term of its own.</p>
+      <p><strong>What is measured.</strong> Every count, the volume series, the platform and market splits, and every momentum chip. Momentum is computed from observed volume: the last seven days against the prior baseline. The model never sets it.</p>
+      <p><strong>What is summarized.</strong> The trend statements, the how to use it lines, and the overall read. All of it is written from the retrieved evidence, nothing else.</p>
+      <p><strong>What it will not do.</strong> When a topic is thin, the desk says so and shows the early noise instead of inventing a trend. And nothing on any page is a forecast: the desk reports what is moving, not what will.</p>
+      <p><button className="btn" onClick={openGuide}>Show the guide again</button></p>
+    </div>
+  );
+}
+
+/* Passcode screen: the designed first-run gate */
+function PasscodeScreen({onSubmit, failed}){
+  const [v, setV] = useState('');
+  const inputRef = useRef(null);
+  useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
+  return (
+    <div className="pass-screen">
+      <div className="pass-box">
+        <Lockup/>
+        <p className="pass-note">A daily desk for what is moving in ZA, NG and KE. Enter the team passcode to open it.</p>
+        <form onSubmit={e => { e.preventDefault(); const c = v.trim(); if (c) onSubmit(c); }}>
+          <input
+            ref={inputRef}
+            type="password"
+            value={v}
+            onChange={e => setV(e.target.value)}
+            placeholder="Passcode"
+            aria-label="Passcode"
+            autoComplete="current-password"
+          />
+          <button type="submit" className="btn-solid">Open the desk</button>
+        </form>
+        {failed && <p className="pass-error" role="alert">That code did not unlock. Check it and try again.</p>}
+      </div>
+    </div>
+  );
+}
+
+/* First-run guide overlay */
+const GUIDE_STEPS = [
+  {title:'Read today', body:'The day’s verdict and ranked briefs land here every morning. It is the same intelligence the PULSE email carries, in one standing place.'},
+  {title:'Search anything', body:'Type any topic into the search box. The desk names the clear trends inside it for ZA, NG and KE, each with momentum and evidence.'},
+  {title:'Check the proof', body:'Every number is measured from observed volume and every quote is a real post, verbatim. Thin signal is called thin, never padded.'},
+  {title:'Take the move', body:'Each trend carries a how to use it line written for a planner. Lift it straight into a brief.'}
+];
+function GuideOverlay({onClose}){
+  const [i, setI] = useState(0);
+  const boxRef = useRef(null);
+  const prevFocus = useRef(null);
+  useEffect(() => {
+    prevFocus.current = document.activeElement;
+    if (boxRef.current) boxRef.current.focus();
+    return () => { if (prevFocus.current && prevFocus.current.focus) prevFocus.current.focus(); };
+  }, []);
+  const onKey = e => {
+    if (e.key === 'Escape'){ e.stopPropagation(); onClose(); }
+    if (e.key === 'Tab' && boxRef.current){
+      const els = boxRef.current.querySelectorAll('button');
+      if (!els.length) return;
+      const first = els[0], last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    }
+  };
+  const step = GUIDE_STEPS[i];
+  const lastStep = i === GUIDE_STEPS.length - 1;
+  return (
+    <div className="overlay" onKeyDown={onKey}>
+      <div className="guide" role="dialog" aria-modal="true" aria-label="How to read 42" tabIndex={-1} ref={boxRef}>
+        <p className="step-k">Step {i + 1} of {GUIDE_STEPS.length}</p>
+        <h2 className="serif">{step.title}</h2>
+        <p>{step.body}</p>
+        <div className="guide-foot">
+          <div className="guide-dots" aria-hidden="true">
+            {GUIDE_STEPS.map((_, k) => <span key={k} className={'gd' + (k === i ? ' on' : '')}/>)}
+          </div>
+          <div className="guide-btns">
+            <button className="btn-ghost" onClick={onClose}>Skip</button>
+            {i > 0 && <button className="btn" onClick={() => setI(i - 1)}>Back</button>}
+            {lastStep
+              ? <button className="btn-solid" onClick={onClose}>Start reading</button>
+              : <button className="btn" onClick={() => setI(i + 1)}>Next</button>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Routing */
+function parseHash(){
+  const h = location.hash.replace(/^#\/?/, '');
+  const parts = h.split('?');
+  const view = parts[0] || 'today';
+  const params = new URLSearchParams(parts[1] || '');
+  if (view === 'ask') return {view:'ask', q: params.get('q') || ''};
+  if (view === 'browse' || view === 'method' || view === 'today') return {view: view};
+  return {view:'today'};
+}
+
+function App(){
+  const [theme, setTheme] = useState(localStorage.getItem(THEME_KEY) || 'dark');
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+  const [market, setMarket] = useState('all');
+  const [route, setRoute] = useState(parseHash());
+  useEffect(() => {
+    const f = () => setRoute(parseHash());
+    window.addEventListener('hashchange', f);
+    return () => window.removeEventListener('hashchange', f);
+  }, []);
+  useEffect(() => { window.scrollTo(0, 0); }, [route.view, route.q]);
+
+  const [needPass, setNeedPass] = useState(false);
+  const [attempted, setAttempted] = useState(false);
+  const [session, setSession] = useState(0);
+  const onAuth = () => setNeedPass(true);
+
+  const todayPath = '/api/today?' + new URLSearchParams({market: market}).toString();
+  const [today, retryToday] = useApi(todayPath, session, onAuth);
+  const railsPath = '/api/rails?' + new URLSearchParams({market: market}).toString();
+  const [rails] = useApi(railsPath, session, onAuth);
+
+  const [guideOpen, setGuideOpen] = useState(false);
+  useEffect(() => {
+    if (today.state === 'ready' && !localStorage.getItem(GUIDE_KEY)){
+      localStorage.setItem(GUIDE_KEY, '1');
+      setGuideOpen(true);
+    }
+  }, [today.state]);
+
+  const navigate = hash => { location.hash = hash; };
+  const onAsk = q => {
+    pushRecent(q);
+    location.hash = '#/ask?q=' + encodeURIComponent(q);
+  };
+  const submitPasscode = code => {
+    localStorage.setItem(PASS_KEY, code);
+    setAttempted(true);
+    setNeedPass(false);
+    cache.clear();
+    setSession(s => s + 1);
+  };
+
+  if (needPass) return <PasscodeScreen onSubmit={submitPasscode} failed={attempted}/>;
+
+  const freshness = today.state === 'ready' && today.data ? today.data.freshness : null;
+  return (
+    <div>
+      <Masthead route={route} navigate={navigate} market={market} setMarket={setMarket} theme={theme} setTheme={setTheme} freshness={freshness}/>
+      <main className="page">
+        {route.view === 'today' && <TodayView today={today} retryToday={retryToday} rails={rails} onAsk={onAsk} market={market}/>}
+        {route.view === 'ask' && <AskView q={route.q} market={market} onAsk={onAsk} onAuth={onAuth} refreshKey={session}/>}
+        {route.view === 'browse' && <BrowseView market={market} onAsk={onAsk} onAuth={onAuth} refreshKey={session}/>}
+        {route.view === 'method' && <MethodView openGuide={() => setGuideOpen(true)}/>}
+        <footer className="foot">
+          <span>42 {'·'} Ogilvy Intelligence {'·'} Trends Engine on Google Cloud</span>
+          <span>Momentum is computed from observed volume. Nothing here is a forecast.</span>
+        </footer>
+      </main>
+      {guideOpen && <GuideOverlay onClose={() => setGuideOpen(false)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

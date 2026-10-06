@@ -1,0 +1,52 @@
+{
+  "id": "ZA-01",
+  "question": "What is new in how people in Johannesburg spend Friday nights this week?",
+  "markets": ["ZA"],
+  "window": {"from": "2026-09-22", "to": "2026-09-28"},
+  "as_of": "2026-09-28T09:00:00+02:00",
+  "tier": "T1",
+  "run_id": "r_20260928_090000_a1b2c3d4",
+  "evidence": [
+    {"id": "tt_7400000000000000001", "platform": "tiktok", "handle": "@kasi_eats",
+     "url": "https://www.tiktok.com/@kasi_eats/video/7400000000000000001",
+     "posted_at": "2026-09-25T18:00:00+02:00", "market": "ZA",
+     "text": "Amapiano Friday sessions at the car wash are back and the queue went round the block",
+     "engagement": {"likes": 5400}, "flags": []},
+    {"id": "x_1840000000000000002", "platform": "x", "handle": "@jozi_nights",
+     "url": "https://x.com/jozi_nights/status/1840000000000000002",
+     "posted_at": "2026-09-26T21:30:00+02:00", "market": "ZA",
+     "text": "Car wash amapiano sessions again this weekend, Soweto was packed from sunset",
+     "engagement": {"likes": 820}, "flags": []}
+  ],
+  "queries": {
+    "q_1": {"sql": "SELECT platform, COUNT(*) AS posts FROM intelligence_42.posts WHERE market = @market GROUP BY platform",
+            "params": {"market": "ZA"},
+            "rows": [{"platform": "tiktok", "posts": 1250}, {"platform": "x", "posts": 430}],
+            "result_hash": "sha256:69b982c2dc968583fb0f33d9bc91b8d281d2710e1a4f94fc39f659eed6b6079e",
+            "purpose": "posts per platform on car wash sessions"}
+  },
+  "gaps": [],
+  "failed_sources": [],
+  "note": "",
+  "critic_case": {
+    "answer": {
+      "status": "complete",
+      "short_answer": "Amapiano sessions at car washes are back on Friday nights.",
+      "claims": [
+        {"id": "c1", "text": "Amapiano sessions at car washes are back on Friday nights", "label": "observed",
+         "kind": "observation", "evidence_ids": ["tt_7400000000000000001"],
+         "quotes": [{"evidence_id": "tt_7400000000000000001", "text": "Amapiano Friday sessions"}], "numbers": []},
+        {"id": "c2", "text": "Soweto car wash sessions filled up this weekend", "label": "single_source",
+         "kind": "observation", "evidence_ids": ["x_1840000000000000002"], "quotes": [], "numbers": []},
+        {"id": "c3", "text": "Car wash owners are raising prices because of the sessions", "label": "observed",
+         "kind": "observation", "evidence_ids": ["tt_7400000000000000001"], "quotes": [], "numbers": []},
+        {"id": "c4", "text": "The sessions mostly draw teenagers", "label": "inferred",
+         "kind": "interpretation", "evidence_ids": ["x_1840000000000000002"], "quotes": [], "numbers": []},
+        {"id": "c5", "text": "About 5,000 people came to the Soweto session", "label": "observed",
+         "kind": "observation", "evidence_ids": ["x_1840000000000000002"], "quotes": [], "numbers": []}
+      ],
+      "so_what": [], "watch_next": [], "gaps": []
+    },
+    "seeded": {"c3": "no_support", "c4": "age_term", "c5": "unpinned_number"}
+  }
+}

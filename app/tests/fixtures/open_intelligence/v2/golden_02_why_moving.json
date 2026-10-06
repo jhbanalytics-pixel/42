@@ -1,0 +1,146 @@
+{
+  "contract_version": "2.0.0",
+  "fixture_id": "golden_02_why_moving",
+  "fixture_kind": "golden_task",
+  "frozen_at": "2026-08-25T00:00:00Z",
+  "payload": {
+    "answer": {
+      "scope": "Synthetic fixture scope, 18 to 25 August 2026",
+      "sections": [
+        {
+          "body": "Synthetic fixture scope, 18 to 25 August 2026.",
+          "evidence_ids": [],
+          "heading": "Scope",
+          "section_id": "scope"
+        },
+        {
+          "body": "The signal accelerated after a fixture parts exchange, with dated forum evidence preceding a matching search rise [E1] [E2].",
+          "evidence_ids": [
+            "ev_0201020102010201020102010201020102010201020102010201020102010201",
+            "ev_0202020202020202020202020202020202020202020202020202020202020202"
+          ],
+          "heading": "Finding",
+          "section_id": "finding"
+        },
+        {
+          "body": "Synthetic fixture evidence does not measure population prevalence.",
+          "evidence_ids": [],
+          "heading": "Limitations",
+          "section_id": "limitations"
+        }
+      ],
+      "title": "Synthetic fixture intelligence brief"
+    },
+    "audience_lenses": [],
+    "budget": {
+      "exhausted": false,
+      "input_ceiling": 32000,
+      "input_used": 1800,
+      "metering_status": "persisted",
+      "output_ceiling": 4000,
+      "output_used": 420,
+      "remaining_max_output_tokens": 3580
+    },
+    "contradictions": [],
+    "evidence": [
+      {
+        "author_label": "@fixture_author_02_01",
+        "availability": "available",
+        "citation_label": "[E1]",
+        "claim_role": "direction",
+        "direction": "rising",
+        "evidence_id": "ev_0201020102010201020102010201020102010201020102010201020102010201",
+        "excerpt": "Synthetic fixture baseline acceleration began after a fixture parts exchange.",
+        "geo_confidence": 0.91,
+        "metric_label": "search index rose from 10 to 18 synthetic points",
+        "platform": "fixture_platform_01",
+        "published_at": "2026-08-24T09:00:00Z",
+        "row_id": "fixture_02_row_01",
+        "signal_id": "sig_0202020202020202020202020202020202020202020202020202020202020202",
+        "source_family": "search",
+        "source_label": "Fixture source 02-01",
+        "url": "https://evidence.invalid/02/01"
+      },
+      {
+        "author_label": "@fixture_author_02_02",
+        "availability": "available",
+        "citation_label": "[E2]",
+        "claim_role": "context",
+        "direction": "rising",
+        "evidence_id": "ev_0202020202020202020202020202020202020202020202020202020202020202",
+        "excerpt": "Synthetic fixture posts dated the parts exchange before the acceleration.",
+        "geo_confidence": 0.91,
+        "metric_label": "14 synthetic posts, 18 to 25 August 2026",
+        "platform": "fixture_platform_02",
+        "published_at": "2026-08-24T11:00:00Z",
+        "row_id": "fixture_02_row_02",
+        "signal_id": "sig_0202020202020202020202020202020202020202020202020202020202020202",
+        "source_family": "forum",
+        "source_label": "Fixture source 02-02",
+        "url": "https://evidence.invalid/02/02"
+      }
+    ],
+    "evidence_plan": {
+      "audience_lens_ids": [],
+      "audience_lenses": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose which observed driver to test in a brief.",
+      "evidence_requirements": [
+        "dated movement evidence",
+        "source-family baseline comparison"
+      ],
+      "evidence_state": "ready",
+      "historical_comparison": {
+        "required": true,
+        "window_days": 30
+      },
+      "intent": "explanation",
+      "market_scope": [
+        "za"
+      ],
+      "markets": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "plan_id": "ep_fixture_02",
+      "run_id": "run_fixture_02",
+      "source_families": [
+        "search",
+        "forum"
+      ],
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    },
+    "evidence_state": "ready",
+    "expected_intent": "explanation",
+    "human_review_required": false,
+    "limitations": [
+      "Synthetic fixture evidence does not measure population prevalence."
+    ],
+    "missing_work": [],
+    "request": {
+      "audience_lens_ids": [],
+      "brand_config_id": "fixture_brand",
+      "client_scope_id": "fixture_scope",
+      "contract_version": "2.0.0",
+      "decision": "Choose which observed driver to test in a brief.",
+      "market_scope": [
+        "za"
+      ],
+      "output_form": "cited_brief",
+      "question": "Why is the synthetic signal moving and what supports the explanation?",
+      "run_id": "run_fixture_02",
+      "theme_id": "fixture_theme",
+      "window": {
+        "end_date": "2026-08-25",
+        "start_date": "2026-08-18"
+      }
+    }
+  },
+  "sanitized": true
+}

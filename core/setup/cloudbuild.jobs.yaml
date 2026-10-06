@@ -1,0 +1,14 @@
+# Builds the 42 jobs image in Cloud Build as f42-deployer and pushes it to intelligence-42.
+# Read by core/setup/deploy_jobs.py, which fills in _IMAGE and _TAG (the git short sha of HEAD) itself and
+# creates the build through the Cloud Build API, taking steps, images, options and timeout from here.
+# _TAG has no default, so a build without it fails instead of pushing an untraceable image.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "core/setup/jobs.Dockerfile", "-t", "${_IMAGE}:${_TAG}", "."]
+images:
+  - "${_IMAGE}:${_TAG}"
+substitutions:
+  _IMAGE: us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/jobs
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s

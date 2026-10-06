@@ -1,0 +1,283 @@
+# Kenya Creator Watchlists
+# 26 May 2026: curated creator expansion.
+# tier_1 = established KE creators (Azziad, Flaqo, Eric Omondi).
+# tier_2 = music + comedy + lifestyle creators.
+# tier_3 = niche / emerging.
+#
+# 1 Jul 2026: tier_2 trimmed to 37 curated handles (tiktok 18, instagram 14,
+# threads 5, unchanged). The 11 Jun client influencer seeding (Met Gala +
+# UEFA lists) moved to tier_3, not deleted. Same pass as configs/creators/ng.yaml.
+market: ke
+market_name: Kenya
+
+watchlists:
+  tiktok:
+    tier_1:
+      - azz_iad
+      - moyadavid1
+      - theroamingchef
+      - mulamwah
+      - crazy_kennar
+      - dianamarua
+
+    tier_2:
+      - cattyfaith
+      - bahatikenya
+      - otile_brown
+      - bien_aime_baraza
+      - octopizzo
+      - king_kaka
+      - femione_kenya
+      - wakadinali
+      - boutross_official
+      - trio_mio
+      - roy.kanyi
+      - sheeactress254
+      - trisha_khalid
+      - wakahoro_comedian
+
+    tier_3:
+      - boyz_makekii
+      - black_mully_
+      - princeraymondke
+      - akotheekenya
+      - shorn_arwa
+      - stivosimpleboy
+      # 28 Jul 2026: moved down from tier_1/tier_2. Probed live the same
+      # day: each of these resolves and BILLS a credit, then returns only
+      # posts older than socialcrawl.max_age_days (21), so the engine
+      # dropped every row. 35 credits a day for zero signal. Not deleted,
+      # so a cadence change or a wider window can promote them back.
+      - flaqo411
+      - eric_omondi
+      - khaligraph_jones
+      - sautisol
+      - nyashinski
+      - buruklyn_boyz
+      # 1 Jul 2026: re-tiered down from tier_2 (same rationale as NG,
+      # see configs/creators/ng.yaml). The 11 Jun 2026 client influencer
+      # seeding (Met Gala + UEFA lists) is an ~89-handle micro-influencer/
+      # fan-account blob, too large and too low-reach for a tier_2 flip
+      # under the shared EnsembleData boost budget. Nothing deleted.
+      - tmipodcastke
+      - sigridk_s
+      - sandranzioki
+      - karen._.chepchumba
+      - cynthiankanai
+      - iamnkirote
+      - britn3ysupremacy
+      - tashy.cares
+      - _.n.aina
+      - jacquiemwai
+      - ms_.nyaga
+      - dariusabala
+      - norahgeofrey
+      - guantai0
+      - stacemoraa
+      - samantha.nyakoe
+      - celesteterer
+      - moaishaa
+      - moneybagzari
+      - whitneywangari
+      - lucykinuthia
+      - miss_mukai_
+      - ivynjerii
+      - ashley_otieno0
+      - teminasemo
+      - zizuu___
+      - kimkardicey
+      - karol_katish
+      - kimeu
+      - zanzan1_
+      - nkirotelynette
+      - foi_wambui_
+      - ashannymilliens
+      - miss.wachira1
+      - crian_fanspage
+      - abro_tips1
+      - meydar_sports
+      - banda_la_mikeka
+      - star_watatubutz
+      - oddskuntu
+      - afisa_ubashiri
+      - hellojj37
+      - silasluyundi
+      - smaddy_flix
+      - bonfaceonsongo7
+      - cfcsammy
+      - seniorcaptain02
+      - wananiitamata
+      - solidad__temple
+      - mgazakingping447
+      - seriousbrand255
+      - injinia.cutting2
+      - fidel_fpl
+      - dcfootball4
+      - mutesiannet12
+      - userjumaking
+      - _meditz3
+      - nick_emaestro_tz0
+      - engonga_efootball
+      - purii9489
+      - sheebasheeba254
+      - julietruvengo
+      - userpookie73
+      - patoh027
+      - itsreem254
+      - shaniztotopesabackup
+      - rasbeib.rhumba.star
+      - jus.t_helen
+      - shazz3658
+      - lihandammxi
+      - nje.ry
+      - aufgott_1
+      - annitahgladooh5
+      - abbymish3
+      - somiek
+      - kantha_backup
+      - linus.king0
+      - terryvibes254
+      - arsenalgirlfriend1
+      - marcus_theeballer
+      - mnyamawanyama001
+      - alikauleni
+      - smukangai1
+      - ashleykenya_
+      - natasheeeey
+      - liz_jackson
+      - amber_ray0
+      - victor_peace
+
+  instagram:
+    tier_1:
+      - azz_iad
+      - flaqo411
+      - moyadavid1
+      - roamingchef
+      - mulamwah
+      - dianamarua
+
+    tier_2:
+      - khaligraph_jones
+      - sautisol
+      - bahatikenya
+      - bien_aime_baraza
+      - octopizzo
+      - femionekenya
+      - joymkamau
+      - roy.kanyi
+      - wakadinali_official
+
+    tier_3:
+      - black_mully_
+      - princeraymondke
+      - boyz_makekii
+      - akotheekenya
+      - shornarwa
+      - stivo_simple_boy
+      # 28 Jul 2026: moved down from tier_1/tier_2. Probed live the same
+      # day: each of these resolves and BILLS a credit, then returns only
+      # posts older than socialcrawl.max_age_days (21), so the engine
+      # dropped every row. 35 credits a day for zero signal. Not deleted,
+      # so a cadence change or a wider window can promote them back.
+      - eric_omondi
+      - crazykennar
+      - nyashinski
+      - otile_brown
+      - king_kaka
+      - trish_maina
+      - trishakhalid
+      # 1 Jul 2026: re-tiered down from tier_2, same rationale as tiktok
+      # above (11 Jun 2026 client seeding blob, too large for a tier_2 flip).
+      - abbyctr.l
+      - 42._scenes
+      - kenyan.bossette
+      - minne_cayy
+      - marthafynest
+      - malluu_bebe
+      - ___.tori_
+      - wa.karima
+      - cynthia_mwendee
+      - k7_newton
+      - aishaochwada
+      - unique_franciscor
+      - hillary_migowe
+      - allbout_tee
+      - _themkare
+      - natalie.lisangari
+      - vanessagachie
+      - eesha_jobanputra
+      - talyagnf
+      - primerose_njeri
+      - _wanjiruuu._
+      - nazeeenyi
+      - elasagaaf
+      - aiyan_abdi
+      - nya_goh
+      - kenyan.vitiligo.finest
+      - realkibs_
+      - n.owelll
+      - peace_ayanna
+      - she_is_akinyii
+      - __chunky.__
+      - iamsirmuel_
+      - skater_henry_
+      - its.__tracyy
+      - tamaracasanova
+      - yassin.ugc
+      - kimathi_the1
+      - gracendiege
+      - fw.cheryll
+      - muhatia_
+      - serahwaruguru
+      - _munene___
+      - el.wambui._
+      - anchielifestyle
+      - avirayit
+      - ray_wairimu
+      - iamatieno
+      - withwendo
+      - kimanzi_
+      - kevkairu
+      - nungarikiore
+      - kyevaerrands
+      - sharlet.kim
+      - samanthagaithuma
+      - nyokabi_macharia
+      - annjoylozz
+      - annmuli__
+      - jimmigathu
+      - jean_ojiro
+      - karwirwalaura
+      - pearlsandloaf
+      - 1.1.1._.dazel
+      - wairegiii
+      - lydia_wairimuu
+      - stephaniecherono
+
+  threads:
+    tier_1:
+      - azz_iad
+      - flaqo411
+      - roamingchef
+      - eric_omondi
+
+    tier_2:
+      - khaligraph_jones
+      - sautisol
+      - roy.kanyi
+      - trishakhalid
+      - moyadavid1
+
+    tier_3:
+      - trish_maina
+      - joymkamau
+
+# Documentation only. These values are NOT read at runtime. The authoritative
+# tier weights live in src/ingestion/enrichment.py (_TIER_WEIGHTS). Editing the
+# numbers below changes nothing in scoring; only alignment_audit.py reads this
+# key, and only to confirm it exists. Keep in sync by hand if you change the code.
+tier_weights:
+  tier_1: 1.0
+  tier_2: 0.7
+  tier_3: 0.4

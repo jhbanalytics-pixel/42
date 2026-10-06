@@ -1,0 +1,128 @@
+# Staging deploy of the 42 app services f42-agent and f42-api (task 3.8, docs/full-42/SETUP.md "Deploys without
+# anyone's PC"). Runs on a push to full-42 that touches the app, or by hand from full-42, and nowhere else. It signs
+# in to ogilvy-trends-v2 as f42-deployer through the Workload Identity pool and provider that
+# core/setup/bootstrap.py creates; no key is stored anywhere. It builds the image for the pushed commit, deploys
+# both services on that digest with the flags core/api/deploy.sh uses (both read core/api/deploy_flags.env), then
+# smoke tests f42-api without a passcode. The full smoke with a passcode and an ask stays core/api/smoke.py on the PC.
+name: staging-app
+
+on:
+  push:
+    branches: [full-42]
+    paths:
+      - core/**
+      - app/frontend/**
+      - docs/full-42/reference/**
+      - .github/workflows/staging-app.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+# One app deploy at a time; a push that arrives mid-deploy waits for it instead of cancelling it.
+concurrency:
+  group: staging-app-deploy
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    if: github.repository == 'jhbanalytics-pixel/42-Ogilvy-Intelligence' && github.ref == 'refs/heads/full-42'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PROJECT: ogilvy-trends-v2
+      REGION: us-central1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: projects/590353929363/locations/global/workloadIdentityPools/f42-github/providers/f42-github-staging
+          service_account: f42-deployer@ogilvy-trends-v2.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Build the app image and push it to intelligence-42
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_SHA::12}"
+          IMAGE="us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/f42-web:${TAG}"
+          # The push goes through gcloud's credential helper, so it runs as f42-deployer.
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          DOCKER_BUILDKIT=1 docker build -f core/api/Dockerfile -t "$IMAGE" .
+          docker push "$IMAGE"
+          DIGEST=$(gcloud artifacts docker images describe "$IMAGE" --format 'value(image_summary.digest)')
+          DIGEST_IMAGE="${IMAGE%:*}@${DIGEST}"
+          if ! [[ "$DIGEST_IMAGE" =~ ^us-central1-docker\.pkg\.dev/ogilvy-trends-v2/intelligence-42/f42-web@sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::The pushed image has no sha256 digest. Nothing was deployed."
+            exit 1
+          fi
+          echo "Deploying $DIGEST_IMAGE"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "DIGEST_IMAGE=$DIGEST_IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy f42-agent, then f42-api with the agent's URL
+        run: |
+          set -euo pipefail
+          SA() { echo "$1@${PROJECT}.iam.gserviceaccount.com"; }
+          source core/api/deploy_flags.env
+
+          gcloud run deploy f42-agent --project "$PROJECT" --region "$REGION" --image "$DIGEST_IMAGE" \
+            --service-account "$(SA "$AGENT_SA")" $AGENT_FLAGS \
+            --set-env-vars "$AGENT_ENV" \
+            --set-secrets "$AGENT_SECRETS" --quiet
+
+          AGENT_URL=$(gcloud run services describe f42-agent --project "$PROJECT" --region "$REGION" --format 'value(status.url)')
+
+          gcloud run deploy f42-api --project "$PROJECT" --region "$REGION" --image "$DIGEST_IMAGE" \
+            --service-account "$(SA "$API_SA")" $API_FLAGS \
+            --set-env-vars "${API_ENV},AGENT_URL=${AGENT_URL}" \
+            --set-secrets "$API_SECRETS" --quiet
+
+      - name: Smoke test f42-api without a passcode
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "$(grep -E '^httpx' core/api/requirements.txt)"
+          API_URL=$(gcloud run services describe f42-api --project "$PROJECT" --region "$REGION" --format 'value(status.url)')
+          python - "$API_URL" <<'EOF'
+          import sys
+
+          import httpx
+
+          from core.api import smoke
+
+
+          def page(client, base):
+              resp = client.get(base + "/")
+              return resp.status_code == 200, f"HTTP {resp.status_code}"
+
+
+          base = sys.argv[1].rstrip("/")
+          failed = []
+          with httpx.Client(timeout=smoke.TIMEOUT) as client:
+              checks = (
+                  ("health", lambda: smoke.check_health(client, base)),
+                  ("gate", lambda: smoke.check_gate(client, base)),
+                  ("page", lambda: page(client, base)),
+              )
+              for name, check in checks:
+                  try:
+                      ok, evidence = check()
+                  except Exception as exc:
+                      ok, evidence = False, smoke._failed(exc)
+                  print(f"{'PASS' if ok else 'FAIL'} {name}: {evidence}", flush=True)
+                  if not ok:
+                      failed.append(name)
+          sys.exit(f"Smoke failed: {', '.join(failed)}" if failed else 0)
+          EOF

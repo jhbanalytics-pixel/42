@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Invented Lagos Daily</title>
+    <link>https://news.example.ng/</link>
+    <description>Invented headlines for tests</description>
+    <item>
+      <title>Super Eagles Squad Lands In Uyo Ahead Of Qualifier</title>
+      <link>https://news.example.ng/2026/10/super-eagles-squad-lands</link>
+      <pubDate>Mon, 05 Oct 2026 00:40:00 +0100</pubDate>
+    </item>
+    <item>
+      <title>Fans react as Ade Bright drops Owambe Season video</title>
+      <link>https://news.example.ng/2026/10/ade-bright-video</link>
+      <pubDate>Sun, 04 Oct 2026 21:10:00 +0100</pubDate>
+    </item>
+    <item>
+      <title>Ticket prices rise for Super Eagles home games</title>
+      <link>https://news.example.ng/2026/10/ticket-prices</link>
+      <pubDate>Sun, 04 Oct 2026 18:30:00 +0100</pubDate>
+    </item>
+    <item>
+      <title>Why Ade Bright skipped the Lagos concert</title>
+      <link>https://news.example.ng/2026/10/ade-bright-lagos</link>
+      <pubDate>Sun, 04 Oct 2026 12:05:00 +0100</pubDate>
+    </item>
+    <item>
+      <title>Youth Summit opens in Abuja with a talent fair</title>
+      <link>https://news.example.ng/2026/10/summit-opens</link>
+      <pubDate>Sun, 04 Oct 2026 10:00:00 +0100</pubDate>
+    </item>
+    <item>
+      <title>Delegates praise Youth Summit organisers</title>
+      <link>https://news.example.ng/2026/10/summit-praise</link>
+      <pubDate>Sun, 04 Oct 2026 09:00:00 +0100</pubDate>
+    </item>
+    <item>
+      <title>Nigeria and Nigeria again as Monday traffic builds</title>
+      <link>https://news.example.ng/2026/10/traffic</link>
+      <pubDate>Sun, 04 Oct 2026 08:00:00 +0100</pubDate>
+    </item>
+    <item>
+      <title>Nigeria weather: Monday rain expected</title>
+      <link>https://news.example.ng/2026/10/weather</link>
+      <pubDate>Sun, 04 Oct 2026 07:00:00 +0100</pubDate>
+    </item>
+    <item>
+      <title>Old story about Ade Bright from last month</title>
+      <link>https://news.example.ng/2026/09/old-story</link>
+      <pubDate>Tue, 01 Sep 2026 07:00:00 +0100</pubDate>
+    </item>
+  </channel>
+</rss>

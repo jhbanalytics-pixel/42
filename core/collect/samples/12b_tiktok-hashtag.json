@@ -1,0 +1,55 @@
+{
+  "probe": "12b",
+  "route": "tiktok/hashtag",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "computed": {
+        "content_category": "<null>",
+        "engagement_rate": "<null>",
+        "estimated_reach": "<int>",
+        "language": "<null>"
+      },
+      "post": {
+        "author": {
+          "avatar_url": "<null>",
+          "display_name": "<null>",
+          "username": "<null>",
+          "verified": "<bool>"
+        },
+        "content": {
+          "duration_seconds": "<null>",
+          "media_urls": "<null>",
+          "text": "<str>",
+          "thumbnail_url": "<null>"
+        },
+        "engagement": {
+          "comments": "<null>",
+          "likes": "<null>",
+          "saves": "<null>",
+          "shares": "<null>",
+          "views": "<int>"
+        },
+        "ext": {
+          "description": "<str>",
+          "video_count": "<int>"
+        },
+        "flags": {
+          "deleted": "<bool>",
+          "nsfw": "<null>",
+          "pinned": "<null>",
+          "spoiler": "<null>"
+        },
+        "id": "<str>",
+        "published_at": "<null>",
+        "url": "<str>"
+      }
+    },
+    "endpoint": "<str>",
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}

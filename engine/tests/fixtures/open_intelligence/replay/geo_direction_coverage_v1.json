@@ -1,0 +1,13 @@
+{
+  "fixture_scope": "synthetic_test_only",
+  "artifact_version": "replay_geo_direction_coverage_v1",
+  "cutoff": "2026-08-25T23:59:59Z",
+  "rows": [
+    {"row_id": "row_conflict", "market": "ng", "query_group": "music", "v2locations": "Lagos", "regional_score": 0.8, "sentiment_lexicon_score": 0.7, "tone_polarity": 0.5, "engagement_total": 200.0, "geo_evidence_id": null, "geo_provenance": null, "current_observed_at": "2026-08-25T12:00:00Z", "prior_observed_at": "2026-08-18T12:00:00Z", "current_count": 20.0, "prior_count": 10.0, "current_rate": 1.0, "prior_rate": 2.0},
+    {"row_id": "row_explicit_geo", "market": "za", "query_group": "culture", "v2locations": "Johannesburg", "regional_score": 0.9, "sentiment_lexicon_score": 0.2, "tone_polarity": 0.1, "engagement_total": 50.0, "geo_evidence_id": "geo_receipt_1", "geo_provenance": "declared_location:country:za", "current_observed_at": "2026-08-25T11:00:00Z", "prior_observed_at": "2026-08-18T11:00:00Z", "current_count": 12.0, "prior_count": 6.0, "current_rate": 2.0, "prior_rate": 1.0},
+    {"row_id": "row_regional_only", "market": "ke", "query_group": "news", "v2locations": null, "regional_score": 0.95, "sentiment_lexicon_score": 0.9, "tone_polarity": 0.8, "engagement_total": 1000.0, "geo_evidence_id": null, "geo_provenance": null, "current_observed_at": null, "prior_observed_at": null, "current_count": null, "prior_count": null, "current_rate": null, "prior_rate": null},
+    {"row_id": "row_unresolved", "market": "za", "query_group": "search", "v2locations": null, "regional_score": null, "sentiment_lexicon_score": null, "tone_polarity": null, "engagement_total": null, "geo_evidence_id": null, "geo_provenance": null, "current_observed_at": null, "prior_observed_at": null, "current_count": null, "prior_count": null, "current_rate": null, "prior_rate": null}
+  ],
+  "required_upstream_evidence_fields": ["enriched_content.direction_baseline_at", "enriched_content.direction_observed_at", "enriched_content.geo_evidence_id", "enriched_content.geo_provenance"],
+  "fixture_digest": "c7fa5e0be52ce4ad851509625d759d41fff943c279203c87988ae60f4029cf81"
+}

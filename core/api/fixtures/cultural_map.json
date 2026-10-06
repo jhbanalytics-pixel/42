@@ -1,0 +1,171 @@
+[
+  {
+    "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e",
+    "kind": "hashtag",
+    "canonical_key": "#fixture_za_step",
+    "label": "#fixture_za_step",
+    "aliases": [
+      "#fixturezastep"
+    ],
+    "status": "active",
+    "first_seen": "2026-09-26",
+    "valid_to": null
+  },
+  {
+    "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+    "kind": "hashtag",
+    "canonical_key": "#fixture_za_heritage",
+    "label": "#fixture_za_heritage",
+    "aliases": [
+      "#heritagefixture",
+      "fixture heritage"
+    ],
+    "status": "active",
+    "first_seen": "2025-09-10",
+    "valid_to": null
+  },
+  {
+    "item_id": "4b942b2ea393cbe2c2e4e883ed5be7441b361229e446c6c5bbcb7fdba540fa33",
+    "kind": "topic",
+    "canonical_key": "fixture za rising topic",
+    "label": "fixture za rising topic",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-20",
+    "valid_to": null
+  },
+  {
+    "item_id": "447e6354b5e51acf11942783fda98f72ce4003b53c18f62d2e35753c3c44ade3",
+    "kind": "hashtag",
+    "canonical_key": "#fixture_za_board",
+    "label": "#fixture_za_board",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-29",
+    "valid_to": null
+  },
+  {
+    "item_id": "196c5995cccbc7eff97f244b604378afbc28dc4109d809a6d6e3cf7a4201bd97",
+    "kind": "hashtag",
+    "canonical_key": "#fixture_za_outage",
+    "label": "#fixture_za_outage",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-28",
+    "valid_to": null
+  },
+  {
+    "item_id": "1fde20148f78cbd64749e8ad9f4ed50c5ab2843d53d5ad7d661e7a230554e5bf",
+    "kind": "hashtag",
+    "canonical_key": "#fixture_za_botnet",
+    "label": "#fixture_za_botnet",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-20",
+    "valid_to": null
+  },
+  {
+    "item_id": "27ad6e7dd82722afeb4f0ceb71fbf6c7a222fe7ae5171cd99048d9930da5f631",
+    "kind": "hashtag",
+    "canonical_key": "#fixture_za_lagos_import",
+    "label": "#fixture_za_lagos_import",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-20",
+    "valid_to": null
+  },
+  {
+    "item_id": "9db7e4c8c38424f764f42ba06b28f026cd48eb1ce09fcdced22f24e7cfd57717",
+    "kind": "hashtag",
+    "canonical_key": "#fixture_za_sponsored",
+    "label": "#fixture_za_sponsored",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-20",
+    "valid_to": null
+  },
+  {
+    "item_id": "c0200ef5ee6e58aed498814a470f359c3987d1b6a1be74b78f886dc2347687c1",
+    "kind": "topic",
+    "canonical_key": "fixture za rejected topic",
+    "label": "fixture za rejected topic",
+    "aliases": [],
+    "status": "rejected",
+    "first_seen": "2026-09-20",
+    "valid_to": null
+  },
+  {
+    "item_id": "8e23ba63bae911fc0e2fe5a5caaa53559c0fee60600421cd02acffaa756fade9",
+    "kind": "meme",
+    "canonical_key": "fixture za other meme",
+    "label": "fixture za other meme",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-20",
+    "valid_to": null
+  },
+  {
+    "item_id": "7f2ab79603408ca60b74cc340171539579ae87710894abaebf234f04648bc35d",
+    "kind": "hashtag",
+    "canonical_key": "#fixture_ng_owambe",
+    "label": "#fixture_ng_owambe",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-01",
+    "valid_to": null
+  },
+  {
+    "item_id": "d446222d56050176e27da32b1f13586cb9ca5359066bacbee8b56e83a8522593",
+    "kind": "sound",
+    "canonical_key": "fixture ng peaking sound",
+    "label": "fixture ng peaking sound",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-15",
+    "valid_to": null
+  },
+  {
+    "item_id": "7bbb4f7e688b04a917d2b8e744210b7066714a7b925861e236fecd8a3dd4a60d",
+    "kind": "hashtag",
+    "canonical_key": "#fixture_ng_promo",
+    "label": "#fixture_ng_promo",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-20",
+    "valid_to": null
+  },
+  {
+    "item_id": "7f4c4b0a0f6c1e36013ef91407c68fc75dac4c06f10de9d3df6a5d04179b3429",
+    "kind": "topic",
+    "canonical_key": "fixture ke mainstream topic",
+    "label": "fixture ke mainstream topic",
+    "aliases": [],
+    "status": "active",
+    "first_seen": "2026-09-05",
+    "valid_to": null
+  },
+  {
+    "item_id": "4b942b2ea393cbe2c2e4e883ed5be7441b361229e446c6c5bbcb7fdba540fa33",
+    "kind": "topic",
+    "canonical_key": "fixture za rising topic",
+    "label": "retired fixture label",
+    "aliases": [
+      "retired alias"
+    ],
+    "status": "active",
+    "first_seen": "2026-09-20",
+    "valid_to": "2026-09-25T00:00:00+00:00"
+  },
+  {
+    "item_id": "31550a81e157653d924381e70a8a17f45012b04a85e496ade43753036a6f8e36",
+    "kind": "brand",
+    "canonical_key": "fixture cola",
+    "label": "Fixture Cola",
+    "aliases": [
+      "FixCola"
+    ],
+    "status": "active",
+    "first_seen": "2026-09-26",
+    "valid_to": null
+  }
+]

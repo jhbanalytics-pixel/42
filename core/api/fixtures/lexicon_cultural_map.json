@@ -1,0 +1,112 @@
+[
+ {
+  "item_id": "64739b91332b834ad7018d3d5d050508f0659cec60a61f6a679a37e757a4c3d5",
+  "kind": "meme",
+  "canonical_key": "fixture sharp sharp",
+  "label": "fixture sharp sharp",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-08-28",
+  "valid_to": null
+ },
+ {
+  "item_id": "dc421a437e7bc5b4dc9567815ed539301ce2a133ae84ded9986fb5cdc667eed3",
+  "kind": "hashtag",
+  "canonical_key": "fixtureamapiano",
+  "label": "#fixtureamapiano",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-09-02",
+  "valid_to": null
+ },
+ {
+  "item_id": "66c02f8db1294a76141d9d7fbd75713840e605889a2f9276699300c8dd062805",
+  "kind": "meme",
+  "canonical_key": "fixture eish wena",
+  "label": "fixture eish wena",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-09-27",
+  "valid_to": null
+ },
+ {
+  "item_id": "023b761cb6a7a01ef425f0293b629e43ca8dcaaf12c09f7b3bb817fc8c725ad9",
+  "kind": "hashtag",
+  "canonical_key": "fyp",
+  "label": "#fyp fixture",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-08-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "001c600240c06dd3cf222d8f7e38b8523a6e86ac2d3b656215881534cf7e29b9",
+  "kind": "hashtag",
+  "canonical_key": "fixtureviral",
+  "label": "#fixtureviral",
+  "aliases": [],
+  "status": "generic",
+  "first_seen": "2026-08-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "ffef2f462e2d6ba8e94ca8c7bb6202eeadd9a53ffe7559b23061ce12b7515b0f",
+  "kind": "creator",
+  "canonical_key": "tiktok:fixture_creator",
+  "label": "fixture creator",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-08-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "6d6fe31b0dfce706c190d9d7e0acd932386400c1ec8c14dfe14b9faec87bea51",
+  "kind": "topic",
+  "canonical_key": "fixture topic words",
+  "label": "fixture topic words",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-08-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "cba78e6bfe35de498efaee734dcdc7cf980eeffecd8a4d0122a6900ce79db0bc",
+  "kind": "meme",
+  "canonical_key": "fixture old slang",
+  "label": "fixture old slang",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-08-20",
+  "valid_to": null
+ },
+ {
+  "item_id": "70ae5b2652d77b67b76b0a15d258365799d5cb25f9e4d1ab8e6a05c66300acd2",
+  "kind": "meme",
+  "canonical_key": "fixture rejected slang",
+  "label": "fixture rejected slang",
+  "aliases": [],
+  "status": "rejected",
+  "first_seen": "2026-08-01",
+  "valid_to": null
+ },
+ {
+  "item_id": "6ff5dd66a07fc42d03f622d543c1884d6d868788ea6419a6ab52d5d83316957a",
+  "kind": "meme",
+  "canonical_key": "fixture wahala",
+  "label": "fixture wahala",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-09-10",
+  "valid_to": null
+ },
+ {
+  "item_id": "dc421a437e7bc5b4dc9567815ed539301ce2a133ae84ded9986fb5cdc667eed3",
+  "kind": "hashtag",
+  "canonical_key": "fixtureamapiano",
+  "label": "#fixtureamapiano old fixture label",
+  "aliases": [],
+  "status": "active",
+  "first_seen": "2026-09-02",
+  "valid_to": "2026-09-10"
+ }
+]

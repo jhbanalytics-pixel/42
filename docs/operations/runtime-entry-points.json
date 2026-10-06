@@ -1,0 +1,2435 @@
+{
+  "contract_version": "42_runtime_entry_points_v1",
+  "http": {
+    "application": "app/src/api/main.py:app",
+    "framework_docs": {
+      "docs_url": null,
+      "redoc_url": null,
+      "openapi_url": null
+    },
+    "mounts": [
+      {
+        "path": "/assets",
+        "kind": "static_files",
+        "condition": "only when app/web/dist/assets exists at startup",
+        "access": "public",
+        "public_reason": "content hashed build assets of the single page application; no data"
+      }
+    ],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/health",
+        "endpoint": "src.api.main:api_health",
+        "dependencies": [],
+        "handler_guards": [],
+        "access": "public",
+        "public_reason": "liveness and freshness probe for the platform and operators; returns the configured dataset name, whether a passcode is configured, and the data freshness stamp, never the passcode or any evidence"
+      },
+      {
+        "method": "POST",
+        "path": "/api/auth/verify",
+        "endpoint": "src.api.main:api_auth_verify",
+        "dependencies": [],
+        "handler_guards": [],
+        "access": "public",
+        "public_reason": "passcode check the login screen calls before storing the passcode; rate limited to ten attempts a minute per client and returns only ok or a refusal"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v2/source-lab",
+        "endpoint": "src.api.main:api_source_lab",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/v2/investigations",
+        "endpoint": "src.api.main:api_create_investigation",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/internal/v2/dossier/review/login",
+        "endpoint": "src.api.main:api_dossier_review_login",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "same_origin"
+        ],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/internal/v2/dossier/review/session",
+        "endpoint": "src.api.main:api_dossier_review_session",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "review_credential",
+          "same_origin"
+        ],
+        "access": "passcode_and_review_credential",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/internal/v2/investigations/{investigation_id}/dossier/review",
+        "endpoint": "src.api.main:api_dossier_review",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "review_session",
+          "same_origin",
+          "workspace_scope"
+        ],
+        "access": "passcode_and_review_session",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/internal/v2/investigations/{investigation_id}/artifacts/prepare",
+        "endpoint": "src.api.main:api_artifact_prepare",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "review_session",
+          "same_origin",
+          "workspace_scope"
+        ],
+        "access": "passcode_and_review_session",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/internal/v2/investigations/{investigation_id}/dossier/selection",
+        "endpoint": "src.api.main:api_dossier_selection",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "review_session",
+          "same_origin",
+          "workspace_scope"
+        ],
+        "access": "passcode_and_review_session",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/internal/v2/investigations/{investigation_id}/dossier/working",
+        "endpoint": "src.api.main:api_dossier_working",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "review_session",
+          "workspace_scope"
+        ],
+        "access": "passcode_and_review_session",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/v2/investigations/{investigation_id}/artifacts/{artifact_id}/export.html",
+        "endpoint": "src.api.main:api_investigation_artifact_export_html",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "workspace_scope"
+        ],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/v2/investigations/{investigation_id}/artifacts/{artifact_id}/export.pdf",
+        "endpoint": "src.api.main:api_investigation_artifact_export_pdf",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "workspace_scope"
+        ],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/internal/v2/investigations/{investigation_id}/artifacts/{artifact_id}/preview",
+        "endpoint": "src.api.main:api_artifact_preview",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "review_session",
+          "same_origin",
+          "workspace_scope"
+        ],
+        "access": "passcode_and_review_session",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/v2/investigations/{investigation_id}/status",
+        "endpoint": "src.api.main:api_investigation_status",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "workspace_scope"
+        ],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/v2/investigations/{investigation_id}/claims/read",
+        "endpoint": "src.api.main:api_investigation_claims",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "workspace_scope"
+        ],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/v2/investigations/{investigation_id}/decision/read",
+        "endpoint": "src.api.main:api_investigation_decision",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "workspace_scope"
+        ],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/v2/investigations/{investigation_id}/artifacts/{artifact_id}/read",
+        "endpoint": "src.api.main:api_investigation_artifact",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "workspace_scope"
+        ],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/internal/v2/investigations/{investigation_id}/historical/read",
+        "endpoint": "src.api.main:api_historical_workspace",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "workspace_scope"
+        ],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/v2/investigations/scopes",
+        "endpoint": "src.api.main:api_investigation_scopes_read",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/v2/investigations/list",
+        "endpoint": "src.api.main:api_investigation_index_read",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/internal/v2/investigations/{investigation_id}/dossier/read",
+        "endpoint": "src.api.main:api_intelligence_dossier_read",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "workspace_scope"
+        ],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/internal/v2/fieldwork/read",
+        "endpoint": "src.api.main:api_fieldwork_read",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/internal/v2/fieldwork/question",
+        "endpoint": "src.api.main:api_fieldwork_question",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/today",
+        "endpoint": "src.api.main:api_today",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/metrics",
+        "endpoint": "src.api.main:api_metrics",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/seeds",
+        "endpoint": "src.api.main:api_seeds",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/seed-path",
+        "endpoint": "src.api.main:api_seed_path",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/seed-discover",
+        "endpoint": "src.api.main:api_seed_discover",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/market-topics",
+        "endpoint": "src.api.main:api_market_topics",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/intel/mentions",
+        "endpoint": "src.api.main:api_intel_mentions",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/voices",
+        "endpoint": "src.api.main:api_voices",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/creator/{handle}",
+        "endpoint": "src.api.main:api_creator",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/creator/{handle}/reach-series",
+        "endpoint": "src.api.main:api_creator_reach_series",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/creator/{handle}/posts",
+        "endpoint": "src.api.main:api_creator_posts",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/topic/{topic_id}",
+        "endpoint": "src.api.main:api_topic",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/topic/{topic_id}/sov-series",
+        "endpoint": "src.api.main:api_topic_sov_series",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/topic/{topic_id}/momentum-series",
+        "endpoint": "src.api.main:api_topic_momentum_series",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/lexicon/{term}",
+        "endpoint": "src.api.main:api_lexicon_term",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/listen",
+        "endpoint": "src.api.main:api_listen",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/rails",
+        "endpoint": "src.api.main:api_rails",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/desk",
+        "endpoint": "src.api.main:api_desk",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/desk/topic/{topic_id}",
+        "endpoint": "src.api.main:api_desk_topic",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/desk/tone-split",
+        "endpoint": "src.api.main:api_desk_tone_split",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/desk/pan-african",
+        "endpoint": "src.api.main:api_desk_pan_african",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/desk/opportunity/{topic_id}",
+        "endpoint": "src.api.main:api_desk_opportunity",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/prewarm",
+        "endpoint": "src.api.main:api_prewarm",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/ask/brief",
+        "endpoint": "src.api.main:api_ask_brief",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/ask/brief/status",
+        "endpoint": "src.api.main:api_ask_brief_status",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/chat/send",
+        "endpoint": "src.api.main:api_chat_send",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/chat/lenses",
+        "endpoint": "src.api.main:api_chat_lenses",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/chat/coverage",
+        "endpoint": "src.api.main:api_chat_coverage",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/chat/status",
+        "endpoint": "src.api.main:api_chat_status",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/internal/v2/question-delivery",
+        "endpoint": "src.api.main:api_question_delivery",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/internal/v2/question-delivery/{request_id}",
+        "endpoint": "src.api.main:api_question_delivery_status",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/chat/answer/{request_id}/export.html",
+        "endpoint": "src.api.main:api_chat_answer_export_html",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/chat/answer/{request_id}/export.pdf",
+        "endpoint": "src.api.main:api_chat_answer_export_pdf",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/internal/general-question/execute",
+        "endpoint": "src.api.general_question_routes:execute_route",
+        "dependencies": [],
+        "handler_guards": [
+          "worker_oidc"
+        ],
+        "access": "worker_oidc",
+        "public_reason": null,
+        "invoker": "listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com"
+      },
+      {
+        "method": "POST",
+        "path": "/api/ask/refine",
+        "endpoint": "src.api.main:api_ask_refine",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/ask",
+        "endpoint": "src.api.main:api_ask",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/card/{query}",
+        "endpoint": "src.api.main:card_page",
+        "dependencies": [],
+        "handler_guards": [
+          "card_token"
+        ],
+        "access": "card_token_or_passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/card-link",
+        "endpoint": "src.api.main:card_link",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [
+          "card_token_mint"
+        ],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/research/availability",
+        "endpoint": "src.api.main:api_research_availability",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/research/personas",
+        "endpoint": "src.api.main:api_research_personas",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/research/generate",
+        "endpoint": "src.api.main:api_research_generate",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/research/generate-batch",
+        "endpoint": "src.api.main:api_research_generate_batch",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/research/generate-consolidated",
+        "endpoint": "src.api.main:api_research_generate_consolidated",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/research/status",
+        "endpoint": "src.api.main:api_research_status",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/research/behaviours",
+        "endpoint": "src.api.main:api_research_behaviours",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/research/recent",
+        "endpoint": "src.api.main:api_research_recent",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/research/export-html",
+        "endpoint": "src.api.main:api_research_export_html_post",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/research/{artifact_id}/export.html",
+        "endpoint": "src.api.main:api_research_export_html",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/research/{artifact_id}/evidence-pack.html",
+        "endpoint": "src.api.main:api_research_evidence_pack",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/api/research/{artifact_id}",
+        "endpoint": "src.api.main:api_research_artifact",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "POST",
+        "path": "/api/research/refine",
+        "endpoint": "src.api.main:api_research_refine",
+        "dependencies": [
+          "require_passcode"
+        ],
+        "handler_guards": [],
+        "access": "passcode",
+        "public_reason": null
+      },
+      {
+        "method": "GET",
+        "path": "/",
+        "endpoint": "src.api.main:index",
+        "dependencies": [],
+        "handler_guards": [],
+        "access": "public",
+        "public_reason": "serves the single page application shell; holds no data and every data call it makes goes through a gated route"
+      }
+    ]
+  },
+  "service": {
+    "name": "listening-post-staging",
+    "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/services/listening-post-staging",
+    "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/listening-post-question",
+    "container": "app/Dockerfile.general-question",
+    "service_account": "listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+    "secret_environment": {
+      "UI_PASSCODE": {
+        "secret": "ui-passcode-staging",
+        "version": "latest"
+      }
+    },
+    "resource_iam": [
+      {
+        "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/run.developer"
+      },
+      {
+        "member": "serviceAccount:intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/run.developer"
+      }
+    ]
+  },
+  "queues": [
+    {
+      "resource": "//cloudtasks.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/queues/oi-general-question-staging",
+      "target_service": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/services/listening-post-staging",
+      "target_path": "/internal/general-question/execute",
+      "oidc_service_account": "listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+      "oidc_audience": "https://listening-post-staging-fibxg5ynpq-uc.a.run.app"
+    }
+  ],
+  "jobs": [
+    {
+      "name": "intelligence-42-apply-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-apply-staging",
+      "runtime": null,
+      "entry_script": null,
+      "origin_bindings": [],
+      "triggered_by": [],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        }
+      ]
+    },
+    {
+      "name": "intelligence-42-brain-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-brain-staging",
+      "runtime": null,
+      "entry_script": null,
+      "origin_bindings": [
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_v1.json",
+          "operation": "brain_read",
+          "service_identity": "intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "brain_read",
+          "service_identity": "intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        }
+      ],
+      "triggered_by": [],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.viewer"
+        }
+      ]
+    },
+    {
+      "name": "intelligence-42-daily-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+      "runtime": {
+        "declared_in": "infra/runtime/daily-staging.json",
+        "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+        "command": [
+          "python"
+        ],
+        "args": [
+          "-m",
+          "ops.runners.managed_runtime"
+        ],
+        "env_names": [
+          "BIGQUERY_DATASET",
+          "TRENDS_ENV"
+        ],
+        "mode": "verify-runtime",
+        "service_account": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "entry_module": "ops.runners.managed_runtime"
+      },
+      "entry_script": null,
+      "origin_bindings": [
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_v1.json",
+          "operation": "collection_exposure_issue",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_v1.json",
+          "operation": "r3_apply",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_v1.json",
+          "operation": "r3_proof_issue",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_v1.json",
+          "operation": "r3_release",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_v1.json",
+          "operation": "source_snapshot_capture",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "collection_exposure_issue",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "daily_composition_apply",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "legacy_chain_replay",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "r3_apply",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "r3_proof_issue",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "r3_release",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "source_collection",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "intelligence_42_sources_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "source_snapshot_capture",
+          "service_identity": "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        }
+      ],
+      "triggered_by": [
+        "intelligence-42-daily-staging"
+      ],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-scheduler@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.jobsExecutorWithOverrides"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.viewer"
+        }
+      ]
+    },
+    {
+      "name": "intelligence-42-exposure-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-exposure-staging",
+      "runtime": null,
+      "entry_script": null,
+      "origin_bindings": [],
+      "triggered_by": [],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        }
+      ]
+    },
+    {
+      "name": "intelligence-42-freshness-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-freshness-staging",
+      "runtime": null,
+      "entry_script": null,
+      "origin_bindings": [],
+      "triggered_by": [],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        }
+      ]
+    },
+    {
+      "name": "intelligence-42-funded-pilot-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging",
+      "runtime": null,
+      "entry_script": null,
+      "origin_bindings": [
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_v1.json",
+          "operation": "wave1_pilot",
+          "service_identity": "intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging",
+            "trends_v2_staging_funded"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "wave1_pilot",
+          "service_identity": "intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging",
+            "trends_v2_staging_funded"
+          ]
+        }
+      ],
+      "triggered_by": [],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.viewer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.viewer"
+        },
+        {
+          "member": "serviceAccount:listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.viewer"
+        }
+      ]
+    },
+    {
+      "name": "intelligence-42-ingest-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-ingest-staging",
+      "runtime": {
+        "declared_in": "infra/runtime/ingest-staging.json",
+        "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+        "command": [
+          "python"
+        ],
+        "args": [
+          "-m",
+          "scripts.staging.collect_42_sources"
+        ],
+        "env_names": [
+          "BIGQUERY_DATASET",
+          "COLLECTION_POLICY_SHA256",
+          "COLLECTION_PROFILE_SHA256",
+          "GCP_PROJECT",
+          "TRENDS_ENV"
+        ],
+        "mode": null,
+        "service_account": "intelligence-42-ingest@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "entry_module": "scripts.staging.collect_42_sources"
+      },
+      "entry_script": {
+        "source": "engine/scripts/staging/collect_42_sources.py",
+        "job_constant": "INGEST_JOB"
+      },
+      "origin_bindings": [],
+      "triggered_by": [],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        }
+      ]
+    },
+    {
+      "name": "intelligence-42-migration-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-migration-staging",
+      "runtime": null,
+      "entry_script": null,
+      "origin_bindings": [
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_v1.json",
+          "operation": "migration_apply",
+          "service_identity": "intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        },
+        {
+          "source": "engine/configs/open_intelligence/execution_origins_bridge_v3.json",
+          "operation": "migration_apply",
+          "service_identity": "intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+          "datasets": [
+            "trends_v2_staging"
+          ]
+        }
+      ],
+      "triggered_by": [],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.viewer"
+        }
+      ]
+    },
+    {
+      "name": "intelligence-42-price-policy-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-price-policy-staging",
+      "runtime": {
+        "declared_in": "infra/runtime/daily-staging.json",
+        "image_repository": "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine",
+        "command": [
+          "python"
+        ],
+        "args": [
+          "-m",
+          "ops.deploy.refresh_question_policy",
+          "renew-unattended",
+          "--release-index",
+          "object:gs://listening-post-staging-cache/open-intelligence/v2/staging/general-questions/renewal/release-index.json#current",
+          "--grant",
+          "object:gs://listening-post-staging-cache/open-intelligence/v2/staging/general-questions/renewal/unattended-grant.json#current",
+          "--adapter",
+          "/app/ops/deploy/release_native_adapter.py:factory",
+          "--adapter-state",
+          "adc",
+          "--output",
+          "/tmp/renewal-receipt.json"
+        ],
+        "env_names": [],
+        "mode": null,
+        "service_account": "intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "entry_module": "ops.deploy.refresh_question_policy"
+      },
+      "entry_script": null,
+      "origin_bindings": [],
+      "triggered_by": [
+        "intelligence-42-price-policy-staging"
+      ],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-scheduler@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        }
+      ]
+    },
+    {
+      "name": "intelligence-42-proof-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-proof-staging",
+      "runtime": null,
+      "entry_script": null,
+      "origin_bindings": [],
+      "triggered_by": [],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        }
+      ]
+    },
+    {
+      "name": "intelligence-42-release-staging",
+      "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-release-staging",
+      "runtime": null,
+      "entry_script": null,
+      "origin_bindings": [],
+      "triggered_by": [],
+      "resource_iam": [
+        {
+          "member": "serviceAccount:intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.developer"
+        },
+        {
+          "member": "serviceAccount:intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+          "role": "roles/run.invoker"
+        }
+      ]
+    }
+  ],
+  "schedulers": [
+    {
+      "name": "intelligence-42-daily-staging",
+      "resource": "//cloudscheduler.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+      "schedule": "0 3 * * *",
+      "time_zone": "Etc/UTC",
+      "state": "PAUSED",
+      "http_method": "POST",
+      "target_uri": "https://run.googleapis.com/v2/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging:run",
+      "service_account": "intelligence-42-scheduler@ogilvy-trends-v2.iam.gserviceaccount.com"
+    },
+    {
+      "name": "intelligence-42-price-policy-staging",
+      "resource": "//cloudscheduler.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-price-policy-staging",
+      "schedule": "0 */12 * * *",
+      "time_zone": "Etc/UTC",
+      "state": "PAUSED",
+      "http_method": "POST",
+      "target_uri": "https://run.googleapis.com/v2/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-price-policy-staging:run",
+      "service_account": "intelligence-42-scheduler@ogilvy-trends-v2.iam.gserviceaccount.com"
+    }
+  ],
+  "privileges": {
+    "source": "ops/deploy/iam_delta_v1.json",
+    "resource_manifest_sha256": "33ed5155608920fddc36e199e77a3082b381b65c3dcd0d803f201811571f1e09",
+    "approval_state": "approved",
+    "applied": false,
+    "live_state_verified": false
+  },
+  "service_accounts": {
+    "intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/fn_is_canonical_execution_json_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v3",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/bigquery.jobUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/cloudbuild.builds.viewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-brain-staging",
+        "role": "roles/run.viewer",
+        "condition": null,
+        "source": "bindings"
+      }
+    ],
+    "intelligence-42-build@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//artifactregistry.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/repositories/intelligence-42",
+        "role": "roles/artifactregistry.writer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/logging.logWriter",
+        "condition": null,
+        "source": "bindings"
+      }
+    ],
+    "intelligence-42-deploy@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//artifactregistry.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/repositories/intelligence-42",
+        "role": "roles/artifactregistry.reader",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudtasks.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/queues/oi-general-question-staging",
+        "role": "roles/cloudtasks.viewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-apply@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-brain@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-exposure@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-freshness@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-ingest@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-proof@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/intelligence-42-release@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-apply-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-brain-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-exposure-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-freshness-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-ingest-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-migration-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-price-policy-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-proof-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-release-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/services/listening-post-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      }
+    ],
+    "intelligence-42-freshness@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/intelligence_42_sources_staging",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/bigquery.jobUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectCreator",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/listening-post-staging-cache/objects/intelligence-42/staging/freshness/alerts/')",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json'",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/listening-post-staging-cache/objects/intelligence-42/staging/freshness/alerts/')",
+        "source": "bindings"
+      }
+    ],
+    "intelligence-42-funded@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+        "role": "roles/bigquery.dataEditor",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/fn_is_canonical_execution_json_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v3",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_funded",
+        "role": "roles/bigquery.dataEditor",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/bigquery.jobUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/cloudbuild.builds.viewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging",
+        "role": "roles/run.viewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//secretmanager.googleapis.com/projects/ogilvy-trends-v2/secrets/SOCIALCRAWL_OGILVY_API_KEY/versions/1",
+        "role": "roles/secretmanager.secretAccessor",
+        "condition": "resource.type == 'secretmanager.googleapis.com/SecretVersion' && resource.name == 'projects/590353929363/secrets/SOCIALCRAWL_OGILVY_API_KEY/versions/1'",
+        "source": "bindings"
+      }
+    ],
+    "intelligence-42-ingest@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/intelligence_42_sources_staging",
+        "role": "roles/bigquery.dataEditor",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/bigquery.jobUser",
+        "condition": null,
+        "source": "bindings"
+      }
+    ],
+    "intelligence-42-migration@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+        "role": "roles/bigquery.dataEditor",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/fn_is_canonical_execution_json_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v3",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/bigquery.jobUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/cloudbuild.builds.viewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-migration-staging",
+        "role": "roles/run.viewer",
+        "condition": null,
+        "source": "bindings"
+      }
+    ],
+    "intelligence-42-orchestration@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/intelligence_42_sources_staging",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+        "role": "roles/bigquery.dataEditor",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/fn_is_canonical_execution_json_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_cancel_open_intelligence_daily_derivation_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_daily_derivation_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_execution_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_source_snapshot_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_consume_open_intelligence_source_snapshot_v3",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_derive_open_intelligence_daily_execution_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_daily_chain_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_daily_derivation_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_approval_v3",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_chain_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_execution_result_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_read_open_intelligence_recurring_grant_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_daily_result_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_record_open_intelligence_execution_result_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/routines/sp_select_open_intelligence_daily_derivation_v1",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/tables/open_intelligence_execution_approvals_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "amendment_f"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/tables/open_intelligence_execution_consumptions_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "amendment_f"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/tables/open_intelligence_execution_results_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "amendment_f"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionVertexPredict",
+        "condition": "request.time < timestamp('2026-12-31T23:59:59Z')",
+        "source": "amendment_g"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/bigquery.jobUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/cloudbuild.builds.viewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-apply-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-brain-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+        "role": "roles/run.jobsExecutorWithOverrides",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+        "role": "roles/run.viewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-exposure-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-freshness-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging",
+        "role": "roles/run.viewer",
+        "condition": null,
+        "source": "amendment_f"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-ingest-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-migration-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-proof-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-release-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging",
+        "role": "roles/storage.objectCreator",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && (resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/authority/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/certification/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/slots/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/collection/receipts/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/source_runs/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/captures/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/products/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/artifact-sets/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/execution-observations/'))",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging",
+        "role": "roles/storage.objectUser",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && ((resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/slots/') && resource.name.endsWith('/control.json')) || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/collection/days/'))",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && (resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/authority/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/certification/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/slots/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/collection/receipts/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/source_runs/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/captures/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/products/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/artifact-sets/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/execution-observations/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/grants/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-execution-approvals-staging/objects/42/daily/workload-rates/'))",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging",
+        "role": "roles/storage.bucketViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Bucket' && resource.name == 'projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging'",
+        "source": "amendment_g"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging",
+        "role": "roles/storage.objectCreator",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging/objects/captures/')",
+        "source": "amendment_g"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && (resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging/objects/inputs/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging/objects/captures/'))",
+        "source": "amendment_g"
+      }
+    ],
+    "intelligence-42-price-policy@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//cloudtasks.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/queues/oi-general-question-staging",
+        "role": "roles/cloudtasks.viewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/services/listening-post-staging",
+        "role": "roles/run.developer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionControlReplace",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json'",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectCreator",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/deployments/')",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectCreator",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/policies/')",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectCreator",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/renewal/sources/')",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json'",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/renewal/release-index.json'",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/renewal/unattended-grant.json'",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/deployments/')",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/policies/')",
+        "source": "bindings"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name.startsWith('projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/renewal/sources/')",
+        "source": "bindings"
+      }
+    ],
+    "intelligence-42-qa@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_qa",
+        "role": "roles/bigquery.dataEditor",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/bigquery.jobUser",
+        "condition": null,
+        "source": "bindings"
+      }
+    ],
+    "intelligence-42-scheduler@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-daily-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-price-policy-staging",
+        "role": "roles/run.invoker",
+        "condition": null,
+        "source": "bindings"
+      }
+    ],
+    "listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com": [
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "retained"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/tables/open_intelligence_execution_approvals_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/tables/open_intelligence_execution_consumptions_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//bigquery.googleapis.com/projects/ogilvy-trends-v2/datasets/trends_v2_staging_approvals/tables/open_intelligence_execution_results_v2",
+        "role": "roles/bigquery.dataViewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "projects/ogilvy-trends-v2/roles/CaptureJobRead",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionQuotaUse",
+        "condition": null,
+        "source": "retained"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionVertexPredict",
+        "condition": "request.time < timestamp('2026-12-31T23:59:59Z')",
+        "source": "amendment_g"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionVertexPredict",
+        "condition": "request.time < timestamp('2026-09-30T23:59:59Z')",
+        "source": "retained"
+      },
+      {
+        "resource": "//cloudresourcemanager.googleapis.com/projects/ogilvy-trends-v2",
+        "role": "roles/bigquery.jobUser",
+        "condition": null,
+        "source": "retained"
+      },
+      {
+        "resource": "//cloudtasks.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/queues/oi-general-question-staging",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionTaskDelivery",
+        "condition": null,
+        "source": "retained"
+      },
+      {
+        "resource": "//iam.googleapis.com/projects/ogilvy-trends-v2/serviceAccounts/listening-post-staging@ogilvy-trends-v2.iam.gserviceaccount.com",
+        "role": "roles/iam.serviceAccountUser",
+        "condition": null,
+        "source": "retained"
+      },
+      {
+        "resource": "//run.googleapis.com/projects/ogilvy-trends-v2/locations/us-central1/jobs/intelligence-42-funded-pilot-staging",
+        "role": "roles/run.viewer",
+        "condition": null,
+        "source": "bindings"
+      },
+      {
+        "resource": "//secretmanager.googleapis.com/projects/ogilvy-trends-v2/secrets/ui-passcode-staging",
+        "role": "roles/secretmanager.secretAccessor",
+        "condition": null,
+        "source": "retained"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionControlReplace",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json' && request.time < timestamp('2026-12-31T23:59:59Z')",
+        "source": "amendment_g"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "projects/ogilvy-trends-v2/roles/QuestionControlReplace",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && resource.name == 'projects/_/buckets/listening-post-staging-cache/objects/open-intelligence/v2/staging/general-questions/allowances/general_cultural_question_staging_eval_v1/ledger.json' && request.time < timestamp('2026-09-30T23:59:59Z')",
+        "source": "retained"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectCreator",
+        "condition": null,
+        "source": "retained"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/listening-post-staging-cache",
+        "role": "roles/storage.objectViewer",
+        "condition": null,
+        "source": "retained"
+      },
+      {
+        "resource": "//storage.googleapis.com/projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging",
+        "role": "roles/storage.objectViewer",
+        "condition": "resource.type == 'storage.googleapis.com/Object' && (resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging/objects/inputs/') || resource.name.startsWith('projects/_/buckets/ogilvy-trends-v2-oi-source-artifacts-staging/objects/captures/'))",
+        "source": "amendment_g"
+      }
+    ]
+  },
+  "engine_entry_points": {
+    "daily_job_modules": [
+      "src.analysis.open_intelligence.daily_cycle",
+      "src.analysis.open_intelligence.daily_authority",
+      "src.analysis.open_intelligence.daily_store",
+      "src.analysis.open_intelligence.recurring_grant",
+      "src.analysis.open_intelligence.daily_native_clients",
+      "src.analysis.open_intelligence.execution_generations"
+    ],
+    "daily_job_modes": [
+      "verify-runtime",
+      "daily"
+    ]
+  },
+  "containers": {
+    "dockerfiles": [
+      {
+        "file": "app/Dockerfile.general-question",
+        "final_stage_from": "python:3.13-slim@sha256:16f75ad0fbc6c4883a8afd63b2d700c3cf68ccffc1aaeca5304ca0a3a908451f",
+        "user": "appuser",
+        "entrypoint": null,
+        "cmd": [
+          "sh",
+          "-c",
+          "exec python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1"
+        ]
+      },
+      {
+        "file": "engine/Dockerfile.staging",
+        "final_stage_from": "python:3.13-slim@sha256:16f75ad0fbc6c4883a8afd63b2d700c3cf68ccffc1aaeca5304ca0a3a908451f",
+        "user": "appuser",
+        "entrypoint": [
+          "python"
+        ],
+        "cmd": [
+          "-c",
+          "raise SystemExit('An explicit reviewed staging command is required')"
+        ]
+      },
+      {
+        "file": "engine/Dockerfile.tests",
+        "final_stage_from": "test-toolchain",
+        "user": "10001:10001",
+        "entrypoint": null,
+        "cmd": [
+          "/opt/42-engine-test-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/unit/",
+          "-q"
+        ]
+      },
+      {
+        "file": "ops/build/Dockerfile.context-builder",
+        "final_stage_from": "${TOOLCHAIN_IMAGE}",
+        "user": "10001:10001",
+        "entrypoint": null,
+        "cmd": null
+      },
+      {
+        "file": "ops/tests/Dockerfile.linux-gates",
+        "final_stage_from": "${APP_RUNTIME_IMAGE}",
+        "user": "10001:10001",
+        "entrypoint": null,
+        "cmd": null
+      }
+    ],
+    "procfiles": [
+      {
+        "file": "app/Procfile",
+        "processes": {
+          "web": "uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
+        }
+      }
+    ],
+    "cloudbuild": [
+      {
+        "file": "cloudbuild.app.publish.yaml",
+        "dockerfiles": [
+          "/reviewed/context/Dockerfile.general-question",
+          "engine/Dockerfile.tests",
+          "ops/build/Dockerfile.context-builder",
+          "ops/tests/Dockerfile.linux-gates"
+        ],
+        "pushed_images": [
+          "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/listening-post-question:${COMMIT_SHA}"
+        ]
+      },
+      {
+        "file": "engine/cloudbuild.publish.yaml",
+        "dockerfiles": [
+          "Dockerfile.staging",
+          "Dockerfile.tests"
+        ],
+        "pushed_images": [
+          "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/engine:${COMMIT_SHA}"
+        ]
+      },
+      {
+        "file": "engine/cloudbuild.staging.yaml",
+        "dockerfiles": [
+          "Dockerfile.staging",
+          "Dockerfile.tests"
+        ],
+        "pushed_images": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+[
+ {
+  "run_id": "r_ask_20260929_h1",
+  "stage": "ask",
+  "run_date": "2026-09-29",
+  "status": "ok",
+  "started_at": "2026-09-29T10:00:00+02:00",
+  "finished_at": "2026-09-29T10:00:40+02:00",
+  "counts": {},
+  "error": null,
+  "question": "What is behind #fixture_za_step in South Africa this week?",
+  "answer": {
+   "status": "complete"
+  },
+  "record": {
+   "ask_id": "a_20260929_h1",
+   "question": "What is behind #fixture_za_step in South Africa this week?",
+   "parent_id": null,
+   "market": "ZA",
+   "status": "complete",
+   "created_at": "2026-09-29T10:00:00+02:00",
+   "finished_at": "2026-09-29T10:00:40+02:00",
+   "answer": {
+    "status": "complete"
+   },
+   "steps": [],
+   "error": null
+  }
+ },
+ {
+  "run_id": "r_ask_20260930_h2",
+  "stage": "ask",
+  "run_date": "2026-09-30",
+  "status": "ok",
+  "started_at": "2026-09-30T08:00:00+02:00",
+  "finished_at": "2026-09-30T08:00:40+02:00",
+  "counts": {},
+  "error": null,
+  "question": "Where did #fixture_za_heritage start?",
+  "answer": {
+   "status": "partial"
+  },
+  "record": {
+   "ask_id": "a_20260930_h2",
+   "question": "Where did #fixture_za_heritage start?",
+   "parent_id": null,
+   "market": "ZA",
+   "status": "complete",
+   "created_at": "2026-09-30T08:00:00+02:00",
+   "finished_at": "2026-09-30T08:00:40+02:00",
+   "answer": {
+    "status": "partial"
+   },
+   "steps": [],
+   "error": null
+  }
+ }
+]

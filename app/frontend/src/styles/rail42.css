@@ -1,0 +1,267 @@
+.rail42 {
+  box-sizing: border-box;
+  font-family: var(--font-sans, var(--sans));
+  font-size: var(--type-body);
+  color: var(--ink);
+  background: var(--paper-secondary, var(--paper));
+
+  line-height: var(--leading-body);
+}
+.rail42-list { list-style: none; margin: 0; padding: 0; }
+
+.rail42-link,
+.rail42-more-button {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--s-2) var(--s-4);
+  font: inherit;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  color: var(--ink);
+  text-align: start;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  border-inline-start: 4px solid transparent;
+  cursor: pointer;
+  transition: background-color var(--motion-row) var(--motion-standard-easing);
+}
+.rail42-link:hover,
+.rail42-more-button:hover { background: var(--surface-raised, var(--paper)); }
+.rail42-link[aria-current="page"] {
+  border-inline-start-color: var(--ink);
+  background: var(--paper);
+  font-weight: 600;
+}
+.rail42-more-button[aria-expanded="true"] { font-weight: 600; }
+.rail42-more-label { position: relative; }
+.rail42-more-label::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -4px;
+  block-size: 1px;
+  background: var(--ink);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+.rail42-more-button:is(:hover, :focus-visible, [aria-expanded="true"]) .rail42-more-label::after,
+.rail42--bar .rail42-more-button[data-holds-current] .rail42-more-label::after { transform: scaleX(1); }
+.rail42-sheet[hidden] { display: none; }
+.rail42-sheet[data-motion-state="open"] { animation: rail42MoreIn 180ms cubic-bezier(0, 0, 0.38, 0.9) both; }
+.rail42-sheet[data-motion-state="closing"] {
+  pointer-events: none;
+  animation: rail42MoreOut 120ms cubic-bezier(0.2, 0, 0.38, 0.9) both;
+}
+@keyframes rail42MoreIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes rail42MoreOut { from { opacity: 1; } to { opacity: 0; } }
+.rail42-sheet .rail42-link { padding-inline-start: 28px; }
+
+.rail42-link:focus-visible,
+.rail42-more-button:focus-visible,
+.rail42-theme select:focus-visible {
+  outline: var(--focus-width, 2px) solid var(--accent);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+
+/* The select takes the rail's width rather than its own: at its own it was a
+   pixel wider than the rail once the rail's scrollbar showed, so the rail
+   scrolled sideways. */
+.rail42-theme {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  font-size: var(--type-meta);
+  color: var(--muted, var(--ink));
+  line-height: var(--leading-meta);
+}
+.rail42-theme select {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: var(--type-body);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule, var(--line));
+  border-radius: var(--shape-control);
+  line-height: var(--leading-body);
+}
+
+/* The rail is the only navigation. The vendored shell still renders its five
+   jobs, and at phone width a Menu button that opens them, so both are hidden
+   here and the shell's grid drops the column the jobs held. These rules come
+   with the rail's chunk, so a chunk that fails to arrive leaves the shell's
+   rail in place. */
+/* Only once the 42 rail has mounted: if its script fails after this stylesheet loads, the shell rail stays. */
+.app.has-rail42:has(nav.rail42) .instrument-job-rail,
+.app.has-rail42:has(nav.rail42) .instrument-menu { display: none; }
+@media (max-width: 767px) {
+  .app.has-rail42 .instrument-utility-strip { grid-template-columns: auto minmax(0, 1fr) auto; }
+}
+@media (min-width: 768px) {
+  .app.has-rail42 .instrument-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "utility" "market" "workspace";
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+}
+
+/* Beside the shell: the app becomes two columns, the rail on the left and
+   the shell on the right, and the rail stays in view while the page scrolls.
+   It sits under the shell's layer, so a dialog the page opens covers it. The
+   rail comes first in the document behind its own skip link, so the shell's
+   skip link, which would now follow every rail link, is hidden. */
+@media (min-width: 1024px) {
+  .app.has-rail42:has(nav.rail42) > .oi-product > .instrument-skip-link { display: none; }
+  .app.has-rail42 > .instrument-skip-link { position: absolute; z-index: 2; }
+  /* The body's overflow-x hidden still lets a script, a focus move or find
+     in page scroll the viewport sideways when a page is wider than the
+     screen, and the rail went with it, its labels cut at the left edge.
+     Clip leaves nothing to scroll to. */
+  .app.has-rail42 {
+    display: grid;
+    grid-template-columns: 176px minmax(0, 1fr);
+    align-items: start;
+    overflow-x: clip;
+  }
+  .app.has-rail42 > .oi-product { grid-column: 2; grid-row: 1; min-width: 0; }
+  .app.has-rail42 > .rail42 {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 0;
+    z-index: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow-y: auto;
+    border-inline-end: 1px solid var(--rule, var(--line));
+  }
+  .rail42-foot { margin-top: auto; border-top: 1px solid var(--rule, var(--line)); }
+  .rail42-more-chevron {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    margin-inline-start: auto;
+    border-inline-end: 1.5px solid currentColor;
+    border-block-end: 1.5px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 160ms cubic-bezier(0.2, 0, 0.38, 0.9);
+  }
+  .rail42-more-button[aria-expanded="true"] .rail42-more-chevron { transform: translateY(2px) rotate(225deg); }
+}
+
+/* The phone bar: four pages and More across the foot of the screen, each
+   an equal share of the width, so it never scrolls sideways. More opens a
+   sheet above the bar. The page keeps room at its end for the bar. */
+@media (max-width: 1023px) {
+  .app.has-rail42 { padding-bottom: 56px; }
+  .rail42--bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    min-height: 56px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--rule, var(--line));
+  }
+  .rail42--bar > .rail42-list { display: flex; flex: 4 1 0; min-width: 0; }
+  .rail42--bar > .rail42-list > li { flex: 1 1 0; min-width: 0; }
+  .rail42--bar > .rail42-more { flex: 1 1 0; min-width: 0; }
+  .rail42--bar > .rail42-list .rail42-link,
+  .rail42--bar .rail42-more-button {
+    justify-content: center;
+    height: 100%;
+    min-height: 56px;
+    padding: 4px 2px;
+    font-size: var(--type-meta);
+    text-align: center;
+    overflow-wrap: anywhere;
+    border-inline-start: 0;
+    border-top: 3px solid transparent;
+
+  line-height: var(--leading-meta);
+}
+  .rail42--bar > .rail42-list .rail42-link[aria-current="page"] {
+    border-top-color: var(--ink);
+    font-weight: 600;
+  }
+  .rail42--bar .rail42-more-button[data-holds-current] { font-weight: 600; }
+  .rail42--bar .rail42-sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    background: var(--paper-secondary, var(--paper));
+    border-top: 1px solid var(--rule, var(--line));
+  }
+  .rail42--bar .rail42-sheet .rail42-link { padding-inline-start: 16px; }
+}
+
+[data-motion="off"] .rail42-sheet[data-motion-state="closing"] {
+  animation: none !important;
+  opacity: 0 !important;
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail42-sheet[data-motion-state="closing"] {
+    animation: none !important;
+    opacity: 0 !important;
+    transform: none !important;
+  }
+}
+
+/* Design audit, 2 October 2026: with More open the wide rail held 25 rows
+   at 44px, so at a laptop height the foot group and the theme sat below the
+   fold and the rail had to scroll on its own. Navigation is a scanning list,
+   not reading text, so its rows set at 14px with a 40px pitch, and the pages
+   under More step down again to 32px rows in the softer ink, indented, so
+   the two levels read as parent and child (Gestalt common region and
+   similarity). 32px keeps every row above the 24px target floor of WCAG 2.2,
+   2.5.8. */
+@media (min-width: 1024px) {
+  .rail42[data-rail-layout="rail"] .rail42-link,
+  .rail42[data-rail-layout="rail"] .rail42-more-button {
+    min-height: 40px;
+    padding-block: var(--s-1);
+    font-size: var(--type-3);
+  }
+  .rail42[data-rail-layout="rail"] .rail42-sheet .rail42-link {
+    min-height: 32px;
+    padding-block: 2px;
+    padding-inline-start: var(--s-5);
+    color: var(--ink-2);
+  }
+  .rail42[data-rail-layout="rail"] .rail42-sheet .rail42-link[aria-current="page"] { color: var(--ink); }
+}
+
+/* UX pass, 3 October 2026: the menu is named groups, so a newcomer reads
+   where to start (Start here), where their own things are (Your work) and
+   what is for checking (How 42 works) before reading a single page name.
+   The group name is a quiet label in sentence case, not spaced capitals. */
+.rail42-group + .rail42-group,
+.rail42-group + .rail42-more,
+.rail42-sheet .rail42-group + .rail42-group { margin-top: var(--s-3); }
+.rail42-group-title {
+  margin: 0;
+  padding: var(--s-3) var(--s-4) var(--s-1);
+  /* Lined up with the link text, which sits after a 4px start rule. */
+  padding-inline-start: calc(var(--s-4) + 4px);
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  font-weight: 600;
+  color: var(--ink-2, var(--muted, var(--ink)));
+}
+.rail42-sheet .rail42-group-title { padding-inline-start: calc(var(--s-5) + 4px); padding-top: var(--s-2); }
+.rail42--bar .rail42-sheet .rail42-group-title { padding-inline-start: 16px; }
+.rail42-foot .rail42-theme { padding-top: var(--s-3); }

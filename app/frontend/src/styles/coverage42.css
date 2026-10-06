@@ -1,0 +1,309 @@
+.cv42 {
+  --cv42-small: var(--type-body);
+  --cv42-body: var(--type-body);
+  --cv42-lead: var(--type-signal-title);
+  --cv42-head: var(--type-page-title);
+  font-family: var(--sans);
+  font-size: var(--type-body);
+  color: var(--ink);
+  padding: var(--s-6) var(--s-5);
+  max-width: var(--maxw);
+
+  line-height: var(--leading-body);
+}
+
+.cv42 :focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.cv42-head { margin-bottom: var(--s-3); display: grid; gap: var(--s-3); }
+.cv42 h1, .cv42 h2, .cv42-notice-title { text-wrap-style: balance; }
+.cv42 p { text-wrap-style: pretty; max-width: var(--measure); }
+.cv42 li, .cv42 td, .cv42 th { text-wrap-style: pretty; }
+
+/* How the numbers are counted: one closed line under the heading, so the
+   tables lead. Opening it reveals the notes with a short fade. */
+.cv42-method { margin: 0 0 var(--s-6); max-width: var(--measure); border-bottom: 1px solid var(--line); }
+.cv42-method > summary, .cv42-idle > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--ink-2);
+  list-style: none;
+}
+.cv42-method > summary::-webkit-details-marker, .cv42-idle > summary::-webkit-details-marker { display: none; }
+.cv42-method > summary::before, .cv42-idle > summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: 2px var(--s-1);
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+.cv42-method[open] > summary::before, .cv42-idle[open] > summary::before { transform: rotate(45deg); }
+.cv42-method > summary:hover, .cv42-idle > summary:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.cv42-method-body { padding: 0 0 var(--s-3); }
+.cv42-method[open] > .cv42-method-body { animation: cv42Reveal var(--motion-layer) var(--motion-standard-easing) backwards; }
+@keyframes cv42Reveal { from { opacity: 0; transform: translateY(-4px); } }
+.cv42-heading { font-size: var(--type-page-title); font-weight: 600; line-height: var(--leading-page-title); margin: 0; }
+.cv42-status { font-size: var(--cv42-body); color: var(--muted); }
+
+.cv42-part { font-size: var(--cv42-small); margin-bottom: var(--s-6); }
+.cv42-part-title { font-size: var(--type-section-title); font-weight: 600; margin: 0 0 var(--s-3);
+  line-height: var(--leading-section-title);
+}
+.cv42-line { margin: 0 0 var(--s-2); color: var(--muted); }
+.cv42-rows { margin: 0; padding-left: var(--s-4); display: grid; gap: var(--s-1); }
+.cv42-grid { display: grid; gap: var(--s-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+
+.cv42-scroll { overflow-x: auto; }
+.cv42-table { border-collapse: collapse; width: max-content; min-width: 100%; font-size: var(--cv42-small); }
+.cv42-table th, .cv42-table td { text-align: left; padding: var(--s-2) var(--s-4) var(--s-2) 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.cv42-table tbody tr:hover > * { background: var(--surface); }
+.cv42-table thead th { color: var(--muted); font-weight: 600; }
+.cv42-table tbody th { font-weight: 400; }
+.cv42-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cv42-invalid td, .cv42-invalid th { font-weight: 600; }
+.cv42-fig { font-variant-numeric: tabular-nums; }
+
+.cv42-button {
+  font: inherit;
+  font-size: var(--cv42-body);
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line-2);
+  padding: var(--s-1) var(--s-4);
+  min-height: var(--target-min);
+  cursor: pointer;
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+.cv42-button:hover, .cv42-button:focus-visible { border-color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cv42-method[open] > .cv42-method-body { animation: none; }
+  .cv42-method > summary::before, .cv42-idle > summary::before { transition: none; }
+}
+
+
+.cv42-link { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.cv42-link:hover { text-decoration-thickness: 2px; }
+.cv42-muted { color: var(--muted); }
+.cv42-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-4); }
+
+/* Day picker on one row: previous, the day shown in words over the native
+   field that picks it, next. */
+.cv42-days { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--s-2); max-width: 32rem; }
+.cv42-day-step {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1);
+  min-height: var(--target-min); min-width: var(--target-min); padding: 0 var(--s-3);
+  color: var(--ink); text-decoration: none; white-space: nowrap;
+  border: 1px solid var(--line-2); border-radius: var(--shape-control);
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+a.cv42-day-step:hover { border-color: var(--ink); }
+.cv42-day-step[aria-disabled="true"] { color: var(--faint); border-color: var(--line); }
+.cv42-day-field {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  min-height: var(--target-min); padding: 0 var(--s-3);
+  border: 1px solid var(--line-2); border-radius: var(--shape-control); background: var(--surface);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+.cv42-day-field:hover { border-color: var(--ink); }
+.cv42-day-field:focus-within { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+.cv42-day-shown { overflow: hidden; text-overflow: ellipsis; }
+.cv42-day-short { display: none; }
+.cv42-day-input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0;
+  opacity: 0; cursor: pointer; border: 0; font: inherit;
+}
+.cv42-day-input:focus-visible { outline: none; }
+/* The field is invisible; its hover and focus show on the box around it. */
+.cv42-day-input:hover { cursor: pointer; }
+
+/* A day with no source recorded: one plain notice with the way back. */
+.cv42-notice { margin: 0 0 var(--s-6); padding: var(--s-4) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.cv42-notice-title { margin: 0 0 var(--s-1); font-size: var(--type-signal-title); line-height: var(--leading-signal-title); font-weight: 600; }
+.cv42-notice-next { margin: 0; color: var(--muted); }
+
+/* A market's day at a glance: numbers lead, words follow muted. */
+.cv42-stats { list-style: none; margin: 0 0 var(--s-3); padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-5); }
+.cv42-stat { white-space: nowrap; }
+.cv42-stat-value { font-size: var(--type-signal-title); line-height: var(--leading-signal-title); font-weight: 600; font-variant-numeric: tabular-nums; }
+.cv42-stat-words { color: var(--muted); }
+
+/* Posts per source as bars on one shared axis across the day's markets. */
+.cv42-table thead th { white-space: nowrap; }
+.cv42-sources-table tbody th { white-space: nowrap; }
+.cv42-table .cv42-num { text-align: right; }
+.cv42-bar-col { width: 12rem; min-width: 8rem; padding-right: var(--s-5); }
+.cv42-axis { display: flex; justify-content: space-between; font-weight: 400; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--line-2); }
+.cv42-track { display: block; height: 10px; margin-top: 6px; background: var(--surface-2); }
+.cv42-bar { display: block; height: 100%; width: calc(var(--cv42-w, 0) * 100%); background: var(--ink-2); }
+.cv42-invalid .cv42-bar { background: var(--muted); opacity: 0.5; }
+.cv42-state-word { display: block; white-space: nowrap; }
+.cv42-state-reason { display: block; color: var(--muted); font-weight: 400; min-width: 14ch; text-wrap-style: pretty; }
+.cv42-part-quiet { margin-bottom: var(--s-4); }
+.cv42-grid { row-gap: 0; }
+.cv42-rows li { text-wrap-style: pretty; }
+.cv42-part-quiet .cv42-part-title { margin-bottom: var(--s-1); }
+.cv42-sources { margin: calc(var(--s-3) * -1) 0 var(--s-6); }
+
+/* The sources table in parts, 5 October 2026: each part opens with its name
+   and what it adds up to, and the sources with no call on the day fold into
+   one closed line under the table. */
+.cv42-sources-table .cv42-group-row th {
+  padding-top: var(--s-5); border-bottom: 1px solid var(--line-2);
+  white-space: normal; font-weight: 600;
+}
+.cv42-sources-table tbody:first-of-type .cv42-group-row th { padding-top: var(--s-3); }
+/* A part heading is not a source, so it takes no row hover. */
+.cv42-table tbody tr:hover > th[scope="rowgroup"] { background: none; }
+.cv42-group-name { margin-right: var(--s-3); }
+.cv42-group-total { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.cv42-idle { margin-top: var(--s-2); border-bottom: 1px solid var(--line); }
+.cv42-idle-body { padding: 0 0 var(--s-3); }
+
+/* The scorecard: the value leads in each cell; what the measure means sits
+   once, muted, under its name. Cells are short, so nothing stacks. */
+.cv42-score { width: 100%; }
+.cv42-score tbody th { font-weight: 400; width: 40%; min-width: 16rem; max-width: 32rem; }
+.cv42-measure { display: block; font-weight: 600; white-space: nowrap; text-wrap-style: balance; }
+.cv42-measure-unit { display: block; color: var(--muted); text-wrap-style: balance; }
+.cv42-score-cell { min-width: 9rem; width: 20%; }
+/* Figures compared across markets line up on the right with tabular digits,
+   so 60% and 80% sit digit over digit (Bringhurst 4.4; Tufte, tables). */
+@media (min-width: 640px) {
+  .cv42-score .cv42-score-cell,
+  .cv42-score thead th:not(:first-child) { text-align: right; padding-right: 0; padding-left: var(--s-4); }
+}
+.cv42-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cv42-runs tbody th { font-weight: inherit; white-space: nowrap; }
+.cv42-runs .cv42-has-note > * { border-bottom: 0; padding-bottom: 0; }
+.cv42-zone-note { margin-top: var(--s-2); }
+.cv42-note-row td { padding-top: var(--s-1); color: var(--muted); font-weight: 400; }
+.cv42-score-value { display: block; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+.cv42-unmeasured .cv42-score-value { color: var(--muted); font-weight: 400; }
+.cv42-note-mark a { color: inherit; padding: 0 2px; }
+.cv42-notes { margin: var(--s-3) 0 0; padding-left: var(--s-5); color: var(--muted); max-width: var(--measure); }
+.cv42-notes li { text-wrap-style: pretty; }
+.cv42-notes li:focus { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+.cv42-score-reason { display: block; color: var(--muted); max-width: 30ch; text-wrap-style: pretty; }
+
+/* Narrower desktops: a shorter bar and a status that may take two lines,
+   so the table fits its column instead of scrolling. */
+@media (max-width: 1279px) {
+  .cv42-bar-col { width: 7rem; min-width: 5rem; padding-right: var(--s-3); }
+  .cv42-sources-table { width: 100%; }
+}
+
+/* Phones: each table row becomes a short block, the row heading on top
+   and every figure as a label and value, so no column is cut off. */
+@media (max-width: 639px) {
+  .cv42-stack, .cv42-stack tbody, .cv42-stack tr { display: block; width: 100%; min-width: 0; }
+  .cv42-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .cv42-stack tbody tr {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); gap: var(--s-2) var(--s-3);
+    padding: var(--s-3) 0; border-bottom: 1px solid var(--line);
+  }
+  .cv42-stack th, .cv42-stack td { display: flex; flex-direction: column; align-items: flex-start; width: auto; min-width: 0; max-width: none; padding: 0; border: 0; text-align: left; white-space: normal; }
+  .cv42-stack.cv42-score tbody th { width: auto; min-width: 0; max-width: none; }
+  .cv42-stack.cv42-sources-table tbody th { white-space: normal; }   /* outranks the desktop nowrap above, so long source names wrap */
+  .cv42-stack .cv42-measure-unit { font-weight: 400; }
+  .cv42-score .cv42-score-cell { width: auto; min-width: 0; }
+  .cv42-stack.cv42-score tbody tr { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
+  /* Market name, value, then meter in fixed tracks, so every row's meter
+     starts at the same place. */
+  .cv42-stack.cv42-score td { display: grid; grid-template-columns: 6.5rem 7rem minmax(0, 1fr); align-items: baseline; column-gap: var(--s-3); }
+  .cv42-stack.cv42-score td > .cv42-score-meter { grid-column: 3; grid-row: 1; align-self: center; }
+  .cv42-stack.cv42-score td > .cv42-score-reason { grid-column: 2 / -1; }
+  .cv42-stack.cv42-score td.cv42-unmeasured > .cv42-score-value { grid-column: 2 / -1; }
+  .cv42-stack tbody th { grid-column: 1 / -1; font-weight: 600; }
+  .cv42-stack td[data-label]::before { content: attr(data-label); color: var(--muted); font-weight: 400; white-space: nowrap; }
+  .cv42-stack .cv42-bar-col { display: none; }
+  .cv42-stack .cv42-state { display: block; grid-column: 1 / -1; }
+  .cv42-stack .cv42-state-reason { min-width: 0; }
+  .cv42-stack .cv42-has-note { border-bottom: 0; padding-bottom: 0; }
+  .cv42-stack tr.cv42-note-row { padding-top: var(--s-1); }
+  .cv42-stack .cv42-zone-note { margin-top: var(--s-2); }
+.cv42-note-row td { display: block; grid-column: 1 / -1; }
+  .cv42-day-long { display: none; }
+  .cv42-day-step { padding: 0; }
+  .cv42-day-full { display: none; }
+  .cv42-day-short { display: inline; }
+  .cv42-stack.cv42-sources-table tbody tr { grid-template-columns: 3.25rem minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s-2); }
+  .cv42-stack.cv42-sources-table td.cv42-num { white-space: nowrap; }
+  .cv42-stack.cv42-sources-table td[data-label="Located"] { white-space: normal; overflow-wrap: anywhere; text-align: left; }
+  .cv42-stack.cv42-sources-table tr.cv42-group-row { display: block; padding: var(--s-4) 0 var(--s-2); border-bottom: 1px solid var(--line-2); }
+  .cv42-stack.cv42-sources-table tr.cv42-group-row th { display: block; padding: 0; border: 0; }
+  .cv42-stack .cv42-group-total { display: block; }
+  .cv42-stack.cv42-runs tbody tr { grid-template-columns: 6rem minmax(0, 1fr); column-gap: var(--s-4); }
+  .cv42-stack .cv42-time { white-space: nowrap; }
+  .cv42-stack.cv42-credits tbody tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s-3); }
+  .cv42-stack.cv42-credits td:nth-of-type(2) { grid-column: 1 / -1; grid-row: 3; }
+  .cv42-stack.cv42-credits td { white-space: nowrap; }
+  .cv42-days { max-width: none; }
+  .cv42 .cv42-heading { font-size: calc(var(--type-page-title) * 0.8); }
+}
+
+@media (max-width: 1279px) {
+  .cv42-score tbody th { width: auto; min-width: 12rem; }
+}
+@media (max-width: 479px) {
+  .cv42 { padding-inline: 0; }
+}
+@media (max-width: 600px) {
+  .cv42 { padding-block: var(--s-5); }
+  .cv42-score tbody th { min-width: 11rem; }
+}
+.cv42-nowrap { white-space: nowrap; }
+.cv42-link:focus-visible, .cv42-day-step:focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+
+/* No AI look pass, 4 October 2026. The heading and the day picker share a
+   row on a wide screen; the method line runs the full width like every
+   other rule on the page; credits, model spend and the runs sit side by
+   side, and runs take a row of their own once they have a table. */
+.cv42 { max-width: none; }
+.cv42-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3) var(--s-5); margin-bottom: var(--s-4); }
+.cv42-head .cv42-days { margin: 0; }
+.cv42-method { max-width: none; }
+.cv42-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); column-gap: var(--s-7); }
+.cv42-part-wide { grid-column: 1 / -1; }
+.cv42-grid > .cv42-part { padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.cv42-method:has(+ .cv42-notice) { margin-bottom: 0; }
+.cv42-method + .cv42-notice { border-top: 0; }
+@media (min-width: 1100px) {
+  .cv42 [data-section="not-seen"] .cv42-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-7); }
+}
+
+/* Round 2, 4 October 2026. Model spend says its figure once: the sentence
+   carries the value at display size, so the bullet's own figure (repeated
+   for screen readers in its hidden line) is not drawn a second time. The
+   three day parts sit as three equal columns from 1024px and stack below,
+   so no part is left alone beside an empty cell. */
+.cv42-spend-line { color: var(--muted); }
+.cv42-spend-value { display: block; font-size: var(--t-7); line-height: 1.1; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; margin-bottom: var(--s-1); }
+.cv42 [data-cv42-spend-chart] .ch42-bullet-figure { display: none; }
+.cv42-grid { grid-template-columns: minmax(0, 1fr); }
+.cv42-grid > .cv42-part-wide { grid-column: auto; }
+@media (min-width: 1024px) {
+  .cv42-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--s-6); }
+}
+/* A day with credits: on a wide screen the credits chart and table take
+   two thirds, with model spend over the runs in the last third; at 1024
+   credits take the row and spend and runs share the next, so no table is
+   squeezed. */
+@media (min-width: 1024px) {
+  .cv42-grid:has(> [data-section="credits"]:not(.cv42-part-quiet)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cv42-grid > [data-section="credits"]:not(.cv42-part-quiet) { grid-column: 1 / -1; }
+}
+@media (min-width: 1280px) {
+  .cv42-grid:has(> [data-section="credits"]:not(.cv42-part-quiet)) { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .cv42-grid > [data-section="credits"]:not(.cv42-part-quiet) { grid-column: auto; grid-row: span 2; }
+}

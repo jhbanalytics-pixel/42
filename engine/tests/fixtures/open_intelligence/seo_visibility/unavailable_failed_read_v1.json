@@ -1,0 +1,32 @@
+{
+  "observation_contract_version": "seo_visibility_observation_v1",
+  "request_id": "seor_01j6m7h24y5t9q3x8k1v6c0bda",
+  "client_scope_id": "scope_public_brand_za",
+  "run_id": "run_20260831_za_public_search",
+  "market": "za",
+  "query_text": "public transport reliability",
+  "query_digest": "4089c2f531b5e5e66ac62cf6c4878eb5ee593d9e74e3e5a1cb76d5f4e7c51728",
+  "window_start": "2026-08-01T00:00:00.000000Z",
+  "window_end": "2026-08-30T23:59:59.000000Z",
+  "observed_at": "2026-08-31T06:00:00.000000Z",
+  "surface": "organic_serp",
+  "provider": "fixture_search_provider",
+  "provider_endpoint": "/fixture/v1/organic-results",
+  "result_position": null,
+  "result_type": null,
+  "result_url": null,
+  "result_domain": null,
+  "title": null,
+  "snippet_digest": null,
+  "ai_answer_present": null,
+  "ai_citation_present": null,
+  "ai_citation_target": null,
+  "measurement_state": "unavailable",
+  "confidence": null,
+  "limitations": [
+    "read_failed"
+  ],
+  "source_receipt_id": null,
+  "cost_unit": "provider_units",
+  "cost_debit": 0
+}

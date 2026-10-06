@@ -1,0 +1,98 @@
+[
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "metric_date": "2025-09-10",
+  "posts": 5
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "metric_date": "2025-09-17",
+  "posts": 60
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "metric_date": "2025-09-24",
+  "posts": 240
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "metric_date": "2025-09-25",
+  "posts": 200
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "metric_date": "2025-09-26",
+  "posts": 150
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "metric_date": "2025-09-27",
+  "posts": 110
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "metric_date": "2025-10-02",
+  "posts": 10
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "metric_date": "2026-09-12",
+  "posts": 10
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "metric_date": "2026-09-29",
+  "posts": 51
+ },
+ {
+  "item_id": "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156",
+  "market": "ZA",
+  "metric_date": "2026-09-30",
+  "posts": 40
+ },
+ {
+  "item_id": "447e6354b5e51acf11942783fda98f72ce4003b53c18f62d2e35753c3c44ade3",
+  "market": "ZA",
+  "metric_date": "2026-05-01",
+  "posts": 10
+ },
+ {
+  "item_id": "447e6354b5e51acf11942783fda98f72ce4003b53c18f62d2e35753c3c44ade3",
+  "market": "ZA",
+  "metric_date": "2026-05-08",
+  "posts": 80
+ },
+ {
+  "item_id": "447e6354b5e51acf11942783fda98f72ce4003b53c18f62d2e35753c3c44ade3",
+  "market": "ZA",
+  "metric_date": "2026-05-09",
+  "posts": 30
+ },
+ {
+  "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e",
+  "market": "ZA",
+  "metric_date": "2026-09-26",
+  "posts": 3
+ },
+ {
+  "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e",
+  "market": "ZA",
+  "metric_date": "2026-09-29",
+  "posts": 9
+ },
+ {
+  "item_id": "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e",
+  "market": "ZA",
+  "metric_date": "2026-09-30",
+  "posts": 12
+ }
+]

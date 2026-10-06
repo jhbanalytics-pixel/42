@@ -1,0 +1,272 @@
+{
+  "seeds": {
+    "date": "2026-09-06",
+    "seeds": [
+      {
+        "rank": 1,
+        "behaviour": "Repair as a shared ritual",
+        "the_shift": "Repair gatherings turn individual maintenance into a social occasion.",
+        "evidence": [
+          {
+            "ref": "ke/music_amapiano",
+            "market": "ke",
+            "topic": "music_amapiano",
+            "topic_label": "Amapiano",
+            "note": "Music accompanies the shared repair table."
+          },
+          {
+            "ref": null,
+            "market": null,
+            "topic": null,
+            "topic_label": null,
+            "note": "A note without a market reference."
+          }
+        ],
+        "why_hidden": "Test this editorial hypothesis against the linked evidence.",
+        "timing": "Compare recent observations before acting.",
+        "markets": [
+          "ke"
+        ],
+        "brand_opportunity": "Explore a repair workshop with local collaborators.",
+        "activation": {
+          "tool": "visual",
+          "angle": "A shared repair table",
+          "prompt": "A community repair table with music nearby."
+        },
+        "signal_strength": "building"
+      }
+    ]
+  },
+  "explorer": {
+    "keyword": "amapiano",
+    "market": "KE",
+    "market_name": "Kenya",
+    "status": "ok",
+    "message": null,
+    "query_id": "q_seed_path",
+    "run_id": "r_aggregate_fixture",
+    "window": {
+      "from": "2026-09-01",
+      "to": "2026-09-07",
+      "days": 28
+    },
+    "matched_posts": {
+      "value": 12,
+      "unit": "matching posts in 28 days",
+      "query_id": "q_seed_path",
+      "run_id": "r_aggregate_fixture",
+      "result_hash": "sha256:fixture"
+    },
+    "platforms": [
+      {
+        "platform": "tiktok",
+        "name": "TikTok",
+        "first_seen": {
+          "value": "2026-09-01",
+          "unit": "first sighting day",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_fixture",
+          "result_hash": "sha256:fixture"
+        },
+        "before_window": false,
+        "posts_all_time": {
+          "value": 3,
+          "unit": "matching posts, all time",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_fixture",
+          "result_hash": "sha256:fixture"
+        },
+        "posts_in_window": {
+          "value": 3,
+          "unit": "matching posts in 28 days",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_fixture",
+          "result_hash": "sha256:fixture"
+        },
+        "daily": {
+          "unit": "matching posts a day",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_fixture",
+          "points": [
+            {
+              "date": "2026-09-01",
+              "posts": 1
+            },
+            {
+              "date": "2026-09-02",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-03",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-04",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-05",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-06",
+              "posts": 2
+            },
+            {
+              "date": "2026-09-07",
+              "posts": 0
+            }
+          ]
+        }
+      },
+      {
+        "platform": "x",
+        "name": "X",
+        "first_seen": {
+          "value": "2026-09-06",
+          "unit": "first sighting day",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_fixture",
+          "result_hash": "sha256:fixture"
+        },
+        "before_window": false,
+        "posts_all_time": {
+          "value": 9,
+          "unit": "matching posts, all time",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_fixture",
+          "result_hash": "sha256:fixture"
+        },
+        "posts_in_window": {
+          "value": 9,
+          "unit": "matching posts in 28 days",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_fixture",
+          "result_hash": "sha256:fixture"
+        },
+        "daily": {
+          "unit": "matching posts a day",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_fixture",
+          "points": [
+            {
+              "date": "2026-09-01",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-02",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-03",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-04",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-05",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-06",
+              "posts": 7
+            },
+            {
+              "date": "2026-09-07",
+              "posts": 2
+            }
+          ]
+        }
+      }
+    ],
+    "side_words": [
+      {
+        "word": "piano",
+        "posts": {
+          "value": 2,
+          "unit": "matching posts with this word",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_fixture",
+          "result_hash": "sha256:fixture"
+        }
+      }
+    ],
+    "side_words_min_posts": 2,
+    "topics": [
+      {
+        "item_id": "music_amapiano",
+        "title": "Amapiano in Kenya",
+        "kind": "topic",
+        "state_word": "Rising",
+        "held_back": false,
+        "href": "#/t/music_amapiano?market=KE",
+        "posts": {
+          "value": 3,
+          "unit": "matching posts linked to this item",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_fixture",
+          "result_hash": "sha256:fixture"
+        }
+      }
+    ],
+    "truncated": false,
+    "notes": []
+  },
+  "explorerZA": {
+    "keyword": "amapiano",
+    "market": "za",
+    "adjacency": {
+      "keyword": "amapiano",
+      "market": "za",
+      "trend_date": "2026-09-06",
+      "found": true,
+      "co_occur_terms": [
+        {
+          "term": "piano",
+          "count": 2,
+          "term_type": "token"
+        }
+      ],
+      "topic_overlap": [
+        {
+          "topic": "music_amapiano",
+          "label": "Amapiano",
+          "row_count": 12
+        }
+      ],
+      "near_topics": [],
+      "bridge_creators": [],
+      "lexicon_hits": [
+        {
+          "term": "piano"
+        }
+      ]
+    },
+    "path": {
+      "keyword": "amapiano",
+      "market": "za",
+      "trend_date": "2026-09-06",
+      "term": "amapiano",
+      "term_type": "token",
+      "channels": [
+        {
+          "platform": "TikTok",
+          "first_seen": "2026-09-01",
+          "row_count": 3,
+          "watched_since": false
+        },
+        {
+          "platform": "TikTok",
+          "first_seen": "2026-09-06",
+          "row_count": 9,
+          "watched_since": true
+        }
+      ],
+      "span_days": 5,
+      "confidence": "thin",
+      "coverage_note": ""
+    }
+  }
+}

@@ -1,0 +1,341 @@
+# Held-out reference list for the scorecard's lead time (ENGINE.md section 6, BUILD.md 2.7).
+#
+# Lifted from engine/configs/watchlist_ground_truth.yaml. Real cultural moves added from outside 42
+# (news, team knowledge, culture), never from what 42 surfaced, and never a board or chart 42 collects:
+# those are inputs, so scoring against them would be circular. core/detect/scorecard.py reads it only.
+#
+# Each entry:
+#   id:           slug, unique
+#   market:       ZA | NG | KE
+#   title:        one line describing the move
+#   event_date:   ISO date the move became obvious to everyone
+#   match_terms:  lowercase terms; an item matches when a term, as written or with its spaces removed,
+#                 is inside its label, key or an alias; a term under 6 characters with its spaces
+#                 removed never matches
+#   added:        ISO date the entry was added here
+#   source:       one line on where the fact came from
+#
+# Honesty rule: add an entry when the move is known from outside 42, before or after 42 flagged it, and
+# never because 42 flagged it. Terms must name the event, not the standing topic around it.
+
+entries:
+  - id: ke-jun25-protest-anniversary
+    market: KE
+    title: "Kenya 25 June protest anniversary"
+    event_date: 2026-06-25
+    # Anniversary phrases only: bare maandamano and bare wreath are standing terms that would fake lead time.
+    match_terms:
+      - june 25 anniversary
+      - anniversary protests
+      - anniversary wreath
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: ke-protesters-tortured
+    market: KE
+    title: "Missing protesters found tortured"
+    event_date: 2026-06-28
+    # Bare abduct and tortur are standing or foreign topics (tortur hits #torturedpoetsdepartment).
+    match_terms:
+      - protesters tortured
+      - tortured protesters
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-bafana-first-wc-knockout
+    market: ZA
+    title: "Bafana Bafana first World Cup knockout"
+    event_date: 2026-06-24
+    # Bare bafana matches all squad coverage; keep the scorer and the round.
+    match_terms:
+      - maseko
+      - bafana knockout
+      - bafana last 16
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-canada-exit
+    market: ZA
+    title: "Bafana Bafana 1-0 exit to Canada"
+    event_date: 2026-06-28
+    match_terms:
+      - eustaquio
+      - canada bafana
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-tyla-is-it-love
+    market: ZA
+    title: "Tyla releases Is It Love single"
+    event_date: 2026-06-26
+    # Bare tyla matches every Tyla story; the single title is the event.
+    match_terms:
+      - is it love
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-tyla-toy-story-5
+    market: ZA
+    title: "Tyla cast in Toy Story 5"
+    event_date: 2026-07-01
+    # Bare toy story is a standing film topic; Tyla's casting is the event.
+    match_terms:
+      - tyla toy story
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-springboks-barbarians
+    market: ZA
+    title: "Springboks 80-31 win over Barbarians"
+    event_date: 2026-06-20
+    match_terms:
+      - barbarians
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: ng-senegal-record-framing
+    market: NG
+    title: "Super Eagles Senegal 5-0 record framing"
+    event_date: 2026-06-26
+    # Bare senegal matches fixture noise; the record scoreline is the event.
+    match_terms:
+      - senegal 5-0
+      - senegal record
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: ng-petrol-price-crash
+    market: NG
+    title: "Petrol landing cost crash"
+    event_date: 2026-06-25
+    # Bare fuel price and dangote are standing NG topics; the crash is the event.
+    match_terms:
+      - petrol price crash
+      - fuel price crash
+      - landing cost crash
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: za-mopepe-dance-challenge
+    market: ZA
+    title: "Mopepe dance challenge"
+    event_date: 2026-06-25
+    match_terms:
+      - mopepe
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: ng-mobo-nominations-sweep
+    market: NG
+    title: "MOBO nominations sweep"
+    event_date: 2026-06-24
+    # Bare mobo matches every MOBO story; the nominations are the event.
+    match_terms:
+      - mobo nomination
+      - mobo nominee
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe"
+
+  - id: ke-saba-saba-buildup
+    market: KE
+    title: "Saba Saba protest buildup"
+    event_date: 2026-07-07
+    # Qualified: bare saba saba echoes earlier years' coverage.
+    match_terms:
+      - saba saba march
+      - saba saba protest
+    added: 2026-07-03
+    source: "3 Jul audit false-negative probe (a future event when added)"
+
+  # Week of 28 Sep to 4 Oct 2026, entered on 2 Oct from Thabang's weekly moments (colleague files dated
+  # 2026-10-02: weekly-moments-za/ng/ke.pdf, weekly-cultural-moments-combined.pdf, reviewer-notes-p1..p3.pdf).
+  # Only moments his flagged-moments-verification.pdf marks confirmed are here; those he marked unverified
+  # or denied, or whose date the files disagree on, are left out. Facts are copied as his files give them.
+  # These are not yet confirmed by a strategist: each source line says so until one signs them off.
+
+  - id: za-bafana-eritrea-5-0
+    market: ZA
+    title: "Bafana Bafana beat Eritrea 5-0 in an AFCON 2027 qualifier in Cairo"
+    event_date: 2026-09-30
+    # Bare bafana and the scorer Mofokeng are standing; the opponent with the scoreline is the event.
+    match_terms:
+      - bafana eritrea
+      - eritrea 5-0
+      - eritrea bafana
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-za.pdf p1, weekly-cultural-moments-combined.pdf p1, flagged-moments-verification.pdf p1 (confirmed); https://www.enca.com/sport-top-stories/bafana-bafana-crush-eritrea-cairo; awaiting strategist confirmation"
+
+  - id: za-ekurhuleni-killings-army
+    market: ZA
+    title: "Ekurhuleni killings and army debate (Jabulile Timba the ninth victim)"
+    event_date: 2026-09-28
+    # Sensitive: scored for lead time only, never for brand use. Bare ekurhuleni is a standing place name.
+    match_terms:
+      - ekurhuleni killings
+      - ekurhuleni army
+      - jabulile timba
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-za.pdf p1, weekly-cultural-moments-combined.pdf p1, flagged-moments-verification.pdf p1 (confirmed); https://www.timeslive.co.za/news/south-africa/2026-09-28-poll-should-ramaphosa-consider-deploying-the-army-to-fight-violent-crime-in-ekurhuleni/; awaiting strategist confirmation"
+
+  - id: za-soweto-derby-shukela-clip
+    market: ZA
+    title: "Soweto Derby \"unnecessary shukela\" video and the 13 Sundowns against 6 Pirates squad-bias debate"
+    event_date: 2026-09-30
+    # Club rivalry itself is standing; the named clip and the 13-to-6 selection count are the event.
+    match_terms:
+      - unnecessary shukela
+      - 13 sundowns
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-za.pdf p1, weekly-cultural-moments-combined.pdf p1, flagged-moments-verification.pdf p1 (confirmed squad bias debate); https://youtube.com/watch?v=_WaQQgEELjg; awaiting strategist confirmation"
+
+  - id: za-tyla-body-shaming
+    market: ZA
+    title: "Tyla body-shaming debate"
+    event_date: 2026-09-29
+    # Bare tyla matches every Tyla story; the body-shaming debate is the event.
+    match_terms:
+      - tyla body
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-za.pdf p1, weekly-cultural-moments-combined.pdf p1, flagged-moments-verification.pdf p1 (confirmed); https://x.com/somebadbadnews/status/2104889065963237537; awaiting strategist confirmation"
+
+  - id: za-dont-understand-cape-town
+    market: ZA
+    title: "\"I don't understand Cape Town\" TikTok as Cape Town and Joburg run on opposite weather clocks"
+    event_date: 2026-10-01
+    # Bare cape town and weather are standing; the TikTok's own line is the event.
+    match_terms:
+      - understand cape town
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-za.pdf p1, weekly-cultural-moments-combined.pdf p1, flagged-moments-verification.pdf p1 (confirmed); https://www.sapeople.com/weather/cape-town-vs-joburg-weather-why-seasons-feel-worlds-apart/; awaiting strategist confirmation"
+
+  - id: za-durban-water-tshwane-substation
+    market: ZA
+    title: "Rand, water, power strain: water outages hit Durban and Johannesburg, Tshwane repairs a fire-damaged substation"
+    event_date: 2026-10-02
+    # Bare rand, water and power are standing; the named Durban aqueduct and the Tshwane substation are the event.
+    match_terms:
+      - southern aqueduct
+      - tshwane substation
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-za.pdf p1, weekly-cultural-moments-combined.pdf p2, flagged-moments-verification.pdf p1 (confirmed); https://www.thesouthafrican.com/news/water-shutdown-affected-areas-durban-remain-without-water-supply-southern-aqueduct/ (Durban water leg only); awaiting strategist confirmation"
+
+  - id: ng-independence-at-66
+    market: NG
+    title: "Nigeria marks 66 years of independence, \"my fellow heartbroken citizens\""
+    event_date: 2026-10-01
+    # Bare independence recurs every year; the 66th and its heartbroken meme are this year's event.
+    match_terms:
+      - independence at 66
+      - nigeria at 66
+      - heartbroken citizens
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-za.pdf p1, weekly-cultural-moments-combined.pdf p3, flagged-moments-verification.pdf p1 (confirmed); https://promptnewsonline.com/nigeria-66-booming-banks-struggling-nation-where-is-the-promised-prosperity/; awaiting strategist confirmation"
+
+  - id: ng-once-upon-a-village
+    market: NG
+    title: "Nollywood clips: Ruth Kadiri's \"Once Upon A Village\" and \"My 30th Wedding\""
+    event_date: 2026-10-01
+    # Bare nollywood and ruth kadiri are standing; the titles are the event. The 36.5M views figure is unverified.
+    match_terms:
+      - once upon a village
+      - my 30th wedding
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-ng.pdf p1, weekly-cultural-moments-combined.pdf p3, flagged-moments-verification.pdf p1 (confirmed trend, view count unverified); https://www.instagram.com/p/Dd7GeSJFf-k; awaiting strategist confirmation"
+
+  - id: ng-olu-jacobs-night-of-tributes
+    market: NG
+    title: "Nollywood stars gather in Lagos for the Olu Jacobs Night of Tributes"
+    event_date: 2026-09-30
+    # Bare olu jacobs matches the death coverage from 16 Sept; the tribute night is the event.
+    match_terms:
+      - night of tributes
+      - olu jacobs tribute
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-ng.pdf p1, weekly-cultural-moments-combined.pdf p3, flagged-moments-verification.pdf p1 (confirmed); https://www.channelstv.com/2026/09/30/tributes-as-nollywood-stars-gather-to-bid-farewell-to-olu-jacobs/; awaiting strategist confirmation"
+
+  - id: ng-2027-opposition-regroup
+    market: NG
+    title: "2027 opposition regroups behind Atiku Abubakar, with Peter Obi and others in talks"
+    event_date: 2026-09-30
+    # Bare atiku, obi and election are standing; the regrouping and its joke post are the event.
+    match_terms:
+      - opposition regroup
+      - dey turn kwankwaso
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-ng.pdf p1, weekly-cultural-moments-combined.pdf p3, flagged-moments-verification.pdf p1 (confirmed early talks; resignation and eligibility claims unverified); https://thesourceng.com/ahead-2027-opposition-parties-regroup-to-defeat-of-apc/; awaiting strategist confirmation"
+
+  - id: ng-mrs-pump-price-cut
+    market: NG
+    title: "MRS stations in Abuja cut petrol from N1,395 to N1,370 a litre after Dangote lowered its gantry price"
+    event_date: 2026-09-28
+    # Bare fuel price and dangote are standing NG topics; the MRS cut is the event.
+    match_terms:
+      - mrs stations
+      - mrs filling stations
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-ng.pdf p1, weekly-cultural-moments-combined.pdf p3, flagged-moments-verification.pdf p2 (confirmed retail shift); https://dailypost.ng/2026/09/28/dangote-refinery-mrs-filling-stations-reduce-fuel-price/; awaiting strategist confirmation"
+
+  - id: ng-bbnaija-finals-voting
+    market: NG
+    title: "BBNaija finals voting"
+    event_date: 2026-09-29
+    # Bare bbnaija and voting match the whole season; the finals are the event.
+    match_terms:
+      - bbnaija final
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-ng.pdf p1, weekly-cultural-moments-combined.pdf p3, flagged-moments-verification.pdf p2 (confirmed); https://x.com/dstvng/status/2105750744020185335; awaiting strategist confirmation"
+
+  - id: ng-davido-walking-billboard
+    market: NG
+    title: "Davido's manager Asa Asika calls him a \"walking billboard\""
+    event_date: 2026-09-28
+    # Bare davido is standing; the manager's phrase is the event. The deal figures are his claims, unverified.
+    match_terms:
+      - walking billboard
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-ng.pdf p1, weekly-cultural-moments-combined.pdf p4, flagged-moments-verification.pdf p2 (confirmed statements); https://www.legit.ng/entertainment/music/1733216-davido-manager-asa-asika-opens-singers-brand-endorsement-walking-billboard/; awaiting strategist confirmation"
+
+  - id: ke-dangote-lamu-refinery-court
+    market: KE
+    title: "Malindi court orders the status quo on the land for Dangote's Lamu refinery (hearing 14 Oct)"
+    event_date: 2026-09-30
+    # Bare dangote and refinery are standing; the Lamu land case is the event.
+    match_terms:
+      - lamu refinery
+      - dangote lamu
+      - malindi court
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-ng.pdf p1, weekly-cultural-moments-combined.pdf p5, flagged-moments-verification.pdf p2 (confirmed court injunction); https://businessday.ng/?p=1198075; awaiting strategist confirmation"
+
+  - id: ke-inflation-6-8
+    market: KE
+    title: "Kenya's inflation rises to 6.8%, the highest since January 2024"
+    event_date: 2026-09-30
+    # Bare inflation is standing; the 6.8% reading is the event.
+    match_terms:
+      - inflation 6.8
+      - 6.8% inflation
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-ke.pdf p1, weekly-cultural-moments-combined.pdf p5, flagged-moments-verification.pdf p2 (confirmed); https://businessday.ng/?p=1198823; awaiting strategist confirmation"
+
+  - id: ke-raila-remembrance-mweziwababa
+    market: KE
+    title: "Candle-lighting in remembrance of Raila Odinga, tagged #MweziWaBaba"
+    event_date: 2026-10-02
+    # Bare raila is standing; the remembrance tag is the event.
+    match_terms:
+      - mweziwababa
+      - raila remembrance
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-ke.pdf p1, weekly-cultural-moments-combined.pdf p5, flagged-moments-verification.pdf p2 (confirmed); https://m.tiktok.com/v/7691222755840478485.html?u_code=0&preview_pb=0&sharer_language=en&_d=e7hbebam9804fd&share_item_id=7691222755840478485&source=h5_m (link as given, may be cut off); awaiting strategist confirmation"
+
+  - id: ke-eacc-ncck-bribes-campaign
+    market: KE
+    title: "EACC partners with the National Council of Churches of Kenya on a campaign urging voters to reject bribes"
+    event_date: 2026-10-01
+    # Bare eacc and corruption are standing; the church partnership is the event.
+    match_terms:
+      - eacc ncck
+      - eacc churches
+    added: 2026-10-02
+    source: "Thabang weekly moments 2026-10-02: weekly-moments-ke.pdf p1, weekly-cultural-moments-combined.pdf p5, flagged-moments-verification.pdf p2 (confirmed); no link available in his files; awaiting strategist confirmation"

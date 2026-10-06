@@ -1,0 +1,494 @@
+/* Night Desk, 4 October 2026. The visual layer over the house palette.
+   Brief: Albert wanted 42 modern, funky and easy to scan ("I can't tell what
+   to focus on"). The research brief is in the project files at
+   42-inputs/demo/revamp-2026-10-04/RESEARCH-BRIEF.md. Each block below names
+   the principle it carries out and where the principle comes from.
+
+   1. One loud thing per screen. The page headline is set as a condensed
+      poster line; everything else steps down in size and weight
+      (Mania Design, "Spot the slop": break uniformity on purpose).
+   2. Type builds hierarchy, not boxes. Archivo condensed for headlines and
+      figures only; the house sans stays the interface face (Albert, 4 October:
+      "keep the old font") and Newsreader stays for reading (Vercel Geist
+      typography; Stripe/Linear ledger).
+   3. Colour means something or it is not used. The heat ramp encodes
+      momentum only, each market keeps one mark colour, and red stays the
+      one action and the selection (Linear UI redesign; Bloomberg colour
+      accessibility).
+   4. Every number gets a picture: figures sit beside a small chart drawn to
+      scale (Tufte, sparkline theory).
+   Corners stay square and shadows stay off (scripts/check_design_tokens.mjs).
+   Motion stays opacity and transform only (host-motion test). */
+
+@font-face {
+  font-family: "Archivo 42";
+  src: url("../assets/fonts/archivo-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root,
+.oi-product,
+.rail42 {
+  --nd-face: "Archivo 42", Arial, Helvetica, sans-serif;
+  --nd-poster: clamp(40px, 4.8vw, 76px);
+  --nd-title: clamp(36px, 3.6vw, 56px);
+  --nd-section: 30px;
+  --nd-figure: 44px;
+  --nd-lead-figure: clamp(56px, 5vw, 80px);
+  --nd-answer: clamp(24px, 2.3vw, 32px);
+  --nd-stretch-poster: 68%;
+  --nd-stretch-section: 74%;
+  --nd-stretch-figure: 62%;
+  --nd-t-label: 15px;
+  --nd-t-sub: 24px;
+  --nd-t-rank: 64px;
+  --nd-t-card: 30px;
+  --nd-t-glance-sm: 28px;
+  --nd-t-read: 18px;
+  --nd-t-meta: 13px;
+  --nd-t-list: 17px;
+  --nd-t-rank-sm: 40px;
+  --nd-t-small: 12px;
+  --nd-rank-gutter: 96px;
+  --nd-rank-gutter-sm: 56px;
+}
+
+/* Heat ramp (magma family, perceptually ordered) and market marks. Momentum
+   reads left to right from cold plum to hot yellow; it is never a fill for
+   decoration. Daylight takes deeper steps so marks hold 3:1 on paper. */
+:root[data-dir="midnight"],
+[data-dir="midnight"],
+.oi-product[data-dir="midnight"] {
+  --heat-0: #4A2246;
+  --heat-1: #8E2A6B;
+  --heat-2: #E5484D;
+  --heat-3: #FF9A3D;
+  --heat-4: #FBDD74;
+  --heat-ink: #151214;
+  --mk-za: #FF9A3D;
+  --mk-ng: #4FCB8B;
+  --mk-ke: #6FA8FF;
+}
+:root[data-dir="daylight"],
+[data-dir="daylight"],
+.oi-product[data-dir="daylight"] {
+  --heat-0: #D9C4D6;
+  --heat-1: #9C2B74;
+  --heat-2: #C8262F;
+  --heat-3: #A85200;
+  --heat-4: #8A6A00;
+  --heat-ink: #FFFFFF;
+  --mk-za: #A85200;
+  --mk-ng: #17794A;
+  --mk-ke: #2D63C8;
+}
+
+
+/* ---------- 1. Poster and section headlines, every page ---------- */
+html .oi-product #main-content h1:not(.sr-only) {
+  font-family: var(--nd-face);
+  font-size: var(--nd-title);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-poster);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  /* The condensed face squeezes the word space with the letters, so
+     "Hidden people" read as one word; the space gets back its width. */
+  word-spacing: 0.12em;
+  text-wrap: balance;
+}
+html .oi-product #main-content h2:not(.sr-only):not(.ask42-question):not(.hp42-aside-title) {
+  font-family: var(--nd-face);
+  font-size: var(--nd-section);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-section);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  word-spacing: 0.1em;
+}
+html .oi-product #main-content :is(.t42-section-title, .ask42-section-title, .cv42-part-title, .inv42-section-title, .b42-section-title, .dossiers42-ready-title) {
+  font-family: var(--nd-face);
+  font-size: var(--nd-t-sub);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-section);
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+  word-spacing: 0.08em;
+}
+
+html .oi-product .ui-page-hero-sub { text-wrap: pretty; }
+
+/* ---------- Shell: rail and masthead ---------- */
+html .instrument-masthead-mark {
+  font-family: var(--nd-face);
+  font-weight: 900;
+  font-stretch: 62%;
+  font-size: var(--nd-t-rank-sm);
+  line-height: 0.85;
+  letter-spacing: -0.02em;
+}
+html .instrument-masthead-identity { font-stretch: 112%; font-size: var(--nd-t-small); letter-spacing: 0.01em; }
+html .rail42 .rail42-link[aria-current="page"] { box-shadow: inset 3px 0 0 var(--accent); }
+html .rail42 .rail42-group-title { font-weight: 500; font-stretch: 112%; letter-spacing: 0.01em; }
+
+/* ---------- Today ---------- */
+/* The date line becomes the eyebrow and the lead sentence becomes the poster:
+   the sentence is the news, the date is its label. */
+html .oi-product #main-content .t42 .t42-head:has(> .t42-lead) > h1.t42-heading {
+  font-family: var(--sans);
+  font-size: var(--nd-t-label);
+  font-weight: 600;
+  font-stretch: 100%;
+  letter-spacing: 0;
+  line-height: 1.3;
+  color: var(--ink-2);
+  margin: 0 0 var(--s-3);
+}
+html .oi-product .t42 .t42-head .t42-headline {
+  font-family: var(--nd-face);
+  font-size: var(--nd-poster);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-poster);
+  line-height: 0.92;
+  letter-spacing: -0.025em;
+  word-spacing: 0.14em;
+  max-width: 14em;
+  margin: 0 0 var(--s-5);
+  text-wrap: balance;
+}
+html .oi-product .t42 .t42-headline .t42-headline-term { color: var(--heat-3); }
+
+/* The poster's trend in figures beside it on a wide screen: the lead number
+   large in the heat colour and the trend line under it, on one hot rule
+   (design review, 4 October 2026). A narrow screen shows the card itself
+   straight after, so the panel stays out of the way there. */
+html .oi-product .t42 .t42-lead { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: end; margin: 0 0 var(--s-5); }
+html .oi-product .t42 .t42-lead > .t42-headline { margin: 0; }
+html .oi-product .t42 .t42-lead-side { display: none; }
+@media (min-width: 1200px) {
+  html .oi-product .t42 .t42-lead { grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); }
+  html .oi-product .t42 .t42-lead-side { display: grid; gap: var(--s-3); padding: var(--s-2) 0 0 var(--s-5); border-left: 2px solid var(--heat-3); }
+}
+html .oi-product .t42 .t42-lead-figure { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); }
+html .oi-product .t42 .t42-lead-value {
+  font-family: var(--nd-face);
+  font-size: var(--nd-lead-figure);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-figure);
+  line-height: 0.85;
+  color: var(--heat-3);
+  font-variant-numeric: tabular-nums;
+}
+html .oi-product .t42 .t42-lead-unit { font-size: var(--nd-t-label); color: var(--ink-2); }
+html .oi-product .t42 .t42-lead-side .t42-spark { width: 100%; height: auto; }
+/* The big figure says the number; the card below keeps the line's caption. */
+html .oi-product .t42 .t42-lead-side .t42-trend-caption { display: none; }
+
+/* Glance band: three markets side by side on one rule, figure first. */
+html .oi-product .t42 .t42-glance-list { gap: 1px; background: var(--line); border: 1px solid var(--line); }
+html .oi-product .t42 .t42-glance-list > li { background: var(--canvas); }
+html .oi-product .t42 .t42-glance-market { padding: var(--s-4) var(--s-5); border: 0; }
+html .oi-product .t42 .t42-glance-name { font-weight: 700; display: inline-flex; align-items: center; gap: var(--s-2); }
+/* Visual QA, 5 October 2026: at 1024 px the name and its "incomplete" note
+   were squeezed side by side until both broke mid-word. Each stays whole,
+   and the note moves under the name when the column is too narrow. */
+html .oi-product .t42 .t42-glance-name { flex-wrap: wrap; row-gap: 0; }
+html .oi-product .t42 .t42-glance-label, html .oi-product .t42 .t42-glance-note { white-space: nowrap; }
+html .oi-product .t42 .t42-glance-name::before { content: ""; width: 10px; height: 10px; background: var(--mk, var(--muted)); flex: none; }
+html .oi-product .t42 .t42-glance-list > li[data-glance-market="ZA"] { --mk: var(--mk-za); }
+html .oi-product .t42 .t42-glance-list > li[data-glance-market="NG"] { --mk: var(--mk-ng); }
+html .oi-product .t42 .t42-glance-list > li[data-glance-market="KE"] { --mk: var(--mk-ke); }
+html .oi-product .t42 .t42-glance-value {
+  font-family: var(--nd-face);
+  font-size: var(--nd-figure);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-figure);
+  line-height: 0.9;
+  letter-spacing: -0.01em;
+}
+html .oi-product .t42 .t42-glance-bar { height: 8px; background: var(--surface-2, var(--surface)); }
+html .oi-product .t42 .t42-glance-fill { background: var(--mk, var(--ink)); }
+html .oi-product .t42 .t42-glance-market[aria-pressed="true"] { box-shadow: inset 0 3px 0 var(--accent); }
+html .oi-product .t42 .t42-glance-market[aria-pressed="true"] .t42-glance-fill { background: var(--mk, var(--accent)); }
+html .oi-product .t42 .t42-glance-cleared { color: var(--ink); font-weight: 700; }
+
+/* Market tabs as one segmented control. */
+html .oi-product .t42 .t42-tabs { gap: 0; border-bottom: 0; }
+html .oi-product .t42 .t42-tabs .t42-tab.t42-tab { border: 1px solid var(--line); margin-left: -1px; padding: var(--s-2) var(--s-4); border-radius: 0; }
+html .oi-product .t42 .t42-tabs .t42-tab[aria-selected="true"] { background: var(--ink); color: var(--canvas); box-shadow: none; }
+
+/* Ranked cards: the rank is a numeral you can find from across the room.
+   The lead mover is hot, the rest are outlines, so the eye lands once. */
+html .oi-product .t42 .t42-cards[data-ranked] { counter-reset: nd-rank; }
+html .oi-product .t42 .t42-cards[data-ranked] > .t42-card { counter-increment: nd-rank; position: relative; padding-left: var(--nd-rank-gutter); }
+html .oi-product .t42 .t42-cards[data-ranked] > .t42-card::before {
+  content: counter(nd-rank, decimal-leading-zero);
+  position: absolute;
+  left: var(--s-3);
+  top: var(--s-4);
+  font-family: var(--nd-face);
+  font-size: var(--nd-t-rank);
+  font-weight: 800;
+  font-stretch: 62%;
+  line-height: 0.8;
+  font-variant-numeric: tabular-nums;
+  color: transparent;
+  -webkit-text-stroke: 1.25px var(--muted);
+}
+html .oi-product .t42 .t42-cards[data-ranked] > .t42-card:first-child::before { color: var(--heat-3); -webkit-text-stroke: 0; }
+html .oi-product .t42 .t42-card-title {
+  font-family: var(--nd-face);
+  font-size: var(--nd-t-card);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-section);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  word-spacing: 0.1em;
+}
+html .oi-product .t42 .t42-card-title a { text-decoration: none; }
+html .oi-product .t42 .t42-card-title a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+html .oi-product .t42 .t42-explanation,
+html .oi-product .t42 .t42-post-text { font-family: var(--serif); font-size: var(--nd-t-read); line-height: 1.45; }
+html .oi-product .t42 .t42-specificity-label { font-weight: 500; color: var(--muted); }
+html .oi-product .t42 .t42-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3); }
+/* The row spaces its items by the gap, so the older dot separators would
+   double up and one was drawn inside the filled state chip. */
+html .oi-product .t42 .t42-card-meta > *::before { content: none; }
+html .oi-product .t42 .t42-card-meta > .t42-state {
+  padding: 0 var(--s-2);
+  margin: 0;
+  background: var(--heat-3);
+  color: var(--heat-ink);
+  font-weight: 700;
+}
+/* State chips mean their state on the heat ramp; a state that is not
+   momentum (recurring, on the boards) is an outline, not a fill. */
+html .oi-product .t42 .t42-card-meta > .t42-state:is([data-state="emerging"], [data-state="new_to_42"]) { background: var(--heat-4); }
+html .oi-product .t42 .t42-card-meta > .t42-state:is([data-state="peaking"], [data-state="spike"]) { background: var(--heat-2); color: var(--accent-ink); }
+html .oi-product .t42 .t42-card-meta > .t42-state:is([data-state="recurring"], [data-state="seasonal"], [data-state="on_the_boards"], [data-state="mainstream"], [data-state="fading"]) {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line-2, var(--line));
+}
+html .oi-product .t42 .t42-tag { color: var(--ink); font-weight: 700; }
+html .oi-product .t42 .tc-big-value {
+  font-family: var(--nd-face);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-figure);
+  letter-spacing: -0.01em;
+}
+html .oi-product .t42 .tc-big-lead { border-top-color: var(--heat-3); }
+html .oi-product .t42 .tc-big-lead .tc-big-value { color: var(--heat-3); }
+
+/* The trend line: hot line, heat wash below, the latest point in the
+   hottest step so "now" is always the brightest mark. */
+html .oi-product .t42-spark .t42-line { stroke: var(--heat-3); stroke-width: 2.5; }
+html .oi-product .t42-spark .t42-area { fill: color-mix(in srgb, var(--heat-2) 24%, transparent); }
+html .oi-product .t42-spark .t42-dot { fill: var(--heat-3); }
+html .oi-product .t42-spark .t42-dot-now { fill: var(--heat-4); }
+html .oi-product .t42-spark { cursor: crosshair; touch-action: pan-y; }
+html .oi-product .t42-spark .t42-probe-rule { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 2 2; }
+html .oi-product .t42-spark .t42-probe-words {
+  fill: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--nd-t-small);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: var(--canvas);
+  stroke-width: 4px;
+}
+html .oi-product .t42-spark .t42-band { fill: color-mix(in srgb, var(--heat-1) 22%, transparent); }
+
+/* ---------- Ask answer ---------- */
+/* Answer first: the question shrinks to its label, the short answer is the
+   loudest line on the page (answer-engine layout, Blake Crosley design guide). */
+html .oi-product .ask42 .ask42-question {
+  font-family: var(--sans);
+  font-size: var(--nd-t-label);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--muted);
+  margin: 0 0 var(--s-2);
+}
+html .oi-product .ask42 .ask42-question::before { content: "You asked"; color: var(--muted); font-weight: 400; margin-right: var(--s-2); }
+html .oi-product .ask42 .ask42-meta { order: 3; font-size: var(--nd-t-meta); }
+html .oi-product .ask42 .ask42-short {
+  font-family: var(--serif);
+  font-size: var(--nd-answer);
+  line-height: 1.28;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  max-width: 30em;
+  margin: var(--s-2) 0 var(--s-5);
+  text-wrap: pretty;
+}
+html .oi-product .ask42 .ask42-short-lead { font-weight: 650; }
+html .oi-product .ask42 .ask42-claims { border-top: 1px solid var(--line); }
+html .oi-product .ask42 .ask42-claim {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  column-gap: var(--s-5);
+  padding: var(--s-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+html .oi-product .ask42 .ask42-claim > :not(.ask42-confidence) { grid-column: 2; }
+html .oi-product .ask42 .ask42-claim-text { font-family: var(--serif); font-size: var(--nd-t-read); line-height: 1.45; }
+html .oi-product .ask42 .ask42-confidence {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  display: grid;
+  align-content: start;
+  gap: var(--s-2);
+  font-size: var(--nd-t-meta);
+  color: var(--ink-2);
+}
+html .oi-product .ask42 .ask42-confidence-shape { display: none; }
+/* A four step meter says how sure 42 is without a badge plane. */
+html .oi-product .ask42 .ask42-confidence::after {
+  content: "";
+  width: 84px;
+  height: 6px;
+  background:
+    linear-gradient(90deg, var(--heat-4) var(--nd-sure, 25%), transparent 0) 0 0 / 100% 100% no-repeat,
+    repeating-linear-gradient(90deg, var(--surface-2, var(--line)) 0 18px, transparent 18px 22px);
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 18px, transparent 18px 22px);
+  mask: repeating-linear-gradient(90deg, #000 0 18px, transparent 18px 22px);
+}
+html .oi-product .ask42 .ask42-confidence[data-label="corroborated"] { --nd-sure: 100%; }
+html .oi-product .ask42 .ask42-confidence[data-label="observed"] { --nd-sure: 75%; }
+html .oi-product .ask42 .ask42-confidence[data-label="single_source"] { --nd-sure: 50%; }
+html .oi-product .ask42 .ask42-confidence[data-label="inferred"] { --nd-sure: 25%; }
+html .oi-product .ask42 .ask42-list li { font-family: var(--serif); font-size: var(--nd-t-list); line-height: 1.45; }
+html .oi-product .ask42 .ask42-figure-text {
+  font-family: var(--sans);
+}
+html .oi-product .ask42 .ask42-primary { font-weight: 700; }
+
+/* The numbers: each figure is a big condensed numeral, the sentence beside
+   it is its label. */
+html .oi-product .ask42 .ask42-figure { display: flex; align-items: baseline; gap: var(--s-2); margin: 0 0 var(--s-3); }
+html .oi-product .ask42 .ask42-figure-group .ask42-figure { margin: 0 0 var(--s-2); }
+/* The unit wraps beside its numeral, never back under it. */
+html .oi-product .ask42 .ask42-figure-group .ask42-figure-text { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; }
+/* A claim's figures, then the claim they count under them: two lines at
+   most, the whole sentence in the title and in the claims list above. */
+html .oi-product .ask42 .ask42-figure-group { margin: 0 0 var(--s-4); padding-bottom: var(--s-3); border-bottom: 1px solid var(--line); }
+html .oi-product .ask42 .ask42-figure-group:last-child { border-bottom: 0; }
+html .oi-product .ask42 .ask42-figure-about {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  color: var(--muted);
+  text-wrap: pretty;
+}
+html .oi-product .ask42 .ask42-figure-value {
+  font-family: var(--nd-face);
+  font-size: var(--nd-figure);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-figure);
+  line-height: 0.9;
+  color: var(--heat-3);
+  margin-right: var(--s-2);
+}
+/* So what and watch next read as two notes, not two more lists. */
+html .oi-product .ask42 .ask42-answer-main > .ask42-section:is([aria-labelledby="ask42-sowhat-title"], [aria-labelledby="ask42-watch-title"]) {
+  background: var(--surface);
+  padding: var(--s-4) var(--s-5);
+  margin-top: var(--s-3);
+}
+html .oi-product .ask42 .ask42-answer-main > .ask42-section .ask42-list { padding-left: 0; list-style: none; }
+/* What 42 could not check stays visible, but in the quiet register: striped
+   mark, muted words, so it reads as a limit and not as a warning. */
+html .oi-product .ask42 .ask42-answer-main > .ask42-section[aria-labelledby="ask42-gaps-title"] { border-top: 1px solid var(--line); padding-top: var(--s-4); }
+html .oi-product .ask42 #ask42-gaps-title { font-family: var(--sans); font-size: var(--nd-t-label); font-weight: 600; font-stretch: 100%; color: var(--ink-2); }
+html .oi-product .ask42 #ask42-gaps-title ~ .ask42-list { list-style: none; padding-left: 0; }
+html .oi-product .ask42 #ask42-gaps-title ~ .ask42-list li { position: relative; padding-left: var(--s-5); font-family: var(--sans); font-size: var(--nd-t-label); color: var(--ink-2); }
+html .oi-product .ask42 #ask42-gaps-title ~ .ask42-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  background: repeating-linear-gradient(45deg, var(--muted) 0 2px, transparent 2px 4px);
+}
+
+/* Charts everywhere step down the heat ramp instead of the ink ramp; the
+   track is a quiet plane so the mark is the only bright thing. */
+html .oi-product .ch42 {
+  --ch-1: var(--heat-4);
+  --ch-2: var(--heat-3);
+  --ch-3: var(--heat-2);
+  --ch-4: var(--heat-1);
+  --ch-5: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+/* ---------- Coverage ---------- */
+/* Scorecard meters: one per figure, in its market's mark, on the row's own
+   scale (styles set by coverage42.jsx as --v from 0 to 1). */
+html .oi-product .cv42 .cv42-score-cell { vertical-align: top; }
+html .oi-product .cv42 .cv42-score-value { font-size: var(--nd-t-sub); font-weight: 800; font-stretch: var(--nd-stretch-figure); }
+/* "Not measured yet" is words, not a figure: body size, so it does not set
+   wider and lower than the real figures beside it. */
+html .oi-product .cv42 .cv42-unmeasured .cv42-score-value { font-family: var(--sans); font-size: var(--type-body); font-weight: 400; font-stretch: normal; }
+html .oi-product .cv42 .cv42-score-meter {
+  display: block;
+  height: 6px;
+  margin-top: var(--s-2);
+  margin-left: auto;
+  width: 100%;
+  max-width: 160px;
+  background: linear-gradient(90deg, var(--mk, var(--ink)) calc(var(--v, 0) * 100%), color-mix(in srgb, var(--ink) 10%, transparent) 0);
+}
+html .oi-product .cv42 .cv42-score-meter[data-market="ZA"] { --mk: var(--mk-za); }
+html .oi-product .cv42 .cv42-score-meter[data-market="NG"] { --mk: var(--mk-ng); }
+html .oi-product .cv42 .cv42-score-meter[data-market="KE"] { --mk: var(--mk-ke); }
+
+html .oi-product .cv42 .cv42-heading { font-size: var(--nd-title); }
+html .oi-product .cv42 :is(td, th) { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  html .oi-product .t42 .t42-glance-list { display: grid; grid-template-columns: minmax(0, 1fr); }
+  html .oi-product .t42 .t42-glance-market { padding: var(--s-3) var(--s-4); }
+  html .oi-product .t42 .t42-glance-value { font-size: var(--nd-t-glance-sm); white-space: nowrap; }
+  html .oi-product .t42 .t42-cards[data-ranked] > .t42-card { padding-left: var(--nd-rank-gutter-sm); }
+  html .oi-product .t42 .t42-cards[data-ranked] > .t42-card::before { font-size: var(--nd-t-rank-sm); left: 0; }
+  html .oi-product .t42 .t42-card-title { font-size: var(--nd-t-sub); }
+  html .oi-product .ask42 .ask42-claim { grid-template-columns: minmax(0, 1fr); row-gap: var(--s-2); }
+  html .oi-product .ask42 .ask42-claim > :not(.ask42-confidence) { grid-column: 1; }
+  html .oi-product .ask42 .ask42-confidence { grid-column: 1; grid-row: auto; display: flex; align-items: center; }
+}
+
+/* ---------- Motion that explains ---------- */
+/* The poster lands first, then the ranked rows rise in order, so the eye is
+   walked down the ranking once (package reveal move and stagger; host-motion
+   test). Only for readers who have not asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html .oi-product .t42 .t42-head .t42-headline,
+  html .oi-product .ask42 .ask42-short,
+  html .oi-product .t42 .t42-cards > .t42-card,
+  html .oi-product .ask42 .ask42-claim {
+    animation: ndRise var(--motion-handoff) var(--motion-handoff-easing) both;
+    animation-delay: calc(min(var(--nd-i, 0), 5) * 80ms);
+  }
+  html .oi-product .t42 .t42-cards > .t42-card:nth-child(2),
+  html .oi-product .ask42 .ask42-claim:nth-child(1) { --nd-i: 1; }
+  html .oi-product .t42 .t42-cards > .t42-card:nth-child(3),
+  html .oi-product .ask42 .ask42-claim:nth-child(2) { --nd-i: 2; }
+  html .oi-product .t42 .t42-cards > .t42-card:nth-child(4),
+  html .oi-product .ask42 .ask42-claim:nth-child(3) { --nd-i: 3; }
+  html .oi-product .t42 .t42-cards > .t42-card:nth-child(n+5),
+  html .oi-product .ask42 .ask42-claim:nth-child(n+4) { --nd-i: 4; }
+}
+@keyframes ndRise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}

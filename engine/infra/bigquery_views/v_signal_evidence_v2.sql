@@ -1,0 +1,30 @@
+CREATE OR REPLACE VIEW `{project}.{dataset}.v_signal_evidence_v2` AS
+SELECT
+  contract_version,
+  run_id,
+  client_scope_id,
+  market_scope,
+  brand_config_id,
+  audience_lens_ids,
+  theme_id,
+  signal_date,
+  market,
+  signal_id,
+  evidence_id,
+  row_id,
+  source_family,
+  platform,
+  source_label,
+  author_label,
+  excerpt,
+  metric_label,
+  url,
+  published_at,
+  claim_role,
+  direction,
+  geo_confidence,
+  evidence_state,
+  availability,
+  created_at
+FROM `{project}.{dataset}.signal_evidence_v2`
+WHERE client_scope_id != 'qa_canary';

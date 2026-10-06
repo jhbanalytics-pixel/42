@@ -1,0 +1,82 @@
+/* Seeds (seeds.jsx), page port of 3 October 2026: 42's search queue for one
+   market and what its last searches found. Sans throughout, square corners,
+   the spacing scale only. The tables fold into one block per search below
+   720px so every row reads at 390px with no sideways scroll. */
+
+.seeds .seed-key { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-3); margin: var(--s-2) 0 0; }
+.seeds .sd42-key-item { font-family: var(--sans); font-size: var(--type-3); color: var(--ink-2); }
+
+.seeds .sd42-markets { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin: var(--s-5) 0 0; }
+
+.seeds .sd42-section { margin: var(--s-6) 0 0; max-width: var(--maxw); }
+.seeds .sd42-title {
+  margin: 0 0 var(--s-2);
+  font-family: var(--sans);
+  font-size: var(--type-5);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+}
+.seeds .sd42-lead { margin: 0 0 var(--s-3); max-width: var(--measure); font-family: var(--sans); font-size: var(--type-4); line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.seeds .sd42-quiet { margin: var(--s-3) 0 0; max-width: var(--measure); font-family: var(--sans); font-size: var(--type-3); line-height: 1.5; color: var(--muted); }
+.seeds .sd42-fig { font-variant-numeric: tabular-nums; }
+.seeds .sd42-none { color: var(--muted); }
+
+.seeds .sd42-lanes { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-5); margin: var(--s-1) 0 var(--s-4); padding: 0; list-style: none; font-family: var(--sans); font-size: var(--type-3); color: var(--ink-2); }
+.seeds .sd42-lane { font-weight: 600; color: var(--ink); }
+
+.seeds .sd42-table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: var(--type-3); color: var(--ink); }
+.seeds .sd42-table th, .seeds .sd42-table td { padding: var(--s-2) var(--s-3) var(--s-2) 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-weight: 400; }
+.seeds .sd42-table thead th { color: var(--muted); font-weight: 400; border-bottom-color: var(--line-2); }
+.seeds .sd42-table tbody th { font-weight: 600; }
+.seeds .sd42-table .sd42-num { text-align: right; font-variant-numeric: tabular-nums; }
+/* A column header never splits mid-word ("Credi / ts" at 1024px). */
+.seeds .sd42-table thead th { white-space: nowrap; }
+.seeds .sd42-topic { overflow-wrap: break-word; color: var(--ink); }
+@media (min-width: 720px) {
+  .seeds .sd42-table tbody th { min-width: 12rem; }
+  .seeds .sd42-table td:nth-child(2) { white-space: nowrap; }
+  .seeds .sd42-table .sd42-ask { padding-left: var(--s-5); width: 1%; white-space: nowrap; }
+}
+.seeds a.sd42-topic, .seeds .sd42-link { text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 4px; transition: text-decoration-color var(--motion-control) var(--motion-standard-easing); }
+.seeds a.sd42-topic:hover, .seeds .sd42-link:hover { text-decoration-color: currentColor; }
+.seeds a.sd42-topic:focus-visible, .seeds .sd42-link:focus-visible { text-decoration-color: currentColor; outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+.seeds .sd42-link { color: var(--ink); white-space: nowrap; }
+.seeds .sd42-kind { display: block; font-weight: 400; color: var(--muted); }
+.seeds .sd42-hide { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.seeds .sd42-notes { margin: var(--s-4) 0 0; padding-left: var(--s-4); max-width: var(--measure); font-family: var(--sans); font-size: var(--type-3); color: var(--muted); }
+.seeds .sd42-how { margin: var(--s-6) 0 0; max-width: var(--measure); font-family: var(--sans); font-size: var(--type-3); color: var(--ink-2); }
+.seeds .sd42-how summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+.seeds .sd42-how dl { margin: var(--s-3) 0 0; }
+.seeds .sd42-how dt { font-weight: 600; color: var(--ink); }
+.seeds .sd42-how dd { margin: 0 0 var(--s-2); }
+
+@media (max-width: 719px) {
+  .seeds .sd42-table, .seeds .sd42-table tbody, .seeds .sd42-table tr { display: block; width: 100%; min-width: 0; }
+  .seeds .sd42-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .seeds .sd42-table tbody tr { padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
+  .seeds .sd42-table th, .seeds .sd42-table td { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s-1) var(--s-3); padding: var(--s-1) 0; border: 0; text-align: left; }
+  /* Label in one track, value in the next, so short and long values start
+     at the same place. */
+  .seeds .sd42-table td[data-label] { display: grid; grid-template-columns: 9rem minmax(0, 1fr); }
+  .seeds .sd42-table tbody th { display: block; }
+  .seeds .sd42-table .sd42-num { text-align: left; }
+  .seeds .sd42-table td[data-label]::before { content: attr(data-label); color: var(--muted); }
+}
+
+/* No AI look pass, 4 October 2026: the three ways 42 picks a search read as
+   one run of words with a dot between them, not three loose labels. */
+.seeds .seed-key > * { margin-inline-end: 0; }
+.seeds .sd42-key-item + .sd42-key-item::before { content: "\00b7"; margin-right: var(--s-2); color: var(--muted); }
+.seeds .seed-key { gap: var(--s-1) var(--s-2); }
+
+/* Layout pass two, 4 October 2026: the market row is the loop pages' tab
+   row (loop.css) with its label for a screen reader only, and on a phone the
+   key is a short list, one way of picking per line, so no separator dot is
+   left at the start of a line. */
+.seeds .sd42-markets { gap: 0 var(--s-5); align-items: stretch; margin: var(--s-2) 0 0; }
+@media (max-width: 479px) {
+  .seeds .seed-key { display: grid; gap: var(--s-1); }
+  .seeds .sd42-key-item + .sd42-key-item::before { content: none; }
+}

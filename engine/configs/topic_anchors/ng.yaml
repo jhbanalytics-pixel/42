@@ -1,0 +1,94 @@
+# Per-topic embedding anchor phrases for the M4 multilingual classifier (D2).
+# Curated 29 May 2026 from real classified enriched_content rows (25-29 May)
+# by per-market distillation and a manual review, plus a
+# geo-verify pass. Each phrase is embedded (text-multilingual-embedding-002)
+# into its own anchor vector; a residual unclassified row classifies into a
+# topic on the BEST cosine over that topic's phrases. Phrases are grounded in
+# genuine in-market posts, authentic voice (pidgin / sheng / kasi), and
+# geo-stripped. The two collision topics were rebuilt from clean rows only:
+# NG economy_sapa_hustle (no Vietnam Sapa / Bahasa / Hindi / Texas pets) and
+# NG fashion_ankara_asoebi (no Ankara Turkey; anchored on asoebi / gele /
+# lace). KE genz_sheng excludes the Chinese / Singapore "sheng" collisions.
+# Edit by re-curating from real classified rows, not by hand, so grounding stays honest.
+
+market: ng
+topic_anchors:
+  music_afrobeats:
+  - Asake performs Gratitude live with a full orchestra and choir
+  - Wizkid Essence remix with Tems, greatest song of all time
+  - bring Burna Boy back, that show was fire
+  - Shallipopi on stage, Nigeria turn up
+  - DJ Tunez and Wizkid ranked top 50 on Apple Music NG
+  - Blaqbonez, Asake and Fireboy DML on one talent show
+  - I love afrobeats, afrobeats dance challenge for the fyp
+  - Blaqbonez has stayed consistent year after year in Nigerian music
+  film_nollywood:
+  - latest Nollywood movie just dropped on the timeline
+  - official teaser trailer for the new Nigerian film is here
+  - this Yoruba movie is so interesting on movietok
+  - Nollywood actor came dressed like the main event, serving steeze
+  - full Nigerian movie on African Drama Network YouTube channel
+  - she never knew her bestie belongs to the witch kingdom
+  - Nollywood actress welcomes her first baby boy
+  diaspora_japa:
+  - is japa the only way out of Nigeria
+  - work visa pathway to Canada and the UK for Nigerians explained
+  - if you want to move abroad send a DM to the consult
+  - they dey plan to japa, leave Nigeria
+  - over 600,000 graduates yearly still searching for jobs
+  - surviving racism in the UK as a Nigerian
+  - your relocation journey abroad with your family starts here
+  politics_tinubu:
+  - Tinubu wins APC presidential primary with 10.99 million votes
+  - Atiku clinches the ADC ticket for the 2027 elections
+  - 31 APC governors endorse Tinubu for 2027
+  - Akpabio rates Tinubu highly on economy and security
+  - ADC built on principles not personalities, says David Mark
+  - Tinubu applauds Rangers after the NPFL title victory
+  culture_owambe:
+  - my first owambe with the asoebi ladies
+  - gele and soft glam makeup for the owambe
+  - a beautiful traditional marriage, the colours and the joy
+  - problem wey owambe no fit solve no too plenty
+  - asoebi lace vendor for your Nigerian wedding
+  - Yoruba women make sure important guests are well fed at owambe
+  - owambe glam on full display at the premiere
+  economy_sapa_hustle:
+  - salary no dey work, account balance na 1450 naira
+  - my real sapa story, 500 naira for 3 days but God still provide
+  - sapa wan kee person, no money no funny
+  - I use garri enter new month, I wan marry abeg
+  - may sapa be confused on the way to your house
+  - sapa is real, God when will you locate me
+  - don't let negativity knock you from selling, you go end up broke
+  food_jollof:
+  - the secret to perfect Nigerian jollof rice is in the ratio
+  - naija jollof versus Ghana jollof, the jollof wars
+  - if the rice no orange and smoky, is it really jollof
+  - chill vibes making party jollof rice
+  - let's talk about the mistakes you dey make in your jollof
+  - tomato, pepper and onion mix for proper jollof rice
+  fashion_ankara_asoebi:
+  - aso ebi girls and our gorgeous bride at the wedding
+  - guipure lace for asoebi and owambe parties
+  - gele artist slay for the asoebi ladies
+  - soft glam and gele for the owambe queen
+  - lace vendor for luxury asoebi fabrics, dm to order
+  - asoebi style inspo in bold colours for the Nigerian wedding
+  sports_football:
+  - Super Eagles march into the Unity Cup final
+  - Azeez bags a brace on his Super Eagles debut against Zimbabwe
+  - Osimhen inspiration as a young striker dreams of the Super Eagles
+  - Rangers win the NPFL title, Ilechukwu celebrates in Lagos
+  - Super Eagles eye AFCON as Chelle rebuilds the team
+  - Victor Boniface viral moment goes round naija
+  - Lookman putting Griezmann on for Nigeria
+  - Nigerian winger Aribo set for a Premier League return
+  - Super Eagles eye the FIFA World Cup qualifiers
+  - Osimhen lighting up the Champions League for his club
+  - AFCON draw has naija football twitter buzzing
+  # 11 Jun 2026 Gemini brand lens (stage 1) anchors.
+  tech_gemini_ai:
+  - gemini app dey help me write my business proposal sharp sharp
+  - nano banana edit of my asoebi look came out clean
+  - made a veo clip for my small business with google ai

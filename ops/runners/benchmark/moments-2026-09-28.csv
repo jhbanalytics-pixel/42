@@ -1,0 +1,25 @@
+id,date,market,moment,any_re,and_re
+KE1,2026-10-03,KE,Truck hits van of Catholic pilgrims near Mombasa (17 dead),pilgrim,crash|accident|collision|truck|ajali|killed|dead
+KE2,2026-10-03,KE,CAF says AFCON 2027 stays in Kenya/Tanzania/Uganda,afcon|\bcaf\b|pamoja,relocat|fake ?news|talanta|host
+KE3,2026-10-02,KE,Second legal challenge to Kenya stake in Dangote Lamu refinery,dangote,lamu|refiner|stake|court|petition
+KE4,2026-10-01,KE,Kenyans react to Wicknell Chivayo helicopter crash death,chivayo,
+KE5,2026-10-01,KE,Harambee Stars lose 1-0 at Guinea (AFCON qualifier),harambee,guinea|qualif|afcon|1-0|lose|lost
+KE6,2026-09-30,KE,Inflation rises to 6.8%,inflation|cost ?of ?living|6\.8,
+KE7,2026-09-29,KE,Malindi court orders status quo on Lamu land for Dangote refinery,lamu|malindi,dangote|refiner|land|court
+NG1,2026-10-04,NG,BBNaija season finale and N90M prize,bbnaija|big ?brother ?naija|#bbn|bbn ?season,
+NG2,2026-10-01,NG,Nigeria at 66: Independence Day memes and op-eds,independence|nigeria ?at ?66|naija ?at ?66|#?happyindependence|october ?1st|oct ?1st,
+NG3,2026-10-01,NG,Nollywood scene clips dominate Nigerian TikTok,nollywood,
+NG4,2026-10-01,NG,NYSC members abducted on Owerri-Onitsha road in Imo,nysc|corper|corps ?member,abduct|kidnap|owerri|onitsha|imo|rescue
+NG5,2026-09-30,NG,Super Eagles lose 3-0 to Guinea-Bissau,super ?eagles|guinea[- ?]?bissau,bissau|3-0|qualif|afcon|lose|lost|thrash
+NG6,2026-09-30,NG,Olu Jacobs Night of Tributes in Lagos,olu ?jacobs,
+NG7,2026-09-29,NG,Opposition parties regroup behind one 2027 candidate,opposition|coalition|\badc\b,2027|candidate|apc|tinubu|regroup
+NG8,2026-09-28,NG,MRS cuts Abuja petrol price to N1370,petrol|\bpms\b|fuel ?price|pump ?price,"price|1,?370|1,?395|mrs|dangote|litre|reduce|cut"
+NG9,2026-09-28,NG,Davido manager calls him a walking billboard,davido,billboard|asika|martell|puma|endorse|brand ?deal
+ZA1,2026-10-04,ZA,Bafana beat Egypt 1-0 in Cairo (Dithejane debut goal),bafana|dithejane,egypt|cairo|pharaoh|dithejane|1-0
+ZA2,2026-10-02,ZA,Five mass shootings in under a week (46 dead),mass ?shooting|shootings|tavern ?shooting|gunmen,
+ZA3,2026-10-01,ZA,Green ID book ends 2028; Smart ID in bank branches,green ?id|smart ?id|smart-id|id ?book,
+ZA4,2026-09-30,ZA,Bafana beat Eritrea 5-0 (AFCON qualifier),bafana|eritrea|mofokeng,eritrea|5-0|qualif|afcon|mofokeng
+ZA5,2026-09-29,ZA,US ambassador Bozell summoned again; Lamola remark,bozell|lamola|us ?ambassador|demarch|kill ?the ?boer,
+ZA6,2026-09-29,ZA,X debate over fans body-shaming Tyla,tyla,body|shame|shaming|weight|figure|thick|skinny
+ZA7,2026-09-28,ZA,Killings of women in Ekurhuleni; calls to deploy army,ekurhuleni,women|army|sandf|femicide|gbv|kill|murder
+ZA8,2026-09-28,ZA,Chiefs vs Pirates rivalry after the Soweto Derby,soweto ?derby|kaizer ?chiefs|orlando ?pirates|amakhosi|buccaneers|chiefs ?vs ?pirates|#sowetoderby,

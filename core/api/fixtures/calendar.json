@@ -1,0 +1,45 @@
+[
+ {
+  "moment_date": "2026-09-24",
+  "market": "ZA",
+  "name": "Fixture heritage weekend",
+  "kind": "holiday",
+  "source": "calendar",
+  "item_ids": []
+ },
+ {
+  "moment_date": "2026-10-01",
+  "market": "NG",
+  "name": "Independence Day",
+  "kind": "holiday",
+  "source": "calendar",
+  "item_ids": []
+ },
+ {
+  "moment_date": "2026-10-03",
+  "market": "ZA",
+  "name": "Fixture spring festival",
+  "kind": "festival",
+  "source": "calendar",
+  "item_ids": [
+   "61630394e1e1b568691c9bd46f796024ae8d2ffb5e716557621564a158dbccc7",
+   "bac4e2a4418491ed1c4fc19d1e9b414e88942d7e86891b43a353b67c3f815f7a"
+  ]
+ },
+ {
+  "moment_date": "2026-10-09",
+  "market": "KE",
+  "name": "Fixture music weekend",
+  "kind": "release",
+  "source": "calendar",
+  "item_ids": []
+ },
+ {
+  "moment_date": "2026-10-20",
+  "market": "ZA",
+  "name": "Fixture summer release",
+  "kind": "release",
+  "source": "calendar",
+  "item_ids": []
+ }
+]

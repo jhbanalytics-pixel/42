@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>PULSE Brand Guide</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 880px; margin: 0 auto; padding: 48px 24px; color: #0B1220; }
+  h1 { font-size: 32px; margin-bottom: 4px; }
+  h2 { font-size: 18px; margin-top: 48px; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; }
+  .sub { color: #64748B; margin-top: 0; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+  .card { flex: 1; min-width: 260px; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; }
+  .card.dark { background: #0B1220; }
+  .swatch { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+  .chip { width: 44px; height: 44px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0; }
+  code { background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .dos li { color: #047857; }
+  .donts li { color: #B91C1C; }
+  ul { padding-left: 20px; }
+  .clearspace { border: 1px dashed #94A3B8; padding: 30px; display: inline-block; }
+</style>
+</head>
+<body>
+
+<h1>PULSE</h1>
+<p class="sub">Signal Desk brand guide. Trends Engine V2 mailer + Listening Post identity.</p>
+
+<h2>Logo lockups</h2>
+<div class="row">
+  <div class="card">
+    <img src="pulse-lockup-light.svg" width="100%">
+    <p class="sub">On white / light backgrounds</p>
+  </div>
+  <div class="card dark">
+    <img src="pulse-lockup-dark.svg" width="100%">
+    <p class="sub" style="color:#94A3B8;">On dark backgrounds</p>
+  </div>
+</div>
+
+<h2>Icon mark</h2>
+<div class="row">
+  <div class="card" style="max-width:160px;">
+    <img src="pulse-icon.svg" width="100%">
+    <p class="sub">Avatar / favicon / app icon</p>
+  </div>
+</div>
+
+<h2>Clear space and minimum size</h2>
+<p>Keep clear space equal to the height of the "P" in the wordmark on all sides. Do not crowd the mark with other elements inside that zone.</p>
+<div class="clearspace">
+  <img src="pulse-lockup-light.svg" width="240">
+</div>
+<p>Minimum size: 120px wide for the full lockup, 24px for the icon mark alone.</p>
+
+<h2>Color palette</h2>
+<div class="row">
+  <div class="card">
+    <div class="swatch"><div class="chip" style="background:#0B1220;"></div><div><b>Ink</b><br><code>#0B1220</code></div></div>
+    <div class="swatch"><div class="chip" style="background:#00E5A0;"></div><div><b>Signal Green</b><br><code>#00E5A0</code></div></div>
+    <div class="swatch"><div class="chip" style="background:#FFB020;"></div><div><b>Amber Pulse</b><br><code>#FFB020</code></div></div>
+    <div class="swatch"><div class="chip" style="background:#64748B;"></div><div><b>Slate</b><br><code>#64748B</code></div></div>
+    <div class="swatch"><div class="chip" style="background:#FFFFFF;"></div><div><b>White</b><br><code>#FFFFFF</code></div></div>
+  </div>
+  <div class="card">
+    <p><b>Usage</b></p>
+    <p>Ink is the primary dark. Signal Green is the pulse accent, used sparingly for the waveform and live-signal states. Amber marks a single highlighted data point, never body copy. Slate is secondary text. White is base canvas on dark layouts.</p>
+  </div>
+</div>
+
+<h2>Typography</h2>
+<p>Wordmark: Segoe UI Bold, tracked +2. Tagline: Segoe UI Semibold, tracked +5, all caps.</p>
+<p>Body copy in product and email: Segoe UI Regular / Semibold, 14 to 16px. Fallback stack: <code>Segoe UI, Source Sans 3, Arial, sans-serif</code>.</p>
+
+<h2>Do and don't</h2>
+<div class="grid2">
+  <div class="card">
+    <p><b>Do</b></p>
+    <ul class="dos">
+      <li>Use the dark lockup on dark backgrounds only</li>
+      <li>Keep the green waveform as the only accent stroke</li>
+      <li>Scale the lockup proportionally</li>
+    </ul>
+  </div>
+  <div class="card">
+    <p><b>Don't</b></p>
+    <ul class="donts">
+      <li>Recolor the icon circle</li>
+      <li>Stretch or skew the mark</li>
+      <li>Place the light lockup on a busy photo background</li>
+      <li>Add a drop shadow or outline to the wordmark</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

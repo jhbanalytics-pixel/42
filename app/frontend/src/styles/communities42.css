@@ -1,0 +1,134 @@
+/* Communities list and community page (people42.jsx). Scoped to .cm42 so
+   the shared people42.css rules stay untouched. */
+.cm42 h1, .cm42 h2 { text-wrap-style: balance; }
+.cm42 p { text-wrap-style: pretty; max-width: var(--measure); }
+/* The method lines are one or two lines long: balanced, so no line ends on a lone word or two. */
+.cm42 .pp42-line { text-wrap-style: pretty; }
+.cm42-post-meta > span { white-space: nowrap; }
+.cm42 :focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+
+.cm42-head { display: grid; gap: var(--s-2); }
+.cm42-back { transition: color var(--motion-control) var(--motion-standard-easing); color: var(--muted); text-decoration: underline; text-underline-offset: 2px; justify-self: start; white-space: nowrap; }
+.cm42-back:hover { color: var(--ink); }
+
+/* Market switch, the way Today switches markets: words, an underline on the one shown. */
+.cm42-markets { justify-self: stretch; display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-5); margin-top: var(--s-2); border-bottom: 1px solid var(--line); }
+.cm42-market {
+  display: inline-flex; align-items: center; min-height: var(--target-min);
+  color: var(--muted); text-decoration: none; white-space: nowrap;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing);
+}
+.cm42-market:hover { color: var(--ink); }
+.cm42-market[aria-current="page"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+
+/* The list: size leads in its own column, then the community. */
+.cm42-list { list-style: none; margin: var(--s-4) 0 0; padding: 0; border-top: 1px solid var(--line); }
+.cm42-row {
+  display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: var(--s-2) var(--s-5);
+  padding: var(--s-5) 0; border-bottom: 1px solid var(--line);
+}
+.cm42-size { white-space: nowrap; }
+.cm42-size-value { font-size: var(--type-page-title); line-height: var(--leading-page-title); font-weight: 600; font-variant-numeric: tabular-nums; }
+.cm42-stats .cm42-size-value { font-size: var(--type-signal-title); line-height: var(--leading-signal-title); }
+.cm42-size-words { color: var(--muted); }
+.cm42-title { margin: 0 0 var(--s-3); font-size: var(--type-signal-title); line-height: var(--leading-signal-title); font-weight: 600; max-width: var(--measure); }
+.cm42-title-link { color: var(--ink); text-decoration: none; transition: text-decoration-color var(--motion-control) var(--motion-standard-easing); }
+.cm42-title-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cm42-facts { display: grid; gap: var(--s-2); margin: 0; }
+.cm42-fact { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: var(--s-3); align-items: baseline; }
+.cm42-fact dt { color: var(--muted); white-space: nowrap; }
+.cm42-fact dd { margin: 0; }
+.cm42-topics, .cm42-names { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); }
+.cm42-topic { transition: text-decoration-color var(--motion-control) var(--motion-standard-easing); color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; white-space: nowrap; }
+.cm42-topic:hover { text-decoration-color: var(--ink); }
+.cm42-more { display: inline-block; margin-top: var(--s-1); color: var(--muted); text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+
+/* An empty market: the state, then the other markets as real links with
+   their counts, then the rule in a closed disclosure. Design audit,
+   2 October 2026: inside the empty block the disclosure drops its own
+   hairline, since the block's bottom rule already closes it. */
+.cm42-empty { max-width: var(--measure); }
+.cm42-empty .pp42-about { border-bottom: 0; }
+.cm42-elsewhere { list-style: none; margin: var(--s-4) 0 0; padding: 0; display: grid; gap: var(--s-2); }
+.cm42-elsewhere-row { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: var(--s-3); align-items: baseline; }
+.cm42-elsewhere-row a { white-space: nowrap; }
+
+/* One community. */
+.cm42-stats { margin: 0; }
+.cm42-members { list-style: none; margin: 0 0 var(--s-3); padding: 0; border-top: 1px solid var(--line); }
+.cm42-member {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4);
+  padding: var(--s-3) 0; border-bottom: 1px solid var(--line);
+}
+.cm42-member-who { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); align-items: baseline; }
+.cm42-member-who > * { white-space: nowrap; }
+.cm42-member-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }
+
+/* One grid for every row, so the tracks and the axis share their columns. */
+.cm42-bars { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: max-content minmax(4rem, 1fr) max-content; gap: var(--s-2) var(--s-3); align-items: center; }
+.cm42-bar-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }
+.cm42-bar-name { white-space: nowrap; }
+.cm42-bar-track { display: block; height: 10px; background: var(--surface-2); }
+.cm42-bar { display: block; height: 100%; width: calc(var(--cm42-w, 0) * 100%); background: var(--ink-2); }
+.cm42-bar-value { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cm42-axis { color: var(--muted); }
+.cm42-axis-ticks { display: flex; justify-content: space-between; border-top: 1px solid var(--line-2); padding-top: 2px; font-variant-numeric: tabular-nums; }
+
+/* Labels break only between topics; a topic longer than the line may still wrap inside itself. */
+.cm42-heading, .cm42-title { word-break: normal; }
+.cm42-label-part { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+
+/* Topic cards on one row share a height, with the actions at the foot. */
+.cm42 .pp42-card { align-content: stretch; }
+.cm42 .pp42-card-list { display: flex; }
+.cm42 .pp42-card-list > .t42-card { flex: 1; }
+.cm42 .t42-card-foot { margin-top: auto; }
+/* In these narrower cards each figure takes its own line, so no word starts a row and reads like a label. */
+.cm42 .t42-card .t42-card-metrics { flex-direction: column; align-items: flex-start; gap: 2px; }
+
+/* Example post thumbnails: a plain tile when there is no image. */
+.cm42-thumb { width: 72px; height: 96px; flex: none; object-fit: cover; display: block; background: var(--surface-2); }
+
+@media (max-width: 600px) {
+  .cm42-bars { grid-template-columns: minmax(0, 1fr) max-content; row-gap: var(--s-3); }
+  .cm42-bar-row { row-gap: var(--s-1); }
+  .cm42-bar-track { grid-column: 1 / -1; grid-row: 2; }
+  .cm42-axis > span:empty { display: none; }
+  .cm42-axis-ticks { grid-column: 1 / -1; grid-row: 1; }
+  .cm42-heading { font-size: calc(var(--type-page-title) * 0.75); }
+  .cm42-row { grid-template-columns: minmax(0, 1fr); }
+  .cm42-fact { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+.cm42-back:focus-visible, .cm42-market:focus-visible, .cm42-title-link:focus-visible, .cm42-topic:focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+
+/* A phone runs the caption full width under a small thumbnail. */
+@media (max-width: 399px) {
+  .cm42 .pp42-post { flex-direction: column; gap: var(--s-2); }
+  .cm42-thumb { width: 56px; height: 75px; }
+  .cm42-thumb-none { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm42-market, .cm42-back, .cm42-title-link, .cm42-topic { transition: none; }
+}
+.cm42-nowrap { white-space: nowrap; }
+
+/* No AI look pass, 4 October 2026: the page takes the full width. An empty
+   market keeps its state and the other markets in the main column and says
+   what a community will show beside it. */
+.cm42 { max-width: none; }
+.cm42-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
+.cm42-main { min-width: 0; }
+.cm42-grid-empty .cm42-empty { max-width: none; }
+.cm42-grid-empty .cm42-elsewhere { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--s-3) var(--s-5); }
+.cm42-grid-empty .cm42-elsewhere-row { grid-template-columns: minmax(0, 1fr); gap: 0; padding: var(--s-3) var(--s-4); border-left: 2px solid var(--line-2); }
+.cm42-aside-title { font-size: var(--t-4); font-weight: 600; margin: 0 0 var(--s-3); color: var(--ink); }
+.cm42-parts { margin: 0; border-top: 1px solid var(--line); }
+.cm42-part { display: grid; align-content: start; gap: var(--s-1); padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
+.cm42-part dt { font-weight: 600; color: var(--ink); }
+.cm42-part dd { margin: 0; color: var(--ink-2); text-wrap: pretty; }
+@media (min-width: 1100px) {
+  .cm42-grid-empty { grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); gap: var(--s-7); }
+}

@@ -1,0 +1,209 @@
+# Engine Capacity Matrix
+#
+# Declarative source-of-truth for what each connector SHOULD produce per day.
+# The engine-pulse watchdog (scripts/engine_pulse.py) reads this file,
+# compares against actual row counts from BQ `pipeline_runs`, and surfaces
+# under-utilisation with named next-move recommendations.
+#
+# Update this file when:
+# - A new connector lands and starts producing rows (declare baseline)
+# - A vendor cap changes (e.g. EnsembleData Bronze → Silver upgrade)
+# - A flag flip lifts utilisation (e.g. Brand24 include_mentions: true)
+# - Empirical baseline shifts more than the drift_pct threshold for 7+ days
+#
+# Numbers are TARGETS not observed maxes. They encode "what good looks like"
+# so the watchdog can name a specific gap not just report "X is below Y".
+
+connectors:
+  rss:
+    expected_rows_per_day: 340
+    expected_rows_per_market_per_day:
+      za: 130
+      ng: 130
+      ke: 80
+    utilisation_warn_pct: 70
+    utilisation_critical_pct: 40
+    notes: "30 feeds across 3 markets (KE +5 on 13 Jul 2026). Ceiling is publisher feed length. UA-header unblock (Wave 2) lifts ZA + NG."
+
+  bigquery_trends:
+    expected_rows_per_day: 200
+    expected_rows_per_market_per_day:
+      za: 100
+      ng: 100
+      ke: 0
+    utilisation_warn_pct: 70
+    utilisation_critical_pct: 40
+    notes: "KE has zero upstream coverage in bigquery-public-data.google_trends; expected_zero declared in sources.yaml.bigquery_trends.expected_per_market."
+
+  youtube:
+    expected_rows_per_day: 420
+    expected_rows_per_market_per_day:
+      za: 140
+      ng: 140
+      ke: 140
+    utilisation_warn_pct: 65
+    utilisation_critical_pct: 35
+    quota_units_per_day: 10000
+    actual_units_target: 1218
+    notes: "Search + trending + commentThreads. 1218 / 10000 quota = 12% utilisation. Headroom for deeper comment fetch + playlistItems (Wave 2)."
+
+  gdelt:
+    # Reconciled to the live 14-day median (2026-06-16 BQ pull on
+    # pipeline_runs success runs): za 1182, ng 1389, ke 603 rows/day, total
+    # ~3174. The old 550 total (za 150 / ng 300 / ke 100) read >100%
+    # utilisation every day, so the gdelt_utilisation drop-alerts could never
+    # fire. Expected set just under the medians so a normal day reads healthy
+    # and a real drop still trips the 60/30 percent thresholds.
+    expected_rows_per_day: 3100
+    expected_rows_per_market_per_day:
+      za: 1100
+      ng: 1300
+      ke: 550
+    utilisation_warn_pct: 60
+    utilisation_critical_pct: 30
+    notes: "V2Persons-filtered GKG. Events + GCAM shipped Wave 1 b16a3c0 but default-off. Flipping gdelt_events_enabled lifts +200-400/day."
+
+  ensembledata:
+    expected_rows_per_day: 0
+    expected_rows_per_market_per_day:
+      za: 0
+      ng: 0
+      ke: 0
+    utilisation_warn_pct: 60
+    utilisation_critical_pct: 30
+    quota_units_per_day: 0
+    actual_units_target: 0
+    cap_warn_pct: 90
+    cap_critical_pct: 96
+    notes: "RETIRED 23 Jul 2026, vendor account cancelled. Expected zeroed so the watchdog does not alert on a connector we no longer buy. Was 2600 rows/day on ~3300 of the Bronze 5000 units. Its surfaces moved to socialcrawl below; the connector code stays wired in but ensemble_budget.enabled is false."
+
+  reddit:
+    expected_rows_per_day: 0
+    expected_rows_per_market_per_day:
+      za: 0
+      ng: 0
+      ke: 0
+    utilisation_warn_pct: 65
+    utilisation_critical_pct: 35
+    notes: "RETIRED 23 Jul 2026 with EnsembleData, whose token and unit ledger it billed. Was 1700 rows/day. Subreddit feeds and keyword search moved to the socialcrawl `reddit` phase, which costs 1 credit per call on the same subreddit list."
+
+  socialcrawl:
+    # PROVISIONAL, from the 23 Jul 2026 pre-flight dry run (2257 rows for 217
+    # credits at the narrow caps) scaled for the wider term and subreddit caps
+    # that shipped. Re-baseline off engine_evolve after ~14 real crons.
+    expected_rows_per_day: 3000
+    expected_rows_per_market_per_day:
+      za: 1050
+      ng: 1000
+      ke: 950
+    utilisation_warn_pct: 60
+    utilisation_critical_pct: 30
+    quota_units_per_day: 20000
+    # Bootstrap only, and STALE the moment real crons land. The rollout proposer
+    # MEASURES burn from pipeline_runs.socialcrawl_credits and reads this solely
+    # for the first three days after the column lands. Treat any burn figure
+    # written in a file, this one included, as an estimate: three separate
+    # numbers (290, 346, 384) have all been quoted as the daily burn at
+    # different points, so re-derive from pipeline_runs.socialcrawl_credits
+    # before quoting one. Do not hand-tune this to chase the reading.
+    actual_units_target: 346
+    cap_warn_pct: 90
+    cap_critical_pct: 96
+    notes: "Primary social vendor from 23 Jul 2026. quota_units_per_day is the credit BALANCE bought, not a daily allowance, so cap_warn on a per-day basis is meaningless and the real watch is the balance itself via GET /v1/credits/balance (0 credits). Runway is balance divided by observed burn, and the observed burn must be re-derived from pipeline_runs.socialcrawl_credits rather than read from this file or any other: every burn figure written down here has been overtaken. Seven phases in PHASE_ORDER: discover, creators, search, reddit, accounts, news, facebook. The per-run breaker is socialcrawl.budget_credits_per_run in configs/sources.yaml; read the live value there instead of trusting a copy."
+
+  brand24:
+    expected_rows_per_day: 0
+    expected_rows_per_market_per_day:
+      za: 0
+      ng: 0
+      ke: 0
+    utilisation_warn_pct: 0
+    utilisation_critical_pct: 0  # RETIRED. critical=0 means expected-zero; pulse watchdog never alerts.
+    mentions_cap_per_month: 0
+    mentions_actual_target: 0
+    cap_warn_pct: 0
+    cap_critical_pct: 0
+    notes: "RETIRED 21 Aug 2026, vendor cancelled. enabled: false in sources.yaml is what stops the calls. The account kept serving after cancellation so the last cycle ran to 24 Aug, and 25 Aug is the first zero day (brand24_rows 1504 on the 24th, 0 on the 25th). Expected rows here were 275/day against a measured 1504/day, so the old figure was wrong by a factor of five and is not a baseline worth keeping. Historical, for anyone reading back: Business tier 100K mentions/month, mentions_max_per_run 600 per project across 3 projects. The four dark-surface auto_suggest rules (mentions_sentiment, mentions_reach, daily_metrics, ai_insights) were deleted with this edit, because a live watchdog must never recommend flipping a surface on a cancelled vendor. Per-project blocks survive in sources.yaml."
+
+  spotify:
+    expected_rows_per_day: 0
+    expected_rows_per_market_per_day:
+      za: 0
+      ng: 0
+      ke: 0
+    utilisation_warn_pct: 0
+    utilisation_critical_pct: 0  # PERMANENTLY DISABLED. critical=0 means expected-zero; pulse watchdog never alerts.
+    notes: "PERMANENTLY DISABLED. Spotify Web API client_credentials flow deprecated for new apps as of 27 Nov 2024; existing apps lose access on the rolling cutoff. Replaced by Apple Music RSS Charts (commit 66abb7a) which is free and unauthenticated. Block retained so the connector stays catalogued in case Spotify reopens client_credentials access. REACTIVATION NOTE: unlike the other connectors, pipeline_runs has no spotify_rows column. Reactivating Spotify requires an idempotent add_spotify_rows_column migration plus a spotify_rows entry in the log_pipeline_run INSERT dict (run_rss_now.py), or its per-source count is silently dropped while still inflating total_rows."
+    requires_secrets:
+      - SPOTIFY_CLIENT_ID
+      - SPOTIFY_CLIENT_SECRET
+
+  apple_music:
+    expected_rows_per_day: 150
+    expected_rows_per_market_per_day:
+      za: 50
+      ng: 50
+      ke: 50
+    utilisation_warn_pct: 80
+    utilisation_critical_pct: 50
+    notes: "Apple Music RSS Charts shipped 28 May 2026 (commit 66abb7a) as Spotify replacement. Free, no auth. Active by default."
+
+# Brief generation capacity (Phase 2 Gemini calls)
+phase2:
+  briefs:
+    expected_per_day: 24
+    expected_per_market_per_day:
+      za: 8
+      ng: 8   # brief query hard-caps each market at DEFAULT_TOP_N_PER_MARKET=8
+      ke: 8   # so NG/KE cannot reach 9 even with sports_football in the taxonomy
+    warn_pct: 90  # 22 / 24 minimum
+    critical_pct: 75  # 18 / 24 = real degradation
+  daily_summary:
+    expected_per_day: 1
+    min_completion_tokens: 100  # < 100 = fallback fired
+
+# Connector-zero alert: connectors that are legitimately low or zero on some
+# days and must NOT trip the hard CONNECTOR-ZERO check. The check fires when an
+# ENABLED connector with a nonzero capacity floor returns exactly 0 rows on a
+# success run (the 3-Jun bad-key signature: a connector read green at 0 for
+# days because pipeline_runs.status stayed 'success'). Anything listed here is
+# exempt: a genuine zero is expected, so zero is not the bad-key signal.
+# gdelt was removed from this list 2026-06-16: the live 14-day pull shows 0
+# zero-runs across all 3 markets (medians za 1182 / ng 1389 / ke 603 rows/day),
+# so a GDELT zero is now a real bad-key signal, not normal. The old 23-48
+# rows/day note predated the slang-sort and country-filter tuning. No connector
+# currently needs the exemption.
+connector_zero_alert:
+  may_be_zero: []
+
+# Drift detection: alert if 7-day rolling average drops > N% week-over-week
+drift_detection:
+  enabled: true
+  window_days: 7
+  drift_warn_pct: 25
+  drift_critical_pct: 45
+
+# Auto-suggested next moves
+# The pulse script scans these against current state and names the highest-
+# priority matched action in the report's RECOMMENDED ACTION block.
+auto_suggest:
+  - id: bigquery_trends_top_terms_flag
+    condition: bigquery_trends_utilisation_below_85 AND bq_top_terms_disabled
+    priority: medium
+    action: "BigQuery Trends top_terms code shipped (commit 8ad51c7) but top_terms.enabled=false. Adds steady-state terms (vs rising-only currently) for confidence on cultural staples. ~100 rows/day per market × 2 markets = +200 rows/day. Zero incremental BQ cost (same public dataset, same partition). Flip bigquery_trends.top_terms.enabled: true."
+
+  - id: youtube_playlist_items_flag
+    condition: youtube_utilisation_below_75 AND playlist_items_disabled
+    priority: low
+    action: "YouTube playlistItems code shipped (commit 8ad51c7) but playlist_items_enabled=false per market. Adds channel-level catalog coverage for the creator watchlist (1 unit per call, ~30 units/day). YouTube quota at 12% utilisation so trivial. Flip youtube_queries.{za,ng,ke}.playlist_items_enabled: true to deepen creator scoring."
+
+  - id: gdelt_events_flag
+    condition: gdelt_utilisation_below_75 AND gdelt_events_enabled_false
+    priority: medium
+    action: "GDELT GKG at {pct}% of expected. CHECK THE BASE FEED FIRST: a low GKG figure usually means the slang sort or country filter is dropping volume, not that a new surface is needed. Confirm GKG is healthy (live medians ke 603 / za 1182 / ng 1389 rows/day), then separately consider gdelt_events_enabled=true (code shipped b16a3c0) for row-level civil-unrest / protest signal at +200-400 rows/day."
+
+  - id: gdelt_gcam_flag
+    condition: gdelt_utilisation_below_80 AND gcam_enabled_false
+    priority: low
+    action: "GDELT V2GCAM (100+ emotional cognitive dimensions per article) code shipped (commit b16a3c0) but gcam_enabled=false. Replaces single tone_score with rich breakdown. Schema migration for v2gcam column required before persisting; for now flag flip enables the parser + INFO logging so signal can be validated."
+

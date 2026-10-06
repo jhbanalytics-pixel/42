@@ -1,0 +1,28 @@
+name: General question worker checks
+
+on:
+  push:
+    branches: [feat/general-question-worker]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  process-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r requirements.txt pytest
+      - name: Protocol and Linux process lifecycle
+        run: >-
+          python -m pytest tests/unit/test_question_worker_protocol.py
+          tests/unit/test_question_worker_process.py tests/unit/test_question_worker_bundle.py
+          tests/unit/test_question_worker_result.py tests/unit/test_question_worker_store.py
+          tests/unit/test_question_worker_controller.py
+          tests/unit/test_question_worker_deadline.py
+          -q --basetemp "$RUNNER_TEMP/question-worker-tests"

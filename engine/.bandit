@@ -1,0 +1,18 @@
+# B101: pytest assertions in tests.
+# B608: hardcoded SQL strings. Project policy is to use bound query
+#       parameters for caller-supplied values and to validate any
+#       identifier (table, column, market code) via _validate_identifier()
+#       in src/utils/bigquery.py or via _ALLOWED_* whitelists in
+#       src/alerts/detector.py before interpolation. Bandit flags the
+#       f-string pattern regardless and cannot see the validation, so
+#       the rule is skipped at the project level. Reviewers must verify
+#       identifier validation on any new SQL-building code.
+skips:
+  - B101
+  - B608
+exclude_dirs:
+  - tests
+  - build
+  - dist
+  - .venv
+  - .qlty

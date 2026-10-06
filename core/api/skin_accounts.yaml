@@ -1,0 +1,2 @@
+# Approved organisation accounts per skin (core/api/contract.md section 15.1). Entries come only from Albert, entered exactly as he gives them, with the source in the commit message: {skin_key: [{platform, handle, org, role: client|competitor|partner}]}.
+{}

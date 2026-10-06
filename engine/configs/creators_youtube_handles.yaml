@@ -1,0 +1,174 @@
+# Creators YouTube Handle Registry
+#
+# Research registry only. The live YouTube connector does NOT read this file.
+# The handle list it actually uses lives in sources.yaml under
+# youtube_queries.{market}.playlist_creator_handles and must be updated there.
+# Keep this file as a parallel reference; edits here have no runtime effect.
+#
+# Why a separate file (not creators/{m}.yaml):
+# - The creators YAMLs are bare lists of names + tier labels. Adding a
+#   per-creator handle map there would require schema migration that
+#   ripples through scoring + watchlist logic. Lower blast radius to
+#   keep this as a parallel registry.
+# - Research probe 28 May 2026 verified live channel state per creator.
+#   This file is the artefact.
+#
+# Update this file when:
+# - A creator launches a YouTube channel (move from no_youtube_channel
+#   to active_handles under the appropriate tier).
+# - A creator goes dormant (move to dormant_handles with last-upload date).
+# - A handle changes (vendor rename, verified rebrand).
+#
+# Numbers in parens are subscriber counts at time of research probe.
+# Last-upload date is YYYY-MM-DD.
+
+za:
+  active_handles:
+    tier_1:
+      - handle: "@TYLAOfficial"
+        name: Tyla
+        channel_id: UC8HOgNWipVorrlBH8oN2R-A
+        subscribers: 5870000
+        last_upload: 2026-04-27
+      - handle: "@lasizwedambuza"
+        name: Lasizwe Dambuza
+        channel_id: UCVbVao4QtBLarbX01DX9YRg
+        subscribers: 1190000
+        last_upload: 2026-05-28
+        notes: "Very active, daily content."
+      - handle: "@MihlaliN"
+        name: Mihlali Ndamase
+        channel_id: UCWhkEFN9UXdV2zFFZvP7O0A
+        subscribers: 468000
+        last_upload: 2025-11-22
+    tier_2:
+      - handle: "@ShoMadjozi"
+        name: Sho Madjozi
+        channel_id: UCkOVK-tMYtEITJkzsnm-uUg
+        subscribers: 283000
+        last_upload: 2024-12-13
+        notes: "Semi-dormant; uploads quarterly."
+      - handle: "@DBNGogoOfficial"
+        name: DBN Gogo
+        channel_id: UCZJhJ5fdErj9tgcdzTKynlw
+        subscribers: 185000
+        last_upload: 2026-03-20
+  dormant_handles:
+    - handle: "@Boity"
+      name: Boity
+      channel_id: UCU3clyySg9_rA5HjQiRhH5w
+      subscribers: 50700
+      last_upload: 2021-04-16
+      notes: "Last upload Apr 2021. Inclusion gives near-zero signal."
+  no_youtube_channel:
+    # tier_1 creators with NO active YouTube presence (TikTok / IG first).
+    # Probed 28 May 2026 — only squatter / unrelated channels exist.
+    - name: Uncle Waffles
+      reason: "No real channel. Music distributed via Spotify + SoundCloud only."
+    - name: Cyan Boujee
+      reason: "IG / TikTok first. @cyanboujee = squatter 9 subs."
+
+ng:
+  active_handles:
+    tier_1:
+      - handle: "@DavidoOfficial"
+        name: Davido
+        notes: "Pre-verified prior probe (28 May earlier)."
+      - handle: "@brodashaggi"
+        name: Broda Shaggi
+        channel_id: UCG6orNVuXIICv9_ifH6msIA
+        subscribers: 2240000
+        last_upload: 2026-04-24
+      - handle: "@sydneytalker"
+        name: Sydney Talker
+        channel_id: UC-iaCAZbuFSAmiSEQKgrC7Q
+        subscribers: 775000
+        last_upload: 2026-02-04
+      - handle: "@kortyeo"
+        name: Korty EO
+        channel_id: UCTFFhYhkLkxjhcCdwUKmQ5g
+        subscribers: 430000
+        last_upload: 2026-03-18
+      - handle: "@layiwasabi"
+        name: Layi Wasabi
+        channel_id: UCJWrb-dnwFY0GTAeA2gKHPg
+        subscribers: 137000
+        last_upload: 2026-05-27
+        notes: "Daily-uploads cadence."
+    tier_2:
+      - handle: "@tobibakre"
+        name: Tobi Bakre
+        channel_id: UCw5Vr7Dxn7fAac4UVmnY-vA
+        subscribers: 9060
+        last_upload: 2025-10-18
+        notes: "Primary surface is acting / IG; YouTube is secondary."
+  no_youtube_channel:
+    - name: Taaooma
+      reason: "Comedy sketches air on @MarliansTV (label) not own channel."
+    - name: Poco Lee
+      reason: "@poco_lee = 0 subs 1 vid. IG / TikTok first."
+    - name: Carter Efe
+      reason: "@carterefeofficial = 4 subs 8 vids. No YouTube footprint."
+    - name: Enioluwa
+      reason: "@enioluwa is a wrong-person personal channel. Real creator IG / TikTok only."
+
+ke:
+  active_handles:
+    tier_1:
+      - handle: "@diana_bahati"
+        name: Diana Marua
+        channel_id: UC0UslOx9EYxnk_4SFSHj8hA
+        subscribers: 1380000
+        last_upload: 2026-05-28
+        notes: "Daily uploads."
+      - handle: "@flaqo"
+        name: Flaqo
+        channel_id: UCjG66-ryVCszrs7k_Y2pn3Q
+        subscribers: 900000
+        last_upload: 2026-05-24
+      - handle: "@talesofthecrazykennar"
+        name: Crazy Kennar
+        channel_id: UCiXj0BfxM0WQGFr9mxdR0qg
+        subscribers: 715000
+        last_upload: 2026-05-27
+      - handle: "@ericomondi"
+        name: Eric Omondi
+        channel_id: UC4Hvs9PzuXKhEY_CeTS1wvg
+        subscribers: 593000
+        last_upload: 2026-05-27
+      - handle: "@mulamwahh"
+        name: Mulamwah
+        channel_id: UCkZXUwhApHbjGWeuBNY7aiw
+        subscribers: 271000
+        last_upload: 2026-04-28
+        notes: "Double-h handle (not @mulamwah)."
+      - handle: "@sautisol"
+        name: Sauti Sol
+        notes: "Pre-verified prior probe."
+      - handle: "@Octopizzo"
+        name: Octopizzo
+        notes: "Pre-verified prior probe."
+  dormant_handles:
+    - handle: "@azziadnasenya"
+      name: Azziad Nasenya
+      channel_id: UC5iAhMhy57Yfr8bZz89g4-w
+      subscribers: 177000
+      last_upload: 2023-08-04
+      notes: "Migrated to TikTok-first. Inclusion = near-zero signal."
+  no_youtube_channel:
+    - name: Moya David
+      reason: "@moyadavid = 509 subs 2 vids. Dancer, TikTok first."
+    - name: Roaming Chef
+      reason: "Real Roaming Chef Kenya only on TikTok / IG. All YT matches are squatters."
+
+# Budget projection (when playlist_items_enabled is flipped true per market):
+#
+# Active handles probed: ZA=5 + NG=5 (with Davido) + KE=7 (with Sauti + Octopizzo) = 17 creators.
+# Per cron run cost: 17 × 2 units (channels.list + playlistItems) = 34 units.
+# With per-process cache hit on channel-id resolution after first call,
+# steady-state day cost: 17 × 1 unit = 17 units.
+# Quota: 10,000 / day. Burn: 0.17 - 0.34 %. Negligible.
+#
+# Expected row impact at full activation:
+# 17 creators × 20 latest videos = ~340 new rows / day in raw_content tagged
+# content_type=youtube_channel_upload, query_group=youtube_playlist_items.

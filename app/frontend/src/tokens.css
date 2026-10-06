@@ -1,0 +1,301 @@
+/* 42 · Ogilvy Intelligence foundations. The editorial serif, plain agency sans
+   and provenance mono now match the dossier system across every workspace. */
+
+:root {
+  --serif: "Ogilvy Serif", OgilvySerif, Georgia, "Times New Roman", serif;
+  --sans: "Ogilvy Sans", OgilvySans, Arial, Helvetica, sans-serif;
+  --mono: Consolas, "Courier New", monospace;
+  --data-mono: var(--mono);
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion: 1;
+
+  /* Shape: default radius 0; 2px only where it improves focus rendering on
+     form controls; pills reserved for true binary or categorical state. */
+  --r-sm: 0; --r: 0; --r-lg: 0; --r-xl: 0;
+  --r-form: 2px;
+  --maxw: 1320px;
+
+  /* Spacing scale. The only allowed gaps and padding steps. */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+
+  /* Type ramp. Eight sizes, the complete set. Component files reference
+     these tokens only; raw font-size values are a lint failure. */
+  --t-1: 11px;
+  --t-2: 12px;
+  --t-3: 13px;
+  --t-4: 15px;
+  --t-5: 18px;
+  --t-6: 22px;
+  --t-7: 28px;
+  --t-8: clamp(32px, 5vw, 64px);
+
+  --target-min: 48px;
+  --dossier-radius: var(--r);
+  --dossier-radius-large: var(--r-lg);
+  --dossier-pill: 999px;
+  --dossier-type-meta: var(--t-1);
+  --dossier-type-small: var(--t-3);
+  --dossier-type-body: var(--t-4);
+  --dossier-type-heading: var(--t-5);
+  --dossier-type-lead: var(--t-8);
+  --dossier-ready: var(--up);
+  --dossier-thin: var(--building);
+  --dossier-contradictory: var(--down);
+  --dossier-unchecked: var(--building);
+
+  /* ========== PRIMITIVES (raw oklch scales) ==========
+     Tier 1 of the token system. These are the raw color values, named per
+     theme lane. The semantic tier below ([data-dir] blocks) references these
+     by var() so a future theme or lane change touches the semantic layer
+     only. Values here are the exact oklch literals the design was tuned to;
+     scripts/check_contrast.mjs resolves the semantic var() references back to
+     these before checking WCAG AA, so the primitives carry the numbers. */
+
+  /* MIDNIGHT raw scale */
+  --p-mid-canvas: oklch(0.165 0.008 42);
+  --p-mid-canvas-2: oklch(0.195 0.009 42);
+  --p-mid-surface: oklch(0.216 0.01 44);
+  --p-mid-surface-2: oklch(0.248 0.011 44);
+  --p-mid-surface-inset: oklch(0.15 0.008 42);
+  --p-mid-ink: oklch(0.962 0.008 80);
+  --p-mid-ink-2: oklch(0.80 0.01 78);
+  --p-mid-muted: oklch(0.65 0.012 74);
+  --p-mid-faint: oklch(0.64 0.012 70);
+  --p-mid-line: oklch(0.285 0.01 50);
+  --p-mid-line-2: oklch(0.35 0.012 50);
+  --p-mid-hairline: oklch(0.245 0.009 48);
+  /* Accent is the red evidence thread: active position and primary action.
+     One meaning everywhere; no alternate accent families. Glow is retired
+     (kept as a token so legacy references resolve to nothing visible). */
+  --p-mid-accent: oklch(0.705 0.19 27);
+  --p-mid-accent-soft: oklch(0.705 0.19 27 / 0.14);
+  --p-mid-accent-ink: oklch(0.99 0.012 27);
+  --p-mid-accent-glow: transparent;
+  --p-mid-up: oklch(0.76 0.14 152);
+  --p-mid-up-soft: oklch(0.76 0.14 152 / 0.12);
+  --p-mid-down: oklch(0.66 0.19 28);
+  --p-mid-down-soft: oklch(0.66 0.19 28 / 0.12);
+  --p-mid-building: oklch(0.80 0.12 80);
+  --p-mid-steady: oklch(0.68 0.02 60);
+  --p-mid-cooling: oklch(0.70 0.10 240);
+  --p-mid-pos: oklch(0.76 0.13 152);
+  --p-mid-header-bg: oklch(0.138 0.008 42);
+  --p-mid-header-line: oklch(0.275 0.01 48);
+
+  /* DAYLIGHT raw scale */
+  --p-day-canvas: oklch(0.955 0.011 84);
+  --p-day-canvas-2: oklch(0.934 0.013 82);
+  --p-day-surface: oklch(0.992 0.005 88);
+  --p-day-surface-2: oklch(0.965 0.009 84);
+  --p-day-surface-inset: oklch(0.93 0.012 82);
+  --p-day-ink: oklch(0.205 0.014 48);
+  --p-day-ink-2: oklch(0.37 0.013 48);
+  --p-day-muted: oklch(0.52 0.012 50);
+  --p-day-faint: oklch(0.51 0.01 54);
+  --p-day-line: oklch(0.89 0.009 78);
+  --p-day-line-2: oklch(0.82 0.011 76);
+  --p-day-hairline: oklch(0.915 0.007 80);
+  --p-day-accent: oklch(0.52 0.2 27);
+  --p-day-accent-soft: oklch(0.52 0.2 27 / 0.1);
+  --p-day-accent-ink: oklch(0.99 0.012 27);
+  --p-day-accent-glow: transparent;
+  --p-day-up: oklch(0.47 0.13 150);
+  --p-day-up-soft: oklch(0.47 0.13 150 / 0.1);
+  --p-day-down: oklch(0.50 0.18 28);
+  --p-day-down-soft: oklch(0.50 0.18 28 / 0.1);
+  --p-day-building: oklch(0.52 0.11 72);
+  --p-day-steady: oklch(0.50 0.015 60);
+  --p-day-cooling: oklch(0.54 0.10 240);
+  --p-day-pos: oklch(0.53 0.12 150);
+  --p-day-neu: oklch(0.55 0.02 60);
+  --p-day-header-bg: oklch(0.18 0.013 45);
+  --p-day-header-ink: oklch(0.955 0.012 84);
+  --p-day-header-muted: oklch(0.66 0.012 70);
+  --p-day-header-line: oklch(0.30 0.012 45);
+}
+
+/* ========== MIDNIGHT (default) · the signal desk ========== */
+/* Semantic tier. Each name references a primitive above; the mapping is a
+   mechanical rename, no value changes. --faint is lightened to L 0.64 (a11y
+   nudge from 0.63) so small faint text clears WCAG AA 4.5:1 on EVERY midnight
+   surface, including surface-2 which previously sat at 4.60:1. Computed via
+   oklch to sRGB relative luminance: 5.73:1 on canvas, 5.20:1 on surface,
+   4.79:1 on surface-2, 5.84:1 on surface-inset. It stays below muted (L 0.65)
+   so the dim-text hierarchy holds. */
+[data-dir="midnight"] {
+  --canvas: var(--p-mid-canvas);
+  --canvas-2: var(--p-mid-canvas-2);
+  --surface: var(--p-mid-surface);
+  --surface-2: var(--p-mid-surface-2);
+  --surface-inset: var(--p-mid-surface-inset);
+  --ink: var(--p-mid-ink);
+  --ink-2: var(--p-mid-ink-2);
+  --muted: var(--p-mid-muted);
+  --faint: var(--p-mid-faint);
+  --line: var(--p-mid-line);
+  --line-2: var(--p-mid-line-2);
+  --hairline: var(--p-mid-hairline);
+
+  --accent: var(--p-mid-accent);
+  --accent-soft: var(--p-mid-accent-soft);
+  --accent-ink: var(--p-mid-accent-ink);
+  --accent-glow: var(--p-mid-accent-glow);
+
+  --up: var(--p-mid-up);
+  --up-soft: var(--p-mid-up-soft);
+  --down: var(--p-mid-down);
+  --down-soft: var(--p-mid-down-soft);
+
+  --rising: var(--p-mid-up);
+  --building: var(--p-mid-building);
+  --steady: var(--p-mid-steady);
+  --cooling: var(--p-mid-cooling);
+
+  --pos: var(--p-mid-pos);
+  --neu: var(--p-mid-steady);
+  --neg: var(--p-mid-down);
+
+  /* Two elevations only: canvas (no shadow) and overlay (--shadow). */
+  --shadow-sm: none;
+  --shadow: 0 4px 12px oklch(0 0 0 / 0.45), 0 24px 60px oklch(0 0 0 / 0.55);
+  --shadow-lg: var(--shadow);
+
+  --header-bg: var(--p-mid-header-bg);
+  --header-ink: var(--ink);
+  --header-muted: var(--muted);
+  --header-line: var(--p-mid-header-line);
+  color-scheme: dark;
+
+  --flowbar-bg: var(--header-bg);
+  --flowbar-line: var(--header-line);
+}
+
+/* ========== DAYLIGHT · the paper terminal ========== */
+/* Semantic tier. Each name references a daylight primitive above; mechanical
+   rename. --faint is darkened to L 0.51 (a11y nudge from 0.52) so small faint
+   text clears WCAG AA 4.5:1 on every daylight surface, including
+   surface-inset which previously sat at 4.49:1. Computed via oklch to sRGB
+   relative luminance: 5.06:1 on canvas, 5.63:1 on surface, 4.69:1 on
+   surface-inset. */
+[data-dir="daylight"] {
+  --canvas: var(--p-day-canvas);
+  --canvas-2: var(--p-day-canvas-2);
+  --surface: var(--p-day-surface);
+  --surface-2: var(--p-day-surface-2);
+  --surface-inset: var(--p-day-surface-inset);
+  --ink: var(--p-day-ink);
+  --ink-2: var(--p-day-ink-2);
+  --muted: var(--p-day-muted);
+  --faint: var(--p-day-faint);
+  --line: var(--p-day-line);
+  --line-2: var(--p-day-line-2);
+  --hairline: var(--p-day-hairline);
+
+  --accent: var(--p-day-accent);
+  --accent-soft: var(--p-day-accent-soft);
+  --accent-ink: var(--p-day-accent-ink);
+  --accent-glow: var(--p-day-accent-glow);
+
+  --up: var(--p-day-up);
+  --up-soft: var(--p-day-up-soft);
+  --down: var(--p-day-down);
+  --down-soft: var(--p-day-down-soft);
+
+  --rising: var(--p-day-up);
+  --building: var(--p-day-building);
+  --steady: var(--p-day-steady);
+  --cooling: var(--p-day-cooling);
+
+  --pos: var(--p-day-pos);
+  --neu: var(--p-day-neu);
+  --neg: var(--p-day-down);
+
+  --shadow-sm: none;
+  --shadow: 0 4px 14px oklch(0.28 0.03 50 / 0.07), 0 18px 40px oklch(0.28 0.03 50 / 0.09);
+  --shadow-lg: var(--shadow);
+
+  --header-bg: var(--p-day-header-bg);
+  --header-ink: var(--p-day-header-ink);
+  --header-muted: var(--p-day-header-muted);
+  --header-line: var(--p-day-header-line);
+  color-scheme: light;
+
+  --flowbar-bg: var(--header-bg);
+  --flowbar-line: var(--header-line);
+}
+
+/* Accent families retired: red is the only accent, defined in the theme
+   primitives above. [data-accent] attributes are inert. */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--t-4);
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+::selection { background: var(--accent-soft); color: var(--ink); }
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 0; border: 3px solid var(--canvas); }
+::-webkit-scrollbar-track { background: transparent; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+a { color: inherit; text-decoration: none; }
+input, textarea { font-family: inherit; }
+input::placeholder, textarea::placeholder { color: var(--faint); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: var(--focus-offset); border-radius: 0; }
+
+.tnum { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); }
+.serif { font-family: var(--serif); }
+.eyebrow {
+  font-family: var(--mono); font-size: var(--t-1); letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); font-weight: 500;
+}
+.up { color: var(--up); }
+.down { color: var(--down); }
+
+/* ===== reveal (interim until the red-thread motion lands) ===== */
+@keyframes pReveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.preveal { opacity: 0; animation: pReveal var(--motion-handoff) var(--motion-handoff-easing) forwards; }
+[data-motion="off"] .preveal { animation: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .preveal { animation: none !important; opacity: 1 !important; }
+  .bars i, .signal .ring { animation: none !important; }
+}
+
+/* ===== prototype responsive overrides for the desk chrome ===== */
+@media (max-width: 980px) {
+  .lead-sec { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 1340px) {
+  /* drop the co-brand lockup below the point where the full brand + 7-item nav +
+     tools stop fitting one row, so the nav never clips. The PULSE wordmark stays. */
+  .mast-sub, .mast-div { display: none !important; }
+}
+@media (max-width: 680px) {
+  /* the nav takes its own row and scrolls sideways rather than wrapping */
+  .mast-nav { width: 100%; margin-left: 0 !important; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+  .mast-nav::-webkit-scrollbar { display: none; }
+  .mast-nav button { flex: 0 0 auto; }
+}
+@media (max-width: 600px) {
+  .mast-row { padding-left: 16px !important; padding-right: 16px !important; gap: 12px 14px !important; }
+  .metrics-row { grid-template-columns: repeat(3, 1fr) !important; }
+  .markets-row { grid-template-columns: 1fr !important; }
+  .digest-row { grid-template-columns: 1fr !important; gap: 8px !important; }
+  .board-head-row { display: none !important; }
+  .board-row { grid-template-columns: 34px 1fr auto !important; height: auto !important; padding: 14px 16px 14px 0 !important; }
+  .board-spark, .board-mom, .board-mentions, .board-tone { display: none !important; }
+}
+@media (max-width: 420px) {
+  .metrics-row { grid-template-columns: repeat(2, 1fr) !important; }
+}

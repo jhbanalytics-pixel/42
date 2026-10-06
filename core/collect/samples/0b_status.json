@@ -1,0 +1,11 @@
+{
+  "probe": "0b",
+  "route": "status",
+  "body": {
+    "<key>": {
+      "<key>": {
+        "status": "<str>"
+      }
+    }
+  }
+}

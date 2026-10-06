@@ -1,0 +1,153 @@
+# South Africa -- Keywords, Markers, Slang
+# Migrated from trends-free-mvp/configs/keywords.yaml + slang.yaml
+market: za
+market_name: South Africa
+
+topic_groups:
+  sa_identity:
+    - south africa
+    - mzansi
+    - kasi
+    - jozi
+    - durban
+    - cape town
+    - pretoria
+    - pta
+    - soweto
+    - township
+
+  culture_lifestyle:
+    - student life
+    - varsity
+    - campus life
+    - nsfas
+    - side hustle
+    - hustle
+    - soft life
+    - adulting
+    - unemployed
+    - dating
+    - situationship
+
+  music_entertainment:
+    - amapiano
+    - gqom
+    - south african music
+    - dance challenge
+    - groove
+    - nightlife
+    - dj
+    - festival
+
+  fashion_beauty:
+    - streetwear
+    - sneaker
+    - thrift
+    - outfit check
+    - fit check
+    - braids
+    - nails
+    - skincare
+    - makeup
+
+  food_lifestyle:
+    - brunch
+    - kota
+    - kasi food
+    - restaurant
+    - date ideas
+    - cheap eats
+
+  economic_pressure:
+    - load shedding
+    - cost of living
+    - petrol price
+    - transport
+    - grocery
+    - rent
+    - unemployment
+    - data bundles
+
+  tech_gaming:
+    - gaming
+    - esports
+    - anime
+    - ai tools
+    - fintech
+    - smartphone
+
+regional_markers:
+  - south africa
+  - mzansi
+  - kasi
+  - jozi
+  - durban
+  - cape town
+  - pretoria
+  - soweto
+  - township
+  - nsfas
+  - amapiano
+  - load shedding
+  - kota
+  - ekasi
+
+genz_markers: []
+
+slang:
+  high_signal:
+    terms:
+      - mzansi
+      - kasi
+      - ekasi
+      - amapiano
+      - jozi
+      - durbs
+      - loadshedding
+      - load shedding
+      - nsfas
+      - kota
+      - groove
+      - spaza
+      - braam
+      - soweto
+      - taxi rank
+      - shisa nyama
+      - braai
+      - eskom
+      - bacardi
+      - sgubhu
+      - umlando
+      - water shedding
+    weight: 1.0
+
+  medium_signal:
+    terms:
+      - yoh
+      - eish
+      - haybo
+      - bathong
+      - sharp
+      - ayoba
+      - heita
+      - howzit
+      - broer
+      - chommie
+      - ma se kind
+      - mara
+      - neh
+      - vele
+      - jiki jiki
+      - soft life
+      - ngoba
+      - lekker
+      - shem
+      - yeses
+      - phantsi
+      - ntwana
+      - grootman
+      - slay queen
+      - aweh
+      - izit
+      - chiskop
+    weight: 0.5

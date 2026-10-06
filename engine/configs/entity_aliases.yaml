@@ -1,0 +1,99 @@
+# Entity alias map for the PULSE Intelligence Core event ledger (Phase 3).
+#
+# The ledger's entity_aliases field is otherwise built ONLY from the raw
+# display names seen in today's data (a GDELT person string, a headline, a
+# search term), so a claim written with a different real-world name for the
+# same entity (e.g. "Ramaphosa" when the ledger clustered under "cyril
+# ramaphosa") cannot anchor in reconcile. This file injects a small,
+# hand-curated set of known aliases for the highest-value sport/music/
+# politics entities per market, keyed by the entity_key the ledger already
+# normalizes to (lowercase, punctuation stripped).
+#
+# Entities and aliases are drawn from configs/topic_anchors/<market>.yaml,
+# the real anchor phrases classified rows were curated from, so every name
+# here is grounded in genuine in-market coverage, not a guess.
+#
+# Keep this list small and high-value. A generic role word (president,
+# minister, team, government) is never added as a standalone alias here even
+# if it would be tempting; event_ledger._GENERIC_ALIAS_BLOCKLIST also drops
+# any single-word alias that slips in, as a second safety net.
+
+za:
+  cyril ramaphosa:
+    - Ramaphosa
+    - President Ramaphosa
+  julius malema:
+    - Malema
+  bafana bafana:
+    - Bafana
+    - South Africa national team
+  springboks:
+    - Springbok
+    - Bokke
+  kaizer chiefs:
+    - Chiefs
+  mamelodi sundowns:
+    - Sundowns
+  orlando pirates:
+    - Pirates
+  john steenhuisen:
+    - Steenhuisen
+  tyla:
+    - Tyla
+  eskom:
+    - Eskom
+  kabza de small:
+    - Kabza
+
+ng:
+  bola tinubu:
+    - Tinubu
+    - President Tinubu
+  atiku abubakar:
+    - Atiku
+  super eagles:
+    - Eagles
+    - Nigeria national team
+  burna boy:
+    - Burna Boy
+  wizkid:
+    - Wizkid
+    - Ayo Balogun
+  davido:
+    - Davido
+    - OBO
+  peter obi:
+    - Obi
+  nnamdi kanu:
+    - Kanu
+  asake:
+    - Asake
+  rema:
+    - Rema
+
+ke:
+  william ruto:
+    - Ruto
+    - President Ruto
+  rigathi gachagua:
+    - Gachagua
+  harambee stars:
+    - Stars
+    - Kenya national team
+  raila odinga:
+    - Raila
+    - Odinga
+  uhuru kenyatta:
+    - Kenyatta
+    - Uhuru
+  johnson sakaja:
+    - Sakaja
+  eric omondi:
+    - Eric Omondi
+  gor mahia:
+    - Gor
+  safaricom:
+    - Safaricom
+  m pesa:
+    - Mpesa
+    - M-Pesa

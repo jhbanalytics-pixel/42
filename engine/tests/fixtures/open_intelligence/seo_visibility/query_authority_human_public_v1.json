@@ -1,0 +1,14 @@
+{
+  "authority_contract_version": "seo_public_query_authority_v1",
+  "query_authority_receipt_id": "seqa_4cd110f8d8fc42625a9293d0242c98eeb3a1b8fe65e8829fb541a72187f8b6a9",
+  "request_id": "seor_01j6m7h24y5t9q3x8k1v6c0bda",
+  "client_scope_id": "scope_public_brand_za",
+  "run_id": "run_20260831_za_public_search",
+  "query_set_digest": "874466a92303488f0766815fac44376ae5d270079cc9f9dc02e7f483e0a88ebe",
+  "decision_digest": "e79a721e1a341a109c1ecd371c72943be5de0f7d3a4827b5e0971a480f7b951c",
+  "authority_basis": "human_public_review",
+  "approver_principal": "albert.meintjes@ogilvy.co.za",
+  "issued_at": "2026-09-01T00:00:00.000000Z",
+  "expires_at": "2026-09-02T00:00:00.000000Z",
+  "parent_public_receipt_ids": []
+}

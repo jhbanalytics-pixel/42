@@ -1,0 +1,484 @@
+.dossier-lead {
+  display: grid;
+  gap: 24px;
+  padding: 32px 0;
+  border-top: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.dossier-lead__header {
+  display: grid;
+  gap: 12px;
+  max-width: var(--measure);
+}
+
+/* The provenance label role in section 5 is the mono at 11px, weight 500 and
+   0.18em, and the mono weights are 400 and 500. These four kickers sat at 600
+   and 0.12em, which is the value role's tracking at a weight neither role
+   carries. */
+.dossier-eyebrow,
+.dossier-section__label,
+.dossier-movement__label,
+.dossier-comparison__proof-label {
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+
+.dossier-lead__title {
+  margin: 0;
+  max-width: 18ch;
+  font-family: var(--serif);
+  font-size: var(--dossier-type-lead);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.dossier-movement {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.dossier-lead__path {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.dossier-section {
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 2px solid var(--line-2);
+}
+
+.dossier-section__body {
+  margin: 8px 0 0;
+  font-size: var(--dossier-type-body);
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.dossier-section__label {
+  margin: 0;
+}
+
+.dossier-lead__footer,
+.dossier-comparison__actions,
+.evidence-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dossier-action,
+.evidence-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: 12px 16px;
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--dossier-type-small);
+  font-weight: 600;
+  transition: color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+
+.dossier-action:hover, .evidence-drawer__close:hover, .dossier-action:focus-visible, .evidence-drawer__close:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Section 7, the Active row. */
+.dossier-action:active, .evidence-drawer__close:active { box-shadow: var(--press-grip); }
+
+.dossier-action:focus-visible,
+.evidence-drawer__close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.dossier-comparison {
+  display: grid;
+  grid-template-columns: minmax(12ch, 0.7fr) minmax(0, 1.5fr) minmax(12ch, 0.8fr) auto;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.dossier-comparison__signal,
+.dossier-comparison__summary,
+.dossier-comparison__proof {
+  min-width: 0;
+}
+
+.dossier-comparison__title,
+.evidence-drawer__title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: var(--dossier-type-heading);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.dossier-comparison__summary,
+.dossier-comparison__proof {
+  margin: 0;
+  font-size: var(--dossier-type-small);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* Quiet register, 23 Sept 2026, rulebook rules 7 and 9. Movement is a
+   figure in a sentence, so it is the sans at the 14px step with tabular
+   numerals, in the secondary ink: red does not encode direction. This agrees
+   with the package's own rule rather than shadowing it with the old mono. */
+.dossier-comparison__movement {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+/* Quiet register, 23 Sept 2026, rulebook rule 13. An evidence state is a
+   word beside its item in its state colour: the sans at the 14px step and
+   600, with no frame and no padding box, as the package sets it. This sheet
+   used to put back an 11px spaced mono pill after the package. */
+.evidence-readiness {
+  --evidence-state: var(--dossier-unchecked);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--evidence-state);
+  font-family: var(--sans);
+  font-size: var(--type-3);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.evidence-readiness[data-state="ready"] { --evidence-state: var(--dossier-ready); }
+.evidence-readiness[data-state="thin"] { --evidence-state: var(--dossier-thin); }
+.evidence-readiness[data-state="contradictory"] { --evidence-state: var(--dossier-contradictory); }
+.evidence-readiness[data-state="unchecked"] { --evidence-state: var(--dossier-unchecked); }
+
+.evidence-readiness__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid currentColor;
+  border-radius: 0;
+}
+
+.evidence-drawer {
+  z-index: 40;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 24px;
+  width: min(560px, 100%);
+  max-height: 100dvh;
+  padding: 24px;
+  overflow: auto;
+  border-left: 1px solid var(--line-2);
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: none;
+  transition: transform var(--motion-layer) var(--motion-standard-easing), opacity var(--motion-layer) var(--motion-standard-easing);
+}
+
+.evidence-drawer[data-mode="dialog"] {
+  position: fixed;
+  inset: 0 0 0 auto;
+  margin: 0;
+}
+
+.evidence-drawer[data-mode="region"] {
+  position: relative;
+  width: 100%;
+  max-height: none;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.evidence-drawer__heading {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.evidence-drawer__body {
+  min-width: 0;
+  color: var(--ink-2);
+}
+
+@media (max-width: 680px) {
+  .dossier-lead__path,
+  .dossier-comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dossier-lead {
+    padding: 24px 0;
+  }
+
+  .dossier-lead__footer,
+  .evidence-drawer__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dossier-action,
+  .evidence-drawer__close {
+    width: 100%;
+  }
+
+  .evidence-drawer {
+    width: 100%;
+    border-radius: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dossier-action,
+  .evidence-drawer,
+  .evidence-drawer__close {
+    transition: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Client Read
+
+   A working paper, not a dashboard. Flat chapters separated by rules, claims
+   as rows, and the citation sitting inside its own row so a sentence never
+   travels without the receipt under it. No cards, no shadows, no rounded
+   containers: those group things visually and this document earns its
+   grouping from headings and rules instead.
+   ------------------------------------------------------------------------ */
+
+.dossier-page {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+  color: var(--ink);
+}
+
+.dossier-folio {
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.dossier-folio__kicker {
+  font-size: var(--type-3);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-2);
+  margin: 0 0 0.5rem;
+}
+
+.dossier-folio__title {
+  font-size: var(--dossier-type-lead);
+  font-weight: 600;
+  line-height: 1.08;
+  margin: 0 0 0.75rem;
+  text-wrap: balance;
+}
+
+/* Readiness is stated in words at the top. A blocked artifact must read as
+   blocked before a reader reaches the first claim, never as one awaiting
+   polish, so it is set in the folio and not tucked into a footer. */
+.dossier-folio__readiness {
+  font-size: var(--dossier-type-meta);
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.dossier-page[data-readiness='blocked'] .dossier-folio__readiness,
+.dossier-page[data-readiness='approval_required'] .dossier-folio__readiness {
+  color: var(--dossier-contradictory);
+  font-weight: 600;
+}
+
+.dossier-chapter {
+  border-top: 1px solid var(--hairline);
+  padding: 1.5rem 0 0.5rem;
+}
+
+.dossier-chapter:first-of-type {
+  border-top: 0;
+}
+
+.dossier-chapter__title {
+  font-size: var(--dossier-type-heading);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0 0 1rem;
+}
+
+/* Unavailable, said plainly. Never a dash, a zero or a shrug standing in for
+   evidence that was not gathered. */
+.dossier-chapter__unavailable {
+  font-size: var(--dossier-type-small);
+  color: var(--ink-2);
+  font-style: italic;
+  margin: 0 0 1rem;
+}
+
+.dossier-claim {
+  padding: 0 0 1.25rem;
+  margin: 0 0 1.25rem;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.dossier-chapter .dossier-claim:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+
+.dossier-claim__kind {
+  font-size: var(--dossier-type-small);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-2);
+  margin: 0 0 0.35rem;
+}
+
+.dossier-claim__text {
+  font-size: var(--dossier-type-body);
+  line-height: 1.5;
+  margin: 0 0 0.5rem;
+  max-width: 38rem;
+}
+
+/* The receipt sits with the claim it belongs to and is always visible. Hiding
+   it behind a disclosure would leave the sentence standing on its own, which
+   is an assertion rather than evidence. */
+.dossier-claim__citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.dossier-citation {
+  font-size: var(--dossier-type-meta);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line-2);
+  padding-bottom: 1px;
+}
+
+@media (max-width: 680px) {
+  .dossier-page {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .dossier-claim__text {
+    max-width: none;
+  }
+
+  /* Chapter headings stay above their claims at every width. The document
+     never becomes a two column layout on a phone, because a reader scanning
+     one column must not have to reconstruct which heading a row sits under. */
+  .dossier-chapter {
+    padding-top: 1.25rem;
+  }
+}
+
+/* The cited answer. Plan first, then findings with their marks, then what the
+   answer declines to establish, then the receipts themselves. Rows and rules;
+   the citation mark is the only red, because it is the thread.
+
+   Quiet register, 23 Sept 2026, rulebook rules 4 to 7. The eyebrow, the
+   readiness word, the plan labels and the lens meta are labels a reader
+   reads, so they are the sans at the 14px step in sentence case with no
+   tracking, as the package sets them. The citation mark keeps the mono: it
+   is compared character by character. */
+.cited-answer { display: grid; gap: 24px; padding: 24px 0; }
+.cited-answer__eyebrow { font-family: var(--sans); font-size: var(--type-3); color: var(--muted); margin: 0; }
+.cited-answer__title { font-family: var(--serif); font-size: var(--dossier-type-lead); margin: 8px 0; line-height: 1.05; }
+.cited-answer__readiness { font-family: var(--sans); font-size: var(--type-3); font-weight: 600; margin: 0; }
+.cited-answer__readiness[data-readiness="ready"] { color: var(--dossier-ready); }
+.cited-answer__readiness[data-readiness="thin"] { color: var(--dossier-thin); }
+.cited-answer__readiness[data-readiness="contradictory"] { color: var(--dossier-contradictory); }
+.cited-answer__plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 24px; margin: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 16px 0; }
+.cited-answer__plan-row dt { font-family: var(--sans); font-size: var(--type-3); color: var(--muted); }
+.cited-answer__plan-row dd { margin: 4px 0 0; font-size: var(--dossier-type-small); }
+.cited-answer__section h3 { font-family: var(--serif); font-size: var(--dossier-type-heading); margin: 0 0 8px; }
+.cited-answer__section p { margin: 0; font-size: var(--dossier-type-body); max-width: var(--measure); }
+.cited-answer__mark { font-family: var(--mono); font-size: var(--type-3); color: var(--accent-text); margin-left: 4px; }
+.cited-answer__lenses ul,
+.cited-answer__limits ul,
+.cited-answer__receipts ol { margin: 0; padding-left: 0; list-style-position: inside; display: grid; gap: 8px; }
+.cited-answer__lenses li { display: grid; gap: 4px; border-left: 2px solid var(--line); padding-left: 12px; }
+.cited-answer__lenses li[data-basis="inferred"] { border-left-color: var(--dossier-thin); }
+.cited-answer__lens-meta { font-family: var(--sans); font-size: var(--type-3); color: var(--muted); }
+.cited-answer__receipts a { min-height: 48px; display: inline-flex; align-items: center; text-decoration: underline; text-decoration-color: var(--accent); }
+
+/* The Evidence Room's own receipt link is the same inline receipt as the cited
+   answer's, and the package leaves the anchor undressed. Round 10 opened the
+   drawer and measured it at 101 by 19 with a resting transition of all 0s and
+   nothing at all changing under a real pointer. It takes the same floor and
+   the shell's own control move, so the exemption the geometry matrix carried
+   for it goes empty. */
+.evidence-ledger__row a {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--accent);
+  transition: color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing), box-shadow var(--motion-control) var(--motion-standard-easing);
+}
+.evidence-ledger__row a:hover, .evidence-ledger__row a:focus-visible {
+  color: var(--accent-text);
+  text-decoration-color: var(--accent-text);
+}
+/* Section 7, the Active row. The ledger's own receipt link is the second of
+   the two bare anchors the round 16 sweep reached. */
+.evidence-ledger__row a:active { box-shadow: var(--press-grip); }
+.evidence-ledger__row a:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+.oi-cluster{background:var(--surface);border:1px solid var(--line);padding:var(--s-5);border-radius:0}
+.oi-cluster__eyebrow{margin:0 0 var(--s-1)}
+.oi-cluster__title{margin:0 0 var(--s-1);font-size:var(--t-6)}
+.oi-cluster__summary{margin:0 0 var(--s-4);color:var(--muted)}
+.oi-cluster__signal{display:grid;grid-template-columns:1fr auto auto auto;gap:var(--s-1) var(--s-3);border-top:1px solid var(--line);padding:var(--s-3) 0;align-items:center}
+.oi-cluster__name{margin:0;font-weight:600;grid-column:1}
+.oi-cluster__rel{margin:2px 0 0;grid-column:1/5;color:var(--muted)}
+.oi-cluster__rel--shares{color:var(--up)}
+.oi-cluster__rel--against{color:var(--accent-text)}
+.oi-cluster__open{background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;color:var(--ink);transition:color var(--motion-control) var(--motion-standard-easing)}
+.oi-cluster__open:hover,.oi-cluster__open:focus-visible{color:var(--ogilvy-red-text)}
+.oi-cluster__held{border-top:1px solid var(--line);padding-top:var(--s-3)}
+.oi-cluster__held-label{margin:0 0 var(--s-2);color:var(--building)}
+.oi-cluster__held-body{margin:0;color:var(--muted)}
+@media (max-width:480px){.oi-cluster__signal{grid-template-columns:auto auto 1fr}.oi-cluster__name{grid-column:1/4}.oi-cluster__rel{grid-column:1/4}}

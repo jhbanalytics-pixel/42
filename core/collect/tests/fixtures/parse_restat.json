@@ -1,0 +1,25 @@
+{
+  "_note": "Unprobed shape. prism/post-stats rows are assumed to carry url, platform, id, status and engagement; a failed row carries status other than ok and is refunded. Check against the task 0.5 probe samples (probe 13).",
+  "post_stats": {
+    "success": true,
+    "credits_used": 1,
+    "data": {
+      "items": [
+        {
+          "url": "https://www.tiktok.com/@dj.x/video/7400000000000000001",
+          "platform": "tiktok",
+          "id": "7400000000000000001",
+          "status": "ok",
+          "engagement": {"views": 20000, "likes": 1500, "comments": 60, "shares": 20}
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=yt_aaa",
+          "status": "ok",
+          "id": "yt_aaa",
+          "engagement": {"views": 350000, "likes": 9900}
+        },
+        {"url": "https://www.instagram.com/p/gone/", "platform": "instagram", "status": "not_found"}
+      ]
+    }
+  }
+}

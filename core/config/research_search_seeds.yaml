@@ -1,0 +1,840 @@
+- term: Joburg
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/09/09/your-wednesday-top-stories-lilian-ngoyi-street-repair-delays-mbalula-ndz-clash-cat-matlala-trial
+  active: true
+  location_evidence: false
+- term: JHB
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/09/09/your-wednesday-top-stories-lilian-ngoyi-street-repair-delays-mbalula-ndz-clash-cat-matlala-trial
+  active: true
+  location_evidence: false
+- term: Cape Town
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/08/09/on-a-field-in-cape-town-s-belgravia-soccer-grannies-are-breaking-stereotypes
+  active: true
+  location_evidence: false
+- term: Mother City
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/08/09/on-a-field-in-cape-town-s-belgravia-soccer-grannies-are-breaking-stereotypes
+  active: true
+  location_evidence: false
+- term: Athlone
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/08/09/on-a-field-in-cape-town-s-belgravia-soccer-grannies-are-breaking-stereotypes
+  active: true
+  location_evidence: false
+- term: Pretoria
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/08/09/on-a-field-in-cape-town-s-belgravia-soccer-grannies-are-breaking-stereotypes
+  active: true
+  location_evidence: false
+- term: eThekwini
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/09/16/iec-confirms-double-column-ballot-papers-for-high-contestation-metros-on-november-4th
+  active: true
+  location_evidence: false
+- term: Tshwane
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/09/16/iec-confirms-double-column-ballot-papers-for-high-contestation-metros-on-november-4th
+  active: true
+  location_evidence: false
+- term: Ekurhuleni
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/09/16/iec-confirms-double-column-ballot-papers-for-high-contestation-metros-on-november-4th
+  active: true
+  location_evidence: false
+- term: Gqeberha
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/08/24/reopened-inquest-into-steve-biko-s-death-set-to-get-underway
+  active: true
+  location_evidence: false
+- term: Soweto
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://kaizerchiefs.com/news/amakhosi-return-winning-ways-against-siwelele
+  active: true
+  location_evidence: false
+- term: Polokwane
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.kaizerchiefs.com/news/polokwane-snatch-late-equaliser-deny-chiefs-victory
+  active: true
+  location_evidence: false
+- term: Durban
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.kaizerchiefs.com/news/polokwane-snatch-late-equaliser-deny-chiefs-victory
+  active: true
+  location_evidence: false
+- term: Lenasia
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://joburg.org.za/media_/Newsroom/Pages/2026-News-Articles/Blitz-operation-in-Lenasia-ends-in-warnings-and-spot-fines.aspx
+  active: true
+  location_evidence: false
+- term: Mzansi
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.citizen.co.za/zululand-observer/news-headlines/local-news/2026/09/25/dolosfees-2026-brings-lekker-mzansi-spirit-to-richards-bay/
+  active: true
+  location_evidence: false
+- term: Local is Lekker
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://news.artsmart.co.za/2026/09/local-is-lekker.html
+  active: true
+  location_evidence: false
+- term: Lekker
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.citizen.co.za/zululand-observer/news-headlines/local-news/2026/09/25/dolosfees-2026-brings-lekker-mzansi-spirit-to-richards-bay/
+  active: true
+  location_evidence: false
+- term: Eish
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/08/11/weather-expect-an-eish-cold-gauteng-on-wednesday-sunny-cape-town
+  active: true
+  location_evidence: false
+- term: Braai Day
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.jacarandafm.com/shows/drive/vote-which-braai-side-dish-is-the-best-of-the-best/
+  active: true
+  location_evidence: false
+- term: Spaza
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.timeslive.co.za/news/2026-07-13-local-is-lekker-a-heritage-worth-investing-in/
+  active: true
+  location_evidence: false
+- term: Sharp Sharp
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://fm.co.za/pods-vods/2026-09-17-podcast-sharp-sharp-trump-s-fake-south-africa/
+  active: true
+  location_evidence: false
+- term: Load shedding
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.sanews.gov.za/node/84101
+  active: true
+  location_evidence: false
+- term: Kaizer Chiefs
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://kaizerchiefs.com/news/amakhosi-return-winning-ways-against-siwelele
+  active: true
+  location_evidence: false
+- term: Amakhosi
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://kaizerchiefs.com/news/amakhosi-return-winning-ways-against-siwelele
+  active: true
+  location_evidence: false
+- term: Siwelele
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://kaizerchiefs.com/news/amakhosi-return-winning-ways-against-siwelele
+  active: true
+  location_evidence: false
+- term: Orlando Pirates
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.orlandopiratesfc.com/news/football-news/mabuza-joins-orlando-pirates/
+  active: true
+  location_evidence: false
+- term: Buccaneers
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.orlandopiratesfc.com/news/football-news/mabuza-joins-orlando-pirates/
+  active: true
+  location_evidence: false
+- term: Bafana Bafana
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/09/28/i-must-make-it-how-tebogo-mokoena-turned-early-struggle-into-championship-drive
+  active: true
+  location_evidence: false
+- term: Mamelodi Sundowns
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ewn.co.za/2026/09/28/i-must-make-it-how-tebogo-mokoena-turned-early-struggle-into-championship-drive
+  active: true
+  location_evidence: false
+- term: Proteas
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.timeslive.co.za/sport/cricket/2026-09-27-pink-paradise-as-proteas-spin-australia-out-of-town/
+  active: true
+  location_evidence: false
+- term: Springboks
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://bullsrugby.co.za/experienced-boks-explosive-recruits-power-vodacom-bulls-squad/
+  active: true
+  location_evidence: false
+- term: Sharks
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://sharksrugby.co.za/blogs/news/hollywoodbets-sharks-name-player-leadership-group-2026-27-season
+  active: true
+  location_evidence: false
+- term: Skeem Saam
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://sabc-plus.com/show/229734/Skeem-Saam/0
+  active: true
+  location_evidence: false
+- term: Uzalo
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://sabc-plus.com/show/229732/Uzalo
+  active: true
+  location_evidence: false
+- term: 'Generations: The Legacy'
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.tvsa.co.za/user/blogs/viewblogpost.aspx?blogpostid=59166
+  active: true
+  location_evidence: false
+- term: Scandal!
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.tvsa.co.za/user/blogs/viewblogpost.aspx?blogpostid=59166
+  active: true
+  location_evidence: false
+- term: Ukhozi FM
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.ukhozifm.co.za/ukhozifm/
+  active: true
+  location_evidence: false
+- term: Metro FM
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.metrofm.co.za/metro-fm/
+  active: true
+  location_evidence: false
+- term: Lesedi FM
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.lesedifm.co.za/
+  active: true
+  location_evidence: false
+- term: Jacaranda FM
+  market: ZA
+  source: research_r2
+  source_urls:
+  - https://www.jacarandafm.com/shows/breakfast/heres-the-new-r50-000-secret-sound-and-how-to-enter/
+  active: true
+  location_evidence: false
+- term: Calabar
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/icymi-fg-says-915-communities-face-critical-flood-risk-over-next-two-weeks/
+  active: true
+  location_evidence: false
+- term: Yenagoa
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/icymi-fg-says-915-communities-face-critical-flood-risk-over-next-two-weeks/
+  active: true
+  location_evidence: false
+- term: Asaba
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/icymi-fg-says-915-communities-face-critical-flood-risk-over-next-two-weeks/
+  active: true
+  location_evidence: false
+- term: Aba
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/icymi-fg-says-915-communities-face-critical-flood-risk-over-next-two-weeks/
+  active: true
+  location_evidence: false
+- term: Onitsha
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/icymi-fg-says-915-communities-face-critical-flood-risk-over-next-two-weeks/
+  active: true
+  location_evidence: false
+- term: Owerri
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/icymi-fg-says-915-communities-face-critical-flood-risk-over-next-two-weeks/
+  active: true
+  location_evidence: false
+- term: Benin City
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/icymi-fg-says-915-communities-face-critical-flood-risk-over-next-two-weeks/
+  active: true
+  location_evidence: false
+- term: Akure
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/icymi-fg-says-915-communities-face-critical-flood-risk-over-next-two-weeks/
+  active: true
+  location_evidence: false
+- term: Abeokuta
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/icymi-fg-says-915-communities-face-critical-flood-risk-over-next-two-weeks/
+  active: true
+  location_evidence: false
+- term: Sokoto
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/again-efcc-declares-ex-pension-boss-maina-wanted-over-stolen-properties/
+  active: true
+  location_evidence: false
+- term: Maiduguri
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/again-efcc-declares-ex-pension-boss-maina-wanted-over-stolen-properties/
+  active: true
+  location_evidence: false
+- term: Kaduna
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/again-efcc-declares-ex-pension-boss-maina-wanted-over-stolen-properties/
+  active: true
+  location_evidence: false
+- term: Ilorin
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/again-efcc-declares-ex-pension-boss-maina-wanted-over-stolen-properties/
+  active: true
+  location_evidence: false
+- term: Kano
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/again-efcc-declares-ex-pension-boss-maina-wanted-over-stolen-properties/
+  active: true
+  location_evidence: false
+- term: Lagos
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/again-efcc-declares-ex-pension-boss-maina-wanted-over-stolen-properties/
+  active: true
+  location_evidence: false
+- term: Abuja
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/again-efcc-declares-ex-pension-boss-maina-wanted-over-stolen-properties/
+  active: true
+  location_evidence: false
+- term: Gombe
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thecable.ng/again-efcc-declares-ex-pension-boss-maina-wanted-over-stolen-properties/
+  active: true
+  location_evidence: false
+- term: Lasgidi
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://guardian.ng/sport/lagos-unveils-lasgidi-as-mascot-for-2026-national-intermediate-games/
+  active: true
+  location_evidence: false
+- term: Eko
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://guardian.ng/sport/lagos-unveils-lasgidi-as-mascot-for-2026-national-intermediate-games/
+  active: true
+  location_evidence: false
+- term: Japa
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://vunfiltered.com/from-japa-to-japada-nigerians-grapple-with-dashed-dreams/
+  active: true
+  location_evidence: false
+- term: Sapa
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://mynuesapressui.wordpress.com/2026/08/27/sapa-on-campus-surviving-university-life-on-empty-pockets/
+  active: true
+  location_evidence: false
+- term: Wahala
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.thisdaylive.com/2026/08/11/inside-indrives-chief-wahala-officer-campaign-and-the-human-face-of-reliability-problem-solving/
+  active: true
+  location_evidence: false
+- term: Naija
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://lifestyle.thecable.ng/photos-obafemi-hamzat-fisayo-soyombo-funke-akindele-attend-2026-podfest-naija/
+  active: true
+  location_evidence: false
+- term: Ganusi
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.eelive.ng/from-tiktok-to-x-the-must-know-nigerian-slang-words-breaking-the-internet-in-2026/
+  active: true
+  location_evidence: false
+- term: Achalugo
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.eelive.ng/from-tiktok-to-x-the-must-know-nigerian-slang-words-breaking-the-internet-in-2026/
+  active: true
+  location_evidence: false
+- term: Take Ham Play
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.eelive.ng/from-tiktok-to-x-the-must-know-nigerian-slang-words-breaking-the-internet-in-2026/
+  active: true
+  location_evidence: false
+- term: 9JA
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.vanguardngr.com/2026/09/swifttrust-partners-miss-9ja-secures-n10m-grand-prize/amp/
+  active: true
+  location_evidence: false
+- term: NPFL
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://npfl.com.ng/league/nigeria-premier-football-league/
+  active: true
+  location_evidence: false
+- term: Enyimba
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://npfl.com.ng/league/nigeria-premier-football-league/
+  active: true
+  location_evidence: false
+- term: Kano Pillars
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://npfl.com.ng/league/nigeria-premier-football-league/
+  active: true
+  location_evidence: false
+- term: Warri Wolves
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://npfl.com.ng/league/nigeria-premier-football-league/
+  active: true
+  location_evidence: false
+- term: Shooting Stars
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://npfl.com.ng/league/nigeria-premier-football-league/
+  active: true
+  location_evidence: false
+- term: Sporting Lagos
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://npfl.com.ng/league/nigeria-premier-football-league/
+  active: true
+  location_evidence: false
+- term: Rangers International
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://npfl.com.ng/league/nigeria-premier-football-league/
+  active: true
+  location_evidence: false
+- term: Big Brother Naija
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.channelstv.com/2026/09/20/bbnaija-s11-yusuf-bells-chimsom-chuka-exit-reality-show-in-triple-eviction/
+  active: true
+  location_evidence: false
+- term: BBNaija
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.channelstv.com/2026/09/20/bbnaija-s11-yusuf-bells-chimsom-chuka-exit-reality-show-in-triple-eviction/
+  active: true
+  location_evidence: false
+- term: Cool FM
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.coolfm.ng/news/cool-stories-cool-fm/club-969-august-edition-dj-rabbit-and-dj-rethro-turn-up-cool-fm-studio/
+  active: true
+  location_evidence: false
+- term: Wazobia FM
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.nigeriainfo.fm/news/homepagelagos/nigeria-info-fm-secures-multiple-nominations-for-7th-nigerian-broadcasters-merit-awards/
+  active: true
+  location_evidence: false
+- term: Nigeria Info FM
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://www.nigeriainfo.fm/news/homepagelagos/nigeria-info-fm-secures-multiple-nominations-for-7th-nigerian-broadcasters-merit-awards/
+  active: true
+  location_evidence: false
+- term: LASU Radio 95.7FM
+  market: NG
+  source: research_r2
+  source_urls:
+  - https://thelagosianmagazine.com.ng/when-literature-meets-leadership-technology-and-creativity-ajakaye-strida-literary-limelight-ignites-july-airwaves-on-lasu-radio-95-7-fm/
+  active: true
+  location_evidence: false
+- term: Kenya
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.cafonline.com/afcon2025/news/olunga-leads-kenya-squad-as-mccarthy-makes-final-choices-for-afcon-2027-qualifiers/
+  active: true
+  location_evidence: false
+- term: Nairobi
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://apnews.com/article/b0d9ff26892783def5470b06f57b8d67
+  active: true
+  location_evidence: false
+- term: Mombasa
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://apnews.com/article/ab1d125aba03346752411e2c5e67fbcd
+  active: true
+  location_evidence: false
+- term: Kisumu
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://citizen.digital/article/chapa-dimba-docks-in-kisumu-for-nyanza-regional-finals-n389963
+  active: true
+  location_evidence: false
+- term: Nakuru
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.standardmedia.co.ke/rift-valley/article/2001558095/nakuru-bomet-identify-high-risk-areas-ahead-of-the-el-nino-rains
+  active: true
+  location_evidence: false
+- term: Garissa
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.the-star.co.ke/news/2026-09-12-stones-fly-at-opposition-rally-in-garissa-leaders-take-cover
+  active: true
+  location_evidence: false
+- term: Kisii
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://citizen.digital/article/from-nyambera-dumpsite-to-etaya-governors-park-aratis-cleanup-wins-un-habitat-recognition-n386885
+  active: true
+  location_evidence: false
+- term: Thika
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.thikatowntoday.co.ke/2026/09/thika-night-gala-brings-businesses-together-to-showcase-thika-brands-and-unlock-new-opportunities.html
+  active: true
+  location_evidence: false
+- term: Sheng
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://radio.co.ke/articles/the-impact-of-kenyan-radio-on-sheng-and-language-evolution/
+  active: true
+  location_evidence: false
+- term: manze
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://k24.digital/entertainment/celebrity/watendawili-explain-why-fame-matters-in-music-as-they-address-claims-they-have-been-missing-in-action
+  active: true
+  location_evidence: false
+- term: wasee
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://k24.digital/entertainment/celebrity/watendawili-explain-why-fame-matters-in-music-as-they-address-claims-they-have-been-missing-in-action
+  active: true
+  location_evidence: false
+- term: Eldoret
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.standardmedia.co.ke/amp/business/article/2001557770/what-kenyans-will-pay-for-fuel-in-cities
+  active: true
+  location_evidence: false
+- term: Kakamega
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://countysplash.co.ke/2026/09/16/mozzart-bet-boosts-homeboyz-sponsorship-to-sh25m-as-club-unveils-20-new-signings/
+  active: true
+  location_evidence: false
+- term: matatu
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.the-star.co.ke/news/2026-09-17-manyoka-stunts-driver-charged-over-crash-that-killed-three
+  active: true
+  location_evidence: false
+- term: nganya
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.the-star.co.ke/news/2026-09-17-manyoka-stunts-driver-charged-over-crash-that-killed-three
+  active: true
+  location_evidence: false
+- term: mjengo
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://thekenyatimes.com/counties/mombasa-bans-on-site-concrete-mixing-after-48-hours/
+  active: true
+  location_evidence: false
+- term: KOT
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://streamlinefeed.co.ke/news/kenyan-x-tweets-turn-monday-blues-into-national-comedy
+  active: true
+  location_evidence: false
+- term: '254'
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.the254report.co.ke/
+  active: true
+  location_evidence: false
+- term: M-Pesa
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.the-star.co.ke/business/kenya/2026-09-21-number-of-mobile-money-agents-drop-as-kenyans-adopt-cashless-payments
+  active: true
+  location_evidence: false
+- term: KRA
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.kra.go.ke/news-center/press-release
+  active: true
+  location_evidence: false
+- term: Harambee Stars
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.cafonline.com/afcon2025/news/olunga-leads-kenya-squad-as-mccarthy-makes-final-choices-for-afcon-2027-qualifiers/
+  active: true
+  location_evidence: false
+- term: Gor Mahia
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.gormahia.com/news/
+  active: true
+  location_evidence: false
+- term: K’Ogalo
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.gormahia.com/news/
+  active: true
+  location_evidence: false
+- term: Tusker FC
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.gormahia.com/news/
+  active: true
+  location_evidence: false
+- term: AFC Leopards
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://k24.digital/sports/kpl/kpl-transfers-gor-mahia-afc-leopards-and-shabana-unveil-major-squad-changes-for-2026-27-season
+  active: true
+  location_evidence: false
+- term: Shabana FC
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://k24.digital/sports/kpl/kpl-transfers-gor-mahia-afc-leopards-and-shabana-unveil-major-squad-changes-for-2026-27-season
+  active: true
+  location_evidence: false
+- term: Shujaa
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.kru.co.ke/news/kenya-rugby-union-announces-provisional-shujaa-and-lionesses-squads
+  active: true
+  location_evidence: false
+- term: Vihiga Queens
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://citizen.digital/article/mathare-united-women-make-winning-return-to-top-flight-n390574
+  active: true
+  location_evidence: false
+- term: Tahidi High
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.businessdailyafrica.com/bd/lifestyle/careers/how-mugo-went-from-tahidi-high-extra-to-the-agency-5535352
+  active: true
+  location_evidence: false
+- term: Maisha Makutano
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://mediae.org/documents/44/MAISHA_MAKUTANO_2026_KAP_Findings_Final.pdf
+  active: true
+  location_evidence: false
+- term: Mother-in-Law
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://mediae.org/documents/44/MAISHA_MAKUTANO_2026_KAP_Findings_Final.pdf
+  active: true
+  location_evidence: false
+- term: Neema
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://mediae.org/documents/44/MAISHA_MAKUTANO_2026_KAP_Findings_Final.pdf
+  active: true
+  location_evidence: false
+- term: Shamba Shape Up
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://mediae.org/documents/44/MAISHA_MAKUTANO_2026_KAP_Findings_Final.pdf
+  active: true
+  location_evidence: false
+- term: Radio Citizen
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://radio.co.ke/articles/the-story-of-radio-citizen-how-a-kiswahili-station-became-kenyas-most-listened-to/
+  active: true
+  location_evidence: false
+- term: Radio Jambo
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://radio.co.ke/articles/how-to-listen-to-radio-jambo-frequencies-live-stream-shows/
+  active: true
+  location_evidence: false
+- term: Capital FM
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://capitalfm.africa/capital-fm-turns-30-with-third-flow-experience-celebrating-three-eras-of-kenyan-music-and-culture/
+  active: true
+  location_evidence: false
+- term: Classic 105
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.the-star.co.ke/news/2026-09-02-geo-poll-radio-africa-rules-nairobi-airwaves
+  active: true
+  location_evidence: false
+- term: Radio Maisha
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.the-star.co.ke/news/2026-09-02-geo-poll-radio-africa-rules-nairobi-airwaves
+  active: true
+  location_evidence: false
+- term: Homeboyz Radio
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.the-star.co.ke/news/2026-09-02-geo-poll-radio-africa-rules-nairobi-airwaves
+  active: true
+  location_evidence: false
+- term: Radio Africa
+  market: KE
+  source: research_r2
+  source_urls:
+  - https://www.the-star.co.ke/news/2026-09-02-geo-poll-radio-africa-rules-nairobi-airwaves
+  active: true
+  location_evidence: false

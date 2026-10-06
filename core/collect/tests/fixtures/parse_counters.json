@@ -1,0 +1,37 @@
+{
+  "_note": "Unprobed shapes. tiktok/song and tiktok/hashtag are single-object (Post archetype) responses whose running total field name is assumed (video_count); tiktok/song/videos carries data.adoption as a per-day curve of {date, count} (assumed) plus data.items of videos. Check against the task 0.5 probe samples.",
+  "tiktok_song": {
+    "success": true,
+    "credits_used": 1,
+    "data": {"id": "m100", "title": "Original sound", "video_count": 15000}
+  },
+  "tiktok_hashtag": {
+    "success": true,
+    "credits_used": 1,
+    "data": {"id": "h1", "name": "amapiano", "video_count": 900000, "view_count": 51000000}
+  },
+  "song_videos": {
+    "success": true,
+    "credits_used": 1,
+    "data": {
+      "adoption": [
+        {"date": "2026-09-26", "count": 40, "returning": false},
+        {"date": "2026-09-27", "count": 55, "returning": false},
+        {"date": "2026-09-28", "count": 7, "returning": false}
+      ],
+      "items": [
+        {
+          "post": {
+            "id": "7400000000000000009",
+            "url": "https://www.tiktok.com/@kasi.beats/video/7400000000000000009",
+            "published_at": "2026-09-27T09:00:00Z",
+            "author": {"username": "kasi.beats", "followers": 40000},
+            "content": {"text": "Using this sound #amapiano"},
+            "engagement": {"views": 3000, "likes": 200, "comments": 5, "shares": 1},
+            "ext": {"region": "ZA", "music_id": "m100"}
+          }
+        }
+      ]
+    }
+  }
+}

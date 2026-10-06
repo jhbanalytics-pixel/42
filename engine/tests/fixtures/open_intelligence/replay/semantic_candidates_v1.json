@@ -1,0 +1,22 @@
+{
+  "fixture_scope": "synthetic_test_only",
+  "artifact_version": "replay_semantic_candidates_v1",
+  "observations": [
+    {"market": "ng", "term": "beta", "candidate_type": "keyword", "row_ids": ["row_ng_beta"], "source_families": ["news"], "platforms": ["news"], "aliases": [], "observed_dates": ["2026-08-25"], "topic_tags": ["culture"]},
+    {"market": "za", "term": "alpha sound", "candidate_type": "keyword", "row_ids": ["row_za_sound"], "source_families": ["news"], "platforms": ["news"], "aliases": ["wave"], "observed_dates": ["2026-08-25"], "topic_tags": ["music"]},
+    {"market": "za", "term": "alpha wave", "candidate_type": "keyword", "row_ids": ["row_za_wave"], "source_families": ["search"], "platforms": ["search"], "aliases": ["alpha"], "observed_dates": ["2026-08-25"], "topic_tags": ["music"]}
+  ],
+  "graph_rules": {"semantic_vote_floor": 0.5, "component_similarity_floor": 0.5, "temporal_overlap_days": 2},
+  "lexical": {
+    "candidate": {"candidate_id": "lexical_v1", "provider_kind": "lexical_similarity", "provider_version": "lexical_v1_tokenizer_v1_weights_v1", "metering_status": "fixture_complete", "matrix_digest": "ec65c827161fc5d3d97471b4dcf847aba7f5f66cdd50fe110694df3f6ed8a374", "pair_count": 1, "runtime_ms": 0.0, "input_units": 10, "estimated_cost": 0.0, "missing_work": []},
+    "tokenizer": {"version": "tokenizer_v1", "normalization": "nfkc_casefold_ascii_alnum", "token_pattern": "[a-z0-9]+", "stop_words": []},
+    "weighting": {"version": "weights_v1", "term_weight": 1.0, "alias_weight": 0.5, "topic_weight": 0.25},
+    "config_digest": "01ecca1e95338d7892b10243a1a5991e2d3323621135f88d71e84bc1b5a2e6b5"
+  },
+  "frozen_embedding": {
+    "candidate": {"candidate_id": "frozen_embedding_v1", "provider_kind": "frozen_embedding_matrix", "provider_version": "text_multilingual_embedding_002_fixture_v1", "metering_status": "frozen_only", "matrix_digest": "2830c40fc38a3390cd935f5cb3896d6e588fbefd1597a37c9dbd5d2ea4debf52", "pair_count": 1, "runtime_ms": 0.0, "input_units": null, "estimated_cost": null, "missing_work": ["embedding_metering_unavailable"]},
+    "model_label": "text-multilingual-embedding-002",
+    "dimensions": 768,
+    "matrix": [{"left": "za|keyword|alpha sound", "right": "za|keyword|alpha wave", "score": 0.8}]
+  }
+}

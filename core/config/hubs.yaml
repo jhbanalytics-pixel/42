@@ -1,0 +1,506 @@
+# Hub panels (BUILD.md task 0.9; SOURCES.md rows 23 and 23a).
+# The x list is read with twitter/user/tweets since=yesterday (row 23a).
+# The culture_desk list is read with prism/profiles include=posts
+# since=yesterday (row 23). Every handle comes from engine/configs and its
+# source points at the line that holds it. Public pages, publications and
+# official pages of public figures only.
+# Facebook pages are left out of culture_desk because row 8 already reads
+# the curated Facebook hub pages. State and utility X accounts (GovernmentZA,
+# PresidencyZA, NGRPresident, NNPCLimited, InteriorKE, StateHouseKenya,
+# KenyaPower) are left out because they are not culture pages.
+# A note on an entry repeats what engine/configs recorded about it, so a
+# colleague can judge whether the account still posts.
+
+status: draft
+note: Drafted from engine/configs; colleagues in Johannesburg, Lagos and Nairobi confirm these lists.
+
+markets:
+  za:
+    confirmed_by: null
+    x:
+      - {handle: SundayTimesZA, platform: x, kind: news, source: "engine/configs/sources.yaml:1142"}
+      - {handle: Newzroom405, platform: x, kind: news, source: "engine/configs/sources.yaml:1142"}
+      - {handle: IOL, platform: x, kind: news, source: "engine/configs/sources.yaml:1142"}
+      - handle: Soccer_Laduma
+        platform: x
+        kind: sport
+        source: "engine/configs/sources.yaml:406"
+        note: 3 Aug 2026 probe, resolves but yields about 1 fresh post a day.
+      - handle: News24
+        platform: x
+        kind: news
+        source: "engine/configs/sources.yaml:404"
+        note: 3 Aug 2026 probe, dropped as stale, newest post 2025-10-25.
+      - handle: casspernyovest
+        platform: x
+        kind: music
+        source: "engine/configs/sources.yaml:405"
+        note: 3 Aug 2026 probe, dropped as stale, newest post 2025-02-07.
+      - handle: DjMaphorisa
+        platform: x
+        kind: music
+        source: "engine/configs/sources.yaml:407"
+        note: 3 Aug 2026 probe, dropped as stale, newest post 2025-10-24.
+      - handle: AdvoBarryRoux
+        platform: x
+        kind: entertainment
+        source: "engine/configs/sources.yaml:408"
+        note: 3 Aug 2026 probe, dropped as stale, newest post 2026-03-22.
+    culture_desk:
+      - {handle: tyla, platform: instagram, kind: music, source: "engine/configs/creators/za.yaml:143"}
+      - {handle: lasizwe, platform: instagram, kind: entertainment, source: "engine/configs/creators/za.yaml:142"}
+      - {handle: mihlalii_n, platform: instagram, kind: entertainment, source: "engine/configs/creators/za.yaml:150"}
+      - {handle: boity, platform: instagram, kind: entertainment, source: "engine/configs/creators/za.yaml:151"}
+      - {handle: unclewaffles_, platform: instagram, kind: music, source: "engine/configs/creators/za.yaml:152"}
+      - {handle: dbngogo, platform: instagram, kind: music, source: "engine/configs/creators/za.yaml:153"}
+      - {handle: cyan.boujee24, platform: instagram, kind: entertainment, source: "engine/configs/creators/za.yaml:154"}
+      - {handle: kabelomotha_, platform: instagram, kind: music, source: "engine/configs/creators/za.yaml:161"}
+      - {handle: mrjazziq_, platform: instagram, kind: music, source: "engine/configs/creators/za.yaml:163"}
+      - {handle: nasty_csa, platform: instagram, kind: music, source: "engine/configs/creators/za.yaml:173"}
+      - {handle: nandi_madida, platform: instagram, kind: entertainment, source: "engine/configs/creators/za.yaml:177"}
+      - {handle: mzansimemes1, platform: tiktok, kind: entertainment, source: "engine/configs/creators/za.yaml:30"}
+    gaps:
+      x:
+        missing: 0
+        stale: 5
+        note: Only SundayTimesZA, Newzroom405 and IOL read live in the 3 Aug 2026 probe; Soccer_Laduma loses its slot and four are stale (see each note).
+      culture_desk:
+        missing: 0
+        kinds: [gossip, news, sport]
+        note: Count met with official pages of public figures; engine/configs holds no ZA gossip, news or sport page on Instagram, TikTok or YouTube.
+
+  ng:
+    confirmed_by: null
+    x:
+      - {handle: ARISEtv, platform: x, kind: news, source: "engine/configs/sources.yaml:1185"}
+      - {handle: vanguardngrnews, platform: x, kind: news, source: "engine/configs/sources.yaml:1185"}
+      - handle: GuardianNigeria
+        platform: x
+        kind: news
+        source: "engine/configs/sources.yaml:1185"
+        note: 3 Aug 2026 probe, kept as a filler at about 1 fresh post a day.
+      - handle: channelstv
+        platform: x
+        kind: news
+        source: "engine/configs/sources.yaml:506"
+        note: 3 Aug 2026 probe, dropped as stale, newest post 2025-03-11.
+      - handle: PremiumTimesng
+        platform: x
+        kind: news
+        source: "engine/configs/sources.yaml:508"
+        note: 3 Aug 2026 probe, dropped as stale, newest post 2025-11-15.
+      - handle: davido
+        platform: x
+        kind: music
+        source: "engine/configs/sources.yaml:509"
+        note: 3 Aug 2026 probe, dropped as stale, newest post 2026-06-29.
+      - handle: burnaboy
+        platform: x
+        kind: music
+        source: "engine/configs/sources.yaml:510"
+        note: 3 Aug 2026 probe, dropped as stale, newest post 2025-09-22.
+    culture_desk:
+      - {handle: taaooma, platform: instagram, kind: entertainment, source: "engine/configs/creators/ng.yaml:158"}
+      - {handle: layi.wasabi, platform: instagram, kind: entertainment, source: "engine/configs/creators/ng.yaml:160"}
+      - {handle: poco_lee, platform: instagram, kind: entertainment, source: "engine/configs/creators/ng.yaml:164"}
+      - {handle: sydneytalker, platform: instagram, kind: entertainment, source: "engine/configs/creators/ng.yaml:165"}
+      - {handle: mrmacaroni1, platform: instagram, kind: entertainment, source: "engine/configs/creators/ng.yaml:184"}
+      - {handle: wizkidayo, platform: instagram, kind: music, source: "engine/configs/creators/ng.yaml:169"}
+      - {handle: asakemusik, platform: instagram, kind: music, source: "engine/configs/creators/ng.yaml:170"}
+      - {handle: heisrema, platform: instagram, kind: music, source: "engine/configs/creators/ng.yaml:172"}
+      - {handle: ayrastarr, platform: instagram, kind: music, source: "engine/configs/creators/ng.yaml:173"}
+      - {handle: tiwasavage, platform: instagram, kind: music, source: "engine/configs/creators/ng.yaml:178"}
+      - {handle: victorosimhen9, platform: instagram, kind: sport, source: "engine/configs/creators/ng.yaml:179"}
+      - {handle: lookmanademola10, platform: instagram, kind: sport, source: "engine/configs/creators/ng.yaml:180"}
+    gaps:
+      x:
+        missing: 1
+        stale: 4
+        kinds: [entertainment, gossip]
+        note: engine/configs holds no further NG culture X handle; PunchNewspapers, LindaIkejiBlog, dailypostngr and LegitNewsNigeria appear there only as failed Facebook slugs, not X handles.
+      culture_desk:
+        missing: 0
+        kinds: [gossip, news]
+        note: Count met with official pages of public figures; engine/configs holds no NG gossip or news page on Instagram, TikTok or YouTube.
+
+  ke:
+    confirmed_by: null
+    x:
+      - {handle: StandardKenya, platform: x, kind: news, source: "engine/configs/sources.yaml:1224"}
+      - handle: NTVKenya
+        platform: x
+        kind: news
+        source: "engine/configs/sources.yaml:1224"
+        note: 3 Aug 2026 probe, kept as a filler at about 1 fresh post a day.
+      - handle: CitizenTVKenya
+        platform: x
+        kind: news
+        source: "engine/configs/sources.yaml:1224"
+        note: 3 Aug 2026 probe, kept as a filler at about 1 fresh post a day.
+      - handle: BahatiKenya
+        platform: x
+        kind: music
+        source: "engine/configs/sources.yaml:615"
+        note: 3 Aug 2026 probe, dropped as stale, newest post 2026-04-25.
+    culture_desk:
+      - {handle: azz_iad, platform: instagram, kind: entertainment, source: "engine/configs/creators/ke.yaml:153"}
+      - {handle: flaqo411, platform: instagram, kind: entertainment, source: "engine/configs/creators/ke.yaml:154"}
+      - {handle: moyadavid1, platform: instagram, kind: entertainment, source: "engine/configs/creators/ke.yaml:155"}
+      - {handle: mulamwah, platform: instagram, kind: entertainment, source: "engine/configs/creators/ke.yaml:157"}
+      - {handle: dianamarua, platform: instagram, kind: entertainment, source: "engine/configs/creators/ke.yaml:158"}
+      - {handle: crazy_kennar, platform: tiktok, kind: entertainment, source: "engine/configs/creators/ke.yaml:20"}
+      - {handle: khaligraph_jones, platform: instagram, kind: music, source: "engine/configs/creators/ke.yaml:161"}
+      - {handle: sautisol, platform: instagram, kind: music, source: "engine/configs/creators/ke.yaml:162"}
+      - {handle: bien_aime_baraza, platform: instagram, kind: music, source: "engine/configs/creators/ke.yaml:164"}
+      - {handle: octopizzo, platform: instagram, kind: music, source: "engine/configs/creators/ke.yaml:165"}
+      - {handle: wakadinali_official, platform: instagram, kind: music, source: "engine/configs/creators/ke.yaml:169"}
+      - {handle: otile_brown, platform: tiktok, kind: music, source: "engine/configs/creators/ke.yaml:26"}
+    gaps:
+      x:
+        missing: 4
+        stale: 1
+        kinds: [entertainment, gossip, music, sport]
+        note: engine/configs holds no further KE culture X handle; the other KE X handles there are state and utility accounts.
+      culture_desk:
+        missing: 0
+        kinds: [gossip, news, sport]
+        note: Count met with official pages of public figures; engine/configs holds no KE gossip, news or sport page on Instagram, TikTok or YouTube.
+
+# Sweep draft, written by core/collect/sources_sweep.py in its write-draft mode.
+# draft hash: 8a0ca934a6ccef33
+# The collect job reads markets only, never this draft, so the morning plan is unchanged.
+# Colleagues confirm an entry before it moves into its market's list.
+# WARNING: this proposal adds 83 credits a morning, 32 over the collect share left (51); raise the collect share or trim the lists before any entry moves up
+draft:
+  written: '2026-09-30'
+  budget: 51
+  budget_basis: collect share 800 minus the morning plan 749 (SocialCrawl phases 710, local sources 39)
+  added_credits: 83
+  warning: this proposal adds 83 credits a morning, 32 over the collect share left (51); raise the collect share or
+    trim the lists before any entry moves up
+  markets:
+    za:
+      x: []
+      culture_desk:
+      - handle: TYLAOfficial
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in ZA legacy feeds, 0 engagements, 1918 posts
+          as handle term (trends_v2_dev.seed_graph)
+        followers: 5870000
+        last_post: '2026-04-27'
+      - handle: lasizwedambuza
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in ZA legacy feeds, 0 engagements, 2020 posts
+          as handle term (trends_v2_dev.seed_graph)
+        followers: 1190000
+        last_post: '2026-05-28'
+      - handle: uncle.waffles
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/za.yaml (tiktok tier_1); not in use; seen 77 of 93 days in ZA legacy
+          feeds, 1763.6m engagements, 622 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: lasizwe
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/za.yaml (tiktok tier_1); not in use; seen 77 of 93 days in ZA legacy
+          feeds, 1291.3m engagements, 509 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-09-02'
+      - handle: boity
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/za.yaml (tiktok tier_1); not in use; seen 48 of 93 days in ZA legacy
+          feeds, 161.4m engagements, 341 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-05'
+      - handle: tyla
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/za.yaml (tiktok tier_1); not in use; seen 47 of 93 days in ZA legacy
+          feeds, 10.1m engagements, 107 posts as mention (trends_v2_dev.enriched_content)
+      - handle: mihlali
+        platform: tiktok
+        kind: creator
+        source: configs
+        why: listed in engine/configs/creators/za.yaml (tiktok tier_1); not in use
+      - handle: cyan.boujee14
+        platform: tiktok
+        kind: creator
+        source: configs
+        why: listed in engine/configs/creators/za.yaml (tiktok tier_1); not in use
+      - handle: tylericu
+        platform: instagram
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/za.yaml (instagram tier_2); not in use; seen 57 of 93 days in ZA
+          legacy feeds, 1.4m engagements, 263 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-08-30'
+      - handle: djmaphorisa
+        platform: instagram
+        kind: music
+        source: configs+warehouse
+        why: listed in engine/configs/creators/za.yaml (instagram tier_2); not in use; seen 53 of 93 days in ZA
+          legacy feeds, 25.9m engagements, 127 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-08-29'
+      - handle: nkosazana_daughter
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/za.yaml (tiktok tier_2); not in use; seen 51 of 93 days in ZA legacy
+          feeds, 59.9m engagements, 336 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: kreative.kornerr
+        platform: instagram
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/za.yaml (instagram tier_2); not in use; seen 51 of 93 days in ZA
+          legacy feeds, 5.9m engagements, 547 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: yomzansi
+        platform: instagram
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/za.yaml (instagram tier_2); not in use; seen 51 of 93 days in ZA
+          legacy feeds, 4.1m engagements, 527 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      facebook:
+      - handle: '100070150435861'
+        platform: facebook
+        kind: other
+        source: configs+warehouse
+        why: listed in core/config/markets.yaml (facebook_pages), engine/configs/sources.yaml (socialcrawl facebook_pages);
+          not in use; seen 48 of 93 days in ZA legacy feeds, 206k engagements, 432 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: '100064471732809'
+        platform: facebook
+        kind: other
+        source: configs+warehouse
+        why: listed in core/config/markets.yaml (facebook_pages), engine/configs/sources.yaml (socialcrawl facebook_pages);
+          not in use; seen 48 of 93 days in ZA legacy feeds, 68k engagements, 432 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: '100064604417137'
+        platform: facebook
+        kind: other
+        source: configs+warehouse
+        why: listed in core/config/markets.yaml (facebook_pages), engine/configs/sources.yaml (socialcrawl facebook_pages);
+          not in use; seen 48 of 93 days in ZA legacy feeds, 39k engagements, 432 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: mzansimagic
+        platform: facebook
+        kind: other
+        source: brand24
+        why: Brand24 tag ZA, 12 rows from 2026-05-23 to 2026-08-17
+        last_post: '2026-08-17'
+    ng:
+      x: []
+      culture_desk:
+      - handle: brodashaggi
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in NG legacy feeds, 0 engagements, 1960 posts
+          as handle term (trends_v2_dev.seed_graph)
+        followers: 2240000
+        last_post: '2026-04-24'
+      - handle: layiwasabi
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in NG legacy feeds, 0 engagements, 1960 posts
+          as handle term (trends_v2_dev.seed_graph)
+        followers: 137000
+        last_post: '2026-05-27'
+      - handle: DavidoOfficial
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in NG legacy feeds, 0 engagements, 1887 posts
+          as handle term (trends_v2_dev.seed_graph)
+      - handle: realsydneytalker
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ng.yaml (tiktok tier_1); not in use; seen 78 of 93 days in NG legacy
+          feeds, 1668.0m engagements, 567 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: enioluwa
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ng.yaml (tiktok tier_1); not in use; seen 78 of 93 days in NG legacy
+          feeds, 513.0m engagements, 777 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-09'
+      - handle: enioluwaofficial
+        platform: instagram
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ng.yaml (instagram tier_1); not in use; seen 78 of 93 days in NG
+          legacy feeds, 237.1m engagements, 700 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-09-10'
+      - handle: taaooma
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ng.yaml (tiktok tier_1); not in use; seen 78 of 93 days in NG legacy
+          feeds, 183.0m engagements, 673 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: korty_eo
+        platform: instagram
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ng.yaml (instagram tier_1); not in use; seen 78 of 93 days in NG
+          legacy feeds, 38.9m engagements, 399 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-08-28'
+      - handle: tobibakre
+        platform: instagram
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ng.yaml (instagram tier_1); not in use; seen 78 of 93 days in NG
+          legacy feeds, 30.4m engagements, 546 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: carterefe
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ng.yaml (tiktok tier_1); not in use; seen 74 of 93 days in NG legacy
+          feeds, 1662.5m engagements, 648 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-09-08'
+      - handle: poco_lee
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ng.yaml (tiktok tier_1); not in use; seen 71 of 93 days in NG legacy
+          feeds, 532.2m engagements, 408 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-08-15'
+      - handle: brodashaggi
+        platform: instagram
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ng.yaml (instagram tier_1); not in use; seen 55 of 93 days in NG
+          legacy feeds, 90.9m engagements, 314 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-08-08'
+      - handle: tobibakre
+        platform: tiktok
+        kind: creator
+        source: configs
+        why: listed in engine/configs/creators/ng.yaml (tiktok tier_1); not in use
+      facebook:
+      - handle: channelsforum
+        platform: facebook
+        kind: news
+        source: brand24
+        why: Brand24 tag NG, 12 rows from 2026-05-29 to 2026-08-18
+        last_post: '2026-08-18'
+    ke:
+      x: []
+      culture_desk:
+      - handle: diana_bahati
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in KE legacy feeds, 0 engagements, 1960 posts
+          as handle term (trends_v2_dev.seed_graph)
+        followers: 1380000
+        last_post: '2026-05-28'
+      - handle: flaqo
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in KE legacy feeds, 0 engagements, 1960 posts
+          as handle term (trends_v2_dev.seed_graph)
+        followers: 900000
+        last_post: '2026-05-24'
+      - handle: ericomondi
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in KE legacy feeds, 0 engagements, 1960 posts
+          as handle term (trends_v2_dev.seed_graph)
+        followers: 593000
+        last_post: '2026-05-27'
+      - handle: mulamwahh
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in KE legacy feeds, 0 engagements, 1960 posts
+          as handle term (trends_v2_dev.seed_graph)
+        followers: 271000
+        last_post: '2026-04-28'
+      - handle: sautisol
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in KE legacy feeds, 0 engagements, 1960 posts
+          as handle term (trends_v2_dev.seed_graph)
+      - handle: Octopizzo
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 93 of 93 days in KE legacy feeds, 0 engagements, 1568 posts
+          as handle term (trends_v2_dev.seed_graph)
+      - handle: theroamingchef
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ke.yaml (tiktok tier_1); not in use; seen 77 of 93 days in KE legacy
+          feeds, 3888.1m engagements, 541 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: azz_iad
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ke.yaml (tiktok tier_1); not in use; seen 77 of 93 days in KE legacy
+          feeds, 230.0m engagements, 688 posts as author and mention (trends_v2_dev.enriched_content)
+        last_post: '2026-09-12'
+      - handle: moyadavid1
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ke.yaml (tiktok tier_1); not in use; seen 77 of 93 days in KE legacy
+          feeds, 63.8m engagements, 645 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-10'
+      - handle: mulamwah
+        platform: tiktok
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators/ke.yaml (tiktok tier_1); not in use; seen 68 of 93 days in KE legacy
+          feeds, 69.5m engagements, 607 posts as author (trends_v2_dev.enriched_content)
+        last_post: '2026-09-07'
+      - handle: talesofthecrazykennar
+        platform: youtube
+        kind: creator
+        source: configs+warehouse
+        why: listed in engine/configs/creators_youtube_handles.yaml (YouTube tier_1), engine/configs/sources.yaml
+          (playlist_creator_handles); not in use; seen 6 of 93 days in KE legacy feeds, 0 engagements, 220 posts
+          as handle term (trends_v2_dev.seed_graph)
+        followers: 715000
+        last_post: '2026-05-27'
+      - handle: dianamarua
+        platform: tiktok
+        kind: creator
+        source: configs
+        why: listed in engine/configs/creators/ke.yaml (tiktok tier_1); not in use
+      - handle: roamingchef
+        platform: instagram
+        kind: creator
+        source: configs
+        why: listed in engine/configs/creators/ke.yaml (instagram tier_1); not in use
+      facebook: []

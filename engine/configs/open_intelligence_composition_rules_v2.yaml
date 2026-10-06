@@ -1,0 +1,14 @@
+# Approved implementation values for sparse anchored composition.
+# Certified by the successful closed staging probe recorded below.
+status: replay_certified
+rule_version: composition_rules_v2
+approval_contract_sha256: 7c2a2ca0fce4b2fe5fd57e45b2b17ff96dcd1e0ec2db70dc17fa4f63d4336ca2
+replay_receipt_id: composition_v2_probe_afaeb3ff6fc22668fdba754fc9224bd2bf055ca882bab08525093c473fa114b0
+approved_at: 2026-08-30T00:00:00+00:00
+approved_by: Albert
+expires_at: 2027-08-30T00:00:00+00:00
+graph_rules:
+  semantic_anchor_floor: 0.5
+  temporal_overlap_days: 2
+  pair_ceiling: 250000
+  component_member_ceiling: 50

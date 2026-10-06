@@ -1,0 +1,1203 @@
+{
+  "schema": "closure-crosswalk/v1",
+  "purpose": "Requirement roster, human sign-off roster and programme exit gates derived by hand from the plan documents of record. This file is a tripwire over three copies that have to agree, the module, this artefact and the test, and it is not evidence from those documents: nothing in the repository can read them. See README.md.",
+  "derived_on": "2026-09-18",
+  "module_under_comparison": {
+    "path": "ops/certification/close_programme.py",
+    "branch": "feat/42-closure-validator",
+    "literals": {
+      "REQUIREMENT_IDS": 175,
+      "HUMAN_SIGNOFF_REQUIREMENTS": 273,
+      "PROGRAMME_EXIT_GATES": 284
+    },
+    "comparison_note": "No commit is recorded. A recorded commit can only go stale, and did; the test reads these line numbers against the module in the working tree instead, so a moved definition fails rather than rots."
+  },
+  "requirement_ids": {
+    "count": 84,
+    "agrees_with_module": true,
+    "in_module_not_sourced": [],
+    "sourced_not_in_module": [],
+    "entries": {
+      "A01": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 191,
+        "text": "| A01 | R00 |",
+        "owning_or_proving_tasks": [
+          "R00"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "A02": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 192,
+        "text": "| A02 | R00 |",
+        "owning_or_proving_tasks": [
+          "R00"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "A03": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 193,
+        "text": "| A03 | R00 |",
+        "owning_or_proving_tasks": [
+          "R00"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "A04": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 194,
+        "text": "| A04 | R00 |",
+        "owning_or_proving_tasks": [
+          "R00"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "A05": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 195,
+        "text": "| A05 | D01, D04, E03, Q04, R04, R05 |",
+        "owning_or_proving_tasks": [
+          "D01",
+          "D04",
+          "E03",
+          "Q04",
+          "R04",
+          "R05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "A06": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 196,
+        "text": "| A06 | R00 |",
+        "owning_or_proving_tasks": [
+          "R00"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "A07": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 197,
+        "text": "| A07 | D02, E03, R01 |",
+        "owning_or_proving_tasks": [
+          "D02",
+          "E03",
+          "R01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "A08": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 198,
+        "text": "| A08 | D03, E03, R01, R02, R04 |",
+        "owning_or_proving_tasks": [
+          "D03",
+          "E03",
+          "R01",
+          "R02",
+          "R04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA01": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 199,
+        "text": "| BSA01 | B01, B04 |",
+        "owning_or_proving_tasks": [
+          "B01",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA02": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 200,
+        "text": "| BSA02 | B02, B04 |",
+        "owning_or_proving_tasks": [
+          "B02",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA03": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 201,
+        "text": "| BSA03 | B01, B02, B04 |",
+        "owning_or_proving_tasks": [
+          "B01",
+          "B02",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA04": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 202,
+        "text": "| BSA04 | B01, B02, B04 |",
+        "owning_or_proving_tasks": [
+          "B01",
+          "B02",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA05": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 203,
+        "text": "| BSA05 | B01, B02, B04 |",
+        "owning_or_proving_tasks": [
+          "B01",
+          "B02",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA06": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 204,
+        "text": "| BSA06 | B03, B04 |",
+        "owning_or_proving_tasks": [
+          "B03",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA07": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 205,
+        "text": "| BSA07 | B02, B04 |",
+        "owning_or_proving_tasks": [
+          "B02",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA08": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 206,
+        "text": "| BSA08 | B01, B02, B04 |",
+        "owning_or_proving_tasks": [
+          "B01",
+          "B02",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA09": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 207,
+        "text": "| BSA09 | B02, B04 |",
+        "owning_or_proving_tasks": [
+          "B02",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA10": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 208,
+        "text": "| BSA10 | B03, B04 |",
+        "owning_or_proving_tasks": [
+          "B03",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA11": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 209,
+        "text": "| BSA11 | B04 |",
+        "owning_or_proving_tasks": [
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "BSA12": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 210,
+        "text": "| BSA12 | B01, B04 |",
+        "owning_or_proving_tasks": [
+          "B01",
+          "B04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "D01": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 211,
+        "text": "| D01 | U03, U04 |",
+        "owning_or_proving_tasks": [
+          "U03",
+          "U04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F01": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 212,
+        "text": "| F01 | E03, E04, R00, R01, R02, R03, R04 |",
+        "owning_or_proving_tasks": [
+          "E03",
+          "E04",
+          "R00",
+          "R01",
+          "R02",
+          "R03",
+          "R04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F02": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 213,
+        "text": "| F02 | E03, E04, Q04, R02, R04, R05, U06 |",
+        "owning_or_proving_tasks": [
+          "E03",
+          "E04",
+          "Q04",
+          "R02",
+          "R04",
+          "R05",
+          "U06"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F03": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 214,
+        "text": "| F03 | D03, D07, E04, L01, L02, L03, L04 |",
+        "owning_or_proving_tasks": [
+          "D03",
+          "D07",
+          "E04",
+          "L01",
+          "L02",
+          "L03",
+          "L04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F04": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 215,
+        "text": "| F04 | D02, E03, E04, L02, R05 |",
+        "owning_or_proving_tasks": [
+          "D02",
+          "E03",
+          "E04",
+          "L02",
+          "R05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F05": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 216,
+        "text": "| F05 | E01, E02, E04, U06 |",
+        "owning_or_proving_tasks": [
+          "E01",
+          "E02",
+          "E04",
+          "U06"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F06": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 217,
+        "text": "| F06 | E02, E04 |",
+        "owning_or_proving_tasks": [
+          "E02",
+          "E04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F07": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 218,
+        "text": "| F07 | E03, E04, R02, R03 |",
+        "owning_or_proving_tasks": [
+          "E03",
+          "E04",
+          "R02",
+          "R03"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F08": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 219,
+        "text": "| F08 | E04, L04, R02 |",
+        "owning_or_proving_tasks": [
+          "E04",
+          "L04",
+          "R02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F09": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 220,
+        "text": "| F09 | D01, E03, E04, R00, R01, R03, R04, R05 |",
+        "owning_or_proving_tasks": [
+          "D01",
+          "E03",
+          "E04",
+          "R00",
+          "R01",
+          "R03",
+          "R04",
+          "R05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F10": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 221,
+        "text": "| F10 | D04, E03, E04, R03, R04, R05 |",
+        "owning_or_proving_tasks": [
+          "D04",
+          "E03",
+          "E04",
+          "R03",
+          "R04",
+          "R05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F11": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 222,
+        "text": "| F11 | E04 |",
+        "owning_or_proving_tasks": [
+          "E04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "F12": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 223,
+        "text": "| F12 | E04, R00, R01 |",
+        "owning_or_proving_tasks": [
+          "E04",
+          "R00",
+          "R01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G01": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 224,
+        "text": "| G01 | E01, Q01, Q03, Q04, U01, U02 |",
+        "owning_or_proving_tasks": [
+          "E01",
+          "Q01",
+          "Q03",
+          "Q04",
+          "U01",
+          "U02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G02": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 225,
+        "text": "| G02 | D03, D06, E01, Q01, Q03 |",
+        "owning_or_proving_tasks": [
+          "D03",
+          "D06",
+          "E01",
+          "Q01",
+          "Q03"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G03": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 226,
+        "text": "| G03 | D05, D06, E01, Q01, Q02, U05 |",
+        "owning_or_proving_tasks": [
+          "D05",
+          "D06",
+          "E01",
+          "Q01",
+          "Q02",
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G04": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 227,
+        "text": "| G04 | D01, D03, D04, D07, E01 |",
+        "owning_or_proving_tasks": [
+          "D01",
+          "D03",
+          "D04",
+          "D07",
+          "E01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G05": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 228,
+        "text": "| G05 | E01, U02 |",
+        "owning_or_proving_tasks": [
+          "E01",
+          "U02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G06": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 229,
+        "text": "| G06 | B02, D06, E01, L03, Q01, Q02, Q03, U02, U03, U04 |",
+        "owning_or_proving_tasks": [
+          "B02",
+          "D06",
+          "E01",
+          "L03",
+          "Q01",
+          "Q02",
+          "Q03",
+          "U02",
+          "U03",
+          "U04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G07": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 230,
+        "text": "| G07 | E01 |",
+        "owning_or_proving_tasks": [
+          "E01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G08": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 231,
+        "text": "| G08 | E01, Q01, Q03, Q04, U01, U05 |",
+        "owning_or_proving_tasks": [
+          "E01",
+          "Q01",
+          "Q03",
+          "Q04",
+          "U01",
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G09": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 232,
+        "text": "| G09 | E01, Q03, Q04 |",
+        "owning_or_proving_tasks": [
+          "E01",
+          "Q03",
+          "Q04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G10": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 233,
+        "text": "| G10 | B03, E01, L03 |",
+        "owning_or_proving_tasks": [
+          "B03",
+          "E01",
+          "L03"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G11": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 234,
+        "text": "| G11 | D01, D02, D05, E01 |",
+        "owning_or_proving_tasks": [
+          "D01",
+          "D02",
+          "D05",
+          "E01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G12": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 235,
+        "text": "| G12 | E01, U01 |",
+        "owning_or_proving_tasks": [
+          "E01",
+          "U01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G13": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 236,
+        "text": "| G13 | B02, D06 |",
+        "owning_or_proving_tasks": [
+          "B02",
+          "D06"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "G14": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 237,
+        "text": "| G14 | D01, D04, D05, Q04 |",
+        "owning_or_proving_tasks": [
+          "D01",
+          "D04",
+          "D05",
+          "Q04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P001": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 238,
+        "text": "| P001 | B02, U02, U03 |",
+        "owning_or_proving_tasks": [
+          "B02",
+          "U02",
+          "U03"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P002": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 239,
+        "text": "| P002 | D03, E03, R03, U03 |",
+        "owning_or_proving_tasks": [
+          "D03",
+          "E03",
+          "R03",
+          "U03"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P003": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 240,
+        "text": "| P003 | E03, L02, Q04, R03, R04, R05 |",
+        "owning_or_proving_tasks": [
+          "E03",
+          "L02",
+          "Q04",
+          "R03",
+          "R04",
+          "R05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P004": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 241,
+        "text": "| P004 | E03, R02 |",
+        "owning_or_proving_tasks": [
+          "E03",
+          "R02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P101": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 242,
+        "text": "| P101 | D07 |",
+        "owning_or_proving_tasks": [
+          "D07"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P102": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 243,
+        "text": "| P102 | D07 |",
+        "owning_or_proving_tasks": [
+          "D07"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P103": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 244,
+        "text": "| P103 | D06, D07, Q02 |",
+        "owning_or_proving_tasks": [
+          "D06",
+          "D07",
+          "Q02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P104": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 245,
+        "text": "| P104 | D07, L02 |",
+        "owning_or_proving_tasks": [
+          "D07",
+          "L02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P105": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 246,
+        "text": "| P105 | L01 |",
+        "owning_or_proving_tasks": [
+          "L01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P106": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 247,
+        "text": "| P106 | L01 |",
+        "owning_or_proving_tasks": [
+          "L01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P201": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 248,
+        "text": "| P201 | D07, L01 |",
+        "owning_or_proving_tasks": [
+          "D07",
+          "L01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P202": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 249,
+        "text": "| P202 | E01, Q01, Q02, Q03, U01 |",
+        "owning_or_proving_tasks": [
+          "E01",
+          "Q01",
+          "Q02",
+          "Q03",
+          "U01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P203": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 250,
+        "text": "| P203 | E01, Q03, U02, U04 |",
+        "owning_or_proving_tasks": [
+          "E01",
+          "Q03",
+          "U02",
+          "U04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P204": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 251,
+        "text": "| P204 | E02 |",
+        "owning_or_proving_tasks": [
+          "E02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P205": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 252,
+        "text": "| P205 | E02 |",
+        "owning_or_proving_tasks": [
+          "E02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P300": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 253,
+        "text": "| P300 | U05, U06 |",
+        "owning_or_proving_tasks": [
+          "U05",
+          "U06"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P301": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 254,
+        "text": "| P301 | U05 |",
+        "owning_or_proving_tasks": [
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P302": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 255,
+        "text": "| P302 | B03, U01, U04, U05 |",
+        "owning_or_proving_tasks": [
+          "B03",
+          "U01",
+          "U04",
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P303": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 256,
+        "text": "| P303 | U05 |",
+        "owning_or_proving_tasks": [
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P304": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 257,
+        "text": "| P304 | U05 |",
+        "owning_or_proving_tasks": [
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P305": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 258,
+        "text": "| P305 | U05, U06 |",
+        "owning_or_proving_tasks": [
+          "U05",
+          "U06"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P306": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 259,
+        "text": "| P306 | E02, U06 |",
+        "owning_or_proving_tasks": [
+          "E02",
+          "U06"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P401": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 260,
+        "text": "| P401 | D02, D05, U05 |",
+        "owning_or_proving_tasks": [
+          "D02",
+          "D05",
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P402": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 261,
+        "text": "| P402 | D02 |",
+        "owning_or_proving_tasks": [
+          "D02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P403": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 262,
+        "text": "| P403 | D06, E01 |",
+        "owning_or_proving_tasks": [
+          "D06",
+          "E01"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P404": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 263,
+        "text": "| P404 | L01, U05 |",
+        "owning_or_proving_tasks": [
+          "L01",
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P405": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 264,
+        "text": "| P405 | L01, L03, U05 |",
+        "owning_or_proving_tasks": [
+          "L01",
+          "L03",
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P501": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 265,
+        "text": "| P501 | B03, L04, U05 |",
+        "owning_or_proving_tasks": [
+          "B03",
+          "L04",
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P502": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 266,
+        "text": "| P502 | L02 |",
+        "owning_or_proving_tasks": [
+          "L02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P503": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 267,
+        "text": "| P503 | L02 |",
+        "owning_or_proving_tasks": [
+          "L02"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P504": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 268,
+        "text": "| P504 | L03 |",
+        "owning_or_proving_tasks": [
+          "L03"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "P505": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 269,
+        "text": "| P505 | L04 |",
+        "owning_or_proving_tasks": [
+          "L04"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "X01": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 270,
+        "text": "| X01 | L04, U05 |",
+        "owning_or_proving_tasks": [
+          "L04",
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "X02": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 271,
+        "text": "| X02 | L04, U02, U03, U04, U05, U06 |",
+        "owning_or_proving_tasks": [
+          "L04",
+          "U02",
+          "U03",
+          "U04",
+          "U05",
+          "U06"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "X03": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 272,
+        "text": "| X03 | D02, L04, U05 |",
+        "owning_or_proving_tasks": [
+          "D02",
+          "L04",
+          "U05"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "X04": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 273,
+        "text": "| X04 | D02, E03 |",
+        "owning_or_proving_tasks": [
+          "D02",
+          "E03"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      },
+      "X05": {
+        "document": "docs/plans/2026-09-12-42-staging-completion.md",
+        "line": 274,
+        "text": "| X05 | E03 |",
+        "owning_or_proving_tasks": [
+          "E03"
+        ],
+        "corroborating_document": "docs/plans/42-plan-validation.json",
+        "corroborating_locator": "tasks.*.requirements (union over 35 tasks)"
+      }
+    }
+  },
+  "human_signoff_requirements": {
+    "count": 19,
+    "agrees_with_module": false,
+    "in_module_not_sourced": [
+      "F11",
+      "F12"
+    ],
+    "sourced_not_in_module": [],
+    "entries": {
+      "P106": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 180,
+        "responsibility": "Backend + human reviewers",
+        "criterion": "register responsibility column names a person"
+      },
+      "P203": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 183,
+        "responsibility": "Backend + frontend + human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "P204": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 184,
+        "responsibility": "Backend + frontend + human reviewers",
+        "criterion": "register responsibility column names a person"
+      },
+      "P306": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 197,
+        "responsibility": "Frontend + human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "G07": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 227,
+        "responsibility": "Backend + frontend + human reviewers",
+        "criterion": "register responsibility column names a person"
+      },
+      "G09": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 229,
+        "responsibility": "Backend + frontend + Albert",
+        "criterion": "register responsibility column names a person"
+      },
+      "F05": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 241,
+        "responsibility": "Backend + frontend + reviewers",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA01": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 271,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA02": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 272,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA03": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 273,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA04": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 274,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA05": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 275,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA06": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 276,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA07": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 277,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA08": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 278,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA09": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 279,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA10": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 280,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA11": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 281,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      },
+      "BSA12": {
+        "document": "BACKEND_ACCEPTANCE_LEDGER.md",
+        "line": 282,
+        "responsibility": "Lead, client configuration and designated human reviewer",
+        "criterion": "register responsibility column names a person"
+      }
+    }
+  },
+  "programme_exit_gates": {
+    "count": 5,
+    "agrees_with_module": true,
+    "in_module_not_sourced": [],
+    "sourced_not_in_module": [],
+    "entries": {
+      "E01": {
+        "document": "42_ALBERT_DECISIONS_20260913.md",
+        "line": 13,
+        "text": "Name the real reviewers: three strategist roles for E02, two blind claim reviewers for E01, cluster reviewers for L01 closed week review, and the client reviewer for B04 | E01, E02, L01, B04 human gates",
+        "criterion": "named by the decisions record as a human gate"
+      },
+      "E02": {
+        "document": "42_ALBERT_DECISIONS_20260913.md",
+        "line": 13,
+        "text": "Name the real reviewers: three strategist roles for E02, two blind claim reviewers for E01, cluster reviewers for L01 closed week review, and the client reviewer for B04 | E01, E02, L01, B04 human gates",
+        "criterion": "named by the decisions record as a human gate"
+      },
+      "L01": {
+        "document": "42_ALBERT_DECISIONS_20260913.md",
+        "line": 13,
+        "text": "Name the real reviewers: three strategist roles for E02, two blind claim reviewers for E01, cluster reviewers for L01 closed week review, and the client reviewer for B04 | E01, E02, L01, B04 human gates",
+        "criterion": "named by the decisions record as a human gate"
+      },
+      "B04": {
+        "document": "42_ALBERT_DECISIONS_20260913.md",
+        "line": 13,
+        "text": "Name the real reviewers: three strategist roles for E02, two blind claim reviewers for E01, cluster reviewers for L01 closed week review, and the client reviewer for B04 | E01, E02, L01, B04 human gates",
+        "criterion": "named by the decisions record as a human gate"
+      },
+      "E04": {
+        "document": "docs/plans/2026-09-12-42-evaluation-certification.md",
+        "line": 400,
+        "text": "- [ ] Obtain Albert's explicit candidate acceptance. Close the programme only if the requirement checker returns an empty list and the human decisions apply to that candidate. A changed source, contract or UI dist reopens affected evidence.",
+        "criterion": "E04's own exit step requires the owner's explicit candidate acceptance"
+      }
+    }
+  },
+  "source_documents_sha256": {
+    "docs/plans/2026-09-12-42-staging-completion.md": "c76fe5e2a7c97f829cbcebf765d3d1bcddfb3503d90bfdce0cbb83d6834efa3d",
+    "docs/plans/42-plan-validation.json": "1cd2bf576bf22a033be5421b95c503bd2665802ac5bc7ed8adfac9e6365d726f",
+    "BACKEND_ACCEPTANCE_LEDGER.md": "0b8a91f8441073c03297ed51ce12494e51b0cac842b0d952ff23e75fa1f45de3",
+    "42_ALBERT_DECISIONS_20260913.md": "f8f87a37e3cd388ba6d6fe335e0f5077b46d552d393e70c13c58dc2f08dcff0c",
+    "docs/plans/2026-09-12-42-evaluation-certification.md": "b35b413783952796a08fe58e0d19f52b14242065e5820e5d2c8189d660e6097b",
+    "docs/plans/2026-09-12-42-bsa-first-client.md": "e6082e4539bfcbd84b3732465d1543fa7ad4769d4b4bb786c68feca90748ccbf",
+    "docs/plans/2026-09-12-42-data-intelligence.md": "f75a806de67241e13ee7b110ff09649a758607a0e368b028aa1b4f2d8fd0c248",
+    "docs/plans/2026-09-12-42-plan-contracts.md": "9d4dc479959cd3c30bf0638516ef1fcf9bf54d5640a231046c7f7319ad350a1e",
+    "docs/plans/2026-09-12-42-product-journeys.md": "bc6cee728e0b9f21989a33d9d540c1fa55b5231d16277888d083e7b9477f524b",
+    "docs/plans/2026-09-12-42-staging-foundation.md": "7e05601ffd9d5daf47c216342f431f33fdb2f99682d3f134926d9ec2b3abc8cc",
+    "docs/plans/42-plan-review-resolution.md": "b42c7c9db41c0249c31e3a527c264ef5127268c1aa66d40b2654e34ed20c27d6",
+    "42_HANDOVER_CHECKPOINT_2026-09-14.md": "c98155dfcc50435ddb5ceae951217f58112ea7b2874b5ab8f4eb7ba61ae67bb2",
+    "task-state.json": "bd1103669da336e2d64c5db1e946daca5c78128cf9dbe7386a6b99529736bed2"
+  }
+}

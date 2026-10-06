@@ -1,0 +1,295 @@
+/* Searching now: a ranked list set as type. Hierarchy comes from size, rank
+   numerals and whitespace; rows sit on hairlines with no planes or boxes. */
+.searching-now {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0 0 var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.searching-now *,
+.searching-now__row > * {
+  min-width: 0;
+}
+
+.searching-now__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-5);
+  margin-bottom: var(--s-3);
+}
+
+.searching-now__heading {
+  margin: 0;
+  color: var(--ink);
+  font: 600 var(--t-6)/1.2 var(--sans);
+}
+
+.searching-now__place {
+  color: var(--ink-2);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.searching-now__caption {
+  margin: 0;
+  color: var(--muted);
+  font: 400 var(--t-3)/1.35 var(--sans);
+  text-align: right;
+}
+
+.searching-now__fresh {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font: 400 var(--t-3)/1.35 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.searching-now__clause {
+  white-space: nowrap;
+}
+
+.searching-now__market + .searching-now__market {
+  margin-top: var(--s-5);
+}
+
+.searching-now__market-name {
+  margin: 0 0 var(--s-2);
+  color: var(--ink);
+  font: 600 var(--t-5)/1.3 var(--sans);
+}
+
+/* Wide screens set the two groups side by side so the width is used; each
+   group keeps its own rank, term and source columns. */
+.searching-now__market {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
+  gap: var(--s-4) var(--s-7);
+  align-items: start;
+}
+
+.searching-now__market-name {
+  grid-column: 1 / -1;
+}
+
+.searching-now__group-label {
+  margin: 0;
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font: 600 var(--t-3)/1.35 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.searching-now__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.searching-now__row {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 11.25rem;
+  align-items: baseline;
+  column-gap: var(--s-3);
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.searching-now__rank {
+  color: var(--muted);
+  font: 400 var(--t-4)/1.35 var(--sans);
+  font-variant-numeric: tabular-nums lining-nums;
+  text-align: right;
+}
+
+.searching-now__term {
+  color: var(--ink);
+  font: 400 var(--t-4)/1.35 var(--sans);
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.searching-now__row--top .searching-now__rank {
+  color: var(--ink);
+  font-size: var(--t-5);
+  font-weight: 600;
+}
+
+.searching-now__row--top .searching-now__term {
+  font-size: var(--t-5);
+  font-weight: 600;
+}
+
+.searching-now__local {
+  color: var(--muted);
+  font-size: var(--t-2);
+  font-weight: 400;
+}
+
+.searching-now__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s-2);
+  color: var(--muted);
+  font: 400 var(--t-2)/1.35 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.searching-now__source {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.searching-now__mark {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  box-sizing: border-box;
+  border: 1px solid var(--muted);
+}
+
+.searching-now__mark--live {
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+}
+
+.searching-now__mark--fresh {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+@media (max-width: 1100px) {
+  .searching-now__row {
+    grid-template-columns: 2.5rem minmax(0, 1fr) 9.5rem;
+  }
+}
+
+/* Phones: rank and term, with the source and freshness as a second muted
+   line under the term; the caption drops under the heading. */
+@media (max-width: 640px) {
+  .searching-now__header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .searching-now__heading {
+    font-size: var(--t-5);
+  }
+
+  .searching-now__caption {
+    text-align: left;
+  }
+
+  .searching-now__row {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    row-gap: 2px;
+  }
+
+  .searching-now__meta {
+    grid-column: 2;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .searching-now__row {
+    animation: searchingNowRowIn var(--motion-handoff) var(--motion-handoff-easing) both;
+    animation-delay: calc(min(var(--sn-i, 0), 9) * 80ms);
+  }
+}
+
+@keyframes searchingNowRowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Today's market status, one calm block under the list: a red bar when
+   nothing cleared the checks, an ink bar otherwise. No plane behind it. */
+.t42-market-status {
+  margin: 0 0 var(--s-5);
+  padding: var(--s-1) 0 var(--s-1) var(--s-3);
+  border-left: 2px solid var(--ink);
+  color: var(--muted);
+  font: 400 var(--t-3)/1.5 var(--sans);
+}
+
+.t42-market-status[data-status-tone="alert"] {
+  border-left-color: var(--accent);
+}
+
+.t42-market-status__lead {
+  margin: 0 0 2px;
+  color: var(--ink);
+  font: 600 var(--t-4)/1.4 var(--sans);
+  text-wrap: pretty;
+}
+
+.t42-market-status__detail {
+  margin: 0;
+  max-width: 100ch;
+  text-wrap: pretty;
+}
+
+.t42-market-status .t42-banner {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+}
+
+.t42-market-status .t42-banner-data_issue {
+  color: var(--ink-2);
+}
+
+.t42-market .t42-market-status [data-source-problem] {
+  margin: 0;
+  color: inherit;
+  font: inherit;
+}
+
+.t42-market-status__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s-4);
+  margin-top: var(--s-1);
+}
+
+.t42-market-status__links > .t42-link {
+  font-size: var(--t-3);
+}
+
+.t42-market .t42-market-status details[data-section="source-details"] {
+  font-size: var(--t-3);
+}
+
+.t42-market-status__cap {
+  text-transform: uppercase;
+}
+
+/* With cards below, the notes and Source details share one quiet line. */
+.t42-market-status[data-status-tone="plain"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s-4);
+}
+
+.t42-market-status[data-status-tone="plain"] .t42-market-status__links {
+  margin-top: 0;
+}
+
+.t42-market-status[data-status-tone="plain"] .t42-market-status__links:has(details[open]) {
+  flex-basis: 100%;
+}

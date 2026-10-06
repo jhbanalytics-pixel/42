@@ -1,0 +1,9 @@
+name: LUMO
+lockup: "Lumo culture intelligence"
+tagline: "What the feed is doing, before your standup."
+engine_credit: "Powered by Gemini on Vertex"
+# Adaptive light base: ink is the light page, paper is the primary ink text
+# (mapped onto on_ink), accent is the on-paper blue.
+palette: { ink: "#f6f7fb", paper: "#101418", accent: "#2b6cff" }
+markets: [za, ng, ke]
+market_colors: { za: "#e0a020", ng: "#1b8a5a", ke: "#c5283d" }

@@ -1,0 +1,216 @@
+{
+  "note": "Fixture only. Labelled explicitly so it can never be mistaken for a live reading.",
+  "provenance": "fixture-only",
+  "ready": {
+    "contract_version": "fieldwork_workspace_v1",
+    "resource_version": "fwr_1111111111111111111111111111111111111111111111111111111111111111",
+    "client_scope_id": "ogilvy_default",
+    "market_scope": [
+      "za",
+      "ng",
+      "ke"
+    ],
+    "workspace_state": "ready",
+    "generated_at": "2026-08-29T06:30:00Z",
+    "freshness": {
+      "state": "current",
+      "source_lab_checked_at": "2026-08-29T05:55:00Z",
+      "investigations_updated_at": "2026-08-28T18:10:00Z",
+      "oldest_operation_updated_at": "2026-08-26T09:00:00Z",
+      "reasons": []
+    },
+    "operation_summary": {
+      "total": 3,
+      "active": 2,
+      "held": 1,
+      "complete": 0,
+      "killed": 0,
+      "unavailable": 0
+    },
+    "budget_summary": {
+      "state": "not_required",
+      "funding_lane": null,
+      "credit_ceiling": null,
+      "credits_reserved": null,
+      "credits_used": null,
+      "credits_remaining": null,
+      "reserve_floor": null,
+      "observed_at": null,
+      "reasons": [
+        "no funded operation is planned in this window"
+      ]
+    },
+    "source_operations": [
+      {
+        "operation_id": "src_reddit_za",
+        "kind": "source",
+        "title": "Reddit coverage for South Africa",
+        "status": "active",
+        "evidence_readiness": "ready",
+        "market": "za",
+        "gaps": [],
+        "next_operation": {
+          "action": "open_source_lab",
+          "label": "Open Source Lab",
+          "target": "#/source-lab",
+          "authority": "authenticated_navigation",
+          "available": true,
+          "reason": null
+        }
+      },
+      {
+        "operation_id": "src_tiktok_ng",
+        "kind": "source",
+        "title": "TikTok coverage for Nigeria",
+        "status": "held",
+        "evidence_readiness": "unchecked",
+        "market": "ng",
+        "gaps": [
+          "no measured yield in the current window"
+        ],
+        "next_operation": {
+          "action": "open_source_lab",
+          "label": "Open Source Lab",
+          "target": "#/source-lab",
+          "authority": "authenticated_navigation",
+          "available": true,
+          "reason": null
+        }
+      }
+    ],
+    "research_operations": [
+      {
+        "operation_id": "inv_repair_routines",
+        "kind": "research",
+        "title": "Repair economies moving into weekend routines",
+        "status": "active",
+        "evidence_readiness": "contradictory",
+        "market": "za",
+        "gaps": [
+          "two source families disagree on direction"
+        ],
+        "next_operation": {
+          "action": "open_intelligence_console",
+          "label": "Open in Intelligence Console",
+          "target": "#/console",
+          "authority": "authenticated_navigation",
+          "available": true,
+          "reason": null
+        }
+      }
+    ],
+    "research_operation_count": 1,
+    "research_operations_truncated": false,
+    "unavailable_inputs": []
+  },
+  "empty": {
+    "contract_version": "fieldwork_workspace_v1",
+    "resource_version": "fwr_2222222222222222222222222222222222222222222222222222222222222222",
+    "client_scope_id": "ogilvy_default",
+    "market_scope": [
+      "za",
+      "ng",
+      "ke"
+    ],
+    "workspace_state": "empty",
+    "generated_at": "2026-08-29T06:30:00Z",
+    "freshness": {
+      "state": "current",
+      "source_lab_checked_at": "2026-08-29T05:55:00Z",
+      "investigations_updated_at": null,
+      "oldest_operation_updated_at": null,
+      "reasons": []
+    },
+    "operation_summary": {
+      "total": 0,
+      "active": 0,
+      "held": 0,
+      "complete": 0,
+      "killed": 0,
+      "unavailable": 0
+    },
+    "budget_summary": {
+      "state": "not_required",
+      "funding_lane": null,
+      "credit_ceiling": null,
+      "credits_reserved": null,
+      "credits_used": null,
+      "credits_remaining": null,
+      "reserve_floor": null,
+      "observed_at": null,
+      "reasons": []
+    },
+    "source_operations": [],
+    "research_operations": [],
+    "research_operation_count": 0,
+    "research_operations_truncated": false,
+    "unavailable_inputs": []
+  },
+  "budget_exhausted": {
+    "contract_version": "fieldwork_workspace_v1",
+    "resource_version": "fwr_3333333333333333333333333333333333333333333333333333333333333333",
+    "client_scope_id": "ogilvy_default",
+    "market_scope": [
+      "za",
+      "ng",
+      "ke"
+    ],
+    "workspace_state": "budget_exhausted",
+    "generated_at": "2026-08-29T06:30:00Z",
+    "freshness": {
+      "state": "current",
+      "source_lab_checked_at": "2026-08-29T05:55:00Z",
+      "investigations_updated_at": "2026-08-28T18:10:00Z",
+      "oldest_operation_updated_at": "2026-08-26T09:00:00Z",
+      "reasons": []
+    },
+    "operation_summary": {
+      "total": 1,
+      "active": 0,
+      "held": 1,
+      "complete": 0,
+      "killed": 0,
+      "unavailable": 0
+    },
+    "budget_summary": {
+      "state": "exhausted",
+      "funding_lane": "ogilvy_funded",
+      "credit_ceiling": 250000,
+      "credits_reserved": 0,
+      "credits_used": 250000,
+      "credits_remaining": 0,
+      "reserve_floor": 5000,
+      "observed_at": "2026-08-29T05:40:00Z",
+      "reasons": [
+        "available credits after reserve are below the operation requirement"
+      ]
+    },
+    "source_operations": [],
+    "research_operations": [
+      {
+        "operation_id": "inv_held_on_budget",
+        "kind": "research",
+        "title": "Cross market comparison held on funded budget",
+        "status": "held",
+        "evidence_readiness": "thin",
+        "market": "ng",
+        "gaps": [
+          "funded lane exhausted for this calendar month"
+        ],
+        "next_operation": {
+          "action": "open_source_lab",
+          "label": "Open Source Lab",
+          "target": "#/source-lab",
+          "authority": "authenticated_navigation",
+          "available": true,
+          "reason": null
+        }
+      }
+    ],
+    "research_operation_count": 1,
+    "research_operations_truncated": false,
+    "unavailable_inputs": [
+      "budget_authority"
+    ]
+  }
+}

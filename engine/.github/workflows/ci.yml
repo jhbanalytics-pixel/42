@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+# Default GITHUB_TOKEN scope is wider than this workflow needs (we only
+# read the repo to lint/test/scan). Pin to read so a compromised
+# dependency cannot abuse the token.
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+          cache: "pip"
+      # Pin ruff to match .pre-commit-config.yaml so local and CI results stay consistent.
+      - run: pip install ruff==0.15.12
+      - run: ruff check .
+      - run: ruff format --check .
+
+  test:
+    name: Test (Python ${{ matrix.python-version }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Ubuntu only. GitHub bills windows-latest minutes at 2x the Linux
+        # rate, and the Windows test jobs were the single largest line on the
+        # Actions bill. The suite is pure-Python with no OS-specific code
+        # paths, and the team develops on Windows locally (pre-commit + the
+        # py3.13 test runner), so Windows-specific breakage still surfaces at
+        # the desk before it reaches CI. Dropped 2026-05-30 to stop the spend.
+        os: [ubuntu-latest]
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/unit/ -v
+      - uses: actions/upload-artifact@v7
+        if: matrix.python-version == '3.11'
+        with:
+          name: test-results
+          path: .pytest_cache/
+
+  typecheck:
+    name: Type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+          cache: "pip"
+      - run: pip install mypy -e ".[dev]"
+      # Keep `|| true` until annotations are complete; tighten later.
+      - run: mypy src/ --ignore-missing-imports || true
+
+  security:
+    name: Security (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+          cache: "pip"
+      - run: pip install -e ".[dev]"
+      # --skip-editable skips our own (unpublished, private) package so
+      # pip-audit does not try to look it up on PyPI. Drop --strict
+      # because strict mode treats the editable-skip as a fatal warning
+      # and exits 1 ("distribution marked as editable"). Vulnerability
+      # findings still fail the run via pip-audit's default exit code.
+      # Ignore pip itself (tool, not an app dep) and pillow (transitive
+      # via python-pptx in dev, not a direct dep). CVE-2026-3219 +
+      # CVE-2026-6357 were pip 26.0.1; PYSEC-2026-196 is the runner's
+      # bundled pip 26.1.1 (fix in 26.1.2), surfaced in the audit DB
+      # 6 Jun 2026. All are build-time pip on the runner, not an app dep.
+      # Reassess when the runner image bumps pip past each.
+      - run: pip-audit --skip-editable --ignore-vuln CVE-2026-1703 --ignore-vuln CVE-2026-40192 --ignore-vuln CVE-2026-3219 --ignore-vuln CVE-2026-6357 --ignore-vuln GHSA-4xh5-x5gv-qwph --ignore-vuln PYSEC-2026-196
+
+  secrets-scan:
+    name: Secrets scan (detect-secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+          cache: "pip"
+      - run: pip install detect-secrets
+      - run: detect-secrets scan --baseline .secrets.baseline
+
+  quality:
+    name: Quality (qlty)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # qlty needs full history to detect modified files vs the base
+          # branch on PR runs.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+          cache: "pip"
+      # qlty bundles its own toolchain (bandit, ruff, zizmor, etc.) so we
+      # do not pip-install anything here. qlty-action's `check` subaction
+      # was removed in v2; use `install` to put the qlty binary on PATH
+      # then invoke `qlty check` directly.
+      # Pinned by SHA per zizmor's unpinned-uses rule. SHA resolved from
+      # refs/tags/v2 on 2026-05-05.
+      - uses: qltysh/qlty-action/install@fd52dc852530a708d68c3b7342f8d33d1df4cd55 # v2
+      # On push events run a full-repo check; on PR events let qlty
+      # auto-restrict to changed files (its default when run inside a
+      # PR checkout with fetch-depth 0).
+      # --fail-level=high keeps the gate aligned with the documented
+      # baseline ("0 actionable, informational TODO/NOTE allowed"). Low
+      # and medium findings (mostly editorconfig indent_size noise on
+      # YAML/markdown) print but do not block the build. Tighten the
+      # threshold once the noise floor has been cleaned up.
+      - run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            qlty check --all --fail-level=high
+          else
+            qlty check --fail-level=high
+          fi
+        shell: bash

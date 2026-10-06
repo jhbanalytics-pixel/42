@@ -1,0 +1,31 @@
+{
+  "id": "KE-01",
+  "question": "How are people in Nairobi reacting to the matatu fare rise this week?",
+  "markets": ["KE"],
+  "window": {"from": "2026-09-22", "to": "2026-09-28"},
+  "as_of": "2026-09-28T09:00:00+03:00",
+  "tier": "T1",
+  "run_id": "r_20260928_090000_e5f6a7b8",
+  "evidence": [
+    {"id": "x_1840000000000000101", "platform": "x", "handle": "@nai_commuter",
+     "url": "https://x.com/nai_commuter/status/1840000000000000101",
+     "posted_at": "2026-09-24T07:40:00+03:00", "market": "KE",
+     "text": "Matatu fare to town went up again this morning and nobody warned us",
+     "engagement": {"likes": 1900}, "flags": []},
+    {"id": "tt_7400000000000000102", "platform": "tiktok", "handle": "@stage_talk",
+     "url": "https://www.tiktok.com/@stage_talk/video/7400000000000000102",
+     "posted_at": "2026-09-25T17:10:00+03:00", "market": "KE",
+     "text": "Walking from Ngara to town because the matatu fare rise is too much",
+     "engagement": {"likes": 3100}, "flags": []}
+  ],
+  "queries": {
+    "q_1": {"sql": "SELECT platform, COUNT(*) AS posts FROM intelligence_42.posts WHERE market = @market GROUP BY platform",
+            "params": {"market": "KE"},
+            "rows": [{"platform": "x", "posts": 312}, {"platform": "tiktok", "posts": 96}],
+            "result_hash": "sha256:6a703628feb24cf6ab20ded279d47288b81c97bd2d754600e4e2d7ecbfd163f5",
+            "purpose": "posts per platform on the matatu fare rise"}
+  },
+  "gaps": [],
+  "failed_sources": [],
+  "note": ""
+}

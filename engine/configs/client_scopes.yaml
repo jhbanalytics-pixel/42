@@ -1,0 +1,17 @@
+contract_version: "2.0.0"
+default_scope_id: ogilvy_default
+scopes:
+  ogilvy_default:
+    client_scope_id: ogilvy_default
+    market_scope: [za, ng, ke]
+    brand_config_id: ogilvy_default
+    audience_lens_ids: []
+    theme_id: ogilvy_42
+    enabled: true
+  fixture_scope:
+    client_scope_id: fixture_scope
+    market_scope: [za]
+    brand_config_id: fixture_brand
+    audience_lens_ids: []
+    theme_id: fixture_theme
+    enabled: true

@@ -1,0 +1,136 @@
+{
+  "probe": "5",
+  "route": "search/news",
+  "body": {
+    "cached": "<bool>",
+    "credits_remaining": "<int>",
+    "credits_used": "<int>",
+    "data": {
+      "countries_searched": [
+        "<list of 3>",
+        "<str>"
+      ],
+      "credits_charged": "<int>",
+      "dropped": "<int>",
+      "items": [
+        "<list of 16>",
+        {
+          "angle_id": "<str>",
+          "canonical_url": "<str>",
+          "country_code": "<str>",
+          "domain": "<str>",
+          "effective_query": "<str>",
+          "engine": "<str>",
+          "id": "<str>",
+          "image_url": "<str>",
+          "language_code": "<str>",
+          "legs_returned": [
+            "<list of 1>",
+            "<str>"
+          ],
+          "placement": "<str>",
+          "published_at": "<str>",
+          "published_at_precision": "<str>",
+          "query_source": "<str>",
+          "rank": "<int>",
+          "snippet": "<null>",
+          "source_name": "<str>",
+          "title": "<str>",
+          "url": "<str>",
+          "vendor_labels": {}
+        }
+      ],
+      "legs": [
+        "<list of 3>",
+        {
+          "angle_id": "<str>",
+          "angle_label": "<str>",
+          "article_count": "<int>",
+          "country": "<str>",
+          "credits_used": "<int>",
+          "effective_query": "<str>",
+          "engine": "<str>",
+          "error": "<null>",
+          "language": "<str>",
+          "latency_ms": "<int>",
+          "leg_id": "<str>",
+          "quarantined_count": "<int>",
+          "query_source": "<str>",
+          "status": "<str>"
+        }
+      ],
+      "methodology_version": "<str>",
+      "plan": {
+        "degraded": "<bool>",
+        "notes": [
+          "<list of 3>",
+          "<str>"
+        ],
+        "source": "<str>",
+        "subqueries": [
+          "<list of 1>",
+          {
+            "id": "<str>",
+            "label": "<str>",
+            "ranking_query": "<str>",
+            "search_query": "<str>",
+            "weight": "<int>"
+          }
+        ],
+        "topic": "<str>"
+      },
+      "query": "<str>",
+      "search_status": "<str>",
+      "stories": [
+        "<list of 16>",
+        {
+          "countries": [
+            "<list of 1>",
+            "<str>"
+          ],
+          "first_seen": "<str>",
+          "head_id": "<str>",
+          "id": "<str>",
+          "judged": "<bool>",
+          "languages": [
+            "<list of 1>",
+            "<str>"
+          ],
+          "last_seen": "<str>",
+          "member_ids": [
+            "<list of 1>",
+            "<str>"
+          ],
+          "outlet_count": "<int>",
+          "outlets": [
+            "<list of 1>",
+            "<str>"
+          ],
+          "size": "<int>"
+        }
+      ],
+      "story_grouping": {
+        "articles": "<int>",
+        "extra_credits": "<int>",
+        "judged": "<int>",
+        "largest_story": "<int>",
+        "methodology_version": "<str>",
+        "multi_article_stories": "<int>",
+        "passes": "<int>",
+        "status": "<str>",
+        "stories": "<int>",
+        "unjudged": "<int>"
+      },
+      "total_articles": "<int>"
+    },
+    "endpoint": "<str>",
+    "pagination": {
+      "has_more": "<bool>",
+      "next_cursor": "<null>",
+      "page_size": "<int>"
+    },
+    "platform": "<str>",
+    "request_id": "<str>",
+    "success": "<bool>"
+  }
+}
