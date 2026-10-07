@@ -265,6 +265,16 @@ def test_upload_argv_copies_the_archive_into_the_media_bucket_without_overwritin
     assert not any(a.startswith("--region") for a in argv)
 
 
+def test_jobs_build_and_upload_read_the_shared_source_directory(tmp_path, monkeypatch):
+    flags = tmp_path / "deploy_flags.env"
+    flags.write_text('BUILD_SOURCE_STAGING_DIR="gs://fixture-bucket/release-source"\n', encoding="utf-8")
+    monkeypatch.setattr(dj, "AGENT_FLAGS", flags)
+    argv = dj.upload_argv("source.tar.gz", SHA)
+    assert argv[3] == f"gs://fixture-bucket/release-source/jobs-{SHA}.tar.gz"
+    assert dj.build_request(SHA)["source"] == {
+        "storageSource": {"bucket": "fixture-bucket", "object": f"release-source/jobs-{SHA}.tar.gz"}}
+
+
 def test_build_request_reads_the_config_and_substitutes_image_and_tag():
     body = dj.build_request(SHA)
     assert body["source"] == {"storageSource": {"bucket": BUCKET, "object": OBJECT}}

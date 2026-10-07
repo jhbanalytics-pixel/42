@@ -90,7 +90,6 @@ REPO = "intelligence-42"
 IMAGE = f"{REGION}-docker.pkg.dev/{PROJECT}/{REPO}/jobs"
 CONFIG = Path(__file__).resolve().parent / "cloudbuild.jobs.yaml"
 DEPLOYER = f"projects/{PROJECT}/serviceAccounts/f42-deployer@{PROJECT}.iam.gserviceaccount.com"
-BUCKET = "ogilvy-trends-v2-f42-media-staging"
 BUILDS = f"https://cloudbuild.googleapis.com/v1/projects/{PROJECT}/locations/{REGION}/builds"
 POLL_SECONDS = 15
 FAILED = ("FAILURE", "INTERNAL_ERROR", "TIMEOUT", "CANCELLED", "EXPIRED")
@@ -246,13 +245,23 @@ def sa_email(name):
     return f"{name}@{PROJECT}.iam.gserviceaccount.com"
 
 
+def source_location():
+    flags = AGENT_FLAGS.read_text(encoding="utf-8")
+    location = re.search(r'^BUILD_SOURCE_STAGING_DIR="gs://([^/\"]+)/([^\"]+)"$', flags, re.M)
+    if location is None:
+        raise ValueError("deploy_flags.env must set BUILD_SOURCE_STAGING_DIR to a gs:// bucket and prefix")
+    return location.groups()
+
+
 def source_object(tag):
-    return f"build-source/jobs-{tag}.tar.gz"
+    _, prefix = source_location()
+    return f"{prefix.rstrip('/')}/jobs-{tag}.tar.gz"
 
 
 def upload_argv(source, tag):
     # The object name carries the sha, so an existing one already holds this exact source: never overwrite it.
-    return ["storage", "cp", str(source), f"gs://{BUCKET}/{source_object(tag)}", "--no-clobber",
+    bucket, _ = source_location()
+    return ["storage", "cp", str(source), f"gs://{bucket}/{source_object(tag)}", "--no-clobber",
             f"--project={PROJECT}"]
 
 
@@ -270,8 +279,9 @@ def build_request(tag):
     """The Cloud Build API body: steps and images from cloudbuild.jobs.yaml with _IMAGE and _TAG filled in here."""
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     subs = {**cfg.get("substitutions", {}), "_IMAGE": IMAGE, "_TAG": tag}
+    bucket, _ = source_location()
     return {
-        "source": {"storageSource": {"bucket": BUCKET, "object": source_object(tag)}},
+        "source": {"storageSource": {"bucket": bucket, "object": source_object(tag)}},
         "steps": substitute(cfg["steps"], subs),
         "images": substitute(cfg["images"], subs),
         "serviceAccount": DEPLOYER,
@@ -408,11 +418,12 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
 
     source = Path(workdir) / "source.tar.gz" if workdir else None
     body = build_request(tag)
+    upload = upload_argv(source or "<git archive of HEAD>.tar.gz", tag)
     print("Upload the source:")
-    print("  " + show(upload_argv(source or "<git archive of HEAD>.tar.gz", tag)))
+    print("  " + show(upload))
     print("Build as f42-deployer through the Cloud Build API:")
     print(f"  POST {BUILDS}")
-    print(f"    source gs://{BUCKET}/{source_object(tag)}, service account {DEPLOYER}, "
+    print(f"    source {upload[3]}, service account {DEPLOYER}, "
           f"logging {body['options']['logging']}, timeout {body['timeout']}")
     for step in body["steps"]:
         print(f"    step {step['name']} {' '.join(step.get('args', []))}")
@@ -498,8 +509,9 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
 def build(gcloud, git, session, sleep, source, tag, body):
     """Archive, upload, create the build, poll it to the end. Returns the image digest from the results, or None."""
     git(["archive", "--format=tar.gz", f"--output={source}", tag, *SOURCES])
-    gcloud.run(upload_argv(source, tag))
-    print(f"  uploaded gs://{BUCKET}/{source_object(tag)}")
+    upload = upload_argv(source, tag)
+    gcloud.run(upload)
+    print(f"  uploaded {upload[3]}")
     resp = session.post(BUILDS, json=body, timeout=60)
     if resp.status_code != 200:
         sys.exit(f"Cloud Build refused the build: HTTP {resp.status_code} {resp.text}")

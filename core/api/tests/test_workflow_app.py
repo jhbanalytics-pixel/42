@@ -37,8 +37,9 @@ SERVICES = ("f42-agent", "f42-api")
 # f42-agent since 3 October 2026 (T2 for the brand lens and the context pack), and f42-api's --min-instances
 # raised from 0 to 1 on 4 October 2026 so the first page load in demo week skips a cold start.
 EXPECTED = {
+    "BUILD_SOURCE_STAGING_DIR": "gs://ogilvy-trends-v2-f42-media-staging/build-source",
     "AGENT_SA": "f42-agent",
-    "AGENT_FLAGS": ["--no-allow-unauthenticated", "--min-instances", "1", "--max-instances", "1",
+    "AGENT_FLAGS": ["--min-instances", "1", "--max-instances", "1",
                     "--no-cpu-throttling", "--timeout", "3600", "--memory", "1Gi"],
     "AGENT_ENV": "APP_MODULE=core.api.agent_app:app,F42_DATA=bigquery,F42_PROJECT=${PROJECT},F42_VERSION=${TAG},"
                  "MODEL_PROVIDER=gemini,GEMINI_MODEL=gemini-3.8-flash,F42_T2_READY=1",
@@ -256,7 +257,7 @@ def test_smoke_checks_health_gate_and_page_without_a_passcode():
 
 def test_staging_project_only_and_no_production():
     body = text(WORKFLOW) + text(FLAGS)
-    assert set(re.findall(r"ogilvy-[a-z0-9-]+", body)) == {STAGING_PROJECT}
+    assert set(re.findall(r"ogilvy-[a-z0-9-]+", body)) == {STAGING_PROJECT, "ogilvy-trends-v2-f42-media-staging"}
     assert "vars." not in text(WORKFLOW)
     assert "production" not in text(WORKFLOW).lower()
 
@@ -267,7 +268,8 @@ def test_no_iam_commands_and_the_agent_stays_private():
         assert "set-iam-policy" not in body
         assert "gcloud iam " not in body
         assert not re.search(r"(?<!no-)--allow-unauthenticated", body)
-    assert "--no-allow-unauthenticated" in flags_file()["AGENT_FLAGS"].split()
+    assert "--no-allow-unauthenticated" not in flags_file()["AGENT_FLAGS"].split()
+    assert "--no-invoker-iam-check" not in flags_file()["AGENT_FLAGS"].split()
 
 
 def test_no_keys_secrets_or_echoed_values():

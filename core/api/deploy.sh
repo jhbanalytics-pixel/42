@@ -26,6 +26,28 @@ for arg in "$@"; do
   esac
 done
 
+# Shared build source and Cloud Run definitions.
+source core/api/deploy_flags.env
+
+# Ordinary redeploys preserve IAM. Refuse a public agent before building or deploying.
+gcloud run services describe f42-agent --project "$PROJECT" --region "$REGION" --format=json | py -3.13 -c '
+import json
+import sys
+service = json.load(sys.stdin)
+disabled = service.get("metadata", {}).get("annotations", {}).get("run.googleapis.com/invoker-iam-disabled")
+if disabled in ("true", True):
+    sys.exit("f42-agent has its invoker IAM check disabled. IAM approval is required before redeploying.")
+'
+gcloud run services get-iam-policy f42-agent --project "$PROJECT" --region "$REGION" --format=json | py -3.13 -c '
+import json
+import sys
+policy = json.load(sys.stdin)
+if any(member in ("allUsers", "allAuthenticatedUsers")
+       for binding in policy.get("bindings", []) if binding.get("role") == "roles/run.invoker"
+       for member in binding.get("members", [])):
+    sys.exit("f42-agent permits public invocation. IAM approval is required before redeploying.")
+'
+
 case "$BUILD" in
   --no-build) ;;
   --local-build)
@@ -40,13 +62,10 @@ case "$BUILD" in
   *)
     gcloud builds submit --project "$PROJECT" --region "$REGION" \
       --config core/api/cloudbuild.yaml --substitutions "_IMAGE=${IMAGE}" \
+      --gcs-source-staging-dir "$BUILD_SOURCE_STAGING_DIR" \
       --service-account "projects/${PROJECT}/serviceAccounts/$(SA f42-deployer)" .
     ;;
 esac
-
-# Both services' Cloud Run flags, env and secrets live in deploy_flags.env,
-# which .github/workflows/staging-app.yml reads too.
-source core/api/deploy_flags.env
 
 gcloud run deploy f42-agent --project "$PROJECT" --region "$REGION" --image "$IMAGE" \
   --service-account "$(SA "$AGENT_SA")" $AGENT_FLAGS \
