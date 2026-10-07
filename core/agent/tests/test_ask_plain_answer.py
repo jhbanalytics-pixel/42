@@ -183,7 +183,8 @@ def test_the_researcher_counts_the_whole_store_per_platform_before_reading_posts
 
 
 def test_claims_lead_with_store_totals_and_cite_posts_as_examples():
-    assert "Lead each claim with the totals the queries give" in writer.WRITER_SYSTEM
+    assert "Give each claim the totals the queries give" in writer.WRITER_SYSTEM
+    assert "Never open a claim with its figures" in writer.WRITER_SYSTEM
     writer.WRITER_SYSTEM.format(days=7)
 
 

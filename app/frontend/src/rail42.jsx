@@ -102,6 +102,19 @@ function ThemeChoice({theme, onThemeChange}){
   );
 }
 
+/* Log out (6 October 2026) sits after the theme, at the foot of the wide
+   rail and the end of the phone More sheet: a quiet, always-there exit that
+   is never mistaken for a page. The host passes onSignOut only where a
+   passcode let the reader in, so read-only access shows nothing. */
+function SignOut({onSignOut}){
+  if (typeof onSignOut !== 'function') return null;
+  return (
+    <div className="rail42-signout">
+      <button type="button" className="rail42-signout-button" onClick={() => onSignOut()}>Log out</button>
+    </div>
+  );
+}
+
 /* The shell's skip link would sit after every rail link, so the wide rail
    brings its own, first in the document, with the shell's styling. It moves
    focus itself: a bare #instrument-workspace hash is a route change to the
@@ -119,13 +132,13 @@ function SkipLink(){
 /* App mounts the rail twice: only="wide" before the shell and only="compact"
    inside it after the workspace, where a dialog the page opens still paints
    over the bar. Each renders only at its own width. */
-export function Rail42({route, askOpen = false, theme, onThemeChange, only}){
+export function Rail42({route, askOpen = false, theme, onThemeChange, onSignOut, only}){
   const compact = useIsMobile(1023);
   if ((only === 'wide' && compact) || (only === 'compact' && !compact)) return null;
-  return <RailAt compact={compact} route={route} askOpen={askOpen} theme={theme} onThemeChange={onThemeChange} />;
+  return <RailAt compact={compact} route={route} askOpen={askOpen} theme={theme} onThemeChange={onThemeChange} onSignOut={onSignOut} />;
 }
 
-function RailAt({compact, route, askOpen, theme, onThemeChange}){
+function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
   const here = currentHref(route, askOpen);
   const sheetItems = compact ? [...SHEET_WORK, ...RAIL_MORE] : RAIL_MORE;
   const held = sheetItems.find((item) => item.href === here) || null;
@@ -226,6 +239,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange}){
         {compact ? <Group id={`${panelId}-work`} title="Your work" items={SHEET_WORK} here={here} /> : null}
         {RAIL_MORE_GROUPS.map((group) => <Group key={group.id} id={`${panelId}-${group.id}`} title={group.title} items={group.items} here={here} />)}
         {compact ? <ThemeChoice theme={theme} onThemeChange={onThemeChange} /> : null}
+        {compact ? <SignOut onSignOut={onSignOut} /> : null}
       </div>
     </div>
   );
@@ -245,7 +259,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange}){
         <Group id={`${panelId}-top`} title="Start here" items={RAIL_TOP} here={here} group="top" />
         <Group id={`${panelId}-work`} title="Your work" items={RAIL_WORK} here={here} group="work" />
         {more}
-        <div className="rail42-foot"><ThemeChoice theme={theme} onThemeChange={onThemeChange} /></div>
+        <div className="rail42-foot"><ThemeChoice theme={theme} onThemeChange={onThemeChange} /><SignOut onSignOut={onSignOut} /></div>
       </nav>
     </>
   );

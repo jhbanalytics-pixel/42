@@ -153,7 +153,8 @@ test('the table puts each subject in a column and each metric in a row, in its o
   const rows = [...table.querySelectorAll('tbody tr')];
   expect(rows.map((r) => text(r.querySelector('th')))).toEqual(itemsFixture.rows.map((r) => r.words));
   const cells = (metric) => [...rows[itemsFixture.rows.findIndex((r) => r.metric === metric)].querySelectorAll('td')].map((td) => text(td.querySelector('.c42-fig') || td));
-  expect(cells('posts')).toEqual(['8 posts in 7 days', '2 posts in 7 days', '1 posts in 7 days']);
+  // Was '1 posts in 7 days': a count of one reads in the singular since 6 October 2026 (TrendCard figureWords).
+  expect(cells('posts')).toEqual(['8 posts in 7 days', '2 posts in 7 days', '1 post in 7 days']);
   expect(cells('first_seen')).toEqual(['10 September 2026', '26 September 2026', 'Not seen']);
   expect(cells('state')).toEqual(['Emerging', 'Not measured', 'Spike']);
   expect(cells('growth')[0]).toBe('2.8 times its usual level');

@@ -373,30 +373,51 @@ class _SpendingModel:
     settled after it when the question has one, added to ctx.model_usd_extra otherwise. Without one, a call whose
     reserve (its input bound and full output allowance at the model's price) is over what the context's own
     max_budget_usd leaves after the research model's spend and earlier tool spend is refused before it is sent. A
-    billed failure counts."""
+    billed failure counts. Under a budget a 429 refusal gives its reserve back and is waited out, and a 5xx books its
+    reserve and is tried once more, each try on a fresh reserve."""
 
     def __init__(self, ctx: RunContext, model, input_bound: int):
         self.ctx, self.model, self.input_bound = ctx, model, input_bound
 
     def complete_json(self, **kwargs):
+        import time
+
+        from core.agent.gemini_research import RETRY_WAIT_S, busy_refusal, server_error, wait_busy
         from core.agent.model_budget import BudgetRefused
 
         budget = getattr(self.ctx, "model_budget", None)
-        reservation = None
-        if budget is not None:
+        busy = server_failed = 0
+        while True:
+            reservation = None
+            if budget is not None:
+                try:
+                    reservation = budget.reserve(kwargs["model"], self.input_bound, kwargs["max_tokens"])
+                except BudgetRefused as e:
+                    raise Refused(f"The question's model budget has no room to watch a video ({e}).") from None
+            else:
+                self._check_lane(kwargs["model"], kwargs["max_tokens"])
             try:
-                reservation = budget.reserve(kwargs["model"], self.input_bound, kwargs["max_tokens"])
-            except BudgetRefused as e:
-                raise Refused(f"The question's model budget has no room to watch a video ({e}).") from None
-        else:
-            self._check_lane(kwargs["model"], kwargs["max_tokens"])
-        try:
-            result = self.model.complete_json(**kwargs)
-        except Exception as exc:
-            self._spend(budget, reservation, getattr(exc, "usage", None))
-            raise
-        self._spend(budget, reservation, result[1] if isinstance(result, tuple) and len(result) == 2 else None)
-        return result
+                result = self.model.complete_json(**kwargs)
+            except Exception as exc:
+                if reservation is not None and busy_refusal(exc):
+                    # A 429 for capacity billed nothing: the reserve goes back and the read is tried again after a
+                    # short wait, on a fresh reserve, as Ask's other guarded calls are (gemini_research.BUSY_WAITS_S).
+                    budget.release(reservation)
+                    if wait_busy(busy, lambda: False):
+                        busy += 1
+                        continue
+                    raise
+                if reservation is not None and not server_failed and server_error(exc):
+                    # A 5xx books its full reserve and one more try runs on a fresh one; the HTTP client makes no
+                    # retry of its own under a budget, since that retry would run outside the reserve.
+                    budget.settle(reservation, None, stop_unknown=False)
+                    server_failed += 1
+                    time.sleep(RETRY_WAIT_S)
+                    continue
+                self._spend(budget, reservation, getattr(exc, "usage", None))
+                raise
+            self._spend(budget, reservation, result[1] if isinstance(result, tuple) and len(result) == 2 else None)
+            return result
 
     def _check_lane(self, model: str, max_tokens: int) -> None:
         from core.llm.provider import price_for, reserve_output
@@ -472,7 +493,9 @@ def watch_video(ctx: RunContext, client: SocialCrawlClient, evidence_id: str, qu
     if model is None:
         from core.llm.gemini import GeminiModel
 
-        model = GeminiModel()
+        # Under a question's model budget the client makes no retry of its own: _SpendingModel retries on a fresh
+        # reserve, so no attempt runs outside one.
+        model = GeminiModel(retries=0 if getattr(ctx, "model_budget", None) is not None else 1)
     read = video.read_clip(post, _SpendingModel(ctx, model, video.est_tokens(post)),
                            _VideoCalls(ctx, client, evidence_id), question=question,
                            fetch_bytes=fetch_bytes or video.fetch_image)

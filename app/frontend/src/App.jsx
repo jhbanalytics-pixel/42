@@ -894,6 +894,62 @@ export default function App(){
     setSession((s) => s + 1);
   };
 
+  /* Log out (6 October 2026). The passcode is the only credential this page
+     holds and f42-api keeps no session for it, so logging out is local: the
+     stored passcode, the saved answers and every cached read are forgotten,
+     any reviewer session held in memory ends, and the gate returns. Theme and
+     market stay, since they are preferences and not access. Only a passcode
+     desk offers it: IAP access is the browser's Google sign-in, not ours. */
+  const canSignOut = authMode === 'passcode' || (authMode === 'legacy' && Boolean(health && health.passcode));
+  const closeDesk = useCallback(() => {
+    if (askCtrl.current){ askCtrl.current.abort(); askCtrl.current = null; }
+    clearCache();
+    import('./dossierResource.js').then((m) => m.endReviewSession(), () => {});
+    setActive(null);
+    setAsking(null);
+    setAskErr(false);
+    setBriefs([]);
+    setAttempted(false);
+    setNeedPass(true);
+    setAuthReady(false);
+    setSession((s) => s + 1);
+  }, []);
+  /* The older chat page saves its threads as it unmounts, which is after the
+     click, so the keys are removed again once the gate has replaced the
+     pages. */
+  const signedOut = useRef(false);
+  const forgetStored = () => {
+    for (const key of [PASS_KEY, 'pulse-briefs', 'pulse-chat']){
+      try { localStorage.removeItem(key); } catch (e){}
+    }
+  };
+  const signOut = useCallback(() => {
+    forgetStored();
+    signedOut.current = true;
+    closeDesk();
+  }, [closeDesk]);
+  useEffect(() => {
+    /* Signing in drops any mark a tab already at the gate picked up. */
+    if (!needPass){ signedOut.current = false; return; }
+    if (!signedOut.current) return;
+    signedOut.current = false;
+    forgetStored();
+  }, [needPass]);
+  /* A Log out in another tab clears the shared passcode; this tab follows. */
+  useEffect(() => {
+    if (!canSignOut) return undefined;
+    const onStorage = (event) => {
+      if (event.key !== null && event.key !== PASS_KEY) return;
+      if (storedValue(PASS_KEY)) return;
+      /* This tab's chat page saves its threads as it unmounts; mark the
+         sign-out so the gate clears them again, as a click here would. */
+      signedOut.current = true;
+      closeDesk();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [canSignOut, closeDesk]);
+
   if (authUnavailable || (authMode === 'iap_readonly' && needPass)) return <SignInUnavailable />;
   if (authReady === null) return <SignInWait />;
   if (needPass) return <PasscodeScreen onSubmit={submitPasscode} failed={attempted} />;
@@ -934,7 +990,7 @@ export default function App(){
           the page, behind its own skip link, and the Tab order follows what
           the reader sees. The phone bar stays after the workspace. */}
       <Suspense fallback={null}>
-        <Rail42 only="wide" route={route} askOpen={askOpen} theme={themePreference} onThemeChange={changeTheme} />
+        <Rail42 only="wide" route={route} askOpen={askOpen} theme={themePreference} onThemeChange={changeTheme} onSignOut={canSignOut ? signOut : undefined} />
       </Suspense>
       <InstrumentShell
         route={railPlace.job}
@@ -1025,7 +1081,7 @@ export default function App(){
         </Suspense>
         </RouteLayer>
         <Suspense fallback={null}>
-          <Rail42 only="compact" route={route} askOpen={askOpen} theme={themePreference} onThemeChange={changeTheme} />
+          <Rail42 only="compact" route={route} askOpen={askOpen} theme={themePreference} onThemeChange={changeTheme} onSignOut={canSignOut ? signOut : undefined} />
         </Suspense>
       </InstrumentShell>
 

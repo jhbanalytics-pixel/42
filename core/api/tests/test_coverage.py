@@ -569,6 +569,51 @@ def test_collection_state_without_sources_reads_the_collect_runs(statuses, state
     assert coverage.collection_state([], runs) == state
 
 
+def test_a_collect_run_left_running_after_a_later_one_finished_does_not_make_the_day_running():
+    runs = [{"run_id": "collect-a", "stage": "collect", "status": "running", "started_at": "2026-09-30T04:00:00Z"},
+            {"run_id": "collect-b", "stage": "collect", "status": "ok", "started_at": "2026-09-30T05:00:00Z"}]
+    assert coverage.collection_state([], runs) == "empty"
+    # A run started after the ok one is a rerun still going.
+    rerun = runs + [{"run_id": "collect-c", "stage": "collect", "status": "running",
+                     "started_at": "2026-09-30T06:00:00Z"}]
+    assert coverage.collection_state([], rerun) == "running"
+
+
+@pytest.mark.parametrize("error,words", [
+    ("upstream detect for 2026-10-05 is not ok (latest status running)",
+     "Did not start: the detect step had not recorded a finish for this day yet"),
+    ("upstream detect for 2026-10-05 is not ok (no runs row)",
+     "Did not start: the detect step had not run for this day yet"),
+    ("upstream understand for 2026-10-05 is not ok (latest status failed)",
+     "Did not start: the understand step did not finish for this day (failed)"),
+    ("brief for 2026-10-05 already ran ok (run brief-20261005-0123456789ab)",
+     "Not run again: this step had already finished for this day"),
+    ("detect for 2026-10-05 is still running (run detect-20261005-0123456789ab, started 2026-10-05T04:00:00+00:00)",
+     "Not run again: another run of this step was still going"),
+    ("HTTP 500 from the vendor", "HTTP 500 from the vendor"),
+    (None, None),
+])
+def test_chain_reasons_read_in_words_with_no_run_id(error, words):
+    """Visual QA, 5 October 2026: the run log showed "upstream detect for 2026-10-05 is not ok (latest status
+    running)" and "(run brief-...)" to the reader."""
+    assert coverage.run_note(error) == words
+
+
+def test_a_run_left_running_after_a_later_run_of_its_stage_finished_says_so(fx):
+    rows = [{"run_id": "detect-a", "stage": "detect", "status": "running", "started_at": "2026-09-30T04:00:00Z",
+             "finished_at": None, "error": None},
+            {"run_id": "detect-b", "stage": "detect", "status": "ok", "started_at": "2026-09-30T05:00:00Z",
+             "finished_at": "2026-09-30T05:20:00Z", "error": None},
+            {"run_id": "brief-a", "stage": "brief", "status": "blocked", "started_at": "2026-09-30T04:30:00Z",
+             "finished_at": "2026-09-30T04:30:01Z",
+             "error": "upstream detect for 2026-09-30 is not ok (latest status running)"}]
+    fx.runs_of_day = lambda date: rows
+    runs = {r["run_id"]: r for r in coverage.build_coverage(fx, D30)["runs"]}
+    assert runs["detect-a"]["status"] == "running" and runs["detect-a"]["error"] == coverage.STALE_RUNNING
+    assert runs["detect-b"]["error"] is None
+    assert "run" not in runs["brief-a"]["error"].split() and "2026" not in runs["brief-a"]["error"]
+
+
 def test_market_summary_counts_usable_sources_as_today_does(fx):
     za = coverage.build_coverage(fx, D30)["markets"][0]
     usable = [s for s in za["series"] if s["valid"]]

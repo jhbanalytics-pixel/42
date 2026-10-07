@@ -110,9 +110,8 @@ class AskModelBudget:
             self._stop_reason = reason
         return BudgetRefused(reason)
 
-    def reserve(self, model: str, input_bound: int, max_output_tokens: int, *, research: bool = False):
-        if not isinstance(model, str) or not model or type(research) is not bool:
-            raise self._refuse("model_reservation_invalid")
+    def _ceiling(self, model: str, input_bound: int, max_output_tokens: int) -> tuple[int, int, int]:
+        """A call's reserve in micros with its input and output bounds, or BudgetRefused naming why it has none."""
         try:
             input_bound = _count(input_bound, positive=True)
             max_output_tokens = _count(max_output_tokens, positive=True)
@@ -128,14 +127,36 @@ class AskModelBudget:
                 raise BudgetRefused("model_price_invalid")
             reserve_usd = (Decimal(input_bound) * input_rate + Decimal(output_bound) * output_rate) / MICROS
             ceiling_micros = _micros(reserve_usd)
+        except BudgetRefused:
+            raise
+        except (InvalidOperation, KeyError, TypeError, ValueError, OverflowError):
+            raise BudgetRefused("model_price_invalid") from None
+        except Exception:
+            raise BudgetRefused("model_price_unavailable") from None
+        if ceiling_micros <= 0:
+            raise BudgetRefused("model_price_invalid")
+        return ceiling_micros, input_bound, output_bound
+
+    def affords(self, model: str, calls) -> bool:
+        """Whether calls, (input_bound, max_output_tokens) each, would all fit under the question's hold now. It
+        reserves nothing and, unlike a refused reserve, never stops later calls: for an optional call, which the
+        question goes on without (ask.py's short answer rewrite)."""
+        if not isinstance(model, str) or not model:
+            return False
+        try:
+            need = sum(self._ceiling(model, input_bound, max_output)[0] for input_bound, max_output in calls)
+        except (BudgetRefused, TypeError, ValueError):
+            return False
+        with self._lock:
+            return not self._stopped and self._booked_micros + self._in_flight_micros + need <= self.cap_micros
+
+    def reserve(self, model: str, input_bound: int, max_output_tokens: int, *, research: bool = False):
+        if not isinstance(model, str) or not model or type(research) is not bool:
+            raise self._refuse("model_reservation_invalid")
+        try:
+            ceiling_micros, input_bound, output_bound = self._ceiling(model, input_bound, max_output_tokens)
         except BudgetRefused as exc:
             raise self._refuse(str(exc)) from None
-        except (InvalidOperation, KeyError, TypeError, ValueError, OverflowError):
-            raise self._refuse("model_price_invalid") from None
-        except Exception:
-            raise self._refuse("model_price_unavailable") from None
-        if ceiling_micros <= 0:
-            raise self._refuse("model_price_invalid")
 
         with self._lock:
             if self._stopped:
@@ -168,14 +189,7 @@ class AskModelBudget:
         still run within the cap. Returns True when later calls may run on this call's account: its usage is known (or
         unknown with stop_unknown False, so booked at the full reserve) and within its reserve and the caps."""
         with self._lock:
-            pending = self._pending.pop(getattr(reservation, "key", None), None)
-            if pending != reservation:
-                self._stopped = True
-                self._stop_reason = "model_reservation_unknown"
-                raise BudgetRefused("model_reservation_unknown")
-            self._in_flight_micros -= reservation.ceiling_micros
-            if reservation.research:
-                self._research_in_flight_micros -= reservation.ceiling_micros
+            self._take(reservation)
             known = self._known_usage(usage)
             actual_micros = _micros(usage["usd"]) if known else reservation.ceiling_micros
             bound_exceeded = (known and (usage["input_tokens"] > reservation.input_bound
@@ -205,6 +219,24 @@ class AskModelBudget:
     def fail(self, reservation: _Reservation, *, stop: bool = True) -> float:
         self.settle(reservation, None, stop_unknown=stop)
         return reservation.ceiling_micros / MICROS
+
+    def release(self, reservation: _Reservation) -> None:
+        """Give back the whole reserve of a call the provider refused before running it (a 429 for capacity, which
+        bills nothing): nothing is booked and later calls may reserve again. Only for a refusal; any call that may have
+        run settles or fails instead. An unknown reservation stops later calls, as in settle."""
+        with self._lock:
+            self._take(reservation)
+
+    def _take(self, reservation: _Reservation) -> None:
+        """Remove a pending reservation from the in-flight totals; the caller holds the lock."""
+        pending = self._pending.pop(getattr(reservation, "key", None), None)
+        if pending != reservation:
+            self._stopped = True
+            self._stop_reason = "model_reservation_unknown"
+            raise BudgetRefused("model_reservation_unknown")
+        self._in_flight_micros -= reservation.ceiling_micros
+        if reservation.research:
+            self._research_in_flight_micros -= reservation.ceiling_micros
 
     @staticmethod
     def _known_usage(usage) -> bool:

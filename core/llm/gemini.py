@@ -2,7 +2,8 @@
 
 The job's own identity signs the call (google-genai with vertexai=True); there is no API key. Usage comes from
 usage_metadata, and thinking tokens are billed as output. An exception raised after a call was billed carries the spend as
-both .usage (Ask) and .usd (brief), the two shapes the two callers read.
+both .usage (Ask) and .usd (brief), the two shapes the two callers read. With GEMINI_PRIORITY on, every request goes out as
+Vertex Priority PayGo and usage is priced at the priority price (core/llm/provider.py).
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ import json
 import os
 import re
 
-from core.llm.provider import price_for, thinking_headroom
+from core.llm.provider import PRIORITY_HEADER, gemini_priority, price_for, thinking_headroom
 
 
 def prepare_schema(schema: dict) -> dict:
@@ -113,11 +114,16 @@ class GeminiModel:
         if self._client is None:
             from google import genai
             from google.genai import types
-            # One retry by default: a quota error surfaces in seconds and the brief's breaker stops the run's calls.
+            # One retry by default: a quota error surfaces in seconds, and the brief waits out a busy model itself
+            # (core/brief/job.py _Breaker) before its breaker stops the run's calls.
+            options = dict(timeout=int(self.timeout_s * 1000) if self.timeout_s else None,
+                           retry_options=types.HttpRetryOptions(attempts=self.retries + 1))
+            if gemini_priority():
+                # Priority PayGo (core/llm/provider.py): every request of this client, a per-call http_options
+                # included, since google-genai merges request headers over the client's.
+                options["headers"] = dict(PRIORITY_HEADER)
             self._client = genai.Client(vertexai=True, project=self.project, location=self.region,
-                                        http_options=types.HttpOptions(
-                                            timeout=int(self.timeout_s * 1000) if self.timeout_s else None,
-                                            retry_options=types.HttpRetryOptions(attempts=self.retries + 1)))
+                                        http_options=types.HttpOptions(**options))
         return self._client
 
     def config(self, *, system: str, schema: dict | None, max_tokens: int, level: str | None = None, **extra):

@@ -35,6 +35,14 @@ def shared_model_daily_usd(*, now=None):
     return read_model_daily_usd(CAPS_UNTIL_20261003, now=now)
 
 
+@pytest.fixture(autouse=True)
+def busy_waits(monkeypatch):
+    """The seconds the brief waited on a busy model, recorded instead of slept."""
+    waits = []
+    monkeypatch.setattr(job, "_sleep", waits.append)
+    return waits
+
+
 SAST = timezone(timedelta(hours=2), "SAST")
 EARLY = datetime.combine(D, time(5, 30), SAST)
 LATE = datetime.combine(D, time(6, 20), SAST)
@@ -46,7 +54,8 @@ MARKET_KEYS = {"market", "label", "status", "headline", "banners", "cards", "mor
 CARD_KEYS = {"item_id", "market", "date", "rank", "kind", "title", "state", "state_word", "flag", "flag_word",
              "explained", "explanation", "explanation_claim_ids", "claims", "count_line", "numbers", "sparkline",
              "thumbnails", "evidence_ids", "evidence", "ask", "explanation_status", "failed_reason", "also",
-             "market_scope", "market_posts7", "total_posts7", "market_share7", "specificity", "news_driven"}
+             "market_scope", "market_posts7", "total_posts7", "market_share7", "specificity", "news_driven",
+             "title_written"}  # the writer's checked title, added 6 October 2026
 ROW_KEYS = {"brief_date", "market", "run_id", "published_at", "status", "payload", "rule_version"}
 CHECK_KEYS = {"answer_or_brief_id", "claim_id", "rule", "verdict", "checker", "run_id", "reason"}
 REASONS = {"data_issue", "likely_coordinated", "political_unconfirmed", "paid_led", "not_local", "too_few_creators",
@@ -1954,11 +1963,17 @@ def rate_limit_errors():
             RuntimeError("Error code: 429 RESOURCE_EXHAUSTED quota exceeded")]
 
 
+# A refused call is made again BUSY_RETRIES times; BUSY_TRIP_ITEMS explanations in a row that run out of tries trip
+# the breaker (6 Oct 2026: the first refusal used to trip it, and 25 of 30 topics were never tried).
+SUSTAINED_CALLS = (job.BUSY_RETRIES + 1) * job.BUSY_TRIP_ITEMS
+
+
 @pytest.mark.parametrize("error", rate_limit_errors(), ids=["ClientError429", "RESOURCE_EXHAUSTED"])
-def test_the_first_rate_limit_error_stops_every_model_call_for_the_run(error):
+def test_a_sustained_rate_limit_stops_every_model_call_for_the_run(error, busy_waits):
     model = RateLimited(error)
     r = brief(world(n=4), model=model)
-    assert len(model.calls) == 1
+    assert len(model.calls) == SUSTAINED_CALLS
+    assert len(busy_waits) == job.BUSY_RETRIES * job.BUSY_TRIP_ITEMS
     for m in MARKETS:
         assert payload(r, m)["cards"] == [] and payload(r, m)["held_back"]["count"] == 4
         assert rows(r)[m]["status"] == "partial"
@@ -1991,7 +2006,7 @@ class RateLimitError(Exception):
 def test_a_429_status_or_a_rate_limit_class_trips_the_breaker(error):
     model = RateLimited(error)
     r = brief(world(n=2), model=model)
-    assert len(model.calls) == 1
+    assert len(model.calls) == SUSTAINED_CALLS
     assert r.counts["model"]["reason"] == "model_unavailable"
 
 
@@ -2531,7 +2546,9 @@ def test_a_critic_explanation_off_the_menu_gets_the_fixed_wording_alone():
 
 def test_a_sentence_support_cut_names_the_support_check():
     r = brief(world(n=1), model=ScriptedModel(sentence=("partial", "the posts show dancing but not why")))
-    [row] = [c for c in za1_checks(r) if c["rule"] == "K4" and c["claim_id"] is None]
+    # The cut holds the draft, so it gets the one repair round; the first draft's row is marked as before it.
+    before, row = [c for c in za1_checks(r) if c["rule"] == "K4" and c["claim_id"] is None]
+    assert before["reason"] == job.REPAIR + "Support check: the explanation sentence was not supported by its posts"
     assert row["verdict"] == "cut"
     assert row["reason"] == "Support check: the explanation sentence was not supported by its posts"
     assert za1_held(r)["reason"] == "explanation_failed"
@@ -2551,8 +2568,10 @@ def test_a_support_cut_on_a_rested_claim_is_named_even_when_a_later_claim_is_cut
     model = ScriptedModel(claim_support={"Local creators are posting": ("unsupported", "no post names creators"),
                                          "earliest post in the pack": ("unsupported", "from a brand page")})
     r = brief(world(n=1), model=model)
-    assert {c["claim_id"] for c in za1_checks(r) if c["rule"] == "K4" and c["verdict"] == "cut"} == {"c1", "c2"}
-    assert {c["reason"] for c in za1_checks(r) if c["rule"] == "K4" and c["verdict"] == "cut"} == {
+    # The cut on c1 holds the draft, so it gets the one repair round; the repaired draft's rows decide.
+    final = [c for c in za1_checks(r) if not c["reason"].startswith(job.REPAIR)]
+    assert {c["claim_id"] for c in final if c["rule"] == "K4" and c["verdict"] == "cut"} == {"c1", "c2"}
+    assert {c["reason"] for c in final if c["rule"] == "K4" and c["verdict"] == "cut"} == {
         "Support check: a claim was not supported by its posts"}
     assert za1_held(r)["reason"] == "explanation_failed"
 

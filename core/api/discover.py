@@ -13,8 +13,8 @@ from core.api import alerts
 from core.api.held_words import plain_reason
 from core.api.searching import searching_now
 from core.api.store import canon_platform, creator_key
-from core.api.today import (FLAG_WORDS, LABELS, MARKETS, SAST, STATE_WORDS, NotFound, NotReady, _card, _display_title,
-                            _platform_word, _series_name, _warmup, hidden_people, without_hidden)
+from core.api.today import (FLAG_WORDS, LABELS, MARKETS, SAST, NotFound, NotReady, _card, _display_title,
+                            _platform_word, _series_name, _warmup, hidden_people, state_word, without_hidden)
 
 SORTS = ("order", "velocity", "reach", "new")
 MAX_LIMIT = 200
@@ -214,7 +214,8 @@ def _build_card(row, brief_card, warmup, order):
         kind=row.get("kind") or card.get("kind"), state=row.get("state"),
         market_scope=market_scope,
         market_posts7=market_posts7, total_posts7=total_posts7, market_share7=market_share7,
-        state_word=STATE_WORDS.get(row.get("state")), flag=flag, flag_word=CARD_FLAG_WORDS.get(flag),
+        state_word=state_word(row.get("state"), row.get("creators3") or 0), flag=flag,
+        flag_word=CARD_FLAG_WORDS.get(flag),
         explained=status == "explained", explanation_status=status,
         lifecycle={"step": step[0], "word": step[1], "rule": step[2]} if step else None,
         novelty=row.get("novelty"),
@@ -241,14 +242,15 @@ def _raw_creator(row):
 def _creator_names(store, rows, hidden):
     """rows with creator_name set on each creator item whose label is only its id: the creators row's display name,
     else its @handle, else "<Platform> account, name not collected" when the id is not readable at all. A suppressed
-    creator is never named, and nothing is named while the suppression list cannot be read (hidden None)."""
+    creator is never named, and nothing is named while the suppression list cannot be read (hidden None); an id no
+    reader can use still gets the unnamed label then, so a raw platform id is never shown as a title."""
     raw = {r["item_id"]: _raw_creator(r) for r in rows}
     keys = {f"{p}:{i}" for p, i in (v for v in raw.values() if v)}
-    if not keys or hidden is None:
+    if not keys:
         return rows
-    hidden_keys, hidden_ids, _ = hidden
+    hidden_keys, hidden_ids, _ = hidden if hidden is not None else (set(), set(), set())
     reader = getattr(store, "creator_names", None)
-    found = (reader(keys) if callable(reader) else None) or {}
+    found = (reader(keys) if callable(reader) and hidden is not None else None) or {}
     out = []
     for r in rows:
         pair = raw[r["item_id"]]
@@ -256,16 +258,18 @@ def _creator_names(store, rows, hidden):
             out.append(r)
             continue
         platform, ident = pair
+        unnamed = f"{_platform_word(canon_platform(platform))} account, name not collected"
         c = found.get(f"{platform}:{ident}") or {}
-        if c.get("creator_id") in hidden_ids or creator_key(platform, c.get("handle") or ident) in hidden_keys:
-            out.append(r)
+        theirs = c.get("creator_id") in hidden_ids or creator_key(platform, c.get("handle") or ident) in hidden_keys
+        if hidden is None or theirs:
+            out.append(dict(r, creator_name=unnamed) if _CREATOR_ID.fullmatch(ident) else r)
             continue
         handle = str(c.get("handle") or "").strip().lstrip("@")
         name = str(c.get("display_name") or "").strip()
         if not name and handle and handle.casefold() != ident and not _CREATOR_ID.fullmatch(handle):
             name = "@" + handle
         if not name and _CREATOR_ID.fullmatch(ident):
-            name = f"{_platform_word(canon_platform(platform))} account, name not collected"
+            name = unnamed
         out.append(dict(r, creator_name=name) if name else r)
     return out
 
@@ -565,7 +569,8 @@ def build_topic(store, item_id, market):
     row, card = found
     end = run["run_date"]
     start = (dt.date.fromisoformat(end) - dt.timedelta(days=HISTORY_DAYS)).isoformat()
-    history = [{"date": h["metric_date"], "state": h["state"], "state_word": STATE_WORDS.get(h["state"])}
+    history = [{"date": h["metric_date"], "state": h["state"],
+                "state_word": state_word(h["state"], h.get("creators3") or 0)}
                for h in store.item_history(item_id, market, start, end)]
     waves = store.item_waves(item_id, market)
     signals = [{"signal": s, "words": SIGNAL_WORDS.get(s) or _sentence(s), "share": None}

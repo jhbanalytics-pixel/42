@@ -55,7 +55,8 @@ def post_counts(evidence, market):
 def failed_checks(checks, run_id, market, item_id):
     """The wording of every check row on the item that did not pass, most common first."""
     key = f"{run_id}:{market}:{item_id}"
-    rows = [c for c in checks if c["answer_or_brief_id"] == key and c["verdict"] != "pass"]
+    # A title row (core/brief/explain.py TITLE_RULE) never held an item: a cut only drops the written title.
+    rows = [c for c in checks if c["answer_or_brief_id"] == key and c["verdict"] != "pass" and c["rule"] != "title"]
     return [f"{n}x {reason}" for reason, n in Counter(c["reason"] or c["rule"] for c in rows).most_common()]
 
 

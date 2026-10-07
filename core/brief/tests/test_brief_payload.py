@@ -19,6 +19,8 @@ CARD_KEYS = {
     "explained", "explanation", "explanation_claim_ids", "claims", "count_line", "numbers", "sparkline",
     "thumbnails", "evidence_ids", "evidence", "ask", "explanation_status", "failed_reason", "also",
     "market_scope", "market_posts7", "total_posts7", "market_share7", "specificity", "news_driven",
+    # The writer's checked title, added 6 October 2026 (null when none passed); title stays the cluster label.
+    "title_written",
 }
 HEADLINE_KEYS = {"text", "market", "item_id", "claim_ids"}
 HELD_KEYS = {"count", "text", "items"}
@@ -325,6 +327,17 @@ def test_count_line_uses_only_numbers_values():
 
 def test_count_line_empty_without_numbers():
     assert build([cand(1, numbers=[])])["cards"][0]["count_line"] == ""
+
+
+# Tester report, 5 October 2026: an NG card read "1 creators and 1 posts in 3 days".
+def test_count_line_says_one_creator_and_one_post():
+    one = build([cand(1, numbers=[num(1, "creators in 3 days"), num(1, "posts in 3 days", 1)])])["cards"][0]
+    assert one["count_line"] == "1 creator and 1 post in 3 days"
+    mixed = build([cand(1, numbers=[num(1, "creators in 3 days"), num(21, "posts in 3 days", 1)])])["cards"][0]
+    assert mixed["count_line"] == "1 creator and 21 posts in 3 days"
+    held = build([cand(1, numbers=[num(1, "creators in 3 days"), num(11, "posts in 3 days", 1)],
+                       decision=decision("held_back", rule="G5"))])["held_back"]["items"][0]
+    assert held["count_line"] == "1 creator and 11 posts in 3 days"
 
 
 def test_untested_card_has_no_growth_ratio_and_no_expected_band():
@@ -643,6 +656,23 @@ def test_held_item_failed_reason_only_after_failed_checks():
     thin = cand(2, failed_reason="Support check: a claim was not supported", decision=g10)
     items = build([failed, thin])["held_back"]["items"]
     assert [i["failed_reason"] for i in items] == ["Support check: a claim was not supported", None]
+
+
+def test_a_not_run_item_carries_only_the_busy_models_fixed_wording():
+    from core.brief.payload import MODEL_BUSY, MODEL_REFUSED
+
+    g10 = decision("held_back", rule="G10")
+    busy = cand(1, explanation_status="not_run", failed_reason=MODEL_BUSY, decision=g10)
+    refused = cand(2, explanation_status="not_run", failed_reason=MODEL_REFUSED, decision=g10)
+    other = cand(3, explanation_status="not_run", failed_reason="Support check: a claim was not supported",
+                 decision=g10)
+    unset = cand(4, failed_reason=MODEL_BUSY, decision=g10)
+    items = build([busy, refused, other, unset])["held_back"]["items"]
+    assert [i["failed_reason"] for i in items] == [MODEL_BUSY, MODEL_REFUSED, None, None]
+    g10_card = decision(numbers_only=True)
+    p = build([cand(5, explanation_status="not_run", decision=g10_card, failed_reason=MODEL_BUSY),
+               cand(6, explanation_status="not_run", decision=g10_card, failed_reason="Critic: scraping artefact")])
+    assert [c["failed_reason"] for c in p["cards"]] == [MODEL_BUSY, None]
 
 
 def test_a_news_driven_card_says_so_and_others_do_not():

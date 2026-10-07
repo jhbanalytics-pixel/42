@@ -1794,11 +1794,31 @@ test('a claim figure with a warehouse unit reads as words, singular for one', as
   expect(text()).not.toContain('located_');
 });
 
-test('a partial answer with no short answer says why instead of leaving the space empty', async () => {
+/* Live review, 5 October 2026: the old fallback, "No short answer: too
+   little passed the checks", said only what did not pass. It now says what
+   did. */
+test('a partial answer with no short answer says what passed instead of leaving the space empty', async () => {
   const record = clone(partialRecord);
   record.answer.short_answer = '';
   serve([record]);
   await render({query: {follow: record.ask_id}});
   await until(() => host.querySelector('.ask42-answer'), 'the answer');
-  expect(plain(host.querySelector('.ask42-answer .ask42-short').textContent)).toBe('No short answer: too little passed the checks to sum up safely. What did pass is below.');
+  expect(plain(host.querySelector('.ask42-answer .ask42-short').textContent)).toBe('1 checked finding from 2 posts on TikTok is below. The one-line summary did not pass the checks.');
+});
+
+test('the no-short-answer words count findings, posts and platforms, and say when nothing passed', async () => {
+  const {noShortAnswer} = await import('../../ask42.jsx');
+  expect(noShortAnswer({claims: [], evidence: []})).toBe('Nothing passed the checks to sum up.');
+  expect(noShortAnswer({claims: [{id: 'c1'}, {id: 'c2'}], evidence: [{platform: 'tiktok'}, {platform: 'youtube'}, {platform: 'x'}]}))
+    .toBe('2 checked findings from 3 posts on TikTok, YouTube and X are below. The one-line summary did not pass the checks.');
+});
+
+test('a gap why that is a sentence stays whole, and status codes read as one list', async () => {
+  const {whyAll} = await import('../../ask42.jsx');
+  expect(whyAll("every cited post must fall inside the question's window and market, and text that names a place must cite a post located there"))
+    .toBe("every cited post must fall inside the question's window and market, and text that names a place must cite a post located there");
+  expect(whyAll('empty, rate_limited, auth_failed')).toBe('nothing found, rate limited and access failed');
+  expect(whyAll('rate_limited, rate_limited')).toBe('rate limited');
+  expect(whyAll('schema_drift')).toBe('the source changed shape');
+  expect(whyAll('')).toBe('');
 });

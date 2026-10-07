@@ -45,12 +45,16 @@ def _targets(watch, target, items, matches):
 
 # States whose name does not read after "Entered".
 STATE_ALERT_WORDS = {"new_to_42": "First spotted", "spike": "Spiked"}
+# A spike no creator posted about is detect's chart rule alone (top 10 of a board on 2 pulls running, views.sql).
+CHART_SPIKE_ALERT = "In a chart's top 10 on 2 pulls running"
 
 
 def _fired(rule, today, before):
     if "state_in" in rule:
         states = rule["state_in"]
         if today.get("state") in states and (before or {}).get("state") not in states:
+            if today["state"] == "spike" and (today.get("creators3") or 0) == 0:
+                return CHART_SPIKE_ALERT
             if today["state"] in STATE_ALERT_WORDS:
                 return STATE_ALERT_WORDS[today["state"]]
             return f"Entered {STATE_WORDS.get(today['state'], today['state'])}"

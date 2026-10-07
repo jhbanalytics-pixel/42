@@ -456,12 +456,16 @@ def api_communities(market: str | None = None) -> dict:
 
 @gated.get("/api/communities/{community_id}")
 def api_community(community_id: str, market: str | None = None) -> dict:
-    from core.api import people, store
+    from core.api import fast, people, store
 
     if not ASK_ID_RE.match(community_id):
         raise ApiError(400, "bad_request", "That is not a community id.")
     mkt = _optional_market(market)
-    return _v4(lambda: people.build_community(store.get_store(), community_id, mkt))
+    # The page builds its market's communities as the list does, so it reads through the list's plan; with no
+    # market it tries each one, sharing the cached pipeline reads between them.
+    return _v4(lambda: people.build_community(
+        fast.prefetch(store.get_store(), fast.communities_plan, mkt) if mkt else fast.reads(store.get_store()),
+        community_id, mkt))
 
 
 # Hiding a person (contract section 16): f42-web cannot write, so a hide goes to f42-agent like a watch. The list

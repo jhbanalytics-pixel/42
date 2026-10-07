@@ -58,6 +58,12 @@ _SECRET_PAIR = re.compile(
     r"[\"']?\s*[:=]\s*[\"']?)(?!(?:bearer|basic)\s)[^\s&,;\"'}]+")
 # 32 or more base64 or hex characters holding both a digit and a letter: a key, a token or a signature.
 _LONG_RUN = re.compile(r"(?<![\w+/-])(?=[\w+/-]*\d)(?=[\w+/-]*[A-Za-z])[\w+/-]{32,}={0,2}")
+# core/collect/chain.py's begin and _duplicate reasons, which name a stage, the day and a run id: the run log reads
+# them in words with no run id (the day is the page's own).
+_UPSTREAM = re.compile(r"upstream (\w+) for \d{4}-\d\d-\d\d is not ok \((no runs row|latest status (\w+))\)")
+_ALREADY_OK = re.compile(r"\w+ for \d{4}-\d\d-\d\d already ran ok \(run [^)]*\)")
+_STILL_RUNNING = re.compile(r"\w+ for \d{4}-\d\d-\d\d is still running \(run [^)]*\)")
+STALE_RUNNING = "No finish was recorded for this run; a later run of this step finished"
 
 
 def redact(text):
@@ -248,10 +254,12 @@ def _summary(rows):
 
 def collection_state(health, runs):
     """What happened to collection on the day, from the store's own rows: collected (sources recorded), running,
-    failed, empty (a collect run finished but recorded no source) or not_recorded (no collect run at all)."""
+    failed, empty (a collect run finished but recorded no source) or not_recorded (no collect run at all). A run
+    still marked running after a later collect run finished ok (_superseded) does not make the day running."""
     if health:
         return "collected"
-    statuses = {r.get("status") for r in runs if r.get("stage") == "collect"}
+    stale = _superseded(runs)
+    statuses = {r.get("status") for r in runs if r.get("stage") == "collect" and r.get("run_id") not in stale}
     if "running" in statuses:
         return "running"
     if "ok" in statuses:
@@ -310,12 +318,49 @@ def _degraded(codes):
     return out or None
 
 
-def _run(r):
-    """One run of the day; a run that finished with failed writes also carries degraded, what it could not write."""
+def run_note(error):
+    """A chain reason in the reader's words, with no run id; any other error text as redact leaves it."""
+    text = str(error) if error is not None else None
+    upstream = _UPSTREAM.fullmatch(text.strip()) if text else None
+    if upstream:
+        stage, seen, status = upstream.groups()
+        stage = _status_words(stage)
+        if seen == "no runs row":
+            return f"Did not start: the {stage} step had not run for this day yet"
+        if status == "running":
+            return f"Did not start: the {stage} step had not recorded a finish for this day yet"
+        return f"Did not start: the {stage} step did not finish for this day ({_status_words(status)})"
+    if text and _ALREADY_OK.fullmatch(text.strip()):
+        return "Not run again: this step had already finished for this day"
+    if text and _STILL_RUNNING.fullmatch(text.strip()):
+        return "Not run again: another run of this step was still going"
+    return redact(error)
+
+
+def _status_words(status):
+    return str(status or "").replace("_", " ")
+
+
+def _run(r, superseded=False):
+    """One run of the day; a run that finished ok but could not make some writes also carries degraded, what it
+    could not write. A run whose last row still says running while a later run of its stage finished ok is
+    superseded: its row stays as recorded, with a note saying so."""
     out = {**{k: r.get(k) for k in ("run_id", "stage", "status", "started_at", "finished_at")},
-           "error": redact(r.get("error"))}
+           "error": run_note(r.get("error"))}
+    if superseded and r.get("status") == "running" and not out["error"]:
+        out["error"] = STALE_RUNNING
     degraded = _degraded(r.get("degraded")) if r.get("status") == "ok" else None
     return {**out, "degraded": degraded} if degraded else out
+
+
+def _superseded(runs):
+    """run_ids whose last row says running while a run of the same stage that started later finished ok."""
+    done = {}
+    for r in runs:
+        if r.get("status") == "ok":
+            done.setdefault(r.get("stage"), []).append(str(r.get("started_at") or ""))
+    return {r.get("run_id") for r in runs if r.get("status") == "running"
+            and any(s > str(r.get("started_at") or "") for s in done.get(r.get("stage"), []))}
 
 
 def _stage_rank(stage):
@@ -365,6 +410,7 @@ def build_coverage(store, date):
     runs = store.runs_of_day(date)
     health = store.collection_health(date)
     card = _scorecard(store.scorecard())
+    stale = _superseded(runs)
     return {
         "date": date,
         "today": sast_date(),
@@ -373,7 +419,8 @@ def build_coverage(store, date):
         "markets": _markets(health),
         "credits": _credits(store.credits(date)),
         "model_spend": _model_spend(runs, store.has_model_usd(), cap),
-        "runs": [_run(r) for r in sorted(runs, key=lambda r: (_stage_rank(r["stage"]), r.get("started_at") or ""))],
+        "runs": [_run(r, r["run_id"] in stale)
+                 for r in sorted(runs, key=lambda r: (_stage_rank(r["stage"]), r.get("started_at") or ""))],
         "not_seen": list(NOT_SEEN),
         "scorecard": card,
         "scorecard_text": None if card else NO_SCORECARD,

@@ -322,6 +322,103 @@ test('the market links mark the market on screen', async () => {
   ]);
 });
 
+/* The topic globe, 6 October 2026 (Albert: "a 3d grouping of all topics by
+   the topics they keep posting about ... like a globe"). The globe draws
+   with WebGL, which Happy DOM has none of, so these tests pin what every
+   reader gets: the picker, the chosen community's topics and the way in. */
+
+function threeCommunities(){
+  const body = clone(fixture.communities);
+  const [first] = body.communities;
+  const second = clone(first);
+  second.community_id = 'b'.repeat(64);
+  second.label = '#derby, #afcon';
+  second.creators = {...first.creators, value: 14};
+  second.top_items = [
+    {...clone(first.top_items[0])},
+    {...clone(first.top_items[0]), item_id: 'item_derby', title: '#derby'},
+    {...clone(first.top_items[0]), item_id: 'item_afcon', title: '#afcon'},
+  ];
+  const third = clone(first);
+  third.community_id = 'c'.repeat(64);
+  third.label = '#flagged, #kept';
+  third.creators = {...first.creators, value: 5};
+  third.top_items = [
+    {...clone(first.top_items[0]), item_id: 'item_flagged', title: '#flagged', flag: 'likely_coordinated'},
+    {...clone(first.top_items[0]), item_id: 'item_kept', title: '#kept'},
+  ];
+  body.communities = [first, second, third];
+  return body;
+}
+
+const globe = () => section('globe');
+const picks = () => [...globe().querySelectorAll('.cg42-pick')];
+
+test('a market with communities shows the topic globe above the list, with one pick per community, largest first', async () => {
+  await mount(<CommunitiesPage42 market="NG" />, reply(200, threeCommunities()));
+  expect(globe()).not.toBeNull();
+  const list = host.querySelector('.cm42-list');
+  expect(globe().compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(globe().querySelector('h2').textContent).toBe('Topics on the globe');
+  expect(picks().map((b) => b.getAttribute('data-globe-community'))).toEqual(['b'.repeat(64), fixture.communities.communities[0].community_id, 'c'.repeat(64)]);
+  expect(picks().map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+});
+
+test('the chosen community on the globe shows its creators, its shared topics as links, and a link to the community', async () => {
+  await mount(<CommunitiesPage42 market="NG" />, reply(200, threeCommunities()));
+  const panel = globe().querySelector('.cg42-panel');
+  const heading = panel.querySelector('a[href^="#/communities/"]');
+  expect(heading.getAttribute('href')).toBe('#/communities/' + 'b'.repeat(64) + '?market=NG');
+  expect(heading.textContent).toBe('#derby, #afcon');
+  expect(panel.textContent.replace(/ /g, ' ')).toContain('14 creators');
+  expect(panel.querySelector('[data-query-id="q_communities"]')).not.toBeNull();
+  const topics = [...panel.querySelectorAll('.cg42-topics a')];
+  const [shared] = fixture.communities.communities[0].top_items;
+  expect(topics.map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
+    [shared.title, '#/t/' + shared.item_id + '?market=NG'], ['#derby', '#/t/item_derby?market=NG'], ['#afcon', '#/t/item_afcon?market=NG'],
+  ]);
+  /* A topic two communities share says so, since that is what the lines on the globe draw. */
+  expect(panel.querySelector('[data-shared="true"]').textContent).toContain(shared.title);
+  expect(panel.textContent).toContain('Also posted about by 1 other community');
+});
+
+test('picking another community on the globe moves the panel to it, and a rule 3 topic never reaches the globe', async () => {
+  await mount(<CommunitiesPage42 market="NG" />, reply(200, threeCommunities()));
+  const third = picks().find((b) => b.getAttribute('data-globe-community') === 'c'.repeat(64));
+  flushSync(() => third.click());
+  await settle();
+  expect(picks().map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true']);
+  const panel = globe().querySelector('.cg42-panel');
+  expect([...panel.querySelectorAll('.cg42-topics a')].map((a) => a.textContent)).toEqual(['#kept']);
+  /* The label is the API's own words, shown as the list shows it; the flagged card itself is never a topic link. */
+  expect([...globe().querySelectorAll('a[href^="#/t/"]')].map((a) => a.textContent)).not.toContain('#flagged');
+});
+
+test('the globe names no creator, even after the sensitive set is complete', async () => {
+  await mount(<CommunitiesPage42 market="NG" />, reply(200, threeCommunities()));
+  expect(globe().querySelector('a[href^="#/creators/"]')).toBeNull();
+  for (const name of ['fixture_ng_mega', 'fixture_ng_macro']) expect(globe().textContent).not.toContain(name);
+});
+
+test('without WebGL the globe says so in words and the picker and panel still work', async () => {
+  await mount(<CommunitiesPage42 market="NG" />, reply(200, threeCommunities()));
+  expect(globe().querySelector('[data-globe-state="unavailable"]').textContent).toBe('This browser cannot draw the globe. Every community and its topics are listed here and below.');
+  expect(globe().querySelector('canvas')).toBeNull();
+});
+
+test('an empty market draws no globe', async () => {
+  await mount(<CommunitiesPage42 market="KE" />, () => reply(200, {...clone(fixture.communities), market: 'KE', communities: []}));
+  expect(globe()).toBeNull();
+});
+
+test('the Communities page loads the 3D library only when a globe is drawn, never in its first bundle', async () => {
+  const source = await Bun.file(new URL('../../people42.jsx', import.meta.url)).text();
+  const globeSource = await Bun.file(new URL('../TopicGlobe.jsx', import.meta.url)).text();
+  expect(source).not.toMatch(/from 'three'/);
+  expect(globeSource).not.toMatch(/from 'three'/);
+  expect(globeSource).toContain("import('./topicGlobeScene.js')");
+});
+
 test('an empty list says why it is empty and what fills a community', async () => {
   // Restated 2 October 2026: the empty state now says what fills a community and reads the other markets' counts for real.
   await mount(<CommunitiesPage42 market="KE" />, (url) => reply(200, {...clone(fixture.communities), market: 'KE', communities: url.includes('market=NG') ? fixture.communities.communities : []}));
@@ -579,4 +676,15 @@ test('every language code enrichment records reads as a name on the community li
   const row = host.querySelector('[data-community="' + list.communities[0].community_id + '"]');
   expect(row.textContent).toContain('English, Swahili, Sheng, Somali, Dholuo, Gikuyu, Kikamba');
   expect(row.textContent).not.toMatch(/, so,|, so$/);
+});
+
+/* A code outside the list (an older enrichment row) still reads as a
+   language name, or as another language, never as the bare code. */
+test('a language code outside the list reads as a name or as another language', async () => {
+  const list = clone(fixture.communities);
+  list.communities[0].languages = ['de', 'qqq'].map((lang) => ({...list.communities[0].languages[0], lang}));
+  await mount(<CommunitiesPage42 market="NG" />, reply(200, list));
+  const row = host.querySelector('[data-community="' + list.communities[0].community_id + '"]');
+  expect(row.textContent).toContain('German, Another language');
+  expect(row.textContent).not.toMatch(/qqq|\(de\)/);
 });

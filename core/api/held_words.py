@@ -2,6 +2,8 @@
 alerts, so a held item reads the same wherever it is shown."""
 import re
 
+from core.brief.payload import NOT_RUN_REASONS
+
 # core/trust/gate.py's held reasons, matched whole, each with its plain words. Any other reason stays as written.
 # G3 and G4b also match the wording gate.py used before, so briefs stored with it still read plainly.
 # core/api/tests/test_held_words.py checks that every held reason gate_card writes has plain words here.
@@ -25,10 +27,23 @@ GATE_WORDS = (
 )
 
 
+# An explanation held back (G10), as the brief job (core/brief/job.py) and Today's own card check
+# (core/api/today.py REJECT_EXPLAINED) word it. Tester report, 5 October 2026: "Explanation failed its checks" read as
+# a broken market, so it reads as what happened to the explanation. A topic a busy model left unexplained carries the
+# job's fixed busy wording (core/brief/payload.py NOT_RUN_REASONS) in failed_reason: no check ran on it, so it says so.
+EXPLANATION_HELD = frozenset({"Explanation failed its checks", "The explanation did not pass its checks"})
+EXPLANATION_WORDS = "The explanation did not pass our checks"
+BUSY_WORDS = "Not explained in time: the model was busy"
+
+
 def plain_reason(out):
     """Swap a gate reason for its plain words, keeping the gate's own text in reason_raw."""
     raw = out.get("reason_text")
     if not isinstance(raw, str):
+        return out
+    if raw.strip() in EXPLANATION_HELD:
+        busy = isinstance(out.get("failed_reason"), str) and out["failed_reason"].strip() in NOT_RUN_REASONS
+        out["reason_text"], out["reason_raw"] = BUSY_WORDS if busy else EXPLANATION_WORDS, raw
         return out
     for rx, words in GATE_WORDS:
         m = rx.fullmatch(raw.strip())

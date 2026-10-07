@@ -436,6 +436,43 @@ def test_communities_with_a_community_read_no_more_than_one_by_one_and_use_every
     assert quick.calls.count("suppressed_creators") == serial.calls.count("suppressed_creators")
 
 
+def _a_community(market):
+    return people.build_communities(FixtureStore(), market)["communities"][0]["community_id"]
+
+
+def test_a_community_page_through_the_list_plan_answers_as_before_and_reads_together():
+    """Visual QA, 5 October 2026: a community page took 37 to 44 s. It read every read one after another and
+    uncached, while the list beside it read through communities_plan."""
+    community = _a_community("NG")
+    build = lambda s: people.build_community(s, community, "NG")  # noqa: E731
+    plain, one_by_one = _rounds(build, Counting())
+    started = fast.prefetch(Counting(), fast.communities_plan, "NG")
+    assert build(started) == plain
+    assert started.unused() == []
+    body, together = _rounds(lambda s: build(fast.prefetch(s, fast.communities_plan, "NG")), Counting())
+    assert body == plain
+    assert together < one_by_one, (together, one_by_one)
+    serial, quick = Counting(), Counting()
+    build(serial)
+    build(fast.prefetch(quick, fast.communities_plan, "NG"))
+    assert len(quick.calls) <= len(serial.calls)
+    assert quick.calls.count("suppressed_creators") == serial.calls.count("suppressed_creators")
+
+
+def test_the_community_route_reads_together_and_answers_as_before(slow_app):
+    client, stores = slow_app
+    community = _a_community("NG")
+    serial = Counting()
+    expected, _ = _rounds(lambda s: people.build_community(s, community, "NG"), serial)
+    r = client.get(f"/api/communities/{community}?market=NG", headers={"X-Passcode": PASS})
+    assert r.status_code == 200, r.text
+    assert r.json() == _json(expected)
+    assert len(stores[-1].calls) <= len(serial.calls)
+    assert stores[-1].depth < len(serial.calls) * 0.7, (stores[-1].depth, len(serial.calls))
+    r = client.get(f"/api/communities/{community}", headers={"X-Passcode": PASS})
+    assert r.status_code == 200 and r.json()["community"]["community_id"] == community
+
+
 def test_history_search_reads_every_market_together():
     class Waves(Counting):
         """Waves in three markets, so the search reads three markets' days."""

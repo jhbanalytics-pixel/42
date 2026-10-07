@@ -15,7 +15,8 @@
     "chart.js": "4.4.7",
     "ogilvy-intelligence-design-system": "file:vendor/ogilvy-intelligence-design-system-2.0.22.tgz",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "three": "0.180.0"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.14.5",

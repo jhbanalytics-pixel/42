@@ -69,7 +69,24 @@ _SINGULAR = {"posts": "post", "creators": "creator", "items": "item", "days": "d
              "searches": "search", "markets": "market", "hashtags": "hashtag"}
 _RECORD_ID = re.compile(r"\bobs\d*_[0-9a-f]{8,}\b", re.I)
 _BUDGET_STOP = "model cost or usage could not be verified within the per-question budget"
-NO_SHORT_ANSWER = "No short answer: too little passed the checks to sum up safely. What did pass is below."
+def short_answer_fallback(answer) -> str:
+    """What stands in for a short answer that failed a check: what did pass, as the Ask page says it
+    (app/frontend/src/ask42.jsx noShortAnswer)."""
+    claims = answer.get("claims") or []
+    if not claims:
+        return "Nothing passed the checks to sum up."
+    evidence = [e for e in answer.get("evidence") or [] if isinstance(e, dict)]
+    platforms = list(dict.fromkeys(_PLATFORM.get(e.get("platform"), e.get("platform")) for e in evidence
+                                   if e.get("platform")))
+    found = f"{len(claims)} checked finding" + ("" if len(claims) == 1 else "s")
+    where = ""
+    if evidence:
+        where = f" from {len(evidence)} post" + ("" if len(evidence) == 1 else "s")
+        if platforms:
+            named = platforms[0] if len(platforms) == 1 else ", ".join(platforms[:-1]) + " and " + platforms[-1]
+            where += " on " + named
+    verb = " is" if len(claims) == 1 else " are"
+    return found + where + verb + " below. The one-line summary did not pass the checks."
 
 
 def _unit(value, unit):
@@ -261,7 +278,7 @@ def render_answer_html(record: dict) -> str:
 
     out.append("<section><h2>Short answer</h2>")
     short = str(answer.get("short_answer") or "").strip()
-    out.append(_p(short) if short else _p(NO_SHORT_ANSWER, "note"))
+    out.append(_p(short) if short else _p(short_answer_fallback(answer), "note"))
     out.append("</section>")
 
     claims = answer.get("claims") or []

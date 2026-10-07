@@ -139,4 +139,4 @@ def test_writer_with_no_showable_posts_returns_truthful_insufficiency():
         draft, ctx, warehouse=None, window=WINDOW, markets=["ZA"])
     assert checked["status"] == "insufficient_evidence"
     assert checked["short_answer"] == checks.INSUFFICIENT
-    assert {gap["what"] for gap in checked["gaps"]} >= {"Some retrieved posts could not be cited"}
+    assert {gap["what"] for gap in checked["gaps"]} >= {"Some posts found could not be quoted"}

@@ -9,6 +9,7 @@ import re
 import pytest
 
 from core.api import discover, people, today
+from core.api.held_words import EXPLANATION_WORDS
 from core.api import store as store_mod
 from core.api.store import FixtureStore
 
@@ -486,7 +487,8 @@ def test_a_card_is_held_when_its_explanation_rested_on_a_claim_that_was_dropped(
     za = _za(today.build_today(store, D30))
     assert za["cards"] == [] and za["more"] == []
     held = next(i for i in za["held_back"]["items"] if i["item_id"] == ZA_A)
-    assert held["reason_text"] == today.REJECT_EXPLAINED
+    # Reads in plain words since 6 October 2026 (core/api/held_words.py); the check's own words stay in reason_raw.
+    assert (held["reason_text"], held["reason_raw"]) == (EXPLANATION_WORDS, today.REJECT_EXPLAINED)
     assert held["failed_reason"] == today.HIDDEN_UNSUPPORTED
     # Other readers show it as numbers and posts, as a card whose explanation failed its checks.
     listed = next(c for c in today.build_trends(store, "ZA", D30)["cards"] if c["item_id"] == ZA_A)

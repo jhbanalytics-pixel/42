@@ -68,9 +68,19 @@ export function answerStatusWords(answer){
   return ANSWER_STATUS[answer && answer.status] || null;
 }
 
-/* A partial answer can arrive with no short answer at all; the space says
-   why instead of standing empty. */
-export const NO_SHORT_ANSWER = 'No short answer: too little passed the checks to sum up safely. What did pass is below.';
+/* A partial answer can arrive with no short answer at all (the one-line
+   summary failed a check). The space says what did pass instead of standing
+   empty or only saying what did not (core/api/export.py shortAnswerFallback
+   writes the same words). */
+export function noShortAnswer(answer){
+  const claims = Array.isArray(answer && answer.claims) ? answer.claims : [];
+  if (claims.length === 0) return 'Nothing passed the checks to sum up.';
+  const evidence = Array.isArray(answer.evidence) ? answer.evidence : [];
+  const platforms = [...new Set(evidence.map((item) => platformLabel(item && item.platform) || (item && item.platform)).filter(Boolean))];
+  const found = readerFigure(claims.length) + (claims.length === 1 ? ' checked finding' : ' checked findings');
+  const from = evidence.length ? ' from ' + readerFigure(evidence.length) + (evidence.length === 1 ? ' post' : ' posts') + (platforms.length ? ' on ' + listWords(platforms) : '') : '';
+  return found + from + (claims.length === 1 ? ' is' : ' are') + ' below. The one-line summary did not pass the checks.';
+}
 
 const WHY = {
   empty: 'nothing found',
@@ -82,7 +92,17 @@ const WHY = {
   ok: 'read',
 };
 const why = (value) => WHY[value] || String(value || '').replace(/_/g, ' ');
-const whyAll = (value) => String(value || '').split(/,\s*/).filter(Boolean).map(why).join(' and ');
+/* A gap's why is either source status codes ("empty, rate_limited"), read
+   as words in one list, or a sentence, which stays whole: splitting a
+   sentence at its commas and joining the parts with "and" wrote "market
+   and and text" (live review, 5 October 2026). */
+const listWords = (words) => (words.length > 1 ? words.slice(0, -1).join(', ') + ' and ' + words[words.length - 1] : words[0] || '');
+export function whyAll(value){
+  const text = String(value || '').trim();
+  const parts = text.split(/,\s*/).filter(Boolean);
+  if (parts.length > 1 && parts.every((part) => /^[a-z_]+$/.test(part))) return listWords([...new Set(parts.map(why))]);
+  return why(text);
+}
 
 /* What a gap searched, in reader words: the leading route
    ("instagram/hashtag") becomes its platform, a search term after it reads
@@ -435,7 +455,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
         <div className="ask42-answer-main">
         {answerStatusWords(answer) && <p className="ask42-status">{answerStatusWords(answer)}</p>}
         {record.status === 'stopped' && <p className="ask42-status">Stopped early: this answer holds only what had passed its checks</p>}
-        <p id={shortId} className="ask42-short">{String(answer.short_answer || '').trim() ? <ShortAnswer text={answer.short_answer} /> : NO_SHORT_ANSWER}</p>
+        <p id={shortId} className="ask42-short">{String(answer.short_answer || '').trim() ? <ShortAnswer text={answer.short_answer} /> : noShortAnswer(answer)}</p>
 
         {answer.claims && answer.claims.length > 0 && (
           <ol className="ask42-claims" aria-label="Claims">

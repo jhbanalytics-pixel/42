@@ -1,0 +1,62 @@
+/* The topic globe on the Communities page (people42.jsx CommunityGlobe,
+   ui/TopicGlobe.jsx). Night Desk rules hold: square corners, no cast
+   shadows, colour only where it means something (the market's mark on
+   communities, red on the pick), and motion as opacity only; the globe's
+   own turning is drawn on the canvas. */
+.cg42 { margin: var(--s-5) 0 var(--s-6); padding-top: var(--s-4); border-top: 1px solid var(--line); }
+.cg42-title { margin: 0 0 var(--s-2); }
+.cg42-lede { margin: 0 0 var(--s-4); color: var(--ink-2); max-width: var(--measure); text-wrap: pretty; }
+
+.cg42-layout { display: grid; gap: var(--s-4) var(--s-6); align-items: start; }
+@media (min-width: 900px) {
+  .cg42-layout { grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr); }
+}
+
+/* The stage keeps a square, so the globe never jumps when it loads. */
+.cg42-view { position: relative; width: 100%; aspect-ratio: 1 / 1; max-height: min(78vh, 640px); overflow: hidden; }
+.cg42-stage { position: absolute; inset: 0; }
+.cg42-canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+/* The canvas is turned by hand and never focused (the picker beside it is
+   the keyboard's way to every community), so the scene sets its grab cursor. */
+.cg42-loading { position: absolute; left: var(--s-3); bottom: var(--s-2); margin: 0; color: var(--muted); font-size: var(--nd-t-meta); }
+.cg42-unavailable { margin: 0; padding: var(--s-4); border: 1px solid var(--line); color: var(--ink-2); max-width: var(--measure); }
+
+/* Labels sit above the canvas and are placed by the scene each frame;
+   they show once placed, and only for points facing the reader. */
+.cg42-labels { position: absolute; inset: 0; pointer-events: none; }
+.cg42-label {
+  position: absolute; left: 0; top: 0; opacity: 0; white-space: nowrap;
+  margin: -0.75em 0 0 12px; padding: 1px 6px;
+  font-size: var(--nd-t-meta); line-height: 1.35; color: var(--ink);
+  background: var(--surface, var(--paper));
+  transition: opacity var(--motion-control) var(--motion-standard-easing);
+}
+.cg42-label-community { font-weight: 600; }
+.cg42-label-on { color: var(--accent-ink, var(--ink)); background: var(--accent); }
+.cg42-label-topic { color: var(--ink-2); font-size: var(--nd-t-small); }
+
+/* The picker: one row per community, the pick marked by a red edge. */
+.cg42-side { display: grid; gap: var(--s-4); min-width: 0; }
+.cg42-picks { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); max-height: 22rem; overflow-y: auto; }
+html .oi-product .cg42 .cg42-picks li > button.cg42-pick {
+  display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: var(--s-1) var(--s-3); align-items: baseline;
+  width: 100%; min-height: var(--target-min); padding: var(--s-2) var(--s-3);
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+  background: transparent; color: var(--ink); text-align: left; font: inherit; cursor: pointer;
+  transition: background-color var(--motion-control) var(--motion-standard-easing);
+}
+html .oi-product .cg42 .cg42-picks li > button.cg42-pick:hover { background: var(--surface-2); }
+html .oi-product .cg42 .cg42-picks li > button.cg42-pick:focus-visible { outline: var(--focus-width) solid var(--accent); outline-offset: var(--focus-offset); }
+html .oi-product .cg42 .cg42-picks li > button.cg42-pick[aria-pressed="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
+.cg42-pick-label { min-width: 0; overflow-wrap: anywhere; }
+.cg42-pick-size { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* The chosen community: its label, its size, and the topics it shares. */
+.cg42-panel { padding-top: var(--s-1); }
+.cg42-panel-title { margin: 0 0 var(--s-2); }
+.cg42-panel-size { margin: 0 0 var(--s-3); color: var(--muted); }
+.cg42-panel-value { color: var(--ink); font-family: var(--nd-face); font-weight: 800; font-stretch: var(--nd-stretch-figure); font-size: var(--nd-figure); line-height: 1; font-variant-numeric: tabular-nums; }
+.cg42-panel-sub { margin: 0 0 var(--s-2); color: var(--muted); }
+.cg42-topics { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.cg42-topics li { display: grid; gap: 2px; }
+.cg42-also { color: var(--muted); font-size: var(--nd-t-meta); }

@@ -43,10 +43,40 @@ MAX_TOOL_FAILURES = 3
 clock: Callable[[], float] = time.monotonic
 
 
+# Seconds Ask waits before making again a call Vertex refused for capacity (a 429 RESOURCE_EXHAUSTED on its shared
+# capacity, on and off on 6 Oct 2026, when Ask gave up on the first one). An Ask is read while it runs, so the waits are
+# short and bounded: 35 s in all per call, then the refusal stands. A refusal bills nothing, so each try reserves afresh.
+BUSY_WAITS_S = (5.0, 10.0, 20.0)
+
+
 def server_error(exc: BaseException) -> bool:
     """A 5xx from Vertex: the request failed on Google's side and is worth one more try. Anything else is not."""
     code = getattr(exc, "code", None)
     return (type(code) is int and 500 <= code <= 599) or type(exc).__name__ == "ServerError"
+
+
+def busy_refusal(exc: BaseException) -> bool:
+    """A 429 from Vertex (google-genai's APIError code) with no usage on it: Google refused the call for capacity
+    before running it, so it billed nothing and its reserve can be given back. A 429 only in the text, or an error that
+    carries usage, is not one."""
+    code = getattr(exc, "code", None)
+    return (type(code) is int and code == 429 and getattr(exc, "usage", None) is None
+            and not getattr(exc, "usd", None))
+
+
+def wait_busy(attempt: int, should_stop: Callable[[], bool]) -> bool:
+    """Wait out the attempt-th refusal in a row (BUSY_WAITS_S), a second at a time so a stop is not held up. False when
+    the waits are used up or the ask is stopping: the refusal then stands."""
+    if attempt >= len(BUSY_WAITS_S) or should_stop():
+        return False
+    left = BUSY_WAITS_S[attempt]
+    while left > 0:
+        step = min(1.0, left)
+        time.sleep(step)
+        left -= step
+        if should_stop():
+            return False
+    return True
 
 
 def closed_text(name: str) -> str:
@@ -82,16 +112,22 @@ def _invalid_args(name: str, args: dict) -> str | None:
     return None
 
 
-def _generate(client, model, history, config):
-    """One call, retried once after a short wait on a 429 (temporary contention on the global endpoint). A 5xx is
-    retried by the HTTP client itself, which runs with one retry when no per-question budget guards the call."""
-    try:
-        return client.models.generate_content(model=model, contents=history, config=config)
-    except Exception as exc:
-        if getattr(exc, "code", None) != 429 and "RESOURCE_EXHAUSTED" not in str(exc):
-            raise
-        time.sleep(RETRY_WAIT_S)
-        return client.models.generate_content(model=model, contents=history, config=config)
+def _generate(client, model, history, config, should_stop: Callable[[], bool] = lambda: False):
+    """One call, made again after a short wait on a 429 (temporary contention on the global endpoint): first after
+    RETRY_WAIT_S, then after each of BUSY_WAITS_S. A 5xx is retried by the HTTP client itself, which runs with one
+    retry when no per-question budget guards the call."""
+    attempt = 0
+    while True:
+        try:
+            return client.models.generate_content(model=model, contents=history, config=config)
+        except Exception as exc:
+            if getattr(exc, "code", None) != 429 and "RESOURCE_EXHAUSTED" not in str(exc):
+                raise
+            if attempt == 0:
+                time.sleep(RETRY_WAIT_S)
+            elif not wait_busy(attempt - 1, should_stop):
+                raise
+            attempt += 1
 
 
 def _json_default(value):
@@ -251,8 +287,9 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
         turn_started = clock()
         reservation = None
         if model_budget is not None:
-            response, budget_note = None, None
-            for attempt in (0, 1):
+            response, budget_note, failed = None, None, None
+            busy = server_failed = 0
+            while True:
                 try:
                     reservation = model_budget.reserve(options.model, _input_bound(options.model, history, config),
                                                        RESEARCH_MAX_OUTPUT_TOKENS, research=True)
@@ -264,16 +301,27 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                         result["stopped"] = True
                         budget_note = "Research stopped: the model budget for this question is spent."
                         break
-                    if attempt:  # the retry is refused for another reason: the server error stands
+                    if failed is not None:  # the retry is refused for another reason: the earlier failure stands
                         raise failed from None
                     raise
                 try:
                     response = client.models.generate_content(model=options.model, contents=history, config=config)
                     break
                 except Exception as exc:
+                    if busy_refusal(exc):
+                        # Google refused the call for capacity before running it: nothing was billed, so the whole
+                        # reserve goes back, and the call is made again on a fresh one after a short wait.
+                        model_budget.release(reservation)
+                        if not should_stop() and busy < len(BUSY_WAITS_S):
+                            emit.step("note", f"The model is busy; trying again in {BUSY_WAITS_S[busy]:g} seconds")
+                        if not wait_busy(busy, should_stop):
+                            raise
+                        busy += 1
+                        failed = exc
+                        continue
                     # A 5xx is Google's failure: its reserve is booked in full, as for any failed call, and one more
                     # try runs on a fresh reserve. Any other failure, or a second 5xx, stops the question as before.
-                    retry = not attempt and server_error(exc) and not should_stop()
+                    retry = not server_failed and server_error(exc) and not should_stop()
                     model_budget.fail(reservation, stop=not retry)
                     try:
                         exc.before_dispatch = False
@@ -284,6 +332,7 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                         raise wrapped from exc
                     if not retry:
                         raise
+                    server_failed += 1
                     failed = exc
                     time.sleep(RETRY_WAIT_S)
             if budget_note:
@@ -299,7 +348,7 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                 break
             usage_safe = model_budget.settle(reservation, usage)
         else:
-            response = _generate(client, options.model, history, config)
+            response = _generate(client, options.model, history, config, should_stop)
             usage = usage_of(response, options.model)
             usage_safe = True
         result["tokens"]["input"] += usage["input_tokens"]

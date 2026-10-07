@@ -656,6 +656,57 @@ def test_suppressed_creator_or_unreadable_list_is_never_named():
     assert "Jozi Vibes" not in titles(unread).values()
 
 
+def test_a_raw_creator_id_is_never_a_title_even_when_no_name_may_be_read():
+    """Visual QA, 5 October 2026: Discover showed "t2_x9o72po41" as a title. With the suppression list unread no
+    name is read, and a suppressed creator is not named, but an id no reader can use still reads as an account."""
+    names = {"reddit:t2_cw89ipiz": {"creator_id": "t2_cw89ipiz", "platform": "reddit", "handle": "jozi_vibes",
+                                    "display_name": "Jozi Vibes"}}
+    unread = Patched(item_states=creator_rows, creator_names=lambda keys: names)
+    unread.suppressed_creators = lambda: None
+    got = titles(unread)
+    assert got[CREATOR_T2] == "Reddit account, name not collected"
+    assert got[CREATOR_UC] == "YouTube account, name not collected"
+    assert got[CREATOR_NAMED] == "Agile Mind Cartoons"
+    hidden = Patched(item_states=creator_rows, creator_names=lambda keys: names)
+    hidden.suppressed_creators = lambda: {"t2_cw89ipiz"}
+    hidden.creators_by_id = lambda ids: [{"creator_id": "t2_cw89ipiz", "platform": "reddit", "handle": "jozi_vibes"}]
+    assert titles(hidden)[CREATOR_T2] == "Reddit account, name not collected"
+    assert not any(re.fullmatch(r"t2_\w+", t) for t in titles(hidden).values())
+
+
+def test_a_reddit_account_id_label_on_any_item_is_not_shown_as_its_title():
+    other = iid("creator", "reddit:jozi_vibes")
+
+    def states(run, market):
+        base = FixtureStore().item_states(run, market)[0]
+        return [dict(base, item_id=other, kind="creator", label="t2_x9o72po41", canonical_key="reddit:jozi_vibes",
+                     platforms=["reddit"])] if market in ("ZA", "all") else []
+
+    assert titles(Patched(item_states=states))[other] == "reddit:jozi_vibes"
+
+
+def test_a_spike_no_creator_posted_reads_as_a_chart_place():
+    """Visual QA, 5 October 2026: Drake tracks on the charts read "Spike" with 0 creators. detect's spike rule also
+    fires on a chart's top 10 on 2 pulls alone; that card says so instead."""
+    def states(run, market):
+        rows = FixtureStore().item_states(run, market)
+        return [dict(r, state="spike", creators3=c) for r, c in zip(rows, (0, None, 7))]
+
+    out = discover.build_discover(Patched(item_states=states), "ZA")
+    cards = out["items"] + [h["card"] for h in out["held_back"]["items"]]
+    words = sorted(c["state_word"] for c in cards if c["state"] == "spike")
+    assert words.count("High on the charts") == 2 and "Spike" in words
+
+
+def test_topic_history_words_a_chart_only_spike_day():
+    fx = FixtureStore()
+    history = [{"metric_date": "2026-09-29", "state": "spike", "creators3": None},
+               {"metric_date": D30, "state": "spike", "creators3": 6}]
+    out = discover.build_topic(Patched(item_history=lambda *a: history), HERITAGE, "ZA")
+    assert [h["state_word"] for h in out["history"]] == ["High on the charts", "Spike"]
+    assert fx.item_history(HERITAGE, "ZA", "2026-09-01", D30)[0].keys() == {"metric_date", "state", "creators3"}
+
+
 # ---------- Topic pages ----------
 
 def test_topic_page(fx):

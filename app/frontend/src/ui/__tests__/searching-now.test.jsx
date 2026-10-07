@@ -11,7 +11,9 @@ test('renders the five-field search strip in stable market groups', () => {
   const html = render({signals, market: 'ALL'});
 
   expect(html).toContain('data-section="searching-now"');
-  expect(html).toContain('Searching now');
+  // Tester report, 5 October 2026: "Searching now" read as a page still loading.
+  expect(html).toContain('Trending on Google');
+  expect(html).not.toContain('Searching now');
   expect(html).toContain('Google search interest, not posts');
   expect(html).not.toContain('<article');
   expect([...html.matchAll(/data-search-market="([A-Z]{2})"/g)].map((match) => match[1]))
@@ -30,19 +32,23 @@ test('keeps only the selected market', () => {
     .toEqual(['ZA']);
 });
 
-// Restated 4 October 2026 for the ranked-list redesign: the rank is a numeral in
-// its own column and a refresh reads as a short day or relative time, while the
-// exact ISO value stays in the time element's dateTime attribute.
+// Restated 4 October 2026 for the ranked-list redesign: a refresh reads as a
+// short day or relative time, while the exact ISO value stays in the time
+// element's dateTime attribute. Restated 6 October 2026 (tester report): the
+// rank left its own numeral column, where Google's gaps (2, or 3, 6, 8, 11)
+// read as missing rows, and is labelled as Google's after the freshness.
 test('shows the rank when present and keeps the supplied value in dateTime', () => {
   const now = Date.parse('2026-10-04T03:50:00Z');
   const unranked = render({signals, market: 'ZA', now});
   const ranked = render({signals, market: 'NG', now});
 
-  expect(unranked).toContain('<span class="sr-only">unranked</span>');
+  expect(unranked).toContain('<span class="sr-only">, unranked on Google</span>');
+  expect(unranked).not.toContain('searching-now__rank');
   expect(unranked).toContain('dateTime="2026-09-30"');
   expect(unranked).toContain('>30 Sep</time>');
   expect(unranked).not.toContain('T00:00:00');
-  expect(ranked).toContain('<span class="sr-only">Rank </span>3');
+  expect(ranked).toContain('<span class="searching-now__rank" data-google-rank="3"><span class="sr-only">, </span>Google rank 3</span>');
+  expect(ranked).toMatch(/searching-now__term">fixture query NG<\/span><span class="searching-now__meta">/);
   expect(ranked).toContain('dateTime="2026-09-30T12:34:56Z"');
   expect(ranked).toContain('>30 Sep</time>');
   expect(ranked).not.toContain('>2026-09-30T12:34:56Z<');
@@ -73,10 +79,10 @@ test('orders by rank, live before daily, then term, and repeats tied ranks', () 
   ]});
   const terms = [...html.matchAll(/class="searching-now__term">([^<]+)/g)].map((match) => match[1]);
   expect(terms).toEqual(['croatia vs england', 'denmark vs portugal', 'eritrea vs south africa', 'wales vs norway', 'south africa green id end date', 'farmer']);
-  expect(html).toContain('Searching now<span class="searching-now__place"> · South Africa</span>');
+  expect(html).toContain('Trending on Google<span class="searching-now__place"> · South Africa</span>');
   expect(html).toContain('Matches · 4');
   expect(html).toContain('Other searches · 2');
-  expect([...html.matchAll(/<span class="sr-only">Rank <\/span>1</g)]).toHaveLength(3);
+  expect([...html.matchAll(/data-google-rank="1"><span class="sr-only">, <\/span>Google rank 1</g)]).toHaveLength(3);
   expect([...html.matchAll(/searching-now__local/g)]).toHaveLength(2);
   expect(html.replace(/<[^>]+>/g, '')).toContain('Live trending, 20 min ago · Daily top terms, 1 Oct');
   expect([...html.matchAll(/searching-now__mark--fresh/g)]).toHaveLength(1);
@@ -150,4 +156,18 @@ test('hides absent, empty, and unusable signals without filling values', () => {
   expect(render({signals: [], market: 'ALL'})).toBe('');
   expect(render({signals: unusable, market: 'ALL'})).toBe('');
   expect(render({signals, market: 'all'})).toBe('');
+});
+
+// Tester report, 5 October 2026: the caption beside the heading read as a
+// separate column. It sits under the heading and says what a rank is.
+test('the caption sits under the heading and explains Google ranks', () => {
+  const html = render({signals, market: 'NG'});
+  // The caption keeps its exact words (scripts/staging_demo_check.py reads them); the rank note is its own line.
+  expect(html).toMatch(/<h2 class="searching-now__heading">Trending on Google[^]*?<\/h2><p class="searching-now__caption">Google search interest, not posts<\/p><p class="searching-now__note">A rank is the term&#x27;s place on Google&#x27;s own list, so some numbers are skipped\.<\/p>/);
+  expect(render({signals, market: 'ZA'})).not.toContain('searching-now__note');
+  expect(html).not.toMatch(/[\u2013\u2014]/);
+  const css = readFileSync(new URL('../../styles/searching-now.css', import.meta.url), 'utf8');
+  const header = /\.searching-now__header \{[^}]*\}/.exec(css)[0];
+  expect(header).toContain('grid-template-columns: minmax(0, 1fr);');
+  expect(/\.searching-now__caption \{[^}]*\}/.exec(css)[0]).not.toContain('text-align: right');
 });

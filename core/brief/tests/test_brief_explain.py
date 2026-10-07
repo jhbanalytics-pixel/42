@@ -31,7 +31,7 @@ CAP_BEFORE_EXPIRY = datetime(2026, 10, 2, 21, 59, 59, tzinfo=timezone.utc)
 CAP_AFTER_EXPIRY = datetime(2026, 10, 2, 22, 0, tzinfo=timezone.utc)
 USAGE = {"input_tokens": 1000, "output_tokens": 200, "usd": 0.01}
 RESULT_KEYS = {"explanation", "explanation_claim_ids", "claims", "numbers_only", "reason", "usage_usd", "checks",
-               "error", "local_why_now_checked", "specificity", "news_driven", "critic"}
+               "error", "local_why_now_checked", "specificity", "news_driven", "critic", "title_written"}
 
 
 def post(eid, platform, handle, text, posted_at="2026-09-26T19:40:00+02:00"):
@@ -534,14 +534,19 @@ def test_partial_is_not_supported_and_is_cut():
 
 
 def test_a_sentence_resting_on_an_unsupported_claim_gives_numbers_only():
-    result = run(FakeModel([good()], verdicts={"Heritage Day weekend": "unsupported"}))
+    # The support cut holds the draft, so it gets the one repair round; a repair still unsupported is cut.
+    model = FakeModel([good(), good()], verdicts={"Heritage Day weekend": "unsupported"})
+    result = run(model)
     assert_numbers_only(result, "failed_checks")
+    assert len(model.writer_calls()) == 2
 
 
 def test_fewer_than_two_surviving_claims_gives_numbers_only():
     draft = good(explanation="31 creators are posting the shaya step.", explanation_claim_ids=["c1"])
-    result = run(FakeModel([draft], verdicts={"earliest post": "unsupported", "Heritage Day weekend": "partial"}))
+    model = FakeModel([draft, draft], verdicts={"earliest post": "unsupported", "Heritage Day weekend": "partial"})
+    result = run(model)
     assert_numbers_only(result, "too_few_claims")
+    assert len(model.writer_calls()) == 2
 
 
 def test_support_prompt_holds_only_the_claim_and_its_cited_posts():
@@ -1529,8 +1534,10 @@ def test_the_sentence_check_sees_the_posts_and_numbers_of_the_claims_it_rests_on
 
 
 def test_a_sentence_the_checker_does_not_support_gives_numbers_only():
-    result = run(FakeModel([good()], verdicts={"@thandi_moves pairs": "partial"}))
+    model = FakeModel([good(), good()], verdicts={"@thandi_moves pairs": "partial"})
+    result = run(model)
     assert_numbers_only(result, "failed_checks")
+    assert len(model.writer_calls()) == 2
     assert k4_verdicts(result) == {"c1": "pass", "c2": "pass", "c3": "pass"}
 
 
@@ -1659,7 +1666,7 @@ def test_the_critic_call_is_counted_in_spend():
 
 
 def test_the_critic_runs_only_after_the_claim_and_sentence_checks_pass():
-    model = FakeModel([good()], verdicts={"@thandi_moves pairs": "partial"})
+    model = FakeModel([good(), good()], verdicts={"@thandi_moves pairs": "partial"})
     assert_numbers_only(run(model), "failed_checks")
     assert model.critic_calls() == []
     model = FakeModel([fabricated(), fabricated()])

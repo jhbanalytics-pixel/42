@@ -154,11 +154,6 @@ function Row({signal, index, now}){
   return (
     <li className={'searching-now__row' + (top ? ' searching-now__row--top' : '')} data-search-source={source.word}
       style={{'--sn-i': index}}>
-      <span className="searching-now__rank">
-        {signal.rank === null
-          ? <span className="sr-only">unranked</span>
-          : <><span className="sr-only">Rank </span>{signal.rank}</>}
-      </span>
       <span className="searching-now__term">
         {signal.term}
         {LOCAL_WORDS[signal.market].test(signal.term) && <span className="searching-now__local"> local</span>}
@@ -170,15 +165,23 @@ function Row({signal, index, now}){
           <span className="sr-only">, {source.title}, </span>
         </span>
         <time dateTime={signal.refreshed_at}>{freshnessWords(signal.refreshed_at, now)}</time>
+        {signal.rank === null
+          ? <span className="sr-only">, unranked on Google</span>
+          : <span className="searching-now__rank" data-google-rank={signal.rank}><span className="sr-only">, </span>Google rank {signal.rank}</span>}
       </span>
     </li>
   );
 }
 
-/* Searching now: a ranked league table of what a market types into Google,
-   set as type with no boxes. Rank, term, then which Google list and how
-   fresh; tied ranks repeat so ties read as ties. nameMarket is false where a
-   heading above already names the market. now is injectable for tests. */
+/* Trending on Google: what a market types into Google, set as type with no
+   boxes. Term, then which Google list, how fresh and Google's own rank; tied
+   ranks repeat so ties read as ties. nameMarket is false where a heading
+   above already names the market. now is injectable for tests.
+   Tester report, 5 October 2026: "Searching now" read as a page still
+   loading, the caption beside it read as a column, and Google's ranks in
+   their own column (2, or 3, 6, 8, 11) read as missing rows. The heading now
+   names the source, the caption sits under it, and each rank is labelled as
+   Google's, after the term, so a gap reads as Google's list, not ours. */
 export function SearchingNow({signals, market, nameMarket = true, now}){
   if (market !== 'ALL' && !MARKETS.includes(market)) return null;
 
@@ -195,13 +198,14 @@ export function SearchingNow({signals, market, nameMarket = true, now}){
   let index = 0;
 
   return (
-    <section className="searching-now" data-section="searching-now" aria-label="Searching now">
+    <section className="searching-now" data-section="searching-now" aria-label="Trending on Google">
       <header className="searching-now__header">
         <h2 className="searching-now__heading">
-          Searching now
+          Trending on Google
           {single && nameMarket && <span className="searching-now__place"> · {REGION_NAME[market]}</span>}
         </h2>
         <p className="searching-now__caption">Google search interest, not posts</p>
+        {rows.some((signal) => signal.rank !== null) && <p className="searching-now__note">A rank is the term's place on Google's own list, so some numbers are skipped.</p>}
         <p className="searching-now__fresh">
           {freshnessLine(rows, clock).map((clause, at) => (
             <span key={clause}>{at > 0 ? ' · ' : ''}<span className="searching-now__clause">{clause}</span></span>

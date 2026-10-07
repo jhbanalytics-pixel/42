@@ -51,7 +51,7 @@ SERIES = {
     "board_nairaland": ("charts", "Nairaland front page"),
     "board_app_store_iphone": ("charts", "App Store top free apps (iPhone)"),
     "board_google_play": ("charts", "Google Play top free apps"),
-    "board_music_country": ("charts", "Country music charts"),
+    "board_music_country": ("charts", "National music charts"),
     "radio_playlist": ("charts", "Radio playlists"),
     "news_rss": ("news", "News sites and RSS feeds"),
     "search": ("search", "Searches for the day's candidates and seeds"),
@@ -504,11 +504,11 @@ def build_fieldwork(store, date=None, *, now=None):
 
     run = None
     if collect_run:
-        from core.api.coverage import redact
+        from core.api.coverage import run_note
 
         run = {"run_id": collect_run.get("run_id"), "status": collect_run.get("status"),
                "started_at": collect_run.get("started_at"), "finished_at": collect_run.get("finished_at"),
-               "error": redact(collect_run.get("error"))}
+               "error": run_note(collect_run.get("error"))}
 
     return {
         "date": day,

@@ -14,7 +14,7 @@ import {boardTitle} from './readerUnits.js';
 import {snapshotTime} from './plainLabels.js';
 import {safeUrl} from './safeUrl.js';
 import {SearchingNow} from './ui/SearchingNow.jsx';
-import {EvidenceList, Sparkline, TrendCard, bigFigures, figureWords, longDate, platformWord, topicHref} from './ui/TrendCard.jsx';
+import {EvidenceList, PostsShownNote, Sparkline, TrendCard, bigFigures, countLineWords, figureWords, longDate, platformWord, proseDates, topicHref} from './ui/TrendCard.jsx';
 import {PartsBar, StepMeter} from './ui/Charts42.jsx';
 import {FigureLine} from './ui/FigureLine.jsx';
 import {Facts} from './ui/Facts.jsx';
@@ -61,6 +61,14 @@ function headingWords(text){
   const match = typeof text === 'string' ? HEADING_DATE.exec(text) : null;
   if (!match) return text;
   return <>{match[1]}<span className="t42-nowrap">{match[2]}</span>{match[3]}</>;
+}
+
+/* A market with a real data problem: no brief, a failed stage, failed
+   sources or invalid days (status data_issue, or a data_issue banner). An
+   explanation that failed its checks is not one. */
+function hasDataIssue(market){
+  return Boolean(market) && (market.status === 'data_issue'
+    || (Array.isArray(market.banners) && market.banners.some((banner) => banner && banner.kind === 'data_issue')));
 }
 
 function tabForRegion(region){
@@ -319,10 +327,14 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
     const more = Array.isArray(market.more) ? market.more.length : 0;
     return cards + more === 0;
   });
-  const incompleteMarkets = markets.map(({market}) => market).filter((market) => market.status !== 'published');
+  /* Tester report, 5 October 2026: a brief is "partial" when any held
+     topic's explanation failed its checks, which read as a broken market.
+     Only a market with a real data problem is named as incomplete; topics
+     held by the checks are counted with their reasons under each market. */
+  const incompleteMarkets = markets.map(({market}) => market).filter(hasDataIssue);
   const partialCopy = incompleteMarkets.length > 0
     ? 'Some markets are incomplete: ' + incompleteMarkets.map((market) => nonEmptyString(market.label) ? market.label : market.market).join(', ') + '.'
-    : 'Some trends are shown without an explanation yet.';
+    : null;
   const headline = data.headline && nonEmptyString(data.headline.text)
     && (tab === 'ALL' || data.headline.market === tab)
     && markets.some((entry) => entry.market.market === data.headline.market
@@ -347,12 +359,12 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
         <div className="t42-status-area" data-today-status-area="">
           {earlierDefaultBrief && <p className="t42-notice" role="status" data-today-earlier="">Earlier brief: <span className="t42-nowrap">{longDate(briefDate)}</span>. This is not today’s brief.</p>}
           {data.status === 'data_issue' && <p className="t42-notice t42-banner-data_issue" role="status" data-today-status="data_issue">Some data for this brief was incomplete, so the topics it affects are held back below with their reasons.</p>}
-          {(receiptLine || (date && briefDate) || data.status === 'partial' || publicationTime || warmup) && (
+          {(receiptLine || (date && briefDate) || (data.status === 'partial' && partialCopy) || publicationTime || warmup) && (
             <p className="t42-facts" data-today-facts="">
               {date && briefDate && <span className="t42-fact" data-today-date-context="">Brief for {longDate(briefDate)}</span>}
               {publicationTime && <span className="t42-fact" data-today-published-at="">Published at {publicationTime}</span>}
               {warmup && <span className="t42-fact t42-fact-warming_up">{warmup.text}</span>}
-              {data.status === 'partial' && <span className="t42-fact" role="status" data-today-status="partial">{partialCopy}</span>}
+              {data.status === 'partial' && partialCopy && <span className="t42-fact" role="status" data-today-status="partial">{partialCopy}</span>}
               {receiptLine && <span className="t42-fact" data-today-run-receipt="">{receiptLine}</span>}
             </p>
           )}
@@ -445,8 +457,38 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
       {/* UX pass, 3 October 2026: an alerts read that is still loading or
           failed no longer adds a section at the foot; Alerts is in the menu. */}
       {watch.dialog}
+      <BackToTop />
     </section>
   );
+}
+
+/* Tester report, 5 October 2026: a long Today page had no way back to the
+   top. Once the reader is more than a screen and a half down, a quiet button
+   returns to the page heading and moves focus there, so a keyboard or screen
+   reader user lands where a sighted reader does. */
+const TOP_AFTER_SCREENS = 1.5;
+function BackToTop(){
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY || (document.documentElement && document.documentElement.scrollTop) || 0;
+      setShown(y > (window.innerHeight || 0) * TOP_AFTER_SCREENS);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, {passive: true});
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  if (!shown) return null;
+  const toTop = () => {
+    const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({top: 0, behavior: still ? 'auto' : 'smooth'});
+    const heading = document.querySelector('.t42 .t42-heading');
+    if (heading){
+      if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+      heading.focus({preventScroll: true});
+    }
+  };
+  return <button type="button" className="t42-top" data-today-top="" onClick={toTop}>Back to top</button>;
 }
 
 /* Visual pass, 3 October 2026: the day across markets at a glance, before
@@ -483,7 +525,7 @@ function MarketGlance({markets, date, tab, onPick}){
           return (
             <li key={market.market} data-glance-market={market.market}>
               <button type="button" className="t42-glance-market" aria-pressed={here ? 'true' : 'false'} aria-label={label} onClick={() => onPick(market.market)}>
-                <span className="t42-glance-name"><span className="t42-glance-label">{name}</span>{market.status !== 'published' ? <span className="t42-glance-note"> · incomplete</span> : null}</span>
+                <span className="t42-glance-name"><span className="t42-glance-label">{name}</span>{hasDataIssue(market) ? <span className="t42-glance-note"> · incomplete</span> : null}</span>
                 <span className="t42-glance-figure">
                   {read === null ? null : <span className="t42-glance-value">{readerFigure(read)}</span>}
                   <span className="t42-glance-unit">{read === null ? 'Items collected: not measured' : 'items collected'}</span>
@@ -670,7 +712,7 @@ function LeadSide({card}){
 }
 
 function HeadlineText({text, term}){
-  const parts = headlineParts(text, term);
+  const parts = headlineParts(proseDates(text), term);
   if (!parts.term) return parts.before;
   return <>{parts.before}<span className="t42-headline-term">{parts.term}</span>{parts.after}</>;
 }
@@ -726,7 +768,7 @@ function jumpTo(id){
 
 /* Redesign, 4 October 2026: the market's notes (server banners, the source
    line and, with no cards, the empty-market sentence) are one calm status
-   block under Searching now instead of three separate lines. */
+   block under Trending on Google instead of three separate lines. */
 function MarketStatus({market, banners, sourceDetails, empty}){
   const hasSourceProblems = sourceDetails.length > 0;
   if (!empty && banners.length === 0 && !hasSourceProblems) return null;
@@ -784,7 +826,7 @@ function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch
         ? <ol className="t42-cards" data-ranked="" id={listId}>
             {cards.map((card, index) => (
               <TrendCard key={card.item_id} index={index} card={watch.mark(card, market.market)} market={market.market} date={card.date || date}
-                onAuth={onAuth} onWatch={watch.onWatch} onFeedback={onFeedback} linkTopic
+                onAuth={onAuth} onWatch={watch.onWatch} onFeedback={onFeedback} linkTopic tapToOpen
                 className={saysHeadline(headline, card, specificityByItemId.get(card.item_id)) ? 't42-card-headline-said' : undefined}
                 todaySpecificity={specificityByItemId.get(card.item_id)} />
             ))}
@@ -912,6 +954,13 @@ function HeldRowReason({item}){
   );
 }
 
+// The brief job's fixed wording for a topic a busy model left unexplained (core/brief/payload.py MODEL_BUSY and
+// MODEL_REFUSED). No check ran on it, so it reads as what happened, not as a check detail.
+const BUSY_WORDS = {
+  'Model busy: not explained before the deadline': 'The model was busy, so this was not explained before the deadline. It is not a failed check.',
+  'Model busy: the model kept refusing calls, so this was not explained': 'The model was busy and kept refusing calls, so this was not explained. It is not a failed check.',
+};
+
 // inRow: the Held back row already shows the title, reason and held detail, so the opened part leaves them out.
 function HeldItemDetail({item, inRow = false}){
   const reason = nonEmptyString(item.reason_text) ? item.reason_text : 'No specific held reason was provided.';
@@ -920,7 +969,7 @@ function HeldItemDetail({item, inRow = false}){
   const numbers = Array.isArray(item.numbers)
     ? item.numbers.filter((number) => number && typeof number === 'object' && !Array.isArray(number))
     : [];
-  const countLine = nonEmptyString(item.count_line) ? item.count_line : '';
+  const countLine = nonEmptyString(item.count_line) ? countLineWords(item.count_line) : '';
   const evidence = Array.isArray(item.evidence) ? item.evidence : [];
   const expectsCheckReason = item.reason === 'explanation_failed' || item.explanation_status === 'failed_checks';
   const hasDistinctFailedReason = failedReason && failedReason !== reason.trim();
@@ -934,8 +983,9 @@ function HeldItemDetail({item, inRow = false}){
       {!inRow && <p className="t42-line-text"><strong>{item.title}</strong></p>}
       {!inRow && <p className="t42-line-text" data-held-reason="">{reason}</p>}
       {!inRow && hasDistinctHeldDetail && <p className="t42-line-text" data-held-detail="">{heldDetail}</p>}
-      {hasDistinctFailedReason
-        && <p className="t42-line-text" data-held-failed-reason="">Check detail: {failedReason}</p>}
+      {hasDistinctFailedReason && (BUSY_WORDS[failedReason]
+        ? <p className="t42-line-text" data-held-failed-reason="">{BUSY_WORDS[failedReason]}</p>
+        : <p className="t42-line-text" data-held-failed-reason="">Check detail: {failedReason}</p>)}
       {expectsCheckReason && !hasStoredCheckDetail && checkDetailUnavailable
         && <p className="t42-line-text" data-held-check-detail-unavailable="">The check detail could not be read just now.</p>}
       {expectsCheckReason && !hasStoredCheckDetail && !checkDetailUnavailable
@@ -962,7 +1012,7 @@ function HeldItemDetail({item, inRow = false}){
           </ul>
         : null}
       {evidence.length > 0
-        ? <EvidenceList items={evidence} />
+        ? <><PostsShownNote shown={evidence.length} numbers={numbers} /><EvidenceList items={evidence} /></>
         : <p className="t42-line-text" data-held-evidence-missing="">No source posts were stored for this held item.</p>}
     </>
   );
@@ -1076,7 +1126,7 @@ function Moments({moments}){
 
 /* f42-api leaves out board entries titled with an id; this catches any that
    still arrive, so an id is never shown as a name (contract.md section 4). */
-const ID_TITLE = /^(uc[a-z0-9_-]{22}|[0-9a-f]{64})$/i;
+const ID_TITLE = /^(uc[a-z0-9_-]{22}|t2_[a-z0-9]+|[0-9a-f]{64})$/i;
 const readable = (title) => typeof title === 'string' && boardTitle(title) !== '' && !ID_TITLE.test(title.trim());
 
 function Boards({boards}){

@@ -119,6 +119,14 @@ def test_the_closed_field_list_is_there(flavour):
     assert f"{BASE}/#/alerts" in dumped(payload)
 
 
+@pytest.mark.parametrize("flavour", ["slack", "teams"])
+def test_a_partial_market_reads_as_held_explanations_not_as_a_data_issue(flavour):
+    payload = channel.render(today(ke_status="partial"), [], [], BASE, flavour)
+    text = slack_text(payload) if flavour == "slack" else teams_text(payload)
+    assert "Kenya: Published, some explanations held back" in text
+    assert "data issue" not in text
+
+
 def test_a_creator_kind_headline_is_replaced_and_any_other_headline_goes_out():
     creator = slack_text(channel.render(today(), [], [], BASE, "slack"))
     assert "Today's brief is ready" in creator and HEADLINE_CREATOR not in creator

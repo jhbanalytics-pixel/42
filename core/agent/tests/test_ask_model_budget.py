@@ -341,8 +341,8 @@ def test_run_ask_finishes_when_checks_after_the_writer_report_incomplete_usage(m
     assert len(model.calls) > 1  # the writer and at least one check after it
     assert not budget.stopped
     assert result["answer"]["claims"]
-    assert not any("could not be safely reserved" in gap["what"] for gap in result["answer"]["gaps"])
-    assert any("full per-call reserve" in notice for notice in result["run"]["notices"])
+    assert not any(gap["why"] == ask.BUDGET_STOP for gap in result["answer"]["gaps"])
+    assert any("the most that call could have cost" in notice for notice in result["run"]["notices"])
     assert budget.conservative_usd > 0
     assert result["run"]["model_usd"] >= budget.booked_usd
 
@@ -372,7 +372,7 @@ def test_run_ask_shares_the_meter_across_research_and_writer_once(monkeypatch, t
         seen["budget"].booked_usd + seen["ctx"].model_usd_extra)
     assert result["run"]["model_usd"] == pytest.approx(
         research_usd + sum(usage["usd"] for usage in model.usages) + seen["ctx"].model_usd_extra)
-    assert not any("full per-call reserve" in notice for notice in result["run"]["notices"])
+    assert not any("the most that call could have cost" in notice for notice in result["run"]["notices"])
 
 
 def test_research_subbudget_stop_keeps_writer_available(monkeypatch):
@@ -415,9 +415,9 @@ def test_budget_stop_does_not_claim_the_user_requested_it(monkeypatch):
     harness = Harness(research=unknown_research)
     result = harness.run(tier="T1")
 
-    assert "not completed because" in result["answer"]["short_answer"]
+    assert result["answer"]["short_answer"].startswith("The answer was not finished")  # reworded 6 Oct: plain words
     assert "Stopped on request" not in result["answer"]["short_answer"]
-    assert "full per-call reserve" in " ".join(result["run"]["notices"])
+    assert "the most that call could have cost" in " ".join(result["run"]["notices"])
     assert harness.model.calls == []
 
 
@@ -464,7 +464,7 @@ def test_run_ask_books_full_gemini_research_reserve_into_daily_projection(monkey
     assert first.model.calls == []
     assert booked == pytest.approx(seen["budget"].booked_usd + seen["ctx"].model_usd_extra)
     assert booked > 0
-    assert any("full per-call reserve" in notice for notice in first_result["run"]["notices"])
+    assert any("the most that call could have cost" in notice for notice in first_result["run"]["notices"])
 
     projected_sql = []
 
@@ -604,4 +604,4 @@ def test_a_research_timeout_fails_the_ask_like_any_provider_error_and_books_the_
     assert budget.booked_usd == budget.conservative_usd == research.ceiling_micros / 1_000_000
     assert caught.value.before_dispatch is False
     assert caught.value.run["model_usd"] >= budget.booked_usd
-    assert any("full reserve" in notice for notice in caught.value.run["notices"])
+    assert any("the most it could have cost" in notice for notice in caught.value.run["notices"])

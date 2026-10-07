@@ -254,7 +254,8 @@ default day and Coverage's way back from an empty day)."""
         return None if rows is None else [r for r in rows if market in ("all", r["market"])]
 
     def item_history(self, item_id, market, start, end):
-        rows = [{"metric_date": r["metric_date"], "state": r["state"]} for r in self._optional("item_state") or []
+        rows = [{"metric_date": r["metric_date"], "state": r["state"], "creators3": r.get("creators3")}
+                for r in self._optional("item_state") or []
                 if r["item_id"] == item_id and r["market"] == market and start <= r["metric_date"] <= end]
         return sorted(rows, key=lambda r: r["metric_date"])
 
@@ -1040,7 +1041,7 @@ or None."""
 
     def item_history(self, item_id, market, start, end):
         return self._query(
-            f"SELECT s.metric_date, s.state FROM {self._t(CORE + '.v_item_state_current')} s "
+            f"SELECT s.metric_date, s.state, s.creators3 FROM {self._t(CORE + '.v_item_state_current')} s "
             "WHERE s.item_id = @item_id AND s.market = @market AND s.metric_date BETWEEN @start AND @end "
             "ORDER BY s.metric_date",
             item_id=("STRING", item_id), market=("STRING", market), start=("DATE", start), end=("DATE", end))

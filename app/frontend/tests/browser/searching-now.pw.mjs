@@ -137,7 +137,7 @@ async function expectSearchingNow(page, selectedMarket){
   const strips = main.locator('[data-section="searching-now"]');
   for (let index = 0; index < await strips.count(); index++){
     const strip = strips.nth(index);
-    await expect(strip.getByRole('heading', {name: 'Searching now', exact: true})).toBeVisible();
+    await expect(strip.getByRole('heading', {name: 'Trending on Google', exact: true})).toBeVisible();
     await expect(strip.locator('.searching-now__caption')).toHaveText('Google search interest, not posts');
     await expect(strip.locator('[data-card]')).toHaveCount(0);
     await expect(strip.locator('a')).toHaveCount(0);

@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import logging
 import re
 from typing import Protocol
 
@@ -21,6 +22,8 @@ from core.agent.tools.dates import SAST, resolve_dates
 from core.agent.tools.socialcrawl import PLATFORM_NAMES, _fence
 from core.agent.tools.sql_query import PROJECT, Warehouse, sql_query
 from core.understand.embed import CHARS_PER_TOKEN, EMBED_USD_PER_MILLION_TOKENS
+
+log = logging.getLogger(__name__)
 
 MAX_POSTS = 100  # breadth (Albert, 4 October): answers drew on about 20 accounts from a store of thousands
 MAX_CREATOR_CANDIDATES = 20
@@ -554,10 +557,15 @@ TIKTOK_MUSIC_URL = "https://www.tiktok.com/music/_-"  # TikTok reads the id afte
 _CITABLE = "(IFNULL(TRIM(p.text), '') != '' AND IFNULL(p.url, '') != '')"
 
 
-def _store_scope(ctx: RunContext, platforms) -> tuple[str, str, dict, str]:
-    """(FROM clause, WHERE clause, params, located test) for every stored post in the ask's market and window."""
-    since, until = ((ctx.window_start, ctx.window_end) if ctx.window_start and ctx.window_end
-                    else resolve_dates("last 7 days", ctx.as_of))
+def _store_window(ctx: RunContext) -> tuple[dt.date, dt.date]:
+    return ((ctx.window_start, ctx.window_end) if ctx.window_start and ctx.window_end
+            else resolve_dates("last 7 days", ctx.as_of))
+
+
+def _store_scope(ctx: RunContext, platforms, window=None) -> tuple[str, str, dict, str]:
+    """(FROM clause, WHERE clause, params, located test) for every stored post in the ask's market and window, or in
+    window (since, until) when given."""
+    since, until = window or _store_window(ctx)
     params = {"since": since, "until": until, "profile_source": PROFILE_SOURCE}
     where = ["p.post_date BETWEEN @since AND @until"]
     names = []
@@ -654,9 +662,52 @@ def store_breadth(ctx: RunContext, warehouse: Warehouse, platforms=None) -> dict
         ctx, warehouse, tags, params={**params, "per_platform": STORE_TAGS_PER_PLATFORM},
         purpose=f"Whole-store hashtags per platform, most creators first: every stored post in {shown}"
     )["query_id"]
+    before = _store_before(ctx, warehouse, platforms, shown, out)
+    if before:
+        out["before"] = before
     for qid in out.values():
         ctx.queries[qid]["tool"] = STORE_TOOL
     return out
+
+
+def _store_before(ctx: RunContext, warehouse: Warehouse, platforms, shown: str, out: dict) -> str | None:
+    """The sounds and hashtags the whole-store rows list, counted again over the same number of days just before the
+    window, so a list answer can say how each compares with the period before (one row per item that had posts then;
+    an item with none has no row). None when the window rows list nothing or the read fails: the window counts stand
+    without it."""
+    keys = {"sound": [], "hashtag": []}
+    for kind, qid, field in (("sound", out.get("sounds"), "sound_id"), ("hashtag", out.get("hashtags"), "hashtag")):
+        for row in (ctx.queries.get(qid) or {}).get("rows") or []:
+            if row.get("platform") and row.get(field):
+                keys[kind].append(f"{row['platform']}:{row[field]}".replace("|", ""))
+    if not keys["sound"] and not keys["hashtag"]:
+        return None
+    since, until = _store_window(ctx)
+    days = (until - since).days + 1
+    joins, where, params, located = _store_scope(ctx, platforms, (since - dt.timedelta(days=days),
+                                                                  since - dt.timedelta(days=1)))
+    sql = (
+        "WITH b AS (SELECT 'sound' AS kind, p.platform, p.sound_id, CAST(NULL AS STRING) AS hashtag, p.post_id, "
+        f"p.creator_id, {located} AS located {joins}WHERE {where} "
+        "AND STRPOS(@sound_keys, CONCAT('|', p.platform, ':', p.sound_id, '|')) > 0 "
+        "UNION ALL SELECT 'hashtag' AS kind, p.platform, CAST(NULL AS STRING) AS sound_id, "
+        "LOWER(TRIM(tag)) AS hashtag, "
+        f"p.post_id, p.creator_id, {located} AS located {joins}CROSS JOIN UNNEST(p.hashtags) AS tag WHERE {where} "
+        "AND STRPOS(@tag_keys, CONCAT('|', p.platform, ':', LOWER(TRIM(tag)), '|')) > 0) "
+        f"SELECT b.kind, b.platform, b.sound_id, b.hashtag, {_scoped_counts('b')} FROM b "
+        "GROUP BY b.kind, b.platform, b.sound_id, b.hashtag "
+        "ORDER BY b.kind, creators DESC, posts DESC, b.platform, b.sound_id, b.hashtag"
+    )
+    params = {**params, "sound_keys": "|" + "|".join(keys["sound"]) + "|",
+              "tag_keys": "|" + "|".join(keys["hashtag"]) + "|"}
+    try:
+        return sql_query(ctx, warehouse, sql, params=params,
+                         purpose=("Whole-store sounds and hashtags before the window: the sounds and hashtags above, "
+                                  f"every stored post in the same number of days just before the window, "
+                                  f"{MARKET_NAMES.get(ctx.market, 'every market')}"))["query_id"]
+    except Exception as exc:
+        log.warning("ask store counts before the window failed: run %s: %s", ctx.run_id, type(exc).__name__)
+        return None
 
 
 def store_totals(ctx: RunContext, query_id: str | None) -> dict | None:

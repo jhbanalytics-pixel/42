@@ -196,11 +196,21 @@ def test_figures_read_as_words_and_their_queries_move_to_one_line(complete):
     assert page.count("q_14") >= 2
 
 
-def test_empty_short_answer_says_why(partial):
+def test_empty_short_answer_says_what_passed(partial):
+    # Live review, 5 October 2026: "No short answer: too little passed the checks" said only what did not pass.
     record = copy.deepcopy(partial)
     record["answer"]["short_answer"] = ""
     page = render_answer_html(record)
-    assert "No short answer: too little passed the checks to sum up safely." in page
+    claims, posts = len(record["answer"]["claims"]), len(record["answer"]["evidence"])
+    assert f"{claims} checked finding" in page and f"from {posts} post" in page
+    assert "The one-line summary did not pass the checks." in page
+    assert "too little passed" not in page
+
+
+def test_empty_short_answer_with_no_claims_says_nothing_passed(partial):
+    record = copy.deepcopy(partial)
+    record["answer"].update(short_answer="", claims=[], evidence=[])
+    assert "Nothing passed the checks to sum up." in render_answer_html(record)
 
 
 def test_gap_record_ids_become_a_count(partial):

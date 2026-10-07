@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from core.api.held_words import plain_reason
+from core.brief.payload import NOT_RUN_REASONS
 from core.trust import gate
 
 GATE_SOURCE = Path(gate.__file__).read_text(encoding="utf-8")
@@ -62,3 +63,20 @@ def test_the_current_g3_and_g4b_wording_reads_plainly():
 ])
 def test_briefs_stored_with_the_earlier_wording_still_read_plainly(raw, words):
     assert plain_reason({"reason_text": raw})["reason_text"] == words
+
+
+# Tester report, 5 October 2026: "Explanation failed its checks" read as a broken market, and a topic a busy model
+# left unexplained sat under the same words although no check ran on it.
+@pytest.mark.parametrize("raw", ["Explanation failed its checks", "The explanation did not pass its checks"])
+def test_an_explanation_hold_reads_as_what_happened_to_the_explanation(raw):
+    assert plain_reason({"reason_text": raw, "failed_reason": "claim not supported by its posts"}) == {
+        "reason_text": "The explanation did not pass our checks", "reason_raw": raw,
+        "failed_reason": "claim not supported by its posts"}
+    assert plain_reason({"reason_text": raw})["reason_text"] == "The explanation did not pass our checks"
+
+
+@pytest.mark.parametrize("busy", list(NOT_RUN_REASONS))
+def test_a_topic_a_busy_model_left_unexplained_says_so(busy):
+    out = plain_reason({"reason_text": "Explanation failed its checks", "failed_reason": busy})
+    assert out["reason_text"] == "Not explained in time: the model was busy"
+    assert out["reason_raw"] == "Explanation failed its checks" and out["failed_reason"] == busy

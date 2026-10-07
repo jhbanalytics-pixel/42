@@ -9,7 +9,7 @@ from core.llm.gemini import GeminiModel, prepare_schema, usage_of
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch):
     for k in ("MODEL_PROVIDER", "GEMINI_MODEL", "GEMINI_FAST_MODEL", "GEMINI_PRICE_INPUT_PER_M",
-              "GEMINI_PRICE_OUTPUT_PER_M", "GEMINI_THINKING_LEVEL"):
+              "GEMINI_PRICE_OUTPUT_PER_M", "GEMINI_THINKING_LEVEL", "GEMINI_PRIORITY", "GEMINI_PRIORITY_PRICE_MULT"):
         monkeypatch.delenv(k, raising=False)
 
 
@@ -258,3 +258,93 @@ def test_a_linked_clip_can_be_read_up_to_an_end_offset(monkeypatch):
         GeminiModel(client=client).complete_json(
             system="s", user="u", schema={"type": "object"}, model="gemini-3.8-flash", max_tokens=400,
             media=[{"uri": "https://www.youtube.com/watch?v=abc", "mime_type": "video/mp4", "end_s": 0}])
+
+
+# Vertex Priority PayGo, opt-in per process (GEMINI_PRIORITY)
+
+
+def built_client(monkeypatch, **kw):
+    from google import genai
+
+    built = []
+    monkeypatch.setattr(genai, "Client", lambda **k: built.append(k) or NS(models=None))
+    GeminiModel(**kw).client
+    return built[0]
+
+
+def test_without_the_priority_switch_the_client_sends_no_priority_header(monkeypatch):
+    from google.genai import types
+
+    for value in (None, "", "0", "no"):
+        if value is None:
+            monkeypatch.delenv("GEMINI_PRIORITY", raising=False)
+        else:
+            monkeypatch.setenv("GEMINI_PRIORITY", value)
+        options = built_client(monkeypatch, timeout_s=60)["http_options"]
+        assert options.headers is None
+        assert options == types.HttpOptions(timeout=60_000, retry_options=types.HttpRetryOptions(attempts=2))
+
+
+def test_the_priority_switch_puts_the_priority_header_on_every_request(monkeypatch):
+    from google.genai import types
+    from google.genai._api_client import patch_http_options
+
+    monkeypatch.setenv("GEMINI_PRIORITY", "1")
+    options = built_client(monkeypatch, timeout_s=60, retries=0)["http_options"]
+    assert options.headers == {"X-Vertex-AI-LLM-Shared-Request-Type": "priority"}
+    assert options.timeout == 60_000 and options.retry_options.attempts == 1
+    # A per-call http_options (complete_json's request_timeout_s) keeps the client's header: the SDK merges them.
+    per_call = patch_http_options(options, types.HttpOptions(timeout=5_000,
+                                                             retry_options=types.HttpRetryOptions(attempts=1)))
+    assert per_call.headers["X-Vertex-AI-LLM-Shared-Request-Type"] == "priority"
+
+
+def test_priority_multiplies_every_gemini_price_and_only_while_it_is_on(monkeypatch):
+    monkeypatch.setenv("GEMINI_PRIORITY_PRICE_MULT", "3")
+    assert provider.price_for("gemini-3.8-flash") == {"input": 1.5, "output": 7.5, "cached": 0.15}
+    monkeypatch.delenv("GEMINI_PRIORITY_PRICE_MULT")
+    monkeypatch.setenv("GEMINI_PRIORITY", "1")
+    assert provider.price_for("gemini-3.8-flash") == pytest.approx({"input": 2.7, "output": 13.5, "cached": 0.27})
+    assert provider.GEMINI_LIST_PRICES["gemini-3.8-flash"] == {"input": 1.5, "output": 7.5, "cached": 0.15}
+    with pytest.raises(provider.PriceUnset):  # priority prices only Gemini; any other id stays unpriced
+        provider.price_for("other-model")
+    priced(monkeypatch)
+    assert provider.price_for("gemini-other") == pytest.approx({"input": 0.9, "output": 5.4, "cached": 0.09})
+    monkeypatch.setenv("GEMINI_PRIORITY_PRICE_MULT", "2")
+    assert provider.price_for("gemini-other")["output"] == pytest.approx(6.0)
+
+
+@pytest.mark.parametrize("mult", ["0.5", "free", "nan", "inf"])
+def test_a_priority_multiplier_that_would_book_less_leaves_gemini_unpriced(monkeypatch, mult):
+    monkeypatch.setenv("GEMINI_PRIORITY", "1")
+    monkeypatch.setenv("GEMINI_PRIORITY_PRICE_MULT", mult)
+    with pytest.raises(provider.PriceUnset):
+        provider.price_for("gemini-3.8-flash")
+    with pytest.raises(provider.PriceUnset):
+        provider.price_for("other-model")
+
+
+def test_priority_usage_estimates_and_reserves_all_use_the_priority_price(monkeypatch):
+    from core.agent import ask
+    from core.agent.model_budget import AskModelBudget
+    from core.brief import explain
+
+    meta = NS(prompt_token_count=1000, cached_content_token_count=400, response_token_count=100,
+              thoughts_token_count=0, tool_use_prompt_token_count=0, candidates_token_count=None)
+
+    def costs():
+        budget = AskModelBudget(100, 50)
+        reservation = budget.reserve("gemini-3.8-flash", 1000, 400, research=True)
+        return (usage_of(NS(usage_metadata=meta), "gemini-3.8-flash")["usd"],
+                explain._estimate_usd("system", "user", 400, "gemini-3.8-flash"),
+                reservation.ceiling_micros, ask.call_usd("gemini-3.8-flash", 1000, 400))
+
+    standard = costs()
+    monkeypatch.setenv("GEMINI_PRIORITY", "1")
+    priority = costs()
+    usd, estimate, ceiling_micros, call = standard
+    assert priority[0] == pytest.approx(usd * 1.8) and priority[1] == pytest.approx(estimate * 1.8)
+    assert priority[3] == pytest.approx(call * 1.8)
+    assert abs(priority[2] - ceiling_micros * 1.8) <= 1  # micros, rounded up
+    assert priority[2] > ceiling_micros
+

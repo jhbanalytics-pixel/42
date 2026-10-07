@@ -375,7 +375,7 @@ test('state, platform and sort filters read the feed with their values', async (
   const state = host.querySelector('select[name="state"]');
   const platform = host.querySelector('select[name="platform"]');
   const sort = host.querySelector('select[name="sort"]');
-  expect([...state.options].map((o) => o.textContent)).toEqual(['Every state', 'Emerging', 'First spotted', 'Spike']);
+  expect([...state.options].map((o) => o.textContent)).toEqual(['Every state', 'Emerging', 'First spotted', 'Spike or high on the charts']);
   expect([...platform.options].map((o) => o.textContent)).toEqual(['Every platform', 'TikTok', 'Instagram', 'X']);
   expect([...sort.options].map((o) => o.value)).toEqual(['order', 'velocity', 'reach', 'new']);
   expect(host.querySelector('label[for="' + state.id + '"]')).not.toBeNull();

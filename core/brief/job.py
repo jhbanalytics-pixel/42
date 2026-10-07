@@ -17,10 +17,12 @@ confirm-share SocialCrawl client is built right after chain.begin; if it cannot 
 with a thin-coverage note and the brief goes on. No explanation starts once
 chain.past_deadline is true, once the run is FINISH_MARGIN short of its task timeout (chain.TIMEOUTS), or once
 the day's model spend reaches the current cap; whatever is unexplained then publishes as numbers and posts only
-(G10). No G1 backfill round, and no market's confirm or regrow, starts past the deadline or that time limit
-either. The gate runs again with each explanation's result, and one briefs row per market (payload: the Market
-object of core/api/contract.md section 4) plus the claim_checks rows are appended. Brief is the last stage of
-lane L1's chain, so nothing is started after it.
+(G10). A model that refuses for capacity (429) is waited out call by call, with backoff, never past the deadline,
+that time limit or the SAST day, and the breaker stops the run's calls only once it keeps refusing; an item the busy
+model left unexplained says so in its failed_reason. No G1 backfill round, and no market's confirm or regrow, starts
+past the deadline or that time limit either. The gate runs again with each explanation's result, and one briefs row
+per market (payload: the Market object of core/api/contract.md section 4) plus the claim_checks rows are appended.
+Brief is the last stage of lane L1's chain, so nothing is started after it.
 
 The suppression list (SETUP.md data protection) is read once before anything else, as f42-api reads it: a
 suppressed creator's posts never enter a pack, and a label, title or text naming them is masked before the model
@@ -39,7 +41,9 @@ and CLOUD_RUN_EXECUTION (both read by lane L1's chain.begin). Credentials are th
 """
 
 import json
+import math
 import os
+import random
 import re
 import sys
 import threading
@@ -48,15 +52,16 @@ from collections import Counter
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
+from time import sleep as _sleep
 
 from core.brief import confirm as confirm_lane
 from core.brief import gatectx
 from core.api.store import creator_key
 from core.api.today import without_hidden
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
-from core.brief.explain import explain_trend
+from core.brief.explain import TITLE_RULE, explain_trend
 from core.brief.market_scope import read_market_scope
-from core.brief.payload import _worth, brief_row, build_market_payload
+from core.brief.payload import MODEL_BUSY, MODEL_REFUSED, _worth, brief_row, build_market_payload
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, local_posts, showable_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
@@ -85,10 +90,29 @@ NO_CONFIRM = {"kind": "thin_coverage",
               "text": "Cross-platform confirmation did not run today: cards rest on 42's own collection only"}
 PACK_MAX, PER_CREATOR = 12, 2  # core/brief/sql/evidence.sql: at most 12 posts in a pack and 2 per creator
 # What the brief's task timeout (chain.TIMEOUTS["brief"]) must leave once the last explanation has started: that
-# explanation (about 80 s, up to about 2 min more for each model call that stalls to GEMINI_TIMEOUT_S and its retry),
-# then the boards and moments reads, the claim_checks and briefs inserts and chain.finish (about a minute), plus the
-# start-up before run() reads the clock. 8 minutes covers two stalled calls on top of that.
+# explanation, then the boards and moments reads, the claim_checks and briefs inserts and chain.finish (about a
+# minute), plus the start-up before run() reads the clock. An explanation that passes first time is about 8 calls
+# (writer, up to 5 claim support checks, the sentence's, the critic) and about 80 s, plus the title's support check
+# when it passes. The worst case is about 24 calls: a draft whose support cuts take the repair round (8 to the
+# sentence check, then 8 again) and is then held by the critic on its why-now alone (8 more for the second draft), and
+# its title check: about 4.5 minutes at that pace. Each call that stalls to GEMINI_TIMEOUT_S and its retry adds about
+# 2 min more. 8 minutes covers the usual explanation with two stalled calls, and the worst case with one; a busy wait
+# never ends past it (_explain_all can_wait).
 FINISH_MARGIN = timedelta(minutes=8)
+# A model that refuses a call for capacity (see _rate_limited: Vertex's 429 RESOURCE_EXHAUSTED on its shared capacity,
+# on and off on 6 Oct 2026) is waited out, not given up on at once: the refused call is made again after
+# BUSY_WAIT_S, doubling each time up to BUSY_WAIT_MAX_S, each wait up to BUSY_JITTER longer at random, at most
+# BUSY_RETRIES times. The breaker trips once BUSY_TRIP_ITEMS explanations in a row ran out of tries, or as soon as
+# the next wait would end past the deadline, the time limit or the SAST day. PACE_S is a gap before each explanation
+# after the first (none by default). Each can be set through the environment variable of the same name with a BRIEF_
+# prefix. With the defaults a refused call waits 150 to 190 s in all before it gives up, so a model that refuses
+# every call trips the breaker after about 8 to 10 minutes.
+BUSY_RETRIES = 4
+BUSY_WAIT_S = 10.0
+BUSY_WAIT_MAX_S = 80.0
+BUSY_JITTER = 0.25
+BUSY_TRIP_ITEMS = 3
+PACE_S = 0.0
 UPSTREAM = {"kind": "data_issue",
             "text": "Data issue: the steps before the brief did not finish by 06:15, so no trends were checked today"}
 
@@ -111,7 +135,7 @@ HELD_MAX = 160
 REPAIR = "before repair: "
 RULE_NAMES = {"K1": "Quote check", "K2": "Number check", "K3": "Place check", "K4": "Support check",
               "K5": "Label check", "K6": "Banned term check", "K8": "Translation check", "K10": "Status check",
-              "specificity": "Specificity check"}
+              "specificity": "Specificity check", "title": "Title check"}
 CLAIM_WORDS = {
     "K1": "a quote or evidence id in a claim did not check out",
     "K2": "a claim had a number not pinned to its query",
@@ -142,7 +166,9 @@ K3_PARTS = (
      "described a place or people from posts only seen in that market's feeds"),
 )
 OTHER_WORDS = {"K5": "the label was lowered to what the evidence allows",
-               "K10": "the status was lowered as claims were cut"}
+               "K10": "the status was lowered as claims were cut",
+               # The writer's title (core/brief/explain.py): a cut only drops it, so the card keeps its label.
+               "title": "the written title did not pass, so the card keeps its label"}
 NOT_PASSED = "did not pass"
 TOO_FEW = "Claim checks: fewer than 2 claims passed"
 NO_REST = "Claim checks: the explanation did not rest on claims that passed"
@@ -513,14 +539,26 @@ def _rate_limited(e):
 
 
 class _Breaker:
-    """Wraps the model for one run. Until one call has gone through, calls are made one at a time; the first
-    quota or rate-limit error (see _rate_limited) trips the breaker and every
-    later call raises ModelUnavailable without reaching the model, so a quota outage costs one call, not a
-    retry storm per card."""
+    """Wraps the model for one run. Until one call has gone through, calls are made one at a time. A quota or
+    rate-limit error (see _rate_limited) that billed nothing is waited out: the same call is made again after
+    wait(attempt) seconds, at most retries times, while can_wait(seconds) says the wait ends in time. A call that runs
+    out of tries raises the error; trip_after such calls in a row, with no call going through between them, or a wait
+    that would not end in time, trip the breaker, and every later call raises ModelUnavailable without reaching the
+    model, so a sustained outage costs a bounded number of calls, not a retry storm per card. A refusal books
+    nothing: only the call that goes through returns usage. busy is "refused" or "deadline" once the breaker has
+    tripped on refusals, else None. With the defaults the first refusal trips it, as before any waiting."""
 
-    def __init__(self, model):
+    def __init__(self, model, *, retries=0, wait=None, can_wait=None, sleep=None, trip_after=1):
         self.model = model
         self.tripped = None
+        self.busy = None
+        self.retries = retries
+        self.wait = wait or (lambda attempt: 0.0)
+        self.can_wait = can_wait or (lambda seconds: True)
+        self.sleep = sleep or _sleep
+        self.trip_after = trip_after
+        self.refusals = self.gave_up = self.streak = 0
+        self.waited_s = 0.0
         self._proven = False
         self._first = threading.Lock()
 
@@ -532,16 +570,54 @@ class _Breaker:
         return self._call(kw)
 
     def _call(self, kw, prove=False):
-        if self.tripped:
-            raise ModelUnavailable(self.tripped)
-        try:
-            out = self.model.complete_json(**kw)
-        except Exception as e:
-            if _rate_limited(e):
-                self.tripped = f"{type(e).__name__}: {e}"
-            raise
+        attempt = 0
+        while True:
+            if self.tripped:
+                raise ModelUnavailable(self.tripped)
+            try:
+                out = self.model.complete_json(**kw)
+                break
+            except Exception as e:
+                if not _rate_limited(e):
+                    raise
+                self.refusals += 1
+                # A refusal that reports spend is not made again, so that spend is booked once, by the caller.
+                again = attempt < self.retries and not getattr(e, "usd", 0.0)
+                seconds = self.wait(attempt) if again else 0.0
+                if again and self.can_wait(seconds):
+                    self.sleep(seconds)
+                    self.waited_s += seconds
+                    attempt += 1
+                    continue
+                self.gave_up += 1
+                self.streak += 1
+                if again:
+                    self.tripped, self.busy = f"{type(e).__name__}: {e}", "deadline"
+                elif self.streak >= self.trip_after:
+                    self.tripped, self.busy = f"{type(e).__name__}: {e}", "refused"
+                raise
+        self.streak = 0
         self._proven = self._proven or prove
         return out
+
+
+def _setting(name, default, least):
+    """BRIEF_<name> from the environment as a number of default's type, else default when it is unset, not a finite
+    number or below least."""
+    value = os.environ.get(f"BRIEF_{name}")
+    if value is None:
+        return default
+    try:
+        number = type(default)(value.strip())
+    except ValueError:
+        return default
+    return number if math.isfinite(number) and number >= least else default
+
+
+def _busy_wait(base, cap, jitter, rand=random.random):
+    """Seconds to wait before try attempt + 1 of a refused call: base doubling per try up to cap, then up to jitter
+    longer."""
+    return lambda attempt: min(cap, base * 2 ** attempt) * (1 + jitter * rand())
 
 
 def _menu(detail):
@@ -613,7 +689,9 @@ def failed_reason(result):
     if result.get("reason") == "too_few_claims":
         return TOO_FEW
     rests_on = set(result.get("rests_on") or [])
-    rows = [c for c in result.get("checks") or [] if not str(c.get("detail") or "").startswith(REPAIR)]
+    # A title row never held a card: its cut only drops the written title.
+    rows = [c for c in result.get("checks") or [] if not str(c.get("detail") or "").startswith(REPAIR)
+            and c.get("rule") != TITLE_RULE]
     breaches = [c for c in rows if c["verdict"] == "breach"]
     if result.get("reason") == "breach" and breaches:
         # Any breach holds the whole card, rested on or not: name the breach itself.
@@ -685,16 +763,40 @@ def _out_of_time(now, started):
     return started is not None and now - started >= collect_chain.TIMEOUTS["brief"] - FINISH_MARGIN
 
 
-def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, started=None):
+def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, started=None, sleep=None, busy=None):
     """Run explanations in task order, one at a time. No new one starts past the deadline or the time limit
     (_out_of_time from started, stopped as at the deadline, with limit task_timeout in the stop), outside the
-    current SAST accounting day, or over the model cap, or once the model breaker has tripped. spend["usd"] grows
-    as explanations finish. Returns
-    ({id(cand): result}, the breaker's error or None)."""
+    current SAST accounting day, or over the model cap, or once the model breaker has tripped. A busy model is
+    waited out call by call (_Breaker, BUSY_RETRIES and the settings beside it); no wait ends past the deadline, the
+    time limit or the day. sleep (default time.sleep) does every wait. spend["usd"] grows as explanations finish.
+    A Today-bound candidate the busy model left unexplained gets cand["busy_reason"], the fixed wording its held item
+    shows as failed_reason: the one whose own call ran out of tries, and, once the breaker tripped on refusals or the
+    deadline stopped a run that had waited on the model, each one not started. busy, when given, gets the run's
+    refusals, waits and give-ups. Returns
+    ({id(cand): result}, the breaker's error or None, the deadline stop or None)."""
     results, running, capped = {}, {}, False
     explanation_stop = None
-    breaker = _Breaker(model)
+
+    def can_wait(seconds):
+        then = clock() + timedelta(seconds=seconds)
+        return (d == then.astimezone(SAST).date() and not _brief_deadline(then, d, chain)[0]
+                and not _out_of_time(then, started))
+
+    breaker = _Breaker(model, retries=_setting("BUSY_RETRIES", BUSY_RETRIES, 0),
+                       wait=_busy_wait(_setting("BUSY_WAIT_S", BUSY_WAIT_S, 0.0),
+                                       _setting("BUSY_WAIT_MAX_S", BUSY_WAIT_MAX_S, 0.0),
+                                       _setting("BUSY_JITTER", BUSY_JITTER, 0.0)),
+                       can_wait=can_wait, sleep=sleep, trip_after=_setting("BUSY_TRIP_ITEMS", BUSY_TRIP_ITEMS, 1))
+    pace = _setting("PACE_S", PACE_S, 0.0)
     workers = 1
+
+    def explain(cand):
+        gave_up = breaker.gave_up
+        result = _explain_one(cand, model=breaker, spent_before=base_usd + spend["usd"], d=d,
+                              model_call_guard=lambda: d == clock().astimezone(SAST).date())
+        if breaker.gave_up > gave_up and result["reason"] == "model_error":
+            cand["busy_reason"] = MODEL_BUSY if breaker.busy == "deadline" else MODEL_REFUSED
+        return result
 
     def collect(done):
         nonlocal capped
@@ -710,6 +812,8 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
             while len(running) >= workers:
                 done, _ = wait(list(running), return_when=FIRST_COMPLETED)
                 collect(done)
+            if pace and index and not breaker.tripped:
+                (sleep or _sleep)(pace)
             now = clock()
             if (capped or breaker.tripped or base_usd + spend["usd"] >= model_daily_usd()
                     or d != now.astimezone(SAST).date()):
@@ -723,10 +827,19 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
                 if out_of_time and not past_deadline:
                     explanation_stop["limit"] = "task_timeout"
                 break
-            fut = pool.submit(_explain_one, cand, model=breaker, spent_before=base_usd + spend["usd"], d=d,
-                              model_call_guard=lambda: d == clock().astimezone(SAST).date())
+            fut = pool.submit(explain, cand)
             running[fut] = cand
         collect(wait(list(running))[0])
+    # Only a busy model's doing gets the wording: a cap, a day change or a slow run without refusals leaves it unset.
+    left = (MODEL_REFUSED if breaker.busy == "refused" else MODEL_BUSY if breaker.busy == "deadline"
+            or (explanation_stop is not None and breaker.refusals) else None)
+    if left is not None:
+        for cand in tasks:
+            if id(cand) not in results:
+                cand["busy_reason"] = left
+    if busy is not None and breaker.refusals:
+        busy.update({"refusals": breaker.refusals, "gave_up": breaker.gave_up,
+                     "waited_s": round(breaker.waited_s, 1), "tripped": breaker.busy})
     return results, breaker.tripped, explanation_stop
 
 
@@ -760,8 +873,10 @@ def _payload_candidate(cand, result, specificity=None):
     return {
         **row, "decision": cand["decision"], "explanation_status": status, "numbers": pack["numbers"],
         "evidence": pack["evidence"], "sparkline": cand["sparkline"], "held_reason": cand.get("held_reason"),
-        "failed_reason": failed_reason(result) if status == "failed_checks" else None,
+        "failed_reason": failed_reason(result) if status == "failed_checks" else (
+            cand.get("busy_reason") if status == "not_run" else None),
         "explanation": result.get("explanation") if explained else None,
+        "title_written": result.get("title_written") if explained else None,
         "explanation_claim_ids": result.get("explanation_claim_ids") if explained else [],
         "claims": result.get("claims") if explained else [], "also": cand.get("also") or [],
         "specificity": specificity, "news_driven": explained and result.get("news_driven") is True,
@@ -973,7 +1088,7 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
 
 
 def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, confirm, campaign_hashtags,
-           political_terms, workers, spend, core, agent, started=None):
+           political_terms, workers, spend, core, agent, started=None, sleep=None):
     hidden = read_hidden(client, core=core, agent=agent)  # raises SuppressionUnreadable before anything is spent
     warm = warmup_banner(client, d, core, agent)
     base_usd = spent_today(client, d, core, agent)
@@ -1002,9 +1117,10 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     merged += late_merged
 
     tasks = _in_rank_order(by_market)
+    busy = {}
     results, unavailable, explanation_stop = _explain_all(tasks, model=model, base_usd=base_usd, spend=spend,
                                                            clock=clock, chain=chain, d=d, workers=workers,
-                                                           started=started)
+                                                           started=started, sleep=sleep, busy=busy)
 
     brief_rows, check_rows, cards, held = [], [], 0, 0
     published_at = clock()
@@ -1041,6 +1157,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
               "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
     if explanation_stop is not None:
         counts["explanation_stop"] = explanation_stop
+    if busy:
+        counts["model_busy"] = busy
     pack_errors = {f"{c['market']}:{c['row']['item_id']}": c["error"] for m in MARKETS for c in by_market[m]
                    if c.get("error")}
     if pack_errors:
@@ -1073,12 +1191,13 @@ def _publish_data_issue(client, d, run, error, *, clock, core, agent):
 
 
 def run(client, d, *, chain, model, make_sc, clock, build_ctx=gatectx.build_ctx, confirm=confirm_lane.confirm,
-        campaign_hashtags=None, political_terms=None, workers=WORKERS, core=CORE, agent=AGENT):
+        campaign_hashtags=None, political_terms=None, workers=WORKERS, core=CORE, agent=AGENT, sleep=None):
     """The brief for day d. Returns the counts it finished the run with. Raises chain.AlreadyDone, and
     chain.UpstreamNotReady before the deadline; any other failure after begin finishes the run failed and
     re-raises. make_sc(run_id) builds the confirm-share SocialCrawl client once the run has begun; None, or a
     factory that raises, skips confirm with a coverage note. political_terms: {market: [term]}; both lists
-    default to core/brief's yaml files. The run's time limit (_out_of_time) counts from clock() here."""
+    default to core/brief's yaml files. The run's time limit (_out_of_time) counts from clock() here. sleep (default
+    time.sleep) does the waits on a busy model (_explain_all)."""
     started = clock()
     if campaign_hashtags is None:
         campaign_hashtags = gatectx.load_campaign_hashtags()
@@ -1102,7 +1221,7 @@ def run(client, d, *, chain, model, make_sc, clock, build_ctx=gatectx.build_ctx,
             counts = _brief(client, d, brief, chain=chain, model=model, sc=sc, sc_skipped=sc_skipped, clock=clock,
                             build_ctx=build_ctx, confirm=confirm, campaign_hashtags=campaign_hashtags,
                             political_terms=political_terms, workers=workers, spend=spend, core=core, agent=agent,
-                            started=started)
+                            started=started, sleep=sleep)
     except Exception as e:
         counts = {"markets": 0, "cards": 0, "held": 0, "credits": spend["credits"],
                   "model_usd": round(spend["usd"], 6)}

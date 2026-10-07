@@ -42,13 +42,35 @@ export function platformWord(platform){
   return PLATFORM_WORDS[platform] || sentenceCase(String(platform ?? '').replace(/_/g, ' '));
 }
 
-/* A Figure as words: "31 creators in 3 days". */
+/* A Figure as words: "31 creators in 3 days", and "1 creator", "1 post"
+   for one (tester report, 5 October 2026: "1 creators and 1 posts"). */
+const COUNT_NOUNS = ['creators', 'posts'];
 export function figureWords(figure){
   const unit = String(figure.unit || '').trim();
-  const shownUnit = Number(figure.value) === 1 && (unit === 'creators' || unit.startsWith('creators '))
-    ? 'creator' + unit.slice('creators'.length)
-    : unit;
+  const noun = Number(figure.value) === 1 ? COUNT_NOUNS.find((word) => unit === word || unit.startsWith(word + ' ')) : null;
+  const shownUnit = noun ? noun.slice(0, -1) + unit.slice(noun.length) : unit;
   return readerFigure(figure.value) + (shownUnit ? ' ' + shownUnit : '');
+}
+
+/* A stored count line as a reader says it: briefs written before 6 October
+   2026 say "1 creators and 1 posts in 3 days". "21 posts" keeps its plural. */
+const ONE_COUNT = /(^|[^\d.,\u00a0\u202f])1 (creator|post)s\b/gu;
+export function countLineWords(line){
+  return typeof line === 'string' ? line.replace(ONE_COUNT, (whole, before, noun) => before + '1 ' + noun) : line;
+}
+
+/* Model prose names days as ISO dates ("on 2026-10-01"); a reader sees
+   "1 Oct", with the year only when it is not this year. The stored text is
+   unchanged; only what is shown reads as a date. */
+const ISO_DAY = /\b(\d{4})-(\d{2})-(\d{2})\b(?![T:\d])/gu;
+export function proseDates(text, now = Date.now()){
+  if (typeof text !== 'string') return text;
+  const thisYear = new Date(now).getUTCFullYear();
+  return text.replace(ISO_DAY, (whole, year, month, day) => {
+    const m = Number(month), d = Number(day);
+    if (m < 1 || m > 12 || d < 1 || d > 31) return whole;
+    return d + ' ' + MONTHS[m - 1].slice(0, 3) + (Number(year) === thisYear ? '' : ' ' + year);
+  });
 }
 
 export function topicHref(itemId, market){
@@ -78,6 +100,17 @@ const isYoutubeChannelId = (value) => typeof value === 'string' && YOUTUBE_CHANN
 const isYoutubeChannelAuthor = (item) => item.platform === 'youtube' && typeof item.handle === 'string'
   && isYoutubeChannelId(item.handle.trim().replace(/^@+/, ''));
 
+/* Tester report, 6 October 2026: a card titled "northeast governors,
+   northeast, governors" was about Independence Day reflections. An explained
+   card whose brief wrote a title that passed its checks (title_written) leads
+   with it, and the cluster label stays beside it as smaller text. A card
+   without one, or whose written title only repeats the label, reads as before. */
+const titleKey = (text) => String(text || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+export function writtenTitle(card, label){
+  const written = card && card.explained === true && typeof card.title_written === 'string' ? card.title_written.trim() : '';
+  return written && titleKey(written) !== titleKey(label) ? written : null;
+}
+
 /* scope: context nodes that belong in the facts row (Discover's search
    label). extraActions: links that sit with Ask, Watch and Posts. index: the
    card's place in its list, which the stylesheet turns into a capped entrance
@@ -85,7 +118,7 @@ const isYoutubeChannelAuthor = (item) => item.platform === 'youtube' && typeof i
    the not-yet states ('spread', 'growth') the page has already said once for
    every card, so this card does not repeat them; a field that has a value
    still shows. */
-export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, linkTopic = false, posts: showPosts = true, todaySpecificity = null, scope = null, extraActions = null, index = null, className = '', sparkMinDays = MIN_CHART_DAYS, saidAbove = null}){
+export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, linkTopic = false, tapToOpen = false, posts: showPosts = true, todaySpecificity = null, scope = null, extraActions = null, index = null, className = '', sparkMinDays = MIN_CHART_DAYS, saidAbove = null}){
   const [posts, setPosts] = useState({state: 'closed'});
   const ctrl = useRef(null);
   useEffect(() => () => { if (ctrl.current) ctrl.current.abort(); }, []);
@@ -93,7 +126,9 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
   const when = card.date || date;
   const panelId = 't42-posts-' + where + '-' + card.item_id;
   const open = posts.state !== 'closed';
-  const title = isYoutubeChannelId(card.title) ? 'YouTube channel' : card.title;
+  const label = isYoutubeChannelId(card.title) ? 'YouTube channel' : card.title;
+  const written = writtenTitle(card, label);
+  const title = written || label;
 
   const loadPosts = () => {
     if (ctrl.current) ctrl.current.abort();
@@ -127,23 +162,42 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
   const showGrowth = has(card, 'growth') && !(said('growth') && !isFigure(card.growth));
   /* Reach is said once: a count line that says what the reach figure says
      gives way to the figure, which carries its query. */
-  const countSaysReach = Boolean(card.count_line) && isFigure(card.reach)
-    && factWords(card.count_line) === factWords(figureWords(card.reach));
+  const countLine = countLineWords(card.count_line);
+  const countSaysReach = Boolean(countLine) && isFigure(card.reach)
+    && factWords(countLine) === factWords(figureWords(card.reach));
   /* Visual pass, 3 October 2026: the card's headline numbers are set large
      beside its trend line, so the figure is the first thing the eye lands
      on. A fact set large is not said again in the small print. */
   const big = bigFigures(card);
   const saysBig = (words) => big.some((figure) => factWords(figureWords(figure)) === factWords(words));
-  const countShown = Boolean(card.count_line) && !countSaysReach && !saysBig(card.count_line);
+  const countShown = Boolean(countLine) && !countSaysReach && !saysBig(countLine);
   const reachShown = showReach && !(isFigure(card.reach) && big.includes(card.reach));
 
+  /* Tester report, 5 October 2026: a tap anywhere on a Today card opens it,
+     as the title link does. A tap on a control, a link, a disclosure or the
+     open posts keeps its own job, and selecting text opens nothing. The
+     title link stays the one keyboard stop, so keyboard reading is unchanged. */
+  const openOnTap = tapToOpen && linkTopic ? (event) => {
+    if (event.defaultPrevented || event.button > 0) return;
+    const control = event.target.closest ? event.target.closest('a, button, input, select, textarea, label, summary, details, [role="button"], [tabindex], .t42-posts') : null;
+    if (control && event.currentTarget.contains(control)) return;
+    const selected = typeof window.getSelection === 'function' ? String(window.getSelection() || '') : '';
+    if (selected) return;
+    const link = event.currentTarget.querySelector('.tc-title-link');
+    if (!link) return;
+    if (event.metaKey || event.ctrlKey) window.open(link.href, '_blank', 'noopener');
+    else link.click();
+  } : undefined;
+
   return (
-    <li className={'t42-card' + (className ? ' ' + className : '')} data-card="" style={Number.isInteger(index) ? {'--i': index} : undefined}>
+    <li className={'t42-card' + (openOnTap ? ' t42-card-tap' : '') + (className ? ' ' + className : '')} data-card="" style={Number.isInteger(index) ? {'--i': index} : undefined}
+      onClick={openOnTap}>
       {/* Title first; the state words sit on the title's row as a quiet kicker. */}
       <div className="t42-card-head">
         <h3 className="t42-card-title">
           {linkTopic ? <a className="tc-title-link" href={topicHref(card.item_id, where)}>{title}</a> : title}
         </h3>
+        {written && <p className="t42-card-label" data-card-label="">{label}</p>}
         {(hasMeta || hasLifecycle) && (
           <div className="t42-card-kicker">
             {hasMeta && (
@@ -161,13 +215,13 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
         )}
       </div>
       {todaySpecificity
-        ? <TodaySpecificity specificity={todaySpecificity} />
+        ? <TodaySpecificity specificity={todaySpecificity} date={when} />
         : status === 'explained'
-        ? card.explanation ? <p className="t42-explanation">{card.explanation}</p> : null
+        ? card.explanation ? <p className="t42-explanation">{proseDates(card.explanation)}</p> : null
         : <p className="t42-held-line">{EXPLANATION_WORDS[status] || EXPLANATION_WORDS.failed_checks}</p>}
       <div className="t42-card-metrics">
         {scope}
-        {countShown && <p className="t42-count">{card.count_line}</p>}
+        {countShown && <p className="t42-count">{countLine}</p>}
         {showSpread && <p className="tc-spread">{card.spread_line || 'Spread is not measured yet'}</p>}
         <Novelty card={card} />
         {(reachShown || showGrowth) && (
@@ -211,7 +265,7 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
             </p>
           )}
           {posts.state === 'ready' && (posts.evidence.length > 0
-            ? <EvidenceList items={posts.evidence} />
+            ? <><PostsShownNote shown={posts.evidence.length} numbers={card.numbers} /><EvidenceList items={posts.evidence} /></>
             : <p className="t42-status">No posts are stored for this trend.</p>)}
         </div>
       )}
@@ -219,12 +273,28 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
   );
 }
 
-function TodaySpecificity({specificity}){
+/* The first day of a brief's 3-day counts ("31 creators in 3 days"): the
+   brief day and the two before it, as YYYY-MM-DD, or null. */
+export function countWindowStart(date){
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(date || ''));
+  if (!match) return null;
+  const day = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) - 2));
+  return Number.isFinite(day.getTime()) ? day.toISOString().slice(0, 10) : null;
+}
+export const BEFORE_COUNT = 'posted before the counted days';
+
+/* Tester report, 5 October 2026: "1 creator in 3 days" sat above examples
+   from two creators, one posted 29 September. The examples come from the
+   brief's 7 days of posts and the counts from 3 days of trending boards and
+   followed accounts, so the examples say their window and a post from before
+   the counted days says so beside its date. Which posts are cited is the
+   brief's; nothing here changes it. */
+function TodaySpecificity({specificity, date}){
   return (
     <div className="t42-specificity" data-today-specificity="">
       <p className="t42-explanation t42-specificity-why-now">
         <span className="t42-specificity-label">Why now</span>
-        {specificity.whyNow}
+        {proseDates(specificity.whyNow)}
       </p>
       <blockquote className="t42-specificity-quote">
         <span className="t42-specificity-label">Quote</span>
@@ -232,7 +302,8 @@ function TodaySpecificity({specificity}){
       </blockquote>
       <div className="t42-specificity-examples" data-local-examples="">
         <p className="t42-specificity-label">Local examples</p>
-        <EvidenceList items={specificity.examples} quoted={specificity.quote} />
+        <p className="t42-specificity-window" data-examples-window="">From the last 7 days of posts. The counts above cover 3 days.</p>
+        <EvidenceList items={specificity.examples} quoted={specificity.quote} countFrom={countWindowStart(date)} />
       </div>
     </div>
   );
@@ -604,13 +675,37 @@ export function ExcerptNote(){
 /* quoted: the quote the card already shows above the list. A post whose
    text is that quote word for word keeps its source line and link, and says
    "Quoted above" instead of printing the same words twice. */
-export function EvidenceList({items, quoted = null}){
+/* Tester report, 5 October 2026: "21 posts in 3 days" sat over 12 posts
+   with nothing saying the list was a sample. The brief keeps a capped set of
+   example posts from its 7 days, so when the figures count more posts than
+   the list holds, the list says it does not show them all. */
+export function postsShownWords(shown, numbers){
+  const counted = (Array.isArray(numbers) ? numbers : []).find((number) => isFigure(number)
+    && typeof number.unit === 'string' && /^posts in \S/.test(number.unit.trim()));
+  if (!counted || !Number.isFinite(Number(counted.value)) || Number(counted.value) <= shown) return null;
+  const window = counted.unit.trim().slice('posts '.length);
+  return 'Showing ' + readerFigure(shown) + (shown === 1 ? ' example post' : ' example posts')
+    + ', not all ' + readerFigure(counted.value) + ' posts counted ' + window + '.';
+}
+
+export function PostsShownNote({shown, numbers}){
+  const words = postsShownWords(shown, numbers);
+  return words ? <p className="t42-status t42-posts-shown" data-posts-shown="">{words}</p> : null;
+}
+
+/* countFrom: the first counted day (YYYY-MM-DD); a post dated before it
+   says "posted before the counted days" after its date. The counts go by the
+   day a trend was first seen and the label by the day a post went up, so it
+   names only what the post's own date shows. */
+export function EvidenceList({items, quoted = null, countFrom = null}){
   return (
     <ul className="t42-evidence">
       {items.map((e) => {
         const views = e.engagement && typeof e.engagement.views === 'number' ? e.engagement.views : null;
         const youtubeChannelAuthor = isYoutubeChannelAuthor(e);
-        const meta = [youtubeChannelAuthor ? 'YouTube channel' : platformWord(e.platform), youtubeChannelAuthor ? null : e.handle, e.posted_at ? longDate(e.posted_at) : null, views !== null ? readerFigure(views) + ' views' : null];
+        const postedDay = /^\d{4}-\d{2}-\d{2}/.test(String(e.posted_at || '')) ? String(e.posted_at).slice(0, 10) : null;
+        const beforeCount = Boolean(countFrom && postedDay && postedDay < countFrom);
+        const meta = [youtubeChannelAuthor ? 'YouTube channel' : platformWord(e.platform), youtubeChannelAuthor ? null : e.handle, e.posted_at ? longDate(e.posted_at) : null, beforeCount ? BEFORE_COUNT : null, views !== null ? readerFigure(views) + ' views' : null];
         const url = safeUrl(e.url);
         const view = postTextView(e);
         return (

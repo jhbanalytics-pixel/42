@@ -35,11 +35,14 @@ from core.agent.tools.warehouse import (MAX_POSTS, commit_findings, discover_cre
                                         get_trending_fallback_snapshot, is_creator_question, store_breadth,
                                         store_totals)
 from core.llm.provider import default_model, is_gemini_model, price_for, reserve_output
-from core.agent.writer import (K4_RECHECK_CALLS, K4_REWRITE_CALLS, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS,
-                               MAX_CLAIMS, MAX_GAPS, MAX_ITEMS, ROWS_SHOWN, SUPPORT_INPUT_TOKENS,
-                               SUPPORT_MAX_TOKENS, _fence, _k10, apply_field_check, apply_support, field_max_tokens,
-                               _input_token_upper_bound, repair_answer_numbers, unpinned_claim_numerals, write_answer,
-                               writer_gaps)
+from core.agent.writer import (FIELD_UNCHECKED_REASON, HEADLINE_BUDGET_REASON, HEADLINE_FAILED_REASON, HEADLINE_GAP,
+                               HEADLINE_REASONS, HEADLINE_REWRITE_CALLS, HEADLINE_REWRITE_INPUT_TOKENS,
+                               HEADLINE_REWRITE_MAX_TOKENS, HEADLINE_REWRITTEN_REASON, HEADLINE_USED_REASON,
+                               K4_RECHECK_CALLS, K4_REWRITE_CALLS, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS,
+                               MAX_CLAIMS, MAX_GAPS, MAX_ITEMS, ROWS_SHOWN, SUPPORT_INPUT_TOKENS, SUPPORT_MAX_TOKENS,
+                               _failed_call_usage, _fence, _k10, _usage_or_reserve, apply_field_check, apply_support,
+                               field_max_tokens, headline_blanked, _input_token_upper_bound, repair_answer_numbers,
+                               rewrite_headline, unpinned_claim_numerals, write_answer, writer_gaps)
 from core.agent.model_budget import AskModelBudget, BudgetRefused
 
 MODEL = default_model("smart")  # Gemini on Vertex (core/llm/provider.py)
@@ -94,7 +97,10 @@ NUMERIC_REPAIR_CALLS = 1
 SUPPORT_CALLS = MAX_CLAIMS  # one support call per claim
 # One field check per answer. Its input is every claim's cited posts plus the indexed items; its output is writer.py's
 # field_max_tokens for that many items. The items are the short answer, the context, the capped so_what and
-# watch_next, and the writer's own gaps, which the writer schema and write_answer cap at MAX_GAPS.
+# watch_next, and the writer's own gaps, which the writer schema and write_answer cap at MAX_GAPS. A text too long for
+# one call is checked in up to writer.FIELD_BATCHES calls, each within FIELD_INPUT_TOKENS; the hold counts one, so the
+# others run on the pass's unused reserve (the support, rewrite and recheck calls an answer did not make), each
+# reserved under the question's cap like any call, and a batch the cap cannot hold stops the question on its budget.
 FIELD_CALLS = 1
 FIELD_POSTS_PER_CLAIM, FIELD_POST_TOKENS = 4, 1_000
 FIELD_GAPS, FIELD_ITEM_TOKENS = MAX_GAPS, 300
@@ -654,18 +660,22 @@ def pass_usd(model: str) -> float:
             + K4_RECHECK_CALLS * call_usd(model, SUPPORT_INPUT_TOKENS, SUPPORT_MAX_TOKENS))
 
 
+def once_usd(model: str) -> float:
+    """The calls an ask makes at most once whatever its passes: the numeric repair and the short answer rewrite."""
+    return (NUMERIC_REPAIR_CALLS * call_usd(model, WRITER_INPUT_TOKENS, WRITER_MAX_TOKENS)
+            + HEADLINE_REWRITE_CALLS * call_usd(model, HEADLINE_REWRITE_INPUT_TOKENS, HEADLINE_REWRITE_MAX_TOKENS))
+
+
 def gate_usd(model: str, passes: int) -> float:
     """The writer, checks and critic ceiling for the requested passes."""
     critic_call = call_usd(critic.critic_model(), CRITIC_INPUT_TOKENS, CRITIC_MAX_TOKENS)
-    repair_call = NUMERIC_REPAIR_CALLS * call_usd(model, WRITER_INPUT_TOKENS, WRITER_MAX_TOKENS)
-    return passes * (pass_usd(model) + critic_call) + repair_call
+    return passes * (pass_usd(model) + critic_call) + once_usd(model)
 
 
 def hold_usd(tier: str, model: str) -> float:
     """The most one non-investigation ask may spend on research, writing, checks and review."""
     if tier != "T2":
-        repair_call = NUMERIC_REPAIR_CALLS * call_usd(model, WRITER_INPUT_TOKENS, WRITER_MAX_TOKENS)
-        return TIERS[tier]["max_budget_usd"] + pass_usd(model) + repair_call
+        return TIERS[tier]["max_budget_usd"] + pass_usd(model) + once_usd(model)
     return TIERS[tier]["max_budget_usd"] + gate_usd(model, CRITIC_CALLS)
 
 
@@ -809,7 +819,11 @@ def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[
                                                 else "the critic found it unsupported by its cited posts"),
             "searched": "cited posts " + ", ".join(claim.get("evidence_ids") or []),
             "why": "critic: needs more evidence" if pending else "critic: cut"})
+    before = copy.deepcopy(answer)
     k10 = _k10(answer, kept, removed)
+    # No rewrite here: the field check has already run, and the short answer is never shown unchecked.
+    if headline_blanked(before, answer) and HEADLINE_GAP not in answer["gaps"]:
+        answer["gaps"].append(dict(HEADLINE_GAP))
     answer, rechecked = checks.recheck_fields(answer, ctx, window=window,
                                               code_gaps=checks.code_gap_indexes(draft_gaps, answer["gaps"]))
     return answer, rows, [k10, *rechecked]
@@ -1021,7 +1035,7 @@ def _followups(gaps: list[dict], source_status: list[dict], allowed: list[dict],
         route = gap["searched"].split(",", 1)[0]
         if route in routes:
             text = f"What does {platform_label(routes[route])} show once {route} answers again?"
-        elif gap["why"] == "stopped on request":
+        elif gap["why"] in ("stopped on request", BUDGET_STOP):
             text = "Can you run this question again to the end?"
         else:
             cut = re.match(r"(.{0,80})(?=\s|$)", gap["what"].rstrip("."))  # the longest cut that ends a word
@@ -1037,14 +1051,42 @@ def _followups(gaps: list[dict], source_status: list[dict], allowed: list[dict],
     return out[:3]
 
 
-def _stopped_answer(as_of: str, gaps: list[dict], window: tuple[date, date], *, budget_stopped: bool = False) -> dict:
-    what = ("The answer stopped because a model call could not be safely reserved"
-            if budget_stopped else "The run was stopped before the answer was written")
-    short_answer = ("The answer was not completed because a model call could not fit within a verified model "
-                    "budget."
-                    if budget_stopped else
-                    "The run was stopped before an answer was written, so there is nothing checked to show.")
-    why = "model cost or usage could not be verified within the per-question budget" if budget_stopped else "stopped on request"
+# Why a question's model calls stopped, in a reader's words, by the budget's stop reason (model_budget.py): a call that
+# failed without a usage report, a call that would not fit in the question's budget, or a price that could not be read.
+# Each is (gap what, short answer, run notice). The gap's why stays BUDGET_STOP, which the page and export read.
+BUDGET_STOP = "model cost or usage could not be verified within the per-question budget"
+_STOP_FAILED = ("The answer stopped because a model call failed or did not report what it cost",
+                "The answer was not finished: a model call failed or did not report what it cost, so nothing more "
+                "was spent on this question. You can ask again.",
+                "A model call failed or did not report what it cost, so the rest of this question's model calls "
+                "were stopped")
+_STOP_BUDGET = ("The answer stopped because the next model call would not fit in this question's model budget",
+                "The answer was not finished because the next model call would not fit in this question's model "
+                "budget.",
+                "The next model call would not fit in this question's model budget, so model calls stopped")
+_STOP_PRICE = ("The answer stopped because the cost of a model call could not be worked out",
+               "The answer was not finished because the cost of a model call could not be worked out, so nothing more "
+               "was spent.",
+               "The cost of a model call could not be worked out, so model calls stopped")
+_STOP_WORDS = {"usage_unknown": _STOP_FAILED, "model_reservation_unknown": _STOP_FAILED,
+               "prior_call_usage_unknown": _STOP_FAILED, "model_price_invalid": _STOP_PRICE,
+               "model_price_unavailable": _STOP_PRICE, "model_reservation_invalid": _STOP_PRICE}
+
+
+def budget_stop_words(reason: str | None) -> tuple[str, str, str]:
+    """(gap what, short answer, notice) for a model budget stop with this reason; any other reason is the budget."""
+    return _STOP_WORDS.get(reason or "", _STOP_BUDGET)
+
+
+def _stopped_answer(as_of: str, gaps: list[dict], window: tuple[date, date], *, budget_stopped: bool = False,
+                    reason: str | None = None) -> dict:
+    if budget_stopped:
+        what, short_answer, _ = budget_stop_words(reason)
+        why = BUDGET_STOP
+    else:
+        what = "The run was stopped before the answer was written"
+        short_answer = "The run was stopped before an answer was written, so there is nothing checked to show."
+        why = "stopped on request"
     return {
         "status": "insufficient_evidence",
         "as_of": as_of,
@@ -1093,13 +1135,16 @@ class _StopAwareModel:
             raise exc
         if self.model_budget is None:
             return self.model.complete_json(**kwargs)
+        from core.agent.gemini_research import BUSY_WAITS_S, RETRY_WAIT_S, busy_refusal, server_error, wait_busy
+
         failed = None
-        for attempt in (0, 1):
+        busy = server_failed = 0
+        while True:
             try:
                 input_bound = _input_token_upper_bound(kwargs["system"], kwargs["user"], kwargs["schema"])
                 reservation = self.model_budget.reserve(kwargs["model"], input_bound, kwargs["max_tokens"])
             except BudgetRefused as cause:
-                if failed is not None:  # the retry is not affordable: the server error stands
+                if failed is not None:  # the retry is not affordable: the earlier failure stands
                     raise failed from None
                 exc = _StopRequested()
                 exc.before_dispatch = True
@@ -1116,15 +1161,25 @@ class _StopAwareModel:
                 result = self.model.complete_json(**kwargs)
                 break
             except Exception as cause:
+                if busy_refusal(cause):
+                    # Google refused the call for capacity before running it (a 429): it billed nothing, so the whole
+                    # reserve goes back and the call is made again on a fresh one after a short wait (BUSY_WAITS_S).
+                    # A refusal that outlasts the waits stands, billed at nothing.
+                    self.model_budget.release(reservation)
+                    cause.usage = {"input_tokens": 0, "output_tokens": 0, "usd": 0.0}
+                    if busy >= len(BUSY_WAITS_S) or not wait_busy(busy, self.should_stop):
+                        raise
+                    busy += 1
+                    failed = cause
+                    continue
                 # A 5xx is Google's failure: it books its full reserve and one more try runs on a fresh reserve, the
                 # retry the HTTP client is not allowed to make here because it would run outside the reserve.
-                from core.agent.gemini_research import RETRY_WAIT_S, server_error
-
-                retry = not attempt and server_error(cause) and not self.should_stop()
+                retry = not server_failed and server_error(cause) and not self.should_stop()
                 self.model_budget.settle(reservation, self._checked_usage(getattr(cause, "usage", None)),
                                          stop_unknown=not retry)
                 if not retry:
                     raise
+                server_failed += 1
                 failed = cause
                 time.sleep(RETRY_WAIT_S)
         usage = result[1] if isinstance(result, tuple) and len(result) == 2 else None
@@ -1211,7 +1266,8 @@ def _claim_check_reason(row: dict, draft: dict, evidence: dict, queries: dict):
     reason = row.get("reason")
     if row.get("checker") != "code" or reason is None:
         return reason
-    if reason in {"numeric query scope unavailable", "cited post missing"} and not checks._text_breaches(reason):
+    if reason in {"numeric query scope unavailable", "cited post missing", FIELD_UNCHECKED_REASON, *HEADLINE_REASONS} \
+            and not checks._text_breaches(reason):
         return reason
     claim = next((c for c in draft.get("claims") or [] if c.get("id") == row.get("claim_id")), None)
     fallback_claim = claim or {"evidence_ids": []}
@@ -1321,16 +1377,17 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             if text not in run_notices:
                 run_notices.append(text)
         if model_budget is not None and model_budget.conservative_usd:
-            text = ("A full per-call reserve is counted in this question's model spend because the model's usage "
-                    "report was missing or incomplete")
+            text = ("The model did not report the full usage of a call, so this question's spend counts the most "
+                    "that call could have cost")
             if text not in run_notices:
                 run_notices.append(text)
         if model_budget is not None and model_budget.bound_exceeded:
-            text = "The model reported more tokens than a call had reserved; further model calls stopped"
+            text = "A model call used more than it had set aside, so further model calls stopped"
             if text not in run_notices:
                 run_notices.append(text)
         if model_budget is not None and model_budget.ceiling_exceeded:
-            text = "A model call cost more than its reserve; the reported cost was counted and calls stopped"
+            text = ("A model call cost more than it had set aside; its full cost is counted and further model "
+                    "calls stopped")
             if text not in run_notices:
                 run_notices.append(text)
         extra = {}
@@ -1433,9 +1490,49 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     research_started = research_reported = False
     finished = None
     rewrite_attempted: set[str] = set()
+    headline_rewritten = False  # the one short answer rewrite an ask may make (writer.HEADLINE_REWRITE_CALLS)
     fallback_brief = None
     fallback_post_ids = []
     fallback_active = False
+
+    def headline(checked: dict, answer: dict) -> tuple[dict, list[dict]]:
+        """When the support check blanked the short answer for a cut claim it rested on (writer.headline_blanked), one
+        rewrite per ask from the surviving claims, before checks.recheck_fields and the field check, which read it as a
+        first draft's. It runs only when the question's budget has room for it and a full field check after it, so it
+        never costs the answer its field check. Any failure leaves the short answer blank; gate then adds the gap."""
+        nonlocal headline_rewritten
+        if not headline_blanked(checked, answer):
+            return answer, []
+
+        def row(verdict, reason):
+            return {"claim_id": "short_answer", "rule": "K10", "verdict": verdict, "reason": reason,
+                    "checker": "code"}
+
+        if headline_rewritten:
+            return answer, [row("cut", HEADLINE_USED_REASON)]
+        if model_budget is not None and not model_budget.affords(
+                model_name, [(HEADLINE_REWRITE_INPUT_TOKENS, HEADLINE_REWRITE_MAX_TOKENS),
+                             (FIELD_INPUT_TOKENS, FIELD_MAX_TOKENS)]):
+            return answer, [row("cut", HEADLINE_BUDGET_REASON)]
+        headline_rewritten = True
+        progress.step("write", "Rewriting the short answer from the claims that passed")
+        try:
+            text, usage, dispatched, reason = rewrite_headline(stop_model, checked, answer, ctx, model_name)
+        except _StopRequested:
+            raise
+        except Exception as exc:
+            billed = _failed_call_usage(exc, model_name, HEADLINE_REWRITE_INPUT_TOKENS, HEADLINE_REWRITE_MAX_TOKENS)
+            spend(billed.get("input_tokens"), billed.get("output_tokens"), billed.get("usd"))
+            log.warning("ask short answer rewrite failed: run %s: %s", run_id, type(exc).__name__)
+            return answer, [row("cut", HEADLINE_FAILED_REASON)]
+        if dispatched:
+            usage = _usage_or_reserve(usage, model_name, HEADLINE_REWRITE_INPUT_TOKENS, HEADLINE_REWRITE_MAX_TOKENS)
+            spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
+        if should_stop():
+            raise _StopRequested()
+        if text is None:
+            return answer, [row("cut", reason)]
+        return {**answer, "short_answer": text}, [row("pass", HEADLINE_REWRITTEN_REASON)]
 
     def gate(note: str, source_status: list[dict]) -> tuple:
         nonlocal numeric_repair_attempted
@@ -1523,13 +1620,17 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
             raise _StopRequested()
+        blanked = headline_blanked(checked, answer)
+        answer, rewrote = headline(checked, answer)
         answer, rechecked = checks.recheck_fields(answer, ctx, window=window,
                                                   code_gaps=checks.code_gap_indexes(draft["gaps"], answer["gaps"]))
         answer, fielded, usage = apply_field_check(stop_model, answer, ctx, model_name, draft_gaps=draft["gaps"])
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
             raise _StopRequested()
-        return draft, answer, verdicts, support, [*rechecked, *fielded], allowed
+        if blanked and answer.get("short_answer") == "" and HEADLINE_GAP not in answer["gaps"]:
+            answer["gaps"].append(dict(HEADLINE_GAP))  # the rewrite was not made, or a check removed it
+        return draft, answer, verdicts, support, [*rewrote, *rechecked, *fielded], allowed
 
     def review(answer: dict) -> tuple[dict, list[dict], dict | None]:
         """The critic once, in a fresh context. Its usd is already in ctx.model_usd_extra, so only its tokens are
@@ -1693,11 +1794,11 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         if stopped:
             finished = "stopped"
             budget_stopped = model_budget is not None and model_budget.stopped and not should_stop()
+            reason = model_budget.stop_reason if budget_stopped else None
             answer = _stopped_answer(as_of.isoformat(), source_gaps(ctx, window), window,
-                                     budget_stopped=budget_stopped)
+                                     budget_stopped=budget_stopped, reason=reason)
             if budget_stopped:
-                notices.append("Model calls stopped because their usage or reserved cost went over the verified "
-                               "budget for this question")
+                notices.append(budget_stop_words(reason)[2])
             allowed = answer["gaps"]  # source failures and the stopped gap; no gate ran
         else:
             draft, answer, verdicts, support, later, allowed = gate(note, source_status)
@@ -1746,20 +1847,21 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         reason = getattr(exc, "model_budget_reason", None)
         budget_stopped = reason is not None or (model_budget is not None and model_budget.stopped and not should_stop())
         if budget_stopped:
-            log.warning("ask stopped on its model budget: run %s: %s", run_id, reason or model_budget.stop_reason)
-            notices.append("Model calls stopped because their usage or reserved cost went over the verified "
-                           "budget for this question")
+            # The budget's own reason first: a call refused at the gate carries that reason, not the call's.
+            reason = (model_budget.stop_reason if model_budget is not None and model_budget.stopped else None) or reason
+            log.warning("ask stopped on its model budget: run %s: %s", run_id, reason)
+            notices.append(budget_stop_words(reason)[2])
         billed = getattr(exc, "usage", None)
         if isinstance(billed, dict):
             spend(billed.get("input_tokens"), billed.get("output_tokens"), billed.get("usd"))
         answer = _stopped_answer(as_of.isoformat(), source_gaps(ctx, window), window,
-                                 budget_stopped=budget_stopped)
+                                 budget_stopped=budget_stopped, reason=reason)
         allowed = answer["gaps"]
     except Exception as exc:
         if research_started and not research_reported:
             if model_budget is not None:
-                notices.append("Research failed before reporting usage; each model call it tried is counted at its "
-                               "measured cost or full reserve")
+                notices.append("Research failed before it reported what it cost, so each model call it made is counted "
+                               "at its reported cost or the most it could have cost")
             else:
                 # The agent may have spent up to its budget before failing, so the budget is what counts.
                 budget = ctx.limits["max_budget_usd"] if tier == "T3" else TIERS[tier]["max_budget_usd"]

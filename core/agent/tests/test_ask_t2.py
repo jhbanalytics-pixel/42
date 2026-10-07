@@ -450,7 +450,9 @@ def test_the_t2_hold_covers_every_researcher_two_passes_and_two_critic_calls():
     model = ask.MODEL
     one_pass = ask.pass_usd(model)
     repair_call = ask.call_usd(model, ask.WRITER_INPUT_TOKENS, ask.WRITER_MAX_TOKENS)
-    expected = 6.00 + 2 * one_pass + 2 * critic_call_usd(critic.critic_model()) + repair_call
+    # the one short answer rewrite an ask may make, held once like the numeric repair
+    headline_call = ask.call_usd(model, ask.HEADLINE_REWRITE_INPUT_TOKENS, ask.HEADLINE_REWRITE_MAX_TOKENS)
+    expected = 6.00 + 2 * one_pass + 2 * critic_call_usd(critic.critic_model()) + repair_call + headline_call
     assert ask.hold_usd("T2", model) == pytest.approx(expected)
     assert ask.CRITIC_MAX_TOKENS == critic.BASE_TOKENS + critic.TOKENS_PER_CLAIM * ask.MAX_CLAIMS
     assert K4_REWRITE_CALLS == K4_RECHECK_CALLS == ask.MAX_CLAIMS

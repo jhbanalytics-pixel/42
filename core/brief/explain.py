@@ -20,6 +20,15 @@ same posts own_feed_local, by the same code, and reads them the same way (Albert
 inferred only because its place has source-market support alone reaches the support check with a label note, so it is
 judged as the observation it is, on the same evidence (Albert, 3 Oct).
 
+The writer claims only what its posts show (the 5 Oct brief review, 6 Oct). It gets the pack's own counts and the
+crowd words the card's creator count allows, posts listed most on topic first by the trend title's terms, and laws
+against outside context, guessed counts and moved dates. A crowd word about creators ("multiple creators") that the
+card's creator count does not reach is a K4 cut by code, on a claim or on the sentence. The one repair round goes to
+the code faults when there are any; else, when support check cuts hold the draft, it goes to them: the writer gets
+each failed claim or the sentence with the check's reason and rewrites only those, code puts every passed claim back
+as it was, and the repaired draft meets every check again in full. A cut claim the draft can stand without is cut as
+before.
+
     explain_trend(candidate, pack, *, model, spent_today_usd, window_start, window_end, market, rerun=None,
                   model_id=None, model_call_guard=None, second_draft=False) -> dict
 
@@ -27,13 +36,21 @@ pack: {"evidence": [contract Evidence dicts], "numbers": [{value, unit, query_id
        "facts": [short plain lines written by code about state, counts and first sighting]}
 
 Returns {explanation, explanation_claim_ids, claims, numbers_only, reason, usage_usd, checks, error,
-         local_why_now_checked, specificity, news_driven, critic}.
+         local_why_now_checked, specificity, news_driven, critic, title_written}.
 news_driven is true when a news event or a scheduled event the posts do not rule out passed the critic on local
 reaction; its claims then stand one confidence step lower.
 reason is None when the explanation passed, else one of model_cap, model_error, breach, failed_checks,
 too_few_claims. error holds the exception text on model_error. checks are claim_checks rows. critic is the
 critic's own answer as it returned it (CRITIC_FIELDS), kept for audit, or None when the critic was not called;
 nothing reads it to decide.
+
+The same writer call gives a short title in the posts' own terms (tester report, 6 Oct: a card titled with its cluster
+label "northeast governors, northeast, governors" was about Independence Day reflections). Only an explanation that
+passed every check has its title checked, after the critic: the sentence's code checks (K6 banned terms, K2 pinned
+numerals, K9, the crowd words, K3 places) on the claims that stand, then one support check against the posts those
+claims cite, through the same capped and guarded call. title_written is the title that passed, else None and the card
+keeps its scraped title. A title never changes reason, the claims or the sentence: a title that fails, or whose check
+cannot be run (the cap, a model error), is dropped with its own "title" row and nothing else.
 """
 
 import copy
@@ -58,6 +75,14 @@ FENCE_OPEN, FENCE_CLOSE = "<untrusted_content>", "</untrusted_content>"
 MIN_CLAIMS, MAX_CLAIMS = 3, 5
 # The label the support check sees for the explanation sentence.
 SENTENCE_LABEL = "explanation sentence"
+# The card title the writer gives: a few words, checked as the sentence is (see the module docstring).
+TITLE_LABEL = "card title"
+TITLE_NOTE = ("Label note: a short card title naming what the cited posts are about; return supported only when the "
+              "cited posts' own text or fields show they are about what it names, with nothing from outside them")
+TITLE_RULE = "title"
+TITLE_MAX_WORDS, TITLE_MAX_CHARS = 8, 80
+# Double quote marks or an opening single one: a title quotes no one, and an apostrophe stays.
+_TITLE_MARKS = re.compile(r"[\"\u201c\u201d\u201e\u201f\u2018]")
 # The line under Label for an observation K5 labels inferred only for source-only place support (Albert, 3 Oct).
 SOURCE_STEP_NOTE = ("Label note: an observation, labelled inferred only because a named market has source_market "
                     "support alone")
@@ -72,6 +97,24 @@ FUTURE_ASSERTION = re.compile(
     r"(?:(?:keep|continue(?:\s+to)?)\s+)?(?:rise|rising|grow|growing|increase|increasing|climb|climbing|"
     r"spread|spreading|persist|persisting|remain|remains|stay|stays|hold|holding)\b", re.I)
 CONDITIONAL_WATCH = re.compile(r"^\s*(?:watch|track|monitor|observe|check)\s+(?:whether|if)\b", re.I)
+# A crowd word about creators and the fewest creators the card's own count must show for it (the 5 Oct live review:
+# a "Multiple creators" sentence sat beside "1 creator in 3 days"). "Two different creators" counts the posts cited,
+# which the support check reads, so "different" is not a crowd word. "many" asks for the creator floor a card must
+# reach (core/brief/payload.py _misses_floors).
+CROWD_MIN = {"multiple": 2, "various": 2, "a number of": 2, "several": 3, "a growing number of": 3,
+             "more and more": 3, "many": 5, "numerous": 5,
+             "lots of": 5, "a lot of": 5, "plenty of": 5, "scores of": 5, "a wave of": 5, "dozens of": 24,
+             "hundreds of": 200, "thousands of": 2000}
+# A title term this long matches inside a post's squashed text ("#BimboAdemoye"); a shorter one only as a word.
+TERM_INSIDE_MIN = 4
+CROWD_NOUNS = ("creators", "users", "accounts", "people", "posters", "voices", "fans", "influencers", "tiktokers",
+               "youtubers", "commenters", "authors", "handles", "profiles", "pages")
+# Words between a crowd word and its noun that show the crowd word counts something else ("many posts by creators").
+CROWD_GAP_STOP = {"post", "posts", "video", "videos", "clip", "clips", "comment", "comments", "view", "views", "from",
+                  "by", "with", "and", "or", "about", "on", "in", "across", "to", "for", "than", "at"}
+_CROWD = re.compile(r"(?<![\w-])(" + "|".join(re.escape(w).replace(r"\ ", r"\s+")
+                                              for w in sorted(CROWD_MIN, key=len, reverse=True))
+                    + r")\s+((?:[^\W\d_][\w'-]*\s+){0,3}?)(" + "|".join(CROWD_NOUNS) + r")(?![\w-])", re.I)
 
 
 def _string(**extra):
@@ -98,7 +141,11 @@ WRITER_SCHEMA = _object({
         "quotes": _array(_object({"evidence_id": _string(), "text": _string()})),
         "number_ids": _array(_string()),
     }), maxItems=MAX_CLAIMS),
+    "title": _string(),
 })
+# The title is asked for, never required: a reply without one is checked as before and its card keeps its label, so a
+# missing title cannot fail the schema check (core/llm/gemini.py validate) and with it the explanation.
+WRITER_SCHEMA["required"] = [k for k in WRITER_SCHEMA["required"] if k != "title"]
 
 SUPPORT_SCHEMA = _object({"verdict": _string(enum=["supported", "partial", "unsupported"]), "reason": _string()})
 
@@ -126,9 +173,14 @@ WRITER_SYSTEM = """LAWS (read first)
 11 A spread across platforms names only the platforms of the posts that claim cites.
 12 source_market is the market of the feed where 42 found a post, not the physical location of its author. It supports that market only in feed wording, such as "seen in Kenya's feeds" or "on Kenya trending", never "Kenyans", "Kenyan creators" or "fans in Nairobi". A source_market from another market's feed backs nothing about the market named. When a named market has only source_market support, use a claim label one step lower than for located evidence. When every cited local post a why-now clause rests on is marked located_in_market false, word that clause as seen in the market's feeds, such as "seen in Kenya's feeds", and name no place inside the market as the cause.
 13 Cite only posts marked citable true. A post marked citable false is located in another market, and the place check cuts any claim that cites it, whatever its wording, feed wording included.
+14 Write only what the cited posts' own text and fields show. Background you know from outside the pack, such as results, scores, titles, roles, histories or reasons, is not evidence: leave it out, even when it is true.
+15 Cite for a claim only the posts whose own text or fields show that claim. A post about something else is left out of that claim, even when it shares the trend's words. Posts are listed most on topic first; title_terms_named counts how many of the trend title's terms a post's text names.
+16 Never guess a count. Say how many posts or creators only as a pinned pack number or, in words, as the posts that claim cites. A crowd word about creators, such as multiple, several or many, must agree with the card's creator count on the Counts line; when it does not, name the creators the posts show instead. Code checks this.
+17 A date is the day a cited post's posted_at gives, or a date its own text states, written as day and month, such as 2 October. Never move, guess or work out a date, and write no yesterday, this week or recently unless a post says it.
 
 You write the morning explanation for one trend: 3 to 5 claims from the evidence pack, on what it is, the earliest post in the pack, the platforms its cited posts are on and why now.
 Then write one explanation sentence for a strategist that rests only on your claims, and list those claim ids in explanation_claim_ids. The sentence keeps every law above.
+Then write title: two to six words naming what the posts the sentence rests on are about, in those posts' own terms, such as the event, release, person or moment they name. It is not the scraped trend title. The title keeps every law above: no numeral but a pinned pack number, no place or people the cited posts' market fields do not show, no crowd word, no hedge, no quotation marks and nothing from outside the pack. Code and a support check test it on the posts those claims cite; a title that fails is dropped and the card keeps its scraped title.
 Name two distinct local posts as concrete examples in claims used by the explanation, by two different creators where the pack has them. A local post is one marked local true.
 Include one short exact quote copied from a cited local post in a supporting claim.
 Give a local why-now hook that the cited local posts support.
@@ -307,17 +359,86 @@ def _barred(draft, records, market):
     return [e for e in dict.fromkeys(ids) if e in records and not _citable(records[e], market)]
 
 
+def _squash(text):
+    return re.sub(r"[\W_]+", "", unicodedata.normalize("NFKC", str(text or "")).casefold())
+
+
+def _title_terms(title):
+    """The trend title's own terms: a topic title lists its top terms with commas, a hashtag or handle is one term."""
+    terms = (_squash(t) for t in str(title or "").split(","))
+    return [t for t in dict.fromkeys(terms) if t]
+
+
+def _terms_named(record, terms):
+    """How many of terms the post's text names. A term of 4 or more characters matches inside the text with spaces
+    and marks taken out, so "#BimboAdemoye" names bimboademoye; a shorter one matches only as a whole word."""
+    text = unicodedata.normalize("NFKC", _source_text(record)).casefold()
+    flat = _squash(text)
+    words = set(re.findall(r"[^\W_]+", text))
+    return sum(1 for t in terms if (t in flat if len(t) >= TERM_INSIDE_MIN else t in words))
+
+
+def _on_topic_first(records, terms):
+    """records with the posts naming most of the title's terms first, in pack order otherwise. Only the order the
+    writer and the support check read changes; the pack, the card and the clustering do not."""
+    if not terms:
+        return list(records)
+    return sorted(records, key=lambda r: -_terms_named(r, terms))
+
+
+def _handles(records):
+    return {str(r.get("handle") or "").strip().casefold() for r in records} - {""}
+
+
+def _card_creators(pack):
+    """The card's own creator count and its unit: the pack's creators number, as the card shows it, else the
+    different handles of the pack's posts."""
+    for n in pack.get("numbers") or []:
+        unit = str(n.get("unit") or "")
+        if unit.split(" ", 1)[0] == "creators" and isinstance(n.get("value"), (int, float)):
+            return n["value"], unit
+    return len(_handles(pack.get("evidence") or [])), "different creators in the pack's posts"
+
+
+def _crowd_fault(text, pack, verified=()):
+    """A crowd word about creators that the card's own creator count does not reach, worded for the repair, or None.
+    Words inside a verified quote are the creator's own and are not read."""
+    count, unit = _card_creators(pack)
+    for m in _CROWD.finditer(_strip_quotes(str(text or ""), verified)):
+        if set(m.group(2).casefold().split()) & CROWD_GAP_STOP:
+            continue
+        word = " ".join(m.group(1).casefold().split())
+        if count < CROWD_MIN[word]:
+            shown = int(count) if float(count).is_integer() else count
+            return (f"{' '.join(m.group(0).split())!r} needs a creator count of at least {CROWD_MIN[word]}; the card "
+                    f"shows {shown} for {unit}")
+    return None
+
+
+def _crowd_words(pack):
+    """The Counts line's guide to crowd words about creators, from the card's own creator count."""
+    count, unit = _card_creators(pack)
+    shown = int(count) if float(count).is_integer() else count
+    allowed = [w for w, need in CROWD_MIN.items() if count >= need]
+    words = (f"crowd words about creators this count allows: {', '.join(allowed)}" if allowed
+             else "write no crowd word about creators, such as multiple, several or many")
+    return f"The card's creator count is {shown}, for {unit}; {words}."
+
+
 def _writer_user(candidate, pack, market, window_start, window_end):
     """The trend, its facts and numbers, and each post with its fields. A post located in another market is listed
     as citable false without its text. Each citable post is marked local (located in the market or found in its
     feeds, as specificity counts it) and located_in_market (as the critic's scope counts it). The scope line names the
     local posts that are not located in the market (own-feed posts, the critic's own_feed_local) and the feed wording a
-    why-now resting only on them takes (BR-1, 4 Oct)."""
+    why-now resting only on them takes (BR-1, 4 Oct). Posts naming most of the title's terms come first, each citable
+    post carries title_terms_named, and the scope line names the posts that name none. The Counts line gives the
+    pack's own post and creator counts and the crowd words the card's creator count allows (6 Oct)."""
     code = str(market or "").upper() or None
     evidence = pack.get("evidence") or []
     local = {r.get("id") for r in local_posts(evidence, market)}
-    posts, citable_ids, local_ids, located_ids, own_feed_ids = [], [], [], [], []
-    for r in evidence:
+    terms = _title_terms(candidate.get("title"))
+    posts, citable_ids, local_ids, located_ids, own_feed_ids, off_topic_ids = [], [], [], [], [], []
+    for r in _on_topic_first(evidence, terms):
         head = {k: r.get(k) for k in ("id", "platform", "posted_at", "engagement")}
         head["market"] = located_market(r)
         head["source_market"] = source_market(r)
@@ -330,6 +451,10 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         head["citable"] = True
         head["local"] = r.get("id") in local
         head["located_in_market"] = code is not None and head["market"] == code
+        if terms:
+            head["title_terms_named"] = _terms_named(r, terms)
+            if not head["title_terms_named"]:
+                off_topic_ids.append(r.get("id"))
         citable_ids.append(r.get("id"))
         if head["local"]:
             local_ids.append(r.get("id"))
@@ -349,11 +474,21 @@ def _writer_user(candidate, pack, market, window_start, window_end):
              f"resting only on them is worded as seen in {feeds}'s feeds and names no place in {feeds} as the cause. "
              f"Posts marked citable false are located in another market; their text is left out and no claim may "
              f"cite them.")
+    if terms:
+        scope += (f" The trend title has {len(terms)} terms. Posts whose text names none of them: "
+                  f"{dump(off_topic_ids)}; such a post may be about something else, so cite it only for what its own "
+                  f"text shows.")
+    citable = [r for r in evidence if _citable(r, market)]
+    counts = (f"Counts, for your wording only (they are not pack numbers, so write none of them as a numeral): "
+              f"{len(citable)} citable posts from {len(_handles(citable))} different creators; "
+              f"{len(local_ids)} local posts from {len(_handles(r for r in citable if r.get('id') in local))} "
+              f"different creators. {_crowd_words(pack)}")
     return "\n\n".join([
         f"Trend kind: {candidate.get('kind')}. Market: {market}. Window: {window_start} to {window_end}.",
         f"Trend title, as scraped:\n{_fence(candidate.get('title'))}",
         "Facts from 42's detection:\n" + "\n".join(f"- {f}" for f in pack.get("facts") or []),
         "Numbers you may use, cited by id in number_ids:\n" + ("\n".join(numbers) or "none"),
+        counts,
         f"Evidence pack, {len(posts)} posts:",
         scope,
         *posts,
@@ -408,10 +543,12 @@ def _head(record, earliest):
     return head
 
 
-def _support_user(claim, records, pack, market=None):
+def _support_user(claim, records, pack, market=None, terms=()):
     """The claim, the numbers it cites with their scope, and each cited post's own fields and text. Nothing pack-wide.
     A post the critic marks own_feed_local (found in the market's own feeds, location unknown) carries
-    own_feed_local true here too; a located or unmarked post carries no such field."""
+    own_feed_local true here too; a located or unmarked post carries no such field. terms: the trend title's terms,
+    used only to list the cited posts that name most of them first; the title itself is not shown."""
+    records = _on_topic_first(records, terms)
     earliest = _earliest_id(pack)
     heads = [_head(r, earliest) for r in records]
     for r, h in zip(records, heads):
@@ -420,7 +557,9 @@ def _support_user(claim, records, pack, market=None):
     posts = "\n\n".join(f"post {r.get('id')} {json.dumps(h, ensure_ascii=False, default=str)}\n{_fence(_scraped(r))}"
                         for r, h in zip(records, heads))
     parts = [f"Claim:\n{_fence(claim.get('text'))}\nLabel: {claim.get('label')}"]
-    if inferred_only_by_source_step(claim, {r.get("id"): r for r in records}):
+    if claim.get("label") == TITLE_LABEL:
+        parts[0] += f"\n{TITLE_NOTE}"
+    elif inferred_only_by_source_step(claim, {r.get("id"): r for r in records}):
         parts[0] += f"\n{SOURCE_STEP_NOTE}"
     numbers = claim.get("numbers") or []
     if numbers:
@@ -431,13 +570,27 @@ def _support_user(claim, records, pack, market=None):
     return "\n\n".join(parts)
 
 
-def _sentence_user(sentence, claims, rests_on, records, pack, market=None):
-    """The explanation sentence as a claim, with the posts and numbers of the claims it rests on and nothing else."""
+def _sentence_user(sentence, claims, rests_on, records, pack, market=None, terms=(), label=SENTENCE_LABEL):
+    """The explanation sentence (or, with label TITLE_LABEL, the card title) as a claim, with the posts and numbers of
+    the claims the sentence rests on and nothing else."""
     resting = [c for c in claims if c.get("id") in rests_on]
     ids = dict.fromkeys(e for c in resting for e in c.get("evidence_ids") or [])
     numbers = list({n.get("query_id"): n for c in resting for n in c.get("numbers") or []}.values())
-    return _support_user({"text": sentence, "label": SENTENCE_LABEL, "numbers": numbers},
-                         [records[i] for i in ids], pack, market)
+    return _support_user({"text": sentence, "label": label, "numbers": numbers},
+                         [records[i] for i in ids], pack, market, terms)
+
+
+def _title_shape_fault(title):
+    """What makes a written title no title at all, or None: too long, or quoting someone."""
+    if len(title.split()) > TITLE_MAX_WORDS or len(title) > TITLE_MAX_CHARS:
+        return f"longer than {TITLE_MAX_WORDS} words or {TITLE_MAX_CHARS} characters"
+    if _TITLE_MARKS.search(title):
+        return "quotation marks"
+    return None
+
+
+def _title_row(verdict, checker, detail):
+    return {"claim_id": None, "rule": TITLE_RULE, "verdict": verdict, "checker": checker, "detail": f"title: {detail}"}
 
 
 def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
@@ -741,6 +894,64 @@ def _k9_rows(checked, rests_on, records):
     return rows
 
 
+def _crowd_rows(checked, rests_on, records, pack):
+    """K4 by code: a claim or sentence whose crowd word about creators the card's own creator count does not reach
+    is not supported, so the claim is cut and the sentence emptied, as check_answer does with its own cuts. Rows only
+    for cuts. Changes checked in place."""
+    rows, kept = [], []
+    claims = checked.get("claims") or []
+    for claim in claims:
+        fault = _crowd_fault(claim.get("text"), pack, _verified_quotes(claim, records))
+        if fault:
+            rows.append({"claim_id": claim.get("id"), "rule": "K4", "verdict": "cut", "checker": "code",
+                         "detail": f"crowd wording: {fault}"})
+        else:
+            kept.append(claim)
+    resting_quotes = set().union(*(_verified_quotes(c, records) for c in claims if c.get("id") in rests_on))
+    fault = _crowd_fault(checked.get("short_answer"), pack, resting_quotes)
+    if fault:
+        rows.append({"claim_id": None, "rule": "K4", "verdict": "cut", "checker": "code",
+                     "detail": f"short_answer: crowd wording: {fault}"})
+        checked["short_answer"] = ""
+    checked["claims"] = kept
+    return rows
+
+
+def _support_repair_user(user, draft, failures):
+    """The writer prompt again, the draft, and each claim or the sentence the support check did not find supported,
+    with the check's verdict and reason. The reasons are model text that may repeat scraped words, so they stay
+    inside the fence with the claim ids."""
+    lines = [f"{'the explanation sentence' if cid is None else f'claim {cid}'} ({verdict}): {reason}"
+             for cid, verdict, reason in failures]
+    return "\n\n".join([
+        user,
+        "Your previous draft passed the code checks, but the support check, which reads one claim and only the posts "
+        "it cites, did not find the claims or sentence below supported, so the explanation was held. Rewrite only "
+        "those, from what their cited posts' own text and fields show: claim less, cite only the posts that show it, "
+        "or cut the claim. Keep every other claim exactly as it is, with the same id; code keeps them as they were. "
+        "If the sentence rests on a claim you rewrite or cut, or is named below, rewrite the sentence so it rests "
+        "only on claims that stand. Every check runs again on the whole draft. Return the whole corrected JSON.",
+        f"Previous draft:\n{_fence(json.dumps(draft, ensure_ascii=False))}",
+        "Not supported, with the support check's reason:\n" + _fence("\n".join(lines)),
+    ])
+
+
+def _keep_supported(new, old, passed):
+    """The repaired draft with every claim that passed the support check put back as the previous draft wrote it,
+    so the repair rewrites only what failed. A passed claim the repair leaves out stays out."""
+    before = {c.get("id"): c for c in old.get("claims") or [] if isinstance(c, dict)}
+    new = copy.deepcopy(new) if isinstance(new, dict) else {}
+    new["claims"] = [copy.deepcopy(before[c.get("id")]) if isinstance(c, dict) and c.get("id") in passed
+                     and c.get("id") in before else c for c in new.get("claims") or []]
+    return new
+
+
+def _before_repair(rows):
+    """rows with each detail marked as from before a repair round, once."""
+    return [r if str(r.get("detail") or "").startswith(REPAIR) else {**r, "detail": f"{REPAIR}{r['detail']}"}
+            for r in rows]
+
+
 def _breached(rows):
     return any(r["verdict"] == "breach" for r in rows)
 
@@ -753,6 +964,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
     checks = []
     evidence = _source_evidence(pack)
     records = {r.get("id"): r for r in evidence}
+    terms = _title_terms(candidate.get("title"))
 
     def call(system, user, schema, max_tokens):
         if model_call_guard is not None and not model_call_guard():
@@ -783,14 +995,14 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         )
 
     def result(reason=None, error=None, explanation=None, rests_on=(), claims=(), local_why_now_checked=False,
-               specificity=None, news_driven=False, critic=None):
+               specificity=None, news_driven=False, critic=None, title_written=None):
         if specificity is None:
             specificity = assess(explanation, claims, rests_on, local_why_now_checked)
         return {
             "explanation": explanation, "explanation_claim_ids": list(rests_on), "claims": list(claims),
             "numbers_only": reason is not None, "reason": reason, "usage_usd": spent["usd"], "checks": checks,
             "error": error, "local_why_now_checked": local_why_now_checked, "specificity": specificity,
-            "news_driven": news_driven, "critic": critic,
+            "news_driven": news_driven, "critic": critic, "title_written": title_written,
         }
 
     def reject_overflow(draft):
@@ -806,13 +1018,60 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
                                      rerun=rerun_numbers)
         _exact_quotes(checked, records)
         rows.extend(_k9_rows(checked, rests_on, records))
+        rows.extend(_crowd_rows(checked, rests_on, records, pack))
         return checked, rows
+
+    def repair_support(draft, user, failures, passed, start):
+        """The one repair round, spent on the support check's cuts that held the draft: the writer rewrites only
+        those, and the repaired draft meets every check again in full with no further repair. This draft's rows,
+        from start, are marked as before the repair."""
+        checks[start:] = _before_repair(checks[start:])
+        repaired = call(WRITER_SYSTEM, _support_repair_user(user, draft, failures), WRITER_SCHEMA, WRITER_MAX_TOKENS)
+        return judge(_keep_supported(repaired, draft, passed), user, repair=False)
+
+    def written_title(draft, rechecked, rests_on):
+        """The draft's title once it passes the sentence's checks on the claims that stand, else None. Only called
+        on an explanation that passed; whatever happens here, that explanation stands as it is. Rows are "title"
+        rows, never a cut or breach under a K rule, so nothing reading those holds or names the card for them."""
+        title = draft.get("title") if isinstance(draft, dict) else None
+        if not isinstance(title, str) or not title.strip():
+            return None
+        title = " ".join(title.split())
+        fault = _title_shape_fault(title)
+        if fault is None:
+            probe, rows = check({**rechecked, "short_answer": title}, None, rests_on)
+            held = [r for r in rows if r["claim_id"] is None and r["verdict"] in ("cut", "breach")
+                    and r["rule"] != "K10"]
+            if held or not (probe.get("short_answer") or "").strip():
+                fault = held[0]["detail"] if held else "emptied by the checks"
+            else:
+                fault = _place_fault(title, probe, rests_on, records)
+        if fault is not None:
+            checks.append(_title_row("cut", "code", fault))
+            return None
+        try:
+            out = call(SUPPORT_SYSTEM, _sentence_user(title, rechecked["claims"], rests_on, records, pack, market,
+                                                      terms, label=TITLE_LABEL),
+                       SUPPORT_SCHEMA, SUPPORT_MAX_TOKENS)
+        except _Cap:
+            checks.append(_title_row("cut", "code", "support check not run: model cap"))
+            return None
+        except _ModelError as exc:
+            checks.append(_title_row("cut", "code", f"support check not run: {exc}"))
+            return None
+        verdict = out.get("verdict") if isinstance(out, dict) else None
+        checks.append(_title_row("pass" if verdict == "supported" else "cut", "model",
+                                 f"support check {verdict}: {(out or {}).get('reason', '')}"))
+        return title if verdict == "supported" else None
 
     def judge(draft, user, *, repair):
         """Every check on one writer draft, from the code checks to the critic: (result, held), where held is
         (the draft judged, the critic's answer) when the critic cut it on the why-now alone (_wording_only), else
-        None. repair: whether code faults get the one repair round. A second draft gets none, so it meets the checks
-        below exactly as a repaired first draft does, and each cut it gets is on record with its own row."""
+        None. repair: whether the draft gets the one repair round. Code faults take it when there are any; else it
+        goes to the support check's cuts when they hold the draft (repair_support). A second draft gets none, so it
+        meets the checks below exactly as a repaired first draft does, and each cut it gets is on record with its own
+        row."""
+        start = len(checks)
         if reject_overflow(draft):
             return result("failed_checks"), None
         rests_on = list(draft.get("explanation_claim_ids") or [])
@@ -838,6 +1097,8 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
                 return result("failed_checks"), None
             rests_on = list(draft.get("explanation_claim_ids") or [])
             checked, rows = check(_answer(draft, pack), rerun, rests_on)
+        # The repair round is still unspent only when the code checks found nothing to repair.
+        support_repair = repair and not faults
         checks.extend(rows)
         if _breached(rows):
             return result("breach"), None
@@ -864,37 +1125,49 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         if len(checked["claims"]) < 2:
             return result("too_few_claims"), None
 
-        supported = []
+        supported, failures = [], []
         for claim in checked["claims"]:
             cited = [records[i] for i in claim.get("evidence_ids") or []]
-            out = call(SUPPORT_SYSTEM, _support_user(claim, cited, pack, market), SUPPORT_SCHEMA, SUPPORT_MAX_TOKENS)
+            out = call(SUPPORT_SYSTEM, _support_user(claim, cited, pack, market, terms), SUPPORT_SCHEMA,
+                       SUPPORT_MAX_TOKENS)
             verdict = out.get("verdict")
             checks.append({"claim_id": claim.get("id"), "rule": "K4", "verdict": "pass" if verdict == "supported"
                            else "cut", "checker": "model",
                            "detail": f"support check {verdict}: {out.get('reason', '')}"})
             if verdict == "supported":
                 supported.append(claim)
+            else:
+                failures.append((claim.get("id"), verdict, out.get("reason", "")))
+        passed = {c.get("id") for c in supported}
 
         final = {**checked, "claims": supported}
-        if _sentence_fault(final, rests_on):
-            return result("failed_checks"), None
-        if len(supported) < 2:
-            return result("too_few_claims"), None
+        # A cut claim the draft can stand without is cut as before; a cut that holds the draft gets the repair round
+        # when the code checks left it unspent.
+        if _sentence_fault(final, rests_on) or len(supported) < 2:
+            if support_repair:
+                return repair_support(draft, user, failures, passed, start)
+            return result("failed_checks" if _sentence_fault(final, rests_on) else "too_few_claims"), None
         # A numeral in the sentence must still be pinned by a claim that survived the support check.
         rechecked, rows = check(final, None, rests_on)
         sentence = rechecked["short_answer"]
         if not sentence.strip():
             checks.extend(r for r in rows if r["claim_id"] is None and r["verdict"] != "pass")
+            if support_repair and failures:
+                return repair_support(draft, user, failures, passed, start)
             return result("failed_checks"), None
         # The sentence is the text a strategist reads and no word list names every place, so it gets its own K4
         # check.
-        out = call(SUPPORT_SYSTEM, _sentence_user(sentence, rechecked["claims"], rests_on, records, pack, market),
+        out = call(SUPPORT_SYSTEM, _sentence_user(sentence, rechecked["claims"], rests_on, records, pack, market,
+                                                  terms),
                    SUPPORT_SCHEMA, SUPPORT_MAX_TOKENS)
         verdict = out.get("verdict")
         checks.append({"claim_id": None, "rule": "K4", "verdict": "pass" if verdict == "supported" else "cut",
                        "checker": "model",
                        "detail": f"explanation sentence support check {verdict}: {out.get('reason', '')}"})
         if verdict != "supported":
+            if support_repair:
+                return repair_support(draft, user, failures + [(None, verdict, out.get("reason", ""))], passed,
+                                      start)
             return result("failed_checks"), None
         # A simpler explanation that the evidence does not rule out holds the cultural reading back (G10).
         out = call(CRITIC_SYSTEM, _critic_user(candidate, market, sentence, rechecked["claims"], pack, rests_on),
@@ -915,8 +1188,9 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         # A news- or event-driven reading stands one confidence step lower than one whose simpler explanation is
         # ruled out, and the card carries news_driven for both.
         claims = _one_step_lower(rechecked["claims"]) if news else rechecked["claims"]
-        return result(explanation=sentence, rests_on=rests_on, claims=claims,
-                      local_why_now_checked=True, specificity=specificity, news_driven=news, critic=critic), None
+        title = written_title(draft, rechecked, rests_on)
+        return result(explanation=sentence, rests_on=rests_on, claims=claims, local_why_now_checked=True,
+                      specificity=specificity, news_driven=news, critic=critic, title_written=title), None
 
     try:
         user = _writer_user(candidate, pack, market, window_start, window_end)
@@ -926,8 +1200,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
             return first
         # The critic cut the draft on its why-now alone (Albert, 4 Oct, D1): one more draft with the critic's
         # reason, checked again in full. The first draft's rows stay on record, marked as before the repair.
-        checks[:] = [r if str(r.get("detail") or "").startswith(REPAIR) else {**r, "detail": f"{REPAIR}{r['detail']}"}
-                     for r in checks]
+        checks[:] = _before_repair(checks)
         draft = call(WRITER_SYSTEM, _redraft_user(user, *held), WRITER_SCHEMA, WRITER_MAX_TOKENS)
         second, _ = judge(draft, user, repair=False)
         return second

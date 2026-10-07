@@ -2,7 +2,9 @@
 posts). Code counts every stored post in the market and window per platform, per sound and per hashtag; the writer
 leads claims with those totals and cites posts as samples. Run on DuckDB fixtures, transpiled from BigQuery."""
 
-from datetime import date, datetime
+import json
+import re
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -270,11 +272,11 @@ def test_a_small_pack_is_whole_and_says_nothing_about_bounds():
 def test_the_uncitable_post_gap_names_the_missing_fields_and_stays_a_code_gap():
     ctx = _context(include_good=True)  # two stored posts with no handle
     draft, _ = _write(FixedModel(_output([])), ctx)
-    gap = next(g for g in draft["gaps"] if g["what"] == "Some retrieved posts could not be cited")
-    assert gap["why"] == ("Some stored posts had no author handle, which every cited post needs, so they were left "
-                          "out of drafting.")
+    gap = next(g for g in draft["gaps"] if g["what"] == "Some posts found could not be quoted")
+    assert gap["why"] == ("some stored posts had no author handle, which every quoted post needs, so they were left "
+                          "out of the answer")
     assert writer.writer_gaps(draft["gaps"]) == []
-    assert writer.unshowable_gap(["text", "url"])["why"].startswith("Some stored posts had no link or caption text,")
+    assert writer.unshowable_gap(["text", "url"])["why"].startswith("some stored posts had no link or caption text,")
     assert writer.unshowable_gap([]) == writer.UNSHOWABLE_EVIDENCE_GAP
 
 
@@ -301,3 +303,170 @@ def test_the_feed_wording_the_writer_is_given_is_the_wording_k3_accepts():
     assert checks._source_scope_problems(shown, list(stored.items())) == []
     told = "An untitled sound was used by 12 creators, located in South Africa or seen in its feeds."
     assert checks._source_scope_problems(told, list(stored.items()))  # the old wording K3 cut
+
+
+def test_the_listed_sounds_and_hashtags_are_counted_again_over_the_days_before_the_window(ctx, con):
+    # Two ZA posts in the seven days before the window use the titled sound and #amapiano; one is a day too early.
+    con.executemany("INSERT INTO intelligence_42_core.posts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+        ("obs1_b1", "tiktok", "https://www.tiktok.com/@za_1/video/b1", "za_1", datetime(2026, 9, 22), date(2026, 9, 22),
+         "ZA", "ext_region", "before", ["amapiano"], TITLED, 3),
+        ("obs1_b2", "tiktok", "https://www.tiktok.com/@za_2/video/b2", "za_2", datetime(2026, 9, 27), date(2026, 9, 27),
+         "ZA", "ext_region", "before", ["Amapiano"], TITLED, 3),
+    ])
+    wh = DuckWarehouse(con)
+    out = store_breadth(ctx, wh)
+
+    assert_guarded(wh)
+    query = ctx.queries[out["before"]]
+    assert query["tool"] == STORE_TOOL and query["purpose"].startswith("Whole-store")
+    assert "before the window" in query["purpose"] and not any(ch.isdigit() for ch in query["purpose"])
+    rows = {(r["kind"], r["sound_id"] or r["hashtag"]): r for r in query["rows"]}
+    # obs1_old (20 September) is outside the seven days before; the untitled sound and #gqomchallenge had no posts
+    assert rows[("sound", TITLED)]["posts"] == 2 and rows[("sound", TITLED)]["creators"] == 2
+    assert rows[("hashtag", "amapiano")]["posts"] == 2 and rows[("hashtag", "amapiano")]["located_posts"] == 2
+    assert ("sound", UNTITLED) not in rows and ("hashtag", "gqomchallenge") not in rows
+    assert all(r["platform"] == "tiktok" for r in query["rows"])
+
+
+def test_no_before_window_query_when_the_window_lists_no_sound_or_hashtag(ctx, con):
+    con.execute("DELETE FROM intelligence_42_core.posts")
+    out = store_breadth(ctx, DuckWarehouse(con))
+    assert "before" not in out
+
+
+RANKED_WINDOW = (date(2026, 9, 30), date(2026, 10, 6))
+RANKED_PLATFORMS = ["tiktok", "instagram", "youtube", "x", "facebook", "reddit", "threads"]
+
+
+def _ranked_store():
+    """A ZA-like whole store: seven platforms, twelve hashtags each, posts in the window and in the seven days before."""
+    import duckdb  # test-only
+
+    con = duckdb.connect()
+    con.execute("SET TimeZone = 'UTC'")
+    con.execute("CREATE SCHEMA intelligence_42_core")
+    con.execute("CREATE TABLE intelligence_42_core.posts (post_id VARCHAR, platform VARCHAR, url VARCHAR, "
+                "creator_id VARCHAR, published_at TIMESTAMP, post_date DATE, geo_market VARCHAR, geo_source VARCHAR, "
+                "text VARCHAR, hashtags VARCHAR[], sound_id VARCHAR, engagement BIGINT)")
+    con.execute("CREATE TABLE intelligence_42_core.creators (creator_id VARCHAR, platform VARCHAR, handle VARCHAR, "
+                "home_market VARCHAR)")
+    con.execute("CREATE TABLE intelligence_42_core.v_post_source_markets (post_id VARCHAR, "
+                "source_sightings STRUCT(source_market VARCHAR, source_region VARCHAR, route VARCHAR, "
+                "protocol VARCHAR, observed_at TIMESTAMP, obs_date DATE)[])")
+    con.execute("CREATE TABLE intelligence_42_core.cultural_map (item_id VARCHAR, kind VARCHAR, canonical_key VARCHAR, "
+                "label VARCHAR, valid_to TIMESTAMP)")
+    rows, n = [], 0
+    for p, platform in enumerate(RANKED_PLATFORMS):
+        for k in range(12):
+            for j in range(3 + k % 5):
+                for before in (False, True):
+                    day = (RANKED_WINDOW[0] - timedelta(days=1 + j % 7) if before
+                           else RANKED_WINDOW[0] + timedelta(days=j % 7))
+                    n += 1
+                    sound = f"74000000000000{p:02d}{k:03d}" if platform in ("tiktok", "instagram", "youtube") else None
+                    rows.append((f"p{n}", platform, f"https://example.com/{n}", f"c{p}_{k}_{j}_{before}",
+                                 datetime.combine(day, datetime.min.time()) + timedelta(hours=9), day, "ZA",
+                                 "ext_region", f"post {n} about tag{k} on {platform} " + "words " * 30,
+                                 [f"tag{p}_{k}", "fyp", "southafrica"], sound, 10 * n))
+    con.executemany("INSERT INTO intelligence_42_core.posts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
+    return con
+
+
+def _ranked_answer():
+    """Eight ranked claims, one per hashtag, each citing its window creators and posts and its posts before."""
+    ctx = RunContext(run_id="r_ranked", tier="T1", as_of=datetime(2026, 10, 6, 19, 18, tzinfo=timezone.utc),
+                     market="ZA", window_start=RANKED_WINDOW[0], window_end=RANKED_WINDOW[1])
+    out = store_breadth(ctx, DuckWarehouse(_ranked_store()))
+    tags, before_query = ctx.queries[out["hashtags"]], ctx.queries[out["before"]]
+    before = {(r["platform"], r["hashtag"]): r for r in before_query["rows"] if r["kind"] == "hashtag"}
+    claims, supporting = [], {}
+    for i, row in enumerate([r for r in tags["rows"] if (r["platform"], r["hashtag"]) in before][:8]):
+        prior = before[(row["platform"], row["hashtag"])]
+        eids = []
+        for k in range(4):
+            eid = f"e{i}_{k}"
+            ctx.evidence[eid] = {"id": eid, "platform": row["platform"], "handle": f"@h{i}{k}",
+                                 "url": f"https://example.com/{eid}", "posted_at": "2026-10-02T09:00:00+02:00",
+                                 "market": "ZA", "text": f"#{row['hashtag']} " + "a caption with words " * 20,
+                                 "engagement": {"views": 100}, "flags": []}
+            eids.append(eid)
+        pin = {"run_id": ctx.run_id}
+        claims.append({"id": f"c{i + 1}", "kind": "observation", "label": "corroborated", "evidence_ids": eids,
+                       "quotes": [],
+                       "text": f"#{row['hashtag']} was used by {row['creators']} creators in {row['posts']} posts, "
+                               f"against {prior['posts']} posts in the 7-day period before",
+                       "numbers": [{**pin, "value": row["creators"], "unit": "creators", "query_id": out["hashtags"],
+                                    "result_hash": tags["result_hash"]},
+                                   {**pin, "value": row["posts"], "unit": "posts", "query_id": out["hashtags"],
+                                    "result_hash": tags["result_hash"]},
+                                   {**pin, "value": prior["posts"], "unit": "posts", "query_id": out["before"],
+                                    "result_hash": before_query["result_hash"]}]})
+        supporting[f"c{i + 1}"] = [row, row, prior]
+    answer = {"status": "complete", "as_of": "2026-10-06T19:18:26+02:00",
+              "short_answer": "Hashtags about local football and music lead South African posts this week.",
+              "context": "The counts cover every stored post in the window.",
+              "claims": claims, "evidence": [ctx.evidence[e] for c in claims for e in c["evidence_ids"]],
+              "so_what": [{"text": "Music hashtags give brands a wide local moment.", "claim_ids": ["c1", "c2", "c3"]},
+                          {"text": "Football talk is steady week on week.", "claim_ids": ["c4", "c5"]}],
+              "watch_next": [{"text": "Whether the music hashtags keep their creators.", "claim_ids": ["c1"],
+                              "forecast": False}],
+              "gaps": []}
+    return ctx, out, answer, supporting
+
+
+class _ScopeModel:
+    def __init__(self):
+        self.calls = []
+
+    def complete_json(self, *, system, user, schema, model, max_tokens):
+        self.calls.append({"system": system, "user": user, "schema": schema})
+        usage = {"input_tokens": 1, "output_tokens": 1, "usd": 0.0}
+        if schema is writer.SUPPORT_SCHEMA:
+            return {"verdict": "supported", "reason": "ok", "demographic_inference": False, "tone_claim": False,
+                    "forecast_assertion": False, "country_people": []}, usage
+        if schema is writer.K4_REWRITE_SCHEMA:
+            return {"text": "A narrower claim."}, usage
+        indexes = sorted({int(i) for i in re.findall(r"(?m)^item (\d+) \(", user)})
+        return {"fields": [{"index": i, "demographic_inference": False, "forecast_assertion": False,
+                            "country_people": [], "so_what_supported": True} for i in indexes]}, usage
+
+
+def _bound(call):
+    return writer._input_token_upper_bound(call["system"], call["user"], call["schema"])
+
+
+def test_a_ranked_list_with_before_window_counts_fits_every_check_in_one_call_with_each_numbers_row():
+    # Live staging, 6 October: eight ranked claims citing window and before-window counts repeated each query's SQL
+    # and full key lists for every number with every row holding its value, so the support check and the K4 rewrite
+    # cut them for their input budget and the field check read about 98 KB against 46.6 KB.
+    ctx, out, answer, supporting = _ranked_answer()
+    before_sql, tags_sql = ctx.queries[out["before"]]["sql"], ctx.queries[out["hashtags"]]["sql"]
+    model = _ScopeModel()
+
+    checked, rows, _ = writer.apply_support(model, answer, ctx)
+
+    assert [c["id"] for c in checked["claims"]] == [f"c{i}" for i in range(1, 9)]
+    assert [r["verdict"] for r in rows if r["rule"] == "K4"] == ["pass"] * 8
+    assert len(model.calls) == 8 and all(_bound(call) <= writer.SUPPORT_INPUT_TOKENS for call in model.calls)
+    for claim, call in zip(answer["claims"], model.calls):
+        # each query's SQL and full parameters once, and every number's own row
+        assert call["user"].count(before_sql) == 1 and call["user"].count(tags_sql) == 1
+        assert json.dumps(ctx.queries[out["before"]]["params"]["tag_keys"]) in call["user"]
+        assert all(json.dumps(row, default=str, ensure_ascii=False) in call["user"] for row in supporting[claim["id"]])
+
+    for claim in answer["claims"]:
+        rewrite = _ScopeModel()
+        records = [ctx.evidence[e] for e in claim["evidence_ids"]]
+        text, _, dispatched = writer._rewrite_call(rewrite, claim, "partial", records, "gemini-3.8-flash",
+                                                   query_scope=writer._claim_query_scope(claim, ctx.queries))
+        assert dispatched and text == "A narrower claim." and _bound(rewrite.calls[0]) <= writer.K4_REWRITE_INPUT_TOKENS
+
+    fielded = _ScopeModel()
+    result, field_rows, _ = writer.apply_field_check(fielded, answer, ctx)
+
+    (call,) = fielded.calls
+    assert _bound(call) <= writer.FIELD_INPUT_TOKENS
+    assert field_rows == [] and len(result["so_what"]) == 2 and result["short_answer"]
+    assert call["user"].count(before_sql) == 1 and call["user"].count(tags_sql) == 1
+    for claim_id in ("c1", "c2", "c3", "c4", "c5"):
+        assert all(json.dumps(row, default=str, ensure_ascii=False) in call["user"] for row in supporting[claim_id])

@@ -249,6 +249,13 @@ def test_brand_and_query_keywords_also_match_item_aliases():
 
 
 def test_state_alerts_read_as_plain_sentences():
+    # A spike carries the creators who posted it; with none it is the chart rule alone (next test).
     for state, because in (("new_to_42", "First spotted"), ("spike", "Spiked"), ("rising", "Entered Rising")):
-        alerts = evaluate([watch("w_1", ITEM, {"state_in": [state]})], [item("i1", state=state)], [])
+        alerts = evaluate([watch("w_1", ITEM, {"state_in": [state]})], [item("i1", state=state, reach=6)], [])
         assert [a["fired_because"] for a in alerts] == [because]
+
+
+def test_a_spike_no_creator_posted_reads_as_a_chart_place_not_a_spike():
+    for reach in (0, None):  # item_state leaves creators3 NULL for an item with no post in 3 days
+        alerts = evaluate([watch("w_1", ITEM, {"state_in": ["spike"]})], [item("i1", state="spike", reach=reach)], [])
+        assert [a["fired_because"] for a in alerts] == ["In a chart's top 10 on 2 pulls running"]

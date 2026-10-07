@@ -1039,8 +1039,51 @@ def test_board_entries_keep_their_own_best_rank_with_ties_and_gaps():
 
 def test_a_board_of_only_ids_stays_with_its_count():
     za = market(today.build_today(boards_store([ID_BOARD]), D30), "ZA")
+    # Every entry left out: the reason says none had a name, not that a few were missing one.
     assert za["boards"] == [{"platform": "youtube", "list": "YouTube trending board", "entries": [],
-                             "left_out": 1, "left_out_reason": "No readable name"}]
+                             "left_out": 1, "left_out_reason": today.NO_NAMES_READ}]
+    assert today.NO_NAMES_READ == "None of this list's entries had a readable name today"
+
+
+def test_one_song_under_two_item_ids_shows_once_at_its_better_rank():
+    """Visual QA, 5 October 2026: Apple Music listed "Solar Eclipse by Drake & Don Toliver" twice at =3."""
+    song = "Solar Eclipse by Drake & Don Toliver"
+    board = {"platform": "apple_music", "list": "Apple Music chart", "entries": [
+        {"rank": 2, "title": "Slap The City by Drake & Qendresa", "item_id": iid("sound", "a1")},
+        {"rank": 3, "title": song, "item_id": iid("sound", "a2")},
+        {"rank": 3, "title": "  solar eclipse by Drake &  Don Toliver", "item_id": iid("sound", "a3")}]}
+    b = market(today.build_today(boards_store([board]), D30), "ZA")["boards"][0]
+    assert [(e["rank"], e["title"]) for e in b["entries"]] == [(2, "Slap The City by Drake & Qendresa"), (3, song)]
+    assert (b["left_out"], b["left_out_reason"]) == (0, None)  # shown once, not left out
+
+
+def test_only_the_same_entry_merges_on_a_board():
+    """Review, 6 October 2026: the merge went by title alone, so two YouTube videos both called "Highlights" read as
+    one. Off the music charts only the same item id merges; on them a title that names its artist does too, and a
+    bare song title does not, since two artists can share it."""
+    videos = {"platform": "youtube", "list": "YouTube trending board", "entries": [
+        {"rank": 1, "title": "Highlights", "item_id": iid("topic", "v1")},
+        {"rank": 2, "title": "highlights", "item_id": iid("topic", "v2")},
+        {"rank": 3, "title": "Highlights", "item_id": iid("topic", "v1")}]}
+    chart = {"platform": "boomplay", "list": "board boomplay", "entries": [
+        {"rank": 1, "title": "Hello", "item_id": iid("sound", "h1")},
+        {"rank": 2, "title": "Hello", "item_id": iid("sound", "h2")},
+        {"rank": 3, "title": "Rapudo by Prince Indah", "item_id": iid("sound", "r1")},
+        {"rank": 4, "title": "rapudo by prince  indah", "item_id": iid("sound", "r2")},
+        {"rank": 5, "title": "Rapudo by Someone Else", "item_id": iid("sound", "r3")}]}
+    yt, music = market(today.build_today(boards_store([videos, chart]), D30), "ZA")["boards"]
+    assert [(e["rank"], e["title"]) for e in yt["entries"]] == [(1, "Highlights"), (2, "highlights")]
+    assert [(e["rank"], e["title"]) for e in music["entries"]] == [
+        (1, "Hello"), (2, "Hello"), (3, "Rapudo by Prince Indah"), (5, "Rapudo by Someone Else")]
+    assert (yt["left_out"], music["left_out"]) == (0, 0)
+
+
+def test_a_public_chart_feed_board_is_named_for_its_own_chart():
+    """board_music_country holds each public chart feed; Mdundo's board read "Country music charts"."""
+    entry = [{"rank": 1, "title": "Prince Indah - Rapudo", "item_id": iid("sound", "m1")}]
+    boards = [{"platform": p, "list": "board music country", "entries": entry} for p in ("mdundo", "turntable", "x9")]
+    got = [b["list"] for b in market(today.build_today(boards_store(boards), D30), "ZA")["boards"]]
+    assert got == ["Mdundo top songs", "TurnTable Top 100", "National music chart"]
 
 
 def test_only_an_exact_channel_id_is_left_out():
@@ -1398,6 +1441,22 @@ def test_build_trend(fx):
         today.build_trend(fx, "nope", "ZA", D30)
 
 
+def test_a_busy_model_hold_reads_the_same_on_the_trend_page_as_on_today():
+    from core.brief.payload import NOT_RUN_REASONS
+    busy = sorted(NOT_RUN_REASONS)[0]
+    rows = deepcopy(FixtureStore().briefs(D30))
+    za = next(r for r in rows if r["market"] == "ZA")
+    item = next(i for i in za["payload"]["held_back"]["items"] if i["item_id"] == ZA_I)
+    item.update(rule="G10", reason="explanation_failed", reason_text="Explanation failed its checks",
+                failed_reason=busy)
+    store = Patched(briefs=lambda date: rows if date == D30 else [])
+    held = today.build_trend(store, ZA_I, "ZA", D30)["held_back"]
+    assert held["reason_text"] == "Not explained in time: the model was busy" and held["failed_reason"] == busy
+    shown = next(i for i in market(today.build_today(store, D30), "ZA")["held_back"]["items"]
+                 if i["item_id"] == ZA_I)
+    assert shown["reason_text"] == held["reason_text"]
+
+
 # ---------- fixture hygiene ----------
 
 BANNED = [r"\bgen ?z\b", r"\bmillennial", r"\bgeneration", r"\byouth", r"\bteen", r"\bage\b", r"\baged\b",
@@ -1697,8 +1756,9 @@ def test_today_held_reasons_read_in_plain_words_with_the_gate_text_kept(rule, ra
     assert (item["reason_text"], item["reason_raw"]) == (plain, raw)
 
 
-@pytest.mark.parametrize("raw", ["Producer supplied hold reason", "Explanation failed its checks",
-                                 "Paid-led: sponsored or brand-owned share lots"])
+# "Explanation failed its checks" left this list on 6 October 2026: it now reads "The explanation did not pass our
+# checks" (core/api/held_words.py, tester report of 5 October 2026).
+@pytest.mark.parametrize("raw", ["Producer supplied hold reason", "Paid-led: sponsored or brand-owned share lots"])
 def test_today_held_reasons_outside_the_gate_wording_stay_as_written(raw):
     held = {"count": 1, "text": "held", "items": [_held_with_reason("G5", raw)]}
     item = market(today.build_today(_today_store([], held_back=held), D30), "ZA")["held_back"]["items"][0]
@@ -1753,7 +1813,8 @@ def _unreadable_posts(card):
 
 
 @pytest.mark.parametrize("mutate, words", [
-    (_no_explanation, "The explanation did not pass its checks"),
+    # Was "The explanation did not pass its checks"; it reads as the brief's own explanation holds do (held_words.py).
+    (_no_explanation, "The explanation did not pass our checks"),
     (_unreadable_posts, "The posts behind it could not be read"),
     (_no_claims, "The explanation is not tied to checked claims"),
     (_no_specificity, "The local why-now was not checked"),
@@ -1836,3 +1897,76 @@ def test_only_a_shazam_row_is_unswapped():
     entry = {"rank": 1, "title": "Hello by [World](https://example.invalid/a)"}
     assert today._board_title(entry, "boomplay") == "Hello by World"
     assert today._board_title(entry, "shazam") == "World by Hello"
+
+
+# Tester report, 5 October 2026: briefs stored before the payload fix say "1 creators and 1 posts in 3 days".
+def test_a_stored_count_of_one_reads_in_the_singular_on_cards_and_held_items():
+    card = _passing_specificity_card()
+    card["count_line"] = "1 creators and 1 posts in 3 days"
+    held = {"count": 1, "text": "held", "items": [dict(_held_with_reason("G5", "Producer supplied hold reason"),
+                                                       count_line="1 creators and 21 posts in 3 days")]}
+    za = market(today.build_today(_today_store([card], held_back=held), D30), "ZA")
+    assert za["cards"][0]["count_line"] == "1 creator and 1 post in 3 days"
+    assert za["held_back"]["items"][0]["count_line"] == "1 creator and 21 posts in 3 days"
+
+
+def test_a_reddit_account_id_is_not_a_readable_title():
+    assert not today._readable("t2_x9o72po41") and not today._readable("reddit:t2_x9o72po41")
+    assert today._readable("t2 fans") and today._readable("#t2_tour")
+    assert today._display_title(["t2_x9o72po41"], platforms=["reddit"], kind="creator") == "Reddit account"
+
+
+# The writer's checked title (contract.md section 4, title_written)
+
+WRITTEN = "Independence Day reflections"
+
+
+def _titled_store(**card_fields):
+    rows = deepcopy(FixtureStore().briefs(D30))
+    za = next(r for r in rows if r["market"] == "ZA")
+    card = next(c for c in za["payload"]["cards"] + za["payload"]["more"] if c["item_id"] == ZA_A)
+    card.update(card_fields)
+    return Patched(briefs=lambda date: rows if date == D30 else deepcopy(FixtureStore().briefs(date)))
+
+
+def _za_card(store, item_id=ZA_A):
+    za = market(today.build_today(store, D30), "ZA")
+    return next(c for c in za["cards"] + za["more"] if c["item_id"] == item_id)
+
+
+def test_a_written_title_reaches_the_card_beside_its_unchanged_label(fx):
+    before = _za_card(fx)
+    after = _za_card(_titled_store(title_written=f"  {WRITTEN} "))
+    assert after["title_written"] == WRITTEN and after["title"] == before["title"]
+    assert {k: v for k, v in after.items() if k != "title_written"} == before
+    assert today.build_trend(_titled_store(title_written=WRITTEN), ZA_A, "ZA", D30)["title_written"] == WRITTEN
+
+
+def test_a_brief_without_written_titles_reads_exactly_as_before(fx):
+    out = today.build_today(fx, D30)
+    assert all("title_written" not in c for m in out["markets"] for c in m["cards"] + m["more"])
+
+
+def test_a_written_title_shows_only_on_an_explained_card():
+    store = _titled_store(title_written=WRITTEN, explained=False)
+    card = next(c for c in today.build_trends(store, "ZA", D30)["cards"] if c["item_id"] == ZA_A)
+    assert card["title_written"] is None
+
+
+def test_a_card_that_loses_a_suppressed_persons_post_keeps_its_label():
+    card = {"item_id": "i", "explained": True, "title": "#x", "title_written": WRITTEN, "claims": [],
+            "explanation_claim_ids": [], "evidence": [{"id": "p1", "platform": "tiktok", "handle": "@gone"},
+                                                       {"id": "p2", "platform": "tiktok", "handle": "@stays"}]}
+    out = today.without_hidden(card, ({"tiktok:gone"}, set(), set()))
+    assert out["title_written"] is None and out["title"] == "#x"
+    assert today.without_hidden(card, ({"tiktok:other"}, set(), set()))["title_written"] == WRITTEN
+
+
+def test_a_title_check_row_never_names_a_held_items_reason():
+    title_row = _check(CRITIC_HELD, "cut", "Title check: the written title did not pass, so the card keeps its label",
+                       rule="title")
+    store, _ = _critic_store([title_row])
+    assert "held_detail" not in _held_by_id(store)[CRITIC_HELD]
+    store, _ = _critic_store([title_row, _check(CRITIC_HELD, "cut", "Critic: a simpler explanation was not ruled out")])
+    assert _held_by_id(store)[CRITIC_HELD]["held_detail"] == (
+        "A simpler explanation could not be ruled out from these posts.")

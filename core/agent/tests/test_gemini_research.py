@@ -228,7 +228,8 @@ def test_estimates_reserve_the_thinking_headroom_on_gemini_only():
             + call(ask.FIELD_INPUT_TOKENS, ask.FIELD_MAX_TOKENS)
             + ask.K4_REWRITE_CALLS * call(ask.K4_REWRITE_INPUT_TOKENS, ask.K4_REWRITE_MAX_TOKENS)
             + ask.K4_RECHECK_CALLS * call(ask.SUPPORT_INPUT_TOKENS, ask.SUPPORT_MAX_TOKENS)
-            + call(ask.WRITER_INPUT_TOKENS, ask.WRITER_MAX_TOKENS))
+            + call(ask.WRITER_INPUT_TOKENS, ask.WRITER_MAX_TOKENS)
+            + call(ask.HEADLINE_REWRITE_INPUT_TOKENS, ask.HEADLINE_REWRITE_MAX_TOKENS))  # the short answer rewrite
     assert ask.hold_usd("T0", "gemini-3.8-flash") == pytest.approx(want)
 
 

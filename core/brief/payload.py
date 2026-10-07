@@ -11,6 +11,13 @@ from collections import Counter
 
 LABELS = {"ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya"}
 
+# The brief job's fixed wording for a Today-bound item a busy model left unexplained (core/brief/job.py
+# _explain_all): the deadline or the time limit came first, or the model kept refusing calls until the run stopped
+# asking. An item that was not run carries no other failed_reason.
+MODEL_BUSY = "Model busy: not explained before the deadline"
+MODEL_REFUSED = "Model busy: the model kept refusing calls, so this was not explained"
+NOT_RUN_REASONS = (MODEL_BUSY, MODEL_REFUSED)
+
 STATE_WORDS = {
     "new_to_42": "New to 42", "spike": "Spike", "on_the_boards": "On the boards", "emerging": "Emerging",
     "rising": "Rising", "peaking": "Peaking", "mainstream": "Mainstream", "fading": "Fading",
@@ -76,11 +83,17 @@ def _worth(c):
     return (w is None, -(w or 0), c["item_id"])
 
 
+# A count of one reads "1 creator", "1 post" (tester report, 5 October 2026: "1 creators and 1 posts").
+ONE_NOUNS = {"creators": "creator", "posts": "post"}
+
+
 def _count_line(numbers):
     """Numbers that share a window name it once: "10 creators and 10 posts in 3 days, 2.8 times usual"."""
     groups = []
     for n in numbers[:3]:
         noun, sep, window = n["unit"].partition(" in ")
+        if n["value"] == 1:
+            noun = ONE_NOUNS.get(noun, noun)
         part = f"{_fmt(n['value'])} {noun}"
         if sep and groups and groups[-1][0] == window:
             groups[-1][1].append(part)
@@ -146,7 +159,8 @@ def _card(c, market, day, rank, shown_above=frozenset()):
         "market_scope": "market" if c.get("market_scope") == "market" else "global",
         "market_posts7": c.get("market_posts7"), "total_posts7": c.get("total_posts7"),
         "market_share7": c.get("market_share7"),
-        "title": c["title"], "state": c["state"], "state_word": STATE_WORDS[c["state"]],
+        "title": c["title"], "title_written": _title_written(c, explained),
+        "state": c["state"], "state_word": STATE_WORDS[c["state"]],
         "flag": flag, "flag_word": FLAG_WORDS.get(flag),
         "explained": explained, "explanation": c["explanation"] if explained else None,
         "explanation_claim_ids": list(rests_on), "claims": claims,
@@ -158,12 +172,28 @@ def _card(c, market, day, rank, shown_above=frozenset()):
         "ask": f"What is behind {c['title']} in {LABELS[market]} this week?",
         "explanation_status": status,
         # The job's fixed wording for the check that held the explanation back; no model or scraped text.
-        "failed_reason": c.get("failed_reason") if status == "failed_checks" else None,
+        "failed_reason": _failed_reason(c, status),
         # Items merged into this card because their posts are this card's (core/brief/job.py), in rank order.
         "also": also,
         # A news event explains the rise and local creators add their own reaction; claims sit one step lower.
         "news_driven": explained and c.get("news_driven") is True,
     }
+
+
+def _title_written(c, explained):
+    """The writer's title that passed its checks (core/brief/explain.py), on an explained card only, else None; the
+    card keeps title, its cluster label, either way."""
+    title = c.get("title_written")
+    return title.strip() if explained and isinstance(title, str) and title.strip() else None
+
+
+def _failed_reason(c, status):
+    """failed_reason as the job wrote it, on an item whose explanation failed its checks, or on one not run whose
+    reason is a busy model's fixed wording (NOT_RUN_REASONS); else None."""
+    reason = c.get("failed_reason")
+    if status == "failed_checks" or (status == "not_run" and reason in NOT_RUN_REASONS):
+        return reason
+    return None
 
 
 def _held_item(c):
@@ -181,7 +211,7 @@ def _held_item(c):
         "evidence_ids": [e["id"] for e in evidence], "evidence": evidence,
         "numbers": numbers, "count_line": _count_line(numbers),
         # The job's fixed wording for the check that held the explanation back, as on cards.
-        "failed_reason": c.get("failed_reason") if c.get("explanation_status") == "failed_checks" else None,
+        "failed_reason": _failed_reason(c, c.get("explanation_status")),
     }
 
 

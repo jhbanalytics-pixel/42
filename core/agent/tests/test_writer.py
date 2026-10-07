@@ -545,6 +545,72 @@ def test_numeric_claim_without_query_scope_is_held_without_a_model_call(ctx):
                for row in rows)
 
 
+STORE_ROWS = [{"platform": "tiktok", "hashtag": "amapiano", "posts": 7, "creators": 5},
+              {"platform": "instagram", "hashtag": "amapiano", "posts": 5, "creators": 5},
+              {"platform": "tiktok", "hashtag": "gqom", "posts": 9, "creators": 5},
+              {"platform": "x", "hashtag": "braai", "posts": 5, "creators": 3}]
+
+
+def store_scope(ctx, text, *values):
+    ctx.queries.clear()
+    qid, digest = ctx.record_query("SELECT platform, hashtag, posts, creators FROM t WHERE market = @market",
+                                   {"market": "ZA", "tag_keys": "|tiktok:amapiano|instagram:amapiano|tiktok:gqom|"},
+                                   copy.deepcopy(STORE_ROWS), "Whole-store hashtags")
+    claim = {"id": "c1", "text": text, "numbers": [{"value": value, "unit": unit, "query_id": qid, "run_id": ctx.run_id,
+                                                    "result_hash": digest} for value, unit in values]}
+    return writer._claim_query_scope(claim, ctx.queries)
+
+
+def test_each_number_carries_only_the_rows_for_the_subject_its_claim_names(ctx):
+    scope = store_scope(ctx, "#amapiano on TikTok was used by 5 creators in 7 posts", (5, "creators"), (7, "posts"))
+
+    # both numbers sit in the one row, listed once, and the query's SQL and full parameters once
+    assert scope["numbers"] == [{"query_id": "q_1", "numbers": [{"value": 5, "unit": "creators"},
+                                                                {"value": 7, "unit": "posts"}],
+                                 "matching_rows": [STORE_ROWS[0]]}]
+    assert list(scope["queries"]) == ["q_1"]
+    assert scope["queries"]["q_1"]["params"]["tag_keys"] == "|tiktok:amapiano|instagram:amapiano|tiktok:gqom|"
+    block = writer._query_scope_block(scope)
+    assert block.count("SELECT platform, hashtag") == 1 and block.count("tag_keys") == 1
+
+
+def test_a_claim_naming_two_subjects_keeps_both_rows_and_the_unit_picks_the_column(ctx):
+    scope = store_scope(ctx, "#amapiano and #gqom on TikTok were each used by 5 creators", (5, "creators"))
+    assert scope["numbers"][0]["matching_rows"] == [STORE_ROWS[0], STORE_ROWS[2]]
+
+    # 5 posts is #amapiano's row on Instagram, not a TikTok row whose creators are 5
+    scope = store_scope(ctx, "#amapiano on Instagram had 5 posts", (5, "posts"))
+    assert scope["numbers"][0]["matching_rows"] == [STORE_ROWS[1]]
+
+
+def test_the_claims_own_subject_row_stays_when_its_unit_column_holds_another_value(ctx):
+    # TikTok's #amapiano row holds 5 only as creators: its 7 posts contradict the claim, so it reaches the check too
+    scope = store_scope(ctx, "#amapiano on TikTok had 5 posts", (5, "posts"))
+    assert scope["numbers"][0]["matching_rows"] == [STORE_ROWS[0], STORE_ROWS[1]]
+    # and from the query's rows when the subject row holds the value nowhere
+    ctx.queries.clear()
+    rows = [{"platform": "tiktok", "hashtag": "amapiano", "posts": 7, "creators": 4},
+            {"platform": "instagram", "hashtag": "amapiano", "posts": 5, "creators": 5},
+            {"platform": "tiktok", "hashtag": "gqom", "posts": 9, "creators": 6}]
+    qid, digest = ctx.record_query("SELECT platform, hashtag, posts, creators FROM t", {}, copy.deepcopy(rows),
+                                   "Whole-store hashtags")
+    claim = {"text": "#amapiano on TikTok had 5 posts", "numbers": [{"value": 5, "unit": "posts", "query_id": qid}]}
+    assert writer._claim_query_scope(claim, ctx.queries)["numbers"][0]["matching_rows"] == rows[:2]
+
+
+def test_a_number_whose_row_cannot_be_read_keeps_every_row_holding_its_value(ctx):
+    # nothing the claim names is in a row
+    scope = store_scope(ctx, "Posting reached 5 creators a day", (5, "creators"))
+    assert scope["numbers"][0]["matching_rows"] == STORE_ROWS
+    # the value inside a nested cell
+    ctx.queries.clear()
+    qid, digest = ctx.record_query("SELECT platform, counts FROM t", {},
+                                   [{"platform": "tiktok", "counts": [5, 7]}, {"platform": "tiktok", "posts": 5}],
+                                   "counts")
+    claim = {"text": "TikTok had 5 posts", "numbers": [{"value": 5, "unit": "posts", "query_id": qid}]}
+    assert writer._claim_query_scope(claim, ctx.queries)["numbers"][0]["matching_rows"] == ctx.queries[qid]["rows"]
+
+
 def test_numeric_query_scope_over_budget_is_held_without_a_model_call(monkeypatch, ctx):
     monkeypatch.setattr(writer, "SUPPORT_INPUT_TOKENS", 1)
     draft = {"claims": [copy.deepcopy(draft_output()["claims"][0])], "gaps": []}
@@ -1289,14 +1355,169 @@ def test_field_check_keeps_its_existing_input_reserve_and_rejects_oversize_query
 
     assert writer.FIELD_INPUT_TOKENS == ask.FIELD_INPUT_TOKENS == 46_600
     answer = probe_answer(ctx)
-    answer["so_what"] = [{"text": "Soweto Sunday events may offer a local brand context.", "claim_ids": ["c1"]}]
+    so_what = "Soweto Sunday events may offer a local brand context."
+    answer["so_what"] = [{"text": so_what, "claim_ids": ["c1"]}]
     ctx.queries["q_1"]["rows"][-1]["extra"] = "x" * writer.FIELD_INPUT_TOKENS
-    model = FakeModel(fields_out(count=4))
+    with pytest.raises(ValueError, match="saved input budget"):  # one call never goes over its saved input
+        writer.field_check(FakeModel(fields_out(count=1)), [
+            {"where": "so_what/0", "text": so_what, "evidence_ids": ["tt_1", "rd_2"],
+             "support_claim_groups": [{"where": "so_what/0", "claims": [
+                 {**answer["claims"][0], "query_scope": writer._claim_query_scope(answer["claims"][0], ctx.queries)}]}]}],
+            [ctx.evidence["tt_1"], ctx.evidence["rd_2"]])
+    model = FakeModel(fields_out(count=3))
 
-    with pytest.raises(ValueError, match="saved input budget"):
-        writer.apply_field_check(model, answer, ctx)
+    # The so_what cannot be read with its claim's scope in one call, so it is removed, never passed; the short answer,
+    # context and watch next are still checked, in one call within the saved input, and the ask goes on (live
+    # staging, 6 October: this raised and failed the whole ask).
+    out, rows, _ = writer.apply_field_check(model, answer, ctx)
 
-    assert model.calls == []
+    (call,) = model.calls
+    assert writer._input_token_upper_bound(call["system"], call["user"], call["schema"]) <= writer.FIELD_INPUT_TOKENS
+    assert [w for _, w, _ in item_texts(call["user"])] == ["short_answer", "context", "watch_next/0"]
+    assert out["so_what"] == []
+    assert {"claim_id": "so_what/0", "rule": "field_check", "verdict": "cut", "reason": writer.FIELD_UNCHECKED_REASON,
+            "checker": "code"} in rows
+    assert {"what": f"so_what item 0 removed: {writer.FIELD_UNCHECKED_WHAT}", "searched": "the so_what text",
+            "why": writer.FIELD_UNCHECKED_WHY} in out["gaps"]
+
+
+class ReadingFieldModel:
+    """Answers the field check from each item's own text, as a model reading the items would, whichever call they
+    arrive in: an item naming students is a demographic inference, one saying 'will keep' a forecast, and a so_what
+    saying 'nationwide' is unsupported."""
+
+    def __init__(self):
+        self.calls = []
+
+    def complete_json(self, *, system, user, schema, model, max_tokens):
+        self.calls.append({"system": system, "user": user, "schema": schema, "model": model, "max_tokens": max_tokens})
+        return {"fields": [{"index": int(i), "demographic_inference": "students" in text,
+                            "forecast_assertion": "will keep" in text, "country_people": [],
+                            "so_what_supported": "nationwide" not in text}
+                           for i, _, text in item_texts(user)]}, {"input_tokens": 1000, "output_tokens": 50, "usd": 0.01}
+
+
+def ranked_answer(ctx, claims=8, posts=4):
+    """A ranked-list answer of claims citing many posts and whole-store style counts, too long for one field check."""
+    sql = "SELECT t.platform, t.hashtag, COUNT(DISTINCT t.post_id) AS posts FROM t " + "WHERE x = @x " * 60
+    rows = [{"platform": "tiktok", "hashtag": f"tag{k}", "posts": k % 7 + 1, "creators": k % 5 + 1,
+             "note": "y" * 120} for k in range(120)]
+    qid, digest = ctx.record_query(sql, {"x": "|" + "|".join(f"tiktok:tag{k}" for k in range(120)) + "|"}, rows,
+                                   "Whole-store hashtags before the window")
+    listed = []
+    for c in range(1, claims + 1):
+        ids = []
+        for p in range(posts):
+            eid = f"tt_c{c}_{p}"
+            ctx.evidence[eid] = record(eid, "tiktok", f"#tag{c} post {p} " + "a caption about the Sunday braai " * 32)
+            ids.append(eid)
+        listed.append({"id": f"c{c}", "kind": "observation", "label": "corroborated", "evidence_ids": ids,
+                       "quotes": [], "text": f"#tag{c} was used in {c % 7 + 1} posts.",
+                       "numbers": [{"value": c % 7 + 1, "unit": "posts", "query_id": qid, "run_id": ctx.run_id,
+                                    "result_hash": digest}]})
+    return {"status": "complete", "as_of": "2026-09-28T06:10:00+02:00",
+            "short_answer": "Hashtags about the Sunday braai lead, and students drive them.",
+            "context": "The counts cover every stored post in the window.", "claims": listed,
+            "evidence": [ctx.evidence[e] for c in listed for e in c["evidence_ids"]],
+            "so_what": [{"text": "The braai tags give brands a local Sunday moment.", "claim_ids": ["c1", "c2"]},
+                        {"text": "The braai tags reach people nationwide.", "claim_ids": ["c3", "c4"]},
+                        {"text": "Music tags sit beside the braai talk.", "claim_ids": ["c5", "c6"]},
+                        {"text": "Food tags follow the same weekend rhythm.", "claim_ids": ["c7", "c8"]}],
+            "watch_next": [{"text": "The braai tags will keep growing.", "claim_ids": ["c1"], "forecast": False},
+                           {"text": "Whether the music tags keep their creators.", "claim_ids": ["c5"],
+                            "forecast": False}],
+            "gaps": []}
+
+
+def test_a_long_answer_is_field_checked_in_batches_with_the_flags_one_call_gives(ctx, monkeypatch):
+    answer = ranked_answer(ctx)
+    batched = ReadingFieldModel()
+    out, rows, usage = writer.apply_field_check(batched, copy.deepcopy(answer), ctx)
+
+    assert 1 < len(batched.calls) <= writer.FIELD_BATCHES
+    sent = []
+    for call in batched.calls:
+        assert writer._input_token_upper_bound(call["system"], call["user"], call["schema"]) <= writer.FIELD_INPUT_TOKENS
+        assert call["schema"] is writer.FIELDS_SCHEMA and call["system"] == writer.FIELDS_SYSTEM
+        items = item_texts(call["user"])
+        assert [int(i) for i, _, _ in items] == list(range(len(items)))  # each call indexes its own items from 0
+        assert call["max_tokens"] == writer.field_max_tokens(len(items))
+        posts = set(re.findall(r"(?m)^post (\S+)\n", call["user"].split("Cited posts:", 1)[1]))
+        for _, where, _ in items:  # every post an item may quote, or its so_what claims cite, is in its call
+            if where in ("short_answer", "context"):
+                assert posts == {r["id"] for r in answer["evidence"]}
+            elif where.startswith("so_what/"):
+                refs = answer["so_what"][int(where.split("/")[1])]["claim_ids"]
+                assert {e for c in answer["claims"] if c["id"] in refs for e in c["evidence_ids"]} <= posts
+        sent += [where for _, where, _ in items]
+    assert sorted(sent) == sorted(["short_answer", "context", *[f"so_what/{i}" for i in range(4)], "watch_next/0",
+                                   "watch_next/1"])  # every field checked, each exactly once
+    assert usage == pytest.approx({"input_tokens": 1000 * len(batched.calls), "output_tokens": 50 * len(batched.calls),
+                                   "usd": 0.01 * len(batched.calls)})
+    assert not any(r["rule"] == "field_check" for r in rows)
+
+    monkeypatch.setattr(writer, "FIELD_INPUT_TOKENS", 10 ** 9)
+    whole = ReadingFieldModel()
+    one_out, one_rows, _ = writer.apply_field_check(whole, copy.deepcopy(answer), ctx)
+    assert len(whole.calls) == 1
+    assert (out, rows) == (one_out, one_rows)
+    assert out["short_answer"] == "" and out["status"] == "partial"
+    assert [s["text"] for s in out["so_what"]] == ["The braai tags give brands a local Sunday moment.",
+                                                   "Music tags sit beside the braai talk.",
+                                                   "Food tags follow the same weekend rhythm."]
+    assert [w["text"] for w in out["watch_next"]] == ["Whether the music tags keep their creators."]
+
+
+def test_a_short_answer_too_long_to_check_with_its_posts_is_removed_not_passed(ctx):
+    answer = ranked_answer(ctx, claims=10, posts=5)  # the short answer may quote every post: 50 posts, over one call
+    model = ReadingFieldModel()
+    out, rows, _ = writer.apply_field_check(model, answer, ctx)
+
+    assert all("short_answer" not in [w for _, w, _ in item_texts(c["user"])] for c in model.calls)
+    assert out["short_answer"] == "" and out["status"] == "partial"
+    assert {"claim_id": "short_answer", "rule": "field_check", "verdict": "cut",
+            "reason": writer.FIELD_UNCHECKED_REASON, "checker": "code"} in rows
+    assert {"what": f"Short answer removed: {writer.FIELD_UNCHECKED_WHAT}", "searched": "the short answer text",
+            "why": writer.FIELD_UNCHECKED_WHY} in out["gaps"]
+    assert validate_answer(out) == []
+
+
+def test_field_check_batches_reserve_each_call_and_stop_inside_the_question_budget(ctx):
+    from core.agent import ask
+    from core.agent.model_budget import AskModelBudget
+
+    class Billed(ReadingFieldModel):  # bills each call's whole user text and output allowance, at 1 USD a token
+        def complete_json(self, **kwargs):
+            out, _ = super().complete_json(**kwargs)
+            tokens_in = len(kwargs["user"].encode("utf-8"))
+            return out, {"input_tokens": tokens_in, "output_tokens": kwargs["max_tokens"],
+                         "usd": (tokens_in + kwargs["max_tokens"]) / 1_000_000}
+
+    def reserve(call):
+        return writer._input_token_upper_bound(call["system"], call["user"], call["schema"]) + call["max_tokens"]
+
+    answer = ranked_answer(ctx)
+    dry = ReadingFieldModel()
+    writer.apply_field_check(dry, copy.deepcopy(answer), ctx)
+    first, second = dry.calls[:2]
+    billed_first = len(first["user"].encode("utf-8")) + first["max_tokens"]
+    # The hold has room for the first batch and its bill, and one micro-dollar too little for the second batch's
+    # reserve: the second batch is refused before it is sent, the question stops on its budget, and the first batch's
+    # usage travels with the stop so the ask counts it.
+    cap = (billed_first + reserve(second) - 1) / 1_000_000
+    budget = AskModelBudget(cap, cap, price_for_fn=lambda model: {"input": 1.0, "output": 1.0},
+                            reserve_output_fn=lambda model, tokens: tokens)
+    inner = Billed()
+    guarded = ask._StopAwareModel(inner, lambda: False, budget)
+
+    with pytest.raises(ask._StopRequested) as caught:
+        writer.apply_field_check(guarded, copy.deepcopy(answer), ctx)
+
+    assert [c["user"] for c in inner.calls] == [first["user"]]
+    assert caught.value.model_budget_reason == "question_model_budget_exhausted"
+    assert caught.value.usage == pytest.approx({"input_tokens": len(first["user"].encode("utf-8")),
+                                                "output_tokens": first["max_tokens"], "usd": billed_first / 1_000_000})
+    assert budget.booked_usd == pytest.approx(billed_first / 1_000_000) and budget.booked_usd <= cap
 
 
 def test_field_check_rejects_a_malformed_forecast_classification_and_keeps_usage(ctx):

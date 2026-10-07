@@ -35,6 +35,9 @@ _HANDLE = re.compile(r"(?<![\w@])@[\w.]+")
 STATE_WORDS = {"new_to_42": "First spotted", "spike": "Spike", "on_the_boards": "On the boards", "emerging": "Emerging",
                "rising": "Rising", "peaking": "Peaking", "mainstream": "Mainstream", "fading": "Fading",
                "recurring": "Recurring", "seasonal": "Seasonal"}
+# detect's spike rule also fires on a chart alone (top 10 twice, state.sql), with no creator posting about it: that
+# is a chart position, not a spike in posting, so the reader sees this word instead.
+CHART_SPIKE_WORD = "High on the charts"
 FLAG_WORDS = {"likely_coordinated": "Likely coordinated", "check_pattern": "Unusual posting pattern",
               "not_assessed": "Not assessed (thin sample)", "market_unconfirmed": "Market unconfirmed",
               "data_issue": "Data issue"}
@@ -57,11 +60,18 @@ SERIES_WORDS = {"feed_tiktok": "TikTok", "board_tiktok_hashtag": "TikTok hashtag
                 "board_audiomack": "Audiomack trending", "board_shazam": "Shazam national chart",
                 "board_shazam_city": "Shazam city chart", "board_turntable": "TurnTable Top 100",
                 "board_nairaland": "Nairaland front page", "board_app_store_iphone": "App Store top free apps (iPhone)",
-                "board_google_play": "Google Play top free apps", "board_music_country": "Country music charts",
+                "board_google_play": "Google Play top free apps", "board_music_country": "National music charts",
                 "radio_playlist": "Radio playlists"}
 # The brief job names a board it has no word for by its series with spaces ("board boomplay"); Today reads
 # that stored name back as the series' own name.
 BOARD_LIST_WORDS = {k.replace("_", " "): v for k, v in SERIES_WORDS.items()}
+# board_music_country holds every public chart feed (core/collect/public_feed_rows.py), one platform each, so its
+# board is named for its own chart; a chart platform not listed here reads as a national music chart.
+CHART_FEED_WORDS = {"mdundo": "Mdundo top songs", "turntable": "TurnTable Top 100"}
+CHART_FEED_LIST = "board music country"
+CHART_FEED_FALLBACK = "National music chart"
+# A board whose every entry was left out: said so, so an empty list does not read as one with a few names missing.
+NO_NAMES_READ = "None of this list's entries had a readable name today"
 PLATFORM_SERIES_WORDS = {"board_global_music": "global music board", "search": "search"}
 CROSS_SERIES_WORDS = {"counter_post_views": "Post view re-reads", "search": "Searches"}
 INVALID_WORDS = {"calls": "could not be read", "items": "post count far from usual",
@@ -83,9 +93,9 @@ def invalid_code(row):
     return None if reason is None else str(reason).split(":", 1)[0].strip()
 
 
-# A board title that is an id, not a name: a YouTube channel id (uc plus exactly 22 id characters, any case) or a
-# 64-hex item hash.
-_ID_TITLE = re.compile(r"uc[a-z0-9_-]{22}|[0-9a-f]{64}", re.IGNORECASE)
+# A board title that is an id, not a name: a YouTube channel id (uc plus exactly 22 id characters, any case), a
+# Reddit account id (t2_ and its base-36 id) or a 64-hex item hash.
+_ID_TITLE = re.compile(r"uc[a-z0-9_-]{22}|t2_[a-z0-9]+|[0-9a-f]{64}", re.IGNORECASE)
 _YOUTUBE_CHANNEL_ID = re.compile(r"uc[a-z0-9_-]{22}\Z", re.IGNORECASE)
 NO_NAME = "No readable name"
 YOUTUBE_CHANNEL = "YouTube channel"
@@ -102,6 +112,8 @@ CHECK_REPAIR = "before repair: "
 CRITIC_UNNAMED = "A simpler explanation could not be ruled out from these posts."
 # Rules that only lower a label or status; their rows never hold an item (core/brief/job.py OTHER_WORDS).
 CHECK_DOWNGRADES = {"K5", "K10"}
+# core/brief/explain.py TITLE_RULE: a cut written title only leaves the card its label, so it never names a hold.
+CHECK_TITLE = "title"
 CHECK_RULES = ("K1", "K2", "K3", "K4", "K6", "K8")
 CHECK_LIMIT = 5000
 
@@ -224,6 +236,9 @@ def without_hidden(value, hidden):
                      for k in skins.NAME_KEYS if isinstance(e.get(k), str) and e[k].strip())
         gone = {e.get("id") for e, t in zip(holder["evidence"], theirs) if t} - {None}
         holder["evidence"] = [e for e, t in zip(holder["evidence"], theirs) if not t]
+        # The written title was checked against posts that have now left the card, so it keeps its label.
+        if holder.get("title_written") is not None:
+            holder["title_written"] = None
         for key in ("thumbnails", "evidence_ids"):
             if isinstance(holder.get(key), list):
                 holder[key] = [i for i in holder[key] if i not in gone]
@@ -324,6 +339,8 @@ def _recheck_explanation(card, gone):
     if failed:
         card.update(explained=False, explanation=None, explanation_claim_ids=[], claims=[], news_driven=False,
                     explanation_status="failed_checks", failed_reason=failed)
+        if "title_written" in card:
+            card["title_written"] = None
 
 
 class _WithoutHidden:
@@ -453,7 +470,7 @@ def _display_title(candidates, evidence=None, platforms=None, kind=None):
         if platform and platform not in found:
             found.append(platform)
     if len(found) == 1:
-        return f"{_platform_word(found[0])} post"
+        return f"{_platform_word(found[0])} {'account' if kind == 'creator' else 'post'}"
     if found:
         return "Social media post"
     kind_words = {"hashtag": "Hashtag", "sound": "Sound", "creator": "Creator", "topic": "Trend",
@@ -529,21 +546,78 @@ def _item_title(item, evidence, creator_labels):
     return _display_title([title], evidence=evidence, platforms=platforms, kind=kind)
 
 
+def _board_list(board):
+    if board.get("list") == CHART_FEED_LIST:
+        return CHART_FEED_WORDS.get(board.get("platform"), CHART_FEED_FALLBACK)
+    return BOARD_LIST_WORDS.get(board.get("list"), board.get("list"))
+
+
+# Music charts, by the list name the brief job stores (its BOARD_WORDS word or the series with spaces) or the
+# board's platform. Only there does one title naming its artist mean one entry: a song under two item ids.
+MUSIC_SERIES = ("board_apple_music", "board_kworb_spotify", "board_boomplay", "board_audiomack", "board_shazam",
+                "board_shazam_city", "board_turntable", "board_music_country", "board_global_music", "radio_playlist")
+MUSIC_LISTS = frozenset({s.replace("_", " ") for s in MUSIC_SERIES} | {"Apple Music chart"})
+MUSIC_PLATFORMS = frozenset({"apple_music", "spotify", "boomplay", "audiomack", "shazam", "turntable", "mdundo"})
+# "Song by Artist" (Shazam is unswapped to it) or "Artist - Song" (Mdundo): a title that names its artist.
+_NAMES_ARTIST = re.compile(r"\S\s+(?:by|-|\u2013)\s+\S", re.IGNORECASE)
+
+
+def _entry_keys(entry, music):
+    """What makes two entries of one board the same entry: the same item id, or on a music chart the same title
+    naming the same artist. Two items that only share a label, such as two YouTube videos both called "Highlights",
+    stay two entries."""
+    keys = set()
+    item_id = entry.get("item_id")
+    if isinstance(item_id, str) and item_id:
+        keys.add(("item", item_id))
+    if music and _NAMES_ARTIST.search(entry["title"]):
+        keys.add(("song", " ".join(entry["title"].casefold().split())))
+    return keys
+
+
 def _boards(boards):
     """Each board keeps its own list and each entry its own rank, L2's best rank today, so ties and gaps stay.
-    Entries titled with an id are left out, never named, and added to any count the board already carries."""
+    Entries titled with an id are left out, never named, and added to any count the board already carries. Two
+    entries of one board that are the same entry (_entry_keys: one song under two item ids) show once, at the better
+    rank."""
     out = []
     for b in _platform_x(boards):
-        shown = [dict(e, title=t) for e in b.get("entries") or [] for t in [_board_title(e, b.get("platform"))] if t]
-        left_out = (b.get("left_out") or 0) + len(b.get("entries") or []) - len(shown)
-        out.append(dict(b, list=BOARD_LIST_WORDS.get(b.get("list"), b.get("list")),
-                        entries=shown, left_out=left_out,
-                        left_out_reason=(b.get("left_out_reason") or NO_NAME) if left_out else None))
+        named = [dict(e, title=t) for e in b.get("entries") or [] for t in [_board_title(e, b.get("platform"))] if t]
+        music = b.get("list") in MUSIC_LISTS or b.get("platform") in MUSIC_PLATFORMS
+        shown, seen = [], set()
+        for e in named:
+            keys = _entry_keys(e, music)
+            if not keys & seen:
+                shown.append(e)
+            seen |= keys
+        left_out = (b.get("left_out") or 0) + len(b.get("entries") or []) - len(named)
+        reason = b.get("left_out_reason") or (NO_NAMES_READ if not shown else NO_NAME)
+        out.append(dict(b, list=_board_list(b), entries=shown, left_out=left_out,
+                        left_out_reason=reason if left_out else None))
     return out
+
+
+# Briefs written before 6 October 2026 say "1 creators and 1 posts in 3 days" (core/brief/payload.py _count_line now
+# says "1 creator"); a stored line reads the same way. "21 posts" keeps its plural.
+_ONE_COUNT = re.compile(r"(?<![\d.,\u00a0\u202f])1 (creator|post)s\b")
+
+
+def _one_count(line):
+    return _ONE_COUNT.sub(r"1 \1", line) if isinstance(line, str) else line
+
+
+def state_word(state, creators3=None):
+    """The reader's word for an item state. A spike no creator posted about in 3 days (creators3 0, as item_state's
+    NULL reads on a card) is worded as a chart position; with no count given the state keeps its own word."""
+    if state == "spike" and creators3 == 0:
+        return CHART_SPIKE_WORD
+    return STATE_WORDS.get(state)
 
 
 def _card(card, market, date, prev_ranks):
     out = dict(card, market=market, date=date)
+    if "count_line" in card:
+        out["count_line"] = _one_count(card["count_line"])
     if card.get("evidence"):
         out["evidence"] = _platform_x(card["evidence"])
     if prev_ranks is None:
@@ -558,6 +632,12 @@ def _card(card, market, date, prev_ranks):
     out["flag_word"] = FLAG_WORDS.get(card.get("flag"))
     if not card.get("explained"):
         out.update(explained=False, explanation=None, explanation_claim_ids=[], claims=[])
+    if "title_written" in card:
+        # The writer's checked title (core/brief/payload.py) shows only on an explained card; title stays the
+        # cluster label. A brief written before 6 October 2026 has no such field and none is added.
+        written = card.get("title_written")
+        out["title_written"] = (" ".join(written.split()) if card.get("explained") and isinstance(written, str)
+                                and written.strip() else None)
     out["thumbnails"] = (card.get("thumbnails") or [])[:2]
     return out
 
@@ -815,6 +895,8 @@ def _held_item(item, creator_labels):
     platforms = ([canon_platform(platform) for platform in raw_platforms if isinstance(platform, str)]
                  if isinstance(raw_platforms, list) else None)
     out = dict(item, title=_item_title(item, evidence, creator_labels))
+    if "count_line" in item:
+        out["count_line"] = _one_count(item["count_line"])
     if "platform" in item:
         out["platform"] = out_platform
     if "platforms" in item:
@@ -1219,7 +1301,7 @@ def _held_detail(rows):
     so cut claims come last. Rows from before the repair round did not hold the card."""
     rows = [r for r in rows if isinstance(r, dict) and r.get("verdict") in ("cut", "breach")
             and isinstance(r.get("reason"), str) and not r["reason"].startswith(CHECK_REPAIR)
-            and r.get("rule") not in CHECK_DOWNGRADES]
+            and r.get("rule") not in CHECK_DOWNGRADES and r.get("rule") != CHECK_TITLE]
     breaches = sorted((r for r in rows if r["verdict"] == "breach"), key=_rule_order)
     if breaches:
         if breaches[0].get("rule") == "critic":
@@ -1394,6 +1476,16 @@ def build_trends(store, market, date=None):
     return {"date": date, "market": market, "cards": cards + more}
 
 
+def _trend_held(h):
+    """A held item's reason as Today words it: the job's failed_reason goes through, so a topic a busy model left
+    unexplained reads as busy here too, not as a failed check."""
+    out = {"rule": h.get("rule"), "reason": h.get("reason"), "reason_text": h.get("reason_text")}
+    failed_reason = h.get("failed_reason")
+    if isinstance(failed_reason, str) and failed_reason.strip():
+        out["failed_reason"] = failed_reason.strip()
+    return _plain_reason(out)
+
+
 def build_trend(store, item_id, market, date=None):
     store = _WithoutHidden(store)
     row, date = _market_row(store, market, date)
@@ -1415,8 +1507,7 @@ def build_trend(store, item_id, market, date=None):
                 "evidence_ids": h.get("evidence_ids") or [e["id"] for e in evidence],
                 "evidence": evidence,
                 "ask": f"What is behind {title} in {LABELS[market]} this week?",
-                "held_back": _plain_reason({"rule": h.get("rule"), "reason": h.get("reason"),
-                                            "reason_text": h.get("reason_text")}),
+                "held_back": _trend_held(h),
             }
     raise NotFound(f"{item_id} is not in the {market} brief for {date}")
 

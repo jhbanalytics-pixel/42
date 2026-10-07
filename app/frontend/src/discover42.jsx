@@ -25,9 +25,12 @@ const KIND_WORDS = {
   topic: 'Topics', topics: 'Topics', hashtag: 'Hashtags', hashtags: 'Hashtags', sound: 'Sounds', sounds: 'Sounds',
   format: 'Formats', formats: 'Formats', creator: 'Creators', creators: 'Creators', meme: 'Memes', memes: 'Memes',
 };
+/* The spike state also holds chart-only items (top 10 on 2 pulls, no creator
+   posts), which their cards call "High on the charts", so the filter names both. */
 const STATE_WORDS = {
-  new_to_42: 'First spotted', spike: 'Spike', on_the_boards: 'On the boards', emerging: 'Emerging', rising: 'Rising',
-  peaking: 'Peaking', mainstream: 'Mainstream', fading: 'Fading', recurring: 'Recurring', seasonal: 'Seasonal',
+  new_to_42: 'First spotted', spike: 'Spike or high on the charts', on_the_boards: 'On the boards',
+  emerging: 'Emerging', rising: 'Rising', peaking: 'Peaking', mainstream: 'Mainstream', fading: 'Fading',
+  recurring: 'Recurring', seasonal: 'Seasonal',
 };
 const FLAG_WORDS = {
   check_pattern: 'Unusual posting pattern', likely_coordinated: 'Likely coordinated', paid_led: 'Paid-led',

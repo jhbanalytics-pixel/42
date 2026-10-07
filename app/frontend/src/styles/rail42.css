@@ -93,6 +93,31 @@
   line-height: var(--leading-body);
 }
 
+/* Log out: a quiet outlined control under the theme, the same width, height
+   and rule as the select, so it reads as a setting and not as a page. */
+.rail42-signout { padding: 0 var(--s-4) var(--s-4); }
+.rail42-signout-button {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  color: var(--ink);
+  text-align: start;
+  background: none;
+  border: 1px solid var(--rule, var(--line));
+  border-radius: var(--shape-control);
+  cursor: pointer;
+  transition: background-color var(--motion-row) var(--motion-standard-easing);
+}
+.rail42-signout-button:hover { background: var(--surface-raised, var(--paper)); }
+.rail42-signout-button:focus-visible {
+  outline: var(--focus-width, 2px) solid var(--accent);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+
 /* The rail is the only navigation. The vendored shell still renders its five
    jobs, and at phone width a Menu button that opens them, so both are hidden
    here and the shell's grid drops the column the jobs held. These rules come

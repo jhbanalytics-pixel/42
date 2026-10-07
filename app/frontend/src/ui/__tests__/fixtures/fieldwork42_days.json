@@ -816,7 +816,7 @@
       "key": "NG:board_music_country",
       "series": "board_music_country",
       "group": "charts",
-      "name": "Country music charts",
+      "name": "National music charts",
       "members": [
        "TurnTable Official Nigeria Top 100"
       ],
@@ -1200,7 +1200,7 @@
       "key": "KE:board_music_country",
       "series": "board_music_country",
       "group": "charts",
-      "name": "Country music charts",
+      "name": "National music charts",
       "members": [
        "Mdundo Top Songs: Kenya"
       ],
@@ -2147,7 +2147,7 @@
       "key": "NG:board_music_country",
       "series": "board_music_country",
       "group": "charts",
-      "name": "Country music charts",
+      "name": "National music charts",
       "members": [
        "TurnTable Official Nigeria Top 100"
       ],
@@ -2449,7 +2449,7 @@
       "key": "KE:board_music_country",
       "series": "board_music_country",
       "group": "charts",
-      "name": "Country music charts",
+      "name": "National music charts",
       "members": [
        "Mdundo Top Songs: Kenya"
       ],

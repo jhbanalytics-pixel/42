@@ -345,12 +345,41 @@ test('Today shows the API status caution and keeps the published counts', async 
   expect(calls.some((call) => String(call.init?.method || 'GET').toUpperCase() === 'POST')).toBe(false);
 });
 
-test('a partial brief with published markets uses the generic explanation copy', async () => {
+/* Restated 6 October 2026 (tester report, 5 October): a brief is partial
+   when a held topic's explanation failed its checks, and "Some markets are
+   incomplete" or "shown without an explanation yet" then read as a broken
+   market, though Today never shows an unexplained card. Only a market with a
+   real data problem is named; topics held by the checks are counted under
+   each market with their reasons. */
+test('a partial brief whose markets have no data problem names no market as incomplete', async () => {
   const today = clone(todayFixture);
   today.status = 'partial';
-  today.markets.forEach((market) => { market.status = 'published'; });
+  today.markets.forEach((market) => {
+    market.status = market.market === 'ZA' ? 'partial' : 'published';
+    market.banners = market.banners.filter((banner) => banner.kind !== 'data_issue');
+  });
+  const za = today.markets.find((market) => market.market === 'ZA');
+  za.held_back.items.push({item_id: 'held-explanation', title: 'Held explanation', rule: 'G10', reason: 'explanation_failed',
+    reason_text: 'The explanation did not pass our checks', reason_raw: 'Explanation failed its checks', evidence_ids: [], evidence: []});
+  za.held_back.count = za.held_back.items.length;
   await mount({}, today);
-  expect(host.querySelector('[data-today-status="partial"]')?.textContent).toBe('Some trends are shown without an explanation yet.');
+  expect(host.querySelectorAll('[data-today-status="partial"]')).toHaveLength(0);
+  expect(text()).not.toContain('Some markets are incomplete');
+  expect(text()).not.toContain('without an explanation yet');
+  expect(text()).toContain('The explanation did not pass our checks');
+  expect([...host.querySelectorAll('.t42-glance-note')]).toHaveLength(0);
+});
+
+test('a partial brief names only the market with a real data problem', async () => {
+  const today = clone(todayFixture);
+  today.status = 'partial';
+  today.markets.forEach((market) => { market.status = market.market === 'KE' ? 'published' : 'partial'; });
+  await mount({}, today);
+  // KE keeps its "collection or detection failed" banner; ZA and NG are partial only through the checks.
+  expect(host.querySelector('[data-today-status="partial"]')?.textContent).toBe('Some markets are incomplete: Kenya.');
+  const notes = [...host.querySelectorAll('[data-glance-market]')]
+    .filter((market) => market.querySelector('.t42-glance-note')).map((market) => market.getAttribute('data-glance-market'));
+  expect(notes).toEqual(['KE']);
 });
 
 test('publication time is omitted when its timestamp is invalid, timezone-less, or null', async () => {
@@ -2352,4 +2381,147 @@ test('a glance market name and its incomplete note each stay whole', async () =>
   const css = await Bun.file(new URL('../../styles/nightdesk.css', import.meta.url)).text();
   expect(css).toMatch(/\.t42-glance-name\s*\{[^}]*flex-wrap:\s*wrap/);
   expect(css).toMatch(/\.t42-glance-label,\s*html \.oi-product \.t42 \.t42-glance-note\s*\{[^}]*white-space:\s*nowrap/);
+});
+
+/* Tester report, 5 October 2026 (Thabang, items 2 to 9), and the demo
+   readout's "After the demo" list: Today and its cards read as a client
+   reads them. */
+const zaCard = (today) => today.markets.find((m) => m.market === 'ZA').cards[0];
+
+test('a count of one reads "1 creator" and "1 post", on the card and in a stored line', async () => {
+  const {figureWords, countLineWords} = await import('../TrendCard.jsx');
+  expect(figureWords({value: 1, unit: 'posts in 3 days'})).toBe('1 post in 3 days');
+  expect(figureWords({value: 1, unit: 'creators in 3 days'})).toBe('1 creator in 3 days');
+  expect(figureWords({value: 21, unit: 'posts in 3 days'})).toBe('21 posts in 3 days');
+  expect(countLineWords('1 creators and 1 posts in 3 days')).toBe('1 creator and 1 post in 3 days');
+  expect(countLineWords('1 creators and 21 posts in 3 days')).toBe('1 creator and 21 posts in 3 days');
+  expect(countLineWords('11 creators and 101 posts in 3 days')).toBe('11 creators and 101 posts in 3 days');
+
+  const today = clone(todayFixture);
+  const card = zaCard(today);
+  card.count_line = '1 creators and 1 posts in 3 days';
+  card.numbers[0].value = 1;
+  card.numbers[1].value = 1;
+  today.headline = null;
+  await mount({}, today);
+  const shown = cards()[0];
+  expect(shown.querySelector('.t42-count').textContent).toBe('1 creator and 1 post in 3 days');
+  expect([...shown.querySelectorAll('.tc-big-item')].map((item) => item.textContent)).toEqual(['1 creator in 3 days', '1 post in 3 days']);
+  expect(shown.textContent).not.toMatch(/\b1 (creators|posts)\b/);
+});
+
+test('an ISO date in the model prose reads as a day and month; the stored text is unchanged', async () => {
+  const {proseDates} = await import('../TrendCard.jsx');
+  const now = Date.parse('2026-10-06T06:00:00Z');
+  expect(proseDates('Posts on 2026-10-01 mark Independence Day.', now)).toBe('Posts on 1 Oct mark Independence Day.');
+  expect(proseDates('Since 2025-12-31 and 2026-13-01', now)).toBe('Since 31 Dec 2025 and 2026-13-01');
+  expect(proseDates('At 2026-10-01T09:00:00Z', now)).toBe('At 2026-10-01T09:00:00Z');
+
+  const today = clone(todayFixture);
+  const card = zaCard(today);
+  const sentence = 'Local creators posted their own takes on 2026-09-27, ahead of the weekend.';
+  card.explanation = sentence;
+  card.specificity.why_now = sentence;
+  today.headline.text = 'The biggest mover since 2026-09-27.';
+  const stored = clone(today);
+  await mount({}, today);
+  const whyNow = host.querySelector('.t42-specificity-why-now');
+  expect(whyNow.textContent).toBe('Why now' + sentence.replace('2026-09-27', '27 Sep'));
+  expect(host.querySelector('.t42-headline').textContent).toBe('The biggest mover since 27 Sep.');
+  expect(text()).not.toContain('2026-09-27');
+  expect(today).toEqual(stored);
+});
+
+test('local examples say their window, and a post from before the counted days says so', async () => {
+  await mount();
+  const examples = host.querySelector('[data-local-examples]');
+  expect(examples.querySelector('[data-examples-window]').textContent).toBe('From the last 7 days of posts. The counts above cover 3 days.');
+  // The brief is for 30 September, so the counted days are 28 to 30 September.
+  const metas = [...examples.querySelectorAll('.t42-post-meta')].map((meta) => meta.textContent.replace(/\u00a0/g, ' '));
+  expect(metas).toEqual([
+    'TikTok · @fixture_za_6 · 26 September 2026 · posted before the counted days · 7 200 views',
+    'Instagram · @fixture_za_7 · 27 September 2026 · posted before the counted days · 8 400 views',
+  ]);
+
+  resetRoot();
+  const today = clone(todayFixture);
+  const card = zaCard(today);
+  card.evidence.find((e) => e.id === 'ig_za_007').posted_at = '2026-09-28T08:00:00+02:00';
+  await mount({}, today);
+  const after = [...host.querySelectorAll('[data-local-examples] .t42-post-meta')].map((meta) => meta.textContent.replace(/\u00a0/g, ' '));
+  expect(after[0]).toContain('posted before the counted days');
+  expect(after[1]).toBe('Instagram · @fixture_za_7 · 28 September 2026 · 8 400 views');
+});
+
+test('a capped post list says it is not every counted post', async () => {
+  const {postsShownWords} = await import('../TrendCard.jsx');
+  const posts = (value) => [{value, unit: 'posts in 3 days', query_id: 'q'}];
+  expect(postsShownWords(12, posts(21))).toBe('Showing 12 example posts, not all 21 posts counted in 3 days.');
+  expect(postsShownWords(12, posts(12))).toBeNull();
+  expect(postsShownWords(3, [{value: 9, unit: 'creators in 3 days', query_id: 'q'}])).toBeNull();
+
+  const today = clone(todayFixture);
+  const held = today.markets.find((m) => m.market === 'KE').held_back.items[0];
+  held.numbers = [{value: 21, unit: 'posts in 3 days', query_id: 'q_posts3_ke', run_id: 'r', result_hash: 'sha256:1'}];
+  await mount({region: 'KE'}, today);
+  const detail = host.querySelector('[data-held-item-id] .t42-held-detail');
+  expect(detail.querySelector('[data-posts-shown]').textContent).toBe('Showing 2 example posts, not all 21 posts counted in 3 days.');
+  expect(detail.querySelectorAll('.t42-post')).toHaveLength(2);
+});
+
+test('a topic a busy model left unexplained says so, not as a failed check', async () => {
+  const today = clone(todayFixture);
+  const held = today.markets.find((m) => m.market === 'KE').held_back.items[0];
+  Object.assign(held, {rule: 'G10', reason: 'explanation_failed', reason_text: 'Not explained in time: the model was busy',
+    failed_reason: 'Model busy: not explained before the deadline'});
+  await mount({region: 'KE'}, today);
+  expect(host.querySelector('[data-held-group-reason]').textContent).toContain('Not explained in time: the model was busy');
+  expect(host.querySelector('[data-held-failed-reason]').textContent).toBe('The model was busy, so this was not explained before the deadline. It is not a failed check.');
+  expect(text()).not.toContain('Check detail: Model busy');
+  expect(text()).not.toMatch(/[–—]/);
+});
+
+test('a tap anywhere on a Today card opens it, and its controls keep their own job', async () => {
+  await mount();
+  const card = cards()[0];
+  const link = card.querySelector('.tc-title-link');
+  expect(card.className).toContain('t42-card-tap');
+  let opened = 0;
+  link.addEventListener('click', (event) => { opened += 1; event.preventDefault(); });
+  click(card.querySelector('.t42-specificity-why-now'));
+  expect(opened).toBe(1);
+  click(card.querySelector('.t42-card-metrics') || card);
+  expect(opened).toBe(2);
+  click(button(card, 'Posts'));
+  expect(opened).toBe(2);
+  click(card.querySelector('[data-local-examples] a.t42-link'));
+  expect(opened).toBe(2);
+  // The title link stays the card's one keyboard stop.
+  expect(card.getAttribute('tabindex')).toBeNull();
+  expect(link.getAttribute('href')).toBe(topicHref(todayFixture.markets[0].cards[0].item_id, 'ZA'));
+});
+
+test('a long Today page offers a way back to the top', async () => {
+  const realScrollTo = window.scrollTo;
+  const scrolled = [];
+  window.scrollTo = (options) => { scrolled.push(options); };
+  try {
+    await mount();
+    expect(host.querySelector('[data-today-top]')).toBeNull();
+    Object.defineProperty(window, 'scrollY', {value: window.innerHeight * 2, configurable: true});
+    flushSync(() => window.dispatchEvent(new Event('scroll')));
+    const top = host.querySelector('[data-today-top]');
+    expect(top.textContent).toBe('Back to top');
+    expect(top.tagName).toBe('BUTTON');
+    click(top);
+    expect(scrolled).toHaveLength(1);
+    expect(scrolled[0].top).toBe(0);
+    expect(document.activeElement).toBe(host.querySelector('h1.t42-heading'));
+    Object.defineProperty(window, 'scrollY', {value: 0, configurable: true});
+    flushSync(() => window.dispatchEvent(new Event('scroll')));
+    expect(host.querySelector('[data-today-top]')).toBeNull();
+  } finally {
+    window.scrollTo = realScrollTo;
+    Object.defineProperty(window, 'scrollY', {value: 0, configurable: true});
+  }
 });

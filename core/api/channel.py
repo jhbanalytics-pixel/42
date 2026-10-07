@@ -25,7 +25,9 @@ from core.api.today import LABELS, MARKETS, SAST, NotReady, build_today
 MAX_CARDS = 3
 MAX_LINES = 10
 TIMEOUT = 20
-BRIEF_WORDS = {"published": "Published", "partial": "Published with a data issue",
+# A partial brief is one where some explanations did not pass their checks or were not written in time (core/brief/
+# payload.py), not a data problem, so it reads as Today words it (core/api/held_words.py); only data_issue says data.
+BRIEF_WORDS = {"published": "Published", "partial": "Published, some explanations held back",
                "data_issue": "Published with a data issue"}
 NO_BRIEF = "No brief today"
 READY = "Today's brief is ready"

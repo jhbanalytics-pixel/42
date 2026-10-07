@@ -11,17 +11,20 @@
    Staff hide a person from the app (section 16) from a creator page or
    beside a named member of a community. The app only adds to L1's list and
    shows it at #/people/hidden; nothing here lifts a hide. */
-import React, {useEffect, useId, useRef, useState} from 'react';
+import React, {useEffect, useId, useMemo, useRef, useState} from 'react';
 import {fetchCommunities, fetchCommunity, fetchCreator, hidePerson, listHidden} from './api42.js';
 import {readerFigure, sentenceCase} from './api.js';
 import {go} from './router.js';
 import {safeUrl} from './safeUrl.js';
 import {TrendCard, longDate, platformWord, topicHref} from './ui/TrendCard.jsx';
+import {TopicGlobe} from './ui/TopicGlobe.jsx';
+import {globeModel} from './ui/topicGlobeModel.js';
 import {useFocusTrap} from './ui/useFocusTrap.js';
 import './styles/people42.css';
 import './styles/alerts42.css';
 import './styles/hidden42.css';
 import './styles/communities42.css';
+import './styles/topicglobe42.css';
 
 const MARKET_WORDS = {ZA: 'South Africa', NG: 'Nigeria', KE: 'Kenya'};
 const TIER_WORDS = {nano: 'Nano', micro: 'Micro', mid: 'Mid', macro: 'Macro', mega: 'Mega'};
@@ -51,7 +54,19 @@ let hiddenNote = null;
 const isFigure = (value) => Boolean(value && typeof value === 'object' && value.value !== undefined && value.value !== null);
 const marketWord = (market) => MARKET_WORDS[market] || market;
 const tierWord = (tier) => TIER_WORDS[tier] || sentenceCase(tier);
-const languageWord = (lang) => LANGUAGE_WORDS[lang] || (lang ? 'Other language (' + lang + ')' : 'Language not identified');
+/* A code outside the list (older enrichment rows) is named by the browser's
+   own language names when it knows the code, else as another language, so
+   a raw code never reaches the reader. */
+const intlLanguageName = (lang) => {
+  try {
+    const name = new Intl.DisplayNames(['en-ZA', 'en'], {type: 'language', fallback: 'none'}).of(lang);
+    return name && name.toLowerCase() !== String(lang).toLowerCase() ? name : null;
+  } catch (e) {
+    return null;
+  }
+};
+const languageWord = (lang) => LANGUAGE_WORDS[lang]
+  || (lang ? intlLanguageName(lang) || 'Another language' : 'Language not identified');
 const creatorHref = (creatorId, market) => '#/creators/' + encodeURIComponent(creatorId) + (market ? '?market=' + encodeURIComponent(market) : '');
 const communityHref = (communityId, market) => '#/communities/' + encodeURIComponent(communityId) + (market ? '?market=' + encodeURIComponent(market) : '');
 /* Rule 3 of section 12.1: no coordination or payment next to a name. The
@@ -453,6 +468,7 @@ function Communities({data, market}){
         <WindowWords data={data} />
         <MarketLinks where={where} />
       </header>
+      {list.length > 0 && <CommunityGlobe list={list} where={where} />}
       <div className={'cm42-grid' + (list.length > 0 ? '' : ' cm42-grid-empty')}>
         <div className="cm42-main">
           <MethodWords data={data} />
@@ -463,6 +479,72 @@ function Communities({data, market}){
             : <EmptyCommunities where={where} />}
         </div>
         {list.length === 0 && <CommunityAnatomy />}
+      </div>
+    </section>
+  );
+}
+
+/* The topic globe, 6 October 2026. Albert asked for "a 3d grouping of all
+   topics by the topics they keep posting about ... like a globe". Each
+   community is a point and each topic its members share a smaller one, with
+   a line between them, so communities that post about the same things sit
+   close and share points. The picker and the panel beside the globe carry
+   every word and link, so a phone, a screen reader or a browser with no
+   WebGL reads the same thing the globe draws. Like the list, the globe
+   names no creator: it shows topics and counts only. */
+const GLOBE_LEDE = 'Each coloured point is a community, sized by its creators. The small points are the topics its members keep posting about, with a line to each. A topic two communities share sits between them. Drag to turn the globe, or pick a community to bring it round.';
+
+function CommunityGlobe({list, where}){
+  const model = useMemo(() => globeModel(list.map((c) => ({
+    community_id: c.community_id, label: c.label, creators: c.creators, topics: sharedTopics(c),
+  }))), [list]);
+  const byId = useMemo(() => new Map(list.map((c) => [c.community_id, c])), [list]);
+  const [choice, setChoice] = useState({id: null, picked: false});
+  const first = model.communities[0] ? model.communities[0].id : null;
+  const selected = choice.id && byId.has(choice.id) ? choice.id : first;
+  const pick = (id) => setChoice({id, picked: true});
+  if (!selected) return null;
+  const chosen = byId.get(selected);
+  const sharing = new Map(model.topics.map((t) => [t.id, t.communities.length - 1]));
+  return (
+    <section className="cg42" data-section="globe" aria-labelledby="cg42-title">
+      <h2 className="cg42-title" id="cg42-title">Topics on the globe</h2>
+      <p className="cg42-lede">{GLOBE_LEDE}</p>
+      <div className="cg42-layout">
+        <TopicGlobe model={model} market={where} selected={selected} picked={choice.picked} onPick={pick} />
+        <div className="cg42-side">
+          <div className="cg42-panel" aria-live="polite">
+            <h3 className="cg42-panel-title"><a className="cm42-title-link" href={communityHref(chosen.community_id, where)}><TopicLabel label={chosen.label} /></a></h3>
+            {isFigure(chosen.creators)
+              ? <p className="cg42-panel-size"><span className="cg42-panel-value"><Fig figure={chosen.creators} /></span> {chosen.creators.unit || 'creators'}</p>
+              : <p className="cg42-panel-size">Creators not counted yet</p>}
+            <p className="cg42-panel-sub">Topics they keep posting about</p>
+            <ul className="cg42-topics">
+              {model.topics.filter((t) => t.communities.includes(selected)).map((t) => {
+                const others = sharing.get(t.id) || 0;
+                return (
+                  <li key={t.id} data-shared={others > 0 ? 'true' : undefined}>
+                    <a className="cm42-topic" href={topicHref(t.id, t.market || where)}>{t.title}</a>
+                    {others > 0 && <span className="cg42-also">Also posted about by {others} other {plural(others, 'community', 'communities')}</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <ul className="cg42-picks" aria-label="Communities on the globe">
+            {model.communities.map((c) => {
+              const source = byId.get(c.id);
+              return (
+                <li key={c.id}>
+                  <button type="button" className="cg42-pick" data-globe-community={c.id} aria-pressed={c.id === selected ? 'true' : 'false'} onClick={() => pick(c.id)}>
+                    <span className="cg42-pick-label"><TopicLabel label={c.label} /></span>
+                    {isFigure(source.creators) && <span className="cg42-pick-size"><Fig figure={source.creators} /> {source.creators.unit || 'creators'}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </div>
     </section>
   );

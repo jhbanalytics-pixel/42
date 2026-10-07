@@ -9,14 +9,15 @@ from pathlib import Path
 import pytest
 import yaml
 
-from core.agent import ask, checks, critic, plain, skills
+from core.agent import ask, checks, critic, plain, skills, writer
 from core.agent.answer import validate_answer
 from core.agent.context import TIERS, RunContext, result_hash
 from core.agent.tools.socialcrawl import socialcrawl_call
 from core.agent.tools.sql_query import MAX_BYTES_BILLED, check_sql, sql_query
 from core.agent.tools.warehouse import BigQueryTableWriter, fetch_posts, search_posts
-from core.agent.writer import (FIELDS_SCHEMA, K4_RECHECK_CALLS, K4_REWRITE_CALLS, K4_REWRITE_INPUT_TOKENS,
-                               K4_REWRITE_MAX_TOKENS, K4_REWRITE_SCHEMA, SUPPORT_SCHEMA, WRITER_SCHEMA)
+from core.agent.writer import (FIELDS_SCHEMA, HEADLINE_REWRITE_SCHEMA, K4_RECHECK_CALLS, K4_REWRITE_CALLS,
+                               K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS, K4_REWRITE_SCHEMA, SUPPORT_SCHEMA,
+                               WRITER_SCHEMA)
 from core.llm.provider import reserve_output
 
 SAST = timezone(timedelta(hours=2))
@@ -39,6 +40,7 @@ ORIGINAL_CLAIM = "People say amapiano is fading."
 NARROWED_CLAIM = "A TikTok post says amapiano cannot stop."
 STALE_HEADLINE = "Chatter suggests amapiano's momentum is dropping."
 STALE_CONTEXT = "Several posts imply interest is slowing."
+REWRITTEN_HEADLINE = "Amapiano posts came from creators on TikTok and X."
 
 
 def post(pid, platform, handle, text, day):
@@ -146,6 +148,8 @@ class FakeModel:
             return copy.deepcopy(self.writer_out), {"input_tokens": 2000, "output_tokens": 500, "usd": 0.0135}
         if schema is K4_REWRITE_SCHEMA:
             return {"text": ""}, {"input_tokens": 100, "output_tokens": 20, "usd": 0.0006}
+        if schema is HEADLINE_REWRITE_SCHEMA:
+            return {"text": REWRITTEN_HEADLINE}, {"input_tokens": 100, "output_tokens": 20, "usd": 0.0006}
         if schema is FIELDS_SCHEMA:
             indexes = sorted({int(i) for i in re.findall(r"(?m)^item (\d+) ", user)})
             return {"fields": [{"index": i, "demographic_inference": False, "forecast_assertion": False,
@@ -362,14 +366,18 @@ def test_full_t1_run_gives_a_valid_answer_and_run_object():
     assert re.fullmatch(r"r_20260928_081500_[0-9a-f]{8}_[0-9a-f]{32}", run["run_id"])
     assert run["tier"] == "T1" and run["mode"] == "live"
     assert run["credits"] == 1.0
-    # three support calls, made at the same time, then one K4 rewrite and one field check
-    assert run["tokens"] == {"input": 1000 + 2000 + (3 + 1) * 100 + 100,
-                             "output": 300 + 500 + (3 + 1) * 20 + 20}
-    assert run["model_usd"] == pytest.approx(0.02 + 0.0135 + (3 + 1) * 0.0006 + 0.0006 + SEARCH_EMBED_USD)
+    # three support calls, made at the same time, then one K4 rewrite, the short answer rewrite (cutting c2 after its
+    # narrowing blanked the short answer) and one field check, which reads the rewrite as the short answer
+    assert run["tokens"] == {"input": 1000 + 2000 + (3 + 1 + 1) * 100 + 100,
+                             "output": 300 + 500 + (3 + 1 + 1) * 20 + 20}
+    assert run["model_usd"] == pytest.approx(0.02 + 0.0135 + (3 + 1 + 1) * 0.0006 + 0.0006 + SEARCH_EMBED_USD)
     assert [call["schema"] for call in h.model.calls] == [WRITER_SCHEMA, SUPPORT_SCHEMA, SUPPORT_SCHEMA,
-                                                          SUPPORT_SCHEMA, K4_REWRITE_SCHEMA, FIELDS_SCHEMA]
+                                                          SUPPORT_SCHEMA, K4_REWRITE_SCHEMA, HEADLINE_REWRITE_SCHEMA,
+                                                          FIELDS_SCHEMA]
+    assert answer["short_answer"] == REWRITTEN_HEADLINE
     field_call = h.model.calls[-1]
-    assert field_call["max_tokens"] == ask.field_max_tokens(2) <= ask.FIELD_MAX_TOKENS
+    assert field_call["max_tokens"] == ask.field_max_tokens(3) <= ask.FIELD_MAX_TOKENS
+    assert "item 0 (short_answer;" in field_call["user"] and REWRITTEN_HEADLINE in field_call["user"]
     assert run["window"] == {"from": "2026-09-22", "to": "2026-09-28"}
     assert run["posts"] == 6 and run["platforms"] == 2
     assert run["source_status"] == [{"platform": "threads", "route": "threads/search", "status": "rate_limited",
@@ -663,7 +671,10 @@ def test_claim_check_verdicts_are_logged_with_run_and_ask_ids():
     assert by_claim_rule[("c2", "K4")]["reason"] == "unsupported by the cited post"
     assert by_claim_rule[("c1", "K1")]["reason"] is None
     assert ("short_answer", "K10", "pass", "code") in got
-    assert len(rows) == 3 * 2 + 1 + 3 + 1  # K1 and K5 for three claims, K1 cut for c4, K4 for three claims, K10
+    # K1 and K5 for three claims, K1 cut for c4, K4 for three claims, K10, and the short answer rewrite's K10 row
+    assert len(rows) == 3 * 2 + 1 + 3 + 1 + 1
+    rewrite_row = [r for r in rows if r["claim_id"] == "short_answer" and r["rule"] == "K10"][-1]
+    assert rewrite_row["reason"] == writer.HEADLINE_REWRITTEN_REASON and rewrite_row["verdict"] == "pass"
 
 
 class FakeBQClient:
@@ -1258,11 +1269,13 @@ def test_stop_during_the_field_check_keeps_its_cost_and_skips_persistence():
     out = h.run()
 
     assert out["answer"]["status"] == "insufficient_evidence"
+    # the short answer rewrite runs before the field check, so its cost is kept too
     assert [call["schema"] for call in h.model.calls] == [WRITER_SCHEMA, SUPPORT_SCHEMA, SUPPORT_SCHEMA,
-                                                          SUPPORT_SCHEMA, K4_REWRITE_SCHEMA, FIELDS_SCHEMA]
+                                                          SUPPORT_SCHEMA, K4_REWRITE_SCHEMA, HEADLINE_REWRITE_SCHEMA,
+                                                          FIELDS_SCHEMA]
     assert h.tables.inserts == []
-    assert out["run"]["model_usd"] == pytest.approx(0.02 + 0.0135 + 5 * 0.0006 + SEARCH_EMBED_USD)
-    assert out["run"]["tokens"] == {"input": 1000 + 2000 + 5 * 100, "output": 300 + 500 + 5 * 20}
+    assert out["run"]["model_usd"] == pytest.approx(0.02 + 0.0135 + 6 * 0.0006 + SEARCH_EMBED_USD)
+    assert out["run"]["tokens"] == {"input": 1000 + 2000 + 6 * 100, "output": 300 + 500 + 6 * 20}
 
 
 def hold(tier="T1", model=ask.MODEL):
@@ -1334,7 +1347,10 @@ def test_the_hold_is_the_tier_budget_plus_the_writer_and_ten_support_calls_at_li
                         + K4_RECHECK_CALLS * ask.call_usd(model, ask.SUPPORT_INPUT_TOKENS, ask.SUPPORT_MAX_TOKENS))
             assert ask.pass_usd(model) == pytest.approx(one_pass)
             repair_call = ask.call_usd(model, ask.WRITER_INPUT_TOKENS, ask.WRITER_MAX_TOKENS)
-            assert hold(tier, model) == pytest.approx(TIERS[tier]["max_budget_usd"] + one_pass + repair_call)
+            # the one short answer rewrite an ask may make is held too
+            headline_call = ask.call_usd(model, writer.HEADLINE_REWRITE_INPUT_TOKENS, writer.HEADLINE_REWRITE_MAX_TOKENS)
+            assert hold(tier, model) == pytest.approx(TIERS[tier]["max_budget_usd"] + one_pass + repair_call
+                                                      + headline_call)
     assert ask.FIELD_INPUT_TOKENS == 10 * 4 * 1000 + ask.FIELD_ITEMS * ask.FIELD_ITEM_TOKENS
     assert ask.FIELD_ITEMS >= 2 + 2 * 5 and ask.FIELD_MAX_TOKENS == 400 + 40 * ask.FIELD_ITEMS
     assert hold("T0", ask.FALLBACK_MODEL) < hold("T0") < hold("T1")
@@ -1705,7 +1721,7 @@ def test_a_contract_failure_carries_the_run_with_the_support_check_spend():
     assert set(run) == RUN_KEYS
     support_calls = len([c for c in h.model.calls if c["schema"] is SUPPORT_SCHEMA])
     assert support_calls > 0
-    billed = support_calls + 2  # the support calls, K4 rewrite and field check
+    billed = support_calls + 3  # the support calls, K4 rewrite, short answer rewrite and field check
     assert run["model_usd"] == pytest.approx(0.02 + 0.0135 + billed * 0.0006 + SEARCH_EMBED_USD)
     assert run["tokens"] == {"input": 1000 + 2000 + billed * 100, "output": 300 + 500 + billed * 20}
 
@@ -2054,7 +2070,7 @@ def test_research_that_raises_before_reporting_its_cost_counts_only_the_calls_it
     run = caught.value.run
     assert run["tier"] == tier
     assert run["model_usd"] == 0.0
-    assert any(n.startswith("Research failed before reporting usage") for n in run["notices"])
+    assert any(n.startswith("Research failed before it reported what it cost") for n in run["notices"])
     assert not any("is counted as spent" in n for n in run["notices"])
     assert h.model.calls == []
 
@@ -2387,7 +2403,7 @@ def test_the_run_model_usd_includes_the_search_query_embeddings():
 
     run = Harness(research=research).run()["run"]
     embeds = SEARCH_EMBED_USD + query_embed_usd(long_query)
-    calls = 3 + 1 + 1  # three support calls, one K4 rewrite and one field check
+    calls = 3 + 1 + 1 + 1  # three support calls, one K4 rewrite, the short answer rewrite and one field check
     assert run["model_usd"] == pytest.approx(0.02 + 0.0135 + calls * 0.0006 + embeds)
     assert run["model_usd"] - (0.02 + 0.0135 + calls * 0.0006) == pytest.approx(embeds)
 
@@ -2530,6 +2546,33 @@ def test_a_field_check_failure_carries_its_billed_usage_into_the_run():
     support = [c for c in h.model.calls if c["schema"] is SUPPORT_SCHEMA]
     assert caught.value.run["model_usd"] == pytest.approx(0.02 + 0.0135 + len(support) * 0.0006
                                                           + FIELDS_USAGE["usd"] + SEARCH_EMBED_USD)
+
+
+def test_text_too_long_for_the_field_check_is_removed_and_the_ask_still_answers():
+    # Live staging, 6 October: the field check's text ran past its saved input and the whole ask failed (ValueError).
+    long_context = "Amapiano posts lead the week across the platforms. " * 1000
+
+    class LongContext(ProbeModel):
+        def complete_json(self, **kwargs):
+            out, usage = super().complete_json(**kwargs)
+            if kwargs["schema"] is WRITER_SCHEMA:
+                out["context"] = long_context
+            return out, usage
+
+    h = Harness(model=LongContext(flag_fields=False))
+    out = h.run()
+    answer = out["answer"]
+    assert answer["context"] == "" and long_context.strip() not in json.dumps(out)
+    assert answer["short_answer"] == PROBE_HEADLINE  # the rest is checked as before, in one call within its input
+    fields = [c for c in h.model.calls if c["schema"] is FIELDS_SCHEMA]
+    assert len(fields) == 1 and "item 0 (short_answer;" in fields[0]["user"] and "(context;" not in fields[0]["user"]
+    from core.agent import writer
+
+    assert ask._input_token_upper_bound(writer.FIELDS_SYSTEM, fields[0]["user"], FIELDS_SCHEMA) \
+        <= ask.FIELD_INPUT_TOKENS
+    rows = {(r["claim_id"], r["rule"], r["verdict"], r["checker"], r["reason"]) for r in h.tables.inserts[0][1]}
+    assert ("context", "field_check", "cut", "code", writer.FIELD_UNCHECKED_REASON) in rows
+    assert validate_answer(answer) == []
 
 
 # Round 9 (task 1.11): the draft's own gaps in the field check, cut claims never shown, and the tone net
