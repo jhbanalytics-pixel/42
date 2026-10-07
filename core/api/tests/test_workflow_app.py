@@ -52,7 +52,8 @@ EXPECTED = {
 SERVICE_VARS = {"f42-agent": "AGENT", "f42-api": "API"}
 CLOUD_RUN_FLAGS = ("--min-instances", "--max-instances", "--timeout", "--memory", "--cpu-throttling",
                    "--no-cpu-throttling", "--allow-unauthenticated", "--no-allow-unauthenticated",
-                   "--invoker-iam-check", "--no-invoker-iam-check", "--set-env-vars", "--set-secrets")
+                   "--invoker-iam-check", "--no-invoker-iam-check", "--set-env-vars", "--update-env-vars",
+                   "--set-secrets")
 
 
 def load():
@@ -221,16 +222,17 @@ def test_deploy_sh_and_the_workflow_deploy_both_services_the_same_way():
 
 
 def test_no_cloud_run_flag_is_set_outside_the_flags_file():
+    expected_env = {"f42-agent": "$AGENT_ENV", "f42-api": "${API_ENV},AGENT_URL=${AGENT_URL}"}
     for body in (text(DEPLOY_SH), runs(load())):
         for service, command in deploy_commands(body).items():
             words = command.split()
             for flag in CLOUD_RUN_FLAGS:
-                if flag in ("--set-env-vars", "--set-secrets"):
+                if flag in ("--update-env-vars", "--set-secrets"):
                     continue
                 assert flag not in words, (service, flag)
-            env = re.search(r'--set-env-vars "([^"]+)"', command).group(1)
-            prefix = SERVICE_VARS[service]
-            assert env in (f"${prefix}_ENV", f"${{{prefix}_ENV}},AGENT_URL=${{AGENT_URL}}"), (service, env)
+            assert "--set-env-vars" not in command, service
+            env = re.findall(r'--update-env-vars "([^"]+)"', command)
+            assert env == [expected_env[service]], (service, env)
 
 
 def test_the_agent_is_deployed_first_and_the_api_gets_its_url():
