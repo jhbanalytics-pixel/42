@@ -13,6 +13,7 @@ import './styles/today42.css';
 import './styles/investigations42.css';
 import {readerFigure} from './api.js';
 import {validateAnswer} from './answerContract.js';
+import {plainGapWhat} from './ask42.jsx';
 import {createInvestigation, createInvestigationDossier, getInvestigation, listInvestigations, startInvestigation, stopInvestigation, streamInvestigation, updateInvestigationPlan} from './api42.js';
 import {downloadExport} from './askTransport42.js';
 import {go} from './router.js';
@@ -738,7 +739,7 @@ function InvestigationAnswer({record, investigationId, onFailure}){
         <p className="ask42-meta">{metaLine(record)}</p>
         {ANSWER_STATUS[answer.status] && <p className="ask42-status">{ANSWER_STATUS[answer.status]}</p>}
         {record.status === 'stopped' && <p className="ask42-status">Stopped early: this answer holds only what had passed its checks</p>}
-        <p id={shortId} className="ask42-short">{answer.short_answer}</p>
+        <p id={shortId} className="ask42-short">{String(answer.short_answer || '').trim() ? answer.short_answer : plainGapWhat((answer.gaps || []).find((gap) => /short[ _-]answer|summary/i.test(gap.searched))?.what) || 'No summary: see the claims below'}</p>
 
         {answer.claims && answer.claims.length > 0 && (
           <ol className="ask42-claims" aria-label="Claims">

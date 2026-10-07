@@ -607,6 +607,35 @@ test('a finished investigation renders its answer as Ask does: short answer, lab
   expect(primaries.map((node) => plain(node.textContent))).toEqual(['Open as dossier']);
 });
 
+for (const [label, summary, gaps, expected] of [
+  ['empty', '', [], 'No summary: see the claims below'],
+  ['whitespace', ' \n\t ', [], 'No summary: see the claims below'],
+  ['unrelated gap', '', [{what: 'No Instagram posts in the window', searched: 'Instagram', why: 'empty'}], 'No summary: see the claims below'],
+  ['summary gap', '', [{what: 'One-line summary removed: it repeated a claim that did not pass its checks', searched: 'the short answer text', why: 'partial'}], 'One-line summary removed: it repeated a claim that did not pass its checks'],
+  ['real summary', '  The checked findings stay here.  ', [{what: 'An earlier summary was removed', searched: 'the short answer text', why: 'partial'}], '  The checked findings stay here.  '],
+]){
+  test('a finished investigation preserves claims with an ' + label + ' summary', async () => {
+    const body = finished();
+    body.record.answer.short_answer = summary;
+    body.record.answer.status = 'partial';
+    body.record.answer.gaps = gaps;
+    await openDraft(body);
+    await until(() => host.querySelector('.ask42-short'), 'the summary');
+    const paragraph = host.querySelector('.ask42-short');
+    expect(paragraph.textContent).toBe(expected);
+    expect(host.querySelector('.ask42-answer').getAttribute('aria-describedby')).toBe(paragraph.id);
+    expect([...host.querySelectorAll('.ask42-claim-text')].map((node) => node.textContent)).toEqual(completeRecord.answer.claims.map((claim) => claim.text));
+  });
+}
+
+test('a null investigation summary still fails the answer contract', async () => {
+  const body = finished();
+  body.record.answer.short_answer = null;
+  await openDraft(body);
+  await until(() => text().includes('This answer did not pass its checks'), 'the refusal');
+  expect(host.querySelector('.ask42-answer')).toBeNull();
+});
+
 test('cited source disclosure keeps focus when expanding and collapsing', async () => {
   await openDraft(finished());
   await until(() => text().includes(completeRecord.answer.short_answer), 'the answer');

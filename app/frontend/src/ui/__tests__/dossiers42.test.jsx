@@ -340,6 +340,31 @@ test('a draft shows its title, summary and claims with their confidence words, c
   expect(text()).toContain('No Instagram posts in the window');
 });
 
+for (const surface of ['draft', 'frozen', 'shared']){
+  for (const [label, summary, gaps, expected] of [
+    ['null', null, [], 'No summary: see the claims below'],
+    ['empty', '', [], 'No summary: see the claims below'],
+    ['whitespace', ' \n\t ', [], 'No summary: see the claims below'],
+    ['unrelated gap', '', [{what: 'No Instagram posts in the window', searched: 'Instagram', why: 'empty'}], 'No summary: see the claims below'],
+    ['summary gap', '', [{what: 'One-line summary removed: it repeated a claim that did not pass its checks', searched: 'the short answer text', why: 'partial'}], 'One-line summary removed: it repeated a claim that did not pass its checks'],
+    ['real summary', '  The checked findings stay here.  ', [{what: 'An earlier summary was removed', searched: 'the short answer text', why: 'partial'}], '  The checked findings stay here.  '],
+  ]){
+    test('a ' + surface + ' dossier preserves claims with an ' + label + ' summary', async () => {
+      const body = surface === 'draft' ? draft() : frozen();
+      body.summary = summary;
+      body.answer_status = 'partial';
+      body.gaps = gaps;
+      serve([['GET', surface === 'shared' ? '/api/dossiers/d_fixture01/versions/2' : '/api/dossiers/d_fixture01', json(200, body)]]);
+      await act(async () => root.render(surface === 'shared'
+        ? <SharedDossier dossierId="d_fixture01" version="2" onAuth={() => {}} />
+        : <DossierPage dossierId="d_fixture01" onAuth={() => {}} />));
+      await until(() => host.querySelector('.dossiers42-summary'), 'the summary');
+      expect(host.querySelector('.dossiers42-summary').textContent).toBe(expected);
+      expect([...host.querySelectorAll('.dossiers42-claim-text')].map((node) => node.textContent)).toEqual(body.claims.map((claim) => claim.text));
+    });
+  }
+}
+
 test('Single source and Inferred claims are marked as needing a tick; the others are not', async () => {
   await openDraft();
   expect(plain(claimItem(c1.text).textContent)).not.toContain('needs a tick');
