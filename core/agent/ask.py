@@ -437,6 +437,8 @@ def describe_tool(name: str, tool_input: dict, progress: Progress) -> tuple[str,
     """(kind, text, platform) for one tool use, in plain words. A line that would repeat an age, demographic or
     search-volume term, or an unpinned figure, from the model's input becomes the tool's generic line."""
     name = name.rsplit("__", 1)[-1]
+    if name == "query_rows":
+        return "read", "Reading saved query results", None
     kind, text, platform = _describe(name, tool_input, progress)
     written = str(tool_input.get(MODEL_INPUT[name]) or "") if name in MODEL_INPUT else ""
     if _text_breaches(text) or _unpinned(written, []):

@@ -1,4 +1,4 @@
-"""42's fourteen tools with no model SDK attached: schemas, descriptions, the guards and the plain functions.
+"""42's fifteen tools with no model SDK attached: schemas, descriptions, the guards and the plain functions.
 
 The Gemini function-calling loop in core/agent/gemini_research.py uses these. Nothing here imports google.genai.
 """
@@ -23,11 +23,11 @@ from core.agent.tools.socialcrawl import (
     normalise_route,
     socialcrawl_call,
 )
-from core.agent.tools.sql_query import check_sql, sql_query, warehouse_map_text
+from core.agent.tools.sql_query import QUERY_PAGE_ROWS, check_sql, query_preview, query_rows, sql_query, warehouse_map_text
 
 TOOL_NAMES = ["sql_query", "search_posts", "socialcrawl_call", "rising_topics", "recall_findings", "save_finding",
               "budget_status", "resolve_dates", "get_comments", "get_transcript", "watch_video", "log_forecast",
-              "history", "analogues"]
+              "query_rows", "history", "analogues"]
 # A SocialCrawl failure can carry a URL with a key, so these tools report only the exception type.
 SOCIALCRAWL_TOOLS = ("socialcrawl_call", "get_comments", "get_transcript", "watch_video")
 _ERROR_CHARS = 300
@@ -125,10 +125,22 @@ SCHEMAS = {
         "market": {"type": "string", "enum": list(MARKETS)},
         "k": {"type": "integer", "minimum": 1, "maximum": MAX_K},
     }),
+    "query_rows": _schema({
+        "query_id": {**_STR, "description": "A query_id already recorded in this question."},
+        "offset": {"type": "integer", "minimum": 0, "default": 0,
+                   "description": "Zero-based position in the original recorded order."},
+        "limit": {"type": "integer", "minimum": 1, "maximum": QUERY_PAGE_ROWS, "default": QUERY_PAGE_ROWS},
+    }, ["query_id"]),
 }
 
 DESCRIPTIONS = {
-    "sql_query": "Run one read-only query over 42's warehouse. Returns rows, query_id, bytes and result_hash. "
+    "sql_query": "Run one read-only query over 42's warehouse. Returns the first ten rows in recorded order, "
+                 "query_id, bytes, result_hash, row_count, recorded_row_count, columns, truncated and preview. "
+                 "row_count is accessible recorded rows (at most 500), not a corpus total. recorded_row_count "
+                 "includes any over-limit sentinel covered by result_hash. truncated means further query rows "
+                 "may exist. preview gives offset, limit, returned, has_more and next_offset. Use query_rows "
+                 "to inspect any omitted visible row before reasoning from it; do not treat a preview as the "
+                 "whole result. The writer and checks keep the original stored rows. "
                  "Cite the query_id for every number. Use only these names; any other table fails. "
                  + warehouse_map_text(),
     "search_posts": "Search stored posts by full text and meaning. Free. Returns evidence. Words in the query must all "
@@ -159,6 +171,12 @@ DESCRIPTIONS = {
                "query_id.",
     "analogues": "Items in 42's cultural map nearest to an item by meaning, each with its past waves. Says when it "
                  "falls back to shared label words. Cite each row's query_id.",
+    "query_rows": "Read exact rows from a query already recorded in this question, without querying the warehouse "
+                  "or spending source credits. Returns rows in their original order with query_id, result_hash, "
+                  "row_count, recorded_row_count, columns, truncated and preview (offset, limit, returned, has_more, "
+                  "next_offset). Read up to fifty rows per call. Follow next_offset until has_more is false when "
+                  "the whole visible result is needed. row_count is the accessible recorded result, at most 500, "
+                  "never a complete corpus count. Cite the original query_id for every number.",
 }
 
 
@@ -171,7 +189,7 @@ def build_functions(ctx: RunContext, warehouse, client, writer) -> dict:
         return {"from": start.isoformat(), "to": end.isoformat()}
 
     functions = {
-        "sql_query": lambda **a: sql_query(ctx, warehouse, **a),
+        "sql_query": lambda **a: query_preview(ctx, sql_query(ctx, warehouse, **a)),
         "search_posts": lambda **a: wh.search_posts(ctx, warehouse, **a),
         "socialcrawl_call": lambda **a: socialcrawl_call(ctx, client, **{"params": {}, **a}, warehouse=warehouse),
         "rising_topics": lambda **a: wh.rising_topics(ctx, warehouse, **a),
@@ -183,6 +201,7 @@ def build_functions(ctx: RunContext, warehouse, client, writer) -> dict:
         "get_transcript": lambda **a: get_transcript(ctx, client, **a),
         "watch_video": lambda **a: watch_video(ctx, client, warehouse=warehouse, **a),
         "log_forecast": lambda **a: log_forecast(ctx, warehouse, writer, **a),
+        "query_rows": lambda **a: query_rows(ctx, **a),
         "history": lambda **a: history(ctx, warehouse, **a),
         "analogues": lambda **a: analogues(ctx, warehouse, **a),
     }

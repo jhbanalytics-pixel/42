@@ -252,7 +252,7 @@ def test_the_tool_count_text_is_honest():
     for name in ("toolset.py", "gemini_research.py"):
         text = (root / name).read_text(encoding="utf-8")
         assert "thirteen" not in text, name
-    assert len(toolset.TOOL_NAMES) == 14
+    assert len(toolset.TOOL_NAMES) == 15
 
 
 def test_watch_video_is_refused_while_video_daily_clips_is_zero(monkeypatch):

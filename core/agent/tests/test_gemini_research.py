@@ -74,8 +74,8 @@ def test_a_tool_call_runs_its_function_and_the_model_gets_the_result_back(monkey
     assert cfg.system_instruction == "You are 42's lead analyst."
     assert [d.name for d in cfg.tools[0].function_declarations] == [
         "sql_query", "search_posts", "socialcrawl_call", "rising_topics", "recall_findings", "save_finding",
-        "budget_status", "resolve_dates", "get_comments", "get_transcript", "watch_video", "log_forecast", "history",
-        "analogues"]
+        "budget_status", "resolve_dates", "get_comments", "get_transcript", "watch_video", "log_forecast", "query_rows",
+        "history", "analogues"]
     assert cfg.automatic_function_calling.disable is True
 
 

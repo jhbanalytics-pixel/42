@@ -1,6 +1,6 @@
 """Ask's research loop on Gemini function calling (ask.default_research runs it).
 
-The model sees only 42's fourteen tools (core/agent/toolset.py). The guards (toolset.guard) run here before every
+The model sees only 42's fifteen tools (core/agent/toolset.py). The guards (toolset.guard) run here before every
 call, the tier's turn and USD budgets stop the loop, and progress steps come from the same
 ask.describe_tool lines. The model's own turn is appended to the history unchanged, so Gemini's thought signatures
 go back with it.
@@ -32,7 +32,7 @@ INPUT_FRAMING_TOKENS = 512
 # Read-only warehouse tools: no credits, no writes outside the run's own records. Consecutive calls to these in one
 # model turn run at the same time; every other tool runs alone, in order.
 PARALLEL_TOOLS = ("sql_query", "search_posts", "rising_topics", "recall_findings", "history", "analogues",
-                  "resolve_dates")
+                  "resolve_dates", "query_rows")
 PARALLEL_WORKERS = 4
 # Failed calls a read tool (PARALLEL_TOOLS) may make in one question before the loop stops running it. A live Ask on 4 October spent 39
 # steps guessing table names and never wrote an answer; past this point the model is told to finish with what it has.

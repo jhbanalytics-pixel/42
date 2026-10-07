@@ -1,4 +1,4 @@
-"""42's fourteen tools without a model SDK (core/agent/toolset.py): the guard every call passes before its function
+"""42's fifteen tools without a model SDK (core/agent/toolset.py): the guard every call passes before its function
 runs, and the result and error wording run_plain gives the research loop."""
 
 import json
@@ -119,7 +119,7 @@ def refusals(ctx, name, args):
 def test_tool_names():
     assert toolset.TOOL_NAMES == ["sql_query", "search_posts", "socialcrawl_call", "rising_topics", "recall_findings",
                                   "save_finding", "budget_status", "resolve_dates", "get_comments", "get_transcript",
-                                  "watch_video", "log_forecast", "history", "analogues"]
+                                  "watch_video", "log_forecast", "query_rows", "history", "analogues"]
 
 
 def test_every_tool_has_a_closed_schema_and_a_description(warehouse_module):

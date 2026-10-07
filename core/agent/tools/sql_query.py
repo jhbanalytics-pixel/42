@@ -16,6 +16,8 @@ ALLOWED_DATASETS = ("intelligence_42_core", "intelligence_42_agent")
 ALLOWED_TVFS = {"intelligence_42_agent.tvf_search_posts", "intelligence_42_agent.tvf_item_timeseries"}  # DATA.md 7
 MAX_BYTES_BILLED = 2_000_000_000
 MAX_ROWS = 500
+QUERY_PREVIEW_ROWS = 10
+QUERY_PAGE_ROWS = 50
 # Forecasts stay hidden from the agent until weekly_score says they beat persistence (TRUST.md K9). log_forecast's
 # dedup read is the one query allowed to name the forecasts table, through _run_query.
 HIDDEN_TABLES = (
@@ -307,6 +309,45 @@ def sql_query(
 ) -> dict:
     """Check, dry-run, run and record one read-only query. Returns at most 500 rows."""
     return _run_query(ctx, warehouse, sql, purpose, params, max_bytes_billed)
+
+
+def query_rows(ctx: RunContext, query_id: str, offset: int = 0, limit: int = QUERY_PAGE_ROWS) -> dict:
+    """Read a bounded page of an existing query's visible rows, without another warehouse call."""
+    for name, value in (("offset", offset), ("limit", limit)):
+        if not (type(value) is int or type(value) is float and value.is_integer()):
+            raise Refused(f"{name} must be an integer.")
+    offset, limit = int(offset), int(limit)
+    if not 1 <= limit <= QUERY_PAGE_ROWS:
+        raise Refused(f"limit must be between 1 and {QUERY_PAGE_ROWS}.")
+    with ctx.lock:
+        query = ctx.queries.get(query_id) if isinstance(query_id, str) else None
+    if query is None:
+        raise Refused("query_id must name a query recorded in this question.")
+    recorded = query["rows"]
+    rows = recorded[:MAX_ROWS]
+    if not 0 <= offset <= len(rows):
+        raise Refused("offset must be within this query's visible recorded rows.")
+    page = rows[offset:offset + limit]
+    next_offset = offset + len(page)
+    has_more = next_offset < len(rows)
+    return {
+        "query_id": query_id,
+        "rows": page,
+        "row_count": len(rows),
+        "recorded_row_count": len(recorded),
+        "columns": sorted({column for row in rows for column in row}),
+        "result_hash": query["result_hash"],
+        "truncated": len(recorded) > MAX_ROWS,
+        "preview": {"offset": offset, "limit": limit, "returned": len(page), "has_more": has_more,
+                    "next_offset": next_offset if has_more else None},
+    }
+
+
+def query_preview(ctx: RunContext, result: dict) -> dict:
+    """Compact the researcher's recorded result; unrecorded search-interest rows stay whole."""
+    if result.get("query_id") is None:
+        return result
+    return {**result, **query_rows(ctx, result["query_id"], limit=QUERY_PREVIEW_ROWS)}
 
 
 def _run_query(ctx: RunContext, warehouse: Warehouse, sql: str, purpose: str, params: dict | None = None,
