@@ -201,10 +201,37 @@ def test_a_writer_call_failing_for_another_reason_is_not_retried():
 
 def test_a_stop_request_cancels_the_retry():
     b = budget()
-    stops = iter([False, True])
-    model = ask._StopAwareModel(Writer(ServerError(503), {"ok": True}), lambda: next(stops), b)
+    writer = Writer(ServerError(503), {"ok": True})
+    model = ask._StopAwareModel(writer, lambda: writer.calls > 0, b)
 
     with pytest.raises(ServerError):
         model.complete_json(**KWARGS)
 
     assert model.model.calls == 1
+    assert b.stopped
+    assert b.booked_usd == b.conservative_usd > 0
+
+
+def test_a_stop_request_before_dispatch_books_no_reservation():
+    b = budget()
+    model = ask._StopAwareModel(Writer({"ok": True}), lambda: True, b)
+
+    with pytest.raises(ask._StopRequested) as caught:
+        model.complete_json(**KWARGS)
+
+    assert caught.value.before_dispatch is True
+    assert model.model.calls == 0
+    assert b.booked_usd == 0
+
+
+def test_a_stop_request_at_reservation_cancels_before_dispatch():
+    b = budget()
+    stops = iter([False, True])
+    model = ask._StopAwareModel(Writer({"ok": True}), lambda: next(stops), b)
+
+    with pytest.raises(ask._StopRequested) as caught:
+        model.complete_json(**KWARGS)
+
+    assert caught.value.before_dispatch is True
+    assert model.model.calls == 0
+    assert b.booked_usd == 0

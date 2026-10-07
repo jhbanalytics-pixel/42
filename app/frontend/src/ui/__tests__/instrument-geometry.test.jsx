@@ -5,10 +5,9 @@ import {existsSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {build as viteBuild} from 'vite';
 
 import {verifyInstrumentPackageInputs} from '../../../scripts/verify-instrument-package.mjs';
-import {cleanupTemporaryPath} from './task4-proof-helpers.js';
+import {buildProduction, cleanupTemporaryPath} from './task4-proof-helpers.js';
 
 const expected = {
   archiveSha256: '2E86002374B1C4BA4127932D22319091EA9FCBC00443776D41E81DDD344276E6',
@@ -87,6 +86,110 @@ function assertExactViewport({requestedWidth, viewportWidth}){
     throw new Error(`Requested width ${requestedWidth} rendered at ${viewportWidth}`);
   }
 }
+
+function assertFieldworkRosterEvidence({surface, fieldwork}){
+  if (surface !== 'fieldwork') return;
+  if (fieldwork?.state !== 'ready' || fieldwork.rosterVisible !== true){
+    throw new Error('Fieldwork did not render its ready source roster');
+  }
+  if (!(fieldwork.rowCount > 0) || !fieldwork.sourceNames.includes('TikTok local feed') || !fieldwork.sourceNames.includes('YouTube trending charts')){
+    throw new Error('Fieldwork did not render the populated source fixture');
+  }
+  if (!(fieldwork.successfulReads > 0)) throw new Error('Fieldwork did not read /api/fieldwork');
+}
+
+const FIELDWORK_ROSTER_EVIDENCE = {
+  surface: 'fieldwork',
+  fieldwork: {state: 'ready', rosterVisible: true, rowCount: 2, sourceNames: ['TikTok local feed', 'YouTube trending charts'], successfulReads: 1},
+};
+
+test.each([
+  ['loading page', {state: 'loading'}, 'ready source roster'],
+  ['error page', {state: 'error'}, 'ready source roster'],
+  ['hidden roster', {rosterVisible: false}, 'ready source roster'],
+  ['empty roster', {rowCount: 0, sourceNames: []}, 'populated source fixture'],
+  ['static heading without fixture rows', {sourceNames: ['Sources by market']}, 'populated source fixture'],
+  ['legacy endpoint only', {successfulReads: 0}, '/api/fieldwork'],
+])('Fieldwork geometry rejects %s', (_name, changes, message) => {
+  const evidence = {...FIELDWORK_ROSTER_EVIDENCE, fieldwork: {...FIELDWORK_ROSTER_EVIDENCE.fieldwork, ...changes}};
+  expect(() => assertFieldworkRosterEvidence(evidence)).toThrow(message);
+});
+
+test('Fieldwork geometry accepts a visible populated roster read from its current endpoint', () => {
+  expect(() => assertFieldworkRosterEvidence(FIELDWORK_ROSTER_EVIDENCE)).not.toThrow();
+});
+
+function isFullyClippedCopy({width, height, position, display, overflowX, overflowY, clip}){
+  return width > 0 && width <= 1 && height > 0 && height <= 1
+    && (position === 'absolute' || position === 'fixed') && display !== 'contents' && display !== 'none'
+    && overflowX === 'hidden' && overflowY === 'hidden'
+    && clip === 'rect(0px, 0px, 0px, 0px)';
+}
+
+const CLIPPED_COPY = {width: 1, height: 1, position: 'absolute', display: 'block', overflowX: 'hidden', overflowY: 'hidden', clip: 'rect(0px, 0px, 0px, 0px)'};
+test.each([
+  ['missing clip', {clip: 'auto'}],
+  ['visible horizontal overflow', {overflowX: 'visible'}],
+  ['visible vertical overflow', {overflowY: 'visible'}],
+  ['visible width', {width: 10}],
+  ['visible height', {height: 10}],
+  ['static positioning', {position: 'static'}],
+  ['relative positioning', {position: 'relative'}],
+  ['contents display', {display: 'contents', width: 0, height: 0}],
+  ['zero width', {width: 0}],
+  ['zero height', {height: 0}],
+])('visible geometry still checks an accessibility copy with %s', (_name, changes) => {
+  expect(isFullyClippedCopy({...CLIPPED_COPY, ...changes})).toBe(false);
+});
+test('visible geometry excludes only the fully clipped accessibility copy', () => {
+  expect(isFullyClippedCopy(CLIPPED_COPY)).toBe(true);
+  expect(isFullyClippedCopy({...CLIPPED_COPY, position: 'fixed'})).toBe(true);
+});
+
+test('painted copies with static positioning or contents display remain visible geometry targets', async () => {
+  const chrome = chromePath();
+  if (!chrome) throw new Error('Chrome executable is required for clipping geometry');
+  const root = mkdtempSync(join(tmpdir(), 'lp-clipping-geometry-'));
+  const profile = join(root, 'chrome-profile');
+  const chromeProcess = spawn(chrome, [
+    '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+    '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank',
+  ], {stdio: 'ignore', windowsHide: true});
+  let client;
+  try {
+    client = await pageClient(await chromePort(profile), 'about:blank');
+    await client.command('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 1, mobile: false});
+    const evaluated = await client.command('Runtime.evaluate', {returnByValue: true, expression: `(() => {
+      document.head.innerHTML = '<style>body{margin:0;position:relative}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0px,0px,0px,0px)}#escaped-copy{position:absolute;left:-30px;top:20px;width:200px;height:40px;background:red}</style>';
+      document.body.innerHTML = '<div id="copy" class="sr-only"><span id="escaped-copy">Visible escaped copy</span></div>';
+      const classify = ${isFullyClippedCopy.toString()};
+      const copy = document.getElementById('copy');
+      const child = document.getElementById('escaped-copy');
+      const read = () => {
+        const rect = copy.getBoundingClientRect();
+        const style = getComputedStyle(copy);
+        const hit = document.elementFromPoint(20, 30);
+        return {width: rect.width, height: rect.height, position: style.position, display: style.display, childLeft: child.getBoundingClientRect().left, paintedHit: hit === child || child.contains(hit), pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, classifiedClipped: classify({width: rect.width, height: rect.height, position: style.position, display: style.display, clip: style.clip, overflowX: style.overflowX, overflowY: style.overflowY})};
+      };
+      const baseline = read();
+      copy.style.position = 'static';
+      const staticPosition = read();
+      copy.style.display = 'contents';
+      return {baseline, staticPosition, contents: read()};
+    })()`});
+    if (evaluated.exceptionDetails) throw new Error(evaluated.exceptionDetails.exception?.description || evaluated.exceptionDetails.text);
+    const result = evaluated.result.value;
+    expect(result.baseline).toMatchObject({width: 1, height: 1, position: 'absolute', classifiedClipped: true, paintedHit: false, pageOverflow: 0});
+    expect(result.staticPosition).toMatchObject({width: 1, height: 1, position: 'static', classifiedClipped: false, paintedHit: true, pageOverflow: 0});
+    expect(result.contents).toMatchObject({width: 0, height: 0, display: 'contents', classifiedClipped: false, paintedHit: true, pageOverflow: 0});
+    expect(result.staticPosition.childLeft).toBeLessThan(0);
+    expect(result.contents.childLeft).toBeLessThan(0);
+  } finally {
+    if (client) await client.dispose();
+    if (chromeProcess.exitCode === null){ chromeProcess.kill(); await Promise.race([once(chromeProcess, 'exit'), wait(5000)]); }
+    cleanupTemporaryPath(root);
+  }
+}, 30000);
 
 test.each([768, 411])('requested width 390 rejects actual viewport %i', (viewportWidth) => {
   expect(() => assertExactViewport({requestedWidth: 390, viewportWidth})).toThrow(
@@ -456,7 +559,8 @@ const required=${JSON.stringify(route.selector)};
 const composition=${JSON.stringify(route.composition || '')};
 const surface=${JSON.stringify(route.surface)};
 const expectedText=${JSON.stringify(route.expectedText || '')};
-const visible=e=>{const closed=e.closest('details:not([open])');if(closed&&e.tagName!=='SUMMARY')return false;const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'&&s.opacity!=='0'};
+const fullyClippedCopy=${isFullyClippedCopy.toString()};
+const visible=e=>{const copy=e.closest('.sr-only');if(copy){const r=copy.getBoundingClientRect(),s=getComputedStyle(copy);if(fullyClippedCopy({width:r.width,height:r.height,position:s.position,display:s.display,overflowX:s.overflowX,overflowY:s.overflowY,clip:s.clip}))return false}const closed=e.closest('details:not([open])');if(closed&&e.tagName!=='SUMMARY')return false;const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'&&s.opacity!=='0'};
 const target=e=>e?(e.id?'#'+e.id:e.tagName.toLowerCase()+(e.classList[0]?'.'+e.classList[0]:'')):'none';
 const deadline=Date.now()+5000;
 while(Date.now()<deadline){if(document.querySelector(required)&&(!composition||document.querySelector(composition))&&(!expectedText||document.body.innerText.includes(expectedText)))break;await wait(50)}
@@ -506,7 +610,9 @@ const scrollClippedByTable=e=>{const region=e.closest('.c42-scroll');if(!region|
 const clippedSvgChild=e=>{const svg=e.closest('svg');return !!svg&&e!==svg&&inViewport(svg)};
 const escaping=[...document.body.querySelectorAll('*')].filter(e=>{if(!visible(e))return false;const r=e.getBoundingClientRect();return(r.left<-.5||r.right>innerWidth+.5)&&!scrollClippedByTable(e)&&!clippedSvgChild(e)}).map(target);
 const gate=window.__gateC||{console:['missing gate recorder'],requests:[],resourceFailures:[]};
-return{authority:'42-production-build',surface,requestedWidth:${width},viewportWidth:innerWidth,clientWidth:document.documentElement.clientWidth,scrollWidth:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth),surfacePresent:!!document.querySelector(required),compositionPresent,dataPresent:!expectedText||document.body.innerText.includes(expectedText),interactiveTargets,fixtureThumbnails,bodyText:document.body.innerText.slice(0,500),escaping,focusEstablished,focusScope:'document',errors:[...gate.console,...gate.resourceFailures],network:{requests:gate.requests,unfulfilled:gate.requests.filter(r=>!r.ok)},accessibility:{method:'visible-current-route-v1',scope:'visible current route DOM; critical and serious named rules',violations}}})()`;
+const roster=document.querySelector('.fieldwork-roster');
+const fieldwork=surface==='fieldwork'?{state:document.querySelector('.fieldwork-page')?.dataset.fieldworkState,rosterVisible:!!roster&&visible(roster),rowCount:[...document.querySelectorAll('.fieldwork-panel .fieldwork-source')].filter(visible).length,sourceNames:[...document.querySelectorAll('.fieldwork-panel .fieldwork-source__name')].filter(visible).map(node=>node.textContent.trim()),successfulReads:gate.requests.filter(read=>read.ok&&new URL(read.url,location.href).pathname==='/api/fieldwork').length}:null;
+return{authority:'42-production-build',surface,requestedWidth:${width},viewportWidth:innerWidth,clientWidth:document.documentElement.clientWidth,scrollWidth:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth),surfacePresent:!!document.querySelector(required),compositionPresent,dataPresent:!expectedText||document.body.innerText.includes(expectedText),interactiveTargets,fixtureThumbnails,fieldwork,bodyText:document.body.innerText.slice(0,500),escaping,focusEstablished,focusScope:'document',errors:[...gate.console,...gate.resourceFailures],network:{requests:gate.requests,unfulfilled:gate.requests.filter(r=>!r.ok)},accessibility:{method:'visible-current-route-v1',scope:'visible current route DOM; critical and serious named rules',violations}}})()`;
 }
 
 async function renderedMatrix(){
@@ -516,8 +622,8 @@ async function renderedMatrix(){
   const frontendRoot = fileURLToPath(new URL('../../../', import.meta.url));
   const repositoryRoot = fileURLToPath(new URL('../../../../', import.meta.url));
   const serverScript = join(frontendRoot, 'scripts', 'gate-c-local-server.mjs');
-  const productionRoot = join(repositoryRoot, 'web', 'dist');
-  await viteBuild({root: frontendRoot, logLevel: 'error'});
+  const productionRoot = join(root, 'production');
+  buildProduction({frontendRoot, outDir: productionRoot});
   const port = 32000 + (process.pid % 1000);
   const server = spawn(process.execPath, [serverScript, productionRoot, String(port)], {
     cwd: repositoryRoot, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
@@ -559,7 +665,7 @@ async function renderedMatrix(){
       {surface: 'discover', route: 'explore', selector: '.d42', composition: '.d42-cell', expectedText: '#fixture_za_step'},
       {surface: 'compare', route: 'compare?mode=items&items=i_step,i_cola,i_ring&market=ZA&days=7', selector: '.c42', composition: '.c42-result', expectedText: 'Posts in the window'},
       {surface: 'build', route: 'console', selector: '.b42', composition: '.b42-start', expectedText: 'Gate C saved answer fixture'},
-      {surface: 'fieldwork', route: 'fieldwork', selector: '.fieldwork-page', composition: '.fieldwork-body', expectedText: 'Source and research operations'},
+      {surface: 'fieldwork', route: 'fieldwork', selector: '.fieldwork-page', composition: '.fieldwork-roster', expectedText: 'TikTok local feed'},
     ];
     const selectedRoutes = process.env.GATE_C_SURFACE
       ? routes.filter(({surface}) => surface === process.env.GATE_C_SURFACE)
@@ -574,7 +680,15 @@ async function renderedMatrix(){
           awaitPromise: true, returnByValue: true, expression: cellExpression(route, width),
         });
         if (evaluated.exceptionDetails) throw new Error(evaluated.exceptionDetails.exception?.description || evaluated.exceptionDetails.text);
-        results.push(evaluated.result.value);
+        const result = evaluated.result.value;
+        if (route.surface === 'fieldwork' && width === WIDTHS[0]){
+          await client.command('Runtime.evaluate', {expression: `(() => { const copy = document.querySelector('[data-fieldwork-states] table.sr-only'); if (!copy) throw new Error('Fieldwork chart accessibility copy is missing'); copy.style.clip = 'auto'; copy.style.overflow = 'visible'; })()`});
+          const exposed = await client.command('Runtime.evaluate', {awaitPromise: true, returnByValue: true, expression: cellExpression(route, width)});
+          if (exposed.exceptionDetails) throw new Error(exposed.exceptionDetails.exception?.description || exposed.exceptionDetails.text);
+          result.fieldwork.exposedCopyDetected = exposed.result.value.escaping.length > 0 || exposed.result.value.scrollWidth > exposed.result.value.clientWidth;
+          await client.command('Runtime.evaluate', {expression: `document.querySelector('[data-fieldwork-states] table.sr-only').removeAttribute('style')`});
+        }
+        results.push(result);
       }
     }
     return results;
@@ -605,6 +719,8 @@ test('current 42 routes replace retired package 48px and Evidence Room drawer ch
     expect(result.surfacePresent, `${result.surface} current route surface: ${result.bodyText}; ${result.errors.join(' | ')}`).toBe(true);
     expect(result.compositionPresent, `${result.surface} composition at ${result.viewportWidth}`).toBe(true);
     expect(result.dataPresent, `${result.surface} fixture data at ${result.viewportWidth}: ${result.bodyText}`).toBe(true);
+    expect(() => assertFieldworkRosterEvidence(result), `Fieldwork source roster at ${result.viewportWidth}`).not.toThrow();
+    if (result.surface === 'fieldwork' && result.viewportWidth === WIDTHS[0]) expect(result.fieldwork.exposedCopyDetected).toBe(true);
     expect(result.accessibility.method, `${result.surface} accessibility method`).toBe('visible-current-route-v1');
     expect(result.accessibility.violations, `${result.surface} accessibility violations`).toEqual([]);
     expect(result.network.unfulfilled, `${result.surface} unfulfilled requests`).toEqual([]);

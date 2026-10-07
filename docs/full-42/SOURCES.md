@@ -80,7 +80,7 @@ Full reasoning, every platform family's verdict and every route's parameters are
 | | **Confirm 05:15, top 10 per market** | | |
 | 24 | search/multi on the platforms where the candidate is missing, since=first sighting | 30 | ~90 |
 | 25 | tiktok/search/top sort_by=date-posted, same seen id | 20 | ~20 |
-| 26 | tiktok/profile/region or prism/profiles for the lead creators | 20 | 20 |
+| 26 | Account country from tiktok/profile or instagram/profile/about, cached per account | 20 | 20 |
 | 27 | prism/creator-card verify=true for 3 originators; label=injection on evidence rows | 3 | ~20 |
 | | **Confirm total** | | **~150** |
 | | **Reserve** (502/503 are refunded anyway): 6 local-feed calls for breaking items (30); 1 search/everywhere, AI lanes excluded (20) | | **50** |
@@ -154,3 +154,5 @@ GDELT's top ten rising entities per market become search/multi queries with sinc
 ## Blind spots, stated honestly
 
 WhatsApp is private and dominant in all three markets; no tool can see it. Official X trends by location need a paid X tier; the public trends archive and the X hub panels are how 42 sees X in Nigeria and Kenya. YouTube's regional trending chart only covers music, film and gaming since July 2025 (check whether SocialCrawl's route inherits this). The TikTok hashtag board covers ZA only; Nigeria and Kenya rely on the local feed and country-filtered search.
+
+The supplier reply dated 7 October 2026 confirms account country at author.location on tiktok/profile and author.ext.country on instagram/profile/about, one credit each. The collect job reuses explicit reel creator country and cached source-qualified country receipts before another account lookup. Request region and collection market remain separate from post location. Unknown charges retain their existing holds.

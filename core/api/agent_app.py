@@ -1046,6 +1046,8 @@ def shown_record(record):
     """An Ask record as a reader sees it: a skin run's record is masked (contract 15.1), any other is unchanged."""
     if not record or not record.get("skin_id"):
         return record
+    if isinstance(record.get("run"), dict) and "ranked_list" in record["run"]:
+        record = {**record, "run": {k: v for k, v in record["run"].items() if k != "ranked_list"}}
     people = skin_people(record["skin_id"], record)
     return skins.mask_people(record, people["approved"], people["allowed"])
 

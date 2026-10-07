@@ -2,17 +2,21 @@
 
 Every page in the app, what it shows and what it reads. [Back to the README](../../README.md).
 
+These descriptions follow the source code. Availability depends on the deployed version and enabled features.
+
 The app is a React single-page app (`app/frontend/`) with hash routes, served by the `f42-api` service. The menu lives in `app/frontend/src/rail42.jsx`; below 1024 pixels it becomes a bottom bar with Today, Ask, Discover, Alerts and More. The market picker in the header (South Africa, Nigeria, Kenya) applies across pages. Themes are Light, Dark and Match system.
 
 ## Start here
 
 ### Today
-The morning brief for each market: up to five cards, plus up to five more under "more". Each card carries a title, its state word, a cited explanation, the claims behind it with their labels, a count line, a sparkline against its expected band, thumbnails of the posts, and a ready question for Ask. Under the cards: every topic held back with the rule and reason, what dropped since yesterday, moments in the next 14 days, what is on the platforms' own boards, the day's coverage and today's alerts. When a market has no cards, its held topics are grouped by reason under "Held back". A market is marked incomplete when it has a data problem; topics held after checks carry their reasons. During warm-up the page explains why there are no growth claims yet. From any card you can watch it or send feedback.
+The morning brief for each market: up to five cards, plus up to five more under "more". Each card carries a title, its state word, a cited explanation, the claims behind it with their labels, a count line, a sparkline against its expected band, thumbnails of the posts, and a ready question for Ask. Under the cards: topics held back with the rule and reason, what dropped since yesterday, moments in the next 14 days, what is on the platforms' own boards, the day's coverage and today's alerts. When a market has no cards, its held topics are grouped by reason under "Held back". Topics not checked appear separately under "Not assessed", with the recorded selection reason. If the selection audit is unavailable, that coverage is unknown. A market is marked incomplete when it has a data problem or a model capacity interruption; topics held after completed checks carry their reasons. During warm-up the page explains why there are no growth claims yet. From any card you can watch it or send feedback.
 
 Reads `/api/today`, `/api/trends/{id}`, `/api/alerts`, `/api/investigations`, `/api/schedules`; writes `/api/watches`, `/api/feedback`.
 
 ### Ask
 A question in plain words, answered with cited claims while the research streams in. See [the README](../../README.md#ask) and [the trust guide](trust.md) for how answers are checked.
+
+Sound and hashtag questions can show a comparable list among retained checked claims when their counts share a verified basis. It names the market, platform and window, ranks by creators then posts, and shows previous-week counts only when verified. Ties are marked. An untitled sound is labelled as used by a creator, without claiming that creator made it. If the ranking basis cannot be verified, the findings appear without a ranked list.
 
 `POST /api/ask` starts a run; `GET /api/ask/{id}/events` streams `step`, `evidence`, `claim` and `done` events (with a 2-second poll if the stream drops); `POST /api/ask/{id}/stop` stops it; `GET /api/ask/{id}/export?format=html` exports it. Starter questions come from the live trends in `/api/discover`. Forms for a brand lens, a creative context pack and creator fit sit beside the question box and appear when deep reads are switched on.
 
@@ -49,7 +53,7 @@ Past questions, past briefs and saved findings, with search, and each item's ear
 |---|---|---|
 | Compare | Two to five topics, brands, markets, platforms or creators side by side | `/api/compare`, `/api/discover` |
 | Lexicon | The words and hashtags 42 is recording per market | `/api/lexicon` |
-| Communities | Communities defined by shared interest, language and interaction, and one community in detail | `/api/communities`, `/api/communities/{id}` |
+| Communities | Communities grouped by shared topics, with language names and one community in detail. Replies and mentions are not counted yet | `/api/communities`, `/api/communities/{id}` |
 | Seed path | One word traced across platforms | `/api/seed-path` |
 | Seeds | What 42 will search for next and where each seed came from | `/api/seeds` |
 

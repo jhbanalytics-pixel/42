@@ -1,0 +1,65 @@
+{
+  "provenance": {
+    "email_sha256": "e971541b1b5955884214cb618e5e4b87bd785d6b727b5b556e5c30a841aa156f",
+    "email_date": "Wed, 07 Oct 2026 02:08:39 +0000",
+    "profile_capture": {
+      "source": "captured",
+      "captured_at": "2026-10-02T15:40:28.927Z",
+      "redacted": true,
+      "endpoint": "/v1/tiktok/profile",
+      "credits_used": 1
+    },
+    "instagram_about_capture": {
+      "source": "captured",
+      "captured_at": "2026-10-02T15:37:17.812Z",
+      "redacted": true,
+      "endpoint": "/v1/instagram/profile/about",
+      "credits_used": 1
+    }
+  },
+  "tiktok_profile": {
+    "success": true,
+    "data": {
+      "author": {
+        "id": "5831967",
+        "username": "charlidamelio",
+        "display_name": "charli d\u2019amelio",
+        "verified": true,
+        "followers": 160314015,
+        "following": 1442,
+        "posts_count": 3232,
+        "location": "US"
+      },
+      "computed": {
+        "engagement_rate": null,
+        "language": "en",
+        "content_category": "other",
+        "estimated_reach": null
+      },
+      "_warnings": [
+        "computed.engagement_rate: author ratio exceeded 1.0 (raw: 77.038065); returned null. A lifetime likes/followers ratio is not a real engagement rate"
+      ]
+    }
+  },
+  "instagram_about": {
+    "success": true,
+    "data": {
+      "author": {
+        "id": "25025320",
+        "username": "instagram",
+        "display_name": "Instagram",
+        "followers": 686587747,
+        "verified": true,
+        "ext": {
+          "country": "United States"
+        }
+      },
+      "computed": {
+        "engagement_rate": null,
+        "language": "de",
+        "content_category": "other",
+        "estimated_reach": null
+      }
+    }
+  }
+}

@@ -211,6 +211,10 @@ def narrow_today(resp, skin, alerts=None):
         market["held_back"] = {**held, "count": len(kept_held), "items": kept_held,
                                "text": f"{len(kept_held)} held back" if kept_held else "Nothing held back"}
         market["dropped"] = {**dropped, "items": [d for d in dropped["items"] if _matches(pattern, d)]}
+        audit = market.get("not_assessed")
+        if isinstance(audit, dict):
+            unassessed = [item for item in audit.get("items") or [] if _matches(pattern, item)]
+            market["not_assessed"] = {**audit, "count": len(unassessed), "items": unassessed}
         if "breaking" in market:
             market["breaking"] = [b for b in market["breaking"] if _matches(pattern, b)]
         kept = len(market["cards"]) + len(market["more"]) + len(kept_held) + len(market["dropped"]["items"])

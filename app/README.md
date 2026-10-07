@@ -1,10 +1,10 @@
 # 42 analyst application
 
-The 42 analyst application presents evidence from the cultural intelligence engine across South Africa, Nigeria and Kenya. It provides a ranked board, creator and topic views, a slang lexicon, question and investigation workflows, review surfaces and exports.
+The 42 frontend in `frontend/` presents evidence from the cultural intelligence engine across South Africa, Nigeria and Kenya. The current product source defines `f42-api` in `core/api/app.py` and `f42-agent` in `core/api/agent_app.py`, using the `intelligence_42_core` and `intelligence_42_agent` datasets. See the [repository README](../README.md) and [operations guide](../docs/guide/operations.md) for the current architecture and release path.
 
-It is a passcode gated team tool, one service that serves the API and compiled UI. The app contains read routes and controlled write interfaces for question submission, investigation creation and research runs, plus research export routes. Review and exact-version artifact workflows are being completed on the staging branch. These writes do not authorize production changes, client approval or external sends.
+This directory also retains the predecessor API in `src/api/` and its operational notes below. That stack used one passcode gated service for the API and compiled UI, with read routes, controlled question and investigation writes, research runs and exports. Those historical write interfaces do not authorize production changes, client approval or external sends.
 
-## Architecture
+## Historical architecture
 
 - Backend: FastAPI (`src/api/`), one process. Serves `/api/*` and the built UI from `web/dist`.
 - Frontend: Vite + React, vanilla function components, Chart.js plus inline SVG charts. Source in `frontend/src`, compiled to `web/dist`.
@@ -12,11 +12,11 @@ It is a passcode gated team tool, one service that serves the API and compiled U
 - Hosting: one Cloud Run service `listening-post` in `ogilvy-trends-v2`, `us-central1`, pinned to a single instance.
 - Gate: a passcode (`UI_PASSCODE`). The client sends it as the `X-Passcode` header on every `/api/*` call.
 
-## Quick start
+## Historical backend and shared frontend
 
 ```bash
 # Backend tests (BigQuery and Vertex are fully mocked, no credentials needed)
-python -m pytest tests/ -q
+py -3.13 -m pytest tests/ -q
 
 # Lint
 ruff check src/
@@ -31,29 +31,29 @@ node scripts/check_contrast.mjs   # WCAG AA in both themes
 
 Config lives in a `.env` at the repo root (not committed). Copy `infra/env/env-template` and fill it in: `GCP_PROJECT`, `BQ_DATASET`, `UI_PASSCODE`, plus the Gemini values.
 
-## Deploy
+## Historical deployment
 
-The deployment notes below describe the historical Listening Post service path. Treat them as legacy operational material while 42 staging release work is reviewed. Follow the repository bootstrap and current staging runbooks before using any deployment command.
+The deployment notes below describe the historical `listening-post` service path. They are retained as legacy operational material. Use the current operations guide for 42 staging releases.
 
-Two interchangeable paths, both deploy the same way:
+The historical automatic and manual paths deployed the same service:
 
-- Historical automatic path: a main branch update triggered the former Listening Post workflow. That workflow is not configured as the 42 deployment path in this repository. Do not infer hosted deployment from a green local check or a branch update.
+- Historical automatic path: a main branch update triggered the former application workflow. That workflow is not configured as the 42 deployment path in this repository. Do not infer hosted deployment from a green local check or a branch update.
 - Manual: `bash infra/cloud-run/deploy.sh` from a machine with `gcloud` authenticated. It reads the local `.env` and deploys.
 
 Keep the service pinned to one instance (`--min-instances 1 --max-instances 1`): a second instance would split the in-process cache and async asks would poll the wrong one.
 
-## The data rules
+## Historical data rules
 
-Every figure on screen obeys these. They are the point of the product.
+The predecessor application's figures followed this contract:
 
 1. Voices and creators rank by engagement (summed post engagement), never post count (activity). Engagement is the winsorized sum of post engagement.
-2. Share of voice is a relative percent per single market, summing to 100 across the board, and consistent with the mention count on the same row.
+2. Share of voice is a relative % per single market, summing to 100 across the board, and consistent with the mention count on the same row.
 3. Every figure carries its unit, window and market (for example "312M engagement, 30d, ZA"). No bare numbers.
 4. Markets (ZA, NG, KE) never blend into one figure.
 5. Nothing is a forecast. Momentum is observed volume.
 6. Green means up or positive, red means down or negative, only. The accent colour is brand and interactive, never a "good" signal.
 
-## Gotchas
+## Historical gotchas
 
 - Stale cached payloads outlive code fixes. Purge the GCS cache blob and redeploy when a payload shape changes.
 - Generated brief payloads must carry `topic` or the client rejects them as unreadable.

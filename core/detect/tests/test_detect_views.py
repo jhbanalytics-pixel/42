@@ -468,6 +468,44 @@ def test_top3_share_with_tied_creators(con):
     assert w == [{"item_id": "itTie", "top3_share": pytest.approx(7 / 10)}]
 
 
+@pytest.mark.parametrize("known,anonymous,anonymous_age,flagged", [
+    (4, 1, 0, False), (4, 3, 0, False), (5, 1, 0, False),
+    (0, 2, 0, False), (4, 0, 0, False), (5, 0, 0, False),
+    (5, 1, 0, True), (4, 1, 3, False),
+])
+def test_unknown_creator_ids_never_add_to_distinct_creator_floors(
+        con, known, anonymous, anonymous_age, flagged):
+    posts, observations = [], []
+    for index in range(known):
+        for n in range(2):
+            pid = f"known-{index}-{n}"
+            posts.append(post(pid, f"creator-{index}", D))
+            observations.append(obs(pid, D, "unbiased_rank", "sweep"))
+    for index in range(anonymous):
+        pid = f"anonymous-{index}"
+        posts.append(post(pid, None, day(anonymous_age)))
+        observations.append(obs(pid, day(anonymous_age), "unbiased_rank", "sweep"))
+    duck.load(con, "core.posts", posts)
+    duck.load(con, "core.post_observations", observations)
+    duck.load(con, "core.post_items", [{"post_id": p["post_id"], "item_id": "itCreators", "via": "hashtag"}
+                                         for p in posts])
+    if flagged:
+        duck.load(con, "core.creators", [creator("creator-0", coord_score=1)])
+
+    [window] = duck.query(con, "SELECT * FROM {core}.tvf_item_window(@d)", {"d": D})
+
+    recent_anonymous = anonymous if anonymous_age < 3 else 0
+    recent_posts = 2 * known + recent_anonymous
+    expected_creators = known - int(flagged)
+    assert window["creators3"] == expected_creators
+    assert (window["creators3"] >= 5) is (expected_creators >= 5)
+    assert window["posts3"] == recent_posts - 2 * int(flagged)
+    assert window["posts3_prev"] == (anonymous if anonymous_age == 3 else 0)
+    assert window["posts7"] == window["seen7_all"] == len(posts)
+    assert window["top_creator_share3"] == pytest.approx(max(2 if known else 0, recent_anonymous) / recent_posts)
+    assert con.execute("SELECT COUNT(*) FROM core.posts").fetchone()[0] == len(posts)
+
+
 def test_repeated_enrichment_rows_count_each_post_once(con):
     # e1 has two identical rows (an embed retry); e3 has two that disagree, and each field takes the
     # cautious value: the largest near_dup_size, and sponsored if any row says so

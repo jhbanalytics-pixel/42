@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 import {
   cpSync,
   existsSync,
@@ -11,12 +12,20 @@ import {
 } from 'node:fs';
 import {tmpdir} from 'node:os';
 import {extname, join, relative, resolve, sep} from 'node:path';
-import {build as viteBuild} from 'vite';
 
 const PACKAGE_NAME = 'ogilvy-intelligence-design-system';
 const DEPENDENCY = 'file:vendor/ogilvy-intelligence-design-system-2.0.22.tgz';
 const RESOLUTION = 'ogilvy-intelligence-design-system@vendor/ogilvy-intelligence-design-system-2.0.22.tgz';
 const INTEGRITY = 'sha512-j7HRpNTWINmkGP25Q4knlZ9x7FTde62rMlx9kZAHm/ErZDw737C82rRkOE6lIc71OyJjn5B+KbYGWV8Sc+k0Xw==';
+
+export function buildProduction({frontendRoot, outDir, logLevel='error'}){
+  const result = spawnSync('node', [
+    join(frontendRoot, 'node_modules', 'vite', 'bin', 'vite.js'),
+    'build', '--outDir', outDir, '--emptyOutDir', '--logLevel', logLevel,
+  ], {cwd: frontendRoot, encoding: 'utf8', timeout: 60000, windowsHide: true});
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`Production build exited ${result.status}: ${result.stderr || result.stdout}`);
+}
 
 function parseBunTextLock(lock){
   return JSON.parse(lock.replace(/,\s*([}\]])/g, '$1'));
@@ -304,11 +313,7 @@ export async function probeProductionStyleBoundary({chromePath, frontendRoot}){
   const preexistingOutputBefore = treeSnapshot(preexistingOutputRoot);
   let proof;
   try {
-    await viteBuild({
-      root: frontendRoot,
-      logLevel: 'silent',
-      build: {outDir: built, emptyOutDir: true},
-    });
+    buildProduction({frontendRoot, outDir: built, logLevel: 'silent'});
     cpSync(built, normal, {recursive: true});
     cpSync(built, failed, {recursive: true});
     instrumentIndex(normal);

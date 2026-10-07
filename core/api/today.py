@@ -14,6 +14,7 @@ from core.api.held_words import plain_reason as _plain_reason
 from core.api.searching import searching_now
 from core.api.store import canon_platform, creator_key
 from core.brief.explain import _one_step_lower, _place_fault, _sentence_fault, _source_evidence
+from core.brief.payload import NOT_ASSESSED_REASONS
 from core.brief.specificity import MIN_EVIDENCE, showable_posts
 from core.public_feeds.catalog import FEEDS
 from core.trust.claims import LABELS as CLAIM_LABELS
@@ -42,7 +43,7 @@ FLAG_WORDS = {"likely_coordinated": "Likely coordinated", "check_pattern": "Unus
               "not_assessed": "Not assessed (thin sample)", "market_unconfirmed": "Market unconfirmed",
               "data_issue": "Data issue"}
 DROPPED_WORDS = {"faded": "Faded", "held_back": "Held back", "reclassified_seasonal": "Reclassified as Seasonal",
-                 "not_confirmed": "Not confirmed today"}
+                 "not_confirmed": "Not confirmed today", "not_assessed": "Not assessed this morning"}
 HELD_SEE_BELOW = "Held back today; see why below"
 FIRST_MORNING = "First morning: nothing to compare yet"
 PLATFORM_WORDS = {"tiktok": "TikTok", "instagram": "Instagram", "youtube": "YouTube", "x": "X", "reddit": "Reddit",
@@ -852,11 +853,54 @@ def _moments(calendar_rows, payload, market):
     return sorted(out, key=lambda m: (m["date"], m["name"]))
 
 
+def _not_assessed(payload, excluded=()):
+    block = payload.get("not_assessed")
+    if not isinstance(block, dict):
+        return None
+    detect, pool, judged, count, raw = (block.get(key) for key in
+        ("detect_run_id", "pool_limit", "judged_limit", "count", "items"))
+    if (not isinstance(detect, str) or not detect.strip() or type(pool) is not int or pool <= 0
+            or type(judged) is not int or judged <= 0 or type(count) is not int
+            or not isinstance(raw, list) or count != len(raw)):
+        return None
+    represented = set(excluded)
+    represented.update(c.get("item_id") for key in ("cards", "more") for c in payload.get(key) or []
+                       if isinstance(c, dict))
+    held = payload.get("held_back") if isinstance(payload.get("held_back"), dict) else {}
+    represented.update(c.get("item_id") for c in held.get("items") or [] if isinstance(c, dict))
+    represented.update(item_id for moment in payload.get("moments") or [] if isinstance(moment, dict)
+                       for item_id in moment.get("item_ids") or [])
+    items, seen = [], set()
+    for item in raw:
+        if not isinstance(item, dict):
+            return None
+        item_id, title, reason, rank, pool_rank, scope = (item.get(key) for key in
+            ("item_id", "title", "reason", "sql_rank", "pool_rank", "market_scope"))
+        if (not isinstance(item_id, str) or not item_id.strip() or item_id in seen
+                or not isinstance(title, str) or not title.strip() or item.get("status") != "not_assessed"
+                or not isinstance(reason, str) or reason not in NOT_ASSESSED_REASONS
+                or type(rank) is not int or rank <= 0
+                or scope not in ("market", "global", None)
+                or (reason == "outside_candidate_pool" and (rank <= pool or pool_rank is not None))
+                or (reason != "outside_candidate_pool" and (rank > pool or type(pool_rank) is not int
+                                                           or not 1 <= pool_rank <= pool))):
+            return None
+        seen.add(item_id)
+        if item_id in represented:
+            continue
+        items.append({"item_id": item_id, "title": title, "status": "not_assessed", "reason": reason,
+            "reason_text": NOT_ASSESSED_REASONS[reason], "sql_rank": rank, "pool_rank": pool_rank,
+            "market_scope": scope})
+    return {"detect_run_id": detect, "pool_limit": pool, "judged_limit": judged, "count": len(items), "items": items}
+
+
 def _dropped(payload, prev, today_ids, moments):
     if prev is None:
         return {"first_morning": True, "text": FIRST_MORNING, "items": []}
     held = {i["item_id"]: i for i in (payload.get("held_back") or {}).get("items") or []}
     seasonal_ids = {i for m in moments for i in m.get("item_ids") or []}
+    audit = _not_assessed(payload, today_ids | seasonal_ids)
+    unassessed = {item["item_id"] for item in audit["items"]} if audit is not None else set()
     items = []
     for c in _entries(prev[1]["payload"]):
         if c["item_id"] in today_ids:
@@ -865,6 +909,8 @@ def _dropped(payload, prev, today_ids, moments):
             reason = "held_back"
         elif c["item_id"] in seasonal_ids:
             reason = "reclassified_seasonal"
+        elif c["item_id"] in unassessed:
+            reason = "not_assessed"
         else:
             reason = "not_confirmed"
         words = DROPPED_WORDS[reason]
@@ -1184,6 +1230,9 @@ def _market(store, market, date, row, health_rows, calendar_rows, warmup, collec
         held_items.append(_reader_held_item(card, creator_labels))
     held_text = (f"{len(held_items)} item{'s' if len(held_items) != 1 else ''} held back"
                  if held_items else "Nothing held back")
+    represented = today_ids | held_ids | {i for m in moments for i in m.get("item_ids") or []}
+    not_assessed = (_not_assessed(payload, represented)
+                    if getattr(store, "_hidden", ()) is not None else None)
 
     banners = []
     if warmup["active"]:
@@ -1228,8 +1277,9 @@ def _market(store, market, date, row, health_rows, calendar_rows, warmup, collec
     return {
         "market": market, "label": LABELS[market], "status": status, "banners": banners,
         "cards": cards, "more": more,
-        "dropped": _dropped(payload, prev, today_ids, moments),
+        "dropped": _dropped(dict(payload, not_assessed=not_assessed), prev, today_ids, moments),
         "held_back": {"count": len(held_items), "text": held_text, "items": held_items},
+        "not_assessed": not_assessed,
         "moments": moments,
         "boards": _boards(payload.get("boards")),
         "coverage": _with_brief_issues(_coverage(rows), payload),

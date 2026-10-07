@@ -58,9 +58,16 @@ local_first AS (
       OR (sourced.post_id IS NOT NULL
           AND NOT IFNULL(ps.geo_market != @market AND ps.geo_confidence >= 0.7
                          AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)))
-  GROUP BY pi.item_id)
+  GROUP BY pi.item_id),
+ordered AS (
 SELECT s.*, cm.kind map_kind, cm.status map_status, cm.label, cm.canonical_key, fs.first_seen,
-  seen.platforms seen_platforms
+  seen.platforms seen_platforms, ms.market_scope _selection_market_scope,
+  ROW_NUMBER() OVER (ORDER BY s.eligible IS NOT TRUE,
+    CASE WHEN ms.market_scope = 'market' AND ms.total_posts7 >= 3 AND ms.market_posts7 >= 2 THEN 0
+         WHEN ms.market_scope = 'market' THEN 1 ELSE 2 END,
+    IFNULL(lf.creators, 0) < 2,
+    IFNULL(s.creators3, 0) < 2 OR IFNULL(s.posts3, 0) < 3,
+    s.worth_raw IS NULL, s.worth_raw DESC, s.item_id) _selection_sql_rank
 FROM {core}.v_item_state_current s
 LEFT JOIN {core}.cultural_map cm ON cm.item_id = s.item_id AND cm.valid_to IS NULL
 LEFT JOIN fs ON fs.item_id = s.item_id
@@ -68,14 +75,22 @@ LEFT JOIN seen ON seen.item_id = s.item_id
 LEFT JOIN local_first lf ON lf.item_id = s.item_id
 LEFT JOIN {core}.v_item_market_scope ms
   ON ms.metric_date = s.metric_date AND ms.item_id = s.item_id AND ms.market = s.market
-WHERE s.metric_date = @d AND s.market = @market
-ORDER BY s.eligible IS NOT TRUE,
-  CASE WHEN ms.market_scope = 'market' AND ms.total_posts7 >= 3 AND ms.market_posts7 >= 2 THEN 0
-       WHEN ms.market_scope = 'market' THEN 1
-       ELSE 2 END,
-  IFNULL(lf.creators, 0) < 2,
-  IFNULL(s.creators3, 0) < 2 OR IFNULL(s.posts3, 0) < 3,
-  s.worth_raw IS NULL, s.worth_raw DESC, s.item_id
+WHERE s.metric_date = @d AND s.market = @market),
+selection_snapshot AS (
+  SELECT COUNT(*) total_count, COUNTIF(eligible IS TRUE) eligible_count,
+    COUNT(DISTINCT run_id) detect_run_count, MAX(run_id) detect_run_id,
+    ARRAY_AGG(IF(eligible IS TRUE,
+      STRUCT(item_id, label, canonical_key, map_kind, _selection_sql_rank AS sql_rank,
+             _selection_market_scope AS market_scope), NULL)
+      IGNORE NULLS ORDER BY _selection_sql_rank) items
+  FROM ordered)
+SELECT ordered.*,
+  IF(_selection_sql_rank = 1, TO_JSON_STRING(STRUCT(
+    selection_snapshot.total_count, selection_snapshot.eligible_count,
+    selection_snapshot.detect_run_count, selection_snapshot.detect_run_id, selection_snapshot.items)), NULL)
+    _selection_snapshot
+FROM ordered CROSS JOIN selection_snapshot
+ORDER BY _selection_sql_rank
 LIMIT 90;
 
 -- name: post_set

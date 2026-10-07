@@ -393,6 +393,8 @@ PRICED = {
         1, ("since", "stop_at_id", "handle", "user_id", "sort_by", "max_cursor", "region", "trim", "format", "cursor")
         + LABEL_FREE, add=LABELLED_4),
     "tiktok/profile/region": rule(1, ("handle",)),
+    "tiktok/profile": rule(1, ("handle",)),
+    "instagram/profile/about": rule(1, ("handle",)),
     "tiktok/location/posts": rule(1, ("location_id", "cursor", "region")),
     "twitter/ai-search": special(discovery_quote, ("query", "from_handles", "exclude_handles", "from_date", "to_date")),
     "tiktok/song/videos": rule(1, ("clipId", "cursor", "use")),
@@ -756,6 +758,13 @@ class SocialCrawlClient:
         return self._call("twitter/ai-search", params, market=market, lane="discovery",
                           use_cache=use_cache, discovery=True)
 
+    def account_profile(self, platform, handle, **kwargs):
+        from core.collect.location_sources import COUNTRY_ROUTES
+
+        if platform not in COUNTRY_ROUTES:
+            raise ValueError("account country is supported only for TikTok and Instagram")
+        return self._call(COUNTRY_ROUTES[platform], {"handle": handle.casefold()}, **kwargs)
+
     def _call(self, route, params=None, *, method=None, market=None, item_id=None, seed_key=None, agent=None,
               lane=None, use_cache=True, discovery=False):
         original_route = route
@@ -847,6 +856,9 @@ class SocialCrawlClient:
         if route == "twitter/ai-search":
             body = project_discovery(body)
         body, items, labels = split_vendor_labels(body)
+        if isinstance(body, dict) and body.get("success") is False:
+            return Result("error", route, phash, 200, 0, 0, True, body,
+                          reason="recorded supplier response reports failure", failure="vendor_error")
         return Result("cached", route, phash, 200, 0, 0, True, body, items, labels)
 
     def _over_cap(self, quote):

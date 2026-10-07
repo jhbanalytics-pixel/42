@@ -584,8 +584,8 @@ def test_health_runs_its_checks_together_and_answers_as_before(monkeypatch):
     from core.api import app as api_mod
 
     monkeypatch.delenv("MODEL_DAILY_USD", raising=False)
-    # Each check waits for the other three to be under way: one after another, the first would wait in vain.
-    barrier, met = threading.Barrier(4), []
+    # Each independent check waits for the other two to be under way: one after another, the first would wait in vain.
+    barrier, met = threading.Barrier(3), []
 
     def meet():
         try:
@@ -602,31 +602,22 @@ def test_health_runs_its_checks_together_and_answers_as_before(monkeypatch):
 
     async def agent():
         await asyncio.to_thread(meet)
-        return "ok"
-
-    async def t2():
-        await asyncio.to_thread(meet)
-        return True
+        return "ok", True
 
     monkeypatch.setattr(api_mod, "_bigquery_check", slow("ok"))
     monkeypatch.setattr(api_mod, "_today_check", slow("published"))
     monkeypatch.setattr(api_mod, "_agent_check", agent)
-    monkeypatch.setattr(api_mod, "_agent_t2_ready", t2)
     client = TestClient(api_mod.app)
     body = client.get("/api/health").json()
     assert body["checks"] == {"auth": body["checks"]["auth"], "bigquery": "ok", "agent": "ok", "today": "published"}
     assert body["t2_ready"] is True
-    assert met == [True] * 4  # all four were under way at once
+    assert met == [True] * 3  # all three independent reads were under way at once
 
     async def down():
-        return "unreachable"
-
-    async def ready():
-        return True
+        return "unreachable", True
 
     monkeypatch.setattr(api_mod, "_bigquery_check", lambda: "ok")
     monkeypatch.setattr(api_mod, "_today_check", lambda: "published")
-    monkeypatch.setattr(api_mod, "_agent_t2_ready", ready)
     monkeypatch.setattr(api_mod, "_agent_check", down)
     body = client.get("/api/health").json()
     assert body["ok"] is False and body["t2_ready"] is False  # t2 follows the agent check, as before

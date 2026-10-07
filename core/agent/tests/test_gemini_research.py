@@ -137,8 +137,18 @@ def test_the_tiers_usd_budget_counts_model_spend_inside_tools(monkeypatch):
 
 def test_a_stop_request_ends_the_loop_and_reports_stopped(monkeypatch):
     client = FakeClient(reply(fcall("budget_status")), reply(ftext("never")))
-    result, ctx, events = run(monkeypatch, client, stop=lambda: True)
+    result, ctx, events = run(monkeypatch, client, stop=lambda: bool(client.calls))
     assert result["stopped"] is True and len(client.calls) == 1
+
+
+def test_a_stop_request_before_research_dispatch_makes_no_call(monkeypatch):
+    client = FakeClient(reply(ftext("must not run")))
+
+    result, ctx, events = run(monkeypatch, client, stop=lambda: True)
+
+    assert result["stopped"] is True and client.calls == []
+    assert result["tokens"] == {"input": 0, "output": 0}
+    assert result["usd"] == 0 and ctx.research_usd == 0
 
 
 def test_the_provider_switch_sets_models_deps_and_the_hold(monkeypatch):

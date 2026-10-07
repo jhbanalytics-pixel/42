@@ -51,7 +51,7 @@ def test_feed_posts_give_one_creator_row_each_with_the_author_fields():
     first, second = out["creators"]
     assert first == {
         "creator_id": "kasi.keys", "platform": "tiktok", "handle": "kasi.keys", "display_name": "Kasi Keys",
-        "followers": None, "verified": False, "profile_location": None,
+        "followers": None, "verified": False, "profile_location": None, "home_market": None,
         "first_seen": FETCHED_ISO, "last_seen": FETCHED_ISO}
     assert second["display_name"] is None and second["handle"] == "pap.and.wors"
     assert list(first) == list(parse.CREATOR_COLUMNS)

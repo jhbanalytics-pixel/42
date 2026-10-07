@@ -196,6 +196,35 @@ async function render(props){
   await act(async () => root.render(<AskPage region="ZA" setRegion={() => {}} query={{}} {...props} />));
 }
 
+for (const kind of ['sounds', 'hashtags']){
+test(`a checked ${kind} projection appears before the short answer prose`, async () => {
+  const record = clone(completeRecord);
+  record.question = `Which ${kind} are rising on TikTok in South Africa this week?`;
+  const claim = record.answer.claims[0];
+  const title = kind === 'sounds' ? 'Named sound' : '#amapiano';
+  claim.text = title + ' appeared in posts.';
+  claim.numbers = [
+    {value: 11, unit: 'creators', query_id: 'q_ranked', run_id: record.run.run_id, result_hash: 'sha256:' + 'a'.repeat(64)},
+    {value: 13, unit: 'posts', query_id: 'q_ranked', run_id: record.run.run_id, result_hash: 'sha256:' + 'a'.repeat(64)},
+  ];
+  record.run.ranked_list = {kind, scope: 'retained_whole_store_claims', order: 'creators_desc_posts_desc',
+    query_id: 'q_ranked', market: 'ZA', platform: 'tiktok', measure_columns: {creators: 'creators', posts: 'posts'},
+    window: record.run.window, previous_window: null,
+    items: [{claim_id: claim.id, title, usage_handle: null, creators_index: 0, posts_index: 1,
+      previous_posts_index: null, tied_with_previous: false}]};
+  const server = serve([record]);
+  await render();
+  await askByTyping(record.question);
+  await finish(server, record);
+  await until(() => host.querySelector('.ask42-answer .ask42-short'), 'finished answer is visible');
+  const ranked = host.querySelector('.ask42-ranked');
+  const summary = host.querySelector('.ask42-short');
+  expect(ranked).not.toBeNull();
+  expect(Boolean(ranked.compareDocumentPosition(summary) & window.Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+  expect(plain(ranked.textContent)).toContain(title);
+});
+}
+
 test('only draft=1 marks an Ask query as unsubmitted', () => {
   expect(parseAskQuery('#/ask?q=football&draft=1').draft).toBe(true);
   for (const value of ['true', '0', '01', '']){

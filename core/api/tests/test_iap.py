@@ -114,7 +114,7 @@ def iap_client(monkeypatch):
     )
 
     async def agent_check():
-        return "ok"
+        return "ok", False
 
     monkeypatch.setattr(api_mod, "_agent_check", agent_check)
     auth.auth_limiter.hits.clear()

@@ -148,8 +148,9 @@ def _passthrough(resp: httpx.Response) -> Response:
 async def api_health() -> dict:
     auth_state = auth.health_status()
     # The checks run together (they used to run one after another); each answers as before.
-    bigquery, agent, today, t2_ready = await asyncio.gather(
-        run_in_threadpool(_bigquery_check), _agent_check(), run_in_threadpool(_today_check), _agent_t2_ready())
+    bigquery, agent_health, today = await asyncio.gather(
+        run_in_threadpool(_bigquery_check), _agent_check(), run_in_threadpool(_today_check))
+    agent, t2_ready = agent_health
     checks = {
         "auth": auth_state["check"],
         "bigquery": bigquery,
@@ -200,24 +201,20 @@ def _today_check() -> str:
         return "data_issue"
 
 
-async def _agent_check() -> str:
+async def _agent_check() -> tuple[str, bool]:
+    """Agent status and T2 readiness from one fresh response; readiness requires an explicit true."""
     try:
         async with await _agent_client(HEALTH_TIMEOUT) as client:
             resp = await client.get("/health")
     except (ApiError, httpx.HTTPError):
-        return "unreachable"
-    return "ok" if resp.status_code == 200 else f"status {resp.status_code}"
-
-
-async def _agent_t2_ready() -> bool:
-    """Whether f42-agent takes T2 for the brand lens and context pack (its F42_T2_READY), as its /health says.
-    Anything but a 200 saying true is false, so the app keeps those forms hidden."""
+        return "unreachable", False
+    if resp.status_code != 200:
+        return f"status {resp.status_code}", False
     try:
-        async with await _agent_client(HEALTH_TIMEOUT) as client:
-            resp = await client.get("/health")
-        return resp.status_code == 200 and resp.json().get("t2_ready") is True
-    except (ApiError, httpx.HTTPError, ValueError, AttributeError):
-        return False
+        ready = resp.json().get("t2_ready") is True
+    except (ValueError, AttributeError):
+        ready = False
+    return "ok", ready
 
 
 class AuthVerifyRequest(BaseModel):

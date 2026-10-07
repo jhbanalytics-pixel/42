@@ -12,7 +12,10 @@ import copy
 import json
 import os
 import re
+import threading
+import time
 
+from core.llm.deadline import DeadlineExpired, DeadlineRunner
 from core.llm.provider import PRIORITY_HEADER, gemini_priority, price_for, thinking_headroom
 
 
@@ -108,6 +111,10 @@ class GeminiModel:
         self.project = project
         self.region = region
         self._client = client
+        self._supplied_client = client is not None
+        self._deadline_runner = None
+        self._deadline_lock = threading.Lock()
+        self._deadline_failed = False
 
     @property
     def client(self):
@@ -126,6 +133,34 @@ class GeminiModel:
                                         http_options=types.HttpOptions(**options))
         return self._client
 
+    async def _open_deadline_client(self, guard):
+        import httpx
+        from google import genai
+        from google.genai import types
+
+        http = httpx.AsyncClient(event_hooks={"request": [guard]})
+        try:
+            options = dict(httpx_async_client=http, timeout=int(self.timeout_s * 1000) if self.timeout_s else None,
+                           retry_options=types.HttpRetryOptions(attempts=1))
+            if gemini_priority():
+                options["headers"] = dict(PRIORITY_HEADER)
+            sdk = genai.Client(vertexai=True, project=self.project, location=self.region,
+                                http_options=types.HttpOptions(**options))
+            return sdk, http
+        except BaseException:
+            await http.aclose()
+            raise
+
+    def close_deadline_calls(self):
+        with self._deadline_lock:
+            runner, self._deadline_runner = self._deadline_runner, None
+        if runner is not None:
+            try:
+                runner.close()
+            except Exception:
+                self._deadline_failed = True
+                raise
+
     def config(self, *, system: str, schema: dict | None, max_tokens: int, level: str | None = None, **extra):
         """Thinking counts against max_output_tokens, so the allowance is max_tokens plus THINKING_HEADROOM. No
         temperature, top_p or penalties: 3.8 ignores the first two and errors on penalties."""
@@ -140,10 +175,21 @@ class GeminiModel:
         return types.GenerateContentConfig(**kw)
 
     def complete_json(self, *, system: str, user: str, schema: dict, model: str, max_tokens: int,
-                      request_timeout_s: float | None = None, media: list | None = None) -> tuple[dict, dict]:
+                      request_timeout_s: float | None = None, media: list | None = None,
+                      request_allowance=None) -> tuple[dict, dict]:
         """media, when given, goes before the user text as parts (media_parts); its tokens come back in the usage
         and are billed at the model's input price like any other prompt token. Without media, contents is the user
         text alone, as before."""
+        expires = None
+        if request_allowance is not None:
+            if self._deadline_failed:
+                raise RuntimeError("deadline owner retired after lifecycle failure")
+            allowance = min(request_allowance(), request_timeout_s or self.timeout_s or float("inf"))
+            expires = time.monotonic() + allowance
+            if allowance < 0.001:
+                raise DeadlineExpired()
+            if self._supplied_client:
+                raise RuntimeError("deadline dispatch requires an owned async SDK client")
         price_for(model)  # an unpriced model fails before it spends anything
         contents = [*media_parts(media), user] if media else user
         extra = {}
@@ -154,9 +200,24 @@ class GeminiModel:
                 raise ValueError("request_timeout_s must be at least one millisecond")
             extra["http_options"] = types.HttpOptions(
                 timeout=timeout_ms, retry_options=types.HttpRetryOptions(attempts=1))
-        response = self.client.models.generate_content(
-            model=model, contents=contents,
-            config=self.config(system=system, schema=schema, max_tokens=max_tokens, **extra))
+        if request_allowance is None:
+            response = self.client.models.generate_content(
+                model=model, contents=contents,
+                config=self.config(system=system, schema=schema, max_tokens=max_tokens, **extra))
+        else:
+            with self._deadline_lock:
+                if self._deadline_runner is None:
+                    self._deadline_runner = DeadlineRunner(self._open_deadline_client)
+                runner = self._deadline_runner
+            try:
+                response = runner.generate({"model": model, "contents": contents,
+                                            "config": self.config(system=system, schema=schema,
+                                                                  max_tokens=max_tokens, **extra)},
+                                           expires, request_allowance)
+            except Exception:
+                if runner.retired:
+                    self._deadline_failed = True
+                raise
         usage = usage_of(response, model)
         try:
             candidate = (getattr(response, "candidates", None) or [None])[0]

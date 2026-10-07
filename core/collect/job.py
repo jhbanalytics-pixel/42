@@ -100,7 +100,7 @@ from core.collect import location_sources
 from core.collect import seeds as seeding
 from core.collect.parse import (LANES, ROUTES, SEARCH_LANES, SEEDED, _dict, _first, _local_day, _protocol, _rows,
                                 parse_with_creators)
-from core.collect.socialcrawl_client import PRICED, Refused, Result, load_caps, quote_for
+from core.collect.socialcrawl_client import PRICED, TRANSIENT, Refused, Result, load_caps, quote_for
 
 log = logging.getLogger(__name__)
 
@@ -1017,13 +1017,15 @@ class Collected:
 
 class _Runner:
     def __init__(self, client, run, ids, geo, clock, budget, last_pulls, run_date, only=None, keep=frozenset(),
-                 reels_room=None):
+                 reels_room=None, profiles=None):
         self.client, self.run, self.ids, self.geo, self.clock = client, run, ids, geo, clock
         self.day = run_date.isoformat()
         self.budget, self.pulls = budget, dict(last_pulls or {})
         self.first_seen, self.done = {}, {m: [] for m in (GLOBAL,) + MARKETS}
         self.only, self.keep = only, frozenset(keep)
         self.reels_room = reels_room  # the run's charges a row 14i call may bring up to, with its hold
+        self.profiles = profiles
+        self.country_deadline = None
 
     def wanted(self, call):
         """In a repair run (only set): a call of a listed route whose health key the base run did not already
@@ -1055,7 +1057,7 @@ class _Runner:
                 hold = call.hold()
             except Refused:
                 hold = 0  # the client refuses it and says why
-            if not self.budget.fits(call, hold) or (call.route in (REELS_ROUTE,) + location_sources.ROUTES and self.reels_room is not None
+            if not self.budget.fits(call, hold) or ((call.route in (REELS_ROUTE,) + location_sources.ROUTES or call.family == "profile") and self.reels_room is not None
                                                     and self.run.credits + hold > self.reels_room):
                 self._record(call, "over_share", self.clock())
                 continue
@@ -1068,9 +1070,14 @@ class _Runner:
                 self.pulls[key] = self.pulls.get(key, 0) + 1
                 call = copy.copy(call)
                 call.pull_seq = self.pulls[key]
-            result = self.client.call(call.route, call.params, method=call.method, market=call.market,
-                                      item_id=call.seed.item_id if call.seed else None, seed_key=call.seed_key,
-                                      lane=call.lane, use_cache=call.use_cache)
+            if self.profiles is not None and call.family == "profile":
+                self.profiles.attempted.add(self.profiles.key(ROUTES[call.route][1], call.params.get("handle")))
+                result = self.client.account_profile(ROUTES[call.route][1], call.params["handle"], method=call.method,
+                    market=call.market, seed_key=call.seed_key, lane=call.lane, use_cache=call.use_cache)
+            else:
+                result = self.client.call(call.route, call.params, method=call.method, market=call.market,
+                                          item_id=call.seed.item_id if call.seed else None, seed_key=call.seed_key,
+                                          lane=call.lane, use_cache=call.use_cache)
             fetched = self.clock()
             self.run.client_calls.append({"route": call.route, "params": call.params, "market": call.market,
                                           "status": result.status})
@@ -1084,7 +1091,7 @@ class _Runner:
                 try:
                     parsed = self._parse(call, result, fetched)
                 except Exception:
-                    if call.route not in (REELS_ROUTE,) + location_sources.ROUTES:
+                    if call.route not in (REELS_ROUTE,) + location_sources.ROUTES and call.family != "profile":
                         raise
                     # Row 14i is an extra search lane: a body it cannot read fails that call, not the run.
                     log.exception("collect %s %s: response not parsed", call.market, call.route)
@@ -1114,7 +1121,9 @@ class _Runner:
         parsed = parse_with_creators(
             call.route, call.params, call.market, result.body, fetched, self.run.run_id, item_id_fn=self.ids,
             geo_fn=self.geo, lane=call.lane if call.family == "search" or call.seed else None, seed_key=call.seed_key,
-            pull_seq=call.pull_seq, protocol=call.protocol)
+            pull_seq=call.pull_seq, protocol=call.protocol, profile_cache=self.profiles)
+        if call.family == "profile" and not parsed["creators"]:
+            raise ValueError("account profile owner unavailable")
         listed_key = "pageId" if call.route == "facebook/profile/posts" else \
             "location_id" if call.route == "instagram/location/posts" else \
             "subreddit" if call.route == "reddit/subreddit" else None
@@ -1225,7 +1234,7 @@ def _same_day(out, day):
                      reason=r["reason"] if r["reason"].startswith(DAY_CHANGED) else f"{DAY_CHANGED} answered late")
 
 
-def local_phase(run, client, day, *, get, clock, item_id_fn, geo_fn, last_pulls, cap):
+def local_phase(run, client, day, *, get, clock, item_id_fn, geo_fn, last_pulls, cap, profile_cache=None):
     """Task 2.12's local sources after the SocialCrawl phases, paid from the collect share under their own
     sub-limit (local_sources.LOCAL_DAILY_CAP). Not made when the run stopped for credits or balance, or when
     cap less what the run has charged is under the phase's hold: every planned fetch is then recorded
@@ -1245,7 +1254,8 @@ def local_phase(run, client, day, *, get, clock, item_id_fn, geo_fn, last_pulls,
     lane = _LocalLane(client, day.isoformat(), clock)
     try:
         out = local_sources.run(day, run.run_id, client=lane, get=_day_get(get, fetches, day.isoformat(), clock),
-                                clock=clock, item_id_fn=item_id_fn, geo_fn=geo_fn, last_pulls=last_pulls)
+                                clock=clock, item_id_fn=item_id_fn, geo_fn=geo_fn, last_pulls=last_pulls,
+                                profile_cache=profile_cache)
     except Exception as exc:
         log.exception("collect %s: the local sources phase failed", run.run_id)
         run.local_error = f"{type(exc).__name__}: {exc}"[:500]
@@ -1369,10 +1379,60 @@ def google_seed_phase(run, live, day, *, transport, terms, clock):
     run.google_seeds = {m: len(picked[m]) for m in MARKETS}
 
 
+def country_phase(run, runner, profile_reader, cap):
+    cache = runner.profiles
+    if cache is None:
+        return
+    def apply():
+        cache.apply(runner.geo)
+        present = {id(row) for row in run.creators}
+        run.creators += [row for row in cache.creators if id(row) not in present and row.get("home_market") is not None]
+
+    keys = list(cache.accounts)
+    timeout = getattr(runner.client, "timeout", None)
+    deadline = runner.country_deadline
+    reader_kwargs = {}
+    if deadline is not None:
+        remaining = (deadline - runner.clock()).total_seconds()
+        if remaining <= 0:
+            apply()
+            return
+        reader_kwargs["timeout"] = min(timeout, remaining / 2)
+    if keys:
+        try:
+            cache.seed(profile_reader(keys, **reader_kwargs))
+        except Exception as exc:
+            log.warning("collect %s: account country cache unreadable (%s)", run.run_id, type(exc).__name__)
+            apply()
+            return
+    runner.reels_room = cap - run.local_credits - run.trends_credits
+    blocked = set()
+    for account in cache.needed():
+        route = location_sources.COUNTRY_ROUTES[account["platform"]]
+        call = Call("C1", route, {"handle": account["handle"]}, account["market"], "panel")
+        late = deadline is not None and (deadline - runner.clock()).total_seconds() < 2 * timeout + runner.client.retry_wait
+        if route in blocked or late:
+            runner._record(call, "not_made", runner.clock(), Result("not_made", route,
+                reason="country capture time budget" if late else "country endpoint failed earlier"))
+            continue
+        try:
+            runner.calls([call], account["market"])
+        except Exception as exc:
+            log.warning("collect %s: account country capture stopped (%s)", run.run_id, type(exc).__name__)
+            raise
+        if runner.done.get(account["market"]) and runner.done[account["market"]][-1][0] is call:
+            result = runner.done[account["market"]][-1][1]
+            if result.failure == "store":
+                break
+            if result.failure in TRANSIENT:
+                blocked.add(route)
+    apply()
+
+
 def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None, x_trends=False, share_cap=None,
             last_pulls=None, seeds=None, local_get=None, watches=None, known_posts=None,
             public_feed_transport=None, search_signals=False, only_routes=None, keep=frozenset(),
-            google_rss_transport=None, google_terms=None):
+            google_rss_transport=None, google_terms=None, country_profiles=None):
     """Make every call of the run through client and parse each response. Nothing is written here.
     share_cap is the overridden collect cap (None without an override); last_pulls maps (market, series,
     protocol) to the last pull number already stored; seeds holds the seed_queue rows seeds.read gave;
@@ -1397,7 +1457,11 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
     reels_room = cap - (google_trends.MAX_SC_CREDITS if search_signals else 0) \
         - (local_sources.total_hold(local_sources.plan(run_date)) if local_get is not None else 0)
     runner = _Runner(client, run, ids, safe_geo(geo_fn), clock, budget, last_pulls, run_date, only=only_routes,
-                     keep=keep, reels_room=reels_room)
+                     keep=keep, reels_room=reels_room,
+                     profiles=location_sources.ProfileCache() if country_profiles is not None and only_routes is None else None)
+    timeout = getattr(client, "timeout", None)
+    if runner.profiles is not None and isinstance(timeout, (int, float)) and math.isfinite(timeout) and timeout > 0:
+        runner.country_deadline = clock() + chain.TIMEOUTS["collect"] - timedelta(seconds=timeout)
     if only_routes is not None:
         search_signals, local_get, public_feed_transport = False, None, None
         google_rss_transport, google_terms = None, None
@@ -1447,7 +1511,9 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
         trends_phase(run, client, run_date, clock=clock, cap=cap, reserve=reserve)
     if local_get is not None:
         local_phase(run, client, run_date, get=local_get, clock=clock, item_id_fn=ids, geo_fn=geo_fn,
-                    last_pulls=last_pulls, cap=cap)
+                    last_pulls=last_pulls, cap=cap, profile_cache=runner.profiles)
+    if country_profiles is not None and only_routes is None:
+        country_phase(run, runner, country_profiles, cap)
     public_items = {}
     if public_feed_transport is not None:
         from core.collect import public_feed_collect
@@ -1868,7 +1934,8 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
                             known_posts=lambda ids: writers.known_posts(bq, ids),
                             public_feed_transport=public_feed_transport, search_signals=True,
                             only_routes=only, keep=keep, google_rss_transport=public_feed_transport,
-                            google_terms=lambda: google_trends.read_terms(bq, run_date, MARKETS))
+                            google_terms=lambda: google_trends.read_terms(bq, run_date, MARKETS),
+                            country_profiles=lambda keys, **kw: writers.read_profile_countries(bq, keys, **kw))
         if only is None:
             bq_trends_phase(collected, bq, run_date, clock=clock)
         written = writers.write_run(bq, collected, run.run_id, carry=base["health"] if base else None)

@@ -152,9 +152,9 @@ GEO_FILL_SQL = (
 # from a sighting at or after its last_seen when the sighting has a value, from an older one only where it
 # holds none, and last_seen only moves forward. first_seen is never set on a known creator.
 CREATOR_TYPES = {"creator_id": "STRING", "platform": "STRING", "handle": "STRING", "display_name": "STRING",
-                 "followers": "INT64", "verified": "BOOL", "profile_location": "STRING", "first_seen": "TIMESTAMP",
+                 "followers": "INT64", "verified": "BOOL", "profile_location": "STRING", "home_market": "STRING", "first_seen": "TIMESTAMP",
                  "last_seen": "TIMESTAMP"}
-CREATOR_UPDATES = ("handle", "display_name", "followers", "verified", "profile_location")
+CREATOR_UPDATES = ("handle", "display_name", "followers", "verified", "profile_location", "home_market")
 NEWER = "(T.last_seen IS NULL OR S.last_seen >= T.last_seen)"
 CREATORS_MERGE_SQL = (
     "MERGE `{table}` T\n"
@@ -737,6 +737,91 @@ def known_posts(bq, ids):
     rows = _query(bq, KNOWN_POSTS_SQL.format(table=table("posts")),
                   [bigquery.ArrayQueryParameter("ids", "STRING", ids)])
     return {row["post_id"] for row in rows}
+
+
+def read_profile_countries(bq, keys, *, timeout=None):
+    import time
+    from datetime import datetime, timedelta, timezone
+    from google.cloud import bigquery
+    from core.collect.location_sources import COUNTRY_ROUTES, _countries
+    from core.collect.socialcrawl_client import params_hash
+
+    if not keys:
+        return
+    max_bytes = 64 * 1024 ** 2
+    deadline = time.monotonic() + timeout if timeout is not None else None
+
+    def query(sql, parameters):
+        remaining = deadline - time.monotonic() if deadline is not None else None
+        if remaining is not None and remaining <= 0:
+            raise TimeoutError("account country cache read budget")
+        kwargs = {"timeout": remaining, "retry": None, "job_retry": None} if remaining is not None else {}
+        result = bq.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=parameters,
+                           maximum_bytes_billed=max_bytes), **kwargs)
+        remaining = deadline - time.monotonic() if deadline is not None else None
+        kwargs = {"timeout": max(0, remaining), "retry": None, "job_retry": None} if remaining is not None else {}
+        return [dict(row) for row in result.result(**kwargs)]
+
+    hashes = [f"{COUNTRY_ROUTES[p]}:{params_hash('GET', {'handle': h.casefold()})}" for p, h in keys]
+    inventory = f"""SELECT DISTINCT DATE(fetched_at) AS day FROM `{table('raw_responses')}`
+      WHERE http_status = 200 AND (
+        CONCAT(route, ':', params_hash) IN UNNEST(@request_hashes)
+        OR (route = 'instagram/search/reels' AND @instagram)) ORDER BY day DESC"""
+    days = query(inventory, [bigquery.ArrayQueryParameter("request_hashes", "STRING", hashes),
+                            bigquery.ScalarQueryParameter("instagram", "BOOL", any(p == "instagram" for p, _ in keys))])
+    sql = f"""WITH profiles AS (
+      SELECT CASE route WHEN 'tiktok/profile' THEN 'tiktok' ELSE 'instagram' END AS platform,
+        JSON_VALUE(body, '$.data.author.username') AS handle,
+        route AS country_source,
+        CASE route WHEN 'tiktok/profile' THEN JSON_VALUE(body, '$.data.author.location')
+          ELSE JSON_VALUE(body, '$.data.author.ext.country') END AS country,
+        CASE route WHEN 'tiktok/profile' THEN JSON_TYPE(JSON_QUERY(body, '$.data.author.location'))
+          ELSE JSON_TYPE(JSON_QUERY(body, '$.data.author.ext.country')) END AS country_type,
+        fetched_at, run_id, params_hash, JSON_VALUE(body, '$.request_id') AS request_id
+      FROM `{table('raw_responses')}`
+      WHERE route IN ('tiktok/profile', 'instagram/profile/about') AND http_status = 200
+        AND fetched_at >= @start AND fetched_at < @end
+        AND JSON_VALUE(body, '$.success') = 'true'
+        AND CONCAT(route, ':', params_hash, ':', LOWER(JSON_VALUE(body, '$.data.author.username')))
+          IN UNNEST(@profile_requests)
+      UNION ALL
+      SELECT 'instagram', JSON_VALUE(item, '$.post.author.username'), route,
+        JSON_VALUE(item, '$.post.ext.author_country'), JSON_TYPE(JSON_QUERY(item, '$.post.ext.author_country')),
+        fetched_at, run_id, params_hash,
+        JSON_VALUE(body, '$.request_id')
+      FROM `{table('raw_responses')}`, UNNEST(JSON_QUERY_ARRAY(body, '$.data.items')) AS item
+      WHERE route = 'instagram/search/reels' AND http_status = 200
+        AND fetched_at >= @start AND fetched_at < @end
+        AND JSON_VALUE(body, '$.success') = 'true'
+        AND JSON_VALUE(item, '$.post.ext.author_country') IS NOT NULL
+    ), scoped AS (
+      SELECT *, CASE WHEN platform = 'tiktok' THEN
+          REGEXP_CONTAINS(TRIM(country), r'^[A-Za-z]{{2}}$') AND UPPER(TRIM(country)) IN UNNEST(@codes)
+        ELSE UPPER(TRIM(country)) IN UNNEST(@codes)
+          OR LOWER(TRIM(REGEXP_REPLACE(country, r'\\s+', ' '))) IN UNNEST(@names)
+        END AS recognised
+      FROM profiles WHERE CONCAT(platform, ':', LOWER(handle)) IN UNNEST(@profiles)
+    ) SELECT * FROM scoped
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY platform, LOWER(handle)
+        ORDER BY IFNULL(recognised, FALSE) DESC, fetched_at DESC) = 1"""
+    codes, names = _countries()
+    needed = {(p, h.casefold()) for p, h in keys}
+    for day in days:
+        if not needed:
+            break
+        start = datetime.combine(day["day"], datetime.min.time(), timezone.utc)
+        parameters = [
+            bigquery.ArrayQueryParameter("profiles", "STRING", [f"{p}:{h}" for p, h in sorted(needed)]),
+            bigquery.ArrayQueryParameter("profile_requests", "STRING", [
+                f"{COUNTRY_ROUTES[p]}:{params_hash('GET', {'handle': h})}:{h}" for p, h in sorted(needed)]),
+            bigquery.ArrayQueryParameter("codes", "STRING", sorted(codes)),
+            bigquery.ArrayQueryParameter("names", "STRING", sorted(names)),
+            bigquery.ScalarQueryParameter("start", "TIMESTAMP", start),
+            bigquery.ScalarQueryParameter("end", "TIMESTAMP", start + timedelta(days=1))]
+        for row in query(sql, parameters):
+            if row.get("recognised"):
+                needed.discard((row["platform"], row["handle"].casefold()))
+            yield row
 
 
 def read_watches(bq, markets):

@@ -145,6 +145,52 @@ def test_source_market_and_market_assumed_survive_fixture_agent_readback(client,
     assert readback["answer"]["claims"][0]["label"] == finished["answer"]["claims"][0]["label"]
 
 
+@pytest.mark.parametrize("kind", ["sounds", "hashtags"])
+def test_code_owned_ranked_metadata_survives_fixture_agent_readback(client, monkeypatch, kind):
+    from core.agent.ranked import ranked_list
+    from core.agent.tests.test_ranked_list import QUESTION, fixture
+
+    fixture_agent = agent_app.fixture_agent
+    question = QUESTION if kind == "sounds" else "Which hashtags are rising on TikTok this week?"
+    ctx, answer, _ = fixture(kind=kind)
+    ranked, _ = ranked_list(question, answer, ctx)
+    assert ranked is not None
+
+    def with_ranking(request, emit, should_stop):
+        result = fixture_agent(request, emit, should_stop)
+        result["answer"] = answer
+        result["run"]["run_id"] = ctx.run_id
+        result["run"]["window"] = ranked["window"]
+        result["run"]["ranked_list"] = ranked
+        return result
+
+    monkeypatch.setattr(agent_app, "fixture_agent", with_ranking)
+    finished = ask(client, question=question, wait=True).json()
+    readback = client.get(f"/api/ask/{finished['ask_id']}").json()
+    assert readback["run"]["ranked_list"] == ranked
+    assert readback["answer"] == finished["answer"] == answer
+    assert "query_receipts" not in readback
+
+
+def test_masked_skin_reader_omits_ranked_metadata_without_mutating_the_source(monkeypatch):
+    record = load("ask_complete.json")
+    record["skin_id"] = "skin_fixture"
+    record["run"]["ranked_list"] = {"items": [{"usage_handle": "private_handle"}]}
+    monkeypatch.setattr(agent_app, "skin_people", lambda *a: {"approved": [], "allowed": []})
+    shown = agent_app.shown_record(record)
+    assert "ranked_list" not in shown["run"]
+    assert record["run"]["ranked_list"]["items"][0]["usage_handle"] == "private_handle"
+
+
+def test_a_skin_record_without_run_metadata_keeps_its_existing_null_shape(monkeypatch):
+    record = load("ask_complete.json")
+    record["skin_id"] = "skin_fixture"
+    record["run"] = None
+    monkeypatch.setattr(agent_app, "skin_people", lambda *a: {"approved": [], "allowed": []})
+    assert agent_app.shown_record(record)["run"] is None
+    assert record["run"] is None
+
+
 @pytest.mark.parametrize("body", [
     {"question": "What is behind #fixture?", "tier": "T2"},
     {"question": "What is behind #fixture?", "tier": "T3"},

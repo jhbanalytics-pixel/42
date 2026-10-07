@@ -352,14 +352,18 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
           && !item.failed_reason.startsWith('Model busy:'))));
   });
   const checkedHeldCopy = checkedHeldMarkets.length > 0
-    ? 'All topics were held after checks in ' + checkedHeldMarkets.map((market) => nonEmptyString(market.label) ? market.label : market.market).join(', ') + '. See their reasons below.'
+    ? 'All the topics checked in ' + checkedHeldMarkets.map((market) => nonEmptyString(market.label) ? market.label : market.market).join(', ') + ' were held back. See their reasons below.'
     : null;
+  const selectedLead = tab === 'ALL' ? null : markets.find((entry) => entry.market.market === tab)?.admitted[0];
   const headline = data.headline && nonEmptyString(data.headline.text)
     && (tab === 'ALL' || data.headline.market === tab)
     && markets.some((entry) => entry.market.market === data.headline.market
       && entry.admitted.some(({card}) => card.item_id === data.headline.item_id))
     ? data.headline
-    : null;
+    : selectedLead
+      ? {text: selectedLead.specificity.whyNow, market: tab, item_id: selectedLead.card.item_id,
+        claim_ids: selectedLead.card.explanation_claim_ids}
+      : null;
   const receiptLine = runReceiptLine(data.run_receipt);
   const isLoading = load.state === 'loading';
 
@@ -905,9 +909,29 @@ function BelowCards({market, showHeldBack, openLeftOut}){
   return (
     <div className="t42-below">
       <LeftOut market={market} showHeldBack={showHeldBack} open={openLeftOut} />
+      <NotAssessed audit={market.not_assessed} />
       <Moments moments={market.moments} />
       <Boards boards={market.boards} />
     </div>
+  );
+}
+
+function NotAssessed({audit}){
+  const known = audit && Array.isArray(audit.items) && Number.isInteger(audit.count);
+  return (
+    <details className="t42-left-out" data-not-assessed="">
+      <summary>Not assessed{known ? ' (' + audit.count + ')' : ''}</summary>
+      {!known
+        ? <p className="t42-line-text">Selection audit unavailable for this brief.</p>
+        : audit.items.length === 0
+          ? <p className="t42-line-text">No topics were left unassessed.</p>
+          : <ul className="t42-line-list">
+              {audit.items.map((item) => <li key={item.item_id}>
+                <span>{item.title}</span>
+                <p className="t42-line-text">{item.reason_text}</p>
+              </li>)}
+            </ul>}
+    </details>
   );
 }
 

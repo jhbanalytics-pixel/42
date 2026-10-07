@@ -289,6 +289,7 @@
 .t42-card-foot .f42-tap:focus-visible { position: relative; z-index: 1; }
 
 .t42-link { color: var(--ink); font-size: var(--t42-small); text-decoration: underline; text-underline-offset: 2px; }
+.t42-post > .t42-link { color: var(--accent-text); text-decoration-color: currentColor; }
 /* A link that stands on its own row gets a full tap target; a link inside a
    sentence keeps the line's rhythm. */
 .t42-section > .t42-link,
@@ -447,12 +448,12 @@
   inset-inline-end: 0;
   cursor: pointer;
   font-size: var(--type-2);
-  color: var(--muted);
+  color: var(--accent-text);
   text-decoration: underline;
-  text-decoration-color: var(--line-2);
+  text-decoration-color: currentColor;
   text-underline-offset: 3px;
 }
-.t42-held-more > summary:is(:hover, :focus-visible) { color: var(--ink); text-decoration-color: currentColor; }
+.t42-held-more > summary:is(:hover, :focus-visible) { color: var(--accent-text); text-decoration-color: currentColor; }
 .t42-held-more > .t42-held-detail { margin-top: var(--s-2); padding: var(--s-2) 0 var(--s-3) var(--s-4); border-inline-start: 1px solid var(--line-2); }
 .t42-today-market .t42-held-more .t42-rows > li { padding-inline: 0; min-block-size: 0; }
 .t42-coverage { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: var(--s-3); }

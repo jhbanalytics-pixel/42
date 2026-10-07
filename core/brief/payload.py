@@ -17,6 +17,11 @@ LABELS = {"ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya"}
 MODEL_BUSY = "Model busy: not explained before the deadline"
 MODEL_REFUSED = "Model busy: the model kept refusing calls, so this was not explained"
 NOT_RUN_REASONS = (MODEL_BUSY, MODEL_REFUSED)
+NOT_ASSESSED_REASONS = {
+    "outside_candidate_pool": "Outside the morning candidate pool; checks did not run.",
+    "judged_limit_reached": "The morning assessment limit was reached before this topic; checks did not run.",
+    "deadline_reached": "The morning deadline was reached before this topic; checks did not run.",
+}
 
 STATE_WORDS = {
     "new_to_42": "New to 42", "spike": "Spike", "on_the_boards": "On the boards", "emerging": "Emerging",
@@ -252,7 +257,8 @@ def _headline_ok(headline, market, shown):
     return set(headline["claim_ids"]) <= {cl["id"] for cl in card["claims"]}
 
 
-def build_market_payload(market, brief_date, candidates, *, moments, boards, banners, headline=None, issues=()):
+def build_market_payload(market, brief_date, candidates, *, moments, boards, banners, headline=None, issues=(),
+                         not_assessed=None, selection_receipt=None):
     day = _iso(brief_date)
     by_where = {"today": [], "held_back": [], "moments": []}
     for c in candidates:
@@ -284,6 +290,7 @@ def build_market_payload(market, brief_date, candidates, *, moments, boards, ban
             "claim_ids": list(headline["claim_ids"])},
         "banners": list(banners), "cards": shown[:CARDS], "more": shown[CARDS:],
         "held_back": {"count": len(held), "text": _held_text(held), "items": held},
+        "not_assessed": not_assessed, "selection_receipt": selection_receipt,
         "moments": list(moments) + seasonal, "boards": list(boards),
         "coverage": {"issues": list(issues)},
         "critic": [{"item_id": c["item_id"], **c["critic"]} for c in candidates

@@ -70,7 +70,7 @@ def test_a_saved_page_becomes_local_own_feed_posts_of_the_channels_market():
     assert obs["protocol"] == "telegram_preview?channel=brieflycoza" and obs["seed_key"] == "brieflycoza"
     assert out["creators"] == [{"creator_id": "brieflycoza", "platform": "telegram", "handle": "brieflycoza",
                                 "display_name": "Briefly News", "followers": None, "verified": None,
-                                "profile_location": None, "first_seen": AT.isoformat(),
+                                "profile_location": None, "home_market": None, "first_seen": AT.isoformat(),
                                 "last_seen": AT.isoformat()}]
     record = out["records"][0]
     assert record["status"] == "ok" and record["calls"] == 1 and record["items"] == 20

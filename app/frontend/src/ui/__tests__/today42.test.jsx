@@ -382,7 +382,7 @@ test('a partial brief names only the market with a real data problem', async () 
   expect(notes).toEqual(['KE']);
 });
 
-test('a fully checked market says every topic was held without calling the run incomplete', async () => {
+test('checked holds are named without calling the run incomplete', async () => {
   const today = clone(todayFixture);
   const ng = today.markets.find((market) => market.market === 'NG');
   ng.status = 'partial';
@@ -391,9 +391,50 @@ test('a fully checked market says every topic was held without calling the run i
   ng.held_back = {count: 1, items: [{item_id: 'checked-hold', title: 'Checked topic', rule: 'G10', reason: 'explanation_failed',
     reason_text: 'The explanation did not pass our checks', failed_reason: 'A simpler explanation was not ruled out', evidence: []}]};
   await mount({region: 'NG'}, today);
-  expect(host.querySelector('[data-today-held-status]')?.textContent).toBe('All topics were held after checks in Nigeria. See their reasons below.');
+  expect(host.querySelector('[data-today-held-status]')?.textContent).toBe('All the topics checked in Nigeria were held back. See their reasons below.');
   expect(host.querySelector('[data-today-status="partial"]')?.textContent).toBe('Some markets are incomplete: Kenya.');
   expect(host.querySelector('[data-glance-market="NG"] .t42-glance-note')).toBeNull();
+});
+
+test('checked-held summary stays limited to checked topics when the omission audit is nonempty, empty, or unknown', async () => {
+  const audits = [
+    {detect_run_id: 'detect-fixture', pool_limit: 90, judged_limit: 10, count: 1, items: [
+      {item_id: 'not-checked', title: 'Unassessed topic', status: 'not_assessed', reason: 'judged_limit_reached',
+        reason_text: 'The morning limit was reached; checks did not run.', sql_rank: 18, pool_rank: 18, market_scope: 'market'}]},
+    {detect_run_id: 'detect-fixture', pool_limit: 90, judged_limit: 10, count: 0, items: []},
+    null,
+    undefined,
+  ];
+  for (const audit of audits){
+    const today = clone(todayFixture);
+    const ng = today.markets.find((market) => market.market === 'NG');
+    ng.status = 'partial';
+    ng.cards = [];
+    ng.more = [];
+    ng.held_back = {count: 1, items: [{item_id: 'checked-hold', title: 'Checked topic', rule: 'G10', reason: 'explanation_failed',
+      reason_text: 'The explanation did not pass our checks', failed_reason: 'A simpler explanation was not ruled out', evidence: []}]};
+    if (audit === undefined) delete ng.not_assessed;
+    else ng.not_assessed = audit;
+    await mount({region: 'NG'}, today);
+    expect(host.querySelector('[data-today-held-status]')?.textContent).toBe('All the topics checked in Nigeria were held back. See their reasons below.');
+    expect(text()).not.toContain('All topics were held after checks');
+    expect(cards().length).toBe(0);
+    const omissions = host.querySelector('[data-market="NG"] [data-not-assessed]');
+    expect(Boolean(omissions)).toBe(true);
+    if (audit?.count === 1){
+      expect(omissions.textContent).toContain('Unassessed topic');
+      expect(omissions.textContent).toContain('checks did not run');
+      expect(omissions.querySelectorAll('[data-held-row], [data-card]').length).toBe(0);
+    } else if (audit?.count === 0){
+      expect(omissions.textContent).toContain('No topics were left unassessed.');
+    } else {
+      expect(omissions.textContent).toContain('Selection audit unavailable for this brief.');
+      expect(omissions.textContent).not.toContain('No topics were left unassessed.');
+    }
+    expect(host.querySelector('[data-glance-market="NG"]').textContent).toContain('0 trends cleared');
+    expect(host.querySelector('[data-glance-market="NG"]').textContent).toContain('1 held back');
+    resetRoot();
+  }
 });
 
 test('an unreadable card cannot turn a partly accounted market into a fully checked held market', async () => {
@@ -481,7 +522,10 @@ test('market tabs report selection to the shared region', async () => {
   expect(selected).toEqual(['NG']);
   expect(tab('Nigeria').getAttribute('aria-selected')).toBe('true');
   expect(cards()[0].querySelector('h3').textContent).toBe('#fixture_ng_owambe');
-  expect(host.querySelectorAll('.t42-headline').length).toBe(0);
+  const ngCard = todayFixture.markets.find((market) => market.market === 'NG').cards[0];
+  expect(host.querySelector('.t42-headline').textContent).toBe(ngCard.explanation);
+  expect(cards()[0].querySelector('.tc-title-link').getAttribute('href')).toContain(ngCard.item_id);
+  expect(host.querySelector('.t42-lead-figure').getAttribute('data-query-id')).toBe(ngCard.numbers[0].query_id);
   click(tab('Kenya'));
   expect(selected).toEqual(['NG', 'KE']);
   expect(tab('Kenya').getAttribute('aria-selected')).toBe('true');
@@ -507,7 +551,10 @@ test('an external region change applies the same headline tab scope', async () =
   };
   await renderRegion('NG');
   expect(tab('Nigeria').getAttribute('aria-selected')).toBe('true');
-  expect(host.querySelectorAll('.t42-headline').length).toBe(0);
+  const ngCard = todayFixture.markets.find((market) => market.market === 'NG').cards[0];
+  expect(host.querySelector('.t42-headline').textContent).toBe(ngCard.explanation);
+  expect(cards()[0].querySelector('.tc-title-link').getAttribute('href')).toContain(ngCard.item_id);
+  expect(host.querySelector('.t42-lead-figure').getAttribute('data-query-id')).toBe(ngCard.numbers[0].query_id);
   await renderRegion('KE');
   expect(tab('Kenya').getAttribute('aria-selected')).toBe('true');
   expect(host.querySelectorAll('.t42-headline').length).toBe(0);
@@ -2385,7 +2432,14 @@ test('the poster carries its lead figure and line beside it, and only while it s
   expect(figure.getAttribute('data-query-id')).toBe('q_creators3_za_a');
   expect(side.querySelector('svg.t42-spark .t42-line')).not.toBeNull();
   click(tab('Nigeria'));
-  expect(host.querySelector('.t42-lead-side')).toBeNull();
+  const ngCard = todayFixture.markets.find((market) => market.market === 'NG').cards[0];
+  expect(host.querySelector('.t42-headline').textContent).toBe(ngCard.explanation);
+  expect(cards()[0].querySelector('.tc-title-link').getAttribute('href')).toContain(ngCard.item_id);
+  const ngFigure = host.querySelector('.t42-lead-figure');
+  expect(ngFigure.textContent).toBe('24 creators in 3 days');
+  expect(ngFigure.getAttribute('data-query-id')).toBe(ngCard.numbers[0].query_id);
+  click(tab('Kenya'));
+  expect(host.querySelectorAll('.t42-lead-side')).toHaveLength(0);
 });
 
 test('the poster side panel drops what it cannot show and never says "not enough days"', async () => {

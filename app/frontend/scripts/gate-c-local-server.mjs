@@ -34,7 +34,7 @@ const admission = {
 };
 Object.assign(secondSignal, admission);
 const firstSignal = {...structuredClone(ROOT_SIGNAL), ...admission, signal_id: `sig_${'a'.repeat(64)}`, signal_name: ROOT_SIGNAL.label};
-const fieldwork = JSON.parse(readFileSync(resolve(root, '..', '..', 'tests', 'fixtures', 'workspaces', 'fieldwork_workspace_v1.json'), 'utf8')).ready;
+const fieldwork = fixture('fieldwork42_days.json').ready;
 const discoverItems = zaToday.cards.map((card, index) => {
   const clonedCard = structuredClone(card);
   return {
@@ -92,7 +92,7 @@ function api(path, url){
       ], error: null,
     },
   };
-  if (path.startsWith('/api/internal/v2/fieldwork/read')) return fieldwork;
+  if (path === '/api/fieldwork') return fieldwork;
   if (path.startsWith('/api/v2/source-lab')) return {contract_version: '2.2.0', sources: []};
   if (path.endsWith('/status')) return {
     contract_version: 'intelligence_dossier_v1', investigation_id: 'inv_gate_c',

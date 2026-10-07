@@ -26,6 +26,7 @@ from core.agent import checks, critic, native_review, plain, skills
 from core.agent.answer import validate_answer
 from core.agent.checks import _text_breaches, _unpinned, check_answer, platform_label, source_gaps, window_text
 from core.agent.context import TIERS, Refused, RunContext
+from core.agent.ranked import ranked_list
 from core.agent.tools import sc_adapter
 from core.agent.tools.dates import SAST, resolve_dates
 from core.agent.tools.enrich_tools import ENRICH_SHARE
@@ -1999,6 +2000,11 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     followups = _followups(answer["gaps"], source_status, allowed, allow=checks._allowance(window, as_of), ctx=ctx)
     # What a reader sees names no table, tool, field or check code (Albert, 4 October); verdicts keep the codes.
     answer, followups = plain.answer(answer), [plain.text(f) for f in followups]
+    ranked, ranking_notices = ranked_list(question, answer, ctx, masked=bool(request.get("skin_id")))
+    notices.extend(note for note in ranking_notices if note not in notices)
+    run = run_object(followups, (finished or answer["status"]) if inv is not None else None)
+    if ranked is not None:
+        run["ranked_list"] = ranked
     return {"answer": answer,
-            "run": run_object(followups, (finished or answer["status"]) if inv is not None else None),
+            "run": run,
             "query_receipts": query_receipts(ctx, answer)}

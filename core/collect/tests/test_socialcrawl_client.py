@@ -2095,3 +2095,67 @@ def test_a_failed_youtube_board_call_says_its_failure_class_in_health():
     failed = [h for h in rows if not h["valid"]]
     assert len(failed) == 1 and failed[0]["invalid_reason"] == "calls: http_5xx"
     assert all(h["valid"] for h in rows if h is not failed[0])
+
+
+@pytest.mark.parametrize("route,params", [
+    ("tiktok/trending", {"region": "ZA", "feed": "local"}),
+    ("tiktok/location/posts", {"location_id": "fixture-only", "region": "NG"}),
+    ("twitter/ai-search", {"query": "Find posts", "from_handles": "ARISEtv",
+                           "from_date": "2026-09-28", "to_date": "2026-09-29"}),
+])
+def test_recorded_supplier_error_stays_failed_without_a_second_dispatch(route, params):
+    http = FakeHTTP({route: (200, SAMPLES["not_found"])})
+    client = make(http=http)
+
+    def call(held):
+        return held.discover_x(params, market="NG") if route == "twitter/ai-search" else held.call(
+            route, params, market="NG")
+
+    first = call(client)
+    assert first.status == "error" and first.failure == "vendor_error"
+    raw_before = copy.deepcopy(client.raw.rows)
+    ledger_before = copy.deepcopy(paid(client))
+    recorded = call(client)
+    assert http.routes().count(route) == 1
+    assert recorded.status == "error" and recorded.failure == "vendor_error"
+    assert recorded.cache_hit is True and recorded.http_status == 200
+    assert recorded.credits_quoted == recorded.credits_charged == 0
+    assert recorded.items == [] and recorded.vendor_labels == []
+    assert client.raw.rows == raw_before
+    assert paid(client)[:-1] == ledger_before
+    assert {k: paid(client)[-1][k] for k in ("calls", "credits_charged", "cache_hit", "posts_new")} == {
+        "calls": 0, "credits_charged": 0, "cache_hit": True, "posts_new": 0}
+    recorded.body["success"] = True
+    assert client.raw.rows == raw_before
+    replay_client = make(mode="replay", raw=client.raw, http=NoHTTP())
+    replay = call(replay_client)
+    assert replay.status == "error" and replay.failure == "vendor_error"
+    assert replay.credits_quoted == replay.credits_charged == 0
+    assert replay.body["success"] is False
+    assert replay_client.ledger.rows == []
+    assert client.raw.rows == raw_before
+
+
+def test_nested_post_failure_words_are_not_supplier_envelope_status():
+    body = copy.deepcopy(SAMPLES["trending"])
+    post = body["data"]["items"][0]["post"]
+    post.update(success=False, status="error", error={"type": "RESOURCE_NOT_FOUND"})
+    http = FakeHTTP({"tiktok/trending": (200, body)})
+    client = make(http=http)
+    assert client.call(*TRENDING).status == "ok"
+    recorded = client.call(*TRENDING)
+    assert recorded.status == "cached" and recorded.failure == ""
+    assert recorded.items[0]["post"]["success"] is False
+    assert http.routes().count("tiktok/trending") == 1
+
+
+def test_legitimate_empty_success_remains_a_free_cached_empty_result():
+    http = FakeHTTP({"tiktok/trending": ok("empty_page")})
+    client = make(http=http)
+    first = client.call(*TRENDING)
+    second = client.call(*TRENDING)
+    assert first.status == "empty" and first.credits_charged == 0
+    assert second.status == "cached" and second.failure == ""
+    assert second.items == [] and second.body["success"] is True
+    assert second.credits_charged == 0
+    assert http.routes().count("tiktok/trending") == 1

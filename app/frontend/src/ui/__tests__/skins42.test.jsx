@@ -359,7 +359,27 @@ test('the narrowed Today shows the cards through the trend card, and each market
   expect(text(za)).toContain("2 of 16 items match this skin's terms and hashtags; 14 left out");
   const ng = today.querySelector('[data-market="NG"]');
   expect(text(ng)).toContain("0 of 9 items match this skin's terms and hashtags; 9 left out");
-  expect(text(ng)).toContain('No trends in this skin passed the checks for Nigeria today.');
+  expect(text(ng)).toContain('No trends in this skin passed the checks for Nigeria on 30 September 2026.');
+});
+
+test.each([
+  ['2026-10-04', 'Brief for 4 October 2026 in this skin', "None of this skin's markets is in the brief for 4 October 2026.", 'No trends in this skin passed the checks for Nigeria on 4 October 2026.'],
+  ['2026-10-05', 'Today in this skin', "None of this skin's markets is in today's brief.", 'No trends in this skin passed the checks for Nigeria today.'],
+])('skin headings and empty states describe the displayed brief for %s', async (date, heading, emptyMarkets, emptyCards) => {
+  const nativeNow = Date.now;
+  Date.now = () => Date.parse('2026-10-05T10:00:00+02:00');
+  try {
+    await mountPage(pageRoutes([['/api/skins/sk_000000000001/today', reply(200, {...SKIN_TODAY, date, markets: [SKIN_TODAY.markets[1]]})]]));
+    expect(text(section('skin-today').querySelector('h2'))).toBe(heading);
+    expect(text(section('skin-today').querySelector('[data-market="NG"]'))).toContain(emptyCards);
+    flushSync(() => root.unmount());
+    root = createRoot(host);
+    await mountPage(pageRoutes([['/api/skins/sk_000000000001/today', reply(200, {...SKIN_TODAY, date, markets: []})]]));
+    expect(text(section('skin-today').querySelector('h2'))).toBe(heading);
+    expect(text(section('skin-today'))).toContain(emptyMarkets);
+  } finally {
+    Date.now = nativeNow;
+  }
 });
 
 test('a skin Today from an earlier day names its date and says it is not today, and the current day does not', async () => {

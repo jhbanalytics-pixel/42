@@ -103,9 +103,9 @@ OBSERVATION_COLUMNS = (
     "post_id", "observed_at", "observed_date", "market", "source_market", "source_region", "platform", "route",
     "series", "protocol", "lane", "lane_class", "seed_key", "pull_seq", "rank", "views", "likes", "comments",
     "shares", "run_id")
-# The creators columns collect fills (core/schema/core.sql); tier, home_market, verified_region, coord_score and
+# The creators columns collect fills (core/schema/core.sql); tier, verified_region, coord_score and
 # account_created_at belong to other jobs. No column holds or infers age.
-CREATOR_COLUMNS = ("creator_id", "platform", "handle", "display_name", "followers", "verified", "profile_location",
+CREATOR_COLUMNS = ("creator_id", "platform", "handle", "display_name", "followers", "verified", "profile_location", "home_market",
                    "first_seen", "last_seen")
 COUNTER_COLUMNS = (
     "obs_date", "market", "platform", "item_id", "series", "route", "protocol", "is_board", "lane_class",
@@ -141,7 +141,8 @@ ROUTES = {
     "youtube/search/advanced": ("search", "youtube", "search", False,
                                   ("location", "location_radius", "order", "includeExtras"), MARKETS),
     "tiktok/location/posts": ("search", "tiktok", "search", False, ("location_id",), MARKETS),
-    "tiktok/profile/region": ("profile", "tiktok", "profile_country", False, (), MARKETS),
+    "tiktok/profile": ("profile", "tiktok", "profile_country", False, (), MARKETS),
+    "instagram/profile/about": ("profile", "instagram", "profile_country", False, (), MARKETS),
     "twitter/tweet": ("search", "twitter", "search", False, (), MARKETS),
     "prism/post-stats": ("restat", None, "counter_post_views", False, (), MARKETS),
     "web/scrape": ("none", None, None, False, (), MARKETS + (GLOBAL,)),
@@ -163,21 +164,21 @@ OFFSET_SPACE = re.compile(r"\s+(?=[+-]\d{2}:?\d{2}$)")
 
 
 def parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_fn,
-          lane=None, seed_key=None, pull_seq=None, protocol=None):
+          lane=None, seed_key=None, pull_seq=None, protocol=None, profile_cache=None):
     return _parse(route, params, market, body, fetched_at, run_id, item_id_fn=item_id_fn, geo_fn=geo_fn,
-                  lane=lane, seed_key=seed_key, pull_seq=pull_seq, protocol=protocol)[0]
+                  lane=lane, seed_key=seed_key, pull_seq=pull_seq, protocol=protocol, profile_cache=profile_cache)[0]
 
 
 def parse_with_creators(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_fn,
-                        lane=None, seed_key=None, pull_seq=None, protocol=None):
+                        lane=None, seed_key=None, pull_seq=None, protocol=None, profile_cache=None):
     """parse's rows plus "creators": one row per post that names a creator, CREATOR_COLUMNS in order."""
     out, creators = _parse(route, params, market, body, fetched_at, run_id, item_id_fn=item_id_fn, geo_fn=geo_fn,
-                           lane=lane, seed_key=seed_key, pull_seq=pull_seq, protocol=protocol)
+                           lane=lane, seed_key=seed_key, pull_seq=pull_seq, protocol=protocol, profile_cache=profile_cache)
     return {**out, "creators": creators}
 
 
 def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_fn,
-           lane=None, seed_key=None, pull_seq=None, protocol=None):
+           lane=None, seed_key=None, pull_seq=None, protocol=None, profile_cache=None):
     if route not in ROUTES:
         raise ValueError(f"no parser for route {route!r}")
     family, platform, series, is_board, keys, markets = ROUTES[route]
@@ -214,7 +215,7 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
         "protocol": protocol or _protocol(route, params, keys), "observed_at": observed.isoformat(),
         "observed_date": _local_day(observed, market), "item_id_fn": item_id_fn, "geo_fn": geo_fn,
         "since": _since(params.get("since"), market) if family == "panel" else None,
-        "handle": _first(params, "handle", "username"), "creators": [],
+        "handle": _first(params, "handle", "username"), "creators": [], "profile_cache": profile_cache,
     }
     data = body.get("data")
     if route in ("youtube/search/advanced", "tiktok/location/posts"):
@@ -246,10 +247,18 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
         author = _dict(_dict(data).get("author"))
         handle = params.get("handle")
         if handle and str(author.get("username") or "").lower() == str(handle).lower():
-            ctx["creators"].append({"creator_id": str(handle), "platform": "tiktok", "handle": str(handle),
-                "display_name": None, "followers": _number(author, "followers"), "verified": None,
-                "profile_location": profile_country(body, handle),
+            raw_location = author.get("location")
+            country = profile_country(body, handle, platform=platform)
+            name = author.get("display_name")
+            ctx["creators"].append({"creator_id": str(handle), "platform": platform, "handle": str(handle),
+                "display_name": name if isinstance(name, str) and name.strip() else None, "followers": _number(author, "followers"),
+                "verified": author.get("verified") if isinstance(author.get("verified"), bool) else None,
+                "profile_location": raw_location if isinstance(raw_location, str) and raw_location.strip()
+                    and (platform != "tiktok" or country is not None) else None,
+                "home_market": country,
                 "first_seen": ctx["observed_at"], "last_seen": ctx["observed_at"]})
+            if profile_cache is not None:
+                profile_cache.track_creator(ctx["creators"][-1], source=route)
     elif route == "twitter/tweet":
         from core.collect.x_discovery import status_url, verified_lookup
 
@@ -494,10 +503,21 @@ def _post(out, ctx, item, platform, *, rank=None, fallback=None, author=None, so
     described = _first(ext, "description")
     geo_text = "\n".join(p for p in (text, described) if isinstance(p, str)) \
         if isinstance(described, str) and described not in (text or "") else text
-    geo = _geo(ctx, platform, ctx["market"], ext_region=_first(ext, "region"),
-               home_market=_first(author, "region", "country") or _first(profile, "region", "country")
-               or _first(ext, "author_country"),
-               profile_location=location, text=geo_text, language=language)
+    handle = _first(author, "username", "handle") or _first(profile, "username", "handle") or handle or ctx["handle"]
+    signals = {"ext_region": _first(ext, "region"),
+               "home_market": _first(author, "region", "country") or _first(profile, "region", "country")
+               or _first(ext, "author_country"), "profile_location": location, "text": geo_text, "language": language}
+    if platform in ("tiktok", "instagram"):
+        from core.collect.location_sources import country_code
+
+        signals["home_market"] = country_code(signals["home_market"]) or signals["home_market"]
+    cache = ctx["profile_cache"]
+    account_country = country_code(_first(ext, "author_country")) if platform == "instagram" \
+        and ctx["route"] == "instagram/search/reels" else None
+    if cache is not None and account_country is not None:
+        cache.remember(platform, handle, account_country)
+    enriched = cache.signals(platform, handle, signals) if cache is not None else signals
+    geo = _geo(ctx, platform, ctx["market"], **enriched)
     creator = _first(author, "username") or fallback or _first(author, "id", "channel_id") or _first(ext, "channel_id")
     row = {
         "post_id": pid, "platform": platform, "native_id": None if native is None else str(native),
@@ -515,18 +535,21 @@ def _post(out, ctx, item, platform, *, rank=None, fallback=None, author=None, so
         "vendor_labels": item.get("vendor_labels"), "run_id": ctx["run_id"],
     }
     out["posts"].append(row)
+    if cache is not None:
+        cache.bind(row, platform, ctx["market"], handle, signals)
     out["observations"].append(_observation(ctx, pid, platform, metrics, rank))
     if creator is not None:
         verified = author.get("verified")
         name = _first(author, "display_name", "name", "nickname")
-        handle = _first(author, "username", "handle") or _first(profile, "username", "handle") or handle \
-            or ctx["handle"]
         ctx["creators"].append({
             "creator_id": str(creator), "platform": platform, "handle": None if handle is None else str(handle),
             "display_name": None if name is None else str(name), "followers": followers,
             "verified": verified if isinstance(verified, bool) else None, "profile_location": location,
+            "home_market": cache.country(platform, handle) if cache is not None else account_country,
             "first_seen": ctx["observed_at"], "last_seen": ctx["observed_at"],
         })
+        if cache is not None:
+            cache.track_creator(ctx["creators"][-1])
     return row
 
 

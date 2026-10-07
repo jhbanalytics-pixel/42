@@ -50,7 +50,7 @@ CAP_BEFORE_EXPIRY = datetime(2026, 10, 2, 23, 59, 59, tzinfo=SAST)
 CAP_AFTER_EXPIRY = datetime(2026, 10, 3, 0, 0, tzinfo=SAST)
 MARKETS = ("ZA", "NG", "KE")
 MARKET_KEYS = {"market", "label", "status", "headline", "banners", "cards", "more", "held_back", "moments", "boards",
-               "coverage", "critic"}
+               "coverage", "critic", "not_assessed", "selection_receipt"}
 CARD_KEYS = {"item_id", "market", "date", "rank", "kind", "title", "state", "state_word", "flag", "flag_word",
              "explained", "explanation", "explanation_claim_ids", "claims", "count_line", "numbers", "sparkline",
              "thumbnails", "evidence_ids", "evidence", "ask", "explanation_status", "failed_reason", "also",
@@ -334,6 +334,24 @@ def test_a_normal_morning_writes_one_briefs_row_per_market_in_the_contract_shape
             assert {n["unit"] for n in c["numbers"]} == {"creators in 3 days", "posts in 3 days", "times usual"}
     assert r.chain.begun == [("brief", D)]
     assert r.chain.started == []
+
+
+def test_selection_omissions_and_exact_receipt_are_persisted_without_extra_model_work(monkeypatch):
+    real_query = Client.query
+
+    def with_job_id(self, sql, job_config=None):
+        result = real_query(self, sql, job_config)
+        return SimpleNamespace(job_id="selection-fixture", result=result.result)
+
+    monkeypatch.setattr(Client, "query", with_job_id)
+    monkeypatch.setattr(job, "read_hidden", lambda *args, **kwargs: ({"twitter:market"}, set(), set()))
+    r = brief(world(n=12, markets=("NG",)), ctx=FakeCtx())
+    p = payload(r, "NG")
+    assert p["not_assessed"]["count"] == 2
+    assert {item["item_id"] for item in p["not_assessed"]["items"]} == {item("NG", 11), item("NG", 12)}
+    assert p["selection_receipt"]["job_id"] == "selection-fixture"
+    assert "@market" in p["selection_receipt"]["sql"]
+    assert len(r.model.writer_calls()) == 10
 
 
 def test_the_run_finishes_ok_with_counts_and_writes_only_briefs_and_claim_checks():
@@ -893,7 +911,6 @@ def test_model_admission_refuses_non_current_data_days_even_when_run_date_is_ove
 
 
 def test_mid_explanation_accounting_day_rollover_stops_calls_and_books_completed_usage():
-    instants = iter((EARLY, EARLY, datetime.combine(D + timedelta(days=1), time(0), SAST)))
     by_market = job._candidates(Client(world(n=1)), D, build_ctx=FakeCtx(), campaign_hashtags=[],
                                 political_terms={m: ["election"] for m in MARKETS}, core="core", agent="agent")
     tasks = job._in_rank_order(by_market)
@@ -901,7 +918,9 @@ def test_mid_explanation_accounting_day_rollover_stops_calls_and_books_completed
     spend = {"usd": 0.0}
 
     results, unavailable, stop = job._explain_all(tasks[:1], model=model, base_usd=0.0, spend=spend,
-                                                  clock=lambda: next(instants), chain=FakeChain(), d=D, workers=1)
+                                                  clock=lambda: datetime.combine(D + timedelta(days=1), time(), SAST)
+                                                  if model.writer_calls() else EARLY,
+                                                  chain=FakeChain(), d=D, workers=1)
 
     assert len(model.calls) == 1
     assert results[id(tasks[0])]["reason"] == "model_error"
@@ -912,7 +931,8 @@ def test_mid_explanation_accounting_day_rollover_stops_calls_and_books_completed
 
 def test_at_the_deadline_candidates_not_yet_explained_are_held_back():
     model = FakeModel()
-    r = brief(world(n=3), model=model, workers=1, clock=lambda: LATE if model.writer_calls() else EARLY)
+    r = brief(world(n=3), model=model, workers=1,
+              clock=lambda: LATE if any(c.get("critic") for c in model.calls) else EARLY)
     assert len(model.writer_calls()) == 1
     za = payload(r, "ZA")
     assert [c["item_id"] for c in za["cards"]] == ["za1"]
@@ -1178,7 +1198,7 @@ def test_an_explanation_queue_that_crosses_the_time_limit_holds_the_rest_as_at_t
     _no_recovery(monkeypatch)
     model = FakeModel()
     r = brief(world(n=3), model=model, workers=1,
-              clock=lambda: DAWN + (TIME_LIMIT if model.writer_calls() else timedelta(0)))
+              clock=lambda: DAWN + (TIME_LIMIT if any(c.get("critic") for c in model.calls) else timedelta(0)))
     assert len(model.writer_calls()) == 1
     assert r.counts["explanation_stop"] == {
         "reason": "deadline", "limit": "task_timeout", "attempted": 1,
@@ -1194,7 +1214,8 @@ def test_an_explanation_queue_that_crosses_the_time_limit_holds_the_rest_as_at_t
 
     # The same cards and holds as a run stopped by 06:15 at the same point.
     model = FakeModel()
-    at_deadline = brief(world(n=3), model=model, workers=1, clock=lambda: LATE if model.writer_calls() else EARLY)
+    at_deadline = brief(world(n=3), model=model, workers=1,
+                        clock=lambda: LATE if any(c.get("critic") for c in model.calls) else EARLY)
     for m in MARKETS:
         assert all_cards(payload(r, m)) == all_cards(payload(at_deadline, m))
         assert payload(r, m)["held_back"] == payload(at_deadline, m)["held_back"]
@@ -1357,7 +1378,8 @@ def test_the_headline_is_the_rank_one_explained_card_else_null():
     assert za["headline"]["text"] and za["headline"]["claim_ids"] == ["c1", "c3"]
 
     model = FakeModel()
-    r = brief(world(n=2), model=model, workers=1, clock=lambda: LATE if model.writer_calls() else EARLY)
+    r = brief(world(n=2), model=model, workers=1,
+              clock=lambda: LATE if any(c.get("critic") for c in model.calls) else EARLY)
     assert payload(r, "ZA")["headline"]["item_id"] == "za1"
     assert payload(r, "NG")["headline"] is None and payload(r, "KE")["headline"] is None
 
@@ -2246,7 +2268,8 @@ def test_explained_cards_stay_visible_and_incomplete_results_are_held():
     assert {c["explanation_status"] for m in MARKETS for c in all_cards(payload(r, m))} == {"explained"}
 
     model = FakeModel()
-    r = brief(world(n=2), model=model, workers=1, clock=lambda: LATE if model.writer_calls() else EARLY)
+    r = brief(world(n=2), model=model, workers=1,
+              clock=lambda: LATE if any(c.get("critic") for c in model.calls) else EARLY)
     za = payload(r, "ZA")
     assert [c["explanation_status"] for c in za["cards"]] == ["explained"]
     assert {c["item_id"] for c in za["held_back"]["items"]} == {"za2"}

@@ -21,7 +21,7 @@ The brief job (`core/brief/job.py`) adds its own holds: a platform-generic tag, 
 
 A post counts as paid when it carries a sponsored flag, a whole hashtag such as #ad, #sponsored or #paidpartnership, or the words "paid partnership" (`core/brief/gatectx.py`).
 
-Held items are never dropped. Today lists each one with its rule, a fixed plain-language reason and its posts and figures. When more than 30% of a market's candidates are held for data reasons, a banner says so. The reason text is fixed per rule, never written by a model.
+Today lists held candidates with their rule, a fixed plain-language reason and their posts and figures. Topics left outside the assessed selection appear separately under "Not assessed", with their recorded reason. "Selection audit unavailable" means that record cannot establish which topics were left unchecked. When more than 30% of a market's candidates are held for data reasons, a banner says so. The reason text is fixed per rule, never written by a model.
 
 ## 2. How a card is built
 
@@ -35,19 +35,19 @@ Every claim in a card or an answer goes through code checks (`core/trust/claims.
 
 | Check | What it enforces |
 |---|---|
-| K1 | Each claim id is unique, every evidence id resolves, and every quote is at least two words and matches the post word for word |
+| K1 | Each claim id is unique, every evidence id resolves, and quote entries match the post on word boundaries. Today requires at least two words; Ask also permits a single word of at least eight characters |
 | K2 | Every number in the text matches a numbers entry pinned by query id, run id and result hash. On re-run, counts must match exactly and ratios within 2% |
 | K3 | Every cited post sits inside the time window, and none is located in another market |
 | K5 | The confidence label is lowered to what the evidence allows |
 | K6 | No banned terms (age and generation words, search-interest wording) and no generated evidence |
-| K8 | Translations are marked as translations |
+| K8 | Today requires translations to be marked as translations. Ask checks quoted spans against cited posts |
 | K10 | The answer drops to partial, or to insufficient evidence when fewer than two claims survive |
 
 Every verdict is written to the `claim_checks` table, so any claim can be traced back to why it passed.
 
 ## 4. Confidence labels
 
-Labels are computed by code, never chosen by a model:
+The writer proposes confidence labels; code may lower them to what the evidence supports. Interpretations stay Inferred. The table gives the evidence needed for each ceiling:
 
 | Label | Needs |
 |---|---|
@@ -60,7 +60,9 @@ Brand accounts, paid or sponsored posts, near-duplicates and generated posts do 
 
 ## 5. Two independent reviews
 
-**Support checker.** One check per surviving claim and one on the explanation sentence. Only "supported" passes; "partial" is a cut.
+Support checker. For Today, one check per surviving claim and one on the explanation sentence. Only "supported" passes; "partial" is a cut.
+
+Ask may narrow a claim once to what its cited posts support, then runs the code and support checks again. Removed dependent background and implications leave gaps explaining why. A summary that depended on a cut or narrowed claim may be rewritten once from the retained claims; if it stays blank after checks, a gap explains why and the answer cannot remain complete.
 
 **Critic.** Names the simplest non-cultural explanation: one viral post, one creator, a news story, a scheduled event. The card passes only when that explanation is ruled out and a local why-now is confirmed. A news-driven or scheduled topic can still pass when at least two distinct local creators are reacting in their own words; it is then labelled news-driven and every claim drops one label step.
 

@@ -126,6 +126,19 @@ test('a shared URL restores the mode, subjects, market and window, and reads the
   expect(host.querySelector('select[name="market"]').value).toBe('ZA');
 });
 
+test('daily chart buttons name one post in the singular and keep unknown days unavailable', async () => {
+  const data = clone(itemsFixture);
+  data.series[0].points = [0, 1, 2, null, undefined].map((value, index) => ({date: '2026-10-0' + (index + 1), value}));
+  await mount(SHARED, standard(data));
+  const days = [...section('chart').querySelectorAll('[data-subject="s1"] .c42-day')];
+  expect(days.map((day) => day.dataset.day)).toEqual(['2026-10-01', '2026-10-02', '2026-10-03']);
+  expect(days.map((day) => day.getAttribute('aria-label'))).toEqual([
+    '#fixture_za_step, 1 October 2026, 0 posts a day. Ask why this day jumped',
+    '#fixture_za_step, 2 October 2026, 1 post a day. Ask why this day jumped',
+    '#fixture_za_step, 3 October 2026, 2 posts a day. Ask why this day jumped',
+  ]);
+});
+
 test('one small multiple per subject, all on the same scale, with days without collection kept as gaps', async () => {
   await mount(SHARED);
   const chart = section('chart');

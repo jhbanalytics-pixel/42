@@ -143,7 +143,7 @@ def test_failed_lookup_does_not_create_evidence_and_next_lookup_runs(monkeypatch
 
 def test_profile_country_parser_has_no_posts_or_observations():
     body = {"success": True, "data": {"author": FIXTURE["tiktok_region"]["author"]}}
-    out = parser.parse_with_creators("tiktok/profile/region", {"handle": "stoolpresidente"}, "NG", body,
+    out = parser.parse_with_creators("tiktok/profile", {"handle": "stoolpresidente"}, "NG", body,
         NOW, "profile", item_id_fn=fake_item_id, geo_fn=FakeGeo(), lane="panel")
     assert out["posts"] == [] and out["observations"] == [] and out["counters"] == []
     assert out["creators"][0]["profile_location"] == "US"
@@ -180,7 +180,7 @@ def test_collect_consumes_explicit_profile_inputs_without_location_evidence(monk
 
     class Client:
         def call(self, route, *args, **kwargs):
-            assert route == "tiktok/profile/region"
+            assert route == "tiktok/profile"
             return Result("ok", route, body={"success": True, "data": {"author": FIXTURE["tiktok_region"]["author"]}},
                           credits_charged=1)
 
@@ -200,7 +200,7 @@ def test_offline_plan_includes_explicit_profile_input():
     config = job.load_config()
     config["markets"]["ng"]["location_collection"] = {"tiktok_profiles": ["stoolpresidente"]}
     out = job.plan(date(2026, 9, 28), config=config, include_curated=False, reels={})
-    assert any(c.route == "tiktok/profile/region" for c in out["calls"]["NG"])
+    assert any(c.route == "tiktok/profile" for c in out["calls"]["NG"])
 
 
 @pytest.mark.parametrize("route", ["youtube/search/advanced", "tiktok/location/posts"])

@@ -395,7 +395,7 @@ cr3 AS (                    -- measured lanes: this 3-day window and the one bef
 fl AS (
   SELECT cr3.item_id, cr3.market,
     SUM(IF(cr3.flagged, 0, cr3.n3)) posts3, SUM(IF(cr3.flagged, 0, cr3.n3_prev)) posts3_prev,
-    COUNTIF(cr3.n3 > 0 AND NOT cr3.flagged) creators3,
+    COUNTIF(cr3.creator_id IS NOT NULL AND cr3.n3 > 0 AND NOT cr3.flagged) creators3,
     SAFE_DIVIDE(MAX(cr3.n3), SUM(cr3.n3)) top_creator_share3
   FROM cr3 GROUP BY cr3.item_id, cr3.market),
 a7 AS (

@@ -48,7 +48,7 @@ Flags for both live in `core/api/deploy_flags.env`.
 
 ## Caps
 
-All credit and spend caps live in one file, `core/config/caps.yaml`, read by `core/config/caps.py` and enforced in `core/collect/socialcrawl_client.py` before every supplier call. A test fails if the file drifts from the documented table.
+Shared daily and monthly credit and spend caps live in `core/config/caps.yaml`, read by `core/config/caps.py`. Supplier credit guards run in `core/collect/socialcrawl_client.py` before a live call; Ask and the brief also guard their model spend. A test fails if the file drifts from the documented table.
 
 | Cap | Value | What stops |
 |---|---|---|
@@ -59,8 +59,8 @@ All credit and spend caps live in one file, `core/config/caps.yaml`, read by `co
 | `PULSE_DAILY` | 60 credits | The intraday pulse stops |
 | `EVAL_DAILY` | 0 live credits (100 for a deliberate refresh) | Evaluations run in replay mode |
 | `MONTHLY` | 80,000 credits | Ask and build work are throttled first; the morning run is protected |
-| `BALANCE_FLOOR` | 20,000 credits | Every job refuses to start below it |
-| `MODEL_DAILY_USD` | USD 50 a day | Ask falls back to a quick lookup; the brief falls back to numbers and posts |
+| `BALANCE_FLOOR` | 20,000 credits | Paid live supplier calls stop below it; cached responses and free routes remain subject to their other checks |
+| `MODEL_DAILY_USD` | USD 50 a day | Ask may use a quick lookup if it still fits; otherwise the question is not researched. The brief falls back to numbers and posts |
 
 A per-question budget sits inside `ASK_DAILY` (`core/agent/context.py`):
 

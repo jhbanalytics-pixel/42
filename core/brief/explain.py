@@ -1023,8 +1023,14 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
             out, usage = model.complete_json(system=system, user=user, schema=schema, model=model_id,
                                              max_tokens=max_tokens)
         except Exception as exc:
-            spent["usd"] += getattr(exc, "usd", 0.0)
-            raise _ModelError(f"{type(exc).__name__}: {exc}") from exc
+            booked = getattr(exc, "usd", 0.0)
+            detail = f"{type(exc).__name__}: {exc}"
+            if getattr(exc, "reserve_model_estimate", False):
+                booked = max(booked, estimate)
+                exc.reserved_usd = booked
+                detail += f"; usage unknown, model reservation retained: USD {booked:.8f}"
+            spent["usd"] += booked
+            raise _ModelError(detail) from exc
         spent["usd"] += usage.get("usd", 0.0)
         return out
 

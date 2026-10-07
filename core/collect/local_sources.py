@@ -619,7 +619,7 @@ def _get_with_retry(get, url, tries, sleep):
         sleep(FREE_RETRY_WAIT)
 
 
-def run(day, run_id, *, client, get, clock, item_id_fn, geo_fn, last_pulls=None, sleep=None):
+def run(day, run_id, *, client, get, clock, item_id_fn, geo_fn, last_pulls=None, sleep=None, profile_cache=None):
     """Make the day's local fetches and return their rows. client is the collect share's SocialCrawlClient,
     get(url) -> (status, text) the free getter (http_get live), last_pulls the job's
     (market, series, protocol) -> last stored pull_seq, sleep the wait before a free rank list's retry."""
@@ -674,7 +674,7 @@ def run(day, run_id, *, client, get, clock, item_id_fn, geo_fn, last_pulls=None,
                 continue
             if f.route == "prism/profiles":
                 parsed = parse(f.route, f.params, f.market, result.body, fetched, run_id, item_id_fn=item_id_fn,
-                               geo_fn=geo, protocol=f.protocol())
+                               geo_fn=geo, protocol=f.protocol(), profile_cache=profile_cache)
                 # A post from a gossip page the curated lists hold for this market is a local outlet's post:
                 # seen in the market's feeds (TRUST.md, market by source). Any other page's posts stay unscoped.
                 if listed is None:

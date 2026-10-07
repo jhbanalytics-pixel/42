@@ -9,6 +9,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {fetchCompare, fetchDiscover} from './api42.js';
 import {readerFigure, sentenceCase, seriesFigure} from './api.js';
+import {unitFor} from './readerUnits.js';
 import {SpikeConfirm} from './ui/SpikeConfirm.jsx';
 import {figureWords, longDate, platformWord, topicHref} from './ui/TrendCard.jsx';
 import './styles/today42.css';
@@ -502,7 +503,7 @@ function Multiple({points, top, unit, label, onDay}){
         if (!num(p.value) || !p.date) return null;
         const left = Math.max(0, x(i) - step / 2);
         const right = Math.min(W, x(i) + step / 2);
-        const words = longDate(p.date) + ', ' + seriesFigure(p.value) + ' ' + unit + '. Ask why this day jumped';
+        const words = longDate(p.date) + ', ' + seriesFigure(p.value) + ' ' + unitFor(p.value, unit) + '. Ask why this day jumped';
         return (
           <button key={p.date} type="button" className="c42-day" data-day={p.date}
             style={{left: pct(left), width: pct(right - left)}}

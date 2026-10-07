@@ -4,12 +4,15 @@ import json
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from math import ceil
+from threading import Lock
 from types import SimpleNamespace
 
 import pytest
 
 from core.eval import ask_r2
 from core.agent import writer
+from core.agent.model_budget import AskModelBudget, BudgetRefused as AskBudgetRefused
 
 
 def test_context_snapshot_preserves_writer_evidence_exclusions():
@@ -346,7 +349,8 @@ def test_semantic_tvf_uses_sql_dry_run_byte_cap_and_embedding_reservation(query_
     from core.agent.tools import sql_query
 
     context = SimpleNamespace(events=[], record_query=lambda *args: ("q1", "a" * 64),
-                              emit=lambda *args, **kwargs: None)
+                              emit=lambda *args, **kwargs: None, model_budget=AskModelBudget(10.0, 10.0),
+                              model_usd_extra=0.0, lock=Lock())
     backend = _FakeWarehouse()
     budget = ask_r2.SessionBudget(10.0)
     guarded = ask_r2.ReadOnlyWarehouse(backend, sql_query.check_sql, budget=budget)
@@ -371,6 +375,8 @@ def test_semantic_tvf_uses_sql_dry_run_byte_cap_and_embedding_reservation(query_
     assert context.events[-1]["row_count"] == 0
     assert context.events[-1]["post_ids"] == []
     assert len(context.events[-1]["sql_sha256"]) == 64
+    assert context.model_budget.booked_usd == context.model_budget.conservative_usd == (
+        ceil(ask_r2.SEMANTIC_EMBEDDING_RESERVE_USD * 1_000_000) / 1_000_000)
 
 
 def test_semantic_tvf_rejects_correlated_embedding_query_before_dispatch():
@@ -424,7 +430,8 @@ def test_semantic_query_with_unicode_at_utf8_bound_is_allowed():
     from core.agent.tools import sql_query
 
     context = SimpleNamespace(events=[], record_query=lambda *args: ("q1", "a" * 64),
-                              emit=lambda *args, **kwargs: None)
+                              emit=lambda *args, **kwargs: None, model_budget=AskModelBudget(10.0, 10.0),
+                              model_usd_extra=0.0, lock=Lock())
     backend = _FakeWarehouse()
     budget = ask_r2.SessionBudget(10.0)
     guarded = ask_r2.ReadOnlyWarehouse(backend, sql_query.check_sql, budget=budget)
@@ -438,6 +445,8 @@ def test_semantic_query_with_unicode_at_utf8_bound_is_allowed():
     assert backend.dry_run_calls == 1
     assert backend.run_calls == 1
     assert budget.calls[0]["charge_basis"] == "conservative_embedding_ceiling"
+    assert context.model_budget.booked_usd == context.model_budget.conservative_usd == (
+        ceil(ask_r2.SEMANTIC_EMBEDDING_RESERVE_USD * 1_000_000) / 1_000_000)
 
 
 def test_search_posts_source_sightings_query_reserves_one_embedding_call():
@@ -446,7 +455,8 @@ def test_search_posts_source_sightings_query_reserves_one_embedding_call():
 
     context = SimpleNamespace(as_of=datetime(2026, 9, 30, tzinfo=timezone.utc),
                               window_start=None, window_end=None, market="ZA",
-                              events=[], queries={}, model_usd_extra=0.0)
+                              events=[], queries={}, model_usd_extra=0.0,
+                              model_budget=AskModelBudget(10.0, 10.0), lock=Lock())
     context.emit = lambda *args, **kwargs: None
 
     def record_query(sql, params, rows, purpose):
@@ -472,6 +482,32 @@ def test_search_posts_source_sightings_query_reserves_one_embedding_call():
     assert len(budget.calls) == 1
     assert budget.calls[0]["phase"] == "semantic_embedding"
     assert budget.calls[0]["charged_usd"] == budget.calls[0]["reserved_usd"]
+    assert context.model_budget.booked_usd == context.model_budget.conservative_usd == (
+        ceil(ask_r2.SEMANTIC_EMBEDDING_RESERVE_USD * 1_000_000) / 1_000_000)
+
+
+def test_semantic_fixture_keeps_both_budgets_active_and_blocks_a_spent_ask_hold():
+    from core.agent.tools import sql_query
+
+    ceiling = ceil(ask_r2.SEMANTIC_EMBEDDING_RESERVE_USD * 1_000_000) / 1_000_000
+    context = SimpleNamespace(events=[], record_query=lambda *args: ("q1", "a" * 64),
+                              emit=lambda *args, **kwargs: None, model_budget=AskModelBudget(ceiling, ceiling),
+                              model_usd_extra=0.0, lock=Lock())
+    backend = _FakeWarehouse()
+    budget = ask_r2.SessionBudget(10.0)
+    guarded = ask_r2.ReadOnlyWarehouse(backend, sql_query.check_sql, budget=budget)
+    sql = "SELECT * FROM intelligence_42_agent.tvf_search_posts(@q, NULL, @since, @until, @k)"
+    params = {"q": "amapiano", "since": "2026-09-01", "until": "2026-09-30", "k": 10}
+
+    sql_query.sql_query(context, guarded, sql, purpose="semantic", params=params)
+    with pytest.raises(AskBudgetRefused, match="question_model_budget_exhausted"):
+        sql_query.sql_query(context, guarded, sql, purpose="semantic", params=params)
+
+    assert backend.run_calls == 1
+    assert len(budget.calls) == 1
+    assert budget.calls[0]["charged_usd"] == budget.calls[0]["reserved_usd"]
+    assert budget.calls[0]["charge_basis"] == "conservative_embedding_ceiling"
+    assert context.model_budget.booked_usd == context.model_budget.conservative_usd == ceiling
 
 
 def test_r3_main_disallows_resume_before_authority_checks(tmp_path, monkeypatch):

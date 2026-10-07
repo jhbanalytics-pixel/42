@@ -1163,3 +1163,37 @@ def test_community_route_fails_closed_without_the_suppression_list(v2, monkeypat
     _suppression_fails(monkeypatch, "unreadable")
     r = v2.client.get(path, headers=GOOD)
     assert r.status_code == 503 and r.json()["error"] == "people_unavailable"
+
+
+@pytest.mark.parametrize("status,payload,expected_agent,expected_ready", [
+    (200, {"t2_ready": True}, "ok", True),
+    (200, {"t2_ready": False}, "ok", False),
+    (200, {"t2_ready": "true"}, "ok", False),
+    (503, {"t2_ready": True}, "status 503", False),
+    (200, "invalid_json", "ok", False),
+    (200, [], "ok", False),
+    (None, None, "unreachable", False),
+])
+def test_health_uses_one_fresh_agent_response_for_status_and_readiness(ctx, monkeypatch, status, payload,
+                                                                    expected_agent, expected_ready):
+    calls = []
+
+    def answer(request):
+        calls.append(request.url.path)
+        if status is None:
+            raise httpx.ConnectError("fixture connection failure", request=request)
+        if payload == "invalid_json":
+            return httpx.Response(status, content=b"not json")
+        return httpx.Response(status, json=payload)
+
+    remote_agent(monkeypatch, httpx.MockTransport(answer))
+    response = ctx.client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json()["checks"]["agent"] == expected_agent
+    assert response.json()["t2_ready"] is expected_ready
+    assert calls == ["/health"]
+    monkeypatch.setenv("F42_AUTH_MODE", "fixture_unavailable")
+    second = ctx.client.get("/api/health").json()
+    assert calls == ["/health", "/health"]
+    assert second["auth_mode"] == "unavailable" and second["passcode"] is False
+    assert second["checks"]["auth"] == "not_configured" and second["ok"] is False

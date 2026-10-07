@@ -310,7 +310,7 @@ function Sparkline({points, unit, onDay}){
       {points.map((p, i) => (num(p.value) && p.date
         ? <button key={p.date} type="button" className="tp42-day" data-day={p.date}
             style={{left: pct(Math.max(0, x(i) - step / 2)), width: pct(Math.min(step, W))}}
-            aria-label={longDate(p.date) + ', ' + seriesFigure(p.value) + ' ' + (unit || 'a day') + '. Ask why this day jumped'}
+            aria-label={longDate(p.date) + ', ' + seriesFigure(p.value) + ' ' + unitFor(p.value, unit || 'a day') + '. Ask why this day jumped'}
             title={longDate(p.date) + ': ' + seriesFigure(p.value) + '. Ask why this day jumped'}
             onClick={() => onDay(p)} />
         : null))}

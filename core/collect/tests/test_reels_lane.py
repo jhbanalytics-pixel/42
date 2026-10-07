@@ -49,7 +49,10 @@ def test_a_foreign_or_missing_declared_country_is_never_local(market):
     ghana = parsed("Ghana", market)["posts"][0]
     assert (ghana["geo_market"], ghana["geo_confidence"], ghana["geo_source"]) == ("GH", 0.8, "home_market")
     assert not is_local(ghana["geo_market"], ghana["geo_confidence"], market)
-    for country in ("Spain", None, ""):
+    spain = parsed("Spain", market)["posts"][0]
+    assert (spain["geo_market"], spain["geo_confidence"], spain["geo_source"]) == ("ES", 0.8, "home_market")
+    assert not is_local(spain["geo_market"], spain["geo_confidence"], market)
+    for country in (None, ""):
         post = parsed(country, market)["posts"][0]
         assert (post["geo_market"], post["geo_confidence"], post["geo_source"]) == (None, None, None)
 

@@ -126,6 +126,20 @@ test('the history of states is a quiet timeline in date order', async () => {
   expect(section('series').textContent).toContain('Daily posts by platform');
 });
 
+test('daily chart buttons name one post in the singular and keep unknown days unavailable', async () => {
+  const topic = clone(topicFixture);
+  topic.series[0].points = [0, 1, 2, null, undefined].map((value, index) => ({date: '2026-10-0' + (index + 1), value}));
+  topic.series = [topic.series[0]];
+  await mount(topic);
+  const days = [...section('series').querySelectorAll('.tp42-day')];
+  expect(days.map((day) => day.dataset.day)).toEqual(['2026-10-01', '2026-10-02', '2026-10-03']);
+  expect(days.map((day) => day.getAttribute('aria-label'))).toEqual([
+    '1 October 2026, 0 posts a day. Ask why this day jumped',
+    '2 October 2026, 1 post a day. Ask why this day jumped',
+    '3 October 2026, 2 posts a day. Ask why this day jumped',
+  ]);
+});
+
 test('one sparkline per platform series, labelled in words, with gaps kept as breaks', async () => {
   await mount();
   const series = section('series');

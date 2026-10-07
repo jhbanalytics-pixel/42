@@ -454,6 +454,7 @@ function ArchiveConfirm({busy, error, onConfirm, onCancel}){
 
 function SkinToday({today, onRetry}){
   let body;
+  let heading = 'Today in this skin';
   if (today.state === 'loading') body = <p className="t42-status" role="status">Loading Today for this skin</p>;
   else if (today.state === 'auth') body = <p className="t42-status">Enter the passcode to read Today.</p>;
   else if (today.state === 'error'){
@@ -470,24 +471,25 @@ function SkinToday({today, onRetry}){
        says so as the Today page does, so it is never read as today's. */
     const briefDate = typeof data.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date) ? data.date : null;
     const earlier = briefDate && briefDate < sastToday();
+    if (earlier) heading = 'Brief for ' + longDate(briefDate) + ' in this skin';
     body = (
       <>
         {earlier && <p className="t42-notice" role="status" data-skin-today-earlier="">Earlier brief: <span className="t42-nowrap">{longDate(briefDate)}</span>. This is not today’s brief.</p>}
         {data.headline && data.headline.text && <p className="t42-headline">{data.headline.text}</p>}
-        {markets.map((m) => <SkinMarket key={m.market} market={m} date={data.date} />)}
-        {markets.length === 0 && <p className="t42-status">None of this skin's markets is in today's brief.</p>}
+        {markets.map((m) => <SkinMarket key={m.market} market={m} date={data.date} earlier={earlier} />)}
+        {markets.length === 0 && <p className="t42-status">None of this skin's markets is in {earlier ? 'the brief for ' + longDate(briefDate) : "today's brief"}.</p>}
       </>
     );
   }
   return (
     <section className="t42-section" data-section="skin-today" aria-labelledby="sk42-today-title">
-      <h2 className="a42-title" id="sk42-today-title">Today in this skin</h2>
+      <h2 className="a42-title" id="sk42-today-title">{heading}</h2>
       {body}
     </section>
   );
 }
 
-function SkinMarket({market, date}){
+function SkinMarket({market, date, earlier}){
   const cards = list(market.cards).concat(list(market.more));
   const held = market.held_back || {};
   const heldItems = list(held.items);
@@ -501,7 +503,7 @@ function SkinMarket({market, date}){
         ? <ol className="t42-cards">
             {cards.map((card) => <TrendCard key={card.item_id} card={card} market={market.market} date={card.date || date} />)}
           </ol>
-        : <p className="t42-status">No trends in this skin passed the checks for {market.label} today.</p>}
+        : <p className="t42-status">No trends in this skin passed the checks for {market.label} {earlier ? 'on ' + longDate(date) : 'today'}.</p>}
       <div className="t42-below">
         <section className="t42-section" data-part="held-back">
           <h4 className="t42-section-title">Held back</h4>

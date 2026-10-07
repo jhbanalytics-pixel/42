@@ -13,6 +13,7 @@ import {downloadExport, getAsk, startAsk, stopAsk, streamAsk} from './askTranspo
 import {go} from './router.js';
 import {EvidenceChip, monthName} from './ui/EvidenceChip.jsx';
 import {PostStrip} from './ui/PostStrip.jsx';
+import {RankedAnswer} from './RankedAnswer.jsx';
 import {ResearchLog} from './ui/ResearchLog.jsx';
 import {SourcePanel} from './ui/SourcePanel.jsx';
 import {CostConfirm} from './ui/SpikeConfirm.jsx';
@@ -455,6 +456,8 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
         <div className="ask42-answer-main">
         {answerStatusWords(answer) && <p className="ask42-status">{answerStatusWords(answer)}</p>}
         {record.status === 'stopped' && <p className="ask42-status">Stopped early: this answer holds only what had passed its checks</p>}
+        <RankedAnswer record={record} windowLabel={windowWords(run.ranked_list?.window)}
+          renderSources={(claim) => <ClaimSources claim={claim} records={records} answer={answer} pinnedId={pinnedId} onPin={setPinnedId} />} />
         <p id={shortId} className="ask42-short">{String(answer.short_answer || '').trim() ? <ShortAnswer text={answer.short_answer} /> : noShortAnswer(answer)}</p>
 
         {answer.claims && answer.claims.length > 0 && (

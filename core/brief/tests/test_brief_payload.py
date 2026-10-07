@@ -13,7 +13,7 @@ D = "2026-09-30"
 # Contract version 1, section 4, less what f42-api computes (tag, dropped), plus the headline object section 8
 # puts on each market row, and coverage carrying only the issues the brief itself found (f42-api adds the rest).
 MARKET_KEYS = {"market", "label", "status", "headline", "banners", "cards", "more", "held_back", "moments", "boards",
-               "coverage", "critic"}
+               "coverage", "critic", "not_assessed", "selection_receipt"}
 CARD_KEYS = {
     "item_id", "market", "date", "rank", "kind", "title", "state", "state_word", "flag", "flag_word",
     "explained", "explanation", "explanation_claim_ids", "claims", "count_line", "numbers", "sparkline",

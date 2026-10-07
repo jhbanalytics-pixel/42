@@ -1,19 +1,118 @@
 """Location requests require reviewed inputs. Request region never becomes post geo."""
 
 import re
+import json
 from datetime import timedelta
+from functools import lru_cache
+from pathlib import Path
 
 
-ROUTES = ("youtube/search/advanced", "tiktok/location/posts", "tiktok/profile/region")
+ROUTES = ("youtube/search/advanced", "tiktok/location/posts", "tiktok/profile")
+COUNTRY_ROUTES = {"tiktok": "tiktok/profile", "instagram": "instagram/profile/about"}
 
 
-def profile_country(body, handle):
+@lru_cache(maxsize=1)
+def _countries():
+    codes = json.loads((Path(__file__).resolve().parents[1] / "config/profile_countries.json").read_text(encoding="utf-8"))
+    return codes, {name.casefold(): code for code, name in codes.items()}
+
+
+def country_code(value):
+    if not isinstance(value, str):
+        return None
+    codes, names = _countries()
+    value = " ".join(value.split())
+    return value.upper() if value.upper() in codes else names.get(value.casefold())
+
+
+def profile_author(body, handle):
     data = body.get("data") if isinstance(body, dict) and body.get("success") is not False else None
     author = data.get("author") if isinstance(data, dict) else None
-    if not isinstance(author, dict) or str(author.get("username") or "").lower() != str(handle).lower():
+    if isinstance(author, dict) and str(author.get("username") or "").casefold() == str(handle).casefold():
+        return author
+    return None
+
+
+def profile_country(body, handle, *, platform="tiktok"):
+    author = profile_author(body, handle)
+    if author is None:
         return None
-    country = author.get("location")
-    return country.upper() if isinstance(country, str) and re.fullmatch(r"[A-Za-z]{2}", country) else None
+    if platform == "tiktok":
+        country = author.get("location")
+        return country_code(country) if isinstance(country, str) and re.fullmatch(r"[A-Za-z]{2}", country.strip()) else None
+    if platform == "instagram":
+        ext = author.get("ext")
+        return country_code(ext.get("country")) if isinstance(ext, dict) else None
+    return None
+
+
+class ProfileCache:
+    def __init__(self):
+        self.known, self.accounts, self.attempted = {}, {}, set()
+        self.posts, self.creators = [], []
+
+    @staticmethod
+    def key(platform, handle):
+        limit = {"tiktok": 24, "instagram": 30}.get(platform)
+        if limit and isinstance(handle, str) and re.fullmatch(rf"[A-Za-z0-9_.]{{1,{limit}}}", handle):
+            return platform, handle.casefold()
+        return None
+
+    def country(self, platform, handle):
+        return self.known.get(self.key(platform, handle))
+
+    def remember(self, platform, handle, raw):
+        key, code = self.key(platform, handle), country_code(raw)
+        if key and code:
+            self.known[key] = code
+
+    def seed(self, rows):
+        for row in rows:
+            key = self.key(row.get("platform"), row.get("handle"))
+            sources = (COUNTRY_ROUTES.get(row.get("platform")),)
+            if row.get("platform") == "instagram":
+                sources += ("instagram/search/reels",)
+            if key and row.get("country_source") in sources:
+                if row.get("country_type") not in (None, "string", "null"):
+                    continue
+                raw = row.get("country")
+                code = country_code(raw)
+                if key[0] == "tiktok" and not (isinstance(raw, str) and re.fullmatch(r"[A-Za-z]{2}", raw.strip())):
+                    code = None
+                if code:
+                    self.attempted.add(key)
+                if key not in self.known and code:
+                    self.remember(key[0], key[1], code)
+
+    def signals(self, platform, handle, signals):
+        if self.key(platform, handle) is None:
+            return dict(signals)
+        explicit = country_code(signals.get("home_market"))
+        return {**signals, "home_market": explicit or self.country(platform, handle) or signals.get("home_market")}
+
+    def bind(self, post, platform, market, handle, signals):
+        key = self.key(platform, handle)
+        if key and market in ("ZA", "NG", "KE"):
+            self.accounts.setdefault(key, {"platform": platform, "handle": handle, "market": market})
+            self.posts.append((post, platform, market, handle, dict(signals)))
+
+    def track_creator(self, row, *, source=None):
+        if source == COUNTRY_ROUTES.get(row.get("platform")):
+            self.remember(row.get("platform"), row.get("handle"), row.get("home_market"))
+        self.creators.append(row)
+
+    def needed(self):
+        return [account for key, account in self.accounts.items() if key not in self.known and key not in self.attempted]
+
+    def apply(self, geo_fn):
+        for post, platform, market, handle, signals in self.posts:
+            if self.country(platform, handle):
+                result = geo_fn(platform, market, **self.signals(platform, handle, signals))
+                post.update(geo_market=result[0], geo_confidence=result[1], geo_source=result[2])
+        for row in self.creators:
+            country = self.country(row.get("platform"), row.get("handle"))
+            if country is not None:
+                row["home_market"] = country
 
 
 def plan(day, config):

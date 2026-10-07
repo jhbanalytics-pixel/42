@@ -39,6 +39,17 @@ class FakeModels:
         )
 
 
+def fake_sdk_client(sdk):
+    async def generate_content(**kwargs):
+        return sdk.generate_content(**kwargs)
+
+    async def aclose():
+        pass
+
+    return SimpleNamespace(models=sdk, aio=SimpleNamespace(models=SimpleNamespace(generate_content=generate_content),
+                                                          aclose=aclose), close=lambda: None)
+
+
 def _world():
     con = job_tests.world(n=0, markets=("ZA",))
     job_tests.add_item(con, "ZA", "za1", 0.95, posts=3)
@@ -64,7 +75,7 @@ def test_brief_factory_runs_the_gemini_sdk_path_through_checks_payload_and_cost(
     monkeypatch.setattr(job, "read_market_scope", _market_scope, raising=False)
     sdk = FakeModels()
     client_options = []
-    monkeypatch.setattr(genai, "Client", lambda **kw: client_options.append(kw) or SimpleNamespace(models=sdk))
+    monkeypatch.setattr(genai, "Client", lambda **kw: client_options.append(kw) or fake_sdk_client(sdk))
     monkeypatch.setattr(job, "model_daily_usd", lambda: 1.0)
     monkeypatch.setattr(explain, "model_daily_usd", lambda: 1.0)
 
@@ -147,7 +158,7 @@ def test_brief_cap_reserves_thinking_headroom_before_the_first_gemini_sdk_call(m
 
     monkeypatch.setattr(explain, "_estimate_usd", record_estimate)
     sdk = FakeModels()
-    monkeypatch.setattr(genai, "Client", lambda **kw: SimpleNamespace(models=sdk))
+    monkeypatch.setattr(genai, "Client", lambda **kw: fake_sdk_client(sdk))
     monkeypatch.setattr(job, "model_daily_usd", lambda: cap)
     monkeypatch.setattr(explain, "model_daily_usd", lambda: cap)
     result = job_tests.brief(con, model=job.brief_model(), workers=1)

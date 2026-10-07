@@ -71,6 +71,9 @@ class FakeGeo:
 
 
 def body_for(route, params, market=None):
+    if route in ("tiktok/profile", "instagram/profile/about"):
+        return {"success": True, "data": {"author": {"username": params["handle"], "location": None,
+                                                     "ext": {"country": None}}}}
     if route == "prism/post-stats":
         return {"success": True, "data": {"items": [
             {"url": u, "status": "ok", "engagement": {"views": 100, "likes": 5, "comments": 1, "shares": 0}}
@@ -85,6 +88,10 @@ class FakeClient:
     def __init__(self, script=None):
         self.script = script or (lambda n, route, market: None)
         self.calls = []
+
+    def account_profile(self, platform, handle, **kwargs):
+        route = {"tiktok": "tiktok/profile", "instagram": "instagram/profile/about"}[platform]
+        return self.call(route, {"handle": handle}, **kwargs)
 
     def call(self, route, params=None, *, method=None, market=None, item_id=None, seed_key=None, agent=None,
              lane=None, use_cache=True):

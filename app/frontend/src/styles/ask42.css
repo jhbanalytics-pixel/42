@@ -36,6 +36,11 @@
 .ask42-meta { font-size: var(--type-meta); color: var(--muted); margin: 0 0 var(--s-4);
   line-height: var(--leading-meta);
 }
+.ask42-ranked { margin-bottom: var(--s-5); }
+.ask42-ranked-basis, .ask42-ranked-note { color: var(--muted); font-size: var(--type-meta); }
+.ask42-ranked-name { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.ask42-ranked-counts { margin: var(--s-1) 0; }
+.ask42-ranked-note { display: block; margin: var(--s-1) 0; }
 .ask42-status { font-size: var(--type-body); color: var(--ink-2); margin: 0 0 var(--s-3);
   line-height: var(--leading-body);
 }

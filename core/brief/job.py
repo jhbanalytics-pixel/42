@@ -40,6 +40,7 @@ Entry point: python -m core.brief.job. Environment: RUN_DATE (the brief date, el
 and CLOUD_RUN_EXECUTION (both read by lane L1's chain.begin). Credentials are the job's own identity.
 """
 
+import hashlib
 import json
 import math
 import os
@@ -61,13 +62,14 @@ from core.api.today import without_hidden
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import TITLE_RULE, explain_trend
 from core.brief.market_scope import read_market_scope
-from core.brief.payload import MODEL_BUSY, MODEL_REFUSED, _worth, brief_row, build_market_payload
+from core.brief.payload import MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, _worth, brief_row, build_market_payload
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, local_posts, showable_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
 from core.detect import sqlrun
 from core.detect.job import PROJECT, RULE_VERSION
 from core.detect.sqlrun import AGENT, CORE
+from core.llm.gemini import GeminiModel
 from core.trust.gate import Decision, gate_card, market_banner
 
 MARKETS = ("ZA", "NG", "KE")
@@ -89,15 +91,10 @@ BOARD_WORDS = {"board_tiktok_hashtag": "TikTok hashtag board", "board_youtube": 
 NO_CONFIRM = {"kind": "thin_coverage",
               "text": "Cross-platform confirmation did not run today: cards rest on 42's own collection only"}
 PACK_MAX, PER_CREATOR = 12, 2  # core/brief/sql/evidence.sql: at most 12 posts in a pack and 2 per creator
-# What the brief's task timeout (chain.TIMEOUTS["brief"]) must leave once the last explanation has started: that
-# explanation, then the boards and moments reads, the claim_checks and briefs inserts and chain.finish (about a
-# minute), plus the start-up before run() reads the clock. An explanation that passes first time is about 8 calls
-# (writer, up to 5 claim support checks, the sentence's, the critic) and about 80 s, plus the title's support check
-# when it passes. The worst case is about 24 calls: a draft whose support cuts take the repair round (8 to the
-# sentence check, then 8 again) and is then held by the critic on its why-now alone (8 more for the second draft), and
-# its title check: about 4.5 minutes at that pace. Each call that stalls to GEMINI_TIMEOUT_S and its retry adds about
-# 2 min more. 8 minutes covers the usual explanation with two stalled calls, and the worst case with one; a busy wait
-# never ends past it (_explain_all can_wait).
+# Leave this reserve for the boards, moments, claim_checks, briefs and chain.finish. Each model dispatch reads the
+# remaining allowance to this cutoff and the daily deadline. HTTP phase timeouts are clamped again after auth;
+# no later check or retry is admitted after the cutoff. The owned async request also cancels at its absolute elapsed
+# deadline and acknowledges cleanup before returning. Final authentication-worker shutdown can still take longer.
 FINISH_MARGIN = timedelta(minutes=8)
 # A model that refuses a call for capacity (see _rate_limited: Vertex's 429 RESOURCE_EXHAUSTED on its shared capacity,
 # on and off on 6 Oct 2026) is waited out, not given up on at once: the refused call is made again after
@@ -195,8 +192,20 @@ EVENT_PASS = "Critic: event-driven, local creators react in their own words"
 # The standings of a news or scheduled event that passed on local reaction; a cut there failed the why-now only.
 REACTION_STANDINGS = ("news-driven with local reaction", "event-driven with local reaction")
 
-def _query(client, name, params, core, agent):
-    return sqlrun.query(client, QUERIES[name], params, core=core, agent=agent)
+def _query(client, name, params, core, agent, receipt=None):
+    if receipt is None:
+        return sqlrun.query(client, QUERIES[name], params, core=core, agent=agent)
+    from google.cloud import bigquery
+
+    sql = sqlrun.render(QUERIES[name], core, agent)
+    config = bigquery.QueryJobConfig(query_parameters=[sqlrun._param(k, v) for k, v in params.items()])
+    query = client.query(sql, job_config=config)
+    rows = [dict(row.items()) for row in query.result()]
+    receipt.update(sql=sql, parameters={k: v.isoformat() if hasattr(v, "isoformat") else v for k, v in params.items()},
+                   job_id=getattr(query, "job_id", None),
+                   result_sha256=hashlib.sha256(json.dumps(rows, sort_keys=True, default=str,
+                                                          separators=(",", ":")).encode("utf-8")).hexdigest())
+    return rows
 
 
 def warmup_banner(client, d, core=CORE, agent=AGENT):
@@ -433,8 +442,82 @@ def _held_g1(cand):
     return cand["decision"].rule == "G1"
 
 
+def _selection_snapshot(rows, receipt):
+    if not rows or not receipt.get("job_id"):
+        return None
+    try:
+        snapshot = json.loads(rows[0].get("_selection_snapshot") or "null")
+        if not isinstance(snapshot, dict) or any(r.get("_selection_snapshot") for r in rows[1:]):
+            return None
+        total, count = snapshot["total_count"], snapshot["eligible_count"]
+        items = snapshot.get("items") or []
+        detect = snapshot["detect_run_id"]
+        if (type(total) is not int or type(count) is not int or not 0 <= count <= total
+                or len(rows) != min(POOL, total) or snapshot["detect_run_count"] != 1
+                or not isinstance(detect, str) or not detect.strip() or len(items) != count
+                or any(r.get("run_id") != detect or r.get("_selection_sql_rank") != n
+                       for n, r in enumerate(rows, 1))):
+            return None
+        by_id, ranks = {}, []
+        for item in items:
+            rank, item_id = item["sql_rank"], item["item_id"]
+            if (not isinstance(item_id, str) or not item_id.strip() or item_id in by_id
+                    or any(item.get(key) is not None and not isinstance(item.get(key), str)
+                           for key in ("label", "canonical_key", "map_kind"))
+                    or type(rank) is not int or not 1 <= rank <= total
+                    or item.get("market_scope") not in ("market", "global", None)):
+                return None
+            by_id[item_id] = item
+            ranks.append(rank)
+        if ranks != sorted(set(ranks)):
+            return None
+        for row in rows:
+            item = by_id.get(row["item_id"])
+            if row.get("eligible") is not True:
+                if item is not None:
+                    return None
+                continue
+            if item is None or any(item.get(key) != row.get(source) for key, source in (
+                    ("sql_rank", "_selection_sql_rank"), ("market_scope", "_selection_market_scope"),
+                    ("label", "label"), ("canonical_key", "canonical_key"), ("map_kind", "map_kind"))):
+                return None
+        return snapshot
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _selection_result(snapshot, receipt, ranked, prepared, taken, cutoff, observed):
+    judged = sum(not _held_g1(c) for c in prepared)
+    exit_reason = ("judged_limit_reached" if judged >= CANDIDATES else
+                   "pool_exhausted" if taken >= len(ranked) else
+                   "deadline_reached" if cutoff else "pool_exhausted")
+    receipt = dict(receipt, preparation={"exit_reason": exit_reason,
+        "cutoff_basis": cutoff if exit_reason == "deadline_reached" else None,
+        "observed_at": observed.isoformat() if observed is not None else None, "taken": taken, "judged": judged})
+    if snapshot is None:
+        return {"not_assessed": None, "selection_receipt": receipt if receipt.get("job_id") else None}
+    prepared_ids = {c["row"]["item_id"] for c in prepared}
+    pool = {row["item_id"]: (n, row) for n, row in enumerate(ranked, 1)}
+    items = []
+    for item in snapshot.get("items") or []:
+        item_id = item["item_id"]
+        if item_id in prepared_ids:
+            continue
+        in_pool = pool.get(item_id)
+        reason = "outside_candidate_pool" if item["sql_rank"] > POOL else exit_reason
+        if reason not in NOT_ASSESSED_REASONS or (item["sql_rank"] <= POOL and in_pool is None):
+            return {"not_assessed": None, "selection_receipt": receipt}
+        row = in_pool[1] if in_pool else dict(item, kind=item.get("map_kind"))
+        title = card_title(row) or f"Unnamed {item.get('map_kind') or 'topic'}"
+        items.append({"item_id": item_id, "title": title, "status": "not_assessed", "reason": reason,
+            "reason_text": NOT_ASSESSED_REASONS[reason], "sql_rank": item["sql_rank"],
+            "pool_rank": in_pool[0] if in_pool else None, "market_scope": item.get("market_scope")})
+    return {"not_assessed": {"detect_run_id": snapshot["detect_run_id"], "pool_limit": POOL,
+        "judged_limit": CANDIDATES, "count": len(items), "items": items}, "selection_receipt": receipt}
+
+
 def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, core, agent, hidden=None, chain=None,
-                clock=None, started=None, calendar=None):
+                clock=None, started=None, calendar=None, selection_audits=None):
     """{market: candidates in rank order}, packs and contexts built PACK_WORKERS at a time across the markets.
 
     Each market judges up to CANDIDATES candidates that G1 does not hold. A candidate G1 holds stays in the list,
@@ -448,18 +531,28 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
     read. calendar: {market: moments()} for the packs' day lines, none when not given."""
     calendar = calendar or {}
     hidden = read_hidden(client, core=core, agent=agent) if hidden is None else hidden
-    pools = {m: _query(client, "candidates", {"d": d, "market": m}, core, agent) for m in MARKETS}
+    pools, snapshots, receipts = {}, {}, {}
+    for m in MARKETS:
+        receipts[m] = {}
+        rows = _query(client, "candidates", {"d": d, "market": m}, core, agent, receipt=receipts[m])
+        snapshots[m] = _selection_snapshot(rows, receipts[m])
+        pools[m] = [{k: v for k, v in row.items() if k not in (
+            "_selection_sql_rank", "_selection_market_scope", "_selection_snapshot")} for row in rows]
     creator_names(client, [r for m in MARKETS for r in pools[m]], hidden, core, agent)
     ranked = {m: _ranked(pools[m]) for m in MARKETS}
     by_market = {m: [] for m in MARKETS}
     taken = dict.fromkeys(MARKETS, 0)
+    cutoff, observed = None, None
     with ThreadPoolExecutor(max_workers=PACK_WORKERS) as pool:
         first = True
         while True:
             if not first and clock is not None and chain is not None:
                 now = clock()
-                if _brief_deadline(now, d, chain)[0] or _out_of_time(now, started):
-                    return by_market
+                observed = now
+                past_deadline = _brief_deadline(now, d, chain)[0]
+                if past_deadline or _out_of_time(now, started):
+                    cutoff = "deadline" if past_deadline else "task_timeout"
+                    break
             first = False
             rows = []
             for m in MARKETS:
@@ -468,7 +561,7 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
                 taken[m] += len(batch)
                 rows += [(m, row) for row in batch]
             if not rows:
-                return by_market
+                break
             cands = list(pool.map(lambda mr: _prepare(client, d, mr[0], mr[1], build_ctx=build_ctx,
                                                       campaign_hashtags=campaign_hashtags,
                                                       political_terms=political_terms[mr[0]], hidden=hidden,
@@ -477,6 +570,11 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
             for cand in cands:
                 cand["decision"] = _gate(cand, None)
                 by_market[cand["market"]].append(cand)
+    if selection_audits is not None:
+        for m in MARKETS:
+            selection_audits[m] = _selection_result(snapshots[m], receipts[m], ranked[m], by_market[m],
+                                                    taken[m], cutoff, observed)
+    return by_market
 
 
 def _absorb(into, cand):
@@ -548,7 +646,7 @@ class _Breaker:
     nothing: only the call that goes through returns usage. busy is "refused" or "deadline" once the breaker has
     tripped on refusals, else None. With the defaults the first refusal trips it, as before any waiting."""
 
-    def __init__(self, model, *, retries=0, wait=None, can_wait=None, sleep=None, trip_after=1):
+    def __init__(self, model, *, retries=0, wait=None, can_wait=None, sleep=None, trip_after=1, call_allowance=None):
         self.model = model
         self.tripped = None
         self.busy = None
@@ -557,6 +655,8 @@ class _Breaker:
         self.can_wait = can_wait or (lambda seconds: True)
         self.sleep = sleep or _sleep
         self.trip_after = trip_after
+        self.call_allowance = call_allowance
+        self.uncertain_calls = []
         self.refusals = self.gave_up = self.streak = 0
         self.waited_s = 0.0
         self._proven = False
@@ -574,10 +674,25 @@ class _Breaker:
         while True:
             if self.tripped:
                 raise ModelUnavailable(self.tripped)
+            call_kw = kw
+            if self.call_allowance is not None:
+                allowance = self.call_allowance()
+                if allowance < 0.001:
+                    raise ModelUnavailable("brief model call deadline exhausted")
+                if isinstance(self.model, GeminiModel):
+                    timeout_s = min(GEMINI_TIMEOUT_S, self.model.timeout_s or GEMINI_TIMEOUT_S,
+                                    kw.get("request_timeout_s") or GEMINI_TIMEOUT_S, allowance)
+                    call_kw = {**kw, "request_timeout_s": timeout_s, "request_allowance": self.call_allowance}
             try:
-                out = self.model.complete_json(**kw)
+                out = self.model.complete_json(**call_kw)
                 break
             except Exception as e:
+                if getattr(e, "reserve_model_estimate", False):
+                    self.uncertain_calls.append(e)
+                if getattr(e, "auth_unresolved", False):
+                    self.tripped = "deadline owner retired after unresolved authentication"
+                if getattr(e, "request_cleanup_failed", False):
+                    self.tripped = "deadline owner retired after request cleanup failure"
                 if not _rate_limited(e):
                     raise
                 self.refusals += 1
@@ -763,6 +878,17 @@ def _out_of_time(now, started):
     return started is not None and now - started >= collect_chain.TIMEOUTS["brief"] - FINISH_MARGIN
 
 
+def _call_allowance(now, started, d, chain):
+    past, recovery = _brief_deadline(now, d, chain)
+    if d != now.astimezone(SAST).date() or past or _out_of_time(now, started):
+        return 0.0
+    cutoffs = [recovery or datetime.combine(d, collect_chain.DEADLINE, SAST),
+               datetime.combine(d + timedelta(days=1), time(), SAST)]
+    if started is not None:
+        cutoffs.append(started + collect_chain.TIMEOUTS["brief"] - FINISH_MARGIN)
+    return max(0.0, (min(cutoffs) - now).total_seconds())
+
+
 def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, started=None, sleep=None, busy=None):
     """Run explanations in task order, one at a time. No new one starts past the deadline or the time limit
     (_out_of_time from started, stopped as at the deadline, with limit task_timeout in the stop), outside the
@@ -786,7 +912,8 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
                        wait=_busy_wait(_setting("BUSY_WAIT_S", BUSY_WAIT_S, 0.0),
                                        _setting("BUSY_WAIT_MAX_S", BUSY_WAIT_MAX_S, 0.0),
                                        _setting("BUSY_JITTER", BUSY_JITTER, 0.0)),
-                       can_wait=can_wait, sleep=sleep, trip_after=_setting("BUSY_TRIP_ITEMS", BUSY_TRIP_ITEMS, 1))
+                       can_wait=can_wait, sleep=sleep, trip_after=_setting("BUSY_TRIP_ITEMS", BUSY_TRIP_ITEMS, 1),
+                       call_allowance=lambda: _call_allowance(clock(), started, d, chain))
     pace = _setting("PACE_S", PACE_S, 0.0)
     workers = 1
 
@@ -805,6 +932,9 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
             result = fut.result()
             results[id(cand)] = result
             spend["usd"] += result["usage_usd"]
+            reserved = sum(getattr(exc, "reserved_usd", 0.0) for exc in breaker.uncertain_calls)
+            if reserved:
+                spend["model_reserved_usd"] = reserved
             capped = capped or result["reason"] == "model_cap"
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -885,7 +1015,7 @@ def _payload_candidate(cand, result, specificity=None):
     }
 
 
-def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues):
+def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues, selection_audit=None):
     # A candidate whose market scope could not be read is not known to be global, so it stays, held for its
     # unreadable evidence.
     local_cands = [c for c in cands if c["row"].get("market_scope") == "market" or c.get("scope_error")]
@@ -927,13 +1057,15 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
         n = sum(1 for x in data if x.rule == "G1")
         banners = banners + [{"kind": "data_issue", "text": f"Data issue: {n} of {len(local_cands)} candidates held for "
                                                             "invalid collection days or unreadable evidence"}]
+    audit = selection_audit or {}
     payload = build_market_payload(market, d, items, moments=moments_, boards=boards_, banners=banners,
-                                   issues=issues)
+        issues=issues, not_assessed=audit.get("not_assessed"), selection_receipt=audit.get("selection_receipt"))
     top = payload["cards"][0] if payload["cards"] else None
     if top and top["explained"]:
         headline = {"text": top["explanation"], "item_id": top["item_id"], "claim_ids": top["explanation_claim_ids"]}
         payload = build_market_payload(market, d, items, moments=moments_, boards=boards_, banners=banners,
-                                       headline=headline, issues=issues)
+            headline=headline, issues=issues, not_assessed=audit.get("not_assessed"),
+            selection_receipt=audit.get("selection_receipt"))
     return payload
 
 
@@ -1094,9 +1226,10 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     base_usd = spent_today(client, d, core, agent)
     calendar = {m: moments(client, d, m, core, agent) for m in MARKETS}
 
+    selection_audits = {}
     by_market = _candidates(client, d, build_ctx=build_ctx, campaign_hashtags=campaign_hashtags,
                             political_terms=political_terms, hidden=hidden, core=core, agent=agent, chain=chain,
-                            clock=clock, started=started, calendar=calendar)
+                            clock=clock, started=started, calendar=calendar, selection_audits=selection_audits)
     merged = _merge(by_market)
 
     found, confirmed, note = {}, set(), sc_skipped and f"skipped: {sc_skipped}"
@@ -1143,9 +1276,11 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
         banners = [b for b in (warm, None if m in confirmed else NO_CONFIRM, late_banner) if b]
         boards_, unnamed = boards(client, d, m, core, agent, hidden=hidden)
         payload = _market_payload(m, d, cands, results, banners=banners, moments_=calendar[m],
-                                  boards_=boards_, issues=_unnamed_issue(unnamed))
+                                  boards_=boards_, issues=_unnamed_issue(unnamed), selection_audit=selection_audits.get(m))
         # Titles, aliases and model text never name a suppressed person either, as Today reads them.
+        selection_receipt = payload.pop("selection_receipt", None)
         payload = without_hidden(payload, hidden)
+        payload["selection_receipt"] = selection_receipt
         cards += len(payload["cards"]) + len(payload["more"])
         held += payload["held_back"]["count"]
         brief_rows.append(brief_row(m, d, run.run_id, published_at, payload, RULE_VERSION))
@@ -1155,6 +1290,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     _insert(client, f"{agent}.briefs", _briefs_rows(brief_rows))
     counts = {"markets": len(MARKETS), "cards": cards, "held": held, "credits": spend["credits"],
               "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
+    if spend.get("model_reserved_usd"):
+        counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
     if explanation_stop is not None:
         counts["explanation_stop"] = explanation_stop
     if busy:
@@ -1214,21 +1351,33 @@ def run(client, d, *, chain, model, make_sc, clock, build_ctx=gatectx.build_ctx,
 
     spend = {"usd": 0.0, "credits": 0}
     try:
-        if error is not None:
-            counts = _publish_data_issue(client, d, brief, error, clock=clock, core=core, agent=agent)
-        else:
-            sc, sc_skipped = _open_sc(make_sc, brief.run_id)
-            counts = _brief(client, d, brief, chain=chain, model=model, sc=sc, sc_skipped=sc_skipped, clock=clock,
-                            build_ctx=build_ctx, confirm=confirm, campaign_hashtags=campaign_hashtags,
-                            political_terms=political_terms, workers=workers, spend=spend, core=core, agent=agent,
-                            started=started, sleep=sleep)
-    except Exception as e:
-        counts = {"markets": 0, "cards": 0, "held": 0, "credits": spend["credits"],
-                  "model_usd": round(spend["usd"], 6)}
-        chain.finish(brief, "failed", counts, error=f"{type(e).__name__}: {e}")
-        raise
-    chain.finish(brief, "ok", counts, error=error)
-    return counts
+        try:
+            if error is not None:
+                counts = _publish_data_issue(client, d, brief, error, clock=clock, core=core, agent=agent)
+            else:
+                sc, sc_skipped = _open_sc(make_sc, brief.run_id)
+                counts = _brief(client, d, brief, chain=chain, model=model, sc=sc, sc_skipped=sc_skipped, clock=clock,
+                                build_ctx=build_ctx, confirm=confirm, campaign_hashtags=campaign_hashtags,
+                                political_terms=political_terms, workers=workers, spend=spend, core=core, agent=agent,
+                                started=started, sleep=sleep)
+        except Exception as e:
+            counts = {"markets": 0, "cards": 0, "held": 0, "credits": spend["credits"],
+                      "model_usd": round(spend["usd"], 6)}
+            if spend.get("model_reserved_usd"):
+                counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
+            chain.finish(brief, "failed", counts, error=f"{type(e).__name__}: {e}")
+            raise
+        chain.finish(brief, "ok", counts, error=error)
+        return counts
+    finally:
+        primary = sys.exc_info()[1]
+        if isinstance(model, GeminiModel):
+            try:
+                model.close_deadline_calls()
+            except Exception:
+                if primary is None:
+                    raise
+                print("brief: deadline owner cleanup failed; primary error preserved", file=sys.stderr)
 
 
 def live_socialcrawl(client, clock):
@@ -1244,15 +1393,13 @@ def live_socialcrawl(client, clock):
     return make
 
 
-# Seconds one Gemini HTTP attempt may run; the SDK default has no limit, so one stalled call could hold the brief
-# past 06:15. With the SDK's one retry a stalled call ends after about two minutes. A timeout raises like any
-# model error: that card publishes numbers only and the rest go on.
+# Maximum HTTP phase timeout for one Gemini SDK attempt, clamped to the remaining allowance again at dispatch.
+# An expired allowance blocks later dispatches; the awaited SDK request also has a cooperative elapsed deadline.
 GEMINI_TIMEOUT_S = 60
 
 
 def brief_model():
     """The brief's structured-output client: GeminiModel with GEMINI_TIMEOUT_S."""
-    from core.llm.gemini import GeminiModel
     from core.llm.provider import provider
 
     provider()
