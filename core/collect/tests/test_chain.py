@@ -84,6 +84,28 @@ def understand_on(monkeypatch):
 # begin
 
 
+def test_an_upstream_read_error_finishes_the_appended_running_row_before_reraising():
+    error = RuntimeError("private upstream failure text")
+
+    class BrokenUpstream(chain.MemoryRunsStore):
+        def latest(self, stage, day):
+            if stage == "collect":
+                raise error
+            return super().latest(stage, day)
+
+    runs = BrokenUpstream()
+    with pytest.raises(RuntimeError) as raised:
+        chain.begin("detect", DAY, runs=runs)
+
+    assert raised.value is error
+    assert [row["status"] for row in runs.rows] == ["running", "failed"]
+    assert runs.rows[-1]["run_id"] == runs.rows[0]["run_id"]
+    assert runs.rows[-1]["started_at"] == runs.rows[0]["started_at"]
+    assert runs.rows[-1]["finished_at"] is not None
+    assert "RuntimeError" in runs.rows[-1]["error"]
+    assert "private upstream failure text" not in runs.rows[-1]["error"]
+
+
 def test_collect_has_no_upstream_and_appends_a_running_row():
     runs = chain.MemoryRunsStore()
     run = chain.begin("collect", DAY, runs=runs, jobs=jobs())

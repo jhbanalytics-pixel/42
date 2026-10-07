@@ -36,6 +36,7 @@ from core.agent.tools.warehouse import (MAX_POSTS, commit_findings, discover_cre
                                         store_totals)
 from core.llm.provider import default_model, is_gemini_model, price_for, reserve_output
 from core.agent.writer import (FIELD_UNCHECKED_REASON, HEADLINE_BUDGET_REASON, HEADLINE_FAILED_REASON, HEADLINE_GAP,
+                               NARROWED_HEADLINE_GAP, NARROWED_K10_REASON,
                                HEADLINE_REASONS, HEADLINE_REWRITE_CALLS, HEADLINE_REWRITE_INPUT_TOKENS,
                                HEADLINE_REWRITE_MAX_TOKENS, HEADLINE_REWRITTEN_REASON, HEADLINE_USED_REASON,
                                K4_RECHECK_CALLS, K4_REWRITE_CALLS, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS,
@@ -1277,7 +1278,8 @@ def _claim_check_reason(row: dict, draft: dict, evidence: dict, queries: dict):
     reason = row.get("reason")
     if row.get("checker") != "code" or reason is None:
         return reason
-    if reason in {"numeric query scope unavailable", "cited post missing", FIELD_UNCHECKED_REASON, *HEADLINE_REASONS} \
+    if reason in {"numeric query scope unavailable", "cited post missing", FIELD_UNCHECKED_REASON,
+                  NARROWED_K10_REASON, *HEADLINE_REASONS} \
             and not checks._text_breaches(reason):
         return reason
     claim = next((c for c in draft.get("claims") or [] if c.get("id") == row.get("claim_id")), None)
@@ -1638,6 +1640,9 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         if should_stop():
             raise _StopRequested()
         blanked = headline_blanked(checked, answer)
+        original_words = {claim.get("id"): claim.get("text") for claim in checked.get("claims") or []}
+        narrowed = any(claim.get("id") in original_words and original_words[claim.get("id")] != claim.get("text")
+                       for claim in answer.get("claims") or [])
         answer, rewrote = headline(checked, answer)
         answer, rechecked = checks.recheck_fields(answer, ctx, window=window,
                                                   code_gaps=checks.code_gap_indexes(draft["gaps"], answer["gaps"]))
@@ -1648,6 +1653,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         if blanked and answer.get("short_answer") == "":  # the rewrite was not made, or a check removed it
             if HEADLINE_GAP not in answer["gaps"]:
                 answer["gaps"].append(dict(HEADLINE_GAP))
+            if narrowed and NARROWED_HEADLINE_GAP not in answer["gaps"]:
+                answer["gaps"].append(dict(NARROWED_HEADLINE_GAP))
             # A narrowed claim blanks the short answer without the cut that lowers the status (writer._k10), so an
             # answer with no top line is lowered here as the field check lowers it. Never raised.
             if answer.get("status") == "complete":

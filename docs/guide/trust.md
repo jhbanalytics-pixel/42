@@ -74,6 +74,12 @@ How a post is placed in a market (`core/detect/geo.py`), strongest first: the pl
 - A post from the market's own feed (a region-scoped feed, the market's subreddits, curated local creator and gossip pages) without a known place counts one step lower, and supports only feed wording such as "seen in Kenya's feeds".
 - A post located in another market never counts. The writer sees it marked as not citable, and K3 cuts any claim that cites it.
 
+### Names and repeated posts
+
+Item keys normalise Unicode, case and repeated whitespace where the item kind allows it (`core/detect/items.py`). Hashtags also lose a leading #, and creator handles lose a leading @. Creator and sound keys include the platform. This joins spelling variants under those rules; it does not establish that different names refer to the same person, brand or story.
+
+Post identity uses the platform and a native post id, or a canonical URL when no native id exists (`core/collect/ids.py`). Repeated sightings of that identity share one post record (`core/collect/writers.py`). A copy published on another platform has a different post identity. Creator records are keyed by platform and creator id; there is no verified mapping that merges every person's accounts across platforms. Counts must be read with their platform and window, and must not be described as unique people or deduplicated content across platforms.
+
 ## 7. What is never evidence
 
 - Generated text, images or video.

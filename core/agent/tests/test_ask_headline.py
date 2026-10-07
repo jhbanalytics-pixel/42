@@ -12,7 +12,7 @@ from core.agent import ask, checks, writer
 from core.agent.answer import validate_answer
 from core.agent.model_budget import AskModelBudget
 from core.agent.tests.test_ask import (NARROWED_CLAIM, REWRITTEN_HEADLINE, SEARCH_EMBED_USD, WRITER_OUT, FakeModel,
-                                       Harness, make_research)
+                                       Harness)
 from core.agent.tests.test_ask_model_budget import configure_gemini
 from core.agent.tests.test_ask_t2 import CriticModel, t2
 from core.agent.writer import (FIELDS_SCHEMA, HEADLINE_GAP, HEADLINE_REWRITE_SCHEMA, K4_REWRITE_SCHEMA,
@@ -267,6 +267,71 @@ class NarrowingModel(HeadlineModel):
         return super().complete_json(system=system, user=user, schema=schema, model=model, max_tokens=max_tokens)
 
 
+NARROWED_SUMMARY_GAP = {
+    "what": "One-line summary removed after a claim was narrowed",
+    "searched": "the short answer text and the retained claims",
+    "why": "the original summary could repeat the broader claim, and no checked replacement could take its place",
+}
+REMOVED_CONTEXT_GAP = {
+    "what": "Background removed after a claim was narrowed or removed",
+    "searched": "the background text",
+    "why": "the background could repeat wording that did not pass the claim checks",
+}
+REMOVED_IMPLICATION_GAP = {
+    "what": "An implication removed after a claim was narrowed or removed",
+    "searched": "the implications and the claims they refer to",
+    "why": "the implication relied on wording that did not pass the claim checks",
+}
+
+
+@pytest.mark.parametrize("tier", ["T0", "T1"])
+def test_narrowed_blank_summary_keeps_exact_smoke_gap_and_names_the_narrowing(tier):
+    h = Harness(model=NarrowingModel({"text": ""}))
+    answer = h.run(tier=tier)["answer"]
+    assert answer["gaps"].count(NARROWED_SUMMARY_GAP) == 1
+    assert answer["gaps"].count(HEADLINE_GAP) == 1
+    assert answer["status"] == "partial" and answer["short_answer"] == ""
+    assert schemas(h).count("headline") == 1
+    assert validate_answer(answer) == []
+
+
+def test_narrowing_records_actual_context_and_implication_removal_without_extra_calls():
+    class WithContext(NarrowingModel):
+        writer_out = {**NarrowingModel.writer_out, "context": "An interpretation of the earlier post wording."}
+
+    h = Harness(model=WithContext())
+    answer = h.run()["answer"]
+    assert answer["context"] == "" and answer["gaps"].count(REMOVED_CONTEXT_GAP) == 1
+    assert [item["claim_ids"] for item in answer["so_what"]] == [["c1"]]
+    assert answer["gaps"].count(REMOVED_IMPLICATION_GAP) == 1
+    assert NARROWED_SUMMARY_GAP not in answer["gaps"] and HEADLINE_GAP not in answer["gaps"]
+    assert answer["status"] == "complete" and answer["claims"][1]["text"] == NARROWED_CLAIM
+    assert schemas(h).count("headline") == schemas(h).count("k4_rewrite") == 1
+    assert schemas(h).count("support") == 4
+    assert schemas(h).count("fields") == 1
+    assert writer.writer_gaps([REMOVED_CONTEXT_GAP, REMOVED_IMPLICATION_GAP, NARROWED_SUMMARY_GAP]) == []
+
+
+def test_narrowing_leaves_a_k10_downgrade_audit_without_cutting_the_checked_claim():
+    h = Harness(model=NarrowingModel())
+    answer = h.run()["answer"]
+    rows = [r for _, batch in h.tables.inserts for r in batch]
+    assert any(r["claim_id"] == "short_answer" and r["rule"] == "K10" and r["verdict"] == "downgrade"
+               and r["reason"] == "the support check narrowed a claim to the wording its cited posts support; "
+                                  "dependent answer text was cleared for rechecking" for r in rows)
+    assert answer["status"] == "complete" and answer["claims"][1]["text"] == NARROWED_CLAIM
+    assert answer["short_answer"] == REWRITTEN_HEADLINE
+
+
+def test_narrowing_adds_no_context_or_implication_gap_when_neither_field_was_removed():
+    class WithNoAffectedFields(NarrowingModel):
+        writer_out = {**NarrowingModel.writer_out, "context": "", "so_what": WRITER_OUT["so_what"][:1]}
+
+    answer = Harness(model=WithNoAffectedFields()).run()["answer"]
+    assert REMOVED_CONTEXT_GAP not in answer["gaps"] and REMOVED_IMPLICATION_GAP not in answer["gaps"]
+    assert answer["so_what"] == WRITER_OUT["so_what"][:1]
+
+
 def test_a_complete_answer_whose_short_answer_a_narrowed_claim_blanked_is_rewritten_once_and_kept():
     h = Harness(model=NarrowingModel())
     answer = h.run()["answer"]
@@ -385,6 +450,7 @@ def test_a_t2_ask_treats_a_narrowed_claims_blank_short_answer_as_t1_does(out, st
     assert [c["id"] for c in answer["claims"]] == ["c1", "c2", "c3"]
     assert answer["status"] == status and answer["short_answer"] == headline
     assert answer["gaps"].count(HEADLINE_GAP) == (0 if headline else 1)
+    assert answer["gaps"].count(NARROWED_SUMMARY_GAP) == (0 if headline else 1)
 
 
 class Budgets(AskModelBudget):

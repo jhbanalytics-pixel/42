@@ -80,14 +80,16 @@ r AS (
     AND (s.beyond_confirm
       OR (ps.geo_market = @market AND IFNULL(ps.geo_confidence, 0) >= 0.7
           AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
-      OR EXISTS (
+      OR (NOT IFNULL(NULLIF(ps.geo_market, '') != @market AND ps.geo_confidence >= 0.7
+                         AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+      AND EXISTS (
         SELECT 1
         FROM {core}.v_post_source_markets v
         CROSS JOIN UNNEST(v.source_sightings) sight
         WHERE v.post_id = ps.post_id
           AND sight.source_market = @market
           AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
-      )))
+      ))))
 SELECT r.* EXCEPT (enrich_sponsored, enrich_read, vendor_paid),
   r.enrich_sponsored OR IFNULL(r.vendor_paid, FALSE) sponsored,
   r.enrich_read OR r.vendor_paid IS NOT NULL sponsor_checked

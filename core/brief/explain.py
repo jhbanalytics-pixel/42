@@ -175,7 +175,7 @@ WRITER_SYSTEM = """LAWS (read first)
 13 Cite only posts marked citable true. A post marked citable false is located in another market, and the place check cuts any claim that cites it, whatever its wording, feed wording included.
 14 Write only what the cited posts' own text and fields show. Background you know from outside the pack, such as results, scores, titles, roles, histories or reasons, is not evidence: leave it out, even when it is true.
 15 Cite for a claim only the posts whose own text or fields show that claim. A post about something else is left out of that claim, even when it shares the trend's words. Posts are listed most on topic first; title_terms_named counts how many of the trend title's terms a post's text names.
-16 Never guess a count. Say how many posts or creators only as a pinned pack number or, in words, as the posts that claim cites. A crowd word about creators, such as multiple, several or many, must agree with the card's creator count on the Counts line; when it does not, name the creators the posts show instead. Code checks this.
+16 Never guess a count. Say how many posts or creators only as a pinned pack number or, in words, as the posts that claim cites. A crowd word about creators, such as multiple, several or many, must agree with the card's creator count on the Counts line and the different creators in the posts that claim cites; when it does not, name the creators the posts show instead. Code checks this. A whole-trend aggregate does not show which creators made the cited posts or what those creators did. Keep its window separate from the cited posts' own dates.
 17 A date is the day a cited post's posted_at gives, or a date its own text states, written as day and month, such as 2 October. Never move, guess or work out a date, and write no yesterday, this week or recently unless a post says it.
 
 You write the morning explanation for one trend: 3 to 5 claims from the evidence pack, on what it is, the earliest post in the pack, the platforms its cited posts are on and why now.
@@ -400,10 +400,11 @@ def _card_creators(pack):
     return len(_handles(pack.get("evidence") or [])), "different creators in the pack's posts"
 
 
-def _crowd_fault(text, pack, verified=()):
-    """A crowd word about creators that the card's own creator count does not reach, worded for the repair, or None.
+def _crowd_fault(text, pack, verified=(), cited=None):
+    """A crowd word beyond the card count or, when supplied, the cited creator count, worded for repair, or None.
     Words inside a verified quote are the creator's own and are not read."""
     count, unit = _card_creators(pack)
+    cited_count = None if cited is None else len(_handles(cited))
     for m in _CROWD.finditer(_strip_quotes(str(text or ""), verified)):
         if set(m.group(2).casefold().split()) & CROWD_GAP_STOP:
             continue
@@ -412,6 +413,10 @@ def _crowd_fault(text, pack, verified=()):
             shown = int(count) if float(count).is_integer() else count
             return (f"{' '.join(m.group(0).split())!r} needs a creator count of at least {CROWD_MIN[word]}; the card "
                     f"shows {shown} for {unit}")
+        if cited_count is not None and cited_count < CROWD_MIN[word]:
+            return (f"{' '.join(m.group(0).split())!r} needs at least {CROWD_MIN[word]} different cited creators; "
+                    f"the cited posts show {cited_count}. The whole-trend count for {unit} does not establish "
+                    "who made these cited posts")
     return None
 
 
@@ -482,7 +487,9 @@ def _writer_user(candidate, pack, market, window_start, window_end):
     counts = (f"Counts, for your wording only (they are not pack numbers, so write none of them as a numeral): "
               f"{len(citable)} citable posts from {len(_handles(citable))} different creators; "
               f"{len(local_ids)} local posts from {len(_handles(r for r in citable if r.get('id') in local))} "
-              f"different creators. {_crowd_words(pack)}")
+              f"different creators. {_crowd_words(pack)} The evidence sample and the aggregate can cover different "
+              "windows. A crowd word must also fit the different creators in that claim's cited posts; date that "
+              "wording from those posts' posted_at fields, never from the aggregate's unit.")
     return "\n\n".join([
         f"Trend kind: {candidate.get('kind')}. Market: {market}. Window: {window_start} to {window_end}.",
         f"Trend title, as scraped:\n{_fence(candidate.get('title'))}",
@@ -895,20 +902,23 @@ def _k9_rows(checked, rests_on, records):
 
 
 def _crowd_rows(checked, rests_on, records, pack):
-    """K4 by code: a claim or sentence whose crowd word about creators the card's own creator count does not reach
+    """K4 by code: a claim or sentence whose crowd word exceeds the card count or its own cited creator count
     is not supported, so the claim is cut and the sentence emptied, as check_answer does with its own cuts. Rows only
     for cuts. Changes checked in place."""
     rows, kept = [], []
     claims = checked.get("claims") or []
     for claim in claims:
-        fault = _crowd_fault(claim.get("text"), pack, _verified_quotes(claim, records))
+        cited = [records[e] for e in claim.get("evidence_ids") or [] if e in records]
+        fault = _crowd_fault(claim.get("text"), pack, _verified_quotes(claim, records), cited)
         if fault:
             rows.append({"claim_id": claim.get("id"), "rule": "K4", "verdict": "cut", "checker": "code",
                          "detail": f"crowd wording: {fault}"})
         else:
             kept.append(claim)
     resting_quotes = set().union(*(_verified_quotes(c, records) for c in claims if c.get("id") in rests_on))
-    fault = _crowd_fault(checked.get("short_answer"), pack, resting_quotes)
+    cited_ids = {e for c in claims if c.get("id") in rests_on for e in c.get("evidence_ids") or []}
+    fault = _crowd_fault(checked.get("short_answer"), pack, resting_quotes,
+                         [records[e] for e in cited_ids if e in records])
     if fault:
         rows.append({"claim_id": None, "rule": "K4", "verdict": "cut", "checker": "code",
                      "detail": f"short_answer: crowd wording: {fault}"})

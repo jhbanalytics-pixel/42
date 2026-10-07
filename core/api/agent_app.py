@@ -10,6 +10,7 @@ import re
 import secrets
 import threading
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -125,7 +126,13 @@ ASKS = {}
 SINK = []
 _PLANNER_READBACK_HOLDS = {}
 
-app = FastAPI(title="f42-agent")
+@asynccontextmanager
+async def investigation_lifespan(app):
+    await run_in_threadpool(recover_investigations)
+    yield
+
+
+app = FastAPI(title="f42-agent", lifespan=investigation_lifespan)
 
 
 def now(market=None):
@@ -1949,6 +1956,11 @@ def investigation_record(ask_id):
     held = get_ask(ask_id)
     if held is not None:
         return held.snapshot()
+    return stored_investigation_record(ask_id)
+
+
+def stored_investigation_record(ask_id):
+    """The durable Ask record, excluding results that exist only in worker memory."""
     if os.environ.get("F42_DATA") != "bigquery":
         with _lock:
             rows = list(SINK)
@@ -1960,10 +1972,70 @@ def investigation_record(ask_id):
     return get_store().ask_record(ask_id)
 
 
+def reconcile_investigation(investigation_id):
+    """Repair a lost finish append from the matching finished Ask, without starting research."""
+    with _investigation_lock:
+        rows = investigation_rows(investigation_id)
+        if not rows or rows[-1]["status"] != "running" or not rows[-1]["ask_id"]:
+            return rows
+        current = rows[-1]
+        with _lock:
+            active = RUNNING_INVESTIGATIONS.get(investigation_id)
+        if active is not None and not active.finished.is_set():
+            return rows
+        try:
+            record = stored_investigation_record(current["ask_id"])
+            if (not record or record.get("ask_id") != current["ask_id"]
+                    or record.get("investigation_id") != investigation_id
+                    or record.get("status") not in ("complete", "stopped", "failed")
+                    or not record.get("finished_at")):
+                return rows
+            row = investigations.storage_row(
+                investigation_id, current["version"] + 1, status_time(current["market"]), record["status"],
+                current["question"], current["market"], investigations.view(current)["plan"],
+                investigations.view(current)["estimate"], current["ask_id"],
+                (record.get("run") or {}).get("run_id") or current["run_id"])
+            if append("investigations", INVESTIGATIONS, row):
+                return [*rows, row]
+            log.error("investigation %s: its recovered finish row was not written", investigation_id)
+        except Exception as exc:
+            log.error("investigation %s: finish recovery failed (exception_type=%s)",
+                      investigation_id, type(exc).__name__)
+        return rows
+
+
+def recover_investigations():
+    """Reconcile stored running rows at startup. Missing local state alone never proves a dead owner."""
+    try:
+        if os.environ.get("F42_DATA") == "bigquery":
+            rows = _stored("investigations",
+                           f"SELECT investigation_id FROM (SELECT investigation_id, status, "
+                           f"ROW_NUMBER() OVER (PARTITION BY investigation_id ORDER BY version DESC) AS n "
+                           f"FROM `{project()}.intelligence_42_agent.investigations`) "
+                           f"WHERE n = 1 AND status = 'running'", [])
+        else:
+            with _lock:
+                latest = {}
+                for row in INVESTIGATIONS:
+                    key = row["investigation_id"]
+                    if row["version"] >= latest.get(key, {"version": 0})["version"]:
+                        latest[key] = row
+                rows = [row for row in latest.values() if row["status"] == "running"]
+        for row in rows:
+            try:
+                reconcile_investigation(row["investigation_id"])
+            except Exception as exc:
+                log.error("investigation %s: startup recovery failed (exception_type=%s)",
+                          row["investigation_id"], type(exc).__name__)
+    except Exception as exc:
+        log.error("investigation startup scan failed (exception_type=%s)", type(exc).__name__)
+
+
 @app.get("/api/investigations")
 def list_investigations(status: str | None = None):
     if status is not None and status not in investigations.STATUSES:
         return error(400, "bad_request", "status must be one of " + ", ".join(investigations.STATUSES) + ".")
+    recover_investigations()
     if os.environ.get("F42_DATA") == "bigquery":
         from google.cloud import bigquery
         rows = _stored("investigations",
@@ -1994,7 +2066,7 @@ def list_investigations(status: str | None = None):
 
 @app.get("/api/investigations/{investigation_id}")
 def read_investigation(investigation_id: str):
-    rows = investigation_rows(investigation_id)
+    rows = reconcile_investigation(investigation_id)
     if not rows:
         return no_investigation(investigation_id)
     current = rows[-1]

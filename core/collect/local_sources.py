@@ -364,8 +364,22 @@ def _table(lines, source):
 
 
 def _numbered(lines, source):
-    return [_song(int(m.group(1)), _parts(m.group(2)), m.group(2), source)
-            for m in (NUMBERED.match(line) for line in lines) if m]
+    numbered = [(i, m) for i, line in enumerate(lines) if (m := NUMBERED.match(line))]
+    out = []
+    for n, (start, m) in enumerate(numbered):
+        raw = m.group(2)
+        parts = _parts(raw)
+        if source.platform == "boomplay" and RANK.fullmatch(_text(raw)):
+            stop = numbered[n + 1][0] if n + 1 < len(numbered) else len(lines)
+            raw = "\n".join(lines[start + 1:stop])
+            names = {}
+            for label, href in LINK.findall(IMAGE.sub("", raw)):
+                kind = re.match(r"https?://(?:www\.)?boomplay\.com/(songs|artists)/", href)
+                if kind:
+                    names.setdefault(kind.group(1), _text(label))
+            parts = [names["songs"], names["artists"]] if names.get("songs") and names.get("artists") else []
+        out.append(_song(int(m.group(1)), parts, raw, source))
+    return out
 
 
 def _blocks(lines, source):

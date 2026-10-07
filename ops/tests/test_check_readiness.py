@@ -4,6 +4,10 @@ import datetime as dt
 import json
 import re
 
+import pytest
+
+from core.collect import chain
+from core.detect.tests import duck
 from ops.runners import check_readiness as cr
 
 D = dt.date(2026, 10, 3)
@@ -119,6 +123,73 @@ def run(rows=ROWS, fail=(), sources=SOURCES):
     client, printed = FakeClient(rows, fail), []
     data = cr.fetch(cr.Reader(client, printed.append), D, sources_fn=lambda days: sources, now=NOW)
     return client, printed + cr.report(data)
+
+
+@pytest.mark.parametrize("stage", ["collect", "understand", "detect"])
+@pytest.mark.parametrize("with_skip", [False, True])
+def test_run_queries_select_terminal_ties_and_ignore_skipped_duplicates(stage, with_skip):
+    con = duck.connect(views=False)
+    start = NOW.astimezone(dt.timezone.utc) - dt.timedelta(minutes=10)
+    rows = [
+        {"run_id": "real", "stage": stage, "run_date": D, "status": "running", "started_at": start},
+        {"run_id": "real", "stage": stage, "run_date": D, "status": "ok", "started_at": start,
+         "finished_at": start, "counts": '{"enriched":7}'},
+    ]
+    if with_skip:
+        rows.append({"run_id": "duplicate", "stage": stage, "run_date": D, "status": "skipped_duplicate",
+                     "started_at": NOW, "finished_at": NOW})
+    duck.load(con, "agent.runs", rows)
+    sql = cr.SQL[f"{stage} runs"].replace(cr.AGENT, "{agent}")
+    rows = duck.query(con, sql, {"d": D})
+
+    assert len(rows) == 1 and rows[0]["status"] == "ok"
+    if stage in ("collect", "detect"):
+        assert rows[0]["runs_that_day"] == 1
+    if stage == "understand":
+        assert rows[0]["enriched"] == 7
+
+
+@pytest.mark.parametrize("stage", ["collect", "understand", "detect"])
+@pytest.mark.parametrize("offset,status", [(-1, "running"), (0, "dead"), (1, "dead")])
+def test_readiness_marks_a_running_stage_dead_at_its_existing_timeout(stage, offset, status):
+    label = f"{stage} runs"
+    row = {**ROWS[label][0], "status": "running", "finished_at": None,
+           "started_at": NOW - chain.TIMEOUTS[stage] - dt.timedelta(microseconds=offset)}
+    client = FakeClient({**ROWS, label: [row]})
+
+    data = cr.fetch(cr.Reader(client), D, sources_fn=lambda days: SOURCES, now=NOW)
+
+    assert data[stage][0]["status"] == status
+    assert row["status"] == "running"
+
+
+@pytest.mark.parametrize("stage", ["collect", "understand", "detect"])
+def test_a_genuine_later_running_attempt_is_the_effective_readiness_state(stage):
+    con = duck.connect(views=False)
+    start = NOW.astimezone(dt.timezone.utc) - dt.timedelta(minutes=10)
+    duck.load(con, "agent.runs", [
+        {"run_id": "old", "stage": stage, "run_date": D, "status": "ok", "started_at": start,
+         "finished_at": start},
+        {"run_id": "new", "stage": stage, "run_date": D, "status": "running", "started_at": NOW},
+    ])
+
+    rows = duck.query(con, cr.SQL[f"{stage} runs"].replace(cr.AGENT, "{agent}"), {"d": D})
+
+    assert len(rows) == 1 and rows[0]["status"] == "running"
+    if stage in ("collect", "detect"):
+        assert rows[0]["runs_that_day"] == 2
+
+
+@pytest.mark.parametrize("stage", ["collect", "understand", "detect"])
+@pytest.mark.parametrize("status", ["ok", "failed", "blocked"])
+def test_old_terminal_states_never_become_dead(stage, status):
+    label = f"{stage} runs"
+    row = {**ROWS[label][0], "status": status, "started_at": NOW - dt.timedelta(days=1), "finished_at": NOW}
+    client = FakeClient({**ROWS, label: [row]})
+
+    data = cr.fetch(cr.Reader(client), D, sources_fn=lambda days: SOURCES, now=NOW)
+
+    assert data[stage][0]["status"] == status
 
 
 def test_summary_comes_first_and_names_holds_g1_platforms_and_failing_feeds():

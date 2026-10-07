@@ -81,7 +81,6 @@ def test_local_posts_keeps_distinct_located_and_matching_feed_records_in_input_o
     assert [row["id"] for row in specificity().local_posts(rows, "ZA")] == [
         "located",
         "feed",
-        "foreign-feed",
     ]
 
 
@@ -97,9 +96,29 @@ def test_showable_posts_are_the_unlocated_and_the_local_posts_as_the_gate_counts
     assert [row["id"] for row in specificity().showable_posts(rows, "ZA")] == [
         "located",
         "feed",
-        "foreign-feed",
         "unknown",
     ]
+
+
+@pytest.mark.parametrize("market", ["ZA", "NG", "KE"])
+@pytest.mark.parametrize("location,source,flags,is_local,is_showable", [
+    ("AE", "own", [], False, False),
+    ("AE", None, [], False, False),
+    ("own", None, [], True, True),
+    (None, "own", ["market_assumed"], True, True),
+    (None, None, [], False, True),
+    (None, "invalid", [], False, True),
+    ("", "own", [], True, True),
+])
+def test_foreign_location_veto_preserves_unlocated_own_feed_evidence(
+        market, location, source, flags, is_local, is_showable):
+    record = post("p", market=market if location == "own" else location,
+                  source=market if source == "own" else source, flags=flags)
+    original = dict(record)
+
+    assert specificity().local_posts([record], market) == ([record] if is_local else [])
+    assert specificity().showable_posts([record], market) == ([record] if is_showable else [])
+    assert record == original
 
 
 def test_local_posts_deduplicates_repeated_eligible_evidence_ids():

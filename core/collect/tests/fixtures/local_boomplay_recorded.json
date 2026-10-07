@@ -1,0 +1,30 @@
+{
+  "source_receipt": "boomplay-recorded-corrected.json",
+  "projection_note": "First three complete cards copied from the recorded 7 October 2026 markdown projection. URL query strings were removed by the source receipt. Opaque song URL tokens are not asserted as canonical IDs.",
+  "rows": [
+    {
+      "run_id": "collect-20261007-c1b51a20887d",
+      "request_id": "req-IENht82YpePgy8vG",
+      "market": "KE",
+      "fetched_at": "2026-10-07 00:55:19.861225+00:00",
+      "page_url": "https://www.boomplay.com/trending-songs",
+      "markdown": "001. 1\n\n\n\n\n\n     ![Holy Ghost | Boomplay Music](https://source.boomplaymusic.com/group10/M00/11/07/41b0935cae5a4cfda7a9881839fffa4b_464_464.jpg)\n\n     [Holy Ghost](https://www.boomplay.com/songs/EQtNNu4lJXDcHLFekA69mRUc)\n\n     75.7m186.2k4,8812,778\n\n\n\n     [Omah Lay](https://www.boomplay.com/artists/EQJ5qEYM7Xmh59YzxFv7YMn8)\n\n\n\n\n     03:06\n002. 2\n\n\n\n\n\n     ![reason | Boomplay Music](https://source.boomplaymusic.com/group10/M00/06/12/671c4641b4264e168ee110d3b7d3be5c_464_464.jpg)\n\n     [reason](https://www.boomplay.com/songs/EQsltLHoGN8-zlNhKOuEruXp)\n\n     81.4m181.2k5,5533,195\n\n\n\n     [Omah Lay](https://www.boomplay.com/artists/EQJ5qEYM7Xmh59YzxFv7YMn8)\n\n\n\n\n     02:27\n003. 3\n\n\n\n\n\n     ![BADMAN GANGSTA ft. Tiakola | Boomplay Music](https://source.boomplaymusic.com/group10/M00/06/30/cc935e3493d74b8d91916a85e98594faH3200W3200_464_464.jpg)\n\n     [BADMAN GANGSTA ft. Tiakola](https://www.boomplay.com/songs/EQs8sjXpSSxSkxsZL99U771X)\n\n     8.6m20.8k303133\n\n\n\n     [Asake](https://www.boomplay.com/artists/EQLaQFPQyDuD1q4_lLhuyAsi)\n\n\n\n\n     01:51\n"
+    },
+    {
+      "run_id": "collect-20261007-c1b51a20887d",
+      "request_id": "req-Ew8058W7MCklCwfH",
+      "market": "NG",
+      "fetched_at": "2026-10-07 00:54:44.927733+00:00",
+      "page_url": "https://www.boomplay.com/trending-songs",
+      "markdown": "001. 1\n\n\n\n\n\n     ![Holy Ghost | Boomplay Music](https://source.boomplaymusic.com/group10/M00/11/07/41b0935cae5a4cfda7a9881839fffa4b_464_464.jpg)\n\n     [Holy Ghost](https://www.boomplay.com/songs/EQtNNu4lJXDcHLFekA69mRUc)\n\n     75.7m186.2k4,8812,778\n\n\n\n     [Omah Lay](https://www.boomplay.com/artists/EQJ5qEYM7Xmh59YzxFv7YMn8)\n\n\n\n\n     03:06\n002. 2\n\n\n\n\n\n     ![reason | Boomplay Music](https://source.boomplaymusic.com/group10/M00/06/12/671c4641b4264e168ee110d3b7d3be5c_464_464.jpg)\n\n     [reason](https://www.boomplay.com/songs/EQsltLHoGN8-zlNhKOuEruXp)\n\n     81.4m181.2k5,5533,195\n\n\n\n     [Omah Lay](https://www.boomplay.com/artists/EQJ5qEYM7Xmh59YzxFv7YMn8)\n\n\n\n\n     02:27\n003. 3\n\n\n\n\n\n     ![BADMAN GANGSTA ft. Tiakola | Boomplay Music](https://source.boomplaymusic.com/group10/M00/06/30/cc935e3493d74b8d91916a85e98594faH3200W3200_464_464.jpg)\n\n     [BADMAN GANGSTA ft. Tiakola](https://www.boomplay.com/songs/EQs8sjXpSSxSkxsZL99U771X)\n\n     8.6m20.8k303133\n\n\n\n     [Asake](https://www.boomplay.com/artists/EQLaQFPQyDuD1q4_lLhuyAsi)\n\n\n\n\n     01:51\n"
+    },
+    {
+      "run_id": "collect-20261007-c1b51a20887d",
+      "request_id": "req-tSILyTrW3RQqKRHI",
+      "market": "ZA",
+      "fetched_at": "2026-10-07 00:54:14.047638+00:00",
+      "page_url": "https://www.boomplay.com/trending-songs",
+      "markdown": "001. 1\n\n\n\n\n\n     ![Luqale sakudlala | Boomplay Music](https://source.boomplaymusic.com/group10/M00/07/15/efafadb20b3640a88a3ac1942dfc1a9fH1080W1080_464_464.jpg)\n\n     [Luqale sakudlala](https://www.boomplay.com/songs/EQsAhNw_QgGSCdpSMIao3RcT)\n\n     120.4k269490\n\n\n\n     [G-Jealous](https://www.boomplay.com/artists/EQJBau0jDvYArxR3YRZ6JhRe)\n\n\n\n\n     03:39\n002. 2\n\n\n\n\n\n     ![Sengithole Omunye (Remix) ft. Chulumanco M | Boomplay Music](https://source.boomplaymusic.com/group10/M00/07/24/666b5b10433940bb9bc5491d86f2cd9bH1080W1080_464_464.jpg)\n\n     [Sengithole Omunye (Remix) ft. Chulumanco M](https://www.boomplay.com/songs/EQuj6n5vwd8zW5wzb3fG4xFv)\n\n     488k1,083974\n\n\n\n     [Feza](https://www.boomplay.com/artists/EQKjTwEJfyAz6jBodvUc90YB)\n\n\n\n\n     04:18\n003. 3\n\n\n\n\n\n     ![Faithful God | Boomplay Music](https://source.boomplaymusic.com/group10/M00/09/21/853063106e934139b153a30f805e75edH800W800_464_464.jpeg)\n\n     [Faithful God](https://www.boomplay.com/songs/EQsho5aq-eAedLX5EyzgaNeX)\n\n     323.7k6241084\n\n\n\n     [S.O.N Music](https://www.boomplay.com/artists/EQLjcNK6kdxYZhehY3NpIOIH)\n\n\n\n\n     03:43\n"
+    }
+  ]
+}

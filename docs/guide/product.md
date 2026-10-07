@@ -7,7 +7,7 @@ The app is a React single-page app (`app/frontend/`) with hash routes, served by
 ## Start here
 
 ### Today
-The morning brief for each market: up to five cards, plus up to five more under "more". Each card carries a title, its state word, a cited explanation, the claims behind it with their labels, a count line, a sparkline against its expected band, thumbnails of the posts, and a ready question for Ask. Under the cards: every topic held back with the rule and reason, what dropped since yesterday, moments in the next 14 days, what is on the platforms' own boards, the day's coverage and today's alerts. During the first 14 days a "Warming up: day N of 14" line explains why there are no growth claims yet. From any card you can watch it or send feedback.
+The morning brief for each market: up to five cards, plus up to five more under "more". Each card carries a title, its state word, a cited explanation, the claims behind it with their labels, a count line, a sparkline against its expected band, thumbnails of the posts, and a ready question for Ask. Under the cards: every topic held back with the rule and reason, what dropped since yesterday, moments in the next 14 days, what is on the platforms' own boards, the day's coverage and today's alerts. When a market has no cards, its held topics are grouped by reason under "Held back". A market is marked incomplete when it has a data problem; topics held after checks carry their reasons. During warm-up the page explains why there are no growth claims yet. From any card you can watch it or send feedback.
 
 Reads `/api/today`, `/api/trends/{id}`, `/api/alerts`, `/api/investigations`, `/api/schedules`; writes `/api/watches`, `/api/feedback`.
 
@@ -24,7 +24,7 @@ Reads `/api/discover`, `/api/discover/radar`.
 ## Your work
 
 ### Alerts
-Today's alerts and your team's watches. Watch a hashtag, sound, creator or brand in a market, and choose when to hear: when it starts rising, when growth passes a multiple, when reach passes a number of creators, when a creator breaks out, or when the tone flips. Watches can be paused and resumed. The daily alert email goes out at 06:45 SAST.
+Today's alerts and your team's watches. Watch a hashtag, sound, creator or brand in a market, and choose when to hear: when it starts rising, when growth passes a multiple, when reach passes a number of creators, when a creator breaks out, or when the tone flips. Watches can be paused and resumed. The digest schedule in source is 06:45 SAST; delivery depends on the deployed job, its credentials and an enabled schedule.
 
 Reads `/api/alerts`, `/api/watches`; writes `/api/watches`, `/pause`, `/resume`.
 

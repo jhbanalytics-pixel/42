@@ -26,8 +26,8 @@ writers; its news seeds, rule 1 phrases dropped by gdelt.blocked, are appended t
 
 Google search terms (RULES.md rule 2, query triage only): before the first call, Google's free daily trends
 feed is read for ZA, NG and KE (core/collect/google_rss.py, 0 credits, rows to google_search_signals as
-google_rss), and the previous run date's google_search_signals rows are read (the trending read and the public
-tables are written after the expansion phase). Up to google_trends.GOOGLE_SEEDS_PER_MARKET terms a market join
+google_rss), and the previous run date's eligible google_search_signals rows are read (google_rss and
+google_trending only; BigQuery terms are excluded). Up to google_trends.GOOGLE_SEEDS_PER_MARKET terms a market join
 that market's seed_queue seeds for row 14 (google_seed_phase): they take existing row 14 slots, never add a
 call, and the posts they find pass the same locality checks as any row 14 post.
 
@@ -1332,8 +1332,8 @@ def bq_trends_phase(run, bq, day, *, clock):
 def google_seed_phase(run, live, day, *, transport, terms, clock):
     """Google search terms into the day's row 14 queue, before the expansion phase: Google's daily trends feed
     read now through transport (google_rss, 0 credits; its rows join run.search_rows for google_search_signals),
-    then the previous run date's google_search_signals rows that terms() reads (the trending read and the public
-    tables are written after the expansion phase, so the day before is the newest a run can use). Up to
+    then the previous run date's google_rss and google_trending rows that terms() reads. BigQuery terms are excluded
+    by TERMS_SQL and SEED_SOURCES; the current trending read runs after expansion, so its previous day is used. Up to
     google_trends.GOOGLE_SEEDS_PER_MARKET terms a market, deduplicated against live[market] by cluster, are
     taken in turn with live[market]'s own seeds (a Google term first), so a long queue cannot push them out:
     they take existing row 14 slots in seeds.mix and add no call or credit. A failed read is recorded on run

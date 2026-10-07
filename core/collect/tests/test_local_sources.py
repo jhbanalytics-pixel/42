@@ -213,6 +213,31 @@ def test_boomplay_numbered_list_skips_cover_images():
         (3, "Lagos Traffic Jam", "Ade Bright", "130200103")]
 
 
+@pytest.mark.parametrize("market, expected", [
+    ("NG", [(1, "Holy Ghost", "Omah Lay"), (2, "reason", "Omah Lay"),
+            (3, "BADMAN GANGSTA ft. Tiakola", "Asake")]),
+    ("KE", [(1, "Holy Ghost", "Omah Lay"), (2, "reason", "Omah Lay"),
+            (3, "BADMAN GANGSTA ft. Tiakola", "Asake")]),
+    ("ZA", [(1, "Luqale sakudlala", "G-Jealous"),
+            (2, "Sengithole Omunye (Remix) ft. Chulumanco M", "Feza"),
+            (3, "Faithful God", "S.O.N Music")]),
+])
+def test_recorded_boomplay_cards_read_song_and_artist_links(market, expected):
+    recorded = json.loads((FIXTURES / "local_boomplay_recorded.json").read_text(encoding="utf-8"))
+    markdown = next(row["markdown"] for row in recorded["rows"] if row["market"] == market)
+    entries = ls.chart_entries(markdown, ls.SCRAPE_SOURCES["boomplay"])
+    assert [(e["rank"], e["title"], e["artist"]) for e in entries] == expected
+    assert all(e["native"] is None for e in entries)
+    assert ls.song_key(entries[0]) == f"{expected[0][2]} - {expected[0][1]}"
+
+
+def test_recorded_boomplay_card_cut_before_its_name_is_not_a_numeric_song():
+    recorded = json.loads((FIXTURES / "local_boomplay_recorded.json").read_text(encoding="utf-8"))
+    markdown = next(row["markdown"] for row in recorded["rows"] if row["market"] == "NG")
+    incomplete = markdown.split("     [Holy Ghost]", 1)[0]
+    assert ls.chart_entries(incomplete, ls.SCRAPE_SOURCES["boomplay"]) == []
+
+
 def test_audiomack_list_takes_the_artist_after_the_link():
     entries = ls.chart_entries(SCRAPE["audiomack"], ls.SCRAPE_SOURCES["audiomack"])
     assert len(entries) == 4

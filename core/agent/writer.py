@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from math import isfinite
@@ -157,6 +158,8 @@ HEADLINE_BUDGET_REASON = ("the question's model budget had no room for a short a
                           "after it, so the short answer stays blank")
 HEADLINE_USED_REASON = ("the one short answer rewrite a question allows was already used, so the short answer stays "
                         "blank")
+NARROWED_K10_REASON = ("the support check narrowed a claim to the wording its cited posts support; dependent answer "
+                       "text was cleared for rechecking")
 HEADLINE_REASONS = (HEADLINE_REWRITTEN_REASON, HEADLINE_UNUSABLE_REASON, HEADLINE_REPEATS_REASON, HEADLINE_INPUT_REASON,
                     HEADLINE_FAILED_REASON, HEADLINE_BUDGET_REASON, HEADLINE_USED_REASON)
 # The gap an answer carries while its short answer stays blank for a cut or narrowed claim it rested on. ask.py
@@ -165,6 +168,21 @@ HEADLINE_GAP = {"what": "One-line summary removed: it repeated a claim that did 
                 "searched": "the short answer text",
                 "why": "a summary that repeats a removed claim is not shown, and no checked summary of the claims "
                        "that passed could take its place"}
+NARROWED_HEADLINE_GAP = {
+    "what": "One-line summary removed after a claim was narrowed",
+    "searched": "the short answer text and the retained claims",
+    "why": "the original summary could repeat the broader claim, and no checked replacement could take its place",
+}
+CONTEXT_SUPPORT_GAP = {
+    "what": "Background removed after a claim was narrowed or removed",
+    "searched": "the background text",
+    "why": "the background could repeat wording that did not pass the claim checks",
+}
+SO_WHAT_SUPPORT_GAP = {
+    "what": "An implication removed after a claim was narrowed or removed",
+    "searched": "the implications and the claims they refer to",
+    "why": "the implication relied on wording that did not pass the claim checks",
+}
 # The field check: one flag per indexed piece of answer text (short_answer, context, each so_what and watch_next, and
 # each gap the draft wrote).
 FIELDS_SCHEMA = _object({"fields": _array(_object({"index": {"type": "integer"},
@@ -199,7 +217,8 @@ FIELD_UNCHECKED_WHY = ("the text, with the claims and posts it rests on, was too
 UNCHECKED_DRAFT_GAP = {"what": f"A gap the draft wrote removed: {FIELD_UNCHECKED_WHAT}", "searched": "the gaps text",
                        "why": FIELD_UNCHECKED_WHY}
 # The fixed gaps this module adds to a draft or an answer. Every other draft gap is the writer's own.
-CODE_GAPS = (DROPPED_GAP, DROPPED_ITEMS_GAP, DROPPED_DRAFT_GAP, UNCHECKED_DRAFT_GAP, HEADLINE_GAP, *_unshowable_gaps())
+CODE_GAPS = (DROPPED_GAP, DROPPED_ITEMS_GAP, DROPPED_DRAFT_GAP, UNCHECKED_DRAFT_GAP, HEADLINE_GAP,
+             NARROWED_HEADLINE_GAP, CONTEXT_SUPPORT_GAP, SO_WHAT_SUPPORT_GAP, *_unshowable_gaps())
 # The model's net behind the tone word list (K5, TRUST.md section 6): it may only lower a label to this cap.
 TONE_CAP = "single_source"
 # The one demographic rule both model checks apply (rule 1).
@@ -553,7 +572,14 @@ def _names_cell(text: str, cell) -> bool:
     """Whether the claim names a row's text cell as a whole word, a # or @ before it allowed (#amapiano, @handle)."""
     if not isinstance(cell, str) or not cell.strip():
         return False
-    return re.search(r"(?<!\w)" + re.escape(cell.strip()) + r"(?!\w)", text, re.IGNORECASE) is not None
+    text = unicodedata.normalize("NFC", text)
+    cell = unicodedata.normalize("NFC", cell.strip())
+    for match in re.finditer(re.escape(cell), text, re.IGNORECASE):
+        edges = (text[match.start() - 1:match.start()] if match.start() else "", text[match.end():match.end() + 1])
+        if not any(char and (char.isalnum() or char == "_" or unicodedata.category(char).startswith("M"))
+                   for char in edges):
+            return True
+    return False
 
 
 def _named_cells(text: str, row: dict) -> frozenset:
@@ -646,7 +672,18 @@ def _query_scope_block(scope: dict | None, *, queries: bool = True) -> str:
     every claim it carries (_scope_queries_block); each number still names its query_id."""
     if not scope:
         return ""
-    data = json.dumps(scope if queries else {"numbers": scope["numbers"]}, default=str, ensure_ascii=False)
+    packed = []
+    for number in scope["numbers"]:
+        rows = number["matching_rows"]
+        if len(rows) > 20 and all(isinstance(row, dict) for row in rows):
+            columns = list(rows[0])
+            if all(list(row) == columns for row in rows):
+                number = {**number, "matching_rows": {"columns": columns,
+                          "rows": [[row[column] for column in columns] for row in rows]}}
+        packed.append(number)
+    payload = {**scope, "numbers": packed} if queries else {"numbers": packed}
+    compact = any(isinstance(number["matching_rows"], dict) for number in packed)
+    data = json.dumps(payload, default=str, ensure_ascii=False, separators=(",", ":") if compact else None)
     return "\n\nNumerical query scope:\n" + _fence(data)
 
 
@@ -863,15 +900,93 @@ def _support_calls_at_once(model: Model, claims: list, ctx: RunContext, model_na
         return dict(zip((job[0] for job in jobs), pool.map(one, jobs)))
 
 
+def _retry_support_call(model, claim, reason, records, ctx, model_name, query_scope, *, warehouse, window, markets):
+    usage = {}
+    try:
+        replacement, spent, dispatched = _rewrite_call(model, claim, reason, records, model_name,
+                                                       query_scope=query_scope)
+    except Exception as exc:
+        exc.usage = _failed_call_usage(exc, model_name, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS)
+        raise
+    if dispatched:
+        usage = _add_usage(usage, _usage_or_reserve(spent, model_name, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS))
+    checked = fresh_scope = fresh = None
+    try:
+        if replacement:
+            candidate = copy.deepcopy(claim)
+            candidate["text"] = replacement
+            checked = _recheck_rewrite(candidate, ctx, warehouse, window=window, markets=markets)
+    except Exception as exc:
+        prior = getattr(exc, "usage", None)
+        exc.usage = _add_usage(usage, prior if _valid_usage(prior) else {})
+        raise
+    if checked is not None:
+        try:
+            fresh_scope = _claim_query_scope(checked, ctx.queries)
+            if fresh_scope is not None:
+                fresh, spent = _support_call(model, checked, records, model_name, query_scope=fresh_scope,
+                                              input_limit=SUPPORT_INPUT_TOKENS)
+                if fresh is not None:
+                    usage = _add_usage(usage, _usage_or_reserve(spent, model_name, SUPPORT_INPUT_TOKENS,
+                                                             SUPPORT_MAX_TOKENS))
+        except Exception as exc:
+            exc.usage = _add_usage(usage, _failed_call_usage(exc, model_name, SUPPORT_INPUT_TOKENS, SUPPORT_MAX_TOKENS))
+            raise
+    return replacement, checked, fresh_scope, fresh, usage
+
+
+def _support_retries_at_once(model, claims, ctx, model_name, early, *, warehouse, window, markets, rewrite_attempted):
+    workers = getattr(model, "parallel_calls", 1)
+    if (type(workers) is not int or workers < 2 or not early or warehouse is None or window is None or markets is None
+            or not isinstance(rewrite_attempted, set) or any(isinstance(result, Exception) for result in early.values())):
+        return {}
+    jobs, scheduled = [], set(rewrite_attempted)
+    for index, claim in enumerate(claims):
+        if index not in early:
+            continue
+        out, _ = early[index]
+        claim_id = claim.get("id")
+        records = [ctx.evidence[eid] for eid in claim.get("evidence_ids") or [] if eid in ctx.evidence]
+        scope = _claim_query_scope(claim, ctx.queries)
+        if (not records or scope is None or not isinstance(claim_id, str) or not CLAIM_ID.fullmatch(claim_id)
+                or claim_id in scheduled or out is not None and (out.get("verdict") not in ("partial", "unsupported")
+                or any(_support_flags(claim, out, records, ctx)))):
+            continue
+        reason = out.get("reason", "") if out is not None else "numeric query scope exceeded the support input budget"
+        if _text_breaches(reason):
+            reason = "reason withheld"
+        jobs.append((index, claim, reason, records, scope))
+        scheduled.add(claim_id)
+    if len(jobs) < 2:
+        return {}
+    rewrite_attempted.update(job[1]["id"] for job in jobs)
+
+    def one(job):
+        _, claim, reason, records, scope = job
+        try:
+            return _retry_support_call(model, claim, reason, records, ctx, model_name, scope,
+                                       warehouse=warehouse, window=window, markets=markets)
+        except Exception as exc:
+            return exc
+
+    with ThreadPoolExecutor(max_workers=min(workers, len(jobs))) as pool:
+        return dict(zip((job[0] for job in jobs), pool.map(one, jobs)))
+
+
 def apply_support(model: Model, answer: dict, ctx: RunContext,
                   model_name: str = GEMINI_DEFAULT_MODEL, *, warehouse=None, window=None, markets=None,
                   rewrite_attempted: set[str] | None = None) -> tuple[dict, list, dict]:
     """Check support, with one bounded narrowing attempt for partial or unsupported K4 claims."""
     answer = copy.deepcopy(answer)
     usage = {"input_tokens": 0, "output_tokens": 0, "usd": 0.0}
-    rows, kept, cut = [], [], {}
+    rows, kept, cut, narrowed = [], [], {}, []
+    had_context = bool(answer.get("context"))
+    implication_count = len(answer.get("so_what") or [])
     claims = answer.get("claims") or []
     early = _support_calls_at_once(model, claims, ctx, model_name)
+    retries = _support_retries_at_once(model, claims, ctx, model_name, early, warehouse=warehouse, window=window,
+                                       markets=markets, rewrite_attempted=rewrite_attempted)
+    retries_accounted = set()
     index = -1
     try:
         for index, claim in enumerate(claims):
@@ -921,55 +1036,38 @@ def apply_support(model: Model, answer: dict, ctx: RunContext,
             claim_id = claim.get("id")
             context_ready = (warehouse is not None and window is not None and markets is not None
                              and isinstance(rewrite_attempted, set))
-            can_rewrite = (verdict in ("partial", "unsupported") and records and query_scope is not None and context_ready
+            can_rewrite = (index in retries or verdict in ("partial", "unsupported") and records
+                           and query_scope is not None and context_ready
                            and isinstance(claim_id, str) and CLAIM_ID.fullmatch(claim_id)
                            and claim_id not in rewrite_attempted)
             final_verdict, final_reason, final_checker = verdict, reason, checker
             if can_rewrite:
                 rewrite_attempted.add(claim_id)
                 try:
-                    replacement_text, rewrite_usage, dispatched = _rewrite_call(
-                        model, claim, reason, records, model_name, query_scope=query_scope)
+                    if index in retries:
+                        retries_accounted.add(index)
+                        result = retries[index]
+                        if isinstance(result, Exception):
+                            raise result
+                    else:
+                        result = _retry_support_call(model, claim, reason, records, ctx, model_name, query_scope,
+                                                     warehouse=warehouse, window=window, markets=markets)
+                    replacement_text, checked_claim, fresh_scope, fresh, retry_usage = result
                 except Exception as exc:
-                    exc.usage = _add_usage(usage, _failed_call_usage(
-                        exc, model_name, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS))
+                    exc.usage = _add_usage(usage, getattr(exc, "usage", None) or {})
                     raise
-                if dispatched:
-                    usage = _add_usage(usage, _usage_or_reserve(
-                        rewrite_usage, model_name, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS))
+                usage = _add_usage(usage, retry_usage)
                 if replacement_text:
-                    candidate = copy.deepcopy(claim)
-                    candidate["text"] = replacement_text
-                    try:
-                        checked_claim = _recheck_rewrite(candidate, ctx, warehouse, window=window, markets=markets)
-                    except Exception as exc:
-                        prior = getattr(exc, "usage", None)
-                        exc.usage = _add_usage(usage, prior if _valid_usage(prior) else {})
-                        raise
                     if checked_claim is None:
                         final_reason = "narrowed replacement failed a deterministic trust check"
                         final_checker = "code"
                     else:
-                        try:
-                            fresh_scope = _claim_query_scope(checked_claim, ctx.queries)
-                            if fresh_scope is None:
-                                fresh, fresh_usage = None, {}
-                            else:
-                                fresh, fresh_usage = _support_call(
-                                    model, checked_claim, records, model_name, query_scope=fresh_scope,
-                                    input_limit=SUPPORT_INPUT_TOKENS)
-                        except Exception as exc:
-                            exc.usage = _add_usage(usage, _failed_call_usage(
-                                exc, model_name, SUPPORT_INPUT_TOKENS, SUPPORT_MAX_TOKENS))
-                            raise
                         if fresh is None:
                             final_reason = ("narrowed replacement has no complete numeric query scope"
                                             if fresh_scope is None
                                             else "narrowed replacement exceeded the support input budget")
                             final_checker = "code"
                         else:
-                            usage = _add_usage(usage, _usage_or_reserve(
-                                fresh_usage, model_name, SUPPORT_INPUT_TOKENS, SUPPORT_MAX_TOKENS))
                             fresh_verdict = fresh.get("verdict")
                             fresh_reason = fresh.get("reason", "")
                             fresh_checker = "model"
@@ -986,6 +1084,7 @@ def apply_support(model: Model, answer: dict, ctx: RunContext,
                                 continue
                             if fresh_verdict == "supported":
                                 _clear_claim_fields(answer, claim, clear_headline=True)
+                                narrowed.append(claim_id)
                                 _keep_supported_claim(kept, rows, checked_claim, records, ctx, fresh,
                                                       fresh_reason, fresh_checker)
                                 continue
@@ -1020,6 +1119,10 @@ def apply_support(model: Model, answer: dict, ctx: RunContext,
             if later > index:
                 billed = _add_usage(billed, (getattr(result, "usage", None) or {}) if isinstance(result, Exception)
                                     else result[1] or {})
+        for retry_index, result in retries.items():
+            if retry_index not in retries_accounted:
+                billed = _add_usage(billed, (getattr(result, "usage", None) or {}) if isinstance(result, Exception)
+                                    else result[-1])
         exc.usage = billed
         raise
     answer["claims"] = kept
@@ -1039,19 +1142,27 @@ def apply_support(model: Model, answer: dict, ctx: RunContext,
         answer[section] = items
     still_cited = {eid for claim in kept for eid in claim.get("evidence_ids") or []}
     answer["evidence"] = [r for r in answer.get("evidence") or [] if r.get("id") in still_cited]
-    if cut:
-        rows.append(_k10(answer, kept, cut))
+    removed_fields = []
+    if narrowed and had_context and not answer.get("context"):
+        removed_fields.append(CONTEXT_SUPPORT_GAP)
+    if narrowed and len(answer.get("so_what") or []) < implication_count:
+        removed_fields.append(SO_WHAT_SUPPORT_GAP)
+    for gap in removed_fields:
+        if gap not in answer.setdefault("gaps", []):
+            answer["gaps"].append(dict(gap))
+    if cut or narrowed:
+        rows.append(_k10(answer, kept, cut, narrowed=narrowed))
     return answer, rows, usage
 
 
-def _k10(answer: dict, kept: list, cut: dict) -> dict:
-    """Lower the status and the short answer after support cuts, and return the K10 verdict row."""
+def _k10(answer: dict, kept: list, cut: dict, *, narrowed: list | None = None) -> dict:
+    """Apply support cuts to the status and summary, and record cuts or checked narrowing in K10."""
     status, before = answer.get("status"), answer.get("short_answer") or ""
     headline = before
     resting = [str(cid) for cid, claim in cut.items() if _mentions(before, cid, claim.get("text"))]
-    notes = ["support check cut " + ", ".join(map(str, cut))]
+    notes = ["support check cut " + ", ".join(map(str, cut))] if cut else []
     if status != "refused":
-        if status == "complete":
+        if cut and status == "complete":
             status = "partial"
         if resting:
             headline = ""
@@ -1061,8 +1172,9 @@ def _k10(answer: dict, kept: list, cut: dict) -> dict:
             notes.append(f"{len(kept)} of {len(kept) + len(cut)} claims survive, under 2")
     notes.append(f"status {status}")
     answer["status"], answer["short_answer"] = status, headline
-    return {"claim_id": "short_answer", "rule": "K10", "verdict": "cut" if headline != before else "pass",
-            "reason": "; ".join(notes), "checker": "code"}
+    return {"claim_id": "short_answer", "rule": "K10",
+            "verdict": "cut" if headline != before else ("downgrade" if narrowed else "pass"),
+            "reason": NARROWED_K10_REASON if narrowed else "; ".join(notes), "checker": "code"}
 
 
 def headline_blanked(before: dict, answer: dict) -> bool:

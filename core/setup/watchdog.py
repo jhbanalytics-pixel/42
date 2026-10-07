@@ -239,12 +239,12 @@ GROUP BY r.route, k""",
   GROUP BY r.run_id)
 WHERE status NOT IN ('running', '{chain.SKIPPED}')""",
     "seeds_latest": f"""SELECT run_id, status FROM `{AGENT}.runs`
-WHERE run_date = @d AND stage = 'seeds'
+WHERE run_date = @d AND stage = 'seeds' AND status != '{chain.SKIPPED}'
 ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC LIMIT 1""",
     "detect_latest": f"""SELECT run_id, JSON_VALUE(counts, '$.agent_views.status') agent_views_status,
   JSON_VALUE(counts, '$.agent_views.error') agent_views_error
 FROM `{AGENT}.runs`
-WHERE run_date = @d AND stage = 'detect'
+WHERE run_date = @d AND stage = 'detect' AND status != '{chain.SKIPPED}'
 ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC LIMIT 1""",
     "fired_today": f"""SELECT DISTINCT name FROM `{AGENT}.runs` r, UNNEST(JSON_VALUE_ARRAY(r.counts, '$.fired')) name
 WHERE r.run_date = @d AND r.stage = '{STAGE}'""",

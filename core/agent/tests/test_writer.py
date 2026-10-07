@@ -687,7 +687,8 @@ def test_partial_k4_claim_keeps_only_a_narrowed_replacement_after_full_rechecks(
     assert "Posting about amapiano Sundays rose rapidly" not in json.dumps(answer)
     assert "Soweto chatter on amapiano Sundays accelerated through September" not in json.dumps(answer)
     assert answer["short_answer"] == "" and answer["context"] == ""
-    assert answer["so_what"] == [] and answer["watch_next"] == [] and answer["gaps"] == []
+    assert answer["so_what"] == [] and answer["watch_next"] == []
+    assert answer["gaps"] == [writer.CONTEXT_SUPPORT_GAP, writer.SO_WHAT_SUPPORT_GAP]
     assert rewrite_attempted == {"c2"}
     assert usage == {"input_tokens": 400, "output_tokens": 80, "usd": pytest.approx(0.004)}
 

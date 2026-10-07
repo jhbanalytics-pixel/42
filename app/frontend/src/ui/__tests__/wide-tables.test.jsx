@@ -63,7 +63,8 @@ async function buildOnce(){
   return outDir;
 }
 
-/* Coverage with a scorecard, so all four of its tables are on the page. */
+/* Coverage with a scorecard, so all five visible tables are on the page.
+   The Credits chart also has a visually hidden accessibility table. */
 const fig = (value, unit) => ({value, unit, query_id: 'q_scorecard_x', run_id: 'r_learn_20260921_01', result_hash: 'sha256:' + unit});
 const card = {
   market: 'ZA', reasons: {},
@@ -180,7 +181,10 @@ async function onTheApp(hash, ready, drive){
       try { landed = await client.evaluate(ready); } catch {}
       if (!landed) await wait(100);
     }
-    if (!landed) throw new Error(`${hash} never showed its tables`);
+    if (!landed){
+      const state = await client.evaluate(`JSON.stringify({hash: location.hash, title: document.title, tables: Array.from(document.querySelectorAll('.cv42 table')).map((node) => ({class: node.className, width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, parent: node.parentElement.className, style: node.getAttribute('style')})), labels: Array.from(document.querySelectorAll('.cv42 [role="region"]')).map((node) => node.getAttribute('aria-label'))})`);
+      throw new Error(`${hash} never showed its tables: ${state}`);
+    }
     await wait(300);
     return await drive(client);
   } finally {
@@ -200,7 +204,7 @@ const NATURAL_FIRST_COLUMN = String.raw`(function(){
   probe.style.visibility = 'hidden';
   probe.style.whiteSpace = 'nowrap';
   document.body.appendChild(probe);
-  return Array.from(document.querySelectorAll('.cv42 table tr'))
+  return Array.from(document.querySelectorAll('.cv42 table:not(.sr-only) tbody tr'))
     .map(function(row){ return row.cells[0]; })
     .filter(Boolean)
     .map(function(cell){
@@ -328,11 +332,11 @@ function failuresOf(reads){
 }
 
 test.skipIf(!CHROME)('every Coverage table scrolls inside its own named box at 390, 1024, and 1440, never the page', async () => {
-  const result = await onTheApp('#/coverage', `document.querySelectorAll('.cv42 table').length === 5`, async (client) => {
+  const result = await onTheApp('#/coverage', `document.querySelectorAll('.cv42 table:not(.sr-only)').length === 5`, async (client) => {
     await client.viewport(390, 844);
     await wait(300);
     const natural = await client.evaluate(NATURAL_FIRST_COLUMN);
-    const reads = await measure(client, '.cv42 table', 5);
+    const reads = await measure(client, '.cv42 table:not(.sr-only)', 5);
     return {natural, reads};
   });
   expect(result.natural.length).toBeGreaterThan(0);

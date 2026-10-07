@@ -250,6 +250,39 @@ def test_detect_market_scope_view_agrees_with_the_brief_query_on_confirm_finds(b
     assert view_scope(view_con) == expected
 
 
+@pytest.mark.parametrize("detect_view", [False, True])
+@pytest.mark.parametrize("lane", ["sweep", "confirm"])
+@pytest.mark.parametrize("location,confidence,geo_source,source,seen,is_local", [
+    ("AE", 0.9, "ext_region", "NG", D, False),
+    ("AE", 0.9, "ext_region", None, None, False),
+    ("NG", 0.7, "ext_region", None, None, True),
+    (None, None, None, "NG", D, True),
+    (None, None, None, None, None, False),
+    (None, None, None, "NG", D - timedelta(days=7), False),
+    ("AE", 0.69, "ext_region", "NG", D, True),
+    ("AE", 0.9, "language", "NG", D, True),
+    ("AE", None, "ext_region", "NG", D, True),
+    ("AE", 0.9, None, "NG", D, True),
+    ("", 0.9, "ext_region", "NG", D, True),
+    (None, None, None, "invalid", D, False),
+])
+def test_known_foreign_veto_agrees_in_brief_and_detect_scope_without_changing_unknowns(
+        detect_view, lane, location, confidence, geo_source, source, seen, is_local):
+    con = duck.connect(views=detect_view)
+    add_post(con, "p", geo_market=location, geo_confidence=confidence, geo_source=geo_source,
+             observation_markets=("NG",), lane=lane,
+             lane_class="search_presence" if lane == "confirm" else "unbiased_rank",
+             source_sightings=[sighting(source, seen)] if source is not None else [])
+
+    result = view_scope(con, "NG") if detect_view else scope(con, "NG")[0]
+    total = int(lane != "confirm" or is_local)
+    assert result == {"market_scope": "market" if is_local else "global", "market_posts7": int(is_local),
+                      "total_posts7": total, "market_share7": float(is_local) if total else None}
+    assert con.execute("SELECT COUNT(*) FROM core.posts WHERE post_id = 'p'").fetchone()[0] == 1
+    if not detect_view:
+        assert evidence_ids(con, "NG") == ({"p"} if total else set())
+
+
 # The suppression list (SETUP.md data protection): the scope counts describe the pack evidence.sql admits, so a
 # suppressed creator's posts leave the count before it ranks, as they leave the pack.
 

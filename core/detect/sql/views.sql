@@ -299,14 +299,16 @@ WITH state_keys AS (
     AND (seen.beyond_confirm
       OR (ps.geo_market = seen.market AND IFNULL(ps.geo_confidence, 0) >= 0.7
           AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
-      OR EXISTS (
+      OR (NOT IFNULL(NULLIF(ps.geo_market, '') != seen.market AND ps.geo_confidence >= 0.7
+                         AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+      AND EXISTS (
         SELECT 1
         FROM {core}.v_post_source_markets v
         CROSS JOIN UNNEST(v.source_sightings) sight
         WHERE v.post_id = ps.post_id
           AND sight.source_market = seen.market
           AND sight.obs_date BETWEEN DATE_SUB(seen.metric_date, INTERVAL 6 DAY) AND seen.metric_date
-      ))
+      )))
 ), ranked_pack AS (
   SELECT creator_ranked.*,
     ROW_NUMBER() OVER (PARTITION BY metric_date, item_id, market
@@ -319,14 +321,16 @@ WITH state_keys AS (
   SELECT e.metric_date, e.item_id, e.market, e.post_id,
     ((e.geo_market = e.market AND IFNULL(e.geo_confidence, 0) >= 0.7
       AND e.geo_source IN ('ext_region', 'home_market', 'place_mention'))
-    OR EXISTS (
+    OR (NOT IFNULL(NULLIF(e.geo_market, '') != e.market AND e.geo_confidence >= 0.7
+                       AND e.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+    AND EXISTS (
       SELECT 1
       FROM {core}.v_post_source_markets v
       CROSS JOIN UNNEST(v.source_sightings) sight
       WHERE v.post_id = e.post_id
         AND sight.source_market = e.market
         AND sight.obs_date BETWEEN DATE_SUB(e.metric_date, INTERVAL 6 DAY) AND e.metric_date
-    )) in_market
+    ))) in_market
   FROM eligible_posts e
 ), post_counts AS (
   SELECT metric_date, item_id, market,

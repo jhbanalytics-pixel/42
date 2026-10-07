@@ -381,7 +381,10 @@ const RAIL_COLOURS = `(function(){
   probe.style.color = 'var(--accent)';
   document.querySelector('nav[aria-label="Main"]').appendChild(probe);
   var accent = getComputedStyle(probe).color;
+  probe.style.color = 'var(--ink)';
+  var ink = getComputedStyle(probe).color;
   probe.remove();
+  var current = getComputedStyle(document.querySelector('nav[aria-label="Main"] a[aria-current="page"]'));
   var found = [];
   var nodes = [document.querySelector('nav[aria-label="Main"]')].concat([].slice.call(document.querySelectorAll('nav[aria-label="Main"] *')));
   nodes.forEach(function(node){
@@ -390,7 +393,7 @@ const RAIL_COLOURS = `(function(){
       if (String(style[key]).indexOf(accent) >= 0) found.push(node.tagName.toLowerCase() + ' ' + (node.textContent || '').trim().slice(0, 20) + ' ' + key);
     });
   });
-  return {accent: accent, found: found};
+  return {accent: accent, ink: ink, found: found, marker: {colour: current.borderInlineStartColor, width: current.borderInlineStartWidth}};
 })()`;
 
 test.skipIf(!CHROME)('the rail sits beside the workspace, Tab walks it, a keyboard move lands on the page heading and marks the page, and only the focus ring is red', async () => {
@@ -403,7 +406,7 @@ test.skipIf(!CHROME)('the rail sits beside the workspace, Tab walks it, a keyboa
     })()`);
     await client.evaluate(`document.activeElement && document.activeElement.blur && document.activeElement.blur()`);
     const colours = await client.evaluate(RAIL_COLOURS);
-    await client.evaluate(`document.querySelector('nav[aria-label="Main"] a[href="#/compare"]').focus()`);
+    await client.evaluate(`document.querySelector('nav[aria-label="Main"] a[href="#/alerts"]').focus()`);
     await client.press('Tab', 'Tab', 9);
     await wait(80);
     const tabbed = await client.evaluate(`(function(){
@@ -427,6 +430,8 @@ test.skipIf(!CHROME)('the rail sits beside the workspace, Tab walks it, a keyboa
   expect(result.place.railRight).toBeLessThanOrEqual(result.place.mainLeft + 1);
   expect(result.place.overflow).toBeLessThanOrEqual(0);
   expect(result.colours.found).toEqual([]);
+  expect(result.colours.marker.colour).toBe(result.colours.ink);
+  expect(parseFloat(result.colours.marker.width)).toBeGreaterThanOrEqual(3);
   expect(result.tabbed.text).toBe('Investigations');
   expect(result.tabbed.inRail).toBe(true);
   expect(result.tabbed.visible).toBe(true);

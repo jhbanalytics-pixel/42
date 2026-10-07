@@ -15,11 +15,12 @@ How 42 runs on Google Cloud: the jobs, the schedule, the caps, how a release goe
 
 ## Jobs and schedule
 
-Jobs are defined in `core/setup/deploy_jobs.py` and their schedules in `core/setup/schedule.py`. Schedules run in the Africa/Johannesburg time zone (SAST, UTC+2).
+Jobs are defined in `core/setup/deploy_jobs.py` and their schedules in `core/setup/schedule.py`. The table describes those source definitions, not a live readback of enabled jobs or schedules. Schedules use the Africa/Johannesburg time zone (SAST, UTC+2).
 
 | Job | Runs | When (SAST) |
 |---|---|---|
 | `f42-gdelt` | `core.collect.gdelt`: news events into the seed queue | 01:30 daily |
+| `f42-gdelt-daily` | `core.collect.gdelt_daily`: daily news aggregates | 03:30 daily |
 | `f42-collect` | `core.collect.job`: chain stage 1 | 02:00 daily |
 | `f42-understand` | `core.understand.job`: chain stage 2 | when collect finishes clean |
 | `f42-detect` | `core.detect.job`: chain stage 3 | when understand finishes clean |
@@ -72,16 +73,12 @@ A per-question budget sits inside `ASK_DAILY` (`core/agent/context.py`):
 
 ## Releasing
 
-Every release is a reviewed commit, built once, deployed by image digest.
+Every release is a reviewed commit, built once, deployed by image digest. The commands below describe the release scripts. Staging writes require Albert's go for the complete reviewed paste; a dry run does not grant permission to apply.
 
 ```bash
 # Jobs: dry run first, then build the image for HEAD and deploy every enabled job
 py -3.13 core/setup/deploy_jobs.py
 py -3.13 core/setup/deploy_jobs.py --build --apply
-
-# Scheduler entries: dry run, then create any that are missing
-py -3.13 core/setup/schedule.py
-py -3.13 core/setup/schedule.py --apply
 
 # Services: build, deploy f42-agent and f42-api, run the health check
 bash core/api/deploy.sh
@@ -89,9 +86,13 @@ bash core/api/deploy.sh
 
 `deploy_jobs.py` refuses to build or deploy while `core/` has uncommitted changes, so an image tag always names exactly what is inside it. Nothing in these scripts removes a resource or starts a job. GitHub Actions workflows for staging and production are written and kept in `.github/parked-workflows/` until keyless deploys are switched on.
 
+Scheduler access and changes are reserved for Albert's separate approval. Telegram, intraday pulse and Breaking stay off until he explicitly approves activation. The services build uses the source staging directory in `core/api/deploy_flags.env`, shared with the jobs builder. The recorded directory is `gs://ogilvy-trends-v2-f42-media-staging/build-source`; its presence in source does not prove a build or deployment succeeded.
+
 ## Identities and access
 
 `core/setup/bootstrap.py` is the only thing that grants access. Without `--apply` it prints every create and grant it would make; with `--apply` it only adds what is missing, never removes or replaces a binding, and ends with a readback of every expected binding. Each job and service runs as its own service account with the narrowest roles it needs (collector, enricher, brief, agent, web, scheduler, deployer). No machine identity holds owner, editor or IAM admin.
+
+The caller submitting a build, the build service account and the deployed service accounts are separate identities. The reviewed 7 October services paste expects Albert's existing owner-login caller, `f42-deployer` for Cloud Build, and `f42-agent` and `f42-web` for the running services. That caller exception applies to that paste only. Check all identities and the staging project before any write, and stop if they differ. Warehouse reads retain `f42-builder` impersonation. See [rule 13](../full-42/RULES.md).
 
 People open 42 in one of two modes, set by `F42_AUTH_MODE` (`core/api/auth.py`):
 
@@ -101,6 +102,8 @@ People open 42 in one of two modes, set by `F42_AUTH_MODE` (`core/api/auth.py`):
 ## Monitoring
 
 `core/setup/monitoring.py` creates log-based alert policies, and the `f42-watchdog` job writes a "42 ALERT" line whenever something is wrong. Alerts cover a missing collection, a failed job, a brief not published by 06:30, low credits, model spend over 80% of its cap, zero rows collected, schema drift on a supplier route, a high Ask error rate, a reconcile mismatch, seed drift, a failed seed queue and failed detect views. Alerts are emailed to the owner.
+
+The requested job memory alert above 70% is not defined by this module yet. Its separate policy needs a metric and notification-channel readback before creation. Preparing that policy does not change existing alerts.
 
 The Coverage page shows the same picture to every user: runs of the day, credits charged, model spend against its cap and the weekly scorecard.
 

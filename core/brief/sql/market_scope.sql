@@ -26,14 +26,16 @@ WITH seen AS (
     AND (seen.beyond_confirm
       OR (ps.geo_market = @market AND IFNULL(ps.geo_confidence, 0) >= 0.7
           AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
-      OR EXISTS (
+      OR (NOT IFNULL(NULLIF(ps.geo_market, '') != @market AND ps.geo_confidence >= 0.7
+                         AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+      AND EXISTS (
         SELECT 1
         FROM {core}.v_post_source_markets v
         CROSS JOIN UNNEST(v.source_sightings) sight
         WHERE v.post_id = ps.post_id
           AND sight.source_market = @market
           AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
-      ))
+      )))
 ), eligible_posts AS (
   SELECT * FROM creator_ranked
   WHERE creator_rank <= 2
@@ -44,14 +46,16 @@ WITH seen AS (
   FROM eligible_posts p
   WHERE (p.geo_market = @market AND IFNULL(p.geo_confidence, 0) >= 0.7
          AND p.geo_source IN ('ext_region', 'home_market', 'place_mention'))
-    OR EXISTS (
+    OR (NOT IFNULL(NULLIF(p.geo_market, '') != @market AND p.geo_confidence >= 0.7
+                       AND p.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+    AND EXISTS (
       SELECT 1
       FROM {core}.v_post_source_markets v
       CROSS JOIN UNNEST(v.source_sightings) sight
       WHERE v.post_id = p.post_id
         AND sight.source_market = @market
         AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
-    )
+    ))
 )
 SELECT COUNT(DISTINCT p.post_id) total_posts7, COUNT(DISTINCT m.post_id) market_posts7
 FROM eligible_posts p

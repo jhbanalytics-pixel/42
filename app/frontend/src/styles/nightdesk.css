@@ -131,7 +131,6 @@ html .instrument-masthead-mark {
   letter-spacing: -0.02em;
 }
 html .instrument-masthead-identity { font-stretch: 112%; font-size: var(--nd-t-small); letter-spacing: 0.01em; }
-html .rail42 .rail42-link[aria-current="page"] { box-shadow: inset 3px 0 0 var(--accent); }
 html .rail42 .rail42-group-title { font-weight: 500; font-stretch: 112%; letter-spacing: 0.01em; }
 
 /* ---------- Today ---------- */

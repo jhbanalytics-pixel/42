@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from core.collect import chain
+from core.detect.tests import duck
 from core.setup import watchdog as wd
 
 DAY = date(2026, 10, 1)
@@ -73,6 +74,32 @@ class FakeStore:
 
 def names(alerts):
     return [a.name for a in alerts]
+
+
+@pytest.mark.parametrize("stage", ["seeds", "detect"])
+@pytest.mark.parametrize("with_skip", [False, True])
+def test_watchdog_effective_run_ignores_a_later_skipped_duplicate(stage, with_skip):
+    con = duck.connect(views=False)
+    start = at(2)
+    rows = [
+        {"run_id": "real", "stage": stage, "run_date": DAY, "status": "running", "started_at": start},
+        {"run_id": "real", "stage": stage, "run_date": DAY, "status": "failed", "started_at": start,
+         "finished_at": start, "counts": '{"agent_views":{"status":"failed"}}'},
+    ]
+    if with_skip:
+        rows.append({"run_id": "duplicate", "stage": stage, "run_date": DAY, "status": "skipped_duplicate",
+                     "started_at": at(3), "finished_at": at(3)})
+    duck.load(con, "agent.runs", rows)
+    sql = wd.SQL[f"{stage}_latest"].replace(f"`{wd.AGENT}.runs`", "{agent}.runs")
+    rows = duck.query(con, sql, {"d": DAY})
+
+    assert len(rows) == 1 and rows[0]["run_id"] == "real"
+    if stage == "seeds":
+        assert rows[0]["status"] == "failed"
+        assert "seeds_failed" in names(wd.check(at(3), FakeStore(seeds=rows[0])))
+    else:
+        assert rows[0]["agent_views_status"] == "failed"
+        assert "agent_views_failed" in names(wd.check(at(3), FakeStore(detect=rows[0])))
 
 
 def keyrow(route, key, today, prior, today_total, prior_total):

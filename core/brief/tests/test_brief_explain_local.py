@@ -2,8 +2,8 @@
 
 Two causes are reproduced here on fixtures, with a fake model and no network:
 
-- Place: the gate and the specificity rule count a post found in the market's feeds as local even when it is
-  located in another market, but K3 cuts any claim that cites a post located in another market, whatever its
+- Place: before the foreign veto, the gate and specificity rule counted a post found in the market's feeds as local
+  even when located in another market, but K3 cuts any claim that cites a post located in another market, whatever its
   wording. The writer was shown such posts as ordinary evidence, so it cited them before and after repair.
 - Local why-now and the simpler explanation: the writer was not told which posts are local or located in the
   market, what the critic counts as a local why-now, or what a news-driven pass needs, so it wrote why-nows the
@@ -33,8 +33,7 @@ def ng_post(eid, handle, text, *, market=None, source_market="NG", platform="tik
 
 
 def islamicvideo_pack():
-    """Three posts, all found in Nigeria's feeds; the most engaged one is located in Ghana. The gate counts all
-    three as local and showable, as the staging holds report did ("posts 3, local 3, showable 3")."""
+    """Three posts found in Nigeria's feeds; the Ghana location leaves two local and showable under the veto."""
     return {
         "evidence": [
             ng_post("ev_gh", "@deen_daily", "Short reminder on patience in hard times, share it", market="GH",
@@ -92,8 +91,8 @@ def run_ng(model, pack):
 # Place: a post located in another market is never offered to the writer as citable
 
 
-def test_the_fixture_counts_like_the_staging_hold():
-    assert holds_report.post_counts(islamicvideo_pack()["evidence"], "NG") == (3, 3, 3)
+def test_the_fixture_counts_exclude_the_known_foreign_feed_post():
+    assert holds_report.post_counts(islamicvideo_pack()["evidence"], "NG") == (3, 2, 2)
 
 
 def test_a_writer_that_cites_what_it_is_offered_no_longer_cites_a_post_located_in_another_market():

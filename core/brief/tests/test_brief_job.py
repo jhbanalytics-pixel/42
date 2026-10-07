@@ -492,8 +492,7 @@ def add_post(con, market, item_id, pid, creator, platform, *, geo=None, geo_sour
 
 
 def add_board_channel(con, market, item_id, worth, label):
-    """A foreign channel's one video on the market's YouTube trending board: its only local evidence is the board's
-    region as source market, so market_scope reads it as 1 market post of 1."""
+    """A known foreign channel's video on the market's YouTube board stays in the total but has no local post."""
     add_item(con, market, item_id, worth, posts=0, label=label, creators3=1, posts3=1)
     add_post(con, market, item_id, f"{item_id}_v1", f"{item_id}_channel", "youtube", geo="US",
              geo_source="home_market", route="youtube/videos/trending")
@@ -540,7 +539,7 @@ def test_local_creators_beyond_the_youtube_board_outrank_board_only_items_with_h
         "za_local_breadth", "za_board_tag", "za_board_channel"]
     rows = {cand["row"]["item_id"]: cand["row"] for cand in by_market["ZA"]}
     assert (rows["za_board_channel"]["market_scope"], rows["za_board_channel"]["market_posts7"],
-            rows["za_board_channel"]["total_posts7"]) == ("market", 1, 1)
+            rows["za_board_channel"]["total_posts7"]) == ("global", 0, 1)
     assert (rows["za_board_tag"]["market_scope"], rows["za_board_tag"]["market_posts7"],
             rows["za_board_tag"]["total_posts7"]) == ("market", 3, 3)
     assert (rows["za_local_breadth"]["market_scope"], rows["za_local_breadth"]["market_posts7"],
@@ -565,7 +564,7 @@ def test_local_first_rank_keeps_the_order_among_equals_and_never_lifts_a_global_
                                 political_terms={m: ["election"] for m in MARKETS}, core="core", agent="agent")
     assert [cand["row"]["item_id"] for cand in by_market["ZA"]] == [
         "za_local_market_high", "za_local_market_low", "za_board_tag_high", "za_board_tag_low",
-        "za_one_local_post", "za_board_channel", "za_breadth_global"]
+        "za_one_local_post", "za_breadth_global", "za_board_channel"]
     rows = {cand["row"]["item_id"]: cand["row"] for cand in by_market["ZA"]}
     assert (rows["za_breadth_global"]["market_scope"], rows["za_breadth_global"]["market_posts7"],
             rows["za_breadth_global"]["total_posts7"]) == ("global", 6, 12)
@@ -574,7 +573,7 @@ def test_local_first_rank_keeps_the_order_among_equals_and_never_lifts_a_global_
 
 def test_posts_located_in_another_market_do_not_count_as_local_creators_for_rank(monkeypatch):
     # A post from the market's own feed but located with confidence in another market is not a local creator's
-    # post for rank. It still counts for market scope, as before.
+    # post for rank. The foreign veto also leaves it out of the local market count.
     monkeypatch.setattr(job, "read_market_scope", brief_market_scope.read_market_scope, raising=False)
     con = world(n=0, markets=("ZA",))
     add_item(con, "ZA", "za_fed_from_ng", 0.9, posts=0)
@@ -588,7 +587,7 @@ def test_posts_located_in_another_market_do_not_count_as_local_creators_for_rank
     assert [cand["row"]["item_id"] for cand in by_market["ZA"]] == ["za_local", "za_fed_from_ng"]
     rows = {cand["row"]["item_id"]: cand["row"] for cand in by_market["ZA"]}
     assert (rows["za_fed_from_ng"]["market_scope"], rows["za_fed_from_ng"]["market_posts7"],
-            rows["za_fed_from_ng"]["total_posts7"]) == ("market", 4, 4)
+            rows["za_fed_from_ng"]["total_posts7"]) == ("global", 0, 4)
 
 
 def test_candidate_market_priority_remains_after_detect_eligibility_and_generic_gate(monkeypatch):
@@ -2112,17 +2111,18 @@ def test_preflight_requires_two_distinct_local_posts_not_three_unknown_records(m
     assert "local" in decision.reason.lower()
 
 
-def test_preflight_counts_matching_own_market_feeds_as_local(monkeypatch):
-    evidence = [specificity_evidence("za_feed_1", market="NG", source_market="ZA"),
-                specificity_evidence("za_feed_2", market="NG", source_market="ZA"),
+@pytest.mark.parametrize("location,where", [(None, "today"), ("NG", "held_back")])
+def test_preflight_counts_unlocated_own_feeds_but_vetoes_known_foreign_locations(monkeypatch, location, where):
+    evidence = [specificity_evidence("za_feed_1", market=location, source_market="ZA"),
+                specificity_evidence("za_feed_2", market=location, source_market="ZA"),
                 specificity_evidence("za_unknown", market=None)]
     cand = preflight_candidate(evidence)
     monkeypatch.setattr(job, "gate_card", lambda *_: job.Decision(True, "today", None, None, None, False))
 
     decision = job._gate(cand, None)
 
-    assert decision.where == "today"
-    assert cand["held_reason"] is None
+    assert decision.where == where
+    assert cand["held_reason"] == (None if where == "today" else "not_confirmed")
 
 
 def test_two_local_posts_and_one_unknown_record_can_publish():

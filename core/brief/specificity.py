@@ -21,7 +21,8 @@ def local_posts(evidence, market):
         elif not isinstance(flags, (list, tuple)) or any(not isinstance(flag, str) for flag in flags):
             continue
         located_record = dict(record, flags=[flag.strip().lower() for flag in flags])
-        if located_market(located_record) == code or source_market(record) == code:
+        located = located_market(located_record)
+        if located == code or located is None and source_market(record) == code:
             posts.append(record)
     return posts
 

@@ -14,5 +14,5 @@ These rules hold for every change to 42. Code and docs cite them as "RULES.md ru
 10. Commits are authored as Albert Meintjes <albert.meintjes@ogilvy.co.za>, with no trailers and no em dashes or double hyphens.
 11. Nobody reviews their own work. Every change gets an independent review, and blockers are fixed before committing.
 12. Use py -3.13 on Albert's PC. Never use the bq CLI.
-13. In Google Cloud the builder acts only as f42-builder, by impersonation, never as Albert's own login. SocialCrawl calls run inside Cloud Run jobs, never from a local shell.
+13. Before Google Cloud work, verify the project and the separate caller, build and runtime identities against the reviewed staging paste. A paste may explicitly authorise Albert's login as caller for that release-specific exception; it does not authorise that caller for other work. The recorded 7 October services paste uses f42-deployer as its build service account, with f42-agent and f42-web as the service runtime identities. Keep f42-builder impersonation for warehouse reads unless the work contract says otherwise. Stop on any identity mismatch; never change gcloud configuration or IAM to make a command pass. SocialCrawl calls run inside Cloud Run jobs, never from a local shell.
 14. Caps live in one table in docs/full-42/SETUP.md. Evaluations run in replay mode and spend no live credits.

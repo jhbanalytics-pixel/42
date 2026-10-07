@@ -120,7 +120,11 @@ def begin(stage, run_date=None, *, runs=None, jobs=None):
     need = upstream(stage)
     if need is None:
         return run
-    latest = runs.latest(need, day)
+    try:
+        latest = runs.latest(need, day)
+    except Exception as exc:
+        finish(run, "failed", None, f"upstream {need} read failed ({type(exc).__name__})", runs=runs)
+        raise
     if latest is not None and latest["status"] == "ok":
         return run
     seen = "no runs row" if latest is None else f"latest status {latest['status']}"

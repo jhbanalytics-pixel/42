@@ -45,6 +45,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from core.collect.chain import TIMEOUTS  # noqa: E402
+
 P = "ogilvy-trends-v2"
 CORE, AGENT = f"`{P}.intelligence_42_core`", f"`{P}.intelligence_42_agent`"
 CAP = 10**9
@@ -102,7 +104,7 @@ FROM {CORE}.v_collection_health_current h
 WHERE h.day BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
 GROUP BY 1, 2, 3, 4, 5""",
     "collect runs": f"""
-SELECT run_date, status, COUNT(*) OVER (PARTITION BY run_date) runs_that_day,
+SELECT run_date, status, started_at, finished_at, COUNT(DISTINCT run_id) OVER (PARTITION BY run_date) runs_that_day,
   TO_JSON_STRING(JSON_QUERY(counts, '$.search_signal_states')) sc_states,
   TO_JSON_STRING(JSON_QUERY(counts, '$.google_bq_states')) bq_states,
   SAFE_CAST(JSON_VALUE(counts, '$.search_signals') AS INT64) sc_rows,
@@ -112,17 +114,19 @@ SELECT run_date, status, COUNT(*) OVER (PARTITION BY run_date) runs_that_day,
   JSON_VALUE(counts, '$.local_error') IS NOT NULL local_error,
   JSON_VALUE(counts, '$.public_feed_error') IS NOT NULL public_feed_error
 FROM {AGENT}.runs
-WHERE stage = 'collect' AND run_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
-QUALIFY ROW_NUMBER() OVER (PARTITION BY run_date ORDER BY started_at DESC) = 1""",
+WHERE stage = 'collect' AND status != 'skipped_duplicate' AND run_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
+QUALIFY ROW_NUMBER() OVER (PARTITION BY run_date
+  ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC) = 1""",
     # Only the error's type is read, never its text. The begin and finish rows share started_at, so the finished
     # row of the newest run wins; a skipped_duplicate row (a second start after an ok run) is left out, as
     # chain.latest leaves it out.
     "detect runs": f"""
-SELECT run_date, status, COUNT(DISTINCT run_id) OVER (PARTITION BY run_date) runs_that_day,
+SELECT run_date, status, started_at, finished_at, COUNT(DISTINCT run_id) OVER (PARTITION BY run_date) runs_that_day,
   {_STEP_COLUMNS}
 FROM {AGENT}.runs
 WHERE stage = 'detect' AND status != 'skipped_duplicate' AND run_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
-QUALIFY ROW_NUMBER() OVER (PARTITION BY run_date ORDER BY started_at DESC, finished_at DESC NULLS LAST) = 1""",
+QUALIFY ROW_NUMBER() OVER (PARTITION BY run_date
+  ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC) = 1""",
     "search signals": f"""
 SELECT DATE(fetched_at, 'Africa/Johannesburg') day, market, source, COUNT(*) n
 FROM {CORE}.google_search_signals
@@ -137,11 +141,12 @@ WITH s AS (
 SELECT s.day, s.market, COUNT(*) sighted, COUNTIF(e.post_id IS NOT NULL) enriched
 FROM s LEFT JOIN e ON e.post_id = s.post_id GROUP BY 1, 2""",
     "understand runs": f"""
-SELECT run_date, status, SAFE_CAST(JSON_VALUE(counts, '$.enriched') AS INT64) enriched,
+SELECT run_date, status, started_at, finished_at, SAFE_CAST(JSON_VALUE(counts, '$.enriched') AS INT64) enriched,
   JSON_VALUE(counts, '$.enrich_error') IS NOT NULL enrich_error, TO_JSON_STRING(JSON_QUERY(counts, '$.video')) video
 FROM {AGENT}.runs
-WHERE stage = 'understand' AND run_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
-QUALIFY ROW_NUMBER() OVER (PARTITION BY run_date ORDER BY started_at DESC) = 1""",
+WHERE stage = 'understand' AND status != 'skipped_duplicate' AND run_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
+QUALIFY ROW_NUMBER() OVER (PARTITION BY run_date
+  ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC) = 1""",
     "transcript calls": f"""
 SELECT trend_date day, SUM(IFNULL(calls, 0)) calls, ROUND(SUM(IFNULL(credits_charged, 0)), 1) credits
 FROM {CORE}.credit_ledger
@@ -580,6 +585,14 @@ def fetch(reader, d, rid=None, sources_fn=planned_sources, now=None):
     data["detect"] = reader.rows("detect runs", params(d))
     data["enrichment"] = reader.rows("enrichment", params(d, markets=list(MARKETS)))
     data["understand"] = reader.rows("understand runs", params(d))
+    for stage in ("collect", "understand", "detect"):
+        for row in data[stage] or []:
+            if row["status"] == "running" and row.get("started_at") is not None:
+                started = dt.datetime.fromisoformat(str(row["started_at"]))
+                if started.tzinfo is None:
+                    started = started.replace(tzinfo=dt.timezone.utc)
+                if data["now"] - started >= TIMEOUTS[stage]:
+                    row["status"] = "dead"
     data["transcripts"] = reader.rows("transcript calls", params(d))
     data["clip_reads"] = reader.rows("clip reads", params(d))
     return data
