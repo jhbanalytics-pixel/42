@@ -15,7 +15,7 @@ from core.agent.tools.warehouse import commit_findings, save_finding
 
 @pytest.mark.parametrize("raw, shown", [
     ("watch_next item 0 removed: a forecast before it has beaten persistence (K9)",
-     "A line on what to watch next was removed: a forecast before it has beaten persistence"),
+     "A line on what to watch next was removed: a forecast that has not outperformed a simple no-change forecast"),
     ("so_what item 2 removed: a number with no query behind it (K2)",
      "A line on why it matters was removed: a number with no query behind it"),
     ("Claim c3 cut: a quote not found in its posts (K8)", "A claim was cut: a quote not found in its posts"),
@@ -40,6 +40,66 @@ def test_the_answer_a_reader_sees_has_plain_gaps_and_keeps_its_claims():
     out = plain.answer(shown)
     assert out["claims"] == shown["claims"]
     assert "(K9)" not in out["gaps"][0]["what"] and "watch_next" not in out["gaps"][0]["searched"]
+
+
+@pytest.mark.parametrize("raw, shown", [
+    ("numeric query scope unavailable for a referenced claim",
+     "the stored counts could not be matched to a claim"),
+    ("forecasts remain held until they beat the persistence baseline",
+     "forecasts are not shown until they outperform a simple no-change forecast"),
+    ("every evidence id must resolve to a stored post, and every quote must be verbatim in it",
+     "every citation must lead to a stored post, and every quote must match its words exactly"),
+    ("every number must come from a query recorded in this run and come back the same on re-run",
+     "every number must come from a saved count for this answer and match when checked again"),
+])
+def test_unknowns_explain_the_missing_proof_in_plain_words(raw, shown):
+    assert plain.gap({"what": "A claim was removed", "searched": "q_4, tt_73", "why": raw}) == {
+        "what": "A claim was removed", "searched": "q_4, tt_73", "why": shown,
+    }
+
+
+def test_plain_unknowns_keep_checked_claims_numbers_citations_and_quotes_identical():
+    from copy import deepcopy
+
+    claim = {"id": "c1", "text": "51 posts, 3 creators: the sound appeared in their clips.",
+             "numbers": [{"value": 51, "unit": "posts", "query_id": "q_4", "result_hash": "sha256:kept"}],
+             "evidence_ids": ["tt_73"], "quotes": [{"evidence_id": "tt_73", "text": "the sound appeared"}]}
+    shown = {"claims": [claim], "evidence": [{"id": "tt_73", "text": "the sound appeared"}],
+             "gaps": [{"what": "A number was removed", "searched": "q_4", "why": "numeric query scope unavailable for a referenced claim"}]}
+    frozen = deepcopy(shown)
+    out = plain.answer(shown)
+    assert out["claims"] == frozen["claims"] and out["evidence"] == frozen["evidence"]
+    assert shown == frozen
+    assert out["gaps"][0]["why"] == "the stored counts could not be matched to a claim"
+
+
+def test_writer_receives_finding_first_and_usage_only_sound_instructions(ctx):  # noqa: F811
+    from core.agent.tests.test_writer import FakeModel
+
+    draft = {"short_answer": "", "claims": [], "so_what": [], "watch_next": [], "gaps": [], "context": ""}
+    model = FakeModel(draft)
+    writer.write_answer(model, question="Which sounds appeared?", as_of=ctx.as_of, market="ZA",
+                        window="2026-09-22 to 2026-09-28", ctx=ctx)
+    system = model.calls[0]["system"]
+    assert "South African football, including the Premier Soccer League, appeared in 17 posts across 4 platforms" in system
+    assert "Do not prefix a finding with a count list and a colon" in system
+    assert "original sound used by @handle" in system
+    assert "a handle from a cited post that uses the sound" in system
+    assert "does not establish who made the sound or who first used it" in system
+    assert "first used in the window by" not in system
+
+
+def test_writer_receives_week_on_week_only_for_exact_comparable_query_windows(ctx):  # noqa: F811
+    from core.agent.tests.test_writer import FakeModel
+
+    draft = {"short_answer": "", "claims": [], "so_what": [], "watch_next": [], "gaps": [], "context": ""}
+    model = FakeModel(draft)
+    writer.write_answer(model, question="Which sounds appeared?", as_of=ctx.as_of, market="ZA",
+                        window="2026-09-22 to 2026-09-28", ctx=ctx)
+    system = model.calls[0]["system"]
+    assert "Say week on week only when both query windows cover seven consecutive days" in system
+    assert "same item, platform, market and count definition" in system
+    assert "Do not calculate a difference or percentage unless a recorded query returns it" in system
 
 
 def test_run_ask_returns_gaps_and_followups_in_plain_words():

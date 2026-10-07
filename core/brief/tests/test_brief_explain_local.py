@@ -193,7 +193,11 @@ def test_the_writer_states_a_timely_local_why_now_in_the_sentence_on_local_posts
     text = writer_text()
     assert "Put the why-now in the explanation sentence itself as its one hedged clause" in text
     assert ("name a timely local cause: an event, date, release, announcement, match, holiday or moment that a cited "
-            "local post names in its own words or that its posted_at dates") in text
+            "local post names in its own words. A posting date alone does not identify a timely cause.") in text
+    assert "A posting date shows when that post was published, not when an event happened." in text
+    assert "or that its posted_at dates" not in text
+    assert ("The why-now clause rests on posts its claim cites, never on the facts lines, a search line or a number "
+            "alone.") in text
     assert ("Popularity, growth, engagement, a trend being discussed, or a country or community label is not a "
             "why-now.") in text
     assert "preferring posts marked located_in_market true" in text

@@ -17,7 +17,7 @@ from core.agent.forecast_promotion import promoted_forecasts, publishable_line
 from core.agent.native_review import tone_cap_ids
 from core.agent.tools.dates import SAST
 from core.agent.tools.socialcrawl import ALLOWED_ROUTES, PLATFORM_NAMES
-from core.agent.tools.sql_query import MAX_BYTES_BILLED
+from core.agent.tools.sql_query import MAX_BYTES_BILLED, _dispatch_query
 
 # K2 re-runs one answer's distinct queries at the same time, at most this many at once.
 RERUN_WORKERS = 6
@@ -1359,9 +1359,9 @@ def _recorded_problem(n, ctx):
     return None
 
 
-def _rerun(warehouse, query):
+def _rerun(warehouse, query, ctx):
     try:
-        return warehouse.run(query["sql"], query["params"], MAX_BYTES_BILLED)
+        return _dispatch_query(ctx, warehouse, query["sql"], query["params"], MAX_BYTES_BILLED)
     except Exception as e:  # the warehouse is a system boundary; a failed re-run cuts, never crashes the answer
         return e
 
@@ -1380,7 +1380,7 @@ def prefetch_reruns(claims, ctx, warehouse, reruns) -> None:
     if len(wanted) < 2:
         return  # one re-run gains nothing from a thread; _number_problem runs it in place
     with ThreadPoolExecutor(max_workers=min(RERUN_WORKERS, len(wanted))) as pool:
-        results = list(pool.map(lambda qid: _rerun(warehouse, ctx.queries[qid]), wanted))
+        results = list(pool.map(lambda qid: _rerun(warehouse, ctx.queries[qid], ctx), wanted))
     reruns.update(zip(wanted, results))
 
 
@@ -1390,46 +1390,73 @@ def _number_problem(n, ctx, warehouse, reruns):
     if problem:
         return problem
     if qid not in reruns:
-        reruns[qid] = _rerun(warehouse, ctx.queries[qid])
+        reruns[qid] = _rerun(warehouse, ctx.queries[qid], ctx)
     rerun = reruns[qid]
     if isinstance(rerun, Exception):
         return f"number {value}: re-run of {qid} failed ({type(rerun).__name__})"
     if not any(_matches(value, cell) for cell in _cells(rerun)):
         return f"number {value}: re-run of {qid} no longer returns it"
     places = _number_places(value, ctx.queries[qid]["rows"])
-    if not any(_same_number_place(value, place, rerun) for place in places):
+    used = set()
+    if not all(_same_number_place(value, place, rerun, used) for place in places):
         return f"number {value}: re-run of {qid} no longer returns it in the same row and column"
     return None
 
 
 def _number_places(value, rows):
-    """Where value sits in the recorded rows: (column, the row's other plain cells) for each dict row with value in a
-    column, or (None, None) for a row that is not a dict, which only the value itself can place."""
+    """The path and complete row of each matching numeric leaf, or the legacy unplaced scalar row."""
     for row in rows if isinstance(rows, (list, tuple)) else [rows]:
         if not isinstance(row, dict):
             yield None, None
             continue
-        for column, cell in row.items():
-            if any(_matches(value, c) for c in _cells(cell)):
-                yield column, {k: v for k, v in row.items() if k != column and _plain_cell(v)}
+        pending = [((), row)]
+        while pending:
+            path, cell = pending.pop()
+            if isinstance(cell, dict):
+                pending.extend(((*path, key), child) for key, child in cell.items())
+            elif isinstance(cell, (list, tuple)):
+                pending.extend(((*path, index), child) for index, child in enumerate(cell))
+            elif isinstance(cell, (int, float, Decimal)) and not isinstance(cell, bool) and _matches(value, cell):
+                yield path, row
 
 
-def _plain_cell(cell):
-    """A cell that names a row rather than measures it: text, a date, a flag or a null."""
-    if isinstance(cell, (dict, list, tuple)):
-        return False
-    return isinstance(cell, bool) or not isinstance(cell, (int, float, Decimal))
-
-
-def _same_number_place(value, place, rerun):
-    """Whether the re-run still returns value in its column, in a row whose plain cells (its day, market, platform,
-    the cohort it names) are the recorded row's. Numbers alone do not place a row, so a re-run that moved the value
-    to another cohort no longer reproduces it."""
-    column, dims = place
-    if column is None:
+def _same_number_place(value, place, rerun, used):
+    """Consume one matching rerun cell with the complete cohort identity. Only the measured leaf uses the existing
+    numeric tolerance; a rerun occurrence cannot satisfy two recorded occurrences."""
+    path, recorded = place
+    if path is None:
         return True
-    return any(isinstance(row, dict) and column in row and all(row.get(k) == v for k, v in dims.items())
-               and any(_matches(value, c) for c in _cells(row[column])) for row in rerun or [])
+
+    def identical(before, after):
+        if type(before) is not type(after):
+            return False
+        if isinstance(before, dict):
+            return before.keys() == after.keys() and all(identical(cell, after[key]) for key, cell in before.items())
+        if isinstance(before, (list, tuple)):
+            return len(before) == len(after) and all(identical(left, right) for left, right in zip(before, after))
+        return before == after
+
+    def same(before, after, remaining):
+        if not remaining:
+            return (isinstance(after, (int, float, Decimal)) and not isinstance(after, bool)
+                    and _matches(value, after))
+        key, *rest = remaining
+        if isinstance(before, dict):
+            if not isinstance(after, dict) or before.keys() != after.keys():
+                return False
+            return all(same(cell, after[name], rest) if name == key else identical(cell, after[name])
+                       for name, cell in before.items())
+        if not isinstance(after, (list, tuple)) or len(before) != len(after):
+            return False
+        return all(same(cell, after[index], rest) if index == key else identical(cell, after[index])
+                   for index, cell in enumerate(before))
+
+    for index, row in enumerate(rerun or []):
+        occurrence = (index, path)
+        if occurrence not in used and isinstance(row, dict) and same(recorded, row, path):
+            used.add(occurrence)
+            return True
+    return False
 
 
 def _cells(value):

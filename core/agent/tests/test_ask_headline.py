@@ -495,8 +495,10 @@ def test_a_gemini_rewrite_that_fails_with_unknown_usage_books_its_reserve_and_th
     # the rewrite is booked at its full reserve, within the room the probe held for it
     rewrite_usd = ask.call_usd(ask.MODEL, writer.HEADLINE_REWRITE_INPUT_TOKENS, writer.HEADLINE_REWRITE_MAX_TOKENS)
     (reserve,) = budget.unknown
-    assert budget.conservative_usd == reserve / 1_000_000
-    assert 0 < budget.conservative_usd <= rewrite_usd
+    assert sum("tvf_search_posts" in sql for sql, _ in h.warehouse.runs) == 1
+    embedding_micros = round(SEARCH_EMBED_USD * 1_000_000)
+    assert budget.conservative_usd == (reserve + embedding_micros) / 1_000_000
+    assert 0 < reserve / 1_000_000 <= rewrite_usd
     assert out["run"]["model_usd"] >= budget.booked_usd
 
 
@@ -535,6 +537,8 @@ def test_a_gemini_rewrite_that_fails_on_googles_side_retries_only_within_the_fie
     # each try is booked at its full reserve
     rewrite_usd = ask.call_usd(ask.MODEL, writer.HEADLINE_REWRITE_INPUT_TOKENS, writer.HEADLINE_REWRITE_MAX_TOKENS)
     assert len(budget.unknown) == (2 if room else 1)
-    assert budget.conservative_usd == sum(budget.unknown) / 1_000_000
+    assert sum("tvf_search_posts" in sql for sql, _ in h.warehouse.runs) == 1
+    embedding_micros = round(SEARCH_EMBED_USD * 1_000_000)
+    assert budget.conservative_usd == (sum(budget.unknown) + embedding_micros) / 1_000_000
     assert all(0 < reserve / 1_000_000 <= rewrite_usd for reserve in budget.unknown)
     assert out["run"]["model_usd"] >= budget.booked_usd

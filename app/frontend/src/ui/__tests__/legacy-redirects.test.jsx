@@ -47,6 +47,19 @@ describe('legacyHashTarget', () => {
     expect(legacyHashTarget('#/research?work=ask')).toBe('#/ask');
   });
 
+  test('Ask aliases are canonical before mount and retain question, draft and scope parameters', async () => {
+    const {legacyHashTarget} = await import('../../legacyRoutes.js');
+    for (const view of ['console', 'chat', 'research']){
+      expect(legacyHashTarget('#/' + view + '?work=ask')).toBe('#/ask');
+      expect(legacyHashTarget('#/' + view + '?work=ask&q=What%20changed%3F&market=NG&draft=1'))
+        .toBe('#/ask?q=What+changed%3F&market=NG&draft=1');
+      expect(legacyHashTarget('#/' + view + '?work=ask&question=fixture&follow=a_fixture&item=item_fixture&date=2026-10-06&fit=creator_fixture'))
+        .toBe('#/ask?question=fixture&follow=a_fixture&item=item_fixture&date=2026-10-06&fit=creator_fixture');
+      expect(legacyHashTarget('#/' + view + '?work=ask&request=0b5c1a7e-3c1f-4d1a-9a1e-1c2d3e4f5a6b&q=fixture&draft=1'))
+        .toBe('#/history');
+    }
+  });
+
   test('a blank or unreadable console question lands on Build, not the older console', async () => {
     const {legacyHashTarget} = await import('../../legacyRoutes.js');
     expect(legacyHashTarget('#/console/%20')).toBe('#/console');
@@ -72,13 +85,21 @@ describe('legacyHashTarget', () => {
 
   test('42 pages, the plain Build page and Ask hashes are left alone', async () => {
     const {legacyHashTarget} = await import('../../legacyRoutes.js');
-    for (const hash of ['', '#/pulse', '#/explore', '#/console', '#/ask?q=x', '#/seedpath/x?region=za', '#/t/' + ITEM, '#/seeds', '#/lexicon/sapa?region=ng', '#/topic/older-desk-id?region=za', '#/creator/someone', '#/console?work=ask']) {
+    for (const hash of ['', '#/pulse', '#/explore', '#/console', '#/ask?q=x', '#/seedpath/x?region=za', '#/t/' + ITEM, '#/seeds', '#/lexicon/sapa?region=ng', '#/topic/older-desk-id?region=za', '#/creator/someone']) {
       expect([hash, legacyHashTarget(hash)]).toEqual([hash, null]);
     }
   });
 });
 
 describe('parseHash', () => {
+  test('a console Ask alias returns the Ask route before any component can mount', async () => {
+    const {parseHash} = await import('../../router.js');
+    window.location.hash = '#/console?work=ask&q=Fixture%20question&market=KE&draft=1';
+    const parsed = parseHash();
+    expect(parsed.view).toBe('ask');
+    expect(window.location.hash).toBe('#/ask?q=Fixture+question&market=KE&draft=1');
+  });
+
   test('replaces a desk page hash with its 42 page before the route is read', async () => {
     const {parseHash} = await import('../../router.js');
     window.location.hash = '#/board';

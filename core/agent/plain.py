@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 
+from core.plain_dates import format_generated_dates
+
 # Warehouse tables, tools and answer fields, as a reader would name them. Longest names first, so item_state_current
 # is read before item_state.
 NAMES = {
@@ -42,6 +44,21 @@ _NAME = re.compile(r"\b(" + "|".join(sorted(map(re.escape, NAMES), key=len, reve
 _CODE = re.compile(r"\s*\((?:K(?:10|[1-9])|critic)(?:,\s*(?:K(?:10|[1-9])|critic))*\)", re.I)
 _SECTION = re.compile(r"^(so_what|watch_next) item \d+ removed\b", re.I)
 _CLAIM = re.compile(r"^Claim [\w.-]+ (cut|removed)\b")
+_PHRASES = {
+    "numeric query scope unavailable for a referenced claim": "the stored counts could not be matched to a claim",
+    "forecasts remain held until they beat the persistence baseline":
+        "forecasts are not shown until they outperform a simple no-change forecast",
+    "a forecast before it has beaten persistence": "a forecast that has not outperformed a simple no-change forecast",
+    "every evidence id must resolve to a stored post": "every citation must lead to a stored post",
+    "every quote must be verbatim in it": "every quote must match its words exactly",
+    "every quoted span must be verbatim in a cited post": "every quote must match its cited post word for word",
+    "every number must come from a query recorded in this run and come back the same on re-run":
+        "every number must come from a saved count for this answer and match when checked again",
+    "no cited post resolves to stored text": "the cited posts could not be found with text",
+    "support check": "evidence check",
+    "field check": "text check",
+}
+_PHRASE = re.compile(r"\b(" + "|".join(sorted(map(re.escape, _PHRASES), key=len, reverse=True)) + r")\b", re.I)
 
 
 def text(value: str) -> str:
@@ -50,6 +67,7 @@ def text(value: str) -> str:
         return value
     out = _SECTION.sub(lambda m: f"A line on {NAMES[m.group(1).lower()]} was removed", value)
     out = _CLAIM.sub(lambda m: f"A claim was {m.group(1)}", out)
+    out = _PHRASE.sub(lambda m: _PHRASES[m.group(1).lower()], out)
     out = _DATASET.sub("", out)
     out = _NAME.sub(lambda m: NAMES[m.group(1).lower()], out)
     out = _CODE.sub("", out)
@@ -64,10 +82,10 @@ def gap(entry):
 
 
 def answer(shown: dict) -> dict:
-    """The answer as a reader sees it: gaps in plain words. Claims, numbers and evidence are left as checked."""
+    """The answer as a reader sees it: plain gaps and dates, with quotes, numbers and evidence kept as checked."""
     if not isinstance(shown, dict) or not isinstance(shown.get("gaps"), list):
         return shown
-    return {**shown, "gaps": [gap(g) for g in shown["gaps"]]}
+    return format_generated_dates({**shown, "gaps": [gap(g) for g in shown["gaps"]]}, reference=shown.get("as_of"))
 
 
 # How a table reads when a step names what it counts from. Tables not here read by their name in plain words.

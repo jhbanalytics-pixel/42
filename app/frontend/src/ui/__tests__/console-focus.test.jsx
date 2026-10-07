@@ -1,16 +1,6 @@
-/* Focus on the console route, measured in a real browser.
-
-   The workbench moves focus to the stage heading on mount so a screen reader
-   lands on what changed. Chrome paints :focus-visible on a heading focused by
-   script, and the package's focus rule draws a two pixel red ring around it,
-   so every console load opened with a red box around the proposition. The
-   ruling: a heading focused programmatically, which is what tabindex -1
-   marks, paints no ring; keyboard focus on a real control keeps its ring.
-   Both halves are measured here, on the built page, through the browser's
-   own computed styles, with a real Tab key sent through the debugging
-   protocol, because no fake event makes Chrome decide a focus is visible.
-   Round 3 added the order: a fresh load steals no focus, so the walk from
-   the top of the document reaches the shell chrome before the workbench. */
+/* Build focus on the production page. A fresh load leaves the rail first
+   in the Tab order. Keyboard controls retain their focus rings, while a
+   draft sent from Build takes focus to the Ask heading without a ring. */
 import {afterAll, expect, test} from 'bun:test';
 import {spawn} from 'node:child_process';
 import {once} from 'node:events';
@@ -61,7 +51,15 @@ async function buildOnce(){
 }
 
 const TYPES = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.json': 'application/json'};
-const API = {'/api/health': {passcode: false}, '/api/research/recent': []};
+const API = {
+  '/api/health': {passcode: false},
+  '/api/history/asks': {asks: [{ask_id: 'a_focus_fixture', question: 'Console focus fixture answer', status: 'complete', answer_status: 'complete', market: 'ZA', at: '2026-10-06T08:00:00Z'}]},
+  '/api/history/briefs': {dates: []},
+  '/api/investigations': {investigations: []},
+  '/api/dossiers': {dossiers: []},
+  '/api/schedules': {schedules: []},
+  '/api/discover': {items: []},
+};
 
 /* Serves the build with the theme preset and the landing's reads answered as
    an empty estate, the same way the contrast measurement does. */
@@ -150,22 +148,23 @@ async function page(profile, url){
    sits inside the workbench. */
 const FOCUS_STATE = `(function(){
   var node = document.activeElement;
-  if (!node || node === document.body) return {tag: 'body', visible: false, outline: 'none', width: '0px', text: '', inWorkbench: false};
+  if (!node || node === document.body) return {tag: 'body', id: '', visible: false, outline: 'none', width: '0px', text: '', inWorkbench: false};
   var style = getComputedStyle(node);
   var name = typeof node.className === 'string' && node.className.trim() ? '.' + node.className.trim().split(/\\s+/).join('.') : '';
   return {
     tag: node.tagName.toLowerCase() + name,
+    id: node.id,
     tabindex: node.getAttribute('tabindex'),
     visible: node.matches(':focus-visible'),
     outline: style.outlineStyle,
     width: style.outlineWidth,
     colour: style.outlineColor,
     text: (node.textContent || '').trim().slice(0, 40),
-    inWorkbench: !!node.closest('.workbench'),
+    inWorkbench: !!node.closest('#instrument-workspace'),
   };
 })()`;
 
-async function onTheConsole(theme, drive, width = 1440, {scrollbars = false, height = 1000} = {}){
+async function onTheConsole(theme, drive, width = 1440, {scrollbars = false, height = 1000, hash = '#/console', surface = '.b42'} = {}){
   const {server, port} = await serve(theme);
   const directory = mkdtempSync(join(tmpdir(), 'lp-console-focus-'));
   const profile = join(directory, 'profile');
@@ -176,15 +175,15 @@ async function onTheConsole(theme, drive, width = 1440, {scrollbars = false, hei
   ], {stdio: 'ignore', windowsHide: true});
   let client = null;
   try {
-    client = await page(profile, `http://127.0.0.1:${port}/#/console`);
+    client = await page(profile, `http://127.0.0.1:${port}/${hash}`);
     if (scrollbars) await client.viewport(width, height);
     const deadline = Date.now() + 15000;
     let landed = false;
     while (Date.now() < deadline && !landed){
-      try { landed = await client.evaluate(`!!document.querySelector('.workbench-stage h1') && !!document.querySelector('nav.rail42')`); } catch {}
+      try { landed = await client.evaluate(`!!document.querySelector(${JSON.stringify(surface + ' h1')}) && !!document.querySelector('nav.rail42') && (${JSON.stringify(surface)} !== '.b42' || document.body.textContent.includes('Console focus fixture answer'))`); } catch {}
       if (!landed) await wait(100);
     }
-    if (!landed) throw new Error('the console never mounted inside the shell beside the 42 rail');
+    if (!landed) throw new Error('the console never mounted inside the shell beside the 42 rail: ' + await client.evaluate(`JSON.stringify({hash: location.hash, text: document.body.innerText.slice(0, 1200)})`));
     await wait(300);
     return await drive(client);
   } finally {
@@ -218,22 +217,16 @@ async function onTheConsole(theme, drive, width = 1440, {scrollbars = false, hei
    eleven utility links task 25 put after the jobs are gone and the walk is
    nine stops before the workbench.
 
-   The 42 rail (EXPERIENCE.md, Navigation) is now the only navigation and the
-   left column, so it comes first: the rail's own skip link, the six pages,
-   More (open here, because Build is the console and sits under More), the
-   pages under More, the three at the foot and the theme, then the shell's
-   masthead, market and theme controls, then the workbench. The shell's five
-   jobs are hidden and take no stop. */
-const RAIL_TOP_LABELS = ['Today', 'Ask', 'Discover', 'Compare', 'Investigations', 'Dossiers'];
-const RAIL_MORE_LABELS = ['Seeds', 'Seed path', 'Map', 'Board', 'Listen', 'Network', 'Lexicon', 'Browse', 'Method', 'Schedules', 'Skins', 'Hidden people', 'Communities', 'Build', 'Fieldwork'];
-const RAIL_FOOT_LABELS = ['History', 'Alerts', 'Coverage'];
+   The current rail comes first: its skip link, seven pages, closed More
+   and theme, then the shell's masthead, market and theme controls. Build's
+   forms follow. The shell's hidden jobs take no stop. */
+const RAIL_TOP_LABELS = ['Today', 'Ask', 'Discover', 'Alerts', 'Investigations', 'Dossiers', 'History'];
+const RAIL_MORE_LABELS = ['Compare', 'Lexicon', 'Communities', 'Seed path', 'Seeds', 'Coverage', 'Fieldwork', 'Method', 'Schedules', 'Skins', 'Hidden people', 'All pages'];
 const railLink = (label) => [/^a\.rail42-link$/, label];
 const SHELL_STOPS = [
   [/^a\.instrument-skip-link$/, 'Skip to workspace'],
   ...RAIL_TOP_LABELS.map(railLink),
   [/^button\.rail42-more-button$/, 'More'],
-  ...RAIL_MORE_LABELS.map(railLink),
-  ...RAIL_FOOT_LABELS.map(railLink),
   [/^select$/, null],
   [/^a\.instrument-masthead/, null],
   [/^button\.instrument-market-trigger/, null],
@@ -242,7 +235,7 @@ const SHELL_STOPS = [
 const WALK = SHELL_STOPS.length + 3;
 
 for (const theme of ['midnight', 'daylight']){
-  test.skipIf(!CHROME)(`${WALK} Tab stops from a fresh console load walk the 42 rail and the shell chrome, then the workbench, and never land on body in ${theme}`, async () => {
+  test.skipIf(!CHROME)(`${WALK} Tab stops from a fresh Build load walk the 42 rail and shell chrome, then the workspace, and never land on body in ${theme}`, async () => {
     const stops = await onTheConsole(theme, async (client) => {
       const walk = [await client.evaluate(FOCUS_STATE)];
       for (let index = 0; index < WALK; index += 1){
@@ -262,6 +255,9 @@ for (const theme of ['midnight', 'daylight']){
     for (const index of [SHELL_STOPS.length, SHELL_STOPS.length + 1, SHELL_STOPS.length + 2]){
       expect(stops[index + 1].inWorkbench, `stop ${index + 1} is ${tags[index]}`).toBe(true);
     }
+    expect(stops.slice(SHELL_STOPS.length + 1).map((stop) => stop.id)).toEqual([
+      'b42-ask-question', 'b42-ask-market', 'b42-inv-question',
+    ]);
     expect(tags.filter((tag) => tag === 'body')).toEqual([]);
     expect(new Set(stops.slice(1, 6).map((stop) => stop.text)).size).toBe(5);
     expect(stops[1].visible).toBe(true);
@@ -269,15 +265,32 @@ for (const theme of ['midnight', 'daylight']){
     expect(parseFloat(stops[1].width)).toBeGreaterThanOrEqual(2);
   }, 180000);
 
-  test.skipIf(!CHROME)(`moving inside the workbench takes focus to the stage heading without a ring in ${theme}`, async () => {
+  test.skipIf(!CHROME)(`submitting a draft from Build takes keyboard focus to the Ask heading without a ring in ${theme}`, async () => {
     const state = await onTheConsole(theme, async (client) => {
-      await client.evaluate(`document.querySelectorAll('.workbench-mode-tabs button')[1].click()`);
+      for (let index = 0; index <= SHELL_STOPS.length; index += 1){
+        await client.press('Tab', 'Tab', 9);
+      }
+      expect((await client.evaluate(FOCUS_STATE)).id).toBe('b42-ask-question');
+      await client.evaluate(`(function(){
+        const field = document.getElementById('b42-ask-question');
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(field, 'What changed in this fixture?');
+        field.dispatchEvent(new Event('input', {bubbles: true}));
+      })()`);
+      await wait(50);
+      await client.press('Tab', 'Tab', 9);
+      expect((await client.evaluate(FOCUS_STATE)).id).toBe('b42-ask-market');
+      await client.press('Tab', 'Tab', 9);
+      const submit = await client.evaluate(FOCUS_STATE);
+      expect(submit.tag).toMatch(/^button\./);
+      expect(submit.text).toBe('Ask');
+      await client.press('Enter', 'Enter', 13, '\r');
       const deadline = Date.now() + 5000;
       let landed = false;
       while (Date.now() < deadline && !landed){
-        landed = await client.evaluate(`(function(){var n=document.activeElement;return !!n && /^h[12]$/i.test(n.tagName) && !!n.closest('.workbench-stage');})()`);
+        landed = await client.evaluate(`(function(){var n=document.activeElement;return !!n && /^h[12]$/i.test(n.tagName) && n.textContent.trim() === 'Ask' && !!n.closest('.ask42');})()`);
         if (!landed) await wait(50);
       }
+      expect(await client.evaluate(`location.hash.startsWith('#/ask?') && new URLSearchParams(location.hash.split('?')[1]).get('draft') === '1'`)).toBe(true);
       return client.evaluate(FOCUS_STATE);
     });
     expect(state.tag).toMatch(/^h[12]/);
@@ -306,7 +319,7 @@ const NAVIGATION_STATE = `(function(){
     jobRail: shown(document.querySelector('.instrument-job-rail')),
     jobLinks: [].slice.call(document.querySelectorAll('.instrument-job-link')).filter(shown).length,
     menu: shown(document.querySelector('.instrument-menu')),
-    counts: {Today: links('Today'), Discover: links('Discover'), Compare: links('Compare'), Briefing: links('Briefing'), Build: links('Build'), Fieldwork: links('Fieldwork')},
+    counts: {Today: links('Today'), Ask: links('Ask'), Discover: links('Discover'), Alerts: links('Alerts'), Compare: links('Compare'), Briefing: links('Briefing'), Build: links('Build'), Fieldwork: links('Fieldwork')},
     workspaceInset: Math.round(main.left - shell.left),
     skips: skips.length,
     skipInShell: skips.map(function(a){ return !!a.closest('.oi-product'); }),
@@ -322,7 +335,8 @@ for (const [width, layout] of [[1440, 'rail'], [900, 'bar'], [390, 'bar']]){
     expect(state.jobRail).toBe(false);
     expect(state.jobLinks).toBe(0);
     expect(state.menu).toBe(false);
-    expect([state.counts.Today, state.counts.Discover, state.counts.Compare, state.counts.Briefing]).toEqual([1, 1, 1, 0]);
+    expect([state.counts.Today, state.counts.Ask, state.counts.Discover, state.counts.Alerts, state.counts.Briefing]).toEqual([1, 1, 1, 1, 0]);
+    expect([state.counts.Compare, state.counts.Build, state.counts.Fieldwork]).toEqual([0, 0, 0]);
     expect(state.workspaceInset).toBe(0);
     /* One skip link at every width: the rail's own, ahead of the rail and
        the shell, where the rail is the left column; the shell's own where
@@ -331,8 +345,6 @@ for (const [width, layout] of [[1440, 'rail'], [900, 'bar'], [390, 'bar']]){
     expect(state.skipInShell).toEqual([layout !== 'rail']);
     if (layout === 'rail'){
       expect(state.railBeforeShell).toBe(true);
-      /* Build is the console and sits under More, which opens on it. */
-      expect([state.counts.Build, state.counts.Fieldwork]).toEqual([1, 1]);
     }
   }, 180000);
 }
@@ -346,7 +358,7 @@ test.skipIf(!CHROME)('Enter on the skip link at the rail width lands focus on th
     const first = await client.evaluate(FOCUS_STATE);
     await client.press('Enter', 'Enter', 13, '\r');
     await wait(300);
-    const after = await client.evaluate(`({id: document.activeElement && document.activeElement.id, hash: window.location.hash, stage: !!document.querySelector('.workbench-stage h1')})`);
+    const after = await client.evaluate(`({id: document.activeElement && document.activeElement.id, hash: window.location.hash, stage: !!document.querySelector('.b42 h1')})`);
     return {first, after};
   });
   expect(state.first.tag).toBe('a.instrument-skip-link');
@@ -384,7 +396,7 @@ const RAIL_LABELS_STATE = `(function(){
   });
   var main = [].slice.call(document.querySelectorAll('nav')).filter(shown).filter(function(nav){
     var texts = [].slice.call(nav.querySelectorAll('a')).filter(shown).map(function(a){ return a.textContent.trim(); });
-    return ['Today', 'Discover', 'Compare'].every(function(label){ return texts.indexOf(label) >= 0; });
+    return ['Today', 'Ask', 'Discover'].every(function(label){ return texts.indexOf(label) >= 0; });
   });
   return {
     scrollX: window.scrollX,
@@ -398,6 +410,7 @@ for (const width of [1440, 1024]){
   test.skipIf(!CHROME)(`at ${width} every rail label shows whole, even when the page is wider than the screen, and one navigation holds Today, Discover and Compare`, async () => {
     const state = await onTheConsole('daylight', async (client) => {
       await client.evaluate(`(function(){
+        document.querySelector('.rail42-more-button').click();
         var wide = document.createElement('div');
         wide.style.cssText = 'width: 2400px; height: 48px;';
         var far = document.createElement('button');
@@ -416,7 +429,7 @@ for (const width of [1440, 1024]){
     }, width, {scrollbars: true, height: 800});
     expect(state.inner).toBe(width);
     expect(state.navigations).toEqual(['rail42']);
-    expect(state.labels.map((item) => item.label)).toEqual([...RAIL_TOP_LABELS, 'More', ...RAIL_MORE_LABELS, ...RAIL_FOOT_LABELS, 'Theme']);
+    expect(state.labels.map((item) => item.label)).toEqual([...RAIL_TOP_LABELS, 'More', ...RAIL_MORE_LABELS, 'Theme']);
     expect(state.scrollX).toBe(0);
     expect(state.railScroll.left).toBe(0);
     expect(state.railScroll.width).toBeLessThanOrEqual(state.railScroll.client);

@@ -350,6 +350,55 @@ def query_preview(ctx: RunContext, result: dict) -> dict:
     return {**result, **query_rows(ctx, result["query_id"], limit=QUERY_PREVIEW_ROWS)}
 
 
+def _dispatch_query(ctx: RunContext, warehouse: Warehouse, sql: str, params: dict | None,
+                    max_bytes_billed: int) -> list[dict]:
+    """Execute an already-validated read, reserving embedded-model cost before dispatch, including numeric reruns."""
+    embedding_texts = []
+    if "tvf_search_posts" in sql.casefold():
+        for table in sqlglot.parse_one(sql, dialect="bigquery").find_all(exp.Table):
+            function = table.this
+            if isinstance(function, exp.Func) and function.name.casefold().rsplit(".", 1)[-1] == "tvf_search_posts":
+                content = function.expressions[0]
+                if isinstance(content, exp.Parameter):
+                    text = (params or {}).get(content.name)
+                elif isinstance(content, exp.Literal) and content.is_string:
+                    text = content.this
+                else:
+                    raise Refused("Semantic search needs a literal query or a named text parameter.")
+                if not isinstance(text, str):
+                    raise Refused("Semantic search needs a text query.")
+                embedding_texts.append(text)
+    reservation = None
+    budget = ctx.model_budget
+    if embedding_texts:
+        from core.understand.embed import CHARS_PER_TOKEN, EMBED_USD_PER_MILLION_TOKENS, MAX_TOKENS_PER_POST
+
+        ceiling = len(embedding_texts) * MAX_TOKENS_PER_POST * EMBED_USD_PER_MILLION_TOKENS / 1_000_000
+        estimated = sum(min(len(text) / CHARS_PER_TOKEN, MAX_TOKENS_PER_POST) for text in embedding_texts)
+        estimated = estimated * EMBED_USD_PER_MILLION_TOKENS / 1_000_000
+        if budget is not None:
+            reservation = budget.reserve_cost(ceiling, research=True)
+    try:
+        rows = warehouse.run(sql, params, max_bytes_billed)
+    except BaseException:
+        if reservation is not None:
+            billed = budget.settle_cost(reservation)
+            with ctx.lock:
+                ctx.model_usd_extra += billed
+        raise
+    else:
+        if reservation is not None:
+            billed = budget.settle_cost(reservation)
+        elif embedding_texts:
+            billed = estimated
+        else:
+            billed = 0.0
+        if billed:
+            with ctx.lock:
+                ctx.model_usd_extra += billed
+        return rows
+
+
 def _run_query(ctx: RunContext, warehouse: Warehouse, sql: str, purpose: str, params: dict | None = None,
                max_bytes_billed: int = MAX_BYTES_BILLED, hidden_ok: tuple = ()) -> dict:
     """sql_query, with hidden_ok naming the hidden tables an internal read may use. Never offered to the model."""
@@ -363,7 +412,7 @@ def _run_query(ctx: RunContext, warehouse: Warehouse, sql: str, purpose: str, pa
     if scanned > cap:
         raise Refused(f"The query would scan {scanned:,} bytes, over the {cap:,} byte cap. Narrow it.")
 
-    rows = warehouse.run(sql, params, cap)
+    rows = _dispatch_query(ctx, warehouse, sql, params, cap)
     if _reads_search_signals(dry["tables"]):
         ctx.emit("search_interest", purpose=purpose)
         return {

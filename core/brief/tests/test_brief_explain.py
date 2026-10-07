@@ -215,6 +215,20 @@ def test_six_claim_repair_reply_is_held_before_support_checks():
 # A good response
 
 
+def test_generated_brief_dates_are_plain_after_checks_and_quotes_stay_exact():
+    draft = good()
+    draft["claims"][1]["text"] = "The earliest post in the pack is from @thandi_moves on 2026-09-25."
+    draft["explanation"] = draft["explanation"].replace("the holiday weekend", "the holiday weekend on 2026-09-26")
+    pack = make_pack()
+    original = copy.deepcopy(pack)
+    result = run(FakeModel([draft]), pack=pack)
+    assert result["reason"] is None
+    assert result["claims"][1]["text"] == "The earliest post in the pack is from @thandi_moves on 25 Sep."
+    assert "on 26 Sep" in result["explanation"]
+    assert result["claims"][0]["quotes"] == draft["claims"][0]["quotes"]
+    assert pack == original
+
+
 def test_good_response_passes_with_sentence_ids_and_checked_claims():
     model = FakeModel([good()])
     result = run(model)

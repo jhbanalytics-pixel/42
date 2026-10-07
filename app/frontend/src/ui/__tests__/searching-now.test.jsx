@@ -102,21 +102,18 @@ test('accepts the Google Trends daily feed as a daily source and still drops unk
   expect(render({market: 'ZA', now, signals: [{...feed, source: 'google_news'}]})).toBe('');
 });
 
-// Added 4 October 2026: refreshed_at is now a plain day (the SAST day of the
-// fetch), so the fresh mark compares days: a live row dated today in SAST is
-// fresh. The row keeps exactly the five contract keys.
-test('marks a live row fresh when its plain refresh day is today in South African time', () => {
+test('a plain refresh day cannot prove that a live row is less than an hour old', () => {
   const live = (refreshed_at) => ({term: 'springboks', market: 'ZA', source: 'google_trending', rank: 1, refreshed_at});
   const morning = Date.parse('2026-10-04T03:50:00Z');
-  expect(isFresh(live('2026-10-04'), morning)).toBe(true);
+  expect(isFresh(live('2026-10-04'), morning)).toBe(false);
   expect(isFresh(live('2026-10-03'), morning)).toBe(false);
   expect(isFresh(live('2026-10-05'), morning)).toBe(false);
-  // 22:30 UTC on 4 Oct is 00:30 SAST on 5 Oct: the SAST day decides, not the UTC one.
+  // A date alone remains insufficient at the SAST date boundary.
   const pastMidnight = Date.parse('2026-10-04T22:30:00Z');
-  expect(isFresh(live('2026-10-05'), pastMidnight)).toBe(true);
+  expect(isFresh(live('2026-10-05'), pastMidnight)).toBe(false);
   expect(isFresh(live('2026-10-04'), pastMidnight)).toBe(false);
-  // 21:59 UTC is still 23:59 SAST on the same day.
-  expect(isFresh(live('2026-10-04'), Date.parse('2026-10-04T21:59:59Z'))).toBe(true);
+  // A date alone also remains insufficient just before SAST midnight.
+  expect(isFresh(live('2026-10-04'), Date.parse('2026-10-04T21:59:59Z'))).toBe(false);
   // Daily sources never carry the red, even when dated today.
   expect(isFresh({...live('2026-10-04'), source: 'google_bq'}, morning)).toBe(false);
   expect(isFresh({...live('2026-10-04'), source: 'google_rss'}, morning)).toBe(false);
@@ -126,10 +123,19 @@ test('marks a live row fresh when its plain refresh day is today in South Africa
     {...live('2026-10-03'), term: 'load shedding', rank: 2},
     {...live('2026-10-04'), term: 'lotto results', source: 'google_rss', rank: 3},
   ]});
-  expect([...html.matchAll(/searching-now__mark--fresh/g)]).toHaveLength(1);
-  expect(html).toMatch(/searching-now__mark--live searching-now__mark--fresh"[^>]*><\/span>live<span class="sr-only">[^<]*<\/span><\/span><time dateTime="2026-10-04"/);
+  expect([...html.matchAll(/searching-now__mark--fresh/g)]).toHaveLength(0);
+  expect(html).toContain('dateTime="2026-10-04"');
   expect(Object.keys(live('2026-10-04')).sort().join(',')).toBe('market,rank,refreshed_at,source,term');
   expect(render({market: 'ZA', now: morning, signals: [{...live('2026-10-04'), fresh: true}]})).toBe('');
+});
+
+test('only a live timestamp in the last hour earns a fresh mark across SAST midnight', () => {
+  const now = Date.parse('2026-10-04T22:30:00Z');
+  const live = (refreshed_at) => ({term: 'springboks', market: 'ZA', source: 'google_trending', rank: 1, refreshed_at});
+  expect(isFresh(live('2026-10-04T21:30:01Z'), now)).toBe(true);
+  expect(isFresh(live('2026-10-04T21:30:00Z'), now)).toBe(false);
+  expect(isFresh(live('2026-10-04T22:30:01Z'), now)).toBe(false);
+  expect(isFresh({...live('2026-10-04T22:29:00Z'), source: 'google_rss'}, now)).toBe(false);
 });
 
 test('renders terms as text', () => {

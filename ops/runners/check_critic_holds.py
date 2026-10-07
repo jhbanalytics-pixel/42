@@ -148,7 +148,7 @@ for m in MARKETS:
             print(f"  critic reason (fixed wording): {crit[-1].reason}")
         else:
             print("  critic: not reached (no critic row for this item in this run)")
-        cuts = Counter(f"{r.rule} {r.reason}" for r in rows_ if r.verdict != "pass" and r.rule != "critic"
+        cuts = Counter(f"{r.rule} {r.reason}" for r in rows_ if r.verdict == "cut" and r.rule not in ("critic", "title")
                        and not str(r.reason or "").startswith(REPAIR))
         before = sum(1 for r in rows_ if str(r.reason or "").startswith(REPAIR))
         if cuts or before:

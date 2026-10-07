@@ -21,7 +21,7 @@ from core.understand import age_scan, cluster, discovery_review
 
 SQL_DIR = Path(__file__).resolve().parents[1] / "sql"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
-SQL_FILES = ("cluster_done", "cluster_posts", "cluster_items", "cluster_write", "cluster_review")
+SQL_FILES = ("cluster_done", "cluster_posts", "cluster_items", "cluster_write", "cluster_review", "cluster_checkpoint")
 DAY = date(2026, 9, 28)
 DIM = 768
 REAL_NET_MODEL = getattr(cluster, "net_model", None)  # before clean_net stands in for it
@@ -122,7 +122,7 @@ def test_no_correlated_subquery_reads_another_table(name):
     assert found == [], f"{name}.sql has correlated subqueries (outer aliases, tables read): {found}"
 
 
-@pytest.mark.parametrize("name", [n for n in SQL_FILES if n != "cluster_write"])
+@pytest.mark.parametrize("name", [n for n in SQL_FILES if n not in ("cluster_write", "cluster_checkpoint")])
 def test_read_queries_write_nothing(name):
     assert not re.search(r"\b(MERGE|UPDATE|INSERT)\b", sql(name), re.I)
     assert isinstance(sqlglot.parse(sql(name), read="bigquery")[-1], exp.Select)
@@ -185,7 +185,7 @@ def an_item(iid, vec, last_seen, keywords=(), hashtags=(), sounds=(), creators=(
             "parent_item_id": None, "centroid": list(vec), "first_seen": date(2026, 6, 1), "first_seen_market": "za",
             "first_seen_platform": "tiktok", "last_seen": last_seen, "recurrences": recurrences, "lifecycle": None,
             "status": "active", "rejected_until": None, "keywords": list(keywords), "hashtags": list(hashtags),
-            "sounds": list(sounds), "creators": list(creators)}
+            "sounds": list(sounds), "creators": list(creators), "valid_from": datetime(2026, 7, 1)}
 
 
 def test_ema_is_eight_tenths_old_two_tenths_new():
@@ -673,6 +673,9 @@ def core_db():
                 "item_id VARCHAR, match_kind VARCHAR, label VARCHAR, keywords VARCHAR[], local_terms VARCHAR[], "
                 "centroid DOUBLE[])")
     con.execute(f"CREATE TABLE {CORE}.cluster_members (cluster_id VARCHAR, post_id VARCHAR, probability DOUBLE)")
+    con.execute(f"CREATE SCHEMA {PROJECT_DB}.intelligence_42_agent")
+    con.execute(f"CREATE TABLE {PROJECT_DB}.intelligence_42_agent.runs (run_id VARCHAR, stage VARCHAR, run_date DATE, "
+                "status VARCHAR, started_at TIMESTAMP, finished_at TIMESTAMP, counts JSON)")
     return con
 
 
@@ -942,9 +945,8 @@ def world_result(world):
 
 
 def test_the_za_run_on_the_fixture_world_writes_the_recorded_result(world):
-    # Recorded from the clustering code before embeddings were held as float32 and the run was capped, so this
-    # proves those changes leave a run under the cap as it was.
-    assert world_result(world) == json.loads(GOLDEN.read_text(encoding="utf-8"))
+    # Stable fields keep their recorded values; native probabilities use the frozen preoptimization fitter.
+    _assert_recorded_world_with_preoptimization_probabilities(world)
 
 
 def test_too_few_posts_writes_nothing():
@@ -1027,7 +1029,7 @@ def open_versions(con, item_id):
                        [item_id]).fetchone()[0]
 
 
-def test_concurrent_market_and_pan_updates_of_one_item_leave_one_open_version():
+def test_stale_market_and_pan_updates_hold_and_preserve_one_open_version():
     item = an_item("x", at(1.0), DAY - timedelta(days=1), hashtags=["h"])
 
     def write_params(market):
@@ -1040,21 +1042,23 @@ def test_concurrent_market_and_pan_updates_of_one_item_leave_one_open_version():
     # Both runs matched x from the same snapshot of the map.
     za, pan = write_params("za"), write_params("pan")
     write = cluster.load("cluster_write")
-    # Committed one after the other: pan's close lands on the version za opened.
+    # Pan planned against the original version and must hold after ZA advances it.
     con = core_db()
     con.execute(f"INSERT INTO {CORE}.cultural_map VALUES ({', '.join('?' * 17)})",
                 map_row("x", at(1.0), last_seen=DAY - timedelta(days=1)))
-    duck_execute(con)(write, za)
-    duck_execute(con)(write, pan)
+    [za_result] = duck_execute(con)(write, za)
+    [pan_result] = duck_execute(con)(write, pan)
+    assert za_result["stale_updates"] == 0 and za_result["cluster_rows"] == 1
+    assert pan_result["stale_updates"] == 1 and pan_result["cluster_rows"] == pan_result["member_rows"] == 0
     assert open_versions(con, "x") == 1
-    assert con.execute(f"SELECT COUNT(*) FROM {CORE}.cultural_map WHERE item_id = 'x'").fetchone()[0] == 3
-    # Pan's MERGE re-reads the row za already closed and does not see za's new version, as a MERGE racing
-    # another commit can: its close finds no open row, and that close row must not open a version of its own.
+    assert con.execute(f"SELECT COUNT(*) FROM {CORE}.cultural_map WHERE item_id = 'x'").fetchone()[0] == 2
+    # An update with no current version must also hold without inventing a version.
     con = core_db()
     con.execute(f"INSERT INTO {CORE}.cultural_map VALUES ({', '.join('?' * 17)})",
                 map_row("x", at(1.0), last_seen=DAY - timedelta(days=1), valid_to="2026-09-28 00:30:00"))
-    duck_execute(con)(write, pan)
-    assert open_versions(con, "x") == 1
+    [pan_result] = duck_execute(con)(write, pan)
+    assert pan_result["stale_updates"] == 1 and pan_result["map_rows"] == 0
+    assert open_versions(con, "x") == 0
 
 
 def synthetic_clusters(n, dim=8, members=2, spread=1.0, seed=0):
@@ -1076,13 +1080,22 @@ def fake_run(monkeypatch, clusters, written=None, items=(), model=None, log=None
     statement's name goes in log when one is given."""
     monkeypatch.setattr(cluster, "fit_topics", lambda docs, emb: ([0] * len(docs), [1.0] * len(docs), {}))
     monkeypatch.setattr(cluster, "build_clusters", lambda *args: clusters)
-    writes = []
+    writes, checkpoints, persisted = [], [], set()
 
     def execute(text, params):
         if log is not None:
             log.append(next((n for n in SQL_FILES if text == cluster.load(n)), text))
         if text == cluster.load("cluster_done"):
-            return [{"n": 0}]
+            ready = next((p for p in checkpoints if p["batch_index"] == -1), None)
+            if ready is None:
+                return [{"n": 0}]
+            return [{"n": len(persisted), "written_ids": sorted(persisted), "checkpoint": {
+                "batch_count": ready["batch_count"], "summary": json.loads(ready["summary"])},
+                "batch_index": p["batch_index"], "batch": {k: json.loads(p[k]) for k in WRITE_PARAMS}}
+                for p in checkpoints if p["batch_index"] >= 0]
+        if text == cluster.load("cluster_checkpoint"):
+            checkpoints.append(dict(params))
+            return []
         if text == cluster.load("cluster_posts"):
             return [{"post_id": f"p{i}", "text": "", "today": True, "embedding": [1.0, 0.0]}
                     for i in range(cluster.MIN_POSTS)]
@@ -1090,6 +1103,7 @@ def fake_run(monkeypatch, clusters, written=None, items=(), model=None, log=None
             return [dict(i) for i in items]
         assert text == cluster.load("cluster_write")
         writes.append(params)
+        persisted.update(r["cluster_id"] for r in json.loads(params["cluster_rows"]))
         if written is not None:
             return [written]
         rows = {k: json.loads(params[k]) for k in WRITE_PARAMS}
@@ -1180,10 +1194,11 @@ def test_a_failed_batch_names_the_unwritten_clusters_and_nothing_is_written_twic
     tables = ("cultural_map", "clusters", "cluster_members")
     written = [con.execute(f"SELECT * FROM {CORE}.{t} ORDER BY ALL").fetchall() for t in tables]
     assert [len(rows) for rows in written] == [1, 1, 2]
-    # A partly written market-day is left as is: a rerun the same day writes nothing.
-    assert cluster.run_cluster(execute, run_date=DAY, market="za")["skipped"] == "already_clustered"
-    assert len(writes) == 2
-    # Replaying every batch by hand writes the logged ids once and the first batch not again.
+    # The same-day retry replays the frozen plan and writes only the missing batches.
+    counts = cluster.run_cluster(execute, run_date=DAY, market="za")
+    assert counts["new"] == 2 and counts["members"] == 4
+    assert len(writes) == 5
+    # A further replay adds nothing.
     for params in writes[:1] + [{"run_date": DAY, "market": "za", **b} for b in
                                 cluster.write_batches(cluster.plan(clusters, cluster.assign(clusters, [], DAY), [],
                                                                    DAY, "za"))[1:]]:
@@ -1616,21 +1631,22 @@ def test_a_matched_item_keeps_its_label_and_is_never_sent(monkeypatch):
 
 
 def test_a_spend_the_write_never_reached_rides_on_the_error(monkeypatch):
+    duck = duck_execute(core_db())
+
     def execute_raising(text, params):
         if text == cluster.load("cluster_write"):
             raise RuntimeError("BigQuery went away")
-        if text == cluster.load("cluster_done"):
-            return [{"n": 0}]
         if text == cluster.load("cluster_posts"):
             return [{"post_id": f"p{i}", "text": "", "today": True, "embedding": [1.0, 0.0]}
                     for i in range(cluster.MIN_POSTS)]
-        return []
+        return duck(text, params)
 
     monkeypatch.setattr(cluster, "fit_topics", lambda docs, emb: ([0] * len(docs), [1.0] * len(docs), {}))
     monkeypatch.setattr(cluster, "build_clusters", lambda *args: [net_cluster()])
     with pytest.raises(RuntimeError) as failed:
         cluster.run_cluster(execute_raising, run_date=DAY, market="za", model=NetModel())
     assert (failed.value.model_usd, failed.value.booked_usd) == (0.0012, 0.0012)
+    assert failed.value.failed_batch == 0
 
 
 def test_a_new_cluster_carries_its_label_candidates_in_order():
@@ -1717,13 +1733,13 @@ def test_run_cluster_fits_on_float32_and_caps_the_posts(monkeypatch):
         seen.update(n=len(docs), dtype=embeddings.dtype)
         return [0] * len(docs), [1.0] * len(docs), {}
 
+    duck = duck_execute(core_db())
+
     def execute(text, params):
-        if text == cluster.load("cluster_done"):
-            return [{"n": 0}]
         if text == cluster.load("cluster_posts"):
             return [{"post_id": f"p{i:03d}", "text": "", "today": i % 4 == 0, "embedding": [1.0, float(i)]}
                     for i in range(80)]
-        return []
+        return duck(text, params)
 
     monkeypatch.setattr(cluster, "MAX_CLUSTER_POSTS", 50)
     monkeypatch.setattr(cluster, "fit_topics", fit)
@@ -1732,8 +1748,162 @@ def test_run_cluster_fits_on_float32_and_caps_the_posts(monkeypatch):
     counts = cluster.run_cluster(execute, run_date=DAY, market="za")
     assert seen == {"n": 50, "dtype": np.float32}
     assert (counts["posts"], counts["today_posts"], counts["capped_posts"]) == (80, 20, 50)
-    assert counts["members"] == 0 and counts["clusters"] == 1
+    assert counts["members"] == 20 and counts["clusters"] == 1
 
 
 def test_a_run_under_the_cap_counts_no_cap(world):
     assert "capped_posts" not in world["counts"]
+
+
+def _load_preoptimization_fitter():
+    import inspect
+
+    from core.understand.tests.fixtures import pre_float32_reference as reference
+
+    source = Path(reference.__file__).read_text(encoding="utf-8")
+    assert hashlib.sha256(source.encode("utf-8")).hexdigest() == "68e44eb44da06a9fa02028bde35989134c767fff367728e35bf58ab8a07a3ac1", "Frozen fitter file hash mismatch"
+    function = inspect.getsource(reference.fit_topics).rstrip("\n")
+    assert hashlib.sha256(function.encode("utf-8")).hexdigest() == "e962f91cf2dde81fb8def8daef4f3f37c85017ef1673a37d54e02e8c22a5e177", "Frozen fitter function hash mismatch"
+    return reference.fit_topics
+
+
+def _assert_optimization_equivalent_inliers(labels, posts):
+    assert len(labels) == len(posts)
+    assert all(label != -1 for label in labels), "Reference comparison requires no original density outliers"
+
+
+def _preoptimization_stored_members(world):
+    from hdbscan import HDBSCAN
+
+    reference_fit = _load_preoptimization_fitter()
+    posts = cluster._rows(duck_execute(world["con"])(cluster.load("cluster_posts"), {"market": "za", "run_date": DAY}))
+    original_fit = HDBSCAN.fit
+    native = []
+
+    def observe(model, *args, **kwargs):
+        result = original_fit(model, *args, **kwargs)
+        native.append((model.labels_.copy(), model.probabilities_.copy()))
+        return result
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(HDBSCAN, "fit", observe)
+        topics, probabilities, _ = reference_fit(
+            [post.get("text") or "" for post in posts],
+            np.array([post["embedding"] for post in posts], dtype=float))
+    assert len(native) == 1
+    labels, native_probabilities = native[0]
+    _assert_optimization_equivalent_inliers(labels, posts)
+    assert np.array_equal(np.asarray(probabilities, dtype=float), native_probabilities)
+    return sorted([[f"{DAY:%Y%m%d}-za-{topic:03d}", post["post_id"], round(float(probability), 6)]
+                   for post, topic, probability in zip(posts, topics, probabilities)
+                   if topic != -1 and post["today"]])
+
+
+def _assert_recorded_world_with_preoptimization_probabilities(world):
+    actual = world_result(world)
+    historical = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    assert set(actual) == set(historical)
+    assert actual["counts"]["fit_outliers"] == 0, "fit_outliers"
+    assert actual["counts"]["today_outliers"] == 0, "today_outliers"
+    historical_counts = {key: value for key, value in actual["counts"].items()
+                         if key not in {"fit_outliers", "today_outliers"}}
+    assert historical_counts == historical["counts"], "historical counts"
+    for field in historical:
+        if field not in {"counts", "members"}:
+            assert actual[field] == historical[field], field
+    assert [row[:2] for row in actual["members"]] == [row[:2] for row in historical["members"]]
+    expected_members = _preoptimization_stored_members(world)
+    assert actual["members"] == expected_members, "stored membership probabilities"
+
+
+@pytest.mark.parametrize("mutation", [
+    "probability_plus_one_unit", "under_cap_drops_one_older", "float16_storage", "cluster_centroid_shift",
+    "map_centroid_shift", "historical_count_shift", "fit_outlier_count_shift", "today_outlier_count_shift",
+])
+def test_recorded_world_oracle_rejects_pipeline_mutation(monkeypatch, mutation):
+    captured = {}
+    matrix = cluster.embedding_matrix
+
+    def record_matrix(posts):
+        captured["post_ids"] = [post["post_id"] for post in posts]
+        values = matrix(posts)
+        return values.astype(np.float16) if mutation == "float16_storage" else values
+
+    monkeypatch.setattr(cluster, "embedding_matrix", record_matrix)
+    if mutation == "probability_plus_one_unit":
+        fit = cluster.fit_topics
+
+        def shifted_probability(docs, embeddings):
+            topics, probabilities, keywords = fit(docs, embeddings)
+            probabilities = list(probabilities)
+            probabilities[captured["post_ids"].index("amapiano_09")] += 0.000001
+            return topics, probabilities, keywords
+
+        monkeypatch.setattr(cluster, "fit_topics", shifted_probability)
+    elif mutation == "under_cap_drops_one_older":
+        cap = cluster.cap_posts
+
+        def dropped_post(posts, run_date, market, limit):
+            kept = cap(posts, run_date, market, limit)
+            target = next(post["post_id"] for post in kept if not post["today"])
+            return [post for post in kept if post["post_id"] != target]
+
+        monkeypatch.setattr(cluster, "cap_posts", dropped_post)
+    elif mutation == "cluster_centroid_shift":
+        build = cluster.build_clusters
+
+        def shifted_cluster(*args, **kwargs):
+            clusters = build(*args, **kwargs)
+            clusters[0]["centroid"][0] += 0.001
+            return clusters
+
+        monkeypatch.setattr(cluster, "build_clusters", shifted_cluster)
+    elif mutation == "map_centroid_shift":
+        plan = cluster.plan
+
+        def shifted_map(*args, **kwargs):
+            rows = plan(*args, **kwargs)
+            rows["map_rows"][0]["centroid"][0] += 0.001
+            return rows
+
+        monkeypatch.setattr(cluster, "plan", shifted_map)
+    elif mutation.endswith("count_shift"):
+        run = cluster.run_cluster
+        key = {"historical_count_shift": "net_keywords_dropped", "fit_outlier_count_shift": "fit_outliers",
+               "today_outlier_count_shift": "today_outliers"}[mutation]
+
+        def shifted_count(*args, **kwargs):
+            counts = run(*args, **kwargs)
+            counts[key] += 1
+            return counts
+
+        monkeypatch.setattr(cluster, "run_cluster", shifted_count)
+    actual_world = build_world()
+    with pytest.raises(AssertionError) as caught:
+        _assert_recorded_world_with_preoptimization_probabilities(actual_world)
+    frame = caught.traceback[-1].frame.f_locals
+    if mutation == "probability_plus_one_unit":
+        expected = {row[1]: row[2] for row in frame["expected_members"]}
+        actual = {row[1]: row[2] for row in frame["actual"]["members"]}
+        changed = [post for post in expected if actual[post] != expected[post]]
+        assert changed == ["amapiano_09"]
+        assert round(actual["amapiano_09"] - expected["amapiano_09"], 6) == 0.000001
+    elif mutation in {"cluster_centroid_shift", "map_centroid_shift"}:
+        assert frame["field"] == ("clusters" if mutation == "cluster_centroid_shift" else "map")
+    elif mutation == "historical_count_shift":
+        assert "historical counts" in str(caught.value)
+    elif mutation in {"fit_outlier_count_shift", "today_outlier_count_shift"}:
+        assert ("fit_outliers" if mutation == "fit_outlier_count_shift" else "today_outliers") in str(caught.value)
+    elif mutation == "under_cap_drops_one_older":
+        assert actual_world["counts"]["capped_posts"] == 119
+    actual_world["con"].close()
+
+
+def test_preoptimization_fitter_source_is_immutable(monkeypatch, tmp_path):
+    from core.understand.tests.fixtures import pre_float32_reference as reference
+
+    changed = tmp_path / "changed_reference.py"
+    changed.write_text(Path(reference.__file__).read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
+    monkeypatch.setattr(reference, "__file__", str(changed))
+    with pytest.raises(AssertionError, match="Frozen fitter file hash mismatch"):
+        _load_preoptimization_fitter()

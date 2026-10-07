@@ -9,7 +9,7 @@ from core.agent import ask, gemini_research
 from core.agent.tools import sql_query, warehouse
 from core.agent.model_budget import AskModelBudget, BudgetRefused
 from core.agent.writer import WRITER_SCHEMA
-from core.agent.tests.test_ask import NOW, FakeModel, Harness, make_research
+from core.agent.tests.test_ask import CONSERVATIVE_NOTICE, NOW, SEARCH_EMBED_USD, FakeModel, Harness, make_research
 from core.llm.gemini import GeminiModel
 
 
@@ -369,10 +369,11 @@ def test_run_ask_shares_the_meter_across_research_and_writer_once(monkeypatch, t
 
     assert model.calls
     assert result["run"]["model_usd"] == pytest.approx(
-        seen["budget"].booked_usd + seen["ctx"].model_usd_extra)
+        seen["budget"].booked_usd)
     assert result["run"]["model_usd"] == pytest.approx(
         research_usd + sum(usage["usd"] for usage in model.usages) + seen["ctx"].model_usd_extra)
-    assert not any("the most that call could have cost" in notice for notice in result["run"]["notices"])
+    assert result["run"]["notices"] == [CONSERVATIVE_NOTICE]
+    assert seen["budget"].conservative_usd == SEARCH_EMBED_USD
 
 
 def test_research_subbudget_stop_keeps_writer_available(monkeypatch):
@@ -400,7 +401,7 @@ def test_research_subbudget_stop_keeps_writer_available(monkeypatch):
     assert seen["budget"].research_exhausted
     assert not seen["budget"].stopped
     assert result["run"]["model_usd"] == pytest.approx(
-        seen["budget"].booked_usd + seen["ctx"].model_usd_extra)
+        seen["budget"].booked_usd)
     assert any("stopped at its share of the model budget" in notice for notice in result["run"]["notices"])
 
 
@@ -462,7 +463,7 @@ def test_run_ask_books_full_gemini_research_reserve_into_daily_projection(monkey
 
     assert client.models.calls and len(client.models.calls) == 1
     assert first.model.calls == []
-    assert booked == pytest.approx(seen["budget"].booked_usd + seen["ctx"].model_usd_extra)
+    assert booked == pytest.approx(seen["budget"].booked_usd)
     assert booked > 0
     assert any("the most that call could have cost" in notice for notice in first_result["run"]["notices"])
 
@@ -579,7 +580,8 @@ def test_a_writer_timeout_fails_the_ask_like_any_provider_error_and_books_the_fu
     budget, = _RecordingBudget.made
     writer, = budget.reservations
     assert len(models.calls) == 1
-    assert budget.booked_usd == budget.conservative_usd == writer.ceiling_micros / 1_000_000
+    assert budget.conservative_usd == pytest.approx(writer.ceiling_micros / 1_000_000 + SEARCH_EMBED_USD)
+    assert budget.booked_usd == budget.conservative_usd
     assert budget.stop_reason == "usage_unknown"
     assert caught.value.run["model_usd"] >= budget.booked_usd
 

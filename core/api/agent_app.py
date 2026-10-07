@@ -97,9 +97,21 @@ def with_receipts(row, record, receipts, ask_id=None):
     except Exception:  # not a mapping of mappings, or not JSON at all: the record still goes in without them
         log.warning("ask %s: query receipts are not plain JSON; storing the run without them", ask_id)
         receipts = None
+    def keep_rows(receipt, count):
+        receipt["rows"] = receipt["rows"][:count]
+        if isinstance(receipt.get("row_indexes"), list):
+            receipt["row_indexes"] = receipt["row_indexes"][:count]
+        if isinstance(receipt.get("cell_types"), list):
+            retained = set(receipt.get("row_indexes", range(len(receipt["rows"]))))
+            receipt["cell_types"] = [cell for cell in receipt["cell_types"] if cell["row_index"] in retained]
+
     for receipt in (receipts or {}).values():
         if isinstance(receipt.get("rows"), list):
-            receipt["rows"] = receipt["rows"][:RECEIPT_ROWS]
+            keep_rows(receipt, RECEIPT_ROWS)
+        if "supporting_rows" in receipt:
+            supporting = receipt["supporting_rows"]
+            if type(supporting) is not int or not 0 <= supporting <= len(receipt.get("rows") or []):
+                receipt.update(supporting_rows=0, support_unavailable="invalid_support")
     room = min(RECEIPT_BYTES, ROW_BYTES - len(json.dumps(row)))
 
     def size():
@@ -108,8 +120,19 @@ def with_receipts(row, record, receipts, ask_id=None):
     for query_id in sorted(receipts or {}, key=lambda q: -len(json.dumps(receipts[q].get("rows")))):
         if size() <= room:
             break
+        receipt = receipts[query_id]
+        supporting = receipt.get("supporting_rows", 0)
+        if receipt.get("rows") and len(receipt["rows"]) > supporting:
+            keep_rows(receipt, supporting)
+            receipt["rows_dropped"] = "size"
+    for query_id in sorted(receipts or {}, key=lambda q: -len(json.dumps(receipts[q].get("rows")))):
+        if size() <= room:
+            break
         if receipts[query_id].get("rows"):
-            receipts[query_id].update(rows=[], rows_dropped="size")
+            keep_rows(receipts[query_id], 0)
+            receipts[query_id]["rows_dropped"] = "size"
+            if receipts[query_id].get("supporting_rows"):
+                receipts[query_id].update(supporting_rows=0, support_unavailable="size")
     if receipts is not None and size() > room:
         log.warning("ask %s: query receipts are too large for the runs row even without rows; dropped", ask_id)
         receipts = None

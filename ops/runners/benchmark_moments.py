@@ -15,7 +15,8 @@ For each moment it reads staging BigQuery and reports, in this order of how far 
              match any_re, and that market's clusters from the day
              before to 4 days after whose label or keywords match
   brief      Today cards and held-back items from the market's briefs dated the moment's day to 3 days after,
-             whose title matches any_re, with the hold reason
+             whose headline or reviewed retained identity matches, with the match source and hold reason;
+             incidental post matches are separate diagnostics and never establish coverage
   outside    Google search signals and GDELT news entities for the market in the window
 and a verdict: ON TODAY, HELD (reason), TOPIC ONLY, POSTS ONLY, OTHER MARKET ONLY, SEARCH OR NEWS ONLY, or NOT
 COLLECTED.
@@ -38,6 +39,14 @@ CORE, AGENT = f"{PROJECT}.intelligence_42_core", f"{PROJECT}.intelligence_42_age
 MAX_BYTES = 3 * 1024 ** 3
 MARKETS = ("ZA", "NG", "KE")
 LOCATED_FLOOR = 8  # TRUST.md G6: under 8 located posts the market is unconfirmed
+POST_PLATFORMS = {"facebook", "instagram", "news", "reddit", "tiktok", "twitter", "x", "youtube"}
+# Reviewed BBNaija hold, retained as "temi, teminators, nkem" on 5 October 2026.
+# The key binds all six CSV definition fields, so reused ids cannot inherit this identity.
+RETAINED_BRIEF_ITEMS = {
+    ("NG1", "2026-10-04", "NG", "BBNaija season finale and N90M prize",
+     "bbnaija|big ?brother ?naija|#bbn|bbn ?season", ""): {
+        ("2026-10-05", "held", "1b6715ab16faf660a2c440ed13d03d35d6152838b6e83843b2934a06f21684db")}
+}
 
 MOMENTS = "WITH m AS (SELECT * FROM UNNEST(@moments))\n"
 
@@ -61,7 +70,8 @@ POSTS_SQL = MOMENTS + f"""
 , o AS (
   SELECT DISTINCT post_id, market, lane_class, source_market
   FROM `{CORE}.post_observations`
-  WHERE observed_date BETWEEN @start AND @obs_end AND lane_class != 'legacy')
+  WHERE observed_date BETWEEN @start AND @obs_end AND lane_class != 'legacy'
+    AND IFNULL(lane, '') NOT IN ('placebo', 'agent_live'))
 , j AS (
   SELECT h.*, o.lane_class, o.source_market, (o.market = h.market) AS mine
   FROM hit h LEFT JOIN o ON o.post_id = h.post_id AND o.market = h.market)
@@ -137,6 +147,8 @@ def load_moments(path):
         re.compile(m["any_re"])
         if m["and_re"]:
             re.compile(m["and_re"])
+        definition = tuple(m[k] for k in ("id", "date", "market", "moment", "any_re", "and_re"))
+        m["retained_items"] = RETAINED_BRIEF_ITEMS.get(definition, set())
         out.append(m)
     return out
 
@@ -159,24 +171,51 @@ def latest_briefs(rows):
     return out
 
 
-def brief_hits(moment, briefs):
-    """Cards and held items from the moment's market, dated the moment's day to 3 days after, matching any_re."""
+def brief_hits(moment, briefs, evidence_matches=None):
+    """Headline or reviewed identity coverage, with incidental post matches kept as diagnostics only."""
     pat = re.compile(moment["any_re"], re.IGNORECASE)
-    cards, held = [], []
+    required = re.compile(moment["and_re"], re.IGNORECASE) if moment.get("and_re") else None
+    cards, held = {}, {}
+    diagnostics = {}
+    retained = moment.get("retained_items") or set()
+
+    def matches(text):
+        return pat.search(text) and (required is None or required.search(text))
+
     for k in range(4):
         day = (moment["d"] + timedelta(days=k)).isoformat()
         payload = briefs.get((day, moment["market"]))
         if not payload:
             continue
-        for key in ("cards", "more"):
-            for c in payload.get(key) or []:
-                if isinstance(c, dict) and pat.search(str(c.get("title") or "")):
-                    cards.append(f"{day} {c.get('title')}")
         block = payload.get("held_back") if isinstance(payload.get("held_back"), dict) else {}
-        for h in block.get("items") or []:
-            if isinstance(h, dict) and pat.search(str(h.get("title") or "")):
-                held.append(f"{day} {h.get('title')} [{h.get('rule') or ''} {h.get('reason') or ''}]".strip())
-    return cards, held
+        for kind, items in (("card", [*(payload.get("cards") or []), *(payload.get("more") or [])]),
+                            ("held", block.get("items") or [])):
+            for index, item in enumerate(items):
+                if not isinstance(item, dict):
+                    continue
+                title = str(item.get("title") or "")
+                headline = matches(title)
+                evidence = list(dict.fromkeys(str(e["id"]) for e in item.get("evidence") or []
+                    if isinstance(e, dict) and e.get("id") and e.get("platform") in POST_PLATFORMS
+                    and matches(" ".join(str(e.get(field) or "") for field in ("text", "quote_text")))))
+                identity = item.get("item_id") or (day, kind, index)
+                mapped = (day, kind, item.get("item_id")) in retained
+                if not headline and not mapped:
+                    if evidence:
+                        diagnostics.setdefault((kind, identity),
+                            f"{day} {title} [{kind}, evidence-only match: {', '.join(evidence)}; not coverage]")
+                    continue
+                source = "headline match" if headline else "retained item match; headline not matched"
+                if evidence:
+                    source += f"; post matches: {', '.join(evidence)}"
+                detail = f"{day} {title} [{source}]"
+                if kind == "card":
+                    cards.setdefault(identity, detail)
+                else:
+                    held.setdefault(identity, f"{detail} [{item.get('rule') or ''} {item.get('reason') or ''}]".strip())
+    if evidence_matches is not None:
+        evidence_matches.extend(diagnostics.values())
+    return list(cards.values()), [detail for identity, detail in held.items() if identity not in cards]
 
 
 def verdict(r):
@@ -248,7 +287,8 @@ def main(argv):
         p = results["posts"].get(m["id"], {})
         mp, cl = results["map"].get(m["id"], {}), results["clusters"].get(m["id"], {})
         se, gd = results["search"].get(m["id"], {}), results["gdelt"].get(m["id"], {})
-        cards, held = brief_hits(m, briefs)
+        evidence_matches = []
+        cards, held = brief_hits(m, briefs, evidence_matches)
         r = {"id": m["id"], "date": m["date"], "market": m["market"], "moment": m["moment"],
              "posts_all": p.get("posts_all") or 0, "posts_market": p.get("posts_market") or 0,
              "creators_market": p.get("creators_market") or 0, "located": p.get("located") or 0,
@@ -258,6 +298,7 @@ def main(argv):
              "map_n": mp.get("n") or 0, "map_items": "; ".join(mp.get("items") or []),
              "clusters_n": cl.get("n") or 0, "cluster_labels": "; ".join(cl.get("labels") or []),
              "cards": "; ".join(cards), "held": "; ".join(held),
+             "brief_evidence_matches": "; ".join(evidence_matches),
              "search_n": se.get("n") or 0, "search_terms": "; ".join(se.get("terms") or []),
              "gdelt_mentions": gd.get("mentions") or 0, "gdelt_entities": "; ".join(gd.get("entities") or [])}
         r["verdict"] = verdict(r)
@@ -269,8 +310,8 @@ def main(argv):
         if not mine:
             continue
         caught = sum(r["verdict"] in ("ON TODAY", "HELD", "TOPIC ONLY") for r in mine)
-        print(f"\n{mk}: {caught} of {len(mine)} became a 42 topic, card or hold; "
-              f"{sum(r['verdict'] == 'ON TODAY' for r in mine)} on Today")
+        print(f"\n{mk}: {caught} of {len(mine)} matched a topic label, headline or reviewed retained identity; "
+              f"{sum(r['verdict'] == 'ON TODAY' for r in mine)} matched a Today record")
         for r in mine:
             print(f"  {r['id']} {r['date']} {r['verdict']}: {r['moment']}")
             print(f"     posts {r['posts_market']} in {mk} collection ({r['posts_all']} any market), "
@@ -282,6 +323,8 @@ def main(argv):
                       f"({r['cluster_labels'][:120]})")
             if r["cards"] or r["held"]:
                 print(f"     brief: cards [{r['cards'][:160]}] held [{r['held'][:200]}]")
+            if r["brief_evidence_matches"]:
+                print(f"     brief evidence-only diagnostics (not coverage): {r['brief_evidence_matches'][:200]}")
             if r["search_n"] or r["gdelt_mentions"]:
                 print(f"     outside: Google terms {r['search_n']} ({r['search_terms'][:100]}); "
                       f"GDELT mentions {r['gdelt_mentions']} ({r['gdelt_entities'][:100]})")

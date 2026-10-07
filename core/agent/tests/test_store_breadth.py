@@ -280,12 +280,12 @@ def test_the_uncitable_post_gap_names_the_missing_fields_and_stays_a_code_gap():
     assert writer.unshowable_gap([]) == writer.UNSHOWABLE_EVIDENCE_GAP
 
 
-def test_the_writer_is_told_to_take_counts_from_the_whole_store_and_name_untitled_sounds_by_their_first_creator():
+def test_the_writer_takes_whole_store_counts_and_names_untitled_sounds_from_cited_usage():
     system = writer.WRITER_SYSTEM.format(days=7)
     assert "Queries whose purpose starts 'Whole-store' count every stored post" in system
     assert "how many there are is never a count" in system
     assert "never write the id or its link and never make up a title" in system
-    assert "name it by the earliest_creator its row gives" in system
+    assert "earliest_creator matches a handle from a cited post that uses the sound" in system
     assert "exactly as in 'seen in South Africa's feeds'" in system and "located in South Africa or" not in system
 
 
@@ -332,6 +332,26 @@ def test_no_before_window_query_when_the_window_lists_no_sound_or_hashtag(ctx, c
     con.execute("DELETE FROM intelligence_42_core.posts")
     out = store_breadth(ctx, DuckWarehouse(con))
     assert "before" not in out
+
+
+@pytest.mark.parametrize("window_end, before_start, before_end", [
+    (date(2026, 10, 4), date(2026, 9, 21), date(2026, 9, 27)),
+    (date(2026, 10, 2), date(2026, 9, 23), date(2026, 9, 27)),
+])
+def test_existing_comparison_queries_keep_exact_adjacent_windows_and_count_scope(ctx, con,
+                                                                                window_end, before_start, before_end):
+    ctx.window_end = window_end
+    out = store_breadth(ctx, DuckWarehouse(con))
+    current = ctx.queries[out["sounds"]]
+    before = ctx.queries[out["before"]]
+    assert current["params"]["since"] == date(2026, 9, 28)
+    assert current["params"]["until"] == window_end
+    assert (before["params"]["since"], before["params"]["until"]) == (before_start, before_end)
+    assert current["params"]["market"] == before["params"]["market"] == "ZA"
+    assert current["params"]["profile_source"] == before["params"]["profile_source"]
+    assert "COUNT(DISTINCT s.post_id) AS posts" in current["sql"]
+    assert "COUNT(DISTINCT b.post_id) AS posts" in before["sql"]
+    assert all(query["result_hash"].startswith("sha256:") for query in (current, before))
 
 
 RANKED_WINDOW = (date(2026, 9, 30), date(2026, 10, 6))

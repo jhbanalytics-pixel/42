@@ -3,6 +3,7 @@ import json
 import re
 import subprocess
 import sys
+from math import ceil
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from core.agent.writer import (FIELDS_SCHEMA, HEADLINE_REWRITE_SCHEMA, K4_RECHEC
                                K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS, K4_REWRITE_SCHEMA, SUPPORT_SCHEMA,
                                WRITER_SCHEMA)
 from core.llm.provider import reserve_output
+from core.understand.embed import EMBED_USD_PER_MILLION_TOKENS, MAX_TOKENS_PER_POST
 
 SAST = timezone(timedelta(hours=2))
 NOW = datetime(2026, 9, 28, 8, 15, 0, tzinfo=SAST)
@@ -26,16 +28,13 @@ ROOT = Path(__file__).resolve().parents[3]
 COUNT_SQL = ("SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms "
              "FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term)")
 RUN_KEYS = {"run_id", "tier", "mode", "credits", "tokens", "seconds", "model_usd", "window", "posts", "platforms",
-            "source_status", "followups", "notices"}
+            "source_status", "followups", "notices", "phase_seconds"}
 
 
-def query_embed_usd(query):
-    from core.understand.embed import CHARS_PER_TOKEN, EMBED_USD_PER_MILLION_TOKENS
-    return len(query) / CHARS_PER_TOKEN * EMBED_USD_PER_MILLION_TOKENS / 1e6
-
-
-# make_research's search_posts embeds 'amapiano' for its semantic half, and the run's model_usd counts it (task 1.11).
-SEARCH_EMBED_USD = query_embed_usd("amapiano")
+# Semantic query rows carry no native usage, so each dispatched embedding keeps its full reserve.
+SEARCH_EMBED_USD = ceil(MAX_TOKENS_PER_POST * EMBED_USD_PER_MILLION_TOKENS) / 1e6
+CONSERVATIVE_NOTICE = ("The model did not report the full usage of a call, so this question's spend counts the most "
+                       "that call could have cost")
 ORIGINAL_CLAIM = "People say amapiano is fading."
 NARROWED_CLAIM = "A TikTok post says amapiano cannot stop."
 STALE_HEADLINE = "Chatter suggests amapiano's momentum is dropping."
@@ -383,7 +382,7 @@ def test_full_t1_run_gives_a_valid_answer_and_run_object():
     assert run["source_status"] == [{"platform": "threads", "route": "threads/search", "status": "rate_limited",
                                      "items": 0}]
     assert 1 <= len(run["followups"]) <= 3 and all(f.endswith("?") for f in run["followups"])
-    assert run["notices"] == []
+    assert run["notices"] == [CONSERVATIVE_NOTICE]
     assert isinstance(run["seconds"], (int, float)) and run["seconds"] >= 0
     assert answer["as_of"] == "2026-09-28T08:15:00+02:00"
 
@@ -396,7 +395,8 @@ def test_the_run_keeps_a_receipt_for_the_query_behind_every_number():
     assert numbers and {n["query_id"] for n in numbers} <= set(receipts)
     for number in numbers:
         receipt = receipts[number["query_id"]]
-        assert set(receipt) == {"purpose", "sql", "params", "result_hash", "row_count", "rows"}
+        assert set(receipt) == {"purpose", "sql", "params", "result_hash", "row_count", "rows", "row_indexes",
+                                "supporting_rows"}
         assert receipt["result_hash"] == number["result_hash"] == result_hash(receipt["rows"])
         assert receipt["row_count"] == len(receipt["rows"])
     count = next(r for r in receipts.values() if r["purpose"] == "posts, authors and platforms for amapiano")
@@ -1371,7 +1371,7 @@ def test_t1_is_admitted_while_its_whole_hold_fits_under_the_cap():
     h = Harness(research=make_research(seen=seen), spent=lambda: current_model_cap() - hold() - 0.01)
     out = h.run()
     assert out["run"]["tier"] == "T1" and seen["options"].model == ask.MODEL == "gemini-3.8-flash"
-    assert out["run"]["notices"] == []
+    assert out["run"]["notices"] == [CONSERVATIVE_NOTICE]
 
 
 def test_t1_whose_hold_would_cross_the_cap_falls_back_to_t0_and_the_fast_model(cheaper_fast_model):
@@ -1551,7 +1551,7 @@ def test_brief_and_embedding_spend_count_toward_the_cap_in_admission():
         return Harness(spent=lambda: ask.model_spend_today(wh, NOW))
 
     alone = harness(ask_only).run()["run"]
-    assert alone["tier"] == "T1" and alone["notices"] == []
+    assert alone["tier"] == "T1" and alone["notices"] == [CONSERVATIVE_NOTICE]
 
     h = harness(ask_only + others)
     run = h.run()["run"]
@@ -1585,7 +1585,7 @@ def test_model_spend_under_the_cap_keeps_the_tier_and_the_main_model(cheaper_fas
     out = h.run()
     assert out["run"]["tier"] == "T1" and seen["options"].model == "gemini-3.8-flash"
     assert {c["model"] for c in h.model.calls} == {"gemini-3.8-flash"}
-    assert out["run"]["notices"] == []
+    assert out["run"]["notices"] == [CONSERVATIVE_NOTICE]
 
 
 def test_full_run_through_the_real_code_checks():
@@ -1735,7 +1735,8 @@ def test_not_connected_client_reports_auth_failed_and_a_notice():
     h = Harness()
     h.deps.socialcrawl = ask.NotConnectedClient
     out = h.run()
-    assert out["run"]["notices"] == ["Live search is not connected yet; this answer uses stored posts only"]
+    assert out["run"]["notices"] == ["Live search is not connected yet; this answer uses stored posts only",
+                                     CONSERVATIVE_NOTICE]
     assert out["run"]["source_status"][0]["status"] == "auth_failed"
     assert validate_answer(out["answer"]) == []
 
@@ -1844,7 +1845,7 @@ def test_run_ask_on_the_default_factory_hands_research_the_adapter_for_this_run(
     assert isinstance(adapter, sc_adapter.L1Adapter)
     assert adapter.client.kwargs["run_id"] == out["run"]["run_id"]
     assert adapter.client.kwargs["mode"] == "replay"
-    assert out["run"]["notices"] == []
+    assert out["run"]["notices"] == [CONSERVATIVE_NOTICE]
 
 
 def test_default_socialcrawl_factory_uses_the_stub_without_core_collect(monkeypatch):
@@ -2402,7 +2403,7 @@ def test_the_run_model_usd_includes_the_search_query_embeddings():
         return result
 
     run = Harness(research=research).run()["run"]
-    embeds = SEARCH_EMBED_USD + query_embed_usd(long_query)
+    embeds = 2 * SEARCH_EMBED_USD
     calls = 3 + 1 + 1 + 1  # three support calls, one K4 rewrite, the short answer rewrite and one field check
     assert run["model_usd"] == pytest.approx(0.02 + 0.0135 + calls * 0.0006 + embeds)
     assert run["model_usd"] - (0.02 + 0.0135 + calls * 0.0006) == pytest.approx(embeds)
@@ -2614,7 +2615,7 @@ def test_the_round_9_gap_the_field_check_flags_is_gone_from_the_answer_run_and_e
     out = h.run()
     answer, run = out["answer"], out["run"]
     assert PROBE_GAP not in answer["gaps"]
-    assert any(g["why"].startswith("field check: ") for g in answer["gaps"])
+    assert any(g["why"].startswith("text check: ") for g in answer["gaps"])
     dumped = json.dumps([h.events, h.tables.inserts, out], default=str).lower()
     for removed in ("newlywed", "graduates", "2027 election"):
         assert removed not in dumped

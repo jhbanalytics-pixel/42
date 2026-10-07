@@ -87,10 +87,13 @@ def needed_usd(count: int, gap_round: bool, model: str) -> float:
 def lane_usd(plan: dict, max_model_usd: float, model: str) -> float:
     """One research loop's USD at T3: T2's per-researcher budget, or less when max_model_usd leaves less after the gate
     and the critic, split evenly over every loop the plan runs."""
-    return min(ask.researcher_usd(), (max_model_usd - ask.gate_usd(model, passes(plan))) / lanes(plan))
+    gate = ask.gate_usd(model, passes(plan))
+    if max_model_usd <= gate:
+        gate -= ask.once_usd(model)
+    return max(0.0, min(ask.researcher_usd(), (max_model_usd - gate) / lanes(plan)))
 
 
-def validate_plan(plan, model: str | None = None, *, now=None) -> dict:
+def validate_plan(plan, model: str | None = None, *, now=None, confirmed: bool = False) -> dict:
     """The plan as run_ask runs it, with researchers set to the number of sub-questions; ValueError when it breaks a
     rule (an age lens, an unknown platform) or a cap (ASK_DAILY, MODEL_DAILY_USD, the first round's share)."""
     model = model or ask.MODEL
@@ -123,6 +126,8 @@ def validate_plan(plan, model: str | None = None, *, now=None) -> dict:
     if sum(s["credits"] for s in out) > pool + 1e-9:
         raise ValueError(f"the sub-questions' credits add up to more than the {pool:g} the first round may spend")
     floor = ask.gate_usd(model, passes(plan))
+    if confirmed:
+        floor -= ask.once_usd(model)
     model_cap = ask.model_daily_usd(now=now)
     if not number(max_usd) or not floor < max_usd <= model_cap:
         raise ValueError(f"max_model_usd is above USD {floor:.2f}, what writing and checking the answer may cost, and "

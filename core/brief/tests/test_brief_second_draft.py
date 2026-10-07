@@ -72,6 +72,24 @@ def test_the_second_draft_prompt_carries_the_critic_reason_and_the_previous_draf
     assert good()["explanation"] not in rest and good()["explanation"] in second["user"]
 
 
+def test_the_second_draft_keeps_post_dates_separate_from_event_timing():
+    model = Critics([good(), good()], [WORDING, RULED_OUT])
+    result = run(model)
+    first, second = model.writer_calls()
+    instructions = outside_fences(second["user"][len(first["user"]):])
+    assert "A posting date shows when that post was published, not when an event happened." in instructions
+    assert ("Name a timely local cause in the why-now clause only when a cited local post's own text or fields "
+            "explicitly identify that cause and its timing.") in instructions
+    assert "posted_at alone does not establish the cause or an event date" in instructions
+    assert "or as its posted_at dates it" not in instructions
+    assert ("Word the clause as seen in the market's feeds when every post it rests on is marked "
+            "located_in_market false.") in instructions
+    assert "When no cited local post shows a timely cause, do not invent one." in instructions
+    assert "A posting date shows when that post was published, not when an event happened." in second["system"]
+    assert result["reason"] is None
+    assert len(model.writer_calls()) == 2 and len(model.critic_calls()) == 2 and len(model.support_calls()) == 8
+
+
 def test_a_second_draft_the_critic_still_holds_is_cut_and_there_is_no_third():
     model = Critics([good(), good()], [WORDING, WORDING])
     result = run(model)

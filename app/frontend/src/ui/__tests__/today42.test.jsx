@@ -382,6 +382,49 @@ test('a partial brief names only the market with a real data problem', async () 
   expect(notes).toEqual(['KE']);
 });
 
+test('a fully checked market says every topic was held without calling the run incomplete', async () => {
+  const today = clone(todayFixture);
+  const ng = today.markets.find((market) => market.market === 'NG');
+  ng.status = 'partial';
+  ng.cards = [];
+  ng.more = [];
+  ng.held_back = {count: 1, items: [{item_id: 'checked-hold', title: 'Checked topic', rule: 'G10', reason: 'explanation_failed',
+    reason_text: 'The explanation did not pass our checks', failed_reason: 'A simpler explanation was not ruled out', evidence: []}]};
+  await mount({region: 'NG'}, today);
+  expect(host.querySelector('[data-today-held-status]')?.textContent).toBe('All topics were held after checks in Nigeria. See their reasons below.');
+  expect(host.querySelector('[data-today-status="partial"]')?.textContent).toBe('Some markets are incomplete: Kenya.');
+  expect(host.querySelector('[data-glance-market="NG"] .t42-glance-note')).toBeNull();
+});
+
+test('an unreadable card cannot turn a partly accounted market into a fully checked held market', async () => {
+  const today = clone(todayFixture);
+  const ng = today.markets.find((market) => market.market === 'NG');
+  ng.cards[0].explained = false;
+  ng.more = [];
+  ng.held_back = {count: 1, items: [{item_id: 'checked-hold', title: 'Checked topic', rule: 'G10', reason: 'explanation_failed',
+    reason_text: 'The explanation did not pass our checks', failed_reason: 'A simpler explanation was not ruled out', evidence: []}]};
+  await mount({region: 'NG'}, today);
+  expect(host.querySelectorAll('[data-today-held-status]').length).toBe(0);
+});
+
+test('an explicit model interruption stays incomplete and an unknown check state stays neutral', async () => {
+  for (const failed_reason of ['Model busy: not explained before the deadline', null]){
+    const today = clone(todayFixture);
+    const ng = today.markets.find((market) => market.market === 'NG');
+    ng.status = 'partial';
+    ng.cards = [];
+    ng.more = [];
+    ng.held_back = {count: 1, items: [{item_id: 'unfinished-hold', title: 'Unfinished topic', rule: 'G10', reason: 'explanation_failed',
+      reason_text: 'The explanation did not pass our checks', failed_reason, evidence: []}]};
+    await mount({region: 'NG'}, today);
+    expect(host.querySelector('[data-today-status="partial"]')?.textContent).toBe(failed_reason
+      ? 'Some markets are incomplete: Nigeria, Kenya.' : 'Some markets are incomplete: Kenya.');
+    expect(host.querySelector('[data-today-held-status]')).toBeNull();
+    expect(host.querySelector('[data-glance-market="NG"] .t42-glance-note')?.textContent || null).toBe(failed_reason ? ' · incomplete' : null);
+    resetRoot();
+  }
+});
+
 test('publication time is omitted when its timestamp is invalid, timezone-less, or null', async () => {
   const invalidValues = ['not a timestamp', '2026-09-30T06:14:40', null];
   for (const published_at of invalidValues){
@@ -500,6 +543,16 @@ test('the admitted card keeps its tag, state, count line and explanation', async
   expect(first.textContent).toContain('#fixture_za_step is spreading on Tiktok in South Africa, possibly tied to the weekend.');
   expect(first.querySelector('.t42-flag')).toBeNull();
   expect(cards()).toHaveLength(1);
+});
+
+test('Today labels the creator and post count window while keeping the supplied figures', async () => {
+  await mount();
+  const market = host.querySelector('[data-market="ZA"]');
+  expect(market.querySelector('[data-today-count-window]')?.textContent).toBe('Creator and post counts are in the last 3 days.');
+  expect(cardTitled('#fixture_za_step').querySelector('.tc-big-lead').textContent).toBe('31 creators in 3 days');
+  expect(cardTitled('#fixture_za_step').querySelector('.tc-big-lead').getAttribute('data-query-id')).toBe('q_creators3_za_a');
+  click(tab('Kenya'));
+  expect(host.querySelector('[data-today-count-window]')).toBeNull();
 });
 
 test('no tag word shows on the first published morning', async () => {

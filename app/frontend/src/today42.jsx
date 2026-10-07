@@ -71,6 +71,12 @@ function hasDataIssue(market){
     || (Array.isArray(market.banners) && market.banners.some((banner) => banner && banner.kind === 'data_issue')));
 }
 
+function hasIncompleteRun(market){
+  return hasDataIssue(market) || Boolean(market && Array.isArray(market.held_back?.items)
+    && market.held_back.items.some((item) => item?.reason === 'explanation_failed'
+      && typeof item.failed_reason === 'string' && item.failed_reason.startsWith('Model busy:')));
+}
+
 function tabForRegion(region){
   const value = String(region || '').toUpperCase();
   return MARKETS.includes(value) ? value : 'ALL';
@@ -207,6 +213,7 @@ function prepareTodayMarket(market){
   return {
     market: {...market, cards: admitted.slice(0, 5).map(({card}) => card), more: admitted.slice(5).map(({card}) => card)},
     admitted,
+    rejectedCards: cards.length - admitted.length,
     specificityByItemId: new Map(admitted.map(({card, specificity}) => [card.item_id, specificity])),
   };
 }
@@ -329,11 +336,23 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
   });
   /* Tester report, 5 October 2026: a brief is "partial" when any held
      topic's explanation failed its checks, which read as a broken market.
-     Only a market with a real data problem is named as incomplete; topics
-     held by the checks are counted with their reasons under each market. */
-  const incompleteMarkets = markets.map(({market}) => market).filter(hasDataIssue);
+     A data problem or an explicit model interruption remains incomplete.
+     Fully checked holds are named separately, with their reasons below. */
+  const incompleteMarkets = markets.map(({market}) => market).filter(hasIncompleteRun);
   const partialCopy = incompleteMarkets.length > 0
     ? 'Some markets are incomplete: ' + incompleteMarkets.map((market) => nonEmptyString(market.label) ? market.label : market.market).join(', ') + '.'
+    : null;
+  const checkedHeldMarkets = markets.filter(({rejectedCards}) => rejectedCards === 0).map(({market}) => market).filter((market) => {
+    const held = market.held_back;
+    return !hasIncompleteRun(market) && market.cards.length + market.more.length === 0
+      && Array.isArray(held?.items) && held.items.length > 0 && held.count === held.items.length
+      && held.items.every((item) => item && (['likely_coordinated', 'political_unconfirmed', 'paid_led',
+        'not_local', 'too_few_creators', 'not_confirmed'].includes(item.reason)
+        || (item.reason === 'explanation_failed' && nonEmptyString(item.failed_reason)
+          && !item.failed_reason.startsWith('Model busy:'))));
+  });
+  const checkedHeldCopy = checkedHeldMarkets.length > 0
+    ? 'All topics were held after checks in ' + checkedHeldMarkets.map((market) => nonEmptyString(market.label) ? market.label : market.market).join(', ') + '. See their reasons below.'
     : null;
   const headline = data.headline && nonEmptyString(data.headline.text)
     && (tab === 'ALL' || data.headline.market === tab)
@@ -359,12 +378,13 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
         <div className="t42-status-area" data-today-status-area="">
           {earlierDefaultBrief && <p className="t42-notice" role="status" data-today-earlier="">Earlier brief: <span className="t42-nowrap">{longDate(briefDate)}</span>. This is not today’s brief.</p>}
           {data.status === 'data_issue' && <p className="t42-notice t42-banner-data_issue" role="status" data-today-status="data_issue">Some data for this brief was incomplete, so the topics it affects are held back below with their reasons.</p>}
-          {(receiptLine || (date && briefDate) || (data.status === 'partial' && partialCopy) || publicationTime || warmup) && (
+          {(receiptLine || (date && briefDate) || (data.status === 'partial' && partialCopy) || checkedHeldCopy || publicationTime || warmup) && (
             <p className="t42-facts" data-today-facts="">
               {date && briefDate && <span className="t42-fact" data-today-date-context="">Brief for {longDate(briefDate)}</span>}
               {publicationTime && <span className="t42-fact" data-today-published-at="">Published at {publicationTime}</span>}
               {warmup && <span className="t42-fact t42-fact-warming_up">{warmup.text}</span>}
               {data.status === 'partial' && partialCopy && <span className="t42-fact" role="status" data-today-status="partial">{partialCopy}</span>}
+              {checkedHeldCopy && <span className="t42-fact" role="status" data-today-held-status="">{checkedHeldCopy}</span>}
               {receiptLine && <span className="t42-fact" data-today-run-receipt="">{receiptLine}</span>}
             </p>
           )}
@@ -525,7 +545,7 @@ function MarketGlance({markets, date, tab, onPick}){
           return (
             <li key={market.market} data-glance-market={market.market}>
               <button type="button" className="t42-glance-market" aria-pressed={here ? 'true' : 'false'} aria-label={label} onClick={() => onPick(market.market)}>
-                <span className="t42-glance-name"><span className="t42-glance-label">{name}</span>{hasDataIssue(market) ? <span className="t42-glance-note"> · incomplete</span> : null}</span>
+                <span className="t42-glance-name"><span className="t42-glance-label">{name}</span>{hasIncompleteRun(market) ? <span className="t42-glance-note"> · incomplete</span> : null}</span>
                 <span className="t42-glance-figure">
                   {read === null ? null : <span className="t42-glance-value">{readerFigure(read)}</span>}
                   <span className="t42-glance-unit">{read === null ? 'Items collected: not measured' : 'items collected'}</span>
@@ -823,7 +843,9 @@ function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch
       <MarketStatus market={market} empty={cards.length === 0} sourceDetails={sourceDetails}
         banners={banners.filter((banner) => banner.kind !== 'thin_coverage' && !isSourceFailureBanner(banner))} />
       {cards.length > 0
-        ? <ol className="t42-cards" data-ranked="" id={listId}>
+        ? <>
+          <p className="t42-line-text" data-today-count-window="">Creator and post counts are in the last 3 days.</p>
+          <ol className="t42-cards" data-ranked="" id={listId}>
             {cards.map((card, index) => (
               <TrendCard key={card.item_id} index={index} card={watch.mark(card, market.market)} market={market.market} date={card.date || date}
                 onAuth={onAuth} onWatch={watch.onWatch} onFeedback={onFeedback} linkTopic tapToOpen
@@ -831,6 +853,7 @@ function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch
                 todaySpecificity={specificityByItemId.get(card.item_id)} />
             ))}
           </ol>
+          </>
         : <>
             {showHistoryLink && <p className="t42-line-text"><a className="t42-link" href="#/history">Choose a past brief in History</a></p>}
             <HeldForEvidence held={market.held_back} market={market.market} />

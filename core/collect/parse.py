@@ -138,6 +138,11 @@ ROUTES = {
     "instagram/search/reels": ("search", "instagram", "search", False, ("include", "date_posted", "max_pages"),
                                MARKETS),
     "instagram/location/posts": ("location", "instagram", "ig_location", False, ("location_id",), MARKETS),
+    "youtube/search/advanced": ("search", "youtube", "search", False,
+                                  ("location", "location_radius", "order", "includeExtras"), MARKETS),
+    "tiktok/location/posts": ("search", "tiktok", "search", False, ("location_id",), MARKETS),
+    "tiktok/profile/region": ("profile", "tiktok", "profile_country", False, (), MARKETS),
+    "twitter/tweet": ("search", "twitter", "search", False, (), MARKETS),
     "prism/post-stats": ("restat", None, "counter_post_views", False, (), MARKETS),
     "web/scrape": ("none", None, None, False, (), MARKETS + (GLOBAL,)),
 }
@@ -146,6 +151,7 @@ LANES = {
     "rank": ("sweep", "unbiased_rank"), "panel": ("panel", "panel"), "location": ("sweep", "search_presence"),
     "count": ("watchlist", "watchlist"), "curve": ("watchlist", "watchlist"), "watch": ("watchlist", "watchlist"),
     "restat": ("watchlist", "unbiased_counter"), "search": (None, "search_presence"),
+    "profile": ("panel", "search_presence"),
 }
 SEEDED = ("tiktok/profile/videos", "instagram/audio/reels", "tiktok/song/videos", "twitter/user/tweets",
           "facebook/profile/posts")
@@ -211,6 +217,9 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
         "handle": _first(params, "handle", "username"), "creators": [],
     }
     data = body.get("data")
+    if route in ("youtube/search/advanced", "tiktok/location/posts"):
+        if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+            raise ValueError(f"{route} needs data.items as a list")
     fallback = _first(params, "handle", "pageId", "url", "username")
     if family == "rank":
         for rank, item in enumerate(_rows(data), 1):
@@ -231,8 +240,25 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
             handle = _first(row, "handle") or _first(author, "username")
             for item in _list(row.get("posts")) or _list(row.get("items")):
                 _post(out, ctx, item, row.get("platform"), fallback=handle, author=author, handle=handle)
+    elif family == "profile":
+        from core.collect.location_sources import profile_country
+
+        author = _dict(_dict(data).get("author"))
+        handle = params.get("handle")
+        if handle and str(author.get("username") or "").lower() == str(handle).lower():
+            ctx["creators"].append({"creator_id": str(handle), "platform": "tiktok", "handle": str(handle),
+                "display_name": None, "followers": _number(author, "followers"), "verified": None,
+                "profile_location": profile_country(body, handle),
+                "first_seen": ctx["observed_at"], "last_seen": ctx["observed_at"]})
+    elif route == "twitter/tweet":
+        from core.collect.x_discovery import status_url, verified_lookup
+
+        url = status_url(params.get("url"))
+        if url and verified_lookup(body, url, (url.split("/")[-3],)):
+            _post(out, ctx, {"post": data["post"], "computed": data.get("computed")}, platform)
     elif family in ("panel", "location", "watch") or route in ("tiktok/search/top", "tiktok/search/hashtag",
-                                                               "instagram/search/reels"):
+                                                               "instagram/search/reels", "youtube/search/advanced",
+                                                               "tiktok/location/posts"):
         for item in _rows(data):
             _post(out, ctx, item, platform, fallback=fallback)
     elif route == "search/multi":

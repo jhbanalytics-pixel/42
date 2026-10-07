@@ -1908,3 +1908,45 @@ def test_discover_7_day_reach_reads_each_market_of_the_page_once():
     assert [m for _, m, _ in seen] == markets
     for _, m, item_ids in seen:
         assert item_ids == sorted(c["item_id"] for c in out["items"] if c["market"] == m)
+
+
+@pytest.mark.parametrize("brief_case, expected", [
+    ("matching", "A checked story title"),
+    ("missing", "Step watch"),
+    ("blank", "Step watch"),
+    ("stale", "Step watch"),
+    ("wrong_market", "Step watch"),
+    ("wrong_item", "Step watch"),
+    ("unchecked", "Step watch"),
+])
+def test_alert_titles_use_only_the_checked_brief_for_the_detect_date_and_market(brief_case, expected):
+    rows = json.loads(json.dumps(FixtureStore().briefs(D30)))
+    row = next(r for r in rows if r["market"] == "ZA")
+    written = next(c for c in row["payload"]["cards"] if c["item_id"] == STEP)
+    written.update(title_written="  A checked   story title  ", explained=True, explanation_status="explained")
+    if brief_case == "missing":
+        written.pop("title_written")
+    elif brief_case == "blank":
+        written["title_written"] = " \t\n"
+    elif brief_case == "stale":
+        row["brief_date"] = "2026-09-29"
+    elif brief_case == "wrong_market":
+        row["market"] = "NG"
+    elif brief_case == "wrong_item":
+        written["item_id"] = "another-item"
+    elif brief_case == "unchecked":
+        written.update(explained=False, explanation_status="failed_checks")
+    dates = []
+
+    def briefs(date):
+        dates.append(date)
+        return rows
+
+    watches = [watch("w_step", {"kind": "item", "item_id": STEP}, {"state_in": ["emerging"]}, label="Step watch")]
+    before = json.dumps(watches)
+    out = discover.build_alerts(Patched(briefs=briefs), watches, date=D30)
+    (result,) = out["alerts"]
+    assert result["label"] == expected
+    assert result["card"]["title"] != "A checked story title"
+    assert dates == [D30]
+    assert json.dumps(watches) == before

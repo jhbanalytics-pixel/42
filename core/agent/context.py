@@ -45,6 +45,7 @@ class RunContext:
     credits_spent: float = 0.0
     model_usd_extra: float = 0.0  # model spend inside tools, such as query embeddings in search_posts
     research_usd: float = 0.0  # the research model's own spend so far in this context's loop (gemini_research)
+    model_budget: object | None = field(default=None, repr=False, compare=False)
     calls_made: int = 0
     queries: dict = field(default_factory=dict)   # query_id -> {"sql", "params", "rows", "result_hash", "purpose"}
     evidence: dict = field(default_factory=dict)  # post_id -> evidence record (rubric.md section 1 shape)
@@ -98,7 +99,7 @@ class RunContext:
         return RunContext(run_id=self.run_id, tier=self.tier, as_of=self.as_of, market=self.market,
                           window_start=self.window_start, window_end=self.window_end,
                           queries=self.queries, pending_findings=self.pending_findings, limits=limits,
-                          lock=self.lock)
+                          lock=self.lock, model_budget=self.model_budget)
 
     def merge(self, lane: RunContext) -> None:
         """Add a finished lane's spend and finds to this context, on one thread, lanes in a fixed order so events and

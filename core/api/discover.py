@@ -9,7 +9,7 @@ import hashlib
 import json
 import re
 
-from core.api import alerts
+from core.api import alerts, fast
 from core.api.held_words import plain_reason
 from core.api.searching import searching_now
 from core.api.store import canon_platform, creator_key
@@ -373,9 +373,10 @@ def _with_reach7(store, run, cards):
     """The page's cards, each with reach7: the creators7 Figure Radar reads (every collection lane, 7 days), shown
     beside the card's 3-day reach, which counts only the boards and followed accounts the checks use. Display only:
     the order, the gate and the 3-day reach stay as they were. None when the market's read gave nothing."""
-    measures = {}
-    for m in sorted({c["market"] for c in cards}):
-        measures[m] = _reach(store, run, m, sorted(c["item_id"] for c in cards if c["market"] == m))   # sorted: one cache entry per item set
+    ids = {m: sorted(c["item_id"] for c in cards if c["market"] == m) for m in sorted({c["market"] for c in cards})}
+    for market, item_ids in ids.items():
+        fast.start(store, "item_reach", run["run_date"], market, item_ids)
+    measures = {market: _reach(store, run, market, item_ids) for market, item_ids in ids.items()}
     for c in cards:
         c["reach7"] = (measures[c["market"]].get(c["item_id"]) or {}).get("creators7")
     return cards
@@ -403,6 +404,7 @@ def _reach(store, run, market, item_ids):
     reader = getattr(store, "item_reach", None)
     if market == "all" or not item_ids or not callable(reader):
         return {}
+    item_ids = sorted(item_ids)
     rows = reader(run["run_date"], market, item_ids)
     if rows is None:
         return {}
@@ -618,5 +620,7 @@ def build_alerts(store, watches, date=None):
         if "waiting" in a:
             waiting.append({"watch_id": a["watch_id"], "label": labels.get(a["watch_id"]), "waiting": a["waiting"]})
         else:
-            out.append({**a, "card": dict(by_item[(a["item_id"], a["market"])], watch_id=a["watch_id"])})
+            card = dict(by_item[(a["item_id"], a["market"])], watch_id=a["watch_id"])
+            label = alerts._written_title(card, run["run_date"], a["market"]) or a["label"]
+            out.append({**a, "label": label, "card": card})
     return {"date": run["run_date"], "run_id": run["run_id"], "alerts": out, "waiting": waiting}

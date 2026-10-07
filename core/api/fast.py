@@ -7,7 +7,8 @@ reads(store) is the store a page reads through. A pipeline read (the run's items
 and the like, written only by the daily jobs) is kept for CACHE_TTL seconds per process, so moving between pages
 reads it once. The suppression list, finished asks, findings and anything not named in CACHED are always read
 fresh, so a hide applies on the next page load as before. A cached read hands out a copy, so no page can change
-what the next one sees.
+what the next one sees. Concurrent identical pipeline reads share one result or failure; a failed read is tried
+again on the next call.
 
 prefetch(store, plan, ...) starts the reads a page is about to make together on a small thread pool, in the
 phases their arguments allow (the latest run first, then everything that needs only the run). When the page then
@@ -22,7 +23,7 @@ import logging
 import threading
 import time
 import weakref
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 
 log = logging.getLogger("f42.api.fast")
 
@@ -62,16 +63,20 @@ def _freeze(v):
 class _Cache:
     def __init__(self):
         self.lock, self.rows = threading.Lock(), collections.OrderedDict()
+        self.pending = {}
 
     def get(self, key):
         with self.lock:
             hit = self.rows.get(key)
-            if hit is None:
-                return None
-            if clock() - hit[0] > CACHE_TTL:
+            if hit is not None:
+                if clock() - hit[0] <= CACHE_TTL:
+                    return hit, None, False
                 del self.rows[key]
-                return None
-            return hit
+            future = self.pending.get(key)
+            owner = future is None
+            if owner:
+                future = self.pending[key] = Future()
+            return None, future, owner
 
     def put(self, key, value):
         with self.lock:
@@ -105,12 +110,24 @@ class _Cached:
 
         def read(*args, **kwargs):
             key = _key(name, args, kwargs)
-            hit = self._cache.get(key)
+            hit, future, owner = self._cache.get(key)
             if hit is not None:
                 return copy.deepcopy(hit[1])
-            result = value(*args, **kwargs)
-            self._cache.put(key, copy.deepcopy(result))
-            return result
+            if not owner:
+                return copy.deepcopy(future.result())
+            try:
+                result = value(*args, **kwargs)
+                saved = copy.deepcopy(result)
+                self._cache.put(key, saved)
+            except BaseException as error:
+                future.set_exception(error)
+                raise
+            else:
+                future.set_result(saved)
+                return result
+            finally:
+                with self._cache.lock:
+                    self._cache.pending.pop(key, None)
 
         return read
 

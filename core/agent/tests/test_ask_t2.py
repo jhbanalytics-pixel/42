@@ -498,10 +498,12 @@ def test_a_t2_hold_that_does_not_fit_falls_back_to_t0():
     assert lanes.calls[0]["ctx"].tier == "T0" and not critic_steps(h)
 
 
-def test_a_researcher_that_fails_charges_the_whole_research_budget():
+def test_a_researcher_that_fails_retains_every_dispatched_call_cost():
     class Broken(Lanes):
         def __call__(self, ctx, prompt, options, emit, should_stop):
             super().__call__(ctx, prompt, options, emit, should_stop)
+            ticket = ctx.model_budget.reserve(options.model, 200000, 90000, research=True)
+            ctx.model_budget.fail(ticket, stop=False)
             if "X" in prompt.split("Your platforms: ", 1)[1].split(".", 1)[0]:
                 raise RuntimeError("research broke")
             return {"note": "", "tokens": {"input": 1, "output": 1}, "usd": 0.01}
@@ -509,7 +511,7 @@ def test_a_researcher_that_fails_charges_the_whole_research_budget():
     h = t2(Broken(parties=4))
     with pytest.raises(RuntimeError) as err:
         h.run(tier="T2")
-    assert err.value.run["model_usd"] >= TIERS["T2"]["max_budget_usd"]
+    assert err.value.run["model_usd"] >= 4 * ask.call_usd(ask.MODEL, 200000, 90000)
     assert err.value.run["credits"] == 1.0  # the TikTok researcher's call still counts
 
 

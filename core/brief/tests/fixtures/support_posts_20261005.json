@@ -1,0 +1,459 @@
+{
+  "source_sha256": "b6c65c83eec06c35ad799ed1b183aa67fa97ad0f345f92c467084024d6635bf5",
+  "candidates": [
+    {
+      "brief_date": "2026-10-05",
+      "run_id": "brief-20261005-8e019e9c7270",
+      "item_id": "9d2db15dbba1d1c8512e9c1df96fc0c7fc6924426229dd4ee0f58e6a6ff7bfac",
+      "title": "#bimboademoye",
+      "failed_reason": "Support check: a claim the explanation rests on was not supported by its posts",
+      "evidence": [
+        {
+          "id": "obs1_6f86b520f2e0f0e643dd4feb68b5c12f",
+          "platform": "youtube",
+          "posted_at": "2026-10-01T20:36:58+01:00",
+          "market": null,
+          "source_market": "NG",
+          "creator_tier": null,
+          "handle": null,
+          "flags": [
+            "market_assumed"
+          ],
+          "text": "😂The kiss was deep though😂🤩..Timini Egbuson & Bimbo Ademoye movie #bimboademoye #timiniegbuson",
+          "quote_text": "😂The kiss was deep though😂🤩..Timini Egbuson & Bimbo Ademoye movie #bimboademoye #timiniegbuson",
+          "engagement": {
+            "comments": 280,
+            "likes": 30714,
+            "shares": null,
+            "views": 624162
+          }
+        },
+        {
+          "id": "obs1_45571fc9dc0758e49b9d310ac94c64a5",
+          "platform": "tiktok",
+          "posted_at": "2026-10-02T07:56:50+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "micro",
+          "handle": "chideraosadebeaddicts",
+          "flags": [],
+          "text": "This couple are perfect match 😻 My 30th Wedding still showing on Bimboademoyetv 🎥#bimboademoye #timiniegbuson #heavenlydera #viraltiktok #fyp ",
+          "quote_text": "This couple are perfect match 😻 My 30th Wedding still showing on Bimboademoyetv 🎥#bimboademoye #timiniegbuson #heavenlydera #viraltiktok #fyp ",
+          "engagement": {
+            "comments": 528,
+            "likes": 92351,
+            "shares": 387,
+            "views": 434525
+          }
+        },
+        {
+          "id": "obs1_271ed495bc0108fcb7a9babce1d15672",
+          "platform": "tiktok",
+          "posted_at": "2026-09-29T10:10:12+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "micro",
+          "handle": "chukwuma.dav",
+          "flags": [],
+          "text": "#bimboademoye #timiniegbuson #fyp #foryou #foryoupage ",
+          "quote_text": "#bimboademoye #timiniegbuson #fyp #foryou #foryoupage ",
+          "engagement": {
+            "comments": 802,
+            "likes": 74370,
+            "shares": 2504,
+            "views": 474042
+          }
+        },
+        {
+          "id": "obs1_1aa6c89fb99a0b82b43c3434300b341c",
+          "platform": "tiktok",
+          "posted_at": "2026-10-01T23:55:56+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "airstarthestylist",
+          "flags": [],
+          "text": "I’m always looking forward to her outfits😂#nollywood #trendingvideo #bimboademoye #fffffffffffyyyyyyyyyyypppppppppppp #my30thwedding ",
+          "quote_text": "I’m always looking forward to her outfits😂#nollywood #trendingvideo #bimboademoye #fffffffffffyyyyyyyyyyypppppppppppp #my30thwedding ",
+          "engagement": {
+            "comments": 450,
+            "likes": 64863,
+            "shares": 631,
+            "views": 261530
+          }
+        },
+        {
+          "id": "obs1_440c6c127c4237d1933adc744438b966",
+          "platform": "tiktok",
+          "posted_at": "2026-10-02T10:36:27+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "rukky_aj",
+          "flags": [],
+          "text": "the movie is definitely worth the hype💯 #nigerianmovies #bimboademoye #timiniegbuson #fyp ",
+          "quote_text": "the movie is definitely worth the hype💯 #nigerianmovies #bimboademoye #timiniegbuson #fyp ",
+          "engagement": {
+            "comments": 652,
+            "likes": 51647,
+            "shares": 937,
+            "views": 359460
+          }
+        },
+        {
+          "id": "obs1_2162c6b2e457420aa4c7d5d40f1284f8",
+          "platform": "tiktok",
+          "posted_at": "2026-10-04T17:48:37+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "dailygist29",
+          "flags": [],
+          "text": "#fypppppppp #goviral #bimbo #bimboademoye #timiniegbuson ",
+          "quote_text": "#fypppppppp #goviral #bimbo #bimboademoye #timiniegbuson ",
+          "engagement": {
+            "comments": 394,
+            "likes": 50683,
+            "shares": 1028,
+            "views": 276171
+          }
+        },
+        {
+          "id": "obs1_fd73c71dd9b9a06ce5f2c961c4445f6b",
+          "platform": "tiktok",
+          "posted_at": "2026-10-03T05:54:38+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "bimbo.ademoye31",
+          "flags": [],
+          "text": "have you seen my 30th wedding anniversary love y'all 😍❤️#bimboademoye ",
+          "quote_text": "have you seen my 30th wedding anniversary love y'all 😍❤️#bimboademoye ",
+          "engagement": {
+            "comments": 289,
+            "likes": 49688,
+            "shares": 606,
+            "views": 175519
+          }
+        },
+        {
+          "id": "obs1_659a431c98d7a4e061be4413590fcfbe",
+          "platform": "tiktok",
+          "posted_at": "2026-10-01T21:30:45+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "olamidex18",
+          "flags": [],
+          "text": "My shippppp😩❤️🥹#CapCut #my30thwedding #timini #bimboademoye #fypシ゚ ",
+          "quote_text": "My shippppp😩❤️🥹#CapCut #my30thwedding #timini #bimboademoye #fypシ゚ ",
+          "engagement": {
+            "comments": 548,
+            "likes": 48342,
+            "shares": 1425,
+            "views": 191662
+          }
+        },
+        {
+          "id": "obs1_d23463305df8851ab5108c07e1b37ca8",
+          "platform": "tiktok",
+          "posted_at": "2026-10-02T07:26:15+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "mid",
+          "handle": "celebrity.updatess",
+          "flags": [],
+          "text": "All the outfit she wore on her movie Named My 30th wedding 🥹🥹❤️❤️ She's a very Classy and Hard-working woman I so much enjoy all her movies But this one WOW Very nice and classy!! 💃💃❤️❤️ #newmovie #my30thwedding #bimboademoye #youtube #viralvideo ",
+          "quote_text": "All the outfit she wore on her movie Named My 30th wedding 🥹🥹❤️❤️ She's a very Classy and Hard-working woman I so much enjoy all her movies But this one WOW Very nice and classy!! 💃💃❤️❤️ #newmovie #my30thwedding #bimboademoye #youtube #viralvideo ",
+          "engagement": {
+            "comments": 254,
+            "likes": 45433,
+            "shares": 309,
+            "views": 309516
+          }
+        },
+        {
+          "id": "obs1_c2d6b6052d7bc7944d944329faca8afd",
+          "platform": "tiktok",
+          "posted_at": "2026-10-01T20:44:21+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "micro",
+          "handle": "nollywoodplug",
+          "flags": [],
+          "text": "He literally gave her dream wedding 🥹 #fyp #nollywood #viraltiktok #bimboademoye #nigerianwedding ",
+          "quote_text": "He literally gave her dream wedding 🥹 #fyp #nollywood #viraltiktok #bimboademoye #nigerianwedding ",
+          "engagement": {
+            "comments": 278,
+            "likes": 44445,
+            "shares": 599,
+            "views": 276977
+          }
+        },
+        {
+          "id": "obs1_df0b638d65959e0ea4a7ff37feb3cd88",
+          "platform": "tiktok",
+          "posted_at": "2026-09-29T09:58:28+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "micro",
+          "handle": "chukwuma.dav",
+          "flags": [],
+          "text": "This one off me #bimboademoye #timiniegbuson #fyp #foryou #foryoupage ",
+          "quote_text": "This one off me #bimboademoye #timiniegbuson #fyp #foryou #foryoupage ",
+          "engagement": {
+            "comments": 98,
+            "likes": 33553,
+            "shares": 223,
+            "views": 400708
+          }
+        },
+        {
+          "id": "obs1_1dd76a6984955e6b06e91e8d570c5843",
+          "platform": "tiktok",
+          "posted_at": "2026-10-01T19:33:37+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "micro",
+          "handle": "ifemhidey21",
+          "flags": [],
+          "text": "The shock on his face cracked me up 😹😂#creatorsearchinsights #bimboademoye ",
+          "quote_text": "The shock on his face cracked me up 😹😂#creatorsearchinsights #bimboademoye ",
+          "engagement": {
+            "comments": 93,
+            "likes": 26505,
+            "shares": 468,
+            "views": 192649
+          }
+        }
+      ]
+    },
+    {
+      "brief_date": "2026-10-05",
+      "run_id": "brief-20261005-8e019e9c7270",
+      "item_id": "d6b9ae3166da6a6881e4a8942ba1479d04448623513d20630e32769352d4dc6f",
+      "title": "#dunsinoyekan",
+      "failed_reason": "Support check: a claim the explanation rests on was not supported by its posts",
+      "evidence": [
+        {
+          "id": "obs1_f9bcfdcdbe812a6e50a3fe975244e95f",
+          "platform": "youtube",
+          "posted_at": "2026-10-01T18:00:06+01:00",
+          "market": null,
+          "source_market": "NG",
+          "creator_tier": null,
+          "handle": null,
+          "flags": [
+            "market_assumed"
+          ],
+          "text": "Praise The Lord - Dunsin Oyekan #dunsinoyekan #praisethelord",
+          "quote_text": "Praise The Lord - Dunsin Oyekan #dunsinoyekan #praisethelord",
+          "engagement": {
+            "comments": 1097,
+            "likes": 15188,
+            "shares": null,
+            "views": 211571
+          }
+        },
+        {
+          "id": "obs1_864f5f4775373aaa3177f28657b72921",
+          "platform": "tiktok",
+          "posted_at": "2026-10-01T18:52:19+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "micro",
+          "handle": "naijagospelnation",
+          "flags": [],
+          "text": "Dunsin Oyekan X Lawrence Oyor — Worthy of My Praise  You are worthy of my worship.  worthy of my praise!! You alone deserve all the praise and all the glory #NaijaGospelNation #DunsinOyekan #LawrenceOyor #WorthyOfMyPraise #ChristianTiktok #GospelTiktok #Chant  #Worship #GospelMus",
+          "quote_text": "Dunsin Oyekan X Lawrence Oyor — Worthy of My Praise  You are worthy of my worship.  worthy of my praise!! You alone deserve all the praise and all the glory #NaijaGospelNation #DunsinOyekan #LawrenceOyor #WorthyOfMyPraise #ChristianTiktok #GospelTiktok #Chant  #Worship #GospelMusic #GospelSong #ChristianSong @Dunsin Oyekan @Lawrence Oyor",
+          "engagement": {
+            "comments": 155,
+            "likes": 26856,
+            "shares": 756,
+            "views": 144323
+          }
+        },
+        {
+          "id": "obs1_cf11f21363ce972c80c1e0838ab7b6fd",
+          "platform": "tiktok",
+          "posted_at": "2026-09-30T06:28:21+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "macro",
+          "handle": "gospellyrics4life",
+          "flags": [],
+          "text": "Different Countries One Song All Giving Glory To God 🙌🏿🤍✝️ Which country’s own is your favorite  #dunsinoyekan #india #france #spain #america ",
+          "quote_text": "Different Countries One Song All Giving Glory To God 🙌🏿🤍✝️ Which country’s own is your favorite  #dunsinoyekan #india #france #spain #america ",
+          "engagement": {
+            "comments": 504,
+            "likes": 24383,
+            "shares": 422,
+            "views": 153855
+          }
+        },
+        {
+          "id": "obs1_dc94a897c4110d959633968481903f1a",
+          "platform": "tiktok",
+          "posted_at": "2026-10-03T10:16:58+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "justgospel_1",
+          "flags": [],
+          "text": "This Godswill guy again. He is just too good. I'm so inlove with this❤️❤️ When are you releasing it on Spotify? #songcover #dunsinoyekan #repost #justgospel #everywhere ",
+          "quote_text": "This Godswill guy again. He is just too good. I'm so inlove with this❤️❤️ When are you releasing it on Spotify? #songcover #dunsinoyekan #repost #justgospel #everywhere ",
+          "engagement": {
+            "comments": 283,
+            "likes": 8888,
+            "shares": 254,
+            "views": 79669
+          }
+        },
+        {
+          "id": "obs1_3a8a3b3898799a8ac12a22055b3594c4",
+          "platform": "tiktok",
+          "posted_at": "2026-10-03T00:29:42+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "easiey10",
+          "flags": [],
+          "text": "min dunsin was like \"abhi dis guy no want make we commot for here\"🤲😅🤣 #upperroomlagos  #upperroom  #praise  #glory  #dunsinoyekan ",
+          "quote_text": "min dunsin was like \"abhi dis guy no want make we commot for here\"🤲😅🤣 #upperroomlagos  #upperroom  #praise  #glory  #dunsinoyekan ",
+          "engagement": {
+            "comments": 100,
+            "likes": 4327,
+            "shares": 177,
+            "views": 20349
+          }
+        },
+        {
+          "id": "obs1_2cf93985325f065fea900fed209ca370",
+          "platform": "tiktok",
+          "posted_at": "2026-10-03T21:08:06+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "ernest_unplugged",
+          "flags": [],
+          "text": "How ManU wan take loss match for here again. It has become technical impossicant … Another perspective here. Full Clip on YouTube, link in bio. #nsppd #streamsofjoyinternational #jerryeze #dunsinoyekan #manu ",
+          "quote_text": "How ManU wan take loss match for here again. It has become technical impossicant … Another perspective here. Full Clip on YouTube, link in bio. #nsppd #streamsofjoyinternational #jerryeze #dunsinoyekan #manu ",
+          "engagement": {
+            "comments": 9,
+            "likes": 489,
+            "shares": 2,
+            "views": 3159
+          }
+        },
+        {
+          "id": "obs1_02bfff3f2632b2bc820e413fac23b47b",
+          "platform": "tiktok",
+          "posted_at": "2026-10-03T20:00:00+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "mid",
+          "handle": "exousia_tv1",
+          "flags": [],
+          "text": "Halleuyah Hosanna Halleuyah Hosanna  #exousia_tv #gospelcontent #gospelmusic #gospel #dunsinoyekan #hallelujah",
+          "quote_text": "Halleuyah Hosanna Halleuyah Hosanna  #exousia_tv #gospelcontent #gospelmusic #gospel #dunsinoyekan #hallelujah",
+          "engagement": {
+            "comments": 4,
+            "likes": 307,
+            "shares": 8,
+            "views": 2378
+          }
+        },
+        {
+          "id": "obs1_07ecca69e2f7b344f37f14f1ebac27d3",
+          "platform": "tiktok",
+          "posted_at": "2026-10-03T19:21:15+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "lifeandtimesoftheeagle",
+          "flags": [],
+          "text": "POV: Min. Dunsin caught a spontaneous sound: “The One who sits on the throne, worthy is Your name… Hallelujah. Hallelujah”. 🕊️🙌🏾 #dunsinoyekan #lifeandtimesoftheeagle #worship #christiantiktok #fyp ",
+          "quote_text": "POV: Min. Dunsin caught a spontaneous sound: “The One who sits on the throne, worthy is Your name… Hallelujah. Hallelujah”. 🕊️🙌🏾 #dunsinoyekan #lifeandtimesoftheeagle #worship #christiantiktok #fyp ",
+          "engagement": {
+            "comments": 1,
+            "likes": 307,
+            "shares": 10,
+            "views": 1288
+          }
+        },
+        {
+          "id": "obs1_93a42ae452656a2638f3458a431e4f60",
+          "platform": "tiktok",
+          "posted_at": "2026-09-30T07:33:38+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "micro",
+          "handle": "gospelminds",
+          "flags": [],
+          "text": "\"Praise The Lord\" Song by Dunsin Oyekan ‧ 2026 #takingthegospeltothenextlevel  #gospelminds #gospelmusic  #dunsinoyekan #praisethelord ",
+          "quote_text": "\"Praise The Lord\" Song by Dunsin Oyekan ‧ 2026 #takingthegospeltothenextlevel  #gospelminds #gospelmusic  #dunsinoyekan #praisethelord ",
+          "engagement": {
+            "comments": 1,
+            "likes": 276,
+            "shares": 11,
+            "views": 3000
+          }
+        },
+        {
+          "id": "obs1_3ad2042c99c6357f0c1f28d2411a49d4",
+          "platform": "tiktok",
+          "posted_at": "2026-10-01T21:03:21+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "lifeandtimesoftheeagle",
+          "flags": [],
+          "text": "NEW VIDEO ALERT🚨: “Praise the Lord” by Dunsin Oyekan. 🦅 #dunsinoyekan #lifeandtimesoftheeagle #worship #christiantiktok #fyp ",
+          "quote_text": "NEW VIDEO ALERT🚨: “Praise the Lord” by Dunsin Oyekan. 🦅 #dunsinoyekan #lifeandtimesoftheeagle #worship #christiantiktok #fyp ",
+          "engagement": {
+            "comments": 4,
+            "likes": 157,
+            "shares": 3,
+            "views": 765
+          }
+        },
+        {
+          "id": "obs1_54065375899c84478bfc8a948e7559e2",
+          "platform": "tiktok",
+          "posted_at": "2026-10-02T06:48:46+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "mega",
+          "handle": "gospelhotspot",
+          "flags": [],
+          "text": "Dunsin Oyekan drops 'Praise The Lord' a worship song that asks the question every living soul needs to answer. \"If you have breath in your lungs Life in your body Joy in your spirit Would you praise the Lord?\" If the answer is YES — press play and let your praise rise RIGHT NOW #",
+          "quote_text": "Dunsin Oyekan drops 'Praise The Lord' a worship song that asks the question every living soul needs to answer. \"If you have breath in your lungs Life in your body Joy in your spirit Would you praise the Lord?\" If the answer is YES — press play and let your praise rise RIGHT NOW #PraiseTheLord #DunsinOyekan #NaijaGospel #WorshipSong #GospelHotspot",
+          "engagement": {
+            "comments": 1,
+            "likes": 140,
+            "shares": 6,
+            "views": 1158
+          }
+        },
+        {
+          "id": "obs1_0974eb767dc43755ae5e5cc798e78e80",
+          "platform": "tiktok",
+          "posted_at": "2026-10-02T19:30:00+01:00",
+          "market": "NG",
+          "source_market": "NG",
+          "creator_tier": "nano",
+          "handle": "thefourandtwenty",
+          "flags": [],
+          "text": "Let everything that has breath praise the Lord!. #Worship #christiantiktok #dunsinoyekan #newmusicalert ",
+          "quote_text": "Let everything that has breath praise the Lord!. #Worship #christiantiktok #dunsinoyekan #newmusicalert ",
+          "engagement": {
+            "comments": 2,
+            "likes": 124,
+            "shares": 5,
+            "views": 649
+          }
+        }
+      ]
+    }
+  ]
+}

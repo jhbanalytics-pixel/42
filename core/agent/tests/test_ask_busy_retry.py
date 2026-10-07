@@ -12,7 +12,7 @@ from google.genai import errors
 
 from core.agent import ask, gemini_research
 from core.agent.model_budget import AskModelBudget, BudgetRefused
-from core.agent.tests.test_ask import FakeModel, Harness
+from core.agent.tests.test_ask import SEARCH_EMBED_USD, FakeModel, Harness
 from core.agent.tests.test_ask_model_budget import _RecordingBudget, configure_gemini
 from core.agent.tests.test_gemini_research_budget import FakeClient, ftext, make_budget, reply, run
 from core.agent.writer import SUPPORT_SCHEMA, WRITER_SCHEMA
@@ -214,7 +214,7 @@ def test_run_ask_finishes_when_a_support_check_is_refused_for_capacity(monkeypat
 
     budget, = _RecordingBudget.made
     assert model.refused == 1
-    assert not budget.stopped and budget.conservative_usd == 0
+    assert not budget.stopped and budget.conservative_usd == SEARCH_EMBED_USD
     assert result["answer"]["claims"]
     assert not any("budget" in gap["why"] for gap in result["answer"]["gaps"])
     assert not any("stopped" in notice.lower() for notice in result["run"]["notices"])

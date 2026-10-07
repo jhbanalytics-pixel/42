@@ -59,6 +59,8 @@ from urllib.parse import urlparse
 
 import yaml
 
+from core.collect.x_discovery import discovery_quote, project_discovery
+
 log = logging.getLogger(__name__)
 
 BASE_URL = "https://www.socialcrawl.dev/v1"
@@ -391,6 +393,8 @@ PRICED = {
         1, ("since", "stop_at_id", "handle", "user_id", "sort_by", "max_cursor", "region", "trim", "format", "cursor")
         + LABEL_FREE, add=LABELLED_4),
     "tiktok/profile/region": rule(1, ("handle",)),
+    "tiktok/location/posts": rule(1, ("location_id", "cursor", "region")),
+    "twitter/ai-search": special(discovery_quote, ("query", "from_handles", "exclude_handles", "from_date", "to_date")),
     "tiktok/song/videos": rule(1, ("clipId", "cursor", "use")),
     "tiktok/song": rule(1, ("clipId",)),
     "tiktok/hashtag": rule(1, ("hashtag", "hashtag_id")),
@@ -745,13 +749,22 @@ class SocialCrawlClient:
 
     def call(self, route, params=None, *, method=None, market=None, item_id=None, seed_key=None, agent=None,
              lane=None, use_cache=True):
+        return self._call(route, params, method=method, market=market, item_id=item_id, seed_key=seed_key,
+                          agent=agent, lane=lane, use_cache=use_cache)
+
+    def discover_x(self, params, *, market=None, use_cache=True):
+        return self._call("twitter/ai-search", params, market=market, lane="discovery",
+                          use_cache=use_cache, discovery=True)
+
+    def _call(self, route, params=None, *, method=None, market=None, item_id=None, seed_key=None, agent=None,
+              lane=None, use_cache=True, discovery=False):
         original_route = route
         route = _normalise(route)
         params = dict(params or {})
         if self._halt:
             return Result(self._halt[0], route, reason=self._halt[1])
         method = (method or (PRICED[route].method if route in PRICED else "GET")).upper()
-        why = forbidden(route, method, params, original_route=original_route)
+        why = "" if discovery and route == "twitter/ai-search" else forbidden(route, method, params, original_route=original_route)
         if why:
             return Result("forbidden", route, reason=why)
         try:
@@ -831,6 +844,8 @@ class SocialCrawlClient:
         return self.clock().astimezone(SAST).date()
 
     def _served(self, route, phash, body):
+        if route == "twitter/ai-search":
+            body = project_discovery(body)
         body, items, labels = split_vendor_labels(body)
         return Result("cached", route, phash, 200, 0, 0, True, body, items, labels)
 
@@ -911,6 +926,11 @@ class SocialCrawlClient:
         if self._balance is not None:
             self._balance -= charge
 
+        if route == "twitter/ai-search":
+            data = body.get("data") if isinstance(body, dict) else None
+            if outcome == "ok" and (not isinstance(data, dict) or not isinstance(data.get("sources"), list)):
+                outcome, failure, reason = "error", "parse", "X discovery sources are not a list"
+            body = project_discovery(body)
         stored, items, labels = split_vendor_labels(body) if body else (None, [], [])
         # The ledger row goes first, so a failing raw_responses insert never leaves a paid call unledgered.
         self._write_ledger(call, calls=1, quoted=quote, charged=charge, cache_hit=False,

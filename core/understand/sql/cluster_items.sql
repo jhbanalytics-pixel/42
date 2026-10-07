@@ -11,7 +11,7 @@ WITH cur AS (
   SELECT
     cm.item_id, cm.kind, cm.canonical_key, cm.label, cm.aliases, cm.parent_item_id, cm.centroid, cm.first_seen,
     cm.first_seen_market, cm.first_seen_platform, cm.last_seen, cm.recurrences, cm.lifecycle, cm.status,
-    cm.rejected_until
+    cm.rejected_until, cm.valid_from
   FROM `ogilvy-trends-v2.intelligence_42_core.cultural_map` AS cm
   WHERE cm.valid_to IS NULL AND cm.kind = 'topic' AND ARRAY_LENGTH(cm.centroid) > 0
   QUALIFY ROW_NUMBER() OVER (PARTITION BY cm.item_id ORDER BY cm.valid_from DESC) = 1
@@ -66,6 +66,7 @@ lists AS (
 SELECT
   c.item_id, c.kind, c.canonical_key, c.label, c.aliases, c.parent_item_id, c.centroid, c.first_seen,
   c.first_seen_market, c.first_seen_platform, c.last_seen, c.recurrences, c.lifecycle, c.status, c.rejected_until,
+  c.valid_from,
   l.keywords,
   ht.vals AS hashtags,
   sd.vals AS sounds,

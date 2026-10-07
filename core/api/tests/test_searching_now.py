@@ -21,7 +21,7 @@ ZA_ROWS = [
 ]
 NG_ROWS = [
     {"term": "fixture ng search", "market": "NG", "source": "google_trending", "rank": 3,
-     "refreshed_at": "2026-09-30"},  # the fetch time 2026-09-30T05:12:30Z, sent as its SAST day
+     "refreshed_at": "2026-09-30T05:12:30Z"},
 ]
 
 
@@ -156,7 +156,7 @@ def test_a_term_both_sources_report_is_shown_once_at_its_best_rank():
             row(term="Match Day", source="google_trending", rank=2, refreshed_at="2026-09-30T06:00:00Z")]
     out = searching.searching_now(Patched(search_signals=lambda s, e, m: rows), ["ZA"], "2026-09-30", NONE_HIDDEN)
     assert out == [{"term": "Match Day", "market": "ZA", "source": "google_trending", "rank": 2,
-                    "refreshed_at": "2026-09-30"}]
+                    "refreshed_at": "2026-09-30T06:00:00Z"}]
 
 
 def test_each_market_shows_at_most_the_cap_ranked_first():

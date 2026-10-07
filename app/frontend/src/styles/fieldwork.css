@@ -471,7 +471,7 @@
     top: var(--s-2);
     right: 0;
     min-height: var(--target-min);
-    padding: 0 0 0 var(--s-3);
+    padding: 0 var(--s-1) 0 var(--s-3);
     font: inherit;
     font-size: var(--type-3);
     color: var(--ink-2);

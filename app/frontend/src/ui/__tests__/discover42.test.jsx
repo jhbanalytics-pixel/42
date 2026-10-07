@@ -655,7 +655,7 @@ test('in warm-up Radar ranks creators in 7 days, words the rest, and keeps thin 
   await mount({}, standard(measured));
   const section = host.querySelector('[data-section="radar"]');
   expect(section.querySelector('[data-strip-caption]').textContent)
-    .toBe('Creators in 7 days, 14 October to 20 October 2026; bars run from 0 to 12. Under 8 posts a row shows its count only.');
+    .toBe('Creators and posts in 7 days, 14 October to 20 October 2026; bars run from 0 to 12. Under 8 posts a row shows its count only.');
   expect(section.querySelector('[data-window-short]').textContent).toBe('Short collection days: YouTube 6 of 7 days');
   /* Design review, 4 October 2026: restated. The facts were one run-on
      sentence per row; they are now labelled table columns, one per measure.

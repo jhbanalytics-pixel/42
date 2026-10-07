@@ -11,6 +11,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -19,7 +20,9 @@ from urllib.parse import urlsplit
 
 from core.api import discover, store as store_mod
 from core.api.agent_app import current_watches
+from core.api.alerts import _written_title
 from core.api.digest import _day, app_url, topic_url
+from core.api.skins import _known
 from core.api.today import LABELS, MARKETS, SAST, NotReady, build_today
 
 MAX_CARDS = 3
@@ -43,22 +46,33 @@ class ChannelError(RuntimeError):
     """A failed post, worded without the webhook address."""
 
 
-def _creator(card):
-    return card.get("kind") == "creator" or "@" in str(card.get("title") or "")
+def _creator(card, text=None):
+    titles = (str(card.get("title") or ""), str(text or ""))
+    if card.get("kind") == "creator" or any("@" in title for title in titles):
+        return True
+    handles = {post["handle"].strip().lstrip("@").casefold() for post in card.get("evidence") or []
+               if isinstance(post, dict) and isinstance(post.get("handle"), str)} - {""}
+    known = _known(handles)
+    # In display text, an ASCII ellipsis is punctuation before a handle.
+    return known is not None and any(
+        known.search(title) or any(known.match(title[mark.end():]) for mark in re.finditer(r"\.{3,}", title))
+        for title in titles)
 
 
-def _card_words(card, market):
-    if _creator(card):
+def _card_words(card, market, date):
+    written = _written_title(card, date, market)
+    if _creator(card, written):
         word = card.get("state_word")
         return f"A creator is {word} in {LABELS[market]}" if word else f"A creator moved in {LABELS[market]}"
-    return ", ".join(str(w) for w in (card.get("title"), card.get("state_word"), card.get("count_line")) if w)
+    title = written or card.get("title")
+    return ", ".join(str(w) for w in (title, card.get("state_word"), card.get("count_line")) if w)
 
 
 def _headline(resp, markets, link):
     h = resp.get("headline") or {}
     card = next((c for c in (markets.get(h.get("market")) or {}).get("cards", []) +
                  (markets.get(h.get("market")) or {}).get("more", []) if c.get("item_id") == h.get("item_id")), None)
-    if card is None or _creator(card) or "@" in str(h.get("text") or ""):
+    if card is None or _creator(card, h.get("text")):
         return (READY, link)
     return (h["text"], link)
 
@@ -69,7 +83,7 @@ def _alert_line(a, base):
     if kind == "creator":
         return (f"A watched creator moved in {LABELS[market]}", link)
     if kind in ITEM_WATCHES:
-        return (f"{_card_words(a['card'], market)}: {a['fired_because']}", link)
+        return (f"{_card_words(a['card'], market, a.get('since'))}: {a['fired_because']}", link)
     return (f"A watched search moved in {LABELS[market]}", link)
 
 
@@ -98,7 +112,7 @@ def sections(resp, alerts, scheduled, base):
     for code in MARKETS:
         m = markets.get(code) or {}
         lines = [(f"{LABELS[code]}: {BRIEF_WORDS.get(m.get('status'), NO_BRIEF)}", today_link)]
-        lines += [(_card_words(c, code), topic_url(base, c["item_id"], code))
+        lines += [(_card_words(c, code, resp["date"]), topic_url(base, c["item_id"], code))
                   for c in (m.get("cards") or [])[:MAX_CARDS] if code in briefed]
         out.append(lines)
     if alerts:

@@ -262,20 +262,15 @@ for (const theme of ['midnight', 'daylight']){
   }, 180000);
 }
 
-/* The console route. The workbench is host chrome around the package
-   surfaces: the topbar, the rail with its tabs, actions and recents, the flow
-   strip with the market scope, and the landing with its two paths and the
-   investigation index. The audit measured ninety-two failing text runs here,
-   most of them faint or the plane red painted as text and one label painted
-   in its own background colour. Every text node inside the workbench is held
-   to AA in both themes and at both the desk and the phone width.
-
-   The reads the landing makes on mount answer as an empty estate, so the
-   recents rail, the investigation index and the flow strip all render their
-   settled sentences rather than a loading line. */
+/* Plain console opens Build. Its forms and saved-answer fixture must render
+   before every visible text node is measured in both themes and widths. */
 const CONSOLE_API = {
   '/api/health': {passcode: false},
-  '/api/research/recent': [],
+  '/api/history/asks': {asks: [{ask_id: 'a_contrast_fixture', question: 'Console contrast fixture answer', status: 'complete', answer_status: 'complete', market: 'ZA', at: '2026-10-06T08:00:00Z'}]},
+  '/api/history/briefs': {dates: []},
+  '/api/investigations': {investigations: []},
+  '/api/dossiers': {dossiers: []},
+  '/api/schedules': {schedules: []},
 };
 
 /* The package's own skip link paints paper on the text red in midnight. That
@@ -285,15 +280,14 @@ const OUTSIDE_THE_WORKBENCH = new Set(['a.instrument-skip-link']);
 
 for (const theme of ['midnight', 'daylight']){
   for (const [label, width, height, atLeast] of [['desk', 1440, 1000, 24], ['phone', 390, 844, 20]]){
-    test.skipIf(!CHROME)(`the console workbench meets WCAG AA on every text node in ${theme} at the ${label} width`, async () => {
-      const measured = await measure({theme, hash: '#/console', root: '.workbench', api: CONSOLE_API, width, height});
+    test.skipIf(!CHROME)(`Build meets WCAG AA on every text node in ${theme} at the ${label} width`, async () => {
+      const measured = await measure({theme, hash: '#/console', root: '.b42', api: CONSOLE_API, width, height});
       expect(measured.theme).toBe(theme);
       const inside = measured.rows.filter((row) => row.inside);
-      /* The topbar, the rail head, two tabs, two actions, two rail sections
-         with their sentences, the flow strip, the hero and two path cards.
-         The phone width folds the rail into the mobile switch, so it carries
-         fewer nodes; a page that rendered nothing would still fail. */
+      /* Retain the text-count floor and require the saved answer, so an empty
+         page or a loading state cannot satisfy the contrast check. */
       expect(inside.length).toBeGreaterThanOrEqual(atLeast);
+      expect(inside.some((row) => row.text.includes('Console contrast fixture answer'))).toBe(true);
       expect(report(inside.filter((row) => !row.pass))).toEqual([]);
       const shell = measured.rows.filter((row) => !row.inside && !row.pass && !OUTSIDE_THE_WORKBENCH.has(row.node));
       expect(report(shell)).toEqual([]);

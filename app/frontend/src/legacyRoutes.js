@@ -74,9 +74,11 @@ export function legacyHashTarget(hash){
     if (segments.slice(1).some(Boolean)) return '#/console';
     if (query.has('request')) return '#/history';
     const work = query.get('work');
-    /* On the console itself work=ask already lands on #/ask (App.jsx
-       askAliasTarget); the chat and research names do not reach it. */
-    if (work === 'ask') return view === 'console' ? null : '#/ask';
+    if (work === 'ask'){
+      query.delete('work');
+      const ask = query.toString();
+      return '#/ask' + (ask ? '?' + ask : '');
+    }
     const investigation = query.get('investigation') || '';
     if (INVESTIGATION_ID.test(investigation)) return '#/investigations/' + investigation;
     /* The plain console is Build's own page already. */

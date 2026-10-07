@@ -18,6 +18,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Callable
 from uuid import uuid4
 
@@ -835,14 +836,42 @@ def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[
 RECEIPT_ROWS = 50  # rows a query receipt keeps; row_count and result_hash still cover every row
 
 
-def query_receipts(ctx: RunContext) -> dict:
+def query_receipts(ctx: RunContext, answer: dict | None = None) -> dict:
     """What a reviewer needs to check a number: per query_id its purpose, sql, params, result_hash, row_count and the
-    first RECEIPT_ROWS rows, as plain JSON. f42-agent keeps them on the runs row only, never in the Ask body."""
+    numeric support before preview rows, as plain JSON. f42-agent keeps them on the runs row only, never in the Ask body."""
     receipts = {}
     for query_id, query in list(ctx.queries.items()):
         rows = list(query.get("rows") or [])
+        numbers = [n for c in (answer or {}).get("claims") or [] if c.get("check") != "cut"
+                   for n in c.get("numbers") or [] if n.get("query_id") == query_id]
+        values = [n["value"] for n in numbers if isinstance(n.get("value"), (int, float))
+                  and not isinstance(n["value"], bool) and n.get("run_id") == ctx.run_id
+                  and n.get("result_hash") == query.get("result_hash")]
+        supporting = [i for i, row in enumerate(rows)
+                      if any(checks._matches(value, cell) for value in values for cell in checks._cells(row))]
+        indexes = (supporting + [i for i in range(len(rows)) if i not in supporting])[:RECEIPT_ROWS]
         receipt = {"purpose": query.get("purpose"), "sql": query.get("sql"), "params": query.get("params") or {},
-                   "result_hash": query.get("result_hash"), "row_count": len(rows), "rows": rows[:RECEIPT_ROWS]}
+                   "result_hash": query.get("result_hash"), "row_count": len(rows), "rows": [rows[i] for i in indexes]}
+        if numbers:
+            receipt.update(row_indexes=indexes, supporting_rows=min(len(supporting), RECEIPT_ROWS))
+            if len(supporting) > RECEIPT_ROWS:
+                receipt["support_unavailable"] = "row_limit"
+            elif len(values) != len(numbers) or any(
+                    not any(checks._matches(value, cell) for cell in checks._cells(rows)) for value in values):
+                receipt["support_unavailable"] = "missing_rows"
+        cell_types = []
+        for i in indexes:
+            pending = [(rows[i], [])]
+            while pending:
+                value, path = pending.pop()
+                if isinstance(value, Decimal):
+                    cell_types.append({"row_index": i, "path": path, "type": "decimal"})
+                elif isinstance(value, dict):
+                    pending.extend((cell, path + [key]) for key, cell in value.items())
+                elif isinstance(value, (list, tuple)):
+                    pending.extend((cell, path + [index]) for index, cell in enumerate(value))
+        if cell_types:
+            receipt["cell_types"] = cell_types
         receipts[query_id] = json.loads(json.dumps(receipt, default=str))
     return receipts
 
@@ -924,13 +953,16 @@ def _investigation(request: dict, *, model: str, now) -> dict | None:
         return None
     from core.agent import investigate
 
-    plan = investigate.validate_plan(request["plan"], model, now=now)
+    plan = investigate.validate_plan(request["plan"], model, now=now, confirmed=True)
     credits, usd = request.get("max_credits"), request.get("max_model_usd")
     if not investigate.number(credits) or not 0 <= credits <= plan["max_credits"]:
         raise ValueError(f"max_credits is 0 to the plan's {plan['max_credits']:g}")
-    floor = gate_usd(model, investigate.passes(plan))
+    floor = gate_usd(model, investigate.passes(plan)) - once_usd(model)
     if not investigate.number(usd) or not floor < usd <= plan["max_model_usd"]:
         raise ValueError(f"max_model_usd is above USD {floor:.2f} and at most the plan's USD {plan['max_model_usd']:g}")
+    research_usd = investigate.lane_usd(plan, usd, model) * investigate.lanes(plan)
+    if research_usd < 0.000001:
+        raise ValueError("max_model_usd leaves less than one microdollar for research")
     investigation_id = request.get("investigation_id")
     if investigation_id is not None and not isinstance(investigation_id, str):
         raise ValueError("investigation_id is a string")
@@ -1117,10 +1149,11 @@ SUPPORT_WORKERS = 5
 class _StopAwareModel:
     parallel_calls = SUPPORT_WORKERS
 
-    def __init__(self, model, should_stop, model_budget=None, keep_room=None):
+    def __init__(self, model, should_stop, model_budget=None, keep_room=None, phase_seconds=None):
         self.model = model
         self.should_stop = should_stop
         self.model_budget = model_budget
+        self.phase_seconds = phase_seconds
         # An optional call the question goes on without (the short answer rewrite) names the calls still to come,
         # (input_bound, max_output_tokens) each. A failure with unknown usage books its full reserve, as any does, but
         # does not stop those calls, and its one 5xx retry runs only when the budget still has room for it and them.
@@ -1131,6 +1164,17 @@ class _StopAwareModel:
         return usage if not callable(complete) or complete() else None
 
     def complete_json(self, **kwargs):
+        from core.agent.writer import K4_REWRITE_SCHEMA
+
+        if self.phase_seconds is None or kwargs.get("schema") is not K4_REWRITE_SCHEMA:
+            return self._complete_json(**kwargs)
+        started = time.monotonic()
+        try:
+            return self._complete_json(**kwargs)
+        finally:
+            self.phase_seconds["rewrite"] += max(0.0, time.monotonic() - started)
+
+    def _complete_json(self, **kwargs):
         if self.should_stop():
             exc = _StopRequested()
             exc.before_dispatch = True
@@ -1147,6 +1191,10 @@ class _StopAwareModel:
         failed = None
         busy = server_failed = 0
         while True:
+            if self.should_stop():
+                exc = _StopRequested()
+                exc.before_dispatch = True
+                raise exc
             try:
                 input_bound = _input_token_upper_bound(kwargs["system"], kwargs["user"], kwargs["schema"])
                 reservation = self.model_budget.reserve(kwargs["model"], input_bound, kwargs["max_tokens"])
@@ -1333,7 +1381,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     caller reports the ask's runs row written with recorded(request["ask_id"])."""
     started = time.monotonic()
     question, tier, mode, market, skill = _request(request)
-    guarded_gemini = tier in ("T0", "T1") and is_gemini_model(MODEL)
+    guarded_gemini = is_gemini_model(MODEL)
     deps = deps or _default_deps(gemini_retries=0 if guarded_gemini else 1)
     as_of = deps.now().astimezone(SAST).replace(microsecond=0)
     markets = [market] if market else detect_markets(question)
@@ -1365,6 +1413,24 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     progress = Progress(emit, deps.now, market_label=markets_label(markets, "market not set"), window=window)
     tokens = {"input": 0, "output": 0}
     usd = 0.0
+    phase_seconds = dict.fromkeys(("plan", "research", "write", "checks", "rewrite"), 0.0)
+    planning = True
+
+    def close_plan():
+        nonlocal planning
+        if planning:
+            phase_seconds["plan"] = max(0.0, time.monotonic() - started)
+            planning = False
+
+    def timed(phase, function, *args, **kwargs):
+        phase_started = time.monotonic()
+        rewrite_before = phase_seconds["rewrite"]
+        try:
+            return function(*args, **kwargs)
+        finally:
+            nested = phase_seconds["rewrite"] - rewrite_before if phase == "checks" else 0.0
+            phase_seconds[phase] += max(0.0, time.monotonic() - phase_started - nested)
+
     numeric_repair_attempted = False
 
     def spend(t_in, t_out, cost):
@@ -1377,10 +1443,11 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     store_ids: dict = {}  # the whole-store count query ids, once the gate has run them
 
     def model_usd() -> float:
-        return ((max(usd, model_budget.booked_usd) if model_budget is not None else usd)
-                + getattr(ctx, "model_usd_extra", 0.0))
+        reported = usd + getattr(ctx, "model_usd_extra", 0.0)
+        return max(reported, model_budget.booked_usd) if model_budget is not None else reported
 
     def run_object(followups: list[str], finished: str | None = None) -> dict:
+        close_plan()
         platforms = {PLATFORM_NAMES.get(r.get("platform"), r.get("platform")) for r in ctx.evidence.values()
                      if r.get("platform")}
         run_notices = list(notices)
@@ -1418,6 +1485,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             "credits": ctx.credits_spent,
             "tokens": dict(tokens),
             "seconds": round(time.monotonic() - started, 1),
+            "phase_seconds": {key: round(value, 3) for key, value in phase_seconds.items()},
             "model_usd": model_usd(),
             "window": {"from": window[0].isoformat(), "to": window[1].isoformat()},
             "posts": len(ctx.evidence),
@@ -1451,12 +1519,22 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             client = _Counted(deps.socialcrawl(mode, run_id=ctx.run_id))
             client_notices = list(getattr(client.client, "notices", ()))
     except BaseException:
+        close_plan()
         with _SPEND_LOCK:
             _READING.pop(reading, None)
         raise
 
     def held(tier: str, model: str) -> float:
         return inv["max_model_usd"] if tier == "T3" else hold_usd(tier, model)
+
+    lane_usd = researcher_usd()
+    if tier == "T3":
+        from core.agent import investigate
+
+        lane_usd = investigate.lane_usd(inv["plan"], inv["max_model_usd"], model_name)
+        ctx.limits = {"credits": inv["max_credits"], "calls": TIERS["T3"]["calls"],
+                      "max_turns": TIERS["T3"]["max_turns"],
+                      "max_budget_usd": lane_usd * investigate.lanes(inv["plan"])}
 
     hold = object()
     unrecorded_key = request.get("ask_id") or run_id
@@ -1476,6 +1554,13 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                     ctx.tier = tier
             refused = committed + held(tier, model_name) > model_cap
         if not refused:
+            if is_gemini_model(model_name):
+                try:
+                    model_budget = AskModelBudget(held(tier, model_name), ctx.budget["max_budget_usd"])
+                except BaseException:
+                    close_plan()
+                    raise
+                ctx.model_budget = model_budget
             _IN_FLIGHT[hold] = held(tier, model_name)
     if spent is None:
         notices.append(f"Model spend for today could not be read, so the USD {model_cap:g} cap is treated as "
@@ -1486,20 +1571,10 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         notices.append(f"{notice}; this answer ran at T0 on {_label(FALLBACK_MODEL, 'the faster model')}")
     notices += [n for n in client_notices if n not in notices]
     if refused:
+        close_plan()
         return {"answer": _refused_answer(as_of.isoformat(), window),
                 "run": run_object([], "refused" if inv is not None else None)}
-    if tier in ("T0", "T1") and is_gemini_model(model_name):
-        model_budget = AskModelBudget(held(tier, model_name), TIERS[tier]["max_budget_usd"])
-        ctx.model_budget = model_budget
-    stop_model = _StopAwareModel(deps.model, should_stop, model_budget)
-    lane_usd = researcher_usd()
-    if tier == "T3":
-        from core.agent import investigate
-
-        lane_usd = investigate.lane_usd(inv["plan"], inv["max_model_usd"], model_name)
-        ctx.limits = {"credits": inv["max_credits"], "calls": TIERS["T3"]["calls"],
-                      "max_turns": TIERS["T3"]["max_turns"],
-                      "max_budget_usd": lane_usd * investigate.lanes(inv["plan"])}
+    stop_model = _StopAwareModel(deps.model, should_stop, model_budget, phase_seconds=phase_seconds)
     research_started = research_reported = False
     finished = None
     rewrite_attempted: set[str] = set()
@@ -1536,7 +1611,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             # reserve: the answer goes on with the short answer blank rather than stopping on usage_unknown.
             rewrite_model = _StopAwareModel(deps.model, should_stop, model_budget,
                                             keep_room=[(FIELD_INPUT_TOKENS, FIELD_MAX_TOKENS)])
-            text, usage, dispatched, reason = rewrite_headline(rewrite_model, checked, answer, ctx, model_name)
+            text, usage, dispatched, reason = timed("rewrite", rewrite_headline, rewrite_model, checked, answer,
+                                                     ctx, model_name)
         except _StopRequested:
             raise
         except Exception as exc:
@@ -1599,7 +1675,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                         notices.append(notice)
         progress.step("write", f"Writing the answer from {len(ctx.evidence)} posts and {len(ctx.queries)} counts")
         ctx.writer_note = note
-        draft, usage = write_answer(stop_model, question=question, as_of=as_of, market=market,
+        draft, usage = timed("write", write_answer, stop_model, question=question, as_of=as_of, market=market,
                                     window=f"{window[0].isoformat()} to {window[1].isoformat()}", ctx=ctx,
                                     failed_sources=[r for r in source_status if r["status"] != "ok"], note=note,
                                     model_name=model_name)
@@ -1619,8 +1695,9 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             if issues:
                 numeric_repair_attempted = True
                 progress.step("write", "Checking the answer's numbers against recorded queries")
-                draft, usage = repair_answer_numbers(
-                    stop_model, draft=draft, issues=issues, question=question, as_of=as_of, market=market,
+                draft, usage = timed(
+                    "rewrite", repair_answer_numbers, stop_model, draft=draft, issues=issues, question=question,
+                    as_of=as_of, market=market,
                     window=f"{window[0].isoformat()} to {window[1].isoformat()}", ctx=ctx,
                     failed_sources=[r for r in source_status if r["status"] != "ok"], note=note,
                     model_name=model_name)
@@ -1630,10 +1707,11 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         allowed = writer_gaps(draft["gaps"]) + source_gaps(ctx, window)
         progress.step("check", f"Checking {len(draft['claims'])} claims against the posts and the numbers")
         check = deps.check or check_answer
-        checked, verdicts = check(draft, ctx, deps.warehouse, window=window, markets=markets)
+        checked, verdicts = timed("checks", check, draft, ctx, deps.warehouse, window=window, markets=markets)
         if should_stop():
             raise _StopRequested()
-        answer, support, usage = apply_support(stop_model, checked, ctx, model_name, warehouse=deps.warehouse,
+        answer, support, usage = timed("checks", apply_support, stop_model, checked, ctx, model_name,
+                                               warehouse=deps.warehouse,
                                                window=window, markets=markets,
                                                rewrite_attempted=rewrite_attempted)
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
@@ -1644,9 +1722,10 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         narrowed = any(claim.get("id") in original_words and original_words[claim.get("id")] != claim.get("text")
                        for claim in answer.get("claims") or [])
         answer, rewrote = headline(checked, answer)
-        answer, rechecked = checks.recheck_fields(answer, ctx, window=window,
+        answer, rechecked = timed("checks", checks.recheck_fields, answer, ctx, window=window,
                                                   code_gaps=checks.code_gap_indexes(draft["gaps"], answer["gaps"]))
-        answer, fielded, usage = apply_field_check(stop_model, answer, ctx, model_name, draft_gaps=draft["gaps"])
+        answer, fielded, usage = timed("checks", apply_field_check, stop_model, answer, ctx, model_name,
+                                      draft_gaps=draft["gaps"])
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
             raise _StopRequested()
@@ -1667,8 +1746,12 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         claims = answer.get("claims") or []
         if not claims:
             return answer, [], None
-        result = critic.critique(answer, ctx, stop_model)
-        spend(result["tokens"]["input"], result["tokens"]["output"], 0.0)
+        extra_before = ctx.model_usd_extra
+        result = timed("checks", critic.critique, answer, ctx, stop_model)
+        critic_usd = ctx.model_usd_extra - extra_before
+        if model_budget is not None:
+            ctx.model_usd_extra = extra_before
+        spend(result["tokens"]["input"], result["tokens"]["output"], critic_usd if model_budget is not None else 0.0)
         if should_stop():
             raise _StopRequested()
         if result["critic_failed"] and CRITIC_FAILED not in notices:
@@ -1695,9 +1778,10 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                          "max_budget_usd": lane_usd})
         job = (lane, _gap_prompt(prompt, queries, followups, reserve), _Counted(client.client, lock=client.lock))
         try:
-            research = _research_lanes(deps, [job], setup, progress, should_stop, ctx, client)
+            research = timed("research", _research_lanes, deps, [job], setup, progress, should_stop, ctx, client)
         except Exception:
-            spend(0, 0, lane_usd)
+            if model_budget is None:
+                spend(0, 0, lane_usd)
             notices.append(GAP_FAILED)
             return None
         spend(research["tokens"]["input"], research["tokens"]["output"], research["usd"])
@@ -1803,13 +1887,16 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                         metadata_note = f"Stored creator lookup unavailable ({failure_type}). {CREATOR_LOOKUP_UNKNOWN}"
                     stopped = should_stop()
             if not stopped:
+                close_plan()
                 research_started = True
                 if tier == "T2":
-                    research = _first_round(deps, ctx, client, setup, prompt, markets, progress, should_stop)
+                    research = timed("research", _first_round, deps, ctx, client, setup, prompt, markets,
+                                     progress, should_stop)
                 elif tier == "T3":
-                    research = _plan_round(deps, ctx, client, setup, prompt, inv, lane_usd, progress, should_stop)
+                    research = timed("research", _plan_round, deps, ctx, client, setup, prompt, inv, lane_usd,
+                                     progress, should_stop)
                 else:
-                    research = deps.research(ctx, prompt, setup, progress, should_stop)
+                    research = timed("research", deps.research, ctx, prompt, setup, progress, should_stop)
                 note = research.get("note") or ""
                 if metadata_note:
                     note = "\n\n".join(part for part in (note, metadata_note) if part)
@@ -1904,6 +1991,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         exc.run = run_object([])
         raise
     finally:
+        close_plan()
         with _SPEND_LOCK:
             _IN_FLIGHT.pop(hold, None)
             _UNRECORDED[unrecorded_key] = (decision_at.date(), model_usd())
@@ -1913,4 +2001,4 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     answer, followups = plain.answer(answer), [plain.text(f) for f in followups]
     return {"answer": answer,
             "run": run_object(followups, (finished or answer["status"]) if inv is not None else None),
-            "query_receipts": query_receipts(ctx)}
+            "query_receipts": query_receipts(ctx, answer)}

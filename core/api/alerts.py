@@ -11,6 +11,13 @@ KEY_KINDS = ("hashtag", "sound", "creator")
 WORD_KINDS = ("brand", "query")
 
 
+def _written_title(card, date, market):
+    if card.get("date") != date or card.get("market") != market or not card.get("explained"):
+        return None
+    title = card.get("title_written")
+    return " ".join(title.split()) if isinstance(title, str) and title.strip() else None
+
+
 def normalise(value):
     return " ".join(str(value or "").lower().lstrip("#@").split())
 

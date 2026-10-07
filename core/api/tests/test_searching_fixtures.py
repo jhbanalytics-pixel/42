@@ -56,11 +56,12 @@ def test_one_fixture_under_several_names_is_shown_once_at_its_best_rank():
         ("eritrea national football team vs south africa national soccer team standings", 2), ("amapiano", 4)]
 
 
-def test_every_row_carries_a_plain_day_in_sast():
+def test_live_rows_keep_the_fetch_timestamp_and_daily_rows_keep_their_day():
     rows = [row("bq term", 1), row("trending late", 2, source="google_trending", refreshed_at="2026-10-03T22:45:59Z"),
             row("trending early", 3, source="google_trending", refreshed_at="2026-10-04T00:45:59Z")]
     assert [(r["term"], r["refreshed_at"]) for r in strip(rows, ["ZA"])] == [
-        ("bq term", "2026-10-03"), ("trending late", "2026-10-04"), ("trending early", "2026-10-04")]
+        ("bq term", "2026-10-03"), ("trending late", "2026-10-03T22:45:59Z"),
+        ("trending early", "2026-10-04T00:45:59Z")]
 
 
 def test_left_out_fixtures_are_backfilled_to_ten_rows():

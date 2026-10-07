@@ -21,7 +21,6 @@ from core.agent.skills import PAGE_TIERS
 from core.agent.tools.dates import SAST, resolve_dates
 from core.agent.tools.socialcrawl import PLATFORM_NAMES, _fence
 from core.agent.tools.sql_query import PROJECT, Warehouse, sql_query
-from core.understand.embed import CHARS_PER_TOKEN, EMBED_USD_PER_MILLION_TOKENS
 
 log = logging.getLogger(__name__)
 
@@ -451,9 +450,6 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
         _emit_retrieval_trace(ctx, "semantic", query_id=semantic["query_id"], rows=semantic["rows"])
         lists.append(semantic["rows"])
         query_ids.append(semantic["query_id"])
-        # tvf_search_posts embeds the query text through gemini-embedding-001; run_ask adds this to the run's model_usd.
-        ctx.model_usd_extra = (getattr(ctx, "model_usd_extra", 0.0)
-                               + len(query) / CHARS_PER_TOKEN * EMBED_USD_PER_MILLION_TOKENS / 1_000_000)
 
     if window:  # the same rule as fetch_posts: no post published outside the ask's window is stored, and each query
         # record counts and lists what its own rows skipped

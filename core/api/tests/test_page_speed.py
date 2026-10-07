@@ -10,6 +10,7 @@ import itertools
 import threading
 import time
 from unittest import mock
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi.testclient import TestClient
@@ -683,3 +684,160 @@ def test_the_bigquery_client_keeps_a_connection_for_each_read_started_together()
     client = mock.MagicMock()
     BigQueryStore(client=client)
     assert not client._http.mount.called  # a stand-in client is left alone
+
+
+def test_reach_cache_reuses_the_same_item_set_in_a_different_order():
+    store = Counting()
+    run = FixtureStore().latest_detect_run()
+    ids = [STEP, HER]
+    before = list(ids)
+    first = discover._reach(fast.reads(store), run, "ZA", ids)
+    second = discover._reach(fast.reads(store), run, "ZA", list(reversed(ids)))
+    assert first == second
+    assert ids == before
+    assert store.calls.count("item_reach") == 1
+
+
+def test_all_market_reach_reads_are_prefetched_in_one_round():
+    cards = [{"item_id": STEP, "market": "ZA"}, {"item_id": HER, "market": "NG"},
+             {"item_id": STEP, "market": "KE"}]
+    run = FixtureStore().latest_detect_run()
+    expected = discover._with_reach7(FixtureStore(), run, copy.deepcopy(cards))
+    store = Counting()
+    started = fast.prefetch(store, lambda p: None)
+    got, depth = _rounds(lambda s: discover._with_reach7(s, run, copy.deepcopy(cards)), started)
+    assert got == expected
+    assert [(c["item_id"], c["market"]) for c in got] == [(STEP, "ZA"), (HER, "NG"), (STEP, "KE")]
+    assert store.calls.count("item_reach") == 3
+    assert depth == 1
+    assert started.unused() == []
+
+
+@pytest.mark.parametrize("fails", [False, True])
+@pytest.mark.parametrize("result", [None, [{"item_id": "fixture", "posts": [1]}]])
+def test_concurrent_pipeline_misses_share_one_result_or_error_and_retry_after_failure(monkeypatch, fails, result):
+    entered, release, both_read = threading.Event(), threading.Event(), threading.Event()
+    lock = threading.Lock()
+
+    class Store:
+        calls = 0
+
+        def item_waves(self, item_id, market):
+            with lock:
+                self.calls += 1
+                attempt = self.calls
+            entered.set()
+            if not release.wait(3):
+                raise AssertionError("test read was not released")
+            if fails and attempt == 1:
+                raise ValueError("fixture read failed")
+            return copy.deepcopy(result)
+
+    store = Store()
+    cached = fast.reads(store)
+    cache = fast._cache_of(store)
+    get = cache.get
+    observed = [0]
+
+    def observe(key):
+        hit = get(key)
+        with lock:
+            observed[0] += 1
+            if observed[0] == 2:
+                both_read.set()
+        return hit
+
+    monkeypatch.setattr(cache, "get", observe)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(cached.item_waves, "fixture", "ZA")
+        try:
+            assert entered.wait(3)
+            second = pool.submit(cached.item_waves, "fixture", "ZA")
+            assert both_read.wait(3)
+        finally:
+            release.set()
+        if fails:
+            for future in (first, second):
+                with pytest.raises(ValueError, match="fixture read failed"):
+                    future.result(timeout=3)
+        else:
+            one, two = first.result(timeout=3), second.result(timeout=3)
+            assert one == two == result
+            if one is not None:
+                one[0]["posts"].append(2)
+                assert two[0]["posts"] == [1]
+    assert store.calls == 1
+    assert cached.item_waves("fixture", "ZA") == result
+    assert store.calls == (2 if fails else 1)
+
+
+def test_shared_pipeline_result_expires_from_completion_time(monkeypatch):
+    now = [1000.0]
+    entered, release = threading.Event(), threading.Event()
+    monkeypatch.setattr(fast, "clock", lambda: now[0])
+
+    class Store:
+        calls = 0
+
+        def item_waves(self, item_id, market):
+            self.calls += 1
+            entered.set()
+            if not release.wait(3):
+                raise AssertionError("test read was not released")
+            return [{"attempt": self.calls}]
+
+    store = Store()
+    cached = fast.reads(store)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(cached.item_waves, "fixture", "ZA")
+        try:
+            assert entered.wait(3)
+            now[0] = 5000.0
+        finally:
+            release.set()
+        assert future.result(timeout=3) == [{"attempt": 1}]
+    now[0] += fast.CACHE_TTL
+    assert cached.item_waves("fixture", "ZA") == [{"attempt": 1}]
+    now[0] += 0.1
+    assert cached.item_waves("fixture", "ZA") == [{"attempt": 2}]
+
+
+def test_concurrent_suppression_reads_stay_fresh():
+    together = threading.Barrier(2)
+    lock = threading.Lock()
+
+    class Store:
+        calls = 0
+
+        def suppressed_creators(self):
+            with lock:
+                self.calls += 1
+            together.wait(timeout=3)
+            return {"fixture"}
+
+    store = Store()
+    cached = fast.reads(store)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(cached.suppressed_creators) for _ in range(2)]
+        assert [f.result(timeout=3) for f in futures] == [{"fixture"}, {"fixture"}]
+    assert store.calls == 2
+
+
+def test_different_pipeline_keys_can_read_together():
+    together = threading.Barrier(2)
+    calls = []
+    lock = threading.Lock()
+
+    class Store:
+        def item_waves(self, item_id, market):
+            with lock:
+                calls.append((item_id, market))
+            together.wait(timeout=3)
+            return [{"market": market}]
+
+    store = Store()
+    cached = fast.reads(store)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(cached.item_waves, "fixture", market) for market in ("ZA", "NG")]
+        assert [f.result(timeout=3) for f in futures] == [[{"market": "ZA"}], [{"market": "NG"}]]
+    assert sorted(calls) == [("fixture", "NG"), ("fixture", "ZA")]

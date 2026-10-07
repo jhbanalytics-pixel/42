@@ -2,7 +2,8 @@
 
 run_cluster(execute, run_date=, market=) runs once per market and once pooled ('pan'). It reads every post sighted
 in the three days ending run_date that has a stored embedding (cluster_posts.sql), fits BERTopic on those
-embeddings with the DATA.md parameters and no embedding model, and keeps only today's posts as cluster members.
+embeddings with the DATA.md parameters and no embedding model, and keeps only today's original inliers as cluster
+members. Original outliers stay unassigned; an assigned member with probability zero is still retained.
 The embeddings are held as one float32 matrix, each post's list of floats dropped as its row is filled. A run over
 MAX_CLUSTER_POSTS keeps all of today's posts and a seeded sample of the older two days (cap_posts), with the number
 it fitted on as capped_posts in its counts; a run under the cap fits on every post, as before.
@@ -39,14 +40,15 @@ number. The weekly review itself recomputes the pairs over every current topic w
 cluster_write.sql writes the run in one transaction: cultural_map by MERGE, closing a changed row with valid_to
 and opening the new version with valid_from; clusters and cluster_members appended. When the JSON parameters would
 pass 8 MB the run is written in batches of whole clusters, each its own guarded transaction. The run's tallies are
-the counts the write script returns, so a write its guard refused counts nothing. A market already clustered that
-day is skipped (cluster_done.sql), so a rerun changes nothing.
+the counts the write script returns, so a write its guard refused counts nothing. Original batches are saved in
+append-only runs rows before any cluster write. A retry replays that plan without fitting, labelling or matching
+again. Only a complete saved plan whose cluster ids are all present is skipped (cluster_done.sql).
 
 When a batch raises, the exception carries failed_batch (its index, counted from 0) and unwritten_cluster_ids (the
 cluster ids of that batch and every later one) for the job to log in its failure counts. The failed batch may have
-committed before its error came back; the write's guard makes a replay of it safe either way. A partly written
-market-day is left as is; rerun that market for the next day, or replay the failed batch by hand from the logged
-ids.
+committed before its error came back; the write's guard makes a replay of it safe either way. A pending map update
+holds its whole batch if the original valid_from is no longer current. Existing cluster rows without a saved plan
+raise an error because their completeness cannot be established.
 
 The nearest-three search runs in numpy over every current topic rather than VECTOR_SEARCH, because the job passes
 scalar parameters only; it is exact, and cheap at the map's size.
@@ -59,6 +61,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import uuid
 from collections import Counter
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
@@ -140,8 +143,8 @@ def _rows(result):
 
 def fit_topics(docs, embeddings):
     """BERTopic on stored embeddings. Returns (topic per doc, HDBSCAN membership probability per doc, top keywords
-    per topic). Outliers are reassigned by embedding similarity and keep probability 0; topic -1 remains only when
-    HDBSCAN found no topic at all."""
+    per topic). Original density assignments and probabilities are retained; topic -1 stays unassigned and keywords
+    come from the original fit."""
     from bertopic import BERTopic
     from bertopic.vectorizers import ClassTfidfTransformer
     from hdbscan import HDBSCAN
@@ -163,9 +166,6 @@ def fit_topics(docs, embeddings):
     probs = [float(p) for p in (probs if probs is not None else [0.0] * n)]
     if all(t == -1 for t in topics):
         return topics, probs, {}
-    if -1 in topics:
-        topics = [int(t) for t in model.reduce_outliers(docs, topics, strategy="embeddings", embeddings=embeddings)]
-        model.update_topics(docs, topics=topics, vectorizer_model=vectorizer, ctfidf_model=ctfidf)
     keywords = {t: [w for w, _ in model.get_topic(t) or []][:TOP_KEYWORDS] for t in set(topics) if t != -1}
     return topics, probs, keywords
 
@@ -503,6 +503,7 @@ def plan(clusters, decisions, items, run_date, market):
             target = old["item_id"]
             map_rows.append({
                 "change": "update", "item_id": target, "kind": old["kind"], "canonical_key": old["canonical_key"],
+                "expected_valid_from": _iso(old.get("valid_from")),
                 "label": old["label"], "aliases": list(old.get("aliases") or []),
                 "parent_item_id": old.get("parent_item_id"), "centroid": _vector(ema(old["centroid"], c["centroid"])),
                 "first_seen": _iso(old.get("first_seen")), "first_seen_market": old.get("first_seen_market"),
@@ -587,6 +588,23 @@ def write_batches(planned, limit=MAX_PAYLOAD_BYTES):
     return [{k: json.dumps(b[k]) for k in WRITE_PARAMS} for b in batches]
 
 
+def _saved_plan(rows):
+    checkpoint = rows[0].get("checkpoint") if rows else None
+    if checkpoint is None:
+        raise RuntimeError("missing cluster recovery plan")
+    checkpoint = json.loads(checkpoint) if isinstance(checkpoint, str) else checkpoint
+    batches = []
+    for row in rows:
+        batch = row.get("batch")
+        batch = json.loads(batch) if isinstance(batch, str) else batch
+        if batch is None or row["batch_index"] != len(batches):
+            raise RuntimeError("incomplete cluster recovery plan")
+        batches.append({k: json.dumps(batch[k]) for k in WRITE_PARAMS})
+    if len(batches) != checkpoint["batch_count"]:
+        raise RuntimeError("incomplete cluster recovery plan")
+    return batches, checkpoint["summary"]
+
+
 def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None, clock=None):
     """Cluster run_date's posts for market and write the run. run_id is the understand run the label net's spend is
     booked under, day the day it is booked on (run_date when not given; the job hands it the day it started), model
@@ -596,8 +614,15 @@ def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None,
         raise ValueError(f"market must be one of {MARKETS}, got {market!r}")
     params = {"run_date": run_date, "market": market}
     done = _rows(execute(load("cluster_done"), params))
+    if done and done[0].get("checkpoint"):
+        batches, summary = _saved_plan(done)
+        expected = {r["cluster_id"] for b in batches for r in json.loads(b["cluster_rows"])}
+        if expected == set(done[0].get("written_ids") or []) and int(done[0]["n"]) == len(expected):
+            return {"market": market, "skipped": "already_clustered"}
+        counts = {**summary, "model_usd": 0.0, "booked_usd": 0.0, "recovered": True}
+        return _write_plan(execute, params, batches, counts)
     if done and int(done[0].get("n") or 0) > 0:
-        return {"market": market, "skipped": "already_clustered"}
+        raise RuntimeError("existing clusters have no recovery plan")
     posts = _rows(execute(load("cluster_posts"), params))
     counts = {"market": market, "posts": len(posts), "today_posts": sum(bool(p["today"]) for p in posts)}
     if len(posts) < MIN_POSTS or not counts["today_posts"]:
@@ -607,6 +632,8 @@ def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None,
         counts["capped_posts"] = len(posts)
     embeddings = embedding_matrix(posts)
     topics, probs, keywords = fit_topics([p.get("text") or "" for p in posts], embeddings)
+    counts.update(fit_outliers=sum(t == -1 for t in topics),
+                  today_outliers=sum(t == -1 and bool(p["today"]) for p, t in zip(posts, topics)))
     clusters = build_clusters(posts, topics, probs, keywords, run_date, market, embeddings)
     del embeddings
     kinds = ("matched", "recurrences", "variants", "new")
@@ -623,22 +650,45 @@ def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None,
         items = _rows(execute(load("cluster_items"), {"run_date": run_date}))
         decisions = assign(clusters, items, run_date)
         planned = plan(clusters, decisions, items, run_date, market)
-        written, batches = Counter(), write_batches(planned)
+        batches = write_batches(planned)
+        counts.update(merge_review=planned["merge_review"][:MERGE_REVIEW_LISTED],
+                      merge_review_total=len(planned["merge_review"]))
+        checkpoint = {**params, "plan_id": uuid.uuid4().hex, "batch_count": len(batches),
+                      "summary": json.dumps(counts)}
         for index, batch in enumerate(batches):
-            try:
-                rows = _rows(execute(load("cluster_write"), {**params, **batch}))
-            except Exception as err:
-                err.failed_batch = index
-                err.unwritten_cluster_ids = [r["cluster_id"] for b in batches[index:]
-                                             for r in json.loads(b["cluster_rows"])]
-                raise
-            for row in rows:
-                written.update({k: int(v or 0) for k, v in row.items()})
+            execute(load("cluster_checkpoint"), {**checkpoint, "batch_index": index, **batch})
+        execute(load("cluster_checkpoint"), {**checkpoint, "batch_index": -1,
+                                             **dict.fromkeys(WRITE_PARAMS, "[]")})
+        batches, summary = _saved_plan(_rows(execute(load("cluster_done"), params)))
+        counts = {**summary, "model_usd": counts["model_usd"], "booked_usd": counts["booked_usd"]}
+        return _write_plan(execute, params, batches, counts)
     except Exception as err:
         err.model_usd, err.booked_usd = counts["model_usd"], counts["booked_usd"]
         raise
+
+
+def _write_plan(execute, params, batches, counts):
+    written = Counter()
+    for index, batch in enumerate(batches):
+        try:
+            rows = _rows(execute(load("cluster_write"), {**params, **batch}))
+            if any(int(row.get("stale_updates") or 0) for row in rows):
+                raise RuntimeError("cluster recovery held: cultural_map version advanced or missing")
+        except Exception as err:
+            err.failed_batch = index
+            err.unwritten_cluster_ids = [r["cluster_id"] for b in batches[index:]
+                                         for r in json.loads(b["cluster_rows"])]
+            err.model_usd, err.booked_usd = counts["model_usd"], counts["booked_usd"]
+            raise
+        for row in rows:
+            written.update({k: int(v or 0) for k, v in row.items()})
+    done = _rows(execute(load("cluster_done"), params))
+    expected = {r["cluster_id"] for b in batches for r in json.loads(b["cluster_rows"])}
+    if not done or expected != set(done[0].get("written_ids") or []) or int(done[0].get("n") or 0) != len(expected):
+        err = RuntimeError("cluster recovery write is incomplete")
+        err.unwritten_cluster_ids = sorted(expected - set(done[0].get("written_ids") or [])) if done else sorted(expected)
+        err.model_usd, err.booked_usd = counts["model_usd"], counts["booked_usd"]
+        raise err
     counts.update(matched=written["matched"], recurrences=written["recurrences"], variants=written["variants"],
-                  new=written["new_items"], members=written["member_rows"],
-                  merge_review=planned["merge_review"][:MERGE_REVIEW_LISTED],
-                  merge_review_total=len(planned["merge_review"]))
+                  new=written["new_items"], members=written["member_rows"])
     return counts

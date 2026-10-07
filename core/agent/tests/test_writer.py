@@ -2109,8 +2109,9 @@ def test_system_prompt_asks_for_claims_a_reader_can_follow_without_report_jargon
     # 17 posts across 4 platforms in monitored feeds" did not read as sentences. The writer is told the plain form.
     lines = writer.WRITER_SYSTEM.splitlines()
     line = ("- Write each claim as one plain sentence a reader follows without the question: say what the posts were "
-            "about, then the figure, as in '17 posts across 4 platforms were about South African football, including "
-            "the Premier Soccer League'. Never write 'topics accounted for', 'generated N posts', 'in monitored "
+            "about, then the figure, as in 'South African football, including the Premier Soccer League, appeared "
+            "in 17 posts across 4 platforms'. Do not prefix a finding with a count list and a colon. "
+            "Never write 'topics accounted for', 'generated N posts', 'in monitored "
             "feeds' or 'recorded' for posts.")
     assert line in lines
     rewrite = ("Write it as one plain sentence that says what the posts were about. Never write 'topics accounted "

@@ -1,5 +1,6 @@
 from copy import deepcopy
 import hashlib
+from itertools import permutations
 import json
 import re
 from pathlib import Path
@@ -1055,6 +1056,80 @@ def test_one_song_under_two_item_ids_shows_once_at_its_better_rank():
     b = market(today.build_today(boards_store([board]), D30), "ZA")["boards"][0]
     assert [(e["rank"], e["title"]) for e in b["entries"]] == [(2, "Slap The City by Drake & Qendresa"), (3, song)]
     assert (b["left_out"], b["left_out_reason"]) == (0, None)  # shown once, not left out
+
+
+def test_duplicate_music_entries_keep_the_best_rank_in_every_input_order():
+    entries = [
+        {"rank": 8, "title": "Back 2 U by Seyi Vibez", "item_id": "song-a"},
+        {"rank": 1, "title": "back  2 u by SEYI VIBEZ", "item_id": "song-b"},
+        {"rank": 4, "title": "Back 2 U by Seyi Vibez", "item_id": "song-c"},
+    ]
+    for order in permutations(entries):
+        board = {"platform": "apple_music", "list": "Apple Music chart", "entries": list(order)}
+        result = today._boards([board])[0]
+        assert result["entries"] == [entries[1]]
+        assert (result["left_out"], result["left_out_reason"]) == (0, None)
+        assert board["entries"] == list(order)
+
+
+@pytest.mark.parametrize("bad_rank", [None, 0, -1, True, False, 1.0, "1"])
+def test_duplicate_board_entry_prefers_a_valid_rank_to_an_invalid_one(bad_rank):
+    invalid = {"rank": bad_rank, "title": "Back 2 U by Seyi Vibez", "item_id": "song-a"}
+    valid = {"rank": 9, "title": "Back 2 U by Seyi Vibez", "item_id": "song-b"}
+    for entries in ([invalid, valid], [valid, invalid]):
+        result = today._boards([{"platform": "shazam", "list": "board shazam", "entries": entries}])[0]
+        assert result["entries"] == [valid]
+
+
+def test_duplicate_board_entry_rank_ties_keep_the_first_input_row():
+    entries = [
+        {"rank": 3, "title": "Back 2 U by Seyi Vibez", "item_id": "song-a"},
+        {"rank": 3, "title": "back 2 u by seyi vibez", "item_id": "song-b"},
+    ]
+    for order in (entries, entries[::-1]):
+        result = today._boards([{"platform": "apple_music", "list": "Apple Music chart", "entries": order}])[0]
+        assert result["entries"] == [order[0]]
+
+
+def test_duplicate_board_entry_without_valid_ranks_keeps_the_first_input_row():
+    entries = [
+        {"rank": None, "title": "Back 2 U by Seyi Vibez", "item_id": "song-a"},
+        {"rank": 0, "title": "Back 2 U by Seyi Vibez", "item_id": "song-b"},
+    ]
+    result = today._boards([{"platform": "shazam", "list": "board shazam", "entries": entries}])[0]
+    assert result["entries"] == [entries[0]]
+
+
+def test_board_rank_dedupe_keeps_unrelated_source_order_and_different_artists():
+    entries = [
+        {"rank": 8, "title": "Hello by Artist A", "item_id": "song-a"},
+        {"rank": 1, "title": "Hello by Artist B", "item_id": "song-b"},
+        {"rank": 4, "title": "Hello", "item_id": "song-c"},
+        {"rank": 2, "title": "Hello", "item_id": "song-d"},
+    ]
+    result = today._boards([{"platform": "apple_music", "list": "Apple Music chart", "entries": entries}])[0]
+    assert result["entries"] == entries
+
+
+def test_board_rank_dedupe_stays_within_each_platform_and_city_list():
+    boards = [
+        {"platform": "shazam", "list": "board shazam", "entries": [
+            {"rank": 8, "title": "Back 2 U by Seyi Vibez", "item_id": "song-a"},
+            {"rank": 1, "title": "Back 2 U by Seyi Vibez", "item_id": "song-b"}]},
+        {"platform": "shazam", "list": "board shazam city", "city": "Lagos", "entries": [
+            {"rank": 5, "title": "Back 2 U by Seyi Vibez", "item_id": "song-a"},
+            {"rank": 2, "title": "Back 2 U by Seyi Vibez", "item_id": "song-b"}]},
+        {"platform": "shazam", "list": "board shazam city", "city": "Abuja", "entries": [
+            {"rank": 7, "title": "Back 2 U by Seyi Vibez", "item_id": "song-a"},
+            {"rank": 4, "title": "Back 2 U by Seyi Vibez", "item_id": "song-b"}]},
+        {"platform": "apple_music", "list": "Apple Music chart", "entries": [
+            {"rank": 9, "title": "Back 2 U by Seyi Vibez", "item_id": "song-a"},
+            {"rank": 3, "title": "Back 2 U by Seyi Vibez", "item_id": "song-b"}]},
+    ]
+    result = today._boards(boards)
+    assert [board["platform"] for board in result] == [board["platform"] for board in boards]
+    assert [board.get("city") for board in result] == [board.get("city") for board in boards]
+    assert [board["entries"] for board in result] == [[board["entries"][1]] for board in boards]
 
 
 def test_only_the_same_entry_merges_on_a_board():

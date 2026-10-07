@@ -438,3 +438,166 @@ def test_post_refuses_any_at_sign_anywhere_in_the_message():
     with pytest.raises(channel.ChannelError) as exc:
         channel.post(payload, "https://hooks.slack.com/services/T/B/secret", http=Http)
     assert "secret" not in str(exc.value) and "@" in str(exc.value) and sent == []
+
+
+@pytest.mark.parametrize("flavour", ["slack", "teams"])
+@pytest.mark.parametrize("title_case, expected", [
+    ("matching", "A checked story title"),
+    ("missing", "#amapiano"),
+    ("blank", "#amapiano"),
+    ("stale", "#amapiano"),
+    ("wrong_market", "#amapiano"),
+    ("unchecked", "#amapiano"),
+    ("handle", "A creator is Rising in South Africa"),
+])
+def test_channel_titles_use_only_the_checked_card_for_the_line_date_and_market(flavour, title_case, expected):
+    resp = today()
+    shown = resp["markets"][0]["cards"][1]
+    shown["title_written"] = "  A checked   story title  "
+    if title_case == "missing":
+        shown.pop("title_written")
+    elif title_case == "blank":
+        shown["title_written"] = " \t\n"
+    elif title_case == "stale":
+        shown["date"] = "2026-09-29"
+    elif title_case == "wrong_market":
+        shown["market"] = "NG"
+    elif title_case == "unchecked":
+        shown["explained"] = False
+    elif title_case == "handle":
+        shown["title_written"] = "@unshareable_handle is rising"
+    fired = [alert("w_written", "item", dict(shown), "A watch")]
+    payload = channel.render(resp, fired, [], BASE, flavour)
+    text = slack_text(payload) if flavour == "slack" else teams_text(payload)
+    assert text.count(expected) == (3 if title_case == "handle" else 2)
+    if title_case != "matching":
+        assert "A checked story title" not in text
+    assert "unshareable_handle" not in text
+    assert "@" not in text
+
+
+@pytest.mark.parametrize("flavour", ["slack", "teams"])
+@pytest.mark.parametrize("surface", ["card", "alert", "headline"])
+@pytest.mark.parametrize("handle, words", [
+    ("@za_creator_one", "za_creator_one started a dance"),
+    ("@za_creator_one", "@za_creator_one started a dance"),
+    ("za_creator_one", "(ZA_CREATOR_ONE), a dance caught on"),
+    ("@za.creator-one", "za.creator-one's dance caught on"),
+    ("@za.creator-one", "A dance from (ZA.CREATOR-ONE)."),
+])
+def test_channel_rejects_evidence_author_handles_in_titles_and_alert_lines(flavour, surface, handle, words):
+    resp = today(headline_item="i_amapiano", headline_text="A safe checked headline")
+    shown = resp["markets"][0]["cards"][1]
+    shown["kind"] = "topic"
+    for post in shown["evidence"]:
+        post["handle"] = handle
+    fired = []
+    if surface == "card":
+        shown["title_written"] = words
+    elif surface == "alert":
+        fired = [alert("w_written", "item", dict(shown, title_written=words), "A watch")]
+    else:
+        resp["headline"]["text"] = words
+    payload = channel.render(resp, fired, [], BASE, flavour)
+    text = slack_text(payload) if flavour == "slack" else teams_text(payload)
+    assert handle.lstrip("@").casefold() not in text.casefold()
+    assert "@" not in text
+    if surface == "headline":
+        assert "Today's brief is ready" in text
+    else:
+        assert text.count("A creator is Rising in South Africa") == 2
+        assert f"{BASE}/#/t/i_amapiano?market=ZA" in text
+        if surface == "alert":
+            assert "Entered Rising" in text
+
+
+@pytest.mark.parametrize("flavour", ["slack", "teams"])
+def test_written_titles_match_evidence_authors_as_whole_handles(flavour):
+    resp = today()
+    shown = resp["markets"][0]["cards"][1]
+    shown["title_written"] = "za_creator_one_extra started a dance"
+    payload = channel.render(resp, [], [], BASE, flavour)
+    text = slack_text(payload) if flavour == "slack" else teams_text(payload)
+    assert "za_creator_one_extra started a dance" in text
+
+
+@pytest.mark.parametrize("flavour", ["slack", "teams"])
+@pytest.mark.parametrize("surface", ["card", "headline", "alert"])
+@pytest.mark.parametrize("market_code", ["ZA", "NG", "KE"])
+@pytest.mark.parametrize("handle, words", [
+    ("@private_fixture_handle", "private_fixture_handle reacts to the match"),
+    ("private_fixture_handle", "@private_fixture_handle reacts to the match"),
+    ("private_fixture_handle", "(PRIVATE_FIXTURE_HANDLE), reactions follow"),
+    ("@private_fixture_handle", "private_fixture_handle's reaction"),
+    ("@private_fixture_handle", "Reactions:private_fixture_handle"),
+    ("@private_fixture_handle", "Reactions/private_fixture_handle"),
+    ("@private_fixture_handle", "Reaction from private_fixture_handle."),
+    ("@fixture.handle-one", "FIXTURE.HANDLE-ONE's reaction"),
+    ("@private_fixture_handle", "Reactions" + chr(0x2026) + "private_fixture_handle"),
+    ("@private_fixture_handle", "Reactions...private_fixture_handle"),
+    ("@private_fixture_handle", "Reactions....private_fixture_handle"),
+    ("@fixture.handle-one", "Reactions...fixture.handle-one"),
+    ("@fixture...handle", "Reactions...fixture...handle"),
+    ("@private_fixture_handle", "Reactions" + chr(0x2014) + "private_fixture_handle"),
+])
+def test_channel_author_boundaries_cover_ellipsis_and_unicode_punctuation(flavour, surface, market_code, handle, words):
+    import copy
+
+    shown = card("review-topic", "Raw fixture label", kind="topic", market=market_code)
+    for post in shown["evidence"]:
+        post["handle"] = handle
+    shown["title_written"] = "An ordinary checked fixture title"
+    resp = {"date": D30, "status": "published",
+            "headline": {"text": "An ordinary checked headline", "item_id": "review-topic", "market": market_code},
+            "markets": [market(code, cards=[shown] if code == market_code else []) for code in channel.MARKETS]}
+    fired = []
+    if surface == "card":
+        shown["title_written"] = words
+    elif surface == "headline":
+        resp["headline"]["text"] = words
+    else:
+        fired = [alert("w_review", "item", dict(shown, title_written=words), "A watch", mkt=market_code)]
+    before = copy.deepcopy((resp, fired))
+    payload = channel.render(resp, fired, [], BASE, flavour)
+    serialized = dumped(payload)
+    assert handle.lstrip("@").casefold() not in serialized.casefold()
+    assert "@" not in serialized
+    expected = channel.READY if surface == "headline" else "A creator is Rising in " + channel.LABELS[market_code]
+    assert expected in serialized
+    assert (resp, fired) == before
+    http = FakeHttp()
+    channel.post(payload, HOOK, http)
+    assert handle.lstrip("@").casefold() not in http.seen[0].data.decode("utf-8").casefold()
+
+
+@pytest.mark.parametrize("flavour", ["slack", "teams"])
+@pytest.mark.parametrize("surface", ["card", "headline", "alert"])
+@pytest.mark.parametrize("words", [
+    "An ordinary checked fixture title",
+    "private_fixture_handle_extra reacts",
+    "other_private_fixture_handle reacts",
+    "other.private_fixture_handle reacts",
+    "Reactions...other_private_fixture_handle reacts",
+    "Reactions...private_fixture_handle_extra reacts",
+])
+def test_channel_author_boundaries_preserve_safe_distinct_handles(flavour, surface, words):
+    import copy
+
+    shown = card("review-topic", "Raw fixture label", kind="topic")
+    for post in shown["evidence"]:
+        post["handle"] = "@private_fixture_handle"
+    shown["title_written"] = "An ordinary checked fixture title"
+    resp = {"date": D30, "status": "published",
+            "headline": {"text": "An ordinary checked headline", "item_id": "review-topic", "market": "ZA"},
+            "markets": [market(code, cards=[shown] if code == "ZA" else []) for code in channel.MARKETS]}
+    fired = []
+    if surface == "card":
+        shown["title_written"] = words
+    elif surface == "headline":
+        resp["headline"]["text"] = words
+    else:
+        fired = [alert("w_review", "item", dict(shown, title_written=words), "A watch")]
+    before = copy.deepcopy((resp, fired))
+    payload = channel.render(resp, fired, [], BASE, flavour)
+    assert words in dumped(payload)
+    assert (resp, fired) == before

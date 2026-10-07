@@ -1,4 +1,5 @@
 import {REGION_NAME} from '../model.js';
+import {useEffect, useState} from 'react';
 import '../styles/searching-now.css';
 
 const MARKETS = ['ZA', 'NG', 'KE'];
@@ -90,11 +91,6 @@ function sastDay(ms){
   return Math.floor((ms + SAST_OFFSET) / DAY);
 }
 
-/* Today in South African time as a plain day, YYYY-MM-DD. */
-function sastToday(now){
-  return new Date(now + SAST_OFFSET).toISOString().slice(0, 10);
-}
-
 /* How old a refresh reads. A timestamp reads as relative time against now;
    a plain day reads as that day. Exported so tests can hold the clock still. */
 export function freshnessWords(value, now = Date.now()){
@@ -112,15 +108,13 @@ function refreshMs(value){
   return Date.parse(DATE_ONLY.test(value) ? `${value}T00:00:00Z` : value);
 }
 
-/* The one red on the block: a live row refreshed today. The API sends
-   refreshed_at as a plain day (the SAST day of the fetch), so a plain day is
-   fresh when it is today in South African time; a timestamp, still accepted,
-   is fresh within the last hour. Exported so tests can hold the clock still. */
+/* Only a live fetch timestamp can establish an age under one hour. A plain
+   day carries no time of day, so it cannot earn the fresh mark. */
 export function isFresh(signal, now = Date.now()){
   if (!SOURCES[signal.source].live) return false;
-  if (DATE_ONLY.test(signal.refreshed_at)) return signal.refreshed_at === sastToday(now);
+  if (DATE_ONLY.test(signal.refreshed_at)) return false;
   const age = now - Date.parse(signal.refreshed_at);
-  return age >= -MINUTE && age < HOUR;
+  return age >= 0 && age < HOUR;
 }
 
 /* "Live trending, 3 h ago · Daily top terms, 1 Oct": the newest refresh per
@@ -183,6 +177,12 @@ function Row({signal, index, now}){
    names the source, the caption sits under it, and each rank is labelled as
    Google's, after the term, so a gap reads as Google's list, not ours. */
 export function SearchingNow({signals, market, nameMarket = true, now}){
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+  useEffect(() => {
+    if (Number.isFinite(now)) return undefined;
+    const timer = setInterval(() => setCurrentTime(Date.now()), MINUTE);
+    return () => clearInterval(timer);
+  }, [now]);
   if (market !== 'ALL' && !MARKETS.includes(market)) return null;
 
   const rows = (Array.isArray(signals) ? signals : [])
@@ -190,7 +190,7 @@ export function SearchingNow({signals, market, nameMarket = true, now}){
     .filter((signal) => market === 'ALL' || signal.market === market);
   if (!rows.length) return null;
 
-  const clock = Number.isFinite(now) ? now : Date.now();
+  const clock = Number.isFinite(now) ? now : currentTime;
   const markets = MARKETS
     .map((code) => ({market: code, signals: rows.filter((signal) => signal.market === code).sort(compareSignals)}))
     .filter((group) => group.signals.length);

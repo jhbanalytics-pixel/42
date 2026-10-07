@@ -284,15 +284,27 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
     failures: dict[str, int] = {}
     extra_at_start = ctx.model_usd_extra  # model spend inside tools counts against the tier's budget too
     for turn in range(tier["max_turns"]):
+        if should_stop():
+            result["stopped"] = True
+            break
         turn_started = clock()
         reservation = None
         if model_budget is not None:
             response, budget_note, failed = None, None, None
             busy = server_failed = 0
             while True:
+                if should_stop():
+                    result["stopped"] = True
+                    budget_note = "Stopping as asked; keeping what was found so far"
+                    break
                 try:
                     reservation = model_budget.reserve(options.model, _input_bound(options.model, history, config),
                                                        RESEARCH_MAX_OUTPUT_TOKENS, research=True)
+                    local_usd = ctx.research_usd + ctx.model_usd_extra - extra_at_start
+                    if local_usd + reservation.ceiling_micros / 1_000_000 > tier["max_budget_usd"]:
+                        model_budget.release(reservation)
+                        budget_note = "Research stopped: this researcher's model budget is spent."
+                        break
                 except BudgetRefused as exc:
                     if str(exc) == "research_model_budget_exhausted":
                         budget_note = "Research stopped: the model budget for research is spent."
@@ -322,7 +334,7 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                     # A 5xx is Google's failure: its reserve is booked in full, as for any failed call, and one more
                     # try runs on a fresh reserve. Any other failure, or a second 5xx, stops the question as before.
                     retry = not server_failed and server_error(exc) and not should_stop()
-                    model_budget.fail(reservation, stop=not retry)
+                    ctx.research_usd += model_budget.fail(reservation, stop=not retry)
                     try:
                         exc.before_dispatch = False
                     except Exception:
@@ -341,6 +353,7 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
             usage = _budget_usage(response, options.model)
             if usage is None:
                 model_budget.settle(reservation, None)
+                ctx.research_usd += reservation.ceiling_micros / 1_000_000
                 result["stopped"] = True
                 _, parts = _parts(response)
                 texts += [p.text for p in parts if getattr(p, "text", None) and not getattr(p, "thought", False)]
@@ -354,7 +367,7 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
         result["tokens"]["input"] += usage["input_tokens"]
         result["tokens"]["output"] += usage["output_tokens"]
         result["usd"] += usage["usd"]
-        ctx.research_usd = result["usd"]
+        ctx.research_usd += usage["usd"]
         _check_finish(response, options.model, usage)
         content, parts = _parts(response)
         calls = [p.function_call for p in parts if getattr(p, "function_call", None)]
@@ -369,6 +382,9 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
         model_seconds = clock() - turn_started
         answers = []
         for batch in _batches(calls, functions):
+            if should_stop() or model_budget is not None and model_budget.stopped:
+                result["stopped"] = True
+                break
             every = [(call, call.name, dict(call.args or {})) for call in batch]
             shut = [failures.get(name, 0) >= MAX_TOOL_FAILURES for _, name, _ in every]
             named = [c for c, closed in zip(every, shut) if not closed]

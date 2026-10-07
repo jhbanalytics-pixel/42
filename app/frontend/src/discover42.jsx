@@ -676,7 +676,7 @@ function MeasuredStrip({data, points, market, held}){
     <>
       <p className="t42-line-text d42-note">{data.note || WARM_NOTE}</p>
       <p className="d42-strip-caption" data-strip-caption="">
-        {'Creators in 7 days' + (span ? ', ' + span : '') + (bars ? '; bars run from 0 to ' + readerFigure(top) : '')
+        {'Creators and posts in 7 days' + (span ? ', ' + span : '') + (bars ? '; bars run from 0 to ' + readerFigure(top) : '')
           + '. Under ' + BAR_FLOOR + ' posts a row shows its count only.'}
       </p>
       {short.length > 0 && <p className="t42-line-text" data-window-short="">{'Short collection days: ' + listWords(short)}</p>}

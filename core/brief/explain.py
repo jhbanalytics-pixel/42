@@ -62,6 +62,7 @@ from datetime import datetime
 from core.brief.specificity import assess_specificity, local_posts, specificity_basis
 from core.config.caps import model_daily_usd
 from core.llm.provider import default_model, price_for, reserve_output
+from core.plain_dates import format_generated_dates
 from core.trust.claims import (
     _QUOTE_MARKS, _QUOTED, LABELS, MARKET_NAMES, _norm, _quote_fault, _quoted, _strip_quotes, _verified_quotes,
     check_answer, inferred_only_by_source_step, located_market, named_markets, place_fault, source_market,
@@ -176,7 +177,9 @@ WRITER_SYSTEM = """LAWS (read first)
 14 Write only what the cited posts' own text and fields show. Background you know from outside the pack, such as results, scores, titles, roles, histories or reasons, is not evidence: leave it out, even when it is true.
 15 Cite for a claim only the posts whose own text or fields show that claim. A post about something else is left out of that claim, even when it shares the trend's words. Posts are listed most on topic first; title_terms_named counts how many of the trend title's terms a post's text names.
 16 Never guess a count. Say how many posts or creators only as a pinned pack number or, in words, as the posts that claim cites. A crowd word about creators, such as multiple, several or many, must agree with the card's creator count on the Counts line and the different creators in the posts that claim cites; when it does not, name the creators the posts show instead. Code checks this. A whole-trend aggregate does not show which creators made the cited posts or what those creators did. Keep its window separate from the cited posts' own dates.
-17 A date is the day a cited post's posted_at gives, or a date its own text states, written as day and month, such as 2 October. Never move, guess or work out a date, and write no yesterday, this week or recently unless a post says it.
+17 A date is the day a cited post's posted_at gives, or a date its own text states, written as day and month, such as 5 Oct, never an ISO date in generated prose. Include its year when it differs from the window end year; keep the year when that context is missing. Keep quoted dates, citations, URLs and timestamps exactly as supplied. Never move, guess or work out a date, and write no yesterday, this week or recently unless a post says it.
+18 Each factual clause in the explanation sentence must be supported by a claim in explanation_claim_ids at the same scope: the same posts, people, platforms, place and time. Do not turn one post's reaction into the reaction of every cited creator, or join unrelated posts into one story. A hedge does not make an unsupported clause supported.
+19 A posting date shows when that post was published, not when an event happened. A hashtag or mention alone shows only that tag or mention, not a reaction, endorsement, performance, release or reason for posting. Unseen video, audio, images and comments are not supplied evidence. Describe only what the supplied text and fields show.
 
 You write the morning explanation for one trend: 3 to 5 claims from the evidence pack, on what it is, the earliest post in the pack, the platforms its cited posts are on and why now.
 Then write one explanation sentence for a strategist that rests only on your claims, and list those claim ids in explanation_claim_ids. The sentence keeps every law above.
@@ -184,7 +187,7 @@ Then write title: two to six words naming what the posts the sentence rests on a
 Name two distinct local posts as concrete examples in claims used by the explanation, by two different creators where the pack has them. A local post is one marked local true.
 Include one short exact quote copied from a cited local post in a supporting claim.
 Give a local why-now hook that the cited local posts support.
-Put the why-now in the explanation sentence itself as its one hedged clause, and name a timely local cause: an event, date, release, announcement, match, holiday or moment that a cited local post names in its own words or that its posted_at dates. Popularity, growth, engagement, a trend being discussed, or a country or community label is not a why-now.
+Put the why-now in the explanation sentence itself as its one hedged clause, and name a timely local cause: an event, date, release, announcement, match, holiday or moment that a cited local post names in its own words. A posting date alone does not identify a timely cause. Popularity, growth, engagement, a trend being discussed, or a country or community label is not a why-now.
 Rest that clause on a claim that cites those local posts, preferring posts marked located_in_market true, and quote the words that name the cause when a post states it. When no cited local post shows a timely cause, do not invent one.
 A critic then names the simplest non-cultural explanation, such as a paid or sponsored push, a platform feature change, a coordinated push, a news or scheduled event, a collection artefact, or one viral post or one creator, and holds the explanation unless the evidence rules it out. Rest the sentence on claims that show what the cited posts hold against it: different creators posting in their own words, posts without sponsored flags, posts on different days or platforms.
 When the posts respond to a news or scheduled event, say so plainly in the sentence and rest it on claims that cite at least two different local creators reacting in their own words, such as opinions, jokes or personal stories, and quote one such reaction. Posts that only repeat, quote or share the news show no local reaction.
@@ -430,6 +433,23 @@ def _crowd_words(pack):
     return f"The card's creator count is {shown}, for {unit}; {words}."
 
 
+def _has_non_tag_words(text):
+    text = re.sub(r"(?<!\w)(?:[a-z][a-z0-9+.-]*://|www\.)[^\s\"'<>]+", " ",
+                  unicodedata.normalize("NFKC", text), flags=re.I)
+    tag = None
+    for char in text:
+        if char in "#@":
+            tag = char
+            continue
+        if tag and (char.isalnum() or unicodedata.category(char).startswith("M")
+                    or char in "_\u200c\u200d" or (tag == "@" and char == ".")):
+            continue
+        tag = None
+        if char.isalpha():
+            return True
+    return False
+
+
 def _writer_user(candidate, pack, market, window_start, window_end):
     """The trend, its facts and numbers, and each post with its fields. A post located in another market is listed
     as citable false without its text. Each citable post is marked local (located in the market or found in its
@@ -437,18 +457,23 @@ def _writer_user(candidate, pack, market, window_start, window_end):
     local posts that are not located in the market (own-feed posts, the critic's own_feed_local) and the feed wording a
     why-now resting only on them takes (BR-1, 4 Oct). Posts naming most of the title's terms come first, each citable
     post carries title_terms_named, and the scope line names the posts that name none. The Counts line gives the
-    pack's own post and creator counts and the crowd words the card's creator count allows (6 Oct)."""
+    pack's own post and creator counts and the crowd words the card's creator count allows (6 Oct). The writer sees
+    the support check's post fields and earliest marker, plus whether text has words outside tags and mentions.
+    Per-post engagement is omitted because it is not a pinned pack number or a field read by the support check."""
     code = str(market or "").upper() or None
     evidence = pack.get("evidence") or []
+    earliest = _earliest_id(pack)
     local = {r.get("id") for r in local_posts(evidence, market)}
     terms = _title_terms(candidate.get("title"))
     posts, citable_ids, local_ids, located_ids, own_feed_ids, off_topic_ids = [], [], [], [], [], []
     for r in _on_topic_first(evidence, terms):
-        head = {k: r.get(k) for k in ("id", "platform", "posted_at", "engagement")}
+        head = {k: r.get(k) for k in ("id", "platform", "posted_at")}
         head["market"] = located_market(r)
         head["source_market"] = source_market(r)
         if head["market"] is None:
             head["location"] = "unknown"
+        head["creator_tier"] = r.get("creator_tier")
+        head["earliest_in_pack"] = earliest is not None and r.get("id") == earliest
         if not _citable(r, market):
             head["citable"] = False
             posts.append(f"post {json.dumps(head, ensure_ascii=False, default=str)}")
@@ -456,6 +481,7 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         head["citable"] = True
         head["local"] = r.get("id") in local
         head["located_in_market"] = code is not None and head["market"] == code
+        head["text_has_non_tag_words"] = _has_non_tag_words(_source_text(r))
         if terms:
             head["title_terms_named"] = _terms_named(r, terms)
             if not head["title_terms_named"]:
@@ -496,6 +522,12 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         "Facts from 42's detection:\n" + "\n".join(f"- {f}" for f in pack.get("facts") or []),
         "Numbers you may use, cited by id in number_ids:\n" + ("\n".join(numbers) or "none"),
         counts,
+        "Evidence limits: Detection facts and the scraped title are context for choosing posts, not support for a "
+        "claim. Each post's supplied text is all the content you can read; do not describe unseen media or "
+        "comments. A hashtag or mention alone shows only that tag or mention. text_has_non_tag_words false means "
+        "no words remain outside tags, mentions and links; it does not show a reaction or event. A true value is "
+        "not a support verdict: cite only the words and fields that show each clause. earliest_in_pack identifies "
+        "a unique earliest posting time, never an event date or the trend's origin.",
         f"Evidence pack, {len(posts)} posts:",
         scope,
         *posts,
@@ -693,9 +725,11 @@ def _redraft_user(user, draft, out):
     return "\n\n".join([
         user,
         "The critic held the why-now clause of your previous draft: it found no timely local cause shown by the cited "
-        "local posts, though it did not hold the rest. Write the whole JSON again under every law above. Name a "
-        "timely local cause in the why-now clause only as a cited local post names it in its own words or as its "
-        "posted_at dates it, worded as seen in the market's feeds when every post it rests on is marked "
+        "local posts, though it did not hold the rest. Write the whole JSON again under every law above. "
+        "Name a timely local cause in the why-now clause only when a cited local post's own text or fields "
+        "explicitly identify that cause and its timing. A posting date shows when that post was published, not "
+        "when an event happened. posted_at alone does not establish the cause or an event date. "
+        "Word the clause as seen in the market's feeds when every post it rests on is marked "
         "located_in_market false. When no cited local post shows a timely cause, do not invent one.",
         f"Previous draft:\n{_fence(json.dumps(draft, ensure_ascii=False))}",
         f"The critic's reason:\n{_fence(out.get('reason', ''))}",
@@ -1008,12 +1042,12 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
                specificity=None, news_driven=False, critic=None, title_written=None):
         if specificity is None:
             specificity = assess(explanation, claims, rests_on, local_why_now_checked)
-        return {
+        return format_generated_dates({
             "explanation": explanation, "explanation_claim_ids": list(rests_on), "claims": list(claims),
             "numbers_only": reason is not None, "reason": reason, "usage_usd": spent["usd"], "checks": checks,
             "error": error, "local_why_now_checked": local_why_now_checked, "specificity": specificity,
             "news_driven": news_driven, "critic": critic, "title_written": title_written,
-        }
+        }, reference=window_end)
 
     def reject_overflow(draft):
         count = len(draft.get("claims") or [])

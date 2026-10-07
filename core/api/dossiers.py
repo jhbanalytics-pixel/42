@@ -145,7 +145,7 @@ def build(record, sel, *, dossier_id, version, created_at, source, who="passcode
         "title": sel["title"], "source": dict(source), "source_ask_id": record.get("ask_id"),
         "question": record.get("question"), "market": record.get("market"),
         "as_of": answer.get("as_of"), "answer_status": answer.get("status"),
-        "summary": answer.get("short_answer"),
+        "summary": answer.get("short_answer") if set(sel["keep"]) == set(claims) else None,
         "claims": built,
         "evidence": [copy.deepcopy(e) for e in answer.get("evidence") or [] if e.get("id") in cited],
         "gaps": copy.deepcopy(answer.get("gaps") or []),
@@ -159,6 +159,8 @@ def build(record, sel, *, dossier_id, version, created_at, source, who="passcode
 def shown(body):
     """The body as a reader sees it. In a skin report (contract.md section 15.1) nobody it may not name shows:
     skins.mask_people works on a copy, so the stored quotes stay verbatim for the freeze re-check."""
+    if any(not claim["kept"] for claim in body["claims"]):
+        body = {**body, "summary": None}
     people = body.get("people")
     if not people:
         return body
@@ -169,6 +171,8 @@ def shown(body):
 def freeze(draft, *, version, created_at, ticks):
     """The frozen copy of a draft, carrying the ticks that stood when it froze."""
     out = copy.deepcopy(draft)
+    if any(not claim["kept"] for claim in out["claims"]):
+        out["summary"] = None
     out.update(version=version, state="frozen", created_at=created_at, frozen_from=draft["version"],
                reviews={cid: {"ticked": t["ticked"], "note": t.get("note"), "at": t["at"]} for cid, t in ticks.items()})
     return out

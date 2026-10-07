@@ -579,17 +579,23 @@ def _boards(boards):
     """Each board keeps its own list and each entry its own rank, L2's best rank today, so ties and gaps stay.
     Entries titled with an id are left out, never named, and added to any count the board already carries. Two
     entries of one board that are the same entry (_entry_keys: one song under two item ids) show once, at the better
-    rank."""
+    positive integer rank. Equal ranks keep the first input row; unrelated entries keep their source order."""
     out = []
     for b in _platform_x(boards):
         named = [dict(e, title=t) for e in b.get("entries") or [] for t in [_board_title(e, b.get("platform"))] if t]
         music = b.get("list") in MUSIC_LISTS or b.get("platform") in MUSIC_PLATFORMS
+        ranked = []
+        for index, e in enumerate(named):
+            rank = e.get("rank")
+            priority = rank if isinstance(rank, int) and not isinstance(rank, bool) and rank > 0 else math.inf
+            ranked.append((priority, index, e))
         shown, seen = [], set()
-        for e in named:
+        for _, index, e in sorted(ranked, key=lambda row: row[:2]):
             keys = _entry_keys(e, music)
             if not keys & seen:
-                shown.append(e)
+                shown.append((index, e))
             seen |= keys
+        shown = [e for _, e in sorted(shown, key=lambda row: row[0])]
         left_out = (b.get("left_out") or 0) + len(b.get("entries") or []) - len(named)
         reason = b.get("left_out_reason") or (NO_NAMES_READ if not shown else NO_NAME)
         out.append(dict(b, list=_board_list(b), entries=shown, left_out=left_out,

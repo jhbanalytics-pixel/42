@@ -41,8 +41,10 @@ def _count(value, *, positive: bool = False) -> int:
 
 class AskModelBudget:
     def __init__(self, hold_usd, research_usd, *, price_for_fn=None, reserve_output_fn=None):
-        self.cap_micros = _micros(hold_usd)
-        self.research_cap_micros = _micros(research_usd)
+        _micros(hold_usd)
+        _micros(research_usd)
+        self.cap_micros = int(Decimal(str(hold_usd)) * MICROS)
+        self.research_cap_micros = int(Decimal(str(research_usd)) * MICROS)
         if self.cap_micros <= 0 or self.research_cap_micros <= 0:
             raise BudgetRefused("model_budget_invalid")
         if self.research_cap_micros > self.cap_micros:
@@ -67,7 +69,7 @@ class AskModelBudget:
     @property
     def booked_usd(self) -> float:
         with self._lock:
-            return (self._booked_micros + self._in_flight_micros) / MICROS
+            return float((self._booked_micros + self._in_flight_micros) / MICROS)
 
     @property
     def stopped(self) -> bool:
@@ -157,7 +159,15 @@ class AskModelBudget:
             ceiling_micros, input_bound, output_bound = self._ceiling(model, input_bound, max_output_tokens)
         except BudgetRefused as exc:
             raise self._refuse(str(exc)) from None
+        return self._reserve(ceiling_micros, input_bound, output_bound, research)
 
+    def reserve_cost(self, ceiling_usd, *, research: bool = False):
+        ceiling_micros = _micros(ceiling_usd)
+        if ceiling_micros <= 0 or type(research) is not bool:
+            raise self._refuse("model_reservation_invalid")
+        return self._reserve(ceiling_micros, 0, 0, research)
+
+    def _reserve(self, ceiling_micros, input_bound, output_bound, research):
         with self._lock:
             if self._stopped:
                 raise BudgetRefused(self._stop_reason or "prior_model_call_stopped")
@@ -181,6 +191,29 @@ class AskModelBudget:
             if research:
                 self._research_in_flight_micros += ceiling_micros
             return reservation
+
+    def settle_cost(self, reservation: _Reservation, usd=None) -> float:
+        if reservation.input_bound or reservation.output_bound:
+            raise self._refuse("model_reservation_invalid")
+        if usd is not None:
+            _micros(usd)
+        billed_micros = reservation.ceiling_micros if usd is None else Decimal(str(usd)) * MICROS
+        with self._lock:
+            self._take(reservation)
+            self._booked_micros += billed_micros
+            if reservation.research:
+                self._research_booked_micros += billed_micros
+            if usd is None:
+                self._conservative_micros += reservation.ceiling_micros
+            overrun = billed_micros > reservation.ceiling_micros
+            over_cap = (self._booked_micros + self._in_flight_micros > self.cap_micros
+                        or reservation.research and self._research_booked_micros
+                        + self._research_in_flight_micros > self.research_cap_micros)
+            if overrun or over_cap:
+                self._stopped = True
+                self._ceiling_exceeded = self._ceiling_exceeded or overrun
+                self._stop_reason = "ceiling_exceeded" if overrun else "question_model_budget_exceeded"
+            return float(billed_micros / MICROS)
 
     def settle(self, reservation: _Reservation, usage, *, stop_unknown: bool = True) -> bool:
         """Book a finished call. Unknown usage books the full reserve and stops later calls, unless stop_unknown is

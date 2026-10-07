@@ -1,0 +1,284 @@
+{
+  "provenance": {
+    "native": "recorded-posts-20261007T094058Z.json; job 97af5e6e-291d-4ea2-a55b-7d6a2b4cdc5e",
+    "supplier": "vendor-contracts.json; captured redacted projections, native envelope unproven"
+  },
+  "youtube": {
+    "run_id": "r_20261006_222002_6f5acba4_4dc255ab7c6a45f490a2f1b70e59db88",
+    "job": "ask",
+    "market": null,
+    "route": "youtube/search/advanced",
+    "fetched_at": "2026-10-06 20:24:00.302696+00:00",
+    "params_hash": "e59b1a6e062ad38c8a4151c7171374ace3b125b46b58220e6b3b403c406b65d1",
+    "http_status": 200,
+    "credits_quoted": 1.0,
+    "credits_charged": 1.0,
+    "request_id": "req-maQiLXieCVjaSUf5",
+    "success": "true",
+    "platform": "youtube",
+    "endpoint": "/v1/youtube/search/advanced",
+    "pagination": {
+      "has_more": true,
+      "next_cursor": "sc.eyJ2IjoyLCJjIjoiQ0RJUUFBIiwiZSI6InlvdXR1YmUvc2VhcmNoL2FkdmFuY2VkIiwicCI6ImN1cnNvciJ9",
+      "page_size": 50
+    },
+    "first_item": {
+      "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+      },
+      "post": {
+        "author": {
+          "avatar_url": null,
+          "display_name": "CGTN",
+          "username": null,
+          "verified": null
+        },
+        "content": {
+          "duration_seconds": null,
+          "media_urls": null,
+          "text": "South Africa launches free universal HIV treatment program",
+          "thumbnail_url": "https://i.ytimg.com/vi/HOAVuKjZxrw/hqdefault.jpg"
+        },
+        "engagement": {
+          "comments": null,
+          "likes": null,
+          "saves": null,
+          "shares": null,
+          "views": null
+        },
+        "ext": {
+          "channel_id": "UCgrNz-aDmcr2uuto8_DL2jg",
+          "description": "Starting last Thursday, South Africa's government is now providing free antiretroviral treatment for all people living with HIV."
+        },
+        "flags": {
+          "deleted": false,
+          "nsfw": null,
+          "pinned": null,
+          "spoiler": null
+        },
+        "id": "HOAVuKjZxrw",
+        "published_at": "2016-09-07T08:41:33.000Z",
+        "url": "[URL query omitted]"
+      },
+      "vendor_labels": {}
+    },
+    "second_item": {
+      "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+      },
+      "post": {
+        "author": {
+          "avatar_url": null,
+          "display_name": "CGTN Africa",
+          "username": null,
+          "verified": null
+        },
+        "content": {
+          "duration_seconds": null,
+          "media_urls": null,
+          "text": "Experts welcome South Africa's directive to issue ARVs to all patients",
+          "thumbnail_url": "https://i.ytimg.com/vi/ZrAffIkFGFg/hqdefault.jpg"
+        },
+        "engagement": {
+          "comments": null,
+          "likes": null,
+          "saves": null,
+          "shares": null,
+          "views": null
+        },
+        "ext": {
+          "channel_id": "UCMeYPU1YfXjxsUa6QXWsfjg",
+          "description": "Medical experts have welcomed government plans to provide Antiretroviral drugs to all people with HIV/Aids. Until now, the drugs ..."
+        },
+        "flags": {
+          "deleted": false,
+          "nsfw": null,
+          "pinned": null,
+          "spoiler": null
+        },
+        "id": "ZrAffIkFGFg",
+        "published_at": "2016-05-13T11:49:32.000Z",
+        "url": "[URL query omitted]"
+      },
+      "vendor_labels": {}
+    },
+    "single_post": null,
+    "single_computed": null
+  },
+  "twitter": {
+    "run_id": "probe-bodies-20260929T192417Z",
+    "job": "build",
+    "market": "NG",
+    "route": "twitter/tweet",
+    "fetched_at": "2026-09-29 19:24:46.661940+00:00",
+    "params_hash": "04abcb0f5556a2a811f6124a02be0bd9f44d85a2b36b428a87c7129407052acf",
+    "http_status": 200,
+    "credits_quoted": 1.0,
+    "credits_charged": 1.0,
+    "request_id": "req-0hwpXZwnJFMLDj2x",
+    "success": "true",
+    "platform": "twitter",
+    "endpoint": "/v1/twitter/tweet",
+    "pagination": null,
+    "first_item": null,
+    "second_item": null,
+    "single_post": {
+      "author": {
+        "avatar_url": "https://pbs.twimg.com/profile_images/1874050257291497472/u586NY5t_normal.jpg",
+        "display_name": "ARISE NEWS",
+        "username": "ARISEtv",
+        "verified": false
+      },
+      "content": {
+        "duration_seconds": 187.637,
+        "media_urls": "https://pbs.twimg.com/amplify_video_thumb/2104602653296570370/img/6ntfzmbdHrs6cXlW.jpg",
+        "text": "Soludo's Wife Says Peter Obi Is Not Godfather To Their Children \n\nPeter Obi claimed at the Nigerian Guild of Editors conference in Enugu that he and his wife are godparents to Governor Soludo's children \u2014 as proof of how close the two families are. \n\nBut Anambra State First Lady, Nonye Soludo's office fired back \u2014 clarifying that while Margaret Obi is the baptismal godmother to one of their daughters \u2014 and Nonye Soludo is the confirmation godmother to Obi's daughter \u2014 Peter Obi himself has never served as godfather to any of Governor Soludo's children sparking a wave of reactions online. \n\nWatch What's Trending With @OjyOkpe",
+        "thumbnail_url": "https://pbs.twimg.com/amplify_video_thumb/2104602653296570370/img/6ntfzmbdHrs6cXlW.jpg"
+      },
+      "engagement": {
+        "comments": 137,
+        "likes": 399,
+        "saves": 63,
+        "shares": 70,
+        "views": 56456
+      },
+      "ext": {
+        "all_media_urls": null,
+        "author_followers": 1020320,
+        "author_following": 1221,
+        "author_posts_count": 83002,
+        "content_language": "en",
+        "quote_count": 16
+      },
+      "flags": {
+        "deleted": false,
+        "nsfw": false,
+        "pinned": null,
+        "spoiler": null
+      },
+      "id": "2104603248652882043",
+      "published_at": "2026-09-28T16:04:50.000Z",
+      "url": "https://x.com/ARISEtv/status/2104603248652882043"
+    },
+    "single_computed": {
+      "content_category": "other",
+      "engagement_rate": 0.010734,
+      "estimated_reach": 67747,
+      "language": "en"
+    }
+  },
+  "tiktok_place": {
+    "source": "captured",
+    "captured_at": "2026-10-02T07:27:46.099Z",
+    "redacted": true,
+    "success": true,
+    "endpoint": "/v1/tiktok/location/posts",
+    "credits_used": 1,
+    "request_id": "req_example000000",
+    "cached": false,
+    "pagination": {
+      "next_cursor": "sc.eyJ2IjoyLCJjIjoiMjAiLCJlIjoidGlrdG9rL2xvY2F0aW9uL3Bvc3RzIiwicCI6ImN1cnNvciJ9",
+      "has_more": true,
+      "page_size": 20
+    },
+    "data_kind": "dict",
+    "data_keys": [
+      "items",
+      "next_cursor",
+      "total",
+      "dropped"
+    ],
+    "sample_rows": [
+      {
+        "id": "7623592701052734727",
+        "url": "https://www.tiktok.com/@user_f2dbde/video/7623592701052734727",
+        "published_at": "2026-04-01T01:13:22.000Z",
+        "content": {
+          "text": "Sample comment text (redacted).",
+          "media_urls": "[URL query omitted]",
+          "thumbnail_url": "[URL query omitted]",
+          "duration_seconds": 56.3
+        },
+        "engagement": {
+          "views": 1459539,
+          "likes": 108612,
+          "comments": 883,
+          "shares": 7082,
+          "saves": 15178
+        },
+        "author": {
+          "username": "user_f2dbde",
+          "display_name": "user_63292a",
+          "avatar_url": "https://example.com/avatars/user_c55a8b.png",
+          "verified": false
+        },
+        "ext": {
+          "music_id": "7623592755168185089",
+          "author_id": "user_387df1",
+          "download_count": 2757,
+          "published_at_epoch": 1775006002
+        }
+      },
+      {
+        "id": "7633767260557069589",
+        "url": "https://www.tiktok.com/@user_d73393/video/7633767260557069589",
+        "published_at": "2026-04-28T11:15:51.000Z",
+        "content": {
+          "text": "Sample comment text (redacted).",
+          "media_urls": "[URL query omitted]",
+          "thumbnail_url": "[URL query omitted]",
+          "duration_seconds": 38.683
+        },
+        "engagement": {
+          "views": 1424456,
+          "likes": 148268,
+          "comments": 1192,
+          "shares": 13390,
+          "saves": 26246
+        },
+        "author": {
+          "username": "user_d73393",
+          "display_name": "user_e3e3b6",
+          "avatar_url": "https://example.com/avatars/user_57fad9.png",
+          "verified": false
+        },
+        "ext": {
+          "music_id": "7633767311636515605",
+          "author_id": "user_fff7b4",
+          "download_count": 2993,
+          "published_at_epoch": 1777374951
+        }
+      }
+    ]
+  },
+  "tiktok_region": {
+    "source": "captured",
+    "captured_at": "2026-10-02T15:40:23.298Z",
+    "redacted": true,
+    "success": true,
+    "endpoint": "/v1/tiktok/profile/region",
+    "credits_used": 1,
+    "request_id": "req_example000000",
+    "cached": false,
+    "data_kind": "dict",
+    "data_keys": [
+      "author",
+      "computed"
+    ],
+    "author": {
+      "id": "stoolpresidente",
+      "username": "stoolpresidente",
+      "followers": 4784231,
+      "following": 96,
+      "posts_count": 2535,
+      "location": "US"
+    },
+    "sample_rows": []
+  }
+}

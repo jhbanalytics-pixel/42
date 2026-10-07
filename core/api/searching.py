@@ -128,7 +128,7 @@ def _signal(r, markets, start, end):
     if not _refreshed(r.get("refreshed_at")):
         return None
     return {"term": term.strip(), "market": r["market"], "source": r["source"], "rank": rank,
-            "refreshed_at": _day(r["refreshed_at"])}
+            "refreshed_at": r["refreshed_at"] if r["source"] == "google_trending" else _day(r["refreshed_at"])}
 
 
 def _tokens(text):

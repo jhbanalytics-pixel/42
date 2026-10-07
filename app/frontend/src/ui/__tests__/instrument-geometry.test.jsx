@@ -5,6 +5,7 @@ import {existsSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {build as viteBuild} from 'vite';
 
 import {verifyInstrumentPackageInputs} from '../../../scripts/verify-instrument-package.mjs';
 import {cleanupTemporaryPath} from './task4-proof-helpers.js';
@@ -516,6 +517,7 @@ async function renderedMatrix(){
   const repositoryRoot = fileURLToPath(new URL('../../../../', import.meta.url));
   const serverScript = join(frontendRoot, 'scripts', 'gate-c-local-server.mjs');
   const productionRoot = join(repositoryRoot, 'web', 'dist');
+  await viteBuild({root: frontendRoot, logLevel: 'error'});
   const port = 32000 + (process.pid % 1000);
   const server = spawn(process.execPath, [serverScript, productionRoot, String(port)], {
     cwd: repositoryRoot, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
@@ -537,15 +539,26 @@ async function renderedMatrix(){
     }
     client = await pageClient(await chromePort(profile), `http://127.0.0.1:${port}/`);
     await settleDocument(client);
+    const historyFixtureScript = `(() => {
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input, options) => {
+        const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+        const response = originalFetch(input, options);
+        if (url.pathname === '/api/history/asks') return response.then((read) => read.ok ? new Response(JSON.stringify({asks: [{ask_id: 'a_gate_c_build', question: 'Gate C saved answer fixture', status: 'complete', answer_status: 'complete', market: 'ZA', at: '2026-10-06T08:00:00Z'}]}), {status: 200, headers: {'Content-Type': 'application/json'}}) : read);
+        return response;
+      };
+    })()`;
+    await client.command('Page.addScriptToEvaluateOnNewDocument', {source: historyFixtureScript});
     await client.command('Runtime.evaluate', {expression: `localStorage.setItem('pulse_passcode','gate-c-local-only')`});
     await client.command('Page.reload', {ignoreCache: true});
     await settleDocument(client);
+    await client.command('Runtime.evaluate', {expression: historyFixtureScript});
     const results = [];
     const routes = [
       {surface: 'today', route: 'pulse', selector: '.page.t42', composition: '.t42-card', expectedText: '#fixture_za_step'},
       {surface: 'discover', route: 'explore', selector: '.d42', composition: '.d42-cell', expectedText: '#fixture_za_step'},
       {surface: 'compare', route: 'compare?mode=items&items=i_step,i_cola,i_ring&market=ZA&days=7', selector: '.c42', composition: '.c42-result', expectedText: 'Posts in the window'},
-      {surface: 'build', route: 'console?work=brief&investigation=inv_gate_c&artifact=ra_gate_c&artifact_version=' + 'a'.repeat(64), selector: '.intelligence-console', composition: '.workbench', expectedText: 'Gate C local artifact'},
+      {surface: 'build', route: 'console', selector: '.b42', composition: '.b42-start', expectedText: 'Gate C saved answer fixture'},
       {surface: 'fieldwork', route: 'fieldwork', selector: '.fieldwork-page', composition: '.fieldwork-body', expectedText: 'Source and research operations'},
     ];
     const selectedRoutes = process.env.GATE_C_SURFACE
@@ -569,7 +582,13 @@ async function renderedMatrix(){
     if (client) await client.dispose();
     if (chromeProcess.exitCode === null){ chromeProcess.kill(); await Promise.race([once(chromeProcess, 'exit'), wait(5000)]); }
     if (server.exitCode === null) server.kill();
-    cleanupTemporaryPath(root);
+    for (let attempt = 0; existsSync(root); attempt += 1){
+      try { cleanupTemporaryPath(root); }
+      catch (error){
+        if (attempt >= 4 || !['EBUSY', 'EPERM', 'ENOTEMPTY'].includes(error.code)) throw error;
+        await wait(500);
+      }
+    }
   }
 }
 

@@ -420,6 +420,60 @@ async function mountedFieldworkGeometry({props, width=390, height=844, probe=nul
 
 
 describe('Fieldwork rendered geometry', () => {
+  for (const width of [360, 390, 520, 719]){
+    test.skipIf(!CHROME)(`at ${width} Figures keeps its text and chevron inside the button when closed, open and closed again`, async () => {
+      const measured = await mountedFieldworkGeometry({props: {payload: days.ready}, width, probe: `
+        const buttons = Array.from(page.querySelectorAll('.fieldwork-source__toggle')).filter((button) => button.getClientRects().length);
+        /* Measure each terminal pose. Headless virtual timers do not advance
+           compositor transitions, so turn off only the chevron transition. */
+        const settled = frameDocument.createElement('style');
+        settled.textContent = '.fieldwork-source__toggle::after { transition: none !important; }';
+        frameDocument.head.appendChild(settled);
+        const read = () => ({
+          pageOverflow: documentElement.scrollWidth - documentElement.clientWidth,
+          bodyOverflow: frameDocument.body.scrollWidth - documentElement.clientWidth,
+          buttons: buttons.map((button) => {
+            const box = button.getBoundingClientRect();
+            const style = frameWindow.getComputedStyle(button);
+            const arrow = frameWindow.getComputedStyle(button, '::after');
+            const matrix = new frameWindow.DOMMatrix(arrow.transform);
+            const origin = arrow.transformOrigin.split(' ').map(parseFloat);
+            const arrowWidth = parseFloat(arrow.width) + (arrow.boxSizing === 'border-box' ? 0 : parseFloat(arrow.borderLeftWidth) + parseFloat(arrow.borderRightWidth));
+            const arrowHeight = parseFloat(arrow.height) + (arrow.boxSizing === 'border-box' ? 0 : parseFloat(arrow.borderTopWidth) + parseFloat(arrow.borderBottomWidth));
+            const arrowLeft = box.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight) - arrowWidth;
+            const corners = [[0, 0], [arrowWidth, 0], [0, arrowHeight], [arrowWidth, arrowHeight]].map(([x, y]) => arrowLeft + origin[0] + matrix.transformPoint({x: x - origin[0], y: y - origin[1]}).x);
+            const range = frameDocument.createRange();
+            range.selectNodeContents(button);
+            const text = range.getBoundingClientRect();
+            return {
+              expanded: button.getAttribute('aria-expanded'),
+              overflow: button.scrollWidth - button.clientWidth,
+              overflowX: style.overflowX,
+              textFits: text.left >= box.left && text.right <= box.right,
+              chevronFits: Math.min(...corners) >= box.left && Math.max(...corners) <= box.right,
+              chevronVisible: arrow.content !== 'none' && parseFloat(arrow.borderRightWidth) > 0 && (matrix.b !== 0 || matrix.c !== 0),
+              height: box.height,
+            };
+          }),
+        });
+        const snapshots = [read()];
+        for (let step = 0; step < 2; step++){
+          buttons.forEach((button) => button.click());
+          await wait();
+          snapshots.push(read());
+        }
+        return snapshots;
+      `});
+      expect(measured.probe).toHaveLength(3);
+      for (const [index, snapshot] of measured.probe.entries()){
+        expect(snapshot.pageOverflow).toBe(0);
+        expect(snapshot.bodyOverflow).toBeLessThanOrEqual(0);
+        expect(snapshot.buttons.length).toBeGreaterThan(0);
+        expect(snapshot.buttons.filter((button) => button.expanded !== (index === 1 ? 'true' : 'false'))).toEqual([]);
+        expect(snapshot.buttons.filter((button) => button.overflow > 0 || button.overflowX !== 'visible' || !button.textFits || !button.chevronFits || !button.chevronVisible || button.height < 48)).toEqual([]);
+      }
+    }, 60000);
+  }
   /* Restated: the retired v1 fixtures are replaced by the roster's own days
      (fixtures/fieldwork42_days.json, built by core/api/fieldwork.py from the
      API fixtures). Controls are the tabs, buttons and disclosures; inline

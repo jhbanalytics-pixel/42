@@ -96,6 +96,7 @@ from pathlib import Path
 import yaml
 
 from core.collect import chain, curated_creators, google_rss, google_trends, local_sources, research_terms, writers
+from core.collect import location_sources
 from core.collect import seeds as seeding
 from core.collect.parse import (LANES, ROUTES, SEARCH_LANES, SEEDED, _dict, _first, _local_day, _protocol, _rows,
                                 parse_with_creators)
@@ -762,6 +763,9 @@ def plan(day, *, config=None, x_trends=False, share_cap=None, watches=(), includ
                                                         google_trends.placeholder_seeds(m, day), {}),
                     watched=watch_calls(watches)[0], curated_records=curated_records,
                     curated_limit=curated_limit, reels=reels)
+    if only_routes is None:
+        location_calls, _ = location_sources.plan(day, config)
+        execute({m: [Call(**c) for c in location_calls if c["market"] == m] for m in MARKETS})
     if only_routes is not None:
         skipped = [x for x in skipped if x["route"] in only_routes]
     total = sum(c.hold() for cs in calls.values() for c in cs)
@@ -1051,7 +1055,7 @@ class _Runner:
                 hold = call.hold()
             except Refused:
                 hold = 0  # the client refuses it and says why
-            if not self.budget.fits(call, hold) or (call.route == REELS_ROUTE and self.reels_room is not None
+            if not self.budget.fits(call, hold) or (call.route in (REELS_ROUTE,) + location_sources.ROUTES and self.reels_room is not None
                                                     and self.run.credits + hold > self.reels_room):
                 self._record(call, "over_share", self.clock())
                 continue
@@ -1080,7 +1084,7 @@ class _Runner:
                 try:
                     parsed = self._parse(call, result, fetched)
                 except Exception:
-                    if call.route != REELS_ROUTE:
+                    if call.route not in (REELS_ROUTE,) + location_sources.ROUTES:
                         raise
                     # Row 14i is an extra search lane: a body it cannot read fails that call, not the run.
                     log.exception("collect %s %s: response not parsed", call.market, call.route)
@@ -1423,6 +1427,11 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
     drive(runner.execute, run_date, config, x_trends=x_trends, override=share_cap is not None, rank=rank,
           evidence=lambda: pick_evidence(runner.first_seen, focus), queue=queue, watched=watched,
           curated_records=curated_records, curated_limit=curated_limit, reels=reels)
+    if only_routes is None:
+        location_calls, held = location_sources.plan(run_date, config)
+        runner.execute({m: [Call(**c) for c in location_calls if c["market"] == m] for m in MARKETS})
+        for entry in held:
+            log.warning("collect %s %s held: %s", entry["market"], entry["route"], entry["reason"])
     found = {p["post_id"] for m in MARKETS for call, _, parsed in runner.done[m] if call.seed
              for p in (parsed or {}).get("posts", [])}
     known = set()
