@@ -22,8 +22,12 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 
 import httpx
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 DEFAULT_QUESTION = "What are people in South Africa posting about most this week?"
 TIMEOUT = 30.0
@@ -133,6 +137,13 @@ def check_ask_record(record):
         missing = [i for i in cited if i not in ids]
         if missing:
             return False, f"claim {claim.get('id')} cites evidence not in evidence[]: {', '.join(map(str, missing))}"
+    short_answer = answer.get("short_answer")
+    if not isinstance(short_answer, str) or not short_answer.strip():
+        from core.agent.writer import HEADLINE_GAP
+
+        gaps = answer.get("gaps")
+        if answer.get("status") != "partial" or not isinstance(gaps, list) or HEADLINE_GAP not in gaps:
+            return False, "blank summary requires a partial answer with the checked summary gap"
     platforms = sorted({str(e.get("platform")) for e in evidence if e.get("platform")})
     run = record.get("run") or {}
     return True, (

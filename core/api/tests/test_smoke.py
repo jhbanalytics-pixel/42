@@ -107,7 +107,7 @@ def test_today_not_ready_is_a_fail_with_the_message(client, monkeypatch, capsys)
 def test_uncited_claim_fails_the_ask_check():
     record = {
         "ask_id": "a_1", "status": "complete",
-        "answer": {"status": "complete",
+        "answer": {"status": "complete", "short_answer": "The cited posts support this claim.",
                    "claims": [{"id": "c1", "evidence_ids": ["tt_1", "missing"]}],
                    "evidence": [{"id": "tt_1", "platform": "tiktok"}]},
         "run": {"credits": 1, "seconds": 2},
@@ -120,6 +120,58 @@ def test_uncited_claim_fails_the_ask_check():
     record["answer"]["claims"] = [{"id": "c1", "evidence_ids": ["tt_1"]}]
     ok, _ = smoke.check_ask_record(record)
     assert ok is True
+
+
+@pytest.mark.parametrize("short_answer, status, gap_kind, expected", [
+    ("", "complete", "exact", False),
+    (" \t\n", "complete", "exact", False),
+    ("", "partial", "absent", False),
+    ("", "partial", "similar", False),
+    ("", "partial", "incomplete", False),
+    ("", "partial", "different_reason", False),
+    ("", "partial", "exact", True),
+    (" \t\n", "partial", "exact", True),
+    ("The cited posts support this summary.", "complete", "absent", True),
+    ("The cited posts support this summary.", "partial", "absent", True),
+])
+def test_ask_summary_requires_text_or_the_exact_partial_headline_gap(short_answer, status, gap_kind, expected):
+    import json
+
+    from core.agent.writer import HEADLINE_GAP
+
+    record = json.loads(FIXTURE_ASK.read_text(encoding="utf-8"))
+    answer = record["answer"]
+    answer.update(short_answer=short_answer, status=status, gaps=[])
+    if gap_kind != "absent":
+        gap = dict(HEADLINE_GAP)
+        if gap_kind == "similar":
+            gap["what"] += " but unrelated"
+        elif gap_kind == "incomplete":
+            gap.pop("searched")
+        elif gap_kind == "different_reason":
+            gap["why"] = "another reason"
+        answer["gaps"].append(gap)
+    ok, reason = smoke.check_ask_record(record)
+    assert ok is expected, reason
+    if not expected:
+        assert "summary" in reason
+
+
+def test_standalone_summary_check_reads_the_producer_gap_outside_the_repository(tmp_path):
+    import json
+
+    from core.agent.writer import HEADLINE_GAP
+
+    record = json.loads(FIXTURE_ASK.read_text(encoding="utf-8"))
+    record["answer"].update(short_answer="", status="complete", gaps=[dict(HEADLINE_GAP)])
+    code = ("import json, runpy, sys; module = runpy.run_path(sys.argv[1]); "
+            "record = json.loads(sys.argv[2]); "
+            "assert module['check_ask_record'](record)[0] is False; "
+            "record['answer']['status'] = 'partial'; "
+            "assert module['check_ask_record'](record)[0] is True")
+    proc = subprocess.run([sys.executable, "-c", code, str(SMOKE), json.dumps(record)],
+                          cwd=tmp_path, capture_output=True, timeout=30)
+    assert proc.returncode == 0, proc.stderr.decode("utf-8")
 
 
 def test_transport_error_never_prints_header_values(capsys):
