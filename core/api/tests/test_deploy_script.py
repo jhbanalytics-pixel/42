@@ -84,6 +84,20 @@ def test_private_redeploy_reads_auth_and_never_requests_an_iam_change(tmp_path):
     assert "--no-invoker-iam-check" in deploys[1]
 
 
+def test_redeploy_preserves_environment_settings_outside_the_release(tmp_path):
+    result, calls = run_deploy(tmp_path, args=("--no-build",))
+    assert result.returncode == 0, result.stderr
+    deploys = [call for call in calls if call[:2] == ["run", "deploy"]]
+    assert [call[2] for call in deploys] == ["f42-agent", "f42-api"]
+    for call in deploys:
+        assert "--set-env-vars" not in call
+        assert "--clear-env-vars" not in call
+        assert "--remove-env-vars" not in call
+        settings = call[call.index("--update-env-vars") + 1]
+        assert "F42_PROJECT=ogilvy-trends-v2" in settings.split(",")
+        assert "F42_VERSION=d666ef64cd7a" in settings.split(",")
+
+
 @pytest.mark.parametrize("member", ["allUsers", "allAuthenticatedUsers"])
 def test_public_agent_stops_before_build_or_deploy(tmp_path, member):
     policy = {"bindings": [{"role": "roles/run.invoker", "members": [member]}]}

@@ -69,14 +69,14 @@ esac
 
 gcloud run deploy f42-agent --project "$PROJECT" --region "$REGION" --image "$IMAGE" \
   --service-account "$(SA "$AGENT_SA")" $AGENT_FLAGS \
-  --set-env-vars "$AGENT_ENV" \
+  --update-env-vars "$AGENT_ENV" \
   --set-secrets "$AGENT_SECRETS"
 
 AGENT_URL=$(gcloud run services describe f42-agent --project "$PROJECT" --region "$REGION" --format 'value(status.url)')
 
 gcloud run deploy f42-api --project "$PROJECT" --region "$REGION" --image "$IMAGE" \
   --service-account "$(SA "$API_SA")" $API_FLAGS \
-  --set-env-vars "${API_ENV},AGENT_URL=${AGENT_URL}" \
+  --update-env-vars "${API_ENV},AGENT_URL=${AGENT_URL}" \
   --set-secrets "$API_SECRETS"
 
 API_URL=$(gcloud run services describe f42-api --project "$PROJECT" --region "$REGION" --format 'value(status.url)')
