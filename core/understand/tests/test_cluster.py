@@ -229,6 +229,52 @@ def test_match_rule(case, cos, item_kwargs, cluster_kwargs, last_seen_days, kind
         assert decision["item_id"] == "m1"
 
 
+@pytest.mark.parametrize("cos", [-1.0, 0.0, 0.69])
+def test_shared_creator_and_recent_without_content_make_a_new_topic(cos):
+    c = a_cluster("c1", at(1.0), keywords=["boxing"], hashtags=["bout"], creators=["publisher"])
+    item = an_item("painting", at(cos), DAY - timedelta(days=1), keywords=["painting"],
+                   hashtags=["art"], creators=["publisher"])
+    [decision] = cluster.assign([c], [item], DAY)
+    assert (decision["kind"], decision["item_id"]) == ("new", None)
+    assert decision["votes"] == ["creator", "recent"]
+    assert decision["candidates"] == [("painting", cos)]
+
+
+@pytest.mark.parametrize("cos", [0.70, 0.76])
+def test_shared_creator_and_recent_without_content_keep_the_variant_fallback(cos):
+    c = a_cluster("c1", at(1.0), creators=["publisher"])
+    item = an_item("parent", at(cos), DAY - timedelta(days=1), creators=["publisher"])
+    [decision] = cluster.assign([c], [item], DAY)
+    assert (decision["kind"], decision["item_id"]) == ("variant", "parent")
+    assert decision["votes"] == ["creator", "recent"]
+
+
+def test_unrelated_shared_creator_cannot_take_an_item_from_a_content_match():
+    item = an_item("boxing", at(1.0), DAY - timedelta(days=1), hashtags=["bout"], creators=["publisher"])
+    related = a_cluster("related", at(0.5), hashtags=["bout"])
+    unrelated = a_cluster("unrelated", at(0.69), creators=["publisher"])
+    decisions = {d["cluster_id"]: d for d in cluster.assign([related, unrelated], [item], DAY)}
+    assert (decisions["related"]["kind"], decisions["related"]["item_id"]) == ("match", "boxing")
+    assert decisions["related"]["votes"] == ["hashtag_or_sound", "recent"]
+    assert (decisions["unrelated"]["kind"], decisions["unrelated"]["item_id"]) == ("new", None)
+
+
+def test_unrelated_shared_creator_plan_inserts_its_own_identity_and_label():
+    c = a_cluster("20260928-ng-000", at(1.0), keywords=["boxing"], creators=["publisher"])
+    c.update(label="Boxing bout", members=[("boxing-post", 1.0)], market="ng", platform="tiktok", local_terms=[])
+    item = an_item("painting", at(-1.0), DAY - timedelta(days=1), keywords=["painting"], creators=["publisher"])
+    decisions = cluster.assign([c], [item], DAY)
+    planned = cluster.plan([c], decisions, [item], DAY, "ng")
+    [row] = planned["map_rows"]
+    assert row["change"] == "insert"
+    assert row["item_id"] != "painting"
+    assert row["canonical_key"] == "topic:20260928-ng-000"
+    assert row["label"] == "Boxing bout"
+    assert row["parent_item_id"] is None
+    assert planned["cluster_rows"][0]["item_id"] == row["item_id"]
+    assert planned["cluster_rows"][0]["match_kind"] == "new"
+
+
 def test_hashtags_compare_without_case_or_hash():
     c = a_cluster("c1", at(1.0), hashtags=["#Amapiano"])
     item = an_item("m1", at(0.9), DAY - timedelta(days=30), hashtags=["amapiano"])
