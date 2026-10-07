@@ -3,12 +3,38 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 from types import SimpleNamespace
+
+import pytest
 
 from core.eval import demo_pairs, trending_replay
 
 
 SAST = timezone(timedelta(hours=2))
+
+
+@pytest.fixture
+def product_fix_repo(tmp_path, monkeypatch):
+    from core.eval.ask_r2 import _git_executable
+
+    repo = tmp_path / "source"
+    repo.mkdir()
+    git = _git_executable()
+
+    def run(*args):
+        return subprocess.run(
+            [git, "-c", "core.hooksPath=", "-c", "commit.gpgsign=false",
+             "-c", "user.name=Test", "-c", "user.email=test@example.test", *args],
+            cwd=repo, check=True, capture_output=True, encoding="utf-8",
+        ).stdout.strip()
+
+    run("init", "--quiet")
+    run("commit", "--quiet", "--allow-empty", "-m", "product fix")
+    commit = run("rev-parse", "HEAD")
+    monkeypatch.setattr(trending_replay, "ROOT", repo)
+    monkeypatch.setattr(trending_replay, "PRODUCT_FIX_COMMIT", commit)
+    return SimpleNamespace(repo=repo, git=run, commit=commit)
 
 
 def test_trending_profile_freezes_three_exact_market_slots():
@@ -386,7 +412,7 @@ def _write_settled_ng_fixture(artifact_dir):
     return receipt, raw, raw_bytes
 
 
-def test_prepare_reports_funding_date_block_after_local_runtime_load(tmp_path):
+def test_prepare_reports_funding_date_block_after_local_runtime_load(tmp_path, product_fix_repo):
     inputs, data, artifact_dir = _funding_inputs(tmp_path)
     runtime = _Runtime(datetime(2026, 10, 2, 12, tzinfo=SAST))
 
@@ -399,7 +425,7 @@ def test_prepare_reports_funding_date_block_after_local_runtime_load(tmp_path):
     assert runtime.events == ["sources", "load"]
 
 
-def test_source_must_be_clean_and_descend_from_product_fix(tmp_path):
+def test_source_must_be_clean_and_descend_from_product_fix(tmp_path, product_fix_repo):
     inputs, data, artifact_dir = _funding_inputs(tmp_path)
     runtime = _Runtime(datetime(2026, 10, 1, 12, tzinfo=SAST))
     runtime._verify_committed_sources = lambda: {
@@ -413,6 +439,26 @@ def test_source_must_be_clean_and_descend_from_product_fix(tmp_path):
     assert result["status"] == "blocked"
     assert result["stop_reason"] == "product_fix_source_ancestry_unverified"
     assert runtime.events == []
+
+
+def test_source_gate_rejects_a_clean_commit_outside_product_fix_history(tmp_path, product_fix_repo):
+    inputs, data, artifact_dir = _funding_inputs(tmp_path)
+    product_fix_repo.git("checkout", "--quiet", "--orphan", "unrelated")
+    product_fix_repo.git("commit", "--quiet", "--allow-empty", "-m", "unrelated source")
+    unrelated = product_fix_repo.git("rev-parse", "HEAD")
+    runtime = _Runtime(datetime(2026, 10, 1, 12, tzinfo=SAST), source_commit=unrelated)
+
+    with pytest.raises(trending_replay.OperatorRefused, match="^product_fix_source_ancestry_unverified$"):
+        trending_replay._verify_product_fix_source(product_fix_repo.repo, unrelated)
+
+    result = trending_replay.run_trending_replay(
+        runtime_factory=lambda **_: runtime, inputs_dir=inputs, data_dir=data, artifact_dir=artifact_dir,
+    )
+
+    assert result["status"] == "blocked"
+    assert result["stop_reason"] == "product_fix_source_ancestry_unverified"
+    assert runtime.events == ["sources"]
+    assert runtime.run_calls == []
 
 
 def test_saved_readback_accepts_actual_w5_w6_contract_and_preserves_insufficient_status(tmp_path):
@@ -646,7 +692,8 @@ def test_settled_ng_504_is_consumed_and_only_ke_dispatches(tmp_path, monkeypatch
     assert blocked_runtime.run_calls == []
 
 
-def test_execute_is_sequential_skips_insufficient_and_preserves_saved_ask_metadata(tmp_path, monkeypatch):
+def test_execute_is_sequential_skips_insufficient_and_preserves_saved_ask_metadata(
+        tmp_path, monkeypatch, product_fix_repo):
     inputs, data, artifact_dir = _funding_inputs(tmp_path)
     prior = _verified_prior_receipts()
     read_receipts = demo_pairs._existing_receipts
@@ -697,7 +744,7 @@ def test_execute_is_sequential_skips_insufficient_and_preserves_saved_ask_metada
     }
 
 
-def test_provider_is_restored_when_attempt_run_fails(tmp_path, monkeypatch):
+def test_provider_is_restored_when_attempt_run_fails(tmp_path, monkeypatch, product_fix_repo):
     inputs, data, artifact_dir = _funding_inputs(tmp_path)
     prior = _verified_prior_receipts()
     read_receipts = demo_pairs._existing_receipts
@@ -720,7 +767,7 @@ def test_provider_is_restored_when_attempt_run_fails(tmp_path, monkeypatch):
     assert os.environ["MODEL_PROVIDER"] == "openai"
 
 
-def test_restart_skips_verified_slots_and_blocks_incomplete_marker(tmp_path, monkeypatch):
+def test_restart_skips_verified_slots_and_blocks_incomplete_marker(tmp_path, monkeypatch, product_fix_repo):
     inputs, data, artifact_dir = _funding_inputs(tmp_path)
     prior = _verified_prior_receipts()
     read_receipts = demo_pairs._existing_receipts

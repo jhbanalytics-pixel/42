@@ -564,6 +564,10 @@ def memory_chain(monkeypatch):
 
 
 def test_job_runs_understand_then_starts_detect(monkeypatch):
+    from core.understand import enrich
+
+    moments = iter([20.0, 20.25])
+    monkeypatch.setattr(enrich, "_monotonic", lambda: next(moments))
     monkeypatch.delenv("EMBED_DAYS", raising=False)
     log = fake_chain(monkeypatch)
     fake = FakeWarehouse()
@@ -575,7 +579,7 @@ def test_job_runs_understand_then_starts_detect(monkeypatch):
                        "booked_model_usd": 0.000026, "embedded_total": 5_000, "index": "created_or_exists", "enriched": 0,
                        "enrich_failed": 0, "enrich_skipped": 0, "enrich_batch_collected": 0,
                        "enrich_batch_pending": 0, "enrich_candidate": 0, "enrich_planned": 0, "enrich_attempted": 0,
-                       "enrich_deferred": 0, "enrich_time_budget_exhausted": False, "enrich_elapsed": 0.0,
+                       "enrich_deferred": 0, "enrich_time_budget_exhausted": False, "enrich_elapsed": 0.25,
                        "enrich_unknown_spend": False, "enrich_unknown_spend_estimate_usd": 0.0,
                        "cluster": {m: {"posts": 0, "today_posts": 0, "skipped": "too_few_posts"}
                                    for m in ("za", "ng", "ke", "pan")},
@@ -1601,12 +1605,24 @@ def test_every_phase_line_carries_the_peak_rss_so_far(monkeypatch, capsys):
         ["phase=clustering", "event=end", "peak_rss_mb=812.5"]]
 
 
-def test_peak_rss_reads_this_process_from_getrusage_in_mib():
-    import resource
+@pytest.mark.parametrize(("platform", "maxrss"), [("linux", 262144), ("darwin", 268435456)])
+def test_peak_rss_reads_this_process_from_getrusage_in_mib(monkeypatch, platform, maxrss):
+    resource = types.ModuleType("resource")
+    resource.RUSAGE_SELF = object()
+    calls = []
+
+    def getrusage(who):
+        calls.append(who)
+        return types.SimpleNamespace(ru_maxrss=maxrss)
+
+    resource.getrusage = getrusage
+    monkeypatch.setitem(sys.modules, "resource", resource)
+    monkeypatch.setattr(job, "sys", types.SimpleNamespace(platform=platform))
 
     peak = job.peak_rss_mb()
     assert isinstance(peak, float) and peak > 0
-    assert peak == pytest.approx(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, rel=0.5)
+    assert peak == 256.0
+    assert calls == [resource.RUSAGE_SELF]
 
 
 def test_peak_rss_is_none_without_the_resource_module(monkeypatch):
