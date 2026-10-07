@@ -32,7 +32,9 @@ K4_REWRITE_EXTRA_CALLS = K4_REWRITE_CALLS + K4_RECHECK_CALLS
 K4_REWRITE_OUTPUT_TOKENS = MAX_CLAIMS * (K4_REWRITE_MAX_TOKENS + SUPPORT_MAX_TOKENS)
 # One rewrite per question of a short answer the support check blanked because it rested on a cut claim, from the
 # surviving claims only (live staging, 6 October: a partial answer with nine claims showed no top line and no gap).
-# ask.py's hold counts it once; the new text then goes through the short answer checks as a first draft's does.
+# A narrowed claim the support check kept blanks it too, on a complete answer (live staging, 7 October: five claims,
+# no top line, no context and no gap). ask.py's hold counts it once; the new text then goes through the short answer
+# checks as a first draft's does.
 HEADLINE_REWRITE_MAX_TOKENS, HEADLINE_REWRITE_INPUT_TOKENS, HEADLINE_REWRITE_CALLS = 200, 20_000, 1
 MAX_ITEMS = 5  # so_what and watch_next each; ask.py's hold counts them as field-check items
 MAX_GAPS = 10  # the writer's own gaps, which the field check also reads; ask.py's hold counts this many
@@ -143,11 +145,11 @@ as the claims do. Make no prediction: say nothing about what will happen. Word a
 interpretation. If the claims cannot be summed up this way, return an empty text.
 """
 # The rows a headline rewrite leaves (claim_id short_answer, rule K10), fixed text only.
-HEADLINE_REWRITTEN_REASON = ("the short answer rested on a cut claim and was blanked; it was rewritten once from the "
-                             "surviving claims and then checked as a first draft's is")
+HEADLINE_REWRITTEN_REASON = ("the short answer rested on a cut or narrowed claim and was blanked; it was rewritten "
+                             "once from the surviving claims and then checked as a first draft's is")
 HEADLINE_UNUSABLE_REASON = "the short answer rewrite returned no usable text, so the short answer stays blank"
-HEADLINE_REPEATS_REASON = ("the short answer rewrite repeated a cut claim or named an id, so the short answer stays "
-                           "blank")
+HEADLINE_REPEATS_REASON = ("the short answer rewrite repeated a cut claim, a narrowed claim's original words or named "
+                           "an id, so the short answer stays blank")
 HEADLINE_INPUT_REASON = ("the surviving claims did not fit the short answer rewrite's saved input, so the short answer "
                          "stays blank")
 HEADLINE_FAILED_REASON = "the short answer rewrite call failed, so the short answer stays blank"
@@ -157,7 +159,8 @@ HEADLINE_USED_REASON = ("the one short answer rewrite a question allows was alre
                         "blank")
 HEADLINE_REASONS = (HEADLINE_REWRITTEN_REASON, HEADLINE_UNUSABLE_REASON, HEADLINE_REPEATS_REASON, HEADLINE_INPUT_REASON,
                     HEADLINE_FAILED_REASON, HEADLINE_BUDGET_REASON, HEADLINE_USED_REASON)
-# The gap a partial answer carries while its short answer stays blank for a cut claim it rested on.
+# The gap an answer carries while its short answer stays blank for a cut or narrowed claim it rested on. ask.py
+# lowers a complete answer that carries it to partial.
 HEADLINE_GAP = {"what": "One-line summary removed: it repeated a claim that did not pass its checks",
                 "searched": "the short answer text",
                 "why": "a summary that repeats a removed claim is not shown, and no checked summary of the claims "
@@ -1064,11 +1067,12 @@ def _k10(answer: dict, kept: list, cut: dict) -> dict:
 
 def headline_blanked(before: dict, answer: dict) -> bool:
     """Whether the support check blanked a short answer the code checks kept (before is check_answer's answer) because
-    it rested on a cut claim (_k10, or _clear_claim_fields after a narrowing), leaving a partial answer with 2 or more
-    claims. An insufficient_evidence answer carries its own short answer and is never this case."""
+    it rested on a cut claim (_k10) or on a claim it narrowed (_clear_claim_fields), leaving 2 or more claims. A cut
+    leaves the answer partial; a narrowed claim kept with no cut leaves it complete. An insufficient_evidence answer
+    carries its own short answer and a refusal is never rewritten, so neither is ever this case."""
     was = before.get("short_answer")
     return (isinstance(was, str) and bool(was.strip()) and was != INSUFFICIENT and answer.get("short_answer") == ""
-            and answer.get("status") == "partial" and len(answer.get("claims") or []) >= 2)
+            and answer.get("status") in ("partial", "complete") and len(answer.get("claims") or []) >= 2)
 
 
 def _headline_removed(before: dict, answer: dict) -> list:

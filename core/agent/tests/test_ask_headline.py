@@ -1,6 +1,7 @@
-"""The short answer rewrite: when the support check blanks the short answer for a cut claim it rested on, one call
-writes a new one from the surviving claims, and the gate checks it as it checks a first draft's (live staging,
-6 October: a partial answer with nine claims showed no top line and no gap saying why)."""
+"""The short answer rewrite: when the support check blanks the short answer for a cut or narrowed claim it rested on,
+one call writes a new one from the surviving claims, and the gate checks it as it checks a first draft's (live staging,
+6 October: a partial answer with nine claims showed no top line and no gap saying why; 7 October: the same on a
+complete answer whose claim was narrowed and kept)."""
 
 import copy
 import json
@@ -10,8 +11,8 @@ import pytest
 from core.agent import ask, checks, writer
 from core.agent.answer import validate_answer
 from core.agent.model_budget import AskModelBudget
-from core.agent.tests.test_ask import (REWRITTEN_HEADLINE, SEARCH_EMBED_USD, WRITER_OUT, FakeModel, Harness,
-                                       make_research)
+from core.agent.tests.test_ask import (NARROWED_CLAIM, REWRITTEN_HEADLINE, SEARCH_EMBED_USD, WRITER_OUT, FakeModel,
+                                       Harness, make_research)
 from core.agent.tests.test_ask_model_budget import configure_gemini
 from core.agent.tests.test_ask_t2 import CriticModel, t2
 from core.agent.writer import (FIELDS_SCHEMA, HEADLINE_GAP, HEADLINE_REWRITE_SCHEMA, K4_REWRITE_SCHEMA,
@@ -246,3 +247,228 @@ def test_the_gap_is_plain_and_reads_as_the_codes():
     assert not checks._text_breaches(text)
     assert writer.writer_gaps([HEADLINE_GAP]) == []
     assert all(not checks._text_breaches(reason) and "—" not in reason for reason in writer.HEADLINE_REASONS)
+
+
+# Live staging, 7 October: a complete answer with five claims, one of them narrowed by the support check and kept,
+# showed no short answer, no context and no gap saying why. Nothing was cut, so the status stayed complete.
+NARROWED_ORIGINAL = WRITER_OUT["claims"][1]["text"]
+
+
+class NarrowingModel(HeadlineModel):
+    """HeadlineModel whose writer leaves out c4, so the code checks cut nothing, and whose K4 rewrite narrows c2,
+    which the support check then keeps: the answer stays complete with the short answer blanked."""
+
+    writer_out = {**WRITER_OUT, "claims": WRITER_OUT["claims"][:3]}
+
+    def complete_json(self, *, system, user, schema, model, max_tokens):
+        if schema is K4_REWRITE_SCHEMA:
+            self.calls.append({"model": model, "schema": schema, "user": user, "max_tokens": max_tokens})
+            return {"text": NARROWED_CLAIM}, {"input_tokens": 100, "output_tokens": 20, "usd": 0.0006}
+        return super().complete_json(system=system, user=user, schema=schema, model=model, max_tokens=max_tokens)
+
+
+def test_a_complete_answer_whose_short_answer_a_narrowed_claim_blanked_is_rewritten_once_and_kept():
+    h = Harness(model=NarrowingModel())
+    answer = h.run()["answer"]
+
+    assert validate_answer(answer) == []
+    assert [c["id"] for c in answer["claims"]] == ["c1", "c2", "c3"]
+    assert answer["claims"][1]["text"] == NARROWED_CLAIM
+    assert answer["status"] == "complete"  # nothing was cut, and the rewrite passed every check
+    assert answer["short_answer"] == REWRITTEN_HEADLINE
+    assert HEADLINE_GAP not in answer["gaps"]
+    assert schemas(h).count("headline") == 1
+    assert schemas(h).index("headline") < schemas(h).index("fields")
+    rewrite = next(call for call in h.model.calls if call["schema"] is HEADLINE_REWRITE_SCHEMA)
+    # the narrowed words reach it, never the original ones
+    assert NARROWED_CLAIM in rewrite["user"] and NARROWED_ORIGINAL not in rewrite["user"]
+    field_call = h.model.calls[schemas(h).index("fields")]
+    assert "item 0 (short_answer;" in field_call["user"] and REWRITTEN_HEADLINE in field_call["user"]
+    assert [(r["verdict"], r["reason"]) for r in headline_rows(h)] == [("pass", writer.HEADLINE_REWRITTEN_REASON)]
+    # the so_what item resting on the narrowed claim restated its unchecked words and stays withheld
+    assert [s["claim_ids"] for s in answer["so_what"]] == [["c1"]]
+
+
+@pytest.mark.parametrize("out, reason", [
+    (RuntimeError("provider failed"), writer.HEADLINE_FAILED_REASON),
+    ({"text": "  "}, writer.HEADLINE_UNUSABLE_REASON),
+    # the narrowed claim's original words are held back as a cut claim's are
+    ({"text": "Amapiano posts came from creators on TikTok and X, and people say amapiano is fading."},
+     writer.HEADLINE_REPEATS_REASON),
+])
+def test_a_narrowed_claims_blank_short_answer_that_stays_blank_gets_the_gap_and_lowers_complete_to_partial(out,
+                                                                                                         reason):
+    h = Harness(model=NarrowingModel(out))
+    answer = h.run()["answer"]
+
+    assert validate_answer(answer) == []
+    assert [c["id"] for c in answer["claims"]] == ["c1", "c2", "c3"]
+    assert answer["status"] == "partial"
+    assert answer["short_answer"] == ""
+    assert answer["gaps"].count(HEADLINE_GAP) == 1
+    assert [r["reason"] for r in headline_rows(h)] == [reason]
+    assert schemas(h).count("headline") == 1
+    assert NARROWED_ORIGINAL.lower().rstrip(".") not in json.dumps(answer).lower()
+    assert "fields" in schemas(h)
+
+
+def test_a_narrowed_claims_rewrite_the_field_check_flags_lowers_complete_to_partial_with_the_gap():
+    h = Harness(model=NarrowingModel(forecast_headline=True))
+    answer = h.run()["answer"]
+
+    assert answer["status"] == "partial"
+    assert answer["short_answer"] == ""
+    assert REWRITTEN_HEADLINE not in json.dumps([answer, h.events])
+    assert answer["gaps"].count(HEADLINE_GAP) == 1
+
+
+def test_a_narrowed_claim_with_no_second_claim_keeps_the_insufficient_evidence_path_with_no_rewrite():
+    class OneClaim(NarrowingModel):
+        writer_out = {**WRITER_OUT, "claims": [WRITER_OUT["claims"][1]], "so_what": [], "watch_next": []}
+
+    h = Harness(model=OneClaim())
+    answer = h.run()["answer"]
+
+    assert [c["text"] for c in answer["claims"]] == [NARROWED_CLAIM]
+    assert answer["status"] == "insufficient_evidence"
+    assert answer["short_answer"] == checks.INSUFFICIENT
+    assert "headline" not in schemas(h)
+    assert HEADLINE_GAP not in answer["gaps"]
+    assert headline_rows(h) == []
+
+
+def test_a_complete_answer_with_its_short_answer_intact_keeps_its_status_and_makes_no_rewrite():
+    class NoNarrowing(NarrowingModel):
+        def complete_json(self, *, system, user, schema, model, max_tokens):
+            if schema is K4_REWRITE_SCHEMA:
+                raise AssertionError("no claim needs narrowing")
+            return super().complete_json(system=system, user=user, schema=schema, model=model,
+                                         max_tokens=max_tokens)
+
+        writer_out = {**WRITER_OUT, "claims": [WRITER_OUT["claims"][0], WRITER_OUT["claims"][2]],
+                      "so_what": WRITER_OUT["so_what"][:1]}
+
+    h = Harness(model=NoNarrowing())
+    answer = h.run()["answer"]
+
+    assert answer["status"] == "complete"
+    assert answer["short_answer"] == WRITER_OUT["short_answer"]
+    assert "headline" not in schemas(h)
+    assert HEADLINE_GAP not in answer["gaps"]
+
+
+@pytest.mark.parametrize("out, status, headline", [
+    (None, "complete", REWRITTEN_HEADLINE),
+    (RuntimeError("provider failed"), "partial", ""),
+])
+def test_a_t2_ask_treats_a_narrowed_claims_blank_short_answer_as_t1_does(out, status, headline):
+    class Model(CriticModel):
+        writer_out = NarrowingModel.writer_out
+
+        def complete_json(self, *, system, user, schema, model, max_tokens):
+            if schema is K4_REWRITE_SCHEMA:
+                self.calls.append({"model": model, "schema": schema, "user": user, "max_tokens": max_tokens})
+                return {"text": NARROWED_CLAIM}, {"input_tokens": 100, "output_tokens": 20, "usd": 0.0006}
+            if schema is HEADLINE_REWRITE_SCHEMA:
+                self.calls.append({"model": model, "schema": schema, "user": user, "max_tokens": max_tokens})
+                if isinstance(out, Exception):
+                    raise out
+                return {"text": REWRITTEN_HEADLINE}, {"input_tokens": 100, "output_tokens": 20, "usd": 0.0006}
+            return super().complete_json(system=system, user=user, schema=schema, model=model,
+                                         max_tokens=max_tokens)
+
+    h = t2(model=Model())
+    answer = h.run(tier="T2")["answer"]
+
+    assert validate_answer(answer) == []
+    assert schemas(h).count("headline") == 1
+    assert [c["id"] for c in answer["claims"]] == ["c1", "c2", "c3"]
+    assert answer["status"] == status and answer["short_answer"] == headline
+    assert answer["gaps"].count(HEADLINE_GAP) == (0 if headline else 1)
+
+
+class Budgets(AskModelBudget):
+    """AskModelBudget that keeps each question's budget, so a test can read what it booked."""
+
+    made: list = []
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.unknown = []  # the reserve, in micros, of each call settled with unknown usage
+        Budgets.made.append(self)
+
+    def settle(self, reservation, usage, *, stop_unknown=True):
+        if not self._known_usage(usage):
+            self.unknown.append(reservation.ceiling_micros)
+        return super().settle(reservation, usage, stop_unknown=stop_unknown)
+
+
+@pytest.mark.parametrize("tier", ["T0", "T1"])
+@pytest.mark.parametrize("model", [HeadlineModel, NarrowingModel], ids=["cut", "narrowed"])
+def test_a_gemini_rewrite_that_fails_with_unknown_usage_books_its_reserve_and_the_field_check_still_runs(
+        monkeypatch, tier, model):
+    # The rewrite raises with no usage, so the budget cannot know what it billed. It books the rewrite's full reserve,
+    # which the room asked for before it already held, and the field check after it runs on the rest.
+    configure_gemini(monkeypatch)
+    monkeypatch.setattr(Budgets, "made", [])
+    monkeypatch.setattr(ask, "AskModelBudget", Budgets)
+    h = Harness(model=model(RuntimeError("provider failed")))
+    out = h.run(tier=tier)
+    answer = out["answer"]
+
+    (budget,) = Budgets.made
+    assert validate_answer(answer) == []
+    assert answer["status"] == "partial"  # from complete for a narrowed claim, else unchanged
+    assert answer["short_answer"] == ""
+    assert answer["gaps"].count(HEADLINE_GAP) == 1
+    assert [r["reason"] for r in headline_rows(h)] == [writer.HEADLINE_FAILED_REASON]
+    assert schemas(h).count("headline") == 1
+    assert schemas(h)[-1] == "fields"  # the field check ran after the failed rewrite
+    assert not budget.stopped and budget.stop_reason is None
+    assert not any("budget" in n for n in out["run"]["notices"])
+    # the rewrite is booked at its full reserve, within the room the probe held for it
+    rewrite_usd = ask.call_usd(ask.MODEL, writer.HEADLINE_REWRITE_INPUT_TOKENS, writer.HEADLINE_REWRITE_MAX_TOKENS)
+    (reserve,) = budget.unknown
+    assert budget.conservative_usd == reserve / 1_000_000
+    assert 0 < budget.conservative_usd <= rewrite_usd
+    assert out["run"]["model_usd"] >= budget.booked_usd
+
+
+class ServerFailed(Exception):
+    code = 503  # a 5xx from Vertex with no usage on it
+
+
+@pytest.mark.parametrize("room", [True, False], ids=["retry_fits", "retry_would_crowd_the_field_check"])
+def test_a_gemini_rewrite_that_fails_on_googles_side_retries_only_within_the_field_checks_room(monkeypatch, room):
+    configure_gemini(monkeypatch)
+    monkeypatch.setattr("core.agent.gemini_research.RETRY_WAIT_S", 0)
+    monkeypatch.setattr(Budgets, "made", [])
+    monkeypatch.setattr(ask, "AskModelBudget", Budgets)
+    real = AskModelBudget.affords
+    probes = []
+
+    def affords(self, model, calls):
+        probes.append(calls)
+        if not room and len(probes) == 2:  # the retry's probe: only the field check still fits
+            field, _, _ = self._ceiling(model, ask.FIELD_INPUT_TOKENS, ask.FIELD_MAX_TOKENS)
+            self.cap_micros = self._booked_micros + self._in_flight_micros + field
+        return real(self, model, calls)
+
+    monkeypatch.setattr(AskModelBudget, "affords", affords)
+    h = Harness(model=NarrowingModel(ServerFailed("unavailable")))
+    out = h.run(tier="T1")
+    answer = out["answer"]
+
+    (budget,) = Budgets.made
+    assert len(probes) == 2 and probes[1][1:] == [(ask.FIELD_INPUT_TOKENS, ask.FIELD_MAX_TOKENS)]
+    assert schemas(h).count("headline") == (2 if room else 1)
+    assert schemas(h)[-1] == "fields"
+    assert not budget.stopped
+    assert answer["status"] == "partial" and answer["short_answer"] == ""
+    assert answer["gaps"].count(HEADLINE_GAP) == 1
+    # each try is booked at its full reserve
+    rewrite_usd = ask.call_usd(ask.MODEL, writer.HEADLINE_REWRITE_INPUT_TOKENS, writer.HEADLINE_REWRITE_MAX_TOKENS)
+    assert len(budget.unknown) == (2 if room else 1)
+    assert budget.conservative_usd == sum(budget.unknown) / 1_000_000
+    assert all(0 < reserve / 1_000_000 <= rewrite_usd for reserve in budget.unknown)
+    assert out["run"]["model_usd"] >= budget.booked_usd

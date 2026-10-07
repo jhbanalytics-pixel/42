@@ -1114,10 +1114,14 @@ SUPPORT_WORKERS = 5
 class _StopAwareModel:
     parallel_calls = SUPPORT_WORKERS
 
-    def __init__(self, model, should_stop, model_budget=None):
+    def __init__(self, model, should_stop, model_budget=None, keep_room=None):
         self.model = model
         self.should_stop = should_stop
         self.model_budget = model_budget
+        # An optional call the question goes on without (the short answer rewrite) names the calls still to come,
+        # (input_bound, max_output_tokens) each. A failure with unknown usage books its full reserve, as any does, but
+        # does not stop those calls, and its one 5xx retry runs only when the budget still has room for it and them.
+        self.keep_room = keep_room
 
     def _checked_usage(self, usage):
         complete = getattr(self.model, "usage_is_complete", None)
@@ -1175,8 +1179,13 @@ class _StopAwareModel:
                 # A 5xx is Google's failure: it books its full reserve and one more try runs on a fresh reserve, the
                 # retry the HTTP client is not allowed to make here because it would run outside the reserve.
                 retry = not server_failed and server_error(cause) and not self.should_stop()
-                self.model_budget.settle(reservation, self._checked_usage(getattr(cause, "usage", None)),
-                                         stop_unknown=not retry)
+                usage = self._checked_usage(getattr(cause, "usage", None))
+                if self.keep_room is None:
+                    self.model_budget.settle(reservation, usage, stop_unknown=not retry)
+                else:
+                    self.model_budget.settle(reservation, usage, stop_unknown=False)
+                    retry = retry and self.model_budget.affords(
+                        kwargs["model"], [(input_bound, kwargs["max_tokens"]), *self.keep_room])
                 if not retry:
                     raise
                 server_failed += 1
@@ -1496,10 +1505,11 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     fallback_active = False
 
     def headline(checked: dict, answer: dict) -> tuple[dict, list[dict]]:
-        """When the support check blanked the short answer for a cut claim it rested on (writer.headline_blanked), one
-        rewrite per ask from the surviving claims, before checks.recheck_fields and the field check, which read it as a
-        first draft's. It runs only when the question's budget has room for it and a full field check after it, so it
-        never costs the answer its field check. Any failure leaves the short answer blank; gate then adds the gap."""
+        """When the support check blanked the short answer for a cut or narrowed claim it rested on
+        (writer.headline_blanked), one rewrite per ask from the surviving claims, before checks.recheck_fields and the
+        field check, which read it as a first draft's. It runs only when the question's budget has room for it and a
+        full field check after it, so it never costs the answer its field check. Any failure leaves the short answer
+        blank; gate then adds the gap and lowers a complete answer to partial."""
         nonlocal headline_rewritten
         if not headline_blanked(checked, answer):
             return answer, []
@@ -1517,7 +1527,12 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         headline_rewritten = True
         progress.step("write", "Rewriting the short answer from the claims that passed")
         try:
-            text, usage, dispatched, reason = rewrite_headline(stop_model, checked, answer, ctx, model_name)
+            # Its reserve is bounded (HEADLINE_REWRITE_INPUT_TOKENS in, HEADLINE_REWRITE_MAX_TOKENS out) and the probe
+            # above held room for it and the field check, so a failure that books it whole leaves the field check its
+            # reserve: the answer goes on with the short answer blank rather than stopping on usage_unknown.
+            rewrite_model = _StopAwareModel(deps.model, should_stop, model_budget,
+                                            keep_room=[(FIELD_INPUT_TOKENS, FIELD_MAX_TOKENS)])
+            text, usage, dispatched, reason = rewrite_headline(rewrite_model, checked, answer, ctx, model_name)
         except _StopRequested:
             raise
         except Exception as exc:
@@ -1628,8 +1643,13 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
             raise _StopRequested()
-        if blanked and answer.get("short_answer") == "" and HEADLINE_GAP not in answer["gaps"]:
-            answer["gaps"].append(dict(HEADLINE_GAP))  # the rewrite was not made, or a check removed it
+        if blanked and answer.get("short_answer") == "":  # the rewrite was not made, or a check removed it
+            if HEADLINE_GAP not in answer["gaps"]:
+                answer["gaps"].append(dict(HEADLINE_GAP))
+            # A narrowed claim blanks the short answer without the cut that lowers the status (writer._k10), so an
+            # answer with no top line is lowered here as the field check lowers it. Never raised.
+            if answer.get("status") == "complete":
+                answer["status"] = "partial"
         return draft, answer, verdicts, support, [*rewrote, *rechecked, *fielded], allowed
 
     def review(answer: dict) -> tuple[dict, list[dict], dict | None]:
