@@ -38,7 +38,7 @@ CACHED = frozenset({
     "health_days", "watch_matches", "detect_states", "sensitive_items", "generic_items", "board_items",
     "community_edges", "creators_by_handle", "creators_by_id", "creator_names", "map_items", "waves", "item_days",
     "nearest_items", "search_items", "compare_counts", "latest_aggregate_run", "health_range",
-})
+})  # not here: suppressed_creators and hidden_people_rows, which are read fresh on every request
 
 _POOL = ThreadPoolExecutor(max_workers=WORKERS, thread_name_prefix="f42-read")
 _CACHES = weakref.WeakKeyDictionary()  # inner store -> its _Cache
@@ -354,11 +354,10 @@ def history_search_plan(p, q, market):
         return
     p.start("search_items", q, history.SEARCH_LIMIT)
     p.start("latest_detect_run")
-    _hidden_start(p)
+    p.start("hidden_people_rows")  # History reads who is hidden through core/api/privacy.py: one read
     items = p.peek("search_items", q, history.SEARCH_LIMIT)
     if items:
         p.start("waves", [i["item_id"] for i in items], market)
-    _hidden_then(p)
 
 
 def history_item_plan(p, item_id, market):
@@ -370,11 +369,10 @@ def history_item_plan(p, item_id, market):
     p.start("map_items", [item_id])
     p.start("waves", [item_id], market)
     p.start("nearest_items", item_id, history.NEIGHBOURS)
-    _hidden_start(p)
+    p.start("hidden_people_rows")
     waves = p.peek("waves", [item_id], market)
     if waves and p.peek("map_items", [item_id]):
         p.start("item_days", [item_id], market, *history._span(waves))
-    _hidden_then(p)
     if p.peek("map_items", [item_id]):  # the page stops at an item the map does not have
         near = p.peek("nearest_items", item_id, history.NEIGHBOURS)
         if near is not None:

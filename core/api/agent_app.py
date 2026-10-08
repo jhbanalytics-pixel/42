@@ -527,7 +527,16 @@ async def start(request: Request):
 @app.get("/api/ask/{ask_id}")
 def read(ask_id: str):
     ask = get_ask(ask_id)
-    return view_response(readable(ask.snapshot())) if ask else not_found(ask_id)
+    if not ask:
+        return not_found(ask_id)
+    record = ask.snapshot()
+    if record.get("status") != "running":
+        privacy.POLLS.done(("agent", ask_id))
+        return view_response(readable(record))
+    # A run in flight is polled every couple of seconds: its list is no older than 30 seconds (section 19).
+    from core.api.store import get_store
+    held = privacy.POLLS.of(("agent", ask_id), privacy.LazyStore(get_store))
+    return view_response(readable(record, held.get(), held.creators))
 
 
 def frame(kind, data):
@@ -1066,16 +1075,22 @@ def shown_record(record):
     return skins.mask_people(record, people["approved"], people["allowed"])
 
 
-def readable(record, hidden=privacy.READ):
+def readable(record, hidden=privacy.READ, creators=None):
     """An Ask record as a reader may see it now: the skin masks first (a skin report names only who it may), then the
     list of hidden people read on this request, which wins over an approved account (C5 v2 5.2, R2). hidden is the
     list when the request has already read it."""
     from core.api.store import get_store
-    return privacy.project_record(shown_record(record), privacy.LazyStore(get_store), hidden)
+    return privacy.project_record(shown_record(record), privacy.LazyStore(get_store), hidden, creators=creators)
 
 
 def people_unavailable():
     return error(503, "people_unavailable", privacy.PEOPLE_UNAVAILABLE)
+
+
+def in_one_read(fn, *args):
+    """fn with one reading of the hidden-people list shared by its passes (core/api/privacy.py one_read)."""
+    with privacy.one_read():
+        return fn(*args)
 
 
 def view_response(view, status=200):
@@ -1331,8 +1346,9 @@ async def create_dossier(request: Request):
         return error(400, "bad_request", "from must hold one ask_id or one investigation_id.")
     change = {"title": body["title"]} if "title" in body else {}
     if "investigation_id" in origin:
-        return await run_in_threadpool(create_dossier_from_investigation, origin["investigation_id"].strip(), change)
-    return await run_in_threadpool(create_dossier_from, origin["ask_id"].strip(), change)
+        return await run_in_threadpool(in_one_read, create_dossier_from_investigation,
+                                       origin["investigation_id"].strip(), change)
+    return await run_in_threadpool(in_one_read, create_dossier_from, origin["ask_id"].strip(), change)
 
 
 @app.post("/api/findings")
@@ -1391,7 +1407,7 @@ async def edit_dossier(dossier_id: str, request: Request):
     if problem:
         return problem
     change = {key: body[key] for key in ("keep", "order", "title", "notes") if key in body}
-    return await run_in_threadpool(edit_dossier_to, dossier_id, change, body.get("from_version"))
+    return await run_in_threadpool(in_one_read, edit_dossier_to, dossier_id, change, body.get("from_version"))
 
 
 def tick_row(dossier_id, claim_id, ticked, note):
@@ -1426,7 +1442,7 @@ async def freeze_dossier(dossier_id: str, request: Request):
     body, problem = await body_of(request) if (await request.body()).strip() else ({}, None)
     if problem:
         return problem
-    return await run_in_threadpool(freeze_dossier_to, dossier_id, body.get("from_version"))
+    return await run_in_threadpool(in_one_read, freeze_dossier_to, dossier_id, body.get("from_version"))
 
 
 def freeze_dossier_to(dossier_id, from_version=None):

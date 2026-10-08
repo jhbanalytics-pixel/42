@@ -174,7 +174,7 @@ def test_a_summary_that_was_already_blank_stays_blank():
 def test_the_projection_reads_and_writes_nothing_beyond_the_list_and_one_post_lookup_a35_a44():
     store = PrivStore(hide={"c_hid"})
     project(ask_record(), store)
-    assert store.calls == ["suppressed_creators", "creators_by_id", "suppressions", "post_creators"]
+    assert store.calls == ["suppressed_creators", "suppressions", "creators_by_id", "post_creators"]  # BigQuery: 2 jobs
     assert store.writes == []
 
 

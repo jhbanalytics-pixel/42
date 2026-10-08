@@ -913,13 +913,17 @@ async def _stored_record(ask_id: str) -> dict | None:
     return skins.mask_people(record, people["approved"], people["allowed"])
 
 
-async def _projected(record: dict, inbound=None) -> dict:
+async def _projected(record: dict, inbound=None, poll=None) -> dict:
     """The record as a reader may see it now: the list of hidden people read on this request, applied to what the
     agent or the runs table holds (C5 v2 rules R2 and R7). inbound is the marker the agent sent, merged not trusted."""
     from core.api import privacy, store
 
-    return await run_in_threadpool(
-        lambda: privacy.project_record(record, privacy.LazyStore(store.get_store), inbound=inbound))
+    lazy = privacy.LazyStore(store.get_store)
+    if poll is not None:  # a running record is polled every couple of seconds: a list no older than 30 seconds
+        held = privacy.POLLS.of(poll, lazy)
+        return await run_in_threadpool(
+            lambda: privacy.project_record(record, lazy, held.get(), inbound, held.creators))
+    return await run_in_threadpool(lambda: privacy.project_record(record, lazy, inbound=inbound))
 
 
 @gated.get("/api/ask/{ask_id}")
@@ -930,7 +934,11 @@ async def api_ask_read(ask_id: str) -> Response:
     resp = await _forward("GET", f"/api/ask/{ask_id}")
     if resp.status_code == 200:
         held = resp.json()
-        shown = await _projected(held, held.get("privacy") if isinstance(held, dict) else None)
+        running = isinstance(held, dict) and held.get("status") == "running"
+        if not running:
+            privacy.POLLS.done(("api", ask_id))
+        shown = await _projected(held, held.get("privacy") if isinstance(held, dict) else None,
+                                 ("api", ask_id) if running else None)
         return JSONResponse(jsonable_encoder(shown), headers=privacy.NO_STORE)
     if resp.status_code != 404:
         return _passthrough(resp)

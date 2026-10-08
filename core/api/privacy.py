@@ -4,11 +4,13 @@ A copy made while a person was visible keeps their handle, links and words. Ever
 the stored one with the list read now: the stored record is never changed (R5), and nothing here caches who is
 hidden between requests (R2). When the list cannot be read the safe result is a copy with no posts, not a copy
 that trusts nobody is hidden (R4)."""
+import contextlib
 import copy
 import datetime as dt
 import json
 import logging
 import re
+import threading
 import time
 
 from core.api import today
@@ -29,6 +31,7 @@ MARGIN = dt.timedelta(days=3)
 SUPPRESSION_MAX_AGE_S = 30  # a run in flight may use a list this old (rule R2, section 8.4)
 READ = object()  # "read the list now"; None stands for UNAVAILABLE
 _clock = time.monotonic
+_shared = threading.local()
 
 
 class LazyStore:
@@ -49,30 +52,64 @@ class PeopleUnavailable(Exception):
 
 
 def read_hidden(store):
-    """(keys, ids, names) of the people hidden now, or None when the list cannot be read (R4). Beyond what the people
-    routes read, the current suppression rows add their own handle keys and creator ids: a suppression that names a
-    platform and handle with no creators row behind it is not in the view, and the handle alone must still hide the
-    person (C5 v2 section 3)."""
-    base = today.hidden_people(store)
-    if base is None:
-        return None
+    """(keys, ids, names) of the people hidden now, or None when the list cannot be read (R4). One read of the store
+    (store.hidden_people_rows): the ids on the view and on the current suppression rows, and every handle, whether it
+    comes from a creators row or from a row that names only a platform and handle (C5 v2 section 3). Inside
+    one_read() the answer is kept for the rest of the request."""
+    memo = getattr(_shared, "memo", None)
+    if memo is not None and "hidden" in memo:
+        return memo["hidden"]
+    found = None
     try:
-        rows = store.suppressions()
+        rows = store.hidden_people_rows()
+        if rows is not None:
+            ids = set(rows["ids"])
+            keys = {creator_key(p, h) for p, h in rows["people"]} - {None}
+            found = keys, ids, today.hidden_names(store, keys, ids)
     except Exception as exc:
-        log.warning("the suppressions could not be read (%s); the list is unavailable", type(exc).__name__)
-        return None
-    keys, ids, names = base
-    held = [r for r in rows or [] if isinstance(r, dict) and r.get("status") != "lifted"]
-    extra_keys = {creator_key(r.get("platform"), r.get("handle")) for r in held if r.get("platform") and r.get("handle")}
-    extra_ids = {r["creator_id"] for r in held if r.get("creator_id")}
-    fresh = extra_ids - set(ids)
-    if fresh:  # a row that names only an id: that creator's own handle is masked in text too
-        try:
-            extra_keys |= {creator_key(c.get("platform"), c.get("handle")) for c in store.creators_by_id(sorted(fresh)) or []}
-        except Exception as exc:
-            log.warning("the creators lookup failed (%s); the list is unavailable", type(exc).__name__)
-            return None
-    return keys | (extra_keys - {None}), ids | extra_ids, names
+        log.warning("the suppression list could not be read (%s); no evidence author is named", type(exc).__name__)
+    if memo is not None:
+        memo["hidden"] = found
+    return found
+
+
+@contextlib.contextmanager
+def one_read():
+    """Everything inside shares one reading of the list: the passes of one request (the check that builds a copy and
+    the view it returns) must agree and need not read it twice. Nothing is kept after the block (rule R2)."""
+    previous = getattr(_shared, "memo", None)
+    _shared.memo = {}
+    try:
+        yield
+    finally:
+        _shared.memo = previous
+
+
+class Polls:
+    """The lists kept for running asks, one per ask, so the polls of a running record read the list once in
+    SUPPRESSION_MAX_AGE_S (section 19). A finished record is never kept here."""
+
+    LIMIT = 256
+
+    def __init__(self):
+        self._lists, self._lock = {}, threading.Lock()
+
+    def of(self, key, store):
+        with self._lock:
+            if key not in self._lists:
+                if len(self._lists) >= self.LIMIT:
+                    self._lists.pop(next(iter(self._lists)))
+                self._lists[key] = FreshList(store)
+            held = self._lists[key]
+            held.store = store
+            return held
+
+    def done(self, key):
+        with self._lock:
+            self._lists.pop(key, None)
+
+
+POLLS = Polls()
 
 
 def _resolve(hidden, store):
@@ -87,7 +124,7 @@ class FreshList:
     """A list read no older than SUPPRESSION_MAX_AGE_S, for a run in flight: its stream and its polls (case G)."""
 
     def __init__(self, store):
-        self.store, self._at, self._hidden = store, None, None
+        self.store, self._at, self._hidden, self.creators = store, None, None, {}
 
     def get(self):
         if self._at is None or _clock() - self._at >= SUPPRESSION_MAX_AGE_S:
@@ -120,6 +157,8 @@ def evidence_gone(evidence, hidden, store, creators=None):
         elif isinstance(e.get("id"), str) and OBS_ID.match(e["id"]):
             stored.append(e)
     creators = {} if creators is None else creators
+    if not ids:  # no creator id is hidden, so who wrote a post cannot decide anything: no lookup
+        return gone
     todo = [e for e in stored if e["id"] not in creators]
     if todo:
         days = [_day(e.get("posted_at")) for e in todo]
@@ -191,7 +230,7 @@ def _json(value):
     return json.dumps(value, sort_keys=True, default=str)
 
 
-def project_record(record, store, hidden=READ, inbound=None):
+def project_record(record, store, hidden=READ, inbound=None, creators=None):
     """An Ask record (or an investigation's) as a reader may see it now (5.2). The input is not changed. inbound is
     the privacy marker of f42-agent's response to f42-api's own call, merged with this pass's (R7). The typed
     summary state, answer_meta, is read from the raw record by its own code and never rewritten here."""
@@ -205,7 +244,7 @@ def project_record(record, store, hidden=READ, inbound=None):
     answer = base.get("answer")
     evidence = answer.get("evidence") if isinstance(answer, dict) else None
     try:
-        gone = evidence_gone(evidence, hidden, store)
+        gone = evidence_gone(evidence, hidden, store, creators)
     except PeopleUnavailable:
         hidden = None
         gone = evidence_gone(evidence, None, store)
@@ -343,6 +382,8 @@ def project_event(kind, data, hidden, store, gone, seen):
     """One event of a run in flight, or None to withhold it (5.5). gone collects the ids of the evidence left out of
     this stream so a claim citing one is left out too; seen memoises post id to creator id for the stream. hidden
     None (UNAVAILABLE) sends no evidence or claim event."""
+    if nothing_hidden(hidden):
+        return data
     if kind == "evidence":
         record = data.get("evidence") if isinstance(data.get("evidence"), dict) else {}
         try:

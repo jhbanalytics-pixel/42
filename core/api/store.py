@@ -577,6 +577,19 @@ default day and Coverage's way back from an empty day)."""
             return None
         return current_suppressions(list(SUPPRESSIONS))
 
+    def hidden_people_rows(self):
+        """{"ids": creator ids, "people": [(platform, handle)]} of everyone hidden now, composed from the list reads
+        above. None while the suppression list does not exist."""
+        ids = self.suppressed_creators()
+        if ids is None:
+            return None
+        held = [r for r in self.suppressions() or [] if r.get("status") != "lifted"]
+        wanted = set(ids) | {r["creator_id"] for r in held if r.get("creator_id")}
+        creators = (self.creators_by_id(sorted(wanted)) or []) if wanted else []
+        people = {(c["platform"], c["handle"]) for c in creators if c.get("platform") and c.get("handle")}
+        people |= {(r["platform"], r["handle"]) for r in held if r.get("platform") and r.get("handle")}
+        return {"ids": wanted, "people": sorted(people)}
+
     def _posts(self):
         posts = self._both("posts", "people_posts")
         if posts is None:
@@ -1492,6 +1505,41 @@ or None."""
         if view is None:
             return None
         return {r["creator_id"] for r in self._query(f"SELECT DISTINCT s.creator_id FROM {view} s")}
+
+    def hidden_people_rows(self):
+        """Everyone hidden now, in one job: the ids on v_suppressed_creators and on the current suppression rows that
+        are not lifted, each with the platform and handle of its creators row, and the rows that name only a platform
+        and handle. {"ids": ..., "people": [(platform, handle)]}, or None while the view does not exist. Read only."""
+        view, table, creators = (self._find(n) for n in ("v_suppressed_creators", "suppressions", "creators"))
+        if view is None:
+            return None
+        current = (
+            f"cur AS (SELECT x.suppression_id, x.status, x.creator_id, x.platform, x.handle FROM {table} x\n"
+            "  WHERE TRUE QUALIFY ROW_NUMBER() OVER (PARTITION BY x.suppression_id\n"
+            "    ORDER BY x.status_at DESC, x.status = 'lifted', TO_JSON_STRING(x)) = 1)"
+            if table else
+            "cur AS (SELECT CAST(NULL AS STRING) AS suppression_id, CAST(NULL AS STRING) AS status, "
+            "CAST(NULL AS STRING) AS creator_id, CAST(NULL AS STRING) AS platform, CAST(NULL AS STRING) AS handle "
+            "FROM (SELECT 1) WHERE FALSE)")
+        named = (
+            f"named AS (SELECT i.creator_id, k.platform, k.handle FROM ids i LEFT JOIN {creators} k\n"
+            "  ON k.creator_id = i.creator_id WHERE TRUE QUALIFY ROW_NUMBER() OVER (PARTITION BY i.creator_id\n"
+            "    ORDER BY k.followers DESC) = 1)"
+            if creators else
+            "named AS (SELECT i.creator_id, CAST(NULL AS STRING) AS platform, CAST(NULL AS STRING) AS handle "
+            "FROM ids i)")
+        rows = self._query(
+            f"WITH {current},\n"
+            f"ids AS (SELECT s.creator_id FROM {view} s WHERE s.creator_id IS NOT NULL\n"
+            "  UNION DISTINCT\n"
+            "  SELECT c.creator_id FROM cur c WHERE c.status != 'lifted' AND c.creator_id IS NOT NULL),\n"
+            f"{named}\n"
+            "SELECT n.creator_id, n.platform, n.handle FROM named n\n"
+            "UNION ALL\n"
+            "SELECT CAST(NULL AS STRING), c.platform, c.handle FROM cur c\n"
+            "WHERE c.status != 'lifted' AND c.platform IS NOT NULL AND c.handle IS NOT NULL")
+        return {"ids": {r["creator_id"] for r in rows if r.get("creator_id")},
+                "people": sorted({(r["platform"], r["handle"]) for r in rows if r.get("platform") and r.get("handle")})}
 
     def suppressions(self):
         """L1's suppression list as f42-web reads it (contract.md section 16): the current row per suppression_id,

@@ -156,15 +156,21 @@ def hidden_people(store):
             return None
         rows = (store.creators_by_id(sorted(ids)) or []) if ids else []
         keys = {creator_key(c.get("platform"), c.get("handle")) for c in rows} - {None}
-        channels = _channel_ids(keys, ids)
-        items = _creator_items((), channels)
-        mapped = (store.map_items(sorted(items)) or []) if items else []
+        names = hidden_names(store, keys, ids)
     except Exception as exc:
         log.warning("the suppression list could not be read (%s); no evidence author is named", type(exc).__name__)
         return None
-    names = {r["label"].strip() for r in mapped if isinstance(r, dict) and r.get("item_id") in items
-             and isinstance(r.get("label"), str) and _readable(r["label"])}
     return keys, set(ids), names
+
+
+def hidden_names(store, keys, ids):
+    """The display names of the hidden people's YouTube channels: the map labels of their own creator items. One
+    read of the map, and only when one of them is a channel."""
+    channels = _channel_ids(keys, ids)
+    items = _creator_items((), channels)
+    mapped = (store.map_items(sorted(items)) or []) if items else []
+    return {r["label"].strip() for r in mapped if isinstance(r, dict) and r.get("item_id") in items
+            and isinstance(r.get("label"), str) and _readable(r["label"])}
 
 
 def _channel_ids(keys, ids):

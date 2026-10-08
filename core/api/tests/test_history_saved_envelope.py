@@ -61,6 +61,9 @@ class FindingStore:
     def suppressions(self):
         return []  # and so is the table behind it
 
+    def hidden_people_rows(self):
+        return {"ids": set(), "people": []}  # nobody is hidden
+
     def posts_by_id(self, post_ids):
         self.post_reads.append(list(post_ids))
         wanted = set(post_ids)
