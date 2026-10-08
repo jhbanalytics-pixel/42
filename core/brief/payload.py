@@ -9,6 +9,8 @@ on them, so no reader shows it: f42-api builds Today from the named fields and c
 
 from collections import Counter
 
+from core.trust import locality
+
 LABELS = {"ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya"}
 
 # The brief job's fixed wording for a Today-bound item a busy model left unexplained (core/brief/job.py
@@ -119,7 +121,9 @@ def _decision(c):
 def _flag(c, dec):
     if dec.get("flag"):
         return FLAG_CODES[dec["flag"].lower()]
-    if c.get("geo_status") == "market_unconfirmed":
+    # Local is earned: item_state's local needs the lower end of the 95% Wilson interval of local_share at 0.5 or more
+    # (core/trust/locality.py, W8-DEC-17). G6's removal of a not_local item is item_state's and is not touched here.
+    if locality.geo_status(c) == "market_unconfirmed":
         return "market_unconfirmed"
     return c.get("authenticity") if c.get("authenticity") in ITEM_FLAGS else None
 
