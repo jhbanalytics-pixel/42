@@ -3788,3 +3788,38 @@ def test_k5_independence_is_read_without_changing_the_stored_records():
     before = copy.deepcopy(records)
     _label(records)
     assert records == before
+
+
+# N15 (checks part). Rule 1 words live in two lists, Ask's AGE_PATTERNS and the Brief's claims._BREACH_TERMS, with no
+# test between them. Ask let plain English descriptors through, and three Brief terms had no Ask counterpart.
+RULE_ONE_PHRASES = [
+    "The clip shows an old man dancing", "An old woman sings", "old men at the rank", "old women queue", "an old lady waves",
+    "an old couple dances", "an old person speaks", "Elders at a gathering", "An elder speaks", "a little girl singing",
+    "a small boy dances", "little boys play", "a schoolgirl in uniform", "two schoolboys", "a grey-haired man",
+    "a gray haired woman", "a child dancing", "learners at the rank", "a learner with a bag", "school-going creators",
+    "senior citizens queue", "Senior Citizens",
+]
+RULE_ONE_GUARDS = [
+    "Old Mutual posted an ad", "elderberry syrup is trending", "old school amapiano is back", "my boyfriend and I went",
+    "Child's Day events are planned", "a learner's licence test", "the senior leadership team",
+    "a schooling debate", "the old town of Soweto",
+]
+
+
+@pytest.mark.parametrize("phrase", RULE_ONE_PHRASES)
+def test_k6_rule_one_plain_descriptors_are_age_terms(phrase):
+    assert checks._text_breaches(phrase) == ["age or generation term"]
+
+
+@pytest.mark.parametrize("phrase", RULE_ONE_GUARDS)
+def test_k6_rule_one_words_inside_other_words_and_names_stay_clean(phrase):
+    assert "age or generation term" not in checks._text_breaches(phrase)
+
+
+def test_k6_every_phrase_the_brief_blocks_from_the_shared_table_is_blocked_by_ask_too():
+    from core.trust import claims as brief
+
+    shared = RULE_ONE_PHRASES + ["kids", "children", "pensioners", "elderly", "teens", "youths", "millennials"]
+    in_brief = [p for p in shared if any(t.search(p) for t in brief._BREACH_TERMS)]
+    assert in_brief, "the Brief list no longer blocks any phrase of the shared table"
+    assert [p for p in in_brief if not any(t.search(p) for t in checks.AGE_PATTERNS)] == []

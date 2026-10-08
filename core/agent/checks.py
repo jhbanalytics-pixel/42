@@ -110,6 +110,19 @@ AGE_PATTERNS = [re.compile(p, re.I) for p in (
     r"\bama[_-]?(?:(?:19|20)\d{2}'?s?|[12]ks?)\b",
     # the kid family as whole words, so "kidney" and "kidnap" stay clean; rule 1 wins over names such as Kid Cudi.
     r"\b(?:kid(?:s|z|dos?|dies?)?|zillenn?ials?|juveniles?|igen(?:eration)?s?|(?:ama|i)khehla)\b",
+    # plain descriptors of a person's age (rule 1): "old man", "elders", "a little girl", "a schoolgirl", "grey-haired".
+    # "elderberry" and "Old Mutual" stay clean because the pattern needs a person word or the whole word.
+    r"\bold[\s-]+(?:man|men|woman|women|lad(?:y|ies)|guys?|couples?|persons?)\b",
+    r"\belders?\b",
+    r"\b(?:little|small)\s+(?:girls?|boys?)\b",
+    r"\bschool[\s-]?(?:girls?|boys?)\b",
+    r"\bgr[ae]y[\s-]?haired\b",
+    # the singular child, with the Brief's exception for Child's Day, and the Brief's learner, school-going and
+    # senior citizen terms (core/trust/claims.py _BREACH_TERMS), so the two lists agree on them.
+    r"\bchild\b(?!'?s?\s+day\b)",
+    r"\blearners?\b(?!'?s?\s+(?:licen[cs]es?|drivers?|permits?)\b)",
+    r"\bschool[\s-]going\b",
+    r"\bsenior\s+citizens?\b",
 )]
 DEMOGRAPHIC = re.compile(
     r"\b(?:demographics?|income brackets?|(?:middle|working|upper)[\s-]class|(?:low|high)[\s-]income|"
