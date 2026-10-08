@@ -19,7 +19,7 @@ REASON_CODES = frozenset({
     "sentence_place_other", "sentence_banned_term", "sentence_translation", "sentence_future_assertion",
     "sentence_quote", "sentence_specificity",
     "critic_rival_not_ruled_out", "critic_why_now_not_shown", "critic_rival_and_why_now",
-    "unclassified",
+    "check_incomplete", "unclassified",
 })
 
 _DIGEST = re.compile(r"[0-9a-f]{64}")

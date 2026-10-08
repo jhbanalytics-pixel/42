@@ -220,6 +220,8 @@ CODE_CASES = [
     ("K4", None, "cut", "code", "short_answer: crowd wording: multiple creators", "support_sentence_crowd_wording"),
     ("K4", None, "cut", "code", "writer returned 6 claims; maximum is 5, so support checks were withheld",
      "support_withheld_overflow"),
+    ("K4", "c1", "cut", "model", "check did not complete", "check_incomplete"),
+    ("critic", None, "cut", "model", "check did not complete", "check_incomplete"),
     ("K2", None, "cut", "code", "short_answer: number 5 not pinned", "sentence_number_unpinned"),
     ("K3", None, "cut", "code", "short_answer: cites a post outside the window", "sentence_place_outside_window"),
     ("K3", None, "cut", "code", "short_answer: cites a post that is located in KE, not ZA",

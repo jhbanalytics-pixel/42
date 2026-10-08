@@ -60,7 +60,7 @@ from core.brief import gatectx
 from core.api.store import creator_key
 from core.api.today import without_hidden
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
-from core.brief.explain import TITLE_RULE, explain_trend
+from core.brief.explain import CHECK_INCOMPLETE, TITLE_RULE, explain_trend
 from core.brief.market_scope import read_market_scope
 from core.brief.payload import MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, _worth, brief_row, build_market_payload
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, local_posts, showable_posts
@@ -121,7 +121,7 @@ _CHANNEL_ID = re.compile(r"uc[a-z0-9_-]{22,}", re.IGNORECASE)
 # TikTok default handle (user plus 6 or more digits) and a Reddit fullname (t1_ to t6_ plus its base-36 id).
 # A handle someone chose, such as virtual-mycologist13, is a name.
 _PLATFORM_ID = re.compile(r"[#@]?(?:\d{8,}|user\d{6,}|t[1-6]_[a-z0-9]{4,})", re.IGNORECASE)
-FAILED_CHECKS = {"breach", "failed_checks", "too_few_claims"}
+FAILED_CHECKS = {"breach", "failed_checks", "too_few_claims", "check_incomplete"}
 _NAME = re.compile(r"^--\s*name:\s*(\w+)\s*$", re.MULTILINE)
 QUERIES = {_NAME.search(s).group(1): s for s in sqlrun.split(SQL.read_text(encoding="utf-8"))}
 
@@ -170,6 +170,7 @@ OTHER_WORDS = {"K5": "the label was lowered to what the evidence allows",
 NOT_PASSED = "did not pass"
 TOO_FEW = "Claim checks: fewer than 2 claims passed"
 NO_REST = "Claim checks: the explanation did not rest on claims that passed"
+CHECK_INCOMPLETE_WORDS = "Check did not complete"
 # CRITIC_SYSTEM's menu of non-cultural explanations, in its order, each with the words that name it.
 CRITIC_MENU = (
     ("a paid campaign", r"paid|sponsor\w*|campaign\w*|advert\w*|promot\w*|brand\s+push"),
@@ -761,6 +762,8 @@ def _critic_parts(detail):
 def _wording(chk, rested=False):
     """The fixed wording for one check row. rested: the row cuts a claim the explanation sentence rests on."""
     rule, verdict = chk["rule"], chk["verdict"]
+    if chk.get("detail") == CHECK_INCOMPLETE:
+        return f"{'Critic' if rule == 'critic' else RULE_NAMES.get(rule, 'Claim checks')}: {CHECK_INCOMPLETE}"
     if rule == "critic":
         menu = _menu(chk.get("detail"))
         standing, local = _critic_parts(chk.get("detail"))
@@ -813,6 +816,8 @@ def _reason_code(chk):
     rule, detail = chk["rule"], str(chk.get("detail") or "")
     detail = detail[len(REPAIR):] if detail.startswith(REPAIR) else detail
     scope = "claim" if chk.get("claim_id") is not None else "sentence"
+    if detail == CHECK_INCOMPLETE:
+        return "check_incomplete"
     if rule == "K4":
         if detail.startswith("writer returned") and detail.endswith("support checks were withheld"):
             return "support_withheld_overflow"
@@ -854,6 +859,8 @@ def failed_reason(result):
     critic, then a fault in the sentence itself; rows from before the repair round did not hold the card."""
     if result.get("reason") == "too_few_claims":
         return TOO_FEW
+    if result.get("reason") == "check_incomplete":
+        return CHECK_INCOMPLETE_WORDS
     rests_on = set(result.get("rests_on") or [])
     # A title row never held a card: its cut only drops the written title.
     rows = [c for c in result.get("checks") or [] if not str(c.get("detail") or "").startswith(REPAIR)
@@ -890,14 +897,14 @@ class _Drafts:
         return out, usage
 
 
-def _explain_one(cand, *, model, spent_before, d, model_call_guard):
+def _explain_one(cand, *, model, spent_before, d, model_call_guard, retry_guard=None):
     start, end = _window(d, cand["market"])
     row = cand["row"]
     drafts = _Drafts(model)
     try:
         result = explain_trend(row, cand["pack"], model=drafts, spent_today_usd=spent_before, window_start=start,
                                window_end=end, market=cand["market"], rerun=cand["rerun"],
-                               model_call_guard=model_call_guard, second_draft=True)
+                               model_call_guard=model_call_guard, second_draft=True, retry_guard=retry_guard)
     except Exception as exc:
         # One bad trend publishes as numbers and posts; it never costs the other markets their brief.
         return {"explanation": None, "explanation_claim_ids": [], "claims": [], "numbers_only": True,
@@ -971,7 +978,8 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
     def explain(cand):
         gave_up = breaker.gave_up
         result = _explain_one(cand, model=breaker, spent_before=base_usd + spend["usd"], d=d,
-                              model_call_guard=lambda: d == clock().astimezone(SAST).date())
+                              model_call_guard=lambda: d == clock().astimezone(SAST).date(),
+                              retry_guard=lambda: _call_allowance(clock(), started, d, chain) > 0)
         if breaker.gave_up > gave_up and result["reason"] == "model_error":
             cand["busy_reason"] = MODEL_BUSY if breaker.busy == "deadline" else MODEL_REFUSED
         return result
