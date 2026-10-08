@@ -16,7 +16,7 @@ POLICY = {"bindings": [{"role": "roles/run.invoker", "members": [
     "serviceAccount:f42-web@ogilvy-trends-v2.iam.gserviceaccount.com"]}]}
 
 
-def run_deploy(tmp_path, *, service=PRIVATE, policy=POLICY, build_exit=0, policy_exit=0, args=()):
+def run_deploy(tmp_path, *, service=PRIVATE, policy=POLICY, build_exit=0, policy_exit=0, args=(), status=""):
     for name in ("deploy.sh", "deploy_flags.env"):
         target = tmp_path / "core" / "api" / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -27,10 +27,24 @@ def run_deploy(tmp_path, *, service=PRIVATE, policy=POLICY, build_exit=0, policy
     env = {**os.environ, "R3_CALLS": calls.as_posix(), "R3_PYTHON": Path(sys.executable).as_posix(),
            "R3_SERVICE": json.dumps(service), "R3_POLICY": json.dumps(policy),
            "R3_BUILD_EXIT": str(build_exit), "R3_POLICY_EXIT": str(policy_exit),
-           "F42_SMOKE_PASSCODE": "test-only", "MSYS_NO_PATHCONV": "1"}
+           "F42_SMOKE_PASSCODE": "test-only", "MSYS_NO_PATHCONV": "1", "R3_STATUS": status}
     shell = r'''
 set -euo pipefail
-git() { printf 'd666ef64cd7a\n'; }
+git() {
+  case "$1" in
+    rev-parse) printf 'd666ef64cd7a\n' ;;
+    status)
+      shift
+      paths=(); after=0
+      for a in "$@"; do
+        if [ "$after" = 1 ]; then paths+=("$a"); fi
+        if [ "$a" = -- ]; then after=1; fi
+      done
+      if [ "${#paths[@]}" -eq 0 ]; then printf '%s' "$R3_STATUS"
+      else for p in "${paths[@]}"; do printf '%s' "$R3_STATUS" | grep -F " $p" || true; done; fi ;;
+    *) return 96 ;;
+  esac
+}
 docker() { return 97; }
 py() {
   if [ "${2:-}" = core/api/smoke.py ]; then return 0; fi
@@ -54,7 +68,8 @@ source core/api/deploy.sh --no-traffic "$@"
 '''
     result = subprocess.run([str(bash), "--noprofile", "--norc", "-c", shell, "deploy-test", *args],
                             cwd=tmp_path, env=env, capture_output=True, encoding="utf-8", timeout=15)
-    recorded = [part.decode("utf-8").split("\0") for part in calls.read_bytes().split(b"\0\0") if part]
+    raw = calls.read_bytes() if calls.exists() else b""
+    recorded = [part.decode("utf-8").split("\0") for part in raw.split(b"\0\0") if part]
     return result, recorded
 
 
@@ -123,3 +138,37 @@ def test_failed_service_build_stops_before_deploy(tmp_path):
     result, calls = run_deploy(tmp_path, build_exit=23)
     assert result.returncode == 23
     assert not any(call[:2] == ["run", "deploy"] for call in calls)
+
+
+DIRTY = " M core/agent/ask.py\n"
+
+
+@pytest.mark.parametrize("args", [(), ("--local-build",)])
+@pytest.mark.parametrize("status", [DIRTY, "?? core/api/new_module.py\n"])
+def test_a_dirty_tree_is_refused_before_any_cloud_call_when_the_script_builds(tmp_path, args, status):
+    result, calls = run_deploy(tmp_path, args=args, status=status)
+    assert result.returncode != 0
+    assert calls == []
+    assert "uncommitted" in result.stderr and "d666ef64cd7a" in result.stderr
+
+
+def test_a_clean_tree_still_builds_and_deploys(tmp_path):
+    result, calls = run_deploy(tmp_path, status="")
+    assert result.returncode == 0, result.stderr
+    assert any(call[:2] == ["builds", "submit"] for call in calls)
+    assert [call[2] for call in calls if call[:2] == ["run", "deploy"]] == ["f42-agent", "f42-api"]
+
+
+def test_no_build_redeploys_the_image_of_head_even_with_edits_elsewhere_in_the_tree(tmp_path):
+    result, calls = run_deploy(tmp_path, args=("--no-build",), status=DIRTY)
+    assert result.returncode == 0, result.stderr
+    assert not any(call[:2] == ["builds", "submit"] for call in calls)
+    assert [call[2] for call in calls if call[:2] == ["run", "deploy"]] == ["f42-agent", "f42-api"]
+
+
+@pytest.mark.parametrize("path", ["core/api/deploy_flags.env", "core/api/deploy.sh"])
+def test_no_build_is_refused_when_the_flags_it_deploys_with_are_not_those_of_head(tmp_path, path):
+    result, calls = run_deploy(tmp_path, args=("--no-build",), status=f" M {path}\n")
+    assert result.returncode != 0
+    assert calls == []
+    assert "uncommitted" in result.stderr and path in result.stderr

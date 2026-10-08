@@ -8,6 +8,7 @@
 #   bash core/api/deploy.sh --no-build    redeploy the image of the current commit
 #   add --no-traffic to any of these to deploy and check but leave traffic where it is
 # After the health check passes, both services send 100% of traffic to their newest revision.
+# A build refuses a tree with uncommitted or untracked files (exit 65): the image is labelled with HEAD.
 set -euo pipefail
 
 PROJECT=ogilvy-trends-v2
@@ -25,6 +26,20 @@ for arg in "$@"; do
     *) echo "deploy.sh: unknown option $arg" >&2; exit 64 ;;
   esac
 done
+
+# The image is tagged and labelled with HEAD, so what goes into it must be HEAD. A build takes whatever is on disk,
+# so any uncommitted or untracked file refuses it. --no-build deploys the image already built for HEAD, but with the
+# flags on disk, so only an edited deploy.sh or deploy_flags.env refuses that.
+if [ "$BUILD" = --no-build ]; then
+  DIRTY=$(git status --porcelain -- core/api/deploy.sh core/api/deploy_flags.env)
+else
+  DIRTY=$(git status --porcelain)
+fi
+if [ -n "$DIRTY" ]; then
+  echo "deploy.sh: the working tree has uncommitted changes, so it is not commit ${TAG}. Commit or stash them first:" >&2
+  echo "$DIRTY" >&2
+  exit 65
+fi
 
 # Shared build source and Cloud Run definitions.
 source core/api/deploy_flags.env
