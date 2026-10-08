@@ -351,3 +351,32 @@ def test_run_aggregate_writes_only_by_insert_and_merge(con):
     for sql in client.sql:
         upper = sql.upper()
         assert all(w not in upper for w in ("DELETE", "DROP", "TRUNCATE", "REPLACE", "CREATE"))
+
+
+def test_items_rows_checks_the_creator_display_name_collect_checks_as_well_as_the_handle():
+    """N16: collect names a creator by display name and refuses it when gdelt.blocked flags it, so a clean handle
+    with a blocked display name gets no cultural_map row here, and the post_items link stays."""
+    from core.collect.gdelt import blocked
+
+    posts = [{"post_id": "p1", "platform": "tiktok", "hashtags": [], "sound_id": None, "creator_id": "mzansi_dancer",
+              "creator_name": "Gen Z Comedy", "market": "ZA", "first_day": D},
+             {"post_id": "p2", "platform": "tiktok", "hashtags": [], "sound_id": None, "creator_id": "thandi_d",
+              "creator_name": "Thandi Dlamini", "market": "ZA", "first_day": D},
+             {"post_id": "p3", "platform": "tiktok", "hashtags": [], "sound_id": None, "creator_id": "plain_handle",
+              "market": "ZA", "first_day": D}]
+    assert blocked("Gen Z Comedy") and not blocked("mzansi_dancer") and not blocked("Thandi Dlamini")
+    post_items, items = aggregate.items_rows(posts)
+    assert sorted(r["label"] for r in items) == ["plain_handle", "thandi_d"]
+    assert item_id("creator", "tiktok:mzansi_dancer") in {r["item_id"] for r in post_items}
+
+
+def test_run_aggregate_reads_the_creators_display_name_and_refuses_a_blocked_one(con):
+    duck.load(con, "core.posts", [post("pa", "mzansi_dancer", D), post("pb", "thandi_d", D)])
+    duck.load(con, "core.post_observations", [obs("pa", D, "unbiased_rank", "sweep"),
+                                              obs("pb", D, "unbiased_rank", "sweep")])
+    duck.load(con, "core.creators", [{**creator("mzansi_dancer"), "display_name": "Gen Z Comedy"},
+                                     {**creator("thandi_d"), "display_name": "Thandi Dlamini"}])
+    duck.load(con, "agent.runs", [run("collect", D)])
+    aggregate.run_aggregate(duck.Client(con), D, "agg-name", "r1", core="core", agent="agent")
+    labels = [r["label"] for r in duck.query(con, "SELECT * FROM {core}.cultural_map m WHERE m.kind = 'creator'")]
+    assert labels == ["thandi_d"]

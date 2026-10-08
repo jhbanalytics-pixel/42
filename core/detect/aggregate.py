@@ -19,11 +19,13 @@ CHUNK = 5000
 # Posts whose first sighting in a market is @d, with the raw fields items_for_post reads, and cluster_items: the
 # items of @d's clusters the post is a member of (BUILD.md 2.2), each with an open cultural_map row.
 FIRST_SIGHTED_SQL = """
-SELECT ps.post_id, ps.platform, ps.hashtags, ps.sound_id, ps.creator_id, fs.market, fs.first_day, cl.cluster_items
+SELECT ps.post_id, ps.platform, ps.hashtags, ps.sound_id, ps.creator_id, cr.display_name AS creator_name, fs.market,
+       fs.first_day, cl.cluster_items
 FROM (SELECT po.post_id, po.market, MIN(po.observed_date) first_day
       FROM {core}.post_observations po WHERE po.observed_date <= @d
       GROUP BY po.post_id, po.market) fs
 JOIN {core}.posts ps ON ps.post_id = fs.post_id
+LEFT JOIN {core}.creators cr ON cr.creator_id = ps.creator_id AND cr.platform = ps.platform
 LEFT JOIN (SELECT mb.post_id, ARRAY_AGG(DISTINCT k.item_id ORDER BY k.item_id) cluster_items
            FROM {core}.cluster_members mb
            JOIN {core}.clusters k ON k.cluster_id = mb.cluster_id
@@ -69,9 +71,9 @@ def items_rows(posts):
     item gets a post_items row with via 'cluster' and no cultural_map row, since understand writes its row.
     An item of any kind whose label gdelt.blocked() flags (rule 1), a hashtag, a creator handle or a sound id,
     keeps its post_items row and gets no cultural_map row, as collect's cultural_map_rows leaves it out, so it
-    is never named. A row already open in cultural_map is not looked at or retired here."""
-    from core.collect.gdelt import blocked
-
+    is never named. A creator is also refused by its display name (post["creator_name"]), the text collect checks;
+    a sound is checked by its id only, since no sound title is on posts. A row already open in cultural_map is
+    not looked at or retired here."""
     post_items, items, seen, refused = [], {}, set(), set()
     order = sorted(posts, key=lambda p: (p["first_day"], p["market"], p["platform"] or "", p["post_id"]))
     for post in order:
@@ -86,7 +88,7 @@ def items_rows(posts):
             row = items.get(it["item_id"])
             if it["item_id"] in refused:
                 continue
-            if row is None and blocked(it["label"]):
+            if row is None and blocked_item(it, post):
                 refused.add(it["item_id"])
                 continue
             if row is None:
@@ -98,6 +100,15 @@ def items_rows(posts):
             else:
                 row["last_seen"] = max(row["last_seen"], post["first_day"])
     return post_items, list(items.values())
+
+
+def blocked_item(it, post):
+    """True when rule 1 refuses the item: its label, and for a creator also the display name collect names it by.
+    A sound's title is not on posts, so a sound is checked by its id only."""
+    from core.collect.gdelt import blocked
+
+    return blocked(it["label"]) or bool(it["kind"] == "creator" and post.get("creator_name")
+                                        and blocked(post["creator_name"]))
 
 
 def status(kind, canonical_key):
