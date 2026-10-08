@@ -67,8 +67,9 @@ def items_rows(posts):
     one cultural_map row per item, first seen on its earliest post (ties by market, platform, post_id), last
     seen on its latest, with status 'generic' when items.is_generic holds and 'active' otherwise. A cluster
     item gets a post_items row with via 'cluster' and no cultural_map row, since understand writes its row.
-    A hashtag whose label gdelt.blocked() flags (rule 1) keeps its post_items row and gets no cultural_map row,
-    as collect's cultural_map_rows leaves it out, so it is never named."""
+    An item of any kind whose label gdelt.blocked() flags (rule 1), a hashtag, a creator handle or a sound id,
+    keeps its post_items row and gets no cultural_map row, as collect's cultural_map_rows leaves it out, so it
+    is never named. A row already open in cultural_map is not looked at or retired here."""
     from core.collect.gdelt import blocked
 
     post_items, items, seen, refused = [], {}, set(), set()
@@ -85,7 +86,7 @@ def items_rows(posts):
             row = items.get(it["item_id"])
             if it["item_id"] in refused:
                 continue
-            if row is None and it["kind"] == "hashtag" and blocked(it["label"]):
+            if row is None and blocked(it["label"]):
                 refused.add(it["item_id"])
                 continue
             if row is None:

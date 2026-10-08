@@ -133,6 +133,30 @@ def test_items_rows_gives_an_age_hashtag_no_cultural_map_row_as_collect_does():
                                                   item_id("hashtag", "burnaboy")}
 
 
+def test_items_rows_refuses_a_blocked_creator_or_sound_label_for_every_kind_as_collect_does():
+    """N16: collect refuses a blocked label for every item kind, so a creator handle or a sound id that gdelt.blocked
+    flags gets no cultural_map row here either. The post_items link is kept, as it is for a refused hashtag."""
+    from core.collect.gdelt import blocked
+
+    posts = [{"post_id": "p1", "platform": "tiktok", "hashtags": ["#Amapiano"], "sound_id": "teen_vibes",
+              "creator_id": "genzcomedy_ke", "market": "KE", "first_day": D},
+             {"post_id": "p2", "platform": "tiktok", "hashtags": [], "sound_id": None,
+              "creator_id": "studentlife_za", "market": "ZA", "first_day": D}]
+    assert blocked("genzcomedy_ke") and blocked("teen_vibes") and blocked("studentlife_za")
+    post_items, items = aggregate.items_rows(posts)
+    assert [(r["kind"], r["label"]) for r in items] == [("hashtag", "#Amapiano")]
+    assert {r["item_id"] for r in post_items} == {
+        AMAPIANO, item_id("creator", "tiktok:genzcomedy_ke"), item_id("sound", "tiktok:teen_vibes"),
+        item_id("creator", "tiktok:studentlife_za")}
+
+
+def test_items_rows_keeps_an_unblocked_creator_and_sound():
+    posts = [{"post_id": "p1", "platform": "tiktok", "hashtags": [], "sound_id": "777", "creator_id": "mzansi_dancer",
+              "market": "ZA", "first_day": D}]
+    _, items = aggregate.items_rows(posts)
+    assert {(r["kind"], r["label"]) for r in items} == {("sound", "777"), ("creator", "mzansi_dancer")}
+
+
 def test_cultural_map_merge_status_follows_the_stoplist_on_open_active_or_generic_rows_only(con):
     def row(iid, status, valid_to=None):
         r = cmap(iid)
