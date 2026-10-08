@@ -1042,6 +1042,17 @@ def _prompt(question: str, markets: list[str], window: tuple[date, date], parent
     return "\n\n".join(parts)
 
 
+def _posts_read(ctx: RunContext) -> list[dict]:
+    """The posts read for the ask's market. A post located in another market stays in ctx.evidence under its own
+    label (fetch_posts stores what the researcher saw), and K3 keeps it out of every citation, but it was not read
+    for this market, so it is left out of the posts and platforms the answer reports. An ask with no single
+    market counts every post."""
+    records = list(ctx.evidence.values())
+    if not ctx.market:
+        return records
+    return [r for r in records if r.get("market") in (None, "", ctx.market)]
+
+
 def _source_status(ctx: RunContext, counted: _Counted) -> list[dict]:
     """One row per client call: each search and enrichment step made exactly one, in call order, so the i-th such
     event has counted.items[i] as its item count."""
@@ -1449,8 +1460,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
 
     def run_object(followups: list[str], finished: str | None = None) -> dict:
         close_plan()
-        platforms = {PLATFORM_NAMES.get(r.get("platform"), r.get("platform")) for r in ctx.evidence.values()
-                     if r.get("platform")}
+        read = _posts_read(ctx)
+        platforms = {PLATFORM_NAMES.get(r.get("platform"), r.get("platform")) for r in read if r.get("platform")}
         run_notices = list(notices)
         if model_budget is not None and model_budget.research_exhausted:
             text = ("Research stopped at its share of the model budget; the rest of this question's budget is left "
@@ -1489,7 +1500,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             "phase_seconds": {key: round(value, 3) for key, value in phase_seconds.items()},
             "model_usd": model_usd(),
             "window": {"from": window[0].isoformat(), "to": window[1].isoformat()},
-            "posts": len(ctx.evidence),
+            "posts": len(read),
             "platforms": len(platforms),
             "source_status": _source_status(ctx, client) if client is not None else [],
             "followups": followups,
@@ -1674,7 +1685,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                               "at single_source")
                     if notice not in notices:
                         notices.append(notice)
-        progress.step("write", f"Writing the answer from {len(ctx.evidence)} posts and {len(ctx.queries)} counts")
+        progress.step("write", f"Writing the answer from {len(_posts_read(ctx))} posts and {len(ctx.queries)} counts")
         ctx.writer_note = note
         draft, usage = timed("write", write_answer, stop_model, question=question, as_of=as_of, market=market,
                                     window=f"{window[0].isoformat()} to {window[1].isoformat()}", ctx=ctx,
