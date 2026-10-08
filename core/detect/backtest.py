@@ -40,6 +40,7 @@ to one JSON file in core/detect/backtests; only --apply appends the test_switch 
 import argparse
 import json
 import math
+import re
 import sys
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
@@ -64,6 +65,8 @@ MIN_TESTED, MIN_INJECTED = 60, 20
 NOMINAL_TOL = 0.2                   # a whole-count spike must land within 20% of its multiple
 FA_MAX, RECALL_MIN, RECALL_AT = 0.05, 0.8, "3"
 TOP_N, LATER_DAYS = 10, 7
+RUN_ID = re.compile(r"backtest-(\d{8})-[0-9a-f]{12}")
+SWITCH_ROW_FIELDS = ("market", "platform", "lane_class", "switched_on", "backtest_run_id", "rule_version")
 PERSISTING = ("emerging", "rising", "peaking")
 FIRST_WEEK_LANES = ("panel", "unbiased_counter")
 
@@ -511,6 +514,125 @@ def decide(k):
     return not reasons, reasons
 
 
+def _count(v):
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def _run_id(results):
+    """The run id of a result, which must look like one this module mints and carry the day it was run as of."""
+    run_id = results.get("run_id")
+    m = RUN_ID.fullmatch(run_id) if isinstance(run_id, str) else None
+    if m is None:
+        raise ValueError(f"no usable backtest run id: {run_id!r}")
+    if m.group(1) != str(results.get("as_of", "")).replace("-", ""):
+        raise ValueError(f"backtest run id {run_id} is not of the as_of day {results.get('as_of')!r}")
+    return run_id
+
+
+def _counted(name, k):
+    """(market, platform, lane_class) and the reason the counts of one key of a result cannot be used, if any."""
+    parts = tuple(name.split("|")) if isinstance(name, str) else ()
+    if len(parts) != 3 or any(not p.strip() or p == "-" for p in parts):
+        return None, f"{name!r} is not a market, platform and lane class that test_switch can hold"
+    rec = ((k.get("recall") or {}).get(RECALL_AT) or {}) if isinstance(k, dict) else {}
+    fields = [k.get("observed_days"), k.get("tested"), k.get("alarms"), rec.get("injected"), rec.get("detected")] \
+        if isinstance(k, dict) else [None]
+    if not all(_count(v) for v in fields) or fields[2] > fields[1] or fields[4] > fields[3]:
+        return parts, "counts are missing or inconsistent"
+    return parts, None
+
+
+def switch_rows(results, done=frozenset()):
+    """(rows, refused) a backtest result earns. Every figure the rule reads is recomputed from the counts in the
+    result: its own rates, its switch flags and its false_alarms block are never trusted, and a flag that says
+    a key stays off can only veto. The row cites the result's run id, which must be well formed and of the as_of
+    day, or the whole result is refused with ValueError. A candidate rule version earns nothing. Keys already in
+    done as (market, platform, lane_class, rule_version) are neither written nor refused."""
+    if results.get("rule_version") != RULE_VERSION:
+        raise ValueError(f"backtest rule version {results.get('rule_version')!r} cannot write {RULE_VERSION} rows")
+    run_id = _run_id(results)
+    switched_on = (date.fromisoformat(results["as_of"]) + timedelta(days=1)).isoformat()
+    keys = results.get("keys") or {}
+    counted = {name: _counted(name, k) for name, k in keys.items()}
+    pair, tainted = defaultdict(lambda: [0, 0]), set()
+    for name, (parts, problem) in counted.items():
+        if parts is None:
+            continue
+        if problem:
+            tainted.add(parts[:2])
+        else:
+            pair[parts[:2]][0] += keys[name]["tested"]
+            pair[parts[:2]][1] += keys[name]["alarms"]
+    rows, refused = [], []
+    for name, k in keys.items():
+        parts, problem = counted[name]
+        if problem is None and parts[:2] in tainted:
+            problem = "another key of its market and platform has missing or inconsistent counts"
+        if problem:
+            refused.append({"key": name, "reasons": [problem]})
+            continue
+        rec = k["recall"][RECALL_AT]
+        tested, alarms = pair[parts[:2]]
+        on, reasons = decide({
+            "observed_days": k["observed_days"], "tested": k["tested"], "alarms": k["alarms"],
+            "false_alarm_rate": _rate(k["alarms"], k["tested"]),
+            "market_platform_false_alarm_rate": _rate(alarms, tested),
+            "recall": {RECALL_AT: {"injected": rec["injected"], "detected": rec["detected"],
+                                   "recall": _rate(rec["detected"], rec["injected"])}}})
+        if on and k.get("switch") is False:
+            on, reasons = False, ["the backtest run recorded it as staying off"]
+        if not on:
+            refused.append({"key": name, "reasons": reasons})
+        elif (*parts, RULE_VERSION) not in done:
+            rows.append({"market": parts[0], "platform": parts[1], "lane_class": parts[2],
+                         "switched_on": switched_on, "backtest_run_id": run_id, "rule_version": RULE_VERSION})
+    return rows, refused
+
+
+def write_switch_rows(client, core, rows, apply):
+    """Append rows to test_switch. Refuses unless apply is exactly True and every row names every field,
+    cites a well formed backtest run id (one run for all rows) and carries the rule version in force."""
+    if apply is not True:
+        raise ValueError("test_switch rows are written only with apply set to True")
+    for row in rows:
+        for field in SWITCH_ROW_FIELDS:
+            v = row.get(field)
+            if not isinstance(v, str) or not v.strip():
+                raise ValueError(f"test_switch row has no {field}")
+        if RUN_ID.fullmatch(row["backtest_run_id"]) is None:
+            raise ValueError(f"test_switch row cites no usable backtest_run_id: {row['backtest_run_id']!r}")
+        if row["rule_version"] != RULE_VERSION:
+            raise ValueError(f"test_switch row has rule_version {row['rule_version']!r}, not {RULE_VERSION}")
+    if len({row["backtest_run_id"] for row in rows}) > 1:
+        raise ValueError("test_switch rows cite more than one backtest run")
+    if rows:
+        errors = client.insert_rows_json(f"{core}.test_switch", rows)
+        if errors:
+            raise RuntimeError(f"append to {core}.test_switch failed: {errors}")
+
+
+def report(path, out=print):
+    """Print, from a saved backtest result file, the test_switch rows that would be written and the keys that stay
+    off, reading nothing else and writing nothing. The file name must be its run id. Returns 0, or 1 when the
+    file is refused."""
+    path = Path(path)
+    try:
+        results = json.loads(path.read_text(encoding="utf-8"))
+        if path.stem != results.get("run_id"):
+            raise ValueError(f"file name {path.name} is not its backtest run id {results.get('run_id')!r}")
+        rows, refused = switch_rows(results)
+    except (ValueError, OSError, AttributeError) as e:
+        print(f"refused: {e}", file=sys.stderr)
+        return 1
+    out(f"dry run of {path.name}: nothing is written")
+    out(f"would write {len(rows)} test_switch row{'' if len(rows) == 1 else 's'} from backtest run {results['run_id']}")
+    for r in rows:
+        out(f"  {r['market']}|{r['platform']}|{r['lane_class']} from {r['switched_on']} cites {r['backtest_run_id']}")
+    for r in refused:
+        out(f"  {r['key']} stays off: {'; '.join(r['reasons'])}")
+    return 0
+
+
 def top10_precision(store, window, as_of, markets):
     """Per market: of the top 10 eligible items by worth_raw shown on each day t with t + 7 on or before as_of,
     the share still Emerging, Rising or Peaking on t + 7; 'not yet measurable' when no such day exists."""
@@ -614,21 +736,12 @@ def run(client, as_of, *, apply=False, days=WINDOW_DAYS, out_dir=OUT_DIR, core=s
     inputs = load(client, as_of, days, core, agent)
     results = {"run_id": run_id, "applied": apply, **replay(inputs, as_of, days)}
     done = {(s["market"], s["platform"], s["lane_class"], s["rule_version"]) for s in inputs["switched"]}
-    switched_on = (as_of + timedelta(days=1)).isoformat()
-    rows = []
-    for name, k in results["keys"].items():
-        market, platform, lane = name.split("|")
-        if k["switch"] and (market, platform, lane, RULE_VERSION) not in done:
-            rows.append({"market": market, "platform": platform, "lane_class": lane, "switched_on": switched_on,
-                         "backtest_run_id": run_id, "rule_version": RULE_VERSION})
+    rows, _ = switch_rows(results, done)
     results["switch_on"] = rows
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / f"{run_id}.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     if apply:
-        if rows:
-            errors = client.insert_rows_json(f"{core}.test_switch", rows)
-            if errors:
-                raise RuntimeError(f"append to {core}.test_switch failed: {errors}")
+        write_switch_rows(client, core, rows, apply)
         runs.append(client, run_id, "backtest", as_of, "ok", started, runs.now(), results, agent=agent)
     return results
 
@@ -636,10 +749,17 @@ def run(client, as_of, *, apply=False, days=WINDOW_DAYS, out_dir=OUT_DIR, core=s
 def main(argv=None, client=None, out_dir=OUT_DIR, core=sqlrun.CORE, agent=sqlrun.AGENT):
     ap = argparse.ArgumentParser(prog="python -m core.detect.backtest",
                                  description="Backtest the series test and switch it on where it passes.")
-    ap.add_argument("--as-of", required=True, type=date.fromisoformat, help="last replayed day, YYYY-MM-DD")
+    ap.add_argument("--as-of", type=date.fromisoformat, help="last replayed day, YYYY-MM-DD")
+    ap.add_argument("--report", help="dry run from a saved backtest result file: print the rows it would write")
     ap.add_argument("--days", type=int, default=WINDOW_DAYS, help="days replayed, ending on --as-of")
     ap.add_argument("--apply", action="store_true", help="append the test_switch rows and the runs row")
     a = ap.parse_args(argv)
+    if a.report:
+        if a.apply or a.as_of:
+            ap.error("--report reads a saved result file and takes neither --apply nor --as-of")
+        return report(a.report)
+    if a.as_of is None:
+        ap.error("--as-of is required")
     if client is None:
         client = bigquery.Client(project=PROJECT)
     res = run(client, a.as_of, apply=a.apply, days=a.days, out_dir=out_dir, core=core, agent=agent)
