@@ -367,3 +367,58 @@ def test_today_unreadable_age_is_said_plainly_and_fails_only_with_a_max_age(monk
         ok, evidence = smoke.check_today(c, BASE, headers, max_age_hours=24)
         assert ok is False
         assert evidence == "the age of the Today brief for 2026-09-30 cannot be read, and a 24 hour maximum is set"
+
+
+# R6, tightening only: a brief with no cards is a warning the release can see, and a blank summary on a complete
+# answer is a FAIL whatever gap the answer carries.
+
+def cards_server(per_market):
+    """A fake f42-api whose /api/today gives each market the (status, card count) in per_market."""
+    def handle(request):
+        if request.url.path == "/api/today":
+            markets = [{"market": m, "status": status, "cards": [{"id": f"c{i}"} for i in range(n)]}
+                       for m, (status, n) in per_market.items()]
+            return httpx.Response(200, json={"date": "2026-09-30", "status": "published",
+                                             "published_at": PUBLISHED, "markets": markets})
+        return httpx.Response(404, json={"error": "not_found", "message": "no route"})
+
+    return handle
+
+
+def check_cards(per_market, capsys):
+    with httpx.Client(transport=httpx.MockTransport(cards_server(per_market))) as c:
+        ok, evidence = smoke.check_today(c, BASE, {"X-Passcode": PASS})
+    return ok, evidence, capsys.readouterr().err
+
+
+def test_a_market_with_no_cards_passes_today_with_a_warning_that_names_it(capsys):
+    ok, evidence, err = check_cards({"ZA": ("published", 0), "NG": ("published", 4), "KE": ("published", 2)}, capsys)
+    assert ok is True
+    assert "warning: no cards for ZA" in evidence and "NG" not in evidence.split("warning")[1]
+    [warn] = [ln for ln in err.splitlines() if "WARN" in ln]
+    assert "ZA" in warn and "no cards" in warn and "NG" not in warn and "KE" not in warn
+
+
+def test_every_market_with_no_cards_is_named_with_its_status(capsys):
+    ok, evidence, err = check_cards({"ZA": ("data_issue", 0), "NG": ("published", 0), "KE": ("partial", 0)}, capsys)
+    assert ok is True
+    assert "warning: no cards for ZA (data_issue), NG (published), KE (partial)" in evidence
+    assert len([ln for ln in err.splitlines() if "WARN" in ln]) == 1
+
+
+def test_a_brief_with_cards_in_every_market_has_no_warning(capsys):
+    ok, evidence, err = check_cards({"ZA": ("published", 1), "NG": ("published", 3), "KE": ("partial", 2)}, capsys)
+    assert ok is True and "warning" not in evidence and "WARN" not in err
+
+
+@pytest.mark.parametrize("code_gap", ["K6", "K2", "K8"])
+def test_a_blank_summary_on_a_complete_answer_fails_whatever_code_gap_it_carries(code_gap):
+    import json
+
+    from core.agent import checks, plain
+
+    record = json.loads(FIXTURE_ASK.read_text(encoding="utf-8"))
+    gap = plain.gap(checks._code_gap("Short answer removed", code_gap, "the short answer text"))
+    record["answer"].update(short_answer="", status="complete", gaps=[gap])
+    ok, reason = smoke.check_ask_record(record)
+    assert ok is False and "summary" in reason

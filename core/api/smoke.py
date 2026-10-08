@@ -13,7 +13,8 @@ The today check always says on stderr how old the Today brief it read is: its da
 its age in hours, or that the age cannot be read. It fails on age only when a maximum is given, by
 --today-max-age-hours or the environment variable F42_SMOKE_TODAY_MAX_AGE_HOURS (the flag wins): a brief older than
 that many hours, or one whose age cannot be read, is then a FAIL. With neither set, age never fails the check. A
-maximum that is not a number of hours above 0 exits 2 before any check runs.
+maximum that is not a number of hours above 0 exits 2 before any check runs. A market with no cards passes the check
+with a warning, in its evidence and as a WARN line on stderr: a brief can honestly hold everything back.
 """
 
 import argparse
@@ -115,7 +116,13 @@ def check_today(client, base, headers, max_age_hours=None):
     if stale:
         return False, stale
     cards = ", ".join(f"{m['market']} {len(m.get('cards') or [])} ({m.get('status')})" for m in markets)
-    return True, f"date {body.get('date')}, status {body.get('status')}, cards {cards}"
+    evidence = f"date {body.get('date')}, status {body.get('status')}, cards {cards}"
+    empty = [f"{m['market']} ({m.get('status')})" for m in markets if not m.get("cards")]
+    if empty:
+        # A brief with no cards is a real outcome (everything held, or a data issue), so it warns and does not fail.
+        _progress(f"WARN today: no cards for {', '.join(empty)}")
+        evidence += f"; warning: no cards for {', '.join(empty)}"
+    return True, evidence
 
 
 def check_ask_record(record):
