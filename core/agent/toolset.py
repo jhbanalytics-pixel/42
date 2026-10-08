@@ -141,7 +141,9 @@ DESCRIPTIONS = {
                  "may exist. preview gives offset, limit, returned, has_more and next_offset. Use query_rows "
                  "to inspect any omitted visible row before reasoning from it; do not treat a preview as the "
                  "whole result. The writer and checks keep the original stored rows. "
-                 "Cite the query_id for every number. Use only these names; any other table fails. "
+                 "Cite the query_id for every number. Several independent counts go out as separate sql_query "
+                 "calls in the same turn: up to four run at the same time, and each is checked and capped as if it "
+                 "ran alone. Do not send them one per turn. Use only these names; any other table fails. "
                  + warehouse_map_text(),
     "search_posts": "Search stored posts by full text and meaning. Free. Returns evidence. Words in the query must all "
                     "appear in a post; put OR between alternatives, as in 'amapiano OR gqom'.",
