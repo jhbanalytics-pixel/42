@@ -1975,3 +1975,70 @@ test('a market carried in by the link is not overwritten by the header at mount'
   await until(() => calls.some((call) => call.path === '/api/ask'), 'the ask');
   expect(calls.find((call) => call.path === '/api/ask').body.market).toBe('KE');
 });
+
+/* Tester report, 6 October 2026: a wait of two to five minutes showed no sign
+   of progress. The running page now says which phase the latest step belongs
+   to and how long the question has been running, from the step kinds and the
+   clock the page already holds. It shows no claim and no count of its own. */
+test('the phase is read from the latest step kind, ignores notes and kinds it does not know, and is empty before any step', async () => {
+  const {phaseOf} = await import('../../ask42.jsx');
+  expect(phaseOf([])).toBe('');
+  expect(phaseOf([{kind: 'plan'}])).toBe('Planning');
+  expect(phaseOf([{kind: 'plan'}, {kind: 'search'}])).toBe('Reading posts');
+  expect(phaseOf([{kind: 'search'}, {kind: 'found'}, {kind: 'note'}])).toBe('Reading posts');
+  expect(phaseOf([{kind: 'search'}, {kind: 'read'}])).toBe('Reading posts');
+  expect(phaseOf([{kind: 'search'}, {kind: 'check'}])).toBe('Checking claims');
+  expect(phaseOf([{kind: 'check'}, {kind: 'critic'}])).toBe('Reviewing claims');
+  expect(phaseOf([{kind: 'check'}, {kind: 'write'}])).toBe('Writing the answer');
+  expect(phaseOf([{kind: 'write'}, {kind: 'something_new'}])).toBe('Writing the answer');
+  expect(phaseOf([{kind: 'something_new'}])).toBe('');
+  expect(phaseOf(null)).toBe('');
+});
+
+test('elapsed time is said in seconds, then minutes and seconds', async () => {
+  const {elapsedWords} = await import('../../ask42.jsx');
+  expect(elapsedWords(0)).toBe('0 s');
+  expect(elapsedWords(45)).toBe('45 s');
+  expect(elapsedWords(60)).toBe('1 min 0 s');
+  expect(elapsedWords(83)).toBe('1 min 23 s');
+  expect(elapsedWords(754)).toBe('12 min 34 s');
+  expect(elapsedWords(-3)).toBe('0 s');
+});
+
+test('a running Ask shows its phase and how long it has been running', async () => {
+  const record = clone(completeRecord);
+  const server = serve([record]);
+  const realNow = Date.now;
+  try {
+    await render();
+    await askByTyping(record.question);
+    const stream = server.stream(record.ask_id);
+    const line = () => host.querySelector('[data-ask-progress]');
+    await until(() => line(), 'the progress line');
+    expect(plain(line().textContent)).toContain('Starting');
+    expect(plain(line().textContent)).toContain('0 s');
+    stream.push(frame(1, 'step', record.steps[0]));
+    await until(() => plain(line().textContent).includes('Planning'), 'the planning phase');
+    stream.push(frame(2, 'step', record.steps[1]));
+    await until(() => plain(line().textContent).includes('Reading posts'), 'the reading phase');
+    Date.now = () => realNow() + 83000;
+    await until(() => plain(line().textContent).includes('1 min 2'), 'the elapsed minute');
+    stream.push(frame(10, 'step', record.steps[5]));
+    await until(() => plain(line().textContent).includes('Writing the answer'), 'the writing phase');
+    expect(plain(line().textContent)).not.toContain('Verified');
+    stream.push(frame(12, 'done', {seq: 12, status: 'complete', url: `/api/ask/${record.ask_id}`}));
+    stream.close();
+    await until(() => text().includes('What we do not know'), 'the finished answer');
+    expect(line()).toBeNull();
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test('a saved answer being opened shows no progress line', async () => {
+  const record = clone(completeRecord);
+  serve([record]);
+  await render({query: {follow: record.ask_id}});
+  await until(() => text().includes('What we do not know'), 'the finished answer');
+  expect(host.querySelector('[data-ask-progress]')).toBeNull();
+});
