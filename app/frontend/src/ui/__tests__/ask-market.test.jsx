@@ -250,3 +250,31 @@ test('a draft that names a parent posts it as parent_id when Ask is pressed', as
   await until(() => posts().length > 0, 'the ask');
   expect(posts()[0].body).toMatchObject({question: 'Can you run this question again to the end?', parent_id: completeRecord.ask_id});
 });
+
+/* Honest states (wave 8): a figure the record does not carry is said to be
+   unrecorded, never shown as zero. */
+test('an answer whose record carries no cost or item counts does not show them as zero', async () => {
+  const record = clone(completeRecord);
+  delete record.run.credits;
+  delete record.run.seconds;
+  record.run.source_status = record.run.source_status.map((source) => { const {items, ...rest} = source; return rest; });
+  serve([record]);
+  await render({query: {follow: record.ask_id}});
+  await until(() => host.querySelector('.ask42-technical'), 'the answer footer');
+  const details = plain(host.querySelector('.ask42-technical').textContent);
+  expect(details).toContain('Credits not recorded');
+  expect(details).not.toContain('0 credits');
+  expect(details).not.toContain('0 s');
+  expect(details).toContain('items not recorded');
+  expect(details).not.toMatch(/\b0 items/);
+});
+
+test('a recorded cost still reads as before, and a recorded zero stays a zero', async () => {
+  const record = clone(completeRecord);
+  record.run.credits = 0;
+  record.run.seconds = 3;
+  serve([record]);
+  await render({query: {follow: record.ask_id}});
+  await until(() => host.querySelector('.ask42-technical'), 'the answer footer');
+  expect(plain(host.querySelector('.ask42-technical').textContent)).toContain('0 credits · 3 s');
+});

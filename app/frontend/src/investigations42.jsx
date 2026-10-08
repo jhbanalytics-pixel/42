@@ -12,6 +12,7 @@ import './styles/ask42.css';
 import './styles/today42.css';
 import './styles/investigations42.css';
 import {readerFigure} from './api.js';
+import {costWords, itemsWords} from './costWords.js';
 import {validateAnswer} from './answerContract.js';
 import {plainGapWhat} from './ask42.jsx';
 import {createInvestigation, createInvestigationDossier, getInvestigation, listInvestigations, startInvestigation, stopInvestigation, streamInvestigation, updateInvestigationPlan} from './api42.js';
@@ -818,7 +819,7 @@ function InvestigationAnswer({record, investigationId, onFailure}){
         {exportError && <p className="ask42-error" role="alert">{exportError}</p>}
 
         <footer className="ask42-footer">
-          <span>{readerFigure(run.credits ?? 0) + ' credits · ' + (run.seconds ?? 0) + ' s'}</span>
+          <span>{costWords(run)}</span>
           <details>
             <summary>Details</summary>
             <dl className="ask42-details">
@@ -829,7 +830,7 @@ function InvestigationAnswer({record, investigationId, onFailure}){
               <dd>
                 <ul className="ask42-list">
                   {(run.source_status || []).map((source, index) => (
-                    <li key={index}>{(platformLabel(source.platform) || source.platform) + ' · ' + source.route + ' · ' + why(source.status) + ' · ' + readerFigure(source.items ?? 0) + ' items'}</li>
+                    <li key={index}>{(platformLabel(source.platform) || source.platform) + ' · ' + source.route + ' · ' + why(source.status) + ' · ' + itemsWords(source.items)}</li>
                   ))}
                 </ul>
               </dd>

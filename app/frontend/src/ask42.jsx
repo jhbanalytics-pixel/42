@@ -12,6 +12,7 @@ import {createDossier, fetchDiscover, saveFinding} from './api42.js';
 import {downloadExport, getAsk, startAsk, stopAsk, streamAsk} from './askTransport42.js';
 import {go} from './router.js';
 import {marketToSend} from './askMarkets.js';
+import {costWords, itemsWords} from './costWords.js';
 import {EvidenceChip, monthName} from './ui/EvidenceChip.jsx';
 import {PostStrip} from './ui/PostStrip.jsx';
 import {RankedAnswer} from './RankedAnswer.jsx';
@@ -571,13 +572,13 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
           <details className="ask42-technical" data-run-id={run.run_id || undefined}>
             <summary>Technical details</summary>
             <dl className="ask42-details">
-              <dt>Cost</dt><dd>{readerFigure(run.credits ?? 0) + ' credits · ' + (run.seconds ?? 0) + ' s'}</dd>
+              <dt>Cost</dt><dd>{costWords(run)}</dd>
               <dt>Depth</dt><dd>{TIER_WORDS[run.tier] || run.tier}</dd>
               <dt>Sources</dt>
               <dd>
                 <ul className="ask42-list">
                   {(run.source_status || []).map((source, index) => (
-                    <li key={index}>{(platformLabel(source.platform) || source.platform) + ' · ' + why(source.status) + ' · ' + readerFigure(source.items ?? 0) + ' items'}</li>
+                    <li key={index}>{(platformLabel(source.platform) || source.platform) + ' · ' + why(source.status) + ' · ' + itemsWords(source.items)}</li>
                   ))}
                 </ul>
               </dd>
