@@ -127,6 +127,8 @@ def _agent_audience(url: str) -> str:
     if not _AUDIENCE.match(audience):
         raise ValueError("agent_audience_malformed")
     audience_host = audience.removeprefix("https://")
+    if _TAG_SEPARATOR in audience_host.split(".", 1)[0]:
+        raise ValueError("agent_audience_is_a_tag_host")  # the audience is the service itself, never a revision tag
     if not tagged:
         if audience != url:
             raise ValueError("agent_audience_differs")
@@ -175,6 +177,42 @@ async def _forward(method: str, path: str, json_body=None, params=None) -> httpx
         except httpx.HTTPError as exc:
             logger.warning("agent %s %s failed: %s", method, path, type(exc).__name__)
             raise ApiError(502, "agent_unavailable", "The Ask service cannot be reached.") from exc
+
+
+async def _again(resp: httpx.Response, kind: str) -> Response:
+    """The agent's JSON answer read through the list of hidden people a second time (C5 v2 rule R7), so an agent that
+    predates the check cannot leak through the hop. kind says what the body is: a record, an investigation, a list
+    of investigations, a dossier view or a list of dossiers. Anything but a 200 goes through as it is."""
+    from core.api import privacy, store
+
+    if resp.status_code != 200:
+        return _passthrough(resp)
+    try:
+        body = resp.json()
+    except ValueError:
+        return _passthrough(resp)
+    lazy = privacy.LazyStore(store.get_store)
+
+    def project():
+        with privacy.one_read():
+            hidden = privacy.read_hidden(lazy)
+            if kind == "record" and isinstance(body, dict) and "answer" in body:
+                return privacy.project_record(body, lazy, hidden, body.get("privacy"))
+            if kind == "investigation" and isinstance(body, dict):
+                record = body.get("record")
+                if isinstance(record, dict):
+                    body["record"] = privacy.project_record(record, lazy, hidden, record.get("privacy"))
+                return privacy.mask(body, hidden)
+            if kind == "investigations":
+                return privacy.mask(body, hidden)
+            if kind == "dossier" and isinstance(body, dict):
+                return privacy.project_dossier(body, lazy, hidden, body.get("privacy"))
+            if kind == "dossiers" and isinstance(body, dict) and isinstance(body.get("dossiers"), list):
+                return {**body, "dossiers": [privacy.project_summary(row, lazy, hidden) for row in body["dossiers"]]}
+            return body
+
+    shown = await run_in_threadpool(project)
+    return JSONResponse(jsonable_encoder(shown), headers=privacy.NO_STORE)
 
 
 def _passthrough(resp: httpx.Response) -> Response:
@@ -850,7 +888,7 @@ async def _ask(request: Request, body: dict) -> Response:
         raise
     if live and resp.status_code >= 400:
         auth.daily_questions.release(ip)
-    return _passthrough(resp)
+    return await _again(resp, "record") if resp.status_code == 200 else _passthrough(resp)
 
 
 def _spike_facts(item_id: str, market: str, day: str, series: str | None) -> tuple[str, bool]:
@@ -1070,13 +1108,13 @@ async def api_findings_save(request: Request) -> Response:
 
 @gated.get("/api/dossiers")
 async def api_dossiers(limit: str | None = None, before: str | None = None) -> Response:
-    return _passthrough(await _forward("GET", "/api/dossiers", params=_known(limit=limit, before=before)))
+    return await _again(await _forward("GET", "/api/dossiers", params=_known(limit=limit, before=before)), "dossiers")
 
 
 @gated.get("/api/dossiers/{dossier_id}")
 async def api_dossier(dossier_id: str) -> Response:
     _check_id(dossier_id, "a dossier")
-    return _passthrough(await _forward("GET", f"/api/dossiers/{dossier_id}"))
+    return await _again(await _forward("GET", f"/api/dossiers/{dossier_id}"), "dossier")
 
 
 @gated.put("/api/dossiers/{dossier_id}")
@@ -1104,7 +1142,7 @@ async def api_dossier_freeze(dossier_id: str, request: Request) -> Response:
 @gated.get("/api/dossiers/{dossier_id}/versions/{version}")
 async def api_dossier_version(dossier_id: str, version: int) -> Response:
     _check_id(dossier_id, "a dossier")
-    return _passthrough(await _forward("GET", f"/api/dossiers/{dossier_id}/versions/{version}"))
+    return await _again(await _forward("GET", f"/api/dossiers/{dossier_id}/versions/{version}"), "dossier")
 
 
 @gated.get("/api/dossiers/{dossier_id}/versions/{version}/export")
@@ -1122,13 +1160,13 @@ async def api_investigation_draft(request: Request) -> Response:
 
 @gated.get("/api/investigations")
 async def api_investigations(status: str | None = None) -> Response:
-    return _passthrough(await _forward("GET", "/api/investigations", params=_known(status=status)))
+    return await _again(await _forward("GET", "/api/investigations", params=_known(status=status)), "investigations")
 
 
 @gated.get("/api/investigations/{investigation_id}")
 async def api_investigation(investigation_id: str) -> Response:
     _check_id(investigation_id, "an investigation")
-    return _passthrough(await _forward("GET", f"/api/investigations/{investigation_id}"))
+    return await _again(await _forward("GET", f"/api/investigations/{investigation_id}"), "investigation")
 
 
 @gated.put("/api/investigations/{investigation_id}/plan")

@@ -51,6 +51,8 @@ class PrivStore(FixtureStore):
 
     def creators_by_id(self, creator_ids):
         self.calls.append("creators_by_id")
+        if self.fail == "creators":
+            raise RuntimeError("creators unreadable")
         return [dict(CREATORS[i]) for i in sorted(creator_ids) if i in CREATORS]
 
     def map_items(self, item_ids):
@@ -61,6 +63,8 @@ class PrivStore(FixtureStore):
         self.last_window = (since, until)
         if self.fail == "lookup":
             raise RuntimeError("posts unreadable")
+        if self.fail == "no_posts_table":
+            return None
         return [{"post_id": p, "creator_id": self.posts[p][0]} for p in post_ids
                 if p in self.posts and since <= self.posts[p][1] <= until]
 
@@ -475,3 +479,59 @@ def test_a_handle_only_suppression_hides_the_creator_in_a_dossier():
     view, _ = dossier_view()
     assert "hid_handle" not in body_of(privacy.project_dossier(view, store))
     assert privacy.nothing_hidden(privacy.read_hidden(store)) is False
+
+
+# Cases the first mutation pass of the re-review found unpinned.
+def test_an_id_with_no_creators_row_still_hides_the_posts_it_wrote():
+    store = PrivStore(hide=set(), posts={**POSTS, P_HID1: ("c_gone", "2026-10-05")})
+    store.suppression_rows = [handle_row(platform=None, handle=None, creator_id="c_gone")]
+    out = project(ask_record(), store)
+    assert P_HID1 not in {e["id"] for e in out["answer"]["evidence"]} and "c2" not in claim_ids(out)
+
+
+def test_a_creators_lookup_that_fails_makes_the_list_unavailable():
+    out = project(ask_record(), PrivStore(hide={"c_hid"}, fail="creators"))
+    assert out["privacy"]["state"] == "unavailable" and out["answer"]["claims"] == []
+
+
+def test_a_posts_table_that_does_not_exist_makes_the_record_unavailable():
+    out = project(ask_record(), PrivStore(hide={"c_hid"}, fail="no_posts_table"))
+    assert out["privacy"]["state"] == "unavailable"
+
+
+def test_an_unavailable_list_withholds_the_summary_even_when_the_record_holds_no_claim():
+    record = ask_record()
+    record["answer"].update(claims=[], so_what=[], watch_next=[], evidence=[])
+    out = project(record, PrivStore(fail="list"))
+    assert out["answer"]["short_answer"] == privacy.SUMMARY_WITHHELD
+
+
+def test_a_marker_with_a_negative_count_is_not_trusted():
+    bad = {"v": 1, "state": "applied", "withheld": {"posts": -1, "claims": 0, "summary": False}}
+    out = project(ask_record(), PrivStore(hide=set()), inbound=bad)
+    assert "privacy" not in out
+
+
+def test_a_ranked_handle_that_is_hidden_is_blanked_though_its_claim_stays():
+    record = ask_record()
+    record["run"]["ranked_list"]["items"][0]["usage_handle"] = "hid_handle"
+    out = project(record, PrivStore(hide={"c_hid"}))
+    first = out["run"]["ranked_list"]["items"][0]
+    assert first["claim_id"] == "c1" and first["usage_handle"] is None
+
+
+def test_the_tie_that_pointed_at_a_dropped_ranked_item_is_cleared_on_the_next_one():
+    record = ask_record()
+    record["run"]["ranked_list"]["items"][2]["tied_with_previous"] = True  # r3 was tied with r2, which goes
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert [i["claim_id"] for i in out["run"]["ranked_list"]["items"]] == ["c1", "c4"]
+    assert out["run"]["ranked_list"]["items"][1]["tied_with_previous"] is False
+
+
+def test_the_digest_masks_a_handle_in_its_words_when_the_suppression_names_only_a_handle():
+    store = PrivStore(hide=set())
+    store.suppression_rows = [handle_row()]
+    resp = {"date": "2026-10-07", "waiting": [], "alerts": [{"label": "Watch", "market": "ZA", "item_id": "i1",
+            "fired_because": "It rose", "card": {"title": "Posts by @hid_handle", "evidence": []}}]}
+    out = privacy.withhold_digest(resp, store)
+    assert "hid_handle" not in body_of(out["alerts"][0]["card"])

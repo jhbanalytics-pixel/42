@@ -393,3 +393,55 @@ def test_history_applies_a_suppression_that_names_only_a_handle_or_only_an_id_a1
     assert "hid_handle" not in body_of(history.build_history_asks(api.store, 20))
     api.store.suppression_rows = [handle_row(platform=None, handle=None, creator_id="c_hid")]
     assert "hid_handle" not in body_of(history.build_history_asks(api.store, 20))
+
+
+# The second pass (R7): an agent that predates this check cannot leak through the hop on any route that carries a record.
+def older_agent(payloads):
+    agent = FastAPI()
+
+    @agent.api_route("/{path:path}", methods=["GET", "POST", "PUT"])
+    async def any_route(path: str):
+        status, body = payloads["/" + path]
+        return JSONResponse(body, status_code=status)
+
+    return agent
+
+
+def test_every_route_that_carries_a_record_projects_the_agents_answer_again_r7(api):
+    from core.api.tests.test_privacy_dossiers import dossier_view_for
+    view = dossier_view_for(ask_record())
+    inv = {"investigation_id": "i_0123456789ab", "status": "complete", "question": ask_record()["question"],
+           "plan": {"focus": "Posts by @hid_handle"}, "record": ask_record()}
+    payloads = {
+        "/api/ask": (200, ask_record()),
+        "/api/investigations/i_0123456789ab": (200, inv),
+        "/api/investigations": (200, {"investigations": [{k: v for k, v in inv.items() if k != "record"}]}),
+        "/api/dossiers/d_fixture1": (200, view),
+        "/api/dossiers/d_fixture1/versions/1": (200, view),
+        "/api/dossiers": (200, {"dossiers": [{"dossier_id": "d_fixture1", "title": "Amapiano and @hid_handle",
+                                              "question": ask_record()["question"], "kept": 3}], "next_before": None}),
+    }
+    client = api.serve(older_agent(payloads))
+    calls = [("post", "/api/ask", {"question": "What is amapiano doing?", "wait": True}),
+             ("get", "/api/investigations/i_0123456789ab", None), ("get", "/api/investigations", None),
+             ("get", "/api/dossiers/d_fixture1", None), ("get", "/api/dossiers/d_fixture1/versions/1", None),
+             ("get", "/api/dossiers", None)]
+    for method, path, body in calls:
+        r = client.request(method.upper(), path, headers=GOOD, **({"json": body} if body else {}))
+        assert r.status_code == 200, path
+        assert leaks(r.json(), [P_HID1]) == [], path
+        assert r.headers["cache-control"] == "no-store", path
+
+
+def test_a_run_that_was_only_started_is_not_touched_by_the_second_pass(api):
+    started = {"ask_id": ASK, "status": "running", "events_url": "/e", "url": "/u"}
+    r = api.serve(older_agent({"/api/ask": (202, started)})).post("/api/ask", headers=GOOD, json={"question": "What is new?"})
+    assert r.status_code == 202 and r.json() == started
+
+
+def test_the_second_pass_merges_the_agents_dossier_marker_not_drops_it(api):
+    from core.api.tests.test_privacy_dossiers import dossier_view_for
+    first = privacy.project_dossier(dossier_view_for(ask_record()), api.store)
+    api.store.hide = set()  # the list has been lifted by the time the API looks again
+    body = api.serve(older_agent({"/api/dossiers/d_fixture1": (200, first)})).get("/api/dossiers/d_fixture1", headers=GOOD).json()
+    assert body["privacy"] == first["privacy"]

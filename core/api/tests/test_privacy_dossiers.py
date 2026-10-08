@@ -394,3 +394,19 @@ def test_a_finding_from_an_answer_that_names_nobody_hidden_goes_on_to_the_produc
     world.store.records[ASK] = record
     r = world.client.post("/api/findings", json={"from": {"ask_id": ASK}})
     assert r.json().get("error") != "not_eligible" or "42 no longer shows" not in r.json().get("message", "")
+
+
+def test_a_claim_the_list_does_not_let_a_new_dossier_keep_is_refused_when_it_is_asked_for_a22(world):
+    world.store.hide = {"c_hid"}
+    record = source()
+    r = agent_app.first_version(record, {"keep": ["c1", "c2"]}, {"ask_id": ASK})
+    assert r.status_code == 409 and "c2" in json.loads(r.body)["message"]
+    assert agent_app.DOSSIER_VERSIONS == []
+
+
+def dossier_view_for(record):
+    """A stored dossier view as the agent would send it, built from this answer."""
+    sel = {"keep": ["c1", "c2", "c3"], "title": "Amapiano and @hid_handle", "notes": {"c1": "checked @hid_handle"}}
+    body = dossiers.build(record, sel, dossier_id="d_fixture1", version=1, created_at="2026-10-07T10:00:00+02:00",
+                          source={"ask_id": record["ask_id"]})
+    return {**body, "content_hash": dossiers.content_hash(body), "ticks": {}, "needs_tick": []}

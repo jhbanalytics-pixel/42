@@ -1419,3 +1419,13 @@ def test_au09_the_tag_url_the_release_tools_build_is_accepted(monkeypatch):
     minted = agent_config(monkeypatch, tagged, CANON)
     assert str(build_client().base_url).rstrip("/") == tagged
     assert minted == [CANON]
+
+
+def test_a_tag_host_is_never_the_audience(monkeypatch, caplog):
+    """C2 2.1: the audience is the service itself, never a revision tag URL."""
+    from core.api.auth import ApiError
+    tagged = "https://t---a---svc-abc-uc.a.run.app"
+    minted = agent_config(monkeypatch, tagged, "https://a---svc-abc-uc.a.run.app")
+    with caplog.at_level("WARNING", logger="f42.api"), pytest.raises(ApiError):
+        build_client()
+    assert minted == []

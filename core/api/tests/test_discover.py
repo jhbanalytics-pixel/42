@@ -2080,3 +2080,18 @@ def test_a_dated_alerts_read_asks_the_gate_for_that_runs_date(fx):
 
     discover.build_alerts(Patched(item_gate=item_gate), [], date=D30)
     assert seen == [D30]
+
+
+def test_a_hold_is_worded_from_the_brief_card_when_the_brief_has_one():
+    from core.api.held_words import plain_reason
+    from core.brief.payload import NOT_RUN_REASONS
+    busy = sorted(NOT_RUN_REASONS)[0]
+    assert discover._hold_basis({"explanation_status": "not_run", "failed_reason": busy}, None) == ("not_run", busy)
+    assert discover._hold_basis({"explanation_status": "failed_checks", "failed_reason": "x"}, {"explanation_status": "not_run"}) \
+        == ("failed_checks", "x")  # the card is the brief's record of the item; the held item is only the fallback
+    held = {"rule": "G10", "reason": "explanation_failed", "reason_text": "Explanation failed its checks"}
+    for card, words in (({"explanation_status": "not_run", "failed_reason": busy}, "Not explained in time: the model was busy"),
+                        ({"explanation_status": "not_run"}, "Not explained: the model did not get to this topic"),
+                        ({"explanation_status": "failed_checks", "failed_reason": "x"}, "The explanation did not pass our checks")):
+        status, failed = discover._hold_basis(card, None)
+        assert plain_reason(dict(held, **({"failed_reason": failed} if failed else {})), status)["reason_text"] == words

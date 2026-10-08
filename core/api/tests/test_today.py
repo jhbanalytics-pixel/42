@@ -2144,14 +2144,27 @@ def test_a_chart_is_its_platform_and_its_list_and_a_city_list_is_one_chart_per_c
 
 
 def test_an_item_with_no_item_id_has_no_count_and_the_same_item_in_another_market_is_separate():
-    other = iid("hashtag", "#fixture_za_only")
-    boards = [{"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
-        {"rank": 1, "title": "#no_id_here"}, {"rank": 2, "title": "#fixture_za_only", "item_id": other}]}]
-    base = boards_store(boards)
-    za = market(today.build_today(base, D30), "ZA")["boards"][0]
-    assert za["chart_counts"] == {other: 1}
-    ng_boards = [b for b in market(today.build_today(base, D30), "NG")["boards"] if other in (b.get("chart_counts") or {})]
-    assert ng_boards == []
+    other = iid("hashtag", "#fixture_both_markets")
+    board = {"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
+        {"rank": 1, "title": "#no_id_here"}, {"rank": 2, "title": "#fixture_both_markets", "item_id": other}]}
+    za_only = {"platform": "youtube", "list": "YouTube trending board", "entries": [
+        {"rank": 3, "title": "#fixture_both_markets", "item_id": other}]}
+    base = FixtureStore()
+
+    def briefs(date):
+        rows = base.briefs(date)
+        for r in rows:
+            if r["market"] == "ZA":
+                r["payload"]["boards"] = json.loads(json.dumps([board, za_only]))
+            elif r["market"] == "NG":
+                r["payload"]["boards"] = json.loads(json.dumps([board]))
+        return rows
+
+    out = today.build_today(Patched(briefs=briefs), D30)
+    za, ng = market(out, "ZA")["boards"], market(out, "NG")["boards"]
+    assert [b["chart_counts"] for b in za] == [{other: 2}, {other: 2}]  # two charts in ZA
+    assert [b["chart_counts"] for b in ng] == [{other: 1}]  # one chart in NG: the ZA charts are not counted there
+    assert all(not any(k is None or k == "" for k in b["chart_counts"]) for b in za + ng)  # no marker without an id
 
 
 def test_a_board_of_only_ids_on_a_past_brief_says_the_brief_day_not_today():

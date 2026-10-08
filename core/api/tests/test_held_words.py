@@ -123,3 +123,11 @@ def test_the_recheck_docstring_words_a_failed_card_as_held_with_the_reason_shown
     doc = " ".join(today._recheck_explanation.__doc__.split())
     assert "numbers and posts only" not in doc
     assert "held, reason shown" in doc
+
+
+def test_the_contract_documents_the_keys_and_refusals_of_the_hidden_people_readers():
+    text = _contract_text()
+    for needle in ("## 22. Hidden people on stored copies", "`privacy`", "`state`", "\"withheld\": {\"posts\"", "`chart_counts`",
+                   "503 `people_unavailable`", "`withheld: true`", "cannot keep a claim", "`not_eligible`",
+                   "Cache-Control: no-store"):
+        assert needle in text, needle

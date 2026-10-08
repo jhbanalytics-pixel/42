@@ -316,15 +316,16 @@ def _ranked(record, claims_gone, present, hidden, unavailable):
         run.pop("ranked_list", None)
 
 
-def project_dossier(view, store, hidden=READ):
+def project_dossier(view, store, hidden=READ, inbound=None):
     """A dossier version as a reader may see it now (5.3). The stored body is never changed, and content_hash stays
     the stored row's hash (R11)."""
     if not isinstance(view, dict):
         return view
     base = {k: v for k, v in view.items() if k != "privacy"}
+    carried = _inbound(inbound)
     hidden = _resolve(hidden, store)
     if nothing_hidden(hidden):
-        return base
+        return base if carried is None else {**base, "privacy": carried}
     try:
         gone = evidence_gone(base.get("evidence"), hidden, store)
     except PeopleUnavailable:
@@ -333,7 +334,8 @@ def project_dossier(view, store, hidden=READ):
     unavailable = hidden is None
     out = copy.deepcopy(base)
     posts_gone = len([e for e in out.get("evidence") or [] if isinstance(e, dict) and e.get("id") in gone])
-    out["evidence"] = [e for e in out.get("evidence") or [] if not (isinstance(e, dict) and e.get("id") in gone)]
+    if "evidence" in out:
+        out["evidence"] = [e for e in out.get("evidence") or [] if not (isinstance(e, dict) and e.get("id") in gone)]
     withheld, summary_gone = 0, False
     for claim in out.get("claims") or []:
         if unavailable or _claim_ids(claim) & gone:
@@ -350,10 +352,12 @@ def project_dossier(view, store, hidden=READ):
     changed = _json(out) != before
     if "content_hash" in base:
         out["content_hash"] = stored_hash
-    if unavailable:
-        out["privacy"] = _marker("unavailable", posts_gone, withheld, summary_gone)
-    elif posts_gone or withheld or changed:
-        out["privacy"] = _marker("applied", posts_gone, withheld, summary_gone)
+    marker = (_marker("unavailable", posts_gone, withheld, summary_gone) if unavailable
+              else _marker("applied", posts_gone, withheld, summary_gone) if posts_gone or withheld or changed
+              else None)
+    marker = _merge(marker, carried)
+    if marker:
+        out["privacy"] = marker
     return out
 
 
