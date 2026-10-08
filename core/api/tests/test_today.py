@@ -772,7 +772,7 @@ STAGING_SERIES = [  # the 17 distinct (platform, series) pairs in staging collec
     ("tiktok", "board_tiktok_hashtag", "TikTok hashtag board"),
     ("tiktok", "counter_tiktok_hashtag", "TikTok hashtag totals"),
     ("tiktok", "counter_tiktok_sound", "TikTok sound totals"),
-    ("tiktok", "curve_tiktok_sound", "TikTok sound popularity"),
+    ("tiktok", "curve_tiktok_sound", "TikTok sound popularity (no longer collected)"),
     ("tiktok", "feed_tiktok", "TikTok"),
     ("tiktok", "search", "TikTok search"),
     ("twitter", "panel_x_hub", "X"),

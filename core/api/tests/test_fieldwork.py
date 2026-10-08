@@ -240,3 +240,13 @@ def test_a_source_that_answered_but_landed_nothing_says_so_not_not_usable():
     feed = source(out, "ZA", "feed_tiktok")
     assert feed["status"] == "failed"
     assert feed["status_words"] == "Failed: answered but returned no posts or counts"
+
+
+def test_the_sound_curve_series_says_it_is_no_longer_written():
+    """tiktok/song/videos gives a page sample of a sound's videos by day, not a daily total; the collect job writes no
+    series from it (wave 8). An old health row or a leftover plan row must not read as a live source."""
+    planned = [{"credits": 0, "paid": False, "priced": True}]
+    row = fieldwork._source("ZA", "curve_tiktok_sound", planned, [], "absent", {"rows": []})
+    assert row["name"] == "TikTok sound popularity (no longer collected)"
+    assert row["detail"] == ("Not collected: a sound's videos by day are a sample of one page, not a daily total, "
+                             "so 42 no longer writes this series")
