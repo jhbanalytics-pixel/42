@@ -54,9 +54,8 @@ counts and shows the understand stage as degraded with what failed (core/api/sto
 status stays ok and detect still starts, so the morning brief is never held for it. A run whose embed step sent
 no window (retry_capped or spend_unknown, with nothing embedded) says so in embed_error, so the day with no
 embeddings is not a bare ok. The job reads those counts back itself (degraded_reasons): a run with any soft failure,
-embed_error included, carries counts["degraded"] (the failed steps, "embed", "enrich" and "cluster:<market>") and
-prints one "understand degraded:" line on stderr with each step's error, so the failure is in the row and the log
-even where Coverage does not name it.
+embed_error included, prints one "understand degraded:" line on stderr naming each failed step ("embed", "enrich",
+"cluster:<market>") with its error. The counts are left as they were, since Coverage and the run tests read them whole.
 
 After clustering, run_video reads the clips that matter in today's clusters (video.py, BUILD.md 2.6), skipped on a
 backfill and once the day has changed. A day change while it runs ends the video step only, never the run: the step
@@ -379,7 +378,6 @@ def main(execute=None):
     counts.update(model_usd=round(spent - booked, 6), booked_model_usd=round(booked, 6))
     counts["step_seconds"] = dict(step_seconds)
     if reasons := degraded_reasons(counts):
-        counts["degraded"] = list(reasons)
         print("understand degraded: " + "; ".join(f"{step} ({why})" for step, why in reasons.items()), file=sys.stderr)
     chain.finish(run, "failed" if day_changed else "ok", counts, error="day_changed" if day_changed else None)
     if day_changed:
