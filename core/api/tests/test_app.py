@@ -19,6 +19,15 @@ from core.api import auth
 pytestmark = pytest.mark.usefixtures("old_model_cap_schedule")
 
 PASS = "s3cret-passcode"
+
+@pytest.fixture(autouse=True)
+def fresh_health_checks():
+    """Each test asks the health route for checks of its own, not those an earlier test cached."""
+    from core.api import app as api_app
+    api_app._reset_health_cache()
+    yield
+    api_app._reset_health_cache()
+
 GOOD = {"X-Passcode": PASS}
 
 
@@ -1193,7 +1202,53 @@ def test_health_uses_one_fresh_agent_response_for_status_and_readiness(ctx, monk
     assert response.json()["t2_ready"] is expected_ready
     assert calls == ["/health"]
     monkeypatch.setenv("F42_AUTH_MODE", "fixture_unavailable")
+    api_mod._reset_health_cache()  # the cache window has passed
     second = ctx.client.get("/api/health").json()
     assert calls == ["/health", "/health"]
     assert second["auth_mode"] == "unavailable" and second["passcode"] is False
     assert second["checks"]["auth"] == "not_configured" and second["ok"] is False
+
+
+# F2a: the open health route must not run its three BigQuery-backed checks on every request.
+
+def test_health_runs_its_checks_once_inside_the_cache_window_and_again_after_it(ctx, monkeypatch):
+    runs = {"bigquery": 0, "agent": 0, "today": 0}
+    clock = {"t": 1000.0}
+
+    def bigquery():
+        runs["bigquery"] += 1
+        return "ok"
+
+    def today():
+        runs["today"] += 1
+        return "ok"
+
+    async def agent():
+        runs["agent"] += 1
+        return "ok", True
+
+    monkeypatch.setattr(api_mod, "_bigquery_check", bigquery)
+    monkeypatch.setattr(api_mod, "_today_check", today)
+    monkeypatch.setattr(api_mod, "_agent_check", agent)
+    monkeypatch.setattr(api_mod, "_health_clock", lambda: clock["t"], raising=False)
+    api_mod._reset_health_cache()
+
+    bodies = [ctx.client.get("/api/health") for _ in range(20)]
+    assert {r.status_code for r in bodies} == {200}
+    assert runs == {"bigquery": 1, "agent": 1, "today": 1}
+    assert bodies[0].json()["checks"] == {"auth": "ok", "bigquery": "ok", "agent": "ok", "today": "ok"}
+
+    clock["t"] += api_mod.HEALTH_CACHE_SECONDS + 1
+    ctx.client.get("/api/health")
+    assert runs == {"bigquery": 2, "agent": 2, "today": 2}
+
+
+def test_health_cache_keeps_time_and_auth_fresh(ctx, monkeypatch):
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(api_mod, "_health_clock", lambda: clock["t"], raising=False)
+    api_mod._reset_health_cache()
+    first = ctx.client.get("/api/health").json()
+    ctx.client.app  # same app
+    monkeypatch.setenv("F42_VERSION", "def456")
+    second = ctx.client.get("/api/health").json()
+    assert first["version"] == "abc123" and second["version"] == "def456"

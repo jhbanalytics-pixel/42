@@ -18,6 +18,14 @@ from core.api import auth
 AUDIENCE = "/projects/123456789/locations/us-central1/services/f42-api"
 EMAIL = "pilot@example.org"
 PASSCODE = "existing-passcode"
+
+
+@pytest.fixture(autouse=True)
+def fresh_health_checks():
+    """Each test asks the health route for checks of its own, not those an earlier test cached."""
+    api_mod._reset_health_cache()
+    yield
+    api_mod._reset_health_cache()
 ASSERTION_HEADER = "x-goog-iap-jwt-assertion"
 CERTS_URL = "https://www.gstatic.com/iap/verify/public_key"
 

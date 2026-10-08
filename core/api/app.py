@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import time
 from datetime import date as Date
 from datetime import datetime
 from pathlib import Path
@@ -36,6 +37,11 @@ ASK_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}\Z")
 # wait=true asks and SSE streams run up to the 3,600 second Cloud Run limit.
 ASK_TIMEOUT = httpx.Timeout(3600.0)
 HEALTH_TIMEOUT = httpx.Timeout(5.0)
+# The open health route is reachable without a passcode, so its BigQuery-backed checks run at most once a window per
+# instance however often it is asked (F2a); the time, version, cap and auth parts are read fresh each time.
+HEALTH_CACHE_SECONDS = 30
+_health_clock = time.monotonic
+_health_cache = {"at": None, "checks": None}
 SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 ERROR_CODES = {400: "bad_request", 401: "unauthorized", 404: "not_found", 429: "rate_limited"}
 PLACEHOLDER = (
@@ -148,8 +154,13 @@ def _passthrough(resp: httpx.Response) -> Response:
 async def api_health() -> dict:
     auth_state = auth.health_status()
     # The checks run together (they used to run one after another); each answers as before.
-    bigquery, agent_health, today = await asyncio.gather(
-        run_in_threadpool(_bigquery_check), _agent_check(), run_in_threadpool(_today_check))
+    now = _health_clock()
+    cached = _health_cache["checks"]
+    if cached is None or _health_cache["at"] is None or not 0 <= now - _health_cache["at"] < HEALTH_CACHE_SECONDS:
+        cached = await asyncio.gather(
+            run_in_threadpool(_bigquery_check), _agent_check(), run_in_threadpool(_today_check))
+        _health_cache["at"], _health_cache["checks"] = now, cached
+    bigquery, agent_health, today = cached
     agent, t2_ready = agent_health
     checks = {
         "auth": auth_state["check"],
@@ -178,6 +189,10 @@ async def api_health() -> dict:
         "t2_ready": checks["agent"] == "ok" and t2_ready,
         "checks": checks,
     }
+
+
+def _reset_health_cache() -> None:
+    _health_cache["at"] = _health_cache["checks"] = None
 
 
 def _bigquery_check() -> str:
