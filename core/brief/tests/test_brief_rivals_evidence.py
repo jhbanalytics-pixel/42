@@ -42,8 +42,8 @@ def rival_world(**state):
             ("c5", utc(day(4), 9), "micro"), ("c6", utc(day(4), 16), "micro"), ("c7", utc(day(5), 11), "micro")]
     for n, (creator, when, tier) in enumerate(plan):
         add_post(con, f"p{n}", creator, when, 100 - n, creator_tier_at_post=tier)
-        if n < 5:
-            duck.load(con, "core.post_enrichment", [{"post_id": f"p{n}", "near_dup_size": 3, "sponsored": False}])
+        duck.load(con, "core.post_enrichment", [{"post_id": f"p{n}", "near_dup_size": 3 if n < 5 else 1,
+                                                 "sponsored": False}])
     return con
 
 
@@ -201,20 +201,10 @@ def test_top_down_on_the_same_instant_is_still_top_down():
     assert "no later than" in sentence
 
 
-def test_top_down_with_no_small_creator_post_says_so():
-    [sentence] = evidence.why_now(got(diffusion="top_down", small_at=None, large_at=T.isoformat()), ZA)
-    assert "2026-09-18" in sentence and "none" in sentence
-    assert "q_large_at" in sentence
-
-
-def test_small_only_names_the_first_small_creator_date_and_no_large_creator_post():
-    [sentence] = evidence.why_now(got(diffusion="small_only", small_at=T.isoformat(), large_at=None), ZA)
-    assert "2026-09-18" in sentence and "no macro or mega" in sentence
-
-
 def test_the_date_is_the_markets_local_date():
     late = datetime(2026, 9, 18, 23, 30, tzinfo=timezone.utc)
-    [sentence] = evidence.why_now(got(diffusion="small_only", small_at=late.isoformat(), large_at=None), ZA)
+    [sentence] = evidence.why_now(got(diffusion="bottom_up", small_at=late.isoformat(),
+                                      large_at=(late + timedelta(days=2)).isoformat()), ZA)
     assert "2026-09-19" in sentence and "2026-09-18" not in sentence
 
 
@@ -224,7 +214,9 @@ def test_the_date_is_the_markets_local_date():
     dict(diffusion="bottom_up", large_at=T.isoformat()),
     dict(diffusion="small_only", small_at=None, large_at=None),
     dict(diffusion="small_only", small_at=T.isoformat(), large_at=T.isoformat()),
+    dict(diffusion="small_only", small_at=T.isoformat(), large_at=None),      # a missing tier is not an absence
     dict(diffusion="top_down", small_at=None, large_at=None),
+    dict(diffusion="top_down", small_at=None, large_at=T.isoformat()),        # nor is this one
     dict(diffusion="bottom_up", small_at=(T + timedelta(days=1)).isoformat(), large_at=T.isoformat()),
     dict(diffusion="top_down", small_at=T.isoformat(), large_at=(T + timedelta(days=1)).isoformat()),
     dict(diffusion="sideways", small_at=T.isoformat(), large_at=T.isoformat()),
@@ -246,8 +238,8 @@ def test_lead_market_sentence_needs_both_the_market_and_the_market_count():
 
 
 def test_at_most_two_sentences_in_a_fixed_order():
-    sentences = evidence.why_now(got(diffusion="small_only", small_at=T.isoformat(), large_at=None,
-                                     lead_market="KE", markets_hot=3), ZA)
+    sentences = evidence.why_now(got(diffusion="bottom_up", small_at=T.isoformat(),
+                                     large_at=(T + timedelta(days=1)).isoformat(), lead_market="KE", markets_hot=3), ZA)
     assert len(sentences) == 2
     assert "nano or micro" in sentences[0] and "KE" in sentences[1]
 
@@ -282,4 +274,4 @@ def test_a_claim_citing_a_rival_number_carries_the_pinned_entry_without_the_inte
     draft = {"explanation": "x", "claims": [{"id": "c1", "text": "t", "label": "observed", "kind": "observation",
                                              "evidence_ids": [], "quotes": [], "number_ids": [ids[burst["query_id"]]]}]}
     [entry] = explain._answer(draft, pack)["claims"][0]["numbers"]
-    assert entry == {k: v for k, v in burst.items() if k not in ("rival_field", "cutoff")}
+    assert entry == {k: v for k, v in burst.items() if k not in ("rival_field", "cutoff", "post_snapshot")}

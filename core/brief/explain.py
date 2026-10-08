@@ -44,7 +44,7 @@ too_few_claims. error holds the exception text on model_error. checks are claim_
 critic's own answer as it returned it (CRITIC_FIELDS), kept for audit, or None when the critic was not called;
 nothing reads it to decide. When the pack carries detect's rival values (core/brief/rivals.py), the critic row and
 this answer also hold code_rivals: the rivals the code found from those numbers and whether the critic's ruled_out
-disagrees. The audit answer carries it only when the code found a rival. It is a shadow record and changes no
+disagrees, for every judged candidate whether or not a rival was found. It is a shadow record and changes no
 decision, draft or call.
 
 The same writer call gives a short title in the posts' own terms (tester report, 6 Oct: a card titled with its cluster
@@ -740,6 +740,20 @@ def _redraft_user(user, draft, out):
     ])
 
 
+def _shadow_record(pack, out):
+    """The code-found rivals beside the critic's ruled_out, for every judged candidate, or None when the pack has no
+    detect rival value and no read status. Shadow only: nothing reads it to hold or change a card, and a fault in it is
+    recorded as its exception type and goes no further."""
+    try:
+        record = rivals.code_rivals(pack)
+        if record is None:
+            return None
+        ruled_out = out.get("ruled_out") is True
+        return {**record, "critic_ruled_out": ruled_out, "disagreement": bool(record["found"]) and ruled_out}
+    except Exception as exc:
+        return {"error": type(exc).__name__}
+
+
 def _critic_answer(out):
     """The critic's answer as it returned it, one value per CRITIC_FIELDS name (None where it gave none)."""
     out = out if isinstance(out, dict) else {}
@@ -759,7 +773,7 @@ def _answer(draft, pack):
     for c in draft.get("claims") or []:
         claim = {k: copy.deepcopy(c.get(k)) for k in ("id", "text", "label", "kind", "evidence_ids", "quotes")}
         # An unknown number id stays unpinned, so K2 cuts the claim.
-        claim["numbers"] = [{k: v for k, v in by_id[x].items() if k not in ("rival_field", "cutoff")} if x in by_id
+        claim["numbers"] = [{k: v for k, v in by_id[x].items() if k not in ("rival_field", "cutoff", "post_snapshot")} if x in by_id
                             else {"number_id": x} for x in c.get("number_ids") or []]
         claims.append(claim)
     return {
@@ -1233,14 +1247,10 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         row = _critic_row(out, reacting)
         checks.append(row)
         critic = _critic_answer(out)
-        shadow = rivals.code_rivals(pack)
+        shadow = _shadow_record(pack, out)
         if shadow is not None:
-            # Shadow only: recorded beside the critic's ruled_out, read by nothing that holds or changes a card.
-            ruled_out = out.get("ruled_out") is True
-            shadow = {**shadow, "critic_ruled_out": ruled_out, "disagreement": bool(shadow["found"]) and ruled_out}
             row["code_rivals"] = shadow
-            if shadow["found"]:
-                critic = {**critic, "code_rivals": shadow}
+            critic = {**critic, "code_rivals": shadow}
         local_why_now = out.get("local_why_now") is True
         specificity = assess(sentence, rechecked["claims"], rests_on, local_why_now)
         if row["verdict"] != "pass" or specificity["status"] != "pass":

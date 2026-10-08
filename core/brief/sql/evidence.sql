@@ -131,33 +131,49 @@ WHERE r.run_id = @run_id AND r.run_date BETWEEN DATE_SUB(@d, INTERVAL 1 DAY) AND
   AND EXISTS (SELECT 1 FROM {core}.item_state st
               WHERE st.run_id = r.run_id AND st.item_id = @item_id AND st.market = @market AND st.metric_date = @d);
 
+-- name: rival_posts
+-- The snapshot of the posts the window numbers are computed over: every post linked to the item (post_items) that the
+-- market observed by @cutoff in the 28 days to @d, outside the lanes detect leaves out. post_items has no timestamp,
+-- and the brief's own confirm step adds links after the pack is built, so the links are read once here, at pack
+-- time, and rival_window is run over exactly these ids ever after. Partition filter: post_observations by
+-- observed_date. post_items is unpartitioned, as the table function reads it.
+SELECT DISTINCT po.post_id
+FROM {core}.post_observations po
+JOIN {core}.post_items pi ON pi.post_id = po.post_id
+WHERE pi.item_id = @item_id AND po.market = @market
+  AND po.observed_date BETWEEN DATE_SUB(@d, INTERVAL 27 DAY) AND @d
+  AND po.observed_at <= @cutoff
+  AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
+ORDER BY po.post_id;
+
 -- name: rival_window
 -- The 7 day window values item_state does not store, computed as tvf_item_window (views.sql) computes them for this
--- item and market, but only from observations made by @cutoff, the detect run's start (rival_cutoff), so the numbers
--- re-run to the same value for that run. A post observed before the cutoff but written late still counts. Partition
--- filter: post_observations by observed_date, the 28 days to @d, as the table function reads it. posts and
--- post_enrichment have no date filter (posts is partitioned by publish date, and a post seen this week can be
--- older); both are read only for the post ids that survive the joins.
+-- market, but only over the snapshot post ids (@post_ids, one id a line, from rival_posts) and only from observations made by
+-- @cutoff, the detect run's start (rival_cutoff), so the numbers re-run to the same value for that run whatever links
+-- the brief writes afterwards. A post observed before the cutoff but written late still counts. near_dup_share is
+-- measured over the 7 day posts that have a near_dup_size and is NULL when none has: the table function reads a
+-- missing size as 1, which would pin a measured 0 from a column nothing writes yet. Partition filter:
+-- post_observations by observed_date, the 28 days to @d. posts and post_enrichment have no date filter (posts is
+-- partitioned by publish date, and a post seen this week can be older); both are read only for the snapshot ids.
 WITH o AS (
   SELECT po.post_id, po.lane_class IN ('unbiased_rank', 'panel') AS measured, MIN(po.observed_date) first_day
   FROM {core}.post_observations po
-  JOIN {core}.post_items pi ON pi.post_id = po.post_id
-  WHERE pi.item_id = @item_id AND po.market = @market
+  WHERE po.post_id IN UNNEST(SPLIT(@post_ids, CHR(10))) AND po.market = @market
     AND po.observed_date BETWEEN DATE_SUB(@d, INTERVAL 27 DAY) AND @d
     AND po.observed_at <= @cutoff
     AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
   GROUP BY po.post_id, measured),
 p AS (
   SELECT o.post_id, o.measured, o.first_day > DATE_SUB(@d, INTERVAL 7 DAY) in7,
-    ps.creator_id, ps.creator_tier_at_post tier, ps.published_at, IFNULL(pe.near_dup_size, 1) >= 3 near_dup
+    ps.creator_id, ps.creator_tier_at_post tier, ps.published_at, pe.near_dup_size nds
   FROM o
   JOIN {core}.posts ps ON ps.post_id = o.post_id
   LEFT JOIN (SELECT pe0.post_id, MAX(pe0.near_dup_size) near_dup_size
              FROM {core}.post_enrichment pe0 GROUP BY pe0.post_id) pe ON pe.post_id = o.post_id),
 a7 AS (
   SELECT COUNT(DISTINCT IF(p.in7, p.post_id, NULL)) posts7,
-    SAFE_DIVIDE(COUNT(DISTINCT IF(p.in7 AND p.near_dup, p.post_id, NULL)),
-                COUNT(DISTINCT IF(p.in7, p.post_id, NULL))) near_dup_share,
+    SAFE_DIVIDE(COUNT(DISTINCT IF(p.in7 AND p.nds >= 3, p.post_id, NULL)),
+                COUNT(DISTINCT IF(p.in7 AND p.nds IS NOT NULL, p.post_id, NULL))) near_dup_share,
     MIN(IF(p.measured AND p.tier IN ('nano', 'micro'), p.published_at, NULL)) small_at,
     MIN(IF(p.measured AND p.tier IN ('macro', 'mega'), p.published_at, NULL)) large_at
   FROM p),

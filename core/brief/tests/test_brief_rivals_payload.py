@@ -72,8 +72,18 @@ def test_a_whole_job_publishes_the_same_cards_when_the_code_finds_a_rival_the_cr
         assert b["held_back"] == a["held_back"] and b["status"] == a["status"] and b["headline"] == a["headline"]
         assert [c["item_id"] for c in b["critic"]] == [c["item_id"] for c in a["critic"]]
         for before, after in zip(a["critic"], b["critic"]):
-            record = after.pop("code_rivals")
-            assert after == before and "code_rivals" not in before
+            record, base_record = after.pop("code_rivals"), before.pop("code_rivals")
+            assert after == before and base_record["found"] == [] and base_record["disagreement"] is False
             assert record["found"] == ["calendar_moment"] and record["disagreement"] is True
     assert [(c["rule"], c["verdict"]) for c in rival.client.inserted["agent.claim_checks"]] == [
         (c["rule"], c["verdict"]) for c in base.client.inserted["agent.claim_checks"]]
+
+
+def test_the_run_counts_say_how_many_rival_reads_were_ok_failed_or_missing_a_cutoff():
+    from core.brief.tests.test_brief_job import brief, world
+
+    ok = brief(world(n=1)).counts["rival_reads"]
+    assert ok["ok"] >= 1 and ok["failed"] == 0 and ok["cutoff_missing"] == 0
+    con = world(n=1)
+    con.execute("UPDATE agent.runs SET started_at = NULL WHERE stage = 'detect'")
+    assert brief(con).counts["rival_reads"]["cutoff_missing"] >= 1

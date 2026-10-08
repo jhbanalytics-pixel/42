@@ -1,12 +1,14 @@
 """The simpler explanations the code can find from detect's own numbers (METHOD-GAPS Gap 7, part three, shadow only).
 
-    code_rivals(pack) -> {"found", "not_assessed", "inputs"} or None
+    code_rivals(pack) -> {"read", "found", "not_assessed", "inputs"} or None
 
 For each of the seven rivals the critic is asked to name (a paid push, a coordinated or burst push, one creator or a
 few carrying the count, a news outlet, a scheduled moment, a collection artefact) the code sets a boolean from the
 pack's pinned detect values. found lists the rivals the numbers show, in RIVALS order; not_assessed lists those whose
-input is missing, which is never counted as absent. inputs gives each value used with the query id that pinned it.
-None when the pack has no detect rival value at all, so a pack built before these values existed records nothing.
+input is missing, which is never counted as absent: near_duplicates is not assessed while near_dup_size is unwritten.
+inputs gives each value used with the query id that pinned it. read is the pack's rival_read status (ok,
+cutoff_missing or failed), so a failed read is recorded as one rather than as a missing record. None only when the
+pack has neither a detect rival value nor a read status, which is a pack built before these values existed.
 
 This is a record, not a gate. explain.py writes it on the critic row and in the critic's audit answer beside the
 critic's own ruled_out, and nothing reads it to hold, drop or change a card. Making a code-found rival hold an
@@ -56,7 +58,8 @@ def _news_leading(pack):
 def code_rivals(pack):
     got = {n["rival_field"]: n for n in list(pack.get("numbers") or []) + list(pack.get("pinned") or [])
            if n.get("rival_field")}
-    if not got:
+    status = pack.get("rival_read")
+    if not got and status is None:
         return None
     moment = "moment" in got
     verdicts = {
@@ -69,6 +72,7 @@ def code_rivals(pack):
         "regime_break": None,
     }
     return {
+        "read": status or "ok",
         "found": [r for r in RIVALS if verdicts[r] is True],
         "not_assessed": [r for r in RIVALS if verdicts[r] is None],
         "inputs": {f: {"value": got[f]["value"], "query_id": got[f]["query_id"]} for f in USED if f in got},

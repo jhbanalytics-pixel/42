@@ -23,13 +23,19 @@ pack is the shape core/brief/explain.py reads:
         burst_share, top3_share, near_dup_share, sponsored_share, local_share, markets_hot), each pinned the same way
         and carrying rival_field, its detect name (METHOD-GAPS Gap 7). They reach the writer and the critic like any
         pack number, K2 re-runs them, and the card's own numbers leave them out (payload.py). The four window
-        numbers and small_at, large_at also carry cutoff, the start time of the detect run: they read observations up
-        to it, the cutoff is part of their query id, and a re-run uses it, so a post observed after the run cannot
-        change them. The three rival queries run under the brief's byte cap (MAX_BYTES).
+        numbers and small_at, large_at also carry cutoff, the start time of the detect run, and post_snapshot, the
+        digest of the ids of the posts linked to the item when the pack was built: they read observations up to the
+        cutoff over exactly those ids, both are part of their query id, and a re-run uses both, so a post observed
+        after the run, or linked by the brief's own confirm step, cannot change them. The rival queries run under the
+        brief's byte cap (MAX_BYTES).
     pinned: present only when detect gave one: rows {value, unit, query_id, run_id, result_hash, rival_field} for
         the values that are not numbers (share_flags, diffusion, small_at, large_at, lead_market, novelty, moment),
-        pinned and re-run like the numbers. A time is its ISO 8601 text. No claim cites them; they back the why-now
-        sentences in facts and the code-found rivals core/brief/rivals.py records.
+        pinned with a query id, the detect run id and a result hash like the numbers, and rerun(entry) reproduces each.
+        A time is its ISO 8601 text. No claim cites them, so K2 never re-reads them; they back the why-now sentences
+        in facts and the shadow record of core/brief/rivals.py.
+    rival_read: present when the rival read ran: "ok" (something was pinned), "cutoff_missing" (the detect run has no
+        start time, so no window value) or "failed" (a rival query failed or went over its byte cap; the pack is as
+        it was). Absent when the item has no detect rival values.
     facts: short plain lines about the state, the 3-day counts and the first sighting, then up to two why-now
         sentences built in code from pinned diffusion, small_at, large_at, lead_market and markets_hot (why_now), each
         naming its query ids, then one line per local
@@ -95,7 +101,7 @@ RIVAL_PINS = (
 )
 # The rival queries read wide tables, so each runs under the brief's byte cap (holds_report.MAX_BYTES) and a query over
 # it fails; _rival_pins then leaves the pack as it was. The other evidence queries run as they always did.
-RIVAL_QUERIES = ("rival_cutoff", "rival_state", "rival_window")
+RIVAL_QUERIES = ("rival_cutoff", "rival_state", "rival_posts", "rival_window")
 SPARK_UNITS = {"panel": "posts a day", "unbiased_rank": "list appearances a day",
                "unbiased_counter": "counter rise a day"}
 
@@ -230,10 +236,11 @@ def why_now(got, tz):
     """At most two sentences, built in code from detect's pinned values and naming the query ids behind them. got maps
     a detect field to (value, query_id); tz is the market's local zone. Nothing is invented: a sentence needs every
     value it states, and the diffusion sentence is derived from small_at and large_at, then only worded when detect's
-    own label agrees with them (state.sql: bottom_up when small_at is before large_at, small_only when there is no
-    large_at, top_down otherwise), so a label that disagrees with its own times is not stated. small_at and large_at
-    are the earliest measured posts by nano or micro and by macro or mega creators among posts first seen in the
-    last 28 days (views.sql tvf_item_window)."""
+    own label agrees with them (state.sql: bottom_up when small_at is before large_at, top_down when large_at is not
+    after it), so a label that disagrees with its own times is not stated. small_at and large_at are the earliest
+    measured posts by nano or micro and by macro or mega creators among posts first seen in the last 28 days
+    (views.sql tvf_item_window). A tier that has no post is never stated as absent, because posts.creator_tier_at_post
+    is often unknown: with only one of the two times the sentence is not written at all."""
     def value(field):
         return got.get(field, (None, None))[0]
 
@@ -244,7 +251,7 @@ def why_now(got, tz):
     label = value("diffusion")
     small_ok, small = _instant(value("small_at"))
     large_ok, large = _instant(value("large_at"))
-    if label in ("bottom_up", "top_down", "small_only") and small_ok and large_ok and all(
+    if label in ("bottom_up", "top_down") and small_ok and large_ok and all(
             f in got for f in ("small_at", "large_at")):
         date = lambda t: t.astimezone(tz).date().isoformat()  # noqa: E731
         ids = qid("diffusion", "small_at", "large_at")
@@ -252,16 +259,10 @@ def why_now(got, tz):
             out.append(f"Of measured posts first seen in the last 28 days, the earliest by nano or micro creators "
                        f"is dated {date(small)}, before the earliest by macro or mega creators on {date(large)} "
                        f"({ids}).")
-        elif label == "top_down" and large and small and small >= large:
+        elif label == "top_down" and small and large and small >= large:
             out.append(f"Of measured posts first seen in the last 28 days, the earliest by macro or mega creators "
                        f"is dated {date(large)}, no later than the earliest by nano or micro creators on "
                        f"{date(small)} ({ids}).")
-        elif label == "top_down" and large and small is None:
-            out.append(f"Of measured posts first seen in the last 28 days, the earliest by macro or mega creators "
-                       f"is dated {date(large)}; none by nano or micro creators are on record ({ids}).")
-        elif label == "small_only" and small and large is None:
-            out.append(f"Of measured posts first seen in the last 28 days, the earliest by nano or micro creators "
-                       f"is dated {date(small)}; no macro or mega creator has a measured post ({ids}).")
     lead, hot = value("lead_market"), value("markets_hot")
     if isinstance(lead, str) and lead and isinstance(hot, (int, float)) and not isinstance(hot, bool) and hot >= 1:
         ids = qid("lead_market", "markets_hot")
@@ -285,26 +286,46 @@ def _facts(item_row, market, pinned, first_seen, evidence=(), moments=(), why=()
     return facts + list(why) + _day_lines(evidence, market, moments)
 
 
+def _snapshot(ids):
+    """The digest stored with a window value for the sorted ids it was computed over, passed as one id a line."""
+    return "sha256:" + hashlib.sha256(ids.encode("utf-8")).hexdigest()
+
+
 def _rival_pins(run, params, run_id, registry):
-    """(numbers, pinned rows, got) for detect's rival-explanation values, or three empties when the read fails: these
-    values are extra evidence, so a failed read leaves the pack as it was and the card is not held for it. A null in a
-    row detect wrote is itself pinned (no calendar moment, no macro post), so it can be stated; a query that gave no
-    row, or only nulls, pins nothing. The window values are read up to the detect run's start (rival_cutoff), which is
-    stored with each of them as cutoff and is part of its query id, so a re-run returns the same value; a run with no
-    start time pins no window value."""
-    query_params = {"rival_state": {k: params[k] for k in ("item_id", "market", "d", "run_id")}}
+    """(numbers, pinned rows, got, status) for detect's rival-explanation values. These values are extra evidence, so a
+    failed read gives three empties and status "failed", the pack stays as it was and the card is not held for it.
+    status is "ok" when something was pinned, "cutoff_missing" when the detect run has no start time (the state values
+    are still pinned, no window value is), and None when the item has no detect rival values at all. A null in a row
+    detect wrote is itself pinned (no calendar moment), so it can be stated; a query that gave no row, or only nulls,
+    pins nothing.
+
+    The window values are read up to the detect run's start (rival_cutoff), which is stored with each of them as
+    cutoff, and over the post ids that were linked to the item when the pack was built (rival_posts), whose digest is
+    stored as post_snapshot. Both are part of the query id and of the re-run, so a re-run returns the same value
+    whatever the brief links or observes afterwards."""
+    key = {k: params[k] for k in ("item_id", "market", "d", "run_id")}
+    query_params, id_params = {"rival_state": dict(key)}, {"rival_state": dict(key)}
+    status = None
     try:
         rows = {"rival_state": run("rival_state", query_params["rival_state"])}
-        cutoff = _value(run("rival_cutoff", {k: params[k] for k in ("item_id", "market", "d", "run_id")}))
+        cutoff = _value(run("rival_cutoff", key))
+        rows["rival_window"] = []
         if cutoff is None:
+            status = "cutoff_missing"
             print(f"brief {params['d'].isoformat()}: rival_cutoff_missing", file=sys.stderr)
-            rows["rival_window"] = []
         else:
-            query_params["rival_window"] = {**{k: params[k] for k in ("item_id", "market", "d")}, "cutoff": cutoff}
-            rows["rival_window"] = run("rival_window", query_params["rival_window"])
+            ids = chr(10).join(sorted(r["post_id"] for r in run(
+                "rival_posts", {**{k: key[k] for k in ("item_id", "market", "d")}, "cutoff": cutoff})))
+            if ids:
+                snapshot = _snapshot(ids)
+                query_params["rival_window"] = {"market": key["market"], "d": key["d"], "cutoff": cutoff,
+                                                "post_ids": ids}
+                id_params["rival_window"] = {"item_id": key["item_id"], "market": key["market"], "d": key["d"],
+                                             "cutoff": cutoff, "post_snapshot": snapshot}
+                rows["rival_window"] = run("rival_window", query_params["rival_window"])
     except Exception as e:
         print(f"brief {params['d'].isoformat()}: rival_evidence_read_failed {type(e).__name__}", file=sys.stderr)
-        return [], [], {}
+        return [], [], {}, "failed"
     numbers, pinned, got = [], [], {}
     real = {name: bool(r) and any(v is not None for v in r[0].values()) for name, r in rows.items()}
 
@@ -312,14 +333,15 @@ def _rival_pins(run, params, run_id, registry):
         raw = _value(rows[name], column)
         if raw is None and (number or not real[name]):
             return None
-        query_id = _query_id(name, query_params[name], column)
+        query_id = _query_id(name, id_params[name], column)
         registry[query_id] = (name, query_params[name], column)
         value = _plain(raw)
         got[column] = (value, query_id)
         entry = {"value": value, "unit": unit, "query_id": query_id, "run_id": run_id,
                  "result_hash": result_hash([{"value": raw}]), "rival_field": column}
         if name == "rival_window":
-            entry["cutoff"] = _plain(query_params[name]["cutoff"])
+            entry["cutoff"] = _plain(id_params[name]["cutoff"])
+            entry["post_snapshot"] = id_params[name]["post_snapshot"]
         return entry
 
     for name, column, unit in RIVAL_NUMBERS:
@@ -330,7 +352,9 @@ def _rival_pins(run, params, run_id, registry):
         entry = pin(name, column, unit, False)
         if entry:
             pinned.append(entry)
-    return numbers, pinned, got
+    if status is None and (numbers or pinned):
+        status = "ok"
+    return numbers, pinned, got, status
 
 
 def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=None, moments=()):
@@ -368,7 +392,7 @@ def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=No
     series_id = item_row.get("main_series_id")
     sparkline = _sparkline(run("sparkline", {"series_id": series_id, "d": d}), d) if series_id else None
     first = run("first_seen", {"item_id": item_id, "market": market, "d": d})
-    rival_numbers, rival_pinned, got = _rival_pins(run, params, run_id, registry)
+    rival_numbers, rival_pinned, got, rival_status = _rival_pins(run, params, run_id, registry)
     numbers += rival_numbers
     facts = _facts(item_row, market, pinned, first[0]["first_seen"] if first else None, evidence, moments,
                    why_now(got, tz))
@@ -380,4 +404,6 @@ def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=No
     pack = {"evidence": evidence, "numbers": numbers, "facts": facts}
     if rival_pinned:
         pack["pinned"] = rival_pinned
+    if rival_status:
+        pack["rival_read"] = rival_status
     return pack, sparkline, rerun

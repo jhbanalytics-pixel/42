@@ -1294,6 +1294,9 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
               "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
     if spend.get("model_reserved_usd"):
         counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
+    reads = Counter(c["pack"].get("rival_read") for cands in by_market.values() for c in cands)
+    if reads.keys() - {None}:
+        counts["rival_reads"] = {k: reads.get(k, 0) for k in ("ok", "cutoff_missing", "failed")}
     if explanation_stop is not None:
         counts["explanation_stop"] = explanation_stop
     if busy:

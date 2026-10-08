@@ -152,12 +152,37 @@ def test_a_critic_that_did_not_rule_out_records_the_rival_without_a_disagreement
     assert row["code_rivals"]["found"] == ["sponsored"] and row["code_rivals"]["disagreement"] is False
 
 
-def test_values_that_show_no_rival_are_recorded_on_the_row_and_leave_the_audit_answer_as_it_was():
+def test_values_that_show_no_rival_are_recorded_on_the_row_and_in_the_audit_answer_too():
     base = run(FakeModel([good()], critic=RULED_OUT))
     result = run(FakeModel([good()], critic=RULED_OUT), pack=quiet())
     [row] = [r for r in result["checks"] if r["rule"] == "critic"]
     assert row["code_rivals"]["found"] == [] and row["code_rivals"]["disagreement"] is False
-    assert result["critic"] == base["critic"]
+    assert row["code_rivals"]["read"] == "ok" and row["code_rivals"]["critic_ruled_out"] is True
+    record = result["critic"].pop("code_rivals")
+    assert record == row["code_rivals"] and result["critic"] == base["critic"]
+
+
+def test_a_failed_or_partial_rival_read_is_recorded_not_left_as_a_missing_record():
+    for status, values in (("failed", {}), ("cutoff_missing", dict(sponsored_share=0.1))):
+        pack = pack_with(**values)
+        pack["rival_read"] = status
+        result = run(FakeModel([good()], critic=RULED_OUT), pack=pack)
+        record = result["critic"]["code_rivals"]
+        assert record["read"] == status and record["found"] == [] and record["disagreement"] is False
+        assert "burst" in record["not_assessed"]
+
+
+def test_an_exception_in_the_shadow_cannot_escape_explain_trend(monkeypatch):
+    base = run(FakeModel([good()], critic=RULED_OUT))
+
+    def boom(pack):
+        raise TypeError("not a pack")
+
+    monkeypatch.setattr(rivals, "code_rivals", boom)
+    result = run(FakeModel([good()], critic=RULED_OUT), pack=quiet())
+    assert result["reason"] is None and result["explanation"] == base["explanation"]
+    [row] = [r for r in result["checks"] if r["rule"] == "critic"]
+    assert row["code_rivals"] == {"error": "TypeError"} and result["critic"]["code_rivals"] == {"error": "TypeError"}
 
 
 def test_nothing_is_recorded_when_the_pack_has_no_detect_rival_values():
