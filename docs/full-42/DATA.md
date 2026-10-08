@@ -208,7 +208,7 @@ A series is one item on one source in one market, measured in the unit that sour
 | panel_x_hub | twitter/user/tweets since= (23a) | ZA, NG, KE | panel | posts per day times k | negative binomial |
 | panel_telegram | telegram/profile/posts, curated channels (9, Stage 2) | ZA, NG, KE | panel | posts per day times k | negative binomial |
 | counter_tiktok_hashtag, counter_tiktok_sound | tiktok/hashtag and tiktok/song totals (12) | GLOBAL | unbiased_counter | daily delta of the running total | negative binomial |
-| curve_tiktok_sound | tiktok/song/videos adoption curve (11) | GLOBAL | unbiased_counter | daily adoption from the vendor curve | negative binomial |
+| curve_tiktok_sound | tiktok/song/videos adoption curve (11), no longer written | GLOBAL | unbiased_counter | a page sample of the vendor adoption curve, not a daily total | negative binomial |
 | counter_ig_audio | instagram/audio/reels (13, Stage 2) | GLOBAL | unbiased_counter if a total is returned (probe), else watchlist | daily delta | negative binomial |
 | counter_post_views | prism/post-stats re-reads (22) | per post | unbiased_counter | daily view delta per post | none: Peaking and Fading context only, because 42 chooses the posts |
 | watch | posts on sound and hashtag pages (11, 12), new feed authors' posts (10), Alerts watches, anchor terms | as read | watchlist | presence | none |
@@ -258,6 +258,8 @@ SELECT x.day, x.market, x.platform, x.route, x.series, x.protocol, x.lane_class,
   x.invalid_reason IS NULL, x.invalid_reason, x.located_share, @run_id
 FROM x;
 ```
+
+Invalid reasons in `invalid_reason` are `calls`, `drift`, `items`, `effort` and `zero_yield`. A paid route whose calls succeed on two consecutive days and land zero posts and zero counters is recorded invalid for those days with reason `zero_yield`. G1's hold rule and the d, d-1, d-2 window are unchanged.
 
 ### 3.4 Series and their features
 
