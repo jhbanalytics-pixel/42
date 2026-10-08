@@ -45,7 +45,9 @@ market's fit, and each understand_phase line carries peak_rss_mb, the process's 
 
 An ok run with enrich_error, or with an error under a market in cluster, is a degraded run: Coverage reads those
 counts and shows the understand stage as degraded with what failed (core/api/store.py, runs_of_day), while the
-status stays ok and detect still starts, so the morning brief is never held for it.
+status stays ok and detect still starts, so the morning brief is never held for it. A run whose embed step sent
+no window (retry_capped or spend_unknown, with nothing embedded) says so in embed_error, so the day with no
+embeddings is not a bare ok.
 
 After clustering, run_video reads the clips that matter in today's clusters (video.py, BUILD.md 2.6), skipped on a
 backfill and once the day has changed. A day change while it runs ends the video step only, never the run: the step
@@ -173,6 +175,18 @@ def bigquery_execute():
     return execute
 
 
+def embed_not_run(counts) -> str | None:
+    """Why the day has no embeddings when run_embed sent no window and said so (retry_capped, or spend_unknown),
+    else None. The run still ends ok and detect still starts, so this is the only trace of it in the row."""
+    if counts.get("embedded"):
+        return None
+    if counts.get("retry_capped"):
+        return f"NoWindowSent: retry_capped, {counts.get('uncorrected_usd')} USD of embed ceilings no correction followed"
+    if counts.get("spend_unknown"):
+        return f"NoWindowSent: spend_unknown, {counts.get('spend_error') or 'spend could not be read or booked'}"
+    return None
+
+
 def enrich_error(err) -> str:
     """The exception class and its first line, every URL removed, for runs.counts (enrichment's and clustering's)."""
     line = (str(err).splitlines() or [""])[0]
@@ -223,6 +237,8 @@ def main(execute=None):
                            uncorrected=lambda: uncorrected_today(execute, today), spend_day=today, clock=now)
         booked = counts.pop("booked_usd", 0.0)
         booked += book(counts.get("model_usd", 0) - booked)  # anything run_embed left unbooked; none when it booked all
+        if no_window := embed_not_run(counts):
+            counts["embed_error"] = no_window
     except Exception as err:
         elapsed = round(max(0.0, (now() - started).total_seconds()), 3)
         print(phase_line(run.run_id, "embed", "end", elapsed), flush=True)

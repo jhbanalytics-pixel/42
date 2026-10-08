@@ -1452,6 +1452,46 @@ def test_a_retry_after_a_window_raised_today_books_no_ceiling_and_the_job_goes_o
     assert log[2] == ("start_next", "understand", DAY)
 
 
+def test_a_capped_retry_that_sent_no_window_says_so_in_the_row_instead_of_a_bare_ok(monkeypatch):
+    # N55: the capped retry still ends ok and starts detect (pinned above), but the day holds no embeddings and the
+    # row must say why in embed_error, the way enrich_error says an enrichment failure, so Coverage can show it.
+    monkeypatch.setenv("EMBED_DAYS", "14")
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
+
+    class RaisedEarlier(FakeWarehouse):
+        def __call__(self, text, params, max_bytes=None):
+            if text == sql("embed_uncorrected"):
+                self.calls.append((text, params))
+                return [{"usd": 15.36}]
+            return super().__call__(text, params, max_bytes)
+
+    assert job.main(execute=RaisedEarlier()) == 0
+    counts = log[1][3]
+    assert log[1][2] == "ok" and counts["retry_capped"] is True
+    assert counts["embed_error"].startswith("NoWindowSent: retry_capped")
+    assert "15.36" in counts["embed_error"]
+
+
+def test_a_job_that_could_not_read_its_spend_and_sent_no_window_says_so_in_embed_error(monkeypatch):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
+    monkeypatch.setattr(job, "spend_today", lambda execute, at: (_ for _ in ()).throw(RuntimeError("spend read refused")))
+    assert job.main(execute=FakeWarehouse()) == 0
+    counts = log[1][3]
+    assert counts["spend_unknown"] is True and counts["embedded"] == 0
+    assert counts["embed_error"].startswith("NoWindowSent: spend_unknown")
+
+
+def test_an_ordinary_embed_run_has_no_embed_error(monkeypatch):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
+    assert job.main(execute=FakeWarehouse()) == 0
+    assert log[1][2] == "ok" and "embed_error" not in log[1][3]
+
+
 # A job's clock can pass midnight: every spend read and booking stays on the day the job started
 
 def test_a_job_whose_clock_crosses_midnight_reads_and_books_on_one_day_and_the_cap_holds(monkeypatch):
