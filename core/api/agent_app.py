@@ -1997,6 +1997,27 @@ def stored_investigation_record(ask_id):
     return get_store().ask_record(ask_id)
 
 
+# f42-agent runs as a single instance (max-instances 1), so a run no thread here holds and no stored record ends,
+# once it is older than the longest it may take, belongs to a process that has died (L3).
+ORPHAN_AFTER_SECONDS = 3600
+
+
+def _utcnow():
+    return datetime.now(timezone.utc)
+
+
+def _run_is_lost(row):
+    try:
+        started = row["created_at"]
+        started = datetime.fromisoformat(started) if isinstance(started, str) else started
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        minutes = investigations.view(row)["estimate"]["minutes"]
+        return (_utcnow() - started).total_seconds() > ORPHAN_AFTER_SECONDS + minutes * 60
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+
+
 def reconcile_investigation(investigation_id):
     """Repair a lost finish append from the matching finished Ask, without starting research."""
     with _investigation_lock:
@@ -2014,6 +2035,17 @@ def reconcile_investigation(investigation_id):
                     or record.get("investigation_id") != investigation_id
                     or record.get("status") not in ("complete", "stopped", "failed")
                     or not record.get("finished_at")):
+                if not _run_is_lost(current):
+                    return rows
+                # The one process that could own the run is gone and no record of its end exists: close it.
+                row = investigations.storage_row(
+                    investigation_id, current["version"] + 1, status_time(current["market"]), "failed",
+                    current["question"], current["market"], investigations.view(current)["plan"],
+                    investigations.view(current)["estimate"], current["ask_id"], current["run_id"])
+                if append("investigations", INVESTIGATIONS, row):
+                    investigations.RESERVED.release(investigation_id)
+                    return [*rows, row]
+                log.error("investigation %s: its lost-run row was not written", investigation_id)
                 return rows
             row = investigations.storage_row(
                 investigation_id, current["version"] + 1, status_time(current["market"]), record["status"],
@@ -2152,6 +2184,9 @@ def stop_investigation(investigation_id: str):
     rows = investigation_rows(investigation_id)
     if not rows:
         return no_investigation(investigation_id)
+    if rows[-1]["status"] == "running":
+        return error(409, "not_ready", f"Investigation {investigation_id} is not running on this server; it may "
+                                       "have been lost in a restart, and it is closed once it is past its longest time.")
     return error(409, "not_ready", f"Investigation {investigation_id} is {rows[-1]['status']}, not running.")
 
 

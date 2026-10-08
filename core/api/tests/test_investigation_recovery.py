@@ -129,3 +129,60 @@ def test_a_terminal_record_for_a_different_investigation_is_not_used(client, inv
     agent_app.ASKS.clear()
     assert client.get(f"/api/investigations/{inv_id}").json()["status"] == "running"
     assert len(agent_app.INVESTIGATIONS) == 2
+
+
+# L3 server side: an investigation whose single owning process died stayed 'running' forever, so the page polled it
+# every 2 s and Stop answered "is running, not running".
+def orphan(client, inv, monkeypatch):
+    gate = use_gate(monkeypatch, inv)
+    inv_id = draft(client).json()["investigation_id"]
+    started = client.post(f"/api/investigations/{inv_id}/start").json()
+    ask = agent_app.get_ask(started["ask_id"])
+    with agent_app._lock:
+        agent_app.ASKS.clear()
+        agent_app.RUNNING_INVESTIGATIONS.clear()
+    return inv_id, ask, gate
+
+
+def run_age(monkeypatch, inv_id, extra_seconds):
+    """The clock moved to extra_seconds past the end of the longest the run may take."""
+    from datetime import datetime, timedelta
+    row = agent_app.INVESTIGATIONS[-1]
+    started = datetime.fromisoformat(row["created_at"])
+    minutes = json.loads(row["estimate"])["minutes"]
+    monkeypatch.setattr(agent_app, "_utcnow", lambda: started + timedelta(
+        seconds=agent_app.ORPHAN_AFTER_SECONDS + minutes * 60 + extra_seconds), raising=False)
+
+
+def test_a_run_nobody_holds_and_no_record_exists_for_is_closed_once_it_is_past_its_longest_time(client, inv, monkeypatch):
+    inv_id, ask, gate = orphan(client, inv, monkeypatch)
+    run_age(monkeypatch, inv_id, 1)
+    with TestClient(agent_app.app) as restarted:
+        body = restarted.get(f"/api/investigations/{inv_id}").json()
+        assert body["status"] == "failed"
+        assert agent_app.INVESTIGATIONS[-1]["status"] == "failed"
+        assert agent_app.INVESTIGATIONS[-1]["version"] == agent_app.INVESTIGATIONS[-2]["version"] + 1
+        stop = restarted.post(f"/api/investigations/{inv_id}/stop")
+        assert "running, not running" not in stop.text
+    gate.opened.set()
+    assert ask.finished.wait(5)
+
+
+def test_a_run_nobody_holds_is_left_running_until_it_is_past_its_longest_time(client, inv, monkeypatch):
+    inv_id, ask, gate = orphan(client, inv, monkeypatch)
+    run_age(monkeypatch, inv_id, -60)
+    before = copy.deepcopy(agent_app.INVESTIGATIONS)
+    with TestClient(agent_app.app) as restarted:
+        assert restarted.get(f"/api/investigations/{inv_id}").json()["status"] == "running"
+        assert agent_app.INVESTIGATIONS == before
+    gate.opened.set()
+    assert ask.finished.wait(5)
+
+
+def test_stopping_a_run_nobody_holds_does_not_call_it_running_and_not_running(client, inv, monkeypatch):
+    inv_id, ask, gate = orphan(client, inv, monkeypatch)
+    with TestClient(agent_app.app) as restarted:
+        stop = restarted.post(f"/api/investigations/{inv_id}/stop")
+        assert stop.status_code == 409 and "running, not running" not in stop.text
+    gate.opened.set()
+    assert ask.finished.wait(5)
