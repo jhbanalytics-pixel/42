@@ -1365,7 +1365,13 @@ def edit_dossier_to(dossier_id, change, from_version=None):
             return people_unavailable()
         change = dict(change)
         if "keep" not in change:
-            change["keep"] = [c["claim_id"] for c in latest["claims"] if c["kept"] and ok.get(c["claim_id"]) is not False]
+            # The edit carries the earlier choice forward. A claim the list no longer lets it keep is not dropped
+            # quietly: the reader is told which, and sends keep without them to go on.
+            stuck = [c["claim_id"] for c in latest["claims"] if c["kept"] and ok.get(c["claim_id"]) is False]
+            if stuck:
+                return error(409, "not_ready", f"{', '.join(stuck)} cannot be kept any more: it rests on a post, or "
+                                               "names a person, 42 no longer shows. Send keep without it to save a "
+                                               "new version.")
         elif isinstance(change["keep"], list) and [c for c in change["keep"] if ok.get(c) is False]:
             return not_keepable([c for c in change["keep"] if ok.get(c) is False])
         try:

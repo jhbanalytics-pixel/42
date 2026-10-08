@@ -108,12 +108,27 @@ def test_an_edit_cannot_keep_a_claim_that_now_rests_on_a_hidden_post_and_earlier
     assert agent_app.DOSSIER_VERSIONS[:2] == before[:2]
 
 
-def test_an_edit_that_changes_only_the_title_drops_claims_that_can_no_longer_be_kept_a23(world):
+def test_an_edit_with_no_keep_is_refused_while_a_kept_claim_can_no_longer_be_kept_a23(world):
+    """The edit would carry the earlier choice forward; it must not quietly drop a claim the reader chose. It names
+    the claims and says how to go on, and appends nothing."""
     did = draft_before_the_hide(world)
     world.store.hide = {"c_hid"}
+    before = copy.deepcopy(agent_app.DOSSIER_VERSIONS)
+    r = world.client.put(f"/api/dossiers/{did}", json={"title": "A new title", "from_version": 2})
+    assert r.status_code == 409 and r.json()["error"] == "not_ready"
+    assert "c2" in r.json()["message"] and "c3" in r.json()["message"] and "c1" not in r.json()["message"]
+    assert "keep" in r.json()["message"] and "42 no longer shows" in r.json()["message"]
+    assert agent_app.DOSSIER_VERSIONS == before
+    ok = world.client.put(f"/api/dossiers/{did}", json={"title": "A new title", "keep": ["c1"], "from_version": 2})
+    assert ok.status_code == 200
+    assert [c["claim_id"] for c in versions(did)[-1]["claims"] if c["kept"]] == ["c1"]
+
+
+def test_an_edit_with_no_keep_goes_through_when_every_kept_claim_can_still_be_kept_a23(world):
+    did = draft_before_the_hide(world)
     r = world.client.put(f"/api/dossiers/{did}", json={"title": "A new title", "from_version": 2})
     assert r.status_code == 200
-    assert [c["claim_id"] for c in versions(did)[-1]["claims"] if c["kept"]] == ["c1"]
+    assert [c["claim_id"] for c in versions(did)[-1]["claims"] if c["kept"]] == ["c1", "c2", "c3"]
 
 
 # Freeze (A24).
