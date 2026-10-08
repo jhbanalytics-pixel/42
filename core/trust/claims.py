@@ -297,7 +297,7 @@ _BREACH_TERMS = [
         # N13-T: an age range the bare-range pattern above misses. "aged between 18 and 24", and an N-Ns band only as a
         # group noun ("the 18-24s are watching"), never as a duration ("15-30s video", "18-24s response time").
         r"\bage[ds]?\s+(?:between|from)\s+\d{1,2}\s+(?:and|to)\s+\d{1,2}\b",
-        r"\b(?:the|among|amongst)\s+(?:1[3-9]|[2-9]\d)\s*(?:-|–)\s*(?:1[4-9]|[2-9]\d)s\b"
+        r"\b(?:the|among|amongst)\s+(?:1[3-9]|[2-9]\d)\s*(?:-|\u2013)\s*(?:1[4-9]|[2-9]\d)s\b"
         r"(?=\s*(?:$|[.,;:!?)\]'\"]|(?:are|were|is|was|do|did|have|had|will|would|can|could|who|that|and|or|but)\b))",
         # N15: age and generation words the Ask checks (core/agent/checks.py AGE_PATTERNS) flag and this list missed,
         # with the same look-alike exclusions, then old-age words neither list had. test_trust_rule1_parity.py pins both.
@@ -311,10 +311,10 @@ _BREACH_TERMS = [
         r"\b(?:grann(?:y|ies)|grandmas?|grandmothers?|grandfathers?|grandparents?|(?:u|o|ko)?gogos?|mkhulus?"
         r"|(?:u|o)?makhulus?|koko|bibi|babu|watoto|abantwana|vijana|wazee|pikins?|(?:ama|i)khehla)\b",
         r"\bborn\s+(?:in|after|before|since|around|between)\s+(?:the\s+)?(?:early|mid|late)?[\s-]*"
-        r"['’]?(?:(?:19|20)\d{2}|\d0s)",
+        r"['\u2019]?(?:(?:19|20)\d{2}|\d0s)",
         r"(?:\d0s|nineties|noughties)[\s-](?:born|generation|babies)\b",
-        r"\bgrew\s+up\s+in\s+the\s+(?:early|mid|late)?[\s-]*['’]?(?:(?:19|20)\d0s|\d0s|nineties|noughties)",
-        r"\b(?:early|mid|late)[\s-]?['’]?(?:teens|twenties|thirties|forties|fifties|sixties|seventies|[2-7]0s)\b",
+        r"\bgrew\s+up\s+in\s+the\s+(?:early|mid|late)?[\s-]*['\u2019]?(?:(?:19|20)\d0s|\d0s|nineties|noughties)",
+        r"\b(?:early|mid|late)[\s-]?['\u2019]?(?:teens|twenties|thirties|forties|fifties|sixties|seventies|[2-7]0s)\b",
         r"\b(?:next|a|this|(?:the|a)\s+new)[\s-]+generation\b(?!\s+(?:of|ago)\b)",
         r"#gen(?:eration)?[_-]?(?:z|alpha)",
         r"\bgen(?:eration)?[_-]?(?:z|alpha)(?=(?-i:[A-Z])|[\d_])",
