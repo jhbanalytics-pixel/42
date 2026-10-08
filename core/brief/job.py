@@ -62,7 +62,8 @@ from core.api.today import without_hidden
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import TITLE_RULE, explain_trend
 from core.brief.market_scope import read_market_scope
-from core.brief.payload import MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, _worth, brief_row, build_market_payload
+from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _worth, brief_row,
+                               build_market_payload)
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, local_posts, showable_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
@@ -1037,7 +1038,10 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
         item = _payload_candidate(c, result, specificity)
         if where == "today" and (item["explanation_status"] != "explained" or publish is not True
                                  or numbers_only is not False or specificity["status"] != "pass"):
-            item["decision"] = _held("Explanation failed its checks", "G10")
+            # An item the loop never reached has no failed check to report; a busy model's items keep the generic
+            # wording, which their failed_reason qualifies. The hold is G10 either way.
+            never_reached = item["explanation_status"] == "not_run" and not c.get("busy_reason") and result is None
+            item["decision"] = _held(NOT_REACHED_TEXT if never_reached else "Explanation failed its checks", "G10")
             item["held_reason"] = "explanation_failed"
         items.append(item)
     # An evidence read that failed is a data problem too, so it counts with G1 toward the over-30% banner. The

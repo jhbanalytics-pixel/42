@@ -17,6 +17,9 @@ LABELS = {"ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya"}
 MODEL_BUSY = "Model busy: not explained before the deadline"
 MODEL_REFUSED = "Model busy: the model kept refusing calls, so this was not explained"
 NOT_RUN_REASONS = (MODEL_BUSY, MODEL_REFUSED)
+# The held reason of a Today-bound item the explanation loop never reached (a cap, a day change or the deadline stopped
+# the run before it) when the model was not busy: no explanation was tried, so no check failed.
+NOT_REACHED_TEXT = "Not explained: the run stopped before this topic was reached"
 NOT_ASSESSED_REASONS = {
     "outside_candidate_pool": "Outside the morning candidate pool; checks did not run.",
     "judged_limit_reached": "The morning assessment limit was reached before this topic; checks did not run.",
@@ -231,6 +234,7 @@ HELD_SUMMARY = {
     "Fewer than 3 posts 42 can show": ("with fewer than 3 posts", "with fewer than 3 posts"),
     "No readable name": ("without a readable name", "without a readable name"),
     "Evidence could not be read": ("with evidence that could not be read", "with evidence that could not be read"),
+    NOT_REACHED_TEXT: ("not explained before the run stopped", "not explained before the run stopped"),
 }
 
 
