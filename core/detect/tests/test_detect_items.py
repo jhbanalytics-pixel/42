@@ -142,3 +142,27 @@ def test_stoplist_file_is_canonical_and_holds_only_hashtags():
     for t in ("fyp", "foryou", "foryoupage", "viral", "trending", "shorts", "reels", "explore", "funny", "comedy",
               "tiktok", "capcut", "duet", "fypシ"):
         assert t in terms
+
+
+# Elongated and zero-width variants of a stoplisted tag are still that tag (N11). The stoplist is a set of exact
+# keys, so a tag stretched by repeated letters or carrying an invisible suffix must be matched by its pattern.
+
+
+@pytest.mark.parametrize("raw", ["#fyppppppppppppppppppppppp", "#fypppppp", "#fyyyyp", "#foryouuuuu", "#viraaaal",
+                                 "#fyp\u200b", "#fy\u200bp", "#foryou\u200d", "#fyp\ufe0f", "#FYPPPPPP",
+                                 "#fypシ\u200b", "#trendinggg"])
+def test_is_generic_matches_elongated_and_zero_width_variants_of_a_stoplisted_tag(raw):
+    assert is_generic("hashtag", canonical_key("hashtag", raw))
+
+
+@pytest.mark.parametrize("raw", ["#fypamapiano", "#fyb", "#fypaa", "#foryoupageamapiano", "#goooal", "#viralnigeria",
+                                 "#coool", "#lagoss", "#a\u200bb"])
+def test_is_generic_leaves_a_real_tag_alone_when_pattern_matching(raw):
+    assert not is_generic("hashtag", canonical_key("hashtag", raw))
+
+
+def test_pattern_matching_never_changes_the_item_identity():
+    # Only is_generic reads through the pattern; the key and the item_id of a variant stay its own.
+    stretched = canonical_key("hashtag", "#fyppppp")
+    assert stretched == "fyppppp"
+    assert item_id("hashtag", stretched) != item_id("hashtag", "fyp")
