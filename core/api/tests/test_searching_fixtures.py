@@ -18,7 +18,7 @@ class Rows(FixtureStore):
         return self._rows
 
 
-def row(term, rank, market="ZA", source="google_bq", refreshed_at="2026-10-03", fetch_day="2026-10-04"):
+def row(term, rank, market="ZA", source="google_trending", refreshed_at="2026-10-03", fetch_day="2026-10-04"):
     return {"term": term, "market": market, "source": source, "rank": rank, "refreshed_at": refreshed_at,
             "fetch_day": fetch_day}
 
@@ -73,8 +73,8 @@ def test_left_out_fixtures_are_backfilled_to_ten_rows():
     assert [r["rank"] for r in out] == list(range(4, 14))
 
 
-def test_google_trends_daily_rss_rows_pass_through_like_the_other_sources():
-    rows = [row("rss term", 1, source="google_rss", refreshed_at="2026-10-04T04:10:00Z"), row("bq term", 2)]
+def test_google_trends_daily_rss_rows_are_triage_only_and_not_shown():
+    rows = [row("rss term", 1, source="google_rss", refreshed_at="2026-10-04T04:10:00Z"), row("live term", 2)]
     assert [(r["term"], r["source"], r["refreshed_at"]) for r in strip(rows, ["ZA"])] == [
-        ("rss term", "google_rss", "2026-10-04"), ("bq term", "google_bq", "2026-10-03")]
+        ("live term", "google_trending", "2026-10-03")]
     assert all(set(r) == {"term", "market", "source", "rank", "refreshed_at"} for r in strip(rows, ["ZA"]))
