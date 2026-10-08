@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from core.api import app as api_mod
 from core.api import auth
 from core.api import smoke
+from smoke_support import ProducerState, answer_state_double, with_wire, wire  # noqa: F401
 
 PASS = "smoke-pass-7Qx9w"
 WRONG = "wrong-pass-Zk3m"
@@ -36,7 +37,7 @@ def env(monkeypatch):
 @pytest.fixture
 def client():
     with TestClient(api_mod.app, base_url=BASE) as c:
-        yield c
+        yield ProducerState(c)
 
 
 def by_name(results):
@@ -118,7 +119,7 @@ def test_uncited_claim_fails_the_ask_check():
     ok, why = smoke.check_ask_record(record)
     assert ok is False and "c1" in why
     record["answer"]["claims"] = [{"id": "c1", "evidence_ids": ["tt_1"]}]
-    ok, _ = smoke.check_ask_record(record)
+    ok, _ = smoke.check_ask_record(with_wire(record))
     assert ok is True
 
 
@@ -151,7 +152,10 @@ def test_ask_summary_requires_text_or_the_exact_partial_headline_gap(short_answe
         elif gap_kind == "different_reason":
             gap["why"] = "another reason"
         answer["gaps"].append(gap)
-    ok, reason = smoke.check_ask_record(record)
+    # A blank summary carries the producer's verified removal state (a cut claim at the support check), the case the
+    # Q1 ruling keeps passing; a summary that is shown carries a shown state.
+    state = wire() if str(short_answer).strip() else wire("removed", removals=[("support_check", "claim_cut")])
+    ok, reason = smoke.check_ask_record(with_wire(record, state))
     assert ok is expected, reason
     if not expected:
         assert "summary" in reason
@@ -164,7 +168,9 @@ def test_standalone_summary_check_reads_the_producer_gap_outside_the_repository(
 
     record = json.loads(FIXTURE_ASK.read_text(encoding="utf-8"))
     record["answer"].update(short_answer="", status="complete", gaps=[dict(HEADLINE_GAP)])
+    record = with_wire(record, wire("removed", removals=[("support_check", "claim_cut")]))
     code = ("import json, runpy, sys; module = runpy.run_path(sys.argv[1]); "
+            "import types; sys.modules['core.agent.answer_state'] = types.SimpleNamespace(check_wire=lambda record: None); "
             "record = json.loads(sys.argv[2]); "
             "assert module['check_ask_record'](record)[0] is False; "
             "record['answer']['status'] = 'partial'; "
@@ -236,6 +242,8 @@ def ask_server(statuses, posted):
             body = dict(record, status=status)
             if status == "running":
                 body.update(answer=None, run=None, finished_at=None)
+            else:
+                body = with_wire(body)
             return httpx.Response(200, json=body)
         return httpx.Response(404, json={"error": "not_found", "message": "no route"})
 
@@ -420,7 +428,7 @@ def test_a_blank_summary_on_a_complete_answer_fails_whatever_code_gap_it_carries
     record = json.loads(FIXTURE_ASK.read_text(encoding="utf-8"))
     gap = plain.gap(checks._code_gap("Short answer removed", code_gap, "the short answer text"))
     record["answer"].update(short_answer="", status="complete", gaps=[gap])
-    ok, reason = smoke.check_ask_record(record)
+    ok, reason = smoke.check_ask_record(with_wire(record, wire("removed", removals=[("first_check", code_gap)])))
     assert ok is False and "summary" in reason
 
 
