@@ -1298,6 +1298,93 @@ def test_a_failed_import_of_the_cluster_stack_fails_clustering_soft_not_the_job(
     assert log[-1] == ("start_next", "understand", DAY)
 
 
+# The clusterer being unusable (it will not import, or numba cannot cache UMAP's functions) is not a degraded night.
+# On 1 to 4 Oct 2026 it ended every understand run ok with zero clusters, and detect and brief ran on nothing.
+
+NUMBA_CACHE_FAILURE = ("cannot cache function 'rdist': no locator available for file "
+                       "'/usr/local/lib/python3.13/site-packages/umap/layouts.py'")
+
+
+def finished_run(log):
+    return next(e for e in log if e[0] == "finish")
+
+
+def test_a_failed_import_of_the_cluster_stack_fails_the_run_loudly(monkeypatch, capsys):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+    monkeypatch.setitem(sys.modules, "core.understand.cluster", None)  # the BERTopic stack will not import
+    assert job.main(execute=FakeWarehouse()) == 1
+    finished = finished_run(log)
+    assert finished[2] == "failed" and "clustering unavailable" in finished[4] and "ImportError" in finished[4]
+    assert not any(e[0] == "start_next" for e in log), "detect must not start on a night nothing was clustered"
+    assert set(finished[3]["cluster"]) == {"za", "ng", "ke", "pan"}, "the per-market errors stay on the row"
+    assert finished[3]["embedded"] == 5 and "step_seconds" in finished[3]
+    assert "clustering unavailable" in capsys.readouterr().err
+
+
+def test_a_numba_cache_failure_fails_the_run_loudly(monkeypatch):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+
+    def run(execute, *, market, **kw):
+        raise RuntimeError(NUMBA_CACHE_FAILURE)
+
+    monkeypatch.setattr(job, "run_cluster", run)
+    assert job.main(execute=FakeWarehouse()) == 1
+    finished = finished_run(log)
+    assert finished[2] == "failed" and "no locator available" in finished[4]
+    assert not any(e[0] == "start_next" for e in log)
+
+
+def test_the_pooled_run_alone_failing_to_import_still_fails_the_run(monkeypatch):
+    # The 1 and 2 Oct record: za, ng and ke returned too_few_posts before they ever imported the stack, and only pan
+    # reached the import and raised. Three quiet markets must not hide the one that shows the stack is gone.
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+
+    def run(execute, *, market, **kw):
+        if market == "pan":
+            raise ModuleNotFoundError("No module named 'bertopic'")
+        return {"market": market, "posts": 0, "today_posts": 0, "skipped": "too_few_posts"}
+
+    monkeypatch.setattr(job, "run_cluster", run)
+    assert job.main(execute=FakeWarehouse()) == 1
+    finished = finished_run(log)
+    assert finished[2] == "failed" and "No module named 'bertopic'" in finished[4]
+    assert finished[3]["cluster"]["za"] == {"posts": 0, "today_posts": 0, "skipped": "too_few_posts"}
+    assert not any(e[0] == "start_next" for e in log)
+
+
+def test_a_failed_clustering_run_still_books_the_spend_it_made(monkeypatch):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+
+    def run(execute, *, market, **kw):
+        err = RuntimeError(NUMBA_CACHE_FAILURE)
+        err.model_usd, err.booked_usd = 0.002, 0.0015
+        raise err
+
+    monkeypatch.setattr(job, "run_cluster", run)
+    assert job.main(execute=FakeWarehouse()) == 1
+    counts = finished_run(log)[3]
+    assert counts["booked_model_usd"] == round(0.000026 + 4 * 0.0015, 6)
+    assert counts["model_usd"] == round(4 * 0.0005, 6)
+
+
+def test_a_write_failure_in_one_market_is_still_a_degraded_run_not_a_failed_one(monkeypatch):
+    # The control: only an unusable stack fails the run. A refused write keeps the fail-soft contract.
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+    monkeypatch.setattr(job, "run_cluster", clustered(log, fail="pan"))
+    assert job.main(execute=FakeWarehouse()) == 0
+    assert finished_run(log)[2] == "ok" and log[-1] == ("start_next", "understand", DAY)
+
+
 def test_the_job_clusters_the_markets_cluster_py_takes_in_its_order():
     from core.understand import cluster
 
