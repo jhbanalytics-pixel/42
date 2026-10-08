@@ -63,3 +63,23 @@ def test_a_quote_of_only_a_name_still_counts_its_words():
     text = f'He said "{quote}" in court.'
     assert claims._k6_term(text, {quote}) is None
     assert claims._k6_term('She said "gogos queued" outside.', {"gogos queued"}) == "gogos"
+
+
+# Second review. A word after a kin word is a surname only if it is not a platform or a common word, a possessive does
+# not make a list, and a headline in title case is not read for names at all. Lower case "babu owino" and "Bibi says"
+# stay held (lead).
+NOT_NAMES = [
+    "Gogo TikTok is the new trend", "Babu Joins TikTok Dance Trend", "Gogo Culture Takes Over Mzansi",
+    "Babu, Kenya's favourite grandpa, dances", "Koko Instagram Reels go viral", "Bibi Dance Challenge Wins Fans",
+    "Gogo Club members queued", "Gogo Zodwa Dances Into Soweto Hearts",
+]
+
+
+@pytest.mark.parametrize("text", NOT_NAMES)
+def test_a_platform_a_common_word_or_a_headline_is_not_a_name(text):
+    assert claims._k6_term(text, set()), text
+
+
+def test_a_real_surname_that_is_a_title_case_word_elsewhere_still_passes():
+    assert claims._k6_term("Babu Owino joined Gogo Skhotheni on stage", set()) is None
+    assert claims._k6_term("Edwin Sifuna backs Babu Owino for Nairobi", set()) is None
