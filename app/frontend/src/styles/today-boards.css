@@ -1,0 +1,234 @@
+/* On the boards today: one card per platform list, three groups. Colour,
+   type and spacing come from the theme tokens only, so both themes work. Sizes
+   that carry text are in rem or tokens and nothing has a fixed height, so the
+   cards reflow at phone width and with enlarged text. */
+.tb {
+  min-width: 0;
+}
+
+.tb-note {
+  margin: 0 0 var(--s-4);
+  color: var(--muted);
+  font-size: var(--t-3);
+  line-height: 1.4;
+  max-width: 48rem;
+}
+
+.tb-group + .tb-group,
+.tb-market + .tb-market {
+  margin-top: var(--s-5);
+}
+
+.tb-group-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-3);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tb-count {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.tb-market-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: 0 0 var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+  font-size: var(--t-5);
+  font-weight: 600;
+}
+
+.tb-market-badge {
+  padding: 2px var(--s-2);
+  background: var(--ink);
+  color: var(--canvas);
+  font-size: var(--t-2);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* Cards sit in a responsive grid: as many columns as fit, one on a phone. */
+.tb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  gap: var(--s-4);
+  align-items: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tb-grid > li {
+  min-width: 0;
+}
+
+.tb-card {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--s-3) var(--s-4) var(--s-3);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.tb-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-2);
+}
+
+.tb-logo {
+  box-sizing: border-box;
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  background: var(--surface-inset);
+  color: var(--ink);
+}
+
+.tb-card-title {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--t-4);
+  font-weight: 400;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.tb-platform {
+  display: block;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.tb-list {
+  display: block;
+  color: var(--muted);
+  font-size: var(--t-3);
+}
+
+.tb-caption {
+  margin: 0 0 var(--s-1);
+  color: var(--muted);
+  font-size: var(--t-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tb-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tb-row {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--s-3);
+  min-block-size: var(--target-min);
+  padding: var(--s-2) 0;
+  border-top: 1px solid var(--hairline);
+  overflow-wrap: anywhere;
+}
+
+.tb-rank {
+  box-sizing: border-box;
+  min-inline-size: 2.5rem;
+  padding: var(--s-1) 0;
+  background: var(--surface-inset);
+  color: var(--ink);
+  font-size: var(--t-3);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.tb-main {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.tb-title {
+  color: var(--ink);
+  font-size: var(--t-4);
+  line-height: 1.3;
+}
+
+.tb-artists {
+  color: var(--muted);
+  font-size: var(--t-3);
+  line-height: 1.3;
+}
+
+/* Seen on more than one chart in this market: a quiet mark, not a rank. */
+.tb-multi {
+  justify-self: start;
+  margin-top: var(--s-1);
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line-2);
+  color: var(--accent-text, var(--ink-2));
+  font-size: var(--t-2);
+  line-height: 1.5;
+}
+
+.tb-more {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--target-min);
+  padding: var(--s-2) 0;
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--t-3);
+  font-weight: 600;
+  text-align: start;
+  text-decoration-color: transparent;
+  cursor: pointer;
+  transition: text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+
+.tb-more:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--ink);
+}
+
+.tb-more:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.tb-state {
+  margin: 0;
+  padding: var(--s-3) 0;
+  border-top: 1px solid var(--hairline);
+  color: var(--muted);
+  font-size: var(--t-3);
+  line-height: 1.4;
+}
+
+.tb-left-out {
+  margin: 0;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--hairline);
+  color: var(--muted);
+  font-size: var(--t-2);
+  line-height: 1.4;
+}

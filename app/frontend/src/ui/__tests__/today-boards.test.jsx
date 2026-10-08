@@ -84,9 +84,9 @@ test('one card per chart, grouped as music charts, apps and social boards in a f
   expect(groups.map((g) => g.getAttribute('data-board-group'))).toEqual(['music', 'apps', 'social']);
   expect(groups.map((g) => g.querySelector('.tb-group-title').textContent.replace(/\d+$/, '').trim())).toEqual(['Music charts', 'Apps', 'Social boards']);
   const names = (g) => [...g.querySelectorAll('[data-board-card]')].map((c) => c.querySelector('.tb-card-title').textContent);
-  expect(names(groups[0])).toEqual(['Apple MusicTop 100: South Africa', 'SpotifyDaily top songs']);
-  expect(names(groups[1])).toEqual(['App StoreTop free apps (iPhone)']);
-  expect(names(groups[2])).toEqual(['TikTokHashtag board, 7 days', 'YouTubeTrending videos, today']);
+  expect(names(groups[0])).toEqual(['Apple Music Top 100: South Africa', 'Spotify Daily top songs']);
+  expect(names(groups[1])).toEqual(['App Store Top free apps (iPhone)']);
+  expect(names(groups[2])).toEqual(['TikTok Hashtag board, 7 days', 'YouTube Trending videos, today']);
   expect(host.querySelectorAll('[data-board-card]')).toHaveLength(5);
 });
 

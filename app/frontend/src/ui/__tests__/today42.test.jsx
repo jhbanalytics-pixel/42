@@ -1361,6 +1361,10 @@ test('a board leaves null and missing ranks off unranked titles without changing
     {rank: null, title: '#also_unranked', item_id: 'f'},
   ];
   await mount({}, today);
+  /* Cards show the top five; the sixth row is behind the show all control. */
+  const more = host.querySelector('[data-section="boards"] button.tb-more');
+  expect(more.textContent).toBe('Show all 6');
+  flushSync(() => more.click());
   const rows = host.querySelectorAll('[data-section="boards"] .tb-row');
   expect([...rows].map(boardWords)).toEqual([
     '=1 #shorts',

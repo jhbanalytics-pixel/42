@@ -1,0 +1,31 @@
+/* Platform marks: one colour, taken from the text around them, so they follow
+   the light and dark themes with no colour of their own. */
+.pl-logo {
+  display: inline-block;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: middle;
+}
+
+.pl-logo .pl-fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* A platform with no mark: its first letter in a square ring, in the same colour. */
+.pl-monogram {
+  box-sizing: border-box;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  border: 1.5px solid currentColor;
+  color: var(--ink-2);
+  font-family: var(--sans);
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+}
