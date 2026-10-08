@@ -41,9 +41,16 @@ SCALING_ANNOTATIONS = ("autoscaling.knative.dev/minScale", "autoscaling.knative.
                        "run.googleapis.com/cpu-throttling")
 MANAGED_ANNOTATIONS = {"client.knative.dev/user-image", "run.googleapis.com/client-name",
                        "run.googleapis.com/client-version", "run.googleapis.com/operation-id"}
-# Environment names the release deploy is declared to remove from a service. The candidate may carry them unchanged
-# or without them; any other difference from the expected environment is a stop. Names only, never values.
-DECLARED_ENV_REMOVALS: dict = {}
+# Environment names the release deploy is declared to remove from a service, held as the SHA-256 of each name (lower
+# case hex of the UTF-8 text) so the names are not in the repository. A candidate or template may carry a declared name
+# unchanged or without it; any other difference from the expected environment is a stop. The readback compares the
+# digest of each live variable name and records names and the words removed or still_present, never a value.
+# Release A: f42-agent carries two such variables on every live revision, deploy_flags.env does not set them, and the
+# deploy is expected to drop them, so their removal is declared and not a preservation failure. Nothing else is.
+DECLARED_ENV_REMOVAL_DIGESTS: dict = {
+    "f42-agent": ("33d9fa8645f6b19693e867b504665de15a7e14854e1a930165a7b90f9b87cfc0",
+                  "366e51dbd94f0cdc07d4cb3ce2b7648136c105094ef6c5bb120edc26b0f7195d"),
+}
 HEALTH_RETRIES = 3
 HEALTH_RETRY_SECONDS = 10
 
@@ -83,6 +90,11 @@ def fingerprint(value):
 
 def sha_text(text):
     return sha_bytes(text.encode("utf-8"))
+
+
+def declared_removal(service, name):
+    """True when the digest of this environment variable name is one the release declares it removes."""
+    return sha_text(name) in DECLARED_ENV_REMOVAL_DIGESTS.get(service, ())
 
 
 def literal(value):
@@ -323,11 +335,21 @@ def expected_env_variants(baseline, bound, service, rid):
     removed by the deploy may be carried unchanged or be absent, so there are two acceptable variants for them."""
     deltas = candidate_deltas(bound, baseline, service, rid)
     base = baseline["services"][service]["template"]["env"]
-    removals = tuple(n for n in DECLARED_ENV_REMOVALS.get(service, ()) if n in base)
+    removals = tuple(sorted(n for n in base if declared_removal(service, n)))
     variants = [env_with(base, deltas, removals)]
     if removals:
         variants.append(env_with(base, deltas))
     return variants, removals
+
+
+def env_matches(actual, baseline, bound, service, rid):
+    """True when the environment is the expected one: the baseline template plus the declared deltas, where any of the
+    names declared as removed may be absent and, if present, must be unchanged."""
+    expected = env_with(baseline["services"][service]["template"]["env"], candidate_deltas(bound, baseline, service, rid))
+    for name in [n for n in expected if declared_removal(service, n)]:
+        if name not in actual:
+            del expected[name]
+    return actual == expected
 
 
 def stage1(bound, baseline):
@@ -618,8 +640,9 @@ def check_candidate_revisions(rel, live, manifest):
         for key in SCALING_ANNOTATIONS:
             require(view["annotations"].get(key) == want["annotations"].get(key), "CANDIDATE_REVISION",
                     f"{name} {key.rsplit('/', 1)[-1]} changed")
-        variants, removals = expected_env_variants(rel.baseline, rel.bound, name, rel.rid)
-        require(view["env"] in variants, "ENV", f"The {name} candidate environment differs from the expected one")
+        removals = expected_env_variants(rel.baseline, rel.bound, name, rel.rid)[1]
+        require(env_matches(view["env"], rel.baseline, rel.bound, name, rel.rid), "ENV",
+                f"The {name} candidate environment differs from the expected one")
         if removals:
             rel.observations.setdefault("declared_env_removals", {})[name] = {
                 n: ("still_present" if n in view["env"] else "removed") for n in removals}
@@ -630,9 +653,9 @@ def check_template_candidate(rel, live, manifest):
     created revision naming the candidate."""
     for name in SERVICES:
         got, want = live.services[name]["template"], rel.baseline["services"][name]["template"]
-        variants, _ = expected_env_variants(rel.baseline, rel.bound, name, rel.rid)
         require(got["image"] == f"{REPO}@{manifest['image']['digest']}", "PRESERVATION", f"The {name} template image is not the candidate digest")
-        require(got["env"] in variants, "PRESERVATION", f"The {name} template environment differs from the expected one")
+        require(env_matches(got["env"], rel.baseline, rel.bound, name, rel.rid), "PRESERVATION",
+                f"The {name} template environment differs from the expected one")
         for key in want:
             if key not in ("image", "env"):
                 require(got[key] == want[key], "PRESERVATION", f"The {name} template differs from the baseline: {key}")
