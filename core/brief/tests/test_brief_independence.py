@@ -13,7 +13,7 @@ import random
 import pytest
 
 from core.brief import gatectx
-from core.brief.tests.test_brief_gatectx import NUMBER, ctx, duck, ev, measured, world
+from core.brief.tests.test_brief_gatectx import NUMBER, ctx, duck, ev, item, measured, world
 from core.detect.tests.fixtures import D
 
 CAPTION = "Capetonians are going mad for the new shaya step challenge this weekend"
@@ -278,3 +278,28 @@ def test_every_handle_is_in_exactly_one_group():
 def test_a_not_independent_flag_removes_the_author_before_grouping(flag):
     records = [rec("p1", "tiktok", "a", "own words"), rec("p2", "youtube", "b", "more words", flags=[flag])]
     assert [g["handles"] for g in gatectx.independent_groups(records)] == [{"a"}]
+
+
+# Chains and the item's own key
+
+
+def test_one_author_linked_to_three_others_makes_one_group_not_three():
+    con = world()
+    measured(con, "p1", "p2", "p3", "p4")
+    evidence = [rec("p1", "tiktok", "hub", "hub words stand alone here", thumbnail_url="https://c.example/x/1.jpg"),
+                rec("p2", "tiktok", "b", "b own words about the step", thumbnail_url="https://c.example/x/1.jpg"),
+                rec("p3", "tiktok", "c", "c own words about the dance", url="https://tiktok.com/@c/video/3"),
+                rec("p4", "tiktok", "d", "d own words about school", url="https://tiktok.com/@d/video/4")]
+    evidence[0]["text"] = evidence[0]["quote_text"] = "hub words stand alone here @c and also https://x.example/a/b"
+    evidence[3]["text"] = evidence[3]["quote_text"] = "d own words about school https://x.example/a/b"
+    assert len(gatectx.independent_groups(evidence)) == 1
+    assert corroborated(con, evidence, [NUMBER]) is False
+
+
+def test_captions_that_only_repeat_the_items_own_key_are_not_a_shared_caption():
+    con = world()
+    measured(con, "p1", "p2")
+    evidence = [rec("p1", "tiktok", "a", "ShayaStep " * 5), rec("p2", "youtube", "b", "ShayaStep " * 7)]
+    assert ctx(con, evidence=evidence)["corroborated_unbiased"] is False
+    key = item(canonical_key="shayastep")
+    assert ctx(con, row=key, evidence=evidence)["corroborated_unbiased"] is True

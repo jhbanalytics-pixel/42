@@ -56,3 +56,12 @@ def test_a_short_brand_key_never_marks_an_author():
     row = {**current(con), "kind": "brand", "canonical_key": "ab", "label": "AB"}
     pack, _, _ = evidence.build_pack(duck.Client(con), row, D, "ZA", core="core", agent="agent")
     assert "brand_owned" not in flags_of(pack)["p1"]
+
+
+def test_a_brand_is_also_known_by_its_label_when_the_key_differs():
+    con = world()
+    add_post(con, "p1", "c1", utc(day(1), 9), 900)
+    creators(con, ("c1", "@Acme"))
+    row = {**current(con), "kind": "brand", "canonical_key": "acme_brand_sa", "label": "Acme"}
+    pack, _, _ = evidence.build_pack(duck.Client(con), row, D, "ZA", core="core", agent="agent")
+    assert "brand_owned" in flags_of(pack)["p1"]

@@ -202,3 +202,19 @@ def test_the_job_runs_the_step_after_coaction_and_before_state(con, monkeypatch)
     monkeypatch.setattr(job.sqlrun, "query", lambda *a, **k: [])
     counts = job.run(duck.Client(con), D, chain=Chain(con), core="core", agent="agent")
     assert order == ["coaction", "neardup", "state"] and "near_dup" in counts
+
+
+# The candidate pairs are confirmed, and links alone are not a caption
+
+
+def test_a_hash_candidate_below_the_threshold_is_not_a_near_duplicate():
+    a = "ixlzwxuq oyhu fdlp mrdsh xgni ymfyz etto eaagy ffjkg vugfwgmj lnfe ckjtsa vwkcjljp fppwfb"
+    b = "ixlzwxuq oyhu fdlp mrdsh xgni ymfyz etto eaagy ffjkg tufhyvf lnfe ckjtsa vwkcjljp fppwfb"
+    assert neardup.similar(neardup.shingles(neardup.plain_text(a)), neardup.shingles(neardup.plain_text(b))) is False
+    assert neardup.near_dup_sizes(rows(a, b)) == {}
+
+
+def test_a_caption_that_is_only_links_is_not_long_enough():
+    links = "look https://a.example/{n}1 https://a.example/{n}2 https://a.example/{n}3 https://a.example/{n}4"
+    assert neardup.plain_text(links.format(n="x")) is None
+    assert neardup.near_dup_sizes(rows(links.format(n="x"), links.format(n="y"))) == {}
