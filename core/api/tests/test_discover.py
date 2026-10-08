@@ -1950,3 +1950,21 @@ def test_alert_titles_use_only_the_checked_brief_for_the_detect_date_and_market(
     assert result["card"]["title"] != "A checked story title"
     assert dates == [D30]
     assert json.dumps(watches) == before
+
+
+def test_a_g10_hold_on_an_item_with_no_explanation_in_the_brief_says_it_was_not_explained(fx):
+    """N23: the gate view carries the brief job's G10 words for every item the brief did not explain, including
+    one the model never reached. No check ran on it, so Discover must not say it failed one."""
+    run_date = str(discover._run(fx)["run_date"])
+    real_gate = fx.item_gate
+
+    def item_gate(market):
+        rows = list(real_gate(market) or [])
+        if market in ("ZA", "all"):
+            rows.append({"item_id": RISING, "market": "ZA", "brief_date": run_date, "place": "held_back",
+                         "rule": "G10", "reason": "explanation_failed", "reason_text": "Explanation failed its checks"})
+        return rows
+
+    out = discover.build_discover(Patched(item_gate=item_gate), "ZA")
+    held = next(h for h in out["held_back"]["items"] if h["item_id"] == RISING)
+    assert held["reason_text"] == "Not explained: the model did not get to this topic"

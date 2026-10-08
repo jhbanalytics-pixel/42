@@ -80,3 +80,23 @@ def test_a_topic_a_busy_model_left_unexplained_says_so(busy):
     out = plain_reason({"reason_text": "Explanation failed its checks", "failed_reason": busy})
     assert out["reason_text"] == "Not explained in time: the model was busy"
     assert out["reason_raw"] == "Explanation failed its checks" and out["failed_reason"] == busy
+
+
+# N23: a topic the model never reached is held under the brief job's G10 reason, but no check ran on it.
+def test_a_topic_the_model_never_reached_is_not_said_to_have_failed_checks():
+    out = plain_reason({"reason_text": "Explanation failed its checks", "explanation_status": "not_run"})
+    assert out["reason_text"] == "Not explained: the model did not get to this topic"
+    assert out["reason_raw"] == "Explanation failed its checks"
+
+
+@pytest.mark.parametrize("status", ["failed_checks", "explained", None])
+def test_only_a_not_run_status_changes_the_explanation_hold_words(status):
+    out = plain_reason({"reason_text": "Explanation failed its checks", "explanation_status": status})
+    assert out["reason_text"] == "The explanation did not pass our checks"
+
+
+def test_a_busy_model_wording_still_wins_over_the_not_reached_wording():
+    busy = list(NOT_RUN_REASONS)[0]
+    out = plain_reason({"reason_text": "Explanation failed its checks", "explanation_status": "not_run",
+                        "failed_reason": busy})
+    assert out["reason_text"] == "Not explained in time: the model was busy"

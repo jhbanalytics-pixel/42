@@ -304,7 +304,8 @@ def _cards(store, run, market, hidden=UNREAD):
         card = without_hidden(_build_card(r, briefs.get((r["market"], r["item_id"])), warmup, order.get(key)), hidden)
         if held[key]:
             rule, reason, text = held[key]
-            card["held_back"] = plain_reason({"rule": rule, "reason": reason, "reason_text": text})
+            card["held_back"] = plain_reason({"rule": rule, "reason": reason, "reason_text": text},
+                                             card.get("explanation_status"))
         out.append((r, card, held[key]))
     return out, warmup
 
