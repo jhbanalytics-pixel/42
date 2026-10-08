@@ -1957,7 +1957,7 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
               **{k: written[k] for k in ("cultural_map", "labels_blocked", "labels_missing", "creators_written",
                                          "creators_error", "public_feed_posts", "public_feed_raw_rows",
                                          "public_feed_raw_error", "public_feed_merge_statements", "google_search_signals",
-                                         "google_search_signals_error")},
+                                         "google_search_signals_error", "google_search_signals_blocked")},
               **{k: written[k] for k in ("telegram_raw_rows_written", "telegram_raw_error") if k in written}}
     if collected.public_feed_error:
         counts["public_feed_error"] = "phase_failed"
