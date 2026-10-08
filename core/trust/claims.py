@@ -249,6 +249,59 @@ _NUMERAL = re.compile(
 )
 _MULTIPLIER = {"k": 1e3, "thousand": 1e3, "m": 1e6, "million": 1e6, "bn": 1e9, "billion": 1e9}
 
+class _KinName:
+    """A K6 kin word that is also a personal name: Babu Owino, Bibi Titi Mohamed, Koko Rapapa.
+
+    It matches like a compiled pattern (search and sub), but a hit is dropped when the word is written as a name:
+    first letter capital and the rest lower case, singular, and then one of: followed by a capitalised word that is
+    not another kin word (a surname); set in a list ("Raila, Babu and Sifuna") with a capitalised word that is not a
+    kin word; or the same capitalised word appears elsewhere in the text followed by a surname (the short form of a
+    name given in full). Lower case, all capitals, a plural and a bare capitalised word stay age terms.
+    """
+
+    _NAME = r"[A-Z][a-z][\w'’-]*"
+    _AFTER = re.compile(r"\s+(" + _NAME + ")")
+    _LIST_AFTER = re.compile(r"\s*(?:,|&|\band\b)\s*(" + _NAME + ")")
+    _LIST_BEFORE = re.compile(r"\b(" + _NAME + r")\s*(?:,|&|\band\b)\s*$")
+
+    def __init__(self, source):
+        self._re = re.compile(source, re.I)
+        self.pattern = source
+        self.flags = self._re.flags
+
+    def _is_kin(self, word):
+        return bool(self._re.fullmatch(word))
+
+    def _surname_after(self, text, end):
+        m = self._AFTER.match(text, end)
+        return bool(m) and not self._is_kin(m.group(1))
+
+    def _is_name(self, text, m):
+        term = m.group(0)
+        if term != term.capitalize() or term.lower().endswith("s"):
+            return False
+        if self._surname_after(text, m.end()):
+            return True
+        after = self._LIST_AFTER.match(text, m.end())
+        if after and not self._is_kin(after.group(1)):
+            return True
+        before = self._LIST_BEFORE.search(text[: m.start()])
+        if before and not self._is_kin(before.group(1)):
+            return True
+        return any(
+            other.group(0) == term and self._surname_after(text, other.end()) for other in self._re.finditer(text)
+        )
+
+    def search(self, text):
+        for m in self._re.finditer(text):
+            if not self._is_name(text, m):
+                return m
+        return None
+
+    def sub(self, repl, text):
+        return self._re.sub(lambda m: m.group(0) if self._is_name(text, m) else repl, text)
+
+
 _BREACH_TERMS = [
     re.compile(p, re.I)
     for p in (
@@ -301,7 +354,7 @@ _BREACH_TERMS = [
 # _breach_term, which reads _BREACH_TERMS alone, so seed queries are filtered by the a80be1d list and nothing here
 # changes what a seed passes. test_trust_seeds_input.py pins both lists.
 _K6_ONLY_TERMS = [
-    re.compile(p, re.I)
+    p if isinstance(p, _KinName) else re.compile(p, re.I)
     for p in (
         # N13-T: an age range the bare-range pattern above misses: "aged between 18 and 24", "ages from 18 to 24".
         # The N-Ns band ("the 18-24s are watching") is not here: no pattern for it keeps "the 1980s", "temperatures in
@@ -316,8 +369,10 @@ _K6_ONLY_TERMS = [
         r"\b(?:matriculants?|matric[\s-]+(?:learners?|pupils?|students?)|first[\s-]?time[\s-]+voters?"
         r"|school[\s-]?leavers?)\b",
         r"(?<!\bfur\s)(?<!\bplant\s)(?<!\bsugar\s)\bbabies\b",
-        r"\b(?:grann(?:y|ies)|grandmas?|grandmothers?|grandfathers?|grandparents?|(?:u|o|ko)?gogos?|mkhulus?"
-        r"|(?:u|o)?makhulus?|koko|bibi|babu|watoto|abantwana|vijana|wazee|pikins?|(?:ama|i)khehla)\b",
+        r"\b(?:grann(?:y|ies)|grandmas?|grandmothers?|grandfathers?|grandparents?|watoto|abantwana|vijana|wazee"
+        r"|pikins?|(?:ama|i)khehla)\b",
+        # Kin words that are also names (Babu Owino, Bibi Titi Mohamed, Koko Rapapa): read as a name when written as one.
+        _KinName(r"\b(?:(?:u|o|ko)?gogos?|mkhulus?|(?:u|o)?makhulus?|koko|bibi|babu)\b"),
         r"\bborn\s+(?:in|after|before|since|around|between)\s+(?:the\s+)?(?:early|mid|late)?[\s-]*"
         r"['\u2019]?(?:(?:19|20)\d{2}|\d0s)",
         r"(?:\d0s|nineties|noughties)[\s-](?:born|generation|babies)\b",
