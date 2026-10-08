@@ -469,6 +469,10 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
                 headline={headline}
                 compact={tab === 'ALL'}
                 showHistoryLink={!allMarketsEmpty}
+                onOpenMarket={(id) => {
+                  setTab(id);
+                  if (onRegionChange) onRegionChange(id);
+                }}
                 date={data.date}
                 dataIssue={data.status === 'data_issue'}
                 searchingNow={Array.isArray(data.searching_now)
@@ -833,7 +837,7 @@ function MarketStatus({market, banners, sourceDetails, empty}){
   );
 }
 
-function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch, onFeedback, specificityByItemId, searchingNow, showHistoryLink, dataIssue = false}){
+function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch, onFeedback, specificityByItemId, searchingNow, showHistoryLink, onOpenMarket, dataIssue = false}){
   const [all, setAll] = useState(false);
   const top = Array.isArray(market.cards) ? market.cards : [];
   const more = Array.isArray(market.more) ? market.more : [];
@@ -862,6 +866,13 @@ function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch
                 todaySpecificity={specificityByItemId.get(card.item_id)} />
             ))}
           </ol>
+          {/* The All tab shows three a market; it says so and opens the market for the rest. */}
+          {compact && top.length + more.length > cards.length && (
+            <p className="t42-line-text" data-all-cap="">
+              Showing the top {cards.length} of {top.length + more.length} trends in {market.label}.{' '}
+              {onOpenMarket && <button type="button" className="t42-button" onClick={() => onOpenMarket(market.market)}>See them in {market.label}</button>}
+            </p>
+          )}
           </>
         : <>
             {showHistoryLink && <p className="t42-line-text"><a className="t42-link" href="#/history">Choose a past brief in History</a></p>}

@@ -2736,3 +2736,29 @@ test('held explanations with no check named, or held for a busy model, keep one 
   expect([...details.querySelectorAll('[data-held-reasons] .ch42-key-label')].map((node) => node.textContent)).toEqual([
     'The explanation did not pass our checks', 'The model was busy']);
 });
+
+/* Wave 8 N43 (R0273, R0483): the All tab shows the top three of a market and
+   says so, with a way to the rest. */
+test('the All tab says how many cleared trends it leaves out and opens the market for them', async () => {
+  const today = clone(todayFixture);
+  const market = today.markets.find((entry) => entry.market === 'ZA');
+  const source = market.cards[0];
+  market.cards = ['One', 'Two', 'Three', 'Four', 'Five'].map((title, index) => checkedCard(source, title, 'top-' + index));
+  market.more = ['Six', 'Seven'].map((title, index) => checkedCard(source, title, 'more-' + index));
+  await mount({region: 'ALL'}, today);
+  const za = host.querySelector('[data-market="ZA"]');
+  expect(za.querySelectorAll('[data-card]').length).toBe(3);
+  const note = za.querySelector('[data-all-cap]');
+  expect(note).not.toBeNull();
+  expect(note.textContent.replace(/\s+/g, ' ')).toContain('Showing the top 3 of 7 trends in South Africa.');
+  click(note.querySelector('button'));
+  expect(tab('South Africa').getAttribute('aria-selected')).toBe('true');
+  expect(cards().length).toBe(5);
+  expect(host.querySelector('[data-all-cap]')).toBeNull();
+});
+
+test('the All tab says nothing about a cap when every cleared trend is shown', async () => {
+  await mount({region: 'ALL'});
+  expect(host.querySelector('[data-market="ZA"] [data-all-cap]')).toBeNull();
+  expect(host.querySelector('[data-market="KE"] [data-all-cap]')).toBeNull();
+});
