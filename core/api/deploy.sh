@@ -32,13 +32,16 @@ done
 # --untracked-files=all so a repo setting that hides untracked files cannot hide one here.
 #   build            the whole tree: any change or untracked file refuses it.
 #   --no-build       the image already built for HEAD, but the flags, this script and the release smoke script
-#                    and the core it imports run from disk, so any change under core/ refuses it.
-#   --local-build    also refuses ignored files in the Docker context (core, app/frontend, docs/full-42/reference):
-#                    there is no .dockerignore, so .env files or node_modules would be copied into the image.
-#                    __pycache__ directories are tolerated, since the image sets PYTHONDONTWRITEBYTECODE.
+#                    and the core it imports run from disk, so any change under core/ refuses it. The smoke puts
+#                    the repo root first on sys.path, so a Python module at the root (httpx.py, sitecustomize.py)
+#                    or an untracked Python file in a top level directory (a google/ package) refuses it too.
+#   --local-build    also refuses ignored files that core/api/Dockerfile.dockerignore lets into the image (.env
+#                    files, a dist folder). What that file keeps out, such as node_modules and __pycache__, is
+#                    not checked: the guard reads the file, so the two cannot drift apart.
 # The Cloud Build upload follows the .gitignore rules, so ignored files are not checked for it.
 if [ "$BUILD" = --no-build ]; then
-  DIRTY=$(git status --porcelain --untracked-files=all -- core)
+  DIRTY=$(git status --porcelain --untracked-files=all \
+    | grep -E '^.. "?core/| -> "?core/|^.. "?[^/]+[.](py|pyc|pyd|so|pth)"?$|^[?][?] "?[^/]+/.*[.]py"?$' || true)
 else
   DIRTY=$(git status --porcelain --untracked-files=all)
 fi
@@ -48,10 +51,47 @@ if [ -n "$DIRTY" ]; then
   exit 65
 fi
 if [ "$BUILD" = --local-build ]; then
-  IGNORED=$(git status --porcelain --ignored --untracked-files=all -- core app/frontend docs/full-42/reference \
-    | grep '^!!' | grep -v '__pycache__/' || true)
+  IGNORED=$(git status --porcelain --ignored --untracked-files=normal -- core app/frontend docs/full-42/reference \
+    | py -3.13 -c '
+import re
+import sys
+
+
+def pattern(text):
+    out, i = "", 0
+    while i < len(text):
+        if text.startswith("**/", i):
+            out, i = out + "(?:.*/)?", i + 3
+        elif text.startswith("**", i):
+            out, i = out + ".*", i + 2
+        else:
+            out += {"*": "[^/]*", "?": "[^/]"}.get(text[i], re.escape(text[i]))
+            i += 1
+    return re.compile(out + "$")
+
+
+rules = []
+for line in open(sys.argv[1], encoding="utf-8"):
+    line = line.strip()
+    if line and not line.startswith("#"):
+        rules.append((line.startswith("!"), pattern(line.lstrip("!").strip("/"))))
+
+
+def in_image(path):
+    parts = path.split("/")
+    kept = True
+    for negated, rule in rules:
+        if any(rule.match("/".join(parts[:n])) for n in range(1, len(parts) + 1)):
+            kept = negated
+    return kept
+
+
+for line in sys.stdin:
+    if line.startswith("!! ") and in_image(line[3:].strip().strip("\"")):
+        print(line.rstrip())
+' core/api/Dockerfile.dockerignore)
   if [ -n "$IGNORED" ]; then
-    echo "deploy.sh: ignored files are in the Docker build context and would be copied into the image of commit ${TAG}." >&2
+    echo "deploy.sh: ignored files that Dockerfile.dockerignore lets in would be copied into the image of commit ${TAG}." >&2
     echo "Remove them, or build from a fresh clone:" >&2
     echo "$IGNORED" >&2
     exit 65

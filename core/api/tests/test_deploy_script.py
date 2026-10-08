@@ -16,11 +16,15 @@ POLICY = {"bindings": [{"role": "roles/run.invoker", "members": [
     "serviceAccount:f42-web@ogilvy-trends-v2.iam.gserviceaccount.com"]}]}
 
 
-def run_deploy(tmp_path, *, service=PRIVATE, policy=POLICY, build_exit=0, policy_exit=0, args=(), status=""):
-    for name in ("deploy.sh", "deploy_flags.env"):
+def run_deploy(tmp_path, *, service=PRIVATE, policy=POLICY, build_exit=0, policy_exit=0, args=(), status="",
+               dockerignore=None):
+    for name in ("deploy.sh", "deploy_flags.env", "Dockerfile.dockerignore"):
         target = tmp_path / "core" / "api" / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text((ROOT / "core" / "api" / name).read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+        text = (ROOT / "core" / "api" / name).read_text(encoding="utf-8")
+        if name == "Dockerfile.dockerignore" and dockerignore is not None:
+            text = dockerignore
+        target.write_text(text, encoding="utf-8", newline="\n")
     calls = tmp_path / "calls"
     git = Path(shutil.which("git"))
     bash = git.parent.parent / "bin" / "bash.exe" if os.name == "nt" else Path(shutil.which("bash"))
@@ -66,7 +70,7 @@ git() {
 docker() { return 97; }
 py() {
   if [ "${2:-}" = core/api/smoke.py ]; then return 0; fi
-  if [ "${2:-}" = -c ]; then command "$R3_PYTHON" -c "$3"; return; fi
+  if [ "${2:-}" = -c ]; then command "$R3_PYTHON" -c "$3" "${@:4}"; return; fi
   return 98
 }
 gcloud() {
@@ -204,19 +208,71 @@ def test_no_build_is_refused_when_any_file_under_core_differs_from_head(tmp_path
     assert "uncommitted" in result.stderr and status.split()[-1] in result.stderr
 
 
-@pytest.mark.parametrize("status", ["!! core/.env\n", "!! app/frontend/node_modules/\n",
-                                    "!! docs/full-42/reference/local.json\n"])
-def test_local_build_is_refused_for_ignored_files_in_the_build_context(tmp_path, status):
+@pytest.mark.parametrize("status", [
+    "?? httpx.py\n",  # smoke.py puts the repo root first on sys.path, so a root module shadows what it imports
+    "?? sitecustomize.py\n",
+    "?? yaml.py\n",
+    " M conftest.py\n",
+    "?? google/auth/__init__.py\n",  # a package that shadows an installed one
+    "?? ops/helper.py\n",
+])
+def test_no_build_is_refused_for_a_root_module_or_untracked_python_outside_core(tmp_path, status):
+    result, calls = run_deploy(tmp_path, args=("--no-build",), status=status)
+    assert result.returncode != 0
+    assert calls == []
+    assert "uncommitted" in result.stderr and status.split()[-1] in result.stderr
+
+
+@pytest.mark.parametrize("status", [
+    " M docs/operations/notes.md\n", "?? docs/operations/new.md\n", "?? notes.txt\n", " M README.md\n",
+    " M app/frontend/src/App.jsx\n",
+])
+def test_no_build_allows_files_the_release_never_imports(tmp_path, status):
+    result, calls = run_deploy(tmp_path, args=("--no-build",), status=status)
+    assert result.returncode == 0, result.stderr
+    assert [call[2] for call in calls if call[:2] == ["run", "deploy"]] == ["f42-agent", "f42-api"]
+
+
+# What the build copies is what core/api/Dockerfile.dockerignore lets through: core, app/frontend and
+# docs/full-42/reference/sc_routes.json, less node_modules, test-results, playwright-report, __pycache__, .pytest_cache.
+@pytest.mark.parametrize("status", [
+    "!! core/.env\n", "!! core/api/.env.local\n", "!! core/data/cache.db\n", "!! core/new_dir/\n",
+    "!! app/frontend/dist/\n", "!! app/frontend/.env\n",
+    "!! docs/full-42/reference/sc_routes.json\n",
+])
+def test_local_build_is_refused_for_ignored_files_the_dockerignore_lets_into_the_image(tmp_path, status):
     result, calls = run_deploy(tmp_path, args=("--local-build",), status=status)
     assert result.returncode != 0
     assert calls == []
     assert "ignored" in result.stderr and status.split()[-1] in result.stderr
 
 
-@pytest.mark.parametrize("status", ["!! core/api/__pycache__/\n", "!! scratch/notes.txt\n"])
-def test_local_build_allows_bytecode_and_ignored_files_outside_the_build_context(tmp_path, status):
+@pytest.mark.parametrize("status", [
+    "!! app/frontend/node_modules/\n", "!! app/frontend/node_modules/react/index.js\n",
+    "!! app/frontend/test-results/\n", "!! app/frontend/playwright-report/index.html\n",
+    "!! core/api/__pycache__/\n", "!! core/setup/tests/__pycache__/\n", "!! core/api/.pytest_cache/\n",
+    "!! docs/full-42/reference/local.json\n", "!! docs/scratch.md\n", "!! scratch/notes.txt\n", "!! .env\n",
+])
+def test_local_build_allows_ignored_files_the_dockerignore_keeps_out_of_the_image(tmp_path, status):
     result, calls = run_deploy(tmp_path, args=("--local-build",), status=status)
     assert result.returncode == 97, result.stderr  # past the guard, stopped by the docker double
+
+
+def test_the_local_build_guard_follows_the_dockerignore_it_is_given(tmp_path):
+    # Read from the file at run time, not copied into the script: change the file and the guard changes with it.
+    lets_node_modules_in = "*\n!core/\n!app/frontend/\n"
+    result, calls = run_deploy(tmp_path / "a", args=("--local-build",), status="!! app/frontend/node_modules/\n",
+                               dockerignore=lets_node_modules_in)
+    assert result.returncode != 0 and "app/frontend/node_modules" in result.stderr
+    keeps_env_out = "*\n!core/\n**/.env\n"
+    result, calls = run_deploy(tmp_path / "b", args=("--local-build",), status="!! core/.env\n",
+                               dockerignore=keeps_env_out)
+    assert result.returncode == 97, result.stderr
+
+
+def test_the_deploy_script_does_not_claim_there_is_no_dockerignore():
+    text = (ROOT / "core" / "api" / "deploy.sh").read_text(encoding="utf-8")
+    assert "there is no .dockerignore" not in text and "Dockerfile.dockerignore" in text
 
 
 def test_the_cloud_build_does_not_refuse_ignored_files(tmp_path):
