@@ -103,3 +103,11 @@ def test_a_tag_on_three_quarters_of_the_documents_lifts_the_logit_by_under_a_ten
     pool = background(70, generic=("fyp",), skip=18)  # 52 of 70 carry it, with the pair 54 of 72
     bare = verdict(a_cluster(at(1.0)), an_item(at(0.78)), pool)["logit"]
     assert verdict(c, item, pool)["logit"] - bare < 0.1
+
+
+def test_the_score_is_identical_whether_or_not_the_two_share_a_creator():
+    c = a_cluster(at(1.0), keywords=["kota"], hashtags=["bgtag1"])
+    c["creators"] = ["u1", "u2"]
+    alone, shared = an_item(at(0.8), keywords=["kota"], hashtags=["bgtag1"]), an_item(at(0.8), keywords=["kota"], hashtags=["bgtag1"])
+    alone["creators"], shared["creators"] = ["u9"], ["u1", "u2"]
+    assert verdict(c, alone, background()) == verdict(c, shared, background())
