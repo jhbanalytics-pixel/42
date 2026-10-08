@@ -104,7 +104,7 @@ CLUSTERS_SQL = MOMENTS + f"""
 SELECT m.id, COUNT(DISTINCT c.cluster_id) AS n, ARRAY_AGG(DISTINCT c.label IGNORE NULLS LIMIT 4) AS labels
 FROM m JOIN `{CORE}.clusters` c
   ON c.cluster_date BETWEEN DATE_SUB(m.d, INTERVAL 1 DAY) AND DATE_ADD(m.d, INTERVAL 4 DAY)
- AND c.market = m.market
+ AND UPPER(c.market) = UPPER(m.market)
  AND REGEXP_CONTAINS(LOWER(CONCAT(IFNULL(c.label, ''), ' ', ARRAY_TO_STRING(IFNULL(c.keywords, []), ' '), ' ',
        ARRAY_TO_STRING(IFNULL(c.local_terms, []), ' '))), CONCAT('(?i)', m.any_re))
 WHERE c.cluster_date BETWEEN @start AND @obs_end
