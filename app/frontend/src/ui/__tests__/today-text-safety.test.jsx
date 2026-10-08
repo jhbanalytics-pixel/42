@@ -127,8 +127,6 @@ test('a clean Boomplay title renders its supplied rank once', async () => {
   flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" />));
   await settle();
 
-  const row = host.querySelector('[data-market="ZA"] [data-section="boards"] .tb-rows .tb-row');
-  expect(row.querySelector('.tb-rank').textContent).toBe('1');
-  expect(row.querySelector('.tb-title').textContent).toBe('Boomplay Track');
-  expect(row.querySelectorAll('.tb-rank')).toHaveLength(1);
+  const row = host.querySelector('[data-market="ZA"] [data-section="boards"] .t42-board-rows li');
+  expect(row.textContent).toBe('1 Boomplay Track');
 });
