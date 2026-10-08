@@ -982,7 +982,8 @@ def test_the_default_cap_refuses_a_plan_over_twenty_gb(world, tmp_path):
     assert code == 2 and client.sql == []
 
 
-@pytest.mark.parametrize("dry_bytes, dry_fail", [({"rank": None}, ()), ({}, ("rank",))])
+@pytest.mark.parametrize("dry_bytes, dry_fail", [({"rank": None}, ()), ({}, ("rank",)), ({"rank": -1}, ()),
+                                                 ({"rank": 1.5}, ()), ({"rank": True}, ())])
 def test_a_statement_that_cannot_be_estimated_refuses_the_run(world, tmp_path, dry_bytes, dry_fail):
     client = DuckClient(world.con, dry_bytes=dry_bytes, dry_fail=dry_fail)
     code, lines = call(world, tmp_path, client)
