@@ -444,10 +444,22 @@ test('with no day given the boards say today, and the note says what "On N chart
   expect(host.querySelector('[data-section="boards"] h3').textContent).toBe('On the boards today');
 });
 
-test('the server reason is still said once on a past brief', () => {
-  show({boards: [board('youtube', 'YouTube trending board', [entry(1, FAKE_CHANNEL, 'i1')], {left_out_reason: SERVER_REASON})], day: PAST});
+test('the server reason is said once on a past brief and worded by the brief day', () => {
+  /* The server's shape for a chart whose every entry is an id: no entries, a count and the reason. */
+  show({boards: [board('youtube', 'YouTube trending board', [], {left_out: 3, left_out_reason: SERVER_REASON})], day: PAST});
   const card = host.querySelector('[data-board-card]');
+  expect(card.getAttribute('data-chart-state')).toBe('unreadable');
   expect(occurrences(card.textContent, 'readable name')).toBe(1);
+  expect(card.querySelector('.tb-left-out').textContent).toBe("3 left out: None of this list's entries had a readable name on 30 September 2026");
+  expect(card.textContent).not.toMatch(/today/i);
+  show({boards: [board('youtube', 'YouTube trending board', [], {left_out: 3, left_out_reason: SERVER_REASON})]});
+  expect(host.querySelector('.tb-left-out').textContent).toBe('3 left out: ' + SERVER_REASON);
+});
+
+test('a reason that is not the state sentence is kept as the server sent it, on any day', () => {
+  show({boards: [board('spotify', 'Daily', [entry(1, 'Song by Someone', 's'), entry(2, FAKE_CHANNEL, 'h')], {left_out: 1, left_out_reason: 'Some other reason'}), board('youtube', 'Plain', [entry(1, 'A', 'a'), entry(2, FAKE_CHANNEL, 'b')], {left_out: 0, left_out_reason: null})], day: PAST});
+  expect(cardFor('Spotify').querySelector('.tb-left-out').textContent).toBe('2 left out: Some other reason');
+  expect(cardFor('YouTube').querySelector('.tb-left-out').textContent).toBe('1 left out: No readable name');
 });
 
 /* ---- All: every market from one payload ---- */
@@ -476,6 +488,9 @@ test('All renders each market of a Today payload under one boards section, apart
   expect(levels('.tb-group-title')).toEqual(['H5']);
   expect(levels('.tb-card-title')).toEqual(['H6']);
   expect(host.querySelector('.tb-note').textContent).toContain('same market on 30 September 2026');
+  const captions = [...host.querySelectorAll('.tb-caption')].map((c) => c.textContent);
+  expect(captions).toHaveLength(4);
+  expect(new Set(captions)).toEqual(new Set(['Best rank on 30 September 2026']));
   const ids = [...host.querySelectorAll('[id]')].map((el) => el.id);
   expect(new Set(ids).size).toBe(ids.length);
   expect(host.textContent).not.toMatch(/\btoday\b/i);

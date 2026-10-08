@@ -149,8 +149,10 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
   const more = chart.rows.length > TOP;
   const flagged = chart.state === 'invalid';
   const words = stateWords(day)[chart.state];
-  /* The server words an all-ids chart's reason as "today" whatever the day. */
-  const saidByReason = chart.leftOut > 0 && [words, stateWords('today')[chart.state]].some((text) => sentence(text) === sentence(chart.reason));
+  /* The server words an all-ids chart's reason as "today" whatever the day, so
+     that sentence is shown in the brief day's words instead. Only a chart with
+     no readable row can carry it, which keeps a null reason from matching. */
+  const saidByReason = chart.state !== 'ok' && chart.leftOut > 0 && [words, stateWords('today')[chart.state]].some((text) => sentence(text) === sentence(chart.reason));
   return (
     <section className="tb-card" data-board-card="" data-chart-state={chart.state} data-platform={chart.id || undefined} aria-labelledby={headId}>
       <div className="tb-card-head">
@@ -175,7 +177,7 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
             )}
           </>
         : !saidByReason && <p className="tb-state">{words}</p>}
-      {chart.leftOut > 0 && <p className="tb-left-out">{chart.leftOut} left out: {chart.reason || 'No readable name'}</p>}
+      {chart.leftOut > 0 && <p className="tb-left-out">{chart.leftOut} left out: {saidByReason ? words.replace(/[.]$/, '') : chart.reason || 'No readable name'}</p>}
     </section>
   );
 }
