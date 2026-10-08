@@ -1004,3 +1004,66 @@ def test_a_total_cap_that_is_not_positive_is_refused(world, tmp_path, cap):
     with pytest.raises(ValueError):
         call(world, tmp_path, client, "--max-total-bytes", cap)
     assert client.sql == [] and client.dry == []
+
+
+# The rank read: once per market and day for all moments, and not at all for an item the brief ranked itself.
+
+
+def recorded(item_id, rank=2):
+    return {"item_id": item_id, "title": item_id, "status": "not_assessed", "reason": "judged_limit_reached",
+            "sql_rank": rank, "pool_rank": rank, "market_scope": "market"}
+
+
+def rank_world(*, recorded_items=("itemR",), plain_items=()):
+    w = World()
+    for item in (*recorded_items, *plain_items):
+        for n in range(3):
+            w.post(f"{item}-{n}", f"{item.lower()} clip {n}", items=(item,))
+        w.item(item, 0.9)
+        w.moment(f"M-{item}", item.lower())
+    for day in (D5, D6, D7):
+        w.brief(day, not_assessed=[recorded(i) for i in recorded_items])
+    return w
+
+
+def rank_configs(client):
+    return [cfg for cfg, kind in zip(client.configs, client.kinds) if kind == "rank"]
+
+
+def test_the_rank_is_read_once_per_market_and_day_however_many_moments_share_them(tmp_path):
+    w = rank_world(recorded_items=(), plain_items=("itemX", "itemY", "itemZ"))
+    client = DuckClient(w.con)
+    code, _lines = call(w, tmp_path, client)
+    assert code == 0 and len(rank_configs(client)) == 3
+    ids = {tuple(bound(q)) for cfg in rank_configs(client) for q in cfg.query_parameters if q.name == "item_ids"}
+    assert ids == {("itemX", "itemY", "itemZ")}
+
+
+def test_no_rank_is_read_for_a_day_where_the_brief_recorded_every_rank_itself(tmp_path):
+    w = rank_world()
+    client = DuckClient(w.con)
+    code, _lines = call(w, tmp_path, client)
+    [csv_path] = (tmp_path / "readback").glob("*.csv")
+    with csv_path.open(encoding="utf-8", newline="") as f:
+        [row] = list(csv.DictReader(f))
+    assert code == 0 and rank_configs(client) == []
+    assert row["furthest_stage"] == "POOLED" and row["sql_rank"] == "2"
+    assert row["rank_source"] == "recorded in the brief"
+
+
+def test_only_the_items_without_a_recorded_rank_are_sent_to_the_rank_read(tmp_path):
+    w = rank_world(plain_items=("itemP",))
+    client = DuckClient(w.con)
+    code, _lines = call(w, tmp_path, client)
+    configs = rank_configs(client)
+    assert code == 0 and len(configs) == 3
+    for cfg in configs:
+        [item_ids] = [bound(q) for q in cfg.query_parameters if q.name == "item_ids"]
+        assert item_ids == ["itemP"]
+
+
+def test_a_failed_briefs_read_does_not_skip_any_rank_read(tmp_path):
+    w = rank_world()
+    client = DuckClient(w.con, fail=("briefs",))
+    call(w, tmp_path, client)
+    assert len(rank_configs(client)) == 3

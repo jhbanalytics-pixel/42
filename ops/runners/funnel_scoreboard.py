@@ -386,6 +386,9 @@ def read_facts(reader, moments, p):
         for r in got:
             by_id[r["id"]].append(r)
         facts["items"] = by_id
+    brief_rows = reader.rows("briefs", BRIEFS_SQL, brief_parameters(moments, p))
+    if brief_rows is not None:
+        facts["briefs"] = {key: brief_index(payload) for key, payload in latest_briefs(brief_rows).items()}
     days = {m["id"]: evaluation_days(m, p) for m in moments}
     wanted = defaultdict(set)
     for m in moments:
@@ -401,15 +404,20 @@ def read_facts(reader, moments, p):
         facts["state"][(day, market)] = None if state is None or totals is None else {
             "rows": {r["item_id"]: r for r in state}, "day_rows": totals[0]["n"] if totals else 0}
         eligible = state is None or any(r.get("eligible") is True for r in state)
-        if eligible:
-            ranks = reader.rows(f"rank {market} {day}", sql_rank, keyed)
+        unranked = sorted(i for i in ids if recorded_rank(facts["briefs"], day, market, i) is None)
+        if eligible and unranked:
+            ranks = reader.rows(f"rank {market} {day}", sql_rank, day_parameters(day, market, unranked))
             facts["rank"][(day, market)] = None if ranks is None else {r["item_id"]: r for r in ranks}
         else:
             facts["rank"][(day, market)] = {}
-    brief_rows = reader.rows("briefs", BRIEFS_SQL, brief_parameters(moments, p))
-    if brief_rows is not None:
-        facts["briefs"] = {key: brief_index(payload) for key, payload in latest_briefs(brief_rows).items()}
     return facts
+
+
+def recorded_rank(briefs, day, market, item_id):
+    """The rank the brief recorded for an item it did not assess, or None: the one test assess_item also uses to
+    prefer the recorded rank over a recomputed one, so a rank read for such an item would never be consulted."""
+    assessed = ((briefs or {}).get((day.isoformat(), market)) or {}).get("not_assessed", {}).get(item_id)
+    return assessed["sql_rank"] if assessed is not None and type(assessed.get("sql_rank")) is int else None
 
 
 def brief_index(payload):
@@ -463,7 +471,7 @@ def assess_item(moment, item_id, day, facts, p):
     assessed = (brief or {}).get("not_assessed", {}).get(item_id)
     ranks = facts["rank"].get(key)
     ranked = (ranks or {}).get(item_id) if ranks is not None else None
-    if assessed is not None and type(assessed.get("sql_rank")) is int:
+    if recorded_rank(facts["briefs"], day, market, item_id) is not None:
         ev.update(sql_rank=assessed["sql_rank"], rank_source="recorded in the brief",
                   market_scope=assessed.get("market_scope"), not_assessed_reason=assessed.get("reason"))
         ev["scope_bucket"] = scope_bucket(assessed.get("market_scope"), None, None)
