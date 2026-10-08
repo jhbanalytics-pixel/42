@@ -994,3 +994,80 @@ def test_a_centroid_failure_is_recorded_and_detect_and_brief_carry_on(con, monke
     assert status == "ok" and finish_error is None
     assert finish_counts["item_centroids"] == {"status": "failed", "error": error}
     assert chain.of("start_next") == [("start_next", "detect", D)]
+
+
+# Lead ruling on a dead clusterer: understand records the day ok but partial (cluster_stack_failed), detect still runs
+# for the non-cluster items, and judges no topic (cluster) items that day.
+
+
+def understand_row(day=D, counts=None, status="ok", hour=12, run_id=None):
+    return {**run("understand", day, run_id, status, hour), "error": None,
+            "counts": None if counts is None else json.dumps(counts)}
+
+
+PARTIAL = {"partial": True, "partial_reason": "cluster_stack_failed", "partial_error": "OSError: libllvmlite",
+           "data_issue": "Data issue: topic grouping failed today"}
+
+
+def topic_world(con, *understand):
+    world(con)
+    con.execute("UPDATE core.cultural_map SET kind = 'cluster' WHERE item_id = 'two'")
+    if understand:
+        duck.load(con, "agent.runs", list(understand))
+
+
+def judged(con):
+    return {r["item_id"] for r in current(con, "v_item_state_current")}
+
+
+def test_a_day_whose_clusterer_failed_judges_no_topic_items_but_still_judges_the_rest(con):
+    topic_world(con, understand_row(counts=PARTIAL))
+    chain = FakeChain(con)
+    counts = job.run(JobClient(con), D, chain=chain, core="core", agent="agent")
+    assert judged(con) == {"new"} and counts["item_state"] == 1
+    assert counts["topics_failed"] == {"reason": "cluster_stack_failed", "topic_items_judged": 0,
+                                       "data_issue": "Data issue: topic grouping failed today"}
+    assert [c[0] for c in chain.calls] == ["begin", "finish", "start_next"]
+    assert chain.of("finish")[0][2] == "ok", "detect itself is a good run: it ran for the non-cluster items"
+
+
+def test_without_a_partial_understand_run_topic_items_are_judged_as_before(con):
+    topic_world(con)
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new", "two"} and "topics_failed" not in counts
+
+
+@pytest.mark.parametrize("row", [
+    understand_row(counts={"enriched": 3}),
+    understand_row(counts={"partial": True, "partial_reason": "something_else"}),
+    understand_row(counts=PARTIAL, status="failed"),
+    understand_row(day=D - timedelta(days=1), counts=PARTIAL),
+    understand_row(counts=None),
+], ids=["clean ok", "other reason", "failed run", "other day", "no counts"])
+def test_only_an_ok_partial_run_for_the_day_with_the_reason_stops_topic_items(con, row):
+    topic_world(con, row)
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new", "two"} and "topics_failed" not in counts
+
+
+def test_a_repaired_rerun_of_understand_lifts_the_stop_and_an_older_clean_run_does_not_hide_a_newer_partial(con):
+    topic_world(con, understand_row(counts=PARTIAL, hour=6, run_id="understand-early"),
+                understand_row(counts={"enriched": 3}, hour=9, run_id="understand-repaired"))
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new", "two"} and "topics_failed" not in counts
+
+
+def test_the_newest_ok_understand_run_decides_when_a_clean_one_came_first(con):
+    topic_world(con, understand_row(counts={"enriched": 3}, hour=6, run_id="understand-early"),
+                understand_row(counts=PARTIAL, hour=9, run_id="understand-late"))
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new"}
+
+
+def test_the_topic_filter_changes_only_the_cultural_map_join_of_state_sql_and_stops_if_the_shape_moves():
+    text = (job.SQL / "state.sql").read_text(encoding="utf-8")
+    patched = job.without_topics(text)
+    assert patched != text and patched.count("cm.kind != 'cluster'") == 1
+    assert patched.replace(" AND cm.kind != 'cluster'", "") == text
+    with pytest.raises(RuntimeError):
+        job.without_topics(text.replace("cm.item_id = a.item_id", "cm.item_id = a.item_id AND TRUE"))
