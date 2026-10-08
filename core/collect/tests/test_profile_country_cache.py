@@ -195,6 +195,21 @@ def test_a_receipt_with_no_fetch_time_never_counts_as_a_finished_lookup():
     assert len(cache.needed()) == 1
 
 
+def test_a_reels_search_receipt_with_no_country_does_not_stand_in_for_the_profile_lookup():
+    cache = location_sources.ProfileCache()
+    cache.bind({}, "instagram", "NG", "creator", {"home_market": None})
+    cache.seed([_null_receipt(1, platform="instagram", handle="creator", country_source="instagram/search/reels")],
+               today=NOW.date())
+    assert len(cache.needed()) == 1
+
+
+def test_a_receipt_fetched_after_today_never_counts_as_a_finished_lookup():
+    cache = location_sources.ProfileCache()
+    cache.bind({}, "tiktok", "NG", "creator", {"home_market": None})
+    cache.seed([_null_receipt(-2, handle="creator")], today=NOW.date())
+    assert len(cache.needed()) == 1
+
+
 def test_country_capture_stops_with_a_tail_reserve_left_for_the_writes_that_follow(monkeypatch):
     from core.collect import chain
 
