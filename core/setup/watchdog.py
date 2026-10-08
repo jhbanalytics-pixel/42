@@ -20,6 +20,21 @@ Rules, all for today in SAST (RUN_DATE overrides the day):
 credits_low and reconcile come from the reconcile job's own lines, and job_failed from Cloud Run's job
 failure logs.
 
+Six more rules are log only (LOG_ONLY): they write the same "42 ALERT <name>:" line at WARNING (INFO for
+brief_all_held), and no Cloud Monitoring policy matches them, so they add no cloud resource until someone adds one
+to core/setup/monitoring.py:
+  brief_empty         from 06:30, a market whose current brief is published or partial with no cards and nothing
+                      held back
+  brief_all_held      from 06:30, a market with no cards because every candidate was held: information, not a fault
+  brief_data_issue    a market whose current brief is a data_issue row, which the brief job writes from 06:15 when
+                      the upstream stage is not ok, and which finishes the brief run ok for the day
+  understand_degraded the day's latest understand run is ok but could not write enrichment or a market's clusters
+  stage_dead          a stage whose latest runs row for the day is still running past its chain.TIMEOUTS: the
+                      run was killed and never wrote a final row
+  watchdog_gap        the watchdog's own last runs row today is more than 90 minutes old, so it was not running
+Nothing here can tell that the watchdog is dead for good: only a Cloud Monitoring absence policy on its runs can,
+and that is a new cloud resource.
+
 Each alert fires at most once a day: every run appends one runs row, stage watchdog, whose counts.fired
 lists what it fired, and the next run reads today's rows first and skips those rules. If those rows cannot
 be read, every rule runs. A rule that cannot run is logged and the others still run; the row is then
@@ -45,11 +60,23 @@ AGENT = f"{PROJECT}.intelligence_42_agent"
 STAGE = "watchdog"
 ALERTS = ("collection_missing", "zero_rows", "brief_late", "model_spend", "schema_drift", "agent_error_rate",
           "seeds_failed", "agent_views_failed")
+LOG_ONLY = ("brief_empty", "brief_all_held", "brief_data_issue", "understand_degraded", "stage_dead", "watchdog_gap")
+SEVERITY = {"brief_all_held": "INFO"}
+NEEDS_NOW = ("model_spend", "stage_dead", "watchdog_gap")
 SPEND_SHARE = 0.8
 COLLECT_BY = time(4, 0)
 BRIEF_BY = time(6, 30)
 DRIFT_AT, DRIFT_WINDOW = time(7, 0), timedelta(minutes=15)
 ASK_MIN_RUNS, ASK_MAX_FAILED = 20, 0.05
+# The longest a healthy watchdog goes between runs is the hour from 01:00 to 02:00; the rest is slack.
+WATCHDOG_MAX_GAP = timedelta(minutes=90)
+# The degraded writes of an understand run, spelled exactly as core/api/store.py DEGRADED_SQL reads them for
+# Coverage (a test holds the two together); copied here so the job image does not import the API's store.
+_CLUSTER_MARKETS = ("za", "ng", "ke", "pan")
+UNDERSTAND_DEGRADED = "ARRAY(SELECT w FROM UNNEST([{}]) AS w WITH OFFSET o WHERE w IS NOT NULL ORDER BY o)".format(
+    ", ".join(["IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
+              + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.error') IS NOT NULL, 'cluster:{m}', NULL)"
+                 for m in _CLUSTER_MARKETS]))
 
 # For deploy_jobs.py and schedule.py (task 2.10 leaves those files to their owner): the job, and its two
 # Scheduler jobs in Africa/Johannesburg, every quarter hour from 02:00 to 07:45 and hourly otherwise.
@@ -59,8 +86,13 @@ SCHEDULES = (("f42-watchdog-quarter", "*/15 2-7 * * *"), ("f42-watchdog-hourly",
 
 
 class Alert:
-    def __init__(self, name, reason):
+    def __init__(self, name, reason, severity=None):
         self.name, self.reason = name, reason
+        self.severity = severity or ("ERROR" if name in ALERTS else SEVERITY.get(name, "WARNING"))
+
+    def __eq__(self, other):
+        return isinstance(other, Alert) and (self.name, self.reason, self.severity) == (
+            other.name, other.reason, other.severity)
 
     def __repr__(self):
         return f"Alert({self.name!r}, {self.reason!r})"
@@ -136,9 +168,77 @@ def _agent_views_failed(store, d, clock):
                 + (f": {error}" if error else ""))
 
 
+def _markets_without_cards(store, d, clock, held):
+    if clock < BRIEF_BY:
+        return []
+    state = store.brief_state(d)
+    return [(m, state[m]) for m in MARKETS if m in state and state[m]["status"] != "data_issue"
+            and not state[m]["cards"] and bool(state[m]["held"]) is held]
+
+
+def _brief_empty(store, d, clock):
+    empty = _markets_without_cards(store, d, clock, held=False)
+    if empty:
+        return (f"the brief for {d} is published with no cards and nothing held back for "
+                f"{', '.join(m for m, _ in empty)}")
+
+
+def _brief_all_held(store, d, clock):
+    held = _markets_without_cards(store, d, clock, held=True)
+    if held:
+        shown = ", ".join(f"{m} {state['held']} held" for m, state in held)
+        return f"the brief for {d} has no cards because every candidate was held back: {shown}"
+
+
+def _brief_data_issue(store, d, clock):
+    state = store.brief_state(d)
+    bad = [m for m in MARKETS if m in state and state[m]["status"] == "data_issue"]
+    if bad:
+        return (f"the current brief for {d} is a data issue row for {', '.join(bad)}: the brief job published it "
+                "without a full upstream, and its run is recorded ok")
+
+
+def _understand_degraded(store, d, clock):
+    latest = store.understand_latest(d)
+    if latest and latest["status"] == "ok" and latest["degraded"]:
+        return (f"the latest understand run for {d}, {latest['run_id']}, finished ok but could not write: "
+                f"{', '.join(latest['degraded'])}")
+
+
+def _utc(value):
+    at = datetime.fromisoformat(value) if isinstance(value, str) else value
+    return at if at.tzinfo else at.replace(tzinfo=timezone.utc)
+
+
+def _stage_dead(store, d, clock, now):
+    dead = []
+    for row in store.stage_latest(d):
+        limit = chain.TIMEOUTS.get(row["stage"])
+        started = _utc(row["started_at"])
+        if row["status"] == "running" and limit is not None and now - started > limit:
+            minutes = int(limit.total_seconds() // 60)
+            dead.append(f"{row['stage']} run {row['run_id']} started {started.astimezone(chain.SAST):%H:%M} SAST "
+                        f"is still running past its {minutes} minute timeout")
+    if dead:
+        return f"{'; '.join(dead)}: the run was killed and wrote no final row"
+
+
+def _watchdog_gap(store, d, clock, now):
+    if d != now.astimezone(chain.SAST).date():
+        return None
+    last = store.watchdog_last(d)
+    since = _utc(last) if last else datetime.combine(d, time(0), chain.SAST)
+    if now - since > WATCHDOG_MAX_GAP:
+        return (f"the watchdog has not run since {since.astimezone(chain.SAST):%H:%M} SAST"
+                f"{'' if last else ' (the start of the day)'}, over {int(WATCHDOG_MAX_GAP.total_seconds() // 60)} "
+                "minutes ago")
+
+
 RULES = {"collection_missing": _collection_missing, "zero_rows": _zero_rows, "brief_late": _brief_late,
          "model_spend": _model_spend, "schema_drift": _schema_drift, "agent_error_rate": _agent_error_rate,
-         "seeds_failed": _seeds_failed, "agent_views_failed": _agent_views_failed}
+         "seeds_failed": _seeds_failed, "agent_views_failed": _agent_views_failed, "brief_empty": _brief_empty,
+         "brief_all_held": _brief_all_held, "brief_data_issue": _brief_data_issue,
+         "understand_degraded": _understand_degraded, "stage_dead": _stage_dead, "watchdog_gap": _watchdog_gap}
 
 
 def check(now, store, errors=None, skip=()):
@@ -147,11 +247,11 @@ def check(now, store, errors=None, skip=()):
     d = chain.today(now)
     clock = now.astimezone(chain.SAST).time()
     alerts = []
-    for name in ALERTS:
+    for name in ALERTS + LOG_ONLY:
         if name in skip:
             continue
         try:
-            if name == "model_spend":
+            if name in NEEDS_NOW:
                 reason = RULES[name](store, d, clock, now)
             else:
                 reason = RULES[name](store, d, clock)
@@ -190,7 +290,7 @@ def main(now=None, store=None, runs=None):
                        f"{type(exc).__name__}: {exc}")
     alerts = check(now, store, errors, skip=done)
     for a in alerts:
-        _line("ERROR", f"42 ALERT {a.name}: {a.reason}", alert=a.name)
+        _line(a.severity, f"42 ALERT {a.name}: {a.reason}", alert=a.name)
     for name, exc in errors:
         if name != "fired_today":
             _line("ERROR", f"42 watchdog: rule {name} could not run: {type(exc).__name__}: {exc}")
@@ -246,6 +346,24 @@ ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC LI
 FROM `{AGENT}.runs`
 WHERE run_date = @d AND stage = 'detect' AND status != '{chain.SKIPPED}'
 ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC LIMIT 1""",
+    # The current brief of each market (the latest published_at among rows whose run is ok), with its card and
+    # held counts; the payload is the brief job's market payload (core/brief/payload.py).
+    "brief_state": f"""SELECT market, status,
+  IFNULL(ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.cards')), 0) cards,
+  IFNULL(CAST(JSON_VALUE(payload, '$.held_back.count') AS INT64), 0) held
+FROM `{AGENT}.v_briefs_current`
+WHERE brief_date = @d
+QUALIFY ROW_NUMBER() OVER (PARTITION BY market ORDER BY published_at DESC) = 1""",
+    "understand_latest": f"""SELECT run_id, status, {UNDERSTAND_DEGRADED} degraded
+FROM `{AGENT}.runs` r
+WHERE run_date = @d AND stage = 'understand' AND status != '{chain.SKIPPED}'
+ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC LIMIT 1""",
+    "stage_latest": f"""SELECT stage, run_id, status, started_at FROM `{AGENT}.runs`
+WHERE run_date = @d AND stage IN ({', '.join(repr(s) for s in chain.TIMEOUTS)}) AND status != '{chain.SKIPPED}'
+QUALIFY ROW_NUMBER() OVER (PARTITION BY stage
+  ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC) = 1""",
+    "watchdog_last": f"""SELECT MAX(COALESCE(finished_at, started_at)) last_at FROM `{AGENT}.runs`
+WHERE run_date = @d AND stage = '{STAGE}'""",
     "fired_today": f"""SELECT DISTINCT name FROM `{AGENT}.runs` r, UNNEST(JSON_VALUE_ARRAY(r.counts, '$.fired')) name
 WHERE r.run_date = @d AND r.stage = '{STAGE}'""",
 }
@@ -289,6 +407,20 @@ class BigQueryStore:
     def detect_latest(self, d):
         rows = self._rows("detect_latest", d)
         return rows[0] if rows else None
+
+    def brief_state(self, d):
+        return {r["market"]: {"status": r["status"], "cards": r["cards"] or 0, "held": r["held"] or 0}
+                for r in self._rows("brief_state", d)}
+
+    def understand_latest(self, d):
+        rows = self._rows("understand_latest", d)
+        return rows[0] if rows else None
+
+    def stage_latest(self, d):
+        return self._rows("stage_latest", d)
+
+    def watchdog_last(self, d):
+        return self._rows("watchdog_last", d)[0]["last_at"]
 
     def fired_today(self, d):
         return {r["name"] for r in self._rows("fired_today", d)}

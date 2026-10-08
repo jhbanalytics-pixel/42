@@ -232,8 +232,18 @@ def test_each_alert_policy_matches_its_own_line_and_no_other(name):
             assert needle not in f"42 ALERT {other}: some reason"
 
 
+class QuietLogOnlyRules:
+    """The store answers of a healthy day for the watchdog's log-only rules, so a fake store need only set the
+    answers its own alert reads."""
+
+    brief_state = staticmethod(lambda d: {m: {"status": "published", "cards": 3, "held": 0} for m in ("ZA", "NG", "KE")})
+    understand_latest = staticmethod(lambda d: None)
+    stage_latest = staticmethod(lambda d: [])
+    watchdog_last = staticmethod(lambda d: datetime(2099, 1, 1, tzinfo=timezone.utc))
+
+
 def test_a_forced_zero_rows_run_writes_the_line_the_zero_rows_policy_matches(capsys):
-    class ZeroRows:
+    class ZeroRows(QuietLogOnlyRules):
         collect_ok = staticmethod(lambda d: True)
         observations = staticmethod(lambda d: {"ZA": 0, "NG": 3, "KE": 2})
         published_markets = staticmethod(lambda d: {"ZA", "NG", "KE"})
@@ -258,7 +268,7 @@ def test_the_seeds_failed_filter_is_the_shared_alert_shape_and_matches_only_the_
         'OR textPayload:"42 ALERT seeds_failed:")')
     assert mon.DOCS["seeds_failed"]
 
-    class SeedsFailed:
+    class SeedsFailed(QuietLogOnlyRules):
         collect_ok = staticmethod(lambda d: True)
         observations = staticmethod(lambda d: {"ZA": 3, "NG": 3, "KE": 2})
         published_markets = staticmethod(lambda d: {"ZA", "NG", "KE"})
@@ -284,7 +294,7 @@ def test_the_agent_views_failed_filter_is_the_shared_alert_shape_and_matches_onl
         'OR textPayload:"42 ALERT agent_views_failed:")')
     assert mon.DOCS["agent_views_failed"]
 
-    class ViewsFailed:
+    class ViewsFailed(QuietLogOnlyRules):
         collect_ok = staticmethod(lambda d: True)
         observations = staticmethod(lambda d: {"ZA": 3, "NG": 3, "KE": 2})
         published_markets = staticmethod(lambda d: {"ZA", "NG", "KE"})
