@@ -1254,6 +1254,9 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     results, unavailable, explanation_stop = _explain_all(tasks, model=model, base_usd=base_usd, spend=spend,
                                                            clock=clock, chain=chain, d=d, workers=workers,
                                                            started=started, sleep=sleep, busy=busy)
+    from core.brief import title_purity
+
+    title_receipts, receipt_omitted = title_purity.project_receipts(tasks, results)
 
     brief_rows, check_rows, cards, held = [], [], 0, 0
     published_at = clock()
@@ -1285,13 +1288,14 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
         held += payload["held_back"]["count"]
         brief_rows.append(brief_row(m, d, run.run_id, published_at, payload, RULE_VERSION))
 
-    if check_rows:
-        _insert(client, f"{agent}.claim_checks", check_rows)
-    _insert(client, f"{agent}.briefs", _briefs_rows(brief_rows))
     counts = {"markets": len(MARKETS), "cards": cards, "held": held, "credits": spend["credits"],
               "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
     if spend.get("model_reserved_usd"):
         counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
+    if title_receipts:
+        counts["title_majority_receipts"] = title_receipts
+    if receipt_omitted:
+        counts["title_majority_receipts_omitted"] = receipt_omitted
     if explanation_stop is not None:
         counts["explanation_stop"] = explanation_stop
     if busy:
@@ -1310,6 +1314,21 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     if ingest_status is not None:
         counts["ingest"] = {"status": ingest_status, "by_market": ingested} if ingest_status == "ok" else {
             "status": ingest_status}
+    if title_receipts and title_purity.wire_bytes(counts) > title_purity.COUNTS_WIRE_LIMIT:
+        counts.pop("title_majority_receipts", None)
+        counts.pop("title_majority_receipts_omitted", None)
+        for brief in brief_rows:
+            for card in brief["payload"]["cards"] + brief["payload"]["more"]:
+                if card.get("kind") == "topic":
+                    card["title_written"] = None
+        for candidate in tasks:
+            if "title_majority" in results.get(id(candidate), {}):
+                check_rows.append({"answer_or_brief_id": f"{run.run_id}:{candidate['market']}:{candidate['row']['item_id']}",
+                                   "claim_id": None, "rule": "title", "verdict": "cut", "checker": "code",
+                                   "run_id": run.run_id, "reason": "Title check: receipt byte bound"})
+    if check_rows:
+        _insert(client, f"{agent}.claim_checks", check_rows)
+    _insert(client, f"{agent}.briefs", _briefs_rows(brief_rows))
     return counts
 
 
