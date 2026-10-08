@@ -704,15 +704,63 @@ def test_log_only_signals_write_warning_lines_once_a_day_and_stay_out_of_the_err
     assert again["severity"] == "INFO" and "stage_dead" in again["message"]
 
 
-def test_a_log_only_rule_that_cannot_run_fails_the_job_like_any_other(capsys):
-    class Broken(FakeStore):
-        def stage_latest(self, d):
-            raise RuntimeError("runs unreadable")
+class BrokenStageStore(FakeStore):
+    tries = 0
+
+    def stage_latest(self, d):
+        self.tries += 1
+        raise RuntimeError("runs unreadable")
+
+
+def test_a_log_only_rule_that_cannot_run_is_logged_as_a_warning_and_does_not_fail_the_job(capsys):
+    # Changed from "fails the job like any other": a failing job reaches the job_failed policy and pages, and a
+    # log-only signal must never page, least of all because its own read (v_briefs_current) is the likeliest to fail.
+    runs = chain.MemoryRunsStore()
+    store = BrokenStageStore(runs=runs, published=("ZA",))
+    assert wd.main(now=at(7, 0), store=store, runs=runs) == 0
+    out = lines(capsys.readouterr().out)
+    [warning] = [o for o in out if "stage_dead" in o["message"] and "runs unreadable" in o["message"]]
+    assert warning["severity"] == "WARNING" and not warning["message"].startswith("42 ALERT")
+    assert [o for o in out if o["severity"] == "ERROR" and not o.get("alert")] == []
+    [row] = runs.rows
+    assert row["status"] == "ok" and row["error"] is None
+    assert row["counts"]["errors"] == [] and row["counts"]["log_only_errors"] == ["stage_dead"]
+    assert ("ask_runs", DAY) in store.asked  # the other rules still ran
+
+
+def test_a_policy_rule_error_still_fails_the_job_when_a_log_only_rule_also_fails(capsys):
+    class Both(BrokenStageStore):
+        def model_usd(self, d):
+            raise RuntimeError("query failed")
 
     runs = chain.MemoryRunsStore()
-    assert wd.main(now=at(7, 0), store=Broken(runs=runs), runs=runs) == 1
-    assert any("stage_dead" in o["message"] and "runs unreadable" in o["message"]
-               for o in lines(capsys.readouterr().out) if o["severity"] == "ERROR")
+    assert wd.main(now=at(7, 0), store=Both(runs=runs), runs=runs) == 1
+    [row] = runs.rows
+    assert row["status"] == "failed" and "model_spend" in row["error"] and "stage_dead" not in row["error"]
+    assert row["counts"]["errors"] == ["model_spend"] and row["counts"]["log_only_errors"] == ["stage_dead"]
+
+
+def test_a_log_only_rule_error_is_not_retried_as_fired_and_runs_again_next_time(capsys):
+    runs = chain.MemoryRunsStore()
+    store = BrokenStageStore(runs=runs)
+    wd.main(now=at(7, 0), store=store, runs=runs)
+    wd.main(now=at(7, 15), store=store, runs=runs)
+    assert store.tries == 2
+
+
+def test_brief_state_is_read_once_per_check_whatever_the_number_of_brief_rules():
+    store = FakeStore()
+    wd.check(at(7, 0), store)
+    assert store.asked.count(("brief_state", DAY)) == 1
+
+
+def test_stage_dead_does_not_fire_at_exactly_the_timeout():
+    from core.collect import chain as chain_module
+
+    now = at(12, 0)
+    for stage, limit in chain_module.TIMEOUTS.items():
+        exact = [stage_row(stage, "running", now - limit)]
+        assert "stage_dead" not in names(wd.check(now, FakeStore(stages=exact))), stage
 
 
 def duck_agent_sql(name):

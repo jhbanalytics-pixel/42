@@ -32,6 +32,8 @@ to core/setup/monitoring.py:
   stage_dead          a stage whose latest runs row for the day is still running past its chain.TIMEOUTS: the
                       run was killed and never wrote a final row
   watchdog_gap        the watchdog's own last runs row today is more than 90 minutes old, so it was not running
+A log-only rule that cannot run is logged at WARNING and recorded in counts.log_only_errors, but it never fails
+the job: a failed job reaches the job_failed policy and pages, which a log-only signal must not do.
 Nothing here can tell that the watchdog is dead for good: only a Cloud Monitoring absence policy on its runs can,
 and that is a new cloud resource.
 
@@ -241,9 +243,25 @@ RULES = {"collection_missing": _collection_missing, "zero_rows": _zero_rows, "br
          "understand_degraded": _understand_degraded, "stage_dead": _stage_dead, "watchdog_gap": _watchdog_gap}
 
 
+class _BriefStateOnce:
+    """The store, but brief_state answers from the first read: three rules ask the same question."""
+
+    def __init__(self, store):
+        self._store, self._brief_state = store, {}
+
+    def __getattr__(self, name):
+        return getattr(self._store, name)
+
+    def brief_state(self, d):
+        if d not in self._brief_state:
+            self._brief_state[d] = self._store.brief_state(d)
+        return self._brief_state[d]
+
+
 def check(now, store, errors=None, skip=()):
     """The alerts firing at now, in ALERTS order, leaving out the rules named in skip. A rule that raises is
     recorded in errors, if given, else re-raised."""
+    store = _BriefStateOnce(store)
     d = chain.today(now)
     clock = now.astimezone(chain.SAST).time()
     alerts = []
@@ -291,12 +309,17 @@ def main(now=None, store=None, runs=None):
     alerts = check(now, store, errors, skip=done)
     for a in alerts:
         _line(a.severity, f"42 ALERT {a.name}: {a.reason}", alert=a.name)
+    soft = [(n, e) for n, e in errors if n in LOG_ONLY]
+    errors = [(n, e) for n, e in errors if n not in LOG_ONLY]
+    for name, exc in soft:
+        _line("WARNING", f"42 watchdog: log-only rule {name} could not run: {type(exc).__name__}: {exc}")
     for name, exc in errors:
         if name != "fired_today":
             _line("ERROR", f"42 watchdog: rule {name} could not run: {type(exc).__name__}: {exc}")
-    if not alerts and not errors:
+    if not alerts and not errors and not soft:
         _line("INFO", f"42 watchdog: no new alert for {d}; already fired today: {', '.join(sorted(done)) or 'none'}")
-    counts = {"fired": [a.name for a in alerts], "already_fired": sorted(done), "errors": [n for n, _ in errors]}
+    counts = {"fired": [a.name for a in alerts], "already_fired": sorted(done), "errors": [n for n, _ in errors],
+              "log_only_errors": [n for n, _ in soft]}
     error = "; ".join(f"{n}: {type(e).__name__}: {e}" for n, e in errors)[:1000] or None
     chain.finish(run, "failed" if errors else "ok", counts, error, runs=runs)
     return 1 if errors else 0
