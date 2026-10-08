@@ -22,7 +22,7 @@ AGE_WORDS = [
     "babu", "watoto", "abantwana", "vijana", "wazee", "pikin", "pikins"
 ]
 # Old-age words neither list flags yet. The brief list takes them here; the Ask list is another lane's file.
-BRIEF_FIRST = ["the elders agreed", "the old man", "an old woman", "old men", "old women"]
+BRIEF_FIRST = ["the elders agreed", "the old man", "an old woman", "old men", "old women", "the village elder spoke", "an elder"]
 LOOK_ALIKES = [
     "fur babies", "plant babies", "sugar babies", "kidney", "kidnap", "a young brand", "a generation of content",
     "a generation ago", "matric results", "school holidays", "10-15s clips", "over 20 plates", "under 5 million",

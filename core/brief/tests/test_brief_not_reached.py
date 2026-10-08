@@ -3,8 +3,12 @@ as an explanation that failed its checks. The hold itself is unchanged: G10, hel
 
 import json
 
-from core.brief.tests.test_brief_job import (CAP_AFTER_EXPIRY, D, EARLY, LATE, FakeModel, brief, duck, held_items,
-                                             payload, pin_brief_model_cap, world)
+import pytest
+
+from core.brief import job
+from core.brief.payload import MODEL_BUSY, MODEL_REFUSED
+from core.brief.tests.test_brief_job import (CAP_AFTER_EXPIRY, D, EARLY, LATE, FakeModel, RateLimited, brief, duck,
+                                             held_items, payload, pin_brief_model_cap, rate_limit_errors, world)
 from core.detect.tests.fixtures import run as run_row
 
 FAILED = "Explanation failed its checks"
@@ -42,3 +46,20 @@ def test_an_item_whose_explanation_ran_and_failed_still_reads_as_failed_checks()
     r = brief(world(n=1), model=FakeModel(ruled_out=False))
     held = held_items(r, "ZA")["za1"]
     assert held["reason_text"] == FAILED and held["reason"] == "explanation_failed"
+
+
+@pytest.fixture(autouse=True)
+def no_busy_wait(monkeypatch):
+    monkeypatch.setattr(job, "_sleep", lambda seconds: None)
+
+
+def test_an_item_a_busy_model_never_started_keeps_the_generic_wording_and_its_busy_reason():
+    # A tripped breaker leaves the rest of the topics unstarted, with no result. They carry busy_reason, so the item
+    # reads as failed checks with the busy wording as its failed_reason, never as "the run stopped before this topic".
+    r = brief(world(n=4), model=RateLimited(rate_limit_errors()[0]))
+    items = [i for m in ("ZA", "NG", "KE") for i in held_items(r, m).values()]
+    assert len(items) == 12
+    assert {i["reason_text"] for i in items} == {FAILED}
+    assert {i["failed_reason"] for i in items} <= {MODEL_BUSY, MODEL_REFUSED}
+    assert {i["failed_reason"] for i in items}  # at least one busy wording is shown
+    assert {i["reason"] for i in items} == {"explanation_failed"} and {i["rule"] for i in items} == {"G10"}
