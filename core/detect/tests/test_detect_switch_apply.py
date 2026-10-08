@@ -140,6 +140,19 @@ def test_a_key_with_malformed_counts_earns_nothing():
         assert rows == [] and refused, bad
 
 
+def test_a_boolean_is_not_a_count():
+    rows, refused = written(result({"ZA|facebook|panel": key(alarms=False)}))
+    assert rows == [] and refused[0]["reasons"] == ["counts are missing or inconsistent"]
+
+
+def test_a_key_with_unusable_counts_refuses_the_other_keys_of_its_market_and_platform():
+    keys = {"ZA|facebook|panel": key(alarms=500, tested=100), "ZA|facebook|unbiased_counter": key(),
+            "ZA|tiktok|panel": key()}
+    rows, refused = written(result(keys))
+    assert [r["platform"] for r in rows] == ["tiktok"]
+    assert {r["key"] for r in refused} == {"ZA|facebook|panel", "ZA|facebook|unbiased_counter"}
+
+
 def test_a_key_already_switched_on_for_the_rule_version_is_not_written_again():
     done = {("ZA", "facebook", "panel", stats.RULE_VERSION)}
     assert written(result({"ZA|facebook|panel": key()}), done)[0] == []
@@ -182,6 +195,17 @@ def test_a_row_missing_any_field_is_refused_even_with_apply(field, value):
     client = Client()
     with pytest.raises(ValueError, match=field):
         backtest.write_switch_rows(client, "core", [GOOD_ROW, {**GOOD_ROW, field: value}], True)
+    assert client.inserted == []
+
+
+@pytest.mark.parametrize("field, value", [("backtest_run_id", "backtest"), ("backtest_run_id", "run-1"),
+                                          ("backtest_run_id", "backtest-20261007-0123456789abX"),
+                                          ("rule_version", stats.SERIES_RULE_VERSION),
+                                          ("rule_version", "stats-9")])
+def test_a_row_citing_no_backtest_run_or_a_candidate_rule_is_refused_even_with_apply(field, value):
+    client = Client()
+    with pytest.raises(ValueError, match=field):
+        backtest.write_switch_rows(client, "core", [{**GOOD_ROW, field: value}], True)
     assert client.inserted == []
 
 

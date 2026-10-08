@@ -32,9 +32,19 @@ multi-platform search, whose collection_health rows carry a NULL platform, count
 key still with no platform (no series names one) or no lane class is never measured: test_switch holds neither as
 NULL, so stats.py could never find its row. It is listed under skipped with its observed days instead.
 
+Which rows are written (W8-DEC-13): switch_rows rebuilds every figure from the counts in a result (alarms and
+tested, detected and injected at 3 times), never from the rates, flags or false_alarms block the result states
+about itself, and a stay-off flag can only veto. A row is written for a key only where its false-alarm rate and its
+market and platform rate are at most 0.05 and its recall at 3 times is at least 0.8, on top of the floors above.
+The row cites the run id of the result, which must be well formed and of the as_of day, and a result of the
+candidate rule version earns none. write_switch_rows appends only when apply is exactly True. Every series
+without a row stays on the untested branch of state.sql.
+
 Entry point: python -m core.detect.backtest --as-of YYYY-MM-DD [--days N] [--apply]. The results always go
 to one JSON file in core/detect/backtests; only --apply appends the test_switch rows and then the runs row
-(stage 'backtest'). Reads BigQuery only, and nothing is ever updated or removed.
+(stage 'backtest'). Reads BigQuery only, and nothing is ever updated or removed. python -m core.detect.backtest
+--report FILE prints, from a saved result file and with no client, the rows that would be written and the keys
+that stay off.
 """
 
 import argparse
