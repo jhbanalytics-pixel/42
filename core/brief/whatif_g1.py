@@ -156,7 +156,7 @@ def _step(decision, cand):
     return "name"
 
 
-def _pinned_matters(client, evidence, numbers, ctx, d, market, core, agent):
+def _pinned_matters(client, evidence, numbers, ctx, d, market, core, agent, item=None):
     """True when the stored numbers cannot settle G4b: the item is political and corroboration would change with
     a pinned number the stored record does not show."""
     if not ctx["political"] or any(n.get("query_id") for n in numbers if isinstance(n, dict)):
@@ -164,10 +164,11 @@ def _pinned_matters(client, evidence, numbers, ctx, d, market, core, agent):
     ids = sorted({r["id"] for r in evidence if r.get("id")})
     if not ids:
         return False
-    measured = {r["post_id"] for r in sqlrun.query(client, gatectx.QUERIES["post_lanes"],
-                                                   {"post_ids": ",".join(ids), "market": market, "d": d},
-                                                   core=core, agent=agent)}
-    return gatectx._corroborated(evidence, measured, [{"query_id": "pinned"}]) != ctx["corroborated_unbiased"]
+    measured, names, tags = gatectx.read_post_signals(
+        lambda name, params: sqlrun.query(client, gatectx.QUERIES[name], params, core=core, agent=agent),
+        ids, market, d)
+    return gatectx._corroborated(evidence, measured, [{"query_id": "pinned"}], names=names, post_tags=tags,
+                                 item=item) != ctx["corroborated_unbiased"]
 
 
 def judge(client, d, market, item, row, hidden, *, campaign_hashtags, political_terms, core=CORE, agent=AGENT):
@@ -208,7 +209,7 @@ def judge(client, d, market, item, row, hidden, *, campaign_hashtags, political_
         ctx = gatectx.build_ctx(client, row, d, market, evidence, campaign_hashtags=campaign_hashtags,
                                 political_terms=political_terms, numbers=numbers, core=core, agent=agent)
         platform = main_platform(client, row, d, market, core=core, agent=agent)
-        if _pinned_matters(client, evidence, numbers, ctx, d, market, core, agent):
+        if _pinned_matters(client, evidence, numbers, ctx, d, market, core, agent, row):
             lack("G4b", "stored numbers (no pinned query id to settle corroboration)")
     except Exception as e:
         return Outcome(market, item_id, title, None, "unknown", "G3",
