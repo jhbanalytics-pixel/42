@@ -17,7 +17,7 @@ POLICY = {"bindings": [{"role": "roles/run.invoker", "members": [
 
 
 def run_deploy(tmp_path, *, service=PRIVATE, policy=POLICY, build_exit=0, policy_exit=0, args=(), status="",
-               dockerignore=None):
+               dockerignore=None, services=None):
     for name in ("deploy.sh", "deploy_flags.env", "Dockerfile.dockerignore"):
         target = tmp_path / "core" / "api" / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -30,6 +30,7 @@ def run_deploy(tmp_path, *, service=PRIVATE, policy=POLICY, build_exit=0, policy
     bash = git.parent.parent / "bin" / "bash.exe" if os.name == "nt" else Path(shutil.which("bash"))
     env = {**os.environ, "R3_CALLS": calls.as_posix(), "R3_PYTHON": Path(sys.executable).as_posix(),
            "R3_SERVICE": json.dumps(service), "R3_POLICY": json.dumps(policy),
+           **{"R3_SERVICE_" + name.replace("-", "_"): json.dumps(value) for name, value in (services or {}).items()},
            "R3_BUILD_EXIT": str(build_exit), "R3_POLICY_EXIT": str(policy_exit),
            "F42_SMOKE_PASSCODE": "test-only", "MSYS_NO_PATHCONV": "1", "R3_STATUS": status}
     shell = r'''
@@ -78,7 +79,7 @@ gcloud() {
   printf '\0' >> "$R3_CALLS"
   case "$1 $2 $3" in
     'run services describe')
-      if [[ "$*" == *'--format=json'* ]]; then printf '%s\n' "$R3_SERVICE"
+      if [[ "$*" == *'--format=json'* ]]; then var="R3_SERVICE_${4//-/_}"; printf '%s\n' "${!var:-$R3_SERVICE}"
       else printf 'https://test.invalid\n'; fi ;;
     'run services get-iam-policy') printf '%s\n' "$R3_POLICY"; return "$R3_POLICY_EXIT" ;;
     'builds submit --project') return "$R3_BUILD_EXIT" ;;
@@ -279,3 +280,66 @@ def test_the_cloud_build_does_not_refuse_ignored_files(tmp_path):
     # gcloud builds the upload from the .gitignore rules, so an ignored file is not sent. Reasoned, not run.
     result, calls = run_deploy(tmp_path, status="!! core/.env\n")
     assert result.returncode == 0, result.stderr
+
+
+# W8-REL 2.8: once Release A has pinned the services by name, the ordinary script must not deploy onto them. A new
+# revision of a pinned service takes no traffic, so the script would test the old revision and then --to-latest would
+# move traffic to a revision nothing checked.
+def with_traffic(*entries, spec=False):
+    return {"metadata": {"annotations": {}}, "spec" if spec else "status": {"traffic": list(entries)}}
+
+
+LATEST = {"latestRevision": True, "percent": 100, "revisionName": "f42-api-00041-lns"}
+PINNED = {"percent": 100, "revisionName": "f42-api-00041-lns"}
+TAGGED = {"percent": 0, "revisionName": "f42-api-00042-abc", "tag": "rel-0000000-01"}
+TAGGED_LATEST = {"percent": 0, "latestRevision": True, "revisionName": "f42-api-00041-lns", "tag": "rel-0000000-01"}
+
+
+def no_build_or_deploy(calls):
+    return not any(call[:2] in (["builds", "submit"], ["run", "deploy"]) for call in calls)
+
+
+@pytest.mark.parametrize("args", [(), ("--no-build",), ("--local-build",)])
+@pytest.mark.parametrize("name", ["f42-agent", "f42-api"])
+def test_ds19_a_pinned_service_refuses_the_ordinary_deploy_before_any_build(tmp_path, args, name):
+    result, calls = run_deploy(tmp_path, args=args, services={name: with_traffic(PINNED)})
+    assert result.returncode == 65, result.stderr
+    assert no_build_or_deploy(calls)
+    assert name in result.stderr and "pinned" in result.stderr
+
+
+@pytest.mark.parametrize("name", ["f42-agent", "f42-api"])
+@pytest.mark.parametrize("entry", [PINNED, TAGGED, TAGGED_LATEST])
+def test_ds19_a_pinned_or_tagged_entry_is_found_in_the_spec_as_well_as_the_status(tmp_path, name, entry):
+    result, calls = run_deploy(tmp_path, services={name: with_traffic(LATEST, entry, spec=True)})
+    assert result.returncode == 65, result.stderr
+    assert no_build_or_deploy(calls)
+
+
+@pytest.mark.parametrize("entry", [TAGGED, TAGGED_LATEST])
+@pytest.mark.parametrize("name", ["f42-agent", "f42-api"])
+def test_ds20_a_tagged_service_refuses_the_ordinary_deploy_before_any_build(tmp_path, name, entry):
+    result, calls = run_deploy(tmp_path, services={name: with_traffic(LATEST, entry)})
+    assert result.returncode == 65, result.stderr
+    assert no_build_or_deploy(calls)
+    assert name in result.stderr and "tag" in result.stderr
+
+
+def test_ds19_services_that_follow_latest_still_deploy_in_the_ordinary_script(tmp_path):
+    both = {name: with_traffic(LATEST, spec=False) for name in ("f42-agent", "f42-api")}
+    result, calls = run_deploy(tmp_path, services=both)
+    assert result.returncode == 0, result.stderr
+    assert [call[2] for call in calls if call[:2] == ["run", "deploy"]] == ["f42-agent", "f42-api"]
+
+
+def test_ds21_the_script_and_its_tests_no_longer_claim_traffic_is_untouched_until_the_move():
+    body = (ROOT / "core" / "api" / "deploy.sh").read_text(encoding="utf-8")
+    assert "to leave traffic where it is" not in body and "leave traffic where it is" not in body
+    assert "before any traffic moves" not in body
+    assert "follows LATEST" in body
+    assert not any("run deploy" in line and "--no-traffic" in line for line in body.splitlines())
+    workflow = (ROOT / "core" / "api" / "tests" / "test_workflow_app.py").read_text(encoding="utf-8")
+    assert "def test_deploy_sh_moves_traffic_to_the_new_revisions_only_after_the_health_check" not in workflow
+    assert "def test_deploy_sh_no_traffic_flag_skips_the_move" not in workflow
+    assert "def test_deploy_sh_issues_its_to_latest_step_after_the_health_check_and_both_deploys" in workflow
+    assert "def test_deploy_sh_no_traffic_flag_skips_only_its_own_to_latest_step" in workflow

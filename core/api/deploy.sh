@@ -6,8 +6,13 @@
 #   bash core/api/deploy.sh               build in Cloud Build, deploy both, smoke test
 #   bash core/api/deploy.sh --local-build build with local Docker, push as f42-builder
 #   bash core/api/deploy.sh --no-build    redeploy the image of the current commit
-#   add --no-traffic to any of these to deploy and check but leave traffic where it is
-# After the health check passes, both services send 100% of traffic to their newest revision.
+#   add --no-traffic to any of these to skip the final --to-latest step on both services
+# A service that follows LATEST sends traffic to its new revision as soon as the deploy finishes, before the
+# health check below, so the health check tests a revision that is already serving. The script's own step
+# after it only repeats that on both services. A service that does not follow LATEST (pinned to a revision by
+# name, or carrying a tag) is refused: a new revision of it takes no traffic, so the check would test the old
+# revision and --to-latest would then move traffic to one nothing checked. Candidate releases use
+# core/api/deploy_candidate.sh.
 # A build refuses a tree with uncommitted or untracked files (exit 65): the image is labelled with HEAD. See the
 # guard below for what --no-build and --local-build also check.
 set -euo pipefail
@@ -98,6 +103,22 @@ for line in sys.stdin:
   fi
 fi
 
+# Refuse a service that does not follow LATEST: any traffic entry pinned to a revision by name, or carrying a tag,
+# in the spec or the status (exit 65, before anything is built or deployed).
+for service in f42-agent f42-api; do
+  gcloud run services describe "$service" --project "$PROJECT" --region "$REGION" --format=json | py -3.13 -c '
+import json
+import sys
+service = json.load(sys.stdin)
+entries = [entry for part in ("spec", "status") for entry in service.get(part, {}).get("traffic", [])]
+found = [entry for entry in entries if entry.get("tag") or (entry.get("revisionName") and not entry.get("latestRevision"))]
+if found:
+    kind = "carries a tag" if any(entry.get("tag") for entry in found) else "is pinned to a revision by name"
+    sys.stderr.write(f"deploy.sh: {sys.argv[1]} {kind}, so the ordinary deploy would not route traffic to what it tests. Use core/api/deploy_candidate.sh.\n")
+    sys.exit(65)
+' "$service"
+done
+
 # Shared build source and Cloud Run definitions.
 source core/api/deploy_flags.env
 
@@ -154,7 +175,8 @@ gcloud run deploy f42-api --project "$PROJECT" --region "$REGION" --image "$IMAG
 API_URL=$(gcloud run services describe f42-api --project "$PROJECT" --region "$REGION" --format 'value(status.url)')
 
 # Health check. With F42_SMOKE_PASSCODE set, the full smoke test; without it, health and the passcode gate only,
-# as the staging workflow checks. A failure stops the script here, before any traffic moves. The full smoke test
+# as the staging workflow checks. A failure stops the script here, before its own --to-latest step; a service that
+# follows LATEST is already serving the new revision by now. The full smoke test
 # prints how old the Today brief is; set F42_SMOKE_TODAY_MAX_AGE_HOURS to also fail it on a brief older than that.
 if [ -n "${F42_SMOKE_PASSCODE:-}" ]; then
   py -3.13 core/api/smoke.py "$API_URL"
@@ -179,11 +201,12 @@ PY
 fi
 
 if [ "$TRAFFIC" = no ]; then
-  echo "--no-traffic: traffic left where it was on f42-agent and f42-api." >&2
+  echo "--no-traffic: the --to-latest step was skipped on f42-agent and f42-api." >&2
   exit 0
 fi
 
-# Route all traffic to the newest revision, the agent first since f42-api calls it.
+# Send all traffic to the newest revision, the agent first since f42-api calls it. A LATEST-following service has
+# had it since its deploy; this step makes that explicit and is what --no-traffic skips.
 for service in f42-agent f42-api; do
   gcloud run services update-traffic "$service" --project "$PROJECT" --region "$REGION" --to-latest
 done
