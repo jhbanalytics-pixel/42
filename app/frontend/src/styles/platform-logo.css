@@ -3,17 +3,8 @@
 .pl-logo {
   display: inline-block;
   flex: none;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vertical-align: middle;
-}
-
-.pl-logo .pl-fill {
   fill: currentColor;
-  stroke: none;
+  vertical-align: middle;
 }
 
 /* A platform with no mark: its first letter in a square ring, in the same colour. */

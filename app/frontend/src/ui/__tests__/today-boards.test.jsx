@@ -4,6 +4,7 @@
 import {GlobalRegistrator} from '@happy-dom/global-registrator';
 import {afterAll, afterEach, beforeEach, expect, test} from 'bun:test';
 import React from 'react';
+import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 
 GlobalRegistrator.register();
@@ -105,7 +106,15 @@ test('every chart header carries a decorative logo beside its text label', () =>
 });
 
 test('the named platforms each have a vendored mark and an unknown one falls back to a text monogram', () => {
-  for (const platform of ['apple_music', 'spotify', 'shazam', 'app_store', 'tiktok', 'youtube', 'boomplay', 'google']) expect(LOGO_KEYS).toContain(platform);
+  for (const platform of ['apple_music', 'spotify', 'shazam', 'app_store', 'google_play', 'tiktok', 'youtube', 'google', 'reddit']) expect(LOGO_KEYS).toContain(platform);
+  /* simple-icons has no Boomplay or Nairaland mark, so they stay text monograms. */
+  for (const platform of ['boomplay', 'nairaland']){
+    expect(LOGO_KEYS).not.toContain(platform);
+    expect(logoKey(platform)).toBeNull();
+  }
+  flushSync(() => root.render(<PlatformLogo platform="boomplay" />));
+  expect(host.querySelector('.pl-monogram').textContent).toBe('B');
+  expect(host.querySelector('svg')).toBeNull();
   expect(logoKey('twitter')).toBeNull();
   expect(logoKey('app_store_iphone')).toBe('app_store');
   expect(logoKey('kworb_spotify')).toBe('spotify');
@@ -117,10 +126,48 @@ test('the named platforms each have a vendored mark and an unknown one falls bac
   expect(mono.textContent).toBe('S');
   expect(host.querySelector('svg')).toBeNull();
   flushSync(() => root.render(<PlatformLogo platform="spotify" />));
-  expect(host.querySelector('svg.pl-logo path, svg.pl-logo circle')).not.toBeNull();
+  expect(host.querySelector('svg.pl-logo path')).not.toBeNull();
   expect(host.querySelector('svg.pl-logo').getAttribute('aria-hidden')).toBe('true');
   flushSync(() => root.render(<PlatformLogo platform={undefined} />));
   expect(host.querySelector('.pl-monogram').textContent).toBe('?');
+});
+
+/* The official marks are vendored from simple-icons 13.21.0 (CC0). The expected
+   digests were computed from that package's own files, so they pin the path
+   data to the source and are not read from the component under test. */
+const PINNED = {
+  apple_music: '768eac82877086f3',
+  spotify: 'f8560b9a4343d3ef',
+  shazam: '24b37391f3ddff43',
+  app_store: 'c94c142369043de8',
+  google_play: 'f0fb1eb0282f2499',
+  tiktok: '4ad895b5783ca940',
+  youtube: '8142fbc0e697bc1b',
+  google: '1418294b312c0653',
+  reddit: '56447b3636ee5a28',
+};
+
+test('each official mark is the pinned simple-icons path, one colour, decorative, with its source named', () => {
+  expect([...LOGO_KEYS].sort()).toEqual(Object.keys(PINNED).sort());
+  for (const [key, digest] of Object.entries(PINNED)){
+    flushSync(() => root.render(<PlatformLogo platform={key} />));
+    const svg = host.querySelector('svg.pl-logo');
+    expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    const paths = svg.querySelectorAll('path');
+    expect(paths).toHaveLength(1);
+    expect(svg.querySelectorAll('*')).toHaveLength(1);
+    expect(paths[0].getAttribute('fill')).toBeNull();
+    expect(paths[0].getAttribute('stroke')).toBeNull();
+    expect(createHash('sha256').update(paths[0].getAttribute('d')).digest('hex').slice(0, 16), key).toBe(digest);
+  }
+  const source = readFileSync(new URL('../PlatformLogo.jsx', import.meta.url), 'utf8');
+  expect(source).toContain('simple-icons@13.21.0');
+  expect(source).toContain('CC0');
+  expect(source).toContain('trademarks of their owners');
+  const logoCss = css('platform-logo.css');
+  expect(logoCss).toMatch(/\.pl-logo\s*\{[^}]*fill:\s*currentColor/);
+  expect(logoCss).not.toMatch(/stroke:\s*currentColor/);
 });
 
 test('a logo never loads anything from the network and the stylesheet uses theme tokens only', () => {
