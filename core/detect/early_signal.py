@@ -36,17 +36,30 @@ baseline theory says. So H was chosen from the replayed placebo windows (early_s
 4.5 to 6.5 in steps of 0.5, 6.5 is the first at which alarm episodes stay at or under 0.05 per series-month in all
 three synthetic worlds tried (0.0275, 0.025 and 0.04 over 12,000 series-days each; 5.0 gave 0.09, 0.08 and 0.12).
 
-Nothing here makes an item Rising, publishes it or ranks it.
+Nothing here makes an item Rising, publishes it or ranks it. The recording step (record, further down)
+writes to its own table, early_signal, which no gate, state, card, payload or rank reads.
 """
 
+import datetime
 import math
 
 import numpy as np
+from google.api_core.exceptions import NotFound
+from google.cloud import bigquery
 
 KAPPA = 1.5             # the upward shift in the mean the chart is tuned to see
 H = 6.5                 # decision limit, in log likelihood ratio units
 WINDOW_DAYS = 14        # the signal looks at the last 14 days, today included
 RULE_VERSION = "early-1"
+TABLE = "early_signal"
+
+SCHEMA = [bigquery.SchemaField(name, kind) for name, kind in (
+    ("metric_date", "DATE"), ("series_id", "STRING"), ("item_id", "STRING"), ("market", "STRING"),
+    ("platform", "STRING"), ("series", "STRING"), ("protocol", "STRING"), ("lane_class", "STRING"),
+    ("kind", "STRING"), ("y", "FLOAT"), ("mu", "FLOAT"), ("alpha", "FLOAT"), ("cusum", "FLOAT"),
+    ("early", "BOOLEAN"), ("run_days", "INTEGER"), ("days_used", "INTEGER"), ("kappa", "FLOAT"), ("h", "FLOAT"),
+    ("window_days", "INTEGER"), ("run_id", "STRING"), ("rule_version", "STRING"))]
+COLUMNS = [f.name for f in SCHEMA]
 
 
 def _terms(mu, alpha, kappa=KAPPA):
@@ -137,3 +150,48 @@ def factor_fn(row, factors):
     by_weekday = factors.get(key, {})
     return lambda d: by_weekday.get(d.weekday(), 1.0)
 
+
+def early_rows(signal_rows, series_rows, totals, d, run_id):
+    """early_signal rows for day d: one per negative binomial series_test row that has a baseline. signal_rows are
+    the tvf_series_signal rows the day was tested from and series_rows what stats.series_test_rows made of them, in
+    the same order."""
+    assert len(signal_rows) == len(series_rows)
+    from . import stats
+
+    factors = stats.weekday_factors(totals)
+    out = []
+    for s, r in zip(signal_rows, series_rows):
+        sig = signal(r, s["hist"], factor_fn(r, factors)) if r["test"] == "nb" else None
+        if sig is None:
+            continue
+        row = {**{c: r[c] for c in ("series_id", "item_id", "market", "platform", "series", "protocol",
+                                    "lane_class", "kind", "y", "mu", "alpha")},
+               "metric_date": d, "cusum": sig["cusum"], "early": sig["alarm"], "run_days": sig["run_days"],
+               "days_used": sig["days_used"], "kappa": KAPPA, "h": H, "window_days": WINDOW_DAYS,
+               "run_id": run_id, "rule_version": RULE_VERSION}
+        out.append({c: row[c] for c in COLUMNS})
+    return out
+
+
+def _json(value):
+    return value.isoformat() if isinstance(value, (datetime.date, datetime.datetime)) else value
+
+
+def record(client, d, run_id, signal_rows, series_rows, totals, core):
+    """Append day d's early_signal rows, creating the table (partitioned by metric_date) when it does not exist.
+    Returns the number of rows. Nothing reads the table: no gate, state, card, payload or rank."""
+    rows = early_rows(signal_rows, series_rows, totals, d, run_id)
+    if not rows:
+        return 0
+    ref = f"{core}.{TABLE}"
+    try:
+        table = client.get_table(ref)
+    except NotFound:
+        table = bigquery.Table(f"{client.project}.{ref}", schema=SCHEMA)
+        table.time_partitioning = bigquery.TimePartitioning(field="metric_date")
+        table = client.create_table(table, exists_ok=True)
+    config = bigquery.LoadJobConfig(schema=table.schema, source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+                                    write_disposition=bigquery.WriteDisposition.WRITE_APPEND)
+    client.load_table_from_json([{k: _json(v) for k, v in r.items()} for r in rows], table,
+                                job_config=config).result()
+    return len(rows)
