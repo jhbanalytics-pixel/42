@@ -76,6 +76,8 @@ export function legacyHashTarget(hash){
     const work = query.get('work');
     if (work === 'ask'){
       query.delete('work');
+      /* A question in an older address is only filled in, never asked by opening it. */
+      if (query.get('q') && !query.has('draft')) query.set('draft', '1');
       const ask = query.toString();
       return '#/ask' + (ask ? '?' + ask : '');
     }

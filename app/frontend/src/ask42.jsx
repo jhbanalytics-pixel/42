@@ -680,6 +680,8 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   /* The select starts on the page's region. Only a market the reader chose, or a link or starter carried in, is held against the market the question names. */
   /* A draft that names the answer it follows (an investigation's follow-up) posts that answer as its parent, once. */
   const draftParent = useRef(null);
+  /* A draft opened from a card keeps the card, so the ask the reader presses still reads from it. */
+  const draftCard = useRef(null);
   const marketPicked = useRef(Boolean(marketCode(q.market)));
   const [run, setRun] = useState(EMPTY_RUN);
   const [retry, setRetry] = useState(null);
@@ -703,8 +705,13 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   function submitQuestion(){
     if (q.follow && run.record && run.record.ask_id){ followUp(question); return; }
     const parent = draftParent.current;
+    const card = draftCard.current;
     draftParent.current = null;
-    ask(question, marketFor(question), parent ? {parent_id: parent} : {});
+    draftCard.current = null;
+    const sent = marketFor(question);
+    const extra = parent ? {parent_id: parent} : {};
+    if (card) extra.from_card = {...card, market: card.market || sent || null};
+    ask(question, sent, extra);
   }
   function marketFor(text){
     const sent = marketToSend({question: text, selected: market, picked: marketPicked.current});
@@ -808,7 +815,11 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
     const mkt = marketCode(q.market) || marketToSend({question: q.q, selected: market, picked: marketPicked.current});
     setQuestion(q.q);
     setMarket(mkt);
-    if (q.draft){ draftParent.current = q.parent || null; return; }
+    if (q.draft){
+      draftParent.current = q.parent || null;
+      draftCard.current = q.item ? {item_id: q.item, market: mkt || null, date: q.date || null} : null;
+      return;
+    }
     if (asked.current === key) return;
     asked.current = key;
     const extra = q.item ? {from_card: {item_id: q.item, market: mkt || null, date: q.date || null}} : {};

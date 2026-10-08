@@ -441,6 +441,7 @@ test('Ask about this names the cost and starts nothing until Ask is pressed', as
   const press = (el) => flushSync(() => el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true})));
   const links = [...host.querySelectorAll('a')].filter((a) => a.textContent === 'Ask about this');
   expect(links.length).toBe(2);
+  expect(links.every((a) => a.getAttribute('href').includes('&draft=1'))).toBe(true);
   for (const link of links){
     press(link);
     await settle();
@@ -458,7 +459,7 @@ test('Ask about this names the cost and starts nothing until Ask is pressed', as
   await settle();
   click([...host.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === 'Ask'));
   expect(host.querySelector('[role="dialog"]')).toBeNull();
-  expect(window.location.hash).toBe(links[1].getAttribute('href'));
+  expect(window.location.hash).toBe(links[1].getAttribute('href').replace('&draft=1', ''));
 });
 
 test('a held-back topic says why at the top', async () => {

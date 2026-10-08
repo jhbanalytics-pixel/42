@@ -646,7 +646,7 @@ test('the Ask link carries the question, market, item and date', async () => {
   const first = cardTitled('#fixture_za_step');
   const link = [...first.querySelectorAll('a')].find((a) => a.textContent === 'Ask about this');
   const card = todayFixture.markets[0].cards[0];
-  expect(link.getAttribute('href')).toBe('#/ask?q=' + encodeURIComponent(card.ask) + '&market=ZA&item=' + card.item_id + '&date=2026-09-30');
+  expect(link.getAttribute('href')).toBe('#/ask?q=' + encodeURIComponent(card.ask) + '&market=ZA&item=' + card.item_id + '&date=2026-09-30&draft=1');
 });
 
 test('the sparkline leaves gaps as breaks and draws the band only when expected values exist', async () => {
@@ -1928,7 +1928,7 @@ test('Today card titles open the market topic without changing Ask or Posts cont
   const titleLink = shown.querySelector('h3 a.tc-title-link');
   expect(titleLink?.getAttribute('href')).toBe(topicHref(card.item_id, 'ZA'));
   const askLink = [...shown.querySelectorAll('a')].find((link) => link.textContent.trim() === 'Ask about this');
-  expect(askLink?.getAttribute('href')).toBe('#/ask?q=' + encodeURIComponent(card.ask) + '&market=ZA&item=' + card.item_id + '&date=2026-09-30');
+  expect(askLink?.getAttribute('href')).toBe('#/ask?q=' + encodeURIComponent(card.ask) + '&market=ZA&item=' + card.item_id + '&date=2026-09-30&draft=1');
   expect(button(shown, 'Posts')?.getAttribute('aria-expanded')).toBe('false');
   expect(shown.querySelector('[data-today-specificity] blockquote')?.textContent).toContain(card.specificity.quote.text);
   expect(shown.querySelector('[data-local-examples]')).not.toBeNull();
