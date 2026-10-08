@@ -705,9 +705,13 @@ def _critic_row(out, reacting_creators=0):
     passed = (ruled_out or news or event) and local_why_now
     standing = ("ruled out" if ruled_out else "news-driven with local reaction" if news
                 else "event-driven with local reaction" if event else "not ruled out")
+    # The count of different local creators who reacted is recorded in the detail only: NEWS_MIN_CREATORS above
+    # still decides, so a news card cut by the two-creator floor can be told apart from one the critic did not rule
+    # out. The detail keeps ending in the why-now words that core/brief/job.py _critic_parts reads.
     return {"claim_id": None, "rule": "critic", "verdict": "pass" if passed else "cut", "checker": "model",
             "detail": f"critic: simplest non-cultural explanation: {out.get('non_cultural_explanation', '')}; "
                       f"{standing}: {out.get('reason', '')}; "
+                      f"reacting local creators: {reacting_creators}; "
                       f"local why-now {'checked' if local_why_now else 'not checked'}"}
 
 
