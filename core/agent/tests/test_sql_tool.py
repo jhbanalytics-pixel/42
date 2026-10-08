@@ -722,3 +722,21 @@ def test_the_dry_run_exemptions_are_exactly_the_tables_a_readable_view_reads_und
 
     assert set(module.VIEW_BASE_TABLES) == DRY_RUN_EXEMPT
     assert set(module.VIEW_BASE_TABLES) <= set(module.FENCED_TABLES)
+
+
+def _nested_forms(table):
+    return [f"SELECT x.* FROM {table} AS x",
+            f"SELECT JSON_QUERY(r.record, '$.answer') AS j FROM {table} r",
+            f"SELECT * FROM intelligence_42_agent.tvf_item_timeseries((SELECT MIN(1) FROM {table}), 'ZA', 7)",
+            f"SELECT (SELECT COUNT(*) FROM {table}) AS n",
+            f"SELECT 1 AS n WHERE EXISTS (SELECT 1 FROM {table})",
+            f"SELECT 1 AS n UNION ALL SELECT 1 FROM {table}",
+            f"SELECT ARRAY(SELECT 1 FROM {table}) AS a",
+            f"SELECT 1 FROM intelligence_42_core.posts p, UNNEST((SELECT ARRAY_AGG(1) FROM {table})) AS u"]
+
+
+@pytest.mark.parametrize("table", FENCED)
+def test_a_fenced_table_is_refused_inside_an_alias_embedded_json_a_function_argument_or_a_subquery(table):
+    for sql in _nested_forms(table):
+        with pytest.raises(Refused):
+            check_sql(sql, fence=True)
