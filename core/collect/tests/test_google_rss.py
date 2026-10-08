@@ -99,7 +99,7 @@ def test_rows_fit_google_search_signals_without_a_schema_change():
 
 def test_a_rule_one_term_is_never_written_to_google_search_signals():
     rows = read(Transport()).load_rows()[:3]
-    for row, term in zip(rows, ("gen z protests", "school holidays", "amapiano charts")):
+    for row, term in zip(rows, ("millennial memes", "school holidays", "amapiano charts")):
         row["term"] = term
     bq = FakeBQ()
     assert writers.write_search_signals(bq, rows) == (1, None)
@@ -108,7 +108,7 @@ def test_a_rule_one_term_is_never_written_to_google_search_signals():
 
 def test_a_run_of_only_rule_one_terms_appends_nothing():
     rows = read(Transport()).load_rows()[:2]
-    for row, term in zip(rows, ("gen z protests", "boomer memes")):
+    for row, term in zip(rows, ("millennial memes", "boomer memes")):
         row["term"] = term
     bq = FakeBQ()
     assert writers.write_search_signals(bq, rows) == (0, None)
@@ -120,7 +120,7 @@ def test_write_run_counts_the_rule_one_terms_it_held_back():
 
     run = collect(FakeClient())
     rows = read(Transport()).load_rows()[:3]
-    for row, term in zip(rows, ("gen z protests", "amapiano charts", "boomer memes")):
+    for row, term in zip(rows, ("millennial memes", "amapiano charts", "boomer memes")):
         row["term"] = term
     run.search_rows = rows
     bq = FakeBQ()
