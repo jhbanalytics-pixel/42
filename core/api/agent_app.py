@@ -1903,6 +1903,12 @@ def finish_investigation(investigation_id, ask):
         with _investigation_lock:
             rows = investigation_rows(investigation_id)
             current = rows[-1]
+            if current["status"] != "running" or current["ask_id"] != record["ask_id"]:
+                # The run was closed while this owner still worked (reconcile_investigation). A late owner does not
+                # reopen it: the finish row is not published. The runs row written before this keeps the cost.
+                log.warning("investigation %s: its owner finished after the run was closed as %s; no finish row",
+                            investigation_id, current["status"])
+                return
             row = investigations.storage_row(
                 investigation_id, current["version"] + 1, status_time(current["market"]), record["status"],
                 current["question"], current["market"], investigations.view(current)["plan"],
@@ -2042,8 +2048,8 @@ def reconcile_investigation(investigation_id):
                     investigation_id, current["version"] + 1, status_time(current["market"]), "failed",
                     current["question"], current["market"], investigations.view(current)["plan"],
                     investigations.view(current)["estimate"], current["ask_id"], current["run_id"])
+                # The hold stays: releasing it changes a hold, which waits for the shared reservation gate (N34).
                 if append("investigations", INVESTIGATIONS, row):
-                    investigations.RESERVED.release(investigation_id)
                     return [*rows, row]
                 log.error("investigation %s: its lost-run row was not written", investigation_id)
                 return rows

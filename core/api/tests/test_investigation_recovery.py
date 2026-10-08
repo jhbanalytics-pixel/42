@@ -186,3 +186,47 @@ def test_stopping_a_run_nobody_holds_does_not_call_it_running_and_not_running(cl
         assert stop.status_code == 409 and "running, not running" not in stop.text
     gate.opened.set()
     assert ask.finished.wait(5)
+
+
+# Review of f9573c6, plan section 8: an old owner returning late fails publication and keeps its cost. A run closed
+# as lost stays closed when its owner finishes; the owner's runs row, which holds the cost, is already written.
+def test_a_late_owner_cannot_reopen_a_run_closed_as_lost_and_its_cost_stays_recorded(client, inv, monkeypatch):
+    inv_id, ask, gate = orphan(client, inv, monkeypatch)
+    run_age(monkeypatch, inv_id, 1)
+    with TestClient(agent_app.app) as restarted:
+        assert restarted.get(f"/api/investigations/{inv_id}").json()["status"] == "failed"
+        closed = copy.deepcopy(agent_app.INVESTIGATIONS)
+        gate.opened.set()
+        assert ask.finished.wait(5)
+        assert agent_app.INVESTIGATIONS == closed
+        body = restarted.get(f"/api/investigations/{inv_id}").json()
+        assert body["status"] == "failed"
+        assert [r["status"] for r in agent_app.INVESTIGATIONS if r["investigation_id"] == inv_id] == [
+            "draft", "running", "failed"]
+    stored = json.loads(agent_app.SINK[-1]["record"])
+    assert stored["ask_id"] == ask.request["ask_id"] and stored["status"] == "complete"
+    assert stored["run"]
+
+
+def test_a_late_owner_still_ends_its_own_reservation_and_leaves_the_running_table(client, inv, monkeypatch):
+    inv_id, ask, gate = orphan(client, inv, monkeypatch)
+    run_age(monkeypatch, inv_id, 1)
+    with TestClient(agent_app.app) as restarted:
+        restarted.get(f"/api/investigations/{inv_id}")
+        gate.opened.set()
+        assert ask.finished.wait(5)
+    assert inv.RESERVED.total() == {"credits": 0, "model_usd": 0}
+
+
+# Lead ruling: releasing the hold of a closed run changes a hold, which is NEW_ACCOUNTING_SEMANTICS and waits for
+# N34. The close writes the failed row and keeps the hold until the owner's own finish releases it.
+def test_closing_a_lost_run_keeps_its_reservation_hold(client, inv, monkeypatch):
+    inv_id, ask, gate = orphan(client, inv, monkeypatch)
+    held = inv.RESERVED.total()
+    assert held["credits"] > 0 or held["model_usd"] > 0
+    run_age(monkeypatch, inv_id, 1)
+    with TestClient(agent_app.app) as restarted:
+        assert restarted.get(f"/api/investigations/{inv_id}").json()["status"] == "failed"
+        assert inv.RESERVED.total() == held
+    gate.opened.set()
+    assert ask.finished.wait(5)
