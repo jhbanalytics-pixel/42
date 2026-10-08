@@ -87,7 +87,7 @@ Topic pages and creator pages open from any card. Click a jump in a topic's char
 1. You type a question and pick a market, or let the question decide.
 2. The answer streams in. You see each research step, the sources gathered and each claim's check (Checking, Verified, Downgraded, Cut). You can stop it at any point.
 3. Every claim carries a confidence label, set by code from the evidence:
-   - ■ **Corroborated**: independent authors on two platforms, or three authors plus a pinned number.
+   - ■ **Corroborated**: unrelated authors on 2 platforms, or 3 unrelated authors plus a metric. Authors are unrelated when no post of one reuses media, caption text, a linked page or a reply relation with a post of the other, and a person posting under several handles counts once.
    - ● **Observed**: two independent authors.
    - ▲ **Single source**: one author.
    - ○ **Inferred**: interpretation, always marked as such.
