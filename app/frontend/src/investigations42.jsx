@@ -680,12 +680,13 @@ function ClaimSources({claim, records, answer, pinnedId, onPin}){
   );
 }
 
-function followupHref(text, market){
+function followupHref(text, market, parentId){
   /* draft=1: Ask fills in the question and waits, so a follow-up never
      starts a paid ask on its own (ask42.jsx). */
   const query = new URLSearchParams({q: text});
   if (MARKET_NAME[market]) query.set('market', market);
   query.set('draft', '1');
+  if (parentId) query.set('parent', parentId);
   return '/ask?' + query.toString();
 }
 
@@ -810,7 +811,7 @@ function InvestigationAnswer({record, investigationId, onFailure}){
           <button type="button" className="ask42-primary" onClick={openAsDossier} disabled={opening} aria-busy={opening ? 'true' : 'false'}>Open as dossier</button>
           <button type="button" className="ask42-quiet" onClick={exportAnswer} disabled={exporting} aria-busy={exporting ? 'true' : 'false'}>Export answer</button>
           {followups.map((followup) => (
-            <button type="button" className="ask42-quiet" key={followup} onClick={() => go(followupHref(followup, record.market))}>{followup}</button>
+            <button type="button" className="ask42-quiet" key={followup} onClick={() => go(followupHref(followup, record.market, record.ask_id))}>{followup}</button>
           ))}
         </div>
         {openError && <p className="ask42-error" role="alert">{openError}</p>}

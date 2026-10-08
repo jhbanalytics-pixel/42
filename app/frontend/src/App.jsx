@@ -269,6 +269,9 @@ export function parseAskQuery(hashText){
   const query = new URLSearchParams(at >= 0 ? text.slice(at + 1) : '');
   const parsed = {q: query.get('q') || '', market: query.get('market') || null, item: query.get('item') || null, date: query.get('date') || null, follow: query.get('follow') || null, fit: query.get('fit') || null};
   if (query.get('draft') === '1') parsed.draft = true;
+  /* An investigation's follow-up names the answer it follows. */
+  const parent = query.get('parent');
+  parsed.parent = parent && /^[A-Za-z0-9_-]{1,128}$/.test(parent) ? parent : null;
   return parsed;
 }
 

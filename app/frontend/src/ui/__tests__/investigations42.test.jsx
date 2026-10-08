@@ -825,3 +825,16 @@ test('the drafting hint says drafting uses a little model spend and the research
   expect(text()).not.toContain('before anything runs');
   expect(text()).not.toContain('Nothing runs');
 });
+
+/* Wave 8 N46 (R0288): a follow-up of an investigation answer is a follow-up
+   of that answer, so the link carries its ask id and Ask posts it as parent_id. */
+test('a follow-up on a finished investigation carries the answer it follows', async () => {
+  await openDraft(finished());
+  await until(() => text().includes(completeRecord.answer.short_answer), 'the answer');
+  const label = completeRecord.run.followups[0];
+  const node = buttons().find((b) => plain(b.textContent) === plain(label));
+  await act(async () => { node.click(); });
+  const params = new URLSearchParams(window.location.hash.split('?')[1]);
+  expect(params.get('parent')).toBe(completeRecord.ask_id);
+  expect(params.get('draft')).toBe('1');
+});

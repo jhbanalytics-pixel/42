@@ -232,3 +232,21 @@ test('the market words are the ones the agent reads', () => {
   }
   expect(/_SA = re\.compile\(r"\\bSA\\b"\)/.test(python)).toBe(true);
 });
+
+/* R0288: an investigation follow-up arrives as a draft that names its parent. */
+test('Ask reads parent only when it is a plain ask id', async () => {
+  const {parseAskQuery} = await import('../../App.jsx');
+  expect(parseAskQuery('#/ask?q=more&draft=1&parent=' + completeRecord.ask_id).parent).toBe(completeRecord.ask_id);
+  expect(parseAskQuery('#/ask?q=more&parent=' + encodeURIComponent('a b/../c')).parent).toBe(null);
+  expect(parseAskQuery('#/ask?q=more').parent).toBe(null);
+});
+
+test('a draft that names a parent posts it as parent_id when Ask is pressed', async () => {
+  const second = {...clone(completeRecord), ask_id: 'a_20260928_00000010', parent_id: completeRecord.ask_id};
+  serve([second]);
+  await render({region: 'ZA', query: {q: 'Can you run this question again to the end?', market: 'ZA', draft: true, parent: completeRecord.ask_id}});
+  expect(posts()).toEqual([]);
+  await act(async () => { button('Ask').click(); });
+  await until(() => posts().length > 0, 'the ask');
+  expect(posts()[0].body).toMatchObject({question: 'Can you run this question again to the end?', parent_id: completeRecord.ask_id});
+});

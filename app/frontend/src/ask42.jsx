@@ -678,6 +678,8 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   const [question, setQuestion] = useState(q.q || '');
   const [market, setMarket] = useState(() => marketCode(q.market) || marketCode(region));
   /* The select starts on the page's region. Only a market the reader chose, or a link or starter carried in, is held against the market the question names. */
+  /* A draft that names the answer it follows (an investigation's follow-up) posts that answer as its parent, once. */
+  const draftParent = useRef(null);
   const marketPicked = useRef(Boolean(marketCode(q.market)));
   const [run, setRun] = useState(EMPTY_RUN);
   const [retry, setRetry] = useState(null);
@@ -700,7 +702,9 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   }
   function submitQuestion(){
     if (q.follow && run.record && run.record.ask_id){ followUp(question); return; }
-    ask(question, marketFor(question));
+    const parent = draftParent.current;
+    draftParent.current = null;
+    ask(question, marketFor(question), parent ? {parent_id: parent} : {});
   }
   function marketFor(text){
     const sent = marketToSend({question: text, selected: market, picked: marketPicked.current});
@@ -804,7 +808,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
     const mkt = marketCode(q.market) || marketToSend({question: q.q, selected: market, picked: marketPicked.current});
     setQuestion(q.q);
     setMarket(mkt);
-    if (q.draft) return;
+    if (q.draft){ draftParent.current = q.parent || null; return; }
     if (asked.current === key) return;
     asked.current = key;
     const extra = q.item ? {from_card: {item_id: q.item, market: mkt || null, date: q.date || null}} : {};
