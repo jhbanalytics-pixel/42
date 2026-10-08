@@ -5,7 +5,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("check_support_holds", ROOT / "ops" / "runners" / "check_support_holds.py")
