@@ -25,10 +25,11 @@ HIDDEN_TABLES = (
     "intelligence_42_core.v_forecasts_current",
     "intelligence_42_agent.forecast_score",
 )
-# Tables the model's SQL may not read at all (N2): the suppression list, other runs' records, skins, feedback and the
-# job and ledger tables. The datasets are allowlisted whole, so each is named here. The fence applies to SQL the model
-# wrote (check_sql(fence=True) and model_sql_query); the authorised views and the spend query read some of these
-# tables themselves and are checked without it.
+# Tables the model's SQL may not read at all (N2): the suppression list and the view over it, other runs' records,
+# skins, feedback, the checks' own reasons and the job and ledger tables. The datasets are allowlisted whole, so each
+# is named here. The fence applies to SQL the model wrote (check_sql(fence=True) and model_sql_query); the internal
+# readers of v_suppressed_creators (skills, socialcrawl, enrich_tools, warehouse.discover_creators) go through
+# warehouse.run, which never calls check_sql, and the authorised view bodies and the spend query are checked without it.
 FENCED_TABLES = (
     "intelligence_42_core.suppressions",
     "intelligence_42_core.raw_responses",
@@ -40,11 +41,15 @@ FENCED_TABLES = (
     "intelligence_42_agent.investigations",
     "intelligence_42_agent.dossier_versions",
     "intelligence_42_agent.dossier_reviews",
+    "intelligence_42_core.v_suppressed_creators",
+    "intelligence_42_agent.claim_checks",
 )
-# Fenced tables that views the model may read (v_good_runs under the current views, v_suppressed_creators under the
-# creator tools) read underneath. A dry run may list a view's base tables, so the dry-run check leaves these two to the
-# static name check, which has no such ambiguity.
-VIEW_BASE_TABLES = ("intelligence_42_agent.runs", "intelligence_42_core.suppressions")
+# Fenced objects that views the model may read read underneath (v_good_runs under the current views reads agent.runs;
+# v_item_market_scope reads v_suppressed_creators and so suppressions). A dry run may list a view's base tables, so the
+# dry-run check leaves these three to the static name check, which has no such ambiguity: no readable view exposes
+# them, and the model cannot name them.
+VIEW_BASE_TABLES = ("intelligence_42_agent.runs", "intelligence_42_core.suppressions",
+                    "intelligence_42_core.v_suppressed_creators")
 # The tables and columns the model is told about in the tool description (core/schema/core.sql). Without them it
 # guessed names ("items", "detection tables") and every query failed (live staging, 4 October).
 WAREHOUSE_MAP = {

@@ -621,7 +621,13 @@ def test_check_sql_still_accepts_the_word_forecast_elsewhere(sql):
 FENCED = ["intelligence_42_core.suppressions", "intelligence_42_core.raw_responses", "intelligence_42_core.credit_ledger",
           "intelligence_42_agent.runs", "intelligence_42_agent.skins", "intelligence_42_agent.feedback",
           "intelligence_42_agent.schedules", "intelligence_42_agent.investigations",
-          "intelligence_42_agent.dossier_versions", "intelligence_42_agent.dossier_reviews"]
+          "intelligence_42_agent.dossier_versions", "intelligence_42_agent.dossier_reviews",
+          "intelligence_42_core.v_suppressed_creators", "intelligence_42_agent.claim_checks"]
+# The fenced tables a dry run does not refuse, because a view the model may read has them underneath: v_good_runs reads
+# agent.runs, v_item_market_scope reads v_suppressed_creators and so suppressions. Written out here, not read from
+# the code under test: widening the code's list must fail this file.
+DRY_RUN_EXEMPT = {"intelligence_42_agent.runs", "intelligence_42_core.suppressions",
+                  "intelligence_42_core.v_suppressed_creators"}
 
 
 def _spellings(table):
@@ -650,8 +656,9 @@ def test_the_models_sql_cannot_name_a_fenced_table_however_it_is_spelled(table):
 def test_a_dry_run_that_reports_a_fenced_table_is_refused_for_the_tables_no_view_reads_underneath(table, ctx):
     from core.agent.tools import sql_query as module
 
+    assert set(module.VIEW_BASE_TABLES) == DRY_RUN_EXEMPT
     for ref in (table, f"ogilvy-trends-v2.{table}"):
-        if table in module.VIEW_BASE_TABLES:
+        if table in DRY_RUN_EXEMPT:
             continue  # a current view reads these underneath; the static name check above is their fence
         with pytest.raises(Refused):
             model_sql_query(ctx, FakeWarehouse(tables=(ref,)), "SELECT 1 AS x", purpose="x")
@@ -677,7 +684,6 @@ def test_the_authorised_views_and_internal_checks_still_pass_without_the_fence(t
     "SELECT * FROM intelligence_42_core.v_item_daily_current",
     "SELECT * FROM intelligence_42_core.v_item_state_current",
     "SELECT * FROM intelligence_42_core.v_good_runs",
-    "SELECT * FROM intelligence_42_core.v_suppressed_creators",
     "SELECT * FROM intelligence_42_agent.findings",
     "SELECT * FROM intelligence_42_agent.v_briefs_current",
     "SELECT * FROM intelligence_42_agent.tvf_item_timeseries('i', 'ZA', 7)",
@@ -690,3 +696,29 @@ def test_the_warehouse_map_tables_are_never_fenced():
     from core.agent.tools.sql_query import FENCED_TABLES, WAREHOUSE_MAP
 
     assert not [t for t in WAREHOUSE_MAP if t.split("(")[0] in FENCED_TABLES]
+
+
+@pytest.mark.parametrize("sql", [
+    "SELECT c.handle FROM intelligence_42_core.creators c JOIN intelligence_42_core.v_suppressed_creators s "
+    "USING (creator_id)",
+    "SELECT c.handle FROM intelligence_42_core.creators c WHERE c.creator_id IN "
+    "(SELECT s.creator_id FROM intelligence_42_core.v_suppressed_creators s)",
+    # the predicate the writer pack prints in a recorded query, copied back by the model (C5 12.5 condition 4)
+    "SELECT p.post_id FROM intelligence_42_core.posts p WHERE NOT EXISTS (SELECT 1 FROM "
+    "intelligence_42_core.v_suppressed_creators s WHERE s.creator_id = p.creator_id)",
+    "SELECT creator_id FROM `ogilvy-trends-v2.intelligence_42_core.V_Suppressed_Creators`",
+    "SELECT reason FROM intelligence_42_agent.claim_checks WHERE rule = 'K4'",
+    "SELECT * FROM intelligence_42_agent.claim_check*",
+])
+def test_the_models_sql_cannot_read_who_is_suppressed_or_a_checkers_reasons_through_a_join_or_subquery(sql):
+    with pytest.raises(Refused) as err:
+        check_sql(sql, fence=True)
+    assert "not available" in str(err.value)
+    check_sql(sql)  # the internal readers go through warehouse.run, and the generic check stays generic
+
+
+def test_the_dry_run_exemptions_are_exactly_the_tables_a_readable_view_reads_underneath():
+    from core.agent.tools import sql_query as module
+
+    assert set(module.VIEW_BASE_TABLES) == DRY_RUN_EXEMPT
+    assert set(module.VIEW_BASE_TABLES) <= set(module.FENCED_TABLES)
