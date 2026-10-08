@@ -28,12 +28,15 @@ history always give the same answer and nothing carries from yesterday's run. A 
 against the unbounded chart, so the run length of the unbounded chart, which average_run_length measures, is
 a lower bound for the signal's own.
 
-H is chosen so the in-control average run length is at least 600 days, which is 0.05 false flags per series
-in a 30 day month, the budget of the placebo windows in backtest.py (FA_MAX). The simulation that checks it
-is in tests/test_detect_early_signal.py with a fixed seed.
+H is 6.5. Known baselines give an in-control average run length of at least 3,700 days at that limit
+(simulated in tests/test_detect_early_signal.py with a fixed seed, against a budget of 600 days, which is 0.05
+false flags per series in a 30 day month, backtest.py's FA_MAX). The baselines are not known, they are fitted
+every day by stats._nb_tests, and that estimation noise makes the real chart alarm more often than the known
+baseline theory says. So H was chosen from the replayed placebo windows (early_signal_backtest.py): of the limits
+4.5 to 6.5 in steps of 0.5, 6.5 is the first at which alarm episodes stay at or under 0.05 per series-month in all
+three synthetic worlds tried (0.0275, 0.025 and 0.04 over 12,000 series-days each; 5.0 gave 0.09, 0.08 and 0.12).
 
-Nothing here makes an item Rising, publishes it or ranks it. The recording step (record, further down)
-writes to its own table, early_signal, which no gate, state, card, payload or rank reads.
+Nothing here makes an item Rising, publishes it or ranks it.
 """
 
 import math
@@ -41,7 +44,7 @@ import math
 import numpy as np
 
 KAPPA = 1.5             # the upward shift in the mean the chart is tuned to see
-H = 5.0                 # decision limit, in log likelihood ratio units
+H = 6.5                 # decision limit, in log likelihood ratio units
 WINDOW_DAYS = 14        # the signal looks at the last 14 days, today included
 RULE_VERSION = "early-1"
 
@@ -122,3 +125,15 @@ def signal(test_row, hist, factor, h=H, kappa=KAPPA, window=WINDOW_DAYS):
             break
         run += 1
     return {"cusum": path[-1], "alarm": path[-1] >= h, "run_days": run, "days_used": len(path)}
+
+
+def factor_fn(row, factors):
+    """factor(day) for a series_test row: the weekday factors of the group the series test used for it. A row
+    written under the candidate series rule used its own series and protocol factors, every other row the
+    market, platform and lane class factors (stats._nb_tests); a missing weekday is 1."""
+    from . import stats
+
+    key = stats._series_weekday_key(row) if row.get("rule_version") == stats.SERIES_RULE_VERSION else stats._key(row)
+    by_weekday = factors.get(key, {})
+    return lambda d: by_weekday.get(d.weekday(), 1.0)
+
