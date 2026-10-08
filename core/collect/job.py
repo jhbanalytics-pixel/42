@@ -158,6 +158,9 @@ PROFILES_PER_CALL = 25                  # prism/profiles with posts takes at mos
 # A live run starts only inside this SAST window, which keeps it clear of 23:00 SAST (midnight EAT) and
 # 01:00 SAST (midnight WAT), where a market's day would change under it.
 START_WINDOW = (time(1, 30), time(22, 30))
+# Country capture stops this long before the task timeout, so the public feeds, the Google reads and every write
+# that follows it still run inside the task.
+COUNTRY_TAIL_RESERVE = timedelta(minutes=40)
 EVIDENCE_PER_MARKET, EVIDENCE_RATE = 20, 2  # post-stats: hosts at 1 or 2 credits a URL only
 TRENDS_ARCHIVE = "https://trends24.in/{}/"
 # Platform-wide tags that sit on most posts and say nothing about the market.
@@ -1401,7 +1404,7 @@ def country_phase(run, runner, profile_reader, cap):
         reader_kwargs["timeout"] = min(timeout, remaining / 2)
     if keys:
         try:
-            cache.seed(profile_reader(keys, **reader_kwargs))
+            cache.seed(profile_reader(keys, **reader_kwargs), today=runner.clock().astimezone(timezone.utc).date())
         except Exception as exc:
             log.warning("collect %s: account country cache unreadable (%s)", run.run_id, type(exc).__name__)
             apply()
@@ -1462,7 +1465,7 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
                      profiles=location_sources.ProfileCache() if country_profiles is not None and only_routes is None else None)
     timeout = getattr(client, "timeout", None)
     if runner.profiles is not None and isinstance(timeout, (int, float)) and math.isfinite(timeout) and timeout > 0:
-        runner.country_deadline = clock() + chain.TIMEOUTS["collect"] - timedelta(seconds=timeout)
+        runner.country_deadline = clock() + chain.TIMEOUTS["collect"] - COUNTRY_TAIL_RESERVE             - timedelta(seconds=timeout)
     if only_routes is not None:
         search_signals, local_get, public_feed_transport = False, None, None
         google_rss_transport, google_terms = None, None
