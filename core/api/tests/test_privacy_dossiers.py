@@ -323,3 +323,74 @@ def test_the_built_digest_is_withheld_not_only_its_renderers_a40(monkeypatch):
     out = digest.build(RouteStore(hide={"c_hid"}), [], "2026-10-07", "https://app.example")
     assert "hid_handle" not in out["html"] and "hid_handle" not in out["text"]
     assert "A post on TikTok" in out["text"]
+
+
+# The app's own edit sends the title and notes it was shown, which are the masked view (dossiers42.jsx).
+def named_draft(world):
+    hold(source())
+    did = world.client.post("/api/dossiers", json={"from": {"ask_id": ASK}}).json()["dossier_id"]
+    r = world.client.put(f"/api/dossiers/{did}", json={
+        "keep": ["c1"], "title": "Amapiano and @hid_handle", "notes": {"c1": "ask @hid_handle about this"},
+        "from_version": 1})
+    assert r.status_code == 200
+    return did
+
+
+def test_an_edit_that_sends_back_the_masked_title_and_notes_keeps_the_stored_words_a37(world):
+    did = named_draft(world)
+    world.store.hide = {"c_hid"}
+    view = world.client.get(f"/api/dossiers/{did}").json()
+    assert "hid_handle" not in view["title"] and "hid_handle" not in body_of(view["claims"][0]["note"])
+    notes = {c["claim_id"]: c["note"] for c in view["claims"] if c.get("note")}
+    r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "title": view["title"], "notes": notes,
+                                                       "from_version": view["version"]})
+    assert r.status_code == 200
+    stored = versions(did)[-1]
+    assert stored["title"] == "Amapiano and @hid_handle"
+    assert next(c for c in stored["claims"] if c["claim_id"] == "c1")["note"] == "ask @hid_handle about this"
+    world.store.hide = set()  # the lift restores what the reader wrote
+    again = world.client.get(f"/api/dossiers/{did}").json()
+    assert again["title"] == "Amapiano and @hid_handle" and "privacy" not in again
+
+
+def test_words_the_reader_actually_changes_are_stored_as_typed(world):
+    did = named_draft(world)
+    world.store.hide = {"c_hid"}
+    view = world.client.get(f"/api/dossiers/{did}").json()
+    r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "title": "A better title",
+                                                       "notes": {"c1": "a new note"}, "from_version": view["version"]})
+    assert r.status_code == 200
+    stored = versions(did)[-1]
+    assert stored["title"] == "A better title"
+    assert next(c for c in stored["claims"] if c["claim_id"] == "c1")["note"] == "a new note"
+
+
+# A finding is a durable shared row: it is built from what a reader may see (C5 v2 section 7, the stricter reading).
+def test_a_finding_cannot_be_saved_from_a_claim_whose_words_name_a_hidden_person_a31(world):
+    world.store.hide = {"c_hid"}
+    record = ask_record()
+    record["question"] = "What is amapiano doing in South Africa?"
+    record["answer"]["claims"] = [dict(K_NAMING)]
+    world.store.records[ASK] = record
+    r = world.client.post("/api/findings", json={"from": {"ask_id": ASK}})
+    assert r.status_code == 409 and r.json()["error"] == "not_eligible"
+    assert "k1" in r.json()["message"] and "name people" in r.json()["message"]
+
+
+def test_a_finding_cannot_be_saved_from_a_question_that_names_a_hidden_person_a31(world):
+    world.store.hide = {"c_hid"}
+    record = ask_record()
+    record["answer"]["claims"] = [c for c in record["answer"]["claims"] if c["id"] == "c1"]
+    world.store.records[ASK] = record  # its question is "What is @hid_handle doing ..."
+    r = world.client.post("/api/findings", json={"from": {"ask_id": ASK}})
+    assert r.status_code == 409 and "question names a person 42 no longer shows" in r.json()["message"]
+
+
+def test_a_finding_from_an_answer_that_names_nobody_hidden_goes_on_to_the_producer_checks_a31(world):
+    world.store.hide = {"c_hid"}
+    record = ask_record()
+    record["question"] = "What is amapiano doing in South Africa?"
+    record["answer"]["claims"] = [c for c in record["answer"]["claims"] if c["id"] == "c1"]
+    world.store.records[ASK] = record
+    r = world.client.post("/api/findings", json={"from": {"ask_id": ASK}})
+    assert r.json().get("error") != "not_eligible" or "42 no longer shows" not in r.json().get("message", "")

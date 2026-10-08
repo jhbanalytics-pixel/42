@@ -1209,12 +1209,15 @@ def save_finding_from_ask(ask_id):
     if record is None:
         return error(404, "not_found", "No saved Ask with that ID exists.")
     try:
-        hits = privacy.claims_on_hidden_posts(record, saved)
+        hits, question_named = privacy.finding_blockers(record, saved)
     except Exception:
         return people_unavailable()
     if hits:
-        return error(409, "not_eligible", f"{', '.join(hits)} rest on posts 42 no longer shows, so this answer "
-                                         "cannot become a finding.")
+        return error(409, "not_eligible", f"{', '.join(hits)} rest on posts, or name people, 42 no longer shows, "
+                                         "so this answer cannot become a finding.")
+    if question_named:
+        return error(409, "not_eligible", "The question names a person 42 no longer shows, so this answer cannot "
+                                         "become a finding.")
 
     try:
         post_ids = finding_save.evidence_ids(ask_id, record)
@@ -1285,6 +1288,28 @@ def keepable(record):
         return privacy.selectable_claims(claims, answer.get("evidence"), hidden, store)
     except privacy.PeopleUnavailable:
         return None
+
+
+def stored_words(change, latest):
+    """change with the title and notes the page sent back unchanged put back to what is stored. The page shows a
+    dossier through the list of hidden people and sends the words it was shown on every edit; a title or note equal
+    to the masked form of the stored one is the stored one, not new words. Masked text is never stored (R5, A37)."""
+    from core.api.store import get_store
+    hidden = privacy.read_hidden(privacy.LazyStore(get_store))
+    if privacy.nothing_hidden(hidden):
+        return change
+
+    def masked(text):
+        return privacy.mask({"text": text}, hidden)["text"]
+
+    change = dict(change)
+    if isinstance(change.get("title"), str) and change["title"].strip() == masked(latest["title"]):
+        change["title"] = latest["title"]
+    if isinstance(change.get("notes"), dict):
+        held = {c["claim_id"]: c.get("note") for c in latest["claims"]}
+        change["notes"] = {cid: held[cid] if isinstance(note, str) and isinstance(held.get(cid), str)
+                           and note.strip() == masked(held[cid]) else note for cid, note in change["notes"].items()}
+    return change
 
 
 def not_keepable(ids):
@@ -1380,7 +1405,7 @@ def edit_dossier_to(dossier_id, change, from_version=None):
         ok = keepable(record)
         if ok is None:
             return people_unavailable()
-        change = dict(change)
+        change = stored_words(change, latest)
         if "keep" not in change:
             # The edit carries the earlier choice forward. A claim the list no longer lets it keep is not dropped
             # quietly: the reader is told which, and sends keep without them to go on.

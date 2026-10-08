@@ -413,17 +413,21 @@ def selectable_claims(claims, evidence, hidden, store):
     return {cid: not _claim_ids(c) & gone and selectable(c, evidence, hidden, store, gone) for cid, c in claims.items()}
 
 
-def claims_on_hidden_posts(record, store, hidden=READ):
-    """The ids of the claims of an Ask record that cite a hidden person's post now; raises PeopleUnavailable when the
-    list cannot be read."""
+def finding_blockers(record, store, hidden=READ):
+    """(claim ids, question named) for an Ask record that must not become a finding now: the claims that cite a hidden
+    person's post or whose words name one, and whether the question names one. A finding is a durable row shared
+    with everyone, so it is built only from what a reader may see. Raises PeopleUnavailable when the list cannot be
+    read."""
     hidden = _resolve(hidden, store)
     if hidden is None:
         raise PeopleUnavailable
     answer = record.get("answer") if isinstance(record, dict) else None
+    named = isinstance(record, dict) and isinstance(record.get("question"), str)         and mask({"q": record["question"]}, hidden)["q"] != record["question"]
     if not isinstance(answer, dict):
-        return []
-    gone = evidence_gone(answer.get("evidence"), hidden, store)
-    return [c.get("id") for c in answer.get("claims") or [] if isinstance(c, dict) and _claim_ids(c) & gone]
+        return [], named
+    evidence = answer.get("evidence")
+    claims = [c for c in answer.get("claims") or [] if isinstance(c, dict)]
+    return [c.get("id") for c in claims if not selectable(c, evidence, hidden, store)], named
 
 
 def withhold_digest(resp, store):
