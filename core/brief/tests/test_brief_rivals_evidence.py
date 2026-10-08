@@ -1,4 +1,4 @@
-"""Detect's rival-explanation evidence in the brief's pack (METHOD-GAPS Gap 7, part one).
+"""Detect's rival-explanation evidence in the brief's pack (METHOD-GAPS Gap 7, parts one and three).
 
 Part one pins burst_share, top3_share, near_dup_share, sponsored_share, local_share, markets_hot and the 7-day post
 count as numbers, and the share_flags, diffusion, lead_market, novelty, moment, small_at and large_at values as pinned
@@ -7,7 +7,7 @@ at most two why-now sentences in code from those values.
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -15,7 +15,7 @@ from core.brief import evidence
 from core.brief.tests.test_brief_evidence import (DETECT, add_post, build, canonical_hash, current, state_row, utc,
                                                   world)
 from core.detect.tests import duck
-from core.detect.tests.fixtures import D, day
+from core.detect.tests.fixtures import D, day, item_daily, run
 from core.trust.claims import check_answer
 
 RIVAL_UNITS = [
@@ -166,6 +166,112 @@ def test_a_failing_rival_query_leaves_the_base_pack_unchanged(capsys):
     assert not any(n.get("rival_field") in ("posts7", "burst_share") for n in pack["numbers"])
     assert "rival_evidence_read_failed" in capsys.readouterr().err
     assert base["facts"][0] == pack["facts"][0]
+
+
+# Why-now sentences rendered in code
+
+
+def got(**kw):
+    """The renderer's input: field -> (value, query_id)."""
+    return {k: (v, f"q_{k}") for k, v in kw.items()}
+
+
+ZA = timezone(timedelta(hours=2))
+T = datetime(2026, 9, 18, 8, 0, tzinfo=timezone.utc)
+
+
+def test_bottom_up_names_both_dates_and_both_query_ids():
+    [sentence] = evidence.why_now(got(diffusion="bottom_up", small_at=T.isoformat(),
+                                      large_at=(T + timedelta(days=2)).isoformat()), ZA)
+    assert "2026-09-18" in sentence and "2026-09-20" in sentence
+    assert "nano or micro" in sentence and "macro or mega" in sentence
+    assert "q_small_at" in sentence and "q_large_at" in sentence and "q_diffusion" in sentence
+    assert sentence.index("2026-09-18") < sentence.index("2026-09-20")
+
+
+def test_top_down_says_the_large_creators_were_not_later():
+    [sentence] = evidence.why_now(got(diffusion="top_down", small_at=(T + timedelta(days=2)).isoformat(),
+                                      large_at=T.isoformat()), ZA)
+    assert "macro or mega" in sentence and "no later than" in sentence
+    assert sentence.index("2026-09-18") < sentence.index("2026-09-20")
+
+
+def test_top_down_on_the_same_instant_is_still_top_down():
+    [sentence] = evidence.why_now(got(diffusion="top_down", small_at=T.isoformat(), large_at=T.isoformat()), ZA)
+    assert "no later than" in sentence
+
+
+def test_top_down_with_no_small_creator_post_says_so():
+    [sentence] = evidence.why_now(got(diffusion="top_down", small_at=None, large_at=T.isoformat()), ZA)
+    assert "2026-09-18" in sentence and "none" in sentence
+    assert "q_large_at" in sentence
+
+
+def test_small_only_names_the_first_small_creator_date_and_no_large_creator_post():
+    [sentence] = evidence.why_now(got(diffusion="small_only", small_at=T.isoformat(), large_at=None), ZA)
+    assert "2026-09-18" in sentence and "no macro or mega" in sentence
+
+
+def test_the_date_is_the_markets_local_date():
+    late = datetime(2026, 9, 18, 23, 30, tzinfo=timezone.utc)
+    [sentence] = evidence.why_now(got(diffusion="small_only", small_at=late.isoformat(), large_at=None), ZA)
+    assert "2026-09-19" in sentence and "2026-09-18" not in sentence
+
+
+@pytest.mark.parametrize("inputs", [
+    dict(),
+    dict(diffusion="bottom_up", small_at=T.isoformat()),
+    dict(diffusion="bottom_up", large_at=T.isoformat()),
+    dict(diffusion="small_only", small_at=None, large_at=None),
+    dict(diffusion="small_only", small_at=T.isoformat(), large_at=T.isoformat()),
+    dict(diffusion="top_down", small_at=None, large_at=None),
+    dict(diffusion="bottom_up", small_at=(T + timedelta(days=1)).isoformat(), large_at=T.isoformat()),
+    dict(diffusion="top_down", small_at=T.isoformat(), large_at=(T + timedelta(days=1)).isoformat()),
+    dict(diffusion="sideways", small_at=T.isoformat(), large_at=T.isoformat()),
+    dict(small_at=T.isoformat(), large_at=(T + timedelta(days=1)).isoformat()),
+    dict(diffusion="bottom_up", small_at="not a time", large_at=T.isoformat()),
+])
+def test_no_diffusion_sentence_when_an_input_is_missing_or_the_label_disagrees_with_the_times(inputs):
+    assert evidence.why_now(got(**inputs), ZA) == []
+
+
+def test_lead_market_sentence_needs_both_the_market_and_the_market_count():
+    [sentence] = evidence.why_now(got(lead_market="NG", markets_hot=2), ZA)
+    assert "NG" in sentence and "2 markets" in sentence and "q_lead_market" in sentence
+    assert "q_markets_hot" in sentence
+    assert evidence.why_now(got(lead_market="NG"), ZA) == []
+    assert evidence.why_now(got(markets_hot=2), ZA) == []
+    assert evidence.why_now(got(lead_market=None, markets_hot=2), ZA) == []
+    assert evidence.why_now(got(lead_market="NG", markets_hot=0), ZA) == []
+
+
+def test_at_most_two_sentences_in_a_fixed_order():
+    sentences = evidence.why_now(got(diffusion="small_only", small_at=T.isoformat(), large_at=None,
+                                     lead_market="KE", markets_hot=3), ZA)
+    assert len(sentences) == 2
+    assert "nano or micro" in sentences[0] and "KE" in sentences[1]
+
+
+def test_the_facts_carry_the_sentences_after_the_first_seen_line_and_name_real_query_ids():
+    con = rival_world()
+    duck.load(con, "agent.runs", [run("aggregate", day(6))])
+    duck.load(con, "core.item_daily", [item_daily("i1", day(6), 2)])
+    pack, *_ = build(con)
+    facts = pack["facts"]
+    diffusion = next(f for f in facts if "nano or micro" in f)
+    market = next(f for f in facts if "2 markets" in f)
+    assert diffusion.count("2026-09-15") == 1 and "2026-09-19" in diffusion
+    ids = {n["query_id"] for n in pack["numbers"] + pack["pinned"]}
+    for fact in (diffusion, market):
+        quoted = set(re.findall(r"q_\w+", fact))
+        assert quoted and quoted <= ids
+    assert facts.index(diffusion) < facts.index(market)
+    assert facts.index(diffusion) > next(i for i, f in enumerate(facts) if f.startswith("First seen"))
+
+
+def test_no_sentence_reaches_the_facts_when_the_item_has_no_detect_rival_values():
+    pack, *_ = build(world())
+    assert not any("nano or micro" in f or "markets" in f for f in pack["facts"])
 
 def test_a_claim_citing_a_rival_number_carries_the_pinned_entry_without_the_internal_field_name():
     from core.brief import explain

@@ -27,7 +27,9 @@ pack is the shape core/brief/explain.py reads:
         the values that are not numbers (share_flags, diffusion, small_at, large_at, lead_market, novelty, moment),
         pinned and re-run like the numbers. A time is its ISO 8601 text. No claim cites them; they back the why-now
         sentences in facts and the code-found rivals core/brief/rivals.py records.
-    facts: short plain lines about the state, the 3-day counts and the first sighting, then one line per local
+    facts: short plain lines about the state, the 3-day counts and the first sighting, then up to two why-now
+        sentences built in code from pinned diffusion, small_at, large_at, lead_market and markets_hot (why_now), each
+        naming its query ids, then one line per local
         post with its weekday and market-local date, naming a calendar moment only when moments (the market's
         calendar rows job.py reads) has one on that date.
 sparkline: {"unit", "points": [{date, value, expected_low, expected_high}]} over the main series' last 14
@@ -197,7 +199,64 @@ def _day_lines(evidence, market, moments):
     return lines
 
 
-def _facts(item_row, market, pinned, first_seen, evidence=(), moments=()):
+def _instant(value):
+    """(readable, datetime): (True, None) for a missing value, (False, None) for text that is not a time."""
+    if value is None:
+        return True, None
+    try:
+        return True, datetime.fromisoformat(str(value))
+    except ValueError:
+        return False, None
+
+
+def why_now(got, tz):
+    """At most two sentences, built in code from detect's pinned values and naming the query ids behind them. got maps
+    a detect field to (value, query_id); tz is the market's local zone. Nothing is invented: a sentence needs every
+    value it states, and the diffusion sentence is derived from small_at and large_at, then only worded when detect's
+    own label agrees with them (state.sql: bottom_up when small_at is before large_at, small_only when there is no
+    large_at, top_down otherwise), so a label that disagrees with its own times is not stated. small_at and large_at
+    are the earliest measured posts by nano or micro and by macro or mega creators among posts first seen in the
+    last 28 days (views.sql tvf_item_window)."""
+    def value(field):
+        return got.get(field, (None, None))[0]
+
+    def qid(*fields):
+        return "queries " + ", ".join(got[f][1] for f in fields)
+
+    out = []
+    label = value("diffusion")
+    small_ok, small = _instant(value("small_at"))
+    large_ok, large = _instant(value("large_at"))
+    if label in ("bottom_up", "top_down", "small_only") and small_ok and large_ok and all(
+            f in got for f in ("small_at", "large_at")):
+        date = lambda t: t.astimezone(tz).date().isoformat()  # noqa: E731
+        ids = qid("diffusion", "small_at", "large_at")
+        if label == "bottom_up" and small and large and small < large:
+            out.append(f"Of measured posts first seen in the last 28 days, the earliest by nano or micro creators "
+                       f"is dated {date(small)}, before the earliest by macro or mega creators on {date(large)} "
+                       f"({ids}).")
+        elif label == "top_down" and large and small and small >= large:
+            out.append(f"Of measured posts first seen in the last 28 days, the earliest by macro or mega creators "
+                       f"is dated {date(large)}, no later than the earliest by nano or micro creators on "
+                       f"{date(small)} ({ids}).")
+        elif label == "top_down" and large and small is None:
+            out.append(f"Of measured posts first seen in the last 28 days, the earliest by macro or mega creators "
+                       f"is dated {date(large)}; none by nano or micro creators are on record ({ids}).")
+        elif label == "small_only" and small and large is None:
+            out.append(f"Of measured posts first seen in the last 28 days, the earliest by nano or micro creators "
+                       f"is dated {date(small)}; no macro or mega creator has a measured post ({ids}).")
+    lead, hot = value("lead_market"), value("markets_hot")
+    if isinstance(lead, str) and lead and isinstance(hot, (int, float)) and not isinstance(hot, bool) and hot >= 1:
+        ids = qid("lead_market", "markets_hot")
+        if hot == 1:
+            out.append(f"{lead} is the only market with a significant rise in the last 14 days ({ids}).")
+        else:
+            out.append(f"{lead} is listed first of {int(hot)} markets with a significant rise in the last 14 days, "
+                       f"by earliest day and then market code ({ids}).")
+    return out
+
+
+def _facts(item_row, market, pinned, first_seen, evidence=(), moments=(), why=()):
     state = item_row.get("state")
     facts = [f"State: {STATE_WORDS.get(state, state)}"]
     counts = [f"{pinned[name]} {word}" for name, word in (("creators3", "creators"), ("posts3", "posts"))
@@ -206,11 +265,11 @@ def _facts(item_row, market, pinned, first_seen, evidence=(), moments=()):
         facts.append(" and ".join(counts) + " in 3 days")
     if first_seen:
         facts.append(f"First seen in {market} on {first_seen.isoformat()}")
-    return facts + _day_lines(evidence, market, moments)
+    return facts + list(why) + _day_lines(evidence, market, moments)
 
 
 def _rival_pins(run, params, run_id, registry):
-    """(numbers, pinned rows) for detect's rival-explanation values, or three empties when the read fails: these
+    """(numbers, pinned rows, got) for detect's rival-explanation values, or three empties when the read fails: these
     values are extra evidence, so a failed read leaves the pack as it was and the card is not held for it. A null in a
     row detect wrote is itself pinned (no calendar moment, no macro post), so it can be stated; a query that gave no
     row, or only nulls, pins nothing."""
@@ -218,8 +277,8 @@ def _rival_pins(run, params, run_id, registry):
         rows = {name: run(name, params) for name in ("rival_state", "rival_window")}
     except Exception as e:
         print(f"brief {params['d'].isoformat()}: rival_evidence_read_failed {type(e).__name__}", file=sys.stderr)
-        return [], []
-    numbers, pinned = [], []
+        return [], [], {}
+    numbers, pinned, got = [], [], {}
     real = {name: bool(r) and any(v is not None for v in r[0].values()) for name, r in rows.items()}
 
     def pin(name, column, unit, number):
@@ -229,6 +288,7 @@ def _rival_pins(run, params, run_id, registry):
         query_id = _query_id(name, params, column)
         registry[query_id] = (name, params, column)
         value = _plain(raw)
+        got[column] = (value, query_id)
         return {"value": value, "unit": unit, "query_id": query_id, "run_id": run_id,
                 "result_hash": result_hash([{"value": raw}]), "rival_field": column}
 
@@ -240,7 +300,7 @@ def _rival_pins(run, params, run_id, registry):
         entry = pin(name, column, unit, False)
         if entry:
             pinned.append(entry)
-    return numbers, pinned
+    return numbers, pinned, got
 
 
 def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=None, moments=()):
@@ -276,9 +336,10 @@ def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=No
     series_id = item_row.get("main_series_id")
     sparkline = _sparkline(run("sparkline", {"series_id": series_id, "d": d}), d) if series_id else None
     first = run("first_seen", {"item_id": item_id, "market": market, "d": d})
-    rival_numbers, rival_pinned = _rival_pins(run, params, run_id, registry)
+    rival_numbers, rival_pinned, got = _rival_pins(run, params, run_id, registry)
     numbers += rival_numbers
-    facts = _facts(item_row, market, pinned, first[0]["first_seen"] if first else None, evidence, moments)
+    facts = _facts(item_row, market, pinned, first[0]["first_seen"] if first else None, evidence, moments,
+                   why_now(got, tz))
 
     def rerun(entry):
         name, query_params, column = registry[entry["query_id"]]
