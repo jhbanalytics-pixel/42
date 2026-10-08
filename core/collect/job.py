@@ -931,6 +931,7 @@ class Collected:
     candidates: dict = field(default_factory=dict)
     client_calls: list = field(default_factory=list)
     stopped: str | None = None
+    balance_unread: bool = False
     stopped_markets: set = field(default_factory=set)
     credits: float = 0
     spent: dict = field(default_factory=dict)
@@ -1104,6 +1105,7 @@ class _Runner:
                 self.run.stopped_markets.add(market)
             elif result.status in STOP_ALL:
                 self.run.stopped = result.status
+                self.run.balance_unread = self.run.balance_unread or result.failure == "balance_unread"
 
     def _on_day(self, call, moment):
         return {_local_day(moment, call.market), _local_day(moment, call.health_market())} == {self.day}
@@ -1965,6 +1967,10 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
     if written["public_feed_raw_error"]:
         counts["public_feed_raw_error"] = "append_failed"
         chain.finish(run, "failed", counts, "public_feed_raw_append_failed", runs=runs)
+        return 1
+    if collected.balance_unread:
+        chain.finish(run, "failed", counts, "balance_unreadable: the SocialCrawl balance could not be read, "
+                     "so no paid call was made", runs=runs)
         return 1
     if base is not None:
         counts = repair_counts(base, counts, written, only, keep)

@@ -977,6 +977,33 @@ def test_main_marks_the_run_failed_and_exits_non_zero_on_an_exception():
     assert jobs.started == []
 
 
+def test_a_run_whose_balance_could_not_be_read_finishes_failed_and_starts_nothing_next():
+    class Unreadable(FakeClient):
+        def call(self, route, params=None, **kw):
+            super().call(route, params, **kw)
+            return Result("balance_floor", route, reason="balance could not be read", failure="balance_unread")
+
+    runs, jobs, client = chain.MemoryRunsStore(), FakeJobs(), Unreadable()
+    assert run_main(["--run-date", "2026-09-29"], runs=runs, jobs=jobs, client=client) != 0
+    assert [r["status"] for r in runs.rows] == ["running", "failed"]
+    final = runs.rows[-1]
+    assert "balance" in final["error"] and "could not be read" in final["error"]
+    assert final["counts"]["stopped"] == "balance_floor" and final["counts"]["credits_charged"] == 0
+    assert len(client.calls) == 1
+    assert jobs.started == []
+
+
+def test_a_run_stopped_below_the_floor_is_not_reported_as_an_unread_balance():
+    class Low(FakeClient):
+        def call(self, route, params=None, **kw):
+            super().call(route, params, **kw)
+            return Result("balance_floor", route, reason="balance 100 is below the floor 20000", failure="")
+
+    runs = chain.MemoryRunsStore()
+    assert run_main(["--run-date", "2026-09-29"], runs=runs, client=Low()) == 0
+    assert runs.rows[-1]["status"] == "ok"
+
+
 def test_already_done_exits_zero_without_calls():
     runs = chain.MemoryRunsStore()
     assert run_main(["--run-date", "2026-09-29"], runs=runs) == 0
