@@ -483,6 +483,30 @@ def test_a_gap_pass_draft_that_reuses_a_claim_id_with_new_words_still_gets_its_o
     assert sum(call["schema"] is K4_REWRITE_SCHEMA for call in model.calls) <= 2 * K4_REWRITE_CALLS
 
 
+class SameWordsNewPostsModel(RedraftedGapModel):
+    """RedraftedGapModel whose gap pass keeps c2's words but cites a different post: the same words, not the same claim."""
+
+    def complete_json(self, *, system, user, schema, model, max_tokens):
+        redraft = schema is WRITER_SCHEMA and sum(call["schema"] is WRITER_SCHEMA for call in self.calls) >= 1
+        out, usage = super().complete_json(system=system, user=user, schema=schema, model=model, max_tokens=max_tokens)
+        if redraft:
+            out["claims"][0]["text"] = test_ask.WRITER_OUT["claims"][1]["text"]
+            out["claims"][0]["evidence_ids"] = ["tt_3"]
+        return out, usage
+
+
+def test_a_gap_pass_claim_with_the_same_words_but_other_posts_is_a_new_claim_with_its_own_narrowing():
+    # N36: the ledger matches a claim by its words AND its cited posts. Same words on other posts is a different claim.
+    model = SameWordsNewPostsModel(("partial", "supported", "partial", "partial"))
+    h = Harness(research=Lanes(parties=4), check=None, model=model)
+    h.run(tier="T2")
+
+    writer_drafts = [call for call in model.calls if call["schema"] is WRITER_SCHEMA]
+    assert len(writer_drafts) == 2
+    assert sum(call["schema"] is K4_REWRITE_SCHEMA for call in model.calls) == 2
+    assert sum(call["schema"] is K4_REWRITE_SCHEMA for call in model.calls) <= 2 * K4_REWRITE_CALLS
+
+
 def test_no_reserve_left_means_pending_claims_are_cut():
     model = CriticModel({"c3": {"verdict": "needs_evidence"}})
     lanes = Lanes(parties=4, overspend=100.0)  # four researchers spend past the whole tier

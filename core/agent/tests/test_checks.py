@@ -3778,6 +3778,18 @@ def test_k5_a_copied_post_from_a_second_handle_is_one_author_not_two():
     assert _label(copied) == "single_source"
 
 
+def test_k5_the_first_post_by_id_stands_as_the_author_whatever_order_the_records_arrive_in():
+    # Two handles post the same words; the earlier id is the author and the later one the copy, so the claim keeps the
+    # X author and the TikTok author of the different post (two platforms: corroborated). If the later copy stood, the
+    # claim would hold two TikTok authors and read as observed, so which one stands decides the label.
+    text = "Every taxi rank in Joburg is playing this amapiano track today, nobody can stop it"
+    records = [record("p_a", "x", "@creator_a", text), record("p_b", "tiktok", "@creator_b", text),
+               record("p_c", "tiktok", "@creator_c", "My uncle in Durban asked me for that new song")]
+    for arrival in (records, records[::-1], [records[1], records[2], records[0]]):
+        assert checks._copied_ids(arrival) == {"p_b"}
+        assert _label(arrival) == "corroborated"
+
+
 def test_k5_two_different_posts_stay_corroborated():
     records = _pair("Every taxi rank in Joburg is playing this track today", "My uncle in Durban asked me for that new song")
     assert _label(records) == "corroborated"
