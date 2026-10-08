@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from core.setup.tests.release_prereq import resolve_bash
+
 
 ROOT = Path(__file__).resolve().parents[3]
 SOURCE = "gs://ogilvy-trends-v2-f42-media-staging/build-source"
@@ -26,8 +28,10 @@ def run_deploy(tmp_path, *, service=PRIVATE, policy=POLICY, build_exit=0, policy
             text = dockerignore
         target.write_text(text, encoding="utf-8", newline="\n")
     calls = tmp_path / "calls"
-    git = Path(shutil.which("git"))
-    bash = git.parent.parent / "bin" / "bash.exe" if os.name == "nt" else Path(shutil.which("bash"))
+    try:
+        bash = resolve_bash()
+    except FileNotFoundError as error:
+        pytest.fail(str(error))
     env = {**os.environ, "R3_CALLS": calls.as_posix(), "R3_PYTHON": Path(sys.executable).as_posix(),
            "R3_SERVICE": json.dumps(service), "R3_POLICY": json.dumps(policy),
            **{"R3_SERVICE_" + name.replace("-", "_"): json.dumps(value) for name, value in (services or {}).items()},

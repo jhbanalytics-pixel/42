@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from core.setup.tests.release_prereq import resolve_bash
+
 ROOT = Path(__file__).resolve().parents[3]
 A80 = "a80be1dee7f4ee2aa9775d0f353bab930809f057"
 PROJECT = "ogilvy-trends-v2"
@@ -87,8 +89,10 @@ def run_candidate(tmp_path, *, manifest=None, hash_arg=None, before=None, after=
     after = after or {name: service(name, candidate=True) for name in CANON}
     revisions = revisions or {name: [SERVING[name], OLDER[name]] for name in CANON}
     calls = tmp_path / "calls"
-    git = Path(shutil.which("git"))
-    bash = git.parent.parent / "bin" / "bash.exe" if os.name == "nt" else Path(shutil.which("bash"))
+    try:
+        bash = resolve_bash()
+    except FileNotFoundError as error:
+        pytest.fail(str(error))
     env = {**os.environ, "R3_CALLS": calls.as_posix(), "R3_STATE": state.as_posix(), "R3_PYTHON": Path(sys.executable).as_posix(),
            "R3_POLICY": json.dumps(policy), "R3_POLICY_EXIT": str(policy_exit),
            "R3_HEAD": head, "R3_TREE": tree, "R3_SHORT12": short12, "MSYS_NO_PATHCONV": "1",
@@ -395,3 +399,19 @@ def test_ds_a_tag_url_that_is_not_built_from_the_canonical_host_stops_before_any
 def test_ds_an_empty_hash_argument_stops_before_any_write(tmp_path):
     result, calls = run_candidate(tmp_path, hash_arg="")
     assert result.returncode != 0 and calls == []
+
+
+def test_ds18_every_a80_test_of_the_two_deploy_files_is_still_there_apart_from_the_two_renames_the_contract_asks_for():
+    import ast
+
+    def names(source):
+        return {n.name for n in ast.parse(source).body if isinstance(n, ast.FunctionDef) and n.name.startswith("test_")}
+
+    renamed = {"core/api/tests/test_workflow_app.py": {"test_deploy_sh_moves_traffic_to_the_new_revisions_only_after_the_health_check",
+                                                       "test_deploy_sh_no_traffic_flag_skips_the_move"}}
+    for rel in ("core/api/tests/test_deploy_script.py", "core/api/tests/test_workflow_app.py"):
+        shown = subprocess.run(["git", "show", f"{A80}:{rel}"], cwd=ROOT, capture_output=True)
+        if shown.returncode != 0:
+            pytest.fail(f"commit {A80} is not available in this checkout; a shallow clone cannot run the release tests")
+        missing = names(shown.stdout.decode("utf-8")) - names((ROOT / rel).read_text(encoding="utf-8"))
+        assert missing == renamed.get(rel, set()), rel
