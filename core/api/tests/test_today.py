@@ -1039,7 +1039,9 @@ def test_board_entries_keep_their_own_best_rank_with_ties_and_gaps():
 
 
 def test_a_board_of_only_ids_stays_with_its_count():
-    za = market(today.build_today(boards_store([ID_BOARD]), D30), "ZA")
+    import datetime as dt
+    on_the_day = dt.datetime(2026, 9, 30, 9, 0, tzinfo=today.SAST)  # "today" words the reason on the brief's own day
+    za = market(today.build_today(boards_store([ID_BOARD]), D30, now=on_the_day), "ZA")
     # Every entry left out: the reason says none had a name, not that a few were missing one.
     assert za["boards"] == [{"platform": "youtube", "list": "YouTube trending board", "entries": [],
                              "left_out": 1, "left_out_reason": today.NO_NAMES_READ}]
@@ -2091,3 +2093,78 @@ def test_a_later_attempt_still_running_outranks_an_earlier_failed_attempt():
     retry = {"run_id": "detect-b", "status": "running", "started_at": "2026-09-30 02:30:00", "finished_at": None}
     assert today._latest_run([failed, retry]) is retry
     assert today._stage_failed([failed, retry]) is False
+
+
+# Review of the boards redesign, finding 3: the app counts "on N charts" from the entries it receives, and _boards
+# had already dropped the id-titled ones and the in-chart repeats. The server counts first, over every stored entry.
+def _chart_counts(boards, code="ZA"):
+    return {b["list"]: b.get("chart_counts") for b in
+            market(today.build_today(boards_store(boards), D30), code)["boards"]}
+
+
+def test_an_item_on_three_stored_charts_counts_three_though_one_of_them_names_it_by_an_id():
+    shared = iid("hashtag", "#fixture_shared")
+    boards = [
+        {"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
+            {"rank": 2, "title": "#fixture_shared", "item_id": shared}]},
+        {"platform": "youtube", "list": "YouTube trending board", "entries": [
+            {"rank": 17, "title": "#fixture_shared", "item_id": shared}]},
+        {"platform": "twitter", "list": "X trending board", "entries": [
+            {"rank": 4, "title": FAKE_CHANNEL, "item_id": shared}]},
+    ]
+    counts = _chart_counts(boards)
+    assert counts["TikTok hashtag board"] == {shared: 3}
+    assert counts["YouTube trending board"] == {shared: 3}
+    assert counts["X trending board"] is None  # nothing on it is shown, so it carries no counts
+
+
+def test_a_chart_counts_once_however_often_it_repeats_the_item_and_a_null_rank_still_counts():
+    shared = iid("hashtag", "#fixture_repeat")
+    boards = [
+        {"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
+            {"rank": 1, "title": "#fixture_repeat", "item_id": shared},
+            {"rank": 5, "title": "#fixture_repeat", "item_id": shared}]},
+        {"platform": "youtube", "list": "YouTube trending board", "entries": [
+            {"rank": None, "title": "#fixture_repeat", "item_id": shared}]},
+    ]
+    assert _chart_counts(boards) == {"TikTok hashtag board": {shared: 2}, "YouTube trending board": {shared: 2}}
+
+
+def test_a_chart_is_its_platform_and_its_list_and_a_city_list_is_one_chart_per_city():
+    shared = iid("sound", "fixture shared sound")
+    entry = [{"rank": 3, "title": "Back 2 U", "item_id": shared}]
+    boards = [
+        {"platform": "apple_music", "list": "Apple Music chart", "entries": entry},
+        {"platform": "apple_music", "list": "Apple Music new", "entries": entry},
+        {"platform": "shazam", "list": "board shazam city", "city": "Lagos", "entries": entry},
+        {"platform": "shazam", "list": "board shazam city", "city": "Abuja", "entries": entry},
+    ]
+    for chart in market(today.build_today(boards_store(boards), D30), "ZA")["boards"]:
+        assert chart["chart_counts"] == {shared: 4}
+
+
+def test_an_item_with_no_item_id_has_no_count_and_the_same_item_in_another_market_is_separate():
+    other = iid("hashtag", "#fixture_za_only")
+    boards = [{"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
+        {"rank": 1, "title": "#no_id_here"}, {"rank": 2, "title": "#fixture_za_only", "item_id": other}]}]
+    base = boards_store(boards)
+    za = market(today.build_today(base, D30), "ZA")["boards"][0]
+    assert za["chart_counts"] == {other: 1}
+    ng_boards = [b for b in market(today.build_today(base, D30), "NG")["boards"] if other in (b.get("chart_counts") or {})]
+    assert ng_boards == []
+
+
+def test_a_board_of_only_ids_on_a_past_brief_says_the_brief_day_not_today():
+    """The server worded this reason "today" whatever the day. The app shows it beside the brief's own date."""
+    import datetime as dt
+    ahead = dt.datetime(2026, 10, 8, 9, 0, tzinfo=today.SAST)
+    za = market(today.build_today(boards_store([ID_BOARD]), D30, now=ahead), "ZA")["boards"][0]
+    assert za["left_out_reason"] == "None of this list's entries had a readable name on 30 September 2026"
+    assert za["left_out"] == 1
+
+
+def test_a_board_of_only_ids_on_todays_brief_still_says_today():
+    import datetime as dt
+    same_day = dt.datetime(2026, 9, 30, 9, 0, tzinfo=today.SAST)
+    za = market(today.build_today(boards_store([ID_BOARD]), D30, now=same_day), "ZA")["boards"][0]
+    assert za["left_out_reason"] == today.NO_NAMES_READ

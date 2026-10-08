@@ -72,7 +72,8 @@ CHART_FEED_WORDS = {"mdundo": "Mdundo top songs", "turntable": "TurnTable Top 10
 CHART_FEED_LIST = "board music country"
 CHART_FEED_FALLBACK = "National music chart"
 # A board whose every entry was left out: said so, so an empty list does not read as one with a few names missing.
-NO_NAMES_READ = "None of this list's entries had a readable name today"
+NO_NAMES_READ_AT = "None of this list's entries had a readable name {day}"
+NO_NAMES_READ = NO_NAMES_READ_AT.format(day="today")
 PLATFORM_SERIES_WORDS = {"board_global_music": "global music board", "search": "search"}
 CROSS_SERIES_WORDS = {"counter_post_views": "Post view re-reads", "search": "Searches"}
 INVALID_WORDS = {"calls": "could not be read", "items": "post count far from usual",
@@ -576,13 +577,38 @@ def _entry_keys(entry, music):
     return keys
 
 
-def _boards(boards):
+def _chart_key(board):
+    """A chart is one platform and list of a market's boards for the brief date; a city list is one chart per city."""
+    list_ = board.get("list")
+    return (board.get("platform"), list_.strip() if isinstance(list_, str) else "", board.get("city"))
+
+
+def _chart_sets(boards):
+    """item_id to the charts that hold it, read from every stored entry before any is left out or merged: an entry
+    titled with an id, one with no rank and a repeat within its chart all still count, each chart once."""
+    found = {}
+    for b in boards:
+        if not isinstance(b, dict):
+            continue
+        for e in b.get("entries") or []:
+            item_id = e.get("item_id") if isinstance(e, dict) else None
+            if isinstance(item_id, str) and item_id.strip():
+                found.setdefault(item_id, set()).add(_chart_key(b))
+    return found
+
+
+def _boards(boards, day="today"):
     """Each board keeps its own list and each entry its own rank, L2's best rank today, so ties and gaps stay.
     Entries titled with an id are left out, never named, and added to any count the board already carries. Two
     entries of one board that are the same entry (_entry_keys: one song under two item ids) show once, at the better
-    positive integer rank. Equal ranks keep the first input row; unrelated entries keep their source order."""
+    positive integer rank. Equal ranks keep the first input row; unrelated entries keep their source order.
+    chart_counts, on a board with shown entries that have an item id, gives the number of charts holding each item
+    in this market's boards, counted over the stored entries (_chart_sets). day words the all-ids reason: "today",
+    or "on 30 September 2026" on a past brief."""
     out = []
-    for b in _platform_x(boards):
+    boards = _platform_x(boards)
+    charts = _chart_sets(boards)
+    for b in boards:
         named = [dict(e, title=t) for e in b.get("entries") or [] for t in [_board_title(e, b.get("platform"))] if t]
         music = b.get("list") in MUSIC_LISTS or b.get("platform") in MUSIC_PLATFORMS
         ranked = []
@@ -598,9 +624,11 @@ def _boards(boards):
             seen |= keys
         shown = [e for _, e in sorted(shown, key=lambda row: row[0])]
         left_out = (b.get("left_out") or 0) + len(b.get("entries") or []) - len(named)
-        reason = b.get("left_out_reason") or (NO_NAMES_READ if not shown else NO_NAME)
+        reason = b.get("left_out_reason") or (NO_NAMES_READ_AT.format(day=day) if not shown else NO_NAME)
+        counts = {e["item_id"]: len(charts[e["item_id"]]) for e in shown
+                  if isinstance(e.get("item_id"), str) and e["item_id"].strip()}
         out.append(dict(b, list=_board_list(b), entries=shown, left_out=left_out,
-                        left_out_reason=reason if left_out else None))
+                        left_out_reason=reason if left_out else None, **({"chart_counts": counts} if counts else {})))
     return out
 
 
@@ -1186,7 +1214,8 @@ def _headline(markets):
     return None
 
 
-def _market(store, market, date, row, health_rows, calendar_rows, warmup, collect_ok, stage_failed, creator_labels):
+def _market(store, market, date, row, health_rows, calendar_rows, warmup, collect_ok, stage_failed, creator_labels,
+            day="today"):
     payload = row.get("payload") if row and isinstance(row.get("payload"), dict) else {}
     status = row["status"] if row else "data_issue"
     prev = _prev_ranks(store, market, date) if row else None
@@ -1302,7 +1331,7 @@ def _market(store, market, date, row, health_rows, calendar_rows, warmup, collec
         "held_back": {"count": len(held_items), "text": held_text, "items": held_items},
         "not_assessed": not_assessed,
         "moments": moments,
-        "boards": _boards(payload.get("boards")),
+        "boards": _boards(payload.get("boards"), day),
         "coverage": _with_brief_issues(_coverage(rows), payload),
         "_headline": payload.get("headline"),
     }
@@ -1510,8 +1539,9 @@ def build_today(store, date=None, now=None):
     collect_ok = any(r.get("status") == "ok" for r in collect_runs)
     stage_failed = _stage_failed(collect_runs) or _stage_failed(detect_runs)
     creator_labels = _today_creator_labels(store, rows)
+    day = "today" if current else f"on {_long_date(date)}"
     markets = [_market(store, m, date, rows.get(m), health_rows, calendar_rows, warmup, collect_ok, stage_failed,
-                       creator_labels)
+                       creator_labels, day)
                for m in MARKETS]
     _with_held_details(store, rows, markets)
     breaking = _breaking(store, store._hidden, now) if current else {}
