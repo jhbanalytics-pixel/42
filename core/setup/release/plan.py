@@ -23,7 +23,7 @@ SERVICES = ("f42-agent", "f42-api")
 GCS_STAGING = "gs://ogilvy-trends-v2-f42-media-staging/build-source"
 BUILD_ACCOUNT = f"projects/{PROJECT}/serviceAccounts/f42-deployer@{PROJECT}.iam.gserviceaccount.com"
 IDENTITY_FIELDS = "json(core.account,core.project,auth.impersonate_service_account)"
-CHECKER_KINDS = ("readbacks", "rollback-blockers", "inflight-asks")
+CHECKER_KINDS = ("validate", "readbacks", "rollback-blockers", "inflight-asks")
 FORBIDDEN_TRAFFIC_FLAGS = ("--to-latest", "--to-tags", "--update-tags", "--set-tags", "--clear-tags")
 RELEASE_ID = re.compile(r"rel-[0-9a-f]{7}-[0-9]{2}")
 IMAGE_SUBSTITUTION = re.compile(rf"_IMAGE={re.escape(REGION)}-docker\.pkg\.dev/{PROJECT}/intelligence-42/f42-web:[0-9a-f]{{12}}-[0-9]{{2}}")
@@ -113,6 +113,7 @@ def candidate(ctx):
                        "--service-account", BUILD_ACCOUNT, "."]),
         helper(ctx, "Freeze"),
     ]
+    steps.append(checker(ctx, "validate"))
     if ctx.schema_effects:
         steps.append(step("schema_apply", ["py", "-3.13", "-m", "core.schema.apply", "--apply"]))
     steps += pin(ctx)

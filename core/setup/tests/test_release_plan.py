@@ -31,23 +31,23 @@ def all_plans(ctx=CTX):
     return plans
 
 
-def test_ps03_candidate_runs_in_the_contract_order_and_moves_no_traffic_but_the_two_pins():
+def test_plan_ps03_candidate_runs_in_the_contract_order_and_moves_no_traffic_but_the_two_pins():
     assert names(plan.candidate(CTX)) == [
         "assert:head", "assert:tree", "assert:status", "assert:identity", "helper:BeforeAnyWrite", "archive", "extract", "build",
-        "helper:Freeze", "pin:f42-agent", "pin:f42-api", "helper:BeforeCandidate", "deploy_candidate", "helper:BeforeSmoke", "smoke",
+        "helper:Freeze", "checker:validate", "pin:f42-agent", "pin:f42-api", "helper:BeforeCandidate", "deploy_candidate", "helper:BeforeSmoke", "smoke",
         "helper:AfterSmoke"]
     assert names(plan.candidate(dataclasses.replace(CTX, schema_effects=True))).index("schema_apply") == names(plan.candidate(CTX)).index("pin:f42-agent")
     traffic = [s for s in plan.candidate(CTX) if "update-traffic" in s.argv]
     assert [s.name for s in traffic] == ["pin:f42-agent", "pin:f42-api"]
 
 
-def test_ps04_the_smoke_runs_against_the_manifest_api_tag_url_and_never_the_public_api():
+def test_plan_ps04_the_smoke_runs_against_the_manifest_api_tag_url_and_never_the_public_api():
     [smoke] = [s for s in plan.candidate(CTX) if s.name == "smoke"]
     assert smoke.argv[3] == API_TAG and "run.app" in smoke.argv[3] and "---" in smoke.argv[3]
     assert smoke.argv[4:] == ("--market", "ZA", "--mode", "live", "--ask-timeout", "900")
 
 
-def test_ps05_promote_moves_the_agent_then_the_api_by_name_and_never_to_latest():
+def test_plan_ps05_promote_moves_the_agent_then_the_api_by_name_and_never_to_latest():
     steps = plan.promote(CTX)
     assert names(steps) == ["helper:BeforePromotion", "promote:f42-agent", "helper:AfterAgentPromotion", "promote:f42-api", "helper:AfterPromotion"]
     agent, api = steps[1], steps[3]
@@ -56,20 +56,20 @@ def test_ps05_promote_moves_the_agent_then_the_api_by_name_and_never_to_latest()
     assert not any("jobs" in text(s) or "scheduler" in text(s) for s in steps)
 
 
-def test_ps06_rollback_restores_the_api_first_then_the_agent_to_the_baseline_revisions():
+def test_plan_ps06_rollback_restores_the_api_first_then_the_agent_to_the_baseline_revisions():
     steps = plan.rollback(CTX)
     assert names(steps) == ["helper:BeforeRollback", "restore:f42-api", "restore:f42-agent", "helper:AfterRollback"]
     assert "--to-revisions=f42-api-00041-lns=100" in steps[1].argv and "--to-revisions=f42-agent-00047-677=100" in steps[2].argv
 
 
-def test_ps06_the_rollback_targets_come_from_the_baseline_not_from_the_plan():
+def test_plan_ps06_the_rollback_targets_come_from_the_baseline_not_from_the_plan():
     other = dataclasses.replace(CTX, a80={"f42-agent": "f42-agent-00099-aaa", "f42-api": "f42-api-00099-bbb"})
     joined = " ".join(text(s) for s in plan.rollback(other))
     assert "f42-api-00099-bbb" in joined and "f42-agent-00099-aaa" in joined
     assert "00041" not in joined and "00047" not in joined and "00046" not in joined and "00040" not in joined
 
 
-def test_ps21_tags_are_removed_only_after_the_readback_that_proves_where_traffic_is():
+def test_plan_ps21_tags_are_removed_only_after_the_readback_that_proves_where_traffic_is():
     for action, before in (("Retire", "helper:BeforeRetire"),):
         order = names(plan.ACTIONS[action](CTX))
         assert order.index(before) < order.index("remove_tag:f42-api") < order.index("remove_tag:f42-agent") < order.index("helper:AfterRetire")
@@ -82,7 +82,7 @@ def test_ps21_tags_are_removed_only_after_the_readback_that_proves_where_traffic
     assert names(rows["C3"])[0] == "helper:BeforeRollback"
 
 
-def test_ps21_the_retire_phases_carry_the_release_id_as_their_tag_and_no_other_phase_does():
+def test_plan_ps21_the_retire_phases_carry_the_release_id_as_their_tag_and_no_other_phase_does():
     for label, steps in all_plans().items():
         for s in steps:
             if s.name.startswith("helper:"):
@@ -150,7 +150,7 @@ def test_no_step_in_any_plan_or_row_uses_a_latest_following_or_tag_setting_traff
                 assert word not in s.argv, (label, s.name, word)
 
 
-def test_ps22_every_external_invocation_matches_exactly_one_allowlist_entry():
+def test_plan_ps22_every_external_invocation_matches_exactly_one_allowlist_entry():
     for label, steps in all_plans().items():
         assert plan.check_allowlist(steps) is None, (label, plan.check_allowlist(steps))
     kinds = {plan.matching_entries(s.argv)[0] for steps in all_plans().values() for s in steps}
@@ -187,11 +187,11 @@ def test_ps22_every_external_invocation_matches_exactly_one_allowlist_entry():
     ["py", "-3.13", "core/setup/deploy_jobs.py"],
     ["py", "-3.13", "core/setup/durable_effects_check.py", "--check", "anything", "--evidence", "e", "--manifest", "m"],
 ])
-def test_ps22_anything_outside_the_allowlist_matches_nothing(argv):
+def test_plan_ps22_anything_outside_the_allowlist_matches_nothing(argv):
     assert plan.matching_entries(argv) == []
 
 
-def test_ps22_no_entry_overlaps_another_on_the_real_steps():
+def test_plan_ps22_no_entry_overlaps_another_on_the_real_steps():
     for steps in all_plans().values():
         for s in steps:
             assert len(plan.matching_entries(s.argv)) == 1, s.name

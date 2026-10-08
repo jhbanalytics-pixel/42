@@ -451,7 +451,7 @@ def run_inflight_asks(bindings, bq):
 
 def main(argv=None, bq_factory=BigQuery):
     parser = argparse.ArgumentParser(description="Durable effects checks for a release.")
-    parser.add_argument("--check", choices=("readbacks", "rollback-blockers", "inflight-asks"), required=True)
+    parser.add_argument("--check", choices=("validate", "readbacks", "rollback-blockers", "inflight-asks"), required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--bindings", type=Path)
@@ -463,7 +463,12 @@ def main(argv=None, bq_factory=BigQuery):
         else:
             require(args.manifest is not None, "--manifest is required")
             manifest = json.loads(args.manifest.read_text(encoding="utf-8-sig"))
-            if args.check == "rollback-blockers":
+            if args.check == "validate":
+                problems = validate_manifest(manifest)
+                if problems:
+                    raise Refusal("the manifest is not valid: " + problems[0])
+                result = {"schema_version": SCHEMA_VERSION, "check": "validate", "ok": True, "effects": len(manifest["effects"])}
+            elif args.check == "rollback-blockers":
                 blockers = manifest.get("rollback_blockers") if isinstance(manifest, dict) else None
                 result = run_rollback_blockers(manifest, bq_factory() if blockers else None)
             else:
