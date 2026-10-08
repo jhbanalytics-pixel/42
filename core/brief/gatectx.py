@@ -102,10 +102,15 @@ def _tag(value):
     return _norm(value).strip().lstrip("#").casefold()
 
 
-def _paid(record, hashtags):
-    if "sponsored" in (record.get("flags") or []) or any(_tag(h) in PAID_POST_TAGS for h in hashtags):
+def paid_markers(record, hashtags):
+    """True when the post's stored hashtags or its caption carry a paid-post marker (not the sponsored flag)."""
+    if any(_tag(h) in PAID_POST_TAGS for h in hashtags or ()):
         return True
     return any(_PAID_TEXT.search(record.get(k) or "") for k in ("text", "quote_text"))
+
+
+def _paid(record, hashtags):
+    return "sponsored" in (record.get("flags") or []) or paid_markers(record, hashtags)
 
 
 def _handle(record):
