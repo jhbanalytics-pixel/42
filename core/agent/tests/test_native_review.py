@@ -189,17 +189,33 @@ def test_english_metadata_does_not_clear_the_ng_ke_text_baseline():
     assert capped == ["ng_heuristic"]
 
 
-def test_insufficient_known_za_review_does_not_add_a_new_cap():
-    capped = native_review.tone_cap_ids(
-        [{"id": "za_insufficient", "market": "ZA", "text": "English text"}],
-        {"za_insufficient": ["zu"]},
-        {"zu": "insufficient"},
-        checks.mostly_non_english,
-        native_review_loaded=True,
-        native_review_available=True,
-    )
+# Albert's decision of 8 October 2026 ("tone cap yes", W8 batch 3): a ZA non-English language with fewer than
+# NATIVE_MIN (5) native-checked quotes is capped the same as no review at all. Five or more checked quotes with a
+# passing score lift the cap. This replaces the earlier pin, test_insufficient_known_za_review_does_not_add_a_new_cap,
+# which asserted the opposite.
+def test_insufficient_known_za_review_is_capped_like_no_review():
+    records = [{"id": "za_insufficient", "market": "ZA", "text": "English text"}]
+    args = (records, {"za_insufficient": ["zu"]})
+    flags = {"native_review_loaded": True, "native_review_available": True}
+    insufficient = native_review.tone_cap_ids(*args, {"zu": "insufficient"}, checks.mostly_non_english, **flags)
+    no_review = native_review.tone_cap_ids(*args, {}, checks.mostly_non_english, **flags)
+    assert insufficient == no_review == ["za_insufficient"]
 
-    assert capped == []
+
+@pytest.mark.parametrize("checked, passing, expected", [
+    (4, 4, ["za_zulu"]),    # under 5 checked quotes: insufficient, capped, even with every quote right
+    (3, 3, ["za_zulu"]),
+    (5, 5, []),             # 5 checked quotes, all pass: cleared, the cap lifts
+    (5, 4, []),             # 80% of 5 passes
+    (5, 3, ["za_zulu"]),    # 5 checked quotes under 80%: capped
+])
+def test_the_zulu_cap_follows_the_native_score_end_to_end(checked, passing, expected):
+    labels = [label("zu", f"za_{i}", i < passing) for i in range(checked)]
+    statuses = native_review.load_native_statuses(PayloadWarehouse(payload(labels)))
+    capped = native_review.tone_cap_ids(
+        [{"id": "za_zulu", "market": "ZA", "text": "Hhayi bo, le nto iyahlekisa kakhulu"}], {"za_zulu": ["zu"]}, statuses,
+        checks.mostly_non_english, native_review_loaded=True, native_review_available=True)
+    assert capped == expected
 
 
 def test_failed_native_read_caps_non_english_tone_even_when_language_metadata_is_english():
@@ -294,7 +310,7 @@ def test_unknown_language_cannot_clear_a_standing_ng_cap():
 # N63. A ZA post has no standing cap, so a non-English language with no score at all (no labels yet, or a language
 # outside the review rotation) and an "en" tag on non-English text both fell through uncapped, against TRUST C5 (tone
 # on non-English posts stays at single_source until the language passes native checks). An "insufficient" score for a
-# known ZA language is a separate ruling: test_insufficient_known_za_review_does_not_add_a_new_cap pins it uncapped.
+# known ZA language is capped too, by the decision pinned in test_insufficient_known_za_review_is_capped_like_no_review.
 ZULU = "Hhayi bo, le nto iyahlekisa kakhulu"
 
 
