@@ -456,6 +456,7 @@ def test_no_banned_text_in_schema_package():
 
 ALTERS = [
     ("runs", "model_usd", "FLOAT64"),
+    ("runs", "stamp", "JSON"),
     ("claim_checks", "reason", "STRING"),
     ("feedback", "at", "TIMESTAMP"),
     ("watches", "status_at", "TIMESTAMP"),
@@ -864,6 +865,13 @@ def test_runs_carries_nullable_ask_payloads():
     _, _, _, columns, _ = our_tables()["runs"][0]
     assert ("answer", "JSON", False) in columns
     assert ("record", "JSON", False) in columns
+
+
+def test_runs_carries_a_nullable_json_stamp_added_by_alter():
+    # core/setup/stamp.py writes it: the git sha, image digest and prompt hashes of the code that wrote the row.
+    _, _, _, columns, _ = our_tables()["runs"][0]
+    assert ("stamp", "JSON", False) in columns
+    assert ("runs", "stamp", "JSON") in alters()
 
 
 # Tests: apply.py with a fake client
