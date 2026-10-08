@@ -410,6 +410,86 @@ test('All groups charts by market, each with a badge, in the order given', () =>
   expect(host.querySelectorAll('[data-section="boards"]')).toHaveLength(1);
 });
 
+/* ---- the brief day ---- */
+
+const PAST = 'on 30 September 2026';
+const pastBoards = () => [
+  board('youtube', 'Empty list', []),
+  {platform: 'tiktok', list: 'Missing list', left_out: 0, left_out_reason: null},
+  board('apple_music', 'Unreadable list', [entry(1, FAKE_CHANNEL, 'i1')], {left_out: 1, left_out_reason: 'No readable name'}),
+  board('spotify', 'Daily top songs', [entry(1, 'Song by Someone', 's1')]),
+];
+
+test('a past brief words every boards line with its own day and never says today', () => {
+  show({boards: pastBoards(), day: PAST});
+  const section = host.querySelector('[data-section="boards"]');
+  expect(section.querySelector('h3.t42-section-title').textContent).toBe('On the boards on 30 September 2026');
+  expect(section.querySelector('.tb-caption').textContent).toBe('Best rank on 30 September 2026');
+  expect(cardFor('Empty list').textContent).toContain('Nothing was on this list on 30 September 2026.');
+  expect(cardFor('Missing list').textContent).toContain('This list did not come through on 30 September 2026.');
+  expect(section.querySelector('.tb-note').textContent).toContain('same market on 30 September 2026');
+  expect(section.textContent).not.toMatch(/\btoday\b/i);
+  show({boards: [], day: PAST});
+  expect(host.querySelector('[data-section="boards"]').textContent).toContain('No platform lists were read on 30 September 2026.');
+  expect(host.querySelector('[data-section="boards"]').textContent).not.toMatch(/\btoday\b/i);
+});
+
+test('with no day given the boards say today, and the note says what "On N charts" counts', () => {
+  show({boards: pastBoards()});
+  const section = host.querySelector('[data-section="boards"]');
+  expect(section.querySelector('h3.t42-section-title').textContent).toBe('On the boards today');
+  expect(section.querySelector('.tb-caption').textContent).toBe('Best rank today');
+  expect(section.querySelector('.tb-note').textContent).toBe('Each card is one platform\'s own list, and a rank belongs to that list only. "On N charts" counts the lists in the same market today.');
+  show({boards: pastBoards(), day: ''});
+  expect(host.querySelector('[data-section="boards"] h3').textContent).toBe('On the boards today');
+});
+
+test('the server reason is still said once on a past brief', () => {
+  show({boards: [board('youtube', 'YouTube trending board', [entry(1, FAKE_CHANNEL, 'i1')], {left_out_reason: SERVER_REASON})], day: PAST});
+  const card = host.querySelector('[data-board-card]');
+  expect(occurrences(card.textContent, 'readable name')).toBe(1);
+});
+
+/* ---- All: every market from one payload ---- */
+
+test('All renders each market of a Today payload under one boards section, apart and counted apart', () => {
+  const markets = ['ZA', 'NG', 'KE'].map((market, at) => ({
+    market, label: ['South Africa', 'Nigeria', 'Kenya'][at], status: 'ok', cards: [],
+    boards: at === 2 ? undefined : [
+      board('apple_music', 'Top 100: ' + market, [entry(1, 'Shared Song by Shared Artist', 'shared')]),
+      board('spotify', 'Daily top songs', [entry(2, 'Shared Song by Shared Artist', 'shared')]),
+    ],
+  }));
+  const groups = markets.map((m) => ({market: m.market, label: m.label, boards: m.boards}));
+  show({groups, day: PAST});
+  expect(host.querySelectorAll('[data-section="boards"]')).toHaveLength(1);
+  const blocks = [...host.querySelectorAll('[data-board-market]')];
+  expect(blocks.map((b) => b.getAttribute('data-board-market'))).toEqual(['ZA', 'NG', 'KE']);
+  expect(blocks.map((b) => b.querySelector('.tb-market-badge').textContent)).toEqual(['ZA', 'NG', 'KE']);
+  for (const block of blocks.slice(0, 2)){
+    expect(block.querySelectorAll('[data-board-card]')).toHaveLength(2);
+    expect([...block.querySelectorAll('.tb-multi')].map((m) => m.textContent)).toEqual(['On 2 charts', 'On 2 charts']);
+  }
+  expect(blocks[2].textContent).toContain('No platform lists were read on 30 September 2026.');
+  const levels = (selector) => [...new Set([...host.querySelectorAll(selector)].map((el) => el.tagName))];
+  expect(levels('.tb-market-head')).toEqual(['H4']);
+  expect(levels('.tb-group-title')).toEqual(['H5']);
+  expect(levels('.tb-card-title')).toEqual(['H6']);
+  expect(host.querySelector('.tb-note').textContent).toContain('same market on 30 September 2026');
+  const ids = [...host.querySelectorAll('[id]')].map((el) => el.id);
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(host.textContent).not.toMatch(/\btoday\b/i);
+});
+
+test('All with every market empty says so under each badge, and groups win over boards', () => {
+  show({groups: [{market: 'ZA', label: 'South Africa', boards: []}, {market: 'NG', label: 'Nigeria'}], boards: [board('spotify', 'Ignored', [entry(1, 'A by B', 'q')])]});
+  expect(host.querySelectorAll('[data-board-market]')).toHaveLength(2);
+  expect(host.querySelectorAll('[data-board-card]')).toHaveLength(0);
+  expect(host.textContent).not.toContain('Ignored');
+  expect(host.querySelector('.tb-note')).toBeNull();
+  expect(host.querySelectorAll('.t42-line-text')).toHaveLength(2);
+});
+
 /* ---- states ---- */
 
 test('empty, missing and unreadable charts each get their own visible state', () => {

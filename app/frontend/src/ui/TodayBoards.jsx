@@ -108,12 +108,15 @@ const sentence = (text) => String(text || '').trim().replace(/[.\s]+$/, '').toLo
 
 const safe = (id) => id.replace(/[^a-zA-Z0-9_-]/g, '');
 
-const STATE_WORDS = {
-  empty: 'Nothing was on this list today.',
-  missing: 'This list did not come through today.',
-  unreadable: "None of this list's entries had a readable name today.",
+/* day is the brief day's own words: "today", or "on 30 September 2026" for a
+   past brief. */
+const stateWords = (day) => ({
+  empty: `Nothing was on this list ${day}.`,
+  missing: `This list did not come through ${day}.`,
+  unreadable: `None of this list's entries had a readable name ${day}.`,
   invalid: 'This list could not be read.',
-};
+});
+const dayWords = (day) => (typeof day === 'string' && day.trim() !== '' ? day.trim() : 'today');
 
 function Row({chart, row, where, found}){
   const music = MUSIC.has(chart.id);
@@ -136,7 +139,7 @@ function Row({chart, row, where, found}){
   );
 }
 
-function ChartCard({chart, found, uid, tag: Heading}){
+function ChartCard({chart, found, uid, day, tag: Heading}){
   const [open, setOpen] = useState(false);
   const base = `tb-${uid}-${chart.index}`;
   const headId = base + '-h';
@@ -145,6 +148,9 @@ function ChartCard({chart, found, uid, tag: Heading}){
   const shown = open ? chart.rows : chart.rows.slice(0, TOP);
   const more = chart.rows.length > TOP;
   const flagged = chart.state === 'invalid';
+  const words = stateWords(day)[chart.state];
+  /* The server words an all-ids chart's reason as "today" whatever the day. */
+  const saidByReason = chart.leftOut > 0 && [words, stateWords('today')[chart.state]].some((text) => sentence(text) === sentence(chart.reason));
   return (
     <section className="tb-card" data-board-card="" data-chart-state={chart.state} data-platform={chart.id || undefined} aria-labelledby={headId}>
       <div className="tb-card-head">
@@ -156,7 +162,7 @@ function ChartCard({chart, found, uid, tag: Heading}){
       </div>
       {chart.state === 'ok'
         ? <>
-            <p className="tb-caption">Best rank today</p>
+            <p className="tb-caption">Best rank {day}</p>
             <ul className="tb-rows" id={rowsId}>
               {shown.map((row, at) => <Row key={at} chart={chart} row={row} where={where} found={found} />)}
             </ul>
@@ -168,7 +174,7 @@ function ChartCard({chart, found, uid, tag: Heading}){
               </button>
             )}
           </>
-        : !(chart.leftOut > 0 && sentence(chart.reason) === sentence(STATE_WORDS[chart.state])) && <p className="tb-state">{STATE_WORDS[chart.state]}</p>}
+        : !saidByReason && <p className="tb-state">{words}</p>}
       {chart.leftOut > 0 && <p className="tb-left-out">{chart.leftOut} left out: {chart.reason || 'No readable name'}</p>}
     </section>
   );
@@ -176,7 +182,7 @@ function ChartCard({chart, found, uid, tag: Heading}){
 
 /* The cards of one market, grouped, with each chart's rows counted against the
    market's own payload. level is the heading level of the group titles. */
-function Charts({boards, uid, level}){
+function Charts({boards, uid, level, day}){
   const found = chartIndex(boards);
   const charts = (Array.isArray(boards) ? boards : []).map((raw, index) => {
     const chart = describe(raw, index);
@@ -193,18 +199,20 @@ function Charts({boards, uid, level}){
       <div key={group.key} className="tb-group" data-board-group={group.key} role="group" aria-labelledby={titleId}>
         <GroupTitle className="tb-group-title" id={titleId}>{group.label}{' '}<span className="tb-count">{members.length}</span></GroupTitle>
         <ul className="tb-grid">
-          {members.map((chart) => <li key={chart.index}><ChartCard chart={chart} found={found} uid={uid} tag={CardTitle} /></li>)}
+          {members.map((chart) => <li key={chart.index}><ChartCard chart={chart} found={found} uid={uid} day={day} tag={CardTitle} /></li>)}
         </ul>
       </div>
     );
   });
 }
 
-const NONE = <p className="t42-line-text">No platform lists were read today.</p>;
+const none = (day) => <p className="t42-line-text">No platform lists were read {day}.</p>;
 
 /* boards: one market's payload. groups: [{market, label, boards}] for the All
-   view, each market kept apart under its own badge. */
-export function TodayBoards({boards, groups}){
+   view, each market kept apart under its own badge. day: the brief day's
+   words, "today" or "on 30 September 2026". */
+export function TodayBoards({boards, groups, day: given}){
+  const day = dayWords(given);
   const uid = safe(useId());
   const markets = Array.isArray(groups) ? groups.filter(isObject) : null;
   const list = Array.isArray(boards) ? boards : [];
@@ -212,8 +220,8 @@ export function TodayBoards({boards, groups}){
   const sectionId = `tb-${uid}-section`;
   return (
     <section className="t42-section tb" data-section="boards" aria-labelledby={sectionId}>
-      <h3 className="t42-section-title" id={sectionId}>On the boards today</h3>
-      {any && <p className="tb-note">Each card is one platform's own list. A rank belongs to that list only{markets ? ', and charts are counted within their market' : ''}.</p>}
+      <h3 className="t42-section-title" id={sectionId}>On the boards {day}</h3>
+      {any && <p className="tb-note">{`Each card is one platform's own list, and a rank belongs to that list only. "On N charts" counts the lists in the same market ${day}.`}</p>}
       {markets
         ? markets.map((m, at) => {
             const nameId = `tb-${uid}-m${at}`;
@@ -224,11 +232,11 @@ export function TodayBoards({boards, groups}){
                   <span className="tb-market-badge">{m.market}</span>
                   <span className="tb-market-name" id={nameId}>{m.label || m.market}</span>
                 </h4>
-                {items.length > 0 ? <Charts boards={items} uid={`${uid}-m${at}`} level={5} /> : NONE}
+                {items.length > 0 ? <Charts boards={items} uid={`${uid}-m${at}`} level={5} day={day} /> : none(day)}
               </div>
             );
           })
-        : list.length > 0 ? <Charts boards={list} uid={uid} level={4} /> : NONE}
+        : list.length > 0 ? <Charts boards={list} uid={uid} level={4} day={day} /> : none(day)}
     </section>
   );
 }
