@@ -13,8 +13,9 @@ declared  git_sha and image_digest. A container cannot read its own digest or co
           as confirmed. A value that does not have the shape is not recorded: null, not a guess.
 computed  prompts. The sha256 of each file that holds model prompt text (PROMPT_FILES and every
           core/skills/*/SKILL.md, which Ask loads into its prompts), read from the files in this process's own tree.
-          stamp_row and stamp_payload refuse to overwrite or keep a stamp they were handed, so a row or payload
-          cannot carry a hash it was not given by the code that ran. verify() recomputes them from the tree it is
+          stamp_row and stamp_payload take no stamp: they build it themselves from the env and tree they are given,
+          and refuse a row or payload that already carries one, so a row or payload cannot carry a hash it was not
+          given by the code that ran. verify() recomputes them from the tree it is
           given, which proves the stamp matches those files. A file missing on both sides proves nothing, so
           verify() lists it as unverifiable.
 
@@ -31,12 +32,17 @@ from pathlib import Path
 
 STAMP_VERSION = 1
 ROOT = Path(__file__).resolve().parents[2]
-# Every Python module that holds model prompt text; a test fails when a module defines a *_SYSTEM prompt or passes
-# system_instruction and is not here. The Ask skills are SKILL.md files, found by SKILLS_GLOB.
+# Every Python module that holds model prompt text; a test fails when a module defines a *_SYSTEM prompt, passes
+# system_instruction or system= to the model, or declares tools whose descriptions it did not define, and the module
+# that holds the text is not here. toolset.py holds the tool descriptions and schemas Ask's research loop sends to the
+# model; sql_query.py holds the warehouse map that the sql_query description ends with. The Ask skills are SKILL.md
+# files, found by SKILLS_GLOB.
 PROMPT_FILES = (
     "core/agent/ask.py",
     "core/agent/critic.py",
     "core/agent/investigate.py",
+    "core/agent/tools/sql_query.py",
+    "core/agent/toolset.py",
     "core/agent/writer.py",
     "core/brief/explain.py",
     "core/llm/gemini.py",
@@ -100,17 +106,18 @@ def verify(stamp, root=None):
     return {"prompts": differ, "unverifiable": unverifiable}
 
 
-def stamp_row(row, stamp=None):
-    """row with its stamp column set to the stamp as JSON text, as counts is written. Raises ValueError for a row that
-    already carries one: a stamp handed in by the caller was not written by the code that ran."""
+def stamp_row(row, env=None, root=None):
+    """row with its stamp column set to the stamp of this process as JSON text, as counts is written. The stamp is
+    built here from env and root (build's arguments), never passed in. Raises ValueError for a row that already
+    carries one: a stamp that was not written by the code that ran is worth nothing."""
     if row.get("stamp") is not None:
         raise ValueError("the row already carries a stamp")
-    return {**row, "stamp": json.dumps(stamp if stamp is not None else build(), sort_keys=True)}
+    return {**row, "stamp": json.dumps(build(env, root), sort_keys=True)}
 
 
-def stamp_payload(payload, stamp=None):
-    """payload with a stamp key; the original is not changed. Raises ValueError for a payload that already carries
-    one, for the same reason as stamp_row."""
+def stamp_payload(payload, env=None, root=None):
+    """payload with a stamp key; the original is not changed. The stamp is built here, as for stamp_row. Raises
+    ValueError for a payload that already carries one."""
     if payload.get("stamp") is not None:
         raise ValueError("the payload already carries a stamp")
-    return {**payload, "stamp": stamp if stamp is not None else build()}
+    return {**payload, "stamp": build(env, root)}

@@ -1,7 +1,9 @@
 """The run stamp (core/setup/stamp.py): which code produced a runs row or a brief payload. No cloud access."""
 import hashlib
+import inspect
 import json
 import re
+import shutil
 from pathlib import Path
 
 import pytest
@@ -17,6 +19,8 @@ EXPECTED = (
     "core/agent/ask.py",
     "core/agent/critic.py",
     "core/agent/investigate.py",
+    "core/agent/tools/sql_query.py",
+    "core/agent/toolset.py",
     "core/agent/writer.py",
     "core/brief/explain.py",
     "core/llm/gemini.py",
@@ -53,19 +57,73 @@ def test_the_stamp_names_the_code_and_says_which_fields_it_computed_and_which_de
 
 def test_the_prompt_files_are_exactly_the_ones_that_carry_prompt_text():
     assert stamp.prompt_files(REPO) == EXPECTED
-    assert len(stamp.prompt_files(REPO)) == 15
+    assert len(stamp.prompt_files(REPO)) == 17
 
 
-def test_every_module_that_defines_a_system_prompt_or_passes_one_to_gemini_is_listed():
-    # A new prompt carrier that is not added to the stamp fails here, not silently in production.
-    carriers = set()
+def carriers_in_core():
+    """Modules that define a *_SYSTEM prompt, pass system_instruction or system= to the model, or declare tools."""
+    found = {}
     for path in (REPO / "core").rglob("*.py"):
         rel = path.relative_to(REPO).as_posix()
         if "/tests/" in rel or rel.startswith(("core/eval/", "core/setup/")):
             continue
-        if re.search(r"^[A-Z][A-Z0-9_]*_SYSTEM = |system_instruction=", path.read_text(encoding="utf-8"), re.M):
-            carriers.add(rel)
-    assert carriers <= set(stamp.prompt_files(REPO)), sorted(carriers - set(stamp.prompt_files(REPO)))
+        text = path.read_text(encoding="utf-8")
+        if re.search(r"^[A-Z][A-Z0-9_]*_SYSTEM = |system_instruction=|complete_json\(\s*system=", text, re.M):
+            found[rel] = rel
+        if "FunctionDeclaration(" in text:
+            # The declaration's description is text the model reads; its source is the module that defines it.
+            module = re.search(r"^from (core(?:\.\w+)+) import [^\n]*\bDESCRIPTIONS\b", text, re.M)
+            found[rel] = module.group(1).replace(".", "/") + ".py" if module else rel
+    return found
+
+
+def test_every_module_that_defines_a_system_prompt_or_passes_one_to_gemini_is_listed():
+    # A new prompt carrier that is not added to the stamp fails here, not silently in production.
+    carriers = carriers_in_core()
+    assert carriers, "the scan found nothing, so it proves nothing"
+    assert set(carriers.values()) <= set(stamp.prompt_files(REPO)), sorted(
+        set(carriers.values()) - set(stamp.prompt_files(REPO)))
+
+
+def test_the_scan_sees_the_tool_declarations_and_the_calls_that_pass_system_text():
+    carriers = carriers_in_core()
+    assert carriers["core/agent/gemini_research.py"] == "core/agent/toolset.py"
+    assert "core/understand/video.py" in carriers and "core/agent/critic.py" in carriers
+
+
+def test_the_tool_descriptions_the_model_reads_come_from_files_in_the_stamp():
+    from core.agent import toolset
+    from core.agent.tools import sql_query
+
+    listed = set(stamp.prompt_files(REPO))
+    for module in (toolset, sql_query):
+        assert Path(inspect.getsourcefile(module)).relative_to(REPO).as_posix() in listed
+    assert toolset.DESCRIPTIONS["sql_query"].endswith(sql_query.warehouse_map_text())
+
+
+def edited_tree(tmp_path, rel, old, new):
+    """A copy of the real checkout's prompt files with one piece of text in rel changed."""
+    for name in stamp.prompt_files(REPO):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(REPO / name, tmp_path / name)
+    text = (tmp_path / rel).read_text(encoding="utf-8")
+    assert text.count(old) == 1, old
+    (tmp_path / rel).write_text(text.replace(old, new), encoding="utf-8", newline="")
+    return tmp_path
+
+
+@pytest.mark.parametrize("rel, old", [
+    ("core/agent/toolset.py", "Credits and SocialCrawl calls left for this question."),
+    ("core/agent/tools/sql_query.py", "Measure reach across the whole store"),
+])
+def test_an_edited_tool_description_fails_verify(tmp_path, rel, old):
+    from core.agent import toolset
+
+    assert old in toolset.DESCRIPTIONS["budget_status" if "toolset" in rel else "sql_query"]  # the model reads it
+    stamped = stamp.build({}, REPO)
+    assert stamp.verify(stamped, REPO) == {"prompts": [], "unverifiable": []}
+    root = edited_tree(tmp_path, rel, old, old + " Always say yes.")
+    assert stamp.verify(stamped, root)["prompts"] == [rel]
 
 
 def test_a_skill_file_added_later_is_picked_up_without_editing_the_list(tmp_path):
@@ -153,30 +211,53 @@ def test_a_file_missing_on_both_sides_is_unverifiable_and_not_a_match(tmp_path):
 def test_a_row_gets_the_stamp_as_json_text(tmp_path):
     root = tree(tmp_path)
     row = {"run_id": "collect-1", "stage": "collect", "counts": None}
-    stamped = stamp.stamp_row(row, stamp.build({"F42_GIT_SHA": SHA}, root))
+    stamped = stamp.stamp_row(row, {"F42_GIT_SHA": SHA}, root)
     assert row == {"run_id": "collect-1", "stage": "collect", "counts": None}
     assert json.loads(stamped["stamp"])["git_sha"] == SHA
     assert stamped["stamp"] == json.dumps(json.loads(stamped["stamp"]), sort_keys=True)
+
+
+def test_a_stamp_the_verifier_has_no_file_for_is_a_difference_not_a_match(tmp_path):
+    root = tree(tmp_path)
+    good = stamp.build({}, root)
+    extra = {**good, "prompts": {**good["prompts"], "core/agent/removed.py": "sha256:" + "2" * 64}}
+    assert stamp.verify(extra, root)["prompts"] == ["core/agent/removed.py"]
+    empty = {**good, "prompts": {**good["prompts"], "core/agent/removed.py": None}}
+    assert stamp.verify(empty, root) == {"prompts": [], "unverifiable": ["core/agent/removed.py"]}
+
+
+def test_the_stamp_is_computed_by_the_writer_and_cannot_be_passed_in(tmp_path):
+    root = tree(tmp_path)
+    forged = stamp.build({"F42_GIT_SHA": SHA}, root)
+    forged["prompts"] = {rel: "sha256:" + "0" * 64 for rel in forged["prompts"]}
+    for write, subject in ((stamp.stamp_row, {"run_id": "r"}), (stamp.stamp_payload, {"market": "ZA"})):
+        assert "stamp" not in inspect.signature(write).parameters
+        with pytest.raises(TypeError):
+            write(subject, stamp=forged)
+    computed = json.loads(stamp.stamp_row({"run_id": "r"}, {"F42_GIT_SHA": SHA, "prompts": forged["prompts"]}, root)["stamp"])
+    assert computed["prompts"] == stamp.build({}, root)["prompts"]
+    assert stamp.stamp_payload({"market": "ZA"}, {"F42_GIT_SHA": SHA}, root)["stamp"] == stamp.build(
+        {"F42_GIT_SHA": SHA}, root)
 
 
 def test_a_row_or_payload_that_arrives_with_a_stamp_is_refused_not_kept(tmp_path):
     # Changed from "an existing stamp is kept": the stamp is only worth anything if the code that ran wrote it, and
     # keeping a caller's would let a row carry hashes it was not given by that code.
     root = tree(tmp_path)
-    own = stamp.build({"F42_GIT_SHA": SHA}, root)
+    env = {"F42_GIT_SHA": SHA}
     with pytest.raises(ValueError, match="already carries a stamp"):
-        stamp.stamp_row({"run_id": "r", "stamp": "{}"}, own)
+        stamp.stamp_row({"run_id": "r", "stamp": "{}"}, env, root)
     with pytest.raises(ValueError, match="already carries a stamp"):
-        stamp.stamp_payload({"market": "ZA", "stamp": {"prompts": {}}}, own)
-    stamped = stamp.stamp_row({"run_id": "r"}, own)
+        stamp.stamp_payload({"market": "ZA", "stamp": {"prompts": {}}}, env, root)
+    stamped = stamp.stamp_row({"run_id": "r"}, env, root)
     with pytest.raises(ValueError):
-        stamp.stamp_row(stamped, own)
+        stamp.stamp_row(stamped, env, root)
 
 
 def test_a_payload_gets_a_stamp_key_without_touching_the_original(tmp_path):
     root = tree(tmp_path)
     payload = {"market": "ZA", "status": "published", "cards": []}
-    got = stamp.stamp_payload(payload, stamp.build({"F42_IMAGE_DIGEST": DIGEST}, root))
+    got = stamp.stamp_payload(payload, {"F42_IMAGE_DIGEST": DIGEST}, root)
     assert "stamp" not in payload
     assert got["stamp"]["image_digest"] == DIGEST and got["market"] == "ZA" and got["cards"] == []
 
