@@ -740,6 +740,38 @@ def test_a_policy_rule_error_still_fails_the_job_when_a_log_only_rule_also_fails
     assert row["counts"]["errors"] == ["model_spend"] and row["counts"]["log_only_errors"] == ["stage_dead"]
 
 
+def boom(*args):
+    raise RuntimeError("rule failed")
+
+
+@pytest.mark.parametrize("name", wd.ALERTS)
+def test_every_policy_rule_that_cannot_run_fails_the_job(monkeypatch, capsys, name):
+    # The job_failed policy is how an operator learns a policy rule is blind, so none of them may be exempted.
+    monkeypatch.setitem(wd.RULES, name, boom)
+    runs = chain.MemoryRunsStore()
+    assert wd.main(now=at(7, 0), store=FakeStore(keys=STABLE, runs=runs), runs=runs) == 1
+    out = lines(capsys.readouterr().out)
+    [error] = [o for o in out if o["severity"] == "ERROR"]
+    assert error["message"] == f"42 watchdog: rule {name} could not run: RuntimeError: rule failed"
+    assert [o for o in out if "no new alert" in o["message"]] == []
+    [row] = runs.rows
+    assert row["status"] == "failed" and row["error"] == f"{name}: RuntimeError: rule failed"
+    assert row["counts"]["errors"] == [name] and row["counts"]["log_only_errors"] == []
+
+
+@pytest.mark.parametrize("name", wd.LOG_ONLY)
+def test_every_log_only_rule_that_cannot_run_is_one_warning_and_leaves_the_job_ok(monkeypatch, capsys, name):
+    monkeypatch.setitem(wd.RULES, name, boom)
+    runs = chain.MemoryRunsStore()
+    assert wd.main(now=at(7, 0), store=FakeStore(keys=STABLE, runs=runs), runs=runs) == 0
+    [only] = lines(capsys.readouterr().out)  # no "no new alert" line either: a rule did not run, so nothing is clear
+    assert only["severity"] == "WARNING" and not only.get("alert")
+    assert only["message"] == f"42 watchdog: log-only rule {name} could not run: RuntimeError: rule failed"
+    [row] = runs.rows
+    assert row["status"] == "ok" and row["error"] is None
+    assert row["counts"]["errors"] == [] and row["counts"]["log_only_errors"] == [name]
+
+
 def test_a_log_only_rule_error_is_not_retried_as_fired_and_runs_again_next_time(capsys):
     runs = chain.MemoryRunsStore()
     store = BrokenStageStore(runs=runs)
