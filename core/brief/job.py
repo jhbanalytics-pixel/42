@@ -16,8 +16,8 @@ again with the same floors, so it can become a card in the same run (counts "reg
 confirm-share SocialCrawl client is built right after chain.begin; if it cannot be built, confirm is skipped
 with a thin-coverage note and the brief goes on. No explanation starts once
 chain.past_deadline is true, once the run is FINISH_MARGIN short of its task timeout (chain.TIMEOUTS), or once
-the day's model spend reaches the current cap; whatever is unexplained then publishes as numbers and posts only
-(G10). A model that refuses for capacity (429) is waited out call by call, with backoff, never past the deadline,
+the day's model spend reaches the current cap; whatever is unexplained then is held back with its reason
+shown (G10). A model that refuses for capacity (429) is waited out call by call, with backoff, never past the deadline,
 that time limit or the SAST day, and the breaker stops the run's calls only once it keeps refusing; an item the busy
 model left unexplained says so in its failed_reason. No G1 backfill round, and no market's confirm or regrow, starts
 past the deadline or that time limit either. The gate runs again with each explanation's result, and one briefs row
@@ -848,7 +848,7 @@ def _explain_one(cand, *, model, spent_before, d, model_call_guard):
                                window_end=end, market=cand["market"], rerun=cand["rerun"],
                                model_call_guard=model_call_guard, second_draft=True)
     except Exception as exc:
-        # One bad trend publishes as numbers and posts; it never costs the other markets their brief.
+        # One bad trend is held back with its reason; it never costs the other markets their brief.
         return {"explanation": None, "explanation_claim_ids": [], "claims": [], "numbers_only": True,
                 "reason": "job_error", "usage_usd": 0.0, "checks": [], "error": f"{type(exc).__name__}: {exc}",
                 "rests_on": []}
