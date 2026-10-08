@@ -425,7 +425,9 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
         cand["error"] = f"{type(e).__name__}: {e}"
         return cand
     cand["ctx"] = build_ctx(client, row, d, market, cand["pack"]["evidence"], campaign_hashtags=campaign_hashtags,
-                            political_terms=political_terms, numbers=cand["pack"]["numbers"], core=core, agent=agent)
+                            political_terms=political_terms,
+                            numbers=[n for n in cand["pack"]["numbers"] if "rival_field" not in n], core=core,
+                            agent=agent)
     return cand
 
 

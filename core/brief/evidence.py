@@ -19,6 +19,14 @@ pack is the shape core/brief/explain.py reads:
         sponsor_checked true and no sponsored flag was checked and shows no paid label; false means unknown.
     numbers: {value, unit, query_id, run_id, result_hash} for creators3, posts3 and, when the item was tested,
         main_ratio. result_hash is "sha256:" plus the hex sha256 of the canonical JSON of the query's rows.
+        After those, when detect has them for the item, the rival-explanation numbers of RIVAL_NUMBERS (posts7,
+        burst_share, top3_share, near_dup_share, sponsored_share, local_share, markets_hot), each pinned the same way
+        and carrying rival_field, its detect name (METHOD-GAPS Gap 7). They reach the writer and the critic like any
+        pack number, K2 re-runs them, and the card's own numbers leave them out (payload.py).
+    pinned: present only when detect gave one: rows {value, unit, query_id, run_id, result_hash, rival_field} for
+        the values that are not numbers (share_flags, diffusion, small_at, large_at, lead_market, novelty, moment),
+        pinned and re-run like the numbers. A time is its ISO 8601 text. No claim cites them; they back the why-now
+        sentences in facts and the code-found rivals core/brief/rivals.py records.
     facts: short plain lines about the state, the 3-day counts and the first sighting, then one line per local
         post with its weekday and market-local date, naming a calendar moment only when moments (the market's
         calendar rows job.py reads) has one on that date.
@@ -37,6 +45,7 @@ rerun(entry): re-executes the query named by entry["query_id"] with the same par
 import hashlib
 import json
 import re
+import sys
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 
@@ -56,6 +65,26 @@ EXCERPT = 280
 GEO_CONFIDENT = 0.7
 WINDOW_DAYS, SPARK_DAYS = 7, 14
 NUMBERS = (("creators3", "creators in 3 days"), ("posts3", "posts in 3 days"), ("main_ratio", "times usual"))
+# Detect's rival-explanation values (METHOD-GAPS Gap 7): (query, column, unit). rival_state reads item_state pinned to
+# the detect run; rival_window reads the table function detect itself reads, because item_state does not store them.
+RIVAL_NUMBERS = (
+    ("rival_window", "posts7", "posts in 7 days"),
+    ("rival_window", "burst_share", "share of 7-day posts in the busiest 10 minutes"),
+    ("rival_window", "top3_share", "share of 7-day posts by the top 3 creators"),
+    ("rival_window", "near_dup_share", "share of 7-day posts that are near duplicates"),
+    ("rival_state", "sponsored_share", "share of 7-day posts marked sponsored"),
+    ("rival_state", "local_share", "share of located 7-day posts from this market"),
+    ("rival_state", "markets_hot", "markets with a significant rise in 14 days"),
+)
+RIVAL_PINS = (
+    ("rival_state", "share_flags", "detect share flags"),
+    ("rival_state", "diffusion", "detect diffusion"),
+    ("rival_window", "small_at", "earliest measured nano or micro post"),
+    ("rival_window", "large_at", "earliest measured macro or mega post"),
+    ("rival_state", "lead_market", "detect lead market"),
+    ("rival_state", "novelty", "detect novelty"),
+    ("rival_state", "moment", "detect calendar moment"),
+)
 SPARK_UNITS = {"panel": "posts a day", "unbiased_rank": "list appearances a day",
                "unbiased_counter": "counter rise a day"}
 
@@ -94,13 +123,27 @@ def result_hash(rows):
     return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _query_id(name, params):
-    key = json.dumps({"query": name, "sql": QUERIES[name], "params": params}, sort_keys=True, default=str)
-    return f"q_{name}_{hashlib.sha256(key.encode('utf-8')).hexdigest()[:12]}"
+def _query_id(name, params, column=None):
+    """q_<name>_<12 hex>. A query that gives several columns is named by the column pinned, and the column is part of
+    what is hashed, so two columns of one query never share an id."""
+    parts = {"query": name, "sql": QUERIES[name], "params": params}
+    if column is not None:
+        parts["column"] = column
+    key = json.dumps(parts, sort_keys=True, default=str)
+    return f"q_{column or name}_{hashlib.sha256(key.encode('utf-8')).hexdigest()[:12]}"
 
 
-def _value(rows):
-    return rows[0]["value"] if rows else None
+def _value(rows, column="value"):
+    return rows[0][column] if rows else None
+
+
+def _plain(value):
+    """A pinned value as stored in the pack: a time as ISO 8601 text, an array as a list, anything else as it is."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, (list, tuple)):
+        return [_plain(v) for v in value]
+    return value
 
 
 def _located(row):
@@ -166,6 +209,40 @@ def _facts(item_row, market, pinned, first_seen, evidence=(), moments=()):
     return facts + _day_lines(evidence, market, moments)
 
 
+def _rival_pins(run, params, run_id, registry):
+    """(numbers, pinned rows) for detect's rival-explanation values, or three empties when the read fails: these
+    values are extra evidence, so a failed read leaves the pack as it was and the card is not held for it. A null in a
+    row detect wrote is itself pinned (no calendar moment, no macro post), so it can be stated; a query that gave no
+    row, or only nulls, pins nothing."""
+    try:
+        rows = {name: run(name, params) for name in ("rival_state", "rival_window")}
+    except Exception as e:
+        print(f"brief {params['d'].isoformat()}: rival_evidence_read_failed {type(e).__name__}", file=sys.stderr)
+        return [], []
+    numbers, pinned = [], []
+    real = {name: bool(r) and any(v is not None for v in r[0].values()) for name, r in rows.items()}
+
+    def pin(name, column, unit, number):
+        raw = _value(rows[name], column)
+        if raw is None and (number or not real[name]):
+            return None
+        query_id = _query_id(name, params, column)
+        registry[query_id] = (name, params, column)
+        value = _plain(raw)
+        return {"value": value, "unit": unit, "query_id": query_id, "run_id": run_id,
+                "result_hash": result_hash([{"value": raw}]), "rival_field": column}
+
+    for name, column, unit in RIVAL_NUMBERS:
+        entry = pin(name, column, unit, True)
+        if entry:
+            numbers.append(entry)
+    for name, column, unit in RIVAL_PINS:
+        entry = pin(name, column, unit, False)
+        if entry:
+            pinned.append(entry)
+    return numbers, pinned
+
+
 def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=None, moments=()):
     """See the module docstring."""
     hidden = read_hidden(client, core=core, agent=agent) if hidden is None else hidden
@@ -191,7 +268,7 @@ def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=No
         if value is None:
             continue
         query_id = _query_id(name, params)
-        registry[query_id] = (name, params)
+        registry[query_id] = (name, params, "value")
         pinned[name] = value
         numbers.append({"value": value, "unit": unit, "query_id": query_id, "run_id": run_id,
                         "result_hash": result_hash(rows)})
@@ -199,10 +276,15 @@ def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=No
     series_id = item_row.get("main_series_id")
     sparkline = _sparkline(run("sparkline", {"series_id": series_id, "d": d}), d) if series_id else None
     first = run("first_seen", {"item_id": item_id, "market": market, "d": d})
+    rival_numbers, rival_pinned = _rival_pins(run, params, run_id, registry)
+    numbers += rival_numbers
     facts = _facts(item_row, market, pinned, first[0]["first_seen"] if first else None, evidence, moments)
 
     def rerun(entry):
-        name, query_params = registry[entry["query_id"]]
-        return _value(run(name, query_params))
+        name, query_params, column = registry[entry["query_id"]]
+        return _plain(_value(run(name, query_params), column))
 
-    return {"evidence": evidence, "numbers": numbers, "facts": facts}, sparkline, rerun
+    pack = {"evidence": evidence, "numbers": numbers, "facts": facts}
+    if rival_pinned:
+        pack["pinned"] = rival_pinned
+    return pack, sparkline, rerun

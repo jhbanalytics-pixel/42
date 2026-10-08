@@ -110,6 +110,24 @@ WHERE s.item_id = @item_id AND s.market = @market AND s.metric_date = @d AND s.r
 SELECT s.main_ratio value FROM {core}.item_state s
 WHERE s.item_id = @item_id AND s.market = @market AND s.metric_date = @d AND s.run_id = @run_id;
 
+-- name: rival_state
+-- Detect's rival-explanation values for the item (METHOD-GAPS Gap 7): the columns of item_state that name a simpler
+-- explanation, read pinned to the detect @run_id exactly as the number queries above read creators3. One row;
+-- evidence.py takes one column per pinned value and a re-run takes the same column, so each re-runs to the value
+-- it pinned.
+SELECT st.sponsored_share, st.local_share, st.markets_hot, st.share_flags, st.diffusion, st.lead_market, st.novelty,
+  st.moment
+FROM {core}.item_state st
+WHERE st.item_id = @item_id AND st.market = @market AND st.metric_date = @d AND st.run_id = @run_id;
+
+-- name: rival_window
+-- The 7 day window values item_state does not store, from the table function detect itself reads (views.sql
+-- tvf_item_window). Not pinned to a run_id: the function reads the posts as they stand, so a re-run after new
+-- posts arrive differs and K2 cuts the claim that cites it.
+SELECT w.posts7, w.burst_share, w.top3_share, w.near_dup_share, w.small_at, w.large_at
+FROM {core}.tvf_item_window(@d) w
+WHERE w.item_id = @item_id AND w.market = @market;
+
 -- name: sparkline
 -- The main series' last 14 days; days with no row (before the series started) are filled in by evidence.py.
 SELECT sd.day, sd.value, sd.lane_class FROM {core}.v_series_daily sd
