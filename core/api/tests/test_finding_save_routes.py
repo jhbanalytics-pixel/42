@@ -110,6 +110,9 @@ class SaveStore:
     def suppressed_creators(self):
         return set()  # the suppression list exists and is empty
 
+    def suppressions(self):
+        return []  # and so is the table behind it
+
     def finding_rows(self, finding_id):
         self.read_count += 1
         if self.read_count == self.read_error_at:
