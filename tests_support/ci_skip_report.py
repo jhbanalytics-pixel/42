@@ -1,10 +1,11 @@
 """Summarise a pytest JUnit file for the CI job summary: how many tests ran, passed, failed and were skipped, and
 the skipped ones by reason, with the native opt-in tests named apart.
 
-usage: python tests_support/ci_skip_report.py <junit.xml>
+usage: python tests_support/ci_skip_report.py <junit.xml> [--min-total N]
 
 Prints Markdown. Exits 1 when the file is missing, unreadable or holds no test, so a crashed collection cannot read
-as a clean run with nothing skipped. The workflow, not this script, keeps the opt-in switches off.
+as a clean run with nothing skipped. With --min-total N it also exits 1 when fewer than N tests are in the file, so a
+run that quietly collected less than the tree holds cannot pass. The workflow, not this script, keeps the opt-in switches off.
 """
 import collections
 import sys
@@ -61,8 +62,18 @@ def report(cases):
     return "\n".join(lines) + "\n"
 
 
+def floor_from(argv):
+    """The --min-total value, 0 when absent, or None when the arguments are not usage."""
+    if len(argv) == 2:
+        return 0
+    if len(argv) == 4 and argv[2] == "--min-total" and argv[3].isdigit() and int(argv[3]) > 0:
+        return int(argv[3])
+    return None
+
+
 def main(argv):
-    if len(argv) != 2:
+    floor = floor_from(argv) if len(argv) >= 2 else None
+    if floor is None:
         print(__doc__)
         return 1
     try:
@@ -74,6 +85,11 @@ def main(argv):
         print("the JUnit file holds no test")
         return 1
     print(report(cases))
+    if len(cases) < floor:
+        message = f"{len(cases)} tests ran: fewer tests than the floor of {floor}"
+        print(message)
+        print(message, file=sys.stderr)
+        return 1
     return 0
 
 

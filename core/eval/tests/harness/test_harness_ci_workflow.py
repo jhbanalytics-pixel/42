@@ -18,7 +18,7 @@ LIVE = ROOT / ".github" / "workflows"
 PARKED = ROOT / ".github" / "parked-workflows"
 SHA = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 FORBIDDEN_TEXT = (
-    "secrets.", "id-token", "google-github-actions", "workload_identity", "workload-identity", "gcloud", "gsutil",
+    "secrets.", "github.token", "github_token", "id-token", "google-github-actions", "workload_identity", "workload-identity", "gcloud", "gsutil",
     "docker build", "docker push", "docker login", "docker run", "buildx", "cloud build", "cloudbuild", "deploy",
     "kubectl", "terraform", "--apply", "setup-gcloud", "service_account", "credentials_json", "aws-actions",
     "azure/login", "bigquery.googleapis", "run.googleapis", "oauth2", "npm publish", "twine", "gh release",
@@ -228,3 +228,43 @@ def test_the_frontend_test_that_needs_the_built_bundle_still_names_that_path_and
     assert package["scripts"]["build"] == "vite build"
     config = (ROOT / "app" / "frontend" / "vite.config.mjs").read_text(encoding="utf-8")
     assert "web/dist" in config.replace("\\", "/")
+
+
+CORE_TEST_FLOOR = 17_000  # the core tree collects 17446 tests on the machine this was pinned on
+PYTEST_CONTROLS = ("PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTEST_DISABLE_PLUGIN_AUTOLOAD")
+
+
+@pytest.mark.parametrize("path", workflow_files(), ids=lambda p: p.name)
+def test_nothing_in_a_live_workflow_can_change_what_pytest_collects_or_loads(path):
+    """PYTEST_ADDOPTS in an env block, or on a run line, can deselect a whole tree and leave the run green."""
+    data, _ = load(path)
+    text = chr(10).join(strings(data)).upper()
+    found = [name for name in PYTEST_CONTROLS if name in text]
+    assert not found, found
+    for step in (s for _, s in steps(data) if "pytest" in s.get("run", "")):
+        assert not re.search(r"(^|\s)-(o|c)\s|--override-ini|--rootdir|--confcutdir|-p\s+(?!no:cacheprovider)",
+                             step["run"]), step["run"]
+
+
+def test_the_core_job_pins_a_floor_on_the_number_of_tests_that_ran():
+    data = core_workflow()
+    reports = [s for _, s in steps(data) if "ci_skip_report.py" in s.get("run", "")]
+    assert len(reports) == 1
+    found = re.search(r"--min-total\s+(\d+)", reports[0]["run"])
+    assert found, "the skip report is not given a floor"
+    assert int(found.group(1)) >= CORE_TEST_FLOOR, found.group(1)
+    assert reports[0].get("if") == "always()"
+
+
+def test_a_refusal_the_tests_did_not_ask_for_fails_the_core_job():
+    data = core_workflow()
+    assert data["jobs"]["core"]["env"]["CORE_OFFLINE_GUARD_LOG"]
+    checks = [s for _, s in steps(data) if "ci_guard_refusals.py" in s.get("run", "")]
+    assert len(checks) == 1
+    assert checks[0].get("if") == "always()"
+    assert '"${CORE_OFFLINE_GUARD_LOG}"' in checks[0]["run"]
+    assert "|| true" not in checks[0]["run"] and not checks[0].get("continue-on-error")
+    assert (ROOT / "tests_support" / "ci_guard_refusals.py").is_file()
+    order = [s.get("run", "") for _, s in steps(data)]
+    assert next(i for i, r in enumerate(order) if "-m pytest" in r) < next(
+        i for i, r in enumerate(order) if "ci_guard_refusals.py" in r)

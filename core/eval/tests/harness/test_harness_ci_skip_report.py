@@ -93,3 +93,24 @@ def test_the_module_can_be_imported_without_running_anything():
     spec.loader.exec_module(module)
     assert module.classify("set F42_BQ=1 to dry-run on BigQuery staging").startswith("live BigQuery")
     assert module.classify("no browser on this host") is None
+
+
+def test_a_run_with_at_least_the_floor_of_tests_passes(junit):
+    done = run(junit, "--min-total", "6")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "6 tests:" in done.stdout
+
+
+def test_a_run_below_the_floor_fails_the_job_after_printing_the_summary(junit):
+    done = run(junit, "--min-total", "7")
+    assert done.returncode == 1
+    assert "6 tests:" in done.stdout
+    assert "fewer tests than the floor of 7" in done.stdout
+
+
+@pytest.mark.parametrize("args", [["--min-total"], ["--min-total", "many"], ["--min-total", "0"],
+                                  ["--min-total", "-3"], ["--min-total", "5", "extra"], ["--other", "5"]])
+def test_a_floor_that_is_not_a_positive_whole_number_is_a_usage_error(junit, args):
+    done = run(junit, *args)
+    assert done.returncode == 1
+    assert "usage" in done.stdout and "tests:" not in done.stdout

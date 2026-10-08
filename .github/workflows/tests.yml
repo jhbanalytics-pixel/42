@@ -71,19 +71,16 @@ jobs:
           F42_REQUIRE_OFFLINE_GUARD: "1"
         run: python -m pytest core -q -p no:cacheprovider -ra --junitxml="${RUNNER_TEMP}/core-junit.xml"
 
-      - name: Report the skipped opt-in tests
+      # The floor is a little under the 17446 tests the core tree collected when it was pinned. A run that collects
+      # fewer than that has lost a part of the tree, and the job fails even if everything it did run passed.
+      - name: Report the skipped opt-in tests and the number of tests that ran
         if: always()
-        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" >> "${GITHUB_STEP_SUMMARY}"
+        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 17000 >> "${GITHUB_STEP_SUMMARY}"
 
-      - name: Show what the offline guard refused
+      # A refusal the product code catches and carries on from leaves the suite green, so the log is checked here.
+      - name: Fail on any offline guard refusal the tests did not ask for
         if: always()
-        run: |
-          if [ -s "${CORE_OFFLINE_GUARD_LOG}" ]; then
-            echo "The guard refused $(wc -l < "${CORE_OFFLINE_GUARD_LOG}") operations:"
-            python -c "import collections, json, sys; rows = [json.loads(l) for l in open(sys.argv[1], encoding='utf-8')]; [print(n, k) for k, n in collections.Counter((r['event'], r['detail']) for r in rows).most_common()]" "${CORE_OFFLINE_GUARD_LOG}"
-          else
-            echo "The guard refused nothing."
-          fi
+        run: python tests_support/ci_guard_refusals.py "${CORE_OFFLINE_GUARD_LOG}"
 
   frontend:
     runs-on: ubuntu-24.04
