@@ -684,6 +684,18 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   /* A draft opened from a card keeps the card, so the ask the reader presses still reads from it. */
   const draftCard = useRef(null);
   const marketPicked = useRef(Boolean(marketCode(q.market)));
+  /* The header market is a choice the reader makes: when it changes after the
+     page mounts, a question asks in it and no country named in the question
+     overrides it. A change this page made itself already matches. */
+  const lastRegion = useRef(marketCode(region));
+  useEffect(() => {
+    const next = marketCode(region);
+    if (next === lastRegion.current) return;
+    lastRegion.current = next;
+    if (!next || next === market) return;
+    marketPicked.current = true;
+    setMarket(next);
+  }, [region]);
   const [run, setRun] = useState(EMPTY_RUN);
   const [retry, setRetry] = useState(null);
   /* A reopened answer (follow) leads with the answer: the composer folds to
@@ -783,8 +795,10 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
       let record = await getAsk(askId, ctrl.signal);
       if (ctrl.signal.aborted) return;
       setQuestion(record.question || '');
-      setMarket(marketCode(record.market));
       const mkt = marketCode(record.market);
+      setMarket(mkt);
+      /* The header shows the market of the answer on the page. */
+      if (mkt && setRegion) setRegion(mkt);
       setRun((current) => ({...current, opening: record.status !== 'running', request: {text: record.question || '', mkt, extra: {follow: askId}}, steps: Array.isArray(record.steps) ? record.steps : []}));
       if (record.status === 'running'){
         await streamAsk(askId, (event) => {

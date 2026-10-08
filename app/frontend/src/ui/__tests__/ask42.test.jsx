@@ -1851,3 +1851,127 @@ test('a gap why that is a sentence stays whole, and status codes read as one lis
   expect(whyAll('schema_drift')).toBe('the source changed shape');
   expect(whyAll('')).toBe('');
 });
+
+/* Ask market tests for the 6 October 2026 tester report (Bug B). Append these two
+   tests to app/frontend/src/ui/__tests__/ask42.test.jsx: they use that file's
+   imports and helpers (serve, finish, until, button, text, typeInto, render, clone,
+   completeRecord, calls, host, root, act). Written against a80be1d. They must fail
+   there and pass once the follow-up asks in the market the reader has chosen and
+   the header follows the answer being shown. */
+
+/* The tester opened a South Africa answer, changed the header market to Kenya,
+   pressed Ask a follow-up and asked about Kenya. The follow-up was posted with
+   market ZA. followUp() reads record.market before the market the reader chose,
+   and AskPage's own market state is set once from the first region and never
+   follows the header. */
+test('a follow-up asks in the market the header now shows, not the market of the answer it follows', async () => {
+  const first = {...clone(completeRecord), market: 'ZA'};
+  const second = {...clone(completeRecord), ask_id: 'a_20261006_b3b2a066', parent_id: first.ask_id,
+    question: "What's the conversation around HIV in Kenya", market: 'KE'};
+  const server = serve([first, second]);
+  const query = {follow: first.ask_id};
+  await render({region: 'ZA', query});
+  await finish(server, first);
+  await until(() => text().includes('What we do not know'), 'the reopened answer');
+  // The header chip moves to Kenya; App passes the new region down.
+  await act(async () => root.render(<AskPage region="KE" setRegion={() => {}} query={query} />));
+  await act(async () => { button('Ask a follow-up').click(); });
+  const field = host.querySelector('textarea');
+  await act(async () => { typeInto(field, second.question); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the follow-up ask');
+  const posted = calls.find((call) => call.path === '/api/ask');
+  expect(posted.body.parent_id).toBe(first.ask_id);
+  expect(posted.body.market).toBe('KE');
+});
+
+/* The header said Kenya over a South Africa answer in two of the tester's
+   screenshots. Opening a saved answer sets the page's market from the record
+   but never tells the header, so the chip and the answer disagree. */
+test('opening an answer moves the header market to the market that answer was given for', async () => {
+  const record = {...clone(completeRecord), market: 'NG'};
+  const server = serve([record]);
+  const regions = [];
+  await act(async () => root.render(<AskPage region="KE" setRegion={(value) => regions.push(value)} query={{follow: record.ask_id}} />));
+  await finish(server, record);
+  await until(() => text().includes('What we do not know'), 'the reopened answer');
+  expect(regions).toContain('NG');
+});
+
+/* The other way to change the market: open the composer and pick Kenya in the
+   page's own Market select. chooseMarket() sets the page market and the header,
+   and followUp() still posts the answer's market, so the pick is ignored. */
+test('a follow-up asks in the market picked in the composer, not the market of the answer it follows', async () => {
+  const first = {...clone(completeRecord), market: 'ZA'};
+  const second = {...clone(completeRecord), ask_id: 'a_20261006_b3b2a067', parent_id: first.ask_id,
+    question: "What's the conversation around HIV in Kenya", market: 'KE'};
+  const server = serve([first, second]);
+  await render({region: 'ZA', query: {follow: first.ask_id}});
+  await finish(server, first);
+  await until(() => text().includes('What we do not know'), 'the reopened answer');
+  await act(async () => { button('Ask a follow-up').click(); });
+  const select = host.querySelector('#ask42-market');
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(select, 'KE');
+    select.dispatchEvent(new window.Event('change', {bubbles: true}));
+  });
+  expect(select.value).toBe('KE');
+  await act(async () => { typeInto(host.querySelector('textarea'), second.question); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the follow-up ask');
+  expect(calls.find((call) => call.path === '/api/ask').body.market).toBe('KE');
+});
+
+/* The three tests above name Kenya in the follow-up question, and a question
+   that names one market is read for it whatever the select holds, so they
+   pass without the header ever reaching the page. These ask without a place
+   word, so only the market the reader chose can decide. */
+async function followUpFrom(first, props, question){
+  const server = serve([first, {...clone(completeRecord), ask_id: 'a_20261006_c4c4c4c4', parent_id: first.ask_id, question}]);
+  const query = {follow: first.ask_id};
+  await render({region: 'ZA', query});
+  await finish(server, first);
+  await until(() => text().includes('What we do not know'), 'the reopened answer');
+  if (props) await act(async () => root.render(<AskPage region={props.region} setRegion={() => {}} query={query} />));
+  await act(async () => { button('Ask a follow-up').click(); });
+  await act(async () => { typeInto(host.querySelector('textarea'), question); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the follow-up ask');
+  return calls.find((call) => call.path === '/api/ask').body;
+}
+
+test('a follow-up with no place word asks in the market the header now shows', async () => {
+  const first = {...clone(completeRecord), market: 'ZA'};
+  const body = await followUpFrom(first, {region: 'KE'}, 'What is the conversation around HIV this week');
+  expect(body.parent_id).toBe(first.ask_id);
+  expect(body.market).toBe('KE');
+});
+
+test('a market chosen in the header is held against a country the follow-up question names', async () => {
+  const first = {...clone(completeRecord), market: 'ZA'};
+  const body = await followUpFrom(first, {region: 'KE'}, 'How does this compare with South Africa');
+  expect(body.market).toBe('KE');
+});
+
+test('with no change in the header a follow-up keeps the market of the answer it follows', async () => {
+  const first = {...clone(completeRecord), market: 'NG'};
+  const body = await followUpFrom(first, null, 'What is the conversation around HIV this week');
+  expect(body.market).toBe('NG');
+});
+
+test('a new question asks in the market the header was changed to before any answer is open', async () => {
+  serve([{...clone(completeRecord), ask_id: 'a_20261006_d5d5d5d5'}]);
+  await render({region: 'ZA', query: {}});
+  await act(async () => root.render(<AskPage region="NG" setRegion={() => {}} query={{}} />));
+  await act(async () => { typeInto(host.querySelector('textarea'), 'What is the conversation around HIV this week'); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the ask');
+  expect(calls.find((call) => call.path === '/api/ask').body.market).toBe('NG');
+});
+
+test('a market carried in by the link is not overwritten by the header at mount', async () => {
+  serve([{...clone(completeRecord), ask_id: 'a_20261006_e6e6e6e6'}]);
+  await render({region: 'ZA', query: {q: 'What is the conversation around HIV this week', market: 'KE'}});
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the ask');
+  expect(calls.find((call) => call.path === '/api/ask').body.market).toBe('KE');
+});
