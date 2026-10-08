@@ -15,10 +15,10 @@ information. Every body is read through the suppression list as Today reads it (
 import datetime as dt
 import json
 
-from core.api import fast
+from core.api import fast, privacy
 from core.api.discover import BadRequest, NotReady, _run, figure
 from core.api.people import post_evidence
-from core.api.today import MARKETS, SAST, NotFound, brief_counts, hidden_people, without_hidden
+from core.api.today import MARKETS, SAST, NotFound, brief_counts, without_hidden
 
 __all__ = ["BadRequest", "NotFound", "NotReady", "build_history_asks", "build_history_briefs",
            "build_history_findings", "build_history_item", "build_history_search"]
@@ -135,7 +135,7 @@ def build_history_item(store, item_id, market):
         "kind": item.get("kind"), "as_of": run["run_date"], "current_day": d, "waves": bodies,
         "recurrences": None if waves is None else figure(
             max(len(waves) - 1, 0), "waves after the first", "q_item_waves", run["run_id"], waves),
-        "analogues": analogues, "note": note}, hidden_people(store))
+        "analogues": analogues, "note": note}, privacy.read_hidden(store))
 
 
 def build_history_search(store, q, market=None):
@@ -162,7 +162,7 @@ def build_history_search(store, q, market=None):
              _wave(w, days.get(w["market"]), run, today)
              for w in sorted((w for w in waves if w["item_id"] == i["item_id"]),
                              key=lambda w: (str(w["peak_date"]), w["market"]), reverse=True)]}
-        for i in items]}, hidden_people(store))
+        for i in items]}, privacy.read_hidden(store))
 
 
 def build_history_asks(store, limit=20, before=None, market=None):
@@ -179,7 +179,7 @@ def build_history_asks(store, limit=20, before=None, market=None):
     rows = store.ask_history(limit, before, market) if market else store.ask_history(limit, before)
     asks = [{"ask_id": r["ask_id"], "question": r.get("question"), "at": str(r["asked_at"]), "status": r.get("status"),
              "answer_status": r.get("answer_status"), "market": r.get("market")} for r in rows]
-    asks = without_hidden(asks, hidden_people(store))  # a question can name a hidden person (core/api/privacy.py)
+    asks = without_hidden(asks, privacy.read_hidden(store))  # a question can name a hidden person (core/api/privacy.py)
     return {"asks": asks, "next_before": asks[-1]["at"] if len(asks) == limit else None}
 
 
@@ -194,7 +194,7 @@ def build_history_briefs(store, limit=30, before=None, market=None):
         except ValueError as exc:
             raise BadRequest("before must be YYYY-MM-DD.") from exc
     by_date = {}
-    hidden = hidden_people(store)
+    hidden = privacy.read_hidden(store)
     for r in store.brief_history(limit, before, market) if market else store.brief_history(limit, before):
         # Read as Today reads it: a card resting on a suppressed person's post is held there, so it is here too.
         payload = r.get("payload") if isinstance(r.get("payload"), dict) else {}
@@ -366,4 +366,4 @@ def build_history_findings(store, item_id=None, status=None, market=None):
             ids = list(dict.fromkeys(pid for c in r.get("claims") or [] for pid in c.get("evidence_post_ids") or []))
             finding["evidence"] = [post_evidence(posts[pid], keep_flags=True) for pid in ids if pid in posts]
         out.append(finding)
-    return without_hidden({"findings": out, "note": None if checked else NOT_CHECKED}, hidden_people(store))
+    return without_hidden({"findings": out, "note": None if checked else NOT_CHECKED}, privacy.read_hidden(store))

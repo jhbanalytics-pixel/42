@@ -58,6 +58,9 @@ class FindingStore:
     def suppressed_creators(self):
         return set()  # the suppression list exists and is empty
 
+    def suppressions(self):
+        return []  # and so is the table behind it
+
     def posts_by_id(self, post_ids):
         self.post_reads.append(list(post_ids))
         wanted = set(post_ids)

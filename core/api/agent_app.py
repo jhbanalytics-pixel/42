@@ -1066,11 +1066,12 @@ def shown_record(record):
     return skins.mask_people(record, people["approved"], people["allowed"])
 
 
-def readable(record):
+def readable(record, hidden=privacy.READ):
     """An Ask record as a reader may see it now: the skin masks first (a skin report names only who it may), then the
-    list of hidden people read on this request, which wins over an approved account (C5 v2 5.2, R2)."""
+    list of hidden people read on this request, which wins over an approved account (C5 v2 5.2, R2). hidden is the
+    list when the request has already read it."""
     from core.api.store import get_store
-    return privacy.project_record(shown_record(record), privacy.LazyStore(get_store))
+    return privacy.project_record(shown_record(record), privacy.LazyStore(get_store), hidden)
 
 
 def people_unavailable():
@@ -2191,6 +2192,13 @@ def recover_investigations():
         log.error("investigation startup scan failed (exception_type=%s)", type(exc).__name__)
 
 
+def shown_investigations(rows):
+    """The list as a reader may see it now: a question or plan can name a hidden person as the record can."""
+    from core.api.store import get_store
+    store = privacy.LazyStore(get_store)
+    return view_response(privacy.mask({"investigations": rows}, privacy.read_hidden(store)))
+
+
 @app.get("/api/investigations")
 def list_investigations(status: str | None = None):
     if status is not None and status not in investigations.STATUSES:
@@ -2208,9 +2216,9 @@ def list_investigations(status: str | None = None):
                        f"ORDER BY first_created_at DESC LIMIT @limit",
                        [bigquery.ScalarQueryParameter("status", "STRING", status),
                         bigquery.ScalarQueryParameter("limit", "INT64", MAX_INVESTIGATION_LIST)])
-        return {"investigations": [
+        return shown_investigations([
             investigation_out({k: v for k, v in row.items() if k != "first_created_at"}, row["first_created_at"])
-            for row in rows]}
+            for row in rows])
     with _lock:
         rows = list(INVESTIGATIONS)
     latest, first = {}, {}
@@ -2220,8 +2228,8 @@ def list_investigations(status: str | None = None):
             latest[row["investigation_id"]] = row
     chosen = sorted((row for row in latest.values() if status in (None, row["status"])),
                     key=lambda row: datetime.fromisoformat(first[row["investigation_id"]]), reverse=True)
-    return {"investigations": [investigation_out(row, first[row["investigation_id"]])
-                               for row in chosen[:MAX_INVESTIGATION_LIST]]}
+    return shown_investigations([investigation_out(row, first[row["investigation_id"]])
+                                 for row in chosen[:MAX_INVESTIGATION_LIST]])
 
 
 @app.get("/api/investigations/{investigation_id}")
@@ -2231,11 +2239,13 @@ def read_investigation(investigation_id: str):
         return no_investigation(investigation_id)
     current = rows[-1]
     record = investigation_record(current["ask_id"]) if current["ask_id"] else None
-    skin_id = plan_skin_id(investigations.view(current)["plan"])
+    from core.api.store import get_store
+    hidden = privacy.read_hidden(privacy.LazyStore(get_store))  # read once for the record and the rest of the page
     if record is not None:
-        record = readable(record)  # a skin investigation is masked by the skin, then by the list of hidden people
+        record = readable(record, hidden)  # a skin investigation is masked by the skin, then by the list
     extra = {"budget_left": money_left()} if current["status"] == "draft" else {}  # None when spend is unknown
-    return view_response(investigation_out(current, rows[0]["created_at"], record=record, **extra))
+    return view_response(privacy.mask(investigation_out(current, rows[0]["created_at"], record=record, **extra),
+                                      hidden))
 
 
 def replay(record, after, url):

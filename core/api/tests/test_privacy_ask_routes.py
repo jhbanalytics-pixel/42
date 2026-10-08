@@ -195,7 +195,8 @@ def test_a_suppressed_approved_account_is_not_named_in_a_skin_record_a13(world, 
 def investigation(world, monkeypatch, record):
     from core.api import investigations
     row = investigations.storage_row("i_0123456789ab", 2, "2026-10-07T09:00:00+02:00", "complete", record["question"],
-                                     "ZA", {}, {"credits": 0, "model_usd": 0, "minutes": 1}, ASK, "r_x")
+                                     "ZA", {"focus": "Posts by @hid_handle"},
+                                     {"credits": 0, "model_usd": 0, "minutes": 1}, ASK, "r_x")
     agent_app.INVESTIGATIONS[:] = [row]
     agent_app.SINK.append({"stage": "ask", "record": json.dumps(record)})
     monkeypatch.setattr(agent_app, "investigation_record", lambda ask_id: copy.deepcopy(record))
@@ -204,11 +205,25 @@ def investigation(world, monkeypatch, record):
 
 def test_an_investigation_read_projects_its_record_a20(world, monkeypatch):
     inv = investigation(world, monkeypatch, ask_record())
-    body = world.client.get(f"/api/investigations/{inv}").json()
-    assert leaks(body["record"], [P_HID1]) == [] and body["record"]["privacy"]["state"] == "applied"
+    r = world.client.get(f"/api/investigations/{inv}")
+    body = r.json()
+    assert leaks(body, [P_HID1]) == [] and r.headers["cache-control"] == "no-store"  # the whole body, not only the record
+    assert body["record"]["privacy"]["state"] == "applied"
     assert [c["id"] for c in body["record"]["answer"]["claims"]] == ["c1", "c4"]
     world.store.fail = "list"
-    assert world.client.get(f"/api/investigations/{inv}").json()["record"]["privacy"]["state"] == "unavailable"
+    again = world.client.get(f"/api/investigations/{inv}").json()
+    assert again["record"]["privacy"]["state"] == "unavailable" and "@hid_handle" not in body_of(again)
+
+
+def test_the_investigation_list_masks_the_question_and_plan_of_every_row_a20(world, monkeypatch):
+    investigation(world, monkeypatch, ask_record())
+    r = world.client.get("/api/investigations")
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
+    assert leaks(r.json()) == [] and len(r.json()["investigations"]) == 1
+    world.store.fail = "list"
+    assert "@hid_handle" not in body_of(world.client.get("/api/investigations").json())
+    world.store.fail, world.store.hide = None, set()
+    assert "hid_handle" in body_of(world.client.get("/api/investigations").json())
 
 
 def test_an_investigation_replay_masks_its_stored_steps_a21(world, monkeypatch):
@@ -368,3 +383,13 @@ def test_the_history_list_masks_a_hidden_creators_handle_in_a_question_a19(api):
     assert "@hid_handle" not in body_of(history.build_history_asks(api.store, 20))
     api.store.fail, api.store.hide = None, set()
     assert "hid_handle" in body_of(history.build_history_asks(api.store, 20))
+
+
+def test_history_applies_a_suppression_that_names_only_a_handle_or_only_an_id_a19(api):
+    from core.api import history
+    from core.api.tests.test_privacy_projection import handle_row
+    api.store.hide = set()
+    api.store.suppression_rows = [handle_row()]
+    assert "hid_handle" not in body_of(history.build_history_asks(api.store, 20))
+    api.store.suppression_rows = [handle_row(platform=None, handle=None, creator_id="c_hid")]
+    assert "hid_handle" not in body_of(history.build_history_asks(api.store, 20))
