@@ -289,3 +289,38 @@ def test_unknown_language_cannot_clear_a_standing_ng_cap():
     )
 
     assert capped == ["ng_unknown"]
+
+
+# N63. A ZA post has no standing cap, so a non-English language with no score at all (no labels yet, or a language
+# outside the review rotation) and an "en" tag on non-English text both fell through uncapped, against TRUST C5 (tone
+# on non-English posts stays at single_source until the language passes native checks). An "insufficient" score for a
+# known ZA language is a separate ruling: test_insufficient_known_za_review_does_not_add_a_new_cap pins it uncapped.
+ZULU = "Hhayi bo, le nto iyahlekisa kakhulu"
+
+
+@pytest.mark.parametrize("languages, statuses", [
+    (["zu"], {}),
+    (["ve"], {"zu": "cleared"}),
+    (["zu", "xh"], {"zu": "cleared"}),
+    (["en"], {"zu": "cleared"}),
+])
+def test_a_za_post_in_a_language_with_no_cleared_review_is_capped(languages, statuses):
+    capped = native_review.tone_cap_ids(
+        [{"id": "za_zulu", "market": "ZA", "text": ZULU}], {"za_zulu": languages}, statuses, checks.mostly_non_english,
+        native_review_loaded=True, native_review_available=True)
+    assert capped == ["za_zulu"]
+
+
+def test_a_za_post_in_a_cleared_language_stays_uncapped():
+    capped = native_review.tone_cap_ids(
+        [{"id": "za_zulu", "market": "ZA", "text": ZULU}], {"za_zulu": ["zu"]}, {"zu": "cleared"},
+        checks.mostly_non_english, native_review_loaded=True, native_review_available=True)
+    assert capped == []
+
+
+def test_a_za_english_post_tagged_english_stays_uncapped():
+    text = "Everyone is talking about the price, and it is up again."
+    capped = native_review.tone_cap_ids(
+        [{"id": "za_en", "market": "ZA", "text": text}], {"za_en": ["en"]}, {"zu": "cleared"},
+        checks.mostly_non_english, native_review_loaded=True, native_review_available=True)
+    assert capped == []
