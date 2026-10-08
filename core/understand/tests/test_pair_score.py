@@ -45,8 +45,8 @@ def test_a_tag_on_nearly_every_item_weighs_near_zero_and_a_rare_one_weighs_much_
     docs = [{"zzcommon", f"own{i}"} for i in range(20)] + [{"fyp"}]
     w = pair_score.idf_weights(docs)
     assert w["zzcommon"] < 0.1
-    assert w["fyp"] > 0.6
-    assert w["own3"] > 0.6
+    assert w["fyp"] > 0.5
+    assert w["own3"] > 0.5
     assert pair_score.idf_weights([{"a"}, {"a"}, {"a"}])["a"] == 0.0
 
 
@@ -96,3 +96,10 @@ def test_drift_guard_refuses_a_match_far_from_the_birth_centroid():
     assert drifted["drift_cosine"] < pair_score.DRIFT_FLOOR
     assert fresh["accept"] is True and fresh["drift_cosine"] >= pair_score.DRIFT_FLOOR
     assert unknown["accept"] is True and unknown["drift_cosine"] is None
+
+
+def test_a_tag_on_three_quarters_of_the_documents_lifts_the_logit_by_under_a_tenth():
+    c, item = a_cluster(at(1.0), hashtags=["fyp"]), an_item(at(0.78), hashtags=["fyp"])
+    pool = background(70, generic=("fyp",), skip=18)  # 52 of 70 carry it, with the pair 54 of 72
+    bare = verdict(a_cluster(at(1.0)), an_item(at(0.78)), pool)["logit"]
+    assert verdict(c, item, pool)["logit"] - bare < 0.1

@@ -10,8 +10,9 @@ The score is the logistic of three terms.
   hashtag and sound overlap: W_FACETS times the evidence in the facets the two share.
   keyword overlap: W_KEYWORDS times the evidence in the keywords the two share.
 Evidence is 1 - exp(-SAT * mass), where mass is the sum of the IDF weights of the shared terms. A term's weight is
-ln((N + 1) / (df + 1)) / ln(N + 1) over the run's own documents (the current topics and today's clusters that have
-any term of that kind), so a tag on nearly every document weighs near zero and a tag on one weighs most. There is no
+(ln((N + 1) / (df + 1)) / ln(N + 1)) ** IDF_POWER over the run's own documents (the current topics and today's
+clusters that have any term of that kind). The power sharpens the weights: a tag on 54 documents of 72 lifts the logit
+by 0.03, where the plain weight lifted it by 0.49, and a tag on one document in twenty still weighs 0.6. There is no
 list of generic tags: fyp, foryou and viral are found out by how often the run itself carries them.
 
 Nothing in the score reads when an item was last seen. A recent sighting is not topical evidence, and in the vote rule
@@ -44,6 +45,7 @@ W_FACETS = 4.0
 W_KEYWORDS = 3.0
 SAT_FACETS = 2.0
 SAT_KEYWORDS = 1.0
+IDF_POWER = 2.0
 DECIMALS = 6
 
 
@@ -62,7 +64,7 @@ def idf_weights(docs):
     if not docs:
         return {}
     n, df = len(docs), Counter(t for d in docs for t in d)
-    return {t: math.log((n + 1) / (k + 1)) / math.log(n + 1) for t, k in df.items()}
+    return {t: (math.log((n + 1) / (k + 1)) / math.log(n + 1)) ** IDF_POWER for t, k in df.items()}
 
 
 def build_idf(clusters, items):
