@@ -279,14 +279,25 @@ WITH state_keys AS (
     AND po.lane_class != 'legacy'
     AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
   GROUP BY s.metric_date, s.item_id, s.market, po.post_id
+), members AS (
+  -- Members of the item's cluster in the market's own run, as brief/sql/evidence.sql ranks them first.
+  SELECT s.metric_date, s.item_id, s.market, mb.post_id
+  FROM state_keys s
+  JOIN {core}.clusters k ON k.item_id = s.item_id AND UPPER(k.market) = s.market
+    AND k.cluster_date BETWEEN DATE_SUB(s.metric_date, INTERVAL 6 DAY) AND s.metric_date
+  JOIN {core}.cluster_members mb ON mb.cluster_id = k.cluster_id
+  GROUP BY s.metric_date, s.item_id, s.market, mb.post_id
 ), creator_ranked AS (
   SELECT seen.metric_date, seen.item_id, seen.market, ps.post_id, ps.geo_market, ps.geo_confidence,
-    ps.geo_source, seen.measured, IFNULL(ps.engagement, 0) eng,
+    ps.geo_source, seen.measured, IFNULL(ps.engagement, 0) eng, mm.post_id IS NOT NULL market_member,
     ROW_NUMBER() OVER (PARTITION BY seen.metric_date, seen.item_id, seen.market,
                                     IFNULL(ps.creator_id, ps.post_id)
-                       ORDER BY seen.measured DESC, IFNULL(ps.engagement, 0) DESC, ps.post_id) creator_rank
+                       ORDER BY mm.post_id IS NULL, seen.measured DESC, IFNULL(ps.engagement, 0) DESC,
+                                ps.post_id) creator_rank
   FROM seen
   JOIN {core}.posts ps ON ps.post_id = seen.post_id
+  LEFT JOIN members mm ON mm.metric_date = seen.metric_date AND mm.item_id = seen.item_id
+    AND mm.market = seen.market AND mm.post_id = seen.post_id
   WHERE DATE(ps.published_at, CASE seen.market
       WHEN 'ZA' THEN 'Africa/Johannesburg'
       WHEN 'NG' THEN 'Africa/Lagos'
@@ -312,7 +323,7 @@ WITH state_keys AS (
 ), ranked_pack AS (
   SELECT creator_ranked.*,
     ROW_NUMBER() OVER (PARTITION BY metric_date, item_id, market
-                       ORDER BY measured DESC, eng DESC, post_id) pack_rank
+                       ORDER BY market_member DESC, measured DESC, eng DESC, post_id) pack_rank
   FROM creator_ranked
   WHERE creator_rank <= 2
 ), eligible_posts AS (
