@@ -2888,3 +2888,19 @@ test('no such line appears when the page admits every card the server did', asyn
   expect(cardTitled('Admitted card')).toBeDefined();
   expect(host.querySelector('[data-market="ZA"] [data-client-held]')).toBeNull();
 });
+
+test('the glance says No brief for a market the brief has no row for, not 0 trends cleared', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((entry) => entry.market === 'KE');
+  kenya.status = 'data_issue';
+  kenya.cards = [];
+  kenya.more = [];
+  kenya.held_back = {count: 0, items: [], text: 'Nothing held back'};
+  kenya.banners = [{kind: 'data_issue', text: 'Data issue: no brief was published for Kenya'}];
+  await mount({region: 'ZA'}, today);
+  const glance = host.querySelector('[data-glance-market="KE"]');
+  expect(glance.textContent).toContain('No brief');
+  expect(glance.textContent).not.toContain('0 trends');
+  expect(glance.querySelector('button').getAttribute('aria-label')).toContain('no brief');
+  expect(host.querySelector('[data-glance-market="ZA"]').textContent).toContain('trend');
+});

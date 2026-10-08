@@ -563,11 +563,12 @@ function MarketGlance({markets, date, tab, onPick}){
             : market.held_back && Array.isArray(market.held_back.items) ? market.held_back.items.length : 0;
           const name = nonEmptyString(market.label) ? market.label : market.market;
           const here = tab === market.market;
+          const noBrief = hasNoBrief(market);
           const trendWords = readerFigure(cleared) + (cleared === 1 ? ' trend' : ' trends') + ' cleared';
           const label = 'Show ' + name + ': '
             + (read === null ? 'items collected not measured' : readerFigure(read) + ' items collected')
             + (pct === null ? '' : ', ' + pct + '% with a known location')
-            + ', ' + trendWords + (held > 0 ? ', ' + readerFigure(held) + ' held back' : '');
+            + ', ' + (noBrief ? 'no brief' : trendWords) + (held > 0 ? ', ' + readerFigure(held) + ' held back' : '');
           return (
             <li key={market.market} data-glance-market={market.market}>
               <button type="button" className="t42-glance-market" aria-pressed={here ? 'true' : 'false'} aria-label={label} onClick={() => onPick(market.market)}>
@@ -585,7 +586,7 @@ function MarketGlance({markets, date, tab, onPick}){
                   </span>
                 )}
                 <span className="t42-glance-facts">
-                  <span className="t42-glance-cleared">{readerFigure(cleared) + (cleared === 1 ? ' trend' : ' trends')}<span className="t42-glance-long"> cleared</span></span>
+                  <span className="t42-glance-cleared">{noBrief ? 'No brief' : readerFigure(cleared) + (cleared === 1 ? ' trend' : ' trends')}{noBrief ? null : <span className="t42-glance-long"> cleared</span>}</span>
                   {held > 0 ? <><span className="t42-glance-sep" aria-hidden="true">{' · '}</span><span>{readerFigure(held) + ' held back'}</span></> : null}
                 </span>
               </button>
