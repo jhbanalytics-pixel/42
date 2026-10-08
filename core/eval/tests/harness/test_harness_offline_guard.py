@@ -233,9 +233,17 @@ def test_a_child_cannot_start_a_program_that_is_off_the_list():
 
 
 def test_a_child_cannot_read_a_credential_file(tmp_path):
+    # The file does not exist. The guard answers before the file system does, so a PermissionError (and not a
+    # FileNotFoundError) shows the guard refused the name.
     key = tmp_path / "application_default_credentials.json"
-    key.write_text("{}", encoding="utf-8")
-    code = (f"try:\n open({str(key)!r}).read()\nexcept PermissionError as e:\n print('REFUSED', e)\n")
+    code = "\n".join((
+        "try:",
+        f"    open({str(key)!r}).read()",
+        "except PermissionError as e:",
+        "    print('REFUSED', e)",
+        "except FileNotFoundError:",
+        "    print('NOT FOUND')",
+    ))
     done = child(code)
     assert "REFUSED offline guard" in done.stdout, (done.stdout, done.stderr)
 
