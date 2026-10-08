@@ -21,11 +21,21 @@ UNCHANGED = [
 # Age ranges the checker missed. N13-T: breach.
 MISSED = [
     "aged between 18 and 24", "Viewers aged between 25 and 34 engage", "ages between 18 and 24",
-    "the 18-24s are watching", "among 18-24s", "popular with the 25-34s.", "among 18-24s and 25-34s",
+    "ages from 18 to 24", "aged from 25 to 34",
 ]
 
+# The N-Ns band as a group noun. N13-T drops it (plan section 9: no pattern for it passes the decade, temperature
+# and mark cases below), so these stay as the a80be1d checker returned them. They move to W8-DEC-03d, which is not
+# built. When that decision lands these rows flip to breach; until then they pin what is shipped.
+DEFERRED_W8_DEC_03D = ["the 18-24s are watching", "among 18-24s", "popular with the 25-34s.", "among 18-24s and 25-34s"]
+
 # N-Ns forms that are not age ranges. Still pass after N13-T.
-STILL_PASS = ["15-30s video", "18-24s response time", "18-24s", "the 18-24s response time", "clips of 15-30s duration"]
+STILL_PASS = [
+    "15-30s video", "18-24s response time", "18-24s", "the 18-24s response time", "clips of 15-30s duration",
+    "the 1980s are back", "temperatures in the 20-30s", "marks in the 70-80s are rare",
+    "Music from the 70-80s is trending again", "Throwback hits from the 70-80s.",
+    "Highs in Joburg sit in the 20-30s.", "Most marks were in the 60-70s.",
+]
 
 
 @pytest.mark.parametrize(("text", "breach"), UNCHANGED)
@@ -40,4 +50,9 @@ def test_a_missed_age_range_now_breaches(text):
 
 @pytest.mark.parametrize("text", STILL_PASS)
 def test_a_duration_or_count_range_still_passes(text):
+    assert not _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", DEFERRED_W8_DEC_03D)
+def test_the_n_ns_group_noun_form_is_left_to_w8_dec_03d(text):
     assert not _k6_term(text, set()), text

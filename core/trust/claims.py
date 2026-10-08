@@ -303,11 +303,10 @@ _BREACH_TERMS = [
 _K6_ONLY_TERMS = [
     re.compile(p, re.I)
     for p in (
-        # N13-T: an age range the bare-range pattern above misses. "aged between 18 and 24", and an N-Ns band only as a
-        # group noun ("the 18-24s are watching"), never as a duration ("15-30s video", "18-24s response time").
+        # N13-T: an age range the bare-range pattern above misses: "aged between 18 and 24", "ages from 18 to 24".
+        # The N-Ns band ("the 18-24s are watching") is not here: no pattern for it keeps "the 1980s", "temperatures in
+        # the 20-30s" and "marks in the 70-80s" clear, so it waits for W8-DEC-03d.
         r"\bage[ds]?\s+(?:between|from)\s+\d{1,2}\s+(?:and|to)\s+\d{1,2}\b",
-        r"\b(?:the|among|amongst)\s+(?:1[3-9]|[2-9]\d)\s*(?:-|\u2013)\s*(?:1[4-9]|[2-9]\d)s\b"
-        r"(?=\s*(?:$|[.,;:!?)\]'\"]|(?:are|were|is|was|do|did|have|had|will|would|can|could|who|that|and|or|but)\b))",
         # N15: age and generation words the Ask checks (core/agent/checks.py AGE_PATTERNS) flag and this list missed,
         # with the same look-alike exclusions, then old-age words neither list had. test_trust_rule1_parity.py pins both.
         r"\b(?:tweens|pre-?teens?|toddlers?|infants?|retirees?|minors|juveniles?|youthful)\b",
