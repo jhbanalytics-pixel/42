@@ -128,3 +128,14 @@ def test_markdown_warns_when_the_window_holds_no_persisting_state(tmp_path):
     report = rep.run(Client(states=("spike", "on_the_boards", "on_the_boards")), START, END, tmp_path)
     assert report["persisting_seen"] == 0
     assert "No Emerging, Rising or Peaking state" in (tmp_path / "card_outcome_2026-09-24_2026-10-01.md").read_text(encoding="utf-8")
+
+
+def test_report_prints_the_state_distribution_before_any_rate(tmp_path):
+    report = rep.run(Client(), START, END, tmp_path)
+    dist = {(d["kind"], d["when"], d["state"]): d["n"] for d in report["state_distribution"]}
+    assert dist == {("published", "t", "rising"): 1, ("published", "t+3", "absent"): 1, ("published", "t+7", "peaking"): 1,
+                    ("published", "t+14", "absent"): 1, ("held", "t", None): 1, ("held", "t+3", "absent"): 1,
+                    ("held", "t+7", "rising"): 1, ("held", "t+14", "absent"): 1}
+    md = (tmp_path / "card_outcome_2026-09-24_2026-10-01.md").read_text(encoding="utf-8")
+    assert md.index("State at t") < md.index("held at 7 days")
+    assert "item_id" not in json.dumps(report, default=str)

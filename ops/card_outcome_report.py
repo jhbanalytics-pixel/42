@@ -114,15 +114,14 @@ def run(client, start, end, out_dir, *, query_cap=QUERY_CAP, total_cap=TOTAL_CAP
               "briefs_skipped": sum(n for st, n in statuses.items() if st in co.SKIPPED_STATUSES),
               "outcome_rows": len(rows), "persisting_seen": seen,
               "state_rows": {"total": len(got["states"]), "untested": sum(bool(r["untested"]) for r in got["states"])},
-              "state_mix": co.state_mix(rows),
+              "state_distribution": co.state_distribution(rows), "state_mix": co.state_mix(rows),
               "good_detect_days": {"count": len(detect_days), "first": min(detect_days, default=None),
                                    "last": max(detect_days, default=None)},
               "horizons": horizons}
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     stem = f"card_outcome_{start.isoformat()}_{end.isoformat()}"
-    md = "\n".join(co.to_markdown(horizons[str(h)], end=end, horizon=h, persisting_seen=seen) for h in (co.HEADLINE, *(
-        h for h in co.HORIZONS if h != co.HEADLINE)))
+    md = co.report_markdown(rows, {h: horizons[str(h)] for h in co.HORIZONS}, end=end)
     (out / f"{stem}.md").write_text(md, encoding="utf-8")
     (out / f"{stem}.json").write_text(json.dumps(report, indent=2, default=_jsonable), encoding="utf-8")
     return report

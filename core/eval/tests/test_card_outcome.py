@@ -46,7 +46,8 @@ def by_item(rows):
 def scenario():
     briefs = [brief(
         cards=[card("A", 1), card("B", 2), card("C", 3), card("D", 4), card("F", 5, "seasonal")],
-        more=[card("E", 6), card("G", 7), card("Z", 8, "recurring")],
+        more=[card("E", 6), card("G", 7), card("Z", 8, "recurring"), card("K", 9, "spike"), card("L", 10, "new_to_42"),
+              card("M", 11, "on_the_boards"), card("N", 12, "spike")],
         held_items=[held("H1"), held("H2"), held("H3", "likely_coordinated", "G4"), held("H4", "explanation_failed", "G10")])]
     states = [
         # A: Rising at t+3, Peaking at t+7 on a panel lane, Fading at t+14: held at 7 days.
@@ -64,6 +65,10 @@ def scenario():
         st("G", 7, "emerging", lane=None),
         # Z: seasonal stratum, Rising at t+7 measured.
         st("Z", 7, "rising"),
+        # K Spike, L New to 42 and M On the boards at t+7 on measured lanes are active but unconfirmed; N has a row
+        # with no state at all, which is neither.
+        st("K", 7, "spike"), st("L", 7, "new_to_42", lane="unbiased_rank"),
+        st("M", 7, "on_the_boards", lane="unbiased_rank"), st("N", 7, None),
         # Held items: H1 Emerging at t+7, H2 Fading, H3 absent, H4 Rising on a watchlist lane.
         st("H1", 0, "emerging"), st("H1", 7, "emerging"), st("H2", 0, "rising"), st("H2", 7, "fading"),
         st("H3", 0, "spike"), st("H4", 0, "rising"), st("H4", 7, "rising", lane="watchlist"),
@@ -74,7 +79,7 @@ def scenario():
 def test_known_outcomes_give_exact_rows():
     briefs, states = scenario()
     rows = by_item(co.build_outcomes(briefs, states, ALL_DAYS))
-    assert len(rows) == 12
+    assert len(rows) == 16
     assert {(r["kind"], r["market"], r["run_date"]) for r in rows.values()} == {
         ("published", "ZA", T), ("held", "ZA", T)}
     want = {  # item: (outcome_t7, state_t7, measured, held, collapsed)
@@ -82,8 +87,12 @@ def test_known_outcomes_give_exact_rows():
         "B": ("collapsed", "fading", True, False, True),
         "C": ("collapsed", "absent", True, False, True),
         "D": ("unmeasured", "rising", False, False, False),
-        "E": ("other", "mainstream", True, False, False),
-        "F": ("other", "recurring", True, False, False),
+        "E": ("held", "mainstream", True, True, False),
+        "F": ("held", "recurring", True, True, False),
+        "K": ("held", "spike", True, True, False),
+        "L": ("held", "new_to_42", True, True, False),
+        "M": ("held", "on_the_boards", True, True, False),
+        "N": ("other", None, True, False, False),
         "G": ("unmeasured", "emerging", False, False, False),
         "Z": ("held", "rising", True, True, False),
         "H1": ("held", "emerging", True, True, False),
@@ -115,7 +124,7 @@ def test_strata_seasonal_and_recurring_are_split_from_trends():
     briefs, states = scenario()
     rows = by_item(co.build_outcomes(briefs, states, ALL_DAYS))
     assert rows["F"]["stratum"] == "scheduled" and rows["Z"]["stratum"] == "scheduled"
-    assert all(rows[i]["stratum"] == "trend" for i in ("A", "B", "C", "D", "E", "G", "H1", "H2", "H3", "H4"))
+    assert all(rows[i]["stratum"] == "trend" for i in ("A", "B", "C", "D", "E", "G", "K", "L", "M", "N", "H1", "H2", "H3", "H4"))
 
 
 def test_card_whose_later_rows_come_only_from_search_lanes_is_unmeasured():
@@ -201,13 +210,20 @@ def test_fading_card_is_collapsed_and_never_held():
     assert (pub["n"], pub["held"], pub["collapsed"]) == (1, 0, 1)
 
 
-def synthetic_rows(kind, market, reason, held, collapsed, other, unmeasured=0, pending=0, day=T, stratum="trend"):
+def synthetic_rows(kind, market, reason, held, collapsed, other, unmeasured=0, pending=0, day=T, stratum="trend",
+                   confirmed=None, backtest=None):
+    """held rows are confirmed (default all of them) or unconfirmed; backtest of the confirmed are in PERSISTING."""
+    confirmed = held if confirmed is None else confirmed
+    backtest = confirmed if backtest is None else backtest
     out = []
-    spec = [("held", held), ("collapsed", collapsed), ("other", other), ("unmeasured", unmeasured), ("pending", pending)]
-    for outcome, count in spec:
+    spec = [("confirmed", confirmed), ("unconfirmed", held - confirmed), ("collapsed", collapsed), ("other", other),
+            ("unmeasured", unmeasured), ("pending", pending)]
+    for cls, count in spec:
         for i in range(count):
-            out.append({"run_date": day, "market": market, "item_id": f"{outcome}{i}", "kind": kind,
-                        "hold_reason": reason, "stratum": stratum, "outcome_t7": outcome})
+            outcome = "held" if cls in ("confirmed", "unconfirmed") else cls
+            out.append({"run_date": day, "market": market, "item_id": f"{cls}{i}", "kind": kind,
+                        "hold_reason": reason, "stratum": stratum, "class_t7": cls, "outcome_t7": outcome,
+                        "backtest_t7": cls == "confirmed" and i < backtest})
     return out
 
 
@@ -336,4 +352,82 @@ def test_state_mix_counts_state_at_t_and_later_state_by_outcome():
     assert mix[("published", "rising", "absent", "collapsed")] == 1
     assert mix[("published", "rising", "fading", "collapsed")] == 1
     assert mix[("published", "rising", "rising", "unmeasured")] == 1
-    assert sum(mix.values()) == 12
+    assert sum(mix.values()) == 16
+
+
+def one_card_outcome(state, lane="panel"):
+    states = [st("X", 7, state, lane=lane)] if state != "absent" else []
+    return co.build_outcomes([brief(cards=[card("X", 1)])], states, ALL_DAYS)[0]
+
+
+PRODUCT_CLASSES = {  # state at t+7 on a measured lane: (class, in the backtest PERSISTING set); justified in card_outcome.py
+    "emerging": ("confirmed", True), "rising": ("confirmed", True), "peaking": ("confirmed", True),
+    "mainstream": ("confirmed", False), "recurring": ("confirmed", False), "seasonal": ("confirmed", False),
+    "spike": ("unconfirmed", False), "new_to_42": ("unconfirmed", False), "on_the_boards": ("unconfirmed", False),
+    "fading": ("collapsed", False), "absent": ("collapsed", False),
+}
+
+
+@pytest.mark.parametrize("state", sorted(PRODUCT_CLASSES))
+def test_every_product_state_has_its_class_and_backtest_column(state):
+    cls, backtest_set = PRODUCT_CLASSES[state]
+    r = one_card_outcome(state)
+    assert r["class_t7"] == cls and r["backtest_t7"] is backtest_set
+    assert r["held"] is (cls != "collapsed") and r["collapsed"] is (cls == "collapsed")
+    assert r["held_confirmed"] is (cls == "confirmed") and r["held_backtest"] is backtest_set
+    assert one_card_outcome(state, lane="search_presence")["class_t7"] == ("collapsed" if state == "absent" else "unmeasured")
+
+
+def test_state_vocabulary_is_fully_classified_with_nothing_in_two_classes():
+    from core.brief.payload import STATE_WORDS
+
+    assert set(co.CONFIRMED_STATES) | set(co.UNCONFIRMED_STATES) | set(co.COLLAPSED_STATES) == set(STATE_WORDS)
+    assert co.ACTIVE_STATES == co.CONFIRMED_STATES + co.UNCONFIRMED_STATES
+    parts = [set(co.CONFIRMED_STATES), set(co.UNCONFIRMED_STATES), set(co.COLLAPSED_STATES)]
+    assert sum(len(p) for p in parts) == len(set().union(*parts))
+    assert set(co.PERSISTING) <= set(co.CONFIRMED_STATES)
+
+
+def test_state_distribution_at_t_t3_t7_and_t14_is_exact():
+    briefs, states = scenario()
+    rows = co.build_outcomes(briefs, states, ALL_DAYS)
+    dist = {(d["kind"], d["when"], d["state"]): d["n"] for d in co.state_distribution(rows)}
+    assert dist[("published", "t", "rising")] == 6 and dist[("published", "t", "spike")] == 2
+    assert dist[("published", "t", "new_to_42")] == 1 and dist[("published", "t", "on_the_boards")] == 1
+    assert dist[("published", "t+7", "absent")] == 1 and dist[("published", "t+7", "fading")] == 1
+    assert dist[("published", "t+7", "spike")] == 1 and dist[("published", "t+7", "rising")] == 2
+    assert dist[("published", "t+3", "rising")] == 3 and dist[("published", "t+3", "absent")] == 9
+    assert dist[("held", "t", "emerging")] == 1 and dist[("held", "t+7", "absent")] == 1
+    assert dist[("published", "t+7", None)] == 1  # N: a row with no state
+    for kind in ("published", "held"):
+        for when in ("t", "t+3", "t+7", "t+14"):
+            assert sum(n for (k, w, _), n in dist.items() if (k, w) == (kind, when)) == (12 if kind == "published" else 4)
+
+
+def test_summary_has_product_confirmed_and_backtest_columns_with_their_own_wilson_intervals():
+    rows = synthetic_rows("published", "ZA", None, held=24, confirmed=10, backtest=6, collapsed=10, other=6)
+    g = group(co.summarize(rows, end=T), "published", "ZA")
+    assert (g["n"], g["held"], g["confirmed"], g["unconfirmed"], g["backtest"]) == (40, 24, 10, 14, 6)
+    assert g["rate"] == pytest.approx(0.6) and g["lo"] == pytest.approx(0.445959, abs=1e-6)
+    assert g["rate_confirmed"] == pytest.approx(0.25) and g["lo_confirmed"] == pytest.approx(0.141871, abs=1e-6)
+    assert g["hi_confirmed"] == pytest.approx(0.40194, abs=1e-6)
+    assert g["rate_backtest"] == pytest.approx(0.15) and g["lo_backtest"] == pytest.approx(0.070612, abs=1e-6)
+    assert g["hi_backtest"] == pytest.approx(0.290723, abs=1e-6)
+    small = group(co.summarize(synthetic_rows("published", "ZA", None, 20, 5, 0, confirmed=3), end=T), "published", "ZA")
+    assert small["text"] == small["text_confirmed"] == small["text_backtest"] == "not enough data"
+    assert small["rate_confirmed"] is None and small["lo_backtest"] is None
+
+
+def test_markdown_prints_the_state_distribution_before_any_rate():
+    briefs, states = scenario()
+    rows = co.build_outcomes(briefs, states, ALL_DAYS)
+    md = co.report_markdown(rows, {h: co.summarize(rows, end=T, horizon=h, min_n=1) for h in co.HORIZONS}, end=T)
+    assert md.index("State at t") < md.index("held at 7 days")
+    assert "| on_the_boards |" in md and "| absent |" in md
+
+
+def test_distribution_labels_a_day_without_a_detect_run_pending_not_no_state():
+    days = {T + dt.timedelta(days=i) for i in range(0, 9)}
+    rows = co.build_outcomes([brief(cards=[card("P", 1)])], [], days)
+    dist = {(d["when"], d["state"]): d["n"] for d in co.state_distribution(rows)}
+    assert dist == {("t", "rising"): 1, ("t+3", "absent"): 1, ("t+7", "absent"): 1, ("t+14", "pending"): 1}
