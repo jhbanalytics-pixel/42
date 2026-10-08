@@ -1362,6 +1362,7 @@ def test_the_partial_reason_reaches_coverage_through_the_cluster_errors_it_alrea
     ({"za": "again", "ng": "raise", "ke": "quiet", "pan": "raise"}, False),       # clustered earlier today
     ({"za": "quiet", "ng": "quiet", "ke": "quiet", "pan": "raise"}, True),        # the 1 and 2 Oct record
     ({"za": "raise", "ng": "quiet", "ke": "quiet", "pan": "quiet"}, True),
+    ({"za": "empty", "ng": "raise", "ke": "quiet", "pan": "quiet"}, True),       # a fit that found no topic wrote none
 ])
 def test_only_zero_clusters_with_a_raising_market_is_partial(monkeypatch, results, partial):
     monkeypatch.delenv("EMBED_DAYS", raising=False)
@@ -1369,6 +1370,7 @@ def test_only_zero_clusters_with_a_raising_market_is_partial(monkeypatch, result
     monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
     shapes = {"ok": {"posts": 40, "today_posts": 12, "clusters": 2, "members": 12, "new": 2},
               "quiet": {"posts": 0, "today_posts": 0, "skipped": "too_few_posts"},
+              "empty": {"posts": 40, "today_posts": 12, "clusters": 0, "members": 0, "new": 0},
               "again": {"skipped": "already_clustered"}}
 
     def run(execute, *, market, **kw):

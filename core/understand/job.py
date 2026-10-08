@@ -355,7 +355,7 @@ def main(execute=None):
         elapsed = round(max(0.0, (now() - cluster_started).total_seconds()), 3)
         print(phase_line(run.run_id, "clustering", "end", elapsed), flush=True)
         step_seconds["clustering"] = elapsed
-    stack_error = None if backfill else cluster_stack_failed(counts["cluster"])
+    stack_error = cluster_stack_failed(counts["cluster"])
     if stack_error:
         counts.update(partial=True, partial_reason=PARTIAL_REASON, partial_error=stack_error,
                       data_issue=TOPICS_FAILED_TEXT)
