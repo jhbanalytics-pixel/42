@@ -2632,3 +2632,26 @@ test('a long Today page offers a way back to the top', async () => {
     Object.defineProperty(window, 'scrollY', {value: 0, configurable: true});
   }
 });
+
+/* Wave 8, W8-DEC-04: the Searching now strip sits below the cards in every
+   Today market, never above them. */
+test('Searching now sits below the cards on a market tab, on All, and under the held list of an empty market', async () => {
+  const today = clone(todayFixture);
+  today.searching_now = clone(searchingNowFixture);
+  const follows = (first, second) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+  await mount({region: 'NG'}, today);
+  let strip = host.querySelector('[data-section="searching-now"]');
+  expect(strip).not.toBeNull();
+  const lastCard = cards().filter((card) => strip.closest('[data-market]').contains(card)).pop();
+  expect(follows(lastCard, strip)).toBe(true);
+
+  click(tab('All'));
+  const groups = [...host.querySelectorAll('[data-market]')].filter((node) => node.querySelector('[data-section="searching-now"]'));
+  expect(groups.length).toBeGreaterThan(1);
+  for (const group of groups){
+    const own = group.querySelector('[data-section="searching-now"]');
+    for (const card of group.querySelectorAll('[data-card]')) expect(follows(card, own)).toBe(true);
+    const heldList = group.querySelector('[id^="t42-held-"]');
+    if (heldList) expect(follows(heldList, own)).toBe(true);
+  }
+});

@@ -843,7 +843,6 @@ function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch
     <section className="t42-market t42-today-market" data-market={market.market} aria-label={market.label}>
       {/* The tab already names a single market; only All names each one. */}
       {compact && <h2 className="t42-market-name">{market.label}</h2>}
-      <SearchingNow signals={searchingNow} market={market.market} nameMarket={!compact} />
       <MarketStatus market={market} empty={cards.length === 0} sourceDetails={sourceDetails}
         banners={banners.filter((banner) => banner.kind !== 'thin_coverage' && !isSourceFailureBanner(banner))} />
       {cards.length > 0
@@ -867,6 +866,8 @@ function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch
           {all ? 'Show fewer' : 'Show all'}
         </button>
       )}
+      {/* W8-DEC-04: Google search interest reads after the checked cards, never ahead of them. */}
+      <SearchingNow signals={searchingNow} market={market.market} nameMarket={!compact} />
       {!compact && <BelowCards market={market} showHeldBack={cards.length > 0} openLeftOut={dataIssue} />}
     </section>
   );
