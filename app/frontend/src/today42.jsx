@@ -127,6 +127,11 @@ function usableLocalEvidence(item){
   ));
 }
 
+/* The server counts a quote's words with Python str.split(), which also splits
+   on U+001C to U+001F and U+0085. JavaScript's \s does not, so the same quote
+   would count one word here and two there. */
+const SERVER_SPACE = /[\t-\r\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/u;
+
 function todaySpecificityView(card){
   if (!card || typeof card !== 'object' || Array.isArray(card)
     || card.explained !== true || !nonEmptyString(card.explanation)
@@ -193,7 +198,7 @@ function todaySpecificityView(card){
 
   if (!citedQuotePairs.has(JSON.stringify([quoteId, quoteText]))) return null;
   const sourceText = nonEmptyString(quoteSource.quote_text) ? quoteSource.quote_text : quoteSource.text;
-  const wordCount = quoteText.trim().split(/\s+/u).length;
+  const wordCount = quoteText.split(SERVER_SPACE).filter(Boolean).length;
   if (!nonEmptyString(sourceText) || wordCount < 2 || wordCount > 25
     || [...quoteText].length > 160 || !quoteMatchesSource(sourceText, quoteText)) return null;
 
@@ -470,6 +475,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
               <MarketBlock
                 key={m.market.market + ':' + tab}
                 market={m.market}
+                rejected={m.rejectedCards}
                 specificityByItemId={m.specificityByItemId}
                 headline={headline}
                 compact={tab === 'ALL'}
@@ -854,7 +860,18 @@ function MarketStatus({market, banners, sourceDetails, empty}){
   );
 }
 
-function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch, onFeedback, specificityByItemId, searchingNow, showHistoryLink, onOpenMarket, dataIssue = false}){
+function ClientHeld({count}){
+  if (!(count > 0)) return null;
+  return (
+    <p className="t42-line-text" data-client-held="">
+      {count === 1
+        ? '1 trend the brief cleared is not shown here, because its example posts did not pass this page’s own check.'
+        : count + ' trends the brief cleared are not shown here, because their example posts did not pass this page’s own check.'}
+    </p>
+  );
+}
+
+function MarketBlock({market, headline, rejected = 0, compact, date, skipBanner, onAuth, watch, onFeedback, specificityByItemId, searchingNow, showHistoryLink, onOpenMarket, dataIssue = false}){
   const [all, setAll] = useState(false);
   const top = Array.isArray(market.cards) ? market.cards : [];
   const more = Array.isArray(market.more) ? market.more : [];
@@ -872,6 +889,7 @@ function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch
       {compact && <h2 className="t42-market-name">{market.label}</h2>}
       <MarketStatus market={market} empty={cards.length === 0} sourceDetails={sourceDetails}
         banners={banners.filter((banner) => banner.kind !== 'thin_coverage' && !isSourceFailureBanner(banner))} />
+      <ClientHeld count={rejected} />
       {cards.length > 0
         ? <>
           <p className="t42-line-text" data-today-count-window="">Creator and post counts are in the last 3 days.</p>

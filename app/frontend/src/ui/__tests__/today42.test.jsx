@@ -2834,3 +2834,57 @@ test('a brief for the current day still says today', async () => {
     expect(text()).toContain('No trend cleared our checks in Kenya today.');
   });
 });
+
+/* Wave 8 N44 (R0269, R0279): the page re-checks every admitted card with its
+   own copy of the server's specificity rule. The copy must count words as the
+   server does, and a card it still rejects must be said, not dropped. */
+function cardWithQuote(quote){
+  const today = clone(todayFixture);
+  const card = today.markets[0].cards[0];
+  card.specificity = specificityFor(card);
+  const source = card.evidence.find((item) => item.id === card.specificity.quote.evidence_id);
+  source.text = 'Loved ' + quote + ' again';
+  source.quote_text = null;
+  setSpecificityQuote(card, quote);
+  return {today, card};
+}
+
+test('a quote of two words split by a control-character space is two words, as the server counts them', async () => {
+  for (const space of ['\u0085', '\u001c', '\u001f']){
+    const {today, card} = cardWithQuote('Durban' + space + 'nights');
+    flushSync(() => root.unmount());
+    root = createRoot(host);
+    await mount({}, today);
+    expect(cardTitled(card.title)).toBeDefined();
+  }
+});
+
+test('a card the page rejects after the server admitted it is counted in a line, not dropped silently', async () => {
+  const today = clone(todayFixture);
+  const market = today.markets[0];
+  const source = market.cards[0];
+  source.specificity = specificityFor(source);
+  const good = checkedCard(source, 'Admitted card', 'admitted-1');
+  const bad = checkedCard(source, 'Rejected card', 'rejected-1');
+  setSpecificityQuote(bad, 'This quote is absent from the post');
+  market.cards = [good, bad];
+  market.more = [];
+  await mount({}, today);
+  expect(cardTitled('Admitted card')).toBeDefined();
+  expect(cardTitled('Rejected card')).toBeUndefined();
+  const line = host.querySelector('[data-market="ZA"] [data-client-held]');
+  expect(line).not.toBeNull();
+  expect(line.textContent).toContain('1 trend the brief cleared is not shown here');
+});
+
+test('no such line appears when the page admits every card the server did', async () => {
+  const today = clone(todayFixture);
+  const market = today.markets[0];
+  const source = market.cards[0];
+  source.specificity = specificityFor(source);
+  market.cards = [checkedCard(source, 'Admitted card', 'admitted-1')];
+  market.more = [];
+  await mount({}, today);
+  expect(cardTitled('Admitted card')).toBeDefined();
+  expect(host.querySelector('[data-market="ZA"] [data-client-held]')).toBeNull();
+});
