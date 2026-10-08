@@ -1512,6 +1512,19 @@ def test_a_job_that_could_not_read_its_spend_and_sent_no_window_says_so_in_embed
     assert counts["embed_error"].startswith("NoWindowSent: spend_unknown")
 
 
+@pytest.mark.parametrize("counts, expected", [
+    ({"retry_capped": True, "uncorrected_usd": 15.36, "embedded": 0}, "NoWindowSent: retry_capped"),
+    ({"spend_unknown": True, "spend_error": "RuntimeError", "embedded": 0}, "NoWindowSent: spend_unknown"),
+    ({"retry_capped": True, "uncorrected_usd": 15.36, "embedded": 5}, None),     # an earlier window did embed
+    ({"spend_unknown": True, "spend_error": "RuntimeError", "embedded": 3}, None),
+    ({"embedded": 0}, None),                                                     # nothing to embed is not an error
+    ({"cap_limited": True, "embedded": 0}, None),
+])
+def test_embed_not_run_reports_only_a_run_that_was_stopped_and_embedded_nothing(counts, expected):
+    got = job.embed_not_run(counts)
+    assert (got.startswith(expected) if expected else got is None), got
+
+
 def test_an_ordinary_embed_run_has_no_embed_error(monkeypatch):
     monkeypatch.delenv("EMBED_DAYS", raising=False)
     log = fake_chain(monkeypatch)
