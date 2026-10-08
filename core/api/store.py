@@ -120,17 +120,19 @@ CLUSTER_MARKETS = ("za", "ng", "ke", "pan")  # core.understand.job.CLUSTER_MARKE
 
 
 def degraded_writes(counts):
-    """The writes an understand run failed soft on, from its counts: "enrich" when it has enrich_error, then
-    "cluster:<market>" for each market whose cluster counts carry an error. Empty for a clean run."""
+    """The writes an understand run failed soft on, from its counts: "embed" when it has embed_error (it embedded
+    nothing), "enrich" when it has enrich_error, then "cluster:<market>" for each market whose cluster counts carry
+    an error. Empty for a clean run."""
     counts = counts if isinstance(counts, dict) else {}
     cluster = counts.get("cluster") if isinstance(counts.get("cluster"), dict) else {}
-    return (["enrich"] if counts.get("enrich_error") else []) + [
+    return (["embed"] if counts.get("embed_error") else []) + (["enrich"] if counts.get("enrich_error") else []) + [
         f"cluster:{m}" for m in CLUSTER_MARKETS if isinstance(cluster.get(m), dict) and cluster[m].get("error")]
 
 
 # degraded_writes in SQL, over the latest runs row's counts; WITH OFFSET keeps the order above.
 DEGRADED_SQL = "ARRAY(SELECT w FROM UNNEST([{}]) AS w WITH OFFSET o WHERE w IS NOT NULL ORDER BY o)".format(", ".join(
-    ["IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
+    ["IF(JSON_VALUE(r.counts, '$.embed_error') IS NOT NULL, 'embed', NULL)",
+     "IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
     + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.error') IS NOT NULL, 'cluster:{m}', NULL)" for m in CLUSTER_MARKETS]))
 
 
