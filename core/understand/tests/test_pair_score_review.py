@@ -209,9 +209,10 @@ def test_among_several_accepted_candidates_the_highest_score_wins_and_a_tie_goes
     mid = an_item("m_mid", at(0.90), OLD)
     _, rows = shadow_of([c], [low, high, mid] + background())
     assert {r["shadow_item_id"] for r in rows} == {"z_high"}
-    twin_a, twin_b = an_item("b_twin", at(0.95), OLD), an_item("a_twin", at(0.95, towards=2), OLD)
-    _, rows = shadow_of([c], [twin_b, twin_a] + background())
-    assert {r["shadow_item_id"] for r in rows} == {"a_twin"}
+    first, second = an_item("b_twin", at(0.95), OLD), an_item("a_twin", at(0.95, towards=2), OLD)
+    for order in ([first, second], [second, first]):  # the smaller id wins whichever is listed first
+        _, rows = shadow_of([c], order + background())
+        assert {r["shadow_item_id"] for r in rows} == {"a_twin"}
 
 
 def test_a_recurrence_needs_28_days_in_the_shadow_as_in_the_vote_rule():
