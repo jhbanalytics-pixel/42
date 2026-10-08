@@ -759,14 +759,23 @@ function saysHeadline(headline, card, specificity){
     && sentenceKey(headline.text) === sentenceKey(specificity.whyNow));
 }
 
+/* A market the brief has no row for: a data issue with nothing held. It has no checks to have cleared. */
+function hasNoBrief(market){
+  const held = market.held_back;
+  return market.status === 'data_issue' && Boolean(held) && held.count === 0
+    && (!Array.isArray(held.items) || held.items.length === 0);
+}
+
 function emptyMarketWords(market){
   const held = market.held_back;
-  const items = held && Array.isArray(held.items) ? held.items : [];
-  const count = held && Number.isInteger(held.count) && held.count >= 0 ? held.count : items.length;
+  const items = held && Array.isArray(held.items) ? held.items : null;
+  const counted = held && Number.isInteger(held.count) && held.count >= 0;
+  const count = counted ? held.count : items ? items.length : null;
   const name = nonEmptyString(market.label) ? market.label : market.market;
+  if (hasNoBrief(market)) return {lead: '42 has no brief for ' + name + ' today.', held: null};
   return {
     lead: 'No trend cleared our checks in ' + name + ' today.',
-    held: count === 1 ? '1 is held back.' : readerFigure(count) + ' are held back.',
+    held: count === null ? 'How many were held back is unavailable.' : count === 1 ? '1 is held back.' : readerFigure(count) + ' are held back.',
   };
 }
 
@@ -813,7 +822,7 @@ function MarketStatus({market, banners, sourceDetails, empty}){
       {empty && <p className="t42-market-status__lead" data-empty-market-reason="">{words.lead}</p>}
       {(empty || banners.length > 0 || hasSourceProblems) && (
         <p className="t42-market-status__detail">
-          {empty && <span data-held-count="">{words.held}</span>}
+          {empty && words.held && <span data-held-count="">{words.held}</span>}
           {banners.map((banner, index) => (
             <span key={banner.kind + banner.text}>{(empty || index > 0) ? ' ' : ''}<BannerWords banner={banner} /></span>
           ))}
@@ -822,7 +831,7 @@ function MarketStatus({market, banners, sourceDetails, empty}){
       )}
       {(empty || hasSourceProblems) && (
         <div className="t42-market-status__links">
-          {empty && <a className="t42-link" href={'#' + heldId} onClick={jumpTo(heldId)}>Why each was held</a>}
+          {empty && words.held && <a className="t42-link" href={'#' + heldId} onClick={jumpTo(heldId)}>Why each was held</a>}
           {hasSourceProblems && (
             <details data-section="source-details">
               <summary>Source details</summary>
@@ -876,7 +885,7 @@ function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch
           </>
         : <>
             {showHistoryLink && <p className="t42-line-text"><a className="t42-link" href="#/history">Choose a past brief in History</a></p>}
-            <HeldForEvidence held={market.held_back} market={market.market} />
+            {!hasNoBrief(market) && <HeldForEvidence held={market.held_back} market={market.market} />}
           </>}
       {!compact && more.length > 0 && (
         <button type="button" className="t42-button" aria-expanded={all ? 'true' : 'false'} aria-controls={listId} onClick={() => setAll((v) => !v)}>

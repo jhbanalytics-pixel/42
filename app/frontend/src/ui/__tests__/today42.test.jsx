@@ -2762,3 +2762,38 @@ test('the All tab says nothing about a cap when every cleared trend is shown', a
   expect(host.querySelector('[data-market="ZA"] [data-all-cap]')).toBeNull();
   expect(host.querySelector('[data-market="KE"] [data-all-cap]')).toBeNull();
 });
+
+/* Wave 8 N43 (R0264) and the honest-state rule: a market with no brief, or one
+   whose held count was not sent, is never worded as a published market with
+   nothing held. */
+test('a market with no published brief says so, with no held count and no held link', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((entry) => entry.market === 'KE');
+  kenya.status = 'data_issue';
+  kenya.cards = [];
+  kenya.more = [];
+  kenya.held_back = {count: 0, items: [], text: 'Nothing held back'};
+  kenya.banners = [{kind: 'data_issue', text: 'Data issue: no brief was published for Kenya'}];
+  await mount({region: 'KE'}, today);
+  const lead = host.querySelector('[data-empty-market-reason]');
+  expect(lead.textContent).not.toContain('cleared our checks');
+  expect(lead.textContent).toContain('no brief');
+  expect(host.querySelector('[data-held-count]')).toBeNull();
+  expect(text()).not.toContain('Why each was held');
+  expect(text()).not.toContain('0 are held back');
+  expect(host.querySelector('[data-section="held-for-evidence"]')).toBeNull();
+});
+
+test('a published market that sent no held count does not say none are held', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((entry) => entry.market === 'KE');
+  kenya.status = 'published';
+  kenya.cards = [];
+  kenya.more = [];
+  kenya.banners = [];
+  delete kenya.held_back;
+  await mount({region: 'KE'}, today);
+  expect(host.querySelector('[data-held-count]').textContent).toBe('How many were held back is unavailable.');
+  expect(text()).not.toContain('0 are held back');
+  expect(text()).not.toContain('Nothing held back');
+});
