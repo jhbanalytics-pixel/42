@@ -30,15 +30,15 @@ HIDDEN_TABLES = (
 WAREHOUSE_MAP = {
     "intelligence_42_core.posts": (
         "post_id", "platform", "creator_id", "text", "hashtags", "sound_id", "published_at", "post_date", "views",
-        "likes", "comments", "shares", "engagement", "geo_market", "geo_confidence"),
+        "likes", "comments", "shares", "engagement", "geo_market", "geo_source", "geo_confidence"),
     "intelligence_42_core.post_items": ("post_id", "item_id", "via"),
     "intelligence_42_core.cultural_map": (
         "item_id", "kind", "canonical_key", "label", "aliases", "first_seen", "last_seen", "lifecycle", "status",
         "valid_to"),
-    "intelligence_42_core.item_daily": (
+    "intelligence_42_core.v_item_daily_current": (
         "metric_date", "market", "platform", "item_id", "lane_class", "posts", "creators", "engagement",
         "local_posts"),
-    "intelligence_42_core.item_state": (
+    "intelligence_42_core.v_item_state_current": (
         "metric_date", "market", "item_id", "kind", "state", "main_ratio", "posts3", "creators3", "local_share",
         "spread_platforms", "eligible"),
     "intelligence_42_core.post_enrichment": ("post_id", "sounds", "formats", "langs", "entities", "tone"),
@@ -51,14 +51,21 @@ WAREHOUSE_MAP = {
         "series_id", "platform", "series", "day", "value"),
 }
 WAREHOUSE_NOTES = (
-    "posts is partitioned by post_date: always filter on it. geo_market is ZA, NG or KE when a post is located. "
+    "posts is partitioned by post_date: always filter on it. A post is located only when geo_market is ZA, NG or KE and "
+    "IFNULL(p.geo_source, '') != 'home_market'; geo_source home_market means the market came from the creator's "
+    "profile, so say it was seen in that market's feeds, never that it was located there. "
     "Params arrive as strings: wrap a date param in DATE(@name). cultural_map keeps one row per item version: the "
     "current row has valid_to IS NULL. Item kinds: topic, "
     "hashtag, sound, format, meme, creator, brand, event. A TikTok sound is posts.sound_id, or an item of kind sound "
     "linked to posts through post_items. A sound's title is the label of its current cultural_map row with kind "
     "'sound' and canonical_key = CONCAT(p.platform, ':', p.sound_id); no row, or a label equal to the sound id, means "
-    "42 holds no title for it, so say so. hashtags is an array: count tags with CROSS JOIN UNNEST(p.hashtags) AS tag. item_state and item_daily hold "
-    "one row per item, market and day. Measure reach across the whole store: COUNT(*) and COUNT(DISTINCT "
+    "42 holds no title for it, so say so. hashtags is an array: count tags with CROSS JOIN UNNEST(p.hashtags) AS tag. Read the derived counts only through "
+    "v_item_daily_current and v_item_state_current, which keep the one good run per day; the raw item_daily and "
+    "item_state tables are append-only and hold every run. v_item_state_current holds one row per item, market and "
+    "day. v_item_daily_current holds one row per day, market, platform, item, lane_class and panel series, and a "
+    "post counts on every lane_class row it was seen in, so never sum posts across lane_class rows or platforms: an "
+    "item's whole posts in a market for a day is the single row with lane_class = '_any' and platform = '_all'. "
+    "Measure reach across the whole store: COUNT(*) and COUNT(DISTINCT "
     "p.creator_id) grouped by p.platform, over every platform unless the question names one. "
     "google_search_signals holds the Google search terms collect stored per market each day (source google_trending, "
     "SocialCrawl trending searches; google_bq, the public Google Trends top and rising terms, ZA and NG; or google_rss, "
@@ -75,7 +82,7 @@ WAREHOUSE_EXAMPLE = (
     "COUNT(DISTINCT p.creator_id) AS creators FROM intelligence_42_core.posts p "
     "LEFT JOIN intelligence_42_core.cultural_map m ON m.kind = 'sound' AND m.valid_to IS NULL "
     "AND m.canonical_key = CONCAT(p.platform, ':', p.sound_id) "
-    "WHERE p.platform = 'tiktok' AND p.geo_market = @market "
+    "WHERE p.platform = 'tiktok' AND p.geo_market = @market AND IFNULL(p.geo_source, '') != 'home_market' "
     "AND p.post_date BETWEEN DATE(@since) AND DATE(@until) AND p.sound_id IS NOT NULL "
     "GROUP BY p.sound_id ORDER BY creators DESC LIMIT 50"
 )
