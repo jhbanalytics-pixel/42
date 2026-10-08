@@ -15,6 +15,7 @@ const {flushSync} = await import('react-dom');
 const {getJson, fetchToday, fetchTrend, fetchAlerts, listInvestigations, listSchedules} = await import('../../api42.js');
 const {TodayPage42} = await import('../../today42.jsx');
 const {topicHref} = await import('../TrendCard.jsx');
+const {TodayBoards} = await import('../TodayBoards.jsx');
 
 const realFetch = globalThis.fetch;
 const realNow = Date.now;
@@ -2871,6 +2872,56 @@ test('a brief with no date in its payload for the current day still says today',
     await mount({region: 'ZA', date: '2026-09-30'}, today);
     expect(text()).toContain('Left out today:');
   });
+});
+
+/* What Today hands the boards. TodayBoards words its own cards, so these read the
+   props the page passes it, from the React fiber above the section it renders. */
+function boardsProps(){
+  const nodes = [...host.querySelectorAll('[data-section="boards"]')];
+  const out = nodes.map((node) => {
+    const key = Object.keys(node).find((name) => name.startsWith('__reactFiber$'));
+    let fiber = key ? node[key] : null;
+    while (fiber && fiber.type !== TodayBoards) fiber = fiber.return;
+    return fiber ? fiber.memoizedProps : null;
+  });
+  return out;
+}
+
+test('a past brief hands its boards the day it is worded for, and a current brief hands them today', async () => {
+  await withClock('2026-10-08T08:00:00Z', async () => {
+    await mount({region: 'ZA'});
+    const [props, ...rest] = boardsProps();
+    expect(rest).toEqual([]);
+    expect(props.day).toBe('on 30 September 2026');
+    expect(props.boards).toEqual(todayFixture.markets[0].boards);
+  });
+  resetRoot();
+  await withClock('2026-09-30T08:00:00Z', async () => {
+    await mount({region: 'ZA'});
+    expect(boardsProps().map((props) => props.day)).toEqual(['today']);
+  });
+});
+
+test('the All tab renders the boards once, with every market as its own group in page order', async () => {
+  await withClock('2026-10-08T08:00:00Z', async () => {
+    await mount({region: 'ALL'});
+    expect(host.querySelectorAll('[data-section="boards"]')).toHaveLength(1);
+    const [props] = boardsProps();
+    expect(props.boards).toBeUndefined();
+    expect(props.day).toBe('on 30 September 2026');
+    expect(props.groups).toEqual(todayFixture.markets.map((market) => ({market: market.market, label: market.label, boards: market.boards})));
+    expect(props.groups.map((group) => group.market)).toEqual(['ZA', 'NG', 'KE']);
+    expect([...host.querySelectorAll('[data-board-market]')].map((node) => node.getAttribute('data-board-market'))).toEqual(['ZA', 'NG', 'KE']);
+    expect(host.querySelector('[data-market="ZA"] [data-section="boards"]')).toBeNull();
+  });
+});
+
+test('a single market tab renders only its own boards, not the groups', async () => {
+  await mount({region: 'NG'});
+  const [props, ...rest] = boardsProps();
+  expect(rest).toEqual([]);
+  expect(props.groups).toBeUndefined();
+  expect(props.boards).toEqual(todayFixture.markets[1].boards);
 });
 
 /* Wave 8 N44 (R0269, R0279): the page re-checks every admitted card with its

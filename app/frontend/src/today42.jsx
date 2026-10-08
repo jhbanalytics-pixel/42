@@ -331,6 +331,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
 
   const data = load.state === 'ready' ? load.data || {} : {};
   const briefDate = typeof data.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date) ? data.date : null;
+  const dayWords = briefDayWords(briefDate || (/^\d{4}-\d{2}-\d{2}$/.test(date || '') ? date : null));
   const earlierDefaultBrief = !date && briefDate && briefDate < sastToday();
   const publicationTime = typeof data.published_at === 'string'
     && /(?:Z|[+-]\d{2}:\d{2})$/i.test(data.published_at)
@@ -383,7 +384,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
   const isLoading = load.state === 'loading';
 
   return (
-    <BriefDay.Provider value={briefDayWords(briefDate || (/^\d{4}-\d{2}-\d{2}$/.test(date || '') ? date : null))}>
+    <BriefDay.Provider value={dayWords}>
     <section className="page t42">
       <header className="t42-head">
         <h1 className="t42-heading" {...(load.state === 'ready' ? {'data-today-loaded': ''} : {})}>{load.state === 'ready' && headingText ? headingWords(headingText) : 'Today'}</h1>
@@ -495,6 +496,12 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
                 onFeedback={onFeedback}
               />
             ))}
+            {tab === 'ALL' && shown.length > 0 && (
+              <TodayBoards
+                groups={shown.map(({market}) => ({market: market.market, label: market.label, boards: market.boards}))}
+                day={dayWords}
+              />
+            )}
             {shown.length === 0 && <p className="t42-status">This market is not in this brief.</p>}
           </>
         )}
@@ -960,12 +967,13 @@ function LeftOut({market, showHeldBack, open}){
 }
 
 function BelowCards({market, showHeldBack, openLeftOut}){
+  const day = useContext(BriefDay);
   return (
     <div className="t42-below">
       <LeftOut market={market} showHeldBack={showHeldBack} open={openLeftOut} />
       <NotAssessed audit={market.not_assessed} />
       <Moments moments={market.moments} />
-      <TodayBoards boards={market.boards} />
+      <TodayBoards boards={market.boards} day={day} />
     </div>
   );
 }
