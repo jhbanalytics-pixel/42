@@ -396,8 +396,6 @@ class SummaryLedger:
             if stage == "support_check" and any(cid in kept and kept[cid] != text
                                                 for cid, text in before["claims"].items()):
                 found.append("claim_narrowed")
-            if stage == "critic":
-                found = [c for c in found if c == "claim_cut"]
         return found or ["unattributed"]
 
     def finalize(self, answer: dict, execution_state: str) -> tuple[str, list, str]:
