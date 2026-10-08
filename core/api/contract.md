@@ -67,7 +67,7 @@ When a market has no admitted cards, its status block gives a general check stat
 
 `run_receipt` is optional. `posts` is the `posts` count the latest ok collect run for the date stored in intelligence_42_agent.runs; `shown` and `held` are the cards (with `more`) and `held_back.count` summed over the markets in this response. f42-api leaves the field out when there is no ok collect run, its stored `posts` is not a whole number, or a market has no brief row; it never estimates a count.
 
-`status`: `published` (every market's brief passed on time), `partial` (at least one market published numbers and posts only, or one market is missing), `data_issue` (collection or detection failed; cards may be empty, banners say why). 409 `not_ready` only when no brief exists for the requested date.
+`status`: `published` (every market's brief passed on time), `partial` (at least one trend's explanation was held back, or one market is missing), `data_issue` (collection or detection failed; cards may be empty, banners say why). 409 `not_ready` only when no brief exists for the requested date.
 
 `warmup.day` counts days since the first ok collect run (runs, stage collect); `active` while day is 14 or less.
 

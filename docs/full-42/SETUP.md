@@ -72,7 +72,7 @@ This table is the only place caps are set; every other document points here. ENG
 | BUILD_DAILY | 600 credits for building and probes until the morning schedule starts, then 150; staging test runs of the collect and brief jobs spend the engine's shares, and Ask tests spend ASK_DAILY | The builder's test runs |
 | MONTHLY | 80,000 credits over everything (raised 3 Oct 2026 at Albert's request) | Ask is throttled first, then build, and the morning run is protected until the balance floor |
 | BALANCE_FLOOR | 20,000 credits | Every job refuses to start below it; alert at 30 days of spend |
-| MODEL_DAILY_USD | USD 50 a day (raised 3 Oct 2026 at Albert's request). About USD 1,500 a month at that level (Albert, 28 September: cost first) | Ask falls back to T0 and the fast model; the brief falls back to numbers and posts |
+| MODEL_DAILY_USD | USD 50 a day (raised 3 Oct 2026 at Albert's request). About USD 1,500 a month at that level (Albert, 28 September: cost first) | Ask falls back to T0 and the fast model; unexplained trends are held back, reason shown, numbers and posts alongside |
 | EVAL_MODEL_USD | USD 40 per evaluation run, counted apart from MODEL_DAILY_USD | The eval run stops and reports what it scored |
 
 - SocialCrawl: ledger table intelligence_42_core.credit_ledger (run, job, agent, route, params hash, quoted and charged credits, balance), reconciled nightly with credits/transactions. Collect runs with one retry, so a failed run cannot spend twice. A separate dev key for build work is optional; until Albert buys one, BUILD_DAILY protects the funded key.

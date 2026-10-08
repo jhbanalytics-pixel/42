@@ -60,7 +60,7 @@ Shared daily and monthly credit and spend caps live in `core/config/caps.yaml`, 
 | `EVAL_DAILY` | 0 live credits (100 for a deliberate refresh) | Evaluations run in replay mode |
 | `MONTHLY` | 80,000 credits | Ask and build work are throttled first; the morning run is protected |
 | `BALANCE_FLOOR` | 20,000 credits | Paid live supplier calls stop below it; cached responses and free routes remain subject to their other checks |
-| `MODEL_DAILY_USD` | USD 50 a day | Ask may use a quick lookup if it still fits; otherwise the question is not researched. The brief falls back to numbers and posts |
+| `MODEL_DAILY_USD` | USD 50 a day | Ask may use a quick lookup if it still fits; otherwise the question is not researched. Unexplained trends are held back, reason shown, numbers and posts alongside |
 
 A per-question budget sits inside `ASK_DAILY` (`core/agent/context.py`):
 

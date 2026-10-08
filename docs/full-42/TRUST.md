@@ -46,7 +46,7 @@ Item rules (trend cards):
 | G7 | Route regime break in the last 14 days | No growth figure |
 | G8 | Calendar or last-year match | Seasonal, not Rising |
 | G9 | Cluster label not supported by 3 of 12 representative posts | Named by top hashtag or sound |
-| G10 | Explanation fails claim checks after one repair (and, when the critic held only its why-now, after one critic-informed second draft) | Numbers and posts only |
+| G10 | Explanation fails claim checks after one repair (and, when the critic held only its why-now, after one critic-informed second draft) | Held, reason shown |
 
 Claim rules (answers and explanations):
 
