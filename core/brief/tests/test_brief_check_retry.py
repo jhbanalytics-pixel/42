@@ -339,3 +339,23 @@ def test_the_job_gives_the_retry_the_runs_deadline():
 def test_check_incomplete_is_one_of_the_failed_check_reasons():
     assert "check_incomplete" in job.FAILED_CHECKS
     assert "check_incomplete" in retained.REASON_CODES
+
+
+def test_the_job_hands_each_explanation_a_retry_guard_that_follows_the_deadline(monkeypatch):
+    from core.brief.tests.test_brief_job import FakeChain
+
+    seen = []
+
+    def fake_explain(row, pack, **kw):
+        seen.append(kw["retry_guard"])
+        return {"reason": None, "usage_usd": 0.0, "checks": [], "numbers_only": False, "explanation": "x"}
+
+    monkeypatch.setattr(job, "explain_trend", fake_explain)
+    now = {"t": datetime.combine(D, time(5, 30), SAST)}
+    cand = {"market": "ZA", "row": {"item_id": "i1"}, "pack": {}, "rerun": None}
+    job._explain_all([cand], model=object(), base_usd=0.0, spend={"usd": 0.0}, clock=lambda: now["t"],
+                     chain=FakeChain(), d=D, workers=1, started=now["t"])
+    [guard] = seen
+    assert guard() is True
+    now["t"] = datetime.combine(D, time(6, 15), SAST)
+    assert guard() is False
