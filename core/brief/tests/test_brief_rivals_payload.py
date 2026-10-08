@@ -1,4 +1,4 @@
-"""A card publishes the same with detect's rival values in its pack."""
+"""A card publishes the same with detect's rival values in its pack; only the critic audit entry gains the shadow record."""
 
 import copy
 
@@ -34,6 +34,16 @@ def test_an_untested_item_with_only_rival_numbers_after_its_two_counts_keeps_its
     assert build([c])["cards"][0]["count_line"] == "31 creators in 3 days"
 
 
+def test_the_critic_audit_entry_carries_the_shadow_record_and_the_rest_of_the_payload_is_unchanged():
+    answer = {"non_cultural_explanation": "a paid campaign", "ruled_out": True, "local_why_now": True, "reason": "r"}
+    record = {"found": ["burst"], "not_assessed": ["regime_break"], "inputs": {}, "critic_ruled_out": True,
+              "disagreement": True}
+    base = build([cand(1, critic=answer)])
+    shadow = build([with_rivals(cand(1, critic={**answer, "code_rivals": record}))])
+    assert shadow["critic"] == [{"item_id": "it_1", **answer, "code_rivals": record}]
+    assert {**shadow, "critic": None} == {**base, "critic": None}
+
+
 def test_a_whole_job_sends_the_rival_numbers_to_the_model_and_leaves_them_off_the_cards_and_the_gate():
     from core.brief.tests.test_brief_job import all_cards, brief, payload, world
 
@@ -47,3 +57,23 @@ def test_a_whole_job_sends_the_rival_numbers_to_the_model_and_leaves_them_off_th
         assert not any("rival_field" in n for n in card["numbers"])
     for call in r.ctx.calls:
         assert not any("rival_field" in n for n in call["numbers"])
+
+
+def test_a_whole_job_publishes_the_same_cards_when_the_code_finds_a_rival_the_critic_ruled_out():
+    from core.brief.tests.test_brief_job import MARKETS, all_cards, brief, payload, world
+
+    base_world, rival_world = world(n=1), world(n=1)
+    rival_world.execute("UPDATE core.item_state SET moment = 'Heritage Day'")
+    base, rival = brief(base_world), brief(rival_world)
+    assert len(rival.model.calls) == len(base.model.calls)
+    for m in MARKETS:
+        a, b = payload(base, m), payload(rival, m)
+        assert all_cards(a) and b["cards"] == a["cards"] and b["more"] == a["more"]
+        assert b["held_back"] == a["held_back"] and b["status"] == a["status"] and b["headline"] == a["headline"]
+        assert [c["item_id"] for c in b["critic"]] == [c["item_id"] for c in a["critic"]]
+        for before, after in zip(a["critic"], b["critic"]):
+            record = after.pop("code_rivals")
+            assert after == before and "code_rivals" not in before
+            assert record["found"] == ["calendar_moment"] and record["disagreement"] is True
+    assert [(c["rule"], c["verdict"]) for c in rival.client.inserted["agent.claim_checks"]] == [
+        (c["rule"], c["verdict"]) for c in base.client.inserted["agent.claim_checks"]]

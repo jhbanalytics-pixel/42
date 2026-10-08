@@ -42,7 +42,10 @@ reaction; its claims then stand one confidence step lower.
 reason is None when the explanation passed, else one of model_cap, model_error, breach, failed_checks,
 too_few_claims. error holds the exception text on model_error. checks are claim_checks rows. critic is the
 critic's own answer as it returned it (CRITIC_FIELDS), kept for audit, or None when the critic was not called;
-nothing reads it to decide.
+nothing reads it to decide. When the pack carries detect's rival values (core/brief/rivals.py), the critic row and
+this answer also hold code_rivals: the rivals the code found from those numbers and whether the critic's ruled_out
+disagrees. The audit answer carries it only when the code found a rival. It is a shadow record and changes no
+decision, draft or call.
 
 The same writer call gives a short title in the posts' own terms (tester report, 6 Oct: a card titled with its cluster
 label "northeast governors, northeast, governors" was about Independence Day reflections). Only an explanation that
@@ -59,6 +62,7 @@ import re
 import unicodedata
 from datetime import datetime
 
+from core.brief import rivals
 from core.brief.specificity import assess_specificity, local_posts, specificity_basis
 from core.config.caps import model_daily_usd
 from core.llm.provider import default_model, price_for, reserve_output
@@ -1229,6 +1233,14 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         row = _critic_row(out, reacting)
         checks.append(row)
         critic = _critic_answer(out)
+        shadow = rivals.code_rivals(pack)
+        if shadow is not None:
+            # Shadow only: recorded beside the critic's ruled_out, read by nothing that holds or changes a card.
+            ruled_out = out.get("ruled_out") is True
+            shadow = {**shadow, "critic_ruled_out": ruled_out, "disagreement": bool(shadow["found"]) and ruled_out}
+            row["code_rivals"] = shadow
+            if shadow["found"]:
+                critic = {**critic, "code_rivals": shadow}
         local_why_now = out.get("local_why_now") is True
         specificity = assess(sentence, rechecked["claims"], rests_on, local_why_now)
         if row["verdict"] != "pass" or specificity["status"] != "pass":
