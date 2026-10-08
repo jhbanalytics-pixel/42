@@ -508,7 +508,7 @@ def _describe(name: str, tool_input: dict, progress: Progress) -> tuple[str, str
 
 
 def _found(progress: Progress, ctx: RunContext) -> None:
-    fresh = [r for eid, r in ctx.evidence.items() if eid not in progress.sent]
+    fresh = _for_market(ctx, [r for eid, r in ctx.evidence.items() if eid not in progress.sent])
     if fresh:
         platforms = sorted({r.get("platform") for r in fresh if r.get("platform")})
         platform = platforms[0] if len(platforms) == 1 else None
@@ -1047,9 +1047,12 @@ def _posts_read(ctx: RunContext) -> list[dict]:
     label (fetch_posts stores what the researcher saw), and K3 keeps it out of every citation, but it was not read
     for this market, so it is left out of the posts and platforms the answer reports. An ask with no single
     market counts every post."""
-    records = list(ctx.evidence.values())
+    return _for_market(ctx, ctx.evidence.values())
+
+
+def _for_market(ctx: RunContext, records) -> list[dict]:
     if not ctx.market:
-        return records
+        return list(records)
     return [r for r in records if r.get("market") in (None, "", ctx.market)]
 
 

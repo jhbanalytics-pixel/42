@@ -72,3 +72,32 @@ def test_an_ask_with_no_single_market_counts_every_post_it_read():
     in_market = Harness(research=make_research(live=False)).run(question=unscoped)
     with_others = Harness(research=_with_others()).run(question=unscoped)
     assert with_others["run"]["posts"] == in_market["run"]["posts"] + 3
+
+
+def _found_steps(market, records):
+    from core.agent import ask
+    from core.agent.context import RunContext
+    from core.agent.tests.test_ask import NOW
+    events = []
+    progress = ask.Progress(events.append, lambda: NOW, market_label="x", window=(NOW.date(), NOW.date()))
+    ctx = RunContext(run_id="run_test", tier="T1", as_of=NOW, market=market)
+    for n, record_market in enumerate(records, start=1):
+        ctx.evidence[f"p{n}"] = {"id": f"p{n}", "platform": "x", "market": record_market, "flags": []}
+    ask._found(progress, ctx)
+    return [e for e in events if e["event"] == "step"], [e for e in events if e["event"] == "evidence"]
+
+
+def test_the_found_step_counts_only_posts_for_the_asked_market_and_still_sends_every_post_as_evidence():
+    steps, evidence = _found_steps("ZA", ["ZA", "ZA", "KE", "NG"])
+    assert [(s["kind"], s["count"], s["text"]) for s in steps] == [("found", 2, "2 posts found on X")]
+    assert [e["evidence"]["market"] for e in evidence] == ["ZA", "ZA", "KE", "NG"]
+
+
+def test_no_found_step_is_sent_when_every_fresh_post_is_from_another_market():
+    steps, evidence = _found_steps("ZA", ["KE"])
+    assert steps == [] and len(evidence) == 1
+
+
+def test_an_ask_with_no_single_market_gets_a_found_step_for_every_fresh_post():
+    steps, _ = _found_steps(None, ["ZA", "KE", "NG"])
+    assert [(s["count"], s["text"]) for s in steps] == [(3, "3 posts found on X")]

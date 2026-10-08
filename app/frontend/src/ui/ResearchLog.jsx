@@ -101,6 +101,13 @@ function tally(steps, evidence, claims){
   return {steps: steps.length, done: Math.max(steps.length - 1, 0), posts: Math.max(posts, evidence.length), platforms: platforms.size, claims: claims.length, checked};
 }
 
+/* A post located in another market is not counted for a single-market question
+   (core/agent/ask.py _posts_read). A post with no market, or a question with no
+   single market, counts. */
+export function inMarket(record, market){
+  return !market || !record || !record.market || record.market === market;
+}
+
 const clock = (seconds) => Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
 
 function Elapsed(){
@@ -122,11 +129,11 @@ function StepRows({rows}){
   ));
 }
 
-export function ResearchLog({steps, running, evidence, claims, action, children}){
+export function ResearchLog({steps, running, evidence, claims, action, market, children}){
   const list = Array.isArray(steps) ? steps : [];
   const rows = collapseSteps(list);
   if (running){
-    const found = Array.isArray(evidence) ? evidence : [];
+    const found = (Array.isArray(evidence) ? evidence : []).filter((record) => inMarket(record, market));
     const checking = Array.isArray(claims) ? claims : [];
     const counts = tally(list, found, checking);
     const current = rows[rows.length - 1];
