@@ -17,6 +17,9 @@ const {TodayPage42} = await import('../../today42.jsx');
 const {topicHref} = await import('../TrendCard.jsx');
 
 const realFetch = globalThis.fetch;
+const realNow = Date.now;
+/* The fixtures are the brief of 30 September 2026. A test that reads it as the current day's stands the clock on that day (standOnFixtureDay); a test for a past brief moves it (withClock). The tests of the last-7-days strips build their dates from the real clock and leave it alone. */
+const FIXTURE_DAY_NOW = Date.parse('2026-09-30T08:00:00Z');
 let calls = [];
 let host = null;
 let root = null;
@@ -80,6 +83,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  Date.now = realNow;
   if (root) flushSync(() => root.unmount());
   root = null;
   if (host) host.remove();
@@ -130,7 +134,10 @@ function trackTodaySlowTimers(){
   };
 }
 
+function standOnFixtureDay(){ if (Date.now === realNow) Date.now = () => FIXTURE_DAY_NOW; }
+
 async function mount(props = {}, today = todayFixture){
+  standOnFixtureDay();
   serve([['/api/today', reply(200, today)], ['/api/trends/', reply(200, trendFixture)]]);
   flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" {...props} />));
   await settle();
@@ -1691,6 +1698,7 @@ const TODAY_ALERTS = {date: '2026-09-30', alerts: [
 ]};
 
 async function mountStage2(props = {}, alerts = reply(200, TODAY_ALERTS)){
+  standOnFixtureDay();
   serve([['/api/today', reply(200, todayFixture)], ['/api/trends/', reply(200, trendFixture)], ['/api/alerts', alerts]]);
   flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" loadAlerts={fetchAlerts} {...props} />));
   await settle();
@@ -2796,4 +2804,33 @@ test('a published market that sent no held count does not say none are held', as
   expect(host.querySelector('[data-held-count]').textContent).toBe('How many were held back is unavailable.');
   expect(text()).not.toContain('0 are held back');
   expect(text()).not.toContain('Nothing held back');
+});
+
+/* Wave 8 N43 (R0263): a brief opened for a past day is worded for that day. */
+async function withClock(isoNow, run){
+  const pinned = Date.now;
+  Date.now = () => Date.parse(isoNow);
+  try { await run(); } finally { Date.now = pinned; }
+}
+
+test('a past brief names its day instead of saying today', async () => {
+  await withClock('2026-10-08T08:00:00Z', async () => {
+    await mountStage2({region: 'KE'});
+    const page = text();
+    expect(host.querySelector('[data-section="alerts"]').textContent).toContain('2 alerts on 30 September 2026');
+    expect(page).toContain('No trend cleared our checks in Kenya on 30 September 2026.');
+    expect(page).toContain('Some sources were incomplete on 30 September 2026');
+    expect(page).not.toMatch(/\b(?:alerts?|checks in Kenya|incomplete) today/);
+    click(tab('South Africa'));
+    expect(text()).toContain('Left out on 30 September 2026:');
+    expect(text()).not.toContain('Left out today');
+  });
+});
+
+test('a brief for the current day still says today', async () => {
+  await withClock('2026-09-30T08:00:00Z', async () => {
+    await mountStage2({region: 'KE'});
+    expect(host.querySelector('[data-section="alerts"]').textContent).toContain('2 alerts today');
+    expect(text()).toContain('No trend cleared our checks in Kenya today.');
+  });
 });

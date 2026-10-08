@@ -7,7 +7,7 @@
    and the scheduled questions read (section 14.2); without them this is
    the Stage 1 page. */
 import {headlineParts} from './nightdesk.js';
-import {useEffect, useRef, useState} from 'react';
+import {createContext, useContext, useEffect, useRef, useState} from 'react';
 import {fetchToday, scheduledRunWords} from './api42.js';
 import {readerFigure} from './api.js';
 import {boardTitle} from './readerUnits.js';
@@ -76,6 +76,10 @@ function hasIncompleteRun(market){
     && market.held_back.items.some((item) => item?.reason === 'explanation_failed'
       && typeof item.failed_reason === 'string' && item.failed_reason.startsWith('Model busy:')));
 }
+
+/* The day the brief is worded for: 'today' for the current SAST day, otherwise 'on 30 September 2026'. */
+const BriefDay = createContext('today');
+const briefDayWords = (briefDate) => (briefDate && briefDate < sastToday() ? 'on ' + longDate(briefDate) : 'today');
 
 const andJoin = (names) => (names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names.join(''));
 
@@ -374,6 +378,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
   const isLoading = load.state === 'loading';
 
   return (
+    <BriefDay.Provider value={briefDayWords(briefDate || (/^d{4}-d{2}-d{2}$/.test(date || '') ? date : null))}>
     <section className="page t42">
       <header className="t42-head">
         <h1 className="t42-heading" {...(load.state === 'ready' ? {'data-today-loaded': ''} : {})}>{load.state === 'ready' && headingText ? headingWords(headingText) : 'Today'}</h1>
@@ -484,7 +489,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
                 onFeedback={onFeedback}
               />
             ))}
-            {shown.length === 0 && <p className="t42-status">This market is not in today's brief.</p>}
+            {shown.length === 0 && <p className="t42-status">This market is not in this brief.</p>}
           </>
         )}
       </div>
@@ -493,6 +498,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
       {watch.dialog}
       <BackToTop />
     </section>
+    </BriefDay.Provider>
   );
 }
 
@@ -615,11 +621,12 @@ function FirstVisitGuide(){
    each alert, linked to its topic. An alert on a held-back item says so
    with its reason. Waiting rules are not alerts; they are listed on Alerts. */
 function AlertsStrip({alerts}){
+  const day = useContext(BriefDay);
   const fired = Array.isArray(alerts.data.alerts) ? alerts.data.alerts.filter((a) => !a.waiting) : [];
   if (fired.length === 0) return null;
   const body = (
     <>
-      <p className="t42-line-text">{fired.length === 1 ? '1 alert today' : fired.length + ' alerts today'}</p>
+      <p className="t42-line-text">{fired.length === 1 ? '1 alert ' + day : fired.length + ' alerts ' + day}</p>
       <ul className="t42-rows a42-strip-rows">
         {fired.map((a) => {
           const held = a.card && a.card.held_back;
@@ -766,15 +773,15 @@ function hasNoBrief(market){
     && (!Array.isArray(held.items) || held.items.length === 0);
 }
 
-function emptyMarketWords(market){
+function emptyMarketWords(market, day){
   const held = market.held_back;
   const items = held && Array.isArray(held.items) ? held.items : null;
   const counted = held && Number.isInteger(held.count) && held.count >= 0;
   const count = counted ? held.count : items ? items.length : null;
   const name = nonEmptyString(market.label) ? market.label : market.market;
-  if (hasNoBrief(market)) return {lead: '42 has no brief for ' + name + ' today.', held: null};
+  if (hasNoBrief(market)) return {lead: '42 has no brief for ' + name + ' ' + day + '.', held: null};
   return {
-    lead: 'No trend cleared our checks in ' + name + ' today.',
+    lead: 'No trend cleared our checks in ' + name + ' ' + day + '.',
     held: count === null ? 'How many were held back is unavailable.' : count === 1 ? '1 is held back.' : readerFigure(count) + ' are held back.',
   };
 }
@@ -813,9 +820,10 @@ function jumpTo(id){
    line and, with no cards, the empty-market sentence) are one calm status
    block under Trending on Google instead of three separate lines. */
 function MarketStatus({market, banners, sourceDetails, empty}){
+  const day = useContext(BriefDay);
   const hasSourceProblems = sourceDetails.length > 0;
   if (!empty && banners.length === 0 && !hasSourceProblems) return null;
-  const words = empty ? emptyMarketWords(market) : null;
+  const words = empty ? emptyMarketWords(market, day) : null;
   const heldId = 't42-held-' + market.market;
   return (
     <div className="t42-market-status" data-market-status="" data-status-tone={empty ? 'alert' : 'plain'}>
@@ -826,7 +834,7 @@ function MarketStatus({market, banners, sourceDetails, empty}){
           {banners.map((banner, index) => (
             <span key={banner.kind + banner.text}>{(empty || index > 0) ? ' ' : ''}<BannerWords banner={banner} /></span>
           ))}
-          {hasSourceProblems && <>{(empty || banners.length > 0) ? ' ' : ''}<span data-source-problem="">Some sources were incomplete today</span>.</>}
+          {hasSourceProblems && <>{(empty || banners.length > 0) ? ' ' : ''}<span data-source-problem="">Some sources were incomplete {day}</span>.</>}
         </p>
       )}
       {(empty || hasSourceProblems) && (
@@ -902,7 +910,7 @@ function MarketBlock({market, headline, compact, date, skipBanner, onAuth, watch
 /* UX pass, 3 October 2026: what 42 left out is for checking, not the
    day's reading, so Dropped and Held back sit behind one line that counts
    them. The trend cards stay the first and only thing a newcomer reads. */
-function leftOutWords(market, showHeldBack){
+function leftOutWords(market, showHeldBack, day = 'today'){
   const dropped = market.dropped && !market.dropped.first_morning && Array.isArray(market.dropped.items) ? market.dropped.items.length : 0;
   const held = market.held_back;
   const heldItems = held && Array.isArray(held.items) ? held.items.length : 0;
@@ -911,7 +919,7 @@ function leftOutWords(market, showHeldBack){
   if (market.dropped && market.dropped.first_morning) parts.push('first morning, nothing to compare yet');
   if (dropped > 0) parts.push(dropped + ' dropped since yesterday');
   if (heldCount > 0) parts.push(heldCount + ' held back by our checks');
-  return parts.length > 0 ? 'Left out today: ' + parts.join(', ') : null;
+  return parts.length > 0 ? 'Left out ' + day + ': ' + parts.join(', ') : null;
 }
 
 /* A brief with a data issue says its held topics are below with their
@@ -919,7 +927,7 @@ function leftOutWords(market, showHeldBack){
    there is nothing to fold, so the line is left out rather than saying
    "nothing" under the held list. */
 function LeftOut({market, showHeldBack, open}){
-  const words = leftOutWords(market, showHeldBack);
+  const words = leftOutWords(market, showHeldBack, useContext(BriefDay));
   if (!words) return null;
   return (
     <details className="t42-left-out" data-section="left-out" open={open || undefined}>
@@ -984,12 +992,13 @@ function Dropped({dropped}){
 }
 
 function HeldBack({held}){
+  const day = useContext(BriefDay);
   const [open, setOpen] = useState(null);
   const items = held && Array.isArray(held.items) ? held.items : [];
   return (
     <section className="t42-section" data-section="held-back">
       <h3 className="t42-section-title">Held back</h3>
-      <p className="t42-line-text">{held && held.text ? held.text : 'Nothing held back today.'}</p>
+      <p className="t42-line-text">{held && held.text ? held.text : 'Nothing held back ' + day + '.'}</p>
       <HeldReasons items={items} />
       {items.length > 0 && (
         <ul className="t42-rows">
@@ -1146,6 +1155,7 @@ function HeldReasons({items}){
 }
 
 function HeldForEvidence({held, market}){
+  const day = useContext(BriefDay);
   const items = held && Array.isArray(held.items) ? held.items : [];
   return (
     <details open data-section="held-for-evidence" id={'t42-held-' + market} tabIndex={-1}>
@@ -1165,7 +1175,7 @@ function HeldForEvidence({held, market}){
             </section>
           ))
         : held && Number.isInteger(held.count) && held.count === 0
-          ? <p className="t42-line-text">Nothing held back today.</p>
+          ? <p className="t42-line-text">Nothing held back {day}.</p>
           : <p className="t42-line-text">Held item details are unavailable.</p>}
     </details>
   );
@@ -1214,10 +1224,11 @@ const ID_TITLE = /^(uc[a-z0-9_-]{22}|t2_[a-z0-9]+|[0-9a-f]{64})$/i;
 const readable = (title) => typeof title === 'string' && boardTitle(title) !== '' && !ID_TITLE.test(title.trim());
 
 function Boards({boards}){
+  const day = useContext(BriefDay);
   const items = Array.isArray(boards) ? boards : [];
   return (
     <section className="t42-section" data-section="boards">
-      <h3 className="t42-section-title">On the boards today</h3>
+      <h3 className="t42-section-title">On the boards {day}</h3>
       {items.length > 0
         ? <div className="t42-row">
             {items.map((b) => {
@@ -1230,7 +1241,7 @@ function Boards({boards}){
                   {/* Whose list it is, and the list's name and window, are
                       two whole units: a narrow screen breaks after the colon,
                       never inside either. */}
-                  <p className="t42-line-text"><span className="fact-unit">{platformWord(b.platform)}'s own list:</span> <span className="fact-unit">{b.list}, best rank today</span></p>
+                  <p className="t42-line-text"><span className="fact-unit">{platformWord(b.platform)}'s own list:</span> <span className="fact-unit">{b.list}, best rank {day}</span></p>
                   {shown.length > 0 && (
                     <ul className="t42-board-rows">
                       {shown.map((e, i) => {
@@ -1248,7 +1259,7 @@ function Boards({boards}){
               );
             })}
           </div>
-        : <p className="t42-line-text">No platform lists were read today.</p>}
+        : <p className="t42-line-text">No platform lists were read {day}.</p>}
     </section>
   );
 }
