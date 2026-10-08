@@ -98,6 +98,81 @@ def test_the_flat_list_panel_shapes_still_parse():
     assert datetime.fromisoformat(out["posts"][0]["published_at"]).year == 2026
 
 
+def _post_authors(entry):
+    """Posts per author username, counted from the items; an author can differ from the profile a row targets."""
+    got = {}
+    for row in entry["body"]["data"]["results"]:
+        for item in (row.get("posts") or {}).get("items", []):
+            name = item["post"]["author"]["username"]
+            got[name] = got.get(name, 0) + 1
+    return got
+
+
+@pytest.mark.parametrize("name", sorted(PRISM_POSTS))
+def test_stored_prism_profiles_creator_is_the_posts_own_author(name):
+    entry = stored(name)
+    out = run_stored("prism/profiles", name, {"include": "posts", "since": "2026-10-03"})
+    got = {}
+    for post in out["posts"]:
+        got[post["creator_id"]] = got.get(post["creator_id"], 0) + 1
+    assert None not in got and got == _post_authors(entry)
+
+
+def test_stored_prism_profiles_creator_falls_back_to_the_rows_target_handle():
+    entry = stored("prism_profiles_KE")
+    body = json.loads(json.dumps(entry["body"]))
+    for row in body["data"]["results"]:
+        for item in (row.get("posts") or {}).get("items", []):
+            del item["post"]["author"]
+    out = parse("prism/profiles", {"include": "posts", "since": "2026-10-03"}, entry["market"], body,
+                entry["fetched_at"], "run1", item_id_fn=fake_item_id, geo_fn=FakeGeo())
+    wanted = {r["target"]["handle"]: len(r["posts"]["items"]) for r in entry["body"]["data"]["results"]
+              if r["status"] == "ok" and r["posts"]["items"]}
+    got = {}
+    for post in out["posts"]:
+        got[post["creator_id"]] = got.get(post["creator_id"], 0) + 1
+    assert got == wanted
+
+
+def _stored_row_shape_problems(body):
+    """What a prism/profiles body must look like to be the vendor's: rows in data.results, each naming its profile
+    under target, an ok row holding its profile under data and its posts as an object with an items list."""
+    problems = []
+    rows = body.get("data", {}).get("results")
+    if not isinstance(rows, list) or not rows:
+        return ["data.results is not a non-empty list"]
+    for i, row in enumerate(rows):
+        if not isinstance(row.get("target"), dict) or not row["target"].get("handle"):
+            problems.append(f"row {i} has no target.handle")
+        for old in ("handle", "author", "profile", "items"):
+            if old in row:
+                problems.append(f"row {i} carries {old} at row level")
+        if row.get("status") == "ok":
+            if not isinstance(row.get("data"), dict):
+                problems.append(f"row {i} has no data object")
+            posts = row.get("posts")
+            if posts is not None and not (isinstance(posts, dict) and isinstance(posts.get("items"), list)):
+                problems.append(f"row {i} posts is not an object with an items list")
+    return problems
+
+
+def test_every_prism_profiles_fixture_in_the_suite_has_the_stored_row_shape():
+    tests = Path(__file__).resolve().parent / "fixtures"
+    bodies = {name: STORED[name]["body"] for name in PRISM_POSTS}
+    bodies["parse_panels"] = json.loads((tests / "parse_panels.json").read_text(encoding="utf-8"))["prism_profiles"]
+    bodies["local_profiles"] = json.loads((tests / "local_profiles.json").read_text(encoding="utf-8"))
+    bodies["job_responses"] = json.loads((tests / "job_responses.json").read_text(encoding="utf-8"))["prism/profiles"]
+    assert {name: _stored_row_shape_problems(body) for name, body in bodies.items()} == {name: [] for name in bodies}
+
+
+def test_the_shape_check_rejects_the_flat_list_shape_the_suite_used_to_pin():
+    old = {"success": True, "data": {"items": [{"platform": "instagram", "handle": "h", "status": "ok",
+                                                 "author": {"username": "h"}, "posts": [{"post": {"id": "p"}}]}]}}
+    assert _stored_row_shape_problems(old) == ["data.results is not a non-empty list"]
+    old["data"] = {"results": old["data"]["items"]}
+    assert len(_stored_row_shape_problems(old)) == 5
+
+
 # tiktok/song: the running count of a sound
 
 SONG_COUNTS = {  # fixture: (use_count, SAST day of the fetch, which is the GLOBAL row's day)

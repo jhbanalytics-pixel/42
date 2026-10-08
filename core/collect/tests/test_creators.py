@@ -166,8 +166,8 @@ def test_a_trending_call_region_is_never_a_market():
 
 def test_the_panel_profile_location_places_a_post_that_carries_its_own_author():
     body = copy.deepcopy(PANELS["prism_profiles"])
-    body["data"]["items"][0]["posts"][0]["post"]["author"] = {"username": "culture.desk.za"}
-    body["data"]["items"][0]["posts"][0]["post"]["content"]["text"] = "Fit check"
+    body["data"]["results"][0]["posts"]["items"][0]["post"]["author"] = {"username": "culture.desk.za"}
+    body["data"]["results"][0]["posts"]["items"][0]["post"]["content"]["text"] = "Fit check"
     out = parse.parse_with_creators("prism/profiles", {"include": "posts"}, "ZA", body, FETCHED, "run1",
                                     item_id_fn=fake_item_id, geo_fn=geo_for_post)
     assert geo_of(out["posts"][0]) == ("ZA", 0.8, "home_market")

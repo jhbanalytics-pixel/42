@@ -185,13 +185,15 @@
   },
   "prism/profiles": {
     "success": true, "credits_used": 24,
-    "data": {"items": [
-      {"platform": "instagram", "handle": "desk.one", "status": "ok",
-       "posts": [
-         {"id": "ig_p1", "url": "https://www.instagram.com/p/ig_p1/", "published_at": "2026-09-28T11:00:00Z",
-          "content": {"text": "Desk post"}, "engagement": {"likes": 3000, "comments": 90}}
-       ]},
-      {"platform": "instagram", "handle": "desk.two", "status": "not_found", "error": "not found"}
+    "data": {"results": [
+      {"platform": "instagram", "status": "ok", "target": {"platform": "instagram", "handle": "desk.one"},
+       "data": {"author": {"username": "desk.one"}},
+       "posts": {"status": "ok", "has_more": false, "next_cursor": null, "items": [
+         {"post": {"id": "ig_p1", "url": "https://www.instagram.com/p/ig_p1/", "published_at": "2026-09-28T11:00:00Z",
+                   "content": {"text": "Desk post"}, "engagement": {"likes": 3000, "comments": 90}}}
+       ]}},
+      {"platform": "instagram", "status": "not_found", "target": {"platform": "instagram", "handle": "desk.two"},
+       "error": "not found"}
     ]}
   },
   "twitter/user/tweets": {
