@@ -37,8 +37,10 @@ recorded defaults, and every run saves them, with the match rule, the rank basis
 in the JSON beside the CSV. The cutoff has no default: a run that does not say where it stops is not repeatable.
 
 Safety: SELECT statements only (checked on the text before each query), as the caller's application default
-credentials, in ogilvy-trends-v2, with maximum_bytes_billed of 3 GB per query by default. It never calls the bq CLI
-and writes nothing to BigQuery. The results are saved as new files in --out-dir (default ~/dev/42-readback),
+credentials, in ogilvy-trends-v2, with maximum_bytes_billed of 3 GiB per query by default (at least 10 MiB). It first
+dry-runs every statement it could send, which bills nothing, sums the estimates and refuses to run when the sum is over
+--max-total-bytes (default 20 GB) or when any statement has no estimate; --dry-run stops after that estimate. It never
+calls the bq CLI and writes nothing to BigQuery. The results are saved as new files in --out-dir (default ~/dev/42-readback),
 opened in exclusive mode so nothing is overwritten. Prints counts, item titles and rule codes: no handles or post text.
 """
 import argparse
@@ -64,6 +66,8 @@ PROJECT = "ogilvy-trends-v2"
 CORE_Q, AGENT_Q = f"`{PROJECT}.intelligence_42_core`", f"`{PROJECT}.intelligence_42_agent`"
 MAX_BYTES = 3 * 1024 ** 3
 MIN_BYTES = 10 * 1024 ** 2
+DEFAULT_TOTAL_BYTES = 20 * 10 ** 9
+FORMAT_VERSION = 2
 MARKETS = ("ZA", "NG", "KE")
 GEO_SOURCES = ("ext_region", "home_market", "place_mention")
 BRIEF_SQL_FILE = Path(__file__).resolve().parents[2] / "core" / "brief" / "sql" / "brief.sql"
@@ -267,17 +271,35 @@ def read_only(sql):
         raise SystemExit("only SELECT statements are run")
 
 
+def used_parameters(sql, parameters):
+    used = set(re.findall(r"@(\w+)", sql))
+    return [q for q in parameters if q.name in used]
+
+
 class Reader:
     """One capped, read-only query at a time. A failed query is recorded by name and returns None: never rows."""
 
     def __init__(self, client, max_bytes):
         self.client, self.max_bytes, self.errors = client, max_bytes, {}
 
+    def estimate(self, name, sql, parameters):
+        """The bytes a dry run says the statement would process, or None (recorded by name) when it cannot say. A dry
+        run executes nothing and bills nothing."""
+        read_only(sql)
+        cfg = bigquery.QueryJobConfig(dry_run=True, use_query_cache=False, query_parameters=used_parameters(sql, parameters))
+        try:
+            size = self.client.query(sql, job_config=cfg).total_bytes_processed
+            if type(size) is not int or size < 0:
+                raise ValueError(f"the dry run gave no byte count ({size!r})")
+            return size
+        except Exception as exc:
+            self.errors[f"estimate {name}"] = f"{type(exc).__name__}: {str(exc)[:200]}"
+            return None
+
     def rows(self, name, sql, parameters):
         read_only(sql)
-        used = set(re.findall(r"@(\w+)", sql))
         cfg = bigquery.QueryJobConfig(maximum_bytes_billed=self.max_bytes,
-                                      query_parameters=[q for q in parameters if q.name in used])
+                                      query_parameters=used_parameters(sql, parameters))
         try:
             return [dict(r.items()) for r in self.client.query(sql, job_config=cfg).result()]
         except Exception as exc:  # the stage then reads as unknown, with this as its reason
@@ -307,13 +329,53 @@ def counts_for_moment(item, p):
     return posts >= p.item_min_posts and total > 0 and posts / total >= p.item_min_share
 
 
-def read_facts(reader, moments, p):
-    """Every row the scoreboard needs. A key is None when its read failed, so assembly can tell failed from empty."""
+def base_parameters(moments, p):
     start = min(m["d"] for m in moments) - timedelta(days=p.post_before)
     end = max(m["d"] for m in moments) + timedelta(days=p.post_after)
-    base = [moment_struct(moments), bigquery.ScalarQueryParameter("start", "DATE", start),
+    return [moment_struct(moments), bigquery.ScalarQueryParameter("start", "DATE", start),
             bigquery.ScalarQueryParameter("end", "DATE", end),
             bigquery.ScalarQueryParameter("cutoff", "DATE", p.cutoff)]
+
+
+def day_parameters(day, market, item_ids):
+    return [bigquery.ScalarQueryParameter("d", "DATE", day), bigquery.ScalarQueryParameter("market", "STRING", market),
+            bigquery.ArrayQueryParameter("item_ids", "STRING", sorted(item_ids))]
+
+
+def brief_parameters(moments, p):
+    return [bigquery.ScalarQueryParameter("first_day", "DATE", min(m["d"] for m in moments)),
+            bigquery.ScalarQueryParameter("last_day", "DATE", p.cutoff)]
+
+
+def plan_queries(moments, p):
+    """Every statement a run can send, as (name, sql, parameters). The state and rank reads of a run depend on what the
+    first reads return, so they are planned for every market and evaluation day: the plan reads at least what the
+    run will, and its total is an upper bound. The item ids are a placeholder, which does not change the bytes."""
+    base = base_parameters(moments, p)
+    plan = [("cohort", cohort_sql(p), base), ("items", items_sql(p), base)]
+    sql_rank = rank_sql()
+    for day, market in sorted({(d, m["market"]) for m in moments for d in evaluation_days(m, p)}):
+        keyed = day_parameters(day, market, ["placeholder"])
+        plan += [(f"state {market} {day}", STATE_SQL, keyed), (f"state rows {market} {day}", DAY_ROWS_SQL, keyed),
+                 (f"rank {market} {day}", sql_rank, keyed)]
+    plan.append(("briefs", BRIEFS_SQL, brief_parameters(moments, p)))
+    return plan
+
+
+def preflight(reader, plan, cap):
+    """Dry-run every planned statement and sum the estimates. The run may go ahead only when every statement has an
+    estimate and the sum is within the cap: a statement that cannot be estimated is not assumed to be small."""
+    sizes = [(name, reader.estimate(name, sql, parameters)) for name, sql, parameters in plan]
+    unestimated = [name for name, size in sizes if size is None]
+    total = sum(size for _name, size in sizes if size is not None)
+    return {"cap_bytes": cap, "total_bytes": total, "statements": len(sizes), "unestimated": unestimated,
+            "largest": sorted(((n, b) for n, b in sizes if b is not None), key=lambda x: (-x[1], x[0]))[:5],
+            "ok": not unestimated and total <= cap}
+
+
+def read_facts(reader, moments, p):
+    """Every row the scoreboard needs. A key is None when its read failed, so assembly can tell failed from empty."""
+    base = base_parameters(moments, p)
     facts = {"cohort": None, "items": None, "state": {}, "rank": {}, "briefs": None}
     got = reader.rows("cohort", cohort_sql(p), base)
     if got is not None:
@@ -333,8 +395,7 @@ def read_facts(reader, moments, p):
                 wanted[(day, m["market"])].update(counted)
     sql_rank = rank_sql()
     for (day, market), ids in sorted(wanted.items()):
-        keyed = [bigquery.ScalarQueryParameter("d", "DATE", day), bigquery.ScalarQueryParameter("market", "STRING", market),
-                 bigquery.ArrayQueryParameter("item_ids", "STRING", sorted(ids))]
+        keyed = day_parameters(day, market, ids)
         state = reader.rows(f"state {market} {day}", STATE_SQL, keyed)
         totals = reader.rows(f"state rows {market} {day}", DAY_ROWS_SQL, keyed)
         facts["state"][(day, market)] = None if state is None or totals is None else {
@@ -345,9 +406,7 @@ def read_facts(reader, moments, p):
             facts["rank"][(day, market)] = None if ranks is None else {r["item_id"]: r for r in ranks}
         else:
             facts["rank"][(day, market)] = {}
-    first_day = min(m["d"] for m in moments)
-    brief_rows = reader.rows("briefs", BRIEFS_SQL, [bigquery.ScalarQueryParameter("first_day", "DATE", first_day),
-                                                    bigquery.ScalarQueryParameter("last_day", "DATE", p.cutoff)])
+    brief_rows = reader.rows("briefs", BRIEFS_SQL, brief_parameters(moments, p))
     if brief_rows is not None:
         facts["briefs"] = {key: brief_index(payload) for key, payload in latest_briefs(brief_rows).items()}
     return facts
@@ -618,7 +677,10 @@ def main(argv=None, client=None, out=print):
     ap.add_argument("--item-min-posts", type=int, default=3)
     ap.add_argument("--item-min-share", type=float, default=0.25)
     ap.add_argument("--pool", type=int, default=90)
-    ap.add_argument("--max-bytes", type=int, default=MAX_BYTES)
+    ap.add_argument("--max-bytes", type=int, default=MAX_BYTES, help="most bytes one statement may bill")
+    ap.add_argument("--max-total-bytes", type=int, default=DEFAULT_TOTAL_BYTES,
+                    help="the run is refused when the dry-run estimates of all its statements add up to more")
+    ap.add_argument("--dry-run", action="store_true", help="estimate every statement, print the total, run nothing")
     ap.add_argument("--out-dir", default="~/dev/42-readback")
     args = ap.parse_args(sys.argv[1:] if argv is None else argv)
     p = Params(cutoff=args.cutoff, post_before=args.post_before, post_after=args.post_after,
@@ -626,10 +688,26 @@ def main(argv=None, client=None, out=print):
                exclude_lanes=tuple(sorted(args.exclude_lanes)) if args.exclude_lanes else ("agent_live", "placebo"),
                located_min_confidence=args.located_min_confidence, item_min_posts=args.item_min_posts,
                item_min_share=args.item_min_share, pool=args.pool, max_bytes=args.max_bytes)
+    if args.max_total_bytes <= 0:
+        raise ValueError("max_total_bytes must be a positive integer")
     moments, digest = load_moments(args.moments)
     client = client or bigquery.Client(project=PROJECT)
     reader = Reader(client, p.max_bytes)
     out(f"42 funnel scoreboard, {args.moments}, {len(moments)} moments, cutoff {p.cutoff}. SELECT only.")
+    check = preflight(reader, plan_queries(moments, p), args.max_total_bytes)
+    out(f"Dry run: {check['statements']} statements, an estimated {check['total_bytes']:,} bytes "
+        f"({check['total_bytes'] / 1024 ** 3:.2f} GiB) against a total cap of {check['cap_bytes']:,}; largest "
+        + ", ".join(f"{n} {b:,}" for n, b in check["largest"]))
+    if not check["ok"]:
+        why = (f"{len(check['unestimated'])} statements could not be estimated ({', '.join(check['unestimated'][:5])})"
+               if check["unestimated"] else "the estimate is over the total cap")
+        out(f"Refused: {why}. Nothing was run. Raise --max-total-bytes only after reading the estimate.")
+        for name, message in reader.errors.items():
+            out(f"ERROR {name}: {message}")
+        return 2
+    if args.dry_run:
+        out("Dry run only: nothing was run and nothing was written.")
+        return 0
     facts = read_facts(reader, moments, p)
     rows = [assess_moment(m, facts, p) for m in moments]
     summary = summarize(rows)
@@ -645,7 +723,7 @@ def main(argv=None, client=None, out=print):
         w = csv.DictWriter(f, fieldnames=list(CSV_COLUMNS), extrasaction="ignore")
         w.writeheader()
         w.writerows(rows)
-    detail = {"parameters": p.record(), "match_rule": MATCH_RULE, "rank_basis": RANK_BASIS,
+    detail = {"format_version": FORMAT_VERSION, "preflight": check, "parameters": p.record(), "match_rule": MATCH_RULE, "rank_basis": RANK_BASIS,
               "moments_file": os.path.abspath(args.moments), "moments_sha256": digest, "run_at_utc": stamp,
               "read_errors": reader.errors, "summary": summary,
               "rows": [{k: v for k, v in r.items()} for r in rows]}

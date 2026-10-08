@@ -894,3 +894,113 @@ def test_a_zero_byte_cap_on_the_command_line_runs_no_query(world, tmp_path):
         fs.main([str(path), "--cutoff", "2026-10-07", "--max-bytes", "0", "--out-dir", str(tmp_path / "out")],
                 client=client, out=lambda line: None)
     assert client.sql == [] and client.dry == []
+
+
+# The dry run that comes first: every statement is estimated, the estimates are summed, and a total over the cap
+# stops the run before any real query.
+
+
+def call(world_, tmp_path, client, *extra):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    path = write_moments(tmp_path, world_.moments)
+    lines = []
+    code = fs.main([str(path), "--cutoff", "2026-10-07", "--pool", str(POOL), "--out-dir", str(tmp_path / "readback"),
+                    *extra], client=client, out=lines.append)
+    return code, lines
+
+
+def statements_planned(world_, tmp_path):
+    client = DuckClient(world_.con)
+    code, _lines = call(world_, tmp_path, client, "--dry-run")
+    assert code == 0
+    return len(client.dry)
+
+
+def test_the_default_total_cap_is_twenty_gb():
+    assert fs.DEFAULT_TOTAL_BYTES == 20 * 10 ** 9
+
+
+def test_every_statement_is_dry_run_before_the_first_real_query(world, tmp_path):
+    client = DuckClient(world.con)
+    code, _lines = call(world, tmp_path, client)
+    assert code == 0
+    first_real = client.order.index("real")
+    assert first_real > 0
+    assert set(client.order[:first_real]) == {"dry"} and "dry" not in client.order[first_real:]
+    assert all(cfg.dry_run is True and cfg.use_query_cache is False for cfg in client.dry_configs)
+    assert {"cohort", "items", "state", "daystate", "rank", "briefs"} <= set(client.dry_kinds)
+    for sql in client.dry:
+        fs.read_only(sql)
+
+
+def test_everything_that_runs_was_estimated_first(world, tmp_path):
+    client = DuckClient(world.con)
+    call(world, tmp_path, client)
+    assert client.sql and set(client.sql) <= set(client.dry)
+
+
+def test_state_and_rank_are_estimated_for_every_market_and_evaluation_day(world, tmp_path):
+    client = DuckClient(world.con)
+    call(world, tmp_path, client, "--dry-run")
+    pairs = {(date.fromisoformat(m["date"]) + timedelta(days=k), m["market"]) for m in world.moments
+             for k in range(4) if date.fromisoformat(m["date"]) + timedelta(days=k) <= D7}
+    assert client.dry_kinds.count("rank") == len(pairs) == client.dry_kinds.count("state")
+    assert client.dry_kinds.count("cohort") == client.dry_kinds.count("items") == client.dry_kinds.count("briefs") == 1
+
+
+def test_the_saved_total_is_the_sum_of_the_statement_estimates(world, tmp_path):
+    client = DuckClient(world.con, dry_bytes={"cohort": 7_000_000, "rank": 90_000_000, "briefs": 5_000_000})
+    call(world, tmp_path, client)
+    [json_path] = (tmp_path / "readback").glob("*.json")
+    detail = json.loads(json_path.read_text(encoding="utf-8"))
+    expected = sum(client.dry_bytes.get(kind, client.per_dry) for kind in client.dry_kinds)
+    assert detail["preflight"]["total_bytes"] == expected
+    assert detail["preflight"]["statements"] == len(client.dry)
+    assert detail["preflight"]["cap_bytes"] == fs.DEFAULT_TOTAL_BYTES
+    assert detail["format_version"] == 2
+
+
+def test_a_total_one_byte_over_the_cap_refuses_before_any_real_query(world, tmp_path):
+    n = statements_planned(world, tmp_path / "plan")
+    client = DuckClient(world.con, per_dry=1000)
+    code, lines = call(world, tmp_path / "run", client, "--max-total-bytes", str(n * 1000 - 1))
+    assert code == 2 and client.sql == [] and client.order and set(client.order) == {"dry"}
+    assert any("refus" in line.lower() for line in lines)
+    assert not (tmp_path / "run" / "readback").exists()
+
+
+def test_a_total_exactly_at_the_cap_runs(world, tmp_path):
+    n = statements_planned(world, tmp_path / "plan")
+    client = DuckClient(world.con, per_dry=1000)
+    code, _lines = call(world, tmp_path / "run", client, "--max-total-bytes", str(n * 1000))
+    assert code == 0 and client.sql
+
+
+def test_the_default_cap_refuses_a_plan_over_twenty_gb(world, tmp_path):
+    client = DuckClient(world.con, dry_bytes={"rank": 5 * 10 ** 9})
+    code, _lines = call(world, tmp_path, client)
+    assert code == 2 and client.sql == []
+
+
+@pytest.mark.parametrize("dry_bytes, dry_fail", [({"rank": None}, ()), ({}, ("rank",))])
+def test_a_statement_that_cannot_be_estimated_refuses_the_run(world, tmp_path, dry_bytes, dry_fail):
+    client = DuckClient(world.con, dry_bytes=dry_bytes, dry_fail=dry_fail)
+    code, lines = call(world, tmp_path, client)
+    assert code == 2 and client.sql == []
+    assert any("rank" in line for line in lines)
+
+
+def test_dry_run_only_estimates_and_writes_nothing(world, tmp_path):
+    client = DuckClient(world.con, per_dry=2_000_000)
+    code, lines = call(world, tmp_path, client, "--dry-run")
+    assert code == 0 and client.sql == [] and client.dry
+    assert not (tmp_path / "readback").exists()
+    assert any(str(2_000_000 * len(client.dry)) in line.replace(",", "") for line in lines)
+
+
+@pytest.mark.parametrize("cap", ["0", "-5"])
+def test_a_total_cap_that_is_not_positive_is_refused(world, tmp_path, cap):
+    client = DuckClient(world.con)
+    with pytest.raises(ValueError):
+        call(world, tmp_path, client, "--max-total-bytes", cap)
+    assert client.sql == [] and client.dry == []
