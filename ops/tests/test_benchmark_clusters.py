@@ -13,7 +13,7 @@ def cluster_sql_on_duckdb(rows, moment_market="NG", and_re=""):
 
     sql = bm.CLUSTERS_SQL.replace(
         bm.MOMENTS, "WITH m AS (SELECT 'NG1' AS id, DATE '2026-10-04' AS d, "
-                    f"'{moment_market}' AS market, 'bbnaija' AS any_re, '' AS and_re)\n", 1)
+                    f"'{moment_market}' AS market, 'bbnaija' AS any_re, '{and_re}' AS and_re)\n", 1)
     sql = sql.replace(f"`{bm.CORE}.clusters`", "clusters")
     sql = sql.replace("@start", "DATE '2026-10-01'").replace("@obs_end", "DATE '2026-10-07'")
     with duckdb.connect() as con:

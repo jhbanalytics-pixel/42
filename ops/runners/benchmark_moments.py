@@ -15,8 +15,9 @@ For each moment it reads staging BigQuery and reports, in this order of how far 
              match any_re, and that market's clusters from the day
              before to 4 days after whose label or keywords match
   brief      Today cards and held-back items from the market's briefs dated the moment's day to 3 days after,
-             whose headline or reviewed retained identity matches, with the match source and hold reason;
-             incidental post matches are separate diagnostics and never establish coverage
+             whose headline matches, whose item is one of the market's matching clusters (the item's own label or
+             keywords, read from the clusters table), or whose reviewed retained identity matches, with the match
+             source and hold reason; incidental post matches are separate diagnostics and never establish coverage
   outside    Google search signals and GDELT news entities for the market in the window
 and a verdict: ON TODAY, HELD (reason), TOPIC ONLY, POSTS ONLY, OTHER MARKET ONLY, SEARCH OR NEWS ONLY, or NOT
 COLLECTED.
@@ -100,13 +101,20 @@ FROM m JOIN `{CORE}.cultural_map` cm
 GROUP BY m.id
 """
 
+CLUSTER_TEXT = """LOWER(CONCAT(IFNULL(c.label, ''), ' ', ARRAY_TO_STRING(IFNULL(c.keywords, []), ' '), ' ',
+       ARRAY_TO_STRING(IFNULL(c.local_terms, []), ' ')))"""
+
+# item_ids: the items of this market's clusters whose own label or keywords match both patterns. A brief item with
+# one of these ids is the moment's topic whatever its title says (T4, 7 October 2026: the held BBNaija topic is titled
+# "temi, teminators, nkem" and its keywords name BBNaija). The ids come from the clusters table, never from the brief.
 CLUSTERS_SQL = MOMENTS + f"""
-SELECT m.id, COUNT(DISTINCT c.cluster_id) AS n, ARRAY_AGG(DISTINCT c.label IGNORE NULLS LIMIT 4) AS labels
+SELECT m.id, COUNT(DISTINCT c.cluster_id) AS n, ARRAY_AGG(DISTINCT c.label IGNORE NULLS LIMIT 4) AS labels,
+  ARRAY_AGG(DISTINCT IF(m.and_re = '' OR REGEXP_CONTAINS({CLUSTER_TEXT}, CONCAT('(?i)', m.and_re)),
+                        c.item_id, NULL) IGNORE NULLS) AS item_ids
 FROM m JOIN `{CORE}.clusters` c
   ON c.cluster_date BETWEEN DATE_SUB(m.d, INTERVAL 1 DAY) AND DATE_ADD(m.d, INTERVAL 4 DAY)
  AND UPPER(c.market) = UPPER(m.market)
- AND REGEXP_CONTAINS(LOWER(CONCAT(IFNULL(c.label, ''), ' ', ARRAY_TO_STRING(IFNULL(c.keywords, []), ' '), ' ',
-       ARRAY_TO_STRING(IFNULL(c.local_terms, []), ' '))), CONCAT('(?i)', m.any_re))
+ AND REGEXP_CONTAINS({CLUSTER_TEXT}, CONCAT('(?i)', m.any_re))
 WHERE c.cluster_date BETWEEN @start AND @obs_end
 GROUP BY m.id
 """
@@ -178,6 +186,7 @@ def brief_hits(moment, briefs, evidence_matches=None):
     cards, held = {}, {}
     diagnostics = {}
     retained = moment.get("retained_items") or set()
+    identity_items = moment.get("identity_items") or set()
 
     def matches(text):
         return pat.search(text) and (required is None or required.search(text))
@@ -200,12 +209,14 @@ def brief_hits(moment, briefs, evidence_matches=None):
                     and matches(" ".join(str(e.get(field) or "") for field in ("text", "quote_text")))))
                 identity = item.get("item_id") or (day, kind, index)
                 mapped = (day, kind, item.get("item_id")) in retained
-                if not headline and not mapped:
+                by_cluster = bool(item.get("item_id")) and item.get("item_id") in identity_items
+                if not headline and not mapped and not by_cluster:
                     if evidence:
                         diagnostics.setdefault((kind, identity),
                             f"{day} {title} [{kind}, evidence-only match: {', '.join(evidence)}; not coverage]")
                     continue
-                source = "headline match" if headline else "retained item match; headline not matched"
+                source = ("headline match" if headline else "retained item match; headline not matched" if mapped
+                          else "cluster identity match; headline not matched")
                 if evidence:
                     source += f"; post matches: {', '.join(evidence)}"
                 detail = f"{day} {title} [{source}]"
@@ -288,7 +299,7 @@ def main(argv):
         mp, cl = results["map"].get(m["id"], {}), results["clusters"].get(m["id"], {})
         se, gd = results["search"].get(m["id"], {}), results["gdelt"].get(m["id"], {})
         evidence_matches = []
-        cards, held = brief_hits(m, briefs, evidence_matches)
+        cards, held = brief_hits({**m, "identity_items": set(cl.get("item_ids") or [])}, briefs, evidence_matches)
         r = {"id": m["id"], "date": m["date"], "market": m["market"], "moment": m["moment"],
              "posts_all": p.get("posts_all") or 0, "posts_market": p.get("posts_market") or 0,
              "creators_market": p.get("creators_market") or 0, "located": p.get("located") or 0,
