@@ -1,0 +1,5 @@
+# Google search sources for collect. google_rss and google_trending are search interest triage and stay on.
+# google_bq is parked: the public BigQuery top and rising terms phase makes no read while enabled is false.
+# Stored google_bq rows are kept. Parked by decision W8-DEC-04, 8 October 2026.
+google_bq:
+  enabled: false

@@ -1326,12 +1326,25 @@ def trends_phase(run, client, day, *, clock, cap, reserve=0):
     run.trends_credits = lane.charged
 
 
+def google_bq_enabled():
+    """False while the public BigQuery Google Trends phase is parked (core/config/google_sources.yaml, W8-DEC-04).
+    A missing file or key reads as parked."""
+    try:
+        config = yaml.safe_load((CONFIG / "google_sources.yaml").read_text(encoding="utf-8")) or {}
+    except FileNotFoundError:
+        return False
+    return (config.get("google_bq") or {}).get("enabled") is True
+
+
 def bq_trends_phase(run, bq, day, *, clock):
     """The free BigQuery Google Trends tables for ZA and NG (google_trends.read_bq_signals): the newest
     partition of the top and rising terms, no SocialCrawl credits. The rows join run.search_signals with the
     same label and join run.search_rows for google_search_signals. Search interest only: never posts, evidence
     or a Today card, and never a seed. An exception is recorded as run.bq_trends_error and never stops the run."""
     keys = [f"{m}:{k}" for k in google_trends.BQ_TABLES for m in google_trends.BQ_MARKETS]
+    if not google_bq_enabled():
+        run.bq_search_states = {key: "parked" for key in keys}
+        return
     try:
         batch = google_trends.read_bq_signals(bq, run_date=day, fetched_at=clock())
         rows = batch.load_rows()
@@ -1821,14 +1834,17 @@ def print_plan(day, *, x_trends=False, share_cap=None, only_routes=None):
     if planned["total"] + local > cap:
         print("  the local phase is made only when the collect share still has its hold left "
               "after the SocialCrawl phases")
-    print(f"Google Trends tables: {', '.join(google_trends.BQ_MARKETS)}, 0 SocialCrawl credits; the newest "
-          f"partition from {google_trends.BQ_DATASET}.INFORMATION_SCHEMA.PARTITIONS (dry run first, refused above "
-          f"{google_trends.BQ_META_MAX_BYTES:,} bytes), then each table dry-run first, refused above "
-          f"{google_trends.BQ_MAX_BYTES:,} bytes and run with maximum_bytes_billed at that cap; rows append to "
-          "google_search_signals as search interest, never posts; the reads below show the day before, a live "
-          "run reads the newest partition")
-    for kind in google_trends.BQ_TABLES:
-        print("  " + " ".join(google_trends.bq_read_sql(kind, day - timedelta(days=1)).split()))
+    if google_bq_enabled():
+        print(f"Google Trends tables: {', '.join(google_trends.BQ_MARKETS)}, 0 SocialCrawl credits; the newest "
+              f"partition from {google_trends.BQ_DATASET}.INFORMATION_SCHEMA.PARTITIONS (dry run first, refused above "
+              f"{google_trends.BQ_META_MAX_BYTES:,} bytes), then each table dry-run first, refused above "
+              f"{google_trends.BQ_MAX_BYTES:,} bytes and run with maximum_bytes_billed at that cap; rows append to "
+              "google_search_signals as search interest, never posts; the reads below show the day before, a live "
+              "run reads the newest partition")
+        for kind in google_trends.BQ_TABLES:
+            print("  " + " ".join(google_trends.bq_read_sql(kind, day - timedelta(days=1)).split()))
+    else:
+        print("Google Trends tables: parked (core/config/google_sources.yaml), no read, no bytes billed")
     print(f"Google daily trends feed: {', '.join(google_rss.MARKETS)}, one anonymous HTTPS read a market before the "
           "SocialCrawl phases after one robots.txt read, 0 SocialCrawl credits; rows append to google_search_signals "
           f"as source {google_rss.SOURCE}")

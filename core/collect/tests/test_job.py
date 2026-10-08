@@ -18,6 +18,7 @@ from types import SimpleNamespace
 from urllib.parse import urlsplit
 
 import pytest
+import yaml
 
 from core.collect import chain, ids, job, writers
 from core.collect import local_sources as ls
@@ -2178,6 +2179,44 @@ class TrendsTablesBQ(FakeBQ):
         return super().get_table(table_id)
 
 
+@pytest.fixture
+def google_bq_on(monkeypatch):
+    """The BigQuery Google Trends phase is parked by default (W8-DEC-04); these tests cover it when enabled."""
+    monkeypatch.setattr(job, "google_bq_enabled", lambda: True)
+
+
+def test_google_bq_is_parked_by_config():
+    assert job.google_bq_enabled() is False
+    assert yaml.safe_load((job.CONFIG / "google_sources.yaml").read_text(encoding="utf-8"))["google_bq"]["enabled"] is False
+
+
+def test_a_parked_google_bq_makes_no_public_table_read_and_says_so_in_the_counts():
+    class NoPublicTables(TrendsTablesBQ):
+        def query(self, sql, job_config=None, **kw):
+            assert "bigquery-public-data" not in sql, "the public Google Trends tables were read"
+            return super().query(sql, job_config, **kw)
+
+    runs, bq = chain.MemoryRunsStore(), NoPublicTables()
+    assert run_main(["--run-date", "2026-09-29"], runs=runs, bq=bq) == 0
+    counts = runs.rows[-1]["counts"]
+    assert runs.rows[-1]["status"] == "ok"
+    assert set(counts["google_bq_states"].values()) == {"parked"} and counts["google_bq_signals"] == 0
+    assert counts["google_bq_bytes_billed"] == 0 and counts["google_bq_error"] is None
+    assert all(r["source"] != "google_bq" for r in bq.loaded("google_search_signals"))
+    assert not bq.loaded("posts")
+
+
+def test_google_rss_and_google_trending_stay_live_while_google_bq_is_parked(monkeypatch):
+    phases = []
+    real_trends, real_rss = job.trends_phase, job.google_rss.read_signals
+    monkeypatch.setattr(job, "trends_phase", lambda *a, **kw: (phases.append("google_trending"), real_trends(*a, **kw))[1])
+    monkeypatch.setattr(job.google_rss, "read_signals", lambda *a, **kw: (phases.append("google_rss"), real_rss(*a, **kw))[1])
+    runs, bq = chain.MemoryRunsStore(), TrendsTablesBQ()
+    assert run_main(["--run-date", "2026-09-29"], runs=runs, bq=bq) == 0
+    assert set(phases) == {"google_trending", "google_rss"}
+
+
+@pytest.mark.usefixtures("google_bq_on")
 def test_main_reads_the_trends_tables_and_appends_their_rows_as_search_signals():
     runs, bq = chain.MemoryRunsStore(), TrendsTablesBQ()
     assert run_main(["--run-date", "2026-09-29"], runs=runs, bq=bq) == 0
@@ -2193,6 +2232,7 @@ def test_main_reads_the_trends_tables_and_appends_their_rows_as_search_signals()
     assert not bq.loaded("posts") and all(r.get("post_id") is None for r in loaded)
 
 
+@pytest.mark.usefixtures("google_bq_on")
 def test_a_failed_trends_table_read_never_stops_the_run():
     runs, jobs = chain.MemoryRunsStore(), FakeJobs()
     assert run_main(["--run-date", "2026-09-29"], runs=runs, jobs=jobs, bq=FakeBQ()) == 0
@@ -2202,6 +2242,7 @@ def test_a_failed_trends_table_read_never_stops_the_run():
     assert counts["google_bq_signals"] == 0 and counts["google_search_signals"] == 0
 
 
+@pytest.mark.usefixtures("google_bq_on")
 def test_an_exception_in_the_trends_table_phase_is_recorded_and_the_run_goes_on(monkeypatch):
     def boom(*a, **kw):
         raise RuntimeError("client gone")
@@ -2215,6 +2256,7 @@ def test_an_exception_in_the_trends_table_phase_is_recorded_and_the_run_goes_on(
     assert set(counts["google_bq_states"].values()) == {"error"}
 
 
+@pytest.mark.usefixtures("google_bq_on")
 def test_a_failed_search_signals_append_never_stops_the_run():
     runs, bq = chain.MemoryRunsStore(), TrendsTablesBQ(fail_signals_table=True)
     assert run_main(["--run-date", "2026-09-29"], runs=runs, bq=bq) == 0
@@ -2225,6 +2267,7 @@ def test_a_failed_search_signals_append_never_stops_the_run():
     assert bq.loaded("collection_health")
 
 
+@pytest.mark.usefixtures("google_bq_on")
 def test_the_trends_table_rows_join_the_search_signals_with_the_same_label():
     run = job.Collected("collect-test")
     job.bq_trends_phase(run, TrendsTablesBQ(), date(2026, 9, 29), clock=lambda: NOW)
@@ -2232,6 +2275,7 @@ def test_the_trends_table_rows_join_the_search_signals_with_the_same_label():
     assert all(set(s) == {"term", "market", "source", "rank", "refreshed_at", "label"} for s in run.search_signals)
 
 
+@pytest.mark.usefixtures("google_bq_on")
 def test_the_trending_read_rows_go_to_google_search_signals_beside_the_trends_table_rows():
     # The SocialCrawl trending read is the only Google search interest for KE (the public tables have no KE
     # rows), and Searching now and the readiness report read source google_trending from the table.
