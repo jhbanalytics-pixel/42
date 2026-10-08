@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[3]
 COUNT_SQL = ("SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms "
              "FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term)")
 RUN_KEYS = {"run_id", "tier", "mode", "credits", "tokens", "seconds", "model_usd", "window", "posts", "platforms",
-            "source_status", "followups", "notices", "phase_seconds"}
+            "source_status", "followups", "notices", "phase_seconds", "timings"}
 
 
 # Semantic query rows carry no native usage, so each dispatched embedding keeps its full reserve.

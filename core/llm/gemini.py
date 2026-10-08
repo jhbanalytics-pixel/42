@@ -93,10 +93,12 @@ def usage_of(response, model: str) -> dict:
     # Thinking tokens and tool-use prompt tokens are billed, the first as output and the second as input.
     tokens_in += int(getattr(meta, "tool_use_prompt_token_count", 0) or 0)
     tokens_out = int(getattr(meta, "response_token_count", None) or getattr(meta, "candidates_token_count", 0) or 0)
-    tokens_out += int(getattr(meta, "thoughts_token_count", 0) or 0)
+    thinking = int(getattr(meta, "thoughts_token_count", 0) or 0)
+    tokens_out += thinking
     price = price_for(model)
     cached_price = price.get("cached", price["input"])
-    return {"input_tokens": tokens_in, "output_tokens": tokens_out,
+    return {"input_tokens": tokens_in, "output_tokens": tokens_out, "cached_tokens": cached,
+            "thinking_tokens": thinking,
             "usd": ((tokens_in - cached) * price["input"] + cached * cached_price
                     + tokens_out * price["output"]) / 1_000_000}
 

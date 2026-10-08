@@ -22,7 +22,7 @@ from decimal import Decimal
 from typing import Any, Callable
 from uuid import uuid4
 
-from core.agent import checks, critic, native_review, plain, skills
+from core.agent import checks, critic, native_review, plain, skills, timings as timing
 from core.agent.answer import validate_answer
 from core.agent.checks import _text_breaches, _unpinned, check_answer, platform_label, source_gaps, window_text
 from core.agent.context import TIERS, Refused, RunContext
@@ -38,11 +38,13 @@ from core.agent.tools.warehouse import (MAX_POSTS, commit_findings, discover_cre
                                         get_trending_fallback_snapshot, is_creator_question, store_breadth,
                                         store_totals)
 from core.llm.provider import default_model, is_gemini_model, price_for, reserve_output
+from core.agent.timings import Timings
 from core.agent.writer import (FIELD_UNCHECKED_REASON, HEADLINE_BUDGET_REASON, HEADLINE_FAILED_REASON, HEADLINE_GAP,
                                NARROWED_HEADLINE_GAP, NARROWED_K10_REASON,
                                HEADLINE_REASONS, HEADLINE_REWRITE_CALLS, HEADLINE_REWRITE_INPUT_TOKENS,
                                HEADLINE_REWRITE_MAX_TOKENS, HEADLINE_REWRITTEN_REASON, HEADLINE_USED_REASON,
                                K4_RECHECK_CALLS, K4_REWRITE_CALLS, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS,
+                               FIELDS_SCHEMA, HEADLINE_REWRITE_SCHEMA, K4_REWRITE_SCHEMA, SUPPORT_SCHEMA, WRITER_SCHEMA,
                                MAX_CLAIMS, MAX_GAPS, MAX_ITEMS, ROWS_SHOWN, SUPPORT_INPUT_TOKENS, SUPPORT_MAX_TOKENS,
                                _failed_call_usage, _fence, _k10, _usage_or_reserve, apply_field_check, apply_support,
                                field_max_tokens, headline_blanked, _input_token_upper_bound, repair_answer_numbers,
@@ -1148,14 +1150,22 @@ class _StopRequested(Exception):
 SUPPORT_WORKERS = 5
 
 
+# The schema each structured call asks for, and the purpose its model_call span carries. The K4 rewrite is part of the
+# support check. The numeric repair asks for the writer's schema and is told apart by the phase it runs in.
+_CALL_PURPOSES = ((WRITER_SCHEMA, "write"), (SUPPORT_SCHEMA, "support"), (K4_REWRITE_SCHEMA, "support"),
+                  (FIELDS_SCHEMA, "field_check"), (HEADLINE_REWRITE_SCHEMA, "headline_rewrite"),
+                  (critic.CRITIC_SCHEMA, "critic"))
+
+
 class _StopAwareModel:
     parallel_calls = SUPPORT_WORKERS
 
-    def __init__(self, model, should_stop, model_budget=None, keep_room=None, phase_seconds=None):
+    def __init__(self, model, should_stop, model_budget=None, keep_room=None, phase_seconds=None, timings=None):
         self.model = model
         self.should_stop = should_stop
         self.model_budget = model_budget
         self.phase_seconds = phase_seconds
+        self.timings = timings or timing.NULL
         # An optional call the question goes on without (the short answer rewrite) names the calls still to come,
         # (input_bound, max_output_tokens) each. A failure with unknown usage books its full reserve, as any does, but
         # does not stop those calls, and its one 5xx retry runs only when the budget still has room for it and them.
@@ -1164,6 +1174,16 @@ class _StopAwareModel:
     def _checked_usage(self, usage):
         complete = getattr(self.model, "usage_is_complete", None)
         return usage if not callable(complete) or complete() else None
+
+    def _span(self, kwargs, attempt, last_end):
+        """The model_call span for one attempt at this call; its purpose comes from the schema the call asks for."""
+        schema = kwargs.get("schema")
+        purpose = next((name for known, name in _CALL_PURPOSES if schema is known), "other")
+        if purpose == "write" and self.timings.phase_name == "numeric_repair":
+            purpose = "numeric_repair"
+        waited = 0.0 if last_end is None else time.monotonic() - last_end
+        return self.timings.begin("model_call", purpose, purpose=purpose, model=kwargs.get("model"),
+                                  attempt=attempt, wait_s=waited)
 
     def complete_json(self, **kwargs):
         from core.agent.writer import K4_REWRITE_SCHEMA
@@ -1187,11 +1207,20 @@ class _StopAwareModel:
             exc.model_budget_reason = self.model_budget.stop_reason or "prior_model_call_stopped"
             raise exc
         if self.model_budget is None:
-            return self.model.complete_json(**kwargs)
+            span = self._span(kwargs, 1, None)
+            try:
+                result = self.model.complete_json(**kwargs)
+            except Exception as cause:
+                span.end(status=timing.failure_status(cause))
+                raise
+            span.end(status="ok")
+            span.set(**timing.token_attrs(result[1] if isinstance(result, tuple) and len(result) == 2 else None))
+            return result
         from core.agent.gemini_research import BUSY_WAITS_S, RETRY_WAIT_S, busy_refusal, server_error, wait_busy
 
         failed = None
         busy = server_failed = 0
+        last_end = None
         while True:
             if self.should_stop():
                 exc = _StopRequested()
@@ -1214,10 +1243,15 @@ class _StopAwareModel:
                 exc.before_dispatch = True
                 exc.model_budget_reason = "model_reservation_invalid"
                 raise exc from cause
+            span = self._span(kwargs, busy + server_failed + 1, last_end)
             try:
                 result = self.model.complete_json(**kwargs)
+                last_end = time.monotonic()
+                span.end(status="ok")
                 break
             except Exception as cause:
+                last_end = time.monotonic()
+                span.end(status=timing.failure_status(cause))
                 if busy_refusal(cause):
                     # Google refused the call for capacity before running it (a 429): it billed nothing, so the whole
                     # reserve goes back and the call is made again on a fresh one after a short wait (BUSY_WAITS_S).
@@ -1233,6 +1267,7 @@ class _StopAwareModel:
                 # retry the HTTP client is not allowed to make here because it would run outside the reserve.
                 retry = not server_failed and server_error(cause) and not self.should_stop()
                 usage = self._checked_usage(getattr(cause, "usage", None))
+                span.set(**timing.token_attrs(usage))
                 if self.keep_room is None:
                     self.model_budget.settle(reservation, usage, stop_unknown=not retry)
                 else:
@@ -1246,6 +1281,7 @@ class _StopAwareModel:
                 time.sleep(RETRY_WAIT_S)
         usage = result[1] if isinstance(result, tuple) and len(result) == 2 else None
         usage = self._checked_usage(usage)
+        span.set(**timing.token_attrs(usage))
         # The call succeeded: usage it cannot verify books the full reserve, a hard bound on what the call can bill
         # (input bounded by its UTF-8 bytes, output by the max_output_tokens sent), and later calls still run within
         # the cap. A reported overrun of the reserve or the cap still stops them.
@@ -1351,6 +1387,12 @@ def _claim_check_reason(row: dict, draft: dict, evidence: dict, queries: dict):
     return reason
 
 
+def _verdict_counts(rows) -> dict:
+    """How many of a check's rows passed, lowered a label or cut a claim, for its timing span."""
+    verdicts = [r.get("verdict") for r in rows or [] if isinstance(r, dict)]
+    return {"pass": verdicts.count("pass"), "downgrade": verdicts.count("downgrade"), "cut": verdicts.count("cut")}
+
+
 def _claim_events(draft: dict, answer: dict, verdicts: list[dict], support: list[dict], evidence: dict,
                   queries: dict) -> list[dict]:
     final = {c["id"]: c for c in answer.get("claims") or []}
@@ -1382,6 +1424,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     failed ask's model spend still counts toward MODEL_DAILY_USD. That spend stays counted in this process until the
     caller reports the ask's runs row written with recorded(request["ask_id"])."""
     started = time.monotonic()
+    timings = Timings(started)
     question, tier, mode, market, skill = _request(request)
     guarded_gemini = is_gemini_model(MODEL)
     deps = deps or _default_deps(gemini_retries=0 if guarded_gemini else 1)
@@ -1407,7 +1450,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     notices, model_name = [], MODEL
     discovered = None
     ctx = RunContext(run_id=run_id, tier=tier, as_of=as_of, market=market, window_start=window[0],
-                     window_end=window[1])
+                     window_end=window[1], timings=timings)
     client = None
     client_notices = []
     if tier != "T3":
@@ -1481,14 +1524,16 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             extra = {"plan": inv["plan"], "investigation_id": inv["investigation_id"],
                      "notice": {"investigation_id": inv["investigation_id"], "status": status, "text": text,
                                 "at": deps.now().astimezone(SAST).replace(microsecond=0).isoformat()}}
+        elapsed = time.monotonic() - started
         return {
             "run_id": run_id,
             "tier": tier,
             "mode": mode,
             "credits": ctx.credits_spent,
             "tokens": dict(tokens),
-            "seconds": round(time.monotonic() - started, 1),
+            "seconds": round(elapsed, 1),
             "phase_seconds": {key: round(value, 3) for key, value in phase_seconds.items()},
+            "timings": timings.snapshot(elapsed),
             "model_usd": model_usd(),
             "window": {"from": window[0].isoformat(), "to": window[1].isoformat()},
             "posts": len(ctx.evidence),
@@ -1512,7 +1557,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     try:
         if deps.spent_today_usd is not None:
             try:
-                spent = deps.spent_today_usd()
+                with timings.begin("io", "spend_read"):
+                    spent = deps.spent_today_usd()
             except Exception:
                 spent = None
         decision_at = deps.now().astimezone(SAST).replace(microsecond=0)
@@ -1577,7 +1623,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         close_plan()
         return {"answer": _refused_answer(as_of.isoformat(), window),
                 "run": run_object([], "refused" if inv is not None else None)}
-    stop_model = _StopAwareModel(deps.model, should_stop, model_budget, phase_seconds=phase_seconds)
+    stop_model = _StopAwareModel(deps.model, should_stop, model_budget, phase_seconds=phase_seconds, timings=timings)
     research_started = research_reported = False
     finished = None
     rewrite_attempted: set[str] = set()
@@ -1613,7 +1659,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             # above held room for it and the field check, so a failure that books it whole leaves the field check its
             # reserve: the answer goes on with the short answer blank rather than stopping on usage_unknown.
             rewrite_model = _StopAwareModel(deps.model, should_stop, model_budget,
-                                            keep_room=[(FIELD_INPUT_TOKENS, FIELD_MAX_TOKENS)])
+                                            keep_room=[(FIELD_INPUT_TOKENS, FIELD_MAX_TOKENS)], timings=timings)
             text, usage, dispatched, reason = timed("rewrite", rewrite_headline, rewrite_model, checked, answer,
                                                      ctx, model_name)
         except _StopRequested:
@@ -1640,16 +1686,20 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         Before that, once per ask, code counts the whole store for the market and window (store_breadth), so the
         writer's totals come from every stored post and the sample posts those rows list are fetched with the rest."""
         if deps.store_counts is not None and not store_ids and STORE_FAILED not in notices:
+            timings.phase("store_count")
             progress.step("read", "Counting every stored post in the market and window, by platform, sound and hashtag")
             try:
-                store_ids.update(deps.store_counts(ctx, deps.warehouse, question_platforms(question)))
+                with timings.begin("io", "store_count"):
+                    store_ids.update(deps.store_counts(ctx, deps.warehouse, question_platforms(question)))
             except Exception as exc:
                 log.warning("ask store breadth failed: run %s: %s", run_id, type(exc).__name__)
                 notices.append(STORE_FAILED)
+        timings.phase("prepare")
         listed = listed_post_ids(ctx)
         if listed:
             try:
-                fetch_posts(ctx, deps.warehouse, listed, window)
+                with timings.begin("io", "fetch_posts"):
+                    fetch_posts(ctx, deps.warehouse, listed, window)
             except Exception:
                 if FETCH_FAILED not in notices:
                     notices.append(FETCH_FAILED)
@@ -1658,7 +1708,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             if not ctx.native_review_loaded:
                 ctx.native_review_loaded = True
                 try:
-                    ctx.native_statuses = native_review.load_native_statuses(deps.warehouse)
+                    with timings.begin("io", "native_review"):
+                        ctx.native_statuses = native_review.load_native_statuses(deps.warehouse)
                     ctx.native_review_available = True
                 except Exception:
                     ctx.native_statuses = {}
@@ -1676,6 +1727,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                               "at single_source")
                     if notice not in notices:
                         notices.append(notice)
+        timings.phase("write")
         progress.step("write", f"Writing the answer from {len(ctx.evidence)} posts and {len(ctx.queries)} counts")
         ctx.writer_note = note
         draft, usage = timed("write", write_answer, stop_model, question=question, as_of=as_of, market=market,
@@ -1697,6 +1749,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             issues = unpinned_claim_numerals(draft, ctx, deps.warehouse, window=window)
             if issues:
                 numeric_repair_attempted = True
+                timings.phase("numeric_repair")
                 progress.step("write", "Checking the answer's numbers against recorded queries")
                 draft, usage = timed(
                     "rewrite", repair_answer_numbers, stop_model, draft=draft, issues=issues, question=question,
@@ -1708,15 +1761,20 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                 if should_stop():
                     raise _StopRequested()
         allowed = writer_gaps(draft["gaps"]) + source_gaps(ctx, window)
+        timings.phase("checks")
         progress.step("check", f"Checking {len(draft['claims'])} claims against the posts and the numbers")
         check = deps.check or check_answer
-        checked, verdicts = timed("checks", check, draft, ctx, deps.warehouse, window=window, markets=markets)
+        with timings.begin("check", "code_checks", rule="all") as span:
+            checked, verdicts = timed("checks", check, draft, ctx, deps.warehouse, window=window, markets=markets)
+            span.set(claims=len(draft["claims"]), **_verdict_counts(verdicts))
         if should_stop():
             raise _StopRequested()
-        answer, support, usage = timed("checks", apply_support, stop_model, checked, ctx, model_name,
-                                               warehouse=deps.warehouse,
-                                               window=window, markets=markets,
-                                               rewrite_attempted=rewrite_attempted)
+        with timings.begin("check", "support_checks", rule="K4") as span:
+            answer, support, usage = timed("checks", apply_support, stop_model, checked, ctx, model_name,
+                                           warehouse=deps.warehouse,
+                                           window=window, markets=markets,
+                                           rewrite_attempted=rewrite_attempted)
+            span.set(claims=len(checked.get("claims") or []), **_verdict_counts(support))
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
             raise _StopRequested()
@@ -1725,10 +1783,14 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         narrowed = any(claim.get("id") in original_words and original_words[claim.get("id")] != claim.get("text")
                        for claim in answer.get("claims") or [])
         answer, rewrote = headline(checked, answer)
-        answer, rechecked = timed("checks", checks.recheck_fields, answer, ctx, window=window,
-                                                  code_gaps=checks.code_gap_indexes(draft["gaps"], answer["gaps"]))
-        answer, fielded, usage = timed("checks", apply_field_check, stop_model, answer, ctx, model_name,
-                                      draft_gaps=draft["gaps"])
+        with timings.begin("check", "recheck_fields", rule="K10") as span:
+            answer, rechecked = timed("checks", checks.recheck_fields, answer, ctx, window=window,
+                                      code_gaps=checks.code_gap_indexes(draft["gaps"], answer["gaps"]))
+            span.set(claims=len(answer.get("claims") or []), **_verdict_counts(rechecked))
+        with timings.begin("check", "field_checks", rule="fields") as span:
+            answer, fielded, usage = timed("checks", apply_field_check, stop_model, answer, ctx, model_name,
+                                           draft_gaps=draft["gaps"])
+            span.set(claims=len(answer.get("claims") or []), **_verdict_counts(fielded))
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
             raise _StopRequested()
@@ -1776,6 +1838,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         if not pending or not (queries or followups) or reserve <= 0 or ctx.calls_left() <= 0 or should_stop():
             return None
         noun = "claim needs" if len(pending) == 1 else "claims need"
+        timings.phase("research")
         progress.step("plan", f"One more search: {len(pending)} {noun} more evidence")
         lane = ctx.lane({"credits": reserve, "calls": ctx.calls_left(), "max_turns": TIERS[tier]["max_turns"],
                          "max_budget_usd": lane_usd})
@@ -1792,12 +1855,14 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         return None if research["stopped"] or should_stop() else research["note"]
 
     try:
+        timings.phase("plan")
         progress.step("plan", f"Reading the question: {progress.market_label}, {window_text(window)}, tier {tier}")
         stopped = should_stop()
         note = ""
         if not stopped and skill == skills.DEFAULT and len(markets) == 1 and _current_trending_intent(question):
             try:
-                snapshot = get_trending_fallback_snapshot(ctx, deps.warehouse, markets[0])
+                with timings.begin("io", "trending_snapshot"):
+                    snapshot = get_trending_fallback_snapshot(ctx, deps.warehouse, markets[0])
             except Exception:
                 notices.append(TRENDING_BOARD_READ_FAILED)
             else:
@@ -1874,7 +1939,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                     stopped = True
                 else:
                     try:
-                        discovered = discover_creators(ctx, deps.warehouse, question)
+                        with timings.begin("io", "creator_discovery"):
+                            discovered = discover_creators(ctx, deps.warehouse, question)
                         metadata = [CREATOR_DISCOVERY_NOTE]
                         if discovered.get("creator_size_status") == "unknown" and discovered.get("creator_size_note"):
                             metadata.append(f"Creator size is unknown. {discovered['creator_size_note']}")
@@ -1891,6 +1957,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                     stopped = should_stop()
             if not stopped:
                 close_plan()
+                timings.phase("research")
                 research_started = True
                 if tier == "T2":
                     research = timed("research", _first_round, deps, ctx, client, setup, prompt, markets,
@@ -1911,6 +1978,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         source_status = _source_status(ctx, client)
 
         if stopped:
+            timings.phase("finalise")
             finished = "stopped"
             budget_stopped = model_budget is not None and model_budget.stopped and not should_stop()
             reason = model_budget.stop_reason if budget_stopped else None
@@ -1921,6 +1989,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             allowed = answer["gaps"]  # source failures and the stopped gap; no gate ran
         else:
             draft, answer, verdicts, support, later, allowed = gate(note, source_status)
+            timings.phase("checks")
             if tier in ("T2", "T3"):
                 answer, critic_rows, result = review(answer)
                 has_gap = tier == "T2" or inv["plan"]["gap_round"]
@@ -1933,6 +2002,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                         answer, critic_rows, result = review(answer)
                 answer, critic_rows, cut_rows = _critic_cuts(answer, critic_rows, ctx, window, draft["gaps"])
                 verdicts, later = [*verdicts, *critic_rows], [*later, *cut_rows]
+            timings.phase("finalise")
             for event in _claim_events(draft, answer, verdicts, support, ctx.evidence, ctx.queries):
                 if should_stop():
                     raise _StopRequested()
@@ -1948,8 +2018,9 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             if rows:
                 if should_stop():
                     raise _StopRequested()
-                deps.tables.insert(CLAIM_CHECKS, rows, row_ids=[f"{ask_id}:{r['claim_id']}:{r['rule']}:{i}"
-                                                                for i, r in enumerate(rows)])
+                with timings.begin("io", "claim_checks_write"):
+                    deps.tables.insert(CLAIM_CHECKS, rows, row_ids=[f"{ask_id}:{r['claim_id']}:{r['rule']}:{i}"
+                                                                    for i, r in enumerate(rows)])
 
         problems = validate_answer(answer)
         if problems:
@@ -1962,6 +2033,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                 log.warning("ask findings write failed: run %s: %s", run_id, type(exc).__name__)
                 notices.append(FINDINGS_FAILED)
     except _StopRequested as exc:
+        timings.phase("finalise")
         finished = "stopped"
         reason = getattr(exc, "model_budget_reason", None)
         budget_stopped = reason is not None or (model_budget is not None and model_budget.stopped and not should_stop())

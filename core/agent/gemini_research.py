@@ -14,7 +14,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
 
-from core.agent import ask
+from core.agent import ask, timings
 from core.agent.context import Refused, RunContext
 from core.agent.model_budget import BudgetRefused
 from core.agent.toolset import DESCRIPTIONS, SCHEMAS, TOOL_NAMES, build_functions, guard, run_plain
@@ -227,6 +227,36 @@ def _run_call(ctx: RunContext, functions: dict, name: str, args: dict) -> tuple[
         return f"Refused: {e}", True
 
 
+def _tool_attrs(name: str, out) -> dict:
+    """The tool span's closing attrs from the call's own result: its status and, for a count, the rows and bytes the
+    result reports. Nothing the model or a post wrote is read."""
+    if out is None:
+        return {"status": "error"}
+    text, is_error = out
+    if is_error:
+        return {"status": "refused" if str(text).startswith("Refused") else "error"}
+    attrs = {"status": "ok"}
+    if name == "sql_query":
+        try:
+            result = json.loads(text)
+            attrs.update(rows=result.get("row_count"), bytes=result.get("bytes"))
+        except Exception:
+            pass
+    return attrs
+
+
+def _timed_call(ctx: RunContext, functions: dict, name: str, args: dict, batch: int | None = None,
+                lane: int = 0) -> tuple[str, bool]:
+    """_run_call under a tool_call span on ctx's recorder (the lane's own context shares its run's recorder)."""
+    span = timings.of(ctx).begin("tool_call", name, tool=name, batch=batch, lane=lane)
+    out = None
+    try:
+        out = _run_call(ctx, functions, name, args)
+        return out
+    finally:
+        span.end(**_tool_attrs(name, out))
+
+
 def _batches(calls, functions) -> list[list]:
     """The turn's calls in order, with each run of consecutive PARALLEL_TOOLS calls as one batch and every other call
     alone, so a live or paid call never runs beside another and its guard sees every earlier call's spend."""
@@ -240,7 +270,8 @@ def _batches(calls, functions) -> list[list]:
     return batches
 
 
-def _run_together(ctx: RunContext, options, named: list[tuple[str, dict]]) -> list[tuple[tuple[str, bool], RunContext]]:
+def _run_together(ctx: RunContext, options, named: list[tuple[str, dict]],
+                  batch: int | None = None) -> list[tuple[tuple[str, bool], RunContext]]:
     """Run read-only warehouse calls at the same time, each on its own lane of ctx (RunContext.lane: shared query
     records under one lock, its own evidence, events and spend), so no two threads write the same field. The caller
     folds each lane back in call order."""
@@ -249,7 +280,8 @@ def _run_together(ctx: RunContext, options, named: list[tuple[str, dict]]) -> li
         lane = ctx.lane(dict(ctx.budget))
         jobs.append((lane, build_functions(lane, options.warehouse, options.client, options.tables), name, args))
     with ThreadPoolExecutor(max_workers=min(PARALLEL_WORKERS, len(jobs))) as pool:
-        outs = list(pool.map(lambda job: _run_call(job[0], job[1], job[2], job[3]), jobs))
+        outs = list(pool.map(lambda item: _timed_call(item[1][0], item[1][1], item[1][2], item[1][3], batch, item[0]),
+                             enumerate(jobs)))
     return [(out, job[0]) for out, job in zip(outs, jobs)]
 
 
@@ -276,6 +308,7 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
     client = client_factory() if client_factory else (
         GeminiModel(timeout_s=ask.ASK_GEMINI_TIMEOUT_S, retries=0 if model_budget is not None else 1).client)
     functions = build_functions(ctx, options.warehouse, options.client, options.tables)
+    recorder = timings.of(ctx)
     config = _config(options.system_prompt)
     tier = ctx.budget  # the tier's limits, or a T2 researcher's own
     history = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
@@ -289,6 +322,7 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
             break
         turn_started = clock()
         reservation = None
+        last_attempt_end = None
         if model_budget is not None:
             response, budget_note, failed = None, None, None
             busy = server_failed = 0
@@ -316,10 +350,18 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                     if failed is not None:  # the retry is refused for another reason: the earlier failure stands
                         raise failed from None
                     raise
+                started_call = time.monotonic()
+                span = recorder.begin("model_call", "research_turn", purpose="research_turn", model=options.model,
+                                      attempt=busy + server_failed + 1,
+                                      wait_s=0.0 if last_attempt_end is None else started_call - last_attempt_end)
                 try:
                     response = client.models.generate_content(model=options.model, contents=history, config=config)
+                    last_attempt_end = time.monotonic()
+                    span.end(status="ok")
                     break
                 except Exception as exc:
+                    last_attempt_end = time.monotonic()
+                    span.end(status=timings.failure_status(exc))
                     if busy_refusal(exc):
                         # Google refused the call for capacity before running it: nothing was billed, so the whole
                         # reserve goes back, and the call is made again on a fresh one after a short wait.
@@ -359,10 +401,19 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                 texts += [p.text for p in parts if getattr(p, "text", None) and not getattr(p, "thought", False)]
                 texts.append("Research stopped: Gemini usage was unavailable, so the full per-call reserve was booked.")
                 break
+            span.set(**timings.token_attrs(usage))
             usage_safe = model_budget.settle(reservation, usage)
         else:
-            response = _generate(client, options.model, history, config, should_stop)
+            span = recorder.begin("model_call", "research_turn", purpose="research_turn", model=options.model,
+                                  attempt=1)
+            try:
+                response = _generate(client, options.model, history, config, should_stop)
+            except Exception as exc:
+                span.end(status=timings.failure_status(exc))
+                raise
+            span.end(status="ok")
             usage = usage_of(response, options.model)
+            span.set(**timings.token_attrs(usage))
             usage_safe = True
         result["tokens"]["input"] += usage["input_tokens"]
         result["tokens"]["output"] += usage["output_tokens"]
@@ -391,13 +442,14 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
             for _, name, args in named:
                 kind, text, platform = ask.describe_tool(name, args, emit)
                 emit.step(kind, text, platform=platform)
+            batch_id = recorder.next_batch()
             if not named:
                 results = []
             elif len(named) == 1:
                 _, name, args = named[0]
-                results = [(_run_call(ctx, functions, name, args), None)]
+                results = [(_timed_call(ctx, functions, name, args, batch_id), None)]
             else:
-                results = _run_together(ctx, options, [(name, args) for _, name, args in named])
+                results = _run_together(ctx, options, [(name, args) for _, name, args in named], batch_id)
             ran = iter(zip(named, results))
             for (call, name, args), closed in zip(every, shut):
                 if closed:
