@@ -520,6 +520,23 @@ def test_exploration_takes_10_to_15_percent_of_row_14_from_below_the_cut():
     assert len([c for c in calls if c.row == "12"]) == 10
 
 
+def test_the_live_hashtag_board_envelope_yields_board_tag_sightings():
+    live = json.loads((Path(__file__).parent / "fixtures" / "parse_live.json").read_text(encoding="utf-8"))
+    _, items, _ = split_vendor_labels(live["hashtags_popular"])
+    call = SimpleNamespace(route="tiktok/hashtags/popular", row="2")
+    done = [(call, SimpleNamespace(status="ok", items=items), None)]
+    seen = job.sightings(done)
+    assert ("hashtag", "shebeenfriday", "2", "tiktok") in seen
+    assert ("hashtag", "kotarun", "2", "tiktok") in seen
+    assert job.score_candidates(seen)["origin"]["shebeenfriday"] == ("tiktok", "2")
+
+
+def test_a_bare_hashtag_board_row_still_yields_its_sighting():
+    call = SimpleNamespace(route="tiktok/hashtags/popular", row="2")
+    done = [(call, SimpleNamespace(status="ok", items=[{"hashtag_name": "amapiano"}]), None)]
+    assert job.sightings(done) == [("hashtag", "amapiano", "2", "tiktok")]
+
+
 def test_a_rule_one_harvest_tag_is_never_a_candidate_so_no_row_calls_it():
     age = ["".join(["tee", "ns"]), "".join(["ge", "nzhumor"]), "".join(["Mil", "lennialMoms"])]
     board = SimpleNamespace(route="tiktok/hashtags/popular", row="2")

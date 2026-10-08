@@ -646,6 +646,15 @@ def _rank(ctx, platform, item_id, rank):
                     pull_seq=ctx["pull_seq"])
 
 
+def board_hashtag(row):
+    """The tag on a hashtags/popular row, bare or in the {computed, post} envelope: a name key, else the post
+    text, else the /tag/<name> path of its url."""
+    node = _dict(_dict(row).get("post")) or _dict(row)
+    path = [part for part in urlsplit(str(node.get("url") or "")).path.split("/") if part]
+    return _first(node, "hashtag_name", "hashtag", "name", "title") or _first(_dict(node.get("content")), "text") \
+        or (path[1] if len(path) == 2 and path[0] == "tag" else None)
+
+
 def _board(out, ctx, route, platform, rows):
     """Board and chart entries, bare or in the post envelope: the vendor's rank when it gives one, else list position."""
     for position, row in enumerate(rows, 1):
@@ -654,10 +663,7 @@ def _board(out, ctx, route, platform, rows):
         rank = _number(_dict(ext.get("trend")), "rank") or _number(ext, "rank", "position") \
             or _number(node, "rank", "position") or position
         if route == "tiktok/hashtags/popular":
-            path = [part for part in urlsplit(str(node.get("url") or "")).path.split("/") if part]
-            raw = _first(node, "hashtag_name", "hashtag", "name", "title") or _first(_dict(node.get("content")), "text") \
-                or (path[1] if len(path) == 2 and path[0] == "tag" else None)
-            item_id = _item(ctx, "hashtag", raw, platform)
+            item_id = _item(ctx, "hashtag", board_hashtag(row), platform)
         elif route == "instagram/music/trending":
             track = _dict(node.get("track"))
             raw = _first(track, "audio_cluster_id", "audio_asset_id", "audio_id", "id") \

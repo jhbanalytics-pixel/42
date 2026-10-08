@@ -98,7 +98,7 @@ import yaml
 from core.collect import chain, curated_creators, google_rss, google_trends, local_sources, research_terms, writers
 from core.collect import location_sources
 from core.collect import seeds as seeding
-from core.collect.parse import (LANES, ROUTES, SEARCH_LANES, SEEDED, _dict, _first, _local_day, _protocol, _rows,
+from core.collect.parse import (LANES, ROUTES, board_hashtag, SEARCH_LANES, SEEDED, _dict, _first, _local_day, _protocol, _rows,
                                 parse_with_creators)
 from core.collect.socialcrawl_client import PRICED, TRANSIENT, Refused, Result, load_caps, quote_for
 
@@ -162,7 +162,6 @@ EVIDENCE_PER_MARKET, EVIDENCE_RATE = 20, 2  # post-stats: hosts at 1 or 2 credit
 TRENDS_ARCHIVE = "https://trends24.in/{}/"
 # Platform-wide tags that sit on most posts and say nothing about the market.
 GENERIC_TAGS = frozenset({"fyp", "foryou", "foryoupage", "viral", "trending", "shorts", "reels", "explore"})
-BOARD_KEYS = ("hashtag_name", "hashtag", "name", "title")
 POST_FAMILIES = ("rank", "panel", "search", "location", "restat")
 GLOBAL_SHARE = 0.10                     # of an overridden cap, for row 4 and the row 12 counter reads
 
@@ -553,7 +552,7 @@ def sightings(done):
     for call, result, parsed in done:
         if call.route == "tiktok/hashtags/popular" and result.status in OK:
             for entry in result.items:
-                raw = next((entry.get(k) for k in BOARD_KEYS if isinstance(entry, dict) and entry.get(k)), None)
+                raw = board_hashtag(entry)
                 if _tag(raw):
                     out.append(("hashtag", _tag(raw), call.row, "tiktok"))
         for post in (parsed or {}).get("posts", []):
