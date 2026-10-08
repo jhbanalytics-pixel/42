@@ -301,3 +301,10 @@ def test_a_digest_with_nobody_hidden_is_the_digest_it_was_a37():
     store = RouteStore(hide=set())
     resp = privacy.withhold_digest(digest_resp(), store)
     assert resp == digest_resp()
+
+
+def test_the_built_digest_is_withheld_not_only_its_renderers_a40(monkeypatch):
+    monkeypatch.setattr(digest.discover, "build_alerts", lambda store, watches, date=None: digest_resp())
+    out = digest.build(RouteStore(hide={"c_hid"}), [], "2026-10-07", "https://app.example")
+    assert "hid_handle" not in out["html"] and "hid_handle" not in out["text"]
+    assert "A post on TikTok" in out["text"]

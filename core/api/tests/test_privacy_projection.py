@@ -412,3 +412,10 @@ def test_a_run_in_flight_may_use_a_list_no_older_than_thirty_seconds_case_g(monk
     assert privacy.nothing_hidden(fresh.get())  # not required to show inside 30 seconds
     now[0] += 2
     assert not privacy.nothing_hidden(fresh.get()) and store.calls.count("suppressed_creators") == 2
+
+
+def test_a_claim_that_only_quotes_a_hidden_post_is_withheld_with_it():
+    record = ask_record()
+    record["answer"]["claims"][0]["quotes"] = [{"evidence_id": P_HID1, "text": "fixture hidden words one"}]
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert "c1" not in claim_ids(out)
