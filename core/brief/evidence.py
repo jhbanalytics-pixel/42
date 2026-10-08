@@ -196,10 +196,12 @@ def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=No
     end = datetime.combine(d + timedelta(days=1), time(), tz)
     rows = _pack_rows(client, {"item_id": item_id, "market": market, "d": d, "start": start, "end": end,
                                "outlet_cap": pack_order.OUTLET_CAP}, core, agent)
+    posts = [r for r in rows if r["post_id"] is not None]
+    records = [_record(r, tz) for r in posts]
     if stages is not None:
         stages.update(pack_order.read_stages(rows) or {})
-    posts = [r for r in rows if r["post_id"] is not None]
-    evidence = without_hidden({"evidence": [_record(r, tz) for r in posts]}, hidden)["evidence"]
+        stages["final"] = pack_order.final_counts(records, market)  # as the query left it, before posts are hidden
+    evidence = without_hidden({"evidence": records}, hidden)["evidence"]
 
     registry, numbers, pinned = {}, [], {}
     params = {"item_id": item_id, "market": market, "d": d, "run_id": run_id}

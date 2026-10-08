@@ -107,9 +107,9 @@ def check_the_outlet_cap_limits_classified_outlets_and_zero_removes_them(sql):
 
 
 def check_outlets_are_the_news_platform_plus_the_registry_by_normalised_platform_and_handle(sql):
-    with_registry, without = pack(world(), 0, sql=sql)[0], pack(world(), 0, keys=[], sql=sql)[0]
-    assert with_registry["after_creator_cap"] - with_registry["after_outlet_cap"] == 8  # 4 news and 4 X hubs
-    assert without["after_creator_cap"] - without["after_outlet_cap"] == 4  # the news platform only
+    ids = lambda keys: [r["post_id"] for r in pack(world(), 0, keys=keys, sql=sql)][9:]  # after the 9 members
+    assert ids(KEYS) == ["nohandle", "stale", "tie_a"]  # 4 news and 4 X hubs all removed
+    assert ids([]) == ["o_x0", "o_x1", "o_x2"]  # the news platform only: the X hubs are not outlets
 
 
 def check_a_post_with_no_creator_row_is_not_an_outlet_and_is_never_dropped_by_the_cap(sql):
@@ -125,11 +125,14 @@ def check_ties_resolve_by_post_id_whatever_order_the_rows_arrived_in(sql):
 
 
 def check_stage_counts_say_which_cap_removed_which_posts(sql):
-    r = pack(world(), 3, sql=sql)[0]
-    assert (r["available_posts"], r["after_creator_cap"], r["after_outlet_cap"]) == (31, 27, 22)
+    # With the cap at 0 the outlets in the pack's first 12 places (o_news0 to o_news2, behind the 9 members) are
+    # removed; the other five outlets rank past 12 and would not have been in the pack, so they are not counted.
+    r = pack(world(), 0, sql=sql)[0]
+    assert (r["available_posts"], r["after_creator_cap"], r["after_outlet_cap"]) == (31, 27, 24)
     assert r["available_members"] == 12  # of 13 the producer assigned
     assert (r["available_local"], r["after_creator_cap_local"], r["after_outlet_cap_local"]) == (23, 19, 19)
-    assert (r["available_showable"], r["after_creator_cap_showable"], r["after_outlet_cap_showable"]) == (31, 27, 22)
+    assert (r["available_showable"], r["after_creator_cap_showable"], r["after_outlet_cap_showable"]) == (31, 27, 24)
+    assert pack(world(), 3, sql=sql)[0]["after_outlet_cap"] == 27  # a cap that removes nothing from the pack
 
 
 ORIGINAL_COLUMNS = {
@@ -141,6 +144,60 @@ ORIGINAL_COLUMNS = {
 def check_P08_the_statement_returns_every_column_the_original_evidence_statement_returned(sql):
     rows = pack(world(), 12, sql=sql)
     assert ORIGINAL_COLUMNS <= set(rows[0]), ORIGINAL_COLUMNS - set(rows[0])
+
+
+def outlet_pile_world():
+    """15 outlets: the top 12 located abroad (not showable), 3 showable ones below them, no members."""
+    con = duck.connect()
+    clusters(con)
+    for n in range(12):
+        post(con, f"abroad{n:02d}", creator=f"a{n}", eng=9000 - n, platform="news", geo="ZA")
+    for n in range(3):
+        post(con, f"showable{n}", creator=f"s{n}", eng=100 - n, platform="news", geo=None)
+    return con
+
+
+def stage_columns(row):
+    return {k: v for k, v in row.items() if k.startswith(("available_", "after_"))}
+
+
+def check_a_cap_of_12_changes_neither_the_pack_nor_the_stage_counts(sql):
+    capped, uncapped = pack(outlet_pile_world(), 12, sql=sql), pack(outlet_pile_world(), 10_000, sql=sql)
+    assert [r["post_id"] for r in capped] == [r["post_id"] for r in uncapped]
+    assert stage_columns(capped[0]) == stage_columns(uncapped[0])
+    assert capped[0]["after_outlet_cap_showable"] == 3  # the three behind the first 12 were never in the pack
+
+
+def member_outlets_world():
+    con = duck.connect()
+    clusters(con)
+    post(con, "n_hi", creator="hi", eng=9000, platform="news", geo=None)
+    post(con, "n_mem", creator="mem", eng=10, platform="news", geo=None, member=True)
+    return con
+
+
+def check_the_outlet_cap_keeps_the_member_outlet_over_a_higher_engagement_one(sql):
+    assert [r["post_id"] for r in pack(member_outlets_world(), 1, sql=sql)] == ["n_mem"]
+
+
+def run_flags_world():
+    con = duck.connect()
+    clusters(con)
+    duck.load(con, "core.clusters", [{"cluster_date": D + timedelta(days=1), "cluster_id": "next-ng-001",
+                                       "market": "ng", "item_id": ITEM, "match_kind": "match"}])
+    post(con, "in_ng", creator="a", eng=4, member=True)
+    post(con, "in_pan", creator="b", eng=3, member=True, cluster="pan")
+    post(con, "in_future", creator="c", eng=2)
+    duck.load(con, "core.cluster_members", [{"cluster_id": "next-ng-001", "post_id": "in_future", "probability": 0.9}])
+    post(con, "in_none", creator="d", eng=1)
+    return con
+
+
+def check_membership_flags_follow_the_run_and_the_window(sql):
+    rows = {r["post_id"]: r for r in pack(run_flags_world(), 12, sql=sql)}
+    flags = {pid: (r["market_member"], r["pan_member"]) for pid, r in rows.items()}
+    assert flags == {"in_ng": (True, False), "in_pan": (False, True), "in_future": (False, False),
+                     "in_none": (False, False)}
 
 
 def outlet_only_world():
@@ -155,6 +212,12 @@ def check_stage_counts_survive_a_pack_the_outlet_cap_empties(sql):
     rows = pack(outlet_only_world(), 0, sql=sql)
     assert len(rows) == 1 and rows[0]["post_id"] is None
     assert (rows[0]["available_posts"], rows[0]["after_creator_cap"], rows[0]["after_outlet_cap"]) == (3, 3, 0)
+
+
+def test_the_sql_pack_size_is_the_one_pack_order_names():
+    sql = statement()
+    assert re.findall(r"LIMIT (\d+)", sql) == [str(pack_order.PACK_LIMIT)]
+    assert re.findall(r"pack_rank > (\d+)", sql) == [str(pack_order.PACK_LIMIT)]
 
 
 def test_the_default_outlet_cap_is_12_and_changes_nothing():
@@ -182,7 +245,7 @@ def order_by_clauses(sql):
 
 def check_every_order_by_ends_in_the_post_id_so_no_tie_is_left_to_the_engine(sql):
     clauses = order_by_clauses(sql_without_comments(sql))
-    assert len(clauses) == 3 and all(c.endswith("post_id") for c in clauses), clauses
+    assert len(clauses) == 4 and all(c.endswith("post_id") for c in clauses), clauses
 
 
 CHECKS = {name[len("check_"):]: fn for name, fn in sorted(globals().items()) if name.startswith("check_")}
@@ -266,8 +329,15 @@ MUTANTS = {
                                               "(UPPER(k.market) = @market OR LOWER(k.market) = 'pan')\n")],
     "the news platform is not an outlet": [("ps.platform = 'news' OR ", "")],
     "registry handle not normalised": [("LOWER(REGEXP_REPLACE(TRIM(cr.handle), r'^@*(u/)?', ''))", "LOWER(cr.handle)")],
-    "outlet stage count from the wrong stage": [("(SELECT COUNT(*) FROM f) after_outlet_cap",
+    "outlet stage count from the wrong stage": [("(SELECT COUNT(*) FROM g) after_outlet_cap",
                                                  "(SELECT COUNT(*) FROM c) after_outlet_cap")],
+    "outlet stage counts the cap's removals past the pack": [(" OR c.pack_rank > 12)", ")")],
+    "member tier dropped from the outlet class rank": [("ORDER BY r.market_member DESC, r.measured DESC",
+                                                        "ORDER BY r.measured DESC")],
+    "pooled run flag read from the market run": [("WHERE k.item_id = @item_id AND LOWER(k.market) = 'pan'",
+                                                  "WHERE k.item_id = @item_id AND UPPER(k.market) = @market")],
+    "member window upper bound dropped": [("AND k.cluster_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d",
+                                           "AND k.cluster_date >= DATE_SUB(@d, INTERVAL 6 DAY)")],
     "local stage count from the showable flag": [("(SELECT COUNTIF(c.local_flag) FROM c)",
                                                   "(SELECT COUNTIF(c.showable_flag) FROM c)")],
     "unknown handle reads null": [("IFNULL(ps.platform = 'news'", "(ps.platform = 'news'"),
@@ -295,6 +365,11 @@ def test_each_mutant_of_the_statement_is_caught_by_at_least_one_check(name):
         except AssertionError:
             killed_by.append(check)
     assert killed_by, f"mutant survived every check: {name}"
+
+
+def test_no_check_or_mutant_has_been_deleted_to_keep_the_suite_green():
+    """Nothing else runs these tests, so the totals are pinned here: lowering either needs this line to change."""
+    assert len(CHECKS) == 14 and len(MUTANTS) == 18
 
 
 def test_the_statement_names_no_dataset_other_than_the_placeholders_and_is_read_only():

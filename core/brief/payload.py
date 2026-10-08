@@ -233,8 +233,14 @@ HELD_SUMMARY = {
 }
 
 
+def hold_base(text):
+    """A floor hold's wording without the cap it may name (core/brief/pack_order.py hold_text): what groups holds of
+    one kind together here, in the holds report and in ops."""
+    return text.split(": the ")[0]
+
+
 def _held_group(item):
-    text = item["reason_text"].split(": the ")[0]  # a floor hold may name the cap that caused it after the wording
+    text = hold_base(item["reason_text"])  # a floor hold may name the cap that caused it
     return text if text in HELD_SUMMARY else REASON_TEXT[item["reason"]].lower()
 
 

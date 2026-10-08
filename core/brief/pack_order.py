@@ -17,6 +17,7 @@ from pathlib import Path
 import yaml
 
 from core.api.store import creator_key
+from core.brief.payload import hold_base  # noqa: F401  (re-exported: the wording holds are grouped by)
 from core.brief.specificity import MIN_EVIDENCE, local_posts, showable_posts
 
 OUTLET_CAP = 12  # rule 6: a parameter, not a decision. Three is unvalidated, so 12 (the pack size) changes nothing.
@@ -35,6 +36,9 @@ FLOOR_WORDS = {"showable": "Fewer than 3 posts 42 can show", "local": "Fewer tha
 # The stages in the order a post can be lost, and the cause named when the count first falls below the floor there.
 CAUSES = (("available", "evidence_absent"), ("after_creator_cap", "capped_by_creator"),
           ("after_outlet_cap", "capped_by_outlet"), ("final", "capped_by_size"))
+# Posts taken out of the pack after the query (the suppression mask) are none of those: no cap did it, and the
+# wording and counts must not show that they existed.
+REMOVED_AFTER_RANKING = "removed_after_ranking"
 STAGE_COLUMNS = {  # stage -> (all posts, showable, local) columns of the statement
     "available": ("available_posts", "available_showable", "available_local"),
     "after_creator_cap": ("after_creator_cap", "after_creator_cap_showable", "after_creator_cap_local"),
@@ -80,7 +84,8 @@ def read_stages(rows):
     return out
 
 
-def _final(evidence, market):
+def final_counts(evidence, market):
+    """The posts, showable posts and local posts of a pack, by the rules the floors are checked by."""
     return {"posts": len(evidence or []), "showable": len(showable_posts(evidence, market)),
             "local": len(local_posts(evidence, market))}
 
@@ -88,19 +93,22 @@ def _final(evidence, market):
 def hold_detail(stages, floor, evidence, market):
     """The held_reason_detail block for a floor hold. floor is "showable" or "local". The four counts are that
     kind of post at each stage: all that were available, after the creator cap, after the outlet cap, and in the
-    pack the gate read. The cause is the first stage at which the count is below the floor. A count never reads
-    lower than one after it (a merge or a second read can add posts the first read did not have). stages is what
-    evidence.build_pack filled in; a candidate without any reads every stage as the final pack, which can only be
-    evidence_absent."""
-    final = _final(evidence, market)[floor]
-    counts = {name: (stages[name][floor] if stages else final)
-              for name, _ in CAUSES[:-1]}
-    counts["final"] = final
+    pack the query left (stages["final"], taken before the suppression mask; the pack the gate read when absent).
+    The cause is the first stage at which the count is below the floor; if none is and the gate's pack is still
+    short, the posts were taken out after the ranking. A count never reads lower than one after it (a merge or a
+    second read can add posts the first read did not have). stages is what evidence.build_pack filled in; a
+    candidate without any reads every stage as the final pack, which can only be evidence_absent."""
+    actual = final_counts(evidence, market)[floor]
+    counts = {name: (stages[name][floor] if stages else actual) for name, _ in CAUSES[:-1]}
+    counts["final"] = stages["final"][floor] if stages and "final" in stages else actual
+    counts["final"] = max(counts["final"], actual)
     ceiling = 0
     for name, _ in reversed(CAUSES):
         ceiling = counts[name] = max(counts[name], ceiling)
     minimum = FLOORS[floor]
     cause = next((cause for name, cause in CAUSES if counts[name] < minimum), None)  # None: not a hold
+    if cause is None and actual < minimum:
+        cause = REMOVED_AFTER_RANKING
     return {"block_version": HELD_BLOCK_VERSION, "floor": floor, "minimum": minimum, "cause": cause, "counts": counts}
 
 

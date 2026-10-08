@@ -129,10 +129,15 @@ r AS (
 c AS (
   SELECT r.*,
     ROW_NUMBER() OVER (PARTITION BY r.is_outlet
-                       ORDER BY r.market_member DESC, r.measured DESC, r.eng DESC, r.post_id) class_rank
+                       ORDER BY r.market_member DESC, r.measured DESC, r.eng DESC, r.post_id) class_rank,
+    ROW_NUMBER() OVER (ORDER BY r.market_member DESC, r.measured DESC, r.eng DESC, r.post_id) pack_rank
   FROM r WHERE r.creator_rank <= 2),
 f AS (
-  SELECT c.* FROM c WHERE NOT c.is_outlet OR c.class_rank <= @outlet_cap)
+  SELECT c.* FROM c WHERE NOT c.is_outlet OR c.class_rank <= @outlet_cap),
+-- What the outlet cap left for the stage counts: an outlet it removed from behind the 12th place was never going to
+-- be in the pack, so it still counts. A cap of 12 therefore changes neither the pack nor any stage count.
+g AS (
+  SELECT c.* FROM c WHERE NOT c.is_outlet OR c.class_rank <= @outlet_cap OR c.pack_rank > 12)
 SELECT f.* EXCEPT (enrich_sponsored, enrich_read, vendor_paid),
   f.enrich_sponsored OR IFNULL(f.vendor_paid, FALSE) sponsored,
   f.enrich_read OR f.vendor_paid IS NOT NULL sponsor_checked,
@@ -143,9 +148,9 @@ SELECT f.* EXCEPT (enrich_sponsored, enrich_read, vendor_paid),
   (SELECT COUNT(*) FROM c) after_creator_cap,
   (SELECT COUNTIF(c.showable_flag) FROM c) after_creator_cap_showable,
   (SELECT COUNTIF(c.local_flag) FROM c) after_creator_cap_local,
-  (SELECT COUNT(*) FROM f) after_outlet_cap,
-  (SELECT COUNTIF(f.showable_flag) FROM f) after_outlet_cap_showable,
-  (SELECT COUNTIF(f.local_flag) FROM f) after_outlet_cap_local
+  (SELECT COUNT(*) FROM g) after_outlet_cap,
+  (SELECT COUNTIF(g.showable_flag) FROM g) after_outlet_cap_showable,
+  (SELECT COUNTIF(g.local_flag) FROM g) after_outlet_cap_local
 FROM (SELECT 1 one) base
 LEFT JOIN f ON TRUE
 ORDER BY f.market_member DESC, f.measured DESC, f.eng DESC, f.post_id

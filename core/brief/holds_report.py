@@ -14,6 +14,7 @@ import sys
 from collections import Counter, defaultdict
 from datetime import date
 
+from core.brief.payload import hold_base
 from core.brief.specificity import local_posts
 from core.trust.claims import located_market
 
@@ -84,7 +85,7 @@ def causes(held):
     """Held items grouped by their stored wording, biggest group first."""
     by = defaultdict(list)
     for h in held:
-        by[h["reason_text"] or h["reason"]].append(f"{h['market']} {h['title']}")
+        by[hold_base(h["reason_text"]) if h["reason_text"] else h["reason"]].append(f"{h['market']} {h['title']}")
     return sorted(by.items(), key=lambda kv: -len(kv[1]))
 
 
