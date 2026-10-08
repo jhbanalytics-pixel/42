@@ -38,7 +38,7 @@ Search rows come back with judgments=on by default: computed.relevance plus spon
 ## Cheap tricks that make SocialCrawl go further
 
 - seen: one seen id per market per day, shared by the 02:00 collect and the 05:15 confirm, so confirmation pays only for new rows on the 12 search routes that accept it (not search/multi). It lasts 24 hours, so it never replaces the 28-day novelty memory.
-- Counts as velocity: tiktok/hashtag and tiktok/song return running totals (global, not per country) at 1 credit, and tiktok/song/videos returns a per-day adoption curve; the day-to-day change is the measurement panel's velocity (TRUST.md section 4).
+- Counts as velocity: tiktok/hashtag and tiktok/song return running totals (global, not per country) at 1 credit, and tiktok/song/videos returns adoption points by publish day, a page sample and not a daily total, so no series is written from them (the job counts them as song_curve_sample_skipped); the day-to-day change is the measurement panel's velocity (TRUST.md section 4).
 - Batch re-reads: POST prism/post-stats re-reads up to 100 evidence URLs at 1 credit each; POST prism/profiles with include=posts and since= reads panel creators in bulk.
 - Geo: instagram/location/posts is the only Instagram geo route; youtube/search/advanced takes location and location_radius; X geocode: and near: operators may pass through twitter/search/tweets (probe).
 - Reconciliation: credits/transactions is free; a nightly job compares every charge with the ledger. Watch prices that conflict in the spec (linkedin/search/posts lists 1 credit but a formula of 5 a page; cohort queries have no listed price) and TikTok country filters, which bill each page before discarding foreign rows.

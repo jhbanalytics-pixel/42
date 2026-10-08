@@ -91,7 +91,7 @@ Stage 1 subset (28 September): Stage 1A runs gate rules G1, G3, G4b, G5, G5b, G6
 
 Measurement units. Each series is measured in the unit its source supports, recorded in item_counter_daily and item_daily with the protocol that produced it:
 - Rank lists (TikTok local feed, hashtag board, YouTube trending, charts, the X trends archive): entry, rank, rank climb and days present. Post counts in a fixed-length list are small and zero-sum, so they are never a volume.
-- Counters (hashtag and sound totals, sound adoption curves, view counts on re-read posts): daily deltas.
+- Counters (hashtag and sound totals, view counts on re-read posts): daily deltas. Sound adoption points from tiktok/song/videos are a page sample by publish day, so they write no series; the job counts them as song_curve_sample_skipped.
 - Searches (expansion, confirmation, agent live calls): presence only, never volume, never baseline.
 - Panels (hub accounts, sentinel creators, measurement panel): posts per day by a fixed protocol, which is the market-level volume.
 Days before a series was tracked are NULL, never zero, so a newly watched item never reads as a surge. A rank list or panel tracks every item from the day the list or panel started, so an item's absence from it is a real zero; a counter is tracked from the item's first read (DATA.md section 3).

@@ -191,7 +191,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY c.obs_date, c.market, c.item_id, c.serie
 
 ### 3.2 Measurement series
 
-A series is one item on one source in one market, measured in the unit that source supports, under one protocol (route, fixed parameters, list length, pulls a day, panel membership, planned search calls a market). A protocol change starts a new series. Markets: ZA, NG, KE; GLOBAL for platform-wide counters. Row numbers are SOURCES.md's costed table.
+A series is one item on one source in one market, measured in the unit that source supports, under one protocol (route, fixed parameters, list length, pulls a day, panel membership, planned search calls a market). A protocol change starts a new series. The culture desk, the curated panels and the gossip panel read as panel:<12 hex>:v2, and tiktok/song reads as tiktok/song?proto=v2; those version tokens start a fresh health reference for their series. Markets: ZA, NG, KE; GLOBAL for platform-wide counters. Row numbers are SOURCES.md's costed table.
 
 | Series | Source route | Markets | Lane class | Unit | Test from task 1.19 |
 |---|---|---|---|---|---|
@@ -208,7 +208,7 @@ A series is one item on one source in one market, measured in the unit that sour
 | panel_x_hub | twitter/user/tweets since= (23a) | ZA, NG, KE | panel | posts per day times k | negative binomial |
 | panel_telegram | telegram/profile/posts, curated channels (9, Stage 2) | ZA, NG, KE | panel | posts per day times k | negative binomial |
 | counter_tiktok_hashtag, counter_tiktok_sound | tiktok/hashtag and tiktok/song totals (12) | GLOBAL | unbiased_counter | daily delta of the running total | negative binomial |
-| curve_tiktok_sound | tiktok/song/videos adoption curve (11), no longer written | GLOBAL | unbiased_counter | a page sample of the vendor adoption curve, not a daily total | negative binomial |
+| curve_tiktok_sound | tiktok/song/videos adoption points (11) | none | not written | the vendor's by_day points total the videos on the page, a sample by publish day and not a daily total, so no series is written; the job counts them as song_curve_sample_skipped | none |
 | counter_ig_audio | instagram/audio/reels (13, Stage 2) | GLOBAL | unbiased_counter if a total is returned (probe), else watchlist | daily delta | negative binomial |
 | counter_post_views | prism/post-stats re-reads (22) | per post | unbiased_counter | daily view delta per post | none: Peaking and Fading context only, because 42 chooses the posts |
 | watch | posts on sound and hashtag pages (11, 12), new feed authors' posts (10), Alerts watches, anchor terms | as read | watchlist | presence | none |
