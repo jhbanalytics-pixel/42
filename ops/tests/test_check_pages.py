@@ -594,3 +594,32 @@ def test_an_unreadable_api_object_inventory_counts_as_a_failure(dataset):
     assert any("API views read failed (RuntimeError)" in line for line in lines)
     assert not any("denied" in line for line in lines)
     assert check_pages.run_bq(Readable(), DAY, out=lambda _line: None) == 0
+
+
+def today_body(*markets, date="2026-10-03"):
+    return {"status": "partial", "date": date, "markets": [
+        {"market": m, "cards": [{}] * c, "more": [], "breaking": [],
+         "held_back": {"count": h, "items": [{}] * h}} for m, c, h in markets]}
+
+
+def test_a_today_where_every_item_was_held_is_not_empty():
+    """An honest held-only Today (the checks held every topic) is a read of real data, not an empty page."""
+    body = today_body(("ZA", 0, 3), ("NG", 0, 2), ("KE", 0, 0))
+    detail, empty = check_pages.s_today(body)
+    assert empty is False
+    assert "ZA 0c/3h" in detail and "NG 0c/2h" in detail
+    tag, _ = check_pages.judge("Today", "/api/today", 200, body, check_pages.s_today, True, DAY, None)
+    assert tag == "OK"
+
+
+def test_a_today_with_no_cards_and_nothing_held_is_still_empty():
+    body = today_body(("ZA", 0, 0), ("NG", 0, 0), ("KE", 0, 0))
+    detail, empty = check_pages.s_today(body)
+    assert empty is True
+    tag, _ = check_pages.judge("Today", "/api/today", 200, body, check_pages.s_today, True, DAY, None)
+    assert tag == "EMPTY"
+
+
+def test_a_today_with_a_card_is_not_empty_whatever_was_held():
+    body = today_body(("ZA", 1, 0), ("NG", 0, 0), ("KE", 0, 4))
+    assert check_pages.s_today(body)[1] is False
