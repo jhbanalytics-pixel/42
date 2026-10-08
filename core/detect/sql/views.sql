@@ -7,10 +7,24 @@ CREATE OR REPLACE VIEW {core}.v_good_runs AS
 SELECT r.stage, r.run_date, ARRAY_AGG(r.run_id ORDER BY r.finished_at DESC LIMIT 1)[OFFSET(0)] run_id
 FROM {agent}.runs r WHERE r.status = 'ok' GROUP BY r.stage, r.run_date;
 
+-- W8-DEC-11: a paid route that landed nothing two days running is recorded invalid for the second and later days
+-- with reason zero_yield (core/collect/writers.py). The first of those days was written valid, because the next
+-- day did not exist yet, so it reads zero_yield here once the next day's good-run row names it. A row already
+-- invalid keeps its own reason. Columns are unchanged.
 CREATE OR REPLACE VIEW {core}.v_collection_health_current AS
-SELECT s.* FROM {core}.collection_health s
+SELECT s.* REPLACE (
+  IF(z.market IS NOT NULL AND s.valid, FALSE, s.valid) AS valid,
+  IF(z.market IS NOT NULL AND s.valid, 'zero_yield', s.invalid_reason) AS invalid_reason)
+FROM {core}.collection_health s
 JOIN {core}.v_good_runs g
-  ON g.stage = 'collect' AND g.run_date = s.day AND g.run_id = s.run_id;
+  ON g.stage = 'collect' AND g.run_date = s.day AND g.run_id = s.run_id
+LEFT JOIN (
+  SELECT DISTINCT DATE_SUB(n.day, INTERVAL 1 DAY) AS day, n.market, n.series, n.protocol
+  FROM {core}.collection_health n
+  JOIN {core}.v_good_runs gn
+    ON gn.stage = 'collect' AND gn.run_date = n.day AND gn.run_id = n.run_id
+  WHERE n.invalid_reason = 'zero_yield') z
+  ON z.day = s.day AND z.market = s.market AND z.series = s.series AND z.protocol = s.protocol;
 
 CREATE OR REPLACE VIEW {core}.v_item_daily_current AS
 SELECT s.* FROM {core}.item_daily s
