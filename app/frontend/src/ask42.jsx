@@ -11,6 +11,7 @@ import {validateAnswer} from './answerContract.js';
 import {createDossier, fetchDiscover, saveFinding} from './api42.js';
 import {downloadExport, getAsk, startAsk, stopAsk, streamAsk} from './askTransport42.js';
 import {go} from './router.js';
+import {marketToSend} from './askMarkets.js';
 import {EvidenceChip, monthName} from './ui/EvidenceChip.jsx';
 import {PostStrip} from './ui/PostStrip.jsx';
 import {RankedAnswer} from './RankedAnswer.jsx';
@@ -676,6 +677,8 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   const q = query || {};
   const [question, setQuestion] = useState(q.q || '');
   const [market, setMarket] = useState(() => marketCode(q.market) || marketCode(region));
+  /* The select starts on the page's region. Only a market the reader chose, or a link or starter carried in, is held against the market the question names. */
+  const marketPicked = useRef(Boolean(marketCode(q.market)));
   const [run, setRun] = useState(EMPTY_RUN);
   const [retry, setRetry] = useState(null);
   /* A reopened answer (follow) leads with the answer: the composer folds to
@@ -692,12 +695,17 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   }
   function pickStarter(text, mkt){
     setQuestion(text);
-    if (mkt) setMarket(mkt);
+    if (mkt){ marketPicked.current = true; setMarket(mkt); }
     if (questionField.current) questionField.current.focus();
   }
   function submitQuestion(){
     if (q.follow && run.record && run.record.ask_id){ followUp(question); return; }
-    ask(question, market);
+    ask(question, marketFor(question));
+  }
+  function marketFor(text){
+    const sent = marketToSend({question: text, selected: market, picked: marketPicked.current});
+    if (sent !== market) setMarket(sent);
+    return sent;
   }
   const control = useRef(null);
   const asked = useRef(null);
@@ -792,7 +800,8 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   useEffect(() => {
     if (!q.q || q.follow) return;
     const key = [q.q, q.market, q.item, q.date].join('|');
-    const mkt = marketCode(q.market) || market;
+    if (marketCode(q.market)) marketPicked.current = true;
+    const mkt = marketCode(q.market) || marketToSend({question: q.q, selected: market, picked: marketPicked.current});
     setQuestion(q.q);
     setMarket(mkt);
     if (q.draft) return;
@@ -803,6 +812,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   }, [q.q, q.market, q.item, q.date, q.draft]);
 
   function chooseMarket(value){
+    marketPicked.current = true;
     setMarket(value);
     if (value && setRegion) setRegion(value);
   }
@@ -820,7 +830,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   function followUp(text){
     const record = run.record;
     setQuestion(text);
-    ask(text, (record && record.market) || market, {parent_id: record ? record.ask_id : null});
+    ask(text, marketFor(text), {parent_id: record ? record.ask_id : null});
   }
 
   /* A followed ask was started elsewhere with its own confirm, so asking it
