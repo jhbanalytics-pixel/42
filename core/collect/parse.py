@@ -720,7 +720,7 @@ def _count(out, ctx, route, family, platform, params, data):
     if item_id is None:
         return
     if family == "curve":
-        _curve(out, ctx, GLOBAL, platform, item_id, ctx["counter_series"], _list(node.get("adoption")))
+        _curve(out, ctx, GLOBAL, platform, item_id, ctx["counter_series"], _adoption_points(node.get("adoption")))
         return
     total = _sound_uses(post) if route == "tiktok/song" else None
     if total is None:
@@ -733,6 +733,11 @@ def _count(out, ctx, route, family, platform, params, data):
         out["counters"].append(_counter(ctx, market=GLOBAL, platform=platform, item_id=item_id,
                                         series=ctx["counter_series"], lane_class="unbiased_counter", unit="total",
                                         value=total))
+
+
+def _adoption_points(adoption):
+    """The adoption curve's points: the list itself, else the by_day list of the object the vendor wraps it in."""
+    return _list(adoption) or _list(_dict(adoption).get("by_day"))
 
 
 def _sound_uses(post):
