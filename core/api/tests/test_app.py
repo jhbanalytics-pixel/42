@@ -1288,3 +1288,126 @@ def test_large_json_is_gzipped_for_a_client_that_accepts_it(ctx, big_routes):
 def test_an_event_stream_is_never_gzipped(ctx, big_routes):
     r = ctx.client.get("/__big_stream", headers={"Accept-Encoding": "gzip"})
     assert r.headers.get("content-encoding") is None
+
+
+# Contract 3.4b (C2 v2.1 section 2.1, tests AU-01 to AU-09): the request URL and the token audience are two values.
+# The audience is always the canonical agent URL; a tag URL is only ever a place to send requests.
+CANON = "https://f42-agent-fibxg5ynpq-uc.a.run.app"
+TAGGED = "https://rel-1234567-01---f42-agent-fibxg5ynpq-uc.a.run.app"
+
+
+def agent_config(monkeypatch, url, audience=None):
+    monkeypatch.setenv("AGENT_URL", url)
+    if audience is None:
+        monkeypatch.delenv("AGENT_AUDIENCE", raising=False)
+    else:
+        monkeypatch.setenv("AGENT_AUDIENCE", audience)
+    minted = []
+    monkeypatch.setattr(api_mod, "_id_token", lambda audience: minted.append(audience) or "idtok")
+    return minted
+
+
+def build_client():
+    import asyncio
+    return asyncio.run(api_mod._agent_client(httpx.Timeout(1.0)))
+
+
+def refusal_of(monkeypatch, url, audience, caplog):
+    from core.api.auth import ApiError
+    minted = agent_config(monkeypatch, url, audience)
+    with caplog.at_level("WARNING", logger="f42.api"):
+        with pytest.raises(ApiError) as caught:
+            build_client()
+    assert (caught.value.status, caught.value.error) == (502, "agent_unavailable")
+    assert minted == []  # no token is minted for a refused configuration
+    assert url not in caplog.text and (not audience or audience not in caplog.text)
+
+
+def test_au01_a_canonical_agent_url_with_no_audience_is_its_own_audience(monkeypatch):
+    minted = agent_config(monkeypatch, CANON)
+    assert str(build_client().base_url).rstrip("/") == CANON
+    assert minted == [CANON]
+
+
+def test_au02_a_tagged_request_url_still_mints_the_token_for_the_canonical_audience(monkeypatch):
+    minted = agent_config(monkeypatch, TAGGED, CANON)
+    client = build_client()
+    assert str(client.base_url).rstrip("/") == TAGGED
+    assert minted == [CANON]
+    assert client.headers["Authorization"] == "Bearer idtok"
+
+
+def test_au03_a_tagged_request_url_with_no_audience_fails_closed(monkeypatch, caplog):
+    refusal_of(monkeypatch, TAGGED, None, caplog)
+
+
+@pytest.mark.parametrize("audience", [CANON + "/x", CANON + "/", CANON.upper(), "http://f42-agent-fibxg5ynpq-uc.a.run.app",
+                                      CANON + "?a=1", "f42-agent-fibxg5ynpq-uc.a.run.app"])
+def test_au04_a_malformed_audience_is_refused(monkeypatch, caplog, audience):
+    refusal_of(monkeypatch, TAGGED, audience, caplog)
+    caplog.clear()
+    refusal_of(monkeypatch, CANON, audience, caplog)
+
+
+def test_au05_a_canonical_url_with_an_audience_on_another_host_is_refused(monkeypatch, caplog):
+    refusal_of(monkeypatch, CANON, "https://f42-other-fibxg5ynpq-uc.a.run.app", caplog)
+
+
+def test_a_canonical_url_with_the_same_audience_is_accepted(monkeypatch):
+    minted = agent_config(monkeypatch, CANON, CANON)
+    build_client()
+    assert minted == [CANON]
+
+
+def test_au06_a_local_agent_url_mints_no_token_whatever_the_audience(monkeypatch):
+    minted = agent_config(monkeypatch, "http://127.0.0.1:8081", "not even a url")
+    assert str(build_client().base_url).rstrip("/") == "http://127.0.0.1:8081"
+    assert minted == []
+
+
+def test_no_agent_url_stays_the_in_process_agent(monkeypatch):
+    minted = agent_config(monkeypatch, "", "garbage")
+    assert str(build_client().base_url).startswith("http://f42-agent")
+    assert minted == []
+
+
+def test_au07_the_health_check_and_the_events_relay_use_the_same_audience_rule(ctx, monkeypatch):
+    seen = []
+    agent_config(monkeypatch, TAGGED, CANON)
+    monkeypatch.setattr(api_mod, "_id_token", lambda audience: seen.append(audience) or "idtok")
+
+    def handler(request):
+        seen.append(str(request.url.host))
+        if request.url.path == "/health":
+            return httpx.Response(200, json={"ok": True, "t2_ready": True})
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=b"")
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **k: real(*a, **{**k, "transport": httpx.MockTransport(handler)}))
+    import asyncio
+    assert asyncio.run(api_mod._agent_check()) == ("ok", True)
+    ctx.client.get("/api/ask/a_1/events", headers=GOOD)
+    assert CANON in seen and TAGGED not in seen
+    assert {s for s in seen if s.startswith("https://")} == {CANON}
+    assert "rel-1234567-01---f42-agent-fibxg5ynpq-uc.a.run.app" in seen
+
+    from core.api.auth import ApiError
+    agent_config(monkeypatch, TAGGED, None)
+    assert asyncio.run(api_mod._agent_check()) == ("unreachable", False)
+    with pytest.raises(ApiError):
+        build_client()
+
+
+@pytest.mark.parametrize("url", ["https://rel-1234567-01---f42-other-fibxg5ynpq-uc.a.run.app",
+                                 "https://---f42-agent-fibxg5ynpq-uc.a.run.app",
+                                 "https://rel-1234567-01---rel-1234567-01---f42-agent-fibxg5ynpq-uc.a.run.app"])
+def test_au08_a_tag_host_that_does_not_end_in_the_audience_host_is_refused(monkeypatch, caplog, url):
+    refusal_of(monkeypatch, url, CANON, caplog)
+
+
+def test_au09_the_tag_url_the_release_tools_build_is_accepted(monkeypatch):
+    from ops.deploy.release import asset_origin
+    tagged = asset_origin(CANON, "question-abc1234")
+    minted = agent_config(monkeypatch, tagged, CANON)
+    assert str(build_client().base_url).rstrip("/") == tagged
+    assert minted == [CANON]

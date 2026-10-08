@@ -107,6 +107,36 @@ def _id_token(audience: str) -> str:
     )
 
 
+# AGENT_AUDIENCE: https, a lower-case host, no path, query or trailing slash.
+_AUDIENCE = re.compile(r"^https://[a-z0-9]([a-z0-9.-]*[a-z0-9])?$")
+_TAG_SEPARATOR = "---"
+
+
+def _agent_audience(url: str) -> str:
+    """The audience an ID token is minted for. It is always the canonical agent URL, never a tag URL: requests go
+    to AGENT_URL, which may be a revision tag URL, and AGENT_AUDIENCE names the service itself. An unset audience
+    stands only for a canonical URL (a rollback or an ordinary deploy). A tag URL with no usable audience is
+    refused rather than minted for, so a tag host is never an audience. Nothing here reads the network."""
+    audience = os.environ.get("AGENT_AUDIENCE", "").strip()
+    host = url.removeprefix("https://")
+    tagged = _TAG_SEPARATOR in host.split(".", 1)[0]
+    if not audience:
+        if tagged:
+            raise ValueError("agent_audience_missing")
+        return url
+    if not _AUDIENCE.match(audience):
+        raise ValueError("agent_audience_malformed")
+    audience_host = audience.removeprefix("https://")
+    if not tagged:
+        if audience != url:
+            raise ValueError("agent_audience_differs")
+        return audience
+    label, _, rest = host.partition(_TAG_SEPARATOR)
+    if not label or "/" in host or rest != audience_host:
+        raise ValueError("agent_tag_host_not_tied_to_audience")
+    return audience
+
+
 async def _agent_client(timeout: httpx.Timeout) -> httpx.AsyncClient:
     url = os.environ.get("AGENT_URL", "").strip().rstrip("/")
     try:
@@ -115,7 +145,12 @@ async def _agent_client(timeout: httpx.Timeout) -> httpx.AsyncClient:
             # Cloud Run URLs are always https and always get an ID token.
             return httpx.AsyncClient(base_url=url, timeout=timeout)
         if url:
-            token = await run_in_threadpool(_id_token, url)
+            try:
+                audience = _agent_audience(url)
+            except ValueError as exc:
+                logger.warning("agent client refused: %s", exc)
+                raise ApiError(502, "agent_unavailable", "The Ask service cannot be reached.") from exc
+            token = await run_in_threadpool(_id_token, audience)
             return httpx.AsyncClient(
                 base_url=url, headers={"Authorization": f"Bearer {token}"}, timeout=timeout
             )
@@ -126,6 +161,8 @@ async def _agent_client(timeout: httpx.Timeout) -> httpx.AsyncClient:
             base_url="http://f42-agent",
             timeout=timeout,
         )
+    except ApiError:
+        raise
     except Exception as exc:
         logger.warning("agent client not available: %s", type(exc).__name__)
         raise ApiError(502, "agent_unavailable", "The Ask service cannot be reached.") from exc
