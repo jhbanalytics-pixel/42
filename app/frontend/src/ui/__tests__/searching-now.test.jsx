@@ -177,3 +177,20 @@ test('the caption sits under the heading and explains Google ranks', () => {
   expect(header).toContain('grid-template-columns: minmax(0, 1fr);');
   expect(/\.searching-now__caption \{[^}]*\}/.exec(css)[0]).not.toContain('text-align: right');
 });
+
+// Wave 8: the heading carries Google's mark, vendored inline and decorative,
+// beside the words; the heading and caption markup is otherwise unchanged.
+test('the header carries a decorative Google logo beside the heading text', () => {
+  const html = render({signals, market: 'NG'});
+  const svg = /<svg[^>]*class="pl-logo[^"]*"[^>]*>/.exec(html);
+  expect(svg).not.toBeNull();
+  expect(svg[0]).toContain('aria-hidden="true"');
+  expect(svg[0]).toContain('data-logo="google"');
+  expect(html.indexOf('pl-logo')).toBeLessThan(html.indexOf('searching-now__heading'));
+  expect(html.indexOf('<svg')).toBeGreaterThan(html.indexOf('searching-now__header'));
+  expect(html).toContain('>Trending on Google');
+  expect(html).not.toMatch(/<svg[^>]*>[^]*<title>/);
+  expect(html).not.toMatch(/<image|<img/);
+  const css = readFileSync(new URL('../../styles/searching-now.css', import.meta.url), 'utf8');
+  expect(css).toMatch(/\.searching-now__logo\s*\{[^}]*position:\s*absolute/);
+});
