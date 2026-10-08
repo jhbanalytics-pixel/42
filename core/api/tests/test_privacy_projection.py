@@ -35,12 +35,19 @@ class PrivStore(FixtureStore):
         super().__init__()
         self.hide, self.fail, self.posts = set(hide), fail, dict(POSTS if posts is None else posts)
         self.calls, self.writes = [], []
+        self.suppression_rows = []  # the current rows of the suppressions table, as store.suppressions() returns them
 
     def suppressed_creators(self):
         self.calls.append("suppressed_creators")
         if self.fail == "list":
             raise RuntimeError("view unreadable")
         return None if self.fail == "missing" else set(self.hide)
+
+    def suppressions(self):
+        self.calls.append("suppressions")
+        if self.fail == "suppressions":
+            raise RuntimeError("suppressions unreadable")
+        return None if self.fail == "no_table" else list(self.suppression_rows)
 
     def creators_by_id(self, creator_ids):
         self.calls.append("creators_by_id")
@@ -167,7 +174,7 @@ def test_a_summary_that_was_already_blank_stays_blank():
 def test_the_projection_reads_and_writes_nothing_beyond_the_list_and_one_post_lookup_a35_a44():
     store = PrivStore(hide={"c_hid"})
     project(ask_record(), store)
-    assert store.calls == ["suppressed_creators", "creators_by_id", "post_creators"]
+    assert store.calls == ["suppressed_creators", "creators_by_id", "suppressions", "post_creators"]
     assert store.writes == []
 
 
@@ -419,3 +426,52 @@ def test_a_claim_that_only_quotes_a_hidden_post_is_withheld_with_it():
     record["answer"]["claims"][0]["quotes"] = [{"evidence_id": P_HID1, "text": "fixture hidden words one"}]
     out = project(record, PrivStore(hide={"c_hid"}))
     assert "c1" not in claim_ids(out)
+
+
+# A suppression that names a platform and handle but whose creator has no creators row: the view cannot resolve it
+# to an id, so the handle itself is what hides the person (C5 v2 section 3).
+def handle_row(status="active", platform="tiktok", handle="hid_handle", creator_id=None):
+    return {"suppression_id": "s1", "status_at": "2026-10-07T08:00:00+02:00", "status": status,
+            "creator_id": creator_id, "platform": platform, "handle": handle, "reason": "asked", "who": "passcode"}
+
+
+def test_a_suppressed_handle_with_no_creators_row_is_still_masked():
+    store = PrivStore(hide=set())
+    store.suppression_rows = [handle_row()]
+    out = project(ask_record(), store)
+    assert [e["id"] for e in out["answer"]["evidence"]] == [P_VIS1, P_REN1]
+    assert claim_ids(out) == ["c1", "c4"]
+    assert leaks(out, HIDDEN_POST_LEAKS) == []
+    assert out["privacy"]["withheld"] == {"posts": 1, "claims": 2, "summary": True}
+
+
+def test_a_lifted_handle_row_hides_nobody():
+    store = PrivStore(hide=set())
+    store.suppression_rows = [handle_row(status="lifted")]
+    record = ask_record()
+    assert project(record, store) == record
+
+
+def test_a_row_that_names_only_a_creator_id_hides_that_creator():
+    store = PrivStore(hide=set())
+    store.suppression_rows = [handle_row(platform=None, handle=None, creator_id="c_hid")]
+    assert "hid_handle" not in body_of(project(ask_record(), store))
+
+
+def test_a_suppressions_table_that_cannot_be_read_makes_the_list_unavailable():
+    store = PrivStore(hide=set(), fail="suppressions")
+    out = project(ask_record(), store)
+    assert out["privacy"]["state"] == "unavailable" and out["answer"]["claims"] == []
+
+
+def test_a_missing_suppressions_table_adds_no_handles():
+    store = PrivStore(hide={"c_hid"}, fail="no_table")
+    assert claim_ids(project(ask_record(), store)) == ["c1", "c4"]
+
+
+def test_a_handle_only_suppression_hides_the_creator_in_a_dossier():
+    store = PrivStore(hide=set())
+    store.suppression_rows = [handle_row()]
+    view, _ = dossier_view()
+    assert "hid_handle" not in body_of(privacy.project_dossier(view, store))
+    assert privacy.nothing_hidden(privacy.read_hidden(store)) is False

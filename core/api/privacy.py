@@ -49,8 +49,30 @@ class PeopleUnavailable(Exception):
 
 
 def read_hidden(store):
-    """(keys, ids, names) of the people hidden now, or None when the list cannot be read (R4)."""
-    return today.hidden_people(store)
+    """(keys, ids, names) of the people hidden now, or None when the list cannot be read (R4). Beyond what the people
+    routes read, the current suppression rows add their own handle keys and creator ids: a suppression that names a
+    platform and handle with no creators row behind it is not in the view, and the handle alone must still hide the
+    person (C5 v2 section 3)."""
+    base = today.hidden_people(store)
+    if base is None:
+        return None
+    try:
+        rows = store.suppressions()
+    except Exception as exc:
+        log.warning("the suppressions could not be read (%s); the list is unavailable", type(exc).__name__)
+        return None
+    keys, ids, names = base
+    held = [r for r in rows or [] if isinstance(r, dict) and r.get("status") != "lifted"]
+    extra_keys = {creator_key(r.get("platform"), r.get("handle")) for r in held if r.get("platform") and r.get("handle")}
+    extra_ids = {r["creator_id"] for r in held if r.get("creator_id")}
+    fresh = extra_ids - set(ids)
+    if fresh:  # a row that names only an id: that creator's own handle is masked in text too
+        try:
+            extra_keys |= {creator_key(c.get("platform"), c.get("handle")) for c in store.creators_by_id(sorted(fresh)) or []}
+        except Exception as exc:
+            log.warning("the creators lookup failed (%s); the list is unavailable", type(exc).__name__)
+            return None
+    return keys | (extra_keys - {None}), ids | extra_ids, names
 
 
 def _resolve(hidden, store):
