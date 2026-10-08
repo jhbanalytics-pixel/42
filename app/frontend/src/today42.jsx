@@ -383,7 +383,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
   const isLoading = load.state === 'loading';
 
   return (
-    <BriefDay.Provider value={briefDayWords(briefDate || (/^d{4}-d{2}-d{2}$/.test(date || '') ? date : null))}>
+    <BriefDay.Provider value={briefDayWords(briefDate || (/^\d{4}-\d{2}-\d{2}$/.test(date || '') ? date : null))}>
     <section className="page t42">
       <header className="t42-head">
         <h1 className="t42-heading" {...(load.state === 'ready' ? {'data-today-loaded': ''} : {})}>{load.state === 'ready' && headingText ? headingWords(headingText) : 'Today'}</h1>

@@ -2835,6 +2835,26 @@ test('a brief for the current day still says today', async () => {
   });
 });
 
+/* A payload with no date of its own falls back to the date the page was asked for. */
+test('a past brief with no date in its payload is worded from the date asked for', async () => {
+  await withClock('2026-10-08T08:00:00Z', async () => {
+    const today = clone(todayFixture);
+    delete today.date;
+    await mount({region: 'ZA', date: '2026-09-30'}, today);
+    expect(text()).toContain('Left out on 30 September 2026:');
+    expect(text()).not.toContain('Left out today');
+  });
+});
+
+test('a brief with no date in its payload for the current day still says today', async () => {
+  await withClock('2026-09-30T08:00:00Z', async () => {
+    const today = clone(todayFixture);
+    delete today.date;
+    await mount({region: 'ZA', date: '2026-09-30'}, today);
+    expect(text()).toContain('Left out today:');
+  });
+});
+
 /* Wave 8 N44 (R0269, R0279): the page re-checks every admitted card with its
    own copy of the server's specificity rule. The copy must count words as the
    server does, and a card it still rejects must be said, not dropped. */
