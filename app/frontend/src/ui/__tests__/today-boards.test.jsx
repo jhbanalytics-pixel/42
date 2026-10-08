@@ -331,6 +331,41 @@ test('the count is taken before any filter, so an unreadable or unranked sightin
   expect(multi(rowsOf(cardFor('Spotify'))[0])).toBe('On 3 charts');
 });
 
+test('a chart is identified by platform and list together: two lists on one platform are two charts', () => {
+  const sameShop = [
+    board('apple_music', 'Top 100: South Africa', [entry(4, 'Both by Someone', 'both')]),
+    board('apple_music', 'Top 100: Nigeria', [entry(9, 'Both by Someone', 'both')]),
+  ];
+  expect(chartCounts(sameShop).get('both')).toBe(2);
+  const sameName = [
+    board('spotify', 'Daily top', [entry(1, 'Both by Someone', 'both')]),
+    board('shazam', 'Daily top', [entry(1, 'Both by Someone', 'both')]),
+  ];
+  expect(chartCounts(sameName).get('both')).toBe(2);
+  const one = [board('spotify', 'Daily top', [entry(1, 'Both by Someone', 'both')]), board('spotify', ' Daily top ', [entry(2, 'Both by Someone', 'both')])];
+  expect(chartCounts(one).get('both')).toBe(1);
+  show({boards: sameShop});
+  for (const card of host.querySelectorAll('[data-board-card]')) expect(multi(rowsOf(card)[0])).toBe('On 2 charts');
+  expect(host.querySelector('[data-board-card] .tb-multi').getAttribute('title')).toMatch(/Also on Apple Music Top 100: (Nigeria|South Africa)/);
+  show({boards: sameName});
+  for (const card of host.querySelectorAll('[data-board-card]')) expect(multi(rowsOf(card)[0])).toBe('On 2 charts');
+});
+
+test('a rank of zero, below zero, text or NaN is unranked, never shown as a rank', () => {
+  show({boards: [board('apple_music', 'Odd ranks', [
+    entry(0, 'Zero by Artist', 'z'),
+    entry(-3, 'Negative by Artist', 'n'),
+    entry(NaN, 'Nan by Artist', 'x'),
+    entry('4', 'Text by Artist', 't'),
+    entry(1, 'Real by Artist', 'r'),
+  ])]});
+  const rows = rowsOf(cardFor('Apple Music'));
+  expect(rows.map((row) => row.querySelector('.tb-rank').textContent)).toEqual(['-', '-', '-', '-', '1']);
+  expect(rows.slice(0, 4).every((row) => /Unranked/.test(row.querySelector('.sr-only').textContent))).toBe(true);
+  expect(rows[4].querySelector('.sr-only').textContent).toMatch(/Rank 1\./);
+  expect(rows.map((row) => row.getAttribute('data-row-id').split('|')[2])).toEqual(['', '', '', '', '1']);
+});
+
 test('an item without an item id never gets a marker, even when its title repeats', () => {
   const boards = [
     board('apple_music', 'A', [entry(1, 'Same Title by Same Artist', null)]),
