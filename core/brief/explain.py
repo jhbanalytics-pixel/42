@@ -759,7 +759,7 @@ def _answer(draft, pack):
     for c in draft.get("claims") or []:
         claim = {k: copy.deepcopy(c.get(k)) for k in ("id", "text", "label", "kind", "evidence_ids", "quotes")}
         # An unknown number id stays unpinned, so K2 cuts the claim.
-        claim["numbers"] = [{k: v for k, v in by_id[x].items() if k != "rival_field"} if x in by_id
+        claim["numbers"] = [{k: v for k, v in by_id[x].items() if k not in ("rival_field", "cutoff")} if x in by_id
                             else {"number_id": x} for x in c.get("number_ids") or []]
         claims.append(claim)
     return {

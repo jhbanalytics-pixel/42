@@ -22,7 +22,10 @@ pack is the shape core/brief/explain.py reads:
         After those, when detect has them for the item, the rival-explanation numbers of RIVAL_NUMBERS (posts7,
         burst_share, top3_share, near_dup_share, sponsored_share, local_share, markets_hot), each pinned the same way
         and carrying rival_field, its detect name (METHOD-GAPS Gap 7). They reach the writer and the critic like any
-        pack number, K2 re-runs them, and the card's own numbers leave them out (payload.py).
+        pack number, K2 re-runs them, and the card's own numbers leave them out (payload.py). The four window
+        numbers and small_at, large_at also carry cutoff, the start time of the detect run: they read observations up
+        to it, the cutoff is part of their query id, and a re-run uses it, so a post observed after the run cannot
+        change them. The three rival queries run under the brief's byte cap (MAX_BYTES).
     pinned: present only when detect gave one: rows {value, unit, query_id, run_id, result_hash, rival_field} for
         the values that are not numbers (share_flags, diffusion, small_at, large_at, lead_market, novelty, moment),
         pinned and re-run like the numbers. A time is its ISO 8601 text. No claim cites them; they back the why-now
@@ -56,6 +59,9 @@ from core.api.today import without_hidden
 from core.brief.payload import STATE_WORDS
 from core.brief.specificity import local_posts
 from core.collect.writers import KNOWN_GEO
+from google.cloud import bigquery
+
+from core.brief.holds_report import MAX_BYTES
 from core.detect import sqlrun
 from core.detect.sqlrun import AGENT, CORE
 
@@ -87,6 +93,9 @@ RIVAL_PINS = (
     ("rival_state", "novelty", "detect novelty"),
     ("rival_state", "moment", "detect calendar moment"),
 )
+# The rival queries read wide tables, so each runs under the brief's byte cap (holds_report.MAX_BYTES) and a query over
+# it fails; _rival_pins then leaves the pack as it was. The other evidence queries run as they always did.
+RIVAL_QUERIES = ("rival_cutoff", "rival_state", "rival_window")
 SPARK_UNITS = {"panel": "posts a day", "unbiased_rank": "list appearances a day",
                "unbiased_counter": "counter rise a day"}
 
@@ -98,6 +107,14 @@ def _queries():
 
 
 QUERIES = _queries()
+
+
+def _capped(client, name, params, core, agent):
+    """One rival query under maximum_bytes_billed, rows as dicts (sqlrun.query has no cap)."""
+    config = bigquery.QueryJobConfig(query_parameters=[sqlrun._param(k, v) for k, v in params.items()],
+                                     maximum_bytes_billed=MAX_BYTES)
+    return [dict(row.items()) for row in client.query(sqlrun.render(QUERIES[name], core, agent),
+                                                     job_config=config).result()]
 
 
 class SuppressionUnreadable(RuntimeError):
@@ -272,9 +289,19 @@ def _rival_pins(run, params, run_id, registry):
     """(numbers, pinned rows, got) for detect's rival-explanation values, or three empties when the read fails: these
     values are extra evidence, so a failed read leaves the pack as it was and the card is not held for it. A null in a
     row detect wrote is itself pinned (no calendar moment, no macro post), so it can be stated; a query that gave no
-    row, or only nulls, pins nothing."""
+    row, or only nulls, pins nothing. The window values are read up to the detect run's start (rival_cutoff), which is
+    stored with each of them as cutoff and is part of its query id, so a re-run returns the same value; a run with no
+    start time pins no window value."""
+    query_params = {"rival_state": {k: params[k] for k in ("item_id", "market", "d", "run_id")}}
     try:
-        rows = {name: run(name, params) for name in ("rival_state", "rival_window")}
+        rows = {"rival_state": run("rival_state", query_params["rival_state"])}
+        cutoff = _value(run("rival_cutoff", {k: params[k] for k in ("item_id", "market", "d", "run_id")}))
+        if cutoff is None:
+            print(f"brief {params['d'].isoformat()}: rival_cutoff_missing", file=sys.stderr)
+            rows["rival_window"] = []
+        else:
+            query_params["rival_window"] = {**{k: params[k] for k in ("item_id", "market", "d")}, "cutoff": cutoff}
+            rows["rival_window"] = run("rival_window", query_params["rival_window"])
     except Exception as e:
         print(f"brief {params['d'].isoformat()}: rival_evidence_read_failed {type(e).__name__}", file=sys.stderr)
         return [], [], {}
@@ -285,12 +312,15 @@ def _rival_pins(run, params, run_id, registry):
         raw = _value(rows[name], column)
         if raw is None and (number or not real[name]):
             return None
-        query_id = _query_id(name, params, column)
-        registry[query_id] = (name, params, column)
+        query_id = _query_id(name, query_params[name], column)
+        registry[query_id] = (name, query_params[name], column)
         value = _plain(raw)
         got[column] = (value, query_id)
-        return {"value": value, "unit": unit, "query_id": query_id, "run_id": run_id,
-                "result_hash": result_hash([{"value": raw}]), "rival_field": column}
+        entry = {"value": value, "unit": unit, "query_id": query_id, "run_id": run_id,
+                 "result_hash": result_hash([{"value": raw}]), "rival_field": column}
+        if name == "rival_window":
+            entry["cutoff"] = _plain(query_params[name]["cutoff"])
+        return entry
 
     for name, column, unit in RIVAL_NUMBERS:
         entry = pin(name, column, unit, True)
@@ -308,6 +338,8 @@ def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=No
     hidden = read_hidden(client, core=core, agent=agent) if hidden is None else hidden
 
     def run(name, params):
+        if name in RIVAL_QUERIES:
+            return _capped(client, name, params, core, agent)
         return sqlrun.query(client, QUERIES[name], params, core=core, agent=agent)
 
     tz = timezone(timedelta(hours=OFFSETS[market]))

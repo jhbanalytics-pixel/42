@@ -156,7 +156,7 @@ def test_a_failing_rival_query_leaves_the_base_pack_unchanged(capsys):
 
     class Broken(duck.Client):
         def query(self, sql, job_config=None):
-            if "tvf_item_window" in sql:
+            if "po.observed_at <= @cutoff" in sql:
                 raise RuntimeError("window query failed")
             return super().query(sql, job_config)
 
@@ -282,4 +282,4 @@ def test_a_claim_citing_a_rival_number_carries_the_pinned_entry_without_the_inte
     draft = {"explanation": "x", "claims": [{"id": "c1", "text": "t", "label": "observed", "kind": "observation",
                                              "evidence_ids": [], "quotes": [], "number_ids": [ids[burst["query_id"]]]}]}
     [entry] = explain._answer(draft, pack)["claims"][0]["numbers"]
-    assert entry == {k: v for k, v in burst.items() if k != "rival_field"}
+    assert entry == {k: v for k, v in burst.items() if k not in ("rival_field", "cutoff")}
