@@ -73,7 +73,7 @@ class FakeBigQuery:
         # Before the suppression list: the market scope query names v_suppressed_creators too.
         if "-- name: market_scope" in sql:
             market_posts, total = SCOPE[item]
-            return [{"total_posts7": total, "market_posts7": market_posts}]
+            return [{"total_posts7": total, "market_posts7": market_posts, "news_posts7": 0}]
         if "v_suppressed_creators" in sql:
             return []
         if "v_item_state_current s" in sql:
