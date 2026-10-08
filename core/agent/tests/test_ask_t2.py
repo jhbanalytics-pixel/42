@@ -416,6 +416,73 @@ def test_real_t2_gap_pass_does_not_retry_a_claims_k4_rewrite():
     assert any(row["claim_id"] == "c2" and row["rule"] == "K4" and row["verdict"] == "cut" for row in rows(h))
 
 
+class RedraftedGapModel(K4IntegrationModel):
+    """K4IntegrationModel whose gap pass writes a NEW draft: the same claim id c2, but different words. The support
+    check answers from `verdicts` by call number (pass 1 initial, pass 1 fresh, pass 2 initial, pass 2 fresh)."""
+
+    REDRAFT = "Amapiano chatter on TikTok has slowed this week."
+
+    def __init__(self, verdicts):
+        super().__init__(critic_pending=True)
+        self.verdicts = verdicts
+        # A second claim, c3, that passes everything, so the answer is not held for having fewer than two claims.
+        self.writer_out["claims"].append(copy.deepcopy(test_ask.WRITER_OUT["claims"][2]))
+
+    def complete_json(self, *, system, user, schema, model, max_tokens):
+        if schema is WRITER_SCHEMA:
+            count = sum(call["schema"] is WRITER_SCHEMA for call in self.calls)
+            out, usage = super().complete_json(system=system, user=user, schema=schema, model=model,
+                                               max_tokens=max_tokens)
+            if count >= 1:
+                out["claims"][0]["text"] = self.REDRAFT
+            return out, usage
+        if schema is SUPPORT_SCHEMA:
+            count = sum(call["schema"] is SUPPORT_SCHEMA and "Durban" not in call["user"] for call in self.calls)
+            self.calls.append({"model": model, "schema": schema, "user": user, "max_tokens": max_tokens})
+            verdict = "supported" if "Durban" in user else self.verdicts[min(count, len(self.verdicts) - 1)]
+            return ({"verdict": verdict, "reason": "Checked against the post.",
+                     "demographic_inference": False, "tone_claim": False, "forecast_assertion": False,
+                     "country_people": []}, {"input_tokens": 100, "output_tokens": 20, "usd": 0.0006})
+        if schema is critic.CRITIC_SCHEMA:
+            count = sum(call["schema"] is critic.CRITIC_SCHEMA for call in self.calls)
+            self.calls.append({"model": model, "schema": schema, "user": user, "max_tokens": max_tokens})
+            verdicts = []
+            for cid in dict.fromkeys(re.findall(r'"id": "(c\d+)"', user)):
+                pending = cid == "c2" and count == 0
+                verdicts.append({"claim_id": cid, "verdict": "needs_evidence" if pending else "keep", "label": "",
+                                 "reason": "The claim needs another source." if pending else "",
+                                 "quote": "", "query": "What else do TikTok posts say about amapiano?" if pending else ""})
+            return ({"verdicts": verdicts, "missing_perspectives": [], "followups": [], "overall_risk": "medium"},
+                    {"input_tokens": 3000, "output_tokens": 400, "usd": 0.015})
+        return super().complete_json(system=system, user=user, schema=schema, model=model, max_tokens=max_tokens)
+
+
+def test_a_gap_pass_draft_that_reuses_a_claim_id_with_new_words_keeps_its_implications():
+    # N36: pass 1 narrowed c2, so "c2" sat in the ask's rewrite set; the gap pass writes a different c2 that the
+    # support check passes, and its so_what and watch_next items were dropped for sharing the label.
+    model = RedraftedGapModel(("partial", "supported", "supported"))
+    h = Harness(research=Lanes(parties=4), check=None, model=model)
+    out = h.run(tier="T2")
+
+    assert sum(call["schema"] is WRITER_SCHEMA for call in model.calls) == 2
+    answer = out["answer"]
+    assert [claim["id"] for claim in answer["claims"]] == ["c2", "c3"]
+    assert answer["claims"][0]["text"] == RedraftedGapModel.REDRAFT
+    assert [item["text"] for item in answer["so_what"]] == ["Interest is cooling."]
+    assert [item["text"] for item in answer["watch_next"]] == ["Watch whether fading continues."]
+    assert answer["short_answer"] == test_ask.STALE_HEADLINE and answer["context"] == test_ask.STALE_CONTEXT
+
+
+def test_a_gap_pass_draft_that_reuses_a_claim_id_with_new_words_still_gets_its_one_narrowing():
+    model = RedraftedGapModel(("partial", "supported", "partial", "partial"))
+    h = Harness(research=Lanes(parties=4), check=None, model=model)
+    h.run(tier="T2")
+
+    assert sum(call["schema"] is WRITER_SCHEMA for call in model.calls) == 2
+    assert sum(call["schema"] is K4_REWRITE_SCHEMA for call in model.calls) == 2  # one narrowing per draft's claim
+    assert sum(call["schema"] is K4_REWRITE_SCHEMA for call in model.calls) <= 2 * K4_REWRITE_CALLS
+
+
 def test_no_reserve_left_means_pending_claims_are_cut():
     model = CriticModel({"c3": {"verdict": "needs_evidence"}})
     lanes = Lanes(parties=4, overspend=100.0)  # four researchers spend past the whole tier

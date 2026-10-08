@@ -650,6 +650,11 @@ def _label(model: str, plain: str) -> str:
     return plain
 
 
+def _claim_fingerprint(claim: dict) -> str:
+    """A claim's words and cited posts: what makes a later draft's claim the same claim as an earlier draft's."""
+    return json.dumps([claim.get("text"), sorted(str(e) for e in claim.get("evidence_ids") or [])], ensure_ascii=False)
+
+
 def call_usd(name: str, tokens_in: int, tokens_out: int) -> float:
     """The most one model call may cost, including Gemini's output reserve."""
     price = price_for(name)
@@ -1578,7 +1583,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     stop_model = _StopAwareModel(deps.model, should_stop, model_budget, phase_seconds=phase_seconds)
     research_started = research_reported = False
     finished = None
-    rewrite_attempted: set[str] = set()
+    rewrite_ledger: dict[str, str] = {}  # claim id -> the words and posts of the claim whose narrowing was attempted
     headline_rewritten = False  # the one short answer rewrite an ask may make (writer.HEADLINE_REWRITE_CALLS)
     fallback_brief = None
     fallback_post_ids = []
@@ -1711,10 +1716,15 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         checked, verdicts = timed("checks", check, draft, ctx, deps.warehouse, window=window, markets=markets)
         if should_stop():
             raise _StopRequested()
+        # Each gate pass writes a fresh draft whose ids restart at c1, so an earlier attempt blocks a claim here only
+        # when this draft's claim has the same words and posts (writer.apply_support keeps one narrowing per claim).
+        presented = {c["id"]: _claim_fingerprint(c) for c in checked.get("claims") or [] if isinstance(c.get("id"), str)}
+        rewrite_attempted = {cid for cid, seen in rewrite_ledger.items() if presented.get(cid) == seen}
         answer, support, usage = timed("checks", apply_support, stop_model, checked, ctx, model_name,
                                                warehouse=deps.warehouse,
                                                window=window, markets=markets,
                                                rewrite_attempted=rewrite_attempted)
+        rewrite_ledger.update({cid: presented[cid] for cid in rewrite_attempted if cid in presented})
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
             raise _StopRequested()
