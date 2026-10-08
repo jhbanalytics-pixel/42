@@ -10,11 +10,11 @@ import {headlineParts} from './nightdesk.js';
 import {createContext, useContext, useEffect, useRef, useState} from 'react';
 import {fetchToday, scheduledRunWords} from './api42.js';
 import {readerFigure} from './api.js';
-import {boardTitle} from './readerUnits.js';
 import {snapshotTime} from './plainLabels.js';
 import {safeUrl} from './safeUrl.js';
 import {SearchingNow} from './ui/SearchingNow.jsx';
-import {EvidenceList, PostsShownNote, Sparkline, TrendCard, bigFigures, countLineWords, figureWords, longDate, platformWord, proseDates, topicHref} from './ui/TrendCard.jsx';
+import {TodayBoards} from './ui/TodayBoards.jsx';
+import {EvidenceList, PostsShownNote, Sparkline, TrendCard, bigFigures, countLineWords, figureWords, longDate, proseDates, topicHref} from './ui/TrendCard.jsx';
 import {PartsBar, StepMeter} from './ui/Charts42.jsx';
 import {FigureLine} from './ui/FigureLine.jsx';
 import {Facts} from './ui/Facts.jsx';
@@ -965,7 +965,7 @@ function BelowCards({market, showHeldBack, openLeftOut}){
       <LeftOut market={market} showHeldBack={showHeldBack} open={openLeftOut} />
       <NotAssessed audit={market.not_assessed} />
       <Moments moments={market.moments} />
-      <Boards boards={market.boards} />
+      <TodayBoards boards={market.boards} />
     </div>
   );
 }
@@ -1233,52 +1233,6 @@ function Moments({moments}){
             ))}
           </ul>
         : <p className="t42-line-text">No moments in the next 14 days.</p>}
-    </section>
-  );
-}
-
-/* f42-api leaves out board entries titled with an id; this catches any that
-   still arrive, so an id is never shown as a name (contract.md section 4). */
-const ID_TITLE = /^(uc[a-z0-9_-]{22}|t2_[a-z0-9]+|[0-9a-f]{64})$/i;
-const readable = (title) => typeof title === 'string' && boardTitle(title) !== '' && !ID_TITLE.test(title.trim());
-
-function Boards({boards}){
-  const day = useContext(BriefDay);
-  const items = Array.isArray(boards) ? boards : [];
-  return (
-    <section className="t42-section" data-section="boards">
-      <h3 className="t42-section-title">On the boards {day}</h3>
-      {items.length > 0
-        ? <div className="t42-row">
-            {items.map((b) => {
-              const entries = Array.isArray(b.entries) ? b.entries : [];
-              const shown = entries.filter((e) => readable(e.title));
-              const leftOut = (Number(b.left_out) || 0) + entries.length - shown.length;
-              const tied = (rank) => shown.filter((e) => e.rank === rank).length > 1;
-              return (
-                <div key={b.platform + b.list} className="t42-board">
-                  {/* Whose list it is, and the list's name and window, are
-                      two whole units: a narrow screen breaks after the colon,
-                      never inside either. */}
-                  <p className="t42-line-text"><span className="fact-unit">{platformWord(b.platform)}'s own list:</span> <span className="fact-unit">{b.list}, best rank {day}</span></p>
-                  {shown.length > 0 && (
-                    <ul className="t42-board-rows">
-                      {shown.map((e, i) => {
-                        const rank = e.rank;
-                        const title = boardTitle(e.title);
-                        const label = rank === null || rank === undefined
-                          ? title
-                          : (tied(rank) ? '=' : '') + rank + ' ' + title;
-                        return <li key={e.item_id || i}>{label}</li>;
-                      })}
-                    </ul>
-                  )}
-                  {leftOut > 0 && <p className="t42-line-text t42-board-left-out">{leftOut} left out: {b.left_out_reason || 'No readable name'}</p>}
-                </div>
-              );
-            })}
-          </div>
-        : <p className="t42-line-text">No platform lists were read {day}.</p>}
     </section>
   );
 }

@@ -777,7 +777,9 @@ test('a post or board collected as "twitter" is named X, never Twitter', async (
   await mount({}, today);
   const shown = cardTitled('#fixture_za_step');
   expect(shown.querySelector('.t42-thumbs img').getAttribute('alt')).toBe('Post on X');
-  expect(host.querySelector('[data-section="boards"]').textContent).toContain("X's own list: Hashtag board, 7 days");
+  const xCard = host.querySelector('[data-section="boards"] [data-board-card]');
+  expect(xCard.querySelector('.tb-platform').textContent).toBe('X');
+  expect(xCard.querySelector('.tb-list').textContent).toBe('Hashtag board, 7 days');
   expect(host.innerHTML).not.toMatch(/twitter/i);
 });
 
@@ -1282,6 +1284,14 @@ test('cards filtered by the reader do not become held evidence items', async () 
   expect(details.querySelector('[data-held-item-id="reader-filtered-only"]')).toBeNull();
 });
 
+/* A board row as the old list read it: its rank (with = for a tie) and its title,
+   or the title alone where the row is unranked (wave 8: boards are chart cards). */
+const boardWords = (li) => {
+  const rank = li.querySelector('.tb-rank').textContent;
+  const title = li.querySelector('.tb-title').textContent;
+  return rank === '-' ? title : rank + ' ' + title;
+};
+
 /* UX pass, 3 October 2026: Today ends with moments and boards; the coverage
    strip left the page and its figures live on Coverage. */
 test('moments and boards render below the cards, with no coverage strip', async () => {
@@ -1290,7 +1300,8 @@ test('moments and boards render below the cards, with no coverage strip', async 
   expect(moments.textContent).toContain('Fixture spring festival');
   expect(moments.textContent).toContain('3 October 2026');
   const boards = host.querySelector('[data-section="boards"]');
-  expect(boards.textContent).toContain("TikTok's own list: Hashtag board, 7 days");
+  expect(boards.querySelector('.tb-platform').textContent).toBe('TikTok');
+  expect(boards.querySelector('.tb-list').textContent).toBe('Hashtag board, 7 days');
   expect(boards.textContent).toContain('#fixture_za_board');
   expect(host.querySelector('[data-section="coverage"]')).toBeNull();
   const details = host.querySelector('[data-market="ZA"] details[data-section="source-details"]');
@@ -1317,12 +1328,15 @@ test('a board lists each entry with its own best rank, no automatic numbering, a
   await mount({}, today);
   const boards = host.querySelector('[data-section="boards"]');
   expect(boards.querySelector('ol')).toBeNull();
-  const list = boards.querySelector('ul.t42-board-rows');
+  const list = boards.querySelector('ul.tb-rows');
   expect(list).not.toBeNull();
-  expect([...list.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['=1 #shorts', '=1 #ishowspeed', '2 #fixture_za_step']);
-  expect(boards.querySelector('.t42-board').textContent).toContain("TikTok's own list: Hashtag board, 7 days, best rank today");
-  const css = await Bun.file(new URL('../../styles/today42.css', import.meta.url)).text();
-  expect(css).toMatch(/\.t42-board-rows\s*\{[^}]*list-style:\s*none/);
+  expect([...list.querySelectorAll('.tb-row')].map(boardWords)).toEqual(['=1 #shorts', '=1 #ishowspeed', '2 #fixture_za_step']);
+  const card = boards.querySelector('[data-board-card]');
+  expect(card.querySelector('.tb-card-title').textContent).toContain('TikTok');
+  expect(card.querySelector('.tb-card-title').textContent).toContain('Hashtag board, 7 days');
+  expect(card.querySelector('.tb-caption').textContent).toBe('Best rank today');
+  const css = await Bun.file(new URL('../../styles/today-boards.css', import.meta.url)).text();
+  expect(css).toMatch(/\.tb-rows\s*\{[^}]*list-style:\s*none/);
 });
 
 test('Today repeated rows stay compact and wrap their full labels', async () => {
@@ -1339,7 +1353,7 @@ test('Today repeated rows stay compact and wrap their full labels', async () => 
   expect(appCss).toMatch(/\.t42-card-metrics\s*\{\s*display:\s*contents;\s*\}/);
   await mount();
   expect(host.querySelector('[data-market="ZA"]').classList.contains('t42-today-market')).toBe(true);
-  expect(host.querySelectorAll('[data-section="boards"] .t42-board-rows > li').length).toBeGreaterThan(0);
+  expect(host.querySelectorAll('[data-section="boards"] .tb-rows > li').length).toBeGreaterThan(0);
   expect(host.querySelectorAll('[data-section="held-back"] .t42-rows > li').length).toBeGreaterThan(0);
 });
 
@@ -1354,8 +1368,12 @@ test('a board leaves null and missing ranks off unranked titles without changing
     {rank: null, title: '#also_unranked', item_id: 'f'},
   ];
   await mount({}, today);
-  const rows = host.querySelectorAll('[data-section="boards"] .t42-board-rows li');
-  expect([...rows].map((li) => li.textContent)).toEqual([
+  /* Cards show the top five; the sixth row is behind the show all control. */
+  const more = host.querySelector('[data-section="boards"] button.tb-more');
+  expect(more.textContent).toBe('Show all 6');
+  flushSync(() => more.click());
+  const rows = host.querySelectorAll('[data-section="boards"] .tb-row');
+  expect([...rows].map(boardWords)).toEqual([
     '=1 #shorts',
     '=1 #ishowspeed',
     '2 #fixture_za_step',
@@ -1388,24 +1406,24 @@ test('a board never shows an id as a title, says how many were left out, and kee
   await mount({}, today);
   const section = host.querySelector('[data-section="boards"]');
   expect(section.textContent).not.toMatch(/uc[a-z0-9_-]{22}/i);
-  const groups = [...section.querySelectorAll('.t42-board')];
+  const groups = [...section.querySelectorAll('[data-board-card]')];
   expect(groups).toHaveLength(2);
-  for (const group of groups) expect(group.querySelector('.t42-line-text').textContent).toContain('best rank today');
-  const rows = groups.map((g) => [...g.querySelectorAll('ul.t42-board-rows li')].map((li) => li.textContent));
+  for (const group of groups) expect(group.querySelector('.tb-caption').textContent).toBe('Best rank today');
+  const rows = groups.map((g) => [...g.querySelectorAll('ul.tb-rows .tb-row')].map(boardWords));
   expect(rows).toEqual([['1 #fixture_tt_one', '3 #fixture_tt_two'], ['1 #fixture_yt_one', '=2 fixture yt name', '=2 #fixture_yt_two']]);
   const shown = rows.flat().map((row) => Number(row.replace(/^=/, '').split(' ')[0]));
   expect(shown).toEqual([1, 3, 1, 2, 2]);
   expect(groups[0].textContent).not.toContain('left out');
-  expect(groups[1].querySelector('.t42-board-left-out').textContent).toBe('5 left out: No readable name');
+  expect(groups[1].querySelector('.tb-left-out').textContent).toBe('5 left out: No readable name');
 });
 
 test('a board whose every entry is an id shows only its count', async () => {
   const today = clone(todayFixture);
   today.markets[0].boards = [{platform: 'youtube', list: 'YouTube trending board', left_out: 10, left_out_reason: 'No readable name', entries: []}];
   await mount({}, today);
-  const board = host.querySelector('[data-section="boards"] .t42-board');
+  const board = host.querySelector('[data-section="boards"] [data-board-card]');
   expect(board.querySelector('ul')).toBeNull();
-  expect(board.querySelector('.t42-board-left-out').textContent).toBe('10 left out: No readable name');
+  expect(board.querySelector('.tb-left-out').textContent).toBe('10 left out: No readable name');
 });
 
 test('a card whose series has too few measured days says so instead of a lone dash, and no series shows nothing', async () => {
@@ -2374,10 +2392,10 @@ test('a moment keeps its facts in one inline line with their word spaces', async
 
 test('a board caption breaks only between whose list it is and the list itself', async () => {
   await mount();
-  const caption = host.querySelector('[data-section="boards"] .t42-board > .t42-line-text');
-  expect(caption.textContent).toBe("TikTok's own list: Hashtag board, 7 days, best rank today");
-  expect([...caption.querySelectorAll('.fact-unit')].map((unit) => unit.textContent))
-    .toEqual(["TikTok's own list:", 'Hashtag board, 7 days, best rank today']);
+  const head = host.querySelector('[data-section="boards"] [data-board-card] .tb-card-title');
+  expect([...head.querySelectorAll('.fact-unit')].map((unit) => unit.textContent))
+    .toEqual(['TikTok', 'Hashtag board, 7 days']);
+  expect(host.querySelector('[data-section="boards"] [data-board-card] .tb-caption').textContent).toBe('Best rank today');
 });
 
 test('an empty market groups its held items by reason, says each reason once and keeps posts behind a disclosure', async () => {
@@ -2484,7 +2502,7 @@ test('a board title with source <br> tags reads as one line, with no tag text', 
   ];
   await mount({}, today);
   const boards = host.querySelector('[data-section="boards"]');
-  expect([...boards.querySelectorAll('ul.t42-board-rows li')].map((li) => li.textContent)).toEqual(['19 Gratitude · Asake', '22 IMALI · Fireboy DML, JAZZWRLD & Thukuthela']);
+  expect([...boards.querySelectorAll('ul.tb-rows .tb-row')].map((li) => li.querySelector('.tb-rank').textContent + ' ' + [...li.querySelectorAll('.tb-title, .tb-artists')].map((n) => n.textContent).join(' · '))).toEqual(['19 Gratitude · Asake', '22 IMALI · Fireboy DML, JAZZWRLD & Thukuthela']);
   expect(boards.textContent).not.toContain('<br');
   expect(boards.textContent).toContain('1 left out');
 });
