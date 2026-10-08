@@ -213,6 +213,37 @@ def test_a10_execution_of_the_other_states():
         "refused_budget_spent", None)
 
 
+def test_a10_a_budget_stop_raised_mid_gate_is_stopped_on_budget_with_its_reason():
+    def stops(draft, ctx, warehouse, window, markets):
+        exc = ask._StopRequested()
+        exc.model_budget_reason = "usage_unknown"
+        raise exc
+
+    out = Harness(check=stops).run()
+    check(out, "stopped_on_budget", {"state": "fixed_text", "removals": [], "rewrite": "not_attempted"},
+          stop="model_call_unverified")
+    assert out["answer"]["short_answer"] == ask._STOP_FAILED[1]
+
+
+def test_the_critic_stage_recheck_records_a_removal_the_recheck_makes(monkeypatch):
+    # The recheck inside _critic_cuts runs after the critic's own blanking; here the critic cuts a claim the summary
+    # does not rest on, and the recheck then removes the summary.
+    answer = {"status": "partial", "as_of": "2026-09-28", "short_answer": "A summary.", "claims": [
+        {"id": "c1", "text": "one", "evidence_ids": ["tt_1"]}, {"id": "c2", "text": "two", "evidence_ids": ["tt_2"]}],
+        "evidence": [], "so_what": [], "watch_next": [], "gaps": [], "context": ""}
+
+    def recheck(ans, ctx, window, code_gaps):
+        return {**ans, "short_answer": ""}, [{"claim_id": "short_answer", "rule": "K6", "verdict": "cut"}]
+
+    monkeypatch.setattr(ask.checks, "recheck_fields", recheck)
+    monkeypatch.setattr(ask, "_k10", lambda ans, kept, removed: {"claim_id": "short_answer", "rule": "K10",
+                                                                 "verdict": "pass"})
+    ledger = answer_state.SummaryLedger()
+    rows = [{"claim_id": "c2", "verdict": "cut", "reason": "unsupported", "rule": "critic"}]
+    ask._critic_cuts(answer, rows, None, (date(2026, 9, 22), date(2026, 9, 28)), [], ledger=ledger)
+    assert ledger.removals == [("recheck", "K6")]
+
+
 # A-03b. A metadata fault never fails a paid Ask, and adds no call and no spend (A-08).
 def test_a03b_a_build_that_raises_leaves_the_answer_and_run_and_logs(monkeypatch, caplog):
     normal_h = Harness(model=HeadlineModel())

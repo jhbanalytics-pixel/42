@@ -421,3 +421,102 @@ def test_the_reader_sentences_are_the_contracted_copy_and_name_no_check_code():
     assert sentences["shown_rewritten"] == "This summary was rewritten once from the findings that passed."
     for text in sentences.values():
         assert not re.search(r"\bK(10|[1-9])\b|critic\)", text)
+
+
+# The wire value carries a version too.
+def test_check_wire_reports_an_unknown_version():
+    assert st.check_wire(wire_of(REC10, v=2)) == "version"
+
+
+# The bound facts read blankness the way a reader does: whitespace is blank.
+def test_bound_counts_a_whitespace_summary_as_blank():
+    assert st.bound_facts({"status": "partial", "short_answer": " \t\n", "claims": []}) == {
+        "answer_status": "partial", "summary_blank": True, "claims": 0}
+    assert st.bound_facts({"status": "complete", "short_answer": "x", "claims": [{}]})["summary_blank"] is False
+    assert st.bound_facts(None) == {"answer_status": None, "summary_blank": None, "claims": None}
+
+
+# The ledger, stage by stage. The rows are the stage's own verdict rows; the expectations are literals.
+def snap(text="A summary.", claims=None):
+    return {"blank": not text.strip(), "claims": claims or {"c1": "one", "c2": "two"}}
+
+
+def after(text="", claims=None):
+    return {"short_answer": text, "claims": [{"id": k, "text": v} for k, v in (claims or {"c1": "one", "c2": "two"}).items()]}
+
+
+def cut(rule, claim_id="short_answer"):
+    return {"claim_id": claim_id, "rule": rule, "verdict": "cut"}
+
+
+def observed(stage, before, after_answer, rows=()):
+    ledger = st.SummaryLedger()
+    ledger.observe(stage, before, after_answer, rows)
+    return ledger
+
+
+@pytest.mark.parametrize("stage", ["first_check", "recheck"])
+def test_ledger_a_code_check_removal_takes_its_causes_from_the_rows_in_enum_order(stage):
+    ledger = observed(stage, snap(), after(), [cut("K9"), cut("K2"), cut("K8", "c1")])
+    assert ledger.removals == [(stage, "K2"), (stage, "K9")]  # the K8 row is a claim's, not the summary's
+
+
+@pytest.mark.parametrize("stage", ["first_check", "recheck", "field_check", "support_check", "critic"])
+def test_ledger_a_removal_no_evidence_names_is_unattributed(stage):
+    assert observed(stage, snap(), after(claims={"c1": "one", "c2": "two"}), []).removals == [(stage, "unattributed")]
+
+
+def test_ledger_the_field_check_reads_its_rules_and_the_unchecked_row():
+    assert observed("field_check", snap(), after(), [cut("K6")]).removals == [("field_check", "K6")]
+    assert observed("field_check", snap(), after(), [cut("field_check")]).removals == [("field_check", "field_unchecked")]
+    assert observed("field_check", snap(), after(), [cut("K2")]).removals == [("field_check", "unattributed")]
+
+
+def test_ledger_the_support_stage_separates_a_cut_claim_from_a_narrowed_one_and_lists_both_in_order():
+    assert observed("support_check", snap(), after(claims={"c1": "one"})).removals == [("support_check", "claim_cut")]
+    assert observed("support_check", snap(), after(claims={"c1": "one", "c2": "narrower"})).removals == [
+        ("support_check", "claim_narrowed")]
+    both = observed("support_check", snap(claims={"c1": "one", "c2": "two", "c3": "three"}),
+                    after(claims={"c1": "one 2", "c3": "three"}))
+    assert both.removals == [("support_check", "claim_cut"), ("support_check", "claim_narrowed")]
+
+
+def test_ledger_the_critic_stage_records_only_a_cut_claim_even_if_a_kept_claim_changed():
+    ledger = observed("critic", snap(), after(claims={"c1": "one changed"}))
+    assert ledger.removals == [("critic", "claim_cut")]
+
+
+def test_ledger_nothing_is_recorded_when_the_summary_was_blank_before_or_is_not_blank_after():
+    assert observed("first_check", snap(""), after(""), [cut("K6")]).removals == []
+    assert observed("first_check", snap(), after("still here"), [cut("K6")]).removals == []
+
+
+def test_ledger_a_kept_rewrite_that_a_later_stage_removes_becomes_removed_after_check_but_not_an_earlier_one():
+    later = st.SummaryLedger()
+    later.note_rewrite("kept")
+    later.observe("recheck", snap(), after(), [cut("K6")])
+    assert later.rewrite == "removed_after_check"
+    early = st.SummaryLedger()
+    early.note_rewrite("kept")
+    early.observe("support_check", snap(), after(claims={"c1": "one"}))
+    assert early.rewrite == "kept"
+    with pytest.raises(ValueError):
+        early.note_rewrite("maybe")
+
+
+def test_ledger_finalize_resets_for_fixed_text_and_refuses_a_contradiction():
+    answer_in = {"status": "insufficient_evidence", "short_answer": "Not enough.", "claims": []}
+    kept = st.SummaryLedger()
+    kept.note_rewrite("kept")
+    kept.removals.append(("support_check", "claim_cut"))
+    assert kept.finalize(answer_in, "completed") == ("fixed_text", [], "removed_after_check")
+    failed = st.SummaryLedger()
+    failed.note_rewrite("no_budget")
+    assert failed.finalize(answer_in, "completed") == ("fixed_text", [], "not_attempted")
+    assert kept.finalize(answer_in, "stopped_on_request") == ("fixed_text", [], "not_attempted")
+    contradiction = st.SummaryLedger()
+    contradiction.removals.append(("first_check", "K6"))
+    with pytest.raises(ValueError):
+        contradiction.finalize({"status": "partial", "short_answer": "text", "claims": []}, "completed")
+    assert st.SummaryLedger().finalize({"status": "complete", "short_answer": "", "claims": []}, "completed") == (
+        "blank_unexplained", [], "not_attempted")
