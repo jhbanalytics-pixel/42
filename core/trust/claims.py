@@ -299,6 +299,30 @@ _BREACH_TERMS = [
         r"\bage[ds]?\s+(?:between|from)\s+\d{1,2}\s+(?:and|to)\s+\d{1,2}\b",
         r"\b(?:the|among|amongst)\s+(?:1[3-9]|[2-9]\d)\s*(?:-|–)\s*(?:1[4-9]|[2-9]\d)s\b"
         r"(?=\s*(?:$|[.,;:!?)\]'\"]|(?:are|were|is|was|do|did|have|had|will|would|can|could|who|that|and|or|but)\b))",
+        # N15: age and generation words the Ask checks (core/agent/checks.py AGE_PATTERNS) flag and this list missed,
+        # with the same look-alike exclusions, then old-age words neither list had. test_trust_rule1_parity.py pins both.
+        r"\b(?:tweens|pre-?teens?|toddlers?|infants?|retirees?|minors|juveniles?|youthful)\b",
+        r"\bschool[\s-]?(?:children|kids)\b",
+        r"\bmiddle[\s-]?aged\b",
+        r"\b(?:digital[\s-]natives?|born[\s-]frees?)\b",
+        r"\b(?:matriculants?|matric[\s-]+(?:learners?|pupils?|students?)|first[\s-]?time[\s-]+voters?"
+        r"|school[\s-]?leavers?)\b",
+        r"(?<!\bfur\s)(?<!\bplant\s)(?<!\bsugar\s)\bbabies\b",
+        r"\b(?:grann(?:y|ies)|grandmas?|grandmothers?|grandfathers?|grandparents?|(?:u|o|ko)?gogos?|mkhulus?"
+        r"|(?:u|o)?makhulus?|koko|bibi|babu|watoto|abantwana|vijana|wazee|pikins?|(?:ama|i)khehla)\b",
+        r"\bborn\s+(?:in|after|before|since|around|between)\s+(?:the\s+)?(?:early|mid|late)?[\s-]*"
+        r"['’]?(?:(?:19|20)\d{2}|\d0s)",
+        r"(?:\d0s|nineties|noughties)[\s-](?:born|generation|babies)\b",
+        r"\bgrew\s+up\s+in\s+the\s+(?:early|mid|late)?[\s-]*['’]?(?:(?:19|20)\d0s|\d0s|nineties|noughties)",
+        r"\b(?:early|mid|late)[\s-]?['’]?(?:teens|twenties|thirties|forties|fifties|sixties|seventies|[2-7]0s)\b",
+        r"\b(?:next|a|this|(?:the|a)\s+new)[\s-]+generation\b(?!\s+(?:of|ago)\b)",
+        r"#gen(?:eration)?[_-]?(?:z|alpha)",
+        r"\bgen(?:eration)?[_-]?(?:z|alpha)(?=(?-i:[A-Z])|[\d_])",
+        r"\b(?:kid(?:z|dos?|dies?)|zillenn?ials?|igen(?:eration)?s?|ama[_-]?(?:(?:19|20)\d{2}'?s?|[12]ks?))\b",
+        r"\bold[\s-]?(?:people|folks?|heads|timers?)\b",
+        r"\bold[\s-](?:man|men|woman|women|lady|ladies)\b",
+        rf"\b(?:older|elder)\s+{_PERSON}\b",
+        r"\belders?\b",
     )
 ]
 
