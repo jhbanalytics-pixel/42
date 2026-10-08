@@ -8,7 +8,8 @@
 #   bash core/api/deploy.sh --no-build    redeploy the image of the current commit
 #   add --no-traffic to any of these to deploy and check but leave traffic where it is
 # After the health check passes, both services send 100% of traffic to their newest revision.
-# A build refuses a tree with uncommitted or untracked files (exit 65): the image is labelled with HEAD.
+# A build refuses a tree with uncommitted or untracked files (exit 65): the image is labelled with HEAD. See the
+# guard below for what --no-build and --local-build also check.
 set -euo pipefail
 
 PROJECT=ogilvy-trends-v2
@@ -27,18 +28,34 @@ for arg in "$@"; do
   esac
 done
 
-# The image is tagged and labelled with HEAD, so what goes into it must be HEAD. A build takes whatever is on disk,
-# so any uncommitted or untracked file refuses it. --no-build deploys the image already built for HEAD, but with the
-# flags on disk, so only an edited deploy.sh or deploy_flags.env refuses that.
+# The image is tagged and labelled with HEAD, so what goes into it, and what runs the release, must be HEAD.
+# --untracked-files=all so a repo setting that hides untracked files cannot hide one here.
+#   build            the whole tree: any change or untracked file refuses it.
+#   --no-build       the image already built for HEAD, but the flags, this script and the release smoke script
+#                    and the core it imports run from disk, so any change under core/ refuses it.
+#   --local-build    also refuses ignored files in the Docker context (core, app/frontend, docs/full-42/reference):
+#                    there is no .dockerignore, so .env files or node_modules would be copied into the image.
+#                    __pycache__ directories are tolerated, since the image sets PYTHONDONTWRITEBYTECODE.
+# The Cloud Build upload follows the .gitignore rules, so ignored files are not checked for it.
 if [ "$BUILD" = --no-build ]; then
-  DIRTY=$(git status --porcelain -- core/api/deploy.sh core/api/deploy_flags.env)
+  DIRTY=$(git status --porcelain --untracked-files=all -- core)
 else
-  DIRTY=$(git status --porcelain)
+  DIRTY=$(git status --porcelain --untracked-files=all)
 fi
 if [ -n "$DIRTY" ]; then
   echo "deploy.sh: the working tree has uncommitted changes, so it is not commit ${TAG}. Commit or stash them first:" >&2
   echo "$DIRTY" >&2
   exit 65
+fi
+if [ "$BUILD" = --local-build ]; then
+  IGNORED=$(git status --porcelain --ignored --untracked-files=all -- core app/frontend docs/full-42/reference \
+    | grep '^!!' | grep -v '__pycache__/' || true)
+  if [ -n "$IGNORED" ]; then
+    echo "deploy.sh: ignored files are in the Docker build context and would be copied into the image of commit ${TAG}." >&2
+    echo "Remove them, or build from a fresh clone:" >&2
+    echo "$IGNORED" >&2
+    exit 65
+  fi
 fi
 
 # Shared build source and Cloud Run definitions.

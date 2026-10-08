@@ -34,14 +34,32 @@ git() {
   case "$1" in
     rev-parse) printf 'd666ef64cd7a\n' ;;
     status)
+      # Models git: untracked files show only with --untracked-files=all (a repo can set
+      # status.showUntrackedFiles=no), ignored files only with --ignored, and a pathspec keeps its directory.
       shift
-      paths=(); after=0
+      paths=(); after=0; ignored=0; untracked=0
       for a in "$@"; do
         if [ "$after" = 1 ]; then paths+=("$a"); fi
-        if [ "$a" = -- ]; then after=1; fi
+        case "$a" in
+          --) after=1 ;;
+          --ignored) ignored=1 ;;
+          --untracked-files=all) untracked=1 ;;
+        esac
       done
-      if [ "${#paths[@]}" -eq 0 ]; then printf '%s' "$R3_STATUS"
-      else for p in "${paths[@]}"; do printf '%s' "$R3_STATUS" | grep -F " $p" || true; done; fi ;;
+      while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        code=${line:0:2}; path=${line:3}
+        if [ "$code" = '??' ] && [ "$untracked" = 0 ]; then continue; fi
+        if [ "$code" = '!!' ] && [ "$ignored" = 0 ]; then continue; fi
+        if [ "${#paths[@]}" -gt 0 ]; then
+          match=0
+          for p in "${paths[@]}"; do
+            if [ "$path" = "$p" ] || [[ "$path" == "$p"/* ]]; then match=1; fi
+          done
+          if [ "$match" = 0 ]; then continue; fi
+        fi
+        printf '%s\n' "$line"
+      done <<< "$R3_STATUS" ;;
     *) return 96 ;;
   esac
 }
@@ -159,8 +177,8 @@ def test_a_clean_tree_still_builds_and_deploys(tmp_path):
     assert [call[2] for call in calls if call[:2] == ["run", "deploy"]] == ["f42-agent", "f42-api"]
 
 
-def test_no_build_redeploys_the_image_of_head_even_with_edits_elsewhere_in_the_tree(tmp_path):
-    result, calls = run_deploy(tmp_path, args=("--no-build",), status=DIRTY)
+def test_no_build_redeploys_the_image_of_head_even_with_edits_outside_core(tmp_path):
+    result, calls = run_deploy(tmp_path, args=("--no-build",), status=" M docs/operations/notes.md\n")
     assert result.returncode == 0, result.stderr
     assert not any(call[:2] == ["builds", "submit"] for call in calls)
     assert [call[2] for call in calls if call[:2] == ["run", "deploy"]] == ["f42-agent", "f42-api"]
@@ -172,3 +190,36 @@ def test_no_build_is_refused_when_the_flags_it_deploys_with_are_not_those_of_hea
     assert result.returncode != 0
     assert calls == []
     assert "uncommitted" in result.stderr and path in result.stderr
+
+
+@pytest.mark.parametrize("status", [
+    " M core/api/smoke.py\n",  # the release smoke runs from the working tree
+    " M core/agent/ask.py\n",  # smoke imports core.api, which imports the rest of core
+    "?? core/api/helper.py\n",
+])
+def test_no_build_is_refused_when_any_file_under_core_differs_from_head(tmp_path, status):
+    result, calls = run_deploy(tmp_path, args=("--no-build",), status=status)
+    assert result.returncode != 0
+    assert calls == []
+    assert "uncommitted" in result.stderr and status.split()[-1] in result.stderr
+
+
+@pytest.mark.parametrize("status", ["!! core/.env\n", "!! app/frontend/node_modules/\n",
+                                    "!! docs/full-42/reference/local.json\n"])
+def test_local_build_is_refused_for_ignored_files_in_the_build_context(tmp_path, status):
+    result, calls = run_deploy(tmp_path, args=("--local-build",), status=status)
+    assert result.returncode != 0
+    assert calls == []
+    assert "ignored" in result.stderr and status.split()[-1] in result.stderr
+
+
+@pytest.mark.parametrize("status", ["!! core/api/__pycache__/\n", "!! scratch/notes.txt\n"])
+def test_local_build_allows_bytecode_and_ignored_files_outside_the_build_context(tmp_path, status):
+    result, calls = run_deploy(tmp_path, args=("--local-build",), status=status)
+    assert result.returncode == 97, result.stderr  # past the guard, stopped by the docker double
+
+
+def test_the_cloud_build_does_not_refuse_ignored_files(tmp_path):
+    # gcloud builds the upload from the .gitignore rules, so an ignored file is not sent. Reasoned, not run.
+    result, calls = run_deploy(tmp_path, status="!! core/.env\n")
+    assert result.returncode == 0, result.stderr
