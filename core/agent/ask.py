@@ -27,6 +27,7 @@ from core.agent.answer import validate_answer
 from core.agent.checks import _text_breaches, _unpinned, check_answer, platform_label, source_gaps, window_text
 from core.agent.context import TIERS, Refused, RunContext
 from core.agent.ranked import ranked_list
+from core.agent.remaining_lists import entity_lists
 from core.agent.tools import sc_adapter
 from core.agent.tools.dates import SAST, resolve_dates
 from core.agent.tools.enrich_tools import ENRICH_SHARE
@@ -1404,6 +1405,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     run_id = _run_id(request, question, tier, as_of)
 
     notices, model_name = [], MODEL
+    discovered = None
     ctx = RunContext(run_id=run_id, tier=tier, as_of=as_of, market=market, window_start=window[0],
                      window_end=window[1])
     client = None
@@ -2002,9 +2004,14 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     answer, followups = plain.answer(answer), [plain.text(f) for f in followups]
     ranked, ranking_notices = ranked_list(question, answer, ctx, masked=bool(request.get("skin_id")))
     notices.extend(note for note in ranking_notices if note not in notices)
+    entities, entity_notices = entity_lists(question, answer, ctx, creator_discovery=discovered,
+                                           masked=bool(request.get("skin_id")))
+    notices.extend(note for note in entity_notices if note not in notices)
     run = run_object(followups, (finished or answer["status"]) if inv is not None else None)
     if ranked is not None:
         run["ranked_list"] = ranked
+    if entities:
+        run["entity_lists"] = entities
     return {"answer": answer,
             "run": run,
             "query_receipts": query_receipts(ctx, answer)}

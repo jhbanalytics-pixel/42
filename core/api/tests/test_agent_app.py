@@ -191,6 +191,40 @@ def test_a_skin_record_without_run_metadata_keeps_its_existing_null_shape(monkey
     assert record["run"] is None
 
 
+@pytest.mark.parametrize("kind", ["platforms", "topics", "creators"])
+def test_entity_lists_survive_the_fixture_agent_reader(client, monkeypatch, kind):
+    from core.agent.tests.test_remaining_lists import QUESTIONS, entity_lists, fixture
+
+    ctx, answer, discovered, _ = fixture(kind)
+    groups, _ = entity_lists(QUESTIONS[kind], answer, ctx, creator_discovery=discovered)
+    assert groups
+    fixture_agent = agent_app.fixture_agent
+
+    def with_lists(request, emit, should_stop):
+        result = fixture_agent(request, emit, should_stop)
+        result["answer"] = answer
+        result["run"].update(run_id=ctx.run_id, entity_lists=groups,
+                             window={"from": ctx.window_start.isoformat(), "to": ctx.window_end.isoformat()})
+        return result
+
+    monkeypatch.setattr(agent_app, "fixture_agent", with_lists)
+    finished = ask(client, question=QUESTIONS[kind], wait=True).json()
+    readback = client.get(f"/api/ask/{finished['ask_id']}").json()
+    assert readback["run"]["entity_lists"] == groups
+    assert readback["answer"] == finished["answer"] == answer
+    assert "query_receipts" not in readback
+
+
+def test_masked_skin_reader_omits_entity_lists_without_mutating_stored_metadata(monkeypatch):
+    record = load("ask_complete.json")
+    record["skin_id"] = "skin_fixture"
+    record["run"]["entity_lists"] = [{"items": [{"name": "private_name"}]}]
+    monkeypatch.setattr(agent_app, "skin_people", lambda *a: {"approved": [], "allowed": []})
+    shown = agent_app.shown_record(record)
+    assert "entity_lists" not in shown["run"]
+    assert record["run"]["entity_lists"][0]["items"][0]["name"] == "private_name"
+
+
 @pytest.mark.parametrize("body", [
     {"question": "What is behind #fixture?", "tier": "T2"},
     {"question": "What is behind #fixture?", "tier": "T3"},

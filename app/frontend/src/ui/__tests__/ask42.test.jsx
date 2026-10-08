@@ -232,6 +232,39 @@ test('only draft=1 marks an Ask query as unsubmitted', () => {
   }
 });
 
+test('a checked platform list leads the full Ask answer and opens its original cited source', async () => {
+  const record = clone(completeRecord);
+  record.question = 'Which platforms are busiest this week?';
+  const claim = record.answer.claims[0];
+  const source = record.answer.evidence[0];
+  source.platform = 'instagram';
+  claim.text = 'Instagram appeared in checked posts.';
+  claim.evidence_ids = [source.id];
+  claim.quotes = [];
+  claim.numbers = [
+    {value: 5, unit: 'creators', query_id: 'q_entities', run_id: record.run.run_id, result_hash: 'sha256:' + 'a'.repeat(64)},
+    {value: 20, unit: 'posts', query_id: 'q_entities', run_id: record.run.run_id, result_hash: 'sha256:' + 'a'.repeat(64)},
+  ];
+  record.answer.claims = [claim];
+  record.answer.short_answer = 'The checked findings follow.';
+  record.answer.so_what = [];
+  record.answer.watch_next = [];
+  record.run.entity_lists = [{kind: 'platforms', scope: 'retained_store_platform_claims', order: 'posts_desc_creators_desc',
+    query_ids: ['q_entities'], market: 'ZA', window: record.run.window, measure_columns: {creators: 'creators', posts: 'posts'},
+    previous_window: null, previous_basis: null, unavailable: {creators: null, posts: null, previous_week: 'not_recorded'},
+    items: [{claim_id: claim.id, entity_id: 'instagram', name: 'Instagram', platform: 'instagram', evidence_ids: [source.id],
+      creators_index: 0, posts_index: 1, previous_posts_index: null, tied_with_previous: false}]}];
+  serve([record]);
+  await render({query: {follow: record.ask_id}});
+  await until(() => host.querySelector('.ask42-entity-list'), 'the platform list');
+  const list = host.querySelector('.ask42-entity-list');
+  expect(Boolean(list.compareDocumentPosition(host.querySelector('.ask42-short')) & window.Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+  expect(plain(list.textContent)).toContain('5 creators, 20 posts.');
+  await act(async () => list.querySelector('button[aria-label^="Source:"]').click());
+  await until(() => host.querySelector('.ask42-source-text'), 'the cited source');
+  expect(plain(host.querySelector('.ask42-source-text').textContent)).toContain(plain(source.text));
+});
+
 test('a draft query fills the Ask field without starting a paid request', async () => {
   serve([clone(completeRecord)]);
   const question = 'football & street culture';
