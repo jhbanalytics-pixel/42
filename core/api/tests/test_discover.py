@@ -1968,3 +1968,41 @@ def test_a_g10_hold_on_an_item_with_no_explanation_in_the_brief_says_it_was_not_
     out = discover.build_discover(Patched(item_gate=item_gate), "ZA")
     held = next(h for h in out["held_back"]["items"] if h["item_id"] == RISING)
     assert held["reason_text"] == "Not explained: the model did not get to this topic"
+
+
+def test_a_hold_from_an_old_brief_does_not_stick_to_an_item_the_newest_brief_does_not_name(fx):
+    """N42: the latest brief of a market decides its gate rows. An item that brief does not name keeps no old hold;
+    it reads from item_state like any item the gate never saw."""
+    run_date = str(discover._run(fx)["run_date"])
+
+    def item_gate(market):
+        if market not in ("ZA", "all"):
+            return []
+        return [{"item_id": STEP, "market": "ZA", "brief_date": "2026-09-01", "place": "held_back",
+                 "rule": "G1", "reason": "data_issue", "reason_text": None},
+                {"item_id": OTHER, "market": "ZA", "brief_date": run_date, "place": "today",
+                 "rule": None, "reason": None, "reason_text": None}]
+
+    out = discover.build_discover(Patched(item_gate=item_gate), "ZA")
+    assert STEP not in {h["item_id"] for h in out["held_back"]["items"]}
+    assert STEP in {c["item_id"] for c in out["items"]}
+
+
+def test_a_hold_in_the_newest_brief_still_holds_and_other_markets_keep_their_own_latest_brief(fx):
+    run_date = str(discover._run(fx)["run_date"])
+
+    def item_gate(market):
+        return [{"item_id": STEP, "market": "ZA", "brief_date": run_date, "place": "held_back",
+                 "rule": "G1", "reason": "data_issue", "reason_text": None},
+                {"item_id": OWAMBE, "market": "NG", "brief_date": "2026-09-01", "place": "held_back",
+                 "rule": "G1", "reason": "data_issue", "reason_text": None}]
+
+    held = {h["item_id"] for h in discover.build_discover(Patched(item_gate=item_gate), "all")["held_back"]["items"]}
+    assert {STEP, OWAMBE} <= held
+
+
+def test_bigquery_item_gate_reads_only_recent_brief_dates():
+    client = FakeClient(CATALOG_FULL)
+    BigQueryStore(client=client).item_gate("ZA")
+    sql = next(s for s, _ in client.calls if "v_item_gate_current" in s and "INFORMATION_SCHEMA" not in s)
+    assert "g.brief_date >=" in sql

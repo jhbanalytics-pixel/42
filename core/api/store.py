@@ -19,6 +19,7 @@ from pathlib import Path
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 MAX_BYTES = 2_000_000_000
+GATE_DAYS = 14  # brief dates item_gate reads; a market's latest brief decides its holds, so older ones add nothing
 log = logging.getLogger("f42.api.store")
 MARKET_TZ = {"ZA": dt.timezone(dt.timedelta(hours=2)), "NG": dt.timezone(dt.timedelta(hours=1)),
              "KE": dt.timezone(dt.timedelta(hours=3))}
@@ -1037,7 +1038,9 @@ or None."""
             return None
         return self._query(f"SELECT g.item_id, g.market, g.brief_date, g.place, g.rule, g.reason, g.reason_text "
                            f"FROM {gate} g "
-                           "WHERE @market = 'all' OR g.market = @market", market=("STRING", market))
+                           "WHERE (@market = 'all' OR g.market = @market) "
+                           f"AND g.brief_date >= DATE_SUB(CURRENT_DATE('Africa/Johannesburg'), INTERVAL {GATE_DAYS} DAY)",
+                           market=("STRING", market))
 
     def item_history(self, item_id, market, start, end):
         return self._query(

@@ -113,20 +113,26 @@ def _flag(row):
 
 
 def _gate_for(rows, run_date):
-    """The gate's own placement per (item, market) for the run: the row of the latest brief date on or before
-    run_date. v_item_gate_current keeps every brief date and the admitted rows ('today', 'moments', with no
-    reason) beside the held ones, so only a held_back row is a hold (contract.md section 10.2). A row with no
-    place or date, as older fixtures give, counts as a hold on the run date."""
+    """The gate's own placement per (item, market) for the run: the rows of each market's latest brief date on or
+    before run_date, and nothing from an earlier brief, so an item the newest brief does not name keeps no old hold
+    (N42). v_item_gate_current keeps every brief date and the admitted rows ('today', 'moments', with no reason)
+    beside the held ones, so only a held_back row is a hold (contract.md section 10.2). A row with no place or
+    date, as older fixtures give, counts as a hold on the run date."""
     day = str(run_date)[:10] if run_date else None
-    best = {}
+    dated = []
     for g in rows:
         when = str(g.get("brief_date") or day or "")[:10]
         if day and when > day:
             continue
-        key = (g["item_id"], g["market"])
-        if key not in best or when > best[key][0]:
-            best[key] = (when, g)
-    return {k: g for k, (_, g) in best.items() if (g.get("place") or "held_back") == "held_back"}
+        dated.append((when, g))
+    latest = {}
+    for when, g in dated:
+        latest[g["market"]] = max(latest.get(g["market"], when), when)
+    best = {}
+    for when, g in dated:
+        if when == latest[g["market"]]:
+            best.setdefault((g["item_id"], g["market"]), g)
+    return {k: g for k, g in best.items() if (g.get("place") or "held_back") == "held_back"}
 
 
 def _held(row, gate):

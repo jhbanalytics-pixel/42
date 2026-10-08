@@ -649,10 +649,31 @@ def _card(card, market, date, prev_ranks):
     return out
 
 
+def _claim_lost_every_post(card):
+    """True when an explained card has a claim whose cited posts are none of the posts the card returns, as when a
+    suppressed creator's post was its only support. Today holds such a card; the trend readers show it unexplained."""
+    evidence = card.get("evidence")
+    if card.get("explained") is not True or not isinstance(evidence, list) or not isinstance(card.get("claims"), list):
+        return False
+    returned = {e.get("id") for e in evidence if isinstance(e, dict)}
+    return any(isinstance(c, dict) and isinstance(c.get("evidence_ids"), list) and c["evidence_ids"]
+               and not returned & set(c["evidence_ids"]) for c in card["claims"])
+
+
+def _trend_card(card, market, date, ranks):
+    out = _card(card, market, date, ranks)
+    if _claim_lost_every_post(out):
+        out.update(explained=False, explanation=None, explanation_claim_ids=[], claims=[], news_driven=False,
+                   explanation_status="failed_checks", failed_reason=HIDDEN_UNSUPPORTED)
+        if "title_written" in out:
+            out["title_written"] = None
+    return out
+
+
 def _cards(payload, market, date, prev):
     ranks = prev[0] if prev else None
-    cards = [_card(c, market, date, ranks) for c in payload.get("cards") or []]
-    more = [_card(c, market, date, ranks) for c in payload.get("more") or []]
+    cards = [_trend_card(c, market, date, ranks) for c in payload.get("cards") or []]
+    more = [_trend_card(c, market, date, ranks) for c in payload.get("more") or []]
     return cards, more
 
 
