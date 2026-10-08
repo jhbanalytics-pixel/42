@@ -9,8 +9,11 @@ enrichment row (the only source of the sponsored flag) and how many carry a vend
 the brief).
 
 What is stored and what is not: claim_checks.reason keeps fixed wording only (core/brief/job.py check_reason), so
-ruled_out, local_why_now and whether the news-driven path was met are read back from that wording. The critic's own
-named explanation and reason sentence, and news_driven and local_reaction one by one, are not stored anywhere.
+ruled_out, local_why_now and whether the news-driven or the event-driven path was met are read back from that
+wording. The critic's own named explanation and reason sentence, and news_driven, scheduled_event and
+local_reaction one by one, are not stored anywhere. An item whose first draft was cut on its why-now alone has two
+critic rows: the first draft's, marked "before repair: ", and the final draft's. The verdict shown is the final
+draft's; the first draft's is printed apart.
 Prints titles, counts and fixed wording only: no handles, post text or model text."""
 import datetime as dt
 import json
@@ -25,6 +28,7 @@ CAP = 10**9
 MARKETS = ("ZA", "NG", "KE")
 REPAIR = "before repair: "
 NEWS_PASS = "Critic: news-driven, local creators react in their own words"
+EVENT_PASS = "Critic: event-driven, local creators react in their own words"
 RULED_OUT = "Critic: the simpler explanation was ruled out"
 NOT_RULED_OUT = "Critic: a simpler explanation was not ruled out"
 LWN_ONLY = "Critic: local why-now not shown"
@@ -44,24 +48,33 @@ def q(sql, params, label):
 
 
 def critic_fields(reason):
-    """(verdict, ruled_out, news_path_met, local_why_now, menu) from a critic row's fixed wording.
-    news_path_met is news_driven and local_reaction and at least 2 reacting local creators, as one bit."""
+    """(verdict, ruled_out, news_path_met, event_path_met, local_why_now, menu) from a critic row's fixed wording
+    (the row's "before repair: " prefix already taken off). A path is met when the critic found the news or the
+    scheduled event, local_reaction, and at least 2 reacting local creators, as one bit."""
     r = str(reason or "")
     menu = None
-    if r.startswith(NEWS_PASS) or r.startswith(RULED_OUT):
-        news = r.startswith(NEWS_PASS)
-        head = NEWS_PASS if news else RULED_OUT
+    head = next((h for h in (NEWS_PASS, EVENT_PASS, RULED_OUT) if r.startswith(h)), None)
+    if head is not None:
         menu = r[len(head) + 2:] or None if r.startswith(head + ": ") else None
-        return "pass", not news, news, True, menu
+        return "pass", head == RULED_OUT, head == NEWS_PASS, head == EVENT_PASS, True, menu
     if r == LWN_ONLY:
-        return "cut", "true, or news path met", "true, or ruled out", False, None
+        return ("cut", "true, or a news or event path met", "true, or ruled out or event path",
+                "true, or ruled out or news path", False, None)
     if r.startswith(NOT_RULED_OUT):
         rest = r[len(NOT_RULED_OUT):]
         lwn = not rest.endswith(NO_LWN)
         rest = rest[:-len(NO_LWN)] if not lwn else rest
         menu = rest[2:] if rest.startswith(": ") else None
-        return "cut", False, False, lwn, menu
-    return "?", "?", "?", "?", None
+        return "cut", False, False, False, lwn, menu
+    return "?", "?", "?", "?", "?", None
+
+
+def critic_line(prefix, reason):
+    v, ro, news, event, lwn, menu = critic_fields(reason)
+    return (f"{prefix}: verdict {v} | ruled_out {ro} | news path met (news_driven and local_reaction and 2+ "
+            f"reacting) {news} | event path met (scheduled_event and local_reaction and 2+ reacting) {event} | "
+            f"local_why_now {lwn} | named, as menu item: {menu or 'unmatched or ambiguous'}"
+            f" | named text, news_driven, scheduled_event, local_reaction, reason: not stored")
 
 
 d = dt.date.fromisoformat(sys.argv[1] if len(sys.argv) > 1 else "2026-10-02")
@@ -139,15 +152,24 @@ for m in MARKETS:
             head = f"held {x.get('rule')} {x.get('reason')}: {x.get('reason_text')} | failed_reason {x.get('failed_reason')}"
         print(f"\n{m} {x.get('title')}  [{x.get('item_id')}]\n  {head}")
         rows_ = [r for r in checks.get(f"{rid}:{m}:{x.get('item_id')}", [])]
-        crit = [r for r in rows_ if r.rule == "critic"]
-        if crit:
-            v, ro, news, lwn, menu = critic_fields(crit[-1].reason)
-            print(f"  critic: verdict {v} | ruled_out {ro} | news path met (news_driven and local_reaction and "
-                  f"2+ reacting) {news} | local_why_now {lwn} | named, as menu item: {menu or 'unmatched or ambiguous'}"
-                  f" | named text, news_driven, local_reaction, reason: not stored")
-            print(f"  critic reason (fixed wording): {crit[-1].reason}")
+        crit_all = [r for r in rows_ if r.rule == "critic"]
+        crit = [r for r in crit_all if not str(r.reason or "").startswith(REPAIR)]
+        first = sorted({str(r.reason)[len(REPAIR):] for r in crit_all if str(r.reason or "").startswith(REPAIR)})
+        final = sorted({str(r.reason or "") for r in crit})
+        if len(final) == 1:
+            print(critic_line("  critic", final[0]))
+            print(f"  critic reason (fixed wording): {final[0]}")
+        elif final:
+            print(f"  critic: {len(final)} different final-draft critic rows, none taken for the verdict")
+            for reason in final:
+                print(f"  critic reason (fixed wording): {reason}")
+        elif first:
+            print("  critic: no final-draft critic row (only the first draft's critic row was stored)")
         else:
             print("  critic: not reached (no critic row for this item in this run)")
+        for reason in first:
+            print(critic_line("  first-draft critic (before repair)", reason))
+            print(f"  first-draft critic reason (fixed wording): {reason}")
         cuts = Counter(f"{r.rule} {r.reason}" for r in rows_ if r.verdict == "cut" and r.rule not in ("critic", "title")
                        and not str(r.reason or "").startswith(REPAIR))
         before = sum(1 for r in rows_ if str(r.reason or "").startswith(REPAIR))
@@ -164,7 +186,7 @@ for m in MARKETS:
         unknown = len(ev) - located - own - other
         who = len({str(e.get("handle") or "").strip().lower() for e in ev if str(e.get("handle") or "").strip()})
         plats = Counter(e.get("platform") for e in ev)
-        print(f"  posts {'the critic saw' if crit else 'in the pack'}: {len(ev)} from {who} creators "
+        print(f"  posts {'the critic saw' if crit_all else 'in the pack'}: {len(ev)} from {who} creators "
               f"({', '.join(f'{k} {v}' for k, v in sorted(plats.items(), key=str))}); located in {m} {located}, "
               f"own-feed {own}, unknown elsewhere {unknown}, other market {other}")
         print(f"  flags: any {anyf}, any besides market_assumed {nonloc}; "

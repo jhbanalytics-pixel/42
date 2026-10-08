@@ -29,7 +29,8 @@ CAP = 10**9
 MARKETS = ("ZA", "NG", "KE")
 REPAIR = "before repair: "
 TEXT_MAX = 160
-CRITIC_FIELDS = ("non_cultural_explanation", "ruled_out", "news_driven", "local_reaction", "local_why_now", "reason")
+CRITIC_FIELDS = ("non_cultural_explanation", "ruled_out", "news_driven", "scheduled_event", "local_reaction",
+                 "local_why_now", "reason")
 _HANDLE = re.compile(r"@[\w.]+")
 _QUOTED = re.compile(r"[\"“][^\"“”]*[\"”]")
 
@@ -175,7 +176,7 @@ def report(d, rid, payloads, checks):
                 if cr is None:
                     lines.append("  critic answer: not in the payload (run before 7b47cd24, or not reached)")
                 else:
-                    flags = ", ".join(f"{k} {cr.get(k)}" for k in CRITIC_FIELDS[1:5])
+                    flags = ", ".join(f"{k} {cr.get(k)}" for k in CRITIC_FIELDS[1:6])
                     lines.append(f"  critic answer: {flags}")
                     lines.append(f"    named: {model_text(cr.get('non_cultural_explanation'), handles)}")
                     lines.append(f"    reason: {model_text(cr.get('reason'), handles)}")
