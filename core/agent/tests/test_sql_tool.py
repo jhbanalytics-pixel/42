@@ -415,9 +415,15 @@ def test_sql_query_refuses_dry_run_tables_outside_allowlist(ctx, tables):
 
 
 def test_sql_query_accepts_dry_run_tables_in_allowlist(ctx):
-    wh = FakeWarehouse(tables=["intelligence_42_core.posts", "ogilvy-trends-v2.intelligence_42_agent.findings"])
+    wh = FakeWarehouse(tables=["intelligence_42_core.posts", "ogilvy-trends-v2.intelligence_42_agent.runs"])
     sql_query(ctx, wh, "SELECT * FROM intelligence_42_agent.v_items_today", purpose="view")
     assert len(wh.runs) == 1
+    # findings is class D and v_items_today does not read it, so a dry run that lists it is a direct read the parser
+    # missed (this test listed it as an arbitrary allowlisted table before the private-storage fence).
+    wh = FakeWarehouse(tables=["intelligence_42_core.posts", "ogilvy-trends-v2.intelligence_42_agent.findings"])
+    with pytest.raises(Refused):
+        sql_query(ctx, wh, "SELECT * FROM intelligence_42_agent.v_items_today", purpose="view")
+    assert wh.runs == []
 
 
 def test_sql_query_refuses_bytes_over_default_cap(ctx):
@@ -622,12 +628,10 @@ FENCED = ["intelligence_42_core.suppressions", "intelligence_42_core.raw_respons
           "intelligence_42_agent.runs", "intelligence_42_agent.skins", "intelligence_42_agent.feedback",
           "intelligence_42_agent.schedules", "intelligence_42_agent.investigations",
           "intelligence_42_agent.dossier_versions", "intelligence_42_agent.dossier_reviews",
-          "intelligence_42_core.v_suppressed_creators", "intelligence_42_agent.claim_checks"]
-# The fenced tables a dry run does not refuse, because a view the model may read has them underneath: v_good_runs reads
-# agent.runs, v_item_market_scope reads v_suppressed_creators and so suppressions. Written out here, not read from
-# the code under test: widening the code's list must fail this file.
-DRY_RUN_EXEMPT = {"intelligence_42_agent.runs", "intelligence_42_core.suppressions",
-                  "intelligence_42_core.v_suppressed_creators"}
+          "intelligence_42_core.v_suppressed_creators", "intelligence_42_agent.claim_checks",
+          "intelligence_42_agent.watches", "intelligence_42_agent.v_watches_current", "intelligence_42_agent.briefs",
+          "intelligence_42_agent.v_briefs_current", "intelligence_42_agent.findings",
+          "intelligence_42_agent.v_prior_findings", "intelligence_42_agent.v_item_evidence"]
 
 
 def _spellings(table):
@@ -646,23 +650,21 @@ def _spellings(table):
 def test_the_models_sql_cannot_name_a_fenced_table_however_it_is_spelled(table):
     for sql in _spellings(table):
         with pytest.raises(Refused):
-            check_sql(sql, fence=True)
+            check_sql(sql)
         with pytest.raises(Refused):
             toolset.guard(RunContext(run_id="run_guard", tier="T0", as_of=datetime(2026, 9, 28, 6, 0)), "sql_query",
                           {"sql": sql, "purpose": "x"})
 
 
 @pytest.mark.parametrize("table", FENCED)
-def test_a_dry_run_that_reports_a_fenced_table_is_refused_for_the_tables_no_view_reads_underneath(table, ctx):
-    from core.agent.tools import sql_query as module
-
-    assert set(module.VIEW_BASE_TABLES) == DRY_RUN_EXEMPT
+def test_a_dry_run_that_reports_a_fenced_table_is_refused_when_no_named_view_reads_it(table, ctx):
+    # The SQL names no view, so nothing reads the fenced table underneath and the dry run is a direct read the parser
+    # missed. The exemptions for the views that do read them are pinned in test_sql_private_fence (B09).
     for ref in (table, f"ogilvy-trends-v2.{table}"):
-        if table in DRY_RUN_EXEMPT:
-            continue  # a current view reads these underneath; the static name check above is their fence
         with pytest.raises(Refused):
             model_sql_query(ctx, FakeWarehouse(tables=(ref,)), "SELECT 1 AS x", purpose="x")
-        sql_query(ctx, FakeWarehouse(tables=(ref,)), "SELECT 1 AS x", purpose="x")  # an internal read is not fenced
+        with pytest.raises(Refused):
+            sql_query(ctx, FakeWarehouse(tables=(ref,)), "SELECT 1 AS x", purpose="x")
 
 
 @pytest.mark.parametrize("table", FENCED)
@@ -674,22 +676,15 @@ def test_the_tool_the_model_calls_refuses_a_fenced_table_even_when_the_guard_is_
     assert wh.dry_runs == [] and wh.runs == []
 
 
-@pytest.mark.parametrize("table", FENCED)
-def test_the_authorised_views_and_internal_checks_still_pass_without_the_fence(table):
-    check_sql(f"SELECT * FROM {table}")  # check_sql alone is the generic read-only check the views are held to
-
-
 @pytest.mark.parametrize("sql", [
     "SELECT post_id FROM intelligence_42_core.posts",
     "SELECT * FROM intelligence_42_core.v_item_daily_current",
     "SELECT * FROM intelligence_42_core.v_item_state_current",
     "SELECT * FROM intelligence_42_core.v_good_runs",
-    "SELECT * FROM intelligence_42_agent.findings",
-    "SELECT * FROM intelligence_42_agent.v_briefs_current",
     "SELECT * FROM intelligence_42_agent.tvf_item_timeseries('i', 'ZA', 7)",
 ])
 def test_the_tables_the_map_and_the_tools_use_still_pass(sql):
-    check_sql(sql, fence=True)
+    check_sql(sql)
 
 
 def test_the_warehouse_map_tables_are_never_fenced():
@@ -712,16 +707,8 @@ def test_the_warehouse_map_tables_are_never_fenced():
 ])
 def test_the_models_sql_cannot_read_who_is_suppressed_or_a_checkers_reasons_through_a_join_or_subquery(sql):
     with pytest.raises(Refused) as err:
-        check_sql(sql, fence=True)
+        check_sql(sql)
     assert "not available" in str(err.value)
-    check_sql(sql)  # the internal readers go through warehouse.run, and the generic check stays generic
-
-
-def test_the_dry_run_exemptions_are_exactly_the_tables_a_readable_view_reads_underneath():
-    from core.agent.tools import sql_query as module
-
-    assert set(module.VIEW_BASE_TABLES) == DRY_RUN_EXEMPT
-    assert set(module.VIEW_BASE_TABLES) <= set(module.FENCED_TABLES)
 
 
 def _nested_forms(table):
@@ -739,4 +726,4 @@ def _nested_forms(table):
 def test_a_fenced_table_is_refused_inside_an_alias_embedded_json_a_function_argument_or_a_subquery(table):
     for sql in _nested_forms(table):
         with pytest.raises(Refused):
-            check_sql(sql, fence=True)
+            check_sql(sql)

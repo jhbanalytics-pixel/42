@@ -215,7 +215,7 @@ def guard(ctx: RunContext, name: str, args: dict) -> None:
     """The checks a tool call passes before its function runs. Raises Refused."""
     if name == "sql_query":
         try:
-            check_sql(args.get("sql") or "", fence=True)
+            check_sql(args.get("sql") or "")
         except Refused:
             raise
         except Exception as e:

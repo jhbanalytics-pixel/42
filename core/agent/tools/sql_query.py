@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from fnmatch import fnmatchcase
 from typing import Protocol
@@ -25,13 +26,14 @@ HIDDEN_TABLES = (
     "intelligence_42_core.v_forecasts_current",
     "intelligence_42_agent.forecast_score",
 )
-# Tables the model's SQL may not read at all (N2): the suppression list and the view over it, other runs' records,
-# skins, feedback, the checks' own reasons and the job and ledger tables. The datasets are allowlisted whole, so each
-# is named here. The fence applies to SQL the model wrote (check_sql(fence=True) and model_sql_query); the internal
-# readers of v_suppressed_creators (skills, socialcrawl, enrich_tools, warehouse.discover_creators) go through
-# warehouse.run, which never calls check_sql, and the authorised view bodies and the spend query are checked without it.
+# Class D of the private-storage fence (C5 v2 section 12, N2): relations model SQL may not read. They hold the
+# suppression list and the view over it, retained copies of answers, dossiers, briefs and findings, typed text,
+# per-post copies (v_item_evidence), the checks' own reasons (claim_checks) and the job and ledger tables. The datasets
+# are allowlisted whole, so each is named here. check_sql refuses them by default; the only ways past are
+# INTERNAL_ALLOW, for the few functions that read their own object, and the exact spend query.
 FENCED_TABLES = (
     "intelligence_42_core.suppressions",
+    "intelligence_42_core.v_suppressed_creators",
     "intelligence_42_core.raw_responses",
     "intelligence_42_core.credit_ledger",
     "intelligence_42_agent.runs",
@@ -41,15 +43,56 @@ FENCED_TABLES = (
     "intelligence_42_agent.investigations",
     "intelligence_42_agent.dossier_versions",
     "intelligence_42_agent.dossier_reviews",
-    "intelligence_42_core.v_suppressed_creators",
+    "intelligence_42_agent.watches",
+    "intelligence_42_agent.v_watches_current",
+    "intelligence_42_agent.briefs",
+    "intelligence_42_agent.v_briefs_current",
+    "intelligence_42_agent.findings",
+    "intelligence_42_agent.v_prior_findings",
+    "intelligence_42_agent.v_item_evidence",
     "intelligence_42_agent.claim_checks",
 )
-# Fenced objects that views the model may read read underneath (v_good_runs under the current views reads agent.runs;
-# v_item_market_scope reads v_suppressed_creators and so suppressions). A dry run may list a view's base tables, so the
-# dry-run check leaves these three to the static name check, which has no such ambiguity: no readable view exposes
-# them, and the model cannot name them.
-VIEW_BASE_TABLES = ("intelligence_42_agent.runs", "intelligence_42_core.suppressions",
-                    "intelligence_42_core.v_suppressed_creators")
+# Class P: any object whose name ends like this, in either dataset. None exists; the first planned member is the
+# failure-text table, which stays unwritten until W8-DEC-08c.
+PRIVATE_SUFFIX = "_private"
+# Approved views and functions the model may read, with the class D objects each reads underneath (C5 v2 12.9, computed
+# from the SQL files). A dry run may list a view's base tables, so a class D table in the dry-run list is allowed only
+# when the parsed SQL names an object that reads it. A table outside the union of the named objects' sets is a direct
+# read the parser missed, and is refused.
+_CORE, _AGENT = "intelligence_42_core", "intelligence_42_agent"
+_RUNS, _BRIEFS = f"{_AGENT}.runs", f"{_AGENT}.briefs"
+_SUPPRESSIONS, _SUPPRESSED_VIEW = f"{_CORE}.suppressions", f"{_CORE}.v_suppressed_creators"
+_RUNS_READERS = tuple(f"{_CORE}.{n}" for n in (
+    "v_good_runs", "v_collection_health_current", "v_item_daily_current", "v_series_test_current",
+    "v_coord_signals_current", "v_item_state_current", "v_item_counter_daily_current", "v_series_daily",
+    "v_item_spread", "v_item_waves", "v_breaking_signals_current", "v_item_market_scope", "tvf_item_window",
+    "tvf_placebo_base", "tvf_series_signal")) + tuple(f"{_AGENT}.{n}" for n in (
+    "v_item_origin", "v_news_followthrough", "v_items_today", "v_briefs_current", "v_item_gate_current",
+    "tvf_item_timeseries"))
+_BRIEFS_READERS = (f"{_AGENT}.v_briefs_current", f"{_AGENT}.v_item_gate_current")
+_SUPPRESSION_READERS = (f"{_CORE}.v_item_market_scope", _SUPPRESSED_VIEW)
+APPROVED_OBJECT_DEPS = {}
+for _name in _RUNS_READERS:
+    APPROVED_OBJECT_DEPS.setdefault(_name, set()).add(_RUNS)
+for _name in _BRIEFS_READERS:
+    APPROVED_OBJECT_DEPS.setdefault(_name, set()).add(_BRIEFS)
+for _name in _SUPPRESSION_READERS:
+    APPROVED_OBJECT_DEPS.setdefault(_name, set()).update({_SUPPRESSIONS, _SUPPRESSED_VIEW} if _name != _SUPPRESSED_VIEW
+                                                         else {_SUPPRESSIONS})
+# The functions that may read a class D or hidden object, and exactly which (C5 v2 12.5). Each reads through
+# internal_read, which is never offered to the model. An entry is added in the commit that adds the read it allows:
+# an allowance for a read that does not exist is a hole. The producer predicate reads of C5 8.1 join this registry with
+# that work.
+INTERNAL_ALLOW = {
+    "discover_creators": (_SUPPRESSED_VIEW, _SUPPRESSIONS),
+    "recall_findings": (f"{_AGENT}.v_prior_findings", f"{_AGENT}.findings"),
+    "get_trending_fallback_snapshot": (f"{_AGENT}.v_briefs_current", _BRIEFS),
+    "log_forecast": (f"{_AGENT}.forecasts",),
+}
+# What the eval harness may let through: every internal object. The harness calls check_sql_harness on each statement
+# that reaches the warehouse, internal reads included.
+HARNESS_ALLOW = tuple(sorted({name for names in INTERNAL_ALLOW.values() for name in names}))
+MAX_DRY_RUN_TABLES = 50  # BigQuery truncates the referenced-table list near this size; refusing here is safe either way
 # The tables and columns the model is told about in the tool description (core/schema/core.sql). Without them it
 # guessed names ("items", "detection tables") and every query failed (live staging, 4 October).
 WAREHOUSE_MAP = {
@@ -189,6 +232,29 @@ def _hidden(dataset: str, name: str, allowed: tuple = (), tables: tuple = HIDDEN
     return any(fnmatchcase(hidden, ref) for hidden in tables if hidden not in allowed)
 
 
+def _could_end_private(pattern: str) -> bool:
+    """True when a wildcard pattern could match some name that ends PRIVATE_SUFFIX. Deliberately generous: a pattern
+    that ends in a wildcard can match any suffix, so it is refused."""
+    if "*" not in pattern and "?" not in pattern:
+        return False
+    tail = re.split(r"[*?]", pattern)[-1]
+    return PRIVATE_SUFFIX.endswith(tail) or tail.endswith(PRIVATE_SUFFIX)
+
+
+def _always_denied(name: str) -> bool:
+    """Class P and the dataset metadata tables: no registry entry lifts these, so a dry-run dependency cannot either."""
+    part = name.split("$", 1)[0].casefold()
+    return part.startswith("__") or part.endswith(PRIVATE_SUFFIX)
+
+
+def _denied(dataset: str, name: str, allowed: tuple = ()) -> bool:
+    """One decision for the parsed layer and the dry-run layer (C5 v2 12.2), so the two cannot drift. A decorator is
+    stripped, case is folded, and the reference is the fnmatch pattern against the registered names, so a wildcard that
+    could reach a denied name is itself refused. The class D names in `allowed` (the registry entry of an internal
+    read) are the only exception."""
+    return _always_denied(name) or _hidden(dataset, name, allowed, FENCED_TABLES)
+
+
 def _refuse_fenced(shown: str) -> None:
     raise Refused(f"Table {shown} is not available to the agent: it holds records the agent may not read.")
 
@@ -197,9 +263,32 @@ def _refuse_hidden(shown: str) -> None:
     raise Refused(f"Table {shown} is not available to the agent: forecasts stay hidden until they beat persistence.")
 
 
-def check_sql(sql: str, hidden_ok: tuple = (), fence: bool = False) -> None:
-    """Refuse anything but one read-only query over the allowlisted datasets, outside the hidden tables. fence also
-    refuses FENCED_TABLES: it is on for every query the model wrote."""
+def _spend_sql_text() -> str:
+    from core.agent.ask import SPEND_SQL
+
+    return " ".join(SPEND_SQL.split())
+
+
+def check_sql(sql: str, hidden_ok: tuple = ()) -> None:
+    """Refuse anything but one read-only query over the allowlisted datasets, outside the forecast tables and the
+    private-storage fence (class D and P). hidden_ok names the objects an internal read may use; the model path never
+    supplies it. One statement passes the fence by exact text: the daily spend query."""
+    try:
+        _check_sql(sql, hidden_ok)
+    except Refused:
+        if sql and " ".join(sql.split()) == _spend_sql_text():
+            return
+        raise
+
+
+def check_sql_harness(sql: str) -> None:
+    """check_sql for the eval harness, which checks every statement that reaches the warehouse, internal reads
+    included: the same checks with the objects of INTERNAL_ALLOW allowed. Model SQL is refused earlier, by the guard
+    and by the query tool, before it can reach a harness."""
+    check_sql(sql, HARNESS_ALLOW)
+
+
+def _check_sql(sql: str, hidden_ok: tuple) -> None:
     if not sql or not sql.strip():
         raise Refused("Empty SQL.")
     try:
@@ -219,10 +308,23 @@ def check_sql(sql: str, hidden_ok: tuple = (), fence: bool = False) -> None:
 
     cte_names = {cte.alias_or_name for cte in tree.find_all(exp.CTE)}
     for table in tree.find_all(exp.Table):
-        _check_table(table, cte_names, hidden_ok, fence)
+        _check_table(table, cte_names, hidden_ok)
 
 
-def _check_table(table: exp.Table, cte_names: set, hidden_ok: tuple = (), fence: bool = False) -> None:
+def _named_objects(sql: str) -> frozenset:
+    """dataset.object for every table, view and table function the SQL names, folded and without decorators."""
+    named = set()
+    for statement in sqlglot.parse(sql, dialect="bigquery"):
+        if statement is None:
+            continue
+        for table in statement.find_all(exp.Table):
+            name = table.this.name if isinstance(table.this, exp.Func) else table.name
+            if table.db:
+                named.add(f"{table.db}.{name.split('$', 1)[0]}".casefold())
+    return frozenset(named)
+
+
+def _check_table(table: exp.Table, cte_names: set, hidden_ok: tuple = ()) -> None:
     parts = [p.name for p in table.parts]
     shown = ".".join(parts) or table.sql(dialect="bigquery")
     if any("INFORMATION_SCHEMA" in p.upper() for p in parts):
@@ -240,15 +342,19 @@ def _check_table(table: exp.Table, cte_names: set, hidden_ok: tuple = (), fence:
         raise Refused(f"Only project {PROJECT} is allowed; {shown} names project {table.catalog}.")
     if table.db not in ALLOWED_DATASETS:
         raise Refused(f"Dataset {table.db} is not allowed. Allowed datasets: {', '.join(ALLOWED_DATASETS)}.")
+    if _denied(table.db, table.name, hidden_ok):
+        _refuse_fenced(shown)
     if _hidden(table.db, table.name, hidden_ok):
         _refuse_hidden(shown)
-    if fence and _hidden(table.db, table.name, hidden_ok, FENCED_TABLES):
-        _refuse_fenced(shown)
+    if _could_end_private(table.name.split("$", 1)[0].casefold()):
+        _refuse_fenced(shown)  # a wildcard that could reach a private name
     if isinstance(table.this, exp.Func) and f"{table.db}.{table.this.name}" not in ALLOWED_TVFS:
         raise Refused(f"Table function {shown} is not allowed. Allowed: {', '.join(sorted(ALLOWED_TVFS))}.")
 
 
-def _check_dry_run_table(ref: str, hidden_ok: tuple = (), fence: bool = False) -> None:
+def _check_dry_run_table(ref: str, hidden_ok: tuple = (), named: frozenset = frozenset()) -> None:
+    """A table the dry run lists. Forecasts, class P and the metadata tables are refused outright. A class D table is
+    allowed only when it is in hidden_ok, or when an approved object the parsed SQL names reads it underneath."""
     parts = ref.split(".")
     if len(parts) == 3:
         if parts[0] != PROJECT:
@@ -259,9 +365,13 @@ def _check_dry_run_table(ref: str, hidden_ok: tuple = (), fence: bool = False) -
     if _hidden(parts[0], parts[1], hidden_ok):
         raise Refused(f"The dry run shows the query reads {ref}, which is not available to the agent: forecasts "
                       f"stay hidden until they beat persistence.")
-    if (fence and f"{parts[0]}.{parts[1]}".casefold() not in VIEW_BASE_TABLES
-            and _hidden(parts[0], parts[1], hidden_ok, FENCED_TABLES)):
-        raise Refused(f"The dry run shows the query reads {ref}, which holds records the agent may not read.")
+    refused = f"The dry run shows the query reads {ref}, which holds records the agent may not read."
+    if _always_denied(parts[1]):
+        raise Refused(refused)
+    if _hidden(parts[0], parts[1], hidden_ok, FENCED_TABLES):
+        full = f"{parts[0]}.{parts[1]}".casefold()
+        if not any(full in APPROVED_OBJECT_DEPS.get(obj, ()) for obj in named):
+            raise Refused(refused)
 
 
 def _reads_search_signals(refs) -> bool:
@@ -361,8 +471,15 @@ def model_sql_query(
     params: dict | None = None,
     max_bytes_billed: int = MAX_BYTES_BILLED,
 ) -> dict:
-    """sql_query for SQL the model wrote: the same checks, with FENCED_TABLES refused by name and by dry run."""
-    return _run_query(ctx, warehouse, sql, purpose, params, max_bytes_billed, fence=True)
+    """sql_query for SQL the model wrote. It takes no hidden_ok, so the model path cannot reach a class D object."""
+    return _run_query(ctx, warehouse, sql, purpose, params, max_bytes_billed)
+
+
+def internal_read(function: str, ctx: RunContext, warehouse: Warehouse, sql: str, purpose: str,
+                  params: dict | None = None, max_bytes_billed: int = MAX_BYTES_BILLED) -> dict:
+    """sql_query for a tool's own read of an object the model may not name. The objects allowed are the function's
+    entry in INTERNAL_ALLOW, and an unregistered function is a KeyError. Never offered to the model."""
+    return _run_query(ctx, warehouse, sql, purpose, params, max_bytes_billed, hidden_ok=INTERNAL_ALLOW[function])
 
 
 def query_rows(ctx: RunContext, query_id: str, offset: int = 0, limit: int = QUERY_PAGE_ROWS) -> dict:
@@ -454,14 +571,18 @@ def _dispatch_query(ctx: RunContext, warehouse: Warehouse, sql: str, params: dic
 
 
 def _run_query(ctx: RunContext, warehouse: Warehouse, sql: str, purpose: str, params: dict | None = None,
-               max_bytes_billed: int = MAX_BYTES_BILLED, hidden_ok: tuple = (), fence: bool = False) -> dict:
-    """sql_query, with hidden_ok naming the hidden tables an internal read may use. Never offered to the model."""
-    check_sql(sql, hidden_ok, fence)
+               max_bytes_billed: int = MAX_BYTES_BILLED, hidden_ok: tuple = ()) -> dict:
+    """sql_query, with hidden_ok naming the objects an internal read may use. Only internal_read passes it."""
+    check_sql(sql, hidden_ok)
     cap = min(int(max_bytes_billed), MAX_BYTES_BILLED)
 
     dry = warehouse.dry_run(sql, params)
+    if len(dry["tables"]) >= MAX_DRY_RUN_TABLES:
+        raise Refused(f"The dry run lists {len(dry['tables'])} tables, which is more than can be checked, so the "
+                      f"query is refused. Narrow it.")
+    named = _named_objects(sql)
     for ref in dry["tables"]:
-        _check_dry_run_table(ref, hidden_ok, fence)
+        _check_dry_run_table(ref, hidden_ok, named)
     scanned = int(dry["bytes"])
     if scanned > cap:
         raise Refused(f"The query would scan {scanned:,} bytes, over the {cap:,} byte cap. Narrow it.")
