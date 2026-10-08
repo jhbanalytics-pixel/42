@@ -14,7 +14,8 @@ import {safeUrl} from './safeUrl.js';
 import {unitFor} from './readerUnits.js';
 import {SpikeConfirm} from './ui/SpikeConfirm.jsx';
 import {AskAboutThis} from './ui/AskAboutThis.jsx';
-import {ExcerptNote, PostFull, TrendCard, longDate, platformWord, postTextView} from './ui/TrendCard.jsx';
+import {ExcerptNote, PostFull, TrendCard, askQuestion, longDate, platformWord, postTextView, writtenTitle} from './ui/TrendCard.jsx';
+import {UNNAMED_TOPIC_WORDS, isUnnamedTopic} from './topicNames.js';
 import {useCardWatch} from './ui/WatchDialog.jsx';
 import './styles/topic42.css';
 
@@ -38,8 +39,8 @@ const NOT_CHECKED_WORDS = {
 const isFigure = (value) => value && typeof value === 'object' && typeof value.value === 'number';
 const marketWord = (market) => MARKET_WORDS[market] || market;
 
-function askHref(card, market){
-  return '#/ask?q=' + encodeURIComponent(card.ask || card.title || '')
+function askHref(card, market, question){
+  return '#/ask?q=' + encodeURIComponent(question || '')
     + '&market=' + encodeURIComponent(market)
     + '&item=' + encodeURIComponent(card.item_id)
     + (card.date ? '&date=' + encodeURIComponent(card.date) : '');
@@ -161,13 +162,18 @@ export function TopicPage42({itemId, market, onAuth, onCreateWatch}){
   const card = data.card || {};
   const where = card.market || market;
   const aliases = Array.isArray(data.aliases) ? data.aliases : [];
+  /* The heading is the title the card leads with on Today; the cluster label it replaces sits in the line under it. */
+  const written = writtenTitle(card, card.title);
+  const unnamed = !written && isUnnamedTopic(card.title);
+  const heading = written || (unnamed ? UNNAMED_TOPIC_WORDS : card.title);
+  const question = askQuestion(card, card.title, written);
 
   return (
     <section className="page tp42">
       <header className="tp42-head">
-        <h1 className="tp42-heading">{card.title}</h1>
+        <h1 className="tp42-heading">{heading}</h1>
         <p className="tp42-sub">
-          {marketWord(where)}
+          {(written || unnamed) ? card.title + ' · ' : ''}{marketWord(where)}
           {aliases.length > 0 ? ' · also seen as ' + aliases.join(', ') : ''}
         </p>
         {card.held_back && card.held_back.reason_text && (
@@ -203,7 +209,7 @@ export function TopicPage42({itemId, market, onAuth, onCreateWatch}){
         : Array.isArray(card.evidence) && card.evidence.length > 0 ? card.evidence : data.evidence} />
 
       <p className="tp42-actions" style={{display: 'flex', flexWrap: 'wrap', gap: 'var(--s-4)'}}>
-        <AskAboutThis className="tp42-link" href={askHref(card, where)} question={card.ask || card.title} />
+        <AskAboutThis className="tp42-link" href={askHref(card, where, question)} question={question} />
         <a className="tp42-link" href={'#/compare?mode=items&items=' + encodeURIComponent(card.item_id || itemId) + '&market=' + encodeURIComponent(where)}>Compare with</a>
         <a className="tp42-link" href={'#/history/items/' + encodeURIComponent(card.item_id || itemId) + '?market=' + encodeURIComponent(where)}>History of this item</a>
       </p>
