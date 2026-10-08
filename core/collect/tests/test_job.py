@@ -1022,6 +1022,27 @@ def test_a_run_stopped_below_the_floor_is_not_reported_as_an_unread_balance():
     assert runs.rows[-1]["status"] == "ok"
 
 
+def test_the_runs_row_never_counts_more_ok_calls_than_calls():
+    runs = chain.MemoryRunsStore()
+    assert run_main(["--run-date", "2026-09-29"], runs=runs) == 0
+    counts = runs.rows[-1]["counts"]
+    assert counts["local_records"] > 0
+    assert counts["calls_ok"] <= counts["calls"]
+
+
+def test_a_collect_that_raises_midway_still_records_the_calls_and_credits_it_made():
+    def script(n, route, market):
+        if n == 6:
+            raise RuntimeError("vendor client crashed")
+
+    runs, jobs, client = chain.MemoryRunsStore(), FakeJobs(), FakeClient(script)
+    assert run_main(["--run-date", "2026-09-29"], runs=runs, jobs=jobs, client=client) != 0
+    final = runs.rows[-1]
+    assert final["status"] == "failed" and "vendor client crashed" in final["error"]
+    assert final["counts"]["calls"] == 5 and final["counts"]["credits_charged"] > 0
+    assert jobs.started == []
+
+
 def test_already_done_exits_zero_without_calls():
     runs = chain.MemoryRunsStore()
     assert run_main(["--run-date", "2026-09-29"], runs=runs) == 0

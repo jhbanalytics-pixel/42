@@ -975,7 +975,7 @@ class Collected:
         trends = {} if self.search_states is None else {
             "search_signals": len(self.search_signals), "search_signal_states": dict(self.search_states),
             "trends_credits": self.trends_credits, "trends_error": self.trends_error}
-        counts = {"calls": len(self.client_calls), "calls_ok": sum(r["ok"] for r in job_records),
+        counts = {"calls": len(self.client_calls), "calls_ok": sum(r["ok"] for r in job_records if r["row"] != local_sources.ROW),
                 "credits_charged": self.credits + self.local_credits,
                 "credits_by_share": {**self.spent, "LOCAL": self.local_credits},
                 "local_credits": self.local_credits, "local_error": self.local_error,
@@ -1449,7 +1449,7 @@ def country_phase(run, runner, profile_reader, cap):
 def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None, x_trends=False, share_cap=None,
             last_pulls=None, seeds=None, local_get=None, watches=None, known_posts=None,
             public_feed_transport=None, search_signals=False, only_routes=None, keep=frozenset(),
-            google_rss_transport=None, google_terms=None, country_profiles=None):
+            google_rss_transport=None, google_terms=None, country_profiles=None, on_run=None):
     """Make every call of the run through client and parse each response. Nothing is written here.
     share_cap is the overridden collect cap (None without an override); last_pulls maps (market, series,
     protocol) to the last pull number already stored; seeds holds the seed_queue rows seeds.read gave;
@@ -1467,6 +1467,8 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
     are not run, and no other call is made or recorded."""
     config = config or load_config()
     run = Collected(run_id)
+    if on_run is not None:
+        on_run(run)  # a failed run still has its calls and credits to report
     ids = _CountedIds(item_id_fn)
     budget = Budget(share_cap)
     cap = share_cap if share_cap is not None else load_caps()["ENGINE_DAILY"]["collect"]
@@ -1869,6 +1871,17 @@ def print_plan(day, *, x_trends=False, share_cap=None, only_routes=None):
             print(f"  {channel.market} {channel.name} {channel.url}")
 
 
+def _failed_counts(collected, started):
+    """The counts of a run that failed: the finished collection's, else those of the partial one collect() had built
+    when it raised, so the spend and calls made before the failure are not lost. {} when neither can be counted."""
+    partial = collected or (started[0] if started else None)
+    try:
+        return partial.counts() if partial is not None else {}
+    except Exception:
+        log.exception("the counts of a failed collect run could not be built")
+        return {}
+
+
 def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None, fns=None, clock=None, get=None,
          public_feed_transport=None):
     env = os.environ if env is None else env
@@ -1939,7 +1952,7 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
     except chain.AlreadyDone as exc:
         print(f"nothing to collect: {exc}")
         return restart_next(run_date, runs, jobs)
-    collected = None
+    collected, started = None, []
     try:
         item_id_fn, geo_fn = fns or detect_fns()
         last = writers.last_pulls(bq, run_date)
@@ -1955,7 +1968,8 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
                             public_feed_transport=public_feed_transport, search_signals=True,
                             only_routes=only, keep=keep, google_rss_transport=public_feed_transport,
                             google_terms=lambda: google_trends.read_terms(bq, run_date, MARKETS),
-                            country_profiles=lambda keys, **kw: writers.read_profile_countries(bq, keys, **kw))
+                            country_profiles=lambda keys, **kw: writers.read_profile_countries(bq, keys, **kw),
+                            on_run=started.append)
         if only is None:
             bq_trends_phase(collected, bq, run_date, clock=clock)
         written = writers.write_run(bq, collected, run.run_id, carry=base["health"] if base else None)
@@ -1964,12 +1978,12 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
     except Exception as exc:
         if isinstance(exc, writers.PublicFeedWriteError):
             log.error("collect %s failed (%s)", run.run_id, exc.category)
-            counts = collected.counts() if collected else {}
+            counts = _failed_counts(collected, started)
             counts["public_feed_write_error"] = exc.category
             chain.finish(run, "failed", counts, exc.category, runs=runs)
             return 1
         log.exception("collect %s failed", run.run_id)
-        chain.finish(run, "failed", collected.counts() if collected else {}, f"{type(exc).__name__}: {exc}"[:1000],
+        chain.finish(run, "failed", _failed_counts(collected, started), f"{type(exc).__name__}: {exc}"[:1000],
                      runs=runs)
         return 1
     counts = {**collected.counts(),
