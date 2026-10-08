@@ -130,7 +130,7 @@ def test_a03_build_failed_has_no_answer_and_all_bound_null():
     assert st.verify_stored(failed) is None
 
 
-# The fixtures the N series is generated from (F10 and F01), plus the other execution states.
+# The fixtures the N series is built from (F10 and F01), plus the other execution states.
 F10 = make()
 F01 = make(summary="shown", removals=(), rewrite="not_attempted", ans=answer("complete", "A fine summary.", 4))
 REC10, REC01 = record(F10), record(F01, answer("complete", "A fine summary.", 4))
