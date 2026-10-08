@@ -210,7 +210,7 @@ def _held_item(c):
     evidence = c.get("evidence") or []
     # The same figures a card would show, growth dropped while untested, so a reader can weigh the hold.
     numbers = [n for n in c.get("numbers") or [] if not (_untested(c) and _is_growth(n["unit"]))]
-    return {
+    held = {
         "item_id": c["item_id"], "title": c["title"], "rule": dec.get("rule"), "reason": reason,
         "reason_text": dec.get("reason") or REASON_TEXT[reason],
         "evidence_ids": [e["id"] for e in evidence], "evidence": evidence,
@@ -218,6 +218,10 @@ def _held_item(c):
         # The job's fixed wording for the check that held the explanation back, as on cards.
         "failed_reason": _failed_reason(c, c.get("explanation_status")),
     }
+    # A post-floor hold says at which stage of the pack it fell below the floor (pack_order.hold_detail).
+    if c.get("held_reason_detail"):
+        held["held_reason_detail"] = c["held_reason_detail"]
+    return held
 
 
 # The brief job's own holds, summarised by what held them (singular, plural); every other hold by its reason.
@@ -230,7 +234,8 @@ HELD_SUMMARY = {
 
 
 def _held_group(item):
-    return item["reason_text"] if item["reason_text"] in HELD_SUMMARY else REASON_TEXT[item["reason"]].lower()
+    text = item["reason_text"].split(": the ")[0]  # a floor hold may name the cap that caused it after the wording
+    return text if text in HELD_SUMMARY else REASON_TEXT[item["reason"]].lower()
 
 
 def _held_label(group, n):

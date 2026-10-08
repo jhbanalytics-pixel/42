@@ -1,0 +1,276 @@
+"""Holds when the pack caps leave too little evidence, the outlet registry and the pack's stage counts (C4 v2
+section 19 rules 5 to 7). The floors themselves (3 showable, 2 local) are pinned here and must not move."""
+
+import pytest
+
+from core.brief import evidence, job, pack_order
+from core.brief.specificity import MIN_EVIDENCE
+from core.brief.tests import test_pack_order as pack_world
+from core.brief.tests.test_brief_job import Client, add_item, brief, held_items, item, world
+from core.brief.tests.test_brief_job import busy_waits, market_scope_is_valid_by_default  # noqa: F401  (autouse)
+from core.detect.tests import duck
+from core.detect.tests.fixtures import D, at, day
+
+
+def rec(evidence_id, *, market="ZA", source_market=None):
+    return {"id": evidence_id, "platform": "tiktok", "handle": f"@{evidence_id}", "url": f"https://x/{evidence_id}",
+            "posted_at": "2026-09-29T19:40:00+02:00", "market": market, "source_market": source_market,
+            "text": "t", "quote_text": "t", "engagement": {"views": 10}, "flags": [], "thumbnail_url": None}
+
+
+def candidate(evidence_list, stages=None):
+    return {"market": "ZA", "ctx": {}, "pack": {"evidence": evidence_list}, "stages": stages or {},
+            "row": {"market_scope": "market", "map_status": "active", "nameless": False,
+                    "authenticity": "clear", "sponsored_share": 0}}
+
+
+def stage(posts, showable=None, local=None, members=0):
+    return {"posts": posts, "showable": posts if showable is None else showable,
+            "local": posts if local is None else local, "members": members}
+
+
+def stages(available, after_creator, after_outlet):
+    return {"version": 1, "available": available, "after_creator_cap": after_creator,
+            "after_outlet_cap": after_outlet}
+
+
+@pytest.fixture
+def gate_passes(monkeypatch):
+    monkeypatch.setattr(job, "gate_card", lambda *_: job.Decision(True, "today", None, None, None, False))
+
+
+# The floors do not move
+
+
+def test_the_floors_are_three_showable_and_two_local():
+    assert MIN_EVIDENCE == 3
+    assert pack_order.FLOORS == {"showable": 3, "local": 2}
+
+
+@pytest.mark.parametrize("showable,local,held", [(3, 2, False), (2, 2, True), (3, 1, True), (12, 2, False), (12, 1, True)])
+def test_the_gate_still_holds_below_three_showable_or_two_local_posts_and_not_above(gate_passes, showable, local, held):
+    posts = [rec(f"l{n}") for n in range(local)] + [rec(f"u{n}", market=None) for n in range(showable - local)]
+    cand = candidate(posts)
+    decision = job._gate(cand, None)
+    assert (decision.where == "held_back") is held
+    assert (cand["held_reason"] == "not_confirmed") is held
+
+
+# The cause is the first stage below the floor
+
+
+@pytest.mark.parametrize("counts,cause", [
+    ((2, 2, 2, 2), "evidence_absent"),
+    ((4, 2, 2, 2), "capped_by_creator"),
+    ((5, 4, 1, 1), "capped_by_outlet"),
+    ((5, 5, 5, 2), "capped_by_size"),
+    ((1, 1, 1, 1), "evidence_absent"),
+])
+def test_the_cause_is_the_first_stage_at_which_the_count_falls_below_the_floor(counts, cause):
+    a, b, c, f = counts
+    posts = [rec(f"l{n}") for n in range(f)]
+    detail = pack_order.hold_detail(stages(stage(a), stage(b), stage(c)), "showable", posts, "ZA")
+    assert detail["cause"] == cause
+    assert detail["block_version"] == 1 and detail["floor"] == "showable" and detail["minimum"] == 3
+    assert detail["counts"] == {"available": a, "after_creator_cap": b, "after_outlet_cap": c, "final": f}
+
+
+def test_the_local_floor_reads_the_local_counts_not_the_showable_ones():
+    posts = [rec("a"), rec("b", market=None), rec("c", market=None)]
+    detail = pack_order.hold_detail(stages(stage(6, local=4), stage(5, local=1), stage(5, local=1)), "local", posts, "ZA")
+    assert detail["cause"] == "capped_by_creator" and detail["minimum"] == 2
+    assert detail["counts"] == {"available": 4, "after_creator_cap": 1, "after_outlet_cap": 1, "final": 1}
+
+
+def test_a_final_count_above_an_earlier_stage_count_is_not_read_as_a_cap():
+    posts = [rec(f"l{n}") for n in range(3)]  # a merge or a regrow added posts the first read did not have
+    assert pack_order.hold_detail(stages(stage(1), stage(1), stage(1)), "showable", posts, "ZA")["counts"] == {
+        "available": 3, "after_creator_cap": 3, "after_outlet_cap": 3, "final": 3}
+
+
+def test_a_pack_with_no_stage_counts_reads_every_stage_as_the_final_pack():
+    posts = [rec("a"), rec("b")]
+    detail = pack_order.hold_detail({}, "showable", posts, "ZA")
+    assert detail["cause"] == "evidence_absent"
+    assert detail["counts"] == {"available": 2, "after_creator_cap": 2, "after_outlet_cap": 2, "final": 2}
+
+
+def test_the_hold_text_names_the_cap_that_removed_the_posts_and_keeps_the_old_text_when_none_did():
+    base = "Fewer than 2 supported local posts"
+    outlet = {"cause": "capped_by_outlet", "counts": {"available": 5, "after_creator_cap": 4, "after_outlet_cap": 1,
+                                                       "final": 1}}
+    creator = {"cause": "capped_by_creator", "counts": {"available": 5, "after_creator_cap": 1, "after_outlet_cap": 1,
+                                                         "final": 1}}
+    size = {"cause": "capped_by_size", "counts": {"available": 9, "after_creator_cap": 9, "after_outlet_cap": 9,
+                                                   "final": 1}}
+    absent = {"cause": "evidence_absent", "counts": {"available": 1, "after_creator_cap": 1, "after_outlet_cap": 1,
+                                                      "final": 1}}
+    assert pack_order.hold_text(base, outlet) == "Fewer than 2 supported local posts: the outlet cap left 1 of 4"
+    assert pack_order.hold_text(base, creator) == "Fewer than 2 supported local posts: the creator cap left 1 of 5"
+    assert pack_order.hold_text(base, size) == "Fewer than 2 supported local posts: the 12-post limit left 1 of 9"
+    assert pack_order.hold_text(base, absent) == base
+
+
+# The gate carries the detail
+
+
+def test_a_floor_hold_carries_its_cause_and_counts_and_the_text_names_the_cap(gate_passes):
+    posts = [rec("a"), rec("b", market=None), rec("c", market=None)]
+    cand = candidate(posts, stages(stage(6, local=4), stage(5, local=4), stage(5, local=1)))
+    decision = job._gate(cand, None)
+    assert decision.where == "held_back" and cand["held_reason"] == "not_confirmed" and cand["floor_held"]
+    assert decision.reason == "Fewer than 2 supported local posts: the outlet cap left 1 of 4"
+    assert cand["held_reason_detail"] == {
+        "block_version": 1, "floor": "local", "minimum": 2, "cause": "capped_by_outlet",
+        "counts": {"available": 4, "after_creator_cap": 4, "after_outlet_cap": 1, "final": 1}}
+
+
+def test_a_showable_hold_by_the_creator_cap_says_so(gate_passes):
+    posts = [rec("a"), rec("b")]
+    cand = candidate(posts, stages(stage(4), stage(2), stage(2)))
+    decision = job._gate(cand, None)
+    assert decision.reason == "Fewer than 3 posts 42 can show: the creator cap left 2 of 4"
+    assert cand["held_reason_detail"]["floor"] == "showable" and cand["held_reason_detail"]["cause"] == "capped_by_creator"
+
+
+def test_a_hold_that_no_cap_caused_keeps_the_old_wording_and_still_has_a_detail(gate_passes):
+    cand = candidate([rec("a"), rec("b")])
+    decision = job._gate(cand, None)
+    assert decision.reason == "Fewer than 3 posts 42 can show"
+    assert cand["held_reason_detail"]["cause"] == "evidence_absent"
+
+
+def test_a_card_that_passes_has_no_detail(gate_passes):
+    cand = candidate([rec(f"l{n}") for n in range(3)])
+    assert job._gate(cand, None).where == "today" and cand["held_reason_detail"] is None
+
+
+def test_every_floor_hold_in_a_job_run_has_a_detail_and_its_text_still_groups_in_the_held_summary():
+    con = world(n=2)
+    add_item(con, "NG", "two_posts", 0.98, posts=2, creators3=2)
+    add_item(con, "NG", "samsung", 0.99, posts=0, state="new_to_42", untested=True, creators3=2)
+    r = brief(con)
+    held = held_items(r, "NG")
+    for item_id in ("two_posts", "samsung"):
+        assert held[item_id]["reason"] == "not_confirmed"
+        assert held[item_id]["reason_text"] == "Fewer than 3 posts 42 can show"
+        detail = held[item_id]["held_reason_detail"]
+        assert detail["block_version"] == 1 and detail["cause"] == "evidence_absent"
+    assert held["two_posts"]["held_reason_detail"]["counts"] == {
+        "available": 2, "after_creator_cap": 2, "after_outlet_cap": 2, "final": 2}
+    assert held["samsung"]["held_reason_detail"]["counts"]["available"] == 0
+
+
+def test_a_hold_the_creator_cap_caused_is_named_in_a_job_run_and_groups_with_the_other_floor_holds():
+    con = world(n=2)
+    add_item(con, "NG", "one_creator", 0.98, posts=0, creators3=2)
+    for k in range(4):
+        pid = f"one_creator_p{k}"
+        duck.load(con, "core.posts", [{
+            "post_id": pid, "platform": "tiktok", "creator_id": "same", "creator_tier_at_post": "micro", "text": "t",
+            "published_at": at(day(1), 9), "post_date": day(1),
+            "geo_market": "NG", "geo_confidence": 0.9, "geo_source": "ext_region", "engagement": 100 - k}])
+        duck.load(con, "core.post_items", [{"post_id": pid, "item_id": "one_creator", "via": "hashtag"}])
+        duck.load(con, "core.post_observations", [{
+            "post_id": pid, "observed_at": at(day(1), 10), "observed_date": day(1), "market": "NG",
+            "platform": "tiktok", "lane": "sweep", "lane_class": "unbiased_rank"}])
+    duck.load(con, "core.creators", [{"creator_id": "same", "platform": "tiktok", "handle": "@same", "coord_score": 0}])
+    held = held_items(brief(con), "NG")["one_creator"]
+    assert held["reason"] == "not_confirmed"
+    assert held["reason_text"] == "Fewer than 3 posts 42 can show: the creator cap left 2 of 4"
+    assert held["held_reason_detail"]["cause"] == "capped_by_creator"
+    assert held["held_reason_detail"]["counts"] == {"available": 4, "after_creator_cap": 2, "after_outlet_cap": 2,
+                                                    "final": 2}
+
+
+# The pack carries the stage counts
+
+
+def test_build_pack_passes_the_registry_and_the_default_cap_and_returns_the_stage_counts(monkeypatch):
+    seen = {}
+    real = pack_order.outlet_keys
+    monkeypatch.setattr(evidence.pack_order, "outlet_keys", lambda *a, **k: seen.setdefault("keys", real(*a, **k)))
+    con = world(n=1, markets=("NG",))
+    state = duck.query(con, "SELECT s.* FROM {core}.v_item_state_current s WHERE s.item_id = @i AND s.market = 'NG'",
+                       {"i": item("NG", 1)})[0]
+    client = Client(con)
+    counts = {}
+    pack, _, _ = evidence.build_pack(client, state, D, "NG", core="core", agent="agent", stages=counts)
+    assert seen["keys"] == []
+    assert set(pack) == {"evidence", "numbers", "facts"}  # the pack keeps its three keys
+    assert counts["version"] == 1
+    assert counts["available"] == {"posts": 3, "showable": 3, "local": 3, "members": 0}
+    assert counts["after_outlet_cap"]["posts"] == len(pack["evidence"]) == 3
+
+
+def test_build_pack_reads_an_empty_pack_the_outlet_cap_left_as_no_posts_with_its_counts(monkeypatch):
+    monkeypatch.setattr(pack_order, "OUTLET_CAP", 0)
+    con = pack_world.outlet_only_world()
+    duck.load(con, "agent.runs", [])
+    duck.load(con, "core.item_state", [{"metric_date": D, "market": "NG", "item_id": "i1", "kind": "hashtag",
+                                        "state": "emerging", "untested": True, "run_id": "detect-1",
+                                        "rule_version": "r1"}])
+    row = {"item_id": "i1", "run_id": "detect-1", "state": "emerging", "untested": True, "main_series_id": None}
+    counts = {}
+    pack, _, _ = evidence.build_pack(Client(con), row, pack_world.D, "NG", core="core", agent="agent",
+                                     hidden=(set(), set(), set()), stages=counts)
+    assert pack["evidence"] == []
+    assert counts["available"]["posts"] == 3 and counts["after_outlet_cap"]["posts"] == 0
+
+
+# The outlet registry
+
+
+def write(tmp_path, text):
+    path = tmp_path / "hubs.yaml"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+CONFIRMED = """
+status: confirmed
+markets:
+  za:
+    confirmed_by: Jo
+    x:
+      - {handle: IOL, platform: x, kind: news}
+      - {handle: Soccer_Laduma, platform: twitter, kind: sport}
+      - {handle: casspernyovest, platform: x, kind: music}
+    culture_desk:
+      - {handle: SomeDesk, platform: instagram, kind: news}
+  ng:
+    confirmed_by: null
+    x:
+      - {handle: ARISEtv, platform: x, kind: news}
+  ke:
+    confirmed_by: ""
+    x:
+      - {handle: KenyaNews, platform: x, kind: news}
+"""
+
+
+def test_the_shipped_hubs_file_is_a_draft_so_no_handle_classifies_and_only_the_news_platform_does():
+    assert pack_order.outlet_keys() == []
+
+
+def test_a_confirmed_market_contributes_its_news_and_sport_entries_by_normalised_key(tmp_path):
+    assert pack_order.outlet_keys(write(tmp_path, CONFIRMED)) == [
+        "instagram:somedesk", "x:iol", "x:soccer_laduma"]
+
+
+def test_a_draft_file_contributes_nothing_even_when_a_market_names_who_confirmed_it(tmp_path):
+    assert pack_order.outlet_keys(write(tmp_path, CONFIRMED.replace("status: confirmed", "status: draft"))) == []
+
+
+@pytest.mark.parametrize("text", ["", "markets: 3", "status: confirmed\nmarkets: [1, 2]", "status: [", "status: confirmed"])
+def test_a_file_that_cannot_be_read_as_a_registry_contributes_nothing(tmp_path, text):
+    assert pack_order.outlet_keys(write(tmp_path, text)) == []
+
+
+def test_a_missing_file_contributes_nothing(tmp_path):
+    assert pack_order.outlet_keys(tmp_path / "absent.yaml") == []
+
+
+def test_the_module_keeps_the_section_in_one_place():
+    for name in ("OUTLET_CAP", "FLOORS", "outlet_keys", "read_stages", "hold_detail", "hold_text"):
+        assert hasattr(pack_order, name)
