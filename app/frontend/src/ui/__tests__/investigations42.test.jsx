@@ -876,6 +876,36 @@ test('a run that keeps adding steps is polled past the idle limit and still reso
   expect(reads).toBe(31);
 });
 
+/* The poll waits longer after every read that brought no step, up to a cap, and
+   starts again from the first wait when a step arrives. The waits are read from
+   the timer calls themselves, so the test does not depend on how fast the machine is. */
+test('the poll doubles its wait up to the cap while nothing arrives and starts again when a step arrives', async () => {
+  let reads = 0;
+  serve([
+    ['GET', '/api/investigations/' + ID + '/events', json(502, {error: 'agent_unavailable', message: 'Down.'})],
+    ['GET', '/api/investigations/' + ID, () => {
+      reads += 1;
+      if (reads === 7) return json(200, finished());
+      const steps = reads >= 5 ? [{...completeRecord.steps[0], seq: 500}] : [];
+      return json(200, draft({status: 'running', ask_id: completeRecord.ask_id, record: {...finishedRecord(), status: 'running', answer: null, steps}}));
+    }],
+  ]);
+  const realSetTimeout = globalThis.setTimeout;
+  const waits = [];
+  globalThis.setTimeout = (callback, ms, ...args) => {
+    if (ms === 7 || ms === 14 || ms === 28 || ms === 50) waits.push(ms);
+    return realSetTimeout(callback, 0, ...args);
+  };
+  try {
+    const result = await api.streamInvestigation(ID, () => {}, {pollMs: 7, maxPollMs: 50, idleMs: 600000});
+    expect(result.status).toBe('complete');
+  } finally {
+    globalThis.setTimeout = realSetTimeout;
+  }
+  expect(reads).toBe(7);
+  expect(waits).toEqual([14, 28, 50, 50, 7, 14]);
+});
+
 test('a hidden tab does not poll, and polling resumes when the tab shows again', async () => {
   let reads = 0;
   let hidden = true;
