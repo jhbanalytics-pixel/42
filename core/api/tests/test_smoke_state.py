@@ -98,8 +98,20 @@ def test_s01_blank_summaries_are_judged_by_their_verified_removal_state(name, mo
     assert ok is widened, reason
 
 
-def test_s01_the_widening_constant_is_off_until_the_decision_is_typed():
-    assert smoke.ACCEPT_ANY_VERIFIED_REMOVAL is False
+def test_s01_the_widening_constant_is_on_because_w8_dec_07_was_typed_yes():
+    assert smoke.ACCEPT_ANY_VERIFIED_REMOVAL is True
+
+
+def test_s01_by_default_the_retained_f10_record_now_passes_with_its_verified_removal_state():
+    # The one expectation W8-DEC-07 changes: a blank behind a verified first_check removal and its gap passes.
+    record = stored("", "partial", producer_gaps("K6"), removed(("first_check", "K6")))
+    assert smoke.check_ask_record(record)[0] is True
+
+
+def test_s01_by_default_a_blank_with_no_state_or_a_forged_one_still_fails():
+    assert smoke.check_ask_record(stored("", "partial", producer_gaps("K6"), None))[0] is False
+    assert smoke.check_ask_record(stored("", "partial", producer_gaps("K6"), {"check": "unverified", "problem": "digest"}))[0] is False
+    assert smoke.check_ask_record(stored("", "partial", [], removed(("first_check", "K6"))))[0] is False
 
 
 def test_s01_the_original_a80_5_of_6_record_fails_the_ask_check_as_it_did_then(monkeypatch):
@@ -301,7 +313,8 @@ def test_s01_a_removed_state_with_no_removals_or_a_pair_the_producer_never_write
         assert smoke.check_ask_record(stored("", "partial", gaps, removed(pair)))[0] is False, pair
 
 
-def test_s01_with_the_interim_rule_a_removal_at_no_support_or_critic_stage_fails_even_when_the_headline_gap_is_present():
+def test_s01_with_the_interim_rule_a_removal_at_no_support_or_critic_stage_fails_even_when_the_headline_gap_is_present(monkeypatch):
+    monkeypatch.setattr(smoke, "ACCEPT_ANY_VERIFIED_REMOVAL", False)
     gaps = producer_gaps("K6", "headline")
     assert smoke.check_ask_record(stored("", "partial", gaps, removed(("first_check", "K6"))))[0] is False
 

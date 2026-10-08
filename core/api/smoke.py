@@ -42,11 +42,12 @@ POLL_SECONDS = 5.0
 PROGRESS_SECONDS = 30.0
 MARKETS = ("ZA", "NG", "KE")
 MAX_AGE_ENV = "F42_SMOKE_TODAY_MAX_AGE_HOURS"
-# W8-DEC-07. While False, a blank summary passes only when the producer's verified state is `removed` and the answer
-# also carries the exact HEADLINE_GAP and a removal at the support check or the critic: the a80 rule with a verified
-# state added, which accepts nothing a80 refuses. When True a blank also passes for any verified removal whose stages
-# the producer writes, without the HEADLINE_GAP conjunct. `blank_unexplained` and `unattributed` never pass.
-ACCEPT_ANY_VERIFIED_REMOVAL = False
+# W8-DEC-07, typed YES by Albert on 2026-10-08 19:20 SAST (wave8/decisions/DECISIONS-20261008-dec07.txt). True: a blank
+# summary passes for any verified removal whose stages the producer writes, on a partial, completed answer that carries
+# each removal's gap, without the HEADLINE_GAP and stage conjuncts. False restores the a80 rule with a verified state
+# added: the exact HEADLINE_GAP and a removal at the support check or the critic. `blank_unexplained` and
+# `unattributed` never pass, and a record with no verified state never passes.
+ACCEPT_ANY_VERIFIED_REMOVAL = True
 SAST = dt.timezone(dt.timedelta(hours=2), "SAST")
 _now = lambda: dt.datetime.now(dt.timezone.utc)  # noqa: E731 - replaced in tests
 _clock = time.monotonic
