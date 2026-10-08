@@ -10,8 +10,7 @@ stage: it runs every 15 minutes and writes its own runs rows. begin() also raise
 stage already ran ok that day or is still running inside its task timeout, so a Scheduler retry or the
 06:15 brief never repeats work (FORCE_RERUN=1 bypasses this); jobs treat AlreadyDone as a clean exit 0, after
 restart_next() starts the next stage when this one is ok and the next has no runs row for the day (a start_next
-that raised after finish(ok)). An ok run that finished with its upstream not ok (the brief's 06:15 data-issue
-publish) is not a duplicate once the upstream is ok, so the real run still happens.
+that raised after finish(ok)).
 The running row records the Cloud Run execution name in counts, so Cloud Run's own task retry after a
 crash, which shares that name, is let through as a fresh run.
 The runs table is append-only: every call adds a row and the latest row per run_id wins. Nothing
@@ -129,24 +128,9 @@ def begin(stage, run_date=None, *, runs=None, jobs=None):
     if latest is not None and latest["status"] == "ok":
         return run
     seen = "no runs row" if latest is None else f"latest status {latest['status']}"
-    reason = f"{_not_ok(need, day)} ({seen})"
+    reason = f"upstream {need} for {day.isoformat()} is not ok ({seen})"
     runs.append(_row(run, "blocked", _utc_now(), None, reason))
     raise UpstreamNotReady(reason, run)
-
-
-def _not_ok(need, day):
-    return f"upstream {need} for {day.isoformat()} is not ok"
-
-
-def _ran_without_upstream(stage, day, latest, runs):
-    """True when stage's ok row is a past-deadline run that finished with its upstream not ok (the brief's
-    data-issue publish, whose error is begin()'s blocked reason) and the upstream is ok now. That run did not
-    do the stage's work, so it must not stand in for it."""
-    need = upstream(stage)
-    if need is None or not str(latest.get("error") or "").startswith(_not_ok(need, day)):
-        return False
-    now_ok = runs.latest(need, day)
-    return now_ok is not None and now_ok["status"] == "ok"
 
 
 def _duplicate(stage, day, runs, execution):
@@ -156,8 +140,6 @@ def _duplicate(stage, day, runs, execution):
     if latest is None:
         return None
     if latest["status"] == "ok":
-        if _ran_without_upstream(stage, day, latest, runs):
-            return None
         return f"{stage} for {day.isoformat()} already ran ok (run {latest['run_id']})"
     if latest["status"] == "running":
         if execution and (latest.get("counts") or {}).get("execution") == execution:

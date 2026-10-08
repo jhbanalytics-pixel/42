@@ -470,43 +470,6 @@ def test_brief_at_0615_after_detect_failed_is_upstream_not_ready_with_a_run_to_f
     assert runs.latest("brief", DAY)["status"] == "ok"
 
 
-def data_issue_brief(runs):
-    """The brief's 06:15 path: detect is not ok, so begin raises UpstreamNotReady and the job finishes that run ok
-    with the reason as its error, as core/brief/job.py does."""
-    with pytest.raises(chain.UpstreamNotReady) as err:
-        chain.begin("brief", DAY, runs=runs, jobs=jobs())
-    chain.finish(err.value.run, "ok", {"markets": 3, "cards": 0}, str(err.value), runs=runs)
-
-
-def test_a_data_issue_brief_does_not_block_the_real_brief_once_detect_is_ok():
-    runs = chain.MemoryRunsStore()
-    seed(runs, "detect", "running")
-    data_issue_brief(runs)
-    seed(runs, "detect", "running", "ok")
-    run = chain.begin("brief", DAY, runs=runs, jobs=jobs())
-    assert run.stage == "brief"
-    assert [r["status"] for r in runs.rows if r["stage"] == "brief"] == ["running", "blocked", "ok", "running"]
-
-
-def test_a_data_issue_brief_still_blocks_a_repeat_while_detect_is_not_ok():
-    runs = chain.MemoryRunsStore()
-    seed(runs, "detect", "running")
-    data_issue_brief(runs)
-    with pytest.raises(chain.AlreadyDone):
-        chain.begin("brief", DAY, runs=runs, jobs=jobs())
-
-
-def test_a_real_brief_is_not_run_again_after_detect_is_ok():
-    runs = chain.MemoryRunsStore()
-    seed(runs, "detect", "running")
-    data_issue_brief(runs)
-    seed(runs, "detect", "running", "ok")
-    real = chain.begin("brief", DAY, runs=runs, jobs=jobs())
-    chain.finish(real, "ok", {"markets": 3, "cards": 4}, runs=runs)
-    with pytest.raises(chain.AlreadyDone):
-        chain.begin("brief", DAY, runs=runs, jobs=jobs())
-
-
 # side stage: reconcile
 
 
