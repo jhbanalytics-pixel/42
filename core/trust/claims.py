@@ -294,6 +294,11 @@ _BREACH_TERMS = [
         r"\bgoogle[\s_-]*trends?\b",
         r"\bsearch[\s-]volumes?\b",
         r"\bsearch\s+interest\b",
+        # N13-T: an age range the bare-range pattern above misses. "aged between 18 and 24", and an N-Ns band only as a
+        # group noun ("the 18-24s are watching"), never as a duration ("15-30s video", "18-24s response time").
+        r"\bage[ds]?\s+(?:between|from)\s+\d{1,2}\s+(?:and|to)\s+\d{1,2}\b",
+        r"\b(?:the|among|amongst)\s+(?:1[3-9]|[2-9]\d)\s*(?:-|–)\s*(?:1[4-9]|[2-9]\d)s\b"
+        r"(?=\s*(?:$|[.,;:!?)\]'\"]|(?:are|were|is|was|do|did|have|had|will|would|can|could|who|that|and|or|but)\b))",
     )
 ]
 
