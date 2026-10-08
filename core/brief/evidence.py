@@ -8,9 +8,10 @@ item_row: a v_item_state_current row as a dict (item_id, run_id, state, untested
 d: the brief date. market: "ZA", "NG" or "KE". client: a google.cloud.bigquery Client.
 
 pack is the shape core/brief/explain.py reads:
-    evidence: up to 12 contract Evidence dicts (core/api/contract.md section 4). text is the excerpt shown on
-        the card, at most 280 characters of the post text or else its transcript; quote_text is the whole
-        stored text. market is the post's located market: its geo_market when geo_confidence is 0.7 or more
+    evidence: up to 12 contract Evidence dicts (core/api/contract.md section 4), members of the item's cluster in
+        the market's own run first and the rest in the old order (core/brief/pack_order.py, C4 v2 section 19).
+        text is the excerpt shown on the card, at most 280 characters of the post text or else its transcript;
+        quote_text is the whole stored text. market is the post's located market: its geo_market when geo_confidence is 0.7 or more
         and geo_source is one collect treats as known (KNOWN_GEO in core/collect/writers.py; DATA.md 3.6,
         TRUST.md A5). A post with no known location gets market
         None and the flag market_assumed, never the market it was sighted in, so K3 and K5 treat it as not
@@ -22,6 +23,9 @@ pack is the shape core/brief/explain.py reads:
     facts: short plain lines about the state, the 3-day counts and the first sighting, then one line per local
         post with its weekday and market-local date, naming a calendar moment only when moments (the market's
         calendar rows job.py reads) has one on that date.
+stages: an optional dict build_pack fills with the counts of posts after each stage of the pack (available, after
+    the creator cap, after the outlet cap), which pack_order.hold_detail turns into the cause of a floor hold. The
+    pack itself keeps its three keys.
 sparkline: {"unit", "points": [{date, value, expected_low, expected_high}]} over the main series' last 14
     days, value None on invalid days and before the series started; None when the item has no main series.
 hidden: what read_hidden returned, read here when not given. A suppressed creator's posts never enter the pack
@@ -40,8 +44,11 @@ import re
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 
+from google.cloud import bigquery
+
 from core.api.store import creator_key
 from core.api.today import without_hidden
+from core.brief import pack_order
 from core.brief.payload import STATE_WORDS
 from core.brief.specificity import local_posts
 from core.collect.writers import KNOWN_GEO
@@ -97,6 +104,15 @@ def result_hash(rows):
 def _query_id(name, params):
     key = json.dumps({"query": name, "sql": QUERIES[name], "params": params}, sort_keys=True, default=str)
     return f"q_{name}_{hashlib.sha256(key.encode('utf-8')).hexdigest()[:12]}"
+
+
+def _pack_rows(client, params, core, agent):
+    """The evidence statement. The outlet registry is an array parameter, which sqlrun.query cannot type (an empty
+    one has no element to type it by), so the query config is built here."""
+    keys = bigquery.ArrayQueryParameter("outlet_keys", "STRING", pack_order.outlet_keys())
+    config = bigquery.QueryJobConfig(query_parameters=[sqlrun._param(k, v) for k, v in params.items()] + [keys])
+    return [dict(r.items()) for r in client.query(sqlrun.render(QUERIES["evidence"], core, agent),
+                                                  job_config=config).result()]
 
 
 def _value(rows):
@@ -166,7 +182,7 @@ def _facts(item_row, market, pinned, first_seen, evidence=(), moments=()):
     return facts + _day_lines(evidence, market, moments)
 
 
-def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=None, moments=()):
+def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=None, moments=(), stages=None):
     """See the module docstring."""
     hidden = read_hidden(client, core=core, agent=agent) if hidden is None else hidden
 
@@ -178,7 +194,11 @@ def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=No
 
     start = datetime.combine(d - timedelta(days=WINDOW_DAYS - 1), time(), tz)
     end = datetime.combine(d + timedelta(days=1), time(), tz)
-    posts = run("evidence", {"item_id": item_id, "market": market, "d": d, "start": start, "end": end})
+    rows = _pack_rows(client, {"item_id": item_id, "market": market, "d": d, "start": start, "end": end,
+                               "outlet_cap": pack_order.OUTLET_CAP}, core, agent)
+    if stages is not None:
+        stages.update(pack_order.read_stages(rows) or {})
+    posts = [r for r in rows if r["post_id"] is not None]
     evidence = without_hidden({"evidence": [_record(r, tz) for r in posts]}, hidden)["evidence"]
 
     registry, numbers, pinned = {}, [], {}
