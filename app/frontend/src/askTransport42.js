@@ -3,6 +3,7 @@
    EventSource, because EventSource cannot send that header; when the stream
    drops, the record is polled every two seconds until it stops running. */
 import {PASS_KEY, storedValue} from './api.js';
+import {releaseExportUrlLater} from './exportUrl.js';
 
 const POLL_MS = 2000;
 
@@ -56,9 +57,11 @@ export async function downloadExport(askId){
     document.body.appendChild(link);
     link.click();
     link.remove();
-  } finally {
+  } catch (error){
     URL.revokeObjectURL(url);
+    throw error;
   }
+  releaseExportUrlLater(url);
 }
 
 /* Server-sent events, pushed as text in whatever chunks the network gives.
