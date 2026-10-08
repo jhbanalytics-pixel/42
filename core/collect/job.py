@@ -219,10 +219,14 @@ def load_config():
     return {"markets": read("markets.yaml")["markets"], "hubs": read("hubs.yaml")}
 
 
-def panel_protocol(members):
-    """panel: plus a short hash of the membership, so a changed list starts a new series (DATA.md 3.2)."""
+PRISM_PROTOCOL_VERSION = "v2"  # prism/profiles panels landed nothing before the parser fix; v2 starts a fresh health reference
+
+
+def panel_protocol(members, version=None):
+    """panel: plus a short hash of the membership, so a changed list starts a new series (DATA.md 3.2); a version
+    starts one too, which is how a panel that parsed to zero items leaves its zero item health reference."""
     text = json.dumps(sorted(members, key=json.dumps), separators=(",", ":"))
-    return "panel:" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+    return "panel:" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:12] + (f":{version}" if version else "")
 
 
 def search_protocol(route, params, planned):
@@ -301,12 +305,12 @@ def panel_calls(market, day, config, curated_records=(), curated_limit=0):
     if desk:
         # Own feeds of the market, like the curated panel below (Albert's yes to D2, 4 Oct 2026).
         calls.append(Call("23", "prism/profiles", {"items": desk, "include": "posts", "since": _since(day)}, market,
-                          "panel", protocol=panel_protocol(desk), source_market=market))
+                          "panel", protocol=panel_protocol(desk, PRISM_PROTOCOL_VERSION), source_market=market))
     selected = curated_creators.daily_rotation(curated_records, market, day, curated_limit)
     if selected:
         items = [{"platform": row["platform"], "handle": row["handle"]} for row in selected]
         # One panel over the day's whole rotation, read in batches of the vendor's 25 profiles a call.
-        protocol = panel_protocol(items)
+        protocol = panel_protocol(items, PRISM_PROTOCOL_VERSION)
         for start in range(0, len(items), PROFILES_PER_CALL):
             calls.append(Call("23", "prism/profiles",
                               {"items": items[start:start + PROFILES_PER_CALL], "include": "posts",

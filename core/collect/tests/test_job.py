@@ -425,7 +425,8 @@ def test_panels_carry_a_protocol_hashed_from_the_hub_list():
     assert all(len({c.protocol for c in curated if c.market == m}) == 1 for m in job.MARKETS)
     assert all(c.source_market == c.market for c in curated)
     assert all(c.params["since"] == "2026-09-28" for c in desk + x_hub)
-    assert all(re.fullmatch(r"panel:[0-9a-f]{12}", c.protocol) for c in desk + x_hub)
+    assert all(re.fullmatch(r"panel:[0-9a-f]{12}:v2", c.protocol) for c in desk)  # v2: a fresh health reference
+    assert all(re.fullmatch(r"panel:[0-9a-f]{12}", c.protocol) for c in x_hub)
     za_x = {c.protocol for c in x_hub if c.market == "ZA"}
     assert len(za_x) == 1 and za_x != {c.protocol for c in x_hub if c.market == "NG"}
     changed = copy.deepcopy(job.load_config())

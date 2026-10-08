@@ -379,8 +379,15 @@ def _since(raw, market):
         return moment.astimezone(_zone(market)).date() if moment else None
 
 
+# A route whose parser fix started landing items on a series with a zero item health reference takes a version in
+# its protocol, so the series starts a fresh reference (DATA.md 3.2: a new protocol is a new series).
+PROTOCOL_VERSIONS = {"tiktok/song": "v2"}
+
+
 def _protocol(route, params, keys):
     fixed = sorted((k, params[k]) for k in keys if params.get(k) not in (None, ""))
+    if route in PROTOCOL_VERSIONS:
+        fixed = sorted([*fixed, ("proto", PROTOCOL_VERSIONS[route])])
     return route + ("?" + "&".join(f"{k}={v}" for k, v in fixed) if fixed else "")
 
 
