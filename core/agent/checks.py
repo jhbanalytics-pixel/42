@@ -1776,8 +1776,37 @@ def _max_label(claim, records, leaned=(), ctx=None):
     return _tone_cap(claim, records, top, why, ctx)
 
 
+# Ask's evidence records carry only the market_assumed flag, so K5 also reads a post's own disclosure: an ad marker
+# in its words, or the same words posted again under another handle. Neither changes the stored record.
+_PAID_TEXT = re.compile(
+    r"(?<![\w#])#(?:ad|ads|advert|advertisement|sponsored|sponsoredpost|paidpartnership|paidpartner|paidpromo|gifted|"
+    r"prgifted)(?![\w])|\b(?:paid\s+(?:partnership|promotion)|sponsored\s+(?:by|post|content))\b", re.I)
+_DUPLICATE_WORDS = 8  # short captions repeat by chance ("Rate my plate honestly"); a longer one does not
+
+
+def _disclosed_paid(record) -> bool:
+    return _PAID_TEXT.search(str(record.get("text") or "")) is not None
+
+
+def _copied_ids(records) -> set:
+    """Ids of posts whose words, once links, tags and handles are dropped, repeat an earlier post's: the first of
+    each group stands as the author, the rest are copies."""
+    seen, copies = {}, set()
+    for record in sorted(records, key=lambda r: str(r.get("id"))):
+        key = " ".join(_WORD.findall(_LINKS.sub(" ", str(record.get("text") or "")).lower()))
+        if len(key.split()) < _DUPLICATE_WORDS:
+            continue
+        if key in seen:
+            copies.add(record.get("id"))
+        else:
+            seen[key] = record.get("id")
+    return copies
+
+
 def _evidence_label(claim, records):
-    independent = [r for r in records if not NOT_INDEPENDENT & {str(f).lower() for f in r.get("flags") or []}]
+    copies = _copied_ids(records)
+    independent = [r for r in records if not NOT_INDEPENDENT & {str(f).lower() for f in r.get("flags") or []}
+                   and not _disclosed_paid(r) and r.get("id") not in copies]
     pairs = {(str(r.get("handle") or "").lower().lstrip("@"),
               PLATFORM_NAMES.get(str(r.get("platform") or "").lower(), str(r.get("platform") or "").lower()))
              for r in independent}  # x and twitter are one platform
