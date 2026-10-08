@@ -6,10 +6,12 @@
 -- before the good stats run of t started, or before the end of t when there is none.
 
 -- Good runs of the stages whose rows the replay reads, and the stats runs whose start sets each day's cutoff.
+-- Aggregate headers extend before @start because panel identity can come from any earlier metric day.
 SELECT r.run_id, r.stage, r.run_date, r.started_at, r.finished_at
 FROM {agent}.runs r
 WHERE r.status = 'ok' AND r.stage IN ('collect', 'aggregate', 'stats', 'detect')
-  AND r.run_date BETWEEN @start AND @as_of AND DATE(r.finished_at) <= @as_of;
+  AND r.run_date <= @as_of AND (r.run_date >= @start OR r.stage = 'aggregate')
+  AND DATE(r.finished_at) <= @as_of;
 
 -- Collection health from collect runs of the same day finished by @as_of.
 SELECT h.day, h.market, h.platform, h.series, h.protocol, h.lane_class, h.valid, h.units_ok, h.k, h.items, h.run_id
@@ -29,18 +31,20 @@ WHERE c.obs_date BETWEEN @start AND @as_of
 
 -- Every item a rank list or panel has watched, from any day up to @as_of, with the time it was first available.
 SELECT c.item_id, c.market, c.platform, c.series, c.protocol, 'unbiased_rank' lane_class,
-  MIN(GREATEST(c.available_at, r.finished_at)) available_at
+  MIN(GREATEST(c.available_at, r.finished_at)) available_at, CAST(NULL AS DATE) first_day,
+  CAST(NULL AS STRING) run_id
 FROM {core}.item_counter_daily c
 JOIN {agent}.runs r ON r.run_id = c.run_id AND r.stage = 'collect' AND r.status = 'ok'
 WHERE c.lane_class = 'unbiased_rank' AND c.unit = 'appearances' AND c.series != 'x_trends'
   AND c.obs_date <= @as_of AND DATE(GREATEST(c.available_at, r.finished_at)) <= @as_of
 GROUP BY c.item_id, c.market, c.platform, c.series, c.protocol
 UNION ALL
-SELECT i.item_id, i.market, i.platform, i.series, i.protocol, 'panel' lane_class, MIN(r.finished_at) available_at
+SELECT i.item_id, i.market, i.platform, i.series, i.protocol, 'panel' lane_class, MIN(r.finished_at) available_at,
+  i.metric_date first_day, i.run_id
 FROM {core}.item_daily i
 JOIN {agent}.runs r ON r.run_id = i.run_id AND r.stage = 'aggregate' AND r.status = 'ok' AND r.run_date = i.metric_date
 WHERE i.lane_class = 'panel' AND i.metric_date <= @as_of AND DATE(r.finished_at) <= @as_of
-GROUP BY i.item_id, i.market, i.platform, i.series, i.protocol;
+GROUP BY i.item_id, i.market, i.platform, i.series, i.protocol, i.metric_date, i.run_id;
 
 -- Panel posts per day from aggregate runs finished by @as_of. item_daily.available_at is stamped inside the run,
 -- so the run's ok row is the later of the two and the one that makes the rows readable.

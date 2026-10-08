@@ -28,6 +28,7 @@ SWITCH_SQL, TOTALS_SQL, FIRST_WEEK_SQL = sqlrun.split(
     (Path(__file__).parent / "sql" / "stats.sql").read_text(encoding="utf-8"))
 
 RULE_VERSION = "stats-1"
+SERIES_RULE_VERSION = "stats-2-series"
 Q_MAX = 0.05
 TESTABLE = ("short", "ok")
 NB_LANES = ("unbiased_counter", "panel")
@@ -61,16 +62,22 @@ def _key(row):
     return row["market"], row["platform"], row["lane_class"]
 
 
+def _series_weekday_key(row):
+    return row["market"], None, row["lane_class"], row["series"], row["protocol"]
+
+
 # Negative binomial pieces
 
 
 def weekday_factors(totals):
-    """{(market, platform, lane_class): {weekday: f}} from daily route totals: the weekday mean over the mean
-    of all days, shrunk n/(n + 4) towards 1 with n that weekday's days, and 1 while n is under 4."""
+    """Factors keyed by market, platform and lane class, plus series and protocol for platformless candidate panels.
+    The weekday mean over the mean of all days is shrunk n/(n + 4) towards 1, and is 1 while n is under 4."""
     import numpy as np
     by = defaultdict(list)
     for t in totals:
-        by[_key(t)].append((t["day"].weekday(), float(t["total"])))
+        own = t["platform"] is None and t["lane_class"] == "panel" and t.get("series") and t.get("protocol")
+        key = _series_weekday_key(t) if own else _key(t)
+        by[key].append((t["day"].weekday(), float(t["total"])))
     out = {}
     for key, vals in by.items():
         mean_all = float(np.mean([v for _, v in vals]))
@@ -187,7 +194,7 @@ def _dispersion_keys(t):
             (t["market"], t["platform"]), (t["market"],)]
 
 
-def _nb_tests(nb, d, factors, prior):
+def _nb_tests(nb, d, factors, prior, series_on=()):
     """Fills weekday_factor, mu_prior, alpha, mu, ratio and p_mid on each nb work dict; returns the ones with
     mu above 0, the rest stay untested. The plain median baseline sets the volume band and the pooled fit
     (alpha for the residual's phi), then the Farrington weighted median with that alpha, then a refit on those
@@ -197,7 +204,10 @@ def _nb_tests(nb, d, factors, prior):
 
     for t in nb:
         s = t["row"]
-        f = factors.get(_key(s), {})
+        own = _series_weekday_key(s)
+        use_series = _key(s) in series_on and s["lane_class"] == "panel" and own in factors
+        f = factors.get(own if use_series else _key(s), {})
+        t["weekday_rule_version"] = SERIES_RULE_VERSION if use_series else RULE_VERSION
         t["f"] = f.get(d.weekday(), 1.0)
         hist = sorted(s["hist"] or [], key=lambda h: h["day"])
         t["hist_y"] = [max(float(h["y"]), 0.0) for h in hist]
@@ -324,8 +334,10 @@ def _test_for(s, d, on):
 
 def series_test_rows(signal_rows, d, run_id, rule_version, switch_rows=(), totals=(), first_weeks=()):
     """series_test rows for day d, in the series_test column order. Series not covered by a test_switch row
-    in force are untested; when any series is tested every row carries rule_version RULE_VERSION."""
+    in force are untested. Tested runs carry RULE_VERSION, except NB rows using the explicit SERIES_RULE_VERSION
+    weekday exposure."""
     on = in_force(switch_rows, d)
+    series_on = in_force([s for s in switch_rows if s.get("rule_version") == SERIES_RULE_VERSION], d)
     work = []
     for i, s in enumerate(signal_rows):
         test, y = _test_for(s, d, on)
@@ -333,7 +345,7 @@ def series_test_rows(signal_rows, d, run_id, rule_version, switch_rows=(), total
             work.append({"i": i, "row": s, "test": test, "y": y})
     nb = [t for t in work if t["test"] == "nb"]
     if nb:
-        kept = {t["i"] for t in _nb_tests(nb, d, weekday_factors(totals), cold_start_prior(first_weeks))}
+        kept = {t["i"] for t in _nb_tests(nb, d, weekday_factors(totals), cold_start_prior(first_weeks), series_on)}
         work = [t for t in work if t["test"] != "nb" or t["i"] in kept]
     bb = [t for t in work if t["test"] == "betabinom"]
     if bb:
@@ -362,6 +374,8 @@ def series_test_rows(signal_rows, d, run_id, rule_version, switch_rows=(), total
                        mu=float(t["mu"]) if nbt else None, alpha=float(t["alpha"]) if nbt else None,
                        weekday_factor=float(t["f"]) if nbt else None,
                        mu_prior=t["mu_prior"] if nbt else None)
+            if nbt:
+                row["rule_version"] = t["weekday_rule_version"]
         out.append({c: row[c] for c in COLUMNS})
     return out
 

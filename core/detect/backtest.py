@@ -141,8 +141,9 @@ class Store:
             key = (r["lane_class"], r["item_id"], r["market"], r["platform"], r["series"], r["protocol"])
             self.reads[key][r["day"]].append(r)
         self.items = inputs["items"]
-        self.posts = {(r["run_id"], r["item_id"], r["market"], r["platform"], r["series"], r["protocol"]): r["posts"]
-                      for r in inputs["panel"]}
+        self.posts = defaultdict(float)
+        for r in inputs["panel"]:
+            self.posts[(r["run_id"], r["item_id"], r["market"], r["series"], r["protocol"])] += r["posts"] or 0
         self.versions = defaultdict(list)
         for r in inputs["kinds"]:
             self.versions[r["item_id"]].append(r)
@@ -203,9 +204,24 @@ class Store:
         health = self.health_at(t)
         aggregate = {d: self.good("aggregate", d, cut) for days in health.values() for d in days}
         out = {}
+        watched, panels = [], {}
         for it in self.items:
             if it["available_at"] >= cut:
                 continue
+            if it["lane_class"] == "panel":
+                first_day = it["first_day"]
+                if first_day not in aggregate:
+                    aggregate[first_day] = self.good("aggregate", first_day, cut)
+                if it["run_id"] != aggregate[first_day]:
+                    continue
+                key = _sid(it["item_id"], it["market"], it["series"], it["protocol"])
+                first = (it["first_day"], it["platform"] is None, it["platform"] or "")
+                old = panels.get(key)
+                if old is None or first < (old["first_day"], old["platform"] is None, old["platform"] or ""):
+                    panels[key] = it
+            else:
+                watched.append(it)
+        for it in watched + list(panels.values()):
             item, market, platform, series, protocol = (it[k] for k in ("item_id", "market", "platform", "series",
                                                                          "protocol"))
             rank = it["lane_class"] == "unbiased_rank"
@@ -217,7 +233,7 @@ class Store:
                     v = r["value"] if r is not None and r["value"] is not None else 0.0
                     values[d] = (v if h["valid"] else None, h["units_ok"])
                 else:
-                    posts = self.posts.get((aggregate[d], item, market, platform, series, protocol)) or 0
+                    posts = self.posts.get((aggregate[d], item, market, series, protocol)) or 0
                     values[d] = (posts * h["k"] if h["valid"] and h["k"] is not None else None, None)
             out[_sid(item, market, series, protocol)] = {"item_id": item, "market": market, "platform": platform,
                                                          "series": series, "protocol": protocol,
@@ -270,17 +286,28 @@ class Store:
 
     def totals(self, t):
         """sql/stats.sql weekday totals as of t: route items per market, platform, lane class and day over the
-        8 weeks before t, for days on which every route of that group was valid."""
+        8 weeks before t, for days on which every route of that group was valid. Platformless panels also carry
+        separate totals per market, series and protocol for candidate evaluation."""
         by = defaultdict(lambda: [0.0, []])
+        own = defaultdict(lambda: [0.0, []])
         for days in self.health_at(t).values():
             for d, h in days.items():
                 if t - timedelta(days=56) <= d <= t - timedelta(days=1):
                     g = by[(h["market"], h["platform"], h["lane_class"], d)]
                     g[0] += h["items"] or 0
                     g[1].append(h["valid"])
-        return [{"market": m, "platform": p, "lane_class": lc, "day": d, "total": total}
+                    if h["platform"] is None and h["lane_class"] == "panel":
+                        g = own[(h["market"], h["series"], h["protocol"], h["lane_class"], d)]
+                        g[0] += h["items"] or 0
+                        g[1].append(h["valid"])
+        rows = [{"market": m, "platform": p, "lane_class": lc, "day": d, "total": total}
                 for (m, p, lc, d), (total, valid) in by.items()
                 if any(v is not None for v in valid) and all(v for v in valid if v is not None)]
+        rows += [{"market": m, "platform": None, "lane_class": lc, "series": s, "protocol": p,
+                  "day": d, "total": total}
+                 for (m, s, p, lc, d), (total, valid) in own.items()
+                 if any(v is not None for v in valid) and all(v for v in valid if v is not None)]
+        return rows
 
     def first_weeks(self, t, series):
         """sql/stats.sql first-week means as of t, from the replayed series."""
@@ -405,13 +432,16 @@ def _detect(test, signal, base, families, spiked, rec):
                 rec["detected"] += int(_bh(trial)[pos] <= stats.Q_MAX)
 
 
-def _replay_day(store, t, tally):
+def _replay_day(store, t, tally, rule_version=RULE_VERSION):
     series = store.series(t)
     signal = store.signal(t, series)
     if not signal:
         return
     totals, weeks = store.totals(t), store.first_weeks(t, series)
-    force = stats.in_force(store.switched_by(store.cutoff(t)), t)
+    force_rows = store.switched_by(store.cutoff(t))
+    force = stats.in_force(force_rows, t)
+    if rule_version == RULE_VERSION:
+        force_rows = [{**row, "rule_version": RULE_VERSION} for row in force_rows]
     for s in signal:
         _entry(tally, _key(s))["replayed"] += 1
 
@@ -420,15 +450,15 @@ def _replay_day(store, t, tally):
         if _missing(key):
             continue                # no test_switch row can cover it; replay() reports it as skipped
         on = frozenset(force | {key})
-        switches = [{"market": m, "platform": p, "lane_class": lc, "switched_on": t}
-                    for m, p, lc in sorted(on, key=_order)]
+        switches = [*force_rows, {**dict(zip(KEY_FIELDS, key)), "switched_on": t, "rule_version": rule_version}]
 
         def test(rows, switches=switches):
-            return stats.series_test_rows(rows, t, "backtest", RULE_VERSION, switches, totals, weeks)
+            return stats.series_test_rows(rows, t, "backtest", rule_version, switches, totals, weeks)
 
-        if on not in placebo:
-            placebo[on] = test(signal)
-        base = placebo[on]
+        cache_key = (on, key) if rule_version == stats.SERIES_RULE_VERSION else on
+        if cache_key not in placebo:
+            placebo[cache_key] = test(signal)
+        base = placebo[cache_key]
         families = defaultdict(list)
         for i, r in enumerate(base):
             if r["test"] != "none":
@@ -529,13 +559,16 @@ def _summed(keys, field):
     return out
 
 
-def replay(inputs, as_of, days=WINDOW_DAYS):
-    """The backtest results for the days days ending on as_of, as plain JSON types."""
+def replay(inputs, as_of, days=WINDOW_DAYS, *, rule_version=RULE_VERSION):
+    """The backtest results for the days days ending on as_of, as plain JSON types. The candidate rule requires an
+    explicit rule_version argument; normal run and CLI calls keep RULE_VERSION."""
+    if rule_version not in (RULE_VERSION, stats.SERIES_RULE_VERSION):
+        raise ValueError("unsupported backtest rule version")
     store = Store(inputs)
     window = [as_of - timedelta(days=i) for i in range(days - 1, -1, -1)]
     tally = {}
     for t in window:
-        _replay_day(store, t, tally)
+        _replay_day(store, t, tally, rule_version)
     observed = store.observed_days(as_of)
     for key in observed:
         _entry(tally, key)
@@ -564,7 +597,7 @@ def replay(inputs, as_of, days=WINDOW_DAYS):
         on, reasons = decide(metrics)
         keys[_label(key)] = {**metrics, "switch": on, "reasons": reasons}
 
-    return {"as_of": as_of.isoformat(), "days": days, "rule_version": RULE_VERSION,
+    return {"as_of": as_of.isoformat(), "days": days, "rule_version": rule_version,
             "multipliers": [_name(m) for m in MULTIPLIERS],
             "series": {"replayed": sum(k["replayed"] for k in keys.values()),
                        "tested": sum(k["tested"] for k in keys.values()), "keys": len(keys)},
