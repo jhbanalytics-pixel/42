@@ -2168,3 +2168,17 @@ def test_a_board_of_only_ids_on_todays_brief_still_says_today():
     same_day = dt.datetime(2026, 9, 30, 9, 0, tzinfo=today.SAST)
     za = market(today.build_today(boards_store([ID_BOARD]), D30, now=same_day), "ZA")["boards"][0]
     assert za["left_out_reason"] == today.NO_NAMES_READ
+
+
+# W8-DEC-11: a paid route whose calls succeed on two consecutive days and land nothing is recorded invalid with
+# reason zero_yield (core/collect/writers.py). The source answered, so Today says that, not "not usable" or "failed".
+def test_a_zero_yield_series_is_worded_as_a_source_that_answered_but_returned_nothing():
+    answered = dict(health_row("tiktok", "feed_tiktok", False, items=0, reason="zero_yield"), calls=4, calls_ok=4)
+    broken = dict(health_row("instagram", "ig_location", False, reason="calls"), calls=4, calls_ok=0)
+    store = Patched(collection_health=lambda date: [answered, broken])
+    za = market(today.build_today(store, D30), "ZA")
+    assert za["coverage"]["issues"] == ["TikTok: answered but returned nothing",
+                                        "Instagram location posts: could not be read"]
+    assert not any("not usable" in i for i in za["coverage"]["issues"])
+    failed = [b["text"] for b in za["banners"] if "failed today" in b["text"]]
+    assert failed == ["1 source failed today: Instagram locations"]

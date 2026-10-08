@@ -77,7 +77,8 @@ NO_NAMES_READ = NO_NAMES_READ_AT.format(day="today")
 PLATFORM_SERIES_WORDS = {"board_global_music": "global music board", "search": "search"}
 CROSS_SERIES_WORDS = {"counter_post_views": "Post view re-reads", "search": "Searches"}
 INVALID_WORDS = {"calls": "could not be read", "items": "post count far from usual",
-                 "effort": "too few accounts checked", "drift": "mix of posts far from usual"}
+                 "effort": "too few accounts checked", "drift": "mix of posts far from usual",
+                 "zero_yield": "answered but returned nothing"}
 # Each news feed is its own collection_health row (one protocol a feed), so Today names the feeds that failed
 # and how many of the market's feeds were read, instead of one "News feeds" line per failed feed. The failure
 # class is the one writers.call_failure writes after "calls: "; any other class is not worded.
