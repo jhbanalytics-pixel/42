@@ -178,6 +178,11 @@ async def _forward(method: str, path: str, json_body=None, params=None) -> httpx
 
 
 def _passthrough(resp: httpx.Response) -> Response:
+    if resp.status_code in (401, 403):
+        # A refusal from Cloud Run's own gate (a plain IAM body), not this API's: to the browser it is an outage of
+        # the Ask service, never a wrong passcode. This API's own 401 is raised before any agent call.
+        logger.warning("agent answered %s", resp.status_code)
+        raise ApiError(502, "agent_unavailable", "The Ask service cannot be reached.")
     disposition = resp.headers.get("content-disposition")
     return Response(
         content=resp.content,
@@ -908,16 +913,31 @@ async def _stored_record(ask_id: str) -> dict | None:
     return skins.mask_people(record, people["approved"], people["allowed"])
 
 
+async def _projected(record: dict, inbound=None) -> dict:
+    """The record as a reader may see it now: the list of hidden people read on this request, applied to what the
+    agent or the runs table holds (C5 v2 rules R2 and R7). inbound is the marker the agent sent, merged not trusted."""
+    from core.api import privacy, store
+
+    return await run_in_threadpool(
+        lambda: privacy.project_record(record, privacy.LazyStore(store.get_store), inbound=inbound))
+
+
 @gated.get("/api/ask/{ask_id}")
 async def api_ask_read(ask_id: str) -> Response:
+    from core.api import privacy
+
     _check_ask_id(ask_id)
     resp = await _forward("GET", f"/api/ask/{ask_id}")
+    if resp.status_code == 200:
+        held = resp.json()
+        shown = await _projected(held, held.get("privacy") if isinstance(held, dict) else None)
+        return JSONResponse(jsonable_encoder(shown), headers=privacy.NO_STORE)
     if resp.status_code != 404:
         return _passthrough(resp)
     record = await _stored_record(ask_id)
     if record is None:
         raise ApiError(404, "not_found", "No Ask with that id.")
-    return JSONResponse(jsonable_encoder(record))
+    return JSONResponse(jsonable_encoder(await _projected(record)), headers=privacy.NO_STORE)
 
 
 def _sse(seq: int, event: str, data: dict) -> str:
@@ -929,6 +949,7 @@ async def _replay_stored_events(ask_id: str, last_event_id: str | None) -> Respo
     record = await _stored_record(ask_id)
     if record is None:
         raise ApiError(404, "not_found", "No Ask with that id.")
+    record = await _projected(record)
     after = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
     steps = record.get("steps") or []
     done_seq = max((s.get("seq", 0) for s in steps), default=0) + 1
@@ -986,20 +1007,25 @@ async def api_ask_stop(ask_id: str) -> Response:
 
 @gated.get("/api/ask/{ask_id}/export")
 async def api_ask_export(ask_id: str, format: str = "html") -> Response:
-    from core.api import export
+    from core.api import export, privacy
 
     _check_ask_id(ask_id)
     if format != "html":
         raise ApiError(400, "bad_request", "Only format=html is available until Stage 3.")
     resp = await _forward("GET", f"/api/ask/{ask_id}")
+    inbound = None
     if resp.status_code == 200:
         record = resp.json()
+        inbound = record.get("privacy") if isinstance(record, dict) else None
     elif resp.status_code == 404:
         record = await _stored_record(ask_id)
         if record is None:
             raise ApiError(404, "not_found", "No Ask with that id.")
     else:
         return _passthrough(resp)
+    record = await _projected(record, inbound)
+    if (record.get("privacy") or {}).get("state") == "unavailable":
+        raise ApiError(503, "people_unavailable", privacy.PEOPLE_UNAVAILABLE)
     try:
         page = export.render_answer_html(record)
     except export.ExportRefused as exc:

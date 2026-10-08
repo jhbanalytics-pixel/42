@@ -15,6 +15,8 @@ from datetime import date, datetime
 from urllib.parse import urlsplit
 
 EXPORTABLE = ("complete", "stopped")
+# One line a copy carries when content was left out of it for people 42 no longer shows (core/api/privacy.py).
+EXPORT_NOTICE = "Some content was left out of this copy because it concerned people 42 no longer shows."
 
 _MARKET = {"ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya"}
 _LABEL = {
@@ -274,6 +276,8 @@ def render_answer_html(record: dict) -> str:
         out.append(_p(_status_words(answer), "review"))
     if record.get("status") == "stopped":
         out.append(_p("Stopped before the end; this is what passed the checks by then.", "review"))
+    if record.get("privacy"):
+        out.append(_p(EXPORT_NOTICE, "review"))
     out.append("</header><main>")
 
     out.append("<section><h2>Short answer</h2>")

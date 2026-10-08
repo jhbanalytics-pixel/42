@@ -179,6 +179,7 @@ def build_history_asks(store, limit=20, before=None, market=None):
     rows = store.ask_history(limit, before, market) if market else store.ask_history(limit, before)
     asks = [{"ask_id": r["ask_id"], "question": r.get("question"), "at": str(r["asked_at"]), "status": r.get("status"),
              "answer_status": r.get("answer_status"), "market": r.get("market")} for r in rows]
+    asks = without_hidden(asks, hidden_people(store))  # a question can name a hidden person (core/api/privacy.py)
     return {"asks": asks, "next_before": asks[-1]["at"] if len(asks) == limit else None}
 
 

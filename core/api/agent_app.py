@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from core.api import dossiers, finding_save, investigations, skins
+from core.api import dossiers, finding_save, investigations, privacy, skins
 from core.api.store import SUPPRESSIONS, viewer_record
 # The watch list read and its table live in core/api/watchlist.py so the f42-digest job can read watches
 # without fastapi; WATCHES and _lock are the same objects there and here.
@@ -497,6 +497,10 @@ async def start(request: Request):
             held = await run_in_threadpool(get_store().ask_record, req["parent_id"])
             if held is None:
                 return not_found(req["parent_id"])
+        # The earlier answer enters a new run only as a reader would see it now (C5 v2 section 7).
+        held = await run_in_threadpool(readable, held)
+        if (held.get("privacy") or {}).get("state") == "unavailable":
+            return people_unavailable()
         req["parent"] = {"question": held["question"], "answer": held["answer"],
                          "window": (held.get("run") or {}).get("window")}
     req["ask_id"] = f"a_{now(req['market']).strftime('%Y%m%d')}_{secrets.token_hex(4)}"
@@ -514,7 +518,7 @@ async def start(request: Request):
     threading.Thread(target=execute, args=(ask, run_ask), daemon=True, name=req["ask_id"]).start()
     if req["wait"]:
         await run_in_threadpool(ask.finished.wait)
-        return JSONResponse(ask.snapshot())
+        return view_response(await run_in_threadpool(readable, ask.snapshot()))
     url = f"/api/ask/{req['ask_id']}"
     return JSONResponse({"ask_id": req["ask_id"], "status": "running", "events_url": url + "/events", "url": url},
                         status_code=202)
@@ -523,7 +527,7 @@ async def start(request: Request):
 @app.get("/api/ask/{ask_id}")
 def read(ask_id: str):
     ask = get_ask(ask_id)
-    return JSONResponse(shown_record(ask.snapshot())) if ask else not_found(ask_id)
+    return view_response(readable(ask.snapshot())) if ask else not_found(ask_id)
 
 
 def frame(kind, data):
@@ -533,10 +537,13 @@ def frame(kind, data):
 def follow(ask, after):
     """Every event after `after`, then live ones, then done. A skin run's events are masked before they leave
     (contract 15.1), naming approved accounts only, since the authors' page tiers are not read per event."""
+    from core.api.store import get_store
     sent = after
     skin_id = ask.record.get("skin_id")
     people = skin_people(skin_id) if skin_id else None
     hidden = set()  # handles stripped from this stream's evidence, masked wherever they appear
+    store, left_out, memo, said = privacy.LazyStore(get_store), set(), {}, False
+    fresh = privacy.FreshList(store)  # a list no older than 30 seconds while the run is in flight (R2)
     if people:
         with ask.cond:
             held = [data for kind, data in ask.events if kind == "evidence"]
@@ -549,7 +556,14 @@ def follow(ask, after):
             new = ask.events[sent:]
             done = ask.done
         for kind, data in new:
-            yield frame(kind, skins.mask_event(data, people["approved"], [], hidden) if people else data)
+            shown = skins.mask_event(data, people["approved"], [], hidden) if people else data
+            current = fresh.get()
+            shown_event = privacy.project_event(kind, shown, current, store, left_out, memo)
+            if shown_event is None and current is None and not said:
+                said = True  # one step says why no evidence or claim follows (5.5)
+                yield frame("step", {"seq": data["seq"], "text": privacy.UNAVAILABLE_NOTE})
+            elif shown_event is not None:
+                yield frame(kind, shown_event)
             sent = data["seq"]
         if done is not None:
             yield frame("done", done)
@@ -1052,6 +1066,21 @@ def shown_record(record):
     return skins.mask_people(record, people["approved"], people["allowed"])
 
 
+def readable(record):
+    """An Ask record as a reader may see it now: the skin masks first (a skin report names only who it may), then the
+    list of hidden people read on this request, which wins over an approved account (C5 v2 5.2, R2)."""
+    from core.api.store import get_store
+    return privacy.project_record(shown_record(record), privacy.LazyStore(get_store))
+
+
+def people_unavailable():
+    return error(503, "people_unavailable", privacy.PEOPLE_UNAVAILABLE)
+
+
+def view_response(view, status=200):
+    return JSONResponse(view, status_code=status, headers=privacy.NO_STORE)
+
+
 def plan_skin_id(plan):
     """The skin a report investigation is scoped to; its plan carries it, since the investigations table has no
     column for it."""
@@ -1125,9 +1154,11 @@ def current_people(body):
 
 def dossier_view(version, ticks):
     """A dossier version as a reader sees it; for a skin report the whole view is masked, the ticks' notes too."""
+    from core.api.store import get_store
     body = current_people(version["body"])
-    return dossiers.shown({**body, "content_hash": version["content_hash"], "ticks": ticks,
+    view = dossiers.shown({**body, "content_hash": version["content_hash"], "ticks": ticks,
                            "needs_tick": dossiers.needs_tick(body, ticks)})
+    return privacy.project_dossier(view, privacy.LazyStore(get_store))
 
 
 def refused(exc):
@@ -1161,6 +1192,13 @@ def save_finding_from_ask(ask_id):
         return error(503, "save_unconfirmed", "The finding could not be confirmed; try again.")
     if record is None:
         return error(404, "not_found", "No saved Ask with that ID exists.")
+    try:
+        hits = privacy.claims_on_hidden_posts(record, saved)
+    except Exception:
+        return people_unavailable()
+    if hits:
+        return error(409, "not_eligible", f"{', '.join(hits)} rest on posts 42 no longer shows, so this answer "
+                                         "cannot become a finding.")
 
     try:
         post_ids = finding_save.evidence_ids(ask_id, record)
@@ -1204,7 +1242,7 @@ def save_version(body, ticks, status):
            "source_ask_id": body["source_ask_id"], "content_hash": dossiers.content_hash(body)}
     if not append("dossier_versions", DOSSIER_VERSIONS, row):
         return not_saved("dossier")
-    return JSONResponse(dossier_view({"body": body, "content_hash": row["content_hash"]}, ticks), status_code=status)
+    return view_response(dossier_view({"body": body, "content_hash": row["content_hash"]}, ticks), status)
 
 
 def create_dossier_from(ask_id, change):
@@ -1215,7 +1253,38 @@ def create_dossier_from(ask_id, change):
     return first_version(record, change, {"ask_id": ask_id}, people)
 
 
+def keepable(record):
+    """{claim id: whether the list lets a dossier keep it now} for the source answer, or None when who is hidden
+    cannot be checked (C5 v2 section 7: build from what the projection leaves, refuse the rest)."""
+    from core.api.store import get_store
+    answer = record.get("answer") if isinstance(record, dict) else None
+    if not isinstance(answer, dict):
+        return {}
+    store = privacy.LazyStore(get_store)
+    hidden = privacy.read_hidden(store)
+    if hidden is None:
+        return None
+    claims, _ = dossiers.admitted(answer)
+    try:
+        return privacy.selectable_claims(claims, answer.get("evidence"), hidden, store)
+    except privacy.PeopleUnavailable:
+        return None
+
+
+def not_keepable(ids):
+    return error(409, "not_ready", f"{', '.join(ids)} cannot be kept: it rests on a post, or names a person, "
+                                   "42 no longer shows.")
+
+
 def first_version(record, change, source, people=None):
+    ok = keepable(record)
+    if ok is None:
+        return people_unavailable()
+    change = dict(change)
+    if "keep" not in change:
+        change["keep"] = [cid for cid, fine in ok.items() if fine]
+    elif isinstance(change["keep"], list) and [c for c in change["keep"] if ok.get(c) is False]:
+        return not_keepable([c for c in change["keep"] if ok.get(c) is False])
     try:
         sel = dossiers.selection(change, record, None)
     except dossiers.Refused as exc:
@@ -1291,6 +1360,14 @@ def edit_dossier_to(dossier_id, change, from_version=None):
         record = source_record(latest["source_ask_id"])
         if record is None:
             return error(409, "not_ready", f"The source answer {latest['source_ask_id']} can no longer be read.")
+        ok = keepable(record)
+        if ok is None:
+            return people_unavailable()
+        change = dict(change)
+        if "keep" not in change:
+            change["keep"] = [c["claim_id"] for c in latest["claims"] if c["kept"] and ok.get(c["claim_id"]) is not False]
+        elif isinstance(change["keep"], list) and [c for c in change["keep"] if ok.get(c) is False]:
+            return not_keepable([c for c in change["keep"] if ok.get(c) is False])
         try:
             sel = dossiers.selection(change, record, latest)
         except dossiers.Refused as exc:
@@ -1357,16 +1434,21 @@ def freeze_dossier_to(dossier_id, from_version=None):
             return refused(exc)
         body, ticks = latest["body"], dossier_ticks(dossier_id)
         if body["state"] == "frozen":
-            return JSONResponse(dossier_view(latest, ticks))
+            return view_response(dossier_view(latest, ticks))
         if not any(c["kept"] for c in body["claims"]):
             return error(409, "not_ready", "Keep at least one claim before freezing.")
         record = source_record(body["source_ask_id"])
         if record is None:
             return error(409, "not_ready", f"The source answer {body['source_ask_id']} can no longer be read.")
+        ok = keepable(record)
+        if ok is None:
+            return people_unavailable()
         try:
             found = dossiers.needs_tick(body, ticks) + dossiers.recheck(body, record)
         except dossiers.Refused as exc:
             return refused(exc)
+        found += [{"claim_id": c["claim_id"], "reason": "rests on a post, or names a person, 42 no longer shows"}
+                  for c in body["claims"] if c["kept"] and ok.get(c["claim_id"]) is False]
         if found:
             reasons = {}
             for item in found:
@@ -1423,7 +1505,12 @@ def list_dossiers(limit: str = "50", before: str | None = None):
                          if cutoff is None or datetime.fromisoformat(b["created_at"]) < cutoff),
                         key=lambda b: (datetime.fromisoformat(b["created_at"]), b["dossier_id"]), reverse=True)
         listed = [dossier_summary(b, frozen.get(b["dossier_id"])) for b in bodies[:limit]]
-    return {"dossiers": listed, "next_before": listed[-1]["created_at"] if len(listed) == limit else None}
+    from core.api.store import get_store
+    store = privacy.LazyStore(get_store)
+    hidden = privacy.read_hidden(store)
+    shown_rows = [privacy.project_summary(row, store, hidden) for row in listed]
+    return view_response({"dossiers": shown_rows,
+                          "next_before": listed[-1]["created_at"] if len(listed) == limit else None})
 
 
 @app.get("/api/dossiers/{dossier_id}")
@@ -1431,7 +1518,7 @@ def read_dossier(dossier_id: str):
     versions = dossier_versions(dossier_id)
     if not versions:
         return no_dossier(dossier_id)
-    return JSONResponse(dossier_view(versions[-1], dossier_ticks(dossier_id)))
+    return view_response(dossier_view(versions[-1], dossier_ticks(dossier_id)))
 
 
 def dossier_version(dossier_id, version):
@@ -1443,7 +1530,7 @@ def read_dossier_version(dossier_id: str, version: int):
     held = dossier_version(dossier_id, version)
     if held is None:
         return error(404, "not_found", f"Dossier {dossier_id} has no version {version}.")
-    return JSONResponse(dossier_view(held, dossier_ticks(dossier_id)))
+    return view_response(dossier_view(held, dossier_ticks(dossier_id)))
 
 
 @app.get("/api/dossiers/{dossier_id}/versions/{version}/export")
@@ -1453,8 +1540,12 @@ def export_dossier(dossier_id: str, version: int, format: str = "html"):
     held = dossier_version(dossier_id, version)
     if held is None:
         return error(404, "not_found", f"Dossier {dossier_id} has no version {version}.")
+    from core.api.store import get_store
+    projected = privacy.project_dossier(current_people(held["body"]), privacy.LazyStore(get_store))
+    if (projected.get("privacy") or {}).get("state") == "unavailable":
+        return people_unavailable()
     try:
-        page = dossiers.render_html(current_people(held["body"]))
+        page = dossiers.render_html(projected)
     except dossiers.Refused as exc:
         return refused(exc)
     headers = {"Content-Disposition": f'attachment; filename="{dossiers.export_filename(dossier_id, version, format)}"'}
@@ -2135,11 +2226,10 @@ def read_investigation(investigation_id: str):
     current = rows[-1]
     record = investigation_record(current["ask_id"]) if current["ask_id"] else None
     skin_id = plan_skin_id(investigations.view(current)["plan"])
-    if record is not None and skin_id:
-        people = skin_people(skin_id, record)
-        record = skins.mask_people(record, people["approved"], people["allowed"])
+    if record is not None:
+        record = readable(record)  # a skin investigation is masked by the skin, then by the list of hidden people
     extra = {"budget_left": money_left()} if current["status"] == "draft" else {}  # None when spend is unknown
-    return JSONResponse(investigation_out(current, rows[0]["created_at"], record=record, **extra))
+    return view_response(investigation_out(current, rows[0]["created_at"], record=record, **extra))
 
 
 def replay(record, after, url):
@@ -2176,7 +2266,7 @@ def investigation_events(investigation_id: str, request: Request):
     if record is None or record.get("status") == "running":
         return error(409, "not_ready", f"The run of investigation {investigation_id} is not held here and has no "
                                        "stored record yet.")
-    return StreamingResponse(replay(shown_record(record), after, f"/api/investigations/{investigation_id}"),
+    return StreamingResponse(replay(readable(record), after, f"/api/investigations/{investigation_id}"),
                              media_type="text/event-stream", headers=headers)
 
 

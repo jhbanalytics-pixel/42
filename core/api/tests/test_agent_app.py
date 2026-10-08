@@ -46,6 +46,14 @@ def env(monkeypatch):
     agent_app.ASKS.clear()
 
 
+@pytest.fixture(autouse=True)
+def nobody_hidden(monkeypatch):
+    """Readers now ask who is hidden. These tests are about other things and their stores hold no suppression list;
+    the readers' own behaviour is pinned in test_privacy_*.py."""
+    from core.api import privacy
+    monkeypatch.setattr(privacy, "read_hidden", lambda store: (set(), set(), set()))
+
+
 @pytest.fixture
 def client():
     return TestClient(agent_app.app)

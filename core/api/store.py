@@ -633,6 +633,17 @@ default day and Coverage's way back from an empty day)."""
     def posts_by_id(self, post_ids):
         return [p for p in self._posts() or [] if p["post_id"] in post_ids]
 
+    def post_creators(self, post_ids, since, until):
+        """{post_id, creator_id} of these posts whose post_date falls in [since, until], as the date-bounded lookup of
+        the partitioned posts table finds them (core/api/privacy.py). None until posts exists."""
+        posts = self._both("posts", "people_posts")
+        if posts is None:
+            return None
+        wanted = set(post_ids)
+        return [{"post_id": p["post_id"], "creator_id": p.get("creator_id")} for p in posts
+                if p["post_id"] in wanted
+                and since <= str(p.get("post_date") or str(p.get("published_at") or "")[:10]) <= until]
+
     def seed_path_posts(self, market, terms, start, end, limit):
         """The rows BigQueryStore.seed_path_posts returns, computed the same way over the fixture posts. The
         seedpath_ files add posts, sightings and links only this read sees."""
@@ -1572,6 +1583,16 @@ or None."""
             "ORDER BY creator_a, creator_b",
             market=("STRING", market), start=("DATE", start), end=("DATE", end),
             excluded=("ARRAY<STRING>", sorted(excluded)))
+
+    def post_creators(self, post_ids, since, until):
+        """Who wrote these posts, from posts partitioned by post_date, so the date bounds are required."""
+        posts = self._find("posts")
+        if posts is None or not post_ids:
+            return None if posts is None else []
+        return self._query(
+            f"SELECT p.post_id, p.creator_id FROM {posts} p "
+            "WHERE p.post_id IN UNNEST(@post_ids) AND p.post_date BETWEEN @since AND @until",
+            post_ids=("ARRAY<STRING>", list(post_ids)), since=("DATE", since), until=("DATE", until))
 
     def posts_by_id(self, post_ids):
         posts, links = self._find("posts"), self._find("post_items")
