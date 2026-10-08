@@ -587,6 +587,50 @@ class Deps:
     store_counts: Callable | None = None
 
 
+class _StoreCount:
+    """The whole-store counts (Deps.store_counts), started on a thread of their own once the window is final, so they
+    run beside research instead of after it. Their SQL, market, window and parameters depend on nothing research finds.
+    The reads record into a private query record; adopt() hands them to the ask's context under the next ids, in the
+    order the serial run took them, so the ids, SQL, params and result hashes are what a serial count records."""
+
+    def __init__(self, ctx: RunContext, deps: "Deps", platforms: list[str], recorder):
+        self.lane = ctx.lane(dict(ctx.budget))
+        self.lane.queries = {}
+        self.lane.lock = threading.Lock()
+        self.ids: dict = {}
+        self.error: BaseException | None = None
+        self._recorder = recorder
+        self._thread = threading.Thread(target=self._run, args=(deps, platforms), daemon=True,
+                                        name=f"store-count-{ctx.run_id}")
+        self._thread.start()
+
+    def _run(self, deps: "Deps", platforms: list[str]) -> None:
+        span = self._recorder.begin("io", "store_count_background")
+        try:
+            self.ids = dict(deps.store_counts(self.lane, deps.warehouse, platforms))
+        except Exception as exc:
+            self.error = exc
+        finally:
+            span.end()
+
+    def adopt(self, ctx: RunContext) -> dict:
+        """Wait for the counts, then record what they read in ctx as the serial run would have, even when they failed
+        part way, and return the store query ids. Raises the counts' own error after that."""
+        self._thread.join()
+        renumbered = {}
+        with ctx.lock:
+            for old, query in self.lane.queries.items():
+                renumbered[old] = f"q_{len(ctx.queries) + 1}"
+                ctx.queries[renumbered[old]] = query
+        for event in self.lane.events:
+            ctx.events.append({**event, "query_id": renumbered.get(event["query_id"], event["query_id"])}
+                              if "query_id" in event else event)
+        ctx.model_usd_extra += self.lane.model_usd_extra
+        if self.error is not None:
+            raise self.error
+        return {name: renumbered.get(query_id, query_id) for name, query_id in self.ids.items()}
+
+
 class _CapturedGeminiModels:
     def __init__(self, models):
         self.models = models
@@ -1487,6 +1531,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
 
     model_budget = None
     store_ids: dict = {}  # the whole-store count query ids, once the gate has run them
+    store_count: _StoreCount | None = None  # the count running beside research, until the gate takes it
 
     def model_usd() -> float:
         reported = usd + getattr(ctx, "model_usd_extra", 0.0)
@@ -1679,7 +1724,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         return {**answer, "short_answer": text}, [row("pass", HEADLINE_REWRITTEN_REASON)]
 
     def gate(note: str, source_status: list[dict]) -> tuple:
-        nonlocal numeric_repair_attempted
+        nonlocal numeric_repair_attempted, store_count
         """The writer, the code checks, the support check, the recheck and the field check, once. First the posts the
         researchers only saw in query rows become evidence, so the writer sees them as posts and K1 can resolve them.
         Only those published inside the window do: an older post never reaches the writer as a citable block.
@@ -1690,7 +1735,9 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             progress.step("read", "Counting every stored post in the market and window, by platform, sound and hashtag")
             try:
                 with timings.begin("io", "store_count"):
-                    store_ids.update(deps.store_counts(ctx, deps.warehouse, question_platforms(question)))
+                    started_count, store_count = store_count, None
+                    store_ids.update(started_count.adopt(ctx) if started_count is not None
+                                     else deps.store_counts(ctx, deps.warehouse, question_platforms(question)))
             except Exception as exc:
                 log.warning("ask store breadth failed: run %s: %s", run_id, type(exc).__name__)
                 notices.append(STORE_FAILED)
@@ -1959,6 +2006,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                 close_plan()
                 timings.phase("research")
                 research_started = True
+                if deps.store_counts is not None:
+                    store_count = _StoreCount(ctx, deps, question_platforms(question), timings)
                 if tier == "T2":
                     research = timed("research", _first_round, deps, ctx, client, setup, prompt, markets,
                                      progress, should_stop)

@@ -169,7 +169,7 @@ def research_in_parallel(monkeypatch, functions, calls):
 
 
 def test_parallel_sql_spans_share_a_batch_overlap_and_the_batch_takes_as_long_as_its_slowest_member(monkeypatch):
-    delays = {"first": 0.05, "second": 0.30, "third": 0.10}
+    delays = {"first": 0.2, "second": 1.2, "third": 0.4}
     barrier = threading.Barrier(3, timeout=WAIT_S)
 
     def functions(bound):
@@ -191,9 +191,9 @@ def test_parallel_sql_spans_share_a_batch_overlap_and_the_batch_takes_as_long_as
     assert max(s["t0"] for s in tools) < min(s["t1"] for s in tools)  # every member started before any finished
     wall = max(s["t1"] for s in tools) - min(s["t0"] for s in tools)
     longest = max(s["t1"] - s["t0"] for s in tools)
-    assert wall == pytest.approx(longest, abs=0.1)
+    assert wall == pytest.approx(longest, abs=0.35)  # margins are wide so a busy machine does not fail it
     assert wall >= delays["second"] - 0.01
-    assert wall < sum(delays.values()) - 0.05  # not the serial sum
+    assert wall < sum(delays.values()) - 0.2  # not the serial sum
     assert {s["attrs"]["rows"] for s in tools} == {7} and {s["attrs"]["bytes"] for s in tools} == {1234}
     assert {s["attrs"]["status"] for s in tools} == {"ok"}
 
