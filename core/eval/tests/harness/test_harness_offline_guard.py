@@ -33,6 +33,14 @@ def guard():
     return load_guard()
 
 
+@pytest.fixture(autouse=True)
+def no_refusal_log(monkeypatch):
+    """The decision tests refuse things on purpose. In CI the log variable is set for the whole job, and every one
+    of those synthetic refusals would land in it, burying a real one. The tests that look at the log set their own."""
+    monkeypatch.delenv("CORE_OFFLINE_GUARD_LOG", raising=False)
+    monkeypatch.setenv("PYTHONPATH", str(GUARD_DIR))
+
+
 def refused(guard, event, args):
     with pytest.raises((OSError, PermissionError)) as caught:
         guard.check(event, args)
@@ -248,10 +256,18 @@ def test_a_child_cannot_read_a_credential_file(tmp_path):
     assert "REFUSED offline guard" in done.stdout, (done.stdout, done.stderr)
 
 
-def test_a_child_without_the_guard_directory_runs_unguarded():
-    done = child("import sys; print('sitecustomize' in sys.modules and hasattr(sys.modules['sitecustomize'], 'GUARD_ID'))",
-                 guarded=False)
-    assert done.stdout.strip() == "False", (done.stdout, done.stderr)
+def test_a_python_child_started_without_the_guard_directory_is_refused_by_a_guarded_parent():
+    """A child that does not load the guard would run whatever it is given unguarded, so the guard refuses to
+    start it. The grandchild asks for a clean environment, which drops PYTHONPATH."""
+    code = "\n".join((
+        "import subprocess, sys",
+        "try:",
+        "    subprocess.run([sys.executable, '-c', 'pass'], env={'PATH': ''})",
+        "except OSError as e:",
+        "    print('REFUSED', e)",
+    ))
+    done = child(code)
+    assert "REFUSED offline guard" in done.stdout, (done.stdout, done.stderr)
 
 
 def test_the_guard_is_active_in_this_process_when_the_run_requires_it():
@@ -266,3 +282,172 @@ def test_the_guard_is_active_in_this_process_when_the_run_requires_it():
     assert guard.INSTALLED is True
     with pytest.raises(OSError, match="offline guard"):
         __import__("socket").getaddrinfo("198.51.100.7", 9)
+
+
+PYTHON_EXE = sys.executable
+KEEPS_GUARD = {"PATH": "/usr/bin", "PYTHONPATH": os.pathsep.join(["/somewhere/else", str(GUARD_DIR)])}
+
+
+@pytest.mark.parametrize("command", [
+    ["env", "curl", "https://example.com"], ["env", "-i", "curl", "x"], ["env", "FOO=bar", "wget", "x"],
+    ["env", "-u", "HOME", "curl", "x"], ["env", "--unset=HOME", "curl", "x"], ["env", "-S", "curl x"],
+    ["env", "-C", "/tmp", "curl", "x"], ["env", "--", "curl", "x"], ["/usr/bin/env", "gcloud", "auth", "list"],
+    ["env", "env", "curl", "x"], ["env", "xargs", "curl"], ["env", "git", "push"],
+    ["env", PYTHON_EXE, "-m", "pip", "install", "x"],
+    ["xargs", "curl"], ["xargs", "-n", "1", "curl"], ["xargs", "-I", "{}", "curl", "{}"], ["xargs", "-n1", "wget"],
+    ["xargs", "-0", "-P", "4", "-a", "list", "ssh"], ["xargs", "--max-args=1", "curl"], ["xargs", "env", "curl"],
+    ["find", ".", "-exec", "curl", "{}", ";"], ["find", ".", "-execdir", "wget", "{}", "+"],
+    ["find", ".", "-name", "x", "-ok", "ssh", "x", ";"], ["find", ".", "-okdir", "gcloud", "{}", ";"],
+    ["find", ".", "-exec", "env", "curl", "{}", ";"]])
+def test_an_allowed_program_cannot_start_a_program_that_is_off_the_list(guard, command):
+    refused(guard, "subprocess.Popen", (command[0], command, None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("command", [
+    ["env"], ["env", "FOO=1", "true"], ["env", "-i", "echo", "hi"], ["xargs"], ["xargs", "echo"],
+    ["xargs", "-n", "1", "echo"], ["find", "."], ["find", ".", "-name", "x"], ["find", ".", "-exec", "echo", "{}", ";"],
+    ["find", ".", "-exec", "git", "status", ";"], ["env", "git", "status"]])
+def test_those_programs_stay_usable_for_local_work(guard, command):
+    allowed(guard, "subprocess.Popen", (command[0], command, None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("code", [
+    "require('child_process').execSync('curl https://example.com')",
+    "const {spawn} = require('node:child_process'); spawn('curl', ['x'])",
+    "import('node:child_process').then(m => m.exec('wget x'))",
+    "fetch('https://example.com').then(r => r.text())",
+    "await fetch('http://example.com')",
+    "require('https').get('https://example.com')", "import http from 'node:http'",
+    "const net = require('net'); net.connect(80, 'example.com')", "require('dgram')", "require('dns').lookup('x')",
+    "new WebSocket('wss://example.com')", "process.binding('tcp_wrap')", "process.dlopen(module, 'x.node')"])
+@pytest.mark.parametrize("flag", ["-e", "--eval", "-p", "--print"])
+def test_node_inline_code_that_starts_a_program_or_reaches_the_network_is_refused(guard, flag, code):
+    command = ["node", "--input-type=module", flag, code]
+    refused(guard, "subprocess.Popen", ("node", command, None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("code", [
+    "console.log(1 + 1)", "import { readFileSync } from 'node:fs'; console.log(readFileSync(process.argv[1], 'utf8'))",
+    "const { validateAnswer } = await import(input.module); console.log(validateAnswer)",
+    "const path = require('node:path'); console.log(path.join('a', 'b'))"])
+def test_node_inline_code_that_only_computes_is_allowed(guard, code):
+    allowed(guard, "subprocess.Popen", ("node", ["node", "--input-type=module", "-e", code], None, KEEPS_GUARD))
+
+
+def test_node_equals_form_of_eval_is_read_too(guard):
+    refused(guard, "subprocess.Popen", ("node", ["node", "--eval=fetch('https://example.com')"], None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("words", [["node", "-r", "./preload.js", "x.js"], ["node", "--require=./preload.js", "x.js"],
+                                   ["node", "--import", "./preload.mjs", "x.js"], ["node", "--loader=./l.mjs", "x.js"],
+                                   ["node", "-"]])
+def test_node_preloads_and_code_from_stdin_are_refused(guard, words):
+    refused(guard, "subprocess.Popen", ("node", words, None, KEEPS_GUARD))
+
+
+def test_a_node_script_file_is_read_before_it_is_allowed(guard, tmp_path):
+    bad = tmp_path / "bad.mjs"
+    bad.write_text("import { execSync } from 'node:child_process';\nexecSync('curl https://example.com');\n",
+                   encoding="utf-8")
+    good = tmp_path / "good.mjs"
+    good.write_text("console.log(process.argv.length);\n", encoding="utf-8")
+    refused(guard, "subprocess.Popen", ("node", ["node", str(bad)], None, KEEPS_GUARD))
+    refused(guard, "subprocess.Popen", ("node", ["node", "--no-warnings", str(bad), "arg"], None, KEEPS_GUARD))
+    allowed(guard, "subprocess.Popen", ("node", ["node", str(good)], None, KEEPS_GUARD))
+    allowed(guard, "subprocess.Popen", ("node", ["node", str(tmp_path / "missing.mjs")], None, KEEPS_GUARD))
+    allowed(guard, "subprocess.Popen", ("node", ["node", "--version"], None, KEEPS_GUARD))
+
+
+def test_node_started_through_env_xargs_or_find_is_read_the_same_way(guard):
+    code = "fetch('https://example.com')"
+    refused(guard, "subprocess.Popen", ("env", ["env", "node", "-e", code], None, KEEPS_GUARD))
+    refused(guard, "subprocess.Popen", ("find", ["find", ".", "-exec", "node", "-e", code, ";"], None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("flags", [["-I"], ["-E"], ["-S"], ["-Ic"], ["-IBc"], ["-B", "-I"], ["-u", "-S"], ["-sI"]])
+def test_python_children_started_isolated_are_refused_because_they_would_not_load_the_guard(guard, flags):
+    tail = ["pass"] if flags[-1].endswith("c") else ["-c", "pass"]
+    refused(guard, "subprocess.Popen", (PYTHON_EXE, [PYTHON_EXE, *flags, *tail], None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("words", [["-B", "-c", "pass"], ["-W", "ignore", "-c", "pass"], ["-u", "-m", "pytest"],
+                                   ["-c", "-I"], ["x.py", "-I"], ["-m", "json.tool", "-S"], ["--version"], ["-V"]])
+def test_python_flags_that_leave_the_guard_loaded_are_allowed(guard, words):
+    allowed(guard, "subprocess.Popen", (PYTHON_EXE, [PYTHON_EXE, *words], None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("env", [{"PATH": "/usr/bin"}, {}, {"PYTHONPATH": ""}, {"PYTHONPATH": "/somewhere/else"},
+                                 {"PYTHONPATH": str(GUARD_DIR) + "-not"}, {b"PATH": b"/usr/bin"}, ["PATH=/usr/bin"]])
+def test_a_python_child_whose_environment_drops_the_guard_directory_is_refused(guard, env):
+    refused(guard, "subprocess.Popen", (PYTHON_EXE, [PYTHON_EXE, "-c", "pass"], None, env))
+    refused(guard, "os.exec", (PYTHON_EXE, [PYTHON_EXE, "-c", "pass"], env))
+    refused(guard, "os.posix_spawn", (PYTHON_EXE, [PYTHON_EXE, "-c", "pass"], env))
+    refused(guard, "os.spawn", (0, PYTHON_EXE, [PYTHON_EXE, "-c", "pass"], env))
+
+
+def test_a_python_child_whose_environment_keeps_the_guard_directory_is_allowed(guard):
+    allowed(guard, "subprocess.Popen", (PYTHON_EXE, [PYTHON_EXE, "-c", "pass"], None, KEEPS_GUARD))
+    allowed(guard, "subprocess.Popen", (PYTHON_EXE, [PYTHON_EXE, "-c", "pass"], None,
+                                        {b"PYTHONPATH": str(GUARD_DIR).encode()}))
+    allowed(guard, "os.exec", (PYTHON_EXE, [PYTHON_EXE, "-c", "pass"], KEEPS_GUARD))
+
+
+def test_a_python_child_that_inherits_the_environment_is_judged_by_this_processs_pythonpath(guard, monkeypatch):
+    monkeypatch.setenv("PYTHONPATH", str(GUARD_DIR))
+    allowed(guard, "subprocess.Popen", (PYTHON_EXE, [PYTHON_EXE, "-c", "pass"], None, None))
+    monkeypatch.delenv("PYTHONPATH")
+    refused(guard, "subprocess.Popen", (PYTHON_EXE, [PYTHON_EXE, "-c", "pass"], None, None))
+
+
+def test_programs_that_are_not_python_do_not_need_the_guard_in_their_environment(guard):
+    allowed(guard, "subprocess.Popen", ("git", ["git", "status"], None, {"PATH": "/usr/bin"}))
+    allowed(guard, "subprocess.Popen", ("node", ["node", "--version"], None, {}))
+
+
+@pytest.mark.parametrize("change", [["env", "-i"], ["env", "-u", "PYTHONPATH"], ["env", "--unset=PYTHONPATH"],
+                                    ["env", "PYTHONPATH=/elsewhere"], ["env", "PYTHONPATH="]])
+def test_env_cannot_be_used_to_strip_the_guard_from_a_python_child(guard, change):
+    command = [*change, PYTHON_EXE, "-c", "pass"]
+    refused(guard, "subprocess.Popen", (command[0], command, None, KEEPS_GUARD))
+
+
+def test_env_that_keeps_the_guard_directory_may_start_python(guard):
+    command = ["env", f"PYTHONPATH={GUARD_DIR}", PYTHON_EXE, "-c", "pass"]
+    allowed(guard, "subprocess.Popen", (command[0], command, None, {"PATH": "/usr/bin"}))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "FOO=1", PYTHON_EXE, "-c", "pass"], None, KEEPS_GUARD))
+
+
+def test_git_cannot_run_an_alias_that_starts_another_program(guard):
+    refused(guard, "subprocess.Popen", ("git", ["git", "-c", "alias.x=!curl https://example.com", "x"], None, None))
+    allowed(guard, "subprocess.Popen", ("git", ["git", "-c", "alias.co=checkout", "co"], None, None))
+
+
+@pytest.mark.parametrize("path", [".ssh/id_rsa", "./.ssh/id_rsa", "home/.aws/credentials", ".netrc",
+                                  "../.git-credentials", ".config/gcloud/credentials.db"])
+def test_a_relative_path_to_a_credential_file_is_refused_too(guard, path):
+    with pytest.raises(PermissionError):
+        guard.check("open", (path, "r", 0))
+
+
+def test_the_docstring_names_what_the_guard_cannot_see():
+    text = GUARD_FILE.read_text(encoding="utf-8").split('"""')[1]
+    for phrase in ("shell", "node", "C extension", "gRPC"):
+        assert phrase in text, phrase
+
+
+def test_the_decision_tests_leave_the_refusal_log_empty_even_when_the_job_names_one(tmp_path):
+    """In CI the log is named for the whole job. Running a few of the refusing tests with it named must write
+    nothing, so a refusal that does land in it came from somewhere else."""
+    if os.environ.get("F42_GUARD_LOG_INNER") == "1":
+        pytest.skip("this is the inner run")
+    log = tmp_path / "inner.jsonl"
+    env = {k: v for k, v in os.environ.items() if k != "PYTEST_ADDOPTS"}
+    env.update({"F42_GUARD_LOG_INNER": "1", "CORE_OFFLINE_GUARD_LOG": str(log),
+                "PYTHONPATH": os.pathsep.join([str(GUARD_DIR), env.get("PYTHONPATH", "")]).rstrip(os.pathsep)})
+    done = subprocess.run(
+        [sys.executable, "-m", "pytest", str(Path(__file__)), "-q", "-p", "no:cacheprovider", "-x",
+         "-k", "test_os_system_is_always_refused or test_executables_off_the_list_are_refused"],
+        cwd=ROOT, env=env, capture_output=True, text=True, encoding="utf-8", timeout=300)
+    assert done.returncode == 0, done.stdout[-2000:] + done.stderr[-2000:]
+    assert " passed" in done.stdout
+    assert not log.exists() or log.read_text(encoding="utf-8") == ""

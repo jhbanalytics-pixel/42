@@ -42,7 +42,7 @@ def junit(tmp_path_factory):
     folder = tmp_path_factory.mktemp("sample")
     (folder / "test_sample.py").write_text(SAMPLE, encoding="utf-8")
     xml = folder / "junit.xml"
-    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "PYTEST_ADDOPTS", "F42_BQ")}
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTEST_ADDOPTS", "F42_BQ")}
     subprocess.run([sys.executable, "-m", "pytest", str(folder / "test_sample.py"), "-q", "-p", "no:cacheprovider",
                     f"--junitxml={xml}"], cwd=folder, env=env, capture_output=True, text=True, encoding="utf-8")
     return xml

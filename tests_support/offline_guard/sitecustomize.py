@@ -8,12 +8,20 @@ Python audit hook (PEP 578). It raises before the operation happens when a test 
   * start a program that is not on the short list below, or run remote git, or run pip,
   * open or list a credential file.
 
+A program on the list can start another one, so env, xargs and find are read through to the program they launch,
+and node is refused when its code (inline or in the script file it is given) starts a program or reaches the
+network. A Python child is refused unless it will load this guard: it must not be started with -I, -E or -S, and
+its environment must keep this directory on PYTHONPATH.
+
 It is the portable counterpart of the Windows guard used for local runs. It needs no ctypes and no platform
 module, so the same file runs on Linux and Windows.
 
-What it cannot see: a program that an allowed shell starts, because the audit hook belongs to this interpreter
-only. The CI workflow therefore also holds no credentials and no secrets, so a program that did slip through
-would have nothing to sign in with.
+What it cannot see: a program that an allowed shell starts (bash -c and sh -c), because the audit hook belongs to
+this interpreter only; whatever a node script does through a module it imports from another file, since node code
+is only searched for the names of the modules and calls that reach the network, in the inline code or the one
+script file it is given; and sockets opened by a C extension or by gRPC, which go straight to the operating system
+and never raise an audit event. The CI workflow therefore also holds no credentials and no secrets, so a program
+that did slip through would have nothing to sign in with.
 
 Set CORE_OFFLINE_GUARD_LOG to a file name to get one JSON line per refusal (event, a category, the running test).
 The line never holds a host name, a path or a command, only the category.
@@ -23,10 +31,12 @@ import json
 import os
 import posixpath
 import re
+import shlex
 import sys
 import time
 
 GUARD_ID = "f42-offline-guard-v1"
+GUARD_DIR = os.path.normcase(os.path.dirname(os.path.abspath(__file__)))
 INSTALLED = False
 
 LOCAL_NAMES = {"", "localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"}
@@ -45,6 +55,16 @@ REMOTE_GIT = {"push", "pull", "fetch", "clone", "ls-remote", "submodule", "reque
               "imap-send", "fetch-pack", "send-pack", "remote-http", "remote-https", "archive-remote"}
 GIT_OPTIONS_WITH_VALUE = {"-c", "-C", "--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env"}
 PYTHON_MODULES_REFUSED = {"pip", "pip3", "ensurepip"}
+XARGS_SHORT_WITH_VALUE = set("adEILnPs")
+XARGS_LONG_WITH_VALUE = {"--arg-file", "--delimiter", "--max-args", "--max-chars", "--max-lines", "--max-procs",
+                         "--process-slot-var"}
+NODE_PRELOAD = {"-r", "--require", "--import", "--loader", "--experimental-loader"}
+NODE_WITH_VALUE = {"--input-type", "--conditions", "-C", "--title", "--env-file", "--stack-size"}
+NODE_REACHES_OUT = re.compile(
+    r"child_process|\bfetch\s*\(|\bWebSocket\b|\bXMLHttpRequest\b|\bEventSource\b|process\s*\.\s*(?:binding|dlopen)"
+    r"|['\"`](?:node:)?(?:https?|http2|net|tls|dns|dgram|cluster|worker_threads|inspector|repl)(?:/promises)?['\"`]")
+NODE_FILE_LIMIT = 2_000_000
+CHAIN_LIMIT = 8
 
 # Credential files, as lower case paths with forward slashes. A directory marker ends in a slash and also matches
 # the directory itself.
@@ -169,21 +189,211 @@ def _git_subcommand(words):
 REMOTE_ARGUMENT = re.compile(r"(?:^|[=\s])(?:[a-z][a-z0-9+.\-]*://|[\w.\-]+@[\w.\-]+:)", re.I)
 
 
-def _check_program(event, executable, words):
-    name = _program_name(executable, words)
-    if name in PROGRAMS or name in SHELLS or PYTHON.match(name):
-        if name == "git":
-            sub, rest = _git_subcommand(words)
-            if sub in REMOTE_GIT or (sub == "remote" and "update" in rest):
-                _refuse(event, "remote git")
-            if any(REMOTE_ARGUMENT.search(word) for word in words[1:]):
-                _refuse(event, "git with a remote address")
-        if PYTHON.match(name):
-            for flag, module in zip(words, words[1:]):
-                if flag == "-m" and module.lower() in PYTHON_MODULES_REFUSED:
-                    _refuse(event, "package install")
+def _env_mapping(env):
+    """The environment a child will get, as upper case names to text, or None when it cannot be read."""
+    if env is None:
+        env = os.environ
+    try:
+        items = list(env.items())
+    except AttributeError:
+        return None
+    mapping = {}
+    try:
+        for key, value in items:
+            mapping[os.fsdecode(key).upper()] = os.fsdecode(value)
+    except (TypeError, ValueError):
+        return None
+    return mapping
+
+
+def _keeps_guard(mapping):
+    if mapping is None:
+        return False
+    return any(entry and os.path.normcase(os.path.abspath(entry)) == GUARD_DIR
+               for entry in mapping.get("PYTHONPATH", "").split(os.pathsep))
+
+
+def _python_started_isolated(words):
+    """True when the options turn off site or the environment, so sitecustomize (and this guard) would not load."""
+    index = 1
+    while index < len(words):
+        word = words[index]
+        index += 1
+        if word == "-" or not word.startswith("-"):
+            return False
+        if word.startswith("--"):
+            continue
+        for position, letter in enumerate(word[1:], 1):
+            if letter in "IES":
+                return True
+            if letter in "cm":
+                return False
+            if letter in "WXQ":
+                if position == len(word) - 1:
+                    index += 1
+                break
+    return False
+
+
+def _unwrap_env(words, mapping):
+    """The command that `env` starts, and the environment it starts it with."""
+    mapping = None if mapping is None else dict(mapping)
+    rest = list(words[1:])
+    while rest:
+        word = rest[0]
+        if word == "--":
+            rest.pop(0)
+            break
+        if word in ("-i", "--ignore-environment", "-"):
+            mapping = None if mapping is None else {}
+            rest.pop(0)
+        elif word in ("-u", "--unset") or word.startswith("--unset="):
+            name = rest[1] if word in ("-u", "--unset") and len(rest) > 1 else word.partition("=")[2]
+            if mapping is not None:
+                mapping.pop(name.upper(), None)
+            del rest[:2 if word in ("-u", "--unset") else 1]
+        elif word in ("-C", "--chdir", "-a", "--argv0"):
+            del rest[:2]
+        elif word.startswith(("--chdir=", "--argv0=")):
+            rest.pop(0)
+        elif word in ("-S", "--split-string") or word.startswith("--split-string=") or (
+                word.startswith("-S") and len(word) > 2):
+            separate = word in ("-S", "--split-string")
+            value = (rest[1] if len(rest) > 1 else "") if separate else (
+                word.partition("=")[2] if word.startswith("--") else word[2:])
+            del rest[:2 if separate else 1]
+            try:
+                rest[0:0] = shlex.split(value)
+            except ValueError:
+                _refuse("subprocess.Popen", "program the guard could not read")
+        elif word.startswith("-"):
+            rest.pop(0)
+        elif "=" in word and not word.startswith("="):
+            name, _, value = word.partition("=")
+            if mapping is not None:
+                mapping[name.upper()] = value
+            rest.pop(0)
+        else:
+            break
+    return rest, mapping
+
+
+def _unwrap_xargs(words):
+    rest = list(words[1:])
+    while rest:
+        word = rest[0]
+        if word == "--":
+            rest.pop(0)
+            break
+        if word.startswith("--"):
+            rest.pop(0)
+            if word in XARGS_LONG_WITH_VALUE and rest:
+                rest.pop(0)
+        elif word.startswith("-") and len(word) > 1:
+            rest.pop(0)
+            for position, letter in enumerate(word[1:], 1):
+                if letter in XARGS_SHORT_WITH_VALUE:
+                    if position == len(word) - 1 and rest:
+                        rest.pop(0)
+                    break
+        else:
+            break
+    return rest
+
+
+def _find_commands(words):
+    commands = []
+    index = 1
+    while index < len(words):
+        if words[index] in ("-exec", "-execdir", "-ok", "-okdir"):
+            end = index + 1
+            while end < len(words) and words[end] not in (";", "+"):
+                end += 1
+            if end > index + 1:
+                commands.append(words[index + 1:end])
+            index = end
+        index += 1
+    return commands
+
+
+def _node_reaches_out(code):
+    return bool(NODE_REACHES_OUT.search(code))
+
+
+def _check_node(event, words):
+    index = 1
+    while index < len(words):
+        word = words[index]
+        index += 1
+        if word == "-":
+            _refuse(event, "node reading its code from standard input")
+        if word in NODE_PRELOAD or word.startswith(("--require=", "--import=", "--loader=", "--experimental-loader=")):
+            _refuse(event, "node preloading code")
+        if word in ("-e", "--eval", "-p", "--print", "-pe"):
+            code = words[index] if index < len(words) else ""
+        elif word.startswith(("--eval=", "--print=")):
+            code = word.partition("=")[2]
+        elif word in NODE_WITH_VALUE:
+            index += 1
+            continue
+        elif word.startswith("-"):
+            continue
+        else:
+            code = _read_node_file(word)
+        if _node_reaches_out(code):
+            _refuse(event, "node code that starts a program or reaches the network")
         return
-    _refuse(event, "program off the list")
+
+
+def _read_node_file(name):
+    try:
+        if os.path.isfile(name) and os.path.getsize(name) <= NODE_FILE_LIMIT:
+            with open(name, encoding="utf-8", errors="replace") as stream:
+                return stream.read()
+    except OSError:
+        pass
+    return ""
+
+
+def _check_program(event, executable, words, env=None):
+    _check_chain(event, executable, words, _env_mapping(env), 0)
+
+
+def _check_chain(event, executable, words, mapping, depth):
+    if depth > CHAIN_LIMIT:
+        _refuse(event, "program chain too deep")
+    name = _program_name(executable, words)
+    if not (name in PROGRAMS or name in SHELLS or PYTHON.match(name)):
+        _refuse(event, "program off the list")
+    if name == "git":
+        sub, rest = _git_subcommand(words)
+        if sub in REMOTE_GIT or (sub == "remote" and "update" in rest):
+            _refuse(event, "remote git")
+        if any(REMOTE_ARGUMENT.search(word) for word in words[1:]):
+            _refuse(event, "git with a remote address")
+        if any(flag == "-c" and re.match(r"alias\.[^=]*=!", value, re.I) for flag, value in zip(words, words[1:])):
+            _refuse(event, "git alias that starts a program")
+    elif name == "env":
+        command, mapping = _unwrap_env(words, mapping)
+        if command:
+            _check_chain(event, None, command, mapping, depth + 1)
+    elif name == "xargs":
+        command = _unwrap_xargs(words)
+        if command:
+            _check_chain(event, None, command, mapping, depth + 1)
+    elif name == "find":
+        for command in _find_commands(words):
+            _check_chain(event, None, command, mapping, depth + 1)
+    elif name in ("node", "nodejs"):
+        _check_node(event, words)
+    elif PYTHON.match(name):
+        for flag, module in zip(words, words[1:]):
+            if flag == "-m" and module.lower() in PYTHON_MODULES_REFUSED:
+                _refuse(event, "package install")
+        if _python_started_isolated(words):
+            _refuse(event, "python child that would not load the guard")
+        if not _keeps_guard(mapping):
+            _refuse(event, "python child without the guard directory")
 
 
 def _normal_path(path):
@@ -213,8 +423,9 @@ def _check_path(event, path):
     normal = _normal_path(path)
     if normal is None:
         return
-    held = normal + "/"
-    if any(marker in held for marker in CREDENTIAL_DIRS) or any(normal.endswith(name) for name in CREDENTIAL_FILES):
+    held = "/" + normal + "/"
+    if any(marker in held for marker in CREDENTIAL_DIRS) or any(("/" + normal).endswith(name)
+                                                                for name in CREDENTIAL_FILES):
         _refuse(event, "credential file", PermissionError)
     for named in _named_credential_paths():
         if named and (normal == named.rstrip("/") or held.startswith(named)):
@@ -237,7 +448,7 @@ def _nameinfo(event, args):
 
 
 def _popen(event, args):
-    _check_program(event, args[0], _words(args[1]))
+    _check_program(event, args[0], _words(args[1]), args[3])
 
 
 def _system(event, args):
@@ -245,11 +456,11 @@ def _system(event, args):
 
 
 def _exec(event, args):
-    _check_program(event, args[0], _words(args[1]))
+    _check_program(event, args[0], _words(args[1]), args[2])
 
 
 def _spawn(event, args):
-    _check_program(event, args[1], _words(args[2]))
+    _check_program(event, args[1], _words(args[2]), args[3])
 
 
 def _open(event, args):
