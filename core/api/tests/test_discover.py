@@ -77,8 +77,8 @@ def test_fixture_store_v2_reads(fx):
     za = fx.item_states(run, "ZA")
     assert len(za) == 10 and all(r["market"] == "ZA" and r["metric_date"] == D30 for r in za)
     assert len(fx.item_states(run, "all")) == 14
-    assert {(g["item_id"], g["rule"]) for g in fx.item_gate("all")} == {(OUTAGE, "G1"), (PROMO, "G5b")}
-    assert [g["item_id"] for g in fx.item_gate("ZA")] == [OUTAGE]
+    assert {(g["item_id"], g["rule"]) for g in fx.item_gate("all", D30)} == {(OUTAGE, "G1"), (PROMO, "G5b")}
+    assert [g["item_id"] for g in fx.item_gate("ZA", D30)] == [OUTAGE]
     hist = fx.item_history(HERITAGE, "ZA", "2026-07-01", D30)
     assert [h["metric_date"] for h in hist] == ["2026-09-29", D30]
     assert len(fx.item_waves(HERITAGE, "ZA")) == 2
@@ -89,7 +89,7 @@ def test_fixture_store_v2_reads(fx):
 
 def test_fixture_store_missing_file_reads_as_not_built(tmp_path):
     fx = FixtureStore(root=tmp_path)
-    assert fx.item_gate("ZA") is None
+    assert fx.item_gate("ZA", D30) is None
     assert fx.item_series(HERITAGE, "ZA", 28) is None
     assert fx.item_evidence(HERITAGE, "ZA") is None
     assert fx.item_waves(HERITAGE, "ZA") is None
@@ -215,7 +215,7 @@ def test_discover_held_back_with_reasons_from_gate_view_and_item_state(fx):
 
 
 def test_discover_without_gate_view_derives_reasons_and_keeps_g1_items(fx):
-    store = Patched(item_gate=lambda market: None)
+    store = Patched(item_gate=lambda market, run_date: None)
     out = discover.build_discover(store, "ZA")
     assert OUTAGE in ids(out["items"])
     assert OUTAGE not in {h["item_id"] for h in out["held_back"]["items"]}
@@ -285,8 +285,8 @@ def test_held_numeric_titles_match_their_own_evidence_post(field, post_id, platf
                     card["evidence_ids"] = [e["id"] for e in card["evidence"]]
         return rows
 
-    def item_gate(market):
-        rows = real_gate(market) or []
+    def item_gate(market, run_date):
+        rows = real_gate(market, run_date) or []
         if market == "ZA":
             rows.append({"item_id": STEP, "market": "ZA", "rule": "G1", "reason": "data_issue"})
         return rows
@@ -319,8 +319,8 @@ def test_held_numeric_title_without_matching_post_id_uses_platform_only(fx):
                     card["evidence_ids"] = [e["id"] for e in card["evidence"]]
         return rows
 
-    def item_gate(market):
-        rows = real_gate(market) or []
+    def item_gate(market, run_date):
+        rows = real_gate(market, run_date) or []
         if market == "ZA":
             rows.append({"item_id": STEP, "market": "ZA", "rule": "G1", "reason": "data_issue"})
         return rows
@@ -793,7 +793,7 @@ def test_topic_held_back_item_returns_its_card_with_the_reason(fx):
 
 def test_gate_reason_reads_as_plain_words_on_discover_and_the_topic_page(fx):
     raw = "Paid-led: sponsored or brand-owned share 0.62"
-    store = Patched(item_gate=lambda market: [{"item_id": OUTAGE, "market": "ZA", "rule": "G5", "reason": "paid_led",
+    store = Patched(item_gate=lambda market, run_date: [{"item_id": OUTAGE, "market": "ZA", "rule": "G5", "reason": "paid_led",
                                                "reason_text": raw}])
     plain = {"rule": "G5", "reason": "paid_led", "reason_text": "Mostly sponsored or brand posts (62%)",
              "reason_raw": raw}
@@ -812,7 +812,7 @@ def test_topic_unknown_item_or_market(fx):
 
 def test_topic_degrades_when_l2_views_are_missing(fx):
     store = Patched(item_series=lambda *a: None, item_waves=lambda *a: None, item_evidence=lambda *a: None,
-                    coord_signals=lambda *a: None, item_gate=lambda market: None)
+                    coord_signals=lambda *a: None, item_gate=lambda market, run_date: None)
     out = discover.build_topic(store, RISING, "ZA")
     assert out["series"] is None and out["waves"] is None and out["evidence"] is None
     assert [s["signal"] for s in out["authenticity"]["signals"]] == ["young_accounts", "burst"]
@@ -972,7 +972,7 @@ def run_all_reads(bq):
     return {
         "latest_detect_run": bq.latest_detect_run(),
         "item_states": bq.item_states(run, "ZA"),
-        "item_gate": bq.item_gate("ZA"),
+        "item_gate": bq.item_gate("ZA", D30),
         "item_history": bq.item_history(STEP, "ZA", "2026-07-01", D30),
         "item_series": bq.item_series(STEP, "ZA", 28),
         "item_waves": bq.item_waves(STEP, "ZA"),
@@ -1050,7 +1050,7 @@ def test_bigquery_no_detect_views_means_no_detect_run():
 
 def test_bigquery_catalog_is_read_once_per_process():
     client = FakeClient(CATALOG_FULL)
-    BigQueryStore(client=client).item_gate("ZA")
+    BigQueryStore(client=client).item_gate("ZA", D30)
     BigQueryStore(client=client).item_evidence(STEP, "ZA")
     assert sum("INFORMATION_SCHEMA" in s for s, _ in client.calls) == 1
 
@@ -1067,8 +1067,8 @@ def test_bigquery_catalog_failure_is_not_cached():
 
     client = Flaky(CATALOG_FULL)
     with pytest.raises(RuntimeError):
-        BigQueryStore(client=client).item_gate("ZA")
-    assert BigQueryStore(client=client).item_gate("ZA") == []
+        BigQueryStore(client=client).item_gate("ZA", D30)
+    assert BigQueryStore(client=client).item_gate("ZA", D30) == []
 
 
 def test_bigquery_rows_normalise_nested_dates():
@@ -1116,7 +1116,7 @@ def test_unknown_map_status_is_held_by_the_gate_not_called_inactive(fx):
         rows = FixtureStore().item_states(run, market)
         return [dict(r, label=r["item_id"], map_status="unknown", canonical_key=None) for r in rows]
 
-    out = discover.build_discover(Patched(item_states=item_states, item_gate=lambda m: None), "ZA")
+    out = discover.build_discover(Patched(item_states=item_states, item_gate=lambda m, d: None), "ZA")
     held = {h["item_id"]: h["reason"] for h in out["held_back"]["items"]}
     assert held[REJECTED] == "held_by_gate"
     assert "not_active" not in held.values()
@@ -1129,12 +1129,12 @@ def test_bigquery_catalog_is_read_again_after_ten_minutes(monkeypatch):
     clock = {"t": 1000.0}
     monkeypatch.setattr(store_mod.time, "monotonic", lambda: clock["t"])
     client = FakeClient(CATALOG_FULL)
-    BigQueryStore(client=client).item_gate("ZA")
+    BigQueryStore(client=client).item_gate("ZA", D30)
     clock["t"] += 599
-    BigQueryStore(client=client).item_gate("ZA")
+    BigQueryStore(client=client).item_gate("ZA", D30)
     assert sum("INFORMATION_SCHEMA" in s for s, _ in client.calls) == 1
     clock["t"] += 2
-    BigQueryStore(client=client).item_gate("ZA")
+    BigQueryStore(client=client).item_gate("ZA", D30)
     assert sum("INFORMATION_SCHEMA" in s for s, _ in client.calls) == 2
 
 
@@ -1847,8 +1847,8 @@ def test_an_item_the_gate_admitted_on_the_run_date_is_not_held_by_an_older_hold_
     run_date = str(discover._run(fx)["run_date"])
     real_gate = fx.item_gate
 
-    def item_gate(market):
-        rows = [dict(r, brief_date=run_date, place="held_back") for r in real_gate(market) or []]
+    def item_gate(market, run_date):
+        rows = [dict(r, brief_date=run_date, place="held_back") for r in real_gate(market, run_date) or []]
         if market in ("ZA", "all"):
             rows += [{"item_id": STEP, "market": "ZA", "brief_date": "2026-09-01", "place": "held_back",
                       "rule": "G1", "reason": "data_issue", "reason_text": None},
@@ -1958,8 +1958,8 @@ def _g10_hold_store(fx, held_item=None):
     run_date = str(discover._run(fx)["run_date"])
     real_gate, real_briefs = fx.item_gate, fx.briefs
 
-    def item_gate(market):
-        rows = list(real_gate(market) or [])
+    def item_gate(market, run_date):
+        rows = list(real_gate(market, run_date) or [])
         if market in ("ZA", "all"):
             rows.append({"item_id": RISING, "market": "ZA", "brief_date": run_date, "place": "held_back",
                          "rule": "G10", "reason": "explanation_failed", "reason_text": "Explanation failed its checks"})
@@ -2014,7 +2014,7 @@ def test_a_hold_from_an_old_brief_does_not_stick_to_an_item_the_newest_brief_doe
     it reads from item_state like any item the gate never saw."""
     run_date = str(discover._run(fx)["run_date"])
 
-    def item_gate(market):
+    def item_gate(market, run_date):
         if market not in ("ZA", "all"):
             return []
         return [{"item_id": STEP, "market": "ZA", "brief_date": "2026-09-01", "place": "held_back",
@@ -2030,7 +2030,7 @@ def test_a_hold_from_an_old_brief_does_not_stick_to_an_item_the_newest_brief_doe
 def test_a_hold_in_the_newest_brief_still_holds_and_other_markets_keep_their_own_latest_brief(fx):
     run_date = str(discover._run(fx)["run_date"])
 
-    def item_gate(market):
+    def item_gate(market, run_date):
         return [{"item_id": STEP, "market": "ZA", "brief_date": run_date, "place": "held_back",
                  "rule": "G1", "reason": "data_issue", "reason_text": None},
                 {"item_id": OWAMBE, "market": "NG", "brief_date": "2026-09-01", "place": "held_back",
@@ -2042,6 +2042,41 @@ def test_a_hold_in_the_newest_brief_still_holds_and_other_markets_keep_their_own
 
 def test_bigquery_item_gate_reads_only_recent_brief_dates():
     client = FakeClient(CATALOG_FULL)
-    BigQueryStore(client=client).item_gate("ZA")
+    BigQueryStore(client=client).item_gate("ZA", D30)
     sql = next(s for s, _ in client.calls if "v_item_gate_current" in s and "INFORMATION_SCHEMA" not in s)
     assert "g.brief_date >=" in sql
+
+
+def test_bigquery_item_gate_reads_the_fourteen_days_up_to_the_run_date_not_up_to_today():
+    """N42, review of f9573c6: a dated read more than 14 days back lost every brief-only hold because the window
+    ended today. The window is the 14 days up to the date being read."""
+    import datetime as dt
+    client = FakeClient(CATALOG_FULL)
+    BigQueryStore(client=client).item_gate("ZA", "2026-09-10")
+    sql, cfg = next(c for c in client.calls if "v_item_gate_current" in c[0] and "INFORMATION_SCHEMA" not in c[0])
+    assert "CURRENT_DATE" not in sql
+    assert "g.brief_date >= DATE_SUB(@run_date, INTERVAL 14 DAY)" in sql and "g.brief_date <= @run_date" in sql
+    assert {p.name: p.value for p in cfg.query_parameters}["run_date"] == dt.date(2026, 9, 10)
+
+
+def test_discover_asks_the_gate_for_the_run_it_is_reading(fx):
+    seen = []
+    real = fx.item_gate
+
+    def item_gate(market, run_date):
+        seen.append((market, run_date))
+        return real(market, run_date)
+
+    discover.build_discover(Patched(item_gate=item_gate), "ZA")
+    assert seen == [("ZA", D30)]
+
+
+def test_a_dated_alerts_read_asks_the_gate_for_that_runs_date(fx):
+    seen = []
+
+    def item_gate(market, run_date):
+        seen.append(run_date)
+        return []
+
+    discover.build_alerts(Patched(item_gate=item_gate), [], date=D30)
+    assert seen == [D30]

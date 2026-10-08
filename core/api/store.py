@@ -253,7 +253,7 @@ default day and Coverage's way back from an empty day)."""
                 out.setdefault(r["watch_id"], []).append(r["item_id"])
         return out
 
-    def item_gate(self, market):
+    def item_gate(self, market, run_date):
         rows = self._optional("item_gate")
         return None if rows is None else [r for r in rows if market in ("all", r["market"])]
 
@@ -1047,15 +1047,16 @@ or None."""
             out.setdefault(r["watch_id"], []).append(r["item_id"])
         return out
 
-    def item_gate(self, market):
+    def item_gate(self, market, run_date):
         gate = self._find("v_item_gate_current")
         if gate is None:
             return None
         return self._query(f"SELECT g.item_id, g.market, g.brief_date, g.place, g.rule, g.reason, g.reason_text "
                            f"FROM {gate} g "
                            "WHERE (@market = 'all' OR g.market = @market) "
-                           f"AND g.brief_date >= DATE_SUB(CURRENT_DATE('Africa/Johannesburg'), INTERVAL {GATE_DAYS} DAY)",
-                           market=("STRING", market))
+                           f"AND g.brief_date >= DATE_SUB(@run_date, INTERVAL {GATE_DAYS} DAY) "
+                           "AND g.brief_date <= @run_date",
+                           market=("STRING", market), run_date=("DATE", run_date))
 
     def item_history(self, item_id, market, start, end):
         return self._query(

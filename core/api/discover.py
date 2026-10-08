@@ -315,7 +315,7 @@ def _cards(store, run, market, hidden=UNREAD):
         # An item with no row there (no measured post in the view's 7 days) keeps item_state's line.
         lines = {(s["item_id"], s["market"]): s.get("spread_line") for s in spreads}
         rows = [dict(r, spread_line=lines.get((r["item_id"], r["market"]), r.get("spread_line"))) for r in rows]
-    gate = _gate_for(store.item_gate(market) or [], run["run_date"])
+    gate = _gate_for(store.item_gate(market, run["run_date"]) or [], run["run_date"])
     briefs, brief_held = _brief_items(store, run["run_date"])
     warmup = _warmup(store, run["run_date"])["active"]
     held = {r["item_id"] + "|" + r["market"]: _held(r, gate) for r in rows}

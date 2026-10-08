@@ -222,7 +222,7 @@ def _run_cards(p, run, market):
     """discover._cards's reads for one run and market."""
     p.start("item_states", run, market)
     p.start("item_spread", run["run_date"], market)
-    p.start("item_gate", market)
+    p.start("item_gate", market, run["run_date"])
     p.start("briefs", run["run_date"])
 
 
