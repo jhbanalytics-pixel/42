@@ -2370,3 +2370,16 @@ def test_the_scaled_plan_fits_its_collect_share_with_row_14_and_16_sized_by_it(m
             assert all(c.params.get("max_pages", 1) == size.pages and c.hold() == size.pages for c in row14)
             assert sum(c.row == "16" for c in calls) == size.multi_top
             assert all(c.lane_class() == "search_presence" for c in row14)
+
+
+def test_song_curve_samples_are_skipped_and_counted_never_written_as_counters():
+    fixtures = json.loads((Path(__file__).resolve().parent / "fixtures" / "parse_stored_song_videos.json")
+                          .read_text(encoding="utf-8"))
+    runner = job._Runner(FakeClient(), job.Collected("curve-test"), job._CountedIds(fake_item_id),
+                         job.safe_geo(FakeGeo()), lambda: NOW, job.Budget(), None, TUESDAY)
+    call = job.Call("11", "tiktok/song/videos", {"clipId": "m100", "use": 1}, "ZA", "watchlist", seed_key="m100")
+    for name in ("song_videos_1", "song_videos_2"):
+        parsed = runner._parse(call, SimpleNamespace(status="ok", body=fixtures[name]["body"]), NOW)
+        assert parsed["counters"] == [] and parsed["posts"]
+    assert runner.run.counters == []
+    assert runner.run.counts()["song_curve_sample_skipped"] == 14 + 16

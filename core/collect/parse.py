@@ -709,6 +709,8 @@ def _curve(out, ctx, market, platform, item_id, series, points):
 
 
 def _count(out, ctx, route, family, platform, params, data):
+    if family == "curve":
+        return  # the adoption points are a page sample, not a daily total, so no series is written (adoption_sample_points)
     node = _dict(data)
     post = _dict(node.get("post"))  # live: one {computed, post} entry at data level, the total in post.ext
     if route == "tiktok/hashtag":
@@ -718,9 +720,6 @@ def _count(out, ctx, route, family, platform, params, data):
         raw = params.get("clipId") or params.get("audio_id") or _first(node, "id", "music_id") or _first(post, "id")
         item_id = _item(ctx, "sound", raw, platform)
     if item_id is None:
-        return
-    if family == "curve":
-        _curve(out, ctx, GLOBAL, platform, item_id, ctx["counter_series"], _adoption_points(node.get("adoption")))
         return
     total = _sound_uses(post) if route == "tiktok/song" else None
     if total is None:
@@ -738,6 +737,13 @@ def _count(out, ctx, route, family, platform, params, data):
 def _adoption_points(adoption):
     """The adoption curve's points: the list itself, else the by_day list of the object the vendor wraps it in."""
     return _list(adoption) or _list(_dict(adoption).get("by_day"))
+
+
+def adoption_sample_points(body):
+    """How many adoption points a tiktok/song/videos body carries. In every stored body they total the videos on the
+    page that came with them, so they sample those videos by publish day and are not written as a series; the job
+    counts them as skipped."""
+    return len(_adoption_points(_dict(_dict(body).get("data")).get("adoption")))
 
 
 def _sound_uses(post):

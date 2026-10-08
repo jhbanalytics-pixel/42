@@ -98,7 +98,7 @@ import yaml
 from core.collect import chain, curated_creators, google_rss, google_trends, local_sources, research_terms, writers
 from core.collect import location_sources
 from core.collect import seeds as seeding
-from core.collect.parse import (LANES, ROUTES, board_hashtag, SEARCH_LANES, SEEDED, _dict, _first, _local_day, _protocol, _rows,
+from core.collect.parse import (LANES, adoption_sample_points, ROUTES, board_hashtag, SEARCH_LANES, SEEDED, _dict, _first, _local_day, _protocol, _rows,
                                 parse_with_creators)
 from core.collect.socialcrawl_client import PRICED, TRANSIENT, Refused, Result, load_caps, quote_for
 
@@ -938,6 +938,7 @@ class Collected:
     credits: float = 0
     spent: dict = field(default_factory=dict)
     item_id_skips: int = 0
+    song_curve_sample_skipped: int = 0
     seed_rows: list = field(default_factory=list)
     local_credits: float = 0
     local_error: str | None = None
@@ -985,7 +986,8 @@ class Collected:
                 "posts": len({p["post_id"] for p in self.posts}), "observations": len(self.observations),
                 "counters": len(self.counters),
                 "creators": len({(c["platform"], c["creator_id"]) for c in self.creators}),
-                "item_id_skips": self.item_id_skips, "stopped": self.stopped,
+                "item_id_skips": self.item_id_skips,
+                "song_curve_sample_skipped": self.song_curve_sample_skipped, "stopped": self.stopped,
                 "markets_stopped": sorted(self.stopped_markets),
                 "not_made": sum(r["status"] in ("not_made", "over_share", "day_changed")
                                  for r in job_records),
@@ -1128,6 +1130,8 @@ class _Runner:
             pull_seq=call.pull_seq, protocol=call.protocol, profile_cache=self.profiles)
         if call.family == "profile" and not parsed["creators"]:
             raise ValueError("account profile owner unavailable")
+        if call.route == "tiktok/song/videos" and call.seed is None:
+            self.run.song_curve_sample_skipped += adoption_sample_points(result.body)
         listed_key = "pageId" if call.route == "facebook/profile/posts" else \
             "location_id" if call.route == "instagram/location/posts" else \
             "subreddit" if call.route == "reddit/subreddit" else None

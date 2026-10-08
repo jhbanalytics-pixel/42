@@ -221,33 +221,16 @@ def test_stored_tiktok_song_without_a_use_count_writes_no_counter():
     assert out["counters"] == []
 
 
-# tiktok/song/videos: the adoption curve
+# tiktok/song/videos: the adoption object is a page sample and is not written as a series
 
-ADOPTION = {  # fixture: {day: videos} as the vendor lists them in data.adoption.by_day, counted by hand
-    "song_videos_1": {"2023-05-29": 1, "2023-07-29": 1, "2025-06-04": 1, "2026-01-06": 1, "2026-01-23": 1,
-                      "2026-02-21": 1, "2026-02-24": 1, "2026-03-31": 1, "2026-04-01": 1, "2026-04-02": 1,
-                      "2026-04-20": 1, "2026-04-24": 1, "2026-05-06": 1, "2026-07-27": 1},
-    "song_videos_2": {"2021-01-06": 1, "2024-12-01": 1, "2024-12-02": 1, "2025-03-23": 1, "2025-04-06": 1,
-                      "2025-04-10": 1, "2025-04-29": 1, "2026-06-25": 1, "2026-06-26": 2, "2026-06-30": 1,
-                      "2026-07-02": 1, "2026-07-04": 2, "2026-07-09": 1, "2026-07-25": 1, "2026-07-28": 1,
-                      "2026-09-05": 1},
-}
+ADOPTION_DAYS = {"song_videos_1": 14, "song_videos_2": 16, "song_videos_3": 0}  # by_day points, counted by hand
 SONG_VIDEO_POSTS = {"song_videos_1": 14, "song_videos_2": 18, "song_videos_3": 0}
 
 
-@pytest.mark.parametrize("name", sorted(ADOPTION))
-def test_stored_song_videos_curve_is_read_from_the_adoption_object(name):
-    adoption = stored(name)["body"]["data"]["adoption"]
-    assert isinstance(adoption, dict) and sorted(adoption) == [
-        "by_day", "dated", "policy_version", "region", "returning", "undated", "use_count_leaf", "uses", "window"]
+@pytest.mark.parametrize("name", sorted(ADOPTION_DAYS))
+def test_stored_song_videos_write_no_counter_row_to_any_series(name):
     out = run_stored("tiktok/song/videos", name, {"clipId": "m100"})
-    curve = {c["obs_date"]: c["value"] for c in out["counters"]}
-    assert curve == {day: float(n) for day, n in ADOPTION[name].items()}
-    assert len(out["counters"]) == len(ADOPTION[name])
-    assert all(c["item_id"] == "sound|tiktok:m100" and c["market"] == "GLOBAL" and c["unit"] == "delta"
-               and c["series"] == "curve_tiktok_sound" and c["lane_class"] == "unbiased_counter"
-               and c["platform"] == "tiktok" and c["route"] == "tiktok/song/videos" and not c["is_board"]
-               and c["source"] == "vendor_history" for c in out["counters"])
+    assert out["counters"] == []  # nothing for item_counter_daily, so nothing for detect to read from this route
 
 
 @pytest.mark.parametrize("name", sorted(SONG_VIDEO_POSTS))
@@ -258,28 +241,24 @@ def test_stored_song_videos_still_give_the_watchlist_posts(name):
         ("watchlist", "watchlist", "watch")}
 
 
-def test_stored_song_videos_without_an_adoption_object_give_no_curve():
-    entry = stored("song_videos_3")
-    assert "adoption" not in entry["body"]["data"]
-    assert run_stored("tiktok/song/videos", "song_videos_3", {"clipId": "m100"})["counters"] == []
+@pytest.mark.parametrize("name", sorted(ADOPTION_DAYS))
+def test_stored_song_videos_sample_points_are_counted(name):
+    from core.collect.parse import adoption_sample_points
+
+    assert adoption_sample_points(stored(name)["body"]) == ADOPTION_DAYS[name]
 
 
-def test_stored_song_videos_point_on_the_fetch_day_is_live():
+def test_stored_song_videos_sample_is_the_page_not_the_sound():
+    # Why nothing is written: by_day totals the videos on the page it came with, in every stored body.
+    for name in ("song_videos_1", "song_videos_2"):
+        data = stored(name)["body"]["data"]
+        assert sum(p["videos"] for p in data["adoption"]["by_day"]) == data["adoption"]["dated"] == len(data["items"])
+
+
+def test_the_list_shaped_adoption_curve_is_not_written_either():
     entry = stored("song_videos_1")
     body = json.loads(json.dumps(entry["body"]))
-    body["data"]["adoption"]["by_day"].append({"date": "2026-10-07", "videos": 3})  # the SAST day of the fetch
+    body["data"]["adoption"] = [{"date": "2026-10-06", "videos": 4}, {"date": "2026-10-07", "videos": 9}]
     out = parse("tiktok/song/videos", {"clipId": "m100"}, entry["market"], body, entry["fetched_at"], "run1",
                 item_id_fn=fake_item_id, geo_fn=FakeGeo())
-    live = [(c["obs_date"], c["value"]) for c in out["counters"] if c["source"] == "live"]
-    assert live == [("2026-10-07", 3.0)]
-
-
-def test_stored_song_videos_ignore_malformed_adoption_days():
-    entry = stored("song_videos_1")
-    body = json.loads(json.dumps(entry["body"]))
-    body["data"]["adoption"]["by_day"] = [{"date": "not a day", "videos": 2}, {"date": "2026-07-27", "videos": "x"},
-                                          {"date": "2026-07-27", "videos": True}, "2026-07-27",
-                                          {"date": "2026-07-27", "videos": 0}]
-    out = parse("tiktok/song/videos", {"clipId": "m100"}, entry["market"], body, entry["fetched_at"], "run1",
-                item_id_fn=fake_item_id, geo_fn=FakeGeo())
-    assert [(c["obs_date"], c["value"]) for c in out["counters"]] == [("2026-07-27", 0.0)]
+    assert out["counters"] == []

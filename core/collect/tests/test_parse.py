@@ -340,13 +340,9 @@ def test_song_and_hashtag_totals_are_global_counters():
         assert c["obs_date"] == "2026-09-28" and c["pull_seq"] is None
 
 
-def test_song_videos_give_the_adoption_curve_and_watchlist_posts():
+def test_song_videos_give_watchlist_posts_and_no_adoption_series():
     out = run("tiktok/song/videos", {"clipId": "m100"}, "ZA", fixture("counters", "song_videos"))
-    curve = {c["obs_date"]: (c["value"], c["source"]) for c in out["counters"]}
-    assert curve == {"2026-09-26": (40.0, "vendor_history"), "2026-09-27": (55.0, "vendor_history"),
-                     "2026-09-28": (7.0, "live")}
-    assert all(c["item_id"] == "sound|tiktok:m100" and c["market"] == "GLOBAL" and c["unit"] == "delta"
-               and c["series"] == "curve_tiktok_sound" for c in out["counters"])
+    assert out["counters"] == []  # the adoption points are a page sample, not a daily total (see test_parse_stored)
     (obs,) = out["observations"]
     assert (obs["lane"], obs["lane_class"], obs["series"], obs["market"], obs["rank"]) == (
         "watchlist", "watchlist", "watch", "ZA", None)
