@@ -2691,3 +2691,48 @@ test('the held-status line names only the market in view and joins names with an
   click(tab('All'));
   expect(host.querySelector('[data-today-held-status]')?.textContent).toBe('All the topics checked in Nigeria and Kenya were held back. See their reasons below.');
 });
+
+/* Wave 8 N43 (R0262, R0277): every failed explanation carries the same reason
+   text, so the held chart and groups split them by the check named in
+   failed_reason, as the caption says. */
+test('held explanations that failed different checks are charted and grouped by the check', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((market) => market.market === 'KE');
+  const base = kenya.held_back.items[0];
+  const failed = (id, failed_reason) => ({...clone(base), item_id: id, title: 'Topic ' + id, rule: 'G10', reason: 'explanation_failed',
+    reason_text: 'The explanation did not pass our checks', held_detail: undefined, failed_reason});
+  kenya.held_back.items = [
+    failed('c1', 'Critic: a simpler explanation was not ruled out'),
+    failed('c2', 'Critic: local why-now not shown'),
+    failed('s1', 'Support check: the explanation sentence was not supported by its posts'),
+    failed('b1', 'Banned term check: the explanation used a banned term'),
+  ];
+  kenya.held_back.count = 4;
+  await mount({region: 'KE'}, today);
+  const details = host.querySelector('[data-market="KE"] details[data-section="held-for-evidence"]');
+  const labels = [...details.querySelectorAll('[data-held-reasons] .ch42-key-label')].map((node) => node.textContent);
+  expect(labels).toEqual([
+    'The explanation did not pass our checks: Critic',
+    'The explanation did not pass our checks: Support check',
+    'The explanation did not pass our checks: Banned term check',
+  ]);
+  const groups = [...details.querySelectorAll('[data-held-group]')];
+  expect(groups.map((group) => group.querySelectorAll('li[data-held-item-id]').length)).toEqual([2, 1, 1]);
+});
+
+test('held explanations with no check named, or held for a busy model, keep one reason each', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((market) => market.market === 'KE');
+  const base = kenya.held_back.items[0];
+  const failed = (id, failed_reason, reason_text) => ({...clone(base), item_id: id, title: 'Topic ' + id, rule: 'G10', reason: 'explanation_failed', reason_text, failed_reason});
+  kenya.held_back.items = [
+    failed('n1', null, 'The explanation did not pass our checks'),
+    failed('n2', 'No check detail here', 'The explanation did not pass our checks'),
+    failed('m1', 'Model busy: not explained before the deadline', 'The model was busy'),
+  ];
+  kenya.held_back.count = 3;
+  await mount({region: 'KE'}, today);
+  const details = host.querySelector('[data-market="KE"] details[data-section="held-for-evidence"]');
+  expect([...details.querySelectorAll('[data-held-reasons] .ch42-key-label')].map((node) => node.textContent)).toEqual([
+    'The explanation did not pass our checks', 'The model was busy']);
+});

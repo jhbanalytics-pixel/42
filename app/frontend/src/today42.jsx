@@ -1085,11 +1085,21 @@ const HELD_RULE_HELP = {
   G1: 'At least one of the last three days had invalid data on the main platform, so these could not be checked fairly. They are checked again each day and can clear once no invalid day is left in that window.',
 };
 
+/* A failed explanation reads the same in reason_text whichever check held it. The check is the name ahead of the colon in failed_reason ("Critic: ...", "Support check: ..."), so it splits the groups. A topic held for a busy model ran no check and keeps its own reason. */
+const CHECK_FAMILY = /^([A-Z][A-Za-z ]{1,38}):/;
+function checkFamily(item){
+  if (item.reason !== 'explanation_failed' || !nonEmptyString(item.failed_reason) || item.failed_reason.startsWith('Model busy:')) return '';
+  const match = CHECK_FAMILY.exec(item.failed_reason.trim());
+  return match ? match[1] : '';
+}
+
 function heldGroups(items){
   const groups = [];
   const byReason = new Map();
   for (const item of items){
-    const reason = nonEmptyString(item.reason_text) ? item.reason_text.trim() : 'No specific held reason was provided.';
+    const family = checkFamily(item);
+    const said = nonEmptyString(item.reason_text) ? item.reason_text.trim() : 'No specific held reason was provided.';
+    const reason = family ? said + ': ' + family : said;
     const help = HELD_RULE_HELP[item.rule] || '';
     const key = reason + '\n' + help;
     let group = byReason.get(key);
