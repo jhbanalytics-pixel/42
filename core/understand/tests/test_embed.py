@@ -81,16 +81,21 @@ PROJECT_DB = '"ogilvy-trends-v2"'
 CORE = f"{PROJECT_DB}.intelligence_42_core"
 
 
-def fixture_warehouse(posts, observations, embedded=()):
+def fixture_warehouse(posts, observations, embedded=(), creators=None, suppressed=()):
     import duckdb  # test-only: runs embed.sql, transpiled from BigQuery, on fixture tables
 
     con = duckdb.connect()
     con.execute(f"ATTACH ':memory:' AS {PROJECT_DB}")
     con.execute(f"CREATE SCHEMA {CORE}")
-    con.execute(f"CREATE TABLE {CORE}.posts (post_id VARCHAR, text VARCHAR, transcript VARCHAR, post_date DATE)")
+    con.execute(f"CREATE TABLE {CORE}.posts (post_id VARCHAR, text VARCHAR, transcript VARCHAR, post_date DATE, "
+                "creator_id VARCHAR)")
+    con.execute(f"CREATE TABLE {CORE}.v_suppressed_creators (creator_id VARCHAR)")
     con.execute(f"CREATE TABLE {CORE}.post_observations (post_id VARCHAR, observed_date DATE)")
     con.execute(f"CREATE TABLE {CORE}.post_enrichment (post_id VARCHAR, embedding DOUBLE[])")
-    con.executemany(f"INSERT INTO {CORE}.posts VALUES (?, ?, ?, ?)", posts)
+    con.executemany(f"INSERT INTO {CORE}.posts VALUES (?, ?, ?, ?, ?)",
+                    [(*post, (creators or {}).get(post[0])) for post in posts])
+    if suppressed:
+        con.executemany(f"INSERT INTO {CORE}.v_suppressed_creators VALUES (?)", [(c,) for c in suppressed])
     con.executemany(f"INSERT INTO {CORE}.post_observations VALUES (?, ?)", observations)
     if embedded:
         con.executemany(f"INSERT INTO {CORE}.post_enrichment VALUES (?, ?)", [(pid, [0.5] * 768) for pid in embedded])
@@ -179,6 +184,29 @@ def test_window_posts_bounds_the_posts_scan_to_400_days_before_the_window():
     assert stored_ids(con) == ["at_bound", "seen_today"]
     assert counts == {"embedded": 2, "failed": 0, "skipped": 0,
                       "chars_sent": len("Amapiano at the braai") + len("Throwback"), "tokens": 7 + 3}
+
+
+def test_embed_sql_never_sends_a_suppressed_creators_post_to_the_model_and_keeps_posts_without_a_creator():
+    # A hidden person's text and transcript do not go to Vertex, so no embedding of it feeds Ask retrieval. A post
+    # with no creator_id names nobody and is still sent (a NOT IN would have dropped it).
+    con = fixture_warehouse(
+        posts=[("hidden_post", "Their words", "their transcript", DAY), ("open_post", "Fine words", None, DAY),
+               ("anon_post", "No creator", None, DAY)],
+        observations=[("hidden_post", DAY), ("open_post", DAY), ("anon_post", DAY)],
+        creators={"hidden_post": "c_hidden", "open_post": "c_open"}, suppressed=["c_hidden"])
+    sent = []
+
+    def model(post_id):
+        sent.append(post_id)
+        return good_vector(post_id)
+
+    counts = run_embed_sql(con, DAY, DAY, model=model)
+    assert sorted(sent) == ["anon_post", "open_post"] and stored_ids(con) == ["anon_post", "open_post"]
+    assert counts["embedded"] == 2 and counts["chars_sent"] == len("Fine words") + len("No creator")
+
+
+def test_embed_sql_reads_the_suppression_view():
+    assert "intelligence_42_core.v_suppressed_creators`" in sql("embed")
 
 
 @pytest.mark.parametrize("chars_sent", [0, 700, 4_000_000, 40_000_000])
