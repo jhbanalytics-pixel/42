@@ -2211,6 +2211,19 @@ def test_google_bq_is_parked_by_config():
     assert yaml.safe_load((job.CONFIG / "google_sources.yaml").read_text(encoding="utf-8"))["google_bq"]["enabled"] is False
 
 
+def test_a_missing_google_sources_file_reads_as_parked(monkeypatch, tmp_path):
+    monkeypatch.setattr(job, "CONFIG", tmp_path)
+    assert not (tmp_path / "google_sources.yaml").exists()
+    assert job.google_bq_enabled() is False
+
+
+def test_a_google_sources_file_with_no_enabled_key_reads_as_parked(monkeypatch, tmp_path):
+    monkeypatch.setattr(job, "CONFIG", tmp_path)
+    for lines in ([], ["other: 1"], ["google_bq:"], ["google_bq: {}"], ["google_bq:", "  other: true"]):
+        (tmp_path / "google_sources.yaml").write_text("\n".join(lines), encoding="utf-8")
+        assert job.google_bq_enabled() is False, lines
+
+
 def test_a_parked_google_bq_makes_no_public_table_read_and_says_so_in_the_counts():
     class NoPublicTables(TrendsTablesBQ):
         def query(self, sql, job_config=None, **kw):
