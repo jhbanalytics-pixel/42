@@ -36,14 +36,20 @@ pan, the three pooled, which is the order and the set cluster.MARKETS takes. Eac
 under cluster, keyed by market. Clustering fails soft per market: an error goes in as that market's counts, the
 error class and its first line with URLs removed, plus failed_batch and unwritten_cluster_ids when the write
 reports them, and the next market still runs. run_cluster is imported only when clustering starts, so a failed
-import of the BERTopic stack fails every market the same soft way and never the job. Each market's run sends its
+import of the BERTopic stack fails every market the same way. Each market's run sends its
 new labels and keywords through the label net (cluster.label_net, one fast-model call) and books that spend on the
 job's day under its run_id, as enrichment does; the spend joins the understand row's booked_model_usd, and any part
 a booking missed its model_usd, also when the market's write raised after the net. A market clustered already that
 day is skipped, so a rerun changes nothing. Memory is collected after each market, so the job's peak is one
 market's fit, and each understand_phase line carries peak_rss_mb, the process's peak RSS so far, where it can be read.
 
-An ok run with enrich_error, or with an error under a market in cluster, is a degraded run: Coverage reads those
+One kind of clustering error is not soft: the stack itself being unusable (clusterer_unavailable: a module that
+will not import, or numba unable to cache UMAP's compiled functions). Every market then fails the same way and a
+night with no clusters is no night to brief on, as 1 to 4 Oct 2026 showed, when each run ended ok with zero clusters
+and detect and the brief ran on nothing. The run is finished failed with the error and the per-market counts on its
+row, detect is not started, video is skipped, and the job exits 1.
+
+An ok run with enrich_error, or with any other error under a market in cluster, is a degraded run: Coverage reads those
 counts and shows the understand stage as degraded with what failed (core/api/store.py, runs_of_day), while the
 status stays ok and detect still starts, so the morning brief is never held for it. A run whose embed step sent
 no window (retry_capped or spend_unknown, with nothing embedded) says so in embed_error, so the day with no
@@ -187,6 +193,14 @@ def embed_not_run(counts) -> str | None:
     return None
 
 
+def clusterer_unavailable(err) -> bool:
+    """True when the clustering stack cannot run at all, not when one market's write or fit went wrong: a module that
+    will not import (ImportError, which holds ModuleNotFoundError), or numba unable to cache UMAP's compiled
+    functions, a RuntimeError whose message says so."""
+    text = str(err)
+    return isinstance(err, ImportError) or "cannot cache function" in text or "no locator available" in text
+
+
 def enrich_error(err) -> str:
     """The exception class and its first line, every URL removed, for runs.counts (enrichment's and clustering's)."""
     line = (str(err).splitlines() or [""])[0]
@@ -291,6 +305,7 @@ def main(execute=None):
     else:
         cluster_started = now()
         print(phase_line(run.run_id, "clustering", "start", 0.0), flush=True)
+        unavailable = None
         for market in CLUSTER_MARKETS:
             try:
                 clustered = run_cluster(execute, run_date=run.run_date, market=market, run_id=run.run_id, day=today,
@@ -298,6 +313,8 @@ def main(execute=None):
             except Exception as err:
                 clustered = {"error": enrich_error(err), **{k: getattr(err, k) for k in (
                     "failed_batch", "unwritten_cluster_ids", "model_usd", "booked_usd") if hasattr(err, k)}}
+                if unavailable is None and clusterer_unavailable(err):
+                    unavailable = clustered["error"]
             day_changed = day_changed or clustered.get("net_error") == "day_changed"
             spent += clustered.pop("model_usd", 0)
             booked += clustered.pop("booked_usd", 0)
@@ -308,6 +325,12 @@ def main(execute=None):
         elapsed = round(max(0.0, (now() - cluster_started).total_seconds()), 3)
         print(phase_line(run.run_id, "clustering", "end", elapsed), flush=True)
         step_seconds["clustering"] = elapsed
+        if unavailable:
+            counts.update(model_usd=round(spent - booked, 6), booked_model_usd=round(booked, 6))
+            counts["step_seconds"] = dict(step_seconds)
+            chain.finish(run, "failed", counts, error=f"clustering unavailable: {unavailable}")
+            print(f"understand failed: clustering unavailable: {unavailable}", file=sys.stderr)
+            return 1
     caps, why = video_plan()
     if backfill:
         counts["video"] = {"skipped": "backfill"}

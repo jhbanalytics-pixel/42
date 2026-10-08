@@ -1921,7 +1921,7 @@ def _in_fresh_interpreter(body, preset=None):
     env = {k: v for k, v in os.environ.items() if k != "NUMBA_CACHE_DIR"}
     env.update(preset or {})
     root = str(Path(__file__).resolve().parents[3])
-    done = subprocess.run([sys.executable, "-I", "-c", f"import sys; sys.path.insert(0, {root!r})\n{body}"],
+    done = subprocess.run([sys.executable, "-c", f"import sys; sys.path.insert(0, {root!r})\n{body}"],
                           capture_output=True, env=env, cwd=root, timeout=240)
     assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
     return done.stdout.decode("utf-8").strip()

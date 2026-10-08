@@ -1285,19 +1285,6 @@ def test_a_market_whose_clustering_raises_is_recorded_and_the_rest_still_cluster
     assert log[-1] == ("start_next", "understand", DAY)
 
 
-def test_a_failed_import_of_the_cluster_stack_fails_clustering_soft_not_the_job(monkeypatch):
-    monkeypatch.delenv("EMBED_DAYS", raising=False)
-    log = fake_chain(monkeypatch)
-    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
-    monkeypatch.setitem(sys.modules, "core.understand.cluster", None)  # the BERTopic stack will not import
-    assert job.main(execute=FakeWarehouse()) == 0
-    finished = next(e for e in log if e[0] == "finish")
-    assert finished[2] == "ok" and set(finished[3]["cluster"]) == {"za", "ng", "ke", "pan"}
-    assert all(c["error"].startswith(("ImportError", "ModuleNotFoundError")) for c in finished[3]["cluster"].values())
-    assert finished[3]["embedded"] == 5
-    assert log[-1] == ("start_next", "understand", DAY)
-
-
 # The clusterer being unusable (it will not import, or numba cannot cache UMAP's functions) is not a degraded night.
 # On 1 to 4 Oct 2026 it ended every understand run ok with zero clusters, and detect and brief ran on nothing.
 
@@ -1316,7 +1303,7 @@ def test_a_failed_import_of_the_cluster_stack_fails_the_run_loudly(monkeypatch, 
     monkeypatch.setitem(sys.modules, "core.understand.cluster", None)  # the BERTopic stack will not import
     assert job.main(execute=FakeWarehouse()) == 1
     finished = finished_run(log)
-    assert finished[2] == "failed" and "clustering unavailable" in finished[4] and "ImportError" in finished[4]
+    assert finished[2] == "failed" and "clustering unavailable" in finished[4] and "ModuleNotFoundError" in finished[4]
     assert not any(e[0] == "start_next" for e in log), "detect must not start on a night nothing was clustered"
     assert set(finished[3]["cluster"]) == {"za", "ng", "ke", "pan"}, "the per-market errors stay on the row"
     assert finished[3]["embedded"] == 5 and "step_seconds" in finished[3]
