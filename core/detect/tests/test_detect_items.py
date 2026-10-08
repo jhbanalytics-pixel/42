@@ -150,13 +150,16 @@ def test_stoplist_file_is_canonical_and_holds_only_hashtags():
 
 @pytest.mark.parametrize("raw", ["#fyppppppppppppppppppppppp", "#fypppppp", "#fyyyyp", "#foryouuuuu", "#viraaaal",
                                  "#fyp\u200b", "#fy\u200bp", "#foryou\u200d", "#fyp\ufe0f", "#FYPPPPPP",
-                                 "#fypシ\u200b", "#trendinggg"])
+                                 "#fypシ\u200b", "#trendinggg",
+                                 "#reeeeels", "#funnnnny", "#foryoupageofficialll", "#reeels", "#commmmedy",
+                                 "#memmmes", "#sh​orrrrts"])
 def test_is_generic_matches_elongated_and_zero_width_variants_of_a_stoplisted_tag(raw):
     assert is_generic("hashtag", canonical_key("hashtag", raw))
 
 
 @pytest.mark.parametrize("raw", ["#fypamapiano", "#fyb", "#fypaa", "#foryoupageamapiano", "#goooal", "#viralnigeria",
-                                 "#coool", "#lagoss", "#a\u200bb"])
+                                 "#coool", "#lagoss", "#a\u200bb", "#lagosss", "#amapianooo", "#gooooal",
+                                 "#fyypp", "#reelss", "#funnyy", "#viraal"])
 def test_is_generic_leaves_a_real_tag_alone_when_pattern_matching(raw):
     assert not is_generic("hashtag", canonical_key("hashtag", raw))
 

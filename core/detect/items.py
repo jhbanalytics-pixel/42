@@ -148,10 +148,11 @@ def _stoplist() -> frozenset[str]:
 
 def _variants(key: str) -> tuple[str, ...]:
     """The key as written, then with invisible format characters and variation selectors removed, then with
-    every run of three or more of one character cut to a single one: the forms in which a stoplisted tag can be
-    stretched or padded. The item's own key and item_id are never changed by this."""
+    every run of three or more of one character cut to two (for a term with a double letter, as in reels) and
+    to a single one: the forms in which a stoplisted tag can be stretched or padded. The item's own key and
+    item_id are never changed by this."""
     bare = "".join(ch for ch in key if unicodedata.category(ch) != "Cf" and not "\ufe00" <= ch <= "\ufe0f")
-    return tuple(dict.fromkeys((key, bare, _RUN.sub(r"\1", bare))))
+    return tuple(dict.fromkeys((key, bare, _RUN.sub(r"\1\1", bare), _RUN.sub(r"\1", bare))))
 
 
 def is_generic(kind: str, canonical_key: str) -> bool:
