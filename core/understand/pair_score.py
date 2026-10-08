@@ -10,9 +10,11 @@ The score is the logistic of three terms.
   hashtag and sound overlap: W_FACETS times the evidence in the facets the two share.
   keyword overlap: W_KEYWORDS times the evidence in the keywords the two share.
 Evidence is 1 - exp(-SAT * mass), where mass is the sum of the IDF weights of the shared terms. A term's weight is
-(ln((N + 1) / (df + 1)) / ln(N + 1)) ** IDF_POWER over the run's own documents (the current topics and today's
-clusters that have any term of that kind). The power sharpens the weights: a tag on 54 documents of 72 lifts the logit
-by 0.03, where the plain weight lifted it by 0.49, and a tag on one document in twenty still weighs 0.6. There is no
+ln((N + 1) / (df + 1)) / ln(N + 1) over the run's own documents (the current topics and today's
+clusters that have any term of that kind). IDF_POWER is 1.0, its value before the fixture was run: a power of 2 was
+tried afterwards on that same fixture, which made it a tuning on the test, so it is not used. At power 1 a tag on every
+document weighs 0 but a tag on three documents in four still lifts the logit by about 0.5, enough to matter near the
+cosine midpoint; a held-out set is the way to settle it. There is no
 list of generic tags: fyp, foryou and viral are found out by how often the run itself carries them.
 
 Nothing in the score reads when an item was last seen. A recent sighting is not topical evidence, and in the vote rule
@@ -39,13 +41,13 @@ import numpy as np
 COSINE_FLOOR = 0.65
 DRIFT_FLOOR = 0.60
 SCORE_MATCH = 0.5
-COSINE_MID = 0.80
+COSINE_MID = 0.82
 W_COSINE = 14.0
 W_FACETS = 4.0
 W_KEYWORDS = 3.0
 SAT_FACETS = 2.0
 SAT_KEYWORDS = 1.0
-IDF_POWER = 2.0
+IDF_POWER = 1.0
 DECIMALS = 6
 
 
@@ -92,7 +94,10 @@ def score_pair(cluster, item, cos, idf):
     logit = W_COSINE * (cos - COSINE_MID) + W_FACETS * facets + W_KEYWORDS * words
     score = 1.0 / (1.0 + math.exp(-logit))
     birth = item.get("birth_centroid")
-    drift = _cosine(cluster["centroid"], birth) if birth is not None else None
+    try:
+        drift = _cosine(cluster["centroid"], birth) if birth is not None else None
+    except (TypeError, ValueError):
+        drift = None  # one malformed birth centroid costs its own pair the guard, not the run its shadow
     if cos < COSINE_FLOOR:
         reason = "cosine_floor"
     elif drift is not None and drift < DRIFT_FLOOR:

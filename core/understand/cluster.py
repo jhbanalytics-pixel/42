@@ -662,8 +662,12 @@ def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None,
         if shadow is not None:
             try:
                 SHADOW_SINK(market, run_date, shadow)
-            except Exception:
-                pass  # the shadow is never allowed to fail a run
+            except Exception as err:
+                counts["shadow_error"] = type(err).__name__  # the shadow never fails a run, but it never fails unseen
+            else:
+                failed = next((r["shadow_error"] for r in shadow if "shadow_error" in r), None)
+                if failed:
+                    counts["shadow_error"] = failed
         planned = plan(clusters, decisions, items, run_date, market)
         batches = write_batches(planned)
         counts.update(merge_review=planned["merge_review"][:MERGE_REVIEW_LISTED],

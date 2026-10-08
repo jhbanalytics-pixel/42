@@ -3,6 +3,7 @@ score never reads a recent sighting, and no combination of weak features passes 
 from datetime import date, timedelta
 
 import numpy as np
+import pytest
 
 from core.understand import cluster, pair_score
 
@@ -45,8 +46,8 @@ def test_a_tag_on_nearly_every_item_weighs_near_zero_and_a_rare_one_weighs_much_
     docs = [{"zzcommon", f"own{i}"} for i in range(20)] + [{"fyp"}]
     w = pair_score.idf_weights(docs)
     assert w["zzcommon"] < 0.1
-    assert w["fyp"] > 0.5
-    assert w["own3"] > 0.5
+    assert w["fyp"] > 0.6
+    assert w["own3"] > 0.6
     assert pair_score.idf_weights([{"a"}, {"a"}, {"a"}])["a"] == 0.0
 
 
@@ -98,11 +99,19 @@ def test_drift_guard_refuses_a_match_far_from_the_birth_centroid():
     assert unknown["accept"] is True and unknown["drift_cosine"] is None
 
 
-def test_a_tag_on_three_quarters_of_the_documents_lifts_the_logit_by_under_a_tenth():
+def test_idf_weights_are_the_plain_log_ratio_at_known_points():
+    docs = [{"rare"}] + [{"x", f"own{i}"} for i in range(19)]
+    w = pair_score.idf_weights(docs)
+    assert w["rare"] == pytest.approx(0.7733, abs=1e-3)  # ln(21/2) / ln(21)
+    assert w["x"] == pytest.approx(0.0153, abs=1e-3)  # ln(21/20) / ln(21)
+    assert pair_score.IDF_POWER == 1.0
+
+
+def test_a_tag_on_every_document_lifts_the_logit_by_nothing():
     c, item = a_cluster(at(1.0), hashtags=["fyp"]), an_item(at(0.78), hashtags=["fyp"])
-    pool = background(70, generic=("fyp",), skip=18)  # 52 of 70 carry it, with the pair 54 of 72
+    pool = background(70, generic=("fyp",))
     bare = verdict(a_cluster(at(1.0)), an_item(at(0.78)), pool)["logit"]
-    assert verdict(c, item, pool)["logit"] - bare < 0.1
+    assert verdict(c, item, pool)["logit"] == bare
 
 
 def test_the_score_is_identical_whether_or_not_the_two_share_a_creator():
