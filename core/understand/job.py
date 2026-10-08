@@ -43,11 +43,15 @@ a booking missed its model_usd, also when the market's write raised after the ne
 day is skipped, so a rerun changes nothing. Memory is collected after each market, so the job's peak is one
 market's fit, and each understand_phase line carries peak_rss_mb, the process's peak RSS so far, where it can be read.
 
-One kind of clustering error is not soft: the stack itself being unusable (clusterer_unavailable: a module that
-will not import, or numba unable to cache UMAP's compiled functions). Every market then fails the same way and a
-night with no clusters is no night to brief on, as 1 to 4 Oct 2026 showed, when each run ended ok with zero clusters
-and detect and the brief ran on nothing. The run is finished failed with the error and the per-market counts on its
-row, detect is not started, video is skipped, and the job exits 1.
+One outcome of clustering is not a plain ok: the stack being unusable (a module that will not import, numba unable to
+cache UMAP's compiled functions, a numpy or llvmlite mismatch, anything). It is read from the outcome, not from the
+error text: no market wrote a cluster, at least one market raised, and none was clustered already that day
+(cluster_stack_failed). As 1 to 4 Oct 2026 showed, an unusable stack otherwise ends every run ok with zero clusters.
+The run is then recorded ok but partial: counts carry partial true, partial_reason "cluster_stack_failed", the first
+error under partial_error and, in plain words, data_issue "Data issue: topic grouping failed today"; video is
+skipped, one "understand partial:" line goes to stderr and detect still starts. Detect reads the partial and judges
+no topic (cluster) items that day, because blocking it would drop about 1,000 non-cluster candidates per market per
+day. The row status stays "ok" because chain.begin lets a stage start only after an upstream row that is ok.
 
 An ok run with enrich_error, or with any other error under a market in cluster, is a degraded run: Coverage reads those
 counts and shows the understand stage as degraded with what failed (core/api/store.py, runs_of_day), while the
@@ -215,12 +219,19 @@ def degraded_steps(counts) -> list:
     return list(degraded_reasons(counts))
 
 
-def clusterer_unavailable(err) -> bool:
-    """True when the clustering stack cannot run at all, not when one market's write or fit went wrong: a module that
-    will not import (ImportError, which holds ModuleNotFoundError), or numba unable to cache UMAP's compiled
-    functions, a RuntimeError whose message says so."""
-    text = str(err)
-    return isinstance(err, ImportError) or "cannot cache function" in text or "no locator available" in text
+PARTIAL_REASON = "cluster_stack_failed"
+TOPICS_FAILED_TEXT = "Data issue: topic grouping failed today"
+
+
+def cluster_stack_failed(cluster) -> str | None:
+    """The first market error when the clustering outcome says the stack is unusable, else None: some market raised,
+    no market wrote a cluster, and no market was clustered already that day (whose clusters then exist). Read from the
+    per-market counts alone, so it holds for any exception type."""
+    markets = [c for c in (cluster or {}).values() if isinstance(c, dict)]
+    errors = [c["error"] for c in markets if c.get("error")]
+    wrote = any((c.get("clusters") or 0) > 0 for c in markets)
+    again = any(c.get("skipped") == "already_clustered" for c in markets)
+    return errors[0] if errors and not wrote and not again else None
 
 
 def enrich_error(err) -> str:
@@ -327,7 +338,6 @@ def main(execute=None):
     else:
         cluster_started = now()
         print(phase_line(run.run_id, "clustering", "start", 0.0), flush=True)
-        unavailable = None
         for market in CLUSTER_MARKETS:
             try:
                 clustered = run_cluster(execute, run_date=run.run_date, market=market, run_id=run.run_id, day=today,
@@ -335,8 +345,6 @@ def main(execute=None):
             except Exception as err:
                 clustered = {"error": enrich_error(err), **{k: getattr(err, k) for k in (
                     "failed_batch", "unwritten_cluster_ids", "model_usd", "booked_usd") if hasattr(err, k)}}
-                if unavailable is None and clusterer_unavailable(err):
-                    unavailable = clustered["error"]
             day_changed = day_changed or clustered.get("net_error") == "day_changed"
             spent += clustered.pop("model_usd", 0)
             booked += clustered.pop("booked_usd", 0)
@@ -347,15 +355,16 @@ def main(execute=None):
         elapsed = round(max(0.0, (now() - cluster_started).total_seconds()), 3)
         print(phase_line(run.run_id, "clustering", "end", elapsed), flush=True)
         step_seconds["clustering"] = elapsed
-        if unavailable:
-            counts.update(model_usd=round(spent - booked, 6), booked_model_usd=round(booked, 6))
-            counts["step_seconds"] = dict(step_seconds)
-            chain.finish(run, "failed", counts, error=f"clustering unavailable: {unavailable}")
-            print(f"understand failed: clustering unavailable: {unavailable}", file=sys.stderr)
-            return 1
+    stack_error = None if backfill else cluster_stack_failed(counts["cluster"])
+    if stack_error:
+        counts.update(partial=True, partial_reason=PARTIAL_REASON, partial_error=stack_error,
+                      data_issue=TOPICS_FAILED_TEXT)
+        print(f"understand partial: {PARTIAL_REASON}: {stack_error}", file=sys.stderr)
     caps, why = video_plan()
     if backfill:
         counts["video"] = {"skipped": "backfill"}
+    elif stack_error:
+        counts["video"] = {"skipped": PARTIAL_REASON}
     elif day_changed:
         counts["video"] = {"skipped": "day_changed"}
     elif caps is None:
