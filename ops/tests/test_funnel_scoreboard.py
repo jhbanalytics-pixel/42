@@ -47,14 +47,31 @@ def bound(param):
     return param.value
 
 
-class DuckClient:
-    """Runs the scoreboard's own SQL text on DuckDB. fail names the kinds of query that raise."""
+class DryJob:
+    def __init__(self, total_bytes_processed):
+        self.total_bytes_processed = total_bytes_processed
 
-    def __init__(self, con, fail=()):
+
+class DuckClient:
+    """Runs the scoreboard's own SQL text on DuckDB. fail names the kinds of query that raise. A dry run is kept apart
+    from the real runs: it executes nothing and answers dry_bytes[kind], or per_dry bytes for a kind not listed."""
+
+    def __init__(self, con, fail=(), dry_bytes=None, per_dry=1_000_000, dry_fail=()):
         self.con, self.fail, self.sql, self.configs, self.kinds = con, set(fail), [], [], []
+        self.dry_bytes, self.per_dry, self.dry_fail = dry_bytes or {}, per_dry, set(dry_fail)
+        self.dry, self.dry_configs, self.dry_kinds, self.order = [], [], [], []
 
     def query(self, sql, job_config=None):
         kind = query_kind(sql)
+        if job_config is not None and job_config.dry_run:
+            self.dry.append(sql)
+            self.dry_configs.append(job_config)
+            self.dry_kinds.append(kind)
+            self.order.append("dry")
+            if kind in self.dry_fail:
+                raise RuntimeError("injected dry-run failure")
+            return DryJob(self.dry_bytes.get(kind, self.per_dry))
+        self.order.append("real")
         self.sql.append(sql)
         self.configs.append(job_config)
         self.kinds.append(kind)
@@ -82,14 +99,15 @@ class World:
                   + [run("brief", d) for d in (D5, D6, D7)])
 
     def post(self, pid, text="", *, market="NG", located=True, lane="sweep", lane_class="unbiased_rank",
-             hashtags=(), screen_text=None, observe=True, items=(), geo="NG"):
+             hashtags=(), screen_text=None, observe=True, items=(), geo="NG", geo_source="ext_region",
+             geo_confidence=0.9):
         duck.load(self.con, "core.creators", [{"creator_id": f"c-{pid}", "platform": "tiktok",
                                                "handle": f"@c-{pid}", "coord_score": 0}])
         duck.load(self.con, "core.posts", [{
             "post_id": pid, "platform": "tiktok", "creator_id": f"c-{pid}", "text": text, "hashtags": list(hashtags),
             "published_at": at(POST_DAY, 9), "post_date": POST_DAY, "engagement": 10,
-            "geo_market": geo if located else None, "geo_confidence": 0.9 if located else None,
-            "geo_source": "ext_region" if located else None}])
+            "geo_market": geo if located else None, "geo_confidence": geo_confidence if located else None,
+            "geo_source": geo_source if located else None}])
         if screen_text:
             duck.load(self.con, "core.post_enrichment", [{"post_id": pid, "screen_text": screen_text}])
         if observe:
@@ -792,3 +810,72 @@ def test_t4_replay_the_timini_card_on_5_october_and_its_unjudged_rank_18_on_7_oc
                              fs.Params(cutoff=D7, brief_days=0))
     assert seven["furthest_stage"] == "POOLED" and seven["judged"] is False
     assert seven["next_stage_status"] == "dropped: in the pool but the brief records no card or hold for it"
+
+
+# The collected and located rules, and the output files, each pinned on their own.
+
+
+def stage_of(world_, tmp_path):
+    _code, rows, _detail, _lines, _client = run_scoreboard(tmp_path, world_)
+    return {mid: r["furthest_stage"] for mid, r in rows.items()}
+
+
+def test_a_legacy_lane_class_observation_does_not_count_as_collected(tmp_path):
+    w = World()
+    w.post("lg0", "legacy clip", lane_class="legacy")
+    w.moment("LG", "legacy")
+    w.post("ok0", "control clip")
+    w.moment("OK", "control")
+    assert stage_of(w, tmp_path) == {"LG": "NOT_COLLECTED", "OK": "LOCATED"}
+
+
+def test_a_geo_source_outside_the_three_trusted_ones_does_not_locate_a_post(tmp_path):
+    w = World()
+    w.post("gs0", "guess clip", geo_source="text_guess")
+    w.moment("GS", "guess")
+    for n, source in enumerate(fs.GEO_SOURCES):
+        w.post(f"src{n}", f"trusted{n} clip", geo_source=source)
+        w.moment(f"S{n}", f"trusted{n}")
+    got = stage_of(w, tmp_path)
+    assert got["GS"] == "COLLECTED"
+    assert [got[f"S{n}"] for n in range(len(fs.GEO_SOURCES))] == ["LOCATED"] * len(fs.GEO_SOURCES)
+
+
+def test_a_geo_confidence_below_the_minimum_does_not_locate_a_post_and_the_minimum_itself_does(tmp_path):
+    w = World()
+    w.post("lo0", "low clip", geo_confidence=0.69)
+    w.moment("LO", "low")
+    w.post("at0", "edge clip", geo_confidence=0.7)
+    w.moment("AT", "edge")
+    w.post("nl0", "null clip", geo_confidence=None)
+    w.moment("NL", "null")
+    assert stage_of(w, tmp_path) == {"LO": "COLLECTED", "AT": "LOCATED", "NL": "COLLECTED"}
+
+
+def test_a_post_located_in_another_market_is_collected_but_not_located_here(tmp_path):
+    w = World()
+    w.post("om0", "other clip", geo="ZA")
+    w.moment("OM", "other")
+    assert stage_of(w, tmp_path) == {"OM": "COLLECTED"}
+
+
+class FixedClock(fs.datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2026, 10, 8, 9, 30, 0, tzinfo=tz)
+
+
+@pytest.mark.parametrize("suffix", [".csv", ".json"])
+def test_a_second_run_never_overwrites_an_earlier_result(tmp_path, monkeypatch, suffix):
+    monkeypatch.setattr(fs, "datetime", FixedClock)
+    w = build_world()
+    run_scoreboard(tmp_path, w)
+    [first] = (tmp_path / "readback").glob(f"*{suffix}")
+    before = first.read_bytes()
+    other = (tmp_path / "readback").glob("*.csv" if suffix == ".json" else "*.json")
+    for path in other:
+        path.unlink()
+    with pytest.raises(FileExistsError):
+        fs.main([str(tmp_path / "moments.csv"), "--cutoff", "2026-10-07", "--pool", str(POOL),
+                 "--out-dir", str(tmp_path / "readback")], client=DuckClient(w.con), out=lambda line: None)
+    assert first.read_bytes() == before
