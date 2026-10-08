@@ -406,6 +406,22 @@ test('a chart whose only entries are ids shows only its count and reason', () =>
   expect(card.querySelector('ul.tb-rows')).toBeNull();
 });
 
+/* core/api/today.py NO_NAMES_READ, as the server sends it for a chart whose entries are all ids. */
+const SERVER_REASON = "None of this list's entries had a readable name today";
+const occurrences = (text, needle) => text.split(needle).length - 1;
+
+test('an unreadable chart says the server reason once, with the count beside it', () => {
+  show({boards: [board('youtube', 'YouTube trending board', [entry(1, FAKE_CHANNEL, 'i1'), entry(2, '<br>', 'i2')], {left_out: 0, left_out_reason: SERVER_REASON})]});
+  const card = host.querySelector('[data-board-card]');
+  expect(card.getAttribute('data-chart-state')).toBe('unreadable');
+  expect(occurrences(card.textContent, 'readable name')).toBe(1);
+  expect(occurrences(card.textContent, SERVER_REASON)).toBe(1);
+  expect(card.querySelector('.tb-left-out').textContent).toBe('2 left out: ' + SERVER_REASON);
+  /* Same sentence with the state line's own full stop still counts as the same sentence. */
+  show({boards: [board('youtube', 'YouTube trending board', [entry(1, FAKE_CHANNEL, 'i1')], {left_out_reason: SERVER_REASON + '.'})]});
+  expect(occurrences(host.querySelector('[data-board-card]').textContent, 'readable name')).toBe(1);
+});
+
 test('no boards at all says so, and a payload that is not a list does too', () => {
   show({boards: []});
   expect(host.querySelector('[data-section="boards"]').textContent).toContain('No platform lists were read today.');

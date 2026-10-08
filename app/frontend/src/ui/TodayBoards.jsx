@@ -102,6 +102,10 @@ function splitTitle(full, music){
   return {name: full, artists: ''};
 }
 
+/* The server's reason for an unreadable chart is the state line's own
+   sentence, so the two are compared by their words, not their full stop. */
+const sentence = (text) => String(text || '').trim().replace(/[.\s]+$/, '').toLowerCase();
+
 const safe = (id) => id.replace(/[^a-zA-Z0-9_-]/g, '');
 
 const STATE_WORDS = {
@@ -164,7 +168,7 @@ function ChartCard({chart, found, uid, tag: Heading}){
               </button>
             )}
           </>
-        : <p className="tb-state">{STATE_WORDS[chart.state]}</p>}
+        : !(chart.leftOut > 0 && sentence(chart.reason) === sentence(STATE_WORDS[chart.state])) && <p className="tb-state">{STATE_WORDS[chart.state]}</p>}
       {chart.leftOut > 0 && <p className="tb-left-out">{chart.leftOut} left out: {chart.reason || 'No readable name'}</p>}
     </section>
   );
