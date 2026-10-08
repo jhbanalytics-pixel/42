@@ -60,3 +60,27 @@ def test_the_report_is_written_deterministically_and_holds_no_dash_runs(tmp_path
     bars = "|" + "-" * 3  # a markdown table separator is the one place a run of hyphens is allowed
     assert not re.search("[" + chr(0x2013) + chr(0x2014) + "]|" + "-" * 2, text.replace(bars, ""))
     assert json.loads((tmp_path / "a" / "pair_score_comparison.json").read_text(encoding="utf-8"))["summary"]["pairs"] >= 40
+
+
+def test_the_report_gives_precision_and_recall_at_both_idf_powers_and_leaves_the_default_alone():
+    data = compare.build_fixture()
+    before = pair_score_power()
+    sens = compare.sensitivity(data, powers=(1.0, 2.0))
+    assert pair_score_power() == before == 1.0
+    assert set(sens) == {"1.0", "2.0"}
+    default = compare.summarise(compare.evaluate(data))["shadow"]
+    assert sens["1.0"] == default
+    assert sens["2.0"] != default
+    for c in sens.values():
+        assert c["precision"] is not None and c["recall"] is not None
+
+
+def pair_score_power():
+    from core.understand import pair_score
+    return pair_score.IDF_POWER
+
+
+def test_the_markdown_says_the_fixture_was_seen_before_the_power_was_compared(tmp_path):
+    compare.main(["pair_score_compare", str(tmp_path)])
+    text = (tmp_path / "pair_score_comparison.md").read_text(encoding="utf-8")
+    assert "IDF_POWER 1.0" in text and "IDF_POWER 2.0" in text and "in sample" in text

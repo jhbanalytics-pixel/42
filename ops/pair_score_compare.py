@@ -195,6 +195,18 @@ def summarise(rows):
         "shadow_accepts_today_rejects": only_shadow, "shadow_accepts_today_rejects_vote_sets": sets(only_shadow)}
 
 
+def sensitivity(data, powers=(1.0, 2.0)):
+    """The shadow's confusion counts on data at each IDF_POWER, the module's own value restored afterwards."""
+    keep, out = pair_score.IDF_POWER, {}
+    try:
+        for power in powers:
+            pair_score.IDF_POWER = power
+            out[str(power)] = summarise(evaluate(data))["shadow"]
+    finally:
+        pair_score.IDF_POWER = keep
+    return out
+
+
 def _table(rows):
     if not rows:
         return ["None.", ""]
@@ -205,7 +217,7 @@ def _table(rows):
     return out + [""]
 
 
-def report(data, summary):
+def report(data, summary, sens=None):
     t, s = summary["today"], summary["shadow"]
     lines = [
         "# Pair score shadow against the vote rule", "",
@@ -221,6 +233,15 @@ def report(data, summary):
         f"## The vote rule accepts and the shadow refuses ({len(summary['today_accepts_shadow_rejects'])})", "",
         f"Vote sets: {json.dumps(summary['today_accepts_shadow_rejects_vote_sets'])}", ""]
     lines += _table(summary["today_accepts_shadow_rejects"])
+    if sens:
+        lines += ["## IDF_POWER, in sample", "",
+                  "The power was first set to 2.0 after this fixture had been run, then reverted to 1.0, the value it had before. "
+                  "Both are shown, and both are in sample: the fixture was seen at each.", "",
+                  "| setting | accepted true | accepted false | refused true | refused false | precision | recall |",
+                  "|---|---|---|---|---|---|---|"]
+        for power, c in sens.items():
+            lines.append(f"| IDF_POWER {power} | {c['tp']} | {c['fp']} | {c['fn']} | {c['tn']} | {c['precision']} | {c['recall']} |")
+        lines.append("")
     lines += [f"## The shadow accepts and the vote rule refuses ({len(summary['shadow_accepts_today_rejects'])})", "",
               f"Vote sets: {json.dumps(summary['shadow_accepts_today_rejects_vote_sets'])}", ""]
     lines += _table(summary["shadow_accepts_today_rejects"])
@@ -233,8 +254,8 @@ def main(argv):
     rows = evaluate(data)
     summary = summarise(rows)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "pair_score_comparison.json").write_text(json.dumps({"summary": summary, "rows": rows}, indent=2) + "\n", encoding="utf-8")
-    (out / "pair_score_comparison.md").write_text(report(data, summary), encoding="utf-8")
+    (out / "pair_score_comparison.json").write_text(json.dumps({"summary": summary, "idf_power_sensitivity": sensitivity(data), "rows": rows}, indent=2) + "\n", encoding="utf-8")
+    (out / "pair_score_comparison.md").write_text(report(data, summary, sensitivity(data)), encoding="utf-8")
     print(json.dumps({k: summary[k] for k in ("pairs", "true", "false", "agree", "today", "shadow")}))
     return 0
 
