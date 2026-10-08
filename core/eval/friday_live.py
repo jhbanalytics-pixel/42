@@ -9,6 +9,9 @@ import time
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+import yaml
+
+from core.config.caps import CAPS_FILE
 
 QUESTIONS = (
     ("ZA", "what is trending in south africa"),
@@ -22,6 +25,13 @@ _NAMESPACE_LOCKS_GUARD = threading.Lock()
 
 class FridayLiveRefused(RuntimeError):
     pass
+
+
+def eval_live_cap(path=CAPS_FILE):
+    """EVAL_DAILY live from the caps file: the SocialCrawl credits an evaluation may spend live in a day. A file
+    without it reads as zero. RULES 14: evaluations run in replay mode and spend no live credits."""
+    config = yaml.safe_load(Path(path).read_text(encoding="utf-8")).get("EVAL_DAILY") or {}
+    return int(config.get("live") or 0)
 
 
 def _money(value, name):
@@ -120,7 +130,13 @@ def _exclusive_file_lock(path):
 class FridayLiveRunner:
     def __init__(self, *, namespace_dir, namespace_id, transport, budget_admission, claim_tally,
                  total_budget_usd, request_timeout_seconds=20, terminal_deadline_seconds=600,
-                 poll_interval_seconds=2, monotonic=None, sleep=None, resume=False):
+                 poll_interval_seconds=2, monotonic=None, sleep=None, resume=False, live_credits_allowed=0):
+        if isinstance(live_credits_allowed, bool) or not isinstance(live_credits_allowed, int) or live_credits_allowed < 0:
+            raise FridayLiveRefused("live_credits_allowed_invalid")
+        # Replay unless the caller asks for live credits and the caps file allows at least that many a day.
+        if live_credits_allowed > eval_live_cap():
+            raise FridayLiveRefused("live_credits_refused_by_caps")
+        self.mode = "live" if live_credits_allowed > 0 else "replay"
         if not isinstance(namespace_id, str) or not namespace_id.strip():
             raise FridayLiveRefused("namespace_id_required")
         if not callable(getattr(transport, "post", None)) or not callable(getattr(transport, "get", None)):
@@ -376,7 +392,7 @@ class FridayLiveRunner:
     def run_market(self, market):
         question = self._market(market)
         marker_path = self._marker_path(market)
-        request = {"question": question, "market": market, "mode": "live", "wait": False}
+        request = {"question": question, "market": market, "mode": self.mode, "wait": False}
         with _exclusive_file_lock(self.namespace_dir / "namespace-budget.lock"):
             if marker_path.exists():
                 raise FridayLiveRefused("already_attempted")
