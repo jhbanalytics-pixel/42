@@ -315,6 +315,14 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                         break
                     if failed is not None:  # the retry is refused for another reason: the earlier failure stands
                         raise failed from None
+                    if model_budget.stopped:
+                        # A tool (watch_video's model call, say) stopped the shared budget between turns, with any of
+                        # its reasons: usage_unknown, bound_exceeded, ceiling_exceeded and the rest. The question's
+                        # model calls are over, as at the writer gate, so research ends as a budget stop. No call is
+                        # made, so this only spends less than the failed ask it replaces.
+                        result["stopped"] = True
+                        budget_note = "Research stopped: this question's model calls were stopped by its budget."
+                        break
                     raise
                 try:
                     response = client.models.generate_content(model=options.model, contents=history, config=config)
