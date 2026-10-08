@@ -63,6 +63,7 @@ except ImportError:  # run as a script from ops/runners
 PROJECT = "ogilvy-trends-v2"
 CORE_Q, AGENT_Q = f"`{PROJECT}.intelligence_42_core`", f"`{PROJECT}.intelligence_42_agent`"
 MAX_BYTES = 3 * 1024 ** 3
+MIN_BYTES = 10 * 1024 ** 2
 MARKETS = ("ZA", "NG", "KE")
 GEO_SOURCES = ("ext_region", "home_market", "place_mention")
 BRIEF_SQL_FILE = Path(__file__).resolve().parents[2] / "core" / "brief" / "sql" / "brief.sql"
@@ -105,6 +106,9 @@ class Params:
         for name in ("located_min_confidence", "item_min_share"):
             if not 0 <= getattr(self, name) <= 1:
                 raise ValueError(f"{name} must be between 0 and 1")
+        if self.max_bytes < MIN_BYTES:
+            raise ValueError(f"max_bytes must be at least {MIN_BYTES}: BigQuery bills at least 10 MiB a query, and a "
+                             "cap of zero must not be sent as if it meant no cap")
         if not all(re.fullmatch(r"[a-z_]+", lane) for lane in self.exclude_lanes):
             raise ValueError("excluded lanes must be lower-case words")
 

@@ -603,7 +603,8 @@ def test_the_pool_default_is_the_briefs_pool():
 
 
 @pytest.mark.parametrize("changes", [{"pool": -1}, {"item_min_share": 1.5}, {"exclude_lanes": ("Bad Lane",)},
-                                     {"post_before": 1.5}])
+                                     {"post_before": 1.5}, {"max_bytes": 0}, {"max_bytes": -1},
+                                     {"max_bytes": 10 * 1024 ** 2 - 1}])
 def test_bad_parameters_are_refused(changes):
     with pytest.raises(ValueError):
         fs.Params(cutoff=D7, **changes)
@@ -879,3 +880,17 @@ def test_a_second_run_never_overwrites_an_earlier_result(tmp_path, monkeypatch, 
         fs.main([str(tmp_path / "moments.csv"), "--cutoff", "2026-10-07", "--pool", str(POOL),
                  "--out-dir", str(tmp_path / "readback")], client=DuckClient(w.con), out=lambda line: None)
     assert first.read_bytes() == before
+
+
+def test_the_smallest_accepted_byte_cap_is_ten_mebibytes():
+    assert fs.MIN_BYTES == 10 * 1024 ** 2
+    assert fs.Params(cutoff=D7, max_bytes=fs.MIN_BYTES).max_bytes == fs.MIN_BYTES
+
+
+def test_a_zero_byte_cap_on_the_command_line_runs_no_query(world, tmp_path):
+    client = DuckClient(world.con)
+    path = write_moments(tmp_path, world.moments)
+    with pytest.raises(ValueError):
+        fs.main([str(path), "--cutoff", "2026-10-07", "--max-bytes", "0", "--out-dir", str(tmp_path / "out")],
+                client=client, out=lambda line: None)
+    assert client.sql == [] and client.dry == []
