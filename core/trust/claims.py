@@ -61,8 +61,9 @@ Rules:
         support or explicit source-market support stated only as feed scope. A source-only feed mention
         cannot support a residual place or people claim. Else cut.
     K5  the label is lowered to the highest the evidence allows, one step further when a named place
-        has source-market support only. Records flagged brand, brand_owned, paid, sponsored,
-        near_duplicate or generated are not independent authors; market_assumed alone is not an
+        has source-market support only. Records carrying the flag brand, brand_owned, paid, sponsored,
+        near_duplicate, flagged (a creator the brief's coordination score marks) or generated are not
+        independent authors; market_assumed alone is not an
         author-independence exclusion.
     K6  age or generation terms, demographic inference, Google Trends or a generated record as
         evidence are a breach. Checked in claim text, quote translations, a proposal's basis and
@@ -87,6 +88,7 @@ NOT_INDEPENDENT = {
     "paid",
     "sponsored",
     "near_duplicate",
+    "flagged",
     "generated",
     "ai_generated",
 }
