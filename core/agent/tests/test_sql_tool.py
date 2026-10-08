@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from core.agent import toolset
 from core.agent.context import Refused, RunContext, result_hash
 from core.agent.tools.sql_query import (
     ALLOWED_DATASETS,
@@ -11,6 +12,7 @@ from core.agent.tools.sql_query import (
     MAX_ROWS,
     BigQueryWarehouse,
     check_sql,
+    model_sql_query,
     sql_query,
 )
 
@@ -612,3 +614,79 @@ def test_sql_query_refuses_forecast_tables_named_by_the_dry_run(ctx, tables):
 )
 def test_check_sql_still_accepts_the_word_forecast_elsewhere(sql):
     check_sql(sql)
+
+
+# N2. The model's SQL could read the suppression list, other runs' records, skins, feedback and the rest of the
+# datasets, because the guard allowlisted whole datasets and hid only the forecast tables.
+FENCED = ["intelligence_42_core.suppressions", "intelligence_42_core.raw_responses", "intelligence_42_core.credit_ledger",
+          "intelligence_42_agent.runs", "intelligence_42_agent.skins", "intelligence_42_agent.feedback",
+          "intelligence_42_agent.schedules", "intelligence_42_agent.investigations",
+          "intelligence_42_agent.dossier_versions", "intelligence_42_agent.dossier_reviews"]
+
+
+def _spellings(table):
+    dataset, name = table.split(".")
+    return [f"SELECT * FROM {table}",
+            f"SELECT * FROM `ogilvy-trends-v2.{table}`",
+            f"SELECT * FROM `ogilvy-trends-v2`.{dataset}.{name}",
+            f"SELECT * FROM {dataset}.{name.upper()}",
+            f"SELECT * FROM {dataset}.{name[:-2]}*",
+            f"SELECT 1 FROM intelligence_42_core.posts p JOIN {table} t ON TRUE",
+            f"WITH x AS (SELECT * FROM {table}) SELECT * FROM x",
+            f"SELECT * FROM {table}$20261001"]
+
+
+@pytest.mark.parametrize("table", FENCED)
+def test_the_models_sql_cannot_name_a_fenced_table_however_it_is_spelled(table):
+    for sql in _spellings(table):
+        with pytest.raises(Refused):
+            check_sql(sql, fence=True)
+        with pytest.raises(Refused):
+            toolset.guard(RunContext(run_id="run_guard", tier="T0", as_of=datetime(2026, 9, 28, 6, 0)), "sql_query",
+                          {"sql": sql, "purpose": "x"})
+
+
+@pytest.mark.parametrize("table", FENCED)
+def test_a_dry_run_that_reports_a_fenced_table_is_refused_for_the_tables_no_view_reads_underneath(table, ctx):
+    from core.agent.tools import sql_query as module
+
+    for ref in (table, f"ogilvy-trends-v2.{table}"):
+        if table in module.VIEW_BASE_TABLES:
+            continue  # a current view reads these underneath; the static name check above is their fence
+        with pytest.raises(Refused):
+            model_sql_query(ctx, FakeWarehouse(tables=(ref,)), "SELECT 1 AS x", purpose="x")
+        sql_query(ctx, FakeWarehouse(tables=(ref,)), "SELECT 1 AS x", purpose="x")  # an internal read is not fenced
+
+
+@pytest.mark.parametrize("table", FENCED)
+def test_the_tool_the_model_calls_refuses_a_fenced_table_even_when_the_guard_is_skipped(table, ctx):
+    wh = FakeWarehouse()
+    functions = toolset.build_functions(ctx, wh, None, None)
+    with pytest.raises(Refused):
+        functions["sql_query"](sql=f"SELECT * FROM {table}", purpose="x")
+    assert wh.dry_runs == [] and wh.runs == []
+
+
+@pytest.mark.parametrize("table", FENCED)
+def test_the_authorised_views_and_internal_checks_still_pass_without_the_fence(table):
+    check_sql(f"SELECT * FROM {table}")  # check_sql alone is the generic read-only check the views are held to
+
+
+@pytest.mark.parametrize("sql", [
+    "SELECT post_id FROM intelligence_42_core.posts",
+    "SELECT * FROM intelligence_42_core.v_item_daily_current",
+    "SELECT * FROM intelligence_42_core.v_item_state_current",
+    "SELECT * FROM intelligence_42_core.v_good_runs",
+    "SELECT * FROM intelligence_42_core.v_suppressed_creators",
+    "SELECT * FROM intelligence_42_agent.findings",
+    "SELECT * FROM intelligence_42_agent.v_briefs_current",
+    "SELECT * FROM intelligence_42_agent.tvf_item_timeseries('i', 'ZA', 7)",
+])
+def test_the_tables_the_map_and_the_tools_use_still_pass(sql):
+    check_sql(sql, fence=True)
+
+
+def test_the_warehouse_map_tables_are_never_fenced():
+    from core.agent.tools.sql_query import FENCED_TABLES, WAREHOUSE_MAP
+
+    assert not [t for t in WAREHOUSE_MAP if t.split("(")[0] in FENCED_TABLES]

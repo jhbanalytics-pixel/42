@@ -25,6 +25,26 @@ HIDDEN_TABLES = (
     "intelligence_42_core.v_forecasts_current",
     "intelligence_42_agent.forecast_score",
 )
+# Tables the model's SQL may not read at all (N2): the suppression list, other runs' records, skins, feedback and the
+# job and ledger tables. The datasets are allowlisted whole, so each is named here. The fence applies to SQL the model
+# wrote (check_sql(fence=True) and model_sql_query); the authorised views and the spend query read some of these
+# tables themselves and are checked without it.
+FENCED_TABLES = (
+    "intelligence_42_core.suppressions",
+    "intelligence_42_core.raw_responses",
+    "intelligence_42_core.credit_ledger",
+    "intelligence_42_agent.runs",
+    "intelligence_42_agent.skins",
+    "intelligence_42_agent.feedback",
+    "intelligence_42_agent.schedules",
+    "intelligence_42_agent.investigations",
+    "intelligence_42_agent.dossier_versions",
+    "intelligence_42_agent.dossier_reviews",
+)
+# Fenced tables that views the model may read (v_good_runs under the current views, v_suppressed_creators under the
+# creator tools) read underneath. A dry run may list a view's base tables, so the dry-run check leaves these two to the
+# static name check, which has no such ambiguity.
+VIEW_BASE_TABLES = ("intelligence_42_agent.runs", "intelligence_42_core.suppressions")
 # The tables and columns the model is told about in the tool description (core/schema/core.sql). Without them it
 # guessed names ("items", "detection tables") and every query failed (live staging, 4 October).
 WAREHOUSE_MAP = {
@@ -158,18 +178,23 @@ def _check_function(node: exp.Func) -> None:
         raise Refused(f"Function {name} is not on the agent's allowlist of built-in functions.")
 
 
-def _hidden(dataset: str, name: str, allowed: tuple = ()) -> bool:
-    """True when dataset.name is a hidden table, matched without case and through a wildcard or decorator."""
+def _hidden(dataset: str, name: str, allowed: tuple = (), tables: tuple = HIDDEN_TABLES) -> bool:
+    """True when dataset.name is one of tables, matched without case and through a wildcard or decorator."""
     ref = f"{dataset}.{name.split('$', 1)[0]}".casefold()
-    return any(fnmatchcase(hidden, ref) for hidden in HIDDEN_TABLES if hidden not in allowed)
+    return any(fnmatchcase(hidden, ref) for hidden in tables if hidden not in allowed)
+
+
+def _refuse_fenced(shown: str) -> None:
+    raise Refused(f"Table {shown} is not available to the agent: it holds records the agent may not read.")
 
 
 def _refuse_hidden(shown: str) -> None:
     raise Refused(f"Table {shown} is not available to the agent: forecasts stay hidden until they beat persistence.")
 
 
-def check_sql(sql: str, hidden_ok: tuple = ()) -> None:
-    """Refuse anything but one read-only query over the allowlisted datasets, outside the hidden tables."""
+def check_sql(sql: str, hidden_ok: tuple = (), fence: bool = False) -> None:
+    """Refuse anything but one read-only query over the allowlisted datasets, outside the hidden tables. fence also
+    refuses FENCED_TABLES: it is on for every query the model wrote."""
     if not sql or not sql.strip():
         raise Refused("Empty SQL.")
     try:
@@ -189,10 +214,10 @@ def check_sql(sql: str, hidden_ok: tuple = ()) -> None:
 
     cte_names = {cte.alias_or_name for cte in tree.find_all(exp.CTE)}
     for table in tree.find_all(exp.Table):
-        _check_table(table, cte_names, hidden_ok)
+        _check_table(table, cte_names, hidden_ok, fence)
 
 
-def _check_table(table: exp.Table, cte_names: set, hidden_ok: tuple = ()) -> None:
+def _check_table(table: exp.Table, cte_names: set, hidden_ok: tuple = (), fence: bool = False) -> None:
     parts = [p.name for p in table.parts]
     shown = ".".join(parts) or table.sql(dialect="bigquery")
     if any("INFORMATION_SCHEMA" in p.upper() for p in parts):
@@ -212,11 +237,13 @@ def _check_table(table: exp.Table, cte_names: set, hidden_ok: tuple = ()) -> Non
         raise Refused(f"Dataset {table.db} is not allowed. Allowed datasets: {', '.join(ALLOWED_DATASETS)}.")
     if _hidden(table.db, table.name, hidden_ok):
         _refuse_hidden(shown)
+    if fence and _hidden(table.db, table.name, hidden_ok, FENCED_TABLES):
+        _refuse_fenced(shown)
     if isinstance(table.this, exp.Func) and f"{table.db}.{table.this.name}" not in ALLOWED_TVFS:
         raise Refused(f"Table function {shown} is not allowed. Allowed: {', '.join(sorted(ALLOWED_TVFS))}.")
 
 
-def _check_dry_run_table(ref: str, hidden_ok: tuple = ()) -> None:
+def _check_dry_run_table(ref: str, hidden_ok: tuple = (), fence: bool = False) -> None:
     parts = ref.split(".")
     if len(parts) == 3:
         if parts[0] != PROJECT:
@@ -227,6 +254,9 @@ def _check_dry_run_table(ref: str, hidden_ok: tuple = ()) -> None:
     if _hidden(parts[0], parts[1], hidden_ok):
         raise Refused(f"The dry run shows the query reads {ref}, which is not available to the agent: forecasts "
                       f"stay hidden until they beat persistence.")
+    if (fence and f"{parts[0]}.{parts[1]}".casefold() not in VIEW_BASE_TABLES
+            and _hidden(parts[0], parts[1], hidden_ok, FENCED_TABLES)):
+        raise Refused(f"The dry run shows the query reads {ref}, which holds records the agent may not read.")
 
 
 def _reads_search_signals(refs) -> bool:
@@ -318,6 +348,18 @@ def sql_query(
     return _run_query(ctx, warehouse, sql, purpose, params, max_bytes_billed)
 
 
+def model_sql_query(
+    ctx: RunContext,
+    warehouse: Warehouse,
+    sql: str,
+    purpose: str,
+    params: dict | None = None,
+    max_bytes_billed: int = MAX_BYTES_BILLED,
+) -> dict:
+    """sql_query for SQL the model wrote: the same checks, with FENCED_TABLES refused by name and by dry run."""
+    return _run_query(ctx, warehouse, sql, purpose, params, max_bytes_billed, fence=True)
+
+
 def query_rows(ctx: RunContext, query_id: str, offset: int = 0, limit: int = QUERY_PAGE_ROWS) -> dict:
     """Read a bounded page of an existing query's visible rows, without another warehouse call."""
     for name, value in (("offset", offset), ("limit", limit)):
@@ -407,14 +449,14 @@ def _dispatch_query(ctx: RunContext, warehouse: Warehouse, sql: str, params: dic
 
 
 def _run_query(ctx: RunContext, warehouse: Warehouse, sql: str, purpose: str, params: dict | None = None,
-               max_bytes_billed: int = MAX_BYTES_BILLED, hidden_ok: tuple = ()) -> dict:
+               max_bytes_billed: int = MAX_BYTES_BILLED, hidden_ok: tuple = (), fence: bool = False) -> dict:
     """sql_query, with hidden_ok naming the hidden tables an internal read may use. Never offered to the model."""
-    check_sql(sql, hidden_ok)
+    check_sql(sql, hidden_ok, fence)
     cap = min(int(max_bytes_billed), MAX_BYTES_BILLED)
 
     dry = warehouse.dry_run(sql, params)
     for ref in dry["tables"]:
-        _check_dry_run_table(ref, hidden_ok)
+        _check_dry_run_table(ref, hidden_ok, fence)
     scanned = int(dry["bytes"])
     if scanned > cap:
         raise Refused(f"The query would scan {scanned:,} bytes, over the {cap:,} byte cap. Narrow it.")

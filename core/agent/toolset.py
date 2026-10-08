@@ -23,7 +23,8 @@ from core.agent.tools.socialcrawl import (
     normalise_route,
     socialcrawl_call,
 )
-from core.agent.tools.sql_query import QUERY_PAGE_ROWS, check_sql, query_preview, query_rows, sql_query, warehouse_map_text
+from core.agent.tools.sql_query import (QUERY_PAGE_ROWS, check_sql, model_sql_query, query_preview, query_rows,
+                                        warehouse_map_text)
 
 TOOL_NAMES = ["sql_query", "search_posts", "socialcrawl_call", "rising_topics", "recall_findings", "save_finding",
               "budget_status", "resolve_dates", "get_comments", "get_transcript", "watch_video", "log_forecast",
@@ -189,7 +190,7 @@ def build_functions(ctx: RunContext, warehouse, client, writer) -> dict:
         return {"from": start.isoformat(), "to": end.isoformat()}
 
     functions = {
-        "sql_query": lambda **a: query_preview(ctx, sql_query(ctx, warehouse, **a)),
+        "sql_query": lambda **a: query_preview(ctx, model_sql_query(ctx, warehouse, **a)),
         "search_posts": lambda **a: wh.search_posts(ctx, warehouse, **a),
         "socialcrawl_call": lambda **a: socialcrawl_call(ctx, client, **{"params": {}, **a}, warehouse=warehouse),
         "rising_topics": lambda **a: wh.rising_topics(ctx, warehouse, **a),
@@ -212,7 +213,7 @@ def guard(ctx: RunContext, name: str, args: dict) -> None:
     """The checks a tool call passes before its function runs. Raises Refused."""
     if name == "sql_query":
         try:
-            check_sql(args.get("sql") or "")
+            check_sql(args.get("sql") or "", fence=True)
         except Refused:
             raise
         except Exception as e:
