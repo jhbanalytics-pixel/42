@@ -237,9 +237,9 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
         for row in _rows(data):
             if not _ok(row):
                 continue
-            author = _dict(row.get("author")) or _dict(row.get("profile"))
-            handle = _first(row, "handle") or _first(author, "username")
-            for item in _list(row.get("posts")) or _list(row.get("items")):
+            author = _dict(row.get("author")) or _dict(row.get("profile")) or _dict(_dict(row.get("data")).get("author"))
+            handle = _first(row, "handle") or _first(author, "username") or _first(_dict(row.get("target")), "handle")
+            for item in _panel_posts(row):
                 _post(out, ctx, item, row.get("platform"), fallback=handle, author=author, handle=handle)
     elif family == "profile":
         from core.collect.location_sources import profile_country
@@ -426,6 +426,12 @@ def _sources(data):
     if rows or not isinstance(sources, dict):
         return [(None, rows)]
     return [(name, _rows(group)) for name, group in sources.items()]
+
+
+def _panel_posts(row):
+    """A profile row's posts: a list, else the items array of the object the vendor wraps them in, else row items."""
+    posts = row.get("posts")
+    return _list(posts) or _list(_dict(posts).get("items")) or _list(row.get("items"))
 
 
 def _ok(row):
