@@ -34,7 +34,7 @@ QUERY_CAP = 5 * GB
 TOTAL_CAP = 20 * GB
 LATER_DAYS = max(co.HORIZONS)
 QUERIES = co.split_queries((ROOT / "core" / "eval" / "sql" / "card_outcome.sql").read_text(encoding="utf-8"))
-WRITES = re.compile(r"\b(INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|ALTER|TRUNCATE|EXPORT|CALL|EXECUTE)\b", re.I)
+WRITES = re.compile(r"\b(INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|ALTER|TRUNCATE|EXPORT|CALL|EXECUTE|LOAD|GRANT|BEGIN|DECLARE|SET)\b", re.I)
 
 
 class Refused(Exception):

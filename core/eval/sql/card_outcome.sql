@@ -23,7 +23,7 @@ ORDER BY b.brief_date, b.market;
 -- @query states
 -- item_state of the briefed items from the first run date to @last, each row with the lane class of its main
 -- series read from series_test (a different table from the one being labelled). A series with two lane classes
--- gets NULL, which never measures.
+-- gets NULL, which never measures. base_state is the state underneath a Recurring or Seasonal overlay.
 WITH items AS (
   SELECT DISTINCT b.market, JSON_VALUE(x, '$.item_id') item_id
   FROM `ogilvy-trends-v2.intelligence_42_agent.v_briefs_current` b,
@@ -36,7 +36,7 @@ lane AS (
   FROM `ogilvy-trends-v2.intelligence_42_core.v_series_test_current` st
   WHERE st.metric_date BETWEEN @start AND @last
   GROUP BY st.series_id, st.metric_date)
-SELECT s.metric_date, s.market, s.item_id, s.state, s.untested,
+SELECT s.metric_date, s.market, s.item_id, s.state, s.base_state, s.untested,
   IF(l.lanes = 1, l.lane_class, NULL) main_lane_class
 FROM `ogilvy-trends-v2.intelligence_42_core.v_item_state_current` s
 JOIN items i ON i.market = s.market AND i.item_id = s.item_id

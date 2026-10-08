@@ -24,6 +24,7 @@ class Job:
 class Client:
     def __init__(self, estimates=None, states=("rising", "peaking", "rising")):
         self.calls = []
+        self.params = {}
         self.estimates = estimates or {}
         self.states = states  # the card's state at t, its state at t + 7, the held item's state at t + 7
 
@@ -31,6 +32,7 @@ class Client:
         name = next(n for n in ("cards_json", "main_lane_class", "SELECT DISTINCT g.run_date") if n in sql)
         dry = bool(job_config.dry_run)
         self.calls.append((name, dry, job_config.maximum_bytes_billed, sql))
+        self.params = {q.name: q.value for q in job_config.query_parameters}
         estimate = self.estimates.get(name, 1000)
         if dry:
             return Job([], estimate, 0)
@@ -139,3 +141,19 @@ def test_report_prints_the_state_distribution_before_any_rate(tmp_path):
     md = (tmp_path / "card_outcome_2026-09-24_2026-10-01.md").read_text(encoding="utf-8")
     assert md.index("State at t") < md.index("held at 7 days")
     assert "item_id" not in json.dumps(report, default=str)
+
+
+def test_parameters_cover_the_run_dates_and_fourteen_days_past_the_end(tmp_path):
+    client = Client()
+    rep.run(client, START, END, tmp_path)
+    assert client.params == {"start": START, "end": END, "last": END + dt.timedelta(days=14)}
+
+
+@pytest.mark.parametrize("word", ["INSERT", "UPDATE", "DELETE", "MERGE", "CREATE", "DROP", "ALTER", "TRUNCATE", "EXPORT",
+                                  "CALL", "EXECUTE", "LOAD", "GRANT", "BEGIN", "DECLARE", "SET"])
+def test_every_write_or_script_word_is_refused_before_any_call(word, tmp_path, monkeypatch):
+    monkeypatch.setattr(rep, "QUERIES", {"briefs": f"SELECT 1 FROM t; {word.lower()} x"})
+    client = Client()
+    with pytest.raises(rep.Refused):
+        rep.run(client, START, END, tmp_path)
+    assert client.calls == []

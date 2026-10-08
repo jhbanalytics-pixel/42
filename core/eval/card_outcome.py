@@ -8,48 +8,40 @@ threshold, a card or a hold.
 
 briefs are rows of agent.briefs (brief_date, market, run_id, published_at, status, payload). Only payload.cards,
 payload.more and payload.held_back.items are read, and of those only item_id, rank, state, reason and rule. states
-are item_state rows read through v_item_state_current (metric_date, market, item_id, state, main_lane_class), where
-main_lane_class is the lane class of the row's main series in v_series_test_current. detect_days is every date with
-a good detect run: a day outside it has no item_state at all, so nothing on it is an absence.
+are item_state rows read through v_item_state_current (metric_date, market, item_id, state, base_state,
+main_lane_class), where main_lane_class is the lane class of the row's main series in v_series_test_current.
+detect_days is every date with a good detect run: a day outside it has no item_state at all, so nothing on it is
+an absence.
 
 A published card or held item is followed to t + 3, t + 7 and t + 14. On each later day it falls in one class:
 
     pending      the day has no good detect run yet (or never will)
     unmeasured   an item_state row exists but its main series is not on a measured lane, so it labels nothing
-    confirmed    measured, and in a state that needs floors, persistence or a qualifying overlay (CONFIRMED_STATES)
-    unconfirmed  measured, and in a state the product shows as unconfirmed or as someone else's list
+    confirmed    measured, and Emerging, Rising, Peaking or Mainstream
+    unconfirmed  measured, and Spike
+    listed       measured, and On the boards or New to 42
     collapsed    measured and Fading, or no item_state row on a day that has a good detect run (absent)
-    other        measured, with a row whose state is empty or unknown to the product vocabulary
+    other        measured, with an empty or unknown state, or a Recurring or Seasonal row with no base state
 
-Held, in the product vocabulary, is confirmed or unconfirmed: the topic is still in an active state on a measured
-lane. The class of each state comes from DATA.md 3.7 and state.sql:
+Held is the product's own active set, the active28 list in state.sql: spike, emerging, rising, peaking, mainstream,
+recurring and seasonal. On the boards and New to 42 are not in it, so a topic that is only listed is not held; it
+is counted in its own columns. Recurring and Seasonal are an overlay that state.sql puts on top of Rising, Emerging,
+Spike or New to 42, and base_state holds the state underneath, so each is classed by its base: a Recurring row over
+Spike is a spike, over New to 42 is listed, and with no base state is other (a row written before base_state
+existed). The overlays also form the scheduled stratum, so calendar events stay apart from trends.
 
-    emerging, rising, peaking   confirmed. Floors met (5 creators, 8 posts in 3 days) plus a significant day (tested)
-                                or 5 observed days of a non-falling count (untested); the backtest PERSISTING set.
-    mainstream                  confirmed. Needs Rising, Peaking or Mainstream in the last 28 days, then macro creators
-                                with news, or Rising on 3 platforms: it is further along than Rising, not gone.
-    recurring, seasonal         confirmed. Both are an overlay on an item that qualified for Rising, Emerging, Spike or
-                                New to 42 today (state.sql, orders 1 and 2), so the item is active; they only say why.
-                                They also form the scheduled stratum, so calendar events stay apart from trends.
-    spike                       unconfirmed. One significant day without persistence (tested), or a 3 times jump or a
-                                board top 10 twice (untested). The card says so: shown as unconfirmed, with counts.
-    new_to_42                   unconfirmed. Untested warm-up only, 3 creators in 3 days or one board entry, counts
-                                shown with no growth claim, and the state ends after 14 days of measurement.
-    on_the_boards               unconfirmed. Present on a platform's own board today, labelled as the platform's
-                                list and not 42's finding.
-    fading                      collapsed. At or below 60% of the 28 day peak on each of the last 3 days.
-
-The backtest set (PERSISTING, reused from core/detect/backtest.py) stays as a second column beside the product one,
-and a third column counts confirmed alone, so the three can be read against each other.
+Three more columns sit beside the product one. TRUST is the meaning of TRUST.md section 7, still rising or peaking at
+7 days (its "or new platform" part is not computed). The backtest set is PERSISTING from core/detect/backtest.py,
+Emerging, Rising or Peaking. The old column, any listing, is held plus listed, which is what an earlier version
+of this module called held.
 
 Only unbiased_rank, unbiased_counter and panel lanes measure (DATA.md 3.2). Posts found by the seed loop or by
 search (search_presence, watchlist, legacy) never label an outcome. The lane class comes from the series_test row
 the later item_state row points at, a table other than the one being labelled, and is checked here against the
 pinned MEASURED_LANES; nothing in the input can declare a row measured.
 
-The headline is t + 7. The held rate is held over the rows with a decided class (held, collapsed or other);
-unmeasured and pending rows are counted beside it and never in its denominator. A rate is printed only from 30
-decided rows.
+The headline is t + 7. A rate is over the rows with a decided class (held, listed, collapsed or other); unmeasured
+and pending rows are counted beside it and never in its denominator. A rate is printed only from 30 decided rows.
 """
 
 import json
@@ -59,19 +51,24 @@ from statistics import NormalDist
 
 from core.detect.backtest import PERSISTING
 
+DEFINITION = "active28_by_base_v2"
 MEASURED_LANES = frozenset({"unbiased_rank", "unbiased_counter", "panel"})
-CONFIRMED_STATES = (*PERSISTING, "mainstream", "recurring", "seasonal")
-UNCONFIRMED_STATES = ("spike", "new_to_42", "on_the_boards")
-ACTIVE_STATES = CONFIRMED_STATES + UNCONFIRMED_STATES
+CONFIRMED_STATES = (*PERSISTING, "mainstream")
+UNCONFIRMED_STATES = ("spike",)
+HELD_STATES = CONFIRMED_STATES + UNCONFIRMED_STATES
+OVERLAY_STATES = ("recurring", "seasonal")
+BASE_STATES = ("rising", "emerging", "spike", "new_to_42")
+LISTED_STATES = ("on_the_boards", "new_to_42")
+TRUST_STATES = ("rising", "peaking")
 COLLAPSED_STATES = ("fading",)
-SCHEDULED_STATES = ("seasonal", "recurring")
+SCHEDULED_STATES = OVERLAY_STATES
 SKIPPED_STATUSES = ("data_issue",)
 HORIZONS = (3, 7, 14)
 HEADLINE = 7
 WEEKS = 4
 MIN_N = 30
 NOT_ENOUGH = "not enough data"
-DECIDED = ("held", "collapsed", "other")
+DECIDED = ("held", "listed", "collapsed", "other")
 WHEN = {0: "t", 3: "t+3", 7: "t+7", 14: "t+14"}
 Z95 = NormalDist().inv_cdf(0.975)
 
@@ -116,38 +113,47 @@ def _index_states(states):
 
 
 def _classify(idx, detect_days, day, market, item_id):
-    """(class, state) for the item on a later day."""
+    """(class, state shown, state underneath any overlay) for the item on a later day."""
     if day not in detect_days:
-        return "pending", None
+        return "pending", None, None
     row = idx.get((day, market, item_id))
     if row is None:
-        return "collapsed", "absent"
+        return "collapsed", "absent", "absent"
     state = _state(row.get("state"))
+    base = _state(row.get("base_state"))
+    eff = (base if base in BASE_STATES else None) if state in OVERLAY_STATES else state
     if row.get("main_lane_class") not in MEASURED_LANES:
-        return "unmeasured", state
-    if state in CONFIRMED_STATES:
-        return "confirmed", state
-    if state in UNCONFIRMED_STATES:
-        return "unconfirmed", state
-    if state in COLLAPSED_STATES:
-        return "collapsed", state
-    return "other", state
+        return "unmeasured", state, eff
+    if eff in CONFIRMED_STATES:
+        return "confirmed", state, eff
+    if eff in UNCONFIRMED_STATES:
+        return "unconfirmed", state, eff
+    if eff in LISTED_STATES:
+        return "listed", state, eff
+    if eff in COLLAPSED_STATES:
+        return "collapsed", state, eff
+    return "other", state, eff
 
 
 def _row(day, market, item_id, kind, surface, rank, state_t, reason, rule, idx, detect_days):
-    out = {"run_date": day, "market": market, "item_id": item_id, "kind": kind, "surface": surface,
-           "hold_reason": reason, "rule": rule, "rank": rank, "state_t": state_t,
+    out = {"definition": DEFINITION, "run_date": day, "market": market, "item_id": item_id, "kind": kind,
+           "surface": surface, "hold_reason": reason, "rule": rule, "rank": rank, "state_t": state_t,
            "stratum": "scheduled" if state_t in SCHEDULED_STATES else "trend"}
     for h in HORIZONS:
-        cls, state = _classify(idx, detect_days, day + timedelta(days=h), market, item_id)
-        out[f"state_t{h}"], out[f"class_t{h}"] = state, cls
+        cls, state, eff = _classify(idx, detect_days, day + timedelta(days=h), market, item_id)
+        measured = cls in ("confirmed", "unconfirmed", "listed", "collapsed", "other")
+        out[f"state_t{h}"], out[f"class_t{h}"], out[f"eff_state_t{h}"] = state, cls, eff
         out[f"outcome_t{h}"] = "held" if cls in ("confirmed", "unconfirmed") else cls
-        out[f"backtest_t{h}"] = cls == "confirmed" and state in PERSISTING
+        out[f"trust_t{h}"] = measured and eff in TRUST_STATES
+        out[f"backtest_t{h}"] = measured and eff in PERSISTING
+        out[f"any_t{h}"] = cls in ("confirmed", "unconfirmed", "listed")
     head = out[f"outcome_t{HEADLINE}"]
     out["measured"] = head in DECIDED
     out["held"] = head == "held"
     out["held_confirmed"] = out[f"class_t{HEADLINE}"] == "confirmed"
+    out["held_trust"] = out[f"trust_t{HEADLINE}"]
     out["held_backtest"] = out[f"backtest_t{HEADLINE}"]
+    out["held_any"] = out[f"any_t{HEADLINE}"]
     out["collapsed"] = head == "collapsed"
     return out
 
@@ -193,15 +199,19 @@ def _group(rows, kind, market, reason, stratum, start, end, min_n, horizon):
     sel = [r for r in rows if r["kind"] == kind and (market == "ALL" or r["market"] == market)
            and (reason is None or r.get("hold_reason") == reason)
            and (stratum == "all" or r.get("stratum") == stratum)]
-    cls, outcome = f"class_t{horizon}", f"outcome_t{horizon}"
+    cls, outcome, eff = f"class_t{horizon}", f"outcome_t{horizon}", f"eff_state_t{horizon}"
     counts = {o: sum(r[outcome] == o for r in sel) for o in (*DECIDED, "unmeasured", "pending")}
     confirmed = sum(r[cls] == "confirmed" for r in sel)
     n = sum(counts[o] for o in DECIDED)
     g = {"horizon": horizon, "kind": kind, "market": market, "hold_reason": reason, "stratum": stratum,
          "window_start": start, "window_end": end, "n": n, **counts, "confirmed": confirmed,
-         "unconfirmed": counts["held"] - confirmed, "backtest": sum(bool(r[f"backtest_t{horizon}"]) for r in sel),
-         "total": len(sel)}
-    for suffix, k in (("", counts["held"]), ("_confirmed", confirmed), ("_backtest", g["backtest"])):
+         "unconfirmed": counts["held"] - confirmed,
+         "on_the_boards": sum(r[cls] == "listed" and r[eff] == "on_the_boards" for r in sel),
+         "new_to_42": sum(r[cls] == "listed" and r[eff] == "new_to_42" for r in sel),
+         "trust": sum(bool(r[f"trust_t{horizon}"]) for r in sel),
+         "backtest": sum(bool(r[f"backtest_t{horizon}"]) for r in sel),
+         "any": counts["held"] + counts["listed"], "total": len(sel)}
+    for suffix, k in (("", counts["held"]), ("_trust", g["trust"]), ("_backtest", g["backtest"]), ("_any", g["any"])):
         g[f"rate{suffix}"], g[f"lo{suffix}"], g[f"hi{suffix}"], g[f"text{suffix}"] = _rate(k, n, min_n)
     return g, bool(sel)
 
@@ -246,7 +256,8 @@ def state_mix(rows, *, horizon=HEADLINE):
 
 
 def state_distribution(rows):
-    """Counts of items per kind, per moment (t, t+3, t+7, t+14) and state, 'absent', 'pending' and None included, on any lane."""
+    """Counts of items per kind, per moment (t, t+3, t+7, t+14) and state, 'absent', 'pending' and None included,
+    on any lane."""
     counts = {}
     for r in rows:
         for h, when in WHEN.items():
@@ -277,28 +288,33 @@ def distribution_markdown(rows):
     return "\n".join(lines)
 
 
-def to_markdown(summary, *, end, horizon=HEADLINE, title=None, persisting_seen=None):
+def to_markdown(summary, *, end, horizon=HEADLINE, title=None, persisting_seen=None, dates=None):
     lines = [f"# {title or f'Card and hold outcomes at {horizon} days'}", "",
-             f"Run dates pooled over {WEEKS} weeks ending {_date(end).isoformat()}. Held means still in an active state "
-             f"at {horizon} days on a measured lane: confirmed (Emerging, Rising, Peaking, Mainstream, Recurring, "
-             "Seasonal) or unconfirmed (Spike, New to 42, On the boards). The backtest column counts only Emerging, "
-             "Rising and Peaking. Collapsed means Fading or absent. Unmeasured rows (later state only on a search, "
-             "watchlist or legacy lane) and pending rows (no good detect run on the day yet) stay out of every rate. "
-             f"A rate is shown only from {MIN_N} decided rows.", ""]
+             f"Run dates pooled over a window of up to {WEEKS} weeks ending {_date(end).isoformat()}. "
+             + (f"Run dates present: {dates[0]} to {dates[1]} ({dates[2]} dates). " if dates else "")
+             + f"Held means the product's own active set at {horizon} days on a measured lane (state.sql active28): "
+             "Spike, Emerging, Rising, Peaking, Mainstream, and Recurring or Seasonal classed by the state underneath. "
+             "On the boards and New to 42 are not in that set and have their own columns. Rising or peaking is "
+             "TRUST.md section 7's meaning without its new platform clause. The backtest set is Emerging, Rising and "
+             "Peaking. The last column is the earlier definition, held plus listed. Collapsed means Fading or "
+             "absent. Unmeasured rows (later state only on a search, watchlist or legacy lane) and pending rows (no "
+             f"good detect run on the day yet) stay out of every rate. A rate is shown only from {MIN_N} decided rows.",
+             ""]
     if persisting_seen == 0:
         lines += ["No Emerging, Rising or Peaking state appears on any of these items at t or later, so the backtest "
                   "column is zero by construction and says nothing about whether cards held up.", ""]
     for kind, head in (("published", "Published cards (cards and more)"), ("held", "Held items, per hold reason")):
         lines += [f"## {head}", "",
-                  f"| market | hold reason | stratum | n | held | confirmed | unconfirmed | collapsed | other | unmeasured "
-                  f"| pending | held at {horizon} days | confirmed only | backtest set |",
-                  "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+                  f"| market | hold reason | stratum | n | held | confirmed | spike | on_the_boards | new_to_42 | collapsed "
+                  f"| other | unmeasured | pending | held at {horizon} days | rising or peaking | backtest set "
+                  f"| any listing (old) |",
+                  "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
         for g in summary:
             if g["kind"] == kind:
                 lines.append(f"| {g['market']} | {g['hold_reason'] or 'all'} | {g['stratum']} | {g['n']} | {g['held']} | "
-                             f"{g['confirmed']} | {g['unconfirmed']} | {g['collapsed']} | {g['other']} | "
-                             f"{g['unmeasured']} | {g['pending']} | {g['text']} | {g['text_confirmed']} | "
-                             f"{g['text_backtest']} |")
+                             f"{g['confirmed']} | {g['unconfirmed']} | {g['on_the_boards']} | {g['new_to_42']} | "
+                             f"{g['collapsed']} | {g['other']} | {g['unmeasured']} | {g['pending']} | {g['text']} | "
+                             f"{g['text_trust']} | {g['text_backtest']} | {g['text_any']} |")
         lines.append("")
     return "\n".join(lines)
 
@@ -306,6 +322,8 @@ def to_markdown(summary, *, end, horizon=HEADLINE, title=None, persisting_seen=N
 def report_markdown(rows, summaries, *, end):
     """The state distribution first, then the rate tables: t + 7 in full, then the other horizons."""
     seen = persisting_seen(rows)
+    days = sorted({_date(r["run_date"]) for r in rows})
+    dates = (days[0].isoformat(), days[-1].isoformat(), len(days)) if days else None
     order = (HEADLINE, *(h for h in HORIZONS if h != HEADLINE))
     return "\n".join([distribution_markdown(rows), *(
-        to_markdown(summaries[h], end=end, horizon=h, persisting_seen=seen) for h in order)])
+        to_markdown(summaries[h], end=end, horizon=h, persisting_seen=seen, dates=dates) for h in order)])

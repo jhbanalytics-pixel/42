@@ -34,9 +34,9 @@ def brief(market="ZA", day=T, cards=(), more=(), held_items=(), status="publishe
             "payload": {"cards": list(cards), "more": list(more), "held_back": {"items": list(held_items)}}}
 
 
-def st(item_id, offset, state, lane="panel", market="ZA", untested=False):
+def st(item_id, offset, state, lane="panel", market="ZA", untested=False, base=None):
     return {"metric_date": T + dt.timedelta(days=offset), "market": market, "item_id": item_id, "state": state,
-            "main_lane_class": lane, "untested": untested}
+            "main_lane_class": lane, "untested": untested, "base_state": base}
 
 
 def by_item(rows):
@@ -60,12 +60,12 @@ def scenario():
         # E: Mainstream at t+7 is neither held nor collapsed.
         st("E", 7, "mainstream", lane="unbiased_rank"),
         # F: a seasonal card that is Recurring at t+7 does not count as held.
-        st("F", 7, "recurring", lane="unbiased_counter"),
+        st("F", 7, "recurring", lane="unbiased_counter", base="rising"),
         # G: a row with no main series lane at all is unmeasured.
         st("G", 7, "emerging", lane=None),
         # Z: seasonal stratum, Rising at t+7 measured.
         st("Z", 7, "rising"),
-        # K Spike, L New to 42 and M On the boards at t+7 on measured lanes are active but unconfirmed; N has a row
+        # K Spike is held; L New to 42 and M On the boards are only listed (outside the product's active28); N has a row
         # with no state at all, which is neither.
         st("K", 7, "spike"), st("L", 7, "new_to_42", lane="unbiased_rank"),
         st("M", 7, "on_the_boards", lane="unbiased_rank"), st("N", 7, None),
@@ -90,8 +90,8 @@ def test_known_outcomes_give_exact_rows():
         "E": ("held", "mainstream", True, True, False),
         "F": ("held", "recurring", True, True, False),
         "K": ("held", "spike", True, True, False),
-        "L": ("held", "new_to_42", True, True, False),
-        "M": ("held", "on_the_boards", True, True, False),
+        "L": ("listed", "new_to_42", True, False, False),
+        "M": ("listed", "on_the_boards", True, False, False),
         "N": ("other", None, True, False, False),
         "G": ("unmeasured", "emerging", False, False, False),
         "Z": ("held", "rising", True, True, False),
@@ -211,18 +211,20 @@ def test_fading_card_is_collapsed_and_never_held():
 
 
 def synthetic_rows(kind, market, reason, held, collapsed, other, unmeasured=0, pending=0, day=T, stratum="trend",
-                   confirmed=None, backtest=None):
-    """held rows are confirmed (default all of them) or unconfirmed; backtest of the confirmed are in PERSISTING."""
+                   confirmed=None, backtest=None, trust=None, listed=0):
+    """held rows are confirmed (default all of them) or spike; trust and backtest of the confirmed are in those sets."""
     confirmed = held if confirmed is None else confirmed
     backtest = confirmed if backtest is None else backtest
+    trust = backtest if trust is None else trust
     out = []
-    spec = [("confirmed", confirmed), ("unconfirmed", held - confirmed), ("collapsed", collapsed), ("other", other),
-            ("unmeasured", unmeasured), ("pending", pending)]
+    spec = [("confirmed", confirmed), ("unconfirmed", held - confirmed), ("listed", listed), ("collapsed", collapsed),
+            ("other", other), ("unmeasured", unmeasured), ("pending", pending)]
     for cls, count in spec:
         for i in range(count):
             outcome = "held" if cls in ("confirmed", "unconfirmed") else cls
             out.append({"run_date": day, "market": market, "item_id": f"{cls}{i}", "kind": kind,
                         "hold_reason": reason, "stratum": stratum, "class_t7": cls, "outcome_t7": outcome,
+                        "eff_state_t7": None, "trust_t7": cls == "confirmed" and i < trust,
                         "backtest_t7": cls == "confirmed" and i < backtest})
     return out
 
@@ -307,7 +309,7 @@ def test_sql_is_select_only_and_partition_filtered():
     for name, q in queries.items():
         body = re.sub(r"--[^\n]*", "", q).strip().upper()
         assert body.startswith("SELECT") or body.startswith("WITH"), name
-        assert not re.search(r"\b(INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|ALTER|TRUNCATE|EXPORT|CALL|EXECUTE)\b", body), name
+        assert not re.search(r"\b(INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|ALTER|TRUNCATE|EXPORT|CALL|EXECUTE|LOAD|GRANT|BEGIN|DECLARE|SET)\b", body), name
     assert "brief_date BETWEEN @start AND @end" in queries["briefs"]
     assert "metric_date BETWEEN" in queries["states"]
     assert "run_date BETWEEN" in queries["detect_days"]
@@ -322,7 +324,8 @@ def test_schema_file_is_create_if_not_exists_only():
     statements = [s.strip() for s in body.split(";") if s.strip()]
     assert statements and all(s.upper().startswith("CREATE TABLE IF NOT EXISTS") for s in statements)
     assert "PARTITION BY run_date" in text
-    for col in ("run_date", "market", "item_id", "kind", "hold_reason", "state_t", "state_t7", "outcome_t7", "stratum", "scored_at"):
+    for col in ("run_date", "market", "item_id", "kind", "hold_reason", "state_t", "state_t7", "outcome_t7", "class_t7",
+                "held_trust", "held_any", "stratum", "definition", "scored_at"):
         assert re.search(rf"\b{col}\b", text), col
 
 
@@ -355,37 +358,101 @@ def test_state_mix_counts_state_at_t_and_later_state_by_outcome():
     assert sum(mix.values()) == 16
 
 
-def one_card_outcome(state, lane="panel"):
-    states = [st("X", 7, state, lane=lane)] if state != "absent" else []
+REPO = Path(__file__).resolve().parents[3]
+STATE_SQL_TEXT = (REPO / "core" / "detect" / "sql" / "state.sql").read_text(encoding="utf-8")
+TRUST_TEXT = (REPO / "docs" / "full-42" / "TRUST.md").read_text(encoding="utf-8")
+
+
+def product_active28():
+    """The product's own active set, read from state.sql."""
+    m = re.search(r"LOGICAL_OR\(s\.state IN \(([^)]*)\)\) active28", STATE_SQL_TEXT)
+    return set(re.findall(r"'(\w+)'", m.group(1)))
+
+
+def one_card_outcome(state, lane="panel", base=None):
+    states = [st("X", 7, state, lane=lane, base=base)] if state != "absent" else []
     return co.build_outcomes([brief(cards=[card("X", 1)])], states, ALL_DAYS)[0]
 
 
-PRODUCT_CLASSES = {  # state at t+7 on a measured lane: (class, in the backtest PERSISTING set); justified in card_outcome.py
-    "emerging": ("confirmed", True), "rising": ("confirmed", True), "peaking": ("confirmed", True),
-    "mainstream": ("confirmed", False), "recurring": ("confirmed", False), "seasonal": ("confirmed", False),
-    "spike": ("unconfirmed", False), "new_to_42": ("unconfirmed", False), "on_the_boards": ("unconfirmed", False),
-    "fading": ("collapsed", False), "absent": ("collapsed", False),
+# state at t+7 on a measured lane: (class, held, rising or peaking, in the backtest PERSISTING set). Written by hand
+# from state.sql active28 (spike, emerging, rising, peaking, mainstream, recurring, seasonal) and TRUST.md section 7.
+HAND = {
+    "emerging": ("confirmed", True, False, True), "rising": ("confirmed", True, True, True),
+    "peaking": ("confirmed", True, True, True), "mainstream": ("confirmed", True, False, False),
+    "spike": ("unconfirmed", True, False, False),
+    "on_the_boards": ("listed", False, False, False), "new_to_42": ("listed", False, False, False),
+    "fading": ("collapsed", False, False, False), "absent": ("collapsed", False, False, False),
 }
 
 
-@pytest.mark.parametrize("state", sorted(PRODUCT_CLASSES))
-def test_every_product_state_has_its_class_and_backtest_column(state):
-    cls, backtest_set = PRODUCT_CLASSES[state]
+@pytest.mark.parametrize("state", sorted(HAND))
+def test_every_non_overlay_state_has_its_class_trust_and_backtest_flag(state):
+    cls, is_held, trust, backtest = HAND[state]
     r = one_card_outcome(state)
-    assert r["class_t7"] == cls and r["backtest_t7"] is backtest_set
-    assert r["held"] is (cls != "collapsed") and r["collapsed"] is (cls == "collapsed")
-    assert r["held_confirmed"] is (cls == "confirmed") and r["held_backtest"] is backtest_set
-    assert one_card_outcome(state, lane="search_presence")["class_t7"] == ("collapsed" if state == "absent" else "unmeasured")
+    assert r["class_t7"] == cls and r["held"] is is_held and r["held_trust"] is trust and r["held_backtest"] is backtest
+    assert r["collapsed"] is (cls == "collapsed") and r["held_any"] is (is_held or cls == "listed")
+    other_lane = one_card_outcome(state, lane="search_presence")
+    expected = "collapsed" if state == "absent" else "unmeasured"
+    assert other_lane["class_t7"] == expected
+    if state != "absent":
+        assert other_lane["held"] is False and other_lane["held_trust"] is False
+        assert other_lane["held_backtest"] is False and other_lane["held_any"] is False
+
+
+OVERLAYS = {  # (state, base_state): (class, held, rising or peaking, PERSISTING): the overlay is classed by its base
+    "rising": ("confirmed", True, True, True), "emerging": ("confirmed", True, False, True),
+    "spike": ("unconfirmed", True, False, False), "new_to_42": ("listed", False, False, False),
+    None: ("other", False, False, False),
+}
+
+
+@pytest.mark.parametrize("overlay", ["recurring", "seasonal"])
+@pytest.mark.parametrize("base", sorted(OVERLAYS, key=str))
+def test_recurring_and_seasonal_are_classed_by_their_base_state(overlay, base):
+    cls, is_held, trust, backtest = OVERLAYS[base]
+    r = one_card_outcome(overlay, base=base)
+    assert (r["class_t7"], r["held"], r["held_trust"], r["held_backtest"]) == (cls, is_held, trust, backtest)
+    assert r["state_t7"] == overlay
+
+
+def test_held_is_the_product_active28_set_read_from_state_sql_not_copied():
+    active = product_active28()
+    assert active == {"spike", "emerging", "rising", "peaking", "mainstream", "recurring", "seasonal"}
+    assert set(co.HELD_STATES) == active - set(co.OVERLAY_STATES)
+    assert set(co.OVERLAY_STATES) == {"recurring", "seasonal"}
+    assert not set(co.LISTED_STATES) & active and set(co.LISTED_STATES) == {"on_the_boards", "new_to_42"}
+    for state in sorted(active - set(co.OVERLAY_STATES)):
+        assert one_card_outcome(state)["held"] is True, state
+    for state in ("on_the_boards", "new_to_42", "fading"):
+        assert one_card_outcome(state)["held"] is False, state
+
+
+def test_trust_column_is_rising_or_peaking_as_trust_md_says():
+    assert re.search(r"Rising holds at 7 days \| Still rising or peaking", TRUST_TEXT)
+    assert co.TRUST_STATES == ("rising", "peaking")
+
+
+def test_overlay_base_states_are_the_four_state_sql_keeps():
+    seg = STATE_SQL_TEXT.split("the state without the Seasonal and Recurring override", 1)[1].split("END base_state", 1)[0]
+    assert set(re.findall(r"THEN '(\w+)'", seg)) == {"rising", "emerging", "spike", "new_to_42"}
+    assert set(co.BASE_STATES) == {"rising", "emerging", "spike", "new_to_42"}
+    assert STATE_SQL_TEXT.count("WHEN (c.rising OR c.emerging OR c.spike OR c.fresh) AND") == 2
 
 
 def test_state_vocabulary_is_fully_classified_with_nothing_in_two_classes():
     from core.brief.payload import STATE_WORDS
 
-    assert set(co.CONFIRMED_STATES) | set(co.UNCONFIRMED_STATES) | set(co.COLLAPSED_STATES) == set(STATE_WORDS)
-    assert co.ACTIVE_STATES == co.CONFIRMED_STATES + co.UNCONFIRMED_STATES
-    parts = [set(co.CONFIRMED_STATES), set(co.UNCONFIRMED_STATES), set(co.COLLAPSED_STATES)]
-    assert sum(len(p) for p in parts) == len(set().union(*parts))
+    groups = [set(co.HELD_STATES), set(co.OVERLAY_STATES), set(co.LISTED_STATES), set(co.COLLAPSED_STATES)]
+    assert set().union(*groups) == set(STATE_WORDS)
+    assert sum(len(g) for g in groups) == len(set(STATE_WORDS))
     assert set(co.PERSISTING) <= set(co.CONFIRMED_STATES)
+    assert co.HELD_STATES == co.CONFIRMED_STATES + co.UNCONFIRMED_STATES
+
+
+def test_a_search_lane_never_sets_the_backtest_or_trust_flag():
+    for state in ("rising", "peaking", "emerging"):
+        r = one_card_outcome(state, lane="search_presence")
+        assert r["backtest_t7"] is False and r["trust_t7"] is False and r["held_any"] is False
 
 
 def test_state_distribution_at_t_t3_t7_and_t14_is_exact():
@@ -404,18 +471,31 @@ def test_state_distribution_at_t_t3_t7_and_t14_is_exact():
             assert sum(n for (k, w, _), n in dist.items() if (k, w) == (kind, when)) == (12 if kind == "published" else 4)
 
 
-def test_summary_has_product_confirmed_and_backtest_columns_with_their_own_wilson_intervals():
-    rows = synthetic_rows("published", "ZA", None, held=24, confirmed=10, backtest=6, collapsed=10, other=6)
+def test_summary_has_product_trust_backtest_and_old_any_columns_with_their_own_wilson_intervals():
+    rows = synthetic_rows("published", "ZA", None, held=12, confirmed=8, backtest=6, trust=4, listed=12, collapsed=10,
+                          other=6)
     g = group(co.summarize(rows, end=T), "published", "ZA")
-    assert (g["n"], g["held"], g["confirmed"], g["unconfirmed"], g["backtest"]) == (40, 24, 10, 14, 6)
-    assert g["rate"] == pytest.approx(0.6) and g["lo"] == pytest.approx(0.445959, abs=1e-6)
-    assert g["rate_confirmed"] == pytest.approx(0.25) and g["lo_confirmed"] == pytest.approx(0.141871, abs=1e-6)
-    assert g["hi_confirmed"] == pytest.approx(0.40194, abs=1e-6)
+    assert (g["n"], g["held"], g["confirmed"], g["unconfirmed"], g["listed"], g["backtest"], g["trust"]) == (
+        40, 12, 8, 4, 12, 6, 4)
+    assert g["rate"] == pytest.approx(0.3) and g["lo"] == pytest.approx(0.180748, abs=1e-6)
+    assert g["hi"] == pytest.approx(0.4543, abs=1e-6)
+    assert g["rate_trust"] == pytest.approx(0.1) and g["lo_trust"] == pytest.approx(0.03958, abs=1e-6)
+    assert g["hi_trust"] == pytest.approx(0.230518, abs=1e-6)
     assert g["rate_backtest"] == pytest.approx(0.15) and g["lo_backtest"] == pytest.approx(0.070612, abs=1e-6)
     assert g["hi_backtest"] == pytest.approx(0.290723, abs=1e-6)
+    assert g["any"] == 24 and g["rate_any"] == pytest.approx(0.6) and g["lo_any"] == pytest.approx(0.445959, abs=1e-6)
+    assert g["hi_any"] == pytest.approx(0.736517, abs=1e-6)
     small = group(co.summarize(synthetic_rows("published", "ZA", None, 20, 5, 0, confirmed=3), end=T), "published", "ZA")
-    assert small["text"] == small["text_confirmed"] == small["text_backtest"] == "not enough data"
-    assert small["rate_confirmed"] is None and small["lo_backtest"] is None
+    assert small["text"] == small["text_trust"] == small["text_backtest"] == small["text_any"] == "not enough data"
+    assert small["rate_trust"] is None and small["lo_backtest"] is None and small["rate_any"] is None
+
+
+def test_listed_rows_are_decided_and_split_into_on_the_boards_and_new_to_42():
+    rows = co.build_outcomes(
+        [brief(cards=[card("A", 1), card("B", 2), card("C", 3)])],
+        [st("A", 7, "on_the_boards"), st("B", 7, "new_to_42"), st("C", 7, "recurring", base="new_to_42")], ALL_DAYS)
+    g = group(co.summarize(rows, end=T, min_n=1), "published", "ZA")
+    assert (g["n"], g["held"], g["listed"], g["on_the_boards"], g["new_to_42"], g["any"]) == (3, 0, 3, 1, 2, 3)
 
 
 def test_markdown_prints_the_state_distribution_before_any_rate():
@@ -431,3 +511,40 @@ def test_distribution_labels_a_day_without_a_detect_run_pending_not_no_state():
     rows = co.build_outcomes([brief(cards=[card("P", 1)])], [], days)
     dist = {(d["when"], d["state"]): d["n"] for d in co.state_distribution(rows)}
     assert dist == {("t", "rising"): 1, ("t+3", "absent"): 1, ("t+7", "absent"): 1, ("t+14", "pending"): 1}
+
+
+def test_states_query_reads_base_state_and_every_table_is_partition_and_stage_pinned():
+    q = co.split_queries(SQL.read_text(encoding="utf-8"))
+    states, days, briefs = q["states"], q["detect_days"], q["briefs"]
+    assert "s.base_state" in states
+    assert "s.metric_date BETWEEN @start AND @last" in states
+    assert "st.metric_date BETWEEN @start AND @last" in states
+    assert "b.brief_date BETWEEN @start AND @end" in states and "b.brief_date BETWEEN @start AND @end" in briefs
+    assert "IF(l.lanes = 1, l.lane_class, NULL) main_lane_class" in states
+    assert "v_item_state_current" in states and "v_series_test_current" in states
+    assert "g.stage = 'detect'" in days and "g.run_date BETWEEN @start AND @last" in days
+    assert "v_good_runs" in days
+    assert "ROW_NUMBER() OVER (PARTITION BY s.metric_date, s.market, s.item_id ORDER BY s.run_id DESC) = 1" in states
+
+
+def test_schema_carries_the_definition_and_the_columns_the_module_emits():
+    text = SCHEMA.read_text(encoding="utf-8")
+    assert co.DEFINITION == "active28_by_base_v2"
+    for col in ("definition STRING NOT NULL", "class_t3", "class_t14", "held_trust", "held_backtest", "held_any"):
+        assert col in text, col
+    rows = co.build_outcomes([brief(cards=[card("A", 1)])], [st("A", 7, "rising")], ALL_DAYS)
+    assert rows[0]["definition"] == co.DEFINITION
+
+
+def test_markdown_prints_the_run_dates_actually_present():
+    briefs = [brief(day=D(2026, 9, 28), cards=[card("A", 1)]), brief(day=D(2026, 10, 1), cards=[card("B", 1)], run_id="r2")]
+    rows = co.build_outcomes(briefs, [], ALL_DAYS)
+    md = co.report_markdown(rows, {h: co.summarize(rows, end=D(2026, 10, 1), horizon=h) for h in co.HORIZONS},
+                            end=D(2026, 10, 1))
+    assert "Run dates present: 2026-09-28 to 2026-10-01 (2 dates)" in md
+
+
+@pytest.mark.parametrize("base", ["peaking", "mainstream", "fading", "on_the_boards", "recurring", "bogus"])
+def test_an_overlay_whose_base_is_not_one_of_the_four_state_sql_keeps_is_other(base):
+    r = one_card_outcome("seasonal", base=base)
+    assert (r["class_t7"], r["held"], r["held_trust"], r["held_backtest"]) == ("other", False, False, False)
