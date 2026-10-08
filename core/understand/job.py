@@ -53,7 +53,10 @@ An ok run with enrich_error, or with any other error under a market in cluster, 
 counts and shows the understand stage as degraded with what failed (core/api/store.py, runs_of_day), while the
 status stays ok and detect still starts, so the morning brief is never held for it. A run whose embed step sent
 no window (retry_capped or spend_unknown, with nothing embedded) says so in embed_error, so the day with no
-embeddings is not a bare ok.
+embeddings is not a bare ok. The job reads those counts back itself (degraded_reasons): a run with any soft failure,
+embed_error included, carries counts["degraded"] (the failed steps, "embed", "enrich" and "cluster:<market>") and
+prints one "understand degraded:" line on stderr with each step's error, so the failure is in the row and the log
+even where Coverage does not name it.
 
 After clustering, run_video reads the clips that matter in today's clusters (video.py, BUILD.md 2.6), skipped on a
 backfill and once the day has changed. A day change while it runs ends the video step only, never the run: the step
@@ -191,6 +194,26 @@ def embed_not_run(counts) -> str | None:
     if counts.get("spend_unknown"):
         return f"NoWindowSent: spend_unknown, {counts.get('spend_error') or 'spend could not be read or booked'}"
     return None
+
+
+def degraded_reasons(counts) -> dict:
+    """The steps a run failed soft on, each with its error text, read back from the run's own counts: "embed" when it
+    has embed_error, "enrich" when it has enrich_error, then "cluster:<market>" for each market whose counts carry an
+    error. The names are the ones core/api/store.py degraded_writes uses for enrich and cluster."""
+    out = {}
+    if counts.get("embed_error"):
+        out["embed"] = counts["embed_error"]
+    if counts.get("enrich_error"):
+        out["enrich"] = counts["enrich_error"]
+    cluster = counts.get("cluster") if isinstance(counts.get("cluster"), dict) else {}
+    for market in CLUSTER_MARKETS:
+        if isinstance(cluster.get(market), dict) and cluster[market].get("error"):
+            out[f"cluster:{market}"] = cluster[market]["error"]
+    return out
+
+
+def degraded_steps(counts) -> list:
+    return list(degraded_reasons(counts))
 
 
 def clusterer_unavailable(err) -> bool:
@@ -355,6 +378,9 @@ def main(execute=None):
         counts["video"] = video
     counts.update(model_usd=round(spent - booked, 6), booked_model_usd=round(booked, 6))
     counts["step_seconds"] = dict(step_seconds)
+    if reasons := degraded_reasons(counts):
+        counts["degraded"] = list(reasons)
+        print("understand degraded: " + "; ".join(f"{step} ({why})" for step, why in reasons.items()), file=sys.stderr)
     chain.finish(run, "failed" if day_changed else "ok", counts, error="day_changed" if day_changed else None)
     if day_changed:
         return 1

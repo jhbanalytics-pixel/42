@@ -1796,3 +1796,50 @@ def test_memory_is_collected_after_each_market_is_clustered(monkeypatch):
     assert job.main(execute=FakeWarehouse()) == 0
     assert [e[:2] for e in log if e[0] in ("cluster", "gc")] == [
         ("cluster", "za"), ("gc",), ("cluster", "ng"), ("gc",), ("cluster", "ke"), ("gc",), ("cluster", "pan"), ("gc",)]
+
+
+# N55: embed_error was written and nothing read it. The job now reads its own counts back into a degraded list on the
+# row and a line on stderr, so an embedding day that sent no window is not a bare ok.
+
+
+@pytest.mark.parametrize("counts, expected", [
+    ({}, []),
+    ({"embed_error": "NoWindowSent: retry_capped, 15.36 USD"}, ["embed"]),
+    ({"embed_error": ""}, []),
+    ({"enrich_error": "RuntimeError: lost"}, ["enrich"]),
+    ({"cluster": {"za": {"error": "RuntimeError: x"}, "ng": {"clusters": 3}, "pan": {"error": "y"}}},
+     ["cluster:za", "cluster:pan"]),
+    ({"cluster": {"skipped": "backfill"}}, []),
+    ({"embed_error": "e", "enrich_error": "f", "cluster": {"ke": {"error": "g"}}}, ["embed", "enrich", "cluster:ke"]),
+])
+def test_degraded_steps_reads_embed_enrich_and_cluster_errors_from_the_counts(counts, expected):
+    assert job.degraded_steps(counts) == expected
+
+
+def test_a_capped_retry_that_sent_no_window_is_marked_degraded_on_the_row_and_on_stderr(monkeypatch, capsys):
+    monkeypatch.setenv("EMBED_DAYS", "14")
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
+
+    class RaisedEarlier(FakeWarehouse):
+        def __call__(self, text, params, max_bytes=None):
+            if text == sql("embed_uncorrected"):
+                self.calls.append((text, params))
+                return [{"usd": 15.36}]
+            return super().__call__(text, params, max_bytes)
+
+    assert job.main(execute=RaisedEarlier()) == 0
+    counts = log[1][3]
+    assert log[1][2] == "ok" and counts["degraded"] == ["embed"]
+    assert counts["degraded"] == job.degraded_steps(counts)
+    err = capsys.readouterr().err
+    assert "understand degraded: embed" in err and "NoWindowSent: retry_capped" in err
+    assert log[2] == ("start_next", "understand", DAY)
+
+
+def test_a_clean_run_has_no_degraded_mark_and_prints_no_degraded_line(monkeypatch, capsys):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
+    assert job.main(execute=FakeWarehouse()) == 0
+    assert "degraded" not in log[1][3] and "degraded" not in capsys.readouterr().err
