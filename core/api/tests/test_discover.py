@@ -1952,11 +1952,11 @@ def test_alert_titles_use_only_the_checked_brief_for_the_detect_date_and_market(
     assert json.dumps(watches) == before
 
 
-def test_a_g10_hold_on_an_item_with_no_explanation_in_the_brief_says_it_was_not_explained(fx):
-    """N23: the gate view carries the brief job's G10 words for every item the brief did not explain, including
-    one the model never reached. No check ran on it, so Discover must not say it failed one."""
+def _g10_hold_store(fx, held_item=None):
+    """A store where the gate view holds RISING under G10 and, when held_item is given, the ZA brief names it in
+    held_back.items with those fields (core/brief/payload.py _held_item writes the item that way)."""
     run_date = str(discover._run(fx)["run_date"])
-    real_gate = fx.item_gate
+    real_gate, real_briefs = fx.item_gate, fx.briefs
 
     def item_gate(market):
         rows = list(real_gate(market) or [])
@@ -1965,9 +1965,48 @@ def test_a_g10_hold_on_an_item_with_no_explanation_in_the_brief_says_it_was_not_
                          "rule": "G10", "reason": "explanation_failed", "reason_text": "Explanation failed its checks"})
         return rows
 
-    out = discover.build_discover(Patched(item_gate=item_gate), "ZA")
-    held = next(h for h in out["held_back"]["items"] if h["item_id"] == RISING)
-    assert held["reason_text"] == "Not explained: the model did not get to this topic"
+    def briefs(date):
+        rows = json.loads(json.dumps(real_briefs(date)))
+        if held_item is not None:
+            for row in rows:
+                if row["market"] == "ZA":
+                    block = row["payload"].setdefault("held_back", {"count": 0, "text": "", "items": []})
+                    block["items"] = [i for i in block["items"] if i["item_id"] != RISING] + [
+                        dict({"item_id": RISING, "title": "Rising topic", "rule": "G10", "reason": "explanation_failed",
+                              "reason_text": "Explanation failed its checks", "evidence_ids": [], "evidence": [],
+                              "numbers": [], "count_line": None}, **held_item)]
+        return rows
+
+    return Patched(item_gate=item_gate, briefs=briefs)
+
+
+def _g10_hold_words(fx, held_item=None):
+    out = discover.build_discover(_g10_hold_store(fx, held_item), "ZA")
+    return next(h for h in out["held_back"]["items"] if h["item_id"] == RISING)["reason_text"]
+
+
+def test_a_g10_hold_whose_explanation_ran_and_failed_its_checks_says_so(fx):
+    """N23, review of f9573c6: the held item in the brief carries the job's failed_reason when the explanation ran
+    and failed. Discover found no card for it and used to word every such hold as never reached."""
+    words = _g10_hold_words(fx, {"failed_reason": "A claim was not supported by its posts"})
+    assert words == "The explanation did not pass our checks"
+
+
+def test_a_g10_hold_on_a_topic_a_busy_model_left_unexplained_says_the_model_was_busy(fx):
+    from core.brief.payload import NOT_RUN_REASONS
+    assert _g10_hold_words(fx, {"failed_reason": NOT_RUN_REASONS[0]}) == "Not explained in time: the model was busy"
+
+
+def test_a_g10_hold_on_a_topic_the_model_never_reached_says_so_when_the_brief_says_not_run(fx):
+    assert _g10_hold_words(fx, {"explanation_status": "not_run", "failed_reason": None}) == (
+        "Not explained: the model did not get to this topic")
+
+
+@pytest.mark.parametrize("held_item", [None, {"failed_reason": None}, {"explanation_status": "explained"}])
+def test_a_g10_hold_with_no_proof_that_the_model_skipped_it_keeps_the_checks_wording(fx, held_item):
+    """A G10 hold also covers an explanation that ran and failed specificity (no failed_reason), and a hold the
+    brief rows cannot be read for. Nothing there shows the model skipped the topic, so the a80 words stand."""
+    assert _g10_hold_words(fx, held_item) == "The explanation did not pass our checks"
 
 
 def test_a_hold_from_an_old_brief_does_not_stick_to_an_item_the_newest_brief_does_not_name(fx):
