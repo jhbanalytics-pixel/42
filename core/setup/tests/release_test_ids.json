@@ -57,44 +57,37 @@
   "CT-01": {
    "owner": "lane 3",
    "partition": "deploy",
-   "reason": "the compatibility harness is built after the paste, the checker and the lock",
-   "status": "pending"
+   "status": "built"
   },
   "CT-02": {
    "owner": "lane 3",
    "partition": "deploy",
-   "reason": "the compatibility harness is built after the paste, the checker and the lock",
-   "status": "pending"
+   "status": "built"
   },
   "CT-03": {
    "owner": "lane 3",
    "partition": "deploy",
-   "reason": "the compatibility harness is built after the paste, the checker and the lock",
-   "status": "pending"
+   "status": "built"
   },
   "CT-04": {
    "owner": "lane 3",
    "partition": "deploy",
-   "reason": "the compatibility harness is built after the paste, the checker and the lock",
-   "status": "pending"
+   "status": "built"
   },
   "CT-05": {
    "owner": "lane 3",
    "partition": "deploy",
-   "reason": "the compatibility harness is built after the paste, the checker and the lock",
-   "status": "pending"
+   "status": "built"
   },
   "CT-06": {
    "owner": "lane 3",
    "partition": "deploy",
-   "reason": "the compatibility harness is built after the paste, the checker and the lock",
-   "status": "pending"
+   "status": "built"
   },
   "CT-07": {
    "owner": "lane 3",
    "partition": "deploy",
-   "reason": "the compatibility harness is built after the paste, the checker and the lock",
-   "status": "pending"
+   "status": "built"
   },
   "DE-01": {
    "owner": "lane 3",
@@ -119,20 +112,17 @@
   "DE-05": {
    "owner": "lane 3",
    "partition": "core",
-   "reason": "the old-reader corpus tests are built after the paste, the checker and the lock",
-   "status": "pending"
+   "status": "built"
   },
   "DE-06": {
    "owner": "lane 3",
    "partition": "core",
-   "reason": "the old-reader corpus tests are built after the paste, the checker and the lock",
-   "status": "pending"
+   "status": "built"
   },
   "DE-07": {
    "owner": "lane 3",
    "partition": "core",
-   "reason": "the old-reader corpus tests are built after the paste, the checker and the lock",
-   "status": "pending"
+   "status": "built"
   },
   "DE-08": {
    "owner": "lane 3",

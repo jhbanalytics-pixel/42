@@ -67,8 +67,6 @@ def test_tm01_every_file_of_a_partition_exists_and_no_file_is_in_both():
     core, deploy = set(data["partitions"]["core"]), set(data["partitions"]["deploy"])
     assert not core & deploy
     for rel in core | deploy:
-        if "test_agent_compat" in rel or "test_old_readers" in rel:
-            continue  # built later in this work; the lock lists them once they exist
         assert (ROOT / rel).is_file(), rel
 
 
@@ -76,10 +74,7 @@ def test_tm01_the_pending_and_not_applicable_ids_are_exactly_the_ones_this_branc
     data = load_map()
     states = {ident: e["status"] for ident, e in data["ids"].items() if e["status"] != "built"}
     assert {i for i, s in states.items() if s == "not_applicable"} == {"HR-03", "HR-48"}
-    assert {i for i, s in states.items() if s == "pending"} == {f"AU-0{n}" for n in range(1, 10)} | PENDING_BUILT_LATER
-
-
-PENDING_BUILT_LATER = {f"CT-0{n}" for n in range(1, 8)} | {"DE-05", "DE-06", "DE-07"}
+    assert {i for i, s in states.items() if s == "pending"} == {f"AU-0{n}" for n in range(1, 10)}
 
 
 # TM-02: the lock

@@ -34,6 +34,9 @@ REPO_FILES = (
     "core/api/smoke.py",
 )
 TEST_FILES = (
+    "core/api/tests/compat_harness.py",
+    "core/api/tests/old_reader_harness.py",
+    "core/api/tests/smoke_support.py",
     "core/api/tests/test_deploy_candidate.py",
     "core/api/tests/test_deploy_script.py",
     "core/api/tests/test_smoke.py",
@@ -41,12 +44,16 @@ TEST_FILES = (
     "core/api/tests/test_agent_compat.py",
     "core/api/tests/test_old_readers.py",
     "core/schema/tests/test_durable_effects.py",
+    "core/setup/tests/paste_world.py",
+    "core/setup/tests/release_prereq.py",
     "core/setup/tests/release_test_ids.json",
+    "core/setup/tests/release_world.py",
     "core/setup/tests/test_bound_readback_services.py",
     "core/setup/tests/test_bound_readback_services_edges.py",
     "core/setup/tests/test_declared_env_removals.py",
     "core/setup/tests/test_release_map.py",
     "core/setup/tests/test_release_plan.py",
+    "core/setup/tests/test_release_retry.py",
     "core/setup/tests/test_services_paste.py",
 )
 BOUND_NAMES = ("bindings", "baseline", "durable_manifest", "compat_receipt", "old_reader_receipt")
