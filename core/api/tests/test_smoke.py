@@ -422,3 +422,57 @@ def test_a_blank_summary_on_a_complete_answer_fails_whatever_code_gap_it_carries
     record["answer"].update(short_answer="", status="complete", gaps=[gap])
     ok, reason = smoke.check_ask_record(record)
     assert ok is False and "summary" in reason
+
+
+# SM-01 (W8-REL 5.8): the release paste needs the smoke's own statement of which base it checked and how many checks
+# passed, so the final line is followed by exactly one SMOKE-RESULT line. Tightening only: no check changes.
+def result_lines(out):
+    return [line for line in out.splitlines() if line.startswith("SMOKE-RESULT")]
+
+
+def test_sm01_a_passing_run_ends_with_the_existing_line_then_one_smoke_result_line(client, monkeypatch, capsys):
+    monkeypatch.setenv("F42_SMOKE_PASSCODE", PASS)
+    assert smoke.main([BASE], client=client) == 0
+    out = capsys.readouterr().out
+    lines = out.strip().splitlines()
+    assert lines[-2] == "6 of 6 checks passed"
+    assert lines[-1] == f"SMOKE-RESULT base={BASE} checks=6 passed=6"
+    assert result_lines(out) == [lines[-1]]
+    assert PASS not in out
+
+
+def test_sm01_a_failing_run_reports_how_many_passed_and_still_exits_1(client, monkeypatch, capsys):
+    monkeypatch.setenv("F42_SMOKE_PASSCODE", WRONG)
+    assert smoke.main([BASE], client=client) == 1
+    out = capsys.readouterr().out
+    lines = out.strip().splitlines()
+    assert lines[-2] == "2 of 6 checks passed"
+    assert lines[-1] == f"SMOKE-RESULT base={BASE} checks=6 passed=2"
+    assert WRONG not in out
+
+
+def test_sm01_the_base_is_the_one_the_script_checked_without_a_trailing_slash(client, monkeypatch, capsys):
+    monkeypatch.setenv("F42_SMOKE_PASSCODE", PASS)
+    smoke.main([BASE + "/"], client=client)
+    assert result_lines(capsys.readouterr().out) == [f"SMOKE-RESULT base={BASE} checks=6 passed=6"]
+
+
+def test_sm01_no_result_line_when_no_check_ran(monkeypatch, capsys):
+    assert smoke.main([BASE]) == 2
+    out = capsys.readouterr()
+    assert result_lines(out.out) == [] and result_lines(out.err) == []
+
+
+def recorded_check_names():
+    """The check names smoke.run records, read from the source (TM-05 compares this with the packet lock)."""
+    import ast
+
+    tree = ast.parse(SMOKE.read_text(encoding="utf-8"))
+    run = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "run")
+    return [c.args[0].value for c in ast.walk(run)
+            if isinstance(c, ast.Call) and getattr(c.func, "id", None) == "record" and c.args
+            and isinstance(c.args[0], ast.Constant)]
+
+
+def test_sm01_the_check_count_by_ast_is_the_six_the_receipt_expects():
+    assert recorded_check_names() == NAMES

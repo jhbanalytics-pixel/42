@@ -6,7 +6,8 @@
 The passcode comes only from the environment variable F42_SMOKE_PASSCODE. It is never
 printed, and no line this script prints carries a header value or an exception's text.
 Each check prints "PASS <name>: <evidence>" or "FAIL <name>: <reason>". Exit 0 only when
-every check passed, 1 when any failed, 2 when the passcode is not set. While the ask runs,
+every check passed, 1 when any failed, 2 when the passcode is not set. After the "N of M checks passed" line it prints
+one last line, "SMOKE-RESULT base=<url> checks=<n> passed=<k>", the script's own statement of what it checked. While the ask runs,
 a progress line goes to stderr every PROGRESS_SECONDS with its ask_id and step count.
 
 The today check always says on stderr how old the Today brief it read is: its date, its published time in SAST and
@@ -313,6 +314,8 @@ def main(argv=None, client=None):
                   ask_timeout=args.ask_timeout, today_max_age_hours=max_age)
     passed = sum(1 for _, ok, _ in results if ok)
     print(f"{passed} of {len(results)} checks passed", flush=True)
+    # The release paste reads this line, so the base and the counts are the script's own statement of what it checked.
+    print(f"SMOKE-RESULT base={args.base_url.rstrip('/')} checks={len(results)} passed={passed}", flush=True)
     return 0 if passed == len(results) else 1
 
 
