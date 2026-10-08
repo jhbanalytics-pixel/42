@@ -1,5 +1,6 @@
 # Test-only workflow for 42. It reads the repository and runs the tests. It signs in to nothing, holds no secret,
-# builds nothing and ships nothing; the workflows that do those things stay parked in .github/parked-workflows.
+# builds only the local frontend bundle its tests read and ships nothing; the workflows that sign in, build images
+# and deploy stay parked in .github/parked-workflows.
 # core/eval/tests/harness/test_harness_ci_workflow.py fails if this file ever asks for more than that.
 #
 # Native opt-in tests (live BigQuery dry runs behind F42_BQ=1, the packaged Linux browser behind
@@ -100,6 +101,12 @@ jobs:
       - name: Install the frontend packages from the lock file
         working-directory: app/frontend
         run: bun install --frozen-lockfile
+
+      # A local vite bundle into the gitignored app/web/dist, which neutral-contract.test.jsx reads. Nothing is
+      # uploaded or published from it.
+      - name: Build the bundle the frontend tests read
+        working-directory: app/frontend
+        run: bun run build
 
       - name: Run the frontend tests
         working-directory: app/frontend

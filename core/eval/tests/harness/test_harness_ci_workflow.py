@@ -201,3 +201,30 @@ def test_the_bun_version_comes_from_one_pin_in_the_workflow():
     text = json.dumps(data)
     pins = set(re.findall(r"bun@(\d+\.\d+\.\d+)", text))
     assert len(pins) == 1, pins
+
+
+def frontend_runs(data):
+    return [s for s in data["jobs"]["frontend"]["steps"] if s.get("run")]
+
+
+def test_the_frontend_job_builds_the_bundle_before_bun_test_reads_it():
+    """neutral-contract.test.jsx reads app/web/dist/index.html, which is gitignored, so a fresh checkout has none.
+    The job must run the local vite build in app/frontend after the install and before the tests."""
+    data = core_workflow()
+    runs = frontend_runs(data)
+    test_at = next(i for i, s in enumerate(runs) if re.search(r"\bbun test\b", s["run"]))
+    install_at = next(i for i, s in enumerate(runs) if "bun install" in s["run"])
+    builds = [i for i, s in enumerate(runs) if re.search(r"\bbun run build\b", s["run"])]
+    assert builds, "the frontend job never builds, so app/web/dist/index.html is missing for neutral-contract.test.jsx"
+    assert install_at < builds[0] < test_at, (install_at, builds, test_at)
+    assert runs[builds[0]].get("working-directory") == "app/frontend"
+
+
+def test_the_frontend_test_that_needs_the_built_bundle_still_names_that_path_and_the_build_writes_there():
+    contract = (ROOT / "app" / "frontend" / "src" / "ui" / "__tests__" / "neutral-contract.test.jsx").read_text(
+        encoding="utf-8")
+    assert "web/dist/index.html" in contract
+    package = json.loads((ROOT / "app" / "frontend" / "package.json").read_text(encoding="utf-8"))
+    assert package["scripts"]["build"] == "vite build"
+    config = (ROOT / "app" / "frontend" / "vite.config.mjs").read_text(encoding="utf-8")
+    assert "web/dist" in config.replace("\\", "/")
