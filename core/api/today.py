@@ -1095,7 +1095,7 @@ def _latest_run(runs):
         finished = row.get("finished_at")
         started = started.isoformat() if hasattr(started, "isoformat") else str(started or "")
         finished = finished.isoformat() if hasattr(finished, "isoformat") else str(finished or "")
-        return started, row.get("finished_at") is None, finished, str(row.get("run_id") or "")
+        return started, row.get("finished_at") is not None, finished, str(row.get("run_id") or "")
 
     return max(runs, key=key, default=None)
 

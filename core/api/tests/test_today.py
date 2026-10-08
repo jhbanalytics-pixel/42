@@ -2045,3 +2045,49 @@ def test_a_title_check_row_never_names_a_held_items_reason():
     store, _ = _critic_store([title_row, _check(CRITIC_HELD, "cut", "Critic: a simpler explanation was not ruled out")])
     assert _held_by_id(store)[CRITIC_HELD]["held_detail"] == (
         "A simpler explanation could not be ruled out from these posts.")
+
+
+def test_running_row_does_not_outrank_the_failed_row_of_the_same_run(fx):
+    real_briefs = fx.briefs
+
+    def briefs(date):
+        rows = real_briefs(date)
+        for row in rows:
+            if row["brief_date"] == D30 and row["market"] == "ZA":
+                row["status"] = "data_issue"
+                row["payload"]["banners"] = [{"kind": "data_issue",
+                                               "text": "Data issue: the steps before the brief did not finish by 06:15, so no trends were checked today"}]
+        return rows
+
+    def runs(stage, run_date):
+        if stage == "collect":
+            return [{"run_id": "collect-ok", "stage": stage, "run_date": run_date, "status": "ok",
+                     "started_at": "2026-09-30 02:00:00", "finished_at": "2026-09-30 02:10:00"}]
+        if stage == "detect":
+            return [{"run_id": "detect-x", "stage": stage, "run_date": run_date, "status": "running",
+                     "started_at": "2026-09-30 02:10:00", "finished_at": None},
+                    {"run_id": "detect-x", "stage": stage, "run_date": run_date, "status": "failed",
+                     "started_at": "2026-09-30 02:10:00", "finished_at": "2026-09-30 02:20:00"}]
+        return []
+
+    za = market(today.build_today(Patched(briefs=briefs, runs=runs), D30), "ZA")
+    texts = [b["text"] for b in za["banners"] if b["kind"] == "data_issue"]
+    assert "Data issue: collection or detection failed for South Africa" in texts
+    assert not any("no failed stage is recorded" in text for text in texts)
+
+
+def test_latest_run_prefers_the_finished_row_of_a_run_over_its_running_row():
+    running = {"run_id": "detect-x", "status": "running", "started_at": "2026-09-30 02:10:00", "finished_at": None}
+    failed = {"run_id": "detect-x", "status": "failed", "started_at": "2026-09-30 02:10:00",
+              "finished_at": "2026-09-30 02:20:00"}
+    for pair in ([running, failed], [failed, running]):
+        assert today._latest_run(pair) is failed
+        assert today._stage_failed(pair) is True
+
+
+def test_a_later_attempt_still_running_outranks_an_earlier_failed_attempt():
+    failed = {"run_id": "detect-a", "status": "failed", "started_at": "2026-09-30 02:10:00",
+              "finished_at": "2026-09-30 02:20:00"}
+    retry = {"run_id": "detect-b", "status": "running", "started_at": "2026-09-30 02:30:00", "finished_at": None}
+    assert today._latest_run([failed, retry]) is retry
+    assert today._stage_failed([failed, retry]) is False
