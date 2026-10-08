@@ -63,6 +63,7 @@ from core.brief.specificity import assess_specificity, local_posts, specificity_
 from core.config.caps import model_daily_usd
 from core.llm.provider import default_model, price_for, reserve_output
 from core.plain_dates import format_generated_dates
+from core.trust import retained
 from core.trust.claims import (
     _QUOTE_MARKS, _QUOTED, LABELS, MARKET_NAMES, _norm, _quote_fault, _quoted, _strip_quotes, _verified_quotes,
     check_answer, inferred_only_by_source_step, located_market, named_markets, place_fault, source_market,
@@ -1000,6 +1001,19 @@ def _breached(rows):
     return any(r["verdict"] == "breach" for r in rows)
 
 
+def _stamped(row, text):
+    """The check row with span_sha256, the digest of the span it rejected (core/trust/retained.py), when it is a
+    failed support or sentence check. The span itself is never put on the row."""
+    digest = retained.span_sha256(text) if retained.is_retained(row) else None
+    return {**row, "span_sha256": digest} if digest else row
+
+
+def _spans(answer):
+    """({claim id: claim text}, sentence) of an answer, read before the checks change it."""
+    claims = {c.get("id"): c.get("text") for c in answer.get("claims") or [] if isinstance(c, dict)}
+    return claims, answer.get("short_answer")
+
+
 def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, window_end, market, rerun=None,
                   model_id=None, model_call_guard=None, second_draft=False):
     """See the module docstring."""
@@ -1064,11 +1078,14 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         return True
 
     def check(answer, rerun_numbers, rests_on):
+        claim_texts, sentence_text = _spans(answer)
         checked, rows = check_answer(answer, window_start=window_start, window_end=window_end, market=market,
                                      rerun=rerun_numbers)
         _exact_quotes(checked, records)
         rows.extend(_k9_rows(checked, rests_on, records))
         rows.extend(_crowd_rows(checked, rests_on, records, pack))
+        rows = [_stamped(r, sentence_text if r["claim_id"] is None else claim_texts.get(r["claim_id"]))
+                for r in rows]
         return checked, rows
 
     def repair_support(draft, user, failures, passed, start):
@@ -1164,13 +1181,13 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
             market=market,
         )
         if basis["reason"] is not None:
-            checks.append(_specificity_row(basis["reason"]))
+            checks.append(_stamped(_specificity_row(basis["reason"]), checked.get("short_answer")))
             failed_specificity = assess(checked.get("short_answer"), checked.get("claims") or [], rests_on)
             return result("failed_checks", specificity=failed_specificity), None
         # Every claim the sentence rests on must also pass the support check below, or _sentence_fault cuts it there.
         place = _place_fault(checked["short_answer"], checked, rests_on, records)
         if place:
-            checks.append(_place_row(place))
+            checks.append(_stamped(_place_row(place), checked["short_answer"]))
             return result("failed_checks"), None
         if len(checked["claims"]) < 2:
             return result("too_few_claims"), None
@@ -1181,9 +1198,10 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
             out = call(SUPPORT_SYSTEM, _support_user(claim, cited, pack, market, terms), SUPPORT_SCHEMA,
                        SUPPORT_MAX_TOKENS)
             verdict = out.get("verdict")
-            checks.append({"claim_id": claim.get("id"), "rule": "K4", "verdict": "pass" if verdict == "supported"
-                           else "cut", "checker": "model",
-                           "detail": f"support check {verdict}: {out.get('reason', '')}"})
+            checks.append(_stamped({"claim_id": claim.get("id"), "rule": "K4",
+                                    "verdict": "pass" if verdict == "supported" else "cut", "checker": "model",
+                                    "detail": f"support check {verdict}: {out.get('reason', '')}"},
+                                   claim.get("text")))
             if verdict == "supported":
                 supported.append(claim)
             else:
@@ -1211,9 +1229,10 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
                                                   terms),
                    SUPPORT_SCHEMA, SUPPORT_MAX_TOKENS)
         verdict = out.get("verdict")
-        checks.append({"claim_id": None, "rule": "K4", "verdict": "pass" if verdict == "supported" else "cut",
-                       "checker": "model",
-                       "detail": f"explanation sentence support check {verdict}: {out.get('reason', '')}"})
+        checks.append(_stamped({"claim_id": None, "rule": "K4",
+                                "verdict": "pass" if verdict == "supported" else "cut", "checker": "model",
+                                "detail": f"explanation sentence support check {verdict}: {out.get('reason', '')}"},
+                               sentence))
         if verdict != "supported":
             if support_repair:
                 return repair_support(draft, user, failures + [(None, verdict, out.get("reason", ""))], passed,
@@ -1225,7 +1244,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         cited = {i for c in rechecked["claims"] if c["id"] in rests_on for i in c.get("evidence_ids") or []}
         reacting = len({str(r.get("handle") or "").strip().lower() for r in local_posts(evidence, market)
                         if r.get("id") in cited and str(r.get("handle") or "").strip()})
-        row = _critic_row(out, reacting)
+        row = _stamped(_critic_row(out, reacting), sentence)
         checks.append(row)
         critic = _critic_answer(out)
         local_why_now = out.get("local_why_now") is True

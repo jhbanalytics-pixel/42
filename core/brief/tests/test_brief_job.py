@@ -2412,6 +2412,9 @@ def test_invalid_data_days_are_checked_before_the_briefs_own_holds():
 
 # intelligence_42_agent.claim_checks as get_table read it on staging, 29 September 2026 (all STRING, NULLABLE).
 STAGING_CLAIM_CHECKS = {"answer_or_brief_id", "claim_id", "rule", "verdict", "checker", "run_id", "reason"}
+# W8-DEC-14 adds these two columns, on a failed support or sentence check only. They are in core/schema/agent.sql as
+# ALTER ... ADD COLUMN and are not on staging until that file is applied, so it is applied before this job runs.
+RETAINED_COLUMNS = {"span_sha256", "reason_code"}
 # The reviewer's leak phrases (round 2): age readings past the word lists, names, contacts and post text.
 LEAKS = [
     "Thabo Mokoena is just dancing at home, nothing cultural", "one creator, Thabo Mokoena, made every clip",
@@ -2674,9 +2677,13 @@ def test_every_wording_is_bounded():
 def test_claim_checks_rows_fit_the_staging_table():
     r = brief(world(n=2), model=ScriptedModel(critic=("a scraping artefact", "all collected in one sweep")))
     assert checks(r)
+    retained_rows = 0
     for c in checks(r):
-        assert set(c) == STAGING_CLAIM_CHECKS
+        assert set(c) - RETAINED_COLUMNS == STAGING_CLAIM_CHECKS
+        assert set(c) & RETAINED_COLUMNS in (set(), RETAINED_COLUMNS)
+        retained_rows += bool(set(c) & RETAINED_COLUMNS)
         assert all(v is None or isinstance(v, str) for v in c.values())
+    assert retained_rows == len([c for c in checks(r) if c["verdict"] == "cut"])
 
 
 # The suppression list (SETUP.md data protection): the brief stores nothing of a suppressed creator
@@ -2868,8 +2875,11 @@ def test_the_critics_answer_is_stored_in_the_briefs_payload_for_shown_and_held_i
         assert [c["item_id"] for c in all_cards(payload(shown, m))] == [item(m, 1)]
         assert all("critic" not in c for c in all_cards(payload(shown, m)))
         assert all("critic" not in i for i in payload(held, m)["held_back"]["items"])
-    # The claim_checks rows keep their fixed wording; the answer is not written there.
-    assert all(set(c) == CHECK_KEYS for c in checks(held))
+    # The claim_checks rows keep their fixed wording; the answer is not written there. A failed sentence check
+    # (the critic's cut) also carries the digest of the rejected sentence and a reason code (W8-DEC-14).
+    cut = [c for c in checks(held) if c["verdict"] == "cut"]
+    assert cut and all(set(c) == CHECK_KEYS | {"span_sha256", "reason_code"} for c in cut)
+    assert all(set(c) == CHECK_KEYS for c in checks(held) if c["verdict"] != "cut")
     assert {c["reason"] for c in checks(held) if c["rule"] == "critic"} == {
         "Critic: a simpler explanation was not ruled out: a paid campaign"}
 
