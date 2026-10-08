@@ -2655,3 +2655,39 @@ test('Searching now sits below the cards on a market tab, on All, and under the 
     if (heldList) expect(follows(heldList, own)).toBe(true);
   }
 });
+
+/* Wave 8 N43 (R0261, R0276): the heading and the held-status line describe the
+   market in view, not every market in the brief. */
+const heldChecked = (id = 'checked-hold') => ({count: 1, items: [{item_id: id, title: 'Checked topic', rule: 'G10', reason: 'explanation_failed',
+  reason_text: 'The explanation did not pass our checks', failed_reason: 'A simpler explanation was not ruled out', evidence: []}]});
+
+test('the heading says Taking off only over a market that has cleared trends', async () => {
+  await mount({region: 'ZA'});
+  expect(plainHeading()).toBe('Taking off, 30 September 2026');
+  resetRoot();
+  await mount({region: 'KE'});
+  expect(plainHeading()).toBe('Today, 30 September 2026');
+  click(tab('All'));
+  expect(plainHeading()).toBe('Taking off, 30 September 2026');
+  click(tab('Kenya'));
+  expect(plainHeading()).toBe('Today, 30 September 2026');
+});
+const plainHeading = () => host.querySelector('h1.t42-heading').textContent.replace(/\s+/g, ' ').trim();
+
+test('the held-status line names only the market in view and joins names with and', async () => {
+  const today = clone(todayFixture);
+  for (const code of ['NG', 'KE']){
+    const market = today.markets.find((entry) => entry.market === code);
+    market.status = 'partial';
+    market.cards = [];
+    market.more = [];
+    market.banners = [];
+    market.held_back = heldChecked('checked-hold-' + code);
+  }
+  await mount({region: 'ZA'}, today);
+  expect(host.querySelector('[data-today-held-status]')).toBeNull();
+  click(tab('Nigeria'));
+  expect(host.querySelector('[data-today-held-status]')?.textContent).toBe('All the topics checked in Nigeria were held back. See their reasons below.');
+  click(tab('All'));
+  expect(host.querySelector('[data-today-held-status]')?.textContent).toBe('All the topics checked in Nigeria and Kenya were held back. See their reasons below.');
+});

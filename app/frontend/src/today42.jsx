@@ -77,6 +77,8 @@ function hasIncompleteRun(market){
       && typeof item.failed_reason === 'string' && item.failed_reason.startsWith('Model busy:')));
 }
 
+const andJoin = (names) => (names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names.join(''));
+
 function tabForRegion(region){
   const value = String(region || '').toUpperCase();
   return MARKETS.includes(value) ? value : 'ALL';
@@ -342,7 +344,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
   const partialCopy = incompleteMarkets.length > 0
     ? 'Some markets are incomplete: ' + incompleteMarkets.map((market) => nonEmptyString(market.label) ? market.label : market.market).join(', ') + '.'
     : null;
-  const checkedHeldMarkets = markets.filter(({rejectedCards}) => rejectedCards === 0).map(({market}) => market).filter((market) => {
+  const checkedHeldMarkets = shown.filter(({rejectedCards}) => rejectedCards === 0).map(({market}) => market).filter((market) => {
     const held = market.held_back;
     return !hasIncompleteRun(market) && market.cards.length + market.more.length === 0
       && Array.isArray(held?.items) && held.items.length > 0 && held.count === held.items.length
@@ -352,8 +354,12 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
           && !item.failed_reason.startsWith('Model busy:'))));
   });
   const checkedHeldCopy = checkedHeldMarkets.length > 0
-    ? 'All the topics checked in ' + checkedHeldMarkets.map((market) => nonEmptyString(market.label) ? market.label : market.market).join(', ') + ' were held back. See their reasons below.'
+    ? 'All the topics checked in ' + andJoin(checkedHeldMarkets.map((market) => nonEmptyString(market.label) ? market.label : market.market)) + ' were held back. See their reasons below.'
     : null;
+  /* The server words the heading from every market. A market tab with nothing cleared is not taking off. */
+  const selectedHasCards = shown.some(({market}) => market.cards.length + market.more.length > 0);
+  const headingText = typeof data.heading === 'string' && tab !== 'ALL' && !selectedHasCards
+    ? data.heading.replace(/^Taking off/, 'Today') : data.heading;
   const selectedLead = tab === 'ALL' ? null : markets.find((entry) => entry.market.market === tab)?.admitted[0];
   const headline = data.headline && nonEmptyString(data.headline.text)
     && (tab === 'ALL' || data.headline.market === tab)
@@ -370,7 +376,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
   return (
     <section className="page t42">
       <header className="t42-head">
-        <h1 className="t42-heading" {...(load.state === 'ready' ? {'data-today-loaded': ''} : {})}>{load.state === 'ready' && data.heading ? headingWords(data.heading) : 'Today'}</h1>
+        <h1 className="t42-heading" {...(load.state === 'ready' ? {'data-today-loaded': ''} : {})}>{load.state === 'ready' && headingText ? headingWords(headingText) : 'Today'}</h1>
         {headline && (
           <div className="t42-lead" data-today-lead="">
             <p className="t42-headline"><HeadlineText text={headline.text} term={headlineTerm(markets, headline)} /></p>
