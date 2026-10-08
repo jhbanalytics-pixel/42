@@ -2384,3 +2384,15 @@ def test_song_curve_samples_are_skipped_and_counted_never_written_as_counters():
         assert parsed["counters"] == [] and parsed["posts"]
     assert runner.run.counters == []
     assert runner.run.counts()["song_curve_sample_skipped"] == 14 + 16
+
+
+def test_song_curve_points_of_a_seeded_call_are_not_counted_as_skipped():
+    fixtures = json.loads((Path(__file__).resolve().parent / "fixtures" / "parse_stored_song_videos.json")
+                          .read_text(encoding="utf-8"))
+    runner = job._Runner(FakeClient(), job.Collected("curve-seed-test"), job._CountedIds(fake_item_id),
+                         job.safe_geo(FakeGeo()), lambda: NOW, job.Budget(), None, TUESDAY)
+    seeded = job.Call("11", "tiktok/song/videos", {"clipId": "m100", "use": 1}, "ZA", "expansion", seed_key="m100",
+                      seed=SimpleNamespace(source="queue", query="m100"))
+    parsed = runner._parse(seeded, SimpleNamespace(status="ok", body=fixtures["song_videos_1"]["body"]), NOW)
+    assert parsed["posts"] and parsed["counters"] == []
+    assert runner.run.song_curve_sample_skipped == 0

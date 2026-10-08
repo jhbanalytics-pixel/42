@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from core.collect.parse import parse
+from core.collect.parse import parse, parse_with_creators
 from core.collect.tests.test_parse import FakeGeo, fake_item_id
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -134,6 +134,10 @@ def test_stored_prism_profiles_creator_falls_back_to_the_rows_target_handle():
     assert got == wanted
 
 
+STORED_AUTHOR_KEYS = {"avatar_url", "bio", "display_name", "ext", "followers", "following", "id", "joined_at",
+                      "last_post_at", "likes_count", "posts_count", "private", "url", "username", "verified"}
+
+
 def _stored_row_shape_problems(body):
     """What a prism/profiles body must look like to be the vendor's: rows in data.results, each naming its profile
     under target, an ok row holding its profile under data and its posts as an object with an items list."""
@@ -150,6 +154,8 @@ def _stored_row_shape_problems(body):
         if row.get("status") == "ok":
             if not isinstance(row.get("data"), dict):
                 problems.append(f"row {i} has no data object")
+            elif set(row["data"].get("author") or {}) - STORED_AUTHOR_KEYS:
+                problems.append(f"row {i} data.author has a key the vendor does not send")
             posts = row.get("posts")
             if posts is not None and not (isinstance(posts, dict) and isinstance(posts.get("items"), list)):
                 problems.append(f"row {i} posts is not an object with an items list")
@@ -171,6 +177,78 @@ def test_the_shape_check_rejects_the_flat_list_shape_the_suite_used_to_pin():
     assert _stored_row_shape_problems(old) == ["data.results is not a non-empty list"]
     old["data"] = {"results": old["data"]["items"]}
     assert len(_stored_row_shape_problems(old)) == 5
+
+
+# Older and fallback row shapes. No stored row has them, so each is pinned by an inline body.
+
+LEGACY_POST = {"post": {"id": "p1", "url": "https://example.invalid/p1", "published_at": "2026-09-28T00:10:00Z",
+                        "content": {"text": "caption"}}}
+
+
+def _legacy_run(row, **kw):
+    body = {"success": True, "data": {"results": [{"platform": "instagram", "status": "ok", **row}]}}
+    return parse_with_creators("prism/profiles", {"include": "posts"}, "ZA", body, "2026-09-28T00:30:00Z", "run1",
+                               item_id_fn=fake_item_id, geo_fn=FakeGeo(), **kw)
+
+
+@pytest.mark.parametrize("key", ["author", "profile"])
+def test_a_row_level_profile_block_fills_what_the_post_lacks(key):
+    out = _legacy_run({"handle": "h1", key: {"username": "h1", "followers": 750000, "location": "Johannesburg"},
+                       "posts": [LEGACY_POST]})
+    [post] = out["posts"]
+    assert (post["creator_id"], post["creator_tier_at_post"], post["geo_market"]) == ("h1", "macro", "ZA")
+    assert [(c["followers"], c["profile_location"]) for c in out["creators"]] == [(750000, "Johannesburg")]
+
+
+def test_a_row_level_handle_is_the_creator_when_nothing_else_names_one():
+    [post] = _legacy_run({"handle": "h1", "posts": [LEGACY_POST]})["posts"]
+    assert post["creator_id"] == "h1"
+
+
+def test_the_target_handle_is_the_creator_when_the_row_has_no_profile_block():
+    row = {"target": {"platform": "instagram", "handle": "t1"}, "posts": {"status": "ok", "items": [LEGACY_POST]}}
+    assert "data" not in row
+    [post] = _legacy_run(row)["posts"]
+    assert post["creator_id"] == "t1"
+
+
+def test_a_row_level_items_list_is_read_when_the_row_has_no_posts():
+    out = _legacy_run({"handle": "h1", "items": [LEGACY_POST]})
+    assert [p["native_id"] for p in out["posts"]] == ["p1"]
+
+
+# tiktok/song edges
+
+def _song_body(**ext):
+    return {"success": True, "data": {"post": {"id": "7300000000000000009", "ext": ext}}}
+
+
+def _song(route, body, params):
+    return parse(route, params, "ZA", body, "2026-09-28T00:30:00Z", "run1", item_id_fn=fake_item_id, geo_fn=FakeGeo())
+
+
+def test_a_song_count_with_no_unit_is_still_read():
+    out = _song("tiktok/song", _song_body(use_count=412), {"clipId": "m100"})
+    assert [(c["item_id"], c["value"]) for c in out["counters"]] == [("sound|tiktok:m100", 412.0)]
+
+
+def test_use_count_is_read_for_the_song_route_only():
+    body = {"success": True, "data": {"post": {"ext": {"use_count": 412, "use_count_unit": "videos"}}}}
+    assert _song("tiktok/hashtag", body, {"hashtag": "amapiano"})["counters"] == []
+
+
+def test_the_curve_route_writes_no_counter_even_when_the_body_carries_a_count():
+    body = {"success": True, "data": {"video_count": 7, "adoption": {"by_day": [{"date": "2026-09-27", "videos": 1}]},
+                                      "post": {"ext": {"use_count": 412, "video_count": 7}}, "items": []}}
+    assert _song("tiktok/song/videos", body, {"clipId": "m100"})["counters"] == []
+
+
+def test_adoption_sample_points_counts_the_list_and_the_object_forms():
+    from core.collect.parse import adoption_sample_points
+
+    assert adoption_sample_points({"data": {"adoption": [{"date": "2026-09-27", "videos": 1}] * 3}}) == 3
+    assert adoption_sample_points({"data": {"adoption": {"by_day": [{"date": "2026-09-27", "videos": 1}] * 2}}}) == 2
+    assert adoption_sample_points({"data": {}}) == 0 and adoption_sample_points(None) == 0
 
 
 # tiktok/song: the running count of a sound

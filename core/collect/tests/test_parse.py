@@ -379,7 +379,7 @@ def test_culture_desk_profiles_take_platform_and_author_from_each_row():
     assert (post["platform"], post["creator_id"], post["creator_tier_at_post"]) == (
         "instagram", "culture.desk.za", "macro")
     assert post["hashtags"] == ["durbanjuly"]
-    assert post["geo_market"] == "ZA" and geo.calls[0]["profile_location"] == "Johannesburg"
+    assert post["geo_market"] is None and geo.calls[0]["profile_location"] is None  # the stored profile has none
     assert out["observations"][0]["series"] == "panel_culture_desk"
     assert (out["observations"][0]["source_market"], out["observations"][0]["source_region"]) == (None, None)
     assert out["observations"][0]["protocol"] == "prism/profiles?include=posts"
