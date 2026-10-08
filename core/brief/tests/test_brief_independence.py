@@ -271,7 +271,7 @@ def test_every_handle_is_in_exactly_one_group():
     handles = sorted(h for g in groups for h in g["handles"])
     assert handles == ["a", "b", "c"]
     assert sorted(len(g["handles"]) for g in groups) == [1, 2]
-    assert {tuple(sorted(g["platforms"])) for g in groups} == {("tiktok", "twitter"), ("twitter",)}
+    assert {tuple(sorted(g["platforms"])) for g in groups} == {("tiktok", "x"), ("x",)}
 
 
 @pytest.mark.parametrize("flag", ["brand", "brand_owned", "paid", "sponsored", "generated", "near_duplicate", "flagged"])
@@ -303,3 +303,14 @@ def test_captions_that_only_repeat_the_items_own_key_are_not_a_shared_caption():
     assert ctx(con, evidence=evidence)["corroborated_unbiased"] is False
     key = item(canonical_key="shayastep")
     assert ctx(con, row=key, evidence=evidence)["corroborated_unbiased"] is True
+
+
+def test_x_and_twitter_are_one_platform_at_the_gate():
+    con = world()
+    measured(con, "p1", "p2", "p3")
+    one = rec("p1", "x", "a", "Nobody told me the step was this hard on the knees")
+    two = rec("p2", "twitter", "b", "My gran learned the new school dance in one afternoon")
+    three = rec("p3", "tiktok", "c", "Matric farewell rehearsal went completely off the rails")
+    assert corroborated(con, [one, two]) is False
+    assert corroborated(con, [one, three]) is True
+    assert corroborated(con, [two, three]) is True

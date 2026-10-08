@@ -19,11 +19,12 @@ account_created_at, the other input N21 names, has no source in the tables: coll
 (core/collect/parse.py CREATOR_COLUMNS) and no job writes one, so none is written here.
 """
 
-import re
 from pathlib import Path
 
 from .aggregate import _run, _struct_array
-from .coaction import JACCARD, MIN_TEXT_CHARS, NUM_PERM, PLACEHOLDERS, SHINGLE, mask
+from core.trust.independence import plain_text, shingles, similar
+
+from .coaction import JACCARD, NUM_PERM
 from .sqlrun import AGENT, CORE, query
 
 SQL = Path(__file__).parent / "sql" / "neardup.sql"
@@ -38,26 +39,6 @@ FIELDS = (("post_id", "STRING"), ("near_dup_size", "INT64"))
 def read_sql():
     lines = SQL.read_text(encoding="utf-8").splitlines()
     return "\n".join(line for line in lines if not line.startswith("--"))
-
-
-def plain_text(text, key=None):
-    """The caption as co-action compares it: lower case, the item's own key (when given), links, handles and numbers
-    masked out, hashtags left out; None when fewer than MIN_TEXT_CHARS characters remain."""
-    text = str(text or "").casefold()
-    if key:
-        text = re.sub(r"(?<!\w)#?" + re.escape(str(key).casefold()) + r"(?!\w)", " ", text)
-    plain = " ".join(t for t in mask(text).split() if not t.startswith("#") and t not in PLACEHOLDERS)
-    return plain if len(plain) >= MIN_TEXT_CHARS else None
-
-
-def shingles(text):
-    return {text[i:i + SHINGLE] for i in range(len(text) - SHINGLE + 1)}
-
-
-def similar(a, b):
-    """Jaccard of two shingle sets at JACCARD or more."""
-    union = len(a | b)
-    return bool(union) and len(a & b) / union >= JACCARD
 
 
 def near_dup_sizes(rows):
