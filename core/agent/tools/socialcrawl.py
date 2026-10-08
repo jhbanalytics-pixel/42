@@ -61,7 +61,8 @@ MARKET_PARAMS = ("country", "region", "geo", "gl")
 # routes say twitter, the answer says x.
 PLATFORM_NAMES = {"twitter": "x"}
 
-_FENCE_TAG = re.compile(r"<(\s*/?\s*untrusted_content\s*)>", re.IGNORECASE)
+_FENCE_TAG = re.compile(r"<([\s\u200b-\u200f\u2060\ufeff]*/?[\s\u200b-\u200f\u2060\ufeff]*untrusted[_-]content[^<>]*)>",
+                        re.IGNORECASE)
 _SEGMENT = re.compile(r"[a-z0-9_-]+")
 _PATH = re.compile(r"[a-z0-9_-]+(/[a-z0-9_-]+)*")
 

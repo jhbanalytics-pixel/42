@@ -307,9 +307,15 @@ if every use is supported. Set so_what_supported true for an item with no so_wha
 """ + COUNTRY_PEOPLE_RULE
 
 
+# The fence tag in any spelling: any case, space, tab, newline or zero-width character inside the angle brackets, a
+# slash before or after the name, and attributes after it. The same rule closes socialcrawl's fence.
+_FENCE_TAG = re.compile(r"<[\s\u200b-\u200f\u2060\ufeff]*(/?)[\s\u200b-\u200f\u2060\ufeff]*untrusted_content[^<>]*>",
+                        re.IGNORECASE)
+
+
 def _fence(text) -> str:
-    # Scraped text cannot close its own fence early.
-    safe = str(text or "").replace(FENCE_CLOSE, "</untrusted-content>").replace(FENCE_OPEN, "<untrusted-content>")
+    # Scraped text cannot close its own fence early, however it spells the tag.
+    safe = _FENCE_TAG.sub(lambda m: f"<{m.group(1)}untrusted-content>", str(text or ""))
     return f"{FENCE_OPEN}\n{safe}\n{FENCE_CLOSE}"
 
 
