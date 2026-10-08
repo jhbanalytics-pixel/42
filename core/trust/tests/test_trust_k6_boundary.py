@@ -4,7 +4,7 @@ that are age ranges and were missed. Nothing here adds a score or date exception
 
 import pytest
 
-from core.trust.claims import _breach_term
+from core.trust.claims import _k6_term
 
 # (text, breach) as the checker at a80be1d returned it. Every row stays as it is.
 UNCHANGED = [
@@ -30,14 +30,14 @@ STILL_PASS = ["15-30s video", "18-24s response time", "18-24s", "the 18-24s resp
 
 @pytest.mark.parametrize(("text", "breach"), UNCHANGED)
 def test_the_current_result_is_unchanged(text, breach):
-    assert bool(_breach_term(text, set())) is breach, text
+    assert bool(_k6_term(text, set())) is breach, text
 
 
 @pytest.mark.parametrize("text", MISSED)
 def test_a_missed_age_range_now_breaches(text):
-    assert _breach_term(text, set()), text
+    assert _k6_term(text, set()), text
 
 
 @pytest.mark.parametrize("text", STILL_PASS)
 def test_a_duration_or_count_range_still_passes(text):
-    assert not _breach_term(text, set()), text
+    assert not _k6_term(text, set()), text

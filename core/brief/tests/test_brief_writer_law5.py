@@ -4,7 +4,7 @@ check will cut instead of finding out from a held card. Prompt text only: no che
 import re
 
 from core.brief.explain import WRITER_SYSTEM
-from core.trust.claims import _breach_term
+from core.trust.claims import _k6_term
 
 # The terms law 5 has to name, fixed here. Each must be one K6 really breaches on.
 NAMED = ["Gen Z", "millennials", "boomers", "teens", "youth", "kids", "children", "elderly", "pensioners",
@@ -28,4 +28,4 @@ def test_law_5_keeps_its_rule_and_names_the_banned_terms():
 
 def test_every_term_law_5_names_is_one_k6_breaches_on():
     for term in NAMED:
-        assert _breach_term(term, set()), term
+        assert _k6_term(term, set()), term

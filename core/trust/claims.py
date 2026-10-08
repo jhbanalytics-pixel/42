@@ -294,6 +294,15 @@ _BREACH_TERMS = [
         r"\bgoogle[\s_-]*trends?\b",
         r"\bsearch[\s-]volumes?\b",
         r"\bsearch\s+interest\b",
+    )
+]
+
+# Terms the brief's K6 check took on after a80be1d. Only _k6_term reads them. core/detect/seeds.py calls
+# _breach_term, which reads _BREACH_TERMS alone, so seed queries are filtered by the a80be1d list and nothing here
+# changes what a seed passes. test_trust_seeds_input.py pins both lists.
+_K6_ONLY_TERMS = [
+    re.compile(p, re.I)
+    for p in (
         # N13-T: an age range the bare-range pattern above misses. "aged between 18 and 24", and an N-Ns band only as a
         # group noun ("the 18-24s are watching"), never as a duration ("15-30s video", "18-24s response time").
         r"\bage[ds]?\s+(?:between|from)\s+\d{1,2}\s+(?:and|to)\s+\d{1,2}\b",
@@ -325,6 +334,7 @@ _BREACH_TERMS = [
         r"\belders?\b",
     )
 ]
+_K6_TERMS = _BREACH_TERMS + _K6_ONLY_TERMS
 
 
 def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
@@ -378,7 +388,7 @@ def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
     live_numbers = [e for c in survivors for e in c.get("numbers") or [] if _pinned(e)]
 
     def field_fault(text):
-        term = _breach_term(text, live_quotes)
+        term = _k6_term(text, live_quotes)
         if term:
             return "K6", "breach", f"banned term {term!r}"
         raw = _unmatched_numeral(text, live_quotes, live_numbers, spans)
@@ -410,7 +420,7 @@ def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
 
     kept = []
     for i, gap in enumerate(new.get("gaps") or []):
-        faults = [(k, _breach_term(gap.get(k) or "", live_quotes)) for k in ("what", "why")]
+        faults = [(k, _k6_term(gap.get(k) or "", live_quotes)) for k in ("what", "why")]
         faults = [(k, t) for k, t in faults if t]
         if faults:
             row(None, "K6", "breach", f"gaps[{i}].{faults[0][0]}: banned term {faults[0][1]!r}")
@@ -461,22 +471,22 @@ def _quoted(match):
     return _norm(next(g for g in match.groups() if g is not None))
 
 
-def _other_words(content):
-    for pattern in _BREACH_TERMS:
+def _other_words(content, terms=_BREACH_TERMS):
+    for pattern in terms:
         content = pattern.sub(" ", content)
     return len(content.split())
 
 
-def _strip_quotes(text, exempt, k6=False):
+def _strip_quotes(text, exempt, k6=False, terms=_BREACH_TERMS):
     """Remove quoted spans whose content equals one of the exempt verified quotes.
 
-    For K6 a span is removed only if it keeps 3 or more words once banned terms are taken out,
+    For K6 a span is removed only if it keeps 3 or more words once banned terms (from terms) are taken out,
     so a quote that is only the banned term is still read as prose.
     """
 
     def keep(m):
         content = _quoted(m)
-        if content in exempt and (not k6 or _other_words(content) >= 3):
+        if content in exempt and (not k6 or _other_words(content, terms) >= 3):
             return " "
         return m.group(0)
 
@@ -726,13 +736,23 @@ def _k3(claim, records, start, end, market):
     )
 
 
-def _breach_term(text, exempt):
-    text = _norm(_strip_quotes(text, exempt, k6=True))
-    for pattern in _BREACH_TERMS:
+def _first_term(text, exempt, terms):
+    text = _norm(_strip_quotes(text, exempt, k6=True, terms=terms))
+    for pattern in terms:
         m = pattern.search(text)
         if m:
             return m.group(0)
     return None
+
+
+def _breach_term(text, exempt):
+    """The a80be1d term list. core/detect/seeds.py calls this; keep its answers as they were."""
+    return _first_term(text, exempt, _BREACH_TERMS)
+
+
+def _k6_term(text, exempt):
+    """What the brief's K6 check reads: the a80be1d list and the terms added since."""
+    return _first_term(text, exempt, _K6_TERMS)
 
 
 def _k6(claim, records, verified):
@@ -747,7 +767,7 @@ def _k6(claim, records, verified):
     ]
     texts += [("basis", claim.get("basis")), ("falsifier", claim.get("falsifier"))]
     for field, text in texts:
-        term = _breach_term(text or "", verified)
+        term = _k6_term(text or "", verified)
         if term:
             return "breach", f"{field}: banned term {term!r}"
     return "pass", "no age, demographic, Google Trends or generated evidence"

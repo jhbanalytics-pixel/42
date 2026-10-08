@@ -8,7 +8,7 @@ shrinking what the test expects."""
 import pytest
 
 from core.agent.checks import _text_breaches
-from core.trust.claims import _breach_term
+from core.trust.claims import _k6_term
 
 AGE_WORDS = [
     "the babies are dancing", "grandma and grandpa joined", "gogo in the kitchen", "koko showed the step",
@@ -33,15 +33,15 @@ LOOK_ALIKES = [
 @pytest.mark.parametrize("text", AGE_WORDS)
 def test_both_lists_flag_the_age_word(text):
     assert _text_breaches(text), f"Ask checks miss {text!r}"
-    assert _breach_term(text, set()), f"brief K6 misses {text!r}"
+    assert _k6_term(text, set()), f"brief K6 misses {text!r}"
 
 
 @pytest.mark.parametrize("text", BRIEF_FIRST)
 def test_the_brief_flags_the_old_age_words(text):
-    assert _breach_term(text, set()), f"brief K6 misses {text!r}"
+    assert _k6_term(text, set()), f"brief K6 misses {text!r}"
 
 
 @pytest.mark.parametrize("text", LOOK_ALIKES)
 def test_neither_list_flags_the_look_alike(text):
     assert not _text_breaches(text), f"Ask checks flag {text!r}"
-    assert not _breach_term(text, set()), f"brief K6 flags {text!r}"
+    assert not _k6_term(text, set()), f"brief K6 flags {text!r}"
