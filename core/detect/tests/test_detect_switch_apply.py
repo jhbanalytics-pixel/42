@@ -69,6 +69,14 @@ def test_the_rates_are_recomputed_from_counts_and_never_read_from_the_file():
     assert written(result({"ZA|facebook|panel": lying}))[0] == []
 
 
+def test_a_keys_own_rate_is_recomputed_even_when_its_market_and_platform_rate_is_fine():
+    keys = {"ZA|facebook|panel": key(alarms=40, tested=100, false_alarm_rate=0.01),
+            "ZA|facebook|unbiased_counter": key(alarms=0, tested=1000)}
+    rows, refused = written(result(keys))
+    assert [r["lane_class"] for r in rows] == ["unbiased_counter"]
+    assert refused[0]["key"] == "ZA|facebook|panel" and "false-alarm rate 0.400" in refused[0]["reasons"][0]
+
+
 def test_a_file_that_says_a_key_stays_off_cannot_be_overridden_by_good_counts():
     rows, refused = written(result({"ZA|facebook|panel": key(switch=False, reasons=["held back by the run"])}))
     assert rows == [] and "run" in refused[0]["reasons"][0]
@@ -303,3 +311,16 @@ def test_run_without_apply_never_calls_the_writer(monkeypatch, tmp_path):
         con.close()
     assert seen == []
     assert isinstance(D, date)
+
+
+def test_run_with_a_truthy_apply_that_is_not_true_writes_nothing(tmp_path):
+    from .test_detect_backtest import BacktestClient, D, World, connect, duck, stable_panel
+    con = connect()
+    try:
+        stable_panel(World(), 30).load(con)
+        with pytest.raises(ValueError, match="apply"):
+            backtest.run(BacktestClient(con), D, apply="yes", days=7, out_dir=tmp_path, core="core", agent="agent")
+        assert duck.query(con, "SELECT * FROM {core}.test_switch") == []
+        assert duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'") == []
+    finally:
+        con.close()
