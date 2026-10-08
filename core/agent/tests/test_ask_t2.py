@@ -507,6 +507,40 @@ def test_a_gap_pass_claim_with_the_same_words_but_other_posts_is_a_new_claim_wit
     assert sum(call["schema"] is K4_REWRITE_SCHEMA for call in model.calls) <= 2 * K4_REWRITE_CALLS
 
 
+class RenamedGapModel(RedraftedGapModel):
+    """RedraftedGapModel whose gap pass writes c2 again, same words and same post, under a new id c9."""
+
+    def complete_json(self, *, system, user, schema, model, max_tokens):
+        redraft = schema is WRITER_SCHEMA and sum(call["schema"] is WRITER_SCHEMA for call in self.calls) >= 1
+        out, usage = super().complete_json(system=system, user=user, schema=schema, model=model, max_tokens=max_tokens)
+        if redraft:
+            out["claims"][0]["text"] = test_ask.WRITER_OUT["claims"][1]["text"]
+            out["claims"][0]["id"] = "c9"
+            for item in out["so_what"] + out["watch_next"]:
+                item["claim_ids"] = ["c9" if cid == "c2" else cid for cid in item["claim_ids"]]
+        return out, usage
+
+
+def test_a_gap_pass_claim_with_the_same_words_and_post_under_another_id_is_the_same_claim_and_is_not_narrowed_again():
+    # N36: the ledger is keyed by the claim's words and cited posts, not by its id. c2 redrafted as c9 is c2.
+    model = RenamedGapModel(("partial", "supported", "partial", "partial"))
+    h = Harness(research=Lanes(parties=4), check=None, model=model)
+    h.run(tier="T2")
+
+    assert sum(call["schema"] is WRITER_SCHEMA for call in model.calls) == 2
+    assert sum(call["schema"] is K4_REWRITE_SCHEMA for call in model.calls) == 1
+
+
+def test_the_claim_fingerprint_is_the_words_and_the_set_of_cited_posts_and_nothing_else():
+    base = {"id": "c2", "text": "People say amapiano is fading.", "label": "single_source", "evidence_ids": ["tt_4", "tt_2"]}
+    same = [{**base, "id": "c9"}, {**base, "label": "observed"}, {**base, "evidence_ids": ["tt_2", "tt_4"]},
+            {**base, "quotes": [{"evidence_id": "tt_2", "text": "x"}]}]
+    assert {ask._claim_fingerprint(claim) for claim in [base, *same]} == {ask._claim_fingerprint(base)}
+    other = [{**base, "text": "People say amapiano is rising."}, {**base, "evidence_ids": ["tt_4"]},
+             {**base, "evidence_ids": ["tt_4", "tt_2", "tt_3"]}]
+    assert len({ask._claim_fingerprint(claim) for claim in [base, *other]}) == 4
+
+
 def test_no_reserve_left_means_pending_claims_are_cut():
     model = CriticModel({"c3": {"verdict": "needs_evidence"}})
     lanes = Lanes(parties=4, overspend=100.0)  # four researchers spend past the whole tier

@@ -1583,7 +1583,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     stop_model = _StopAwareModel(deps.model, should_stop, model_budget, phase_seconds=phase_seconds)
     research_started = research_reported = False
     finished = None
-    rewrite_ledger: dict[str, str] = {}  # claim id -> the words and posts of the claim whose narrowing was attempted
+    rewrite_ledger: set[str] = set()  # the words and posts (fingerprint) of every claim whose narrowing was attempted
     headline_rewritten = False  # the one short answer rewrite an ask may make (writer.HEADLINE_REWRITE_CALLS)
     fallback_brief = None
     fallback_post_ids = []
@@ -1716,15 +1716,16 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         checked, verdicts = timed("checks", check, draft, ctx, deps.warehouse, window=window, markets=markets)
         if should_stop():
             raise _StopRequested()
-        # Each gate pass writes a fresh draft whose ids restart at c1, so an earlier attempt blocks a claim here only
-        # when this draft's claim has the same words and posts (writer.apply_support keeps one narrowing per claim).
+        # Each gate pass writes a fresh draft whose ids restart at c1, so a claim is known by its words and posts, not
+        # by its id: an earlier attempt blocks a claim here when this draft's claim has the same words and posts, under
+        # any id (writer.apply_support keeps one narrowing per claim).
         presented = {c["id"]: _claim_fingerprint(c) for c in checked.get("claims") or [] if isinstance(c.get("id"), str)}
-        rewrite_attempted = {cid for cid, seen in rewrite_ledger.items() if presented.get(cid) == seen}
+        rewrite_attempted = {cid for cid, seen in presented.items() if seen in rewrite_ledger}
         answer, support, usage = timed("checks", apply_support, stop_model, checked, ctx, model_name,
                                                warehouse=deps.warehouse,
                                                window=window, markets=markets,
                                                rewrite_attempted=rewrite_attempted)
-        rewrite_ledger.update({cid: presented[cid] for cid in rewrite_attempted if cid in presented})
+        rewrite_ledger.update(presented[cid] for cid in rewrite_attempted if cid in presented)
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
             raise _StopRequested()
