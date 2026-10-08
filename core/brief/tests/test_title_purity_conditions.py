@@ -69,3 +69,41 @@ def test_the_title_request_carries_the_final_pack_hash_and_the_receipt_matches(m
     assert f"Final pack hash: {expected}." in title_call["user"]
     assert result["title_majority"]["decision"] == "pass"
     assert result["title_majority"]["final_pack_hash"] == expected
+
+
+def test_the_majority_is_measured_against_the_full_membership_not_the_shown_records(monkeypatch):
+    snapshot, pack = cases.reader(monkeypatch, n=25)
+    assert snapshot["N"] == 25 and len(snapshot["records"]) == title_purity.SOURCE_LIMIT == 12
+    pack["title_snapshot"] = snapshot
+    result = run(cases.MemberModel(), pack=pack, candidate=cases.ROW)
+    audit = result["title_majority"]
+    assert audit["N"] == 25 and audit["S"] == 12 and audit["U"] == 13
+    assert len(audit["member_receipts"]) == 12 and all(r["validated_support"] for r in audit["member_receipts"])
+    assert audit["decision"] == "unknown"
+    assert result["title_written"] is None and result["reason"] is None
+
+
+@pytest.mark.parametrize("quote", [" ", "   ", "\t"])
+def test_a_whitespace_quote_found_in_its_source_is_still_not_support(monkeypatch, quote):
+    target = "p000"
+
+    def mutate(plan, written, contents):
+        next(x for x in contents if x["post_id"] == target)["quote_text"] = "gap   in\tthe text"
+
+    snapshot, pack = cases.reader(monkeypatch, n=6, mutate=mutate)
+    source = next(r for r in snapshot["records"] if r["post_id"] == target)
+    assert quote in source["text"], "the quote must be present so only the strip guard can refuse it"
+    pack["title_snapshot"] = snapshot
+
+    def change(out):
+        for check in out["member_checks"]:
+            if check["post_id"] == target:
+                check["quote"] = quote
+            else:
+                check["verdict"] = "unsupported"
+    result = run(cases.MemberModel(change), pack=pack, candidate=cases.ROW)
+    audit = result["title_majority"]
+    assert result["title_written"] is None and result["reason"] is None
+    assert audit["N"] == 6 and audit["S"] == 0 and audit["decision"] != "pass"
+    receipt = next(r for r in audit["member_receipts"] if r["post_id"] == target)
+    assert receipt["verdict"] == "supported" and not receipt["validated_support"] and receipt["quote_span"] is None
