@@ -705,6 +705,9 @@ test('Freeze is explained in plain words beside the button and described to a sc
   const words = plain(note.textContent);
   expect(words).toContain('Freezing saves this version as final');
   expect(words).toContain('no longer be edited');
+  expect(words).toContain('the saved version never changes');
+  expect(words).toContain('only a frozen version can be exported');
+  expect(words).not.toContain('reads the same thing');
   expect(words).toContain('exported as HTML or PDF');
   expect(words).toContain('cannot be undone');
   expect(words).toContain('Edit again');

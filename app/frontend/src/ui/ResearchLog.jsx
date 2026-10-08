@@ -85,13 +85,14 @@ export function collapseSteps(steps){
 }
 
 /* What the research has read so far, from the steps and the posts gathered. */
-function tally(steps, evidence, claims){
+function tally(steps, evidence, claims, market){
   let posts = 0;
   const platforms = new Set();
   for (const step of steps){
     if (!step) continue;
     if ((step.kind === 'found' || step.kind === 'search') && typeof step.count === 'number' && step.count > 0) posts += step.count;
-    if (step.platform) platforms.add(platformLabel(step.platform) || String(step.platform));
+    /* For a single-market question a platform is read once a step found posts on it. */
+    if (step.platform && (!market || (typeof step.count === 'number' && step.count > 0))) platforms.add(platformLabel(step.platform) || String(step.platform));
   }
   for (const record of evidence){
     if (record && record.platform) platforms.add(platformLabel(record.platform) || String(record.platform));
@@ -129,13 +130,13 @@ function StepRows({rows}){
   ));
 }
 
-export function ResearchLog({steps, running, evidence, claims, action, market, children}){
+export function ResearchLog({steps, running, evidence, claims, action, market, clock: showClock = true, children}){
   const list = Array.isArray(steps) ? steps : [];
   const rows = collapseSteps(list);
   if (running){
     const found = (Array.isArray(evidence) ? evidence : []).filter((record) => inMarket(record, market));
     const checking = Array.isArray(claims) ? claims : [];
-    const counts = tally(list, found, checking);
+    const counts = tally(list, found, checking, market);
     const current = rows[rows.length - 1];
     const earlier = rows.slice(0, -1);
     return (
@@ -146,7 +147,7 @@ export function ResearchLog({steps, running, evidence, claims, action, market, c
             <div className="ask42-scan-head">
               <span className="ask42-scan-beacon" aria-hidden="true" />
               <h3 className="ask42-scan-title" id="ask42-log-title">Researching</h3>
-              <Elapsed />
+              {showClock && <Elapsed />}
               {action && <div className="ask42-scan-actions">{action}</div>}
             </div>
             {/* Which step is under way, with a row of cells lighting in turn

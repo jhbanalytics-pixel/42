@@ -2065,7 +2065,8 @@ async function runningWith(markets, mkt){
   await askByTyping('What is the conversation around HIV this week');
   const stream = server.stream(record.ask_id);
   markets.forEach((market, index) => stream.push(frame(index + 1, 'evidence', {seq: index + 1, evidence: evidenceIn('p' + index, market)})));
-  await until(() => text().includes('Posts gathered so far'), 'the gathered posts');
+  if (markets.length) await until(() => text().includes('Posts gathered so far'), 'the gathered posts');
+  else await until(() => host.querySelector('[data-ask-progress]'), 'the running view');
   return {stream, record};
 }
 
@@ -2132,4 +2133,116 @@ test('a header change while a question runs is used by the next follow-up, not t
   const posted = calls.filter((call) => call.path === '/api/ask')[1].body;
   expect(posted.parent_id).toBe(first.ask_id);
   expect(posted.market).toBe('KE');
+});
+
+/* Review of wave8/ask-market, M1: the page counts posts by the market the
+   server resolved, which it sends on the first plan step, and by the market it
+   sent only until that step arrives. */
+const planStep = (seq, market) => ({seq, kind: 'plan', text: 'Reading the question: somewhere, 1 to 7 October, tier T1', platform: null, count: null, market});
+
+test('a question the server resolved to Kenya counts Kenya posts although the page sent no market', async () => {
+  const {stream} = await runningWith([], '');
+  stream.push(frame(1, 'step', planStep(1, 'KE')));
+  ['KE', 'NG', 'NG', 'ZA'].forEach((market, index) => stream.push(frame(index + 2, 'evidence', {seq: index + 2, evidence: evidenceIn('r' + index, market)})));
+  await until(() => text().includes('Posts gathered so far'), 'the gathered posts');
+  expect(text()).toContain('Posts gathered so far · 1');
+  expect(plain(tile('Posts found').querySelector('dd').textContent)).toBe('1');
+  expect(plain(host.querySelector('[data-gathered-other-markets]').textContent)).toContain('· 3');
+});
+
+test('a plan step that names no single market counts every post, whatever the page sent', async () => {
+  const {stream} = await runningWith([], 'ZA');
+  stream.push(frame(1, 'step', planStep(1, null)));
+  ['KE', 'NG', 'ZA'].forEach((market, index) => stream.push(frame(index + 2, 'evidence', {seq: index + 2, evidence: evidenceIn('s' + index, market)})));
+  await until(() => text().includes('Posts gathered so far · 3'), 'every post counted');
+  expect(host.querySelector('[data-gathered-other-markets]')).toBeNull();
+});
+
+test('before the plan step arrives the page counts by the market it sent', async () => {
+  await runningWith(['ZA', 'KE'], 'ZA');
+  expect(text()).toContain('Posts gathered so far · 1');
+  expect(host.querySelector('[data-gathered-other-markets]')).not.toBeNull();
+});
+
+test('the server market wins over the one the page sent, as for an ask opened from a spike card', async () => {
+  const record = clone(completeRecord);
+  const server = serve([record]);
+  await render({query: {q: 'Why did this jump?', item: 'item_amapiano_braai', date: '2026-09-24', market: 'ZA'}});
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the card ask');
+  const stream = server.stream(record.ask_id);
+  stream.push(frame(1, 'step', planStep(1, 'NG')));
+  ['NG', 'NG', 'ZA'].forEach((market, index) => stream.push(frame(index + 2, 'evidence', {seq: index + 2, evidence: evidenceIn('c' + index, market)})));
+  await until(() => text().includes('Posts gathered so far'), 'the gathered posts');
+  expect(text()).toContain('Posts gathered so far · 2');
+  expect(plain(host.querySelector('[data-gathered-other-markets]').textContent)).toContain('· 1');
+});
+
+test('a watched ask whose record has no market counts by the market in its stored plan step', async () => {
+  const record = clone(completeRecord);
+  const server = serve([record]);
+  const served = globalThis.fetch;
+  let reads = 0;
+  const running = {...clone(completeRecord), market: null, status: 'running', answer: null, finished_at: null, steps: [planStep(1, 'NG')]};
+  const firstRunning = async (url, init = {}) => {
+    const method = String(init.method || 'GET').toUpperCase();
+    if (method === 'GET' && String(url) === `/api/ask/${record.ask_id}` && reads++ === 0){
+      calls.push({path: String(url), method, headers: init.headers || {}, body: null});
+      return json(200, running);
+    }
+    return served(url, init);
+  };
+  globalThis.fetch = firstRunning;
+  window.fetch = firstRunning;
+  await render({query: {follow: record.ask_id}});
+  await until(() => calls.some((call) => call.path === `/api/ask/${record.ask_id}/events`), 'the stream to open');
+  const stream = server.stream(record.ask_id);
+  ['NG', 'KE', 'NG'].forEach((market, index) => stream.push(frame(index + 2, 'evidence', {seq: index + 2, evidence: evidenceIn('w' + index, market)})));
+  await until(() => text().includes('Posts gathered so far'), 'the gathered posts');
+  expect(text()).toContain('Posts gathered so far · 2');
+  expect(plain(host.querySelector('[data-gathered-other-markets]').textContent)).toContain('· 1');
+  expect(plain(host.querySelector('[data-ask-progress]').textContent)).toContain('watching for');
+});
+
+test('a post with no market counts for the asked market', async () => {
+  await runningWith(['ZA', null], 'ZA');
+  expect(text()).toContain('Posts gathered so far · 2');
+  expect(host.querySelector('[data-gathered-other-markets]')).toBeNull();
+});
+
+/* M5: a platform whose search found nothing for this market is not read. */
+test('a platform searched without finding any post for the market is not counted as read', async () => {
+  const {stream} = await runningWith(['ZA'], 'ZA');
+  stream.push(frame(10, 'step', {seq: 10, kind: 'search', text: 'Reading YouTube posts, 0 found', platform: 'youtube', count: 0}));
+  stream.push(frame(11, 'step', {seq: 11, kind: 'search', text: 'Reading X posts, 7 found', platform: 'x', count: 7}));
+  await until(() => text().includes('Reading X posts'), 'the steps');
+  expect(plain(tile('Platforms read').querySelector('dd').textContent)).toBe('2');
+});
+
+/* M8: one clock while a question runs. */
+test('a running Ask shows one clock, in words with its phase', async () => {
+  await runningWith([], 'ZA');
+  expect(host.querySelector('.ask42-scan-clock')).toBeNull();
+  expect(host.querySelectorAll('[data-ask-progress]').length).toBe(1);
+});
+
+/* M3: the header round trip. App sends the region back down after setRegion,
+   which the other tests stub out. */
+test('opening an answer passes its market up and back down without holding it against a country the next question names', async () => {
+  const first = {...clone(completeRecord), market: 'NG'};
+  const second = {...clone(completeRecord), ask_id: 'a_20261006_a8a8a8a8', parent_id: first.ask_id, question: 'x', market: 'KE'};
+  const server = serve([first, second]);
+  const regions = [];
+  function App(){
+    const [region, setRegion] = React.useState('ZA');
+    return <AskPage region={region} setRegion={(value) => { regions.push(value); setRegion(value); }} query={{follow: first.ask_id}} />;
+  }
+  await act(async () => root.render(<App />));
+  await finish(server, first);
+  await until(() => text().includes('What we do not know'), 'the reopened answer');
+  expect(regions).toContain('NG');
+  await act(async () => { button('Ask a follow-up').click(); });
+  await act(async () => { typeInto(host.querySelector('textarea'), 'What is the conversation around HIV in Kenya'); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the follow-up ask');
+  expect(calls.find((call) => call.path === '/api/ask').body.market).toBe('KE');
 });

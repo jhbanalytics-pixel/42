@@ -675,9 +675,17 @@ function ProgressLine({steps, startedAt, watching}){
   );
 }
 
+/* The market the posts are counted by: the one the server resolved, sent on
+   its first plan step (null there means no single market), and the one the page
+   sent only until that step arrives. */
+export function countedMarket(run){
+  const planned = (run.steps || []).find((step) => step && Object.hasOwn(step, 'market'));
+  return planned ? marketCode(planned.market) : marketCode(run.request && run.request.mkt);
+}
+
 function Running({run, onStop}){
   const question = run.request ? run.request.text : '';
-  const market = (run.request && run.request.mkt) || '';
+  const market = countedMarket(run);
   const counted = run.evidence.filter((record) => inMarket(record, market));
   const elsewhere = run.evidence.filter((record) => !inMarket(record, market));
   const gathered = counted.slice(0, GATHERED_LIMIT);
@@ -687,7 +695,7 @@ function Running({run, onStop}){
     <div className="ask42-running">
       <h2 className="ask42-question">{question}</h2>
       <ProgressLine key={run.startedAt || 0} steps={run.steps} startedAt={run.startedAt} watching={Boolean(run.request && run.request.extra && run.request.extra.follow)} />
-      <ResearchLog steps={run.steps} running evidence={run.evidence} claims={run.claims} market={market} action={stopButton}>
+      <ResearchLog steps={run.steps} running evidence={run.evidence} claims={run.claims} market={market} clock={false} action={stopButton}>
         {run.evidence.length > 0 && (
           <div className="ask42-scan-block">
             <h4 className="ask42-scan-log-title">{'Posts gathered so far · ' + counted.length}</h4>

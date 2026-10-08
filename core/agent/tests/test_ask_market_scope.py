@@ -101,3 +101,53 @@ def test_no_found_step_is_sent_when_every_fresh_post_is_from_another_market():
 def test_an_ask_with_no_single_market_gets_a_found_step_for_every_fresh_post():
     steps, _ = _found_steps(None, ["ZA", "KE", "NG"])
     assert [(s["count"], s["text"]) for s in steps] == [(3, "3 posts found on X")]
+
+
+# The market the server counts by is sent on the first plan step, so the page counts by the same market (review M1).
+
+
+def _plan_market(**request):
+    harness = Harness(research=make_research(live=False))
+    harness.run(**request)
+    plans = [e for e in harness.events if e.get("event") == "step" and e.get("kind") == "plan"]
+    assert plans, "no plan step was sent"
+    return plans[0]
+
+
+def test_the_first_plan_step_carries_the_market_the_server_resolved_from_the_question():
+    step = _plan_market(question="What is the conversation around HIV in Kenya this week", market=None)
+    assert step["text"].startswith("Reading the question")
+    assert "market" in step and step["market"] == "KE"
+
+
+def test_an_explicit_market_is_what_the_plan_step_carries_even_when_the_question_names_another():
+    step = _plan_market(question="What is the conversation around HIV in Kenya this week", market="ZA")
+    assert step["market"] == "ZA"
+
+
+def test_a_question_naming_no_market_sends_the_key_with_no_market():
+    step = _plan_market(question="What is the conversation around HIV this week", market=None)
+    assert "market" in step and step["market"] is None
+
+
+def test_a_question_naming_two_markets_sends_no_single_market():
+    step = _plan_market(question="HIV in Kenya compared with Nigeria this week", market=None)
+    assert "market" in step and step["market"] is None
+
+
+def test_a_spike_ask_sends_the_market_of_its_spike():
+    from core.agent.tests.test_ask_skills import L4_SPIKE
+    step = _plan_market(**{**L4_SPIKE, "market": None, "spike": {**L4_SPIKE["spike"], "market": "NG"},
+                           "from_card": {**L4_SPIKE["from_card"], "market": "NG"}})
+    assert step["market"] == "NG"
+
+
+def test_a_post_with_no_market_counts_as_read_for_the_asked_market():
+    def research(ctx, prompt, options, emit, should_stop):
+        out = make_research(live=False)(ctx, prompt, options, emit, should_stop)
+        ctx.evidence["unlocated"] = dict(ctx.evidence["x_1"], id="unlocated", market=None, flags=[])
+        return out
+
+    in_market = Harness(research=make_research(live=False)).run(question=QUESTION, market="ZA")
+    with_unlocated = Harness(research=research).run(question=QUESTION, market="ZA")
+    assert with_unlocated["run"]["posts"] == in_market["run"]["posts"] + 1

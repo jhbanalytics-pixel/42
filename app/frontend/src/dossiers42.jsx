@@ -539,7 +539,7 @@ export function DossierPage({dossierId, onAuth}){
                 appended and never changed, only a frozen version exports or
                 opens by share link, and there is no way to unfreeze it. Edit
                 again starts a new draft and leaves the frozen one as it is. */}
-            <p className="dossiers42-muted dossiers42-freeze-explain" id="dossiers42-freeze-explain">Freezing saves this version as final. It can no longer be edited, so everyone who opens it reads the same thing, and only a frozen version can be exported as HTML or PDF or shared by link. Freezing cannot be undone. To change it later, use Edit again, which starts a new draft and leaves the frozen version as it is.</p>
+            <p className="dossiers42-muted dossiers42-freeze-explain" id="dossiers42-freeze-explain">Freezing saves this version as final. It can no longer be edited, so the saved version never changes, and only a frozen version can be exported as HTML or PDF or shared by link. Freezing cannot be undone. To change it later, use Edit again, which starts a new draft and leaves the frozen version as it is.</p>
           </div>
           {problem && (
             <div className="dossiers42-error" role="alert">

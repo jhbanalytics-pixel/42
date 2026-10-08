@@ -1804,7 +1804,9 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         return None if research["stopped"] or should_stop() else research["note"]
 
     try:
-        progress.step("plan", f"Reading the question: {progress.market_label}, {window_text(window)}, tier {tier}")
+        # market is the one the counts use (ctx.market), so the page counts posts by the same market; null is no single market.
+        progress.step("plan", f"Reading the question: {progress.market_label}, {window_text(window)}, tier {tier}",
+                      market=ctx.market)
         stopped = should_stop()
         note = ""
         if not stopped and skill == skills.DEFAULT and len(markets) == 1 and _current_trending_intent(question):
