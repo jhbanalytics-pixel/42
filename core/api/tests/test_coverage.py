@@ -98,6 +98,7 @@ def test_coverage_series_per_market(fx):
     (1, 0, 0, "calls", "could not be read"),
     (1, 1, 0, "items", "post count far from usual"),
     (1, 1, 0, "effort", "too few accounts checked"),
+    (4, 4, 0, "zero_yield", "answered but returned no posts or counts"),
 ])
 def test_coverage_invalid_words_distinguish_no_attempt_from_failure(calls, calls_ok, items, reason, words):
     row = {"market": "ZA", "platform": "x", "series": "panel_x_hub", "calls": calls, "calls_ok": calls_ok,

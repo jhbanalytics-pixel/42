@@ -229,3 +229,14 @@ def test_a_calls_failure_that_names_its_class_reads_as_a_failed_or_unmade_call()
     reddit = source(out, "ZA", "list_reddit")
     assert reddit["status"] == "failed"
     assert reddit["status_words"] == "Failed: could not be read; no calls were made"
+
+
+def test_a_source_that_answered_but_landed_nothing_says_so_not_not_usable():
+    """W8-DEC-11: a paid route whose calls succeed on two days and land no posts or counts is recorded invalid with
+    reason zero_yield. The source did answer, so the page says what happened."""
+    rows = [{"day": D30, "market": "ZA", "platform": "tiktok", "series": "feed_tiktok", "calls": 4, "calls_ok": 4,
+             "items": 0, "valid": False, "invalid_reason": "zero_yield", "located_share": None, "run_id": "r1"}]
+    out = fieldwork.build_fieldwork(Patched(collection_health=lambda d: rows), D30, now=NOW)
+    feed = source(out, "ZA", "feed_tiktok")
+    assert feed["status"] == "failed"
+    assert feed["status_words"] == "Failed: answered but returned no posts or counts"
