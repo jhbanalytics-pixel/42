@@ -29,6 +29,7 @@ KIN_WORDS = [
     "Koko showed the step", "Gogo queued for her grant", "Babu and Bibi queued for grants",
     "Gogo and Mkhulu queued for grants", "Babu Owino spoke and the gogos queued", "Babu becomes governor",
     "babu owino said", "Bibi says no to ceasefire", "Mkhulus queued", "the Makhulus queued",
+    "BABU Owino said", "babu Owino said", "Gogos Club members queued for grants", "Babu Bibi Owino spoke",
 ]
 
 
