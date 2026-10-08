@@ -3679,3 +3679,31 @@ def test_receipt_rows_with_nan_or_infinity_still_give_strict_json_for_the_runs_r
     text = agent_app.with_receipts({"record": "{}"}, {"ask_id": "a"}, receipts, "a")
     stored = json.loads(text, parse_constant=lambda c: (_ for _ in ()).throw(ValueError(c)))
     assert stored["query_receipts"]["q_1"]["rows"] == [{"share": None, "lift": None, "drop": None, "n": 3}]
+
+
+# F2b: ask_record named no partition, so every read of an Ask scanned the whole runs table (RCU0013).
+def test_bigquery_ask_record_reads_only_the_partitions_around_the_ask_id_date():
+    from core.api import store
+
+    class Job:
+        def result(self):
+            return []
+
+    class Client:
+        calls = []
+
+        def query(self, sql, job_config=None):
+            self.calls.append((sql, {p.name: p.value for p in job_config.query_parameters}))
+            return Job()
+
+    client = Client()
+    bq = store.BigQueryStore(project="p", client=client)
+    assert bq.ask_record("a_20261008_b1d10398") is None
+    sql, params = client.calls[-1]
+    assert "r.run_date BETWEEN @lo AND @hi" in sql
+    assert params["lo"].isoformat() == "2026-10-07" and params["hi"].isoformat() == "2026-10-09"
+    assert params["ask_id"] == "a_20261008_b1d10398"
+    # An id that does not carry a date is still read, whole table as before.
+    assert bq.ask_record("a_x") is None
+    sql, params = client.calls[-1]
+    assert "run_date" not in sql and set(params) == {"ask_id"}

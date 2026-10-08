@@ -23,6 +23,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
 from core.api import auth
@@ -55,6 +56,8 @@ def _web_dist() -> Path:
 
 
 app = FastAPI(title="f42-api", docs_url=None, redoc_url=None, openapi_url=None)
+# Radar was 2.1 MB and Discover 308 KB uncompressed (F2b). Event streams are never compressed by this middleware.
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 
 
 # Errors: {"error": code, "message": plain words} everywhere (contract section 1).

@@ -19,6 +19,7 @@ from pathlib import Path
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 MAX_BYTES = 2_000_000_000
+_ASK_DAY = re.compile(r"a_(\d{8})_")
 GATE_DAYS = 14  # brief dates item_gate reads; a market's latest brief decides its holds, so older ones add nothing
 log = logging.getLogger("f42.api.store")
 MARKET_TZ = {"ZA": dt.timezone(dt.timedelta(hours=2)), "NG": dt.timezone(dt.timedelta(hours=1)),
@@ -883,11 +884,23 @@ or None."""
         return rows[0]["d"] if rows else None
 
     def ask_record(self, ask_id):
+        # An ask id is a_YYYYMMDD_xxxxxxxx with the market's day, and its runs row is dated by the SAST day of its
+        # start: at most a day apart, so those partitions are the only ones read. Any other id reads them all.
+        m = _ASK_DAY.match(ask_id) if isinstance(ask_id, str) else None
+        try:
+            day = dt.datetime.strptime(m[1], "%Y%m%d").date() if m else None
+        except ValueError:
+            day = None
+        window = {}
+        if day:
+            window = {"lo": ("DATE", (day - dt.timedelta(days=1)).isoformat()),
+                      "hi": ("DATE", (day + dt.timedelta(days=1)).isoformat())}
         rows = self._query(
             f"SELECT r.record FROM {self._t('intelligence_42_agent.runs')} r "
             "WHERE r.stage = 'ask' AND JSON_VALUE(r.record, '$.ask_id') = @ask_id "
-            "ORDER BY r.finished_at DESC LIMIT 1",
-            ask_id=("STRING", ask_id))
+            + ("AND r.run_date BETWEEN @lo AND @hi " if day else "")
+            + "ORDER BY r.finished_at DESC LIMIT 1",
+            ask_id=("STRING", ask_id), **window)
         return viewer_record(rows[0]["record"]) if rows else None
 
     def health(self):

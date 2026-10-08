@@ -1252,3 +1252,39 @@ def test_health_cache_keeps_time_and_auth_fresh(ctx, monkeypatch):
     monkeypatch.setenv("F42_VERSION", "def456")
     second = ctx.client.get("/api/health").json()
     assert first["version"] == "abc123" and second["version"] == "def456"
+
+
+# F2b: Radar was 2.1 MB and Discover 308 KB, both sent uncompressed.
+
+@pytest.fixture
+def big_routes():
+    from fastapi.responses import PlainTextResponse
+
+    @api_mod.app.get("/__big_json")
+    def big_json():
+        return {"rows": [{"hash": "sha256:" + "ab" * 32, "n": n} for n in range(400)]}
+
+    @api_mod.app.get("/__big_stream")
+    def big_stream():
+        return PlainTextResponse("data: " + "x" * 5000 + "\n\n", media_type="text/event-stream")
+
+    paths = {"/__big_json", "/__big_stream"}
+    routes = api_mod.app.router.routes
+    added = [r for r in routes if getattr(r, "path", None) in paths]
+    routes[:] = added + [r for r in routes if r not in added]  # ahead of the app-shell catch-all
+    yield
+    api_mod.app.router.routes[:] = [r for r in api_mod.app.router.routes if getattr(r, "path", None) not in paths]
+
+
+def test_large_json_is_gzipped_for_a_client_that_accepts_it(ctx, big_routes):
+    plain = ctx.client.get("/__big_json", headers={"Accept-Encoding": "identity"})
+    zipped = ctx.client.get("/__big_json", headers={"Accept-Encoding": "gzip"})
+    assert plain.headers.get("content-encoding") is None
+    assert zipped.headers.get("content-encoding") == "gzip"
+    assert zipped.json() == plain.json()
+    assert int(zipped.headers["content-length"]) < len(plain.content) / 3
+
+
+def test_an_event_stream_is_never_gzipped(ctx, big_routes):
+    r = ctx.client.get("/__big_stream", headers={"Accept-Encoding": "gzip"})
+    assert r.headers.get("content-encoding") is None
