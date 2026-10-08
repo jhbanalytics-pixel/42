@@ -7,8 +7,8 @@ on. Then the critic (TRUST.md section 3 step 7) names the simplest non-cultural 
 evidence rules it out; while it stands, no cultural reading is shown. With second_draft (the morning brief job), a
 draft the critic cuts on its why-now alone, with the simpler explanation ruled out or a news or scheduled event passed
 on local reaction, gets one more writer draft with the critic's reason, and that draft goes through every check again
-in full, as a repaired draft does, with no further repair round (TRUST.md section 3 step 8; Albert, 4 Oct). Anything that fails gives numbers
-and posts only (G10), with the reason.
+in full, as a repaired draft does, with no further repair round (TRUST.md section 3 step 8; Albert, 4 Oct). Anything that fails comes back
+numbers_only with the reason (G10), and the brief job holds that item in held_back with the reason shown (W8-DEC-02).
 
 The writer is offered only posts K3 lets it cite: a post located in another market is listed as citable false without
 its text, even when it was found in this market's feeds, and a repair names any such post a draft still cites. Each
