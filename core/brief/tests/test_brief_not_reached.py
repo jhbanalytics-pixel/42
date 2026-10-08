@@ -63,3 +63,38 @@ def test_an_item_a_busy_model_never_started_keeps_the_generic_wording_and_its_bu
     assert {i["failed_reason"] for i in items} <= {MODEL_BUSY, MODEL_REFUSED}
     assert {i["failed_reason"] for i in items}  # at least one busy wording is shown
     assert {i["reason"] for i in items} == {"explanation_failed"} and {i["rule"] for i in items} == {"G10"}
+
+
+# Held items carry the explanation's own status, so a reader can word a hold truthfully: failed_checks (it ran and
+# failed), or not_run (it never ran). A busy model's not_run items also carry the fixed busy wording as failed_reason.
+def test_held_items_carry_the_explanation_status_failed_checks():
+    held = held_items(brief(world(n=1), model=FakeModel(ruled_out=False)), "ZA")["za1"]
+    assert held["explanation_status"] == "failed_checks"
+    assert held["reason_text"] == FAILED and held["failed_reason"] is not None
+
+
+def test_held_items_the_run_never_reached_carry_the_status_not_run():
+    model = FakeModel()
+    r = brief(world(n=3), model=model, workers=1,
+              clock=lambda: LATE if any(c.get("critic") for c in model.calls) else EARLY)
+    held = held_items(r, "ZA")
+    assert set(held) == {"za2", "za3"}
+    for item in held.values():
+        assert item["explanation_status"] == "not_run" and item["failed_reason"] is None
+        assert item["reason_text"] == NOT_REACHED_TEXT
+
+
+def test_held_items_a_busy_model_left_carry_the_status_not_run_and_the_busy_wording():
+    r = brief(world(n=4), model=RateLimited(rate_limit_errors()[0]))
+    items = [i for m in ("ZA", "NG", "KE") for i in held_items(r, m).values()]
+    assert len(items) == 12
+    assert {i["explanation_status"] for i in items} == {"not_run"}
+    assert {i["failed_reason"] for i in items} <= {MODEL_BUSY, MODEL_REFUSED}
+
+
+def test_a_held_item_with_no_explanation_status_reads_not_run():
+    from core.brief.payload import _held_item
+
+    c = {"item_id": "x", "title": "t", "decision": {"publish": False, "where": "held_back", "rule": "G1",
+                                                    "reason": "Data issue"}, "evidence": [], "numbers": []}
+    assert _held_item(c)["explanation_status"] == "not_run"

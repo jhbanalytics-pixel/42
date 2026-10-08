@@ -220,6 +220,9 @@ def _held_item(c):
         "numbers": numbers, "count_line": _count_line(numbers),
         # The job's fixed wording for the check that held the explanation back, as on cards.
         "failed_reason": _failed_reason(c, c.get("explanation_status")),
+        # failed_checks when the explanation ran and failed its checks; not_run when it never ran (a busy model's items
+        # also carry its fixed wording as failed_reason). An item held on other grounds reads not_run.
+        "explanation_status": c.get("explanation_status") or "not_run",
     }
     # Items merged into this one before it was held (core/brief/job.py _merge) stay listed, as on a card, so rule 5
     # holds for them too. The key is left out when nothing was merged, so every other held item keeps its shape.
