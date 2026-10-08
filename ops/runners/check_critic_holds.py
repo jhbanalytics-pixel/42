@@ -1,8 +1,9 @@
 """Read-only check of why the brief's critic held items. Runs from anywhere (no repo imports):
-    py -3.13 check_critic_holds.py 2026-10-02 [brief_run_id]
+    py -3.13 check_critic_holds.py YYYY-MM-DD [brief_run_id]
 Needs google-cloud-bigquery and gcloud ADC on this PC. SELECT only, each query capped at 1 GB billed.
 
-Without a run id it reads the latest brief run of the day. Per market per item (cards and held back) it prints the
+The date is required. Without a run id it reads the latest brief run of the day (the latest published, then the
+highest run id). A read that fails stops the report or shows ? for its part; it is never printed as an empty result. Per market per item (cards and held back) it prints the
 status, the hold reason, the critic's verdict as claim_checks.reason records it, and the pack the critic saw: the
 posts, where they are located, their flags, how many were seen only by the confirm search, how many have an
 enrichment row (the only source of the sponsored flag) and how many carry a vendor sponsored label (never read by
@@ -34,7 +35,7 @@ NOT_RULED_OUT = "Critic: a simpler explanation was not ruled out"
 LWN_ONLY = "Critic: local why-now not shown"
 NO_LWN = "; local why-now not shown"
 
-c = bigquery.Client(project=P)
+c = None
 
 
 def q(sql, params, label):
@@ -77,16 +78,30 @@ def critic_line(prefix, reason):
             f" | named text, news_driven, scheduled_event, local_reaction, reason: not stored")
 
 
-d = dt.date.fromisoformat(sys.argv[1] if len(sys.argv) > 1 else "2026-10-02")
+USAGE = "usage: py -3.13 check_critic_holds.py YYYY-MM-DD [brief_run_id]"
+try:
+    d = dt.date.fromisoformat(sys.argv[1])
+except (IndexError, ValueError):
+    sys.exit(USAGE)
+c = bigquery.Client(project=P)
 D = [bigquery.ScalarQueryParameter("d", "DATE", d)]
 
+# One status per run: the run's newest non-duplicate row, a finished row before an unfinished one at the same time.
 runs = q(f"""
-SELECT b.run_id, MIN(b.published_at) published_at, STRING_AGG(CONCAT(b.market, ' ', b.status), ', '
-         ORDER BY b.market) markets, ANY_VALUE(r.status) run_status
+SELECT b.run_id, MIN(b.published_at) published_at,
+  STRING_AGG(DISTINCT CONCAT(b.market, ' ', b.status), ', ' ORDER BY CONCAT(b.market, ' ', b.status)) markets,
+  MIN(r.status) run_status
 FROM {AGENT}.briefs b
-LEFT JOIN {AGENT}.runs r ON r.run_id = b.run_id AND r.run_date = @d AND r.stage = 'brief'
+LEFT JOIN (
+  SELECT run_id, status FROM {AGENT}.runs
+  WHERE run_date = @d AND stage = 'brief' AND status != 'skipped_duplicate'
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY run_id
+    ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC, status) = 1) r
+  ON r.run_id = b.run_id
 WHERE b.brief_date = @d
-GROUP BY b.run_id ORDER BY published_at""", D, "briefs runs") or []
+GROUP BY b.run_id ORDER BY published_at, b.run_id""", D, "briefs runs")
+if runs is None:
+    sys.exit(f"brief runs read failed for {d}; nothing to report")
 print(f"== brief runs for {d}")
 for r in runs:
     print(f"  {r.run_id}  published {r.published_at:%H:%M:%S} UTC  run {r.run_status}  {r.markets}")
@@ -96,15 +111,21 @@ rid = sys.argv[2] if len(sys.argv) > 2 else runs[-1].run_id
 print(f"== reading run {rid}")
 R = D + [bigquery.ScalarQueryParameter("rid", "STRING", rid)]
 
-payloads = {r.market: json.loads(r.p) for r in q(f"""
+payload_rows = q(f"""
 SELECT market, TO_JSON_STRING(payload) p FROM {AGENT}.briefs
-WHERE brief_date = @d AND run_id = @rid""", R, "briefs payload") or []}
+WHERE brief_date = @d AND run_id = @rid""", R, "briefs payload")
+if payload_rows is None:
+    sys.exit(f"briefs payload read failed for run {rid}; nothing to report")
+payloads = {r.market: json.loads(r.p) for r in payload_rows}
 
-checks = defaultdict(list)
-for r in q(f"""
+check_rows = q(f"""
 SELECT answer_or_brief_id, claim_id, rule, verdict, checker, reason FROM {AGENT}.claim_checks
-WHERE run_id = @rid""", [R[1]], "claim_checks") or []:
-    checks[r.answer_or_brief_id].append(r)
+WHERE run_id = @rid""", [R[1]], "claim_checks")
+checks = None
+if check_rows is not None:
+    checks = defaultdict(list)
+    for r in check_rows:
+        checks[r.answer_or_brief_id].append(r)
 
 items = []  # (market, kind, item dict)
 for m in MARKETS:
@@ -151,12 +172,14 @@ for m in MARKETS:
         else:
             head = f"held {x.get('rule')} {x.get('reason')}: {x.get('reason_text')} | failed_reason {x.get('failed_reason')}"
         print(f"\n{m} {x.get('title')}  [{x.get('item_id')}]\n  {head}")
-        rows_ = [r for r in checks.get(f"{rid}:{m}:{x.get('item_id')}", [])]
-        crit_all = [r for r in rows_ if r.rule == "critic"]
+        rows_ = None if checks is None else list(checks.get(f"{rid}:{m}:{x.get('item_id')}", []))
+        crit_all = [r for r in rows_ or [] if r.rule == "critic"]
         crit = [r for r in crit_all if not str(r.reason or "").startswith(REPAIR)]
         first = sorted({str(r.reason)[len(REPAIR):] for r in crit_all if str(r.reason or "").startswith(REPAIR)})
         final = sorted({str(r.reason or "") for r in crit})
-        if len(final) == 1:
+        if rows_ is None:
+            print("  critic: ? (claim_checks read failed, so the critic's row is unknown)")
+        elif len(final) == 1:
             print(critic_line("  critic", final[0]))
             print(f"  critic reason (fixed wording): {final[0]}")
         elif final:
@@ -170,9 +193,9 @@ for m in MARKETS:
         for reason in first:
             print(critic_line("  first-draft critic (before repair)", reason))
             print(f"  first-draft critic reason (fixed wording): {reason}")
-        cuts = Counter(f"{r.rule} {r.reason}" for r in rows_ if r.verdict == "cut" and r.rule not in ("critic", "title")
+        cuts = Counter(f"{r.rule} {r.reason}" for r in rows_ or [] if r.verdict == "cut" and r.rule not in ("critic", "title")
                        and not str(r.reason or "").startswith(REPAIR))
-        before = sum(1 for r in rows_ if str(r.reason or "").startswith(REPAIR))
+        before = sum(1 for r in rows_ or [] if str(r.reason or "").startswith(REPAIR))
         if cuts or before:
             print(f"  other cuts after repair: {'; '.join(f'{k} x{v}' for k, v in cuts.items()) or 'none'}"
                   f" ({before} before-repair rows)")

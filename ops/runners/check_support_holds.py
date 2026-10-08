@@ -1,8 +1,9 @@
 """Read-only check of why the brief's support check held items. Runs from anywhere (no repo imports):
-    py -3.13 check_support_holds.py 2026-10-03 [brief_run_id]
+    py -3.13 check_support_holds.py YYYY-MM-DD [brief_run_id]
 Needs google-cloud-bigquery and gcloud ADC on this PC. SELECT only, each query capped at 1 GB billed.
 
-Without a run id it reads the latest brief run of the day. Per market, per held item that G1 did not hold, it prints
+The date is required. Without a run id it reads the latest brief run of the day (the latest published, then the
+highest run id). A read that fails stops the report or shows ? for its part; it is never printed as an empty result. Per market, per held item that G1 did not hold, it prints
 the hold reason, how many claims the writer wrote (before and after the repair round), what the code checks did to
 each claim (cuts, and K5 label lowerings), how many claims passed the support check, each failed claim with its
 stored wording, the explanation sentence's own support check, the critic's answer as the payload keeps it, and
@@ -184,16 +185,30 @@ def report(d, rid, payloads, checks):
 
 
 def main(argv, c=None):
+    try:
+        d = dt.date.fromisoformat(argv[1])
+    except (IndexError, ValueError):
+        print("usage: py -3.13 check_support_holds.py YYYY-MM-DD [brief_run_id]", file=sys.stderr)
+        return 2
     c = c or bigquery.Client(project=P)
-    d = dt.date.fromisoformat(argv[1] if len(argv) > 1 else "2026-10-03")
     D = [bigquery.ScalarQueryParameter("d", "DATE", d)]
+    # One status per run: the run's newest non-duplicate row, a finished row before an unfinished one at the same time.
     runs = q(c, f"""
-SELECT b.run_id, MIN(b.published_at) published_at, STRING_AGG(CONCAT(b.market, ' ', b.status), ', '
-         ORDER BY b.market) markets, ANY_VALUE(r.status) run_status
+SELECT b.run_id, MIN(b.published_at) published_at,
+  STRING_AGG(DISTINCT CONCAT(b.market, ' ', b.status), ', ' ORDER BY CONCAT(b.market, ' ', b.status)) markets,
+  MIN(r.status) run_status
 FROM {AGENT}.briefs b
-LEFT JOIN {AGENT}.runs r ON r.run_id = b.run_id AND r.run_date = @d AND r.stage = 'brief'
+LEFT JOIN (
+  SELECT run_id, status FROM {AGENT}.runs
+  WHERE run_date = @d AND stage = 'brief' AND status != 'skipped_duplicate'
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY run_id
+    ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC, status) = 1) r
+  ON r.run_id = b.run_id
 WHERE b.brief_date = @d
-GROUP BY b.run_id ORDER BY published_at""", D, "brief runs") or []
+GROUP BY b.run_id ORDER BY published_at, b.run_id""", D, "brief runs")
+    if runs is None:
+        print(f"brief runs read failed for {d}; nothing to report")
+        return 1
     print(f"== brief runs for {d}")
     for r in runs:
         print(f"  {r.run_id}  published {r.published_at:%H:%M:%S} UTC  run {r.run_status}  {r.markets}")
@@ -203,9 +218,13 @@ GROUP BY b.run_id ORDER BY published_at""", D, "brief runs") or []
     rid = argv[2] if len(argv) > 2 else runs[-1].run_id
     print(f"== reading run {rid}")
     R = [bigquery.ScalarQueryParameter("rid", "STRING", rid)]
-    payloads = {r.market: json.loads(r.p) for r in q(c, f"""
+    payload_rows = q(c, f"""
 SELECT market, TO_JSON_STRING(payload) p FROM {AGENT}.briefs
-WHERE brief_date = @d AND run_id = @rid""", D + R, "briefs payload") or []}
+WHERE brief_date = @d AND run_id = @rid""", D + R, "briefs payload")
+    if payload_rows is None:
+        print(f"briefs payload read failed for run {rid}; nothing to report")
+        return 1
+    payloads = {r.market: json.loads(r.p) for r in payload_rows}
     rows = q(c, f"""
 SELECT answer_or_brief_id, claim_id, rule, verdict, checker, reason FROM {AGENT}.claim_checks
 WHERE run_id = @rid""", R, "claim_checks")
