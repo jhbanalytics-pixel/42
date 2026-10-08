@@ -516,7 +516,13 @@ def reference(bq, day):
 # valid as written; v_collection_health_current (core/detect/sql/views.sql) reads it as invalid once the next
 # day's row names zero_yield. The judge's own reasons come first: a day already invalid keeps its reason.
 ZERO_YIELD = "zero_yield"
+# Search lanes are sparse by design, and W8-DEC-11 governs G1's input, which never reads them (the health query in
+# core/brief/sql/gatectx.sql takes unbiased_rank, panel and unbiased_counter rows only), so they are never marked.
 ZERO_YIELD_EXEMPT_LANES = ("search_presence",)
+# Routes whose series output is retired on purpose: wave8/collect bdc1545 stopped writing the tiktok/song/videos
+# adoption curve as a series (it is a page sample), so the route lands no counter every day by design and would read
+# as a zero-yield route for ever. A route that is dead by accident is not listed here.
+ZERO_YIELD_RETIRED_ROUTES = ("tiktok/song/videos",)
 
 ZERO_YIELD_PRIOR_SQL = (
     "WITH good AS (\n"
@@ -533,8 +539,8 @@ ZERO_YIELD_PRIOR_SQL = (
 
 
 def zero_yield_route(route, lane_class):
-    """True for a route a zero-yield day can be named on: a SocialCrawl route outside the search lanes."""
-    return route in PRICED and lane_class not in ZERO_YIELD_EXEMPT_LANES
+    """True for a route a zero-yield day can be named on: a SocialCrawl route, not retired, not a search lane."""
+    return route in PRICED and route not in ZERO_YIELD_RETIRED_ROUTES and lane_class not in ZERO_YIELD_EXEMPT_LANES
 
 
 def zero_yield_prior(bq, day):

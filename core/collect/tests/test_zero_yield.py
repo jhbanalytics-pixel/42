@@ -217,3 +217,29 @@ def test_write_run_appends_the_zero_yield_row_when_the_day_before_was_a_zero_day
     writers.write_run(plain, run, "collect-2")
     [row] = [r for r in plain.loaded("collection_health") if r["market"] == "ZA" and r["series"] == "feed_tiktok"]
     assert (row["valid"], row["invalid_reason"]) == (True, None)
+
+
+# A route whose series output is retired on purpose lands nothing every day by design (wave8/collect bdc1545: the
+# tiktok/song/videos curve is a page sample and is written to no series), so it is never a zero-yield day.
+
+def test_a_route_with_retired_series_output_is_never_marked_but_a_real_dead_route_still_is():
+    assert "tiktok/song/videos" in writers.ZERO_YIELD_RETIRED_ROUTES
+    curve = rec(route="tiktok/song/videos", lane="watchlist", series="curve_tiktok_sound", protocol="p",
+                market="GLOBAL")
+    dead = rec(route="tiktok/song", lane="watchlist", series="counter_tiktok_sound", protocol="p",
+               market="GLOBAL")
+    prior = prior_zero(("GLOBAL", "curve_tiktok_sound", "p"), ("GLOBAL", "counter_tiktok_sound", "p"))
+    rows = health([curve, dead], prior)
+    assert rows[(DAY, "GLOBAL", "curve_tiktok_sound", "p")]["valid"] is True
+    assert rows[(DAY, "GLOBAL", "counter_tiktok_sound", "p")]["invalid_reason"] == "zero_yield"
+    assert not writers.zero_yield_route("tiktok/song/videos", "watchlist")
+    assert writers.zero_yield_route("tiktok/song", "watchlist")
+
+
+def test_the_retired_route_does_not_count_as_a_prior_zero_day(monkeypatch):
+    monkeypatch.setattr(writers, "_query", lambda bq, sql, params: [
+        {"market": "GLOBAL", "series": "curve_tiktok_sound", "protocol": "p", "route": "tiktok/song/videos",
+         "lane_class": "watchlist"},
+        {"market": "GLOBAL", "series": "counter_tiktok_sound", "protocol": "p", "route": "tiktok/song",
+         "lane_class": "watchlist"}])
+    assert writers.zero_yield_prior(object(), D5) == {("GLOBAL", "counter_tiktok_sound", "p")}
