@@ -57,5 +57,6 @@ def test_the_report_is_written_deterministically_and_holds_no_dash_runs(tmp_path
     for f in ("pair_score_comparison.json", "pair_score_comparison.md"):
         assert (tmp_path / "a" / f).read_bytes() == (tmp_path / "b" / f).read_bytes()
     text = (tmp_path / "a" / "pair_score_comparison.md").read_text(encoding="utf-8")
-    assert not re.search("[–—]|--", text.replace("|---", ""))
+    bars = "|" + "-" * 3  # a markdown table separator is the one place a run of hyphens is allowed
+    assert not re.search("[" + chr(0x2013) + chr(0x2014) + "]|" + "-" * 2, text.replace(bars, ""))
     assert json.loads((tmp_path / "a" / "pair_score_comparison.json").read_text(encoding="utf-8"))["summary"]["pairs"] >= 40
