@@ -1588,6 +1588,8 @@ def _trend_held(h):
     """A held item's reason as Today words it: the job's failed_reason goes through, so a topic a busy model left
     unexplained reads as busy here too, not as a failed check."""
     out = {"rule": h.get("rule"), "reason": h.get("reason"), "reason_text": h.get("reason_text")}
+    if isinstance(h.get("explanation_status"), str):
+        out["explanation_status"] = h["explanation_status"]
     failed_reason = h.get("failed_reason")
     if isinstance(failed_reason, str) and failed_reason.strip():
         out["failed_reason"] = failed_reason.strip()

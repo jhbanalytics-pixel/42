@@ -2182,3 +2182,44 @@ def test_a_zero_yield_series_is_worded_as_a_source_that_answered_but_returned_no
     assert not any("not usable" in i for i in za["coverage"]["issues"])
     failed = [b["text"] for b in za["banners"] if "failed today" in b["text"]]
     assert failed == ["1 source failed today: Instagram locations"]
+
+
+# The brief payload carries explanation_status on held items (failed_checks or not_run). A G10 hold is worded from it.
+G10_CASES = [
+    ({"explanation_status": "not_run", "failed_reason": None}, "Not explained: the model did not get to this topic"),
+    ({"explanation_status": "not_run", "failed_reason": "BUSY"}, "Not explained in time: the model was busy"),
+    ({"explanation_status": "failed_checks", "failed_reason": "A claim was not supported by its posts"},
+     "The explanation did not pass our checks"),
+    ({"explanation_status": "explained", "failed_reason": None}, "The explanation did not pass our checks"),
+    ({}, "The explanation did not pass our checks"),  # a brief stored before the field existed
+]
+
+
+def _g10_store(fields):
+    from core.brief.payload import NOT_RUN_REASONS
+    fields = {k: (sorted(NOT_RUN_REASONS)[0] if v == "BUSY" else v) for k, v in fields.items()}
+    rows = deepcopy(FixtureStore().briefs(D30))
+    za = next(r for r in rows if r["market"] == "ZA")
+    item = next(i for i in za["payload"]["held_back"]["items"] if i["item_id"] == ZA_I)
+    for key in ("explanation_status", "failed_reason"):
+        item.pop(key, None)
+    item.update(rule="G10", reason="explanation_failed", reason_text="Explanation failed its checks", **fields)
+    return Patched(briefs=lambda date: rows if date == D30 else [])
+
+
+@pytest.mark.parametrize("fields, words", G10_CASES)
+def test_a_g10_hold_on_today_is_worded_from_the_status_the_brief_carries(fields, words):
+    shown = next(i for i in market(today.build_today(_g10_store(fields), D30), "ZA")["held_back"]["items"]
+                 if i["item_id"] == ZA_I)
+    assert shown["reason_text"] == words
+
+
+@pytest.mark.parametrize("fields, words", G10_CASES)
+def test_a_g10_hold_on_the_trend_page_is_worded_from_the_status_the_brief_carries(fields, words):
+    assert today.build_trend(_g10_store(fields), ZA_I, "ZA", D30)["held_back"]["reason_text"] == words
+
+
+def test_the_contract_lists_explanation_status_among_the_held_item_fields():
+    from pathlib import Path
+    text = (Path(__file__).resolve().parent.parent / "contract.md").read_text(encoding="utf-8")
+    assert "`explanation_status`" in text and "`failed_checks` or `not_run`" in text
