@@ -119,3 +119,11 @@ def test_the_text_rule_constants_equal_co_actions():
 def test_mask_and_plain_text_equal_co_actions(text):
     assert independence.mask(text) == coaction.mask(text)
     assert independence.plain_text(text) == neardup.plain_text(text)
+
+
+def test_flags_are_read_in_lower_case_and_an_author_needs_a_handle():
+    rows = [record("a1", "tiktok", "@a", "Nobody told me the step was this hard on the knees", flags=["PAID"]),
+            record("a2", "x", "@b", "My gran learned the new school dance in one afternoon"),
+            record("a3", "x", None, "Matric farewell rehearsal went completely off the rails")]
+    groups = independence.independent_groups(rows, excluded={"paid"})
+    assert [g["handles"] for g in groups] == [{"b"}]
