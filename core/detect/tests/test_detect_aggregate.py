@@ -380,3 +380,15 @@ def test_run_aggregate_reads_the_creators_display_name_and_refuses_a_blocked_one
     aggregate.run_aggregate(duck.Client(con), D, "agg-name", "r1", core="core", agent="agent")
     labels = [r["label"] for r in duck.query(con, "SELECT * FROM {core}.cultural_map m WHERE m.kind = 'creator'")]
     assert labels == ["thandi_d"]
+
+
+def test_a_blocked_creator_display_name_refuses_only_the_creator_item_not_the_hashtags_or_sounds_on_the_post():
+    """N16 stays a creator check: the same post's hashtag and sound are named by what they are, not by who posted
+    them, so a blocked display name must not take them out of cultural_map."""
+    posts = [{"post_id": "p1", "platform": "tiktok", "hashtags": ["lekker"], "sound_id": "snd-1",
+              "creator_id": "mzansi_dancer", "creator_name": "Gen Z Comedy", "market": "ZA", "first_day": D}]
+    post_items, items = aggregate.items_rows(posts)
+    assert sorted(r["kind"] for r in items) == ["hashtag", "sound"]
+    assert {r["via"] for r in post_items} >= {"hashtag", "sound"}
+    assert item_id("creator", "tiktok:mzansi_dancer") in {r["item_id"] for r in post_items}
+    assert not [r for r in items if r["kind"] == "creator"]
