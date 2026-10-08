@@ -278,7 +278,7 @@ const EMPTY_LIVE = {steps: [], stopping: false, stopError: null, lost: null};
 const FINISH_READS = 10;
 const FINISH_WAIT_MS = 1000;
 
-export function InvestigationPage({investigationId, onAuth}){
+export function InvestigationPage({investigationId, onAuth, streamOptions}){
   const [load, setLoad] = useState({phase: 'loading', inv: null, error: null});
   const [budget, setBudget] = useState(() => BUDGETS.get(investigationId) || null);
   const [editing, setEditing] = useState(false);
@@ -321,7 +321,7 @@ export function InvestigationPage({investigationId, onAuth}){
       await streamInvestigation(investigationId, (event) => {
         if (ctrl.signal.aborted || event.type !== 'step') return;
         setLive((current) => (current.steps.some((step) => step.seq === event.data.seq) ? current : {...current, steps: [...current.steps, event.data]}));
-      }, {signal: ctrl.signal, lastEventId: seen});
+      }, {...streamOptions, signal: ctrl.signal, lastEventId: seen});
       /* The finish row is written just after the run's done event, so a
          read that still says running is read again, for a short while. */
       let done = await getInvestigation(investigationId, {signal: ctrl.signal});
