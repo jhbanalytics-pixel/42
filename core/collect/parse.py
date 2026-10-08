@@ -722,16 +722,23 @@ def _count(out, ctx, route, family, platform, params, data):
     if family == "curve":
         _curve(out, ctx, GLOBAL, platform, item_id, ctx["counter_series"], _list(node.get("adoption")))
         return
-    total = None
-    for part in (node, _dict(post.get("ext")), *(v for v in node.values() if isinstance(v, dict))):
-        total = _number(part, "video_count", "videoCount", "user_count", "userCount", "media_count", "reels_count",
-                        "clips_count", "videos", "posts")
-        if total is not None:
-            break
+    total = _sound_uses(post) if route == "tiktok/song" else None
+    if total is None:
+        for part in (node, _dict(post.get("ext")), *(v for v in node.values() if isinstance(v, dict))):
+            total = _number(part, "video_count", "videoCount", "user_count", "userCount", "media_count",
+                            "reels_count", "clips_count", "videos", "posts")
+            if total is not None:
+                break
     if total is not None:
         out["counters"].append(_counter(ctx, market=GLOBAL, platform=platform, item_id=item_id,
                                         series=ctx["counter_series"], lane_class="unbiased_counter", unit="total",
                                         value=total))
+
+
+def _sound_uses(post):
+    """The videos made with a sound, from post.ext.use_count; only when the unit is videos (or absent)."""
+    ext = _dict(post.get("ext"))
+    return _number(ext, "use_count") if ext.get("use_count_unit") in (None, "videos") else None
 
 
 def _restat(out, ctx, row):

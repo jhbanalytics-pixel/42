@@ -15,7 +15,9 @@ from core.collect.parse import parse
 from core.collect.tests.test_parse import FakeGeo, fake_item_id
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
-STORED = json.loads((FIXTURES / "parse_stored_prism.json").read_text(encoding="utf-8"))
+STORED = {}
+for _name in ("prism", "song"):
+    STORED.update(json.loads((FIXTURES / f"parse_stored_{_name}.json").read_text(encoding="utf-8")))
 
 
 def stored(name):
@@ -94,3 +96,51 @@ def test_the_flat_list_panel_shapes_still_parse():
                 item_id_fn=fake_item_id, geo_fn=FakeGeo())
     assert [p["native_id"] for p in out["posts"]] == ["p1"]
     assert datetime.fromisoformat(out["posts"][0]["published_at"]).year == 2026
+
+
+# tiktok/song: the running count of a sound
+
+SONG_COUNTS = {  # fixture: (use_count, SAST day of the fetch, which is the GLOBAL row's day)
+    "tiktok_song_ZA": (84, "2026-09-28"),
+    "tiktok_song_NG": (299820, "2026-10-07"),
+    "tiktok_song_KE": (101247, "2026-10-02"),
+}
+
+
+@pytest.mark.parametrize("name", sorted(SONG_COUNTS))
+def test_stored_tiktok_song_count_is_the_use_count_in_post_ext(name):
+    entry = stored(name)
+    ext = entry["body"]["data"]["post"]["ext"]
+    assert sorted(ext) == ["music_id", "published_at_epoch", "use_count", "use_count_unit"]
+    out = run_stored("tiktok/song", name)
+    (counter,) = out["counters"]
+    value, day = SONG_COUNTS[name]
+    sound = ext["music_id"]
+    assert (counter["item_id"], counter["value"], counter["obs_date"]) == (f"sound|tiktok:{sound}", float(value), day)
+    assert (counter["market"], counter["platform"], counter["series"], counter["unit"], counter["lane_class"],
+            counter["is_board"], counter["source"], counter["route"]) == (
+        "GLOBAL", "tiktok", "counter_tiktok_sound", "total", "unbiased_counter", False, "live", "tiktok/song")
+    assert out["posts"] == [] and out["observations"] == []
+
+
+def test_stored_tiktok_song_count_follows_the_calls_clip_id():
+    out = run_stored("tiktok/song", "tiktok_song_ZA", {"clipId": "m100"})
+    assert [(c["item_id"], c["value"]) for c in out["counters"]] == [("sound|tiktok:m100", 84.0)]
+
+
+def test_stored_tiktok_song_count_is_dropped_when_the_unit_is_not_videos():
+    entry = stored("tiktok_song_ZA")
+    body = json.loads(json.dumps(entry["body"]))
+    body["data"]["post"]["ext"]["use_count_unit"] = "plays"
+    out = parse("tiktok/song", {}, entry["market"], body, entry["fetched_at"], "run1",
+                item_id_fn=fake_item_id, geo_fn=FakeGeo())
+    assert out["counters"] == []
+
+
+def test_stored_tiktok_song_without_a_use_count_writes_no_counter():
+    entry = stored("tiktok_song_ZA")
+    body = json.loads(json.dumps(entry["body"]))
+    del body["data"]["post"]["ext"]["use_count"]
+    out = parse("tiktok/song", {}, entry["market"], body, entry["fetched_at"], "run1",
+                item_id_fn=fake_item_id, geo_fn=FakeGeo())
+    assert out["counters"] == []
