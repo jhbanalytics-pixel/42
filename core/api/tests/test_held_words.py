@@ -100,3 +100,26 @@ def test_a_busy_model_wording_still_wins_over_the_not_reached_wording():
     out = plain_reason({"reason_text": "Explanation failed its checks", "explanation_status": "not_run",
                         "failed_reason": busy})
     assert out["reason_text"] == "Not explained in time: the model was busy"
+
+
+# W8-DEC-02: G10 keeps the hold, and the words say held with the reason shown, not "numbers and posts only".
+def _contract_text():
+    from pathlib import Path
+    return (Path(__file__).resolve().parent.parent / "contract.md").read_text(encoding="utf-8")
+
+
+def test_the_contract_words_a_g10_hold_as_held_with_the_reason_shown():
+    text = _contract_text()
+    for old in ("published numbers and posts only", "G10 keeps the card as numbers and posts",
+                "numbers and posts still show on non-Today read surfaces"):
+        assert old not in text
+    assert "`partial` (at least one market held an item whose explanation failed its checks, reason shown" in text
+    assert "`explanation_failed` (G10 holds the item, reason shown" in text
+    assert "the item stays held, with its reason shown" in text
+
+
+def test_the_recheck_docstring_words_a_failed_card_as_held_with_the_reason_shown():
+    from core.api import today
+    doc = " ".join(today._recheck_explanation.__doc__.split())
+    assert "numbers and posts only" not in doc
+    assert "held, reason shown" in doc

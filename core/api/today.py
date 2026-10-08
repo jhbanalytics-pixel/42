@@ -299,8 +299,8 @@ def _recheck_explanation(card, gone):
     A claim with no post left is not touched here: Today's own check holds its card for posts that could not be read.
     Then the card floors: the explanation must still rest on claims that stand (at least 2, every one it names, its
     named places supported) and, for a card in a market, at least MIN_EVIDENCE posts must be showable. A card that
-    fails is held as the brief holds one whose explanation failed its checks: numbers and posts only, with a
-    failed_reason."""
+    fails is held as the brief holds one whose explanation failed its checks (G10): held, reason shown, with its
+    numbers and posts and a failed_reason."""
     claims, rests_on = card.get("claims"), card.get("explanation_claim_ids")
     if (card.get("explained") is not True or not isinstance(claims, list) or not isinstance(rests_on, list)
             or not all(isinstance(c, dict) and isinstance(c.get("evidence_ids"), list)
