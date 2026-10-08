@@ -211,3 +211,18 @@ def test_later_overlap_uses_merged_posts_and_keeps_higher_card_on_a_tie():
     assert [card["row"]["item_id"] for card in by_market["ZA"]] == ["A", "D"]
     assert [item["item_id"] for item in a["also"]] == ["B", "C"]
 
+
+
+def test_an_item_merged_into_a_card_that_is_then_held_stays_listed_on_the_held_item():
+    # Rule 5 (RULES.md): held-back items are shown with their reason, never dropped silently. The merged item leaves
+    # by_market before confirm and explain, so when its host is held for an explanation that failed its checks the
+    # held item has to carry it, as the card does.
+    con = world(n=3)
+    add_item(con, "ZA", "za_dup", 0.93, posts=0)
+    link(con, "za_dup", ["za1_p1", "za1_p2", "za1_p3"])
+    r = brief(con, model=FakeModel(ruled_out=False), confirm=FakeConfirm())
+    assert r.counts["merged"] == [{"market": "ZA", "into": "za1", "item_id": "za_dup"}]
+    held = held_items(r, "ZA")
+    assert held["za1"]["reason"] == "explanation_failed"
+    assert held["za1"]["also"] == [{"item_id": "za_dup", "title": "#za_dup"}]
+    assert "also" not in held["za2"]

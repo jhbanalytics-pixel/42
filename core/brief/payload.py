@@ -210,7 +210,7 @@ def _held_item(c):
     evidence = c.get("evidence") or []
     # The same figures a card would show, growth dropped while untested, so a reader can weigh the hold.
     numbers = [n for n in c.get("numbers") or [] if not (_untested(c) and _is_growth(n["unit"]))]
-    return {
+    held = {
         "item_id": c["item_id"], "title": c["title"], "rule": dec.get("rule"), "reason": reason,
         "reason_text": dec.get("reason") or REASON_TEXT[reason],
         "evidence_ids": [e["id"] for e in evidence], "evidence": evidence,
@@ -218,6 +218,11 @@ def _held_item(c):
         # The job's fixed wording for the check that held the explanation back, as on cards.
         "failed_reason": _failed_reason(c, c.get("explanation_status")),
     }
+    # Items merged into this one before it was held (core/brief/job.py _merge) stay listed, as on a card, so rule 5
+    # holds for them too. The key is left out when nothing was merged, so every other held item keeps its shape.
+    if c.get("also"):
+        held["also"] = list(c["also"])
+    return held
 
 
 # The brief job's own holds, summarised by what held them (singular, plural); every other hold by its reason.
