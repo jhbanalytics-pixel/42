@@ -418,7 +418,7 @@ def test_env_that_keeps_the_guard_directory_may_start_python(guard):
 
 
 def test_git_cannot_run_an_alias_that_starts_another_program(guard):
-    refused(guard, "subprocess.Popen", ("git", ["git", "-c", "alias.x=!curl https://example.com", "x"], None, None))
+    refused(guard, "subprocess.Popen", ("git", ["git", "-c", "alias.x=!sh -c id", "x"], None, None))
     allowed(guard, "subprocess.Popen", ("git", ["git", "-c", "alias.co=checkout", "co"], None, None))
 
 
