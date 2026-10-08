@@ -90,3 +90,17 @@ def test_the_markdown_report_states_method_and_headline_numbers(result):
     prose = [ln for ln in md.splitlines() if not set(ln) <= set("|-: ")]
     for bad in (chr(0x2014), chr(0x2013), "-" * 2):
         assert not any(bad in ln for ln in prose)
+
+
+def test_the_frozen_mode_is_labelled_deterministic_and_says_where_each_baseline_came_from(inputs, result):
+    a = eb.run(inputs, D, KEY, **SMALL, mode="frozen")
+    assert a["mode"] == "frozen" and result["mode"] == "refit"
+    assert json.dumps(a, sort_keys=True) == json.dumps(eb.run(inputs, D, KEY, **SMALL, mode="frozen"), sort_keys=True)
+    src = a["baseline_source"]
+    assert src["frozen"] > 0 and set(src) == {"frozen", "earliest_in_window", "refit"}
+    assert "frozen" in eb.markdown(a).lower()
+
+
+def test_an_unknown_mode_is_refused(inputs):
+    with pytest.raises(ValueError):
+        eb.run(inputs, D, KEY, **SMALL, mode="stale")

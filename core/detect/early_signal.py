@@ -36,6 +36,17 @@ baseline theory says. So H was chosen from the replayed placebo windows (early_s
 4.5 to 6.5 in steps of 0.5, 6.5 is the first at which alarm episodes stay at or under 0.05 per series-month in all
 three synthetic worlds tried (0.0275, 0.025 and 0.04 over 12,000 series-days each; 5.0 gave 0.09, 0.08 and 0.12).
 
+Frozen mode. The refit baseline is fitted afresh every day from the last 28 days, a window that holds a rise
+once it has run a few days, so a sustained rise partly raises its own baseline and the chart under-reads it.
+signal can instead score the window against an earlier series_test row of the same series (frozen_baseline: the
+row fitted just before the window, else the earliest row inside it, stated in baseline_source). That baseline
+cannot have absorbed the rise, but it is a single stale estimate held for 14 days, and its estimation error is a
+steady drift the chart integrates, so the same limit alarms far more often on stationary series. The limit for
+the frozen mode, 9.0, was chosen the same way as H, from the replayed placebo windows: of 5.0 to 11.0 it is the
+first at which episodes stay under 0.05 per series-month in all three synthetic worlds with a margin (0.0275,
+0.01 and 0.0325; 8.5 gave 0.0325, 0.0175 and 0.045, 6.5 gave 0.0975, 0.035 and 0.12). The refit mode stays the
+default; the job does not load earlier series_test rows, so the frozen mode costs one extra read.
+
 Nothing here makes an item Rising, publishes it or ranks it. The recording step (record, further down)
 writes to its own table, early_signal, which no gate, state, card, payload or rank reads.
 """
@@ -44,22 +55,27 @@ import datetime
 import math
 
 import numpy as np
-from google.api_core.exceptions import NotFound
-from google.cloud import bigquery
+
+from . import sqlrun
 
 KAPPA = 1.5             # the upward shift in the mean the chart is tuned to see
-H = 6.5                 # decision limit, in log likelihood ratio units
+H = 6.5                 # decision limit, in log likelihood ratio units, against the refit baseline
+H_FROZEN = 9.0          # decision limit against a baseline frozen before the window (see below)
 WINDOW_DAYS = 14        # the signal looks at the last 14 days, today included
 RULE_VERSION = "early-1"
-TABLE = "early_signal"
-
-SCHEMA = [bigquery.SchemaField(name, kind) for name, kind in (
-    ("metric_date", "DATE"), ("series_id", "STRING"), ("item_id", "STRING"), ("market", "STRING"),
-    ("platform", "STRING"), ("series", "STRING"), ("protocol", "STRING"), ("lane_class", "STRING"),
-    ("kind", "STRING"), ("y", "FLOAT"), ("mu", "FLOAT"), ("alpha", "FLOAT"), ("cusum", "FLOAT"),
-    ("early", "BOOLEAN"), ("run_days", "INTEGER"), ("days_used", "INTEGER"), ("kappa", "FLOAT"), ("h", "FLOAT"),
-    ("window_days", "INTEGER"), ("run_id", "STRING"), ("rule_version", "STRING"))]
-COLUMNS = [f.name for f in SCHEMA]
+TABLE = "early_signal"        # defined in core/schema/early_signal.sql, created only by the setup runner
+MODES = ("refit", "frozen")
+DEFAULT_MODE = "refit"
+EARLIER_DAYS = 3             # a frozen baseline may be up to 3 days older than the day before the window
+COLUMNS = ("metric_date", "series_id", "item_id", "market", "platform", "series", "protocol", "lane_class", "kind",
+           "y", "mu", "alpha", "cusum", "early", "run_days", "days_used", "kappa", "h", "window_days",
+           "baseline_mode", "baseline_source", "baseline_date", "run_id", "rule_version")
+EARLIER_SQL = """
+SELECT st.series_id, st.metric_date, st.mu, st.alpha, st.weekday_factor
+FROM {core}.v_series_test_current st
+WHERE st.test = 'nb' AND st.mu > 0
+  AND st.metric_date BETWEEN DATE_SUB(@d, INTERVAL @n DAY) AND DATE_SUB(@d, INTERVAL 1 DAY)
+"""
 
 
 def _terms(mu, alpha, kappa=KAPPA):
@@ -112,19 +128,27 @@ def average_run_length(mu, alpha, h=H, kappa=KAPPA, chains=2000, days=500, seed=
     return chains * days / alarms if alarms else math.inf
 
 
-def signal(test_row, hist, factor, h=H, kappa=KAPPA, window=WINDOW_DAYS):
+def signal(test_row, hist, factor, h=None, kappa=KAPPA, window=WINDOW_DAYS, baseline=None):
     """The early signal for one negative binomial series_test row, or None when it has no baseline.
 
     test_row carries metric_date, y, mu, alpha and weekday_factor as stats.series_test_rows wrote them. hist is
     the series' history as tvf_series_signal gave it (dicts with day and y). factor(day) is the weekday factor
     of that day's group, so day u has baseline mu x factor(u) / weekday_factor. Returns the final S, whether it
     is at or over h, how many days in a row S has been above 0 and how many observed days were used. Only mu,
-    alpha, y, the weekday factors and the history are read: not the p-value, q, ratio or significance."""
-    mu, alpha = test_row.get("mu"), test_row.get("alpha")
+    alpha, y, the weekday factors and the history are read: not the p-value, q, ratio or significance.
+
+    By default the baseline is today's refit (the refit mode). baseline, a dict with mu, alpha and weekday_factor
+    from an earlier series_test row of the same series, replaces it (the frozen mode): a baseline fitted before the
+    window cannot have absorbed a rise inside it. The weekday factor of the day it was fitted on rescales it to
+    each day of the window."""
+    base = baseline if baseline is not None else test_row
+    if h is None:
+        h = H if baseline is None else H_FROZEN
+    mu, alpha = base.get("mu"), base.get("alpha")
     if test_row.get("test") != "nb" or alpha is None or mu is None or not mu > 0 or test_row.get("y") is None:
         return None
     d = test_row["metric_date"]
-    f_today = test_row.get("weekday_factor") or 1.0
+    f_today = base.get("weekday_factor") or 1.0
     first = d.toordinal() - window + 1
     days = sorted((h_["day"], h_["y"]) for h_ in hist or ()
                   if h_["y"] is not None and first <= h_["day"].toordinal() < d.toordinal())
@@ -137,7 +161,7 @@ def signal(test_row, hist, factor, h=H, kappa=KAPPA, window=WINDOW_DAYS):
         if s <= 0:
             break
         run += 1
-    return {"cusum": path[-1], "alarm": path[-1] >= h, "run_days": run, "days_used": len(path)}
+    return {"cusum": path[-1], "alarm": path[-1] >= h, "run_days": run, "days_used": len(path), "h": h}
 
 
 def factor_fn(row, factors):
@@ -151,23 +175,60 @@ def factor_fn(row, factors):
     return lambda d: by_weekday.get(d.weekday(), 1.0)
 
 
-def early_rows(signal_rows, series_rows, totals, d, run_id):
+
+def frozen_baseline(rows, d, window=WINDOW_DAYS):
+    """(earlier series_test row, source) for one series' earlier rows (dicts with metric_date, mu, alpha and
+    weekday_factor), from day d. 'frozen': the latest row dated up to the day before the window starts and no
+    more than EARLIER_DAYS older. 'earliest_in_window': when there is none, the earliest row inside the window,
+    which may already carry part of a rise. (None, 'refit'): when there is neither, the signal falls back to
+    today's refit baseline."""
+    ok = [r for r in rows if r.get("mu") and r["mu"] > 0 and r.get("alpha") is not None]
+    cut = d.toordinal() - window
+    before = [r for r in ok if cut - EARLIER_DAYS <= r["metric_date"].toordinal() <= cut]
+    if before:
+        return max(before, key=lambda r: r["metric_date"]), "frozen"
+    inside = [r for r in ok if cut < r["metric_date"].toordinal() < d.toordinal()]
+    if inside:
+        return min(inside, key=lambda r: r["metric_date"]), "earliest_in_window"
+    return None, "refit"
+
+
+def earlier_rows(client, d, core):
+    """{series_id: [earlier negative binomial series_test rows]} for the days frozen_baseline may use. One read of
+    v_series_test_current. The job does not load these rows for the series test, so only the frozen mode reads
+    them."""
+    out = {}
+    for r in sqlrun.query(client, EARLIER_SQL, {"d": d, "n": WINDOW_DAYS + EARLIER_DAYS}, core=core):
+        out.setdefault(r["series_id"], []).append(r)
+    return out
+
+
+def early_rows(signal_rows, series_rows, totals, d, run_id, mode=DEFAULT_MODE, earlier=None):
     """early_signal rows for day d: one per negative binomial series_test row that has a baseline. signal_rows are
     the tvf_series_signal rows the day was tested from and series_rows what stats.series_test_rows made of them, in
-    the same order."""
+    the same order. In the frozen mode earlier maps series_id to its earlier rows; mu and alpha on the output row
+    are the baseline the chart was scored against."""
     assert len(signal_rows) == len(series_rows)
     from . import stats
 
     factors = stats.weekday_factors(totals)
     out = []
     for s, r in zip(signal_rows, series_rows):
-        sig = signal(r, s["hist"], factor_fn(r, factors)) if r["test"] == "nb" else None
+        if r["test"] != "nb":
+            continue
+        base, source = (frozen_baseline((earlier or {}).get(r["series_id"], []), d) if mode == "frozen"
+                        else (None, "refit"))
+        sig = signal(r, s["hist"], factor_fn(r, factors), baseline=base)
         if sig is None:
             continue
+        used = base if base is not None else r
         row = {**{c: r[c] for c in ("series_id", "item_id", "market", "platform", "series", "protocol",
-                                    "lane_class", "kind", "y", "mu", "alpha")},
+                                    "lane_class", "kind", "y")},
+               "mu": used["mu"], "alpha": used["alpha"],
                "metric_date": d, "cusum": sig["cusum"], "early": sig["alarm"], "run_days": sig["run_days"],
-               "days_used": sig["days_used"], "kappa": KAPPA, "h": H, "window_days": WINDOW_DAYS,
+               "days_used": sig["days_used"], "kappa": KAPPA, "h": sig["h"], "window_days": WINDOW_DAYS,
+               "baseline_mode": mode, "baseline_source": source,
+               "baseline_date": base["metric_date"] if base is not None else None,
                "run_id": run_id, "rule_version": RULE_VERSION}
         out.append({c: row[c] for c in COLUMNS})
     return out
@@ -177,19 +238,21 @@ def _json(value):
     return value.isoformat() if isinstance(value, (datetime.date, datetime.datetime)) else value
 
 
-def record(client, d, run_id, signal_rows, series_rows, totals, core):
-    """Append day d's early_signal rows, creating the table (partitioned by metric_date) when it does not exist.
-    Returns the number of rows. Nothing reads the table: no gate, state, card, payload or rank."""
-    rows = early_rows(signal_rows, series_rows, totals, d, run_id)
+def record(client, d, run_id, signal_rows, series_rows, totals, core, mode=None):
+    """Append day d's early_signal rows and return how many. The table is defined in core/schema/early_signal.sql
+    and created only by the setup runner: this never issues DDL, and a missing table raises NotFound for the
+    caller to log. mode is DEFAULT_MODE (refit) unless given; the frozen mode makes one extra read. Nothing reads the
+    table: no gate, state, card, payload or rank."""
+    from google.cloud import bigquery
+
+    mode = DEFAULT_MODE if mode is None else mode
+    if mode not in MODES:
+        raise ValueError(f"unknown early signal mode: {mode}")
+    earlier = earlier_rows(client, d, core) if mode == "frozen" else None
+    rows = early_rows(signal_rows, series_rows, totals, d, run_id, mode, earlier)
     if not rows:
         return 0
-    ref = f"{core}.{TABLE}"
-    try:
-        table = client.get_table(ref)
-    except NotFound:
-        table = bigquery.Table(f"{client.project}.{ref}", schema=SCHEMA)
-        table.time_partitioning = bigquery.TimePartitioning(field="metric_date")
-        table = client.create_table(table, exists_ok=True)
+    table = client.get_table(f"{core}.{TABLE}")
     config = bigquery.LoadJobConfig(schema=table.schema, source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
                                     write_disposition=bigquery.WriteDisposition.WRITE_APPEND)
     client.load_table_from_json([{k: _json(v) for k, v in r.items()} for r in rows], table,

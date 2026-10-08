@@ -10,6 +10,8 @@ base commit (where that table does not exist) and on the branch.
 import datetime as _dt
 import hashlib
 import json
+import re
+from pathlib import Path
 
 import numpy as np
 
@@ -68,17 +70,17 @@ def connect():
     return con
 
 
-DUCK_TYPES = {"STRING": "VARCHAR", "DATE": "DATE", "FLOAT": "DOUBLE", "BOOLEAN": "BOOLEAN", "INTEGER": "BIGINT"}
+DUCK_TYPES = {"STRING": "VARCHAR", "DATE": "DATE", "FLOAT64": "DOUBLE", "BOOL": "BOOLEAN", "INT64": "BIGINT"}
+SCHEMA_FILE = Path(__file__).resolve().parents[2] / "schema" / "early_signal.sql"
 
 
 def early_signal_ddl():
-    """DuckDB DDL for core.early_signal from the module's BigQuery schema, or None where the module does not
+    """DuckDB DDL for core.early_signal read from core/schema/early_signal.sql, or None where that file does not
     exist (the base commit)."""
-    try:
-        from .. import early_signal
-    except ImportError:
+    if not SCHEMA_FILE.is_file():
         return None
-    cols = ", ".join(f"{f.name} {DUCK_TYPES[f.field_type]}" for f in early_signal.SCHEMA)
+    body = SCHEMA_FILE.read_text(encoding="utf-8").split("(", 1)[1].rsplit(")", 1)[0]
+    cols = ", ".join(f"{n} {DUCK_TYPES[t]}" for n, t in re.findall(r"(\w+)\s+(STRING|DATE|FLOAT64|BOOL|INT64)", body))
     return f"CREATE TABLE core.early_signal ({cols})"
 
 

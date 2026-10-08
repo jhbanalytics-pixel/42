@@ -7,12 +7,12 @@ existed, by running tests/early_identity.py there. They are pinned here, not rec
 """
 
 import json
+from datetime import timedelta
 import logging
 from pathlib import Path
 
 import numpy as np
 import pytest
-from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
 from scipy import stats as st
 
@@ -103,10 +103,10 @@ def test_the_threshold_and_shape_recorded_are_the_ones_pinned_here(built):
     con, _ = built
     r = next(iter(early(con).values()))
     assert (r["kappa"], r["h"], r["window_days"]) == (1.5, 6.5, 14)
-    assert [f.name for f in es.SCHEMA] == [
+    assert list(es.COLUMNS) == [
         "metric_date", "series_id", "item_id", "market", "platform", "series", "protocol", "lane_class", "kind",
-        "y", "mu", "alpha", "cusum", "early", "run_days", "days_used", "kappa", "h", "window_days", "run_id",
-        "rule_version"]
+        "y", "mu", "alpha", "cusum", "early", "run_days", "days_used", "kappa", "h", "window_days",
+        "baseline_mode", "baseline_source", "baseline_date", "run_id", "rule_version"]
 
 
 # Nothing reads the table
@@ -116,7 +116,8 @@ def test_no_gate_state_card_payload_or_rank_reads_the_table_or_the_module():
     allowed = {"core/detect/early_signal.py", "core/detect/early_signal_backtest.py", "core/detect/stats.py",
                "core/detect/tests/early_identity.py", "core/detect/tests/test_detect_early_signal.py",
                "core/detect/tests/test_detect_early_signal_backtest.py",
-               "core/detect/tests/test_detect_early_signal_record.py"}
+               "core/detect/tests/test_detect_early_signal_record.py", "core/schema/early_signal.sql",
+               "core/schema/tests/test_early_signal_schema.py"}
     hits = []
     for path in ROOT.rglob("*"):
         parts = path.relative_to(ROOT).parts
@@ -169,26 +170,76 @@ def test_a_failing_record_logs_and_leaves_the_series_test_untouched(con, monkeyp
     assert "early signal" in caplog.text and "load failed" in caplog.text
 
 
-def test_a_missing_table_is_created_with_the_schema_and_day_partitioning(con):
-    class NoTable(StatsClient):
-        project = "p"
-        created = []
+def rows_of_the_day():
+    """(tvf_series_signal rows, series_test rows, weekday totals, day) for the three-series panel world."""
+    c = duck.connect()
+    panel_world().load(c)
+    signal = duck.query(c, stats.SIGNAL_SQL, {"d": D})
+    totals = duck.query(c, stats.TOTALS_SQL, {"d": D})
+    weeks = duck.query(c, stats.FIRST_WEEK_SQL, {"d": D})
+    rows = stats.series_test_rows(signal, D, "x", "r1", [SW_PANEL], totals, weeks)
+    c.close()
+    return signal, rows, totals, D
 
-        def get_table(self, ref):
-            if ref.endswith(".early_signal") and not self.created:
-                raise NotFound("no table")
-            return super().get_table(ref)
 
-        def create_table(self, table, exists_ok=False):
-            self.created.append(table)
-            return bigquery.Table("p." + table.dataset_id + "." + table.table_id, schema=[])
+class Capture:
+    """A client that records loads and answers the earlier series_test read with the rows it is given."""
+    project = "p"
 
-    client = NoTable(con)
-    assert stats.run_stats(client, D, "stats-x", "r1", core="core") == 3
-    [table] = client.created
-    assert table.table_id == "early_signal" and [f.name for f in table.schema] == [f.name for f in es.SCHEMA]
-    assert table.time_partitioning.field == "metric_date"
-    assert len(duck.query(con, "SELECT * FROM {core}.early_signal")) == 3
+    def __init__(self, earlier=None):
+        self.loads, self.earlier = [], earlier
+
+    def query(self, sql, job_config=None):
+        if self.earlier is None:
+            raise AssertionError("refit mode must not query")
+        rows = self.earlier
+
+        class Job:
+            def result(self):
+                return rows
+
+        return Job()
+
+    def get_table(self, ref):
+        return bigquery.Table("p." + ref, schema=[])
+
+    def load_table_from_json(self, rows, table, job_config=None):
+        self.loads.append(rows)
+        return duck._Job([])
+
+
+def test_the_default_mode_is_the_refit_baseline_and_reads_nothing_extra():
+    assert es.DEFAULT_MODE == "refit"
+    signal, rows, totals, d = rows_of_the_day()
+    c = Capture()
+    assert es.record(c, d, "r", signal, rows, totals, "core") == 3
+    assert {r["baseline_mode"] for r in c.loads[0]} == {"refit"} and {r["h"] for r in c.loads[0]} == {6.5}
+    assert {r["baseline_source"] for r in c.loads[0]} == {"refit"} and {r["baseline_date"] for r in c.loads[0]} == {None}
+
+
+def test_frozen_mode_scores_against_the_earlier_baseline_and_says_which_source_each_row_used():
+    signal, rows, totals, d = rows_of_the_day()
+    sids = [r["series_id"] for r in rows]
+    earlier = [{"series_id": sids[0], "metric_date": d - timedelta(days=14), "mu": 1.0, "alpha": 0.1,
+                "weekday_factor": 1.0},
+               {"series_id": sids[1], "metric_date": d - timedelta(days=3), "mu": 2.0, "alpha": 0.1,
+                "weekday_factor": 1.0}]
+    c = Capture(earlier)
+    assert es.record(c, d, "r", signal, rows, totals, "core", mode="frozen") == 3
+    got = {r["series_id"]: r for r in c.loads[0]}
+    assert (got[sids[0]]["baseline_source"], got[sids[0]]["baseline_date"], got[sids[0]]["mu"]) == (
+        "frozen", (d - timedelta(days=14)).isoformat(), 1.0)
+    assert (got[sids[1]]["baseline_source"], got[sids[1]]["mu"]) == ("earliest_in_window", 2.0)
+    assert (got[sids[2]]["baseline_source"], got[sids[2]]["baseline_date"]) == ("refit", None)
+    assert {r["baseline_mode"] for r in c.loads[0]} == {"frozen"}
+    assert got[sids[0]]["h"] == 9.0 and got[sids[1]]["h"] == 9.0 and got[sids[2]]["h"] == 6.5   # refit fallback keeps its own limit
+    assert got[sids[0]]["early"] is True                     # mu 1 against counts of 3 to 6 a day
+
+
+def test_an_unknown_mode_is_refused():
+    signal, rows, totals, d = rows_of_the_day()
+    with pytest.raises(ValueError):
+        es.record(Capture(), d, "r", signal, rows, totals, "core", mode="stale")
 
 
 def test_no_tested_series_means_no_early_rows_and_no_second_load():

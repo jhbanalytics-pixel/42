@@ -32,7 +32,7 @@ import argparse
 import json
 import math
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -80,9 +80,13 @@ def _key_rows(store, t, key):
 class Replay:
     """The replayed days of one key, with placebo results cached by day."""
 
-    def __init__(self, store, key):
-        self.store, self.key = store, key
+    def __init__(self, store, key, mode="refit"):
+        if mode not in early_signal.MODES:
+            raise ValueError(f"unknown early signal mode: {mode}")
+        self.store, self.key, self.mode = store, key, mode
         self._placebo = {}
+        self._earlier = {}
+        self.sources = Counter({"frozen": 0, "earliest_in_window": 0, "refit": 0})
 
     def context(self, t):
         series = self.store.series(t)
@@ -101,9 +105,29 @@ class Replay:
         return self._placebo[t]
 
 
-def _early(row, signal_row, totals):
-    factors = stats.weekday_factors(totals)
-    return early_signal.signal(row, signal_row["hist"], early_signal.factor_fn(row, factors))
+    def earlier(self, t):
+        """{series_id: [earlier series_test rows]} for day t as the frozen mode reads them: the placebo rows of the
+        days from the window length to three days before that (no injected rise has reached them, because the
+        horizon is shorter than the window)."""
+        if t not in self._earlier:
+            out = defaultdict(list)
+            for k in range(early_signal.WINDOW_DAYS, early_signal.WINDOW_DAYS + early_signal.EARLIER_DAYS + 1):
+                _, rows, _ = self.placebo(t - timedelta(days=k))
+                for r in rows:
+                    if r["test"] == "nb" and r["mu"]:
+                        out[r["series_id"]].append(r)
+            self._earlier[t] = out
+        return self._earlier[t]
+
+    def early(self, t, row, signal_row, totals):
+        """The early signal of one series_test row of day t in this replay's mode, counting where its baseline came
+        from."""
+        baseline, source = None, "refit"
+        if self.mode == "frozen":
+            baseline, source = early_signal.frozen_baseline(self.earlier(t).get(row["series_id"], []), t)
+        self.sources[source] += 1
+        factors = stats.weekday_factors(totals)
+        return early_signal.signal(row, signal_row["hist"], early_signal.factor_fn(row, factors), baseline=baseline)
 
 
 def _mine(rows, key):
@@ -140,7 +164,7 @@ def _placebo_report(replay, as_of, days):
     for t in window:
         signal, rows, totals = replay.placebo(t)
         for sid, i in _mine(rows, replay.key).items():
-            sig = _early(rows[i], signal[i], totals)
+            sig = replay.early(t, rows[i], signal[i], totals)
             if sig is None:
                 continue
             s = seqs[sid]
@@ -176,7 +200,7 @@ def _injected(replay, as_of, scenarios, horizon, replicates, share, seed):
     factors0 = stats.weekday_factors(totals0)
     mine0 = _mine(rows0, replay.key)
     flagged0 = {sid for sid, i in mine0.items()
-                if (_early(rows0[i], signal0[i], totals0) or {}).get("alarm")
+                if (replay.early(t0, rows0[i], signal0[i], totals0) or {}).get("alarm")
                 or _daily_flag(rows0[i]["q"], rows0[i]["ratio"])}
     candidates = sorted(sid for sid, i in mine0.items() if rows0[i]["mu"] >= 1)
     out = {}
@@ -223,14 +247,14 @@ def _injected(replay, as_of, scenarios, horizon, replicates, share, seed):
                     i = at.get(sid)
                     if i is None or rows[i]["test"] != "nb" or sid not in pos:
                         continue
-                    sig = _early(rows[i], signal[i], ctx[1])
+                    sig = replay.early(t, rows[i], signal[i], ctx[1])
                     flags[sid]["cusum"][k] = sig["alarm"] if sig else None
                     q = _bh_q(ps, pos[sid], rows[i]["p_mid"])
                     flags[sid]["daily"][k] = _daily_flag(q, rows[i]["ratio"])
                 for sid, i in _mine(rows, replay.key).items():
                     if sid in counts:
                         continue
-                    sig = _early(rows[i], signal[i], ctx[1])
+                    sig = replay.early(t, rows[i], signal[i], ctx[1])
                     if sig is not None:
                         res["non_injected"]["series_days"] += 1
                         res["non_injected"]["cusum_flag_days"] += int(sig["alarm"])
@@ -255,16 +279,23 @@ def _injected(replay, as_of, scenarios, horizon, replicates, share, seed):
 
 
 def run(inputs, as_of, key, *, horizon=HORIZON_DAYS, placebo_days=PLACEBO_DAYS, replicates=REPLICATES,
-        share=SHARE, seed=SEED, scenarios=SCENARIOS):
-    """The backtest of the early signal for one market, platform and lane class key, as plain JSON types."""
-    replay = Replay(backtest.Store(inputs), key)
-    return {"as_of": as_of.isoformat(), "key": "|".join(key),
-            "rule": {"kappa": early_signal.KAPPA, "h": early_signal.H, "window_days": early_signal.WINDOW_DAYS,
+        share=SHARE, seed=SEED, scenarios=SCENARIOS, mode="refit"):
+    """The backtest of the early signal for one market, platform and lane class key, as plain JSON types. mode is
+    'refit' (scored against the baseline the series test fitted that day) or 'frozen' (against the baseline fitted
+    before the window; see early_signal.frozen_baseline). The horizon must be shorter than the window."""
+    if horizon >= early_signal.WINDOW_DAYS:
+        raise ValueError("the horizon must be shorter than the window")
+    replay = Replay(backtest.Store(inputs), key, mode)
+    out = {"as_of": as_of.isoformat(), "key": "|".join(key), "mode": mode,
+            "rule": {"kappa": early_signal.KAPPA, "h": early_signal.H, "h_frozen": early_signal.H_FROZEN,
+                     "window_days": early_signal.WINDOW_DAYS,
                      "rule_version": early_signal.RULE_VERSION},
             "design": {"horizon": horizon, "placebo_days": placebo_days, "replicates": replicates,
                        "share": share, "seed": seed},
             "placebo": _placebo_report(replay, as_of, placebo_days),
             "scenarios": _injected(replay, as_of, scenarios, horizon, replicates, share, seed)}
+    out["baseline_source"] = dict(replay.sources)
+    return out
 
 
 def _fmt(x, digits=2):
@@ -273,12 +304,15 @@ def _fmt(x, digits=2):
 
 def markdown(res, source="a synthetic negative binomial panel"):
     p, d = res["placebo"], res["design"]
-    lines = [f"# Early signal backtest, {res['key']}, as of {res['as_of']}", "",
+    lines = [f"# Early signal backtest, {res['key']}, as of {res['as_of']}, {res['mode']} baseline", "",
              f"Source: {source}. The CUSUM is information only: it changes no state, gate, rank or payload.",
              f"Rule {res['rule']['rule_version']}: negative binomial CUSUM tuned to a {res['rule']['kappa']} times shift, "
-             f"decision limit {res['rule']['h']}, window {res['rule']['window_days']} days. Injection: "
+             f"decision limit {res['rule']['h_frozen'] if res['mode'] == 'frozen' else res['rule']['h']}, window {res['rule']['window_days']} days. Injection: "
              f"{d['replicates']} replicates of {round(d['share'] * 100)}% of the key's series, "
-             f"{d['horizon']} days after onset, seed {d['seed']}.", "",
+             f"{d['horizon']} days after onset, seed {d['seed']}. Baseline mode: {res['mode']}"
+             + (" (scored against the series test row fitted just before the window; "
+                f"sources {res['baseline_source']})." if res["mode"] == "frozen" else
+                " (the baseline the series test refit that day)."), "",
              "## False flags on non-injected series", "",
              f"{p['series']} series over {p['days']} placebo days, {p['series_days']} series-days.", "",
              "| Rule | Flag days | Flag-day rate | Alarm episodes | Episodes per series-month |",

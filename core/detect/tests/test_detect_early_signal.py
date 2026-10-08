@@ -166,3 +166,79 @@ def test_the_signal_does_not_read_a_rank_state_or_significance_flag():
     changed = es.signal({**row(30), "significant": True, "q": 1e-9, "ratio": 9.9, "p_mid": 1e-12},
                         hist_of([30] * 13), lambda d: 1.0)
     assert sig == changed and sig["alarm"] is True
+
+
+# The frozen baseline option
+
+
+def earlier(offset, mu=20.0, alpha=0.1, f=1.0, sid="s1"):
+    return {"series_id": sid, "metric_date": D - timedelta(days=offset), "mu": mu, "alpha": alpha,
+            "weekday_factor": f}
+
+
+def test_a_rise_the_refit_baseline_has_absorbed_alarms_against_the_frozen_one():
+    # The whole window ran at 1.6 times the old level of 20, so the refit baseline has crept up to 26.
+    h = hist_of([32] * 13)
+    refit = es.signal(row(32, mu=26.0), h, lambda d: 1.0)
+    frozen = es.signal(row(32, mu=26.0), h, lambda d: 1.0, baseline={"mu": 20.0, "alpha": 0.1, "weekday_factor": 1.0})
+    assert refit["alarm"] is False and frozen["alarm"] is True and frozen["cusum"] > refit["cusum"] + 2
+
+
+def test_no_baseline_argument_is_the_refit_mode_unchanged():
+    h = hist_of([32] * 13)
+    assert es.signal(row(32, mu=26.0), h, lambda d: 1.0) == es.signal(row(32, mu=26.0), h, lambda d: 1.0, baseline=None)
+
+
+def test_the_frozen_baseline_follows_the_weekday_factor_of_the_day_it_was_fitted_on():
+    h = hist_of([20] * 13)
+    plain = es.signal(row(20, mu=20.0), h, lambda d: 1.0, baseline={"mu": 20.0, "alpha": 0.1, "weekday_factor": 1.0})
+    scaled = es.signal(row(20, mu=20.0), h, lambda d: 1.0, baseline={"mu": 40.0, "alpha": 0.1, "weekday_factor": 2.0})
+    assert scaled["cusum"] == pytest.approx(plain["cusum"])
+
+
+def test_the_frozen_baseline_is_the_row_just_before_the_window_else_the_earliest_in_it_else_none():
+    w = es.WINDOW_DAYS
+    rows = [earlier(w), earlier(w - 3, mu=99.0), earlier(w + 2, mu=7.0), earlier(2, mu=55.0)]
+    got, source = es.frozen_baseline(rows, D)
+    assert (got["mu"], source, got["metric_date"]) == (20.0, "frozen", D - timedelta(days=w))
+    got, source = es.frozen_baseline([earlier(w + 2, mu=7.0), earlier(w + 1, mu=8.0)], D)
+    assert (got["mu"], source) == (8.0, "frozen")                     # the latest one up to the day before the window
+    got, source = es.frozen_baseline([earlier(w - 3, mu=99.0), earlier(2, mu=55.0)], D)
+    assert (got["mu"], source) == (99.0, "earliest_in_window")
+    assert es.frozen_baseline([earlier(w + 9)], D) == (None, "refit")
+    assert es.frozen_baseline([], D) == (None, "refit")
+    assert es.frozen_baseline([{**earlier(w), "mu": 0.0}, {**earlier(w), "alpha": None}], D) == (None, "refit")
+
+
+def test_earlier_rows_reads_the_current_series_test_view_once():
+    class Job:
+        def result(self):
+            return [{"series_id": "s1", "metric_date": D - timedelta(days=14), "mu": 5.0, "alpha": 0.1,
+                     "weekday_factor": 1.0}]
+
+    class Client:
+        def __init__(self):
+            self.sql = []
+
+        def query(self, sql, job_config=None):
+            self.sql.append((sql, job_config))
+            return Job()
+
+    c = Client()
+    got = es.earlier_rows(c, D, "core")
+    assert list(got) == ["s1"] and got["s1"][0]["mu"] == 5.0 and len(c.sql) == 1
+    sql = c.sql[0][0]
+    assert "core.v_series_test_current" in sql and "test = 'nb'" in sql and "@d" in sql
+
+
+def test_each_mode_alarms_at_its_own_calibrated_limit():
+    h = hist_of([32] * 13)
+    base = {"mu": 20.0, "alpha": 0.1, "weekday_factor": 1.0}
+    refit = es.signal(row(32, mu=20.0), h, lambda d: 1.0)
+    frozen = es.signal(row(32, mu=20.0), h, lambda d: 1.0, baseline=base)
+    assert refit["h"] == es.H == 6.5 and frozen["h"] == es.H_FROZEN == 9.0
+    assert refit["cusum"] == pytest.approx(frozen["cusum"])          # the same baseline gives the same chart
+    mid = es.signal(row(32, mu=20.0), hist_of([20] * 5 + [32] * 8), lambda d: 1.0, baseline=base)
+    assert es.H <= mid["cusum"] < es.H_FROZEN and mid["alarm"] is False        # over the refit limit, under the frozen one
+    assert es.signal(row(32, mu=20.0), hist_of([20] * 5 + [32] * 8), lambda d: 1.0)["alarm"] is True
+    assert es.signal(row(32, mu=20.0), h, lambda d: 1.0, baseline=base, h=3.0)["h"] == 3.0
