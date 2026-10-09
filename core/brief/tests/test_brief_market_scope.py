@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from core.brief import evidence, market_scope
+from core.brief import evidence, market_scope, pack_order
 from core.brief.market_scope import read_market_scope
 from core.detect import sqlrun
 from core.detect.tests import duck
@@ -289,10 +289,11 @@ def test_known_foreign_veto_agrees_in_brief_and_detect_scope_without_changing_un
 
 def evidence_ids(con, market="ZA"):
     start = datetime.combine(D - timedelta(days=6), datetime.min.time(), timezone(timedelta(hours=2)))
-    rows = sqlrun.query(duck.Client(con), evidence.QUERIES["evidence"],
-                        {"item_id": "i1", "market": market, "d": D, "start": start, "end": start + timedelta(days=7)},
-                        core="core", agent="agent")
-    return {r["post_id"] for r in rows}
+    # The path production takes: the registry goes as a typed array parameter, which sqlrun.query cannot send.
+    rows = evidence._pack_rows(duck.Client(con), {"item_id": "i1", "market": market, "d": D, "start": start,
+                                                  "end": start + timedelta(days=7),
+                                                  "outlet_cap": pack_order.OUTLET_CAP}, "core", "agent")
+    return {r["post_id"] for r in rows if r["post_id"] is not None}  # an empty pack comes back as one row, no post
 
 
 def located_za():
