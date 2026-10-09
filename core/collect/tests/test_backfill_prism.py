@@ -187,11 +187,21 @@ class DuckBQ:
         return Job([{"n": first[0]}], size=self.dry_bytes, billed=self.dry_bytes, job_id=f"job{len(self.log)}")
 
 
-def run_cli(bq, *args, receipts=None):
+SAST = timezone(timedelta(hours=2))
+
+
+def sast(hour, minute=0, second=0):
+    return lambda: datetime(2026, 10, 10, hour, minute, second, tzinfo=SAST)
+
+
+NOON = sast(12)
+
+
+def run_cli(bq, *args, receipts=None, clock=NOON):
     argv = list(args)
     if receipts is not None:
         argv += ["--receipts-dir", str(receipts)]
-    return bf.main(argv, client=bq, fns=(fake_item_id, FakeGeo()))
+    return bf.main(argv, client=bq, fns=(fake_item_id, FakeGeo()), clock=clock)
 
 
 def apply_args(run_id="bf-run-1"):
@@ -233,7 +243,7 @@ def test_a_stored_row_fetched_outside_the_window_stops_the_run_before_any_write(
     bq.query = _ignore_dates(bq)
     with pytest.raises(bf.Refused):
         bf.run(bq, since=date(2026, 9, 28), until=date(2026, 10, 7), apply=True, run_id="bf-run-1",
-               receipts_dir=tmp_path / "r", fns=(fake_item_id, FakeGeo()))
+               receipts_dir=tmp_path / "r", fns=(fake_item_id, FakeGeo()), clock=NOON)
     assert not any(e["sql"].lstrip().upper().startswith("INSERT") for e in bq.log)
 
 
@@ -256,7 +266,7 @@ def test_a_stored_row_of_another_route_stops_the_run_too(tmp_path):
     bq.query = _ignore_dates(bq)
     with pytest.raises(bf.Refused):
         bf.run(bq, since=date(2026, 9, 28), until=date(2026, 10, 7), apply=True, run_id="bf-run-1",
-               receipts_dir=tmp_path / "r", fns=(fake_item_id, FakeGeo()))
+               receipts_dir=tmp_path / "r", fns=(fake_item_id, FakeGeo()), clock=NOON)
 
 
 # run id and modes
@@ -326,6 +336,46 @@ def test_dry_run_after_an_apply_says_nothing_would_be_new(tmp_path, capsys):
     assert report["would_insert"] == {t: 0 for t in TABLE_TYPES} and sum(report["rows"].values()) > 0
 
 
+# the safe time
+
+@pytest.mark.parametrize("clock", [sast(2), sast(4, 15), sast(6, 30), sast(2, 0, 1), sast(6, 29, 59),
+                                   lambda: datetime(2026, 10, 10, 0, 30, tzinfo=timezone.utc),
+                                   lambda: datetime(2026, 10, 10, 4, 30, tzinfo=timezone.utc)])
+def test_apply_inside_the_collect_window_is_refused_before_anything_runs(clock, tmp_path):
+    bq = DuckBQ(scenario())
+    assert run_cli(bq, *apply_args(), receipts=tmp_path / "r", clock=clock) != 0
+    assert bq.log == [] and not (tmp_path / "r").exists()
+
+
+@pytest.mark.parametrize("clock", [sast(1, 59, 59), sast(6, 30, 1), sast(12), sast(0), sast(23, 59, 59),
+                                   lambda: datetime(2026, 10, 9, 23, 59, 59, tzinfo=timezone.utc),
+                                   lambda: datetime(2026, 10, 10, 4, 30, 1, tzinfo=timezone.utc)])
+def test_apply_outside_the_collect_window_goes_ahead(clock, tmp_path):
+    bq = DuckBQ(scenario())
+    assert run_cli(bq, *apply_args(), receipts=tmp_path / "r", clock=clock) == 0
+    assert bq.count("posts") > 0
+
+
+def test_a_dry_run_inside_the_collect_window_is_allowed():
+    bq = DuckBQ(scenario())
+    assert run_cli(bq, clock=sast(4)) == 0
+    assert all(bq.count(t) == 0 for t in TABLE_TYPES)
+
+
+def test_the_clock_is_the_real_one_when_none_is_given(monkeypatch, tmp_path):
+    bq = DuckBQ(scenario())
+    inside = datetime(2026, 10, 10, 3, 0, tzinfo=SAST)
+
+    class Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return inside.astimezone(tz) if tz else inside.replace(tzinfo=None)
+    monkeypatch.setattr(bf, "datetime", Frozen)
+    assert bf.main(["--apply", "--run-id", "bf-run-1", "--receipts-dir", str(tmp_path / "r")], client=bq,
+                   fns=(fake_item_id, FakeGeo())) != 0
+    assert bq.log == []
+
+
 # cost caps
 
 def test_every_query_carries_a_byte_cap_and_every_statement_is_dry_run_before_any_is_run(tmp_path):
@@ -347,7 +397,7 @@ def test_a_dry_run_estimate_over_the_cap_refuses_before_anything_is_billed(tmp_p
     bq = DuckBQ(scenario(), dry_bytes=bf.WRITE_CAP + 1)
     with pytest.raises(bf.Refused):
         bf.run(bq, since=date(2026, 9, 28), until=date(2026, 10, 7), apply=True, run_id="bf-run-1",
-               receipts_dir=tmp_path / "r", fns=(fake_item_id, FakeGeo()))
+               receipts_dir=tmp_path / "r", fns=(fake_item_id, FakeGeo()), clock=NOON)
     assert not any(not e["dry_run"] for e in bq.log)
     assert bq.count("posts") == 0
 
@@ -357,6 +407,12 @@ def test_a_dry_run_that_reports_no_size_is_refused(tmp_path):
     with pytest.raises(bf.Refused):
         bf.run(bq, since=date(2026, 9, 28), until=date(2026, 10, 7), apply=False, run_id=None, receipts_dir=None,
                fns=(fake_item_id, FakeGeo()))
+
+
+def test_the_two_byte_caps_are_pinned_to_their_literal_values():
+    """Every other cap test compares against the constants themselves, so only a literal can notice one change."""
+    assert bf.READ_CAP == 536_870_912 == 512 * 1024 ** 2
+    assert bf.WRITE_CAP == 1_073_741_824 == 1024 ** 3
 
 
 def test_the_client_is_set_up_as_the_held_reasons_reader_does(monkeypatch):
@@ -370,9 +426,12 @@ def test_the_client_is_set_up_as_the_held_reasons_reader_does(monkeypatch):
     class Creds:
         def __init__(self, **kw):
             seen["creds"] = kw
+            seen["instance"] = self
     monkeypatch.setattr(impersonated_credentials, "Credentials", Creds)
     monkeypatch.setattr(bigquery, "Client", lambda **kw: seen.setdefault("client", kw) and "client")
     assert bf.make_client() == "client"
+    assert seen["creds"]["source_credentials"] == "source"
+    assert seen["client"]["credentials"] is seen["instance"]
     assert seen["creds"]["target_principal"] == "f42-builder@ogilvy-trends-v2.iam.gserviceaccount.com"
     assert seen["creds"]["target_scopes"] == ["https://www.googleapis.com/auth/cloud-platform"]
     assert seen["client"]["project"] == "ogilvy-trends-v2" and seen["client"]["location"] == "US"
@@ -411,7 +470,82 @@ def test_a_statement_that_is_not_a_select_or_an_insert_is_refused_by_the_guard()
         with pytest.raises(bf.Refused):
             bf.assert_insert_only(sql)
     bf.assert_insert_only(bf.insert_sql("posts"))
-    bf.assert_insert_only(bf.READ_SQL)
+    bf.assert_insert_only(bf.READ_SQL.format(table=writers.table("raw_responses")))
+
+
+BAD_STATEMENTS = ["INSERT INTO t SELECT 1; SELECT 2", "CALL p()", "SELECT 1; SELECT 2", "SELECT 1", "INSERT INTO t VALUES (1)"]
+WINDOW_ARGS = dict(since=date(2026, 9, 28), until=date(2026, 10, 7), receipts_dir=None, fns=(fake_item_id, FakeGeo()),
+                   clock=NOON)
+
+
+@pytest.mark.parametrize("sql", BAD_STATEMENTS)
+def test_the_guard_refuses_a_statement_that_is_not_one_of_the_modules_own(sql):
+    with pytest.raises(bf.Refused):
+        bf.assert_insert_only(sql)
+
+
+@pytest.mark.parametrize("sql", BAD_STATEMENTS)
+@pytest.mark.parametrize("path", ["_dry", "_run"])
+def test_the_dry_run_and_the_acting_run_each_call_the_guard(path, sql):
+    bq = DuckBQ()
+    with pytest.raises(bf.Refused):
+        getattr(bf, path)(bq, sql, [], bf.WRITE_CAP)
+    assert bq.log == []
+
+
+@pytest.mark.parametrize("sql", BAD_STATEMENTS[:2])
+@pytest.mark.parametrize("apply", [True, False])
+def test_a_planner_statement_the_guard_refuses_never_reaches_the_client(monkeypatch, tmp_path, sql, apply):
+    bq = DuckBQ(scenario())
+    monkeypatch.setattr(bf, "insert_sql", lambda table: sql)
+    with pytest.raises(bf.Refused):
+        bf.run(bq, apply=apply, run_id="bf-run-1" if apply else None, **{**WINDOW_ARGS, "receipts_dir": (
+            tmp_path / "r" if apply else None)})
+    assert all(e["sql"] != sql for e in bq.log)
+    assert all(bq.count(t) == 0 for t in TABLE_TYPES)
+
+
+@pytest.mark.parametrize("sql", BAD_STATEMENTS[:2])
+def test_a_count_statement_the_guard_refuses_never_reaches_the_client(monkeypatch, sql):
+    bq = DuckBQ(scenario())
+    monkeypatch.setattr(bf, "count_sql", lambda table: sql)
+    with pytest.raises(bf.Refused):
+        bf.run(bq, apply=False, run_id=None, **WINDOW_ARGS)
+    assert all(e["sql"] != sql for e in bq.log)
+
+
+@pytest.mark.parametrize("sql", BAD_STATEMENTS[:3])
+def test_a_read_statement_the_guard_refuses_never_reaches_the_client(monkeypatch, sql):
+    bq = DuckBQ(scenario())
+    monkeypatch.setattr(bf, "READ_SQL", sql)
+    with pytest.raises(bf.Refused):
+        bf.run(bq, apply=False, run_id=None, **WINDOW_ARGS)
+    assert bq.log == []
+
+
+def test_the_guard_passes_exactly_the_texts_the_module_builds():
+    bf.assert_insert_only(bf.READ_SQL.format(table=writers.table("raw_responses")))
+    for table in bf.SPECS:
+        bf.assert_insert_only(bf.insert_sql(table))
+        bf.assert_insert_only(bf.count_sql(table))
+
+
+def _variants():
+    posts = bf.insert_sql("posts")
+    yield "no NOT EXISTS", posts[:posts.index("WHERE NOT EXISTS")]
+    yield "into collection_health", posts.replace(writers.table("posts"), writers.table("collection_health"))
+    yield "into raw_responses", posts.replace(writers.table("posts"), writers.table("raw_responses"))
+    yield "values", f"INSERT INTO `{writers.table('posts')}` (post_id) VALUES ('x')"
+    yield "trailing semicolon", posts + ";"
+    yield "extra space", posts + " "
+    yield "another table's read", bf.READ_SQL.format(table=writers.table("posts"))
+    yield "count over a made-up table", bf.count_sql("posts").replace(writers.table("posts"), "p.d.other")
+
+
+@pytest.mark.parametrize("name,sql", list(_variants()), ids=[n for n, _ in _variants()])
+def test_the_guard_refuses_an_insert_or_select_that_is_not_one_of_the_modules_own_texts(name, sql):
+    with pytest.raises(bf.Refused):
+        bf.assert_insert_only(sql)
 
 
 def test_existing_rows_are_never_changed(tmp_path):
@@ -612,6 +746,42 @@ def test_a_panel_whose_rows_name_no_target_is_unclassified():
     assert {o["source_market"] for o in plan.observations} == {None}
 
 
+# a panel claims a list only when it is that list
+
+def _unlisted_member(market, key):
+    """One member of the market's desk or gossip list that is on no curated list, as a panel item."""
+    refs = bf._references(MANIFEST, CONFIG, bf.WINDOW[1])[market]
+    items = refs["desk_items"] if key == "desk" else refs["gossip_items"]
+    return next((i for i in items if (i["platform"].casefold(), i["handle"].casefold()) not in refs["curated"]), None)
+
+
+def _curated_member(market):
+    return curated_calls(market)[0].params["items"][0]
+
+
+@pytest.mark.parametrize("market", ["ZA", "NG", "KE"])
+def test_a_panel_that_only_overlaps_the_curated_list_is_not_curated(market):
+    panel = [_curated_member(market), {"platform": "instagram", "handle": "not-in-any-list"}]
+    plan = plan_of([raw("prism/profiles", market, at(DAY, 1), prism_body(panel, "ov"))])
+    assert plan.calls[0]["class"] == "unclassified" and plan.observations
+    assert {o["source_market"] for o in plan.observations} == {None}
+
+
+@pytest.mark.parametrize("key,klass", [("desk", "desk"), ("gossip", "gossip")])
+def test_part_of_the_desk_or_gossip_list_is_not_that_list(key, klass):
+    tried = 0
+    for market in ("ZA", "NG", "KE"):
+        member = _unlisted_member(market, key)
+        if member is None:
+            continue
+        tried += 1
+        plan = plan_of([raw("prism/profiles", market, at(DAY, 1), prism_body([member], "sub"))])
+        assert plan.calls[0]["class"] == "unclassified" and plan.observations
+        assert {o["source_market"] for o in plan.observations} == {None}
+        assert {o["series"] for o in plan.observations} == {"panel_culture_desk"}
+    assert tried
+
+
 # parse and window rules
 
 def test_since_is_the_day_before_the_markets_fetch_day():
@@ -683,15 +853,105 @@ def test_a_row_without_a_stored_hash_is_unchecked_not_confirmed():
     assert _verified(plan, "desk") == [None]
 
 
-def test_the_report_counts_confirmed_unconfirmed_and_unchecked_calls(capsys):
+def test_the_report_counts_confirmed_unconfirmed_and_unchecked_calls_per_class(capsys):
+    """The totals of the first version could not say which class an unconfirmed call belonged to, so the runbook's
+    stop rule (an unconfirmed desk, gossip or song call) could not be read from the report."""
     bq = DuckBQ(scenario())
     run_cli(bq)
     report = json.loads(capsys.readouterr().out)
     got = report["params_verified"]
-    # Desk, gossip and song calls are all confirmed. A curated batch is confirmed only where the day's rotation
-    # starts at the head of the list, so the curated calls may split either way; the unlisted panel is unchecked.
-    assert got["unchecked"] == 1 and sum(got.values()) == PRISM_CALLS + 3
-    assert 10 <= got["confirmed"] <= 10 + sum(CURATED.values()) and got["unconfirmed"] <= sum(CURATED.values())
+    assert got["desk"] == {"confirmed": 4, "unconfirmed": 0, "unchecked": 0}
+    assert got["gossip"] == {"confirmed": 3, "unconfirmed": 0, "unchecked": 0}
+    assert got["song"] == {"confirmed": 3, "unconfirmed": 0, "unchecked": 0}
+    assert got["unclassified"] == {"confirmed": 0, "unconfirmed": 0, "unchecked": 1}
+    # A curated batch is confirmed only where the day's rotation starts at the head of the list, so it may split.
+    curated = got["curated"]
+    assert curated["unchecked"] == 0 and curated["confirmed"] + curated["unconfirmed"] == sum(CURATED.values())
+    assert set(got) == {"desk", "gossip", "song", "unclassified", "curated"}
+
+
+def _hash_wrong(rows, index):
+    rows = [dict(r) for r in rows]
+    rows[index]["params_hash"] = params_hash(PRICED[rows[index]["route"]].method, {"not": "the params"})
+    return rows
+
+
+def _index_of(rows, klass):
+    plan = plan_of(rows)
+    ordered = sorted(range(len(rows)), key=lambda i: (rows[i]["fetched_at"], rows[i]["run_id"], rows[i]["route"],
+                                                      str(rows[i]["market"]), str(rows[i].get("seed_key"))))
+    return next(ordered[n] for n, call in enumerate(plan.calls) if call["class"] == klass)
+
+
+@pytest.mark.parametrize("klass", ["desk", "gossip", "song"])
+def test_the_report_names_the_class_of_an_unconfirmed_call(klass, capsys):
+    rows = _hash_wrong(scenario(), _index_of(scenario(), klass))
+    run_cli(DuckBQ(rows))
+    got = json.loads(capsys.readouterr().out)["params_verified"]
+    assert got[klass]["unconfirmed"] == 1
+    assert [k for k in ("desk", "gossip", "song") if got[k]["unconfirmed"]] == [klass]
+
+
+@pytest.mark.parametrize("klass", ["desk", "gossip", "song"])
+def test_apply_refuses_while_a_desk_gossip_or_song_call_is_unconfirmed(klass, tmp_path):
+    rows = _hash_wrong(scenario(), _index_of(scenario(), klass))
+    bq = DuckBQ(rows)
+    assert run_cli(bq, *apply_args(), receipts=tmp_path / "r") != 0
+    assert not any(e["sql"].lstrip().upper().startswith("INSERT") for e in bq.log)
+    assert all(bq.count(t) == 0 for t in TABLE_TYPES) and not (tmp_path / "r").exists()
+
+
+@pytest.mark.parametrize("klass", ["desk", "gossip", "song"])
+def test_apply_goes_ahead_on_an_unconfirmed_call_when_it_is_accepted_by_name(klass, tmp_path):
+    rows = _hash_wrong(scenario(), _index_of(scenario(), klass))
+    bq = DuckBQ(rows)
+    assert run_cli(bq, *apply_args(), "--accept-unconfirmed", receipts=tmp_path / "r") == 0
+    assert all(bq.count(t) > 0 for t in TABLE_TYPES)
+    assert json.loads((tmp_path / "r" / "summary.json").read_text())["accept_unconfirmed"] is True
+
+
+def test_a_dry_run_reports_an_unconfirmed_call_and_does_not_refuse(capsys):
+    rows = _hash_wrong(scenario(), _index_of(scenario(), "desk"))
+    assert run_cli(DuckBQ(rows)) == 0
+    assert json.loads(capsys.readouterr().out)["params_verified"]["desk"]["unconfirmed"] == 1
+
+
+def test_an_unconfirmed_curated_batch_or_an_unchecked_panel_does_not_stop_the_apply(tmp_path):
+    rows = _hash_wrong(scenario(), _index_of(scenario(), "curated"))
+    bq = DuckBQ(rows)
+    assert run_cli(bq, *apply_args(), receipts=tmp_path / "r") == 0
+    assert all(bq.count(t) > 0 for t in TABLE_TYPES)
+
+
+# keys and repeats inside one batch
+
+def test_creators_are_keyed_by_platform_as_well_as_creator_id(tmp_path):
+    creator = writers.dedupe_creators(plan_of(scenario()).creators)[0]
+    bq = DuckBQ(scenario())
+    bq.put("creators", creator_id=creator["creator_id"], platform="another-platform", handle="old", followers=1)
+    assert run_cli(bq, *apply_args(), receipts=tmp_path / "r") == 0
+    mine = [r for r in bq.table("creators") if r["creator_id"] == creator["creator_id"]]
+    assert {r["platform"] for r in mine} == {"another-platform", creator["platform"]}
+    assert bq.count("creators") == len(writers.dedupe_creators(plan_of(scenario()).creators)) + 1
+
+
+def test_a_post_listed_under_two_profiles_of_one_body_gives_one_observation():
+    """parse._post does not dedupe, so a collab post under two profiles yields two rows with the same key."""
+    _, items = desk_items("ZA")
+    body = prism_body(items[:2], "collab")
+    shared = body["data"]["results"][0]["posts"]["items"][0]
+    body["data"]["results"][1]["posts"]["items"].append(json.loads(json.dumps(shared)))
+    plan = plan_of([raw("prism/profiles", "ZA", at(DAY, 1), body)])
+    keys = [(o["post_id"], o["observed_at"], o["route"], o["market"], o["protocol"]) for o in plan.observations]
+    assert len(keys) == len(set(keys))
+    shared_id = next(p["post_id"] for p in plan.posts if p["native_id"] == shared["post"]["id"])
+    assert sum(o["post_id"] == shared_id for o in plan.observations) == 1
+
+
+def test_the_same_song_read_twice_gives_one_counter_row():
+    row = raw("tiktok/song", "ZA", at(date(2026, 9, 30), 17, 49), song_body("S1", 100), seed_key="S1", lane="watchlist")
+    plan = plan_of([row, dict(row, run_id="r-again")])
+    assert [c["unit"] for c in plan.counters] == ["total"]
 
 
 # receipts
@@ -787,3 +1047,42 @@ def test_the_column_maps_match_the_tables_ddl():
     assert set(writers.CREATOR_TYPES) <= set(_ddl_columns("creators"))
     assert list(writers.CREATOR_TYPES) == list(CREATOR_COLUMNS)
     assert bf.OBSERVATION_TYPES["observed_at"] == "TIMESTAMP" and bf.COUNTER_TYPES["value"] == "FLOAT64"
+
+
+# evidence only (Albert, batch 6, 9 Oct 2026): posts and creators land, no series and no closed day is rewritten
+
+WRITTEN = {"posts", "creators", "post_observations", "item_counter_daily"}
+NOT_TOUCHED = ("collection_health", "item_daily", "post_items", "series", "cultural_map", "runs")
+
+
+def _tables_named(sql):
+    return {name.rsplit(".", 1)[-1] for name in re.findall(r"`([^`]+)`", sql)}
+
+
+def test_no_statement_the_apply_runs_touches_a_health_item_or_series_table(tmp_path):
+    bq = DuckBQ(scenario())
+    assert run_cli(bq, *apply_args(), receipts=tmp_path / "r") == 0
+    seen = set()
+    for entry in bq.log:
+        seen |= _tables_named(entry["sql"])
+    assert seen == WRITTEN | {"raw_responses"}
+    for name in seen:
+        assert not any(word in name for word in NOT_TOUCHED), name
+    for entry in bq.log:
+        for text in ("collection_health", "item_daily", "post_items"):
+            assert text not in entry["sql"], (text, entry["sql"][:80])
+
+
+def test_every_statement_the_guard_allows_names_only_the_four_tables_and_the_raw_read():
+    allowed = set(bf.ALLOWED)
+    assert len(allowed) == 9
+    for sql in allowed:
+        names = _tables_named(sql)
+        assert names and names <= WRITTEN | {"raw_responses"}, sql[:80]
+        if sql.lstrip().upper().startswith("INSERT"):
+            assert _tables_named(sql.split("\n", 1)[0]) <= WRITTEN
+    assert {n for sql in allowed if sql.lstrip().upper().startswith("INSERT") for n in _tables_named(sql)} == WRITTEN
+
+
+def test_the_tables_the_command_writes_are_the_four_and_no_other():
+    assert set(bf.SPECS) == WRITTEN

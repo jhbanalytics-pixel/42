@@ -36,6 +36,12 @@ What it does, in order:
    when the same sound has a total on the previous day. Posts, observations and creators the song page might yield
    are counted and not written.
 
+Scope (Albert, batch 6): evidence only. Posts and creators land, and the series and the closed days are not rewritten:
+the command writes no collection_health, item_daily or post_items row, and the counter rows it writes carry this run's
+id, so v_item_counter_daily_current does not read them. `--apply` runs only outside 02:00 to 06:30 SAST (check_quiet_hour)
+and refuses while a desk, gossip or song call does not match its stored params_hash, unless `--accept-unconfirmed` is
+given. The guard (assert_insert_only) allows exactly the nine statement texts this module builds.
+
 `--dry-run` (the default) reads, parses and reports counts, how many rows are not yet stored, and the dry-run byte
 estimate of every statement. It writes no row and no file. `--apply` needs `--run-id` and `--receipts-dir`, writes the
 per-call receipts first, then the inserts batch by batch, a statement receipt after each, and a summary.
@@ -49,7 +55,7 @@ import json
 import re
 import sys
 from collections import Counter
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 from core.collect import curated_creators, job, local_sources, writers
@@ -94,7 +100,9 @@ READ_SQL = (
     "  AND r.job IN UNNEST(@jobs) AND r.route IN UNNEST(@routes)\n"
     "ORDER BY r.fetched_at, r.run_id, r.route, r.market, r.seed_key"
 )
-FORBIDDEN = re.compile(r"\b(UPDATE|DELETE|MERGE|TRUNCATE|DROP|ALTER|CREATE|REPLACE|EXPORT)\b", re.I)
+SAST = timezone(timedelta(hours=2))
+COLLECT_BUSY = (time(2, 0), time(6, 30))  # SAST, both ends included: the nightly collect and the brief
+STRICT_CLASSES = ("desk", "gossip", "song")
 
 
 class Refused(ValueError):
@@ -113,11 +121,20 @@ def check_window(since, until):
     return since, until
 
 
+def check_quiet_hour(clock=None):
+    """Refuse inside the collect, brief and pulse hours, 02:00 to 06:30 SAST. The posts insert reads a snapshot, so a
+    collect MERGE of the same post_id landing meanwhile could leave two rows."""
+    now = (clock() if clock is not None else datetime.now(UTC)).astimezone(SAST)
+    if COLLECT_BUSY[0] <= now.time() <= COLLECT_BUSY[1]:
+        raise Refused(f"it is {now.strftime('%H:%M:%S')} SAST; --apply runs outside 02:00 to 06:30 SAST only")
+
+
 def assert_insert_only(sql):
-    """Refuse any statement that is not one SELECT or one INSERT, or that names a statement that changes or removes."""
-    body = sql.strip().rstrip(";")
-    if not re.match(r"(SELECT|INSERT INTO)\b", body, re.I) or ";" in body or FORBIDDEN.search(body):
-        raise Refused("only a single SELECT or INSERT statement may run")
+    """Refuse any statement text that is not exactly one this module builds: the raw_responses read, and the insert and
+    the count of each table in SPECS. The set is fixed when the module loads, so a statement built later cannot
+    widen it."""
+    if sql not in ALLOWED:
+        raise Refused("only the statements this module builds may run")
 
 
 # Statements
@@ -138,6 +155,10 @@ def insert_sql(table):
 
 def count_sql(table):
     return f"SELECT COUNT(*) AS n FROM (SELECT * FROM UNNEST(@rows)) S\n{_where(table)}"
+
+
+ALLOWED = frozenset([READ_SQL.format(table=writers.table("raw_responses"))]
+                    + [text for table in SPECS for text in (insert_sql(table), count_sql(table))])
 
 
 def _params(table, rows):
@@ -415,10 +436,11 @@ def _append(path, record):
         f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
 
 
-def run(client, *, since, until, apply, run_id, receipts_dir, fns):
+def run(client, *, since, until, apply, run_id, receipts_dir, fns, accept_unconfirmed=False, clock=None):
     """A dry run (apply False) or the apply. Returns the report; Refused stops it before a row is written."""
     since, until = check_window(since, until)
     if apply:
+        check_quiet_hour(clock)
         if not isinstance(run_id, str) or not RUN_ID.fullmatch(run_id):
             raise Refused("--apply needs --run-id of 3 to 80 letters, digits, dots, colons, dashes or underscores")
         if receipts_dir is None:
@@ -429,6 +451,12 @@ def run(client, *, since, until, apply, run_id, receipts_dir, fns):
     raw, read_bytes = read_raw(client, since, until)
     item_id_fn, geo_fn = fns if fns is not None else job.detect_fns()
     plan = build(raw, run_id=run_id if apply else "dry-run", item_id_fn=item_id_fn, geo_fn=geo_fn)
+    verified = Counter((c["class"], {True: "confirmed", False: "unconfirmed", None: "unchecked"}[c["params_verified"]])
+                       for c in plan.calls)
+    unconfirmed = {k: n for (k, state), n in verified.items() if state == "unconfirmed" and k in STRICT_CLASSES}
+    if apply and unconfirmed and not accept_unconfirmed:
+        raise Refused(f"{sum(unconfirmed.values())} desk, gossip or song calls do not match the params_hash stored with "
+                      f"them ({unconfirmed}); pass --accept-unconfirmed to go on")
     tables = rows_by_table(plan)
     batches = [(t, n, b) for t, rows in tables.items() for n, b in enumerate(_batches(rows, BATCH)) if b]
     estimates = {t: 0 for t in tables}
@@ -438,9 +466,9 @@ def run(client, *, since, until, apply, run_id, receipts_dir, fns):
               "run_id": run_id if apply else None,
               "raw_rows": dict(Counter(r["route"] for r in raw)), "jobs": dict(Counter(r["job"] for r in raw)),
               "classes": dict(Counter(c["class"] for c in plan.calls)), "skipped": plan.skipped,
-              "params_verified": {"confirmed": sum(c["params_verified"] is True for c in plan.calls),
-                                  "unconfirmed": sum(c["params_verified"] is False for c in plan.calls),
-                                  "unchecked": sum(c["params_verified"] is None for c in plan.calls)},
+              "params_verified": {k: {state: verified[(k, state)] for state in ("confirmed", "unconfirmed", "unchecked")}
+                                  for k in sorted({k for k, _ in verified})},
+              "accept_unconfirmed": accept_unconfirmed,
               "rows": {t: len(rows) for t, rows in tables.items()},
               "estimated_bytes": {"read": read_bytes, **estimates},
               "caps": {"read": READ_CAP, "write": WRITE_CAP}}
@@ -479,7 +507,7 @@ def run(client, *, since, until, apply, run_id, receipts_dir, fns):
     return report
 
 
-def main(argv=None, *, client=None, fns=None):
+def main(argv=None, *, client=None, fns=None, clock=None):
     args = argparse.ArgumentParser(prog="core.collect.backfill_prism", description=__doc__.split("\n")[0])
     mode = args.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", help="read, parse and report; write nothing (the default)")
@@ -488,6 +516,8 @@ def main(argv=None, *, client=None, fns=None):
     args.add_argument("--since", default=WINDOW[0].isoformat(), help="first UTC fetch day, inside the window")
     args.add_argument("--until", default=WINDOW[1].isoformat(), help="last UTC fetch day, inside the window")
     args.add_argument("--receipts-dir", help="a new directory for calls.jsonl, statements.jsonl and summary.json")
+    args.add_argument("--accept-unconfirmed", action="store_true",
+                      help="let --apply go on although a desk, gossip or song call does not match its stored params_hash")
     args.add_argument("--principal", default=PRINCIPAL)
     opts = args.parse_args(argv)
     try:
@@ -496,7 +526,8 @@ def main(argv=None, *, client=None, fns=None):
         if opts.apply and (opts.run_id is None or opts.receipts_dir is None):
             raise Refused("--apply needs --run-id and --receipts-dir")
         report = run(client if client is not None else make_client(opts.principal), since=since, until=until,
-                     apply=opts.apply, run_id=opts.run_id, receipts_dir=opts.receipts_dir, fns=fns)
+                     apply=opts.apply, run_id=opts.run_id, receipts_dir=opts.receipts_dir, fns=fns,
+                     accept_unconfirmed=opts.accept_unconfirmed, clock=clock)
     except (Refused, ValueError) as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
