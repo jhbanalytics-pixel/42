@@ -564,7 +564,8 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
     percent, no decimals), the claim has no bad number entry, and exactly one column of exactly one row of a query the
     claim already cites holds the value, a row of a many-row query counting only when it names something the claim
     names (the subject's row, as _supporting_rows reads it), that row being the claim's anchor row, the one row holding
-    its existing good number (_anchor_row; none or more than one refuses), and a word within two words after the figure in the claim
+    its existing good number (_anchor_row; none or more than one refuses) and the only row of a many-row query the
+    claim names (naming another row's subject refuses: the figure may be that subject's), and a word within two words after the figure in the claim
     names that column ("5 creators", column creators). The entry is the one the writer writes: value, unit (the column), query_id, and run_id and
     result_hash set from the recorded query, as write_answer sets them. The caller checks the result with
     unpinned_claim_numerals; the K2 and support checks run on it as on any draft."""
@@ -593,7 +594,7 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
             if text.count(numeral) != 1:
                 return None
             after = _unit_words(" ".join(re.findall(r"[A-Za-z]+", text.split(numeral, 1)[1])[:2]))
-            found, held_by = {}, []
+            found, held_by, named = {}, [], []
             for query_id in cited:
                 rows = ctx.queries[query_id]["rows"]
                 if not all(isinstance(row, dict) for row in rows):
@@ -602,6 +603,7 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
                 # is the claim's subject by itself.
                 subject = [i for i, row in enumerate(rows)
                            if len(rows) == 1 or _named_cells(claim.get("text") or "", row)]
+                named += [(query_id, i) for i in subject if len(rows) > 1]
                 for i in subject:
                     held = False
                     for column, cell in rows[i].items():
@@ -613,6 +615,9 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
             # The figure comes only from the anchor row, the one row holding the claim's own good number: another
             # row it shares a platform or market cell with, or that the claim also names, never lends it a figure.
             if held_by != [anchor]:
+                return None
+            # A claim that also names another row's subject may be giving the figure to that subject.
+            if any(key != anchor for key in named):
                 return None
             hits = [key for key in found if _unit_words(str(key[1]).replace("_", " ")) & after]
             if len(found) != len(hits) or len(hits) != 1:

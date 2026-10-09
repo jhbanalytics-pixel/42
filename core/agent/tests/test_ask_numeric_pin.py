@@ -238,11 +238,35 @@ def test_a_figure_is_pinned_only_from_the_row_that_holds_the_claims_own_good_num
     assert any(v == "cut" and "numeral 5 has no pinned" in why for v, why in k2_verdicts(draft, ctx, wh))
 
 
-def test_a_figure_on_the_anchor_row_is_still_pinned_when_the_claim_names_both_subjects():
-    _, _, pinned, ctx, wh, window, reruns = pinned_for(
-        TAGS, "#gqom outpaced #amapiano, drawing 9 posts from 3 creators.", [NINE])
+def test_a_figure_on_the_anchor_row_is_not_pinned_when_the_claim_names_both_subjects():
+    """Flipped from a pin (lead ruling W3-1): one repair call saved is a convenience, and a claim naming a second
+    subject's row may be giving the figure to that subject, so it goes to the repair call and K2."""
+    _, issues, pinned, *_ = pinned_for(TAGS, "#gqom outpaced #amapiano, drawing 9 posts from 3 creators.", [NINE])
 
-    assert pinned is not None and pinned["claims"][0]["numbers"][-1]["value"] == 3
+    assert issues and pinned is None
+
+
+GQOM_FIRST = [{"hashtag": "#gqom", "posts": 9, "creators": 5}, {"hashtag": "#amapiano", "posts": 7, "creators": 6}]
+
+
+@pytest.mark.parametrize("text", [
+    "#gqom drew 9 posts, while #amapiano reached 5 creators.",
+    "#gqom drew 9 posts and #amapiano drew 5 creators.",
+    "#gqom drew 9 posts; on #amapiano 5 creators posted.",
+], ids=["while", "and", "semicolon"])
+def test_a_figure_the_sentence_gives_to_a_second_subject_is_not_pinned_from_the_anchor_row(text):
+    """The 5 is #gqom's creators in the data, but each sentence gives it to #amapiano, whose count is 6. Pinning it
+    from the anchor row would let K2 pass a wrong attribution."""
+    draft, issues, pinned, ctx, wh, _, _ = pinned_for(GQOM_FIRST, text, [NINE])
+
+    assert issues and pinned is None
+    assert any(v == "cut" and "numeral 5 has no pinned" in why for v, why in k2_verdicts(draft, ctx, wh))
+
+
+def test_a_claim_naming_only_the_anchor_subject_is_still_pinned_beside_a_row_it_does_not_name():
+    _, _, pinned, ctx, wh, window, reruns = pinned_for(GQOM_FIRST, "#gqom drew 9 posts from 5 creators.", [NINE])
+
+    assert pinned is not None and pinned["claims"][0]["numbers"][-1]["value"] == 5
     assert writer.unpinned_claim_numerals(pinned, ctx, wh, window=window, reruns=reruns) == []
 
 
