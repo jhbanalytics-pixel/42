@@ -419,3 +419,255 @@ def test_an_apply_that_completes_puts_the_row_in_force_from_the_next_day(tmp_pat
         assert forced(con, D) == set()
     finally:
         con.close()
+
+
+# 7. A failed apply does not block a later one: a row whose run was never accepted is not "already written"
+
+
+def test_a_later_apply_writes_the_row_again_when_the_first_one_never_got_its_runs_row(tmp_path):
+    from .test_detect_backtest import BacktestClient, D, World, connect, duck, stable_panel
+    con = connect()
+    try:
+        stable_panel(World(), 30).load(con)
+        with pytest.raises(RuntimeError, match="runs append failed"):
+            backtest.run(RunsAppendFails(con), D, apply=True, days=7, out_dir=tmp_path, core="core", agent="agent")
+        again = backtest.run(BacktestClient(con), D, apply=True, days=7, out_dir=tmp_path, core="core", agent="agent")
+        assert len(again["switch_on"]) == 1
+        cited = {r["backtest_run_id"] for r in duck.query(con, "SELECT * FROM {core}.test_switch")}
+        assert again["run_id"] in cited and len(cited) == 2
+        assert forced(con, D + timedelta(days=1)) == {("ZA", "facebook", "panel")}
+    finally:
+        con.close()
+
+
+def test_an_accepted_row_is_still_not_written_twice(tmp_path):
+    from .test_detect_backtest import BacktestClient, D, World, connect, duck, stable_panel
+    con = connect()
+    try:
+        stable_panel(World(), 30).load(con)
+        client = BacktestClient(con)
+        backtest.run(client, D, apply=True, days=7, out_dir=tmp_path, core="core", agent="agent")
+        second = backtest.run(client, D, apply=True, days=7, out_dir=tmp_path, core="core", agent="agent")
+        assert second["switch_on"] == []
+        assert len(duck.query(con, "SELECT * FROM {core}.test_switch")) == 1
+    finally:
+        con.close()
+
+
+# 8. --apply FILE writes what a reviewed result file earns, from its counts, and nothing else
+
+
+def reviewed_result(keys, **extra):
+    return result(keys, thresholds=dict(backtest.THRESHOLDS), applied=False, **extra)
+
+
+def apply_world():
+    from .test_detect_backtest import BacktestClient, connect
+    con = connect()
+    return con, BacktestClient(con)
+
+
+def apply_file(path, client, tmp_path, *more, as_of=AS_OF):
+    return backtest.main(["--as-of", as_of, "--apply", str(path), *more], client=client, out_dir=tmp_path,
+                         core="core", agent="agent")
+
+
+def stored(con):
+    from .test_detect_backtest import duck
+    return (duck.query(con, "SELECT * FROM {core}.test_switch"),
+            duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'"))
+
+
+def test_the_run_result_states_the_thresholds_it_was_judged_by(tmp_path):
+    from .test_detect_backtest import BacktestClient, D, World, connect, stable_panel
+    con = connect()
+    try:
+        stable_panel(World(), 30).load(con)
+        res = backtest.run(BacktestClient(con), D, apply=False, days=7, out_dir=tmp_path, core="core", agent="agent")
+    finally:
+        con.close()
+    assert res["thresholds"] == backtest.THRESHOLDS == {
+        "false_alarm_max": 0.05, "recall_min": 0.8, "recall_at": "3", "min_observed_days": 14,
+        "min_tested": 60, "min_injected": 20}
+    saved = json.loads((tmp_path / f"{res['run_id']}.json").read_text(encoding="utf-8"))
+    assert saved["thresholds"] == res["thresholds"]
+
+
+def test_apply_file_writes_the_rows_the_files_counts_earn_and_the_files_run_id(tmp_path, capsys):
+    con, client = apply_world()
+    try:
+        liar = key(alarms=40, tested=100, switch=True, false_alarm_rate=0.01)
+        res = reviewed_result({"ZA|facebook|panel": key(), "NG|facebook|panel": liar},
+                              switch_on=[{**GOOD_ROW, "market": "NG"}])
+        assert apply_file(save(tmp_path, res), client, tmp_path) == 0
+        rows, run_rows = stored(con)
+        assert rows == [{**GOOD_ROW, "switched_on": date(2026, 10, 8)}]
+        [run_row] = run_rows
+        assert run_row["run_id"] == RUN and run_row["status"] == "ok" and run_row["run_date"] == date(2026, 10, 7)
+        assert forced(con) == {("ZA", "facebook", "panel")}
+        out = capsys.readouterr().out
+        assert "switched on: ZA|facebook|panel from 2026-10-08" in out
+        assert not any("item_counter_daily" in s for s in client.sql)
+    finally:
+        con.close()
+
+
+def test_apply_file_recomputes_a_file_whose_flags_say_everything_passed(tmp_path):
+    con, client = apply_world()
+    try:
+        res = reviewed_result({"ZA|facebook|panel": key(alarms=40, tested=100, switch=True, reasons=[])})
+        assert apply_file(save(tmp_path, res), client, tmp_path) == 0
+        assert stored(con) == ([], [])
+    finally:
+        con.close()
+
+
+def refuse(tmp_path, res, *, as_of=AS_OF, name=None, capsys=None):
+    con, client = apply_world()
+    try:
+        assert apply_file(save(tmp_path, res, name), client, tmp_path, as_of=as_of) == 1
+        assert stored(con) == ([], [])
+        assert client.sql == []
+    finally:
+        con.close()
+    return capsys.readouterr().err if capsys else ""
+
+
+def test_a_file_as_of_another_day_than_the_one_named_is_refused(tmp_path, capsys):
+    err = refuse(tmp_path, reviewed_result({"ZA|facebook|panel": key()}), as_of="2026-10-06", capsys=capsys)
+    assert "as of 2026-10-07" in err and "2026-10-06" in err
+
+
+def test_a_file_whose_as_of_is_not_the_day_of_its_run_id_is_refused(tmp_path, capsys):
+    res = reviewed_result({"ZA|facebook|panel": key()})
+    res["as_of"] = "2026-10-06"
+    err = refuse(tmp_path, res, as_of="2026-10-06", capsys=capsys)
+    assert "run id" in err
+
+
+def test_a_file_without_thresholds_is_refused(tmp_path, capsys):
+    res = reviewed_result({"ZA|facebook|panel": key()})
+    del res["thresholds"]
+    assert "thresholds" in refuse(tmp_path, res, capsys=capsys)
+
+
+@pytest.mark.parametrize("field, value", [
+    ("false_alarm_max", 0.1), ("false_alarm_max", 0.04), ("recall_min", 0.7), ("recall_min", 0.9),
+    ("recall_at", "2"), ("min_observed_days", 7), ("min_tested", 30), ("min_injected", 10), ("extra", 1)])
+def test_a_file_judged_by_other_thresholds_is_refused(tmp_path, capsys, field, value):
+    res = reviewed_result({"ZA|facebook|panel": key()})
+    res["thresholds"][field] = value
+    assert "thresholds" in refuse(tmp_path, res, capsys=capsys)
+
+
+def test_a_file_missing_one_threshold_is_refused(tmp_path, capsys):
+    res = reviewed_result({"ZA|facebook|panel": key()})
+    del res["thresholds"]["min_tested"]
+    assert "thresholds" in refuse(tmp_path, res, capsys=capsys)
+
+
+def test_a_file_whose_name_is_not_its_run_id_is_refused(tmp_path, capsys):
+    err = refuse(tmp_path, reviewed_result({"ZA|facebook|panel": key()}), name="backtest-20261007-ffffffffffff.json",
+                 capsys=capsys)
+    assert "run id" in err
+
+
+def test_a_candidate_rule_file_is_refused(tmp_path, capsys):
+    res = reviewed_result({"ZA|facebook|panel": key()}, rule_version=stats.SERIES_RULE_VERSION)
+    assert "rule version" in refuse(tmp_path, res, capsys=capsys)
+
+
+def test_a_file_that_is_not_json_or_not_an_object_is_refused(tmp_path, capsys):
+    con, client = apply_world()
+    try:
+        for text in ("{", "[]", "7"):
+            path = tmp_path / f"{RUN}.json"
+            path.write_text(text, encoding="utf-8")
+            assert apply_file(path, client, tmp_path) == 1
+        assert apply_file(tmp_path / "missing.json", client, tmp_path) == 1
+        assert stored(con) == ([], []) and client.sql == []
+    finally:
+        con.close()
+    assert capsys.readouterr().err.count("refused:") == 4
+
+
+def test_a_refused_file_never_builds_a_client(tmp_path, monkeypatch):
+    def no_client(*a, **k):
+        raise AssertionError("a refused file must not build a BigQuery client")
+
+    monkeypatch.setattr(backtest.bigquery, "Client", no_client)
+    res = reviewed_result({"ZA|facebook|panel": key()})
+    res["thresholds"]["recall_min"] = 0.5
+    path = save(tmp_path, res)
+    assert backtest.main(["--as-of", AS_OF, "--apply", str(path)], out_dir=tmp_path) == 1
+
+
+def test_a_run_that_already_has_an_ok_runs_row_is_refused_and_writes_nothing_more(tmp_path, capsys):
+    con, client = apply_world()
+    try:
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+        assert apply_file(path, client, tmp_path) == 0
+        assert apply_file(path, client, tmp_path) == 1
+        rows, run_rows = stored(con)
+        assert len(rows) == 1 and len(run_rows) == 1
+    finally:
+        con.close()
+    assert "already" in capsys.readouterr().err
+
+
+def test_a_file_that_earns_nothing_writes_no_rows_and_no_runs_row(tmp_path, capsys):
+    con, client = apply_world()
+    try:
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key(alarms=30)}))
+        assert apply_file(path, client, tmp_path) == 0
+        assert stored(con) == ([], [])
+    finally:
+        con.close()
+    assert "nothing new to switch on" in capsys.readouterr().out
+
+
+def test_a_key_already_accepted_for_the_rule_version_is_not_written_again_from_a_file(tmp_path):
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        old = "backtest-20261001-aaaaaaaaaaaa"
+        duck.load(con, "core.test_switch", [{**GOOD_ROW, "backtest_run_id": old}])
+        duck.load(con, "agent.runs", [backtest_run(run_id=old)])
+        assert apply_file(save(tmp_path, reviewed_result({"ZA|facebook|panel": key()})), client, tmp_path) == 0
+        rows, _ = stored(con)
+        assert [r["backtest_run_id"] for r in rows] == [old]
+    finally:
+        con.close()
+
+
+def test_a_file_apply_whose_runs_append_fails_leaves_nothing_in_force_and_can_be_repeated(tmp_path):
+    from .test_detect_backtest import BacktestClient, connect
+    con = connect()
+    try:
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+        with pytest.raises(RuntimeError, match="runs append failed"):
+            apply_file(path, RunsAppendFails(con), tmp_path)
+        assert len(stored(con)[0]) == 1 and forced(con) == set()
+        assert apply_file(path, BacktestClient(con), tmp_path) == 0
+        assert forced(con) == {("ZA", "facebook", "panel")}
+    finally:
+        con.close()
+
+
+def test_apply_file_needs_the_day_the_reviewer_read(tmp_path):
+    path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+    with pytest.raises(SystemExit):
+        backtest.main(["--apply", str(path)], out_dir=tmp_path)
+
+
+def test_apply_file_takes_no_window_length(tmp_path):
+    path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+    with pytest.raises(SystemExit):
+        backtest.main(["--as-of", AS_OF, "--days", "7", "--apply", str(path)], out_dir=tmp_path)
+
+
+def test_report_still_refuses_apply_with_or_without_a_file(tmp_path):
+    path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+    for apply in (["--apply"], ["--apply", str(path)]):
+        with pytest.raises(SystemExit):
+            backtest.main(["--report", str(path), *apply])
