@@ -286,6 +286,9 @@ class _KinName(_Conditional):
     _AFTER = re.compile(r"\s+(" + _NAME + ")")
     _LIST_AFTER = re.compile(r"\s*(?:,|&|\band\b)\s*(" + _NAME + ")")
     _LIST_BEFORE = re.compile(r"\b(" + _NAME + r")\s*(?:,|&|\band\b)\s*$")
+    # Full names of public people, read as names in any case: item labels are stored lower case, so "babu owino" is
+    # how the name reaches a claim. A list of full names only; a bare kin word never matches here.
+    _KNOWN_FULL_NAMES = re.compile(r"\b(?:babu\s+owino|bibi\s+titi\s+mohamed)\b", re.I)
     _NOT_SURNAMES = frozenset(
         "tiktok instagram facebook youtube twitter whatsapp snapchat telegram threads reels shorts linkedin pinterest"
         " reddit club dance challenge trend trends culture joins takes goes wins is are was says said and the of in on"
@@ -313,6 +316,8 @@ class _KinName(_Conditional):
 
     def _is_name(self, text, m):
         term = m.group(0)
+        if any(known.start() == m.start() for known in self._KNOWN_FULL_NAMES.finditer(text)):
+            return True
         if term != term.capitalize() or term.lower().endswith("s") or self._headline(text):
             return False
         if self._surname_after(text, m.end()):
@@ -333,10 +338,14 @@ class _KinName(_Conditional):
 
 class _AgeContext(_Conditional):
     """A K6 term that is an age only beside age context: "mid 20s" is a temperature or a score as often as an age.
-    It counts only when the sentence holds aged, ages, in their, people, fans, women, men or users. With none of
-    those, or with weather or score words only, it does not count. Age context wins when both are present."""
+    It counts only when the sentence holds aged, ages, in their, or a word for a group of people: people, fans, women,
+    men, users, audience, viewers, creators, followers, students, youth, adults, girls, boys, parents or listeners.
+    With none of those, or with weather or score words only, it does not count. Age context wins when both are
+    present."""
 
-    _CONTEXT = re.compile(r"\b(?:aged?|ages|in\s+their|people|fans|women|men|users)\b", re.I)
+    _CONTEXT = re.compile(
+        r"\b(?:aged?|ages|in\s+their|people|fans?|women|men|users?|audiences?|viewers?|creators?|followers?|students?"
+        r"|youth|adults?|girls|boys|parents|listeners?)\b", re.I)
     _SENTENCE_END = re.compile(r"[.!?]\s+")
 
     def _counts(self, text, m):
@@ -414,6 +423,8 @@ _K6_ONLY_TERMS = [
         r"(?<!\bfur\s)(?<!\bplant\s)(?<!\bsugar\s)\bbabies\b",
         r"\b(?:grann(?:y|ies)|grandmas?|grandmothers?|grandfathers?|grandparents?|watoto|abantwana|vijana|wazee"
         r"|pikins?|(?:ama|i)khehla)\b",
+        # Grandpa and grandad: in neither this list nor the Ask list before.
+        r"\bgrand(?:pa|dad|ad)s?\b",
         # Kin words that are also names (Babu Owino, Bibi Titi Mohamed, Koko Rapapa): read as a name when written as one.
         _KinName(r"\b(?:(?:u|o|ko)?gogos?|mkhulus?|(?:u|o)?makhulus?|koko|bibi|babu)\b"),
         r"\bborn\s+(?:in|after|before|since|around|between)\s+(?:the\s+)?(?:early|mid|late)?[\s-]*"

@@ -4,7 +4,8 @@ grandparent) and also names (Babu Owino, a Kenyan MP; Bibi Titi Mohamed; Koko Ra
 
 A kin word is read as a name only when it is written like one: first letter capital, singular, and either followed by
 a capitalised word (a surname), set in a list with a capitalised name that is not another kin word, or the short form
-of a name given in full elsewhere in the same text. Anything else stays an age term, including lower case, all capitals,
+of a name given in full elsewhere in the same text, or part of a known full name in any case (test_trust_k6_residue.py).
+Anything else stays an age term, including lower case, all capitals,
 a plural, and a capitalised word with nothing around it that marks it as a name. Fixed strings, not read from the code."""
 
 import pytest
@@ -22,14 +23,15 @@ NAMES = [
     "Babu Owino said", "Bibi Titi Mohamed", "Koko Rapapa", "Hon. Babu Owino spoke", "Gogo Skhotheni new show",
     "Koko Chanel", "Ugogo Skhotheni was on air", "Raila, Babu and Sifuna joined the rally",
     "Babu Owino won and later Babu thanked supporters", OCT7_KE_CLAIM,
+    "babu owino said", "BABU OWINO said", "BABU Owino said", "babu Owino said",
 ]
 
 KIN_WORDS = [
-    "babu na bibi wanalalamika", "the gogos queued for grants", "Gogos queued for grants", "BABU OWINO said",
+    "babu na bibi wanalalamika", "the gogos queued for grants", "Gogos queued for grants",
     "Koko showed the step", "Gogo queued for her grant", "Babu and Bibi queued for grants",
     "Gogo and Mkhulu queued for grants", "Babu Owino spoke and the gogos queued", "Babu becomes governor",
-    "babu owino said", "Bibi says no to ceasefire", "Mkhulus queued", "the Makhulus queued",
-    "BABU Owino said", "babu Owino said", "Gogos Club members queued for grants", "Babu Bibi Owino spoke",
+    "Bibi says no to ceasefire", "Mkhulus queued", "the Makhulus queued",
+    "Gogos Club members queued for grants", "Babu Bibi Owino spoke",
 ]
 
 
@@ -66,8 +68,8 @@ def test_a_quote_of_only_a_name_still_counts_its_words():
 
 
 # Second review. A word after a kin word is a surname only if it is not a platform or a common word, a possessive does
-# not make a list, and a headline in title case is not read for names at all. Lower case "babu owino" and "Bibi says"
-# stay held (lead).
+# not make a list, and a headline in title case is not read for names at all. "Bibi says" stays held (lead); the known
+# full names, in any case, are in test_trust_k6_residue.py.
 NOT_NAMES = [
     "Gogo TikTok is the new trend", "Babu Joins TikTok Dance Trend", "Gogo Culture Takes Over Mzansi",
     "Babu, Kenya's favourite grandpa, dances", "Koko Instagram Reels go viral", "Bibi Dance Challenge Wins Fans",
