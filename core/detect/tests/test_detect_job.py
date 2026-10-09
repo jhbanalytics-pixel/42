@@ -1164,3 +1164,11 @@ def test_a_data_issue_understand_wrote_is_carried_as_it_was_written(con):
     topic_world(con, understand_row(counts={**PARTIAL, "data_issue": "Data issue: written by understand"}))
     counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
     assert counts["topics_failed"]["data_issue"] == "Data issue: written by understand"
+
+
+def test_the_stats_step_reads_the_switch_from_the_jobs_own_agent_dataset(con, monkeypatch):
+    world(con)
+    seen = []
+    monkeypatch.setattr(stats, "run_stats", lambda *a, **k: seen.append(k) or 0)
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert seen == [{"core": "core", "agent": "agent"}]

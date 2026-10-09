@@ -23,7 +23,7 @@ from statsmodels.discrete.discrete_model import NegativeBinomial
 
 from .. import sqlrun, stats
 from . import duck
-from .fixtures import D, day
+from .fixtures import D, at, day, run
 from .test_detect_states import SERIES_TEST_COLUMNS, FakeJob, World
 
 SQL = Path(__file__).resolve().parents[1] / "sql"
@@ -721,7 +721,7 @@ def test_run_stats_without_a_switch_writes_passthrough_rows_after_two_reads(con)
     w = panel_world()
     w.load(con)
     client = StatsClient(con)
-    assert stats.run_stats(client, D, "stats-x", "r1", core="core") == 3
+    assert stats.run_stats(client, D, "stats-x", "r1", core="core", agent="agent") == 3
     assert len(client.sql) == 2
     got = duck.query(con, "SELECT * FROM {core}.series_test")
     assert {r["test"] for r in got} == {"none"} and {r["rule_version"] for r in got} == {"r1"}
@@ -731,8 +731,10 @@ def test_run_stats_end_to_end_with_a_switch_row(con):
     w = panel_world()
     w.load(con)
     duck.load(con, "core.test_switch", [SW_PANEL])
+    duck.load(con, "agent.runs", [{**run("backtest", day(3), run_id=SW_PANEL["backtest_run_id"]),
+                                   "finished_at": at(day(3))}])
     client = StatsClient(con)
-    assert stats.run_stats(client, D, "stats-x", "r1", core="core") == 3
+    assert stats.run_stats(client, D, "stats-x", "r1", core="core", agent="agent") == 3
     assert len(client.sql) == 4
     got = duck.query(con, "SELECT * FROM {core}.series_test ORDER BY item_id")
     assert [r["test"] for r in got] == ["nb"] * 3

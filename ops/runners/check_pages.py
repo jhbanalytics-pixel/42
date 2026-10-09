@@ -558,6 +558,12 @@ LATEST_ONLY = (
     (f"{AGENT}.schedules", "DATE(COALESCE(status_at, created_at))", "Schedules"),
     (f"{AGENT}.findings", "DATE(as_of)", "History findings"),
 )
+# Tables read through a subquery instead of whole. test_switch rows count only once the backtest run they cite has an
+# ok runs row (the join in core/detect/sql/stats.sql), so a failed apply must not look like a switch here.
+IN_FORCE = {
+    f"{CORE}.test_switch": (f"(SELECT ts.* FROM `{PROJECT}.{CORE}.test_switch` ts JOIN `{PROJECT}.{AGENT}.runs` r "
+                            "ON r.run_id = ts.backtest_run_id AND r.stage = 'backtest' AND r.status = 'ok')"),
+}
 # Views and table functions f42-api reads (core/api/store.py). A missing one empties its part of a page without an
 # error, because the store treats it as not built yet. v_sensitive_items_complete stays missing while
 # SENSITIVE_COMPLETE_READY in core/detect/job.py is False, which keeps creator item lists and named members off.
@@ -676,7 +682,8 @@ def run_bq(bq, today, out=print, now=None):
     once = []
     for table, col, what in LATEST_ONLY:
         try:
-            row = bq.rows(f"SELECT MAX({col}) AS latest, COUNT(*) AS total FROM `{PROJECT}.{table}`")[0]
+            source = IN_FORCE.get(table) or f"`{PROJECT}.{table}`"
+            row = bq.rows(f"SELECT MAX({col}) AS latest, COUNT(*) AS total FROM {source}")[0]
         except Exception as exc:
             once.append(f"{table.split('.')[-1]} read failed ({type(exc).__name__})")
             continue
