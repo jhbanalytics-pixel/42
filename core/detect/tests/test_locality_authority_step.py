@@ -72,3 +72,10 @@ def test_the_rule_version_names_the_rule_that_writes_eligible(authority, version
 
 def test_the_job_constant_is_the_version_of_the_authority_constant():
     assert job.RULE_VERSION == job.rule_version_for(job.LOCALITY_AUTHORITY)
+
+
+def test_the_authority_constant_is_one_of_the_two_rules_and_the_job_reads_that_constant():
+    from core.trust import locality as trust
+
+    assert trust.LOCALITY_AUTHORITY in ("v1", "v2")
+    assert job.LOCALITY_AUTHORITY == trust.LOCALITY_AUTHORITY
