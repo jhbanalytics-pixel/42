@@ -51,10 +51,15 @@ def feedback(labels):
     return [{**review.to_feedback(lab), "at": NOW} for lab in labels]
 
 
-def scorecard(market, precision, n, *, run_id="learn-1", ttd=4.0):
-    return {"week_start": WEEK, "week_end": WEEK + timedelta(days=6), "market": market, "run_id": run_id,
+def scorecard(market, precision, n, *, run_id="learn-1", ttd=4.0, week=WEEK, comparable=None):
+    """An engine_scorecard row. comparable: the precision Figure's regime marker says the week may (True) or may not
+    (False) be compared with the week before; None leaves the marker off, as a row of the first scorecard rule does."""
+    regime = {} if comparable is None else {"regime": {"locality_basis": "v1" if comparable else "mixed",
+                                                       "previous_week_basis": "v1",
+                                                       "comparable_with_previous_week": comparable}}
+    return {"week_start": week, "week_end": week + timedelta(days=6), "market": market, "run_id": run_id,
             "rule_version": "scorecard-1",
-            "precision": {"value": precision, "unit": "share", "query_id": "sc", "n": n},
+            "precision": {"value": precision, "unit": "share", "query_id": "sc", "n": n, **regime},
             "time_to_detect": {"value": ttd, "unit": "days", "query_id": "sc", "n": 12}}
 
 
@@ -289,3 +294,48 @@ def test_cli_help_works():
                           capture_output=True, cwd=Path(__file__).resolve().parents[3])
     assert done.returncode == 0
     assert b"--dry-run" in done.stdout and b"--scores" in done.stdout
+
+
+# The regime of the locality rule (C4 v3 section 11.4)
+
+def two_weeks(wh, tmp_path, this_week_comparable):
+    score_file(tmp_path, "2026-09-18", failed=["A", "B"])
+    score_file(tmp_path, "2026-09-25", failed=["A"])
+    wh.insert("engine_scorecard", [scorecard(m, 0.7, 30, run_id="learn-0", week=WEEK - timedelta(days=7), comparable=True)
+                                   for m in ("ZA", "NG", "KE")])
+    quality_score.run(wh.execute, WEEK - timedelta(days=7), scores=tmp_path, dry_run=False, now=NOW)
+    wh.insert("engine_scorecard", [scorecard(m, 0.8, 30, run_id="learn-1", comparable=this_week_comparable)
+                                   for m in ("ZA", "NG", "KE")])
+    return by_market(quality_score.run(wh.execute, WEEK, scores=tmp_path, dry_run=True, now=NOW))
+
+
+def test_the_change_is_reported_when_both_weeks_ran_under_one_rule(warehouse, tmp_path):
+    top = two_weeks(warehouse(), tmp_path, True)["ZA"]
+    assert "precision" in top["counted"] and top["change"] is not None and top["change_reason"] is None
+
+
+def test_the_change_is_withheld_when_the_precision_regime_is_not_comparable_with_last_week(warehouse, tmp_path):
+    rows = two_weeks(warehouse(), tmp_path, False)
+    for market in ("ZA", "NG", "KE", "ALL"):
+        assert rows[market]["score"] is not None and "precision" in rows[market]["counted"]
+        assert rows[market]["change"] is None and "regime" in rows[market]["change_reason"]
+
+
+def test_a_week_without_a_regime_marker_is_not_withheld(warehouse, tmp_path):
+    top = two_weeks(warehouse(), tmp_path, None)["ZA"]
+    assert top["change"] is not None
+
+
+def test_the_precision_part_carries_its_regime(warehouse, tmp_path):
+    rows = two_weeks(warehouse(), tmp_path, False)
+    assert rows["ZA"]["parts"]["precision"]["regime"]["comparable_with_previous_week"] is False
+    assert rows["ALL"]["parts"]["precision"]["regime"]["comparable_with_previous_week"] is False
+
+
+def test_the_pooled_regime_is_comparable_only_when_every_market_is(warehouse, tmp_path):
+    wh = warehouse()
+    wh.insert("engine_scorecard", [scorecard("ZA", 0.8, 30, comparable=True), scorecard("NG", 0.8, 30, comparable=False),
+                                   scorecard("KE", 0.8, 30, comparable=True)])
+    rows = by_market(quality_score.run(wh.execute, WEEK, scores=tmp_path, dry_run=True, now=NOW))
+    assert rows["ZA"]["parts"]["precision"]["regime"]["comparable_with_previous_week"] is True
+    assert rows["ALL"]["parts"]["precision"]["regime"]["comparable_with_previous_week"] is False
