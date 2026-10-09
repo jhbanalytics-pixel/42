@@ -37,6 +37,13 @@ const WITHHELD_REASON = 'This claim rests on a post 42 no longer shows.';
 const isWithheld = (claim) => Boolean(claim && claim.withheld === true);
 const CANNOT_KEEP = /cannot be kept/i;
 
+function removedWords(count){
+  return count + (count === 1 ? ' claim was' : ' claims were') + ' removed because ' + (count === 1 ? 'it rests' : 'they rest') + ' on a post 42 no longer shows.';
+}
+function freezeOffWords(count){
+  return count + (count === 1 ? ' claim rests' : ' claims rest') + ' on a post 42 no longer shows. Remove ' + (count === 1 ? 'it' : 'them') + ' before freezing.';
+}
+
 const PAGE = 50;
 
 const readable = (view) => Boolean(view && typeof view === 'object' && Array.isArray(view.claims));
@@ -341,6 +348,7 @@ export function DossierPage({dossierId, onAuth}){
   const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  const [notice, setNotice] = useState('');
   const [title, setTitle] = useState('');
   const [noteDrafts, setNoteDrafts] = useState({});
   const [pinnedId, setPinnedId] = useState(null);
@@ -387,6 +395,7 @@ export function DossierPage({dossierId, onAuth}){
   async function write(action, refusal){
     setBusy(true);
     setProblem(null);
+    setNotice('');
     try { await action(); }
     catch (error){
       handover(error);
@@ -403,7 +412,8 @@ export function DossierPage({dossierId, onAuth}){
   const claims = readable(view) ? view.claims : [];
   /* kept holds the claims the reader keeps; a withheld claim is never in it. */
   const kept = claims.filter((claim) => claim.kept && !isWithheld(claim)).map((claim) => claim.claim_id);
-  const heldBack = claims.some((claim) => claim.kept && isWithheld(claim));
+  const heldBackCount = claims.filter((claim) => claim.kept && isWithheld(claim)).length;
+  const heldBack = heldBackCount > 0;
   const textOf = (claimId) => {
     const claim = claims.find((item) => item.claim_id === claimId);
     return claim && claim.text ? claim.text : 'A claim this dossier no longer holds';
@@ -419,7 +429,11 @@ export function DossierPage({dossierId, onAuth}){
     if (order !== undefined) body.order = order;
     if (nextTitle !== undefined) body.title = nextTitle;
     if (notes !== undefined) body.notes = notes;
-    return write(async () => show(await updateDossier(dossierId, body), true), (error) => (
+    const dropped = heldBackCount;
+    return write(async () => {
+      show(await updateDossier(dossierId, body), true);
+      if (dropped > 0) setNotice(removedWords(dropped));
+    }, (error) => (
       error && error.status === 409 && CANNOT_KEEP.test(error.message || '')
         ? {message: 'A claim in this dossier can no longer be kept because it rests on a post 42 no longer shows. Reload to see which one, remove it, then save again.', stale: true}
         : {message: failureWords(error, 'The change was not saved.')}
@@ -494,6 +508,7 @@ export function DossierPage({dossierId, onAuth}){
             <input id="dossiers42-title-input" name="title" className="dossiers42-input" maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} />
             <button type="submit" className="dossiers42-quiet" disabled={busy || !titleChanged}>Save title</button>
           </form>
+          {notice && <p className="dossiers42-muted" role="status">{notice}</p>}
           <p className="dossiers42-summary">{String(view.summary || '').trim() ? view.summary : plainGapWhat((view.gaps || []).find((gap) => /short[ _-]answer|summary/i.test(gap.searched))?.what) || 'No summary: see the claims below'}</p>
 
           <ol className="dossiers42-claims" aria-label="Claims">
@@ -564,10 +579,10 @@ export function DossierPage({dossierId, onAuth}){
           <Gaps gaps={view.gaps} />
 
           <div className="dossiers42-actions">
-            <button type="button" className="dossiers42-primary" disabled={busy || unsaved} aria-busy={busy ? 'true' : 'false'} aria-describedby="dossiers42-freeze-explain" onClick={freeze}>Freeze</button>
-            {(unsaved || waiting > 0) && (
+            <button type="button" className="dossiers42-primary" disabled={busy || unsaved || heldBack} aria-busy={busy ? 'true' : 'false'} aria-describedby="dossiers42-freeze-explain" onClick={freeze}>Freeze</button>
+            {(unsaved || heldBack || waiting > 0) && (
               <span className="dossiers42-muted">
-                {unsaved ? 'Save your edits first.' : plural(waiting, 'claim') + ' still ' + (waiting === 1 ? 'needs' : 'need') + ' a tick before this version can freeze.'}
+                {unsaved ? 'Save your edits first.' : [heldBack ? freezeOffWords(heldBackCount) : '', waiting > 0 ? plural(waiting, 'claim') + ' still ' + (waiting === 1 ? 'needs' : 'need') + ' a tick before this version can freeze.' : ''].filter(Boolean).join(' ')}
               </span>
             )}
             {/* What Freeze does, from the server's freeze: a frozen version is

@@ -819,3 +819,106 @@ for (const [label, message] of [
     expect(host.querySelector('[role="alert"]')).toBeNull();
   });
 }
+
+/* Lead ruling on the withheld-claim edits: a save that drops a withheld claim
+   says so afterwards, and Freeze waits while one remains. */
+const REMOVED_ONE = '1 claim was removed because it rests on a post 42 no longer shows.';
+const statusText = () => [...host.querySelectorAll('[role="status"]')].map((node) => plain(node.textContent)).join(' | ');
+
+function savedWithout(body, extra = {}){
+  const next = {...body, version: body.version + 1, state: 'draft', ...extra};
+  next.claims = body.claims.map((claim) => (claim.withheld ? {...claim, kept: false} : claim));
+  return next;
+}
+
+test('a rename that drops a withheld claim says how many were removed and why, once the save has worked', async () => {
+  await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, savedWithout(withheldDraft(), {title: 'Kitchen-table dance'}))]]);
+  expect(statusText()).not.toContain('was removed');
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Kitchen-table dance'));
+  await click(button('Save title'));
+  await until(() => host.querySelector('h1').textContent === 'Kitchen-table dance', 'the new title');
+  expect(statusText()).toContain(REMOVED_ONE);
+});
+
+test('a note, a move and Remove on the withheld claim itself each say the same after they save', async () => {
+  for (const act1 of ['note', 'move', 'remove']){
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    calls = [];
+    const next = savedWithout(withheldDraft());
+    if (act1 === 'note') next.claims[0].note = 'Lead with this';
+    if (act1 === 'move') next.claims = [next.claims[1], next.claims[0], next.claims[2]];
+    await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+    if (act1 === 'note'){
+      await act(async () => typeInto(claimItem(c1.text).querySelector('textarea'), 'Lead with this'));
+      await click(button('Save note', claimItem(c1.text)));
+    } else if (act1 === 'move') await click(button('Move down', claimItem(c1.text)));
+    else await click(button('Remove', withheldItem()));
+    await until(() => statusText().includes(REMOVED_ONE), 'the notice after ' + act1);
+  }
+});
+
+test('Edit again on a frozen version with a withheld claim says it in the new draft', async () => {
+  const body = frozen();
+  body.claims[2] = {...body.claims[2], text: SERVER_WITHHELD_TEXT, evidence_ids: [], quotes: [], withheld: true};
+  const next = draft();
+  next.version = 3;
+  next.claims[2].kept = false;
+  next.needs_tick = [];
+  await openDraft(body, [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+  await click(button('Edit again'));
+  await until(() => text().includes('Draft version 3'), 'the new draft');
+  expect(statusText()).toContain(REMOVED_ONE);
+});
+
+test('two withheld claims are counted in the notice', async () => {
+  const two = withheldDraft();
+  two.claims[1] = {...two.claims[1], text: SERVER_WITHHELD_TEXT, evidence_ids: [], quotes: [], withheld: true};
+  await openDraft(two, [['PUT', '/api/dossiers/d_fixture01', json(200, savedWithout(two, {title: 'Two gone'}))]]);
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Two gone'));
+  await click(button('Save title'));
+  await until(() => statusText().includes('2 claims were removed because they rest on a post 42 no longer shows.'), 'the plural notice');
+});
+
+test('a save with no withheld claim shows no removal notice', async () => {
+  const plainNext = draft();
+  plainNext.version = 2;
+  plainNext.title = 'Kitchen-table dance';
+  await openDraft(draft(), [['PUT', '/api/dossiers/d_fixture01', json(200, plainNext)]]);
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Kitchen-table dance'));
+  await click(button('Save title'));
+  await until(() => host.querySelector('h1').textContent === 'Kitchen-table dance', 'the new title');
+  expect(statusText()).not.toContain('removed because');
+});
+
+test('the notice is cleared by the next write', async () => {
+  const after = savedWithout(withheldDraft(), {title: 'Kitchen-table dance'});
+  await openDraft(withheldDraft(), [
+    ['PUT', '/api/dossiers/d_fixture01', json(200, after)],
+    ['POST', '/api/dossiers/d_fixture01/ticks', (path, body) => json(201, {dossier_id: 'd_fixture01', claim_id: body.claim_id, ticked: body.ticked, note: null, who: 'passcode', at: '2026-09-28T06:13:00+02:00'})],
+  ]);
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Kitchen-table dance'));
+  await click(button('Save title'));
+  await until(() => statusText().includes(REMOVED_ONE), 'the notice');
+  await act(async () => { claimItem(c2.text).querySelector('input[type="checkbox"]').click(); });
+  await until(() => !statusText().includes(REMOVED_ONE), 'the notice cleared');
+});
+
+test('Freeze is off while a withheld claim remains, says why, and comes back once it is removed', async () => {
+  await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, savedWithout(withheldDraft()))]]);
+  expect(button('Freeze').disabled).toBe(true);
+  expect(button('Freeze').getAttribute('aria-describedby')).toBe('dossiers42-freeze-explain');
+  const hint = plain(host.querySelector('.dossiers42-actions').textContent);
+  expect(hint).toContain('1 claim rests on a post 42 no longer shows. Remove it before freezing.');
+  await click(button('Remove', withheldItem()));
+  await until(() => !button('Freeze').disabled, 'Freeze back');
+  expect(plain(host.querySelector('.dossiers42-actions').textContent)).not.toContain('Remove it before freezing');
+});
+
+test('Freeze counts several withheld claims in its reason', async () => {
+  const two = withheldDraft();
+  two.claims[1] = {...two.claims[1], text: SERVER_WITHHELD_TEXT, evidence_ids: [], quotes: [], withheld: true};
+  await openDraft(two);
+  expect(button('Freeze').disabled).toBe(true);
+  expect(plain(host.querySelector('.dossiers42-actions').textContent)).toContain('2 claims rest on a post 42 no longer shows. Remove them before freezing.');
+});
