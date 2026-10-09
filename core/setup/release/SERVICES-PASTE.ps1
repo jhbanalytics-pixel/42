@@ -1,7 +1,9 @@
 # Release paste for a services-only release (W8-REL 2.11, 3.1, 3.5). Albert runs every command; this file prepares them.
 # One action per invocation: Candidate, Promote, Rollback or Retire. It makes no external call until the lock, the review,
-# the bindings and the execution receipt have all been checked. There is no passcode parameter: the smoke passcode is
-# typed at a private prompt after the receipt's smoke authorisation has validated, and an inherited value is never used.
+# the bindings and the execution receipt have all been checked. Candidate and Promote then ask for what only Albert can
+# give, at a console that is really there, before they write anything: DEPLOY for both, IDLE for Promote, and for Candidate
+# the smoke passcode at a private prompt that never echoes it. There is no passcode parameter and an inherited value is
+# never used. Rollback and Retire ask for nothing, because a rollback never waits.
 param(
     [Parameter(Mandatory)][ValidateSet('Candidate', 'Promote', 'Rollback', 'Retire')][string]$Action,
     [Parameter(Mandatory)][string]$Lock,
@@ -18,6 +20,7 @@ Set-StrictMode -Version Latest
 $Script:Helper = 'core/setup/release/bound_readback.py'
 $Script:ReleasePattern = '^rel-[0-9a-f]{7}-[0-9]{2}$'
 $Script:Retries = 3
+$Script:SmokeSecret = $null
 $Script:RetrySeconds = 10
 
 # Text files of the repository are hashed with a CRLF read as LF, as lock.py does, so a Windows checkout and a Linux one agree.
@@ -122,8 +125,8 @@ function Test-Receipt {
 }
 
 # 2. Commands. Every external invocation goes through Read-Native (a read) or Run-Logged (a step with a log and an exit file).
-function Read-Native([string]$Exe, [string[]]$Arguments) {
-    $result = & $Exe @Arguments
+function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
+    $result = if ($PSBoundParameters.ContainsKey('InputText')) { $InputText | & $Exe @Arguments } else { & $Exe @Arguments }
     $code = $LASTEXITCODE
     if ($code -ne 0) { throw "Native command failed with exit $code. Stop and retain its error." }
     return ($result -join "`n")
@@ -133,11 +136,16 @@ function Read-Cloud([string[]]$Arguments) {
     return ((Read-Native -Exe gcloud -Arguments $Arguments) | ConvertFrom-Json)
 }
 
-function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @()) {
+function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
     $exe, $rest = $Argv
     $log = Join-Path $Script:RunDir ($Name + '.log')
-    & $exe @rest 2>&1 | Tee-Object -FilePath $log | Out-Host
-    $code = $LASTEXITCODE
+    if ($WorkDir) { Push-Location -LiteralPath $WorkDir }
+    try {
+        & $exe @rest 2>&1 | Tee-Object -FilePath $log | Out-Host
+        $code = $LASTEXITCODE
+    } finally {
+        if ($WorkDir) { Pop-Location }
+    }
     if (-not (Test-Path -LiteralPath $log)) { New-Item -ItemType File -Path $log | Out-Null }
     [string]$code | Set-Content -LiteralPath (Join-Path $Script:RunDir ($Name + '.exit.txt')) -Encoding utf8
     if ($code -ne 0 -and $code -notin $Accept) { throw "$Name exited $code. Stop; the release may be partial. No automatic retry or rollback." }
@@ -162,9 +170,9 @@ function Assert-Identity {
 
 # Candidate and Promote assert the checkout before every command; Rollback and Retire record it as an observation, because a
 # moved or dirty checkout must not stop a rollback (3.5).
-function Step([string]$Name, [string[]]$Argv, [int[]]$Accept = @()) {
+function Step([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
     if ($Action -in @('Candidate', 'Promote')) { Assert-Source }
-    return (Run-Logged -Name $Name -Argv $Argv -Accept $Accept)
+    return (Run-Logged -Name $Name -Argv $Argv -Accept $Accept -WorkDir $WorkDir)
 }
 
 function Note-Source {
@@ -223,16 +231,18 @@ function Remove-Tag([string]$Service) {
     return (Step -Name "remove-tag-$Service" -Argv @('gcloud', 'run', 'services', 'update-traffic', $Service, '--project', 'ogilvy-trends-v2', '--region', 'us-central1', '--remove-tags', $Script:Bound.release_id, '--quiet'))
 }
 
-# The smoke. The passcode is typed after the receipt's authorisation fields have validated, and the inherited value is
-# removed from this process and put back at the end; it is never passed to a child.
+# The smoke. The passcode was typed at the start of the run and is held as a SecureString. It is put in the environment for
+# the smoke child alone: the checkout is asserted first, so the git children of Assert-Source never see it, and it is removed
+# again in a finally block. An inherited value is removed at the start of the run and put back at its end.
 function Invoke-Smoke([string]$ApiTagUrl) {
     if ($Script:ReceiptValue.single_T1_smoke_authorized -ne $true -or $Script:ReceiptValue.max_live_asks -ne 1) { throw 'The smoke is not authorised by the receipt.' }
-    $secure = Read-Host -AsSecureString -Prompt 'Smoke passcode'
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    if ($null -eq $Script:SmokeSecret) { throw 'The smoke passcode was not typed at the start of the run.' }
+    Assert-Source
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Script:SmokeSecret)
     try { $env:F42_SMOKE_PASSCODE = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
     $started = [DateTimeOffset]::UtcNow
     try {
-        $code = Step -Name 'smoke' -Argv @('py', '-3.13', 'core/api/smoke.py', $ApiTagUrl, '--market', 'ZA', '--mode', 'live', '--ask-timeout', '900') -Accept @(1)
+        $code = Run-Logged -Name 'smoke' -Argv @('py', '-3.13', 'core/api/smoke.py', $ApiTagUrl, '--market', 'ZA', '--mode', 'live', '--ask-timeout', '900') -Accept @(1)
     } finally {
         Remove-Item Env:F42_SMOKE_PASSCODE -ErrorAction SilentlyContinue
     }
@@ -258,15 +268,17 @@ function Invoke-Smoke([string]$ApiTagUrl) {
 
 # 3. The four actions.
 function Invoke-Candidate {
-    Assert-Source
-    Assert-Identity
     Invoke-Helper 'BeforeAnyWrite' | Out-Null
     $tag = "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/f42-web:$($Script:Bound.target.Substring(0, 12))-$($Script:Bound.release_id.Substring($Script:Bound.release_id.Length - 2))"
     $archive = Join-Path $Script:RunDir 'source.tar'
     $extract = Join-Path $Script:RunDir 'source'
     Step -Name 'archive' -Argv @('git', 'archive', '--format=tar', "--output=$archive", $Script:Bound.target) | Out-Null
+    # Both tar programs refuse a target that does not exist, so the directory is made first; New-Item without -Force also
+    # refuses a directory that is already there. The build then runs inside the extracted tree, so what is uploaded is the
+    # archive of the bound commit and nothing else from the checkout.
+    New-Item -ItemType Directory -Path $extract | Out-Null
     Step -Name 'extract' -Argv @('tar', '-xf', $archive, '-C', $extract) | Out-Null
-    Step -Name 'build' -Argv @('gcloud', 'builds', 'submit', '--project', 'ogilvy-trends-v2', '--region', 'us-central1', '--config', 'core/api/cloudbuild.yaml',
+    Step -Name 'build' -WorkDir $extract -Argv @('gcloud', 'builds', 'submit', '--project', 'ogilvy-trends-v2', '--region', 'us-central1', '--config', 'core/api/cloudbuild.yaml',
         '--substitutions', "_IMAGE=$tag", '--gcs-source-staging-dir', 'gs://ogilvy-trends-v2-f42-media-staging/build-source',
         '--service-account', 'projects/ogilvy-trends-v2/serviceAccounts/f42-deployer@ogilvy-trends-v2.iam.gserviceaccount.com', '.') | Out-Null
     if (Test-Path -LiteralPath $Script:Paths.manifest) { throw 'The manifest already exists; Freeze creates it once and never overwrites it.' }
@@ -291,17 +303,22 @@ function Invoke-Candidate {
     Invoke-Helper 'AfterSmoke' | Out-Null
 }
 
-function Invoke-Promote {
+function Test-QuietWindow {
     if ([string]::IsNullOrEmpty($QuietWindowVerifiedAtUtc)) { throw 'Promote needs the quiet-window verification time (-QuietWindowVerifiedAtUtc).' }
     $age = [DateTimeOffset]::UtcNow - [DateTimeOffset]::Parse($QuietWindowVerifiedAtUtc)
     if ($age.TotalMinutes -gt 15 -or $age.TotalMinutes -lt -1) { throw 'The quiet-window verification is older than 15 minutes.' }
+}
+
+function Test-PromoteInputs {
+    Test-QuietWindow
     foreach ($path in @($Script:Paths.manifest, $Script:Paths.sidecar, $Script:Paths.smokeReceipt)) {
         if (-not (Test-Path -LiteralPath $path)) { throw 'A bound file for Promote is missing; it reads only the release directory.' }
     }
     if (@(Get-Readbacks 'AfterSmoke').Count -eq 0) { throw 'AfterSmoke never ran.' }
     Assert-ManifestIsTheFrozenOne
-    Assert-Source
-    Assert-Identity
+}
+
+function Invoke-Promote {
     Step -Name 'inflight-asks' -Argv @('py', '-3.13', 'core/setup/durable_effects_check.py', '--check', 'inflight-asks', '--bindings', $Bindings, '--evidence', $Script:RunDir) -Accept @(1) | Out-Null
     Invoke-Helper 'BeforePromotion' | Out-Null
     $agentRevision = "f42-agent-$($Script:Bound.release_id)"
@@ -334,17 +351,74 @@ function Invoke-Retire {
     Invoke-Helper 'AfterRetire' -Tag | Out-Null
 }
 
+# 3a. What only Albert can give, asked at the very start of Candidate and Promote, before any command and before the first file
+# is written. DEPLOY (both), IDLE (Promote) and the smoke passcode (Candidate) are typed at a console that is really there: a
+# redirected stdin or a non-interactive host is refused with no fallback, because Read-Host would otherwise take the answer
+# from a pipe. The receipt has already been validated, so a receipt alone never starts a release. The passcode is read as a
+# SecureString and is not echoed. Rollback and Retire ask for nothing, because a rollback never waits.
+function Test-Interactive { return ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) }
+
+function Assert-Interactive {
+    if (-not (Test-Interactive)) { throw 'NOT INTERACTIVE: DEPLOY, IDLE and the passcode are typed at a console. This run is not at one, and there is no fallback.' }
+}
+
+function Read-Word([string]$Word) {
+    try { $typed = Read-Host -Prompt "Type $Word to continue" } catch { throw "NOT INTERACTIVE: the prompt for $Word could not be shown." }
+    if ($typed -cne $Word) { throw "NOT CONFIRMED: $Word was not typed exactly. Nothing was written." }
+}
+
+function Read-Passcode {
+    try { $secret = Read-Host -AsSecureString -Prompt 'Smoke passcode' } catch { throw 'NOT INTERACTIVE: the passcode prompt could not be shown.' }
+    if ($null -eq $secret -or $secret.Length -eq 0) { throw 'NOT CONFIRMED: no smoke passcode was typed. Nothing was written.' }
+    return $secret
+}
+
+# The environment variables the deploy removes from f42-agent, read live and matched by digest by the same module the deploy
+# script uses. The names are shown on the screen here and written nowhere: not to a log, not to the receipt, not to the release
+# directory.
+function Show-DeclaredRemoval {
+    $live = Read-Native -Exe gcloud -Arguments @('run', 'services', 'describe', 'f42-agent', '--project', 'ogilvy-trends-v2', '--region', 'us-central1', '--format=json')
+    $matched = Read-Native -Exe py -Arguments @('-3.13', '-m', 'core.setup.release.declared_env_removals', '--service', 'f42-agent') -InputText $live
+    $names = @($matched -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+    if ($names.Count -eq 0) {
+        Write-Host 'f42-agent carries no declared environment variable; the deploy removes none.'
+    } else {
+        Write-Host "The candidate deploy removes $($names.Count) environment variable(s) from f42-agent, and only these:"
+        foreach ($name in $names) { Write-Host "  $name" }
+    }
+}
+
+function Confirm-Action {
+    if ($Action -notin @('Candidate', 'Promote')) { return }
+    Assert-Interactive
+    if ($Action -eq 'Candidate') {
+        Assert-Source
+        Assert-Identity
+        Show-DeclaredRemoval
+        Read-Word 'DEPLOY'
+        $Script:SmokeSecret = Read-Passcode
+    } else {
+        Test-PromoteInputs
+        Assert-Source
+        Assert-Identity
+        Read-Word 'IDLE'
+        Read-Word 'DEPLOY'
+        Test-QuietWindow
+    }
+}
+
 function Invoke-Release {
     Test-Packet
     Test-Receipt
-    $stamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmss')
-    $Script:RunDir = Join-Path $Script:Paths.root (Join-Path 'runs' "$stamp-$Action")
-    New-Item -ItemType Directory -Path $Script:RunDir -Force | Out-Null
     $inheritedPresent = Test-Path Env:F42_SMOKE_PASSCODE
     $inherited = $env:F42_SMOKE_PASSCODE
     try {
         Remove-Item Env:F42_SMOKE_PASSCODE -ErrorAction SilentlyContinue
         Set-Location -LiteralPath $Repo
+        Confirm-Action
+        $stamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmss')
+        $Script:RunDir = Join-Path $Script:Paths.root (Join-Path 'runs' "$stamp-$Action")
+        New-Item -ItemType Directory -Path $Script:RunDir -Force | Out-Null
         switch ($Action) {
             'Candidate' { Invoke-Candidate }
             'Promote' { Invoke-Promote }
@@ -353,6 +427,7 @@ function Invoke-Release {
         }
     } finally {
         if ($inheritedPresent) { $env:F42_SMOKE_PASSCODE = $inherited } else { Remove-Item Env:F42_SMOKE_PASSCODE -ErrorAction SilentlyContinue }
+        if ($null -ne $Script:SmokeSecret) { $Script:SmokeSecret.Dispose(); $Script:SmokeSecret = $null }
     }
 }
 

@@ -29,6 +29,10 @@ def no_external_call(result):
     return result.external == []
 
 
+def prompts(result):
+    return [c for c in result.calls if c["kind"] == "prompt"]
+
+
 def ctx_for(world, run_dir="<run dir>"):
     return plan.Ctx(release_id=RID, commit=COMMIT, helper="core/setup/release/bound_readback.py", bindings=str(world.bindings), evidence=run_dir,
                     manifest=str(world.paths["manifest"]), manifest_sha256=FREEZE_HASH, api_tag_url=API_TAG_URL, a80=A80,
@@ -268,7 +272,8 @@ def test_ps10_the_paste_has_no_jobs_scheduler_or_iam_command_and_issues_none(tmp
 def test_ps11_a_typed_passcode_reaches_the_smoke_and_an_inherited_one_never_reaches_any_child(tmp_path):
     result = PasteWorld(tmp_path).run(inherited=INHERITED)
     assert result.returncode == 0, result.stderr
-    assert [c for c in result.calls if c["kind"] == "prompt"] == [{"kind": "prompt", "secure": True}]
+    assert [(c["secure"], c["prompt"]) for c in prompts(result)] == [(False, "Type DEPLOY to continue"), (True, "Smoke passcode")]
+    assert all(c["passcode_sha"] == "" for c in result.calls if c["kind"] == "read")  # no git child ever sees it
     seen = {c["name"]: c["passcode_sha"] for c in result.runs}
     assert seen["smoke"] == sha(TYPED)
     assert all(v in ("", sha(TYPED)) for v in seen.values()) and sha(INHERITED) not in seen.values()
@@ -302,9 +307,10 @@ def test_ps11_a_passcode_parameter_is_refused_by_the_parameter_binding_and_the_p
 
 
 @pytest.mark.parametrize("failing", ["build", "helper-BeforeCandidate-0", "pin-f42-agent"])
-def test_ps11_a_failure_before_the_smoke_means_no_prompt_and_no_smoke(tmp_path, failing):
-    result = PasteWorld(tmp_path).run(exits={failing: 1})
-    assert not [c for c in result.calls if c["kind"] == "prompt"] and "smoke" not in result.names
+def test_ps11_a_failure_before_the_smoke_means_no_smoke_and_no_passcode_in_any_earlier_child(tmp_path, failing):
+    result = PasteWorld(tmp_path).run(exits={failing: 1}, inherited=INHERITED)
+    assert "smoke" not in result.names and all(c["passcode_sha"] == "" for c in result.runs)
+    assert result.calls[-1] == {"kind": "end", "passcode_sha": sha(INHERITED)}
 
 
 def test_ps11_rollback_never_prompts_and_never_smokes(tmp_path):
@@ -312,17 +318,18 @@ def test_ps11_rollback_never_prompts_and_never_smokes(tmp_path):
     assert not [c for c in result.calls if c["kind"] == "prompt"] and "smoke" not in result.names
 
 
-def test_ps11_without_an_interactive_host_the_paste_stops_before_the_smoke_with_no_fallback(tmp_path):
+def test_ps11_without_an_interactive_host_the_paste_stops_before_any_call_with_no_fallback(tmp_path):
     result = PasteWorld(tmp_path).run(interactive=False, inherited=INHERITED)
-    assert result.returncode != 0 and "smoke" not in result.names
-    assert result.names[-1] == "helper-BeforeSmoke-0"
+    assert result.returncode != 0 and no_external_call(result) and not prompts(result)
+    assert "NOT INTERACTIVE" in result.stderr
+    assert not (tmp_path / "releases" / RID / "runs").exists()
     assert result.calls[-1] == {"kind": "end", "passcode_sha": sha(INHERITED)}
 
 
 def test_ps11_the_prompt_is_asked_only_after_the_receipt_authorisation_validates(tmp_path):
     for index, receipt in enumerate(({"single_T1_smoke_authorized": False}, {"max_live_asks": 2})):
         result = PasteWorld(tmp_path / str(index), receipt=receipt).run()
-        assert not [c for c in result.calls if c["kind"] == "prompt"] and no_external_call(result)
+        assert not prompts(result) and no_external_call(result)
 
 
 # PS-12: logs, exit files and readback files
@@ -656,3 +663,196 @@ def test_retire_after_a_promotion_needs_a_rollback_even_when_a_smoke_readback_ex
     world.readback("AfterAgentPromotion")
     result = world.run()
     assert result.returncode != 0 and "Retire is refused" in result.stderr and result.runs == []
+
+
+# Finding 2: the extract directory exists before tar and the build runs inside it
+
+def test_f2_the_extract_directory_is_made_before_tar_and_the_build_runs_inside_it(tmp_path):
+    result = PasteWorld(tmp_path).run()
+    assert result.returncode == 0, result.stderr
+    extract = result.run("extract")["argv"]
+    target = Path(extract[extract.index("-C") + 1])
+    assert target.name == "source" and target.is_dir() and list(target.iterdir()) == []
+    assert result.run("build")["workdir"] == str(target)
+    assert [c["workdir"] for c in result.runs if c["name"] != "build"] == [""] * (len(result.runs) - 1)
+
+
+def test_f2_a_tar_whose_target_directory_is_missing_stops_the_paste_at_the_extract_step(tmp_path):
+    world = PasteWorld(tmp_path, mutate_paste=lambda t: t.replace("    New-Item -ItemType Directory -Path $extract | Out-Null\n", ""))
+    world.relock()
+    result = world.run()
+    assert result.returncode != 0 and result.names[-1] == "extract" and "build" not in result.names
+
+
+def test_f2_the_extract_directory_is_not_reused_if_it_already_exists(tmp_path):
+    world = PasteWorld(tmp_path, mutate_paste=lambda t: t.replace("$extract = Join-Path $Script:RunDir 'source'", "$extract = $Script:RunDir"))
+    world.relock()
+    result = world.run()
+    assert result.returncode != 0 and "archive" in result.names and "extract" not in result.names
+
+
+# Finding 5: DEPLOY, IDLE and the passcode are typed at the start, before any write
+
+def typed_world(tmp_path, action="Candidate"):
+    return promote_world(tmp_path) if action == "Promote" else PasteWorld(tmp_path, action)
+
+
+def test_f5_candidate_asks_for_deploy_then_the_passcode_before_any_command_and_before_the_run_directory_exists(tmp_path):
+    result = PasteWorld(tmp_path).run()
+    assert result.returncode == 0, result.stderr
+    asked = prompts(result)
+    assert [(c["secure"], c["prompt"]) for c in asked] == [(False, "Type DEPLOY to continue"), (True, "Smoke passcode")]
+    assert all(c["runs_so_far"] == 0 and c["run_dir_existed"] is False for c in asked)
+    first_run = next(i for i, c in enumerate(result.calls) if c["kind"] == "run")
+    assert max(i for i, c in enumerate(result.calls) if c["kind"] == "prompt") < first_run
+
+
+def test_f5_promote_asks_for_idle_then_deploy_before_any_command_and_never_for_the_passcode(tmp_path):
+    result = promote_world(tmp_path).run()
+    assert result.returncode == 0, result.stderr
+    asked = prompts(result)
+    assert [(c["secure"], c["prompt"]) for c in asked] == [(False, "Type IDLE to continue"), (False, "Type DEPLOY to continue")]
+    assert all(c["runs_so_far"] == 0 and c["run_dir_existed"] is False for c in asked)
+
+
+@pytest.mark.parametrize("action", ["Rollback", "Retire"])
+def test_f5_rollback_and_retire_ask_for_nothing(tmp_path, action):
+    world = PasteWorld(tmp_path, action)
+    if action == "Retire":
+        world.readback("AfterRollback")
+    result = world.run()
+    assert result.returncode == 0, result.stderr
+    assert prompts(result) == []
+
+
+@pytest.mark.parametrize("typed", ["", "deploy", "DEPLOY ", " DEPLOY", "Deploy", "yes", "DEPLOY!"])
+def test_f5_anything_but_the_exact_word_deploy_stops_candidate_before_any_command_or_file(tmp_path, typed):
+    result = PasteWorld(tmp_path).run(extra={"words": {"DEPLOY": typed}})
+    assert result.returncode != 0 and result.runs == [] and "NOT CONFIRMED" in result.stderr
+    assert [c["prompt"] for c in prompts(result)] == ["Type DEPLOY to continue"]
+    assert not (tmp_path / "releases" / RID / "runs").exists()
+
+
+@pytest.mark.parametrize("word,typed", [("IDLE", "idle"), ("IDLE", ""), ("IDLE", "IDLE "), ("DEPLOY", "deploy"), ("DEPLOY", "")])
+def test_f5_anything_but_the_exact_words_stops_promote_before_any_command_or_file(tmp_path, word, typed):
+    result = promote_world(tmp_path).run(extra={"words": {word: typed}})
+    assert result.returncode != 0 and result.runs == [] and "NOT CONFIRMED" in result.stderr
+    assert not (tmp_path / "releases" / RID / "runs").exists()
+    if word == "IDLE":
+        assert [c["prompt"] for c in prompts(result)] == ["Type IDLE to continue"]
+
+
+def test_f5_an_empty_passcode_stops_candidate_before_any_command(tmp_path):
+    result = PasteWorld(tmp_path).run(typed="")
+    assert result.returncode != 0 and result.runs == [] and "passcode" in result.stderr.lower()
+    assert not (tmp_path / "releases" / RID / "runs").exists()
+
+
+@pytest.mark.parametrize("action", ["Candidate", "Promote"])
+def test_f5_without_an_interactive_console_candidate_and_promote_stop_before_any_external_call(tmp_path, action):
+    result = typed_world(tmp_path, action).run(interactive=False)
+    assert result.returncode != 0 and no_external_call(result) and prompts(result) == [] and "NOT INTERACTIVE" in result.stderr
+
+
+def test_f5_a_receipt_with_every_boolean_true_is_not_enough_without_the_typed_words(tmp_path):
+    result = PasteWorld(tmp_path).run(extra={"words": {"DEPLOY": "no"}})
+    assert result.returncode != 0 and result.runs == []
+    receipt = json.loads((tmp_path / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["later_explicit_user_instruction"] is True and receipt["single_T1_smoke_authorized"] is True
+
+
+def test_f5_the_passcode_is_never_echoed_or_written_anywhere(tmp_path):
+    result = PasteWorld(tmp_path).run(inherited=INHERITED)
+    files = "".join(p.read_text(encoding="utf-8", errors="replace") for p in tmp_path.rglob("*") if p.is_file() and p.name not in ("config.json", "driver.ps1"))
+    for value in (TYPED, INHERITED):
+        assert value not in result.stdout and value not in result.stderr and value not in files
+    assert all(c["secure"] for c in prompts(result) if c["prompt"] == "Smoke passcode")
+
+
+def paste_function(call, *, stdin=None, flags=("-NonInteractive",)):
+    """Run the real Test-Interactive or Assert-Interactive of the paste in a real pwsh, with no double."""
+    import subprocess
+
+    paste = ROOT / "core/setup/release/SERVICES-PASTE.ps1"
+    script = (f"$ErrorActionPreference = 'Stop'; . '{paste}' -Action Rollback -Lock x -Review x -Bindings x -Receipt x -DefinitionsOnly; "
+              f"try {{ {call}; 'RESULT:ok' }} catch {{ 'RESULT:' + $_.Exception.Message }}")
+    return subprocess.run(["pwsh", "-NoProfile", *flags, "-Command", script], input=stdin, capture_output=True, encoding="utf-8", timeout=120)
+
+
+def test_f5_the_real_interactivity_check_refuses_a_redirected_stdin_and_a_noninteractive_host():
+    piped = paste_function("Assert-Interactive", stdin="DEPLOY\n", flags=())
+    assert "RESULT:NOT INTERACTIVE" in piped.stdout, (piped.stdout, piped.stderr)
+    noninteractive = paste_function("Read-Word 'DEPLOY'")
+    assert "RESULT:" in noninteractive.stdout and "RESULT:ok" not in noninteractive.stdout, (noninteractive.stdout, noninteractive.stderr)
+
+
+# Finding 3 at the paste: the declared removal list is read live and shown before the DEPLOY prompt
+
+NAMES = ("F42_SYNTHETIC_DECLARED_ONE", "F42_SYNTHETIC_DECLARED_TWO")
+DECLARE_CMD = "py -3.13 -m core.setup.release.declared_env_removals --service f42-agent"
+DESCRIBE_CMD = "gcloud run services describe f42-agent --project ogilvy-trends-v2 --region us-central1 --format=json"
+
+
+def with_names():
+    env = [{"name": "F42_DATA", "value": "bigquery"}, *({"name": n, "value": "x"} for n in NAMES)]
+    return {"describe_json": json.dumps({"spec": {"template": {"spec": {"containers": [{"env": env}]}}}}), "declared_matches": "\n".join(NAMES)}
+
+
+def test_f3_candidate_reads_the_live_f42_agent_and_shows_the_matched_names_before_the_deploy_prompt(tmp_path):
+    result = PasteWorld(tmp_path).run(extra=with_names())
+    assert result.returncode == 0, result.stderr
+    reads = [" ".join(c["argv"]) for c in result.calls if c["kind"] == "read"]
+    assert reads.index(DESCRIBE_CMD) < reads.index(DECLARE_CMD)
+    matcher = next(c for c in result.calls if c["kind"] == "read" and " ".join(c["argv"]) == DECLARE_CMD)
+    assert json.loads(matcher["input"])["spec"]["template"]["spec"]["containers"][0]["env"][1]["name"] == NAMES[0]
+    first_prompt = next(i for i, c in enumerate(result.calls) if c["kind"] == "prompt")
+    last_read = max(i for i, c in enumerate(result.calls) if c["kind"] == "read" and " ".join(c["argv"]) in (DESCRIBE_CMD, DECLARE_CMD))
+    assert last_read < first_prompt
+    for name in NAMES:
+        assert name in result.stdout
+    assert "2 environment variable" in result.stdout
+
+
+def test_f3_the_names_are_shown_on_the_screen_only_and_reach_no_file_or_log_of_the_release(tmp_path):
+    PasteWorld(tmp_path).run(extra=with_names())
+    kept = "".join(p.read_text(encoding="utf-8", errors="replace") for p in (tmp_path / "releases").rglob("*") if p.is_file())
+    for name in NAMES:
+        assert name not in kept
+
+
+def test_f3_when_none_of_the_declared_names_is_live_the_paste_says_so_and_goes_on(tmp_path):
+    result = PasteWorld(tmp_path).run()
+    assert result.returncode == 0 and "no declared environment variable" in result.stdout
+
+
+def test_f3_a_matcher_that_fails_stops_before_any_prompt_or_command(tmp_path):
+    result = PasteWorld(tmp_path).run(reads={DECLARE_CMD: "!fail"}, extra=with_names())
+    assert result.returncode != 0 and prompts(result) == [] and result.runs == []
+
+
+@pytest.mark.parametrize("action", ["Promote", "Rollback", "Retire"])
+def test_f3_only_candidate_reads_the_declared_removal(tmp_path, action):
+    world = promote_world(tmp_path) if action == "Promote" else PasteWorld(tmp_path, action)
+    if action == "Retire":
+        world.readback("AfterRollback")
+    result = world.run()
+    assert result.returncode == 0, result.stderr
+    assert not [c for c in result.calls if c["kind"] == "read" and " ".join(c["argv"]) in (DESCRIBE_CMD, DECLARE_CMD)]
+
+
+def test_f3_the_candidate_deploy_step_is_still_the_one_script_and_carries_no_name(tmp_path):
+    result = PasteWorld(tmp_path).run(extra=with_names())
+    argv = result.run("deploy-candidate")["argv"]
+    assert argv[:2] == ["bash", "core/api/deploy_candidate.sh"] and not any(n in " ".join(argv) for n in NAMES)
+
+
+# Finding 7: the passcode reaches the smoke child and nothing else
+
+def test_f7_the_checkout_is_asserted_before_the_passcode_is_set_so_no_git_child_inherits_it(tmp_path):
+    result = PasteWorld(tmp_path).run()
+    smoke_at = next(i for i, c in enumerate(result.calls) if c["kind"] == "run" and c["name"] == "smoke")
+    before = result.calls[smoke_at - 1]
+    assert before["kind"] == "read" and before["argv"] == ["git", "status", "--porcelain=v1"] and before["passcode_sha"] == ""
+    assert result.calls[smoke_at]["passcode_sha"] == sha(TYPED)
+    text = (ROOT / "core/setup/release/SERVICES-PASTE.ps1").read_text(encoding="utf-8")
+    assert "never passed to a child" not in text and "the smoke child alone" in text

@@ -25,6 +25,7 @@ RID = "rel-d666ef6-01"
 A80 = {"f42-agent": "f42-agent-00047-677", "f42-api": "f42-api-00041-lns"}
 API_TAG_URL = f"https://{RID}---f42-api-fibxg5ynpq-uc.a.run.app"
 FREEZE_HASH = "ab" * 32
+DESCRIBE = {"spec": {"template": {"spec": {"containers": [{"env": [{"name": "F42_DATA", "value": "bigquery"}]}]}}}}
 CALLER = "jhb.analytics@gmail.com"
 INHERITED = "inherited-passcode-should-never-be-used"
 TYPED = "typed-passcode-by-albert"
@@ -47,9 +48,9 @@ $splat = @{ Action = $cfg.action; Lock = $cfg.lock; Review = $cfg.review; Bindin
 if ($cfg.quiet) { $splat.QuietWindowVerifiedAtUtc = $cfg.quiet }
 . $cfg.paste @splat
 
-function Read-Native([string]$Exe, [string[]]$Arguments) {
+function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
     $key = ((@($Exe) + $Arguments) -join ' ')
-    Log-Call @{ kind = 'read'; argv = (@($Exe) + $Arguments) }
+    Log-Call @{ kind = 'read'; argv = (@($Exe) + $Arguments); input = $InputText; passcode_sha = (Env-Sha) }
     $later = $Script:Cfg.reads_after.PSObject.Properties[$key]
     if ($null -ne $later -and $Script:RunCount -ge [int]$later.Value.after_runs) { return $later.Value.value }
     $override = $Script:Cfg.reads.PSObject.Properties[$key]
@@ -60,15 +61,22 @@ function Read-Native([string]$Exe, [string[]]$Arguments) {
         '^git rev-parse --short=12 HEAD$' { return $Script:Cfg.commit.Substring(0, 12) }
         '^git status --porcelain=v1$' { return '' }
         '^gcloud config list' { return $Script:Cfg.config_json }
+        '^gcloud run services describe f42-agent --project ogilvy-trends-v2 --region us-central1 --format=json$' { return $Script:Cfg.describe_json }
+        '^py -3.13 -m core.setup.release.declared_env_removals --service f42-agent$' { return $Script:Cfg.declared_matches }
         default { throw "unexpected read: $key" }
     }
 }
 
 $Script:RunCount = 0
-function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @()) {
+function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
     $Script:RunCount++
-    Log-Call @{ kind = 'run'; name = $Name; argv = $Argv; passcode_sha = (Env-Sha) }
+    Log-Call @{ kind = 'run'; name = $Name; argv = $Argv; passcode_sha = (Env-Sha); workdir = $WorkDir; run_dir_existed = (Test-Path -LiteralPath $Script:RunDir -PathType Container) }
     $code = 0
+    if ($Argv[0] -eq 'tar') {
+        $target = $Argv[[array]::IndexOf($Argv, '-C') + 1]
+        if (-not (Test-Path -LiteralPath $target -PathType Container)) { $code = 2 }
+    }
+    if ($WorkDir -and -not (Test-Path -LiteralPath $WorkDir -PathType Container)) { $code = 2 }
     $scripted = $Script:Cfg.exits.PSObject.Properties[$Name]
     if ($null -ne $scripted) { $code = [int]$scripted.Value }
     $text = @()
@@ -98,11 +106,20 @@ function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @()) {
     return $code
 }
 
+function Test-Interactive { return (-not $Script:Cfg.no_interactive) }
+
 function Read-Host {
     param([switch]$AsSecureString, [string]$Prompt)
-    Log-Call @{ kind = 'prompt'; secure = [bool]$AsSecureString }
+    Log-Call @{ kind = 'prompt'; secure = [bool]$AsSecureString; prompt = $Prompt; run_dir_existed = ($null -ne (Get-Variable -Scope Script -Name RunDir -ErrorAction SilentlyContinue)) -and (Test-Path -LiteralPath $Script:RunDir -PathType Container); runs_so_far = $Script:RunCount }
     if ($Script:Cfg.no_interactive) { throw 'no interactive host' }
-    return (ConvertTo-SecureString $Script:Cfg.typed -AsPlainText -Force)
+    if ($AsSecureString) {
+        if ([string]::IsNullOrEmpty($Script:Cfg.typed)) { return (New-Object Security.SecureString) }
+        return (ConvertTo-SecureString $Script:Cfg.typed -AsPlainText -Force)
+    }
+    $word = [regex]::Match($Prompt, 'Type (\w+) to continue').Groups[1].Value
+    $answer = $Script:Cfg.words.PSObject.Properties[$word]
+    if ($null -ne $answer) { return [string]$answer.Value }
+    return $word
 }
 
 function Start-Sleep { param($Seconds) Log-Call @{ kind = 'sleep'; seconds = $Seconds } }
@@ -218,6 +235,7 @@ class PasteWorld:
             "smoke_lines": smoke_lines if smoke_lines is not None else ["PASS health: ok", "6 of 6 checks passed", "SMOKE-RESULT base={url} checks=6 passed=6"],
             "typed": typed, "no_interactive": not interactive, "inherited": inherited, "freeze_hash": FREEZE_HASH, "api_tag_url": API_TAG_URL,
             "no_readback": list(no_readback), "no_manifest_on_freeze": no_manifest_on_freeze, "manifest_hash_on_freeze": None, "reads_after": {},
+            "words": {}, "describe_json": json.dumps(DESCRIBE), "declared_matches": "",
             **(extra or {})}
         self.write(self.tmp / "config.json", config)
         driver = self.tmp / "driver.ps1"
