@@ -22,6 +22,7 @@ pytestmark = pytest.mark.usefixtures("old_model_cap_schedule")
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 RECORD_KEYS = {"ask_id", "question", "parent_id", "market", "status", "created_at",
                "finished_at", "answer", "run", "steps", "error"}
+READ_KEYS = RECORD_KEYS | {"answer_meta"}  # a record as a reader gets it carries the typed summary state
 RUN_KEYS = {"run_id", "tier", "mode", "credits", "tokens", "seconds", "model_usd", "window",
             "posts", "platforms", "source_status", "followups", "notices"}
 ROW_KEYS = {"run_id", "stage", "run_date", "status", "started_at", "finished_at", "question",
@@ -57,6 +58,12 @@ def nobody_hidden(monkeypatch):
 @pytest.fixture
 def client():
     return TestClient(agent_app.app)
+
+
+def as_read(stored):
+    """A stored runs record as a reader gets it: the typed summary state in its wire form (core/api/summary_state.py)."""
+    from core.api import summary_state
+    return summary_state.with_wire(stored)
 
 
 def load(name):
@@ -117,7 +124,7 @@ def test_wait_true_returns_complete_record(client):
     r = ask(client, wait=True, tier="T1")
     assert r.status_code == 200
     record = r.json()
-    assert set(record) == RECORD_KEYS
+    assert set(record) == READ_KEYS
     assert ASK_ID.match(record["ask_id"])
     assert record["status"] == "complete"
     assert record["market"] == "ZA"
@@ -345,11 +352,11 @@ def test_sink_receives_one_row_per_finished_ask(client):
         assert re.match(r"^\d{4}-\d{2}-\d{2}$", row["run_date"])
     ok = rows["complete"]
     assert json.loads(ok["answer"]) == first["answer"]
-    assert json.loads(ok["record"]) == first
+    assert as_read(json.loads(ok["record"])) == first
     assert ok["run_id"] == first["run"]["run_id"]
     assert ok["outcome"] == "complete"
     assert ok["question"] == first["question"]
-    assert json.loads(rows["failed"]["record"]) == second
+    assert as_read(json.loads(rows["failed"]["record"])) == second
     assert rows["failed"]["answer"] is None
     assert rows["failed"]["outcome"] == "internal"
 
@@ -368,7 +375,7 @@ def test_bigquery_sink_calls_insert_rows_json(client, monkeypatch):
     assert len(rows) == 1
     assert set(rows[0]) == ROW_KEYS
     assert rows[0]["stage"] == "ask"
-    assert json.loads(rows[0]["record"]) == record
+    assert as_read(json.loads(rows[0]["record"])) == record
     assert agent_app.SINK == []
 
 
@@ -455,7 +462,7 @@ def test_query_receipts_go_on_the_runs_row_and_never_in_what_a_viewer_reads(clie
     (row,) = agent_app.SINK
     stored = json.loads(row["record"])
     assert stored["query_receipts"] == RECEIPTS
-    assert {k: v for k, v in stored.items() if k != "query_receipts"} == record
+    assert as_read({k: v for k, v in stored.items() if k != "query_receipts"}) == record
     assert "query_receipts" not in json.loads(row["answer"])
 
     agent_app.ASKS.clear()  # past the hour: the record is read back from the runs rows
@@ -473,7 +480,7 @@ def test_query_receipts_go_on_the_runs_row_and_never_in_what_a_viewer_reads(clie
 
     bq_store = store.BigQueryStore(project="p", client=Client()).ask_record(ask_id)
     for read in (local, fixture_store, bq_store):
-        assert read == record
+        assert as_read(read) == record
     for text in [r.text for r in reads] + [json.dumps(r) for r in (local, fixture_store, bq_store)]:
         assert "query_receipts" not in text and "hiddenperson" not in text
 
@@ -487,7 +494,7 @@ def test_bigquery_runs_row_carries_the_query_receipts(client, monkeypatch):
     record = ask(client, wait=True).json()
     (row,) = fake.return_value.insert_rows_json.call_args.args[1]
     assert set(row) == ROW_KEYS
-    assert json.loads(row["record"]) == {**record, "query_receipts": RECEIPTS}
+    assert as_read(json.loads(row["record"])) == {**record, "query_receipts": RECEIPTS}
 
 
 def test_large_query_receipts_drop_rows_before_the_runs_row_is_lost(client, monkeypatch):
@@ -516,7 +523,7 @@ def test_large_query_receipts_drop_rows_before_the_runs_row_is_lost(client, monk
     (row,) = agent_app.SINK
     stored = json.loads(row["record"])
     assert stored["query_receipts"] is None
-    assert {k: v for k, v in stored.items() if k != "query_receipts"} == record and record["status"] == "complete"
+    assert as_read({k: v for k, v in stored.items() if k != "query_receipts"}) == record and record["status"] == "complete"
 
 
 def test_receipts_that_are_not_plain_json_never_cost_the_runs_row(client, monkeypatch):
@@ -663,7 +670,7 @@ def test_sink_keeps_the_last_500_rows(client):
     record = ask(client, wait=True).json()
     assert len(agent_app.SINK) == 500
     assert agent_app.SINK[0] == {"n": 1}
-    assert json.loads(agent_app.SINK[-1]["record"]) == record
+    assert as_read(json.loads(agent_app.SINK[-1]["record"])) == record
 
 
 def test_body_cannot_forge_parent_or_extra_keys(client, monkeypatch):
@@ -761,7 +768,7 @@ def test_failure_after_model_calls_keeps_the_partial_run(client, monkeypatch):
     assert row["answer"] is None
     assert row["outcome"] == "internal"
     stored = json.loads(row["record"])
-    assert stored == record
+    assert as_read(stored) == record
     assert stored["run"]["model_usd"] == 0.42
 
 
@@ -1235,7 +1242,7 @@ def test_a_spike_ask_record_carries_its_spike_on_the_read_and_the_runs_row(clien
     ask_id = ask(client, tier="T1", spike=SPIKE).json()["ask_id"]
     agent_app.ASKS[ask_id].finished.wait(5)
     record = client.get(f"/api/ask/{ask_id}").json()
-    assert set(record) == RECORD_KEYS | {"spike"} and record["spike"] == SPIKE
+    assert set(record) == READ_KEYS | {"spike"} and record["spike"] == SPIKE
     (row,) = agent_app.SINK
     assert json.loads(row["record"])["spike"] == SPIKE
 
@@ -2616,13 +2623,13 @@ def test_finished_run_is_an_ask_record_with_the_investigation_id_and_notice(clie
     read = client.get(body["url"]).json()
     assert read["status"] == "complete" and read["version"] == 3
     record = read["record"]
-    assert set(record) == RECORD_KEYS | {"investigation_id"}
+    assert set(record) == READ_KEYS | {"investigation_id"}
     assert record["investigation_id"] == inv_id and record["ask_id"] == body["ask_id"]
     assert record["answer"] == load("ask_complete.json")["answer"]
     assert record["run"]["notice"] == notice
     assert set(record["run"]["notice"]) == {"investigation_id", "status", "text", "at"}
     ask_rows = [r for r in agent_app.SINK if r["stage"] == "ask"]
-    assert len(ask_rows) == 1 and json.loads(ask_rows[0]["record"]) == record
+    assert len(ask_rows) == 1 and as_read(json.loads(ask_rows[0]["record"])) == record
     # Evicted from memory: the table and the runs rows still hold everything.
     agent_app.ASKS.clear()
     again = client.get(body["url"]).json()
@@ -2660,7 +2667,7 @@ def test_failed_investigation_keeps_its_notice_in_safe_record_storage(client, in
     assert record["run"]["notice"]["text"] == "The investigation failed before it finished"
     ask_row = next(r for r in agent_app.SINK if r["stage"] == "ask")
     stored_record = json.loads(ask_row["record"])
-    assert stored_record == record and stored_record["run"]["notice"]["investigation_id"] == inv_id
+    assert as_read(stored_record) == record and stored_record["run"]["notice"]["investigation_id"] == inv_id
     agent_app.ASKS.clear()
     again = client.get(f"/api/investigations/{inv_id}").json()["record"]
     assert again == record and again["run"]["notice"] == notice

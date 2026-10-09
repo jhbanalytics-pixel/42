@@ -14,6 +14,8 @@ import unicodedata
 from datetime import date, datetime
 from urllib.parse import urlsplit
 
+from core.api import summary_state
+
 EXPORTABLE = ("complete", "stopped")
 # One line a copy carries when content was left out of it for people 42 no longer shows (core/api/privacy.py).
 EXPORT_NOTICE = "Some content was left out of this copy because it concerned people 42 no longer shows."
@@ -71,9 +73,10 @@ _SINGULAR = {"posts": "post", "creators": "creator", "items": "item", "days": "d
              "searches": "search", "markets": "market", "hashtags": "hashtag"}
 _RECORD_ID = re.compile(r"\bobs\d*_[0-9a-f]{8,}\b", re.I)
 _BUDGET_STOP = "model cost or usage could not be verified within the per-question budget"
-def short_answer_fallback(answer) -> str:
-    """What stands in for a short answer that failed a check: what did pass, as the Ask page says it
-    (app/frontend/src/ask42.jsx noShortAnswer)."""
+def short_answer_fallback(answer, why=None) -> str:
+    """What stands in for a short answer that is not there: what did pass, as the Ask page says it
+    (app/frontend/src/ask42.jsx noShortAnswer), then why the summary is missing. why is the sentence of the verified
+    state, or the neutral sentence when the state is legacy or unverified (core/api/summary_state.py)."""
     claims = answer.get("claims") or []
     if not claims:
         return "Nothing passed the checks to sum up."
@@ -88,7 +91,7 @@ def short_answer_fallback(answer) -> str:
             named = platforms[0] if len(platforms) == 1 else ", ".join(platforms[:-1]) + " and " + platforms[-1]
             where += " on " + named
     verb = " is" if len(claims) == 1 else " are"
-    return found + where + verb + " below. The one-line summary did not pass the checks."
+    return found + where + verb + " below. " + (why or summary_state.NEUTRAL)
 
 
 def _unit(value, unit):
@@ -117,7 +120,10 @@ def _searched(text):
     return (rest + ", " if rest else "") + f"{len(ids)} post{'' if len(ids) == 1 else 's'}"
 
 
-def _status_words(answer):
+def _status_words(answer, meta=None):
+    words = summary_state.status_words(meta)
+    if words:
+        return words  # a verified state says how the run ended; the gap text is only read when it is not there
     if answer.get("status") == "insufficient_evidence":
         whys = {gap.get("why") for gap in answer.get("gaps") or [] if isinstance(gap, dict)}
         if _BUDGET_STOP in whys:
@@ -272,9 +278,10 @@ def render_answer_html(record: dict) -> str:
     meta = _meta_line(record)
     if meta:
         out.append(_p(meta, "meta"))
-    if _status_words(answer):
-        out.append(_p(_status_words(answer), "review"))
-    if record.get("status") == "stopped":
+    state = summary_state.reader_meta(record)  # a raw record is judged here; a wire value only if it fits the record
+    if _status_words(answer, state):
+        out.append(_p(_status_words(answer, state), "review"))
+    if summary_state.stopped_early_line(record, state):
         out.append(_p("Stopped before the end; this is what passed the checks by then.", "review"))
     if record.get("privacy"):
         out.append(_p(EXPORT_NOTICE, "review"))
@@ -282,7 +289,9 @@ def render_answer_html(record: dict) -> str:
 
     out.append("<section><h2>Short answer</h2>")
     short = str(answer.get("short_answer") or "").strip()
-    out.append(_p(short) if short else _p(short_answer_fallback(answer), "note"))
+    out.append(_p(short) if short else _p(short_answer_fallback(answer, summary_state.summary_sentence(state)), "note"))
+    if state.get("check") == "verified" and state["summary"]["state"] == "shown_rewritten" and short:
+        out.append(_p(summary_state.module().READER_SENTENCES["shown_rewritten"], "note"))
     out.append("</section>")
 
     claims = answer.get("claims") or []

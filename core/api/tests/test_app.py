@@ -588,7 +588,7 @@ def test_ask_get_forwarded_and_falls_back_to_store(ctx):
     assert r.status_code == 200 and r.json()["status"] == "running"
     r = ctx.client.get("/api/ask/a_old", headers=GOOD)
     assert r.status_code == 200
-    assert r.json() == STORED["a_old"]
+    assert r.json() == {**STORED["a_old"], "answer_meta": {"check": "legacy_unknown"}}  # a record with no typed state
     r = ctx.client.get("/api/ask/a_gone", headers=GOOD)
     assert r.status_code == 404
     assert r.json()["error"] == "not_found"

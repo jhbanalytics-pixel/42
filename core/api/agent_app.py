@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from core.api import dossiers, finding_save, investigations, privacy, skins
+from core.api import dossiers, finding_save, investigations, privacy, skins, summary_state
 from core.api.store import SUPPRESSIONS, viewer_record
 # The watch list read and its table live in core/api/watchlist.py so the f42-digest job can read watches
 # without fastapi; WATCHES and _lock are the same objects there and here.
@@ -227,6 +227,19 @@ def resolve_run_ask():
         return None
 
 
+def fixture_state(request, answer, run):
+    """The state the real producer would build for the fixture's complete and partial answers, so the pages and the
+    journeys over the fixture agent see a verified state (C1 P-19). None if answer_state is not there."""
+    try:
+        blank = not str(answer.get("short_answer") or "").strip()
+        return summary_state.module().build(
+            ask_id=request["ask_id"], check_run_id=run.get("run_id"), execution_state="completed", stop_reason=None,
+            summary_state="blank_unexplained" if blank else "shown", removals=[], rewrite="not_attempted", answer=answer)
+    except Exception as exc:
+        log.error("ask %s: answer_meta not built: %s", request["ask_id"], type(exc).__name__)
+        return None
+
+
 def fixture_agent(request, emit, should_stop):
     question = request["question"].lower()
     failing = re.search(r"\bfail", question) is not None
@@ -261,7 +274,7 @@ def fixture_agent(request, emit, should_stop):
         time.sleep(delay)
     if failing:
         raise RuntimeError("fixture agent failed on purpose")
-    return {"answer": answer, "run": run}
+    return {"answer": answer, "run": run, "answer_meta": fixture_state(request, answer, run)}
 
 
 MODEL_UNAVAILABLE = "The model is not available right now (quota or access). Try again later."
@@ -314,18 +327,50 @@ def recorded(ask_id):
     release(ask_id)
 
 
+def failed_state(ask, update):
+    """The state of a run that raised: built here, from the ask id and the run id alone. None when it cannot be
+    built; the Ask is never failed for a metadata fault."""
+    try:
+        run = update.get("run") if isinstance(update.get("run"), dict) else {}
+        return summary_state.module().build_failed(ask_id=ask.request["ask_id"], check_run_id=run.get("run_id"))
+    except Exception as exc:
+        log.error("ask %s: answer_meta not built: %s", ask.request["ask_id"], type(exc).__name__)
+        return None
+
+
+def keep_state(ask, update, meta):
+    """Put the typed summary state into update, beside the answer, when it fits the record as it will be stored
+    (C1 3): judged by answer_state.verify_stored against {**record, **update}. A value that does not fit is not stored,
+    the record reads as legacy and the ask goes on: a paid answer is not failed for a metadata fault. Only the
+    producer's value is accepted, never one the model or a client could have written."""
+    if meta is None:
+        return
+    ask_id = ask.request["ask_id"]
+    try:
+        problem = summary_state.module().verify_stored({**ask.record, **update, "answer_meta": meta})
+    except Exception as exc:
+        log.error("ask %s: answer_meta not checked: %s", ask_id, type(exc).__name__)
+        return
+    if problem is not None:
+        log.error("ask %s: answer_meta rejected: %s", ask_id, problem)
+        return
+    update["answer_meta"] = meta
+
+
 def execute(ask, run_ask, after=None):
     try:
         result = run_ask(copy.deepcopy(ask.request), ask.emit, ask.should_stop)
         ask.receipts = result.get("query_receipts")
         update = {"status": "stopped" if ask.stop else "complete",
                   "answer": result.get("answer"), "run": result.get("run")}
+        keep_state(ask, update, result.get("answer_meta"))
     except Exception as exc:
         log.exception("ask %s failed", ask.request["ask_id"])
         failure = model_failure(exc)
         error = ({"error": "model_unavailable", "message": MODEL_UNAVAILABLE, **failure} if failure else
                  {"error": "internal", "message": f"The agent hit an error and could not finish ({type(exc).__name__})."})
         update = {"status": "failed", "answer": None, "run": failed_run(_run_of(exc)), "error": error}
+        keep_state(ask, update, failed_state(ask, update))
     with ask.cond:
         ask.record.update(update)
         ask.record["finished_at"] = now(ask.request.get("market")).isoformat()
@@ -1080,7 +1125,9 @@ def readable(record, hidden=privacy.READ, creators=None):
     list of hidden people read on this request, which wins over an approved account (C5 v2 5.2, R2). hidden is the
     list when the request has already read it."""
     from core.api.store import get_store
-    return privacy.project_record(shown_record(record), privacy.LazyStore(get_store), hidden, creators=creators)
+    # The typed summary state is read from the raw record first: privacy changes the answer it is bound to.
+    return privacy.project_record(shown_record(summary_state.with_wire(record)), privacy.LazyStore(get_store), hidden,
+                                  creators=creators)
 
 
 def people_unavailable():

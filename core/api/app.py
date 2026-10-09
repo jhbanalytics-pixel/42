@@ -183,7 +183,7 @@ async def _again(resp: httpx.Response, kind: str) -> Response:
     """The agent's JSON answer read through the list of hidden people a second time (C5 v2 rule R7), so an agent that
     predates the check cannot leak through the hop. kind says what the body is: a record, an investigation, a list
     of investigations, a dossier view or a list of dossiers. Anything but a 200 goes through as it is."""
-    from core.api import privacy, store
+    from core.api import privacy, store, summary_state
 
     if resp.status_code != 200:
         return _passthrough(resp)
@@ -197,10 +197,12 @@ async def _again(resp: httpx.Response, kind: str) -> Response:
         with privacy.one_read():
             hidden = privacy.read_hidden(lazy)
             if kind == "record" and isinstance(body, dict) and "answer" in body:
-                return privacy.project_record(body, lazy, hidden, body.get("privacy"))
+                return privacy.project_record(summary_state.with_wire(body, from_agent=True), lazy, hidden,
+                                              body.get("privacy"))
             if kind == "investigation" and isinstance(body, dict):
                 record = body.get("record")
                 if isinstance(record, dict):
+                    record = summary_state.with_wire(record, from_agent=True)
                     body["record"] = privacy.project_record(record, lazy, hidden, record.get("privacy"))
                 return privacy.mask(body, hidden)
             if kind == "investigations":
@@ -939,7 +941,11 @@ async def _stored_record(ask_id: str) -> dict | None:
     way f42-agent masks the records it still holds."""
     from core.api import skins, store
 
+    from core.api import summary_state
+
     record = await run_in_threadpool(lambda: store.get_store().ask_record(ask_id))
+    if record:  # the typed summary state is read from the raw stored record first, before any masking (C1 5.2)
+        record = summary_state.with_wire(record)
     if not record or not record.get("skin_id"):
         return record
     skin_key = None
@@ -971,7 +977,9 @@ async def api_ask_read(ask_id: str) -> Response:
     _check_ask_id(ask_id)
     resp = await _forward("GET", f"/api/ask/{ask_id}")
     if resp.status_code == 200:
-        held = resp.json()
+        from core.api import summary_state
+
+        held = summary_state.with_wire(resp.json(), from_agent=True)
         running = isinstance(held, dict) and held.get("status") == "running"
         if not running:
             privacy.POLLS.done(("api", ask_id))
@@ -1061,7 +1069,9 @@ async def api_ask_export(ask_id: str, format: str = "html") -> Response:
     resp = await _forward("GET", f"/api/ask/{ask_id}")
     inbound = None
     if resp.status_code == 200:
-        record = resp.json()
+        from core.api import summary_state
+
+        record = summary_state.with_wire(resp.json(), from_agent=True)
         inbound = record.get("privacy") if isinstance(record, dict) else None
     elif resp.status_code == 404:
         record = await _stored_record(ask_id)

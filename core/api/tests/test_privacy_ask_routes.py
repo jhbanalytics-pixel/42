@@ -285,7 +285,9 @@ def test_a_stored_record_the_agent_does_not_hold_is_projected_by_the_api_a15(api
     client = api.serve(remote_agent({}))
     r = client.get(f"/api/ask/{ASK}", headers=GOOD)
     assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
-    assert r.json() == json.loads(json.dumps(privacy.project_record(ask_record(), api.store)))
+    from core.api import summary_state
+    expected = privacy.project_record(summary_state.with_wire(ask_record()), api.store)
+    assert r.json() == json.loads(json.dumps(expected))
     assert [c["id"] for c in r.json()["answer"]["claims"]] == ["c1", "c4"]
 
 

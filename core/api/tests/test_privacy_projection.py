@@ -244,11 +244,14 @@ def test_the_agents_marker_and_this_passes_own_marker_are_merged_not_trusted_r7(
     assert "privacy" not in junk
 
 
-def test_the_typed_summary_state_is_not_read_or_rewritten_by_the_projection():
+def test_a_stored_summary_state_is_never_passed_through_by_the_projection():
+    # This test used to pin the raw pass-through of whatever sat under answer_meta, which is the fault of finding 1:
+    # a stored value reached the reader unjudged. The projection now hands on the wire value, never the stored one.
     record = ask_record()
     record["answer_meta"] = {"state": "verified", "words": "fixture hidden words one @hid_handle"}
     out = project(record, PrivStore(hide={"c_hid"}))
-    assert out["answer_meta"] == record["answer_meta"]
+    assert out["answer_meta"] == {"check": "unverified", "problem": "shape"}
+    assert "fixture hidden words one" not in body_of(out) and "words" not in out["answer_meta"]
 
 
 def test_the_ranked_list_loses_a_withheld_claim_its_handle_and_the_tie_that_pointed_at_it_a42():

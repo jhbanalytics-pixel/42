@@ -13,7 +13,7 @@ import re
 import threading
 import time
 
-from core.api import today
+from core.api import summary_state, today
 from core.api.export import EXPORT_NOTICE  # noqa: F401  (the one line an export carries)
 from core.api.store import creator_key
 
@@ -233,9 +233,12 @@ def _json(value):
 def project_record(record, store, hidden=READ, inbound=None, creators=None):
     """An Ask record (or an investigation's) as a reader may see it now (5.2). The input is not changed. inbound is
     the privacy marker of f42-agent's response to f42-api's own call, merged with this pass's (R7). The typed
-    summary state, answer_meta, is read from the raw record by its own code and never rewritten here."""
+    summary state, answer_meta, is judged from the record as it comes in, before any claim is withheld, and leaves in its
+    wire form only: a stored value is never passed through (C1 condition 1)."""
     if not isinstance(record, dict):
         return record
+    if "answer_meta" in record:  # judged before anything is withheld, and only its wire form is passed on
+        record = {**record, "answer_meta": summary_state.reader_meta(record)}
     base = {k: v for k, v in record.items() if k != "privacy"}
     carried = _inbound(inbound)
     hidden = _resolve(hidden, store)
@@ -426,7 +429,8 @@ def finding_blockers(record, store, hidden=READ):
     if hidden is None:
         raise PeopleUnavailable
     answer = record.get("answer") if isinstance(record, dict) else None
-    named = isinstance(record, dict) and isinstance(record.get("question"), str)         and mask({"q": record["question"]}, hidden)["q"] != record["question"]
+    named = (isinstance(record, dict) and isinstance(record.get("question"), str)
+             and mask({"q": record["question"]}, hidden)["q"] != record["question"])
     if not isinstance(answer, dict):
         return [], named
     evidence = answer.get("evidence")
