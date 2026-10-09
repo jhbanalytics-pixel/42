@@ -17,7 +17,7 @@ import pytest
 from google.cloud import bigquery
 
 from .. import breakout, centroids, forecasts, job, runs, seeds, sqlrun, stats, watches
-from ..items import item_id
+from ..items import KINDS, TOPIC_KIND, item_id
 from . import duck
 from .fixtures import D, at, cmap, day, obs, post, run
 from .duck import run_duck, temp_macro
@@ -994,3 +994,173 @@ def test_a_centroid_failure_is_recorded_and_detect_and_brief_carry_on(con, monke
     assert status == "ok" and finish_error is None
     assert finish_counts["item_centroids"] == {"status": "failed", "error": error}
     assert chain.of("start_next") == [("start_next", "detect", D)]
+
+
+# Lead ruling on a dead clusterer: understand records the day ok but partial (cluster_stack_failed), detect still runs
+# for the non-topic items, and judges no topic items that day.
+
+
+def understand_row(day=D, counts=None, status="ok", hour=12, run_id=None):
+    return {**run("understand", day, run_id, status, hour), "error": None,
+            "counts": None if counts is None else json.dumps(counts)}
+
+
+PARTIAL = {"partial": True, "partial_reason": "cluster_stack_failed", "partial_error": "OSError: libllvmlite",
+           "data_issue": "Data issue: topic grouping failed today"}
+
+
+def topic_world(con, *understand):
+    world(con)
+    con.execute("UPDATE core.cultural_map SET kind = 'topic' WHERE item_id = 'two'")
+    if understand:
+        duck.load(con, "agent.runs", list(understand))
+
+
+def judged(con):
+    return {r["item_id"] for r in current(con, "v_item_state_current")}
+
+
+def test_a_day_whose_clusterer_failed_judges_no_topic_items_but_still_judges_the_rest(con):
+    topic_world(con, understand_row(counts=PARTIAL))
+    chain = FakeChain(con)
+    counts = job.run(JobClient(con), D, chain=chain, core="core", agent="agent")
+    assert judged(con) == {"new"} and counts["item_state"] == 1
+    assert counts["topics_failed"] == {"reason": "cluster_stack_failed", "topic_items_judged": 0,
+                                       "data_issue": "Data issue: topic grouping failed today"}
+    assert [c[0] for c in chain.calls] == ["begin", "finish", "start_next"]
+    assert chain.of("finish")[0][2] == "ok", "detect itself is a good run: it ran for the non-cluster items"
+
+
+def test_without_a_partial_understand_run_topic_items_are_judged_as_before(con):
+    topic_world(con)
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new", "two"} and "topics_failed" not in counts
+
+
+@pytest.mark.parametrize("row", [
+    understand_row(counts={"enriched": 3}),
+    understand_row(counts={"partial": True, "partial_reason": "something_else"}),
+    understand_row(counts=PARTIAL, status="failed"),
+    understand_row(day=D - timedelta(days=1), counts=PARTIAL),
+    understand_row(counts=None),
+], ids=["clean ok", "other reason", "failed run", "other day", "no counts"])
+def test_only_an_ok_partial_run_for_the_day_with_the_reason_stops_topic_items(con, row):
+    topic_world(con, row)
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new", "two"} and "topics_failed" not in counts
+
+
+def test_a_repaired_rerun_of_understand_lifts_the_stop_and_an_older_clean_run_does_not_hide_a_newer_partial(con):
+    topic_world(con, understand_row(counts=PARTIAL, hour=6, run_id="understand-early"),
+                understand_row(counts={"enriched": 3}, hour=9, run_id="understand-repaired"))
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new", "two"} and "topics_failed" not in counts
+
+
+def test_the_newest_ok_understand_run_decides_when_a_clean_one_came_first(con):
+    topic_world(con, understand_row(counts={"enriched": 3}, hour=6, run_id="understand-early"),
+                understand_row(counts=PARTIAL, hour=9, run_id="understand-late"))
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new"}
+
+
+def test_the_topic_filter_changes_only_the_cultural_map_join_of_state_sql_and_stops_if_the_shape_moves():
+    text = (job.SQL / "state.sql").read_text(encoding="utf-8")
+    patched = job.without_topics(text)
+    stop = f" AND cm.kind != '{TOPIC_KIND}'"
+    assert patched != text and patched.count(stop) == 1
+    assert patched.replace(stop, "") == text
+    with pytest.raises(RuntimeError):
+        job.without_topics(text.replace("cm.item_id = a.item_id", "cm.item_id = a.item_id AND TRUE"))
+
+
+def test_the_topic_kind_is_the_kind_the_understand_clusterer_writes_and_a_real_item_kind():
+    assert TOPIC_KIND == "topic" and TOPIC_KIND in KINDS
+    assert "cluster" not in KINDS
+
+
+def test_topic_items_judged_is_counted_from_item_state_for_the_run_and_not_taken_as_zero(con):
+    topic_world(con)
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    topic_rows = [r for r in current(con, "v_item_state_current") if r["item_id"] == "two"]
+    assert len(topic_rows) == 1
+    rid = con.execute("SELECT run_id FROM core.item_state WHERE item_id = 'two'").fetchone()[0]
+    assert job.topic_items_judged(JobClient(con), D, rid, core="core", agent="agent") == 1
+    assert job.topic_items_judged(JobClient(con), D, "some-other-run", core="core", agent="agent") == 0
+
+
+def test_if_the_stop_ever_lets_a_topic_item_through_the_detect_counts_say_so(con, monkeypatch):
+    topic_world(con, understand_row(counts=PARTIAL))
+    monkeypatch.setattr(job, "without_topics", lambda script: script)
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new", "two"}
+    assert counts["topics_failed"]["topic_items_judged"] == 1
+
+
+def test_the_kind_understand_writes_for_a_new_topic_item_is_the_kind_detect_stops_on():
+    from core.understand import cluster as understand_cluster
+
+    c = {"cluster_id": "20260928-za-000", "label": "A topic", "centroid": [1.0, 0.0], "market": "za",
+         "platform": "tiktok", "keywords": ["a"], "local_terms": [], "members": [("p1", 1.0)]}
+    planned = understand_cluster.plan([c], [{"kind": "new", "item_id": None, "candidates": []}], [], D, "za")
+    [row] = planned["map_rows"]
+    assert row["change"] == "insert" and row["kind"] == TOPIC_KIND
+
+
+def test_the_stderr_line_names_the_number_measured_after_state(con, capsys):
+    topic_world(con, understand_row(counts=PARTIAL))
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert "0 topic items judged" in capsys.readouterr().err
+
+
+def test_the_stderr_line_does_not_promise_that_none_were_judged_when_one_was(con, monkeypatch, capsys):
+    topic_world(con, understand_row(counts=PARTIAL))
+    monkeypatch.setattr(job, "without_topics", lambda script: script)
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    err = capsys.readouterr().err
+    assert "1 topic items judged" in err and "no topic items judged" not in err
+
+
+def test_a_failing_topic_count_is_carried_in_the_counts_and_never_fails_detect(con, monkeypatch, capsys):
+    topic_world(con, understand_row(counts=PARTIAL))
+
+    def broken(client, d, run_id, core="core", agent="agent"):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(job, "topic_items_judged", broken)
+    chain = FakeChain(con)
+    counts = job.run(JobClient(con), D, chain=chain, core="core", agent="agent")
+    assert counts["topics_failed"]["topic_items_judged"] == {"status": "failed", "error": "RuntimeError: boom"}
+    assert counts["topics_failed"]["reason"] == "cluster_stack_failed"
+    assert judged(con) == {"new"} and "breakout" in counts and "forecast" in counts
+    assert chain.of("finish")[0][2] == "ok" and chain.of("start_next")
+    assert "topic count failed: RuntimeError: boom" in capsys.readouterr().err
+
+
+def test_the_topic_count_is_items_judged_and_not_open_map_versions_times_rows(con, monkeypatch):
+    topic_world(con, understand_row(counts=PARTIAL))
+    con.execute("INSERT INTO core.cultural_map SELECT * FROM core.cultural_map WHERE item_id = 'two'")
+    monkeypatch.setattr(job, "without_topics", lambda script: script)
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    written = con.execute("SELECT COUNT(*) FROM core.item_state WHERE kind = 'topic'").fetchone()[0]
+    assert counts["topics_failed"]["topic_items_judged"] == written
+
+
+def test_the_topic_count_reads_the_kind_item_state_recorded_and_not_the_current_map(con):
+    topic_world(con)
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    rid = con.execute("SELECT run_id FROM core.item_state WHERE item_id = 'two'").fetchone()[0]
+    con.execute("UPDATE core.cultural_map SET valid_to = TIMESTAMP '2026-09-21 00:00:00' WHERE item_id = 'two'")
+    assert job.topic_items_judged(JobClient(con), D, rid, core="core", agent="agent") == 1
+
+
+def test_the_data_issue_is_the_understand_text_when_it_has_one_and_the_plain_words_when_it_does_not(con):
+    topic_world(con, understand_row(counts={"partial": True, "partial_reason": "cluster_stack_failed"}))
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert counts["topics_failed"]["data_issue"] == "Data issue: topic grouping failed today"
+
+
+def test_a_data_issue_understand_wrote_is_carried_as_it_was_written(con):
+    topic_world(con, understand_row(counts={**PARTIAL, "data_issue": "Data issue: written by understand"}))
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert counts["topics_failed"]["data_issue"] == "Data issue: written by understand"
