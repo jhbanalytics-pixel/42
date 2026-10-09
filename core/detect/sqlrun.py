@@ -45,7 +45,17 @@ def render(sql, core=CORE, agent=AGENT):
 # The three item_state columns of the locality switch (eligible_v1, locality_basis, locality_status) are not in the
 # table the shadow release meets (core/schema/locality_switch.sql, applied by the switch release only). Under the v1
 # authority a statement that reads one reads a typed NULL in its place, which is what a row written without it holds.
-_SWITCH_READS = re.compile(r"\b[sx]\.locality_(?:basis|status)\b")
+_SWITCH_TYPES = {"locality_basis": "STRING", "locality_status": "STRING", "eligible_v1": "BOOL"}
+# A read is any qualifier (an alias, or a dotted path to the table) in front of one of the three names. Comments and
+# quoted text pass through untouched, so prose that names a column is not rewritten.
+_SWITCH_READS = re.compile(r"(?<![\w.`])(?:(?:\w+|`[^`]*`)\.)+(?P<column>eligible_v1|locality_basis|locality_status)\b"
+                           r"|(?P<skip>--[^\n]*|'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"|`[^`]*`)")
+
+
+def _null_of_type(match):
+    if match.group("skip") is not None:
+        return match.group(0)
+    return f"CAST(NULL AS {_SWITCH_TYPES[match.group('column')]})"
 
 
 def for_authority(sql, authority=None):
@@ -55,7 +65,7 @@ def for_authority(sql, authority=None):
         from core.trust import locality
 
         authority = locality.LOCALITY_AUTHORITY
-    return sql if authority == "v2" else _SWITCH_READS.sub("CAST(NULL AS STRING)", sql)
+    return sql if authority == "v2" else _SWITCH_READS.sub(_null_of_type, sql)
 
 
 def split(sql):

@@ -5,6 +5,7 @@ needs in the counts. cluster_items.sql runs on the DuckDB harness of test_cluste
 statement builds it."""
 
 import json
+import math
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -238,3 +239,83 @@ def test_the_rule_and_the_measurement_count_the_same_shared_members(history, mem
     assert rule == shared
     assert (row["at_1"], row["at_2"], row["at_3"]) == tuple(int(shared >= n) for n in (1, 2, 3))
     assert row["label_changes"] == 1
+
+
+# The checkpoint summary keeps every renamed item id, so the same-day guard is not cut at the display cap (50).
+
+def _fifty_one_renames(monkeypatch):
+    """A run whose 51 matched clusters each rename their item; the 51st item is topic_a. Returns the counts the run
+    reports and the summary it saved in the plan's ready checkpoint."""
+    from core.understand.tests.test_cluster import DAY as CDAY, WRITE_PARAMS
+
+    dim, total = 120, cluster.MERGE_REVIEW_LISTED + 1
+    ids = [f"topic_{k:02d}" for k in range(total - 1)] + ["topic_a"]
+    items, clusters = [], []
+    for k, iid in enumerate(ids):
+        vec = [0.0] * dim
+        vec[k], vec[k + 60] = 0.9, math.sqrt(1 - 0.81)
+        old = an_item(iid, vec, OLD_WORDS, ["football"], label=OLD_LABEL, recent_members=["p1", "p2"])
+        old["last_seen"], old["first_seen"] = CDAY - timedelta(days=1), CDAY - timedelta(days=5)
+        items.append(old)
+        unit = [0.0] * dim
+        unit[k] = 1.0
+        c = a_cluster(f"{CDAY:%Y%m%d}-za-{k:03d}", unit, NEW_WORDS, ["football"], label=NEW_LABEL)
+        c["market"] = "za"
+        clusters.append(c)
+    monkeypatch.setattr(cluster, "fit_topics", lambda docs, emb: ([0] * len(docs), [1.0] * len(docs), {}))
+    monkeypatch.setattr(cluster, "build_clusters", lambda *args: clusters)
+    checkpoints, persisted = [], set()
+
+    def execute(text, params):
+        if text == cluster.load("cluster_done"):
+            ready = next((p for p in checkpoints if p["batch_index"] == -1), None)
+            if ready is None:
+                return [{"n": 0}]
+            return [{"n": len(persisted), "written_ids": sorted(persisted), "checkpoint": {
+                "batch_count": ready["batch_count"], "summary": json.loads(ready["summary"])},
+                "batch_index": p["batch_index"], "batch": {k: json.loads(p[k]) for k in WRITE_PARAMS}}
+                for p in checkpoints if p["batch_index"] >= 0]
+        if text == cluster.load("cluster_checkpoint"):
+            checkpoints.append(dict(params))
+            return []
+        if text == cluster.load("cluster_posts"):
+            return [{"post_id": f"p{i}", "text": "", "today": True, "embedding": [1.0, 0.0]}
+                    for i in range(cluster.MIN_POSTS)]
+        if text == cluster.load("cluster_items"):
+            return [dict(i) for i in items]
+        assert text == cluster.load("cluster_write")
+        persisted.update(r["cluster_id"] for r in json.loads(params["cluster_rows"]))
+        rows = {k: json.loads(params[k]) for k in WRITE_PARAMS}
+        return [{**{k: len(v) for k, v in rows.items()}, "matched": len(rows["cluster_rows"]), "recurrences": 0,
+                 "variants": 0, "new_items": 0}]
+
+    counts = cluster.run_cluster(execute, run_date=CDAY, market="za", model=NetModel())
+    [ready] = [p for p in checkpoints if p["batch_index"] == -1]
+    return counts, json.loads(ready["summary"]), ids
+
+
+def test_the_saved_summary_holds_every_renamed_item_while_the_counts_list_only_fifty(monkeypatch, v2):
+    counts, summary, ids = _fifty_one_renames(monkeypatch)
+    assert counts["label_changes_total"] == 51 and len(counts["label_changes"]) == 50
+    assert summary["renamed_item_ids"] == ids and len(summary["label_changes"]) == 50
+    assert "renamed_item_ids" not in counts                         # display only: the run's counts stay as they were
+
+
+def test_a_run_that_renames_nothing_saves_no_id_list(monkeypatch, v2):
+    counts, _ = _run(monkeypatch, ["z1"])
+    assert "renamed_item_ids" not in counts
+
+
+def test_a_fifty_first_rename_of_another_market_blocks_the_same_item_here(monkeypatch, v2):
+    """The review's failing input: the 51st rename of a run is not in its first 50 label_changes."""
+    _, summary, ids = _fifty_one_renames(monkeypatch)
+    assert ids[-1] == "topic_a" and ids[-1] not in [c["item_id"] for c in summary["label_changes"]]
+    con = world([(YESTERDAY, "ng-y", "ng", OLD_LABEL)], [("ng-y", "p1", .9)], runs=[("plan-za", "za", summary)])
+    assert recent(con, "ng")["renamed_today"] is True
+    assert recent(con, "za")["renamed_today"] is False
+
+
+def test_a_plan_saved_before_the_id_list_existed_still_blocks_by_its_label_changes():
+    old = {"label_changes": [{"item_id": "topic_a", "from": "x", "to": "y", "shared_members": 2}]}
+    con = world([(YESTERDAY, "ng-y", "ng", OLD_LABEL)], [("ng-y", "p1", .9)], runs=[("plan-za", "za", old)])
+    assert recent(con, "ng")["renamed_today"] is True
