@@ -4,7 +4,7 @@
    takes first focus. The link keeps its address, so the question, market,
    item and date it carries stay readable. Wave 8: that address is a draft
    (draft=1), so a new tab, a copied link or a reload fills in the question
-   and spends nothing; only the confirm goes to the live address. */
+   and spends nothing; only the confirm goes to the live address (live=1). */
 import {Suspense, lazy, useState} from 'react';
 import {go} from '../router.js';
 
@@ -19,6 +19,8 @@ const DRAFT = /([?&])draft=1(?:&|$)/;
 const withDraft = (href) => (DRAFT.test(href) ? href : href + (String(href).includes('?') ? '&' : '?') + 'draft=1');
 const withoutDraft = (href) => String(href).replace(/&draft=1(?=&|$)/, '').replace(/\?draft=1&/, '?').replace(/\?draft=1$/, '');
 
+const withLive = (href) => (/([?&])live=1(?:&|$)/.test(href) ? href : href + (String(href).includes('?') ? '&' : '?') + 'live=1');
+
 export function AskAboutThis({href, className, question}){
   const [open, setOpen] = useState(false);
   const onClick = (event) => {
@@ -27,7 +29,7 @@ export function AskAboutThis({href, className, question}){
   };
   const confirm = () => {
     setOpen(false);
-    go(withoutDraft(href).replace(/^#/, ''));
+    go(withLive(withoutDraft(href)).replace(/^#/, ''));
   };
   return (
     <>

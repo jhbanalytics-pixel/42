@@ -225,11 +225,12 @@ test(`a checked ${kind} projection appears before the short answer prose`, async
 });
 }
 
-test('only draft=1 marks an Ask query as unsubmitted', () => {
+test('an Ask query is a draft unless it carries live=1', () => {
   expect(parseAskQuery('#/ask?q=football&draft=1').draft).toBe(true);
   for (const value of ['true', '0', '01', '']){
-    expect(parseAskQuery('#/ask?q=football&draft=' + value).draft).toBeUndefined();
+    expect(parseAskQuery('#/ask?q=football&draft=' + value).draft).toBe(true);
   }
+  expect(parseAskQuery('#/ask?q=football&live=1').draft).toBeUndefined();
 });
 
 test('a draft query fills the Ask field without starting a paid request', async () => {
