@@ -164,15 +164,18 @@ def s_health(b):
 def s_today(b):
     parts = []
     total = 0
+    held_total = 0
     for m in b.get("markets") or []:
         cards = n(m.get("cards")) + n(m.get("more"))
         total += cards
         held = n((m.get("held_back") or {}).get("items")) if isinstance(m.get("held_back"), dict) else 0
+        held_total += held
         parts.append(f"{m.get('market')} {cards}c/{held}h")
     warm = b.get("warmup")
     warm_text = f" warmup day {warm.get('day')}" if isinstance(warm, dict) and warm.get("day") else ""
     breaking = sum(n(m.get("breaking")) for m in b.get("markets") or [])
-    return f"{b.get('status')} {' '.join(parts)} breaking {breaking}{warm_text}", total == 0
+    # A day where the checks held every topic is a read of real data. Only no cards and nothing held is empty.
+    return f"{b.get('status')} {' '.join(parts)} breaking {breaking}{warm_text}", total == 0 and held_total == 0
 
 
 def s_items(key, label):
