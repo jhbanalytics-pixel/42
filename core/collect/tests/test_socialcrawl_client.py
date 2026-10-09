@@ -2109,7 +2109,7 @@ def test_a_failed_youtube_board_call_says_its_failure_class_in_health():
     def item_id(kind, raw, platform=None):
         return f"{kind}|{platform}:{raw}"
 
-    http = FakeHTTP({"youtube/videos/trending": [(500, None)] * 3 + [board_ok()] * 5})
+    http = FakeHTTP({"youtube/videos/trending": [(500, None)] * 4 + [board_ok()] * 5})
     client, _ = retrying(http)
     run = job.Collected("run-1")
     runner = job._Runner(client, run, job._CountedIds(item_id), job.safe_geo(lambda *a, **k: (None, None, None)),

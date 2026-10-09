@@ -33,6 +33,13 @@ exactly as before. Two bounds hold for the whole run as well: the retries' holds
 retry_credits, and a route whose retries all failed gets no more of them from this client, so a vendor
 outage costs that route's retries once, not on every call. The caller gets the last attempt's result with
 credits_charged summed over every attempt, attempts set, and the earlier failure classes in its reason.
+A caller that passes server_retry_room (the collect job does, for its boards and panels, W8-DEC-19) also gets
+one more attempt after server_retry_wait seconds (60) when the call still ends in an HTTP 5xx, after any of
+the retries above. It is made only if what the call has been charged plus one more hold fits the room, the
+share's and the month's caps and the balance floor still hold, and the wait is injectable (sleep). When it is
+not made the caller keeps the 5xx answer, not a cap status. A timeout, a 4xx (495 included), a 429 or a halt
+for credits never gets it. Result.attempts, first_http_status and server_retry ("made", or "blocked: room",
+"blocked: cap", "blocked: balance") are the receipt of it.
 Result.failure names the class of a failed live attempt (timeout, connection, transport, http_429,
 http_5xx, http_4xx, vendor_error, insufficient_credits, store), never a URL, key or body.
 
@@ -108,6 +115,8 @@ TRANSIENT_RETRIES = 2
 BALANCE_READS = 3  # reads of the free credits/balance endpoint before the balance stays unknown for the client
 RETRY_BACKOFF = 4
 RETRY_CREDITS = 30
+NOT_LIVE = frozenset({"cap_reached", "balance_floor"})  # a refusal before the call, not an answer
+SERVER_RETRY_WAIT = 60  # seconds before the one retry of a board or panel call answered 5xx
 TRANSIENT = frozenset({"timeout", "connection", "http_429", "http_5xx"})
 _TIMEOUT_NAMES = frozenset({"Timeout", "ReadTimeout", "ConnectTimeout", "TimeoutError"})
 _CONNECTION_NAMES = frozenset({"ConnectionError", "ChunkedEncodingError", "ProtocolError", "RemoteDisconnected"})
@@ -521,6 +530,20 @@ class Result:
     reason: str = ""
     attempts: int = 1
     failure: str = ""
+    first_http_status: int | None = None
+    server_retry: str = ""
+
+
+def retry_fields(result):
+    """The receipt's keys for a call that had more than one attempt or whose 5xx retry was refused: how many
+    attempts, the first attempt's HTTP status, what the board or panel retry did ("made" or "blocked: why") and
+    what the whole call charged. None for a call that was made once and answered or failed once."""
+    attempts = getattr(result, "attempts", 1)
+    retry = getattr(result, "server_retry", "")
+    if attempts == 1 and not retry:
+        return {}
+    return {"attempts": attempts, "first_status": getattr(result, "first_http_status", None),
+            "server_retry": retry, "credits_charged": result.credits_charged or 0}
 
 
 def transport_failure(exc):
@@ -715,7 +738,7 @@ class SocialCrawlClient:
         self, *, share, run_id, mode, ledger, raw, http, clock,
         agent=None, schedule_started=True, eval_refresh=False, caps=None, timeout=60,
         retry_wait=RETRY_WAIT, sleep=clock_time.sleep, retry_routes=(), transient_retries=TRANSIENT_RETRIES,
-        retry_credits=RETRY_CREDITS,
+        retry_credits=RETRY_CREDITS, server_retry_wait=SERVER_RETRY_WAIT,
     ):
         if mode not in ("live", "replay"):
             raise ValueError(f"mode must be live or replay, not {mode!r}")
@@ -739,6 +762,7 @@ class SocialCrawlClient:
         self.share, self.run_id, self.mode, self.agent = share, run_id, mode, agent
         self.ledger, self.raw, self.http, self.clock, self.timeout = ledger, raw, http, clock, timeout
         self.retry_wait, self.sleep = retry_wait, sleep
+        self.server_retry_wait = server_retry_wait
         self.retry_routes = frozenset(_normalise(r) for r in retry_routes)
         self.transient_retries, self.retry_credits = transient_retries, retry_credits
         self._retry_held = 0   # holds of the transient retries made so far
@@ -751,9 +775,9 @@ class SocialCrawlClient:
         return f"SocialCrawlClient(share={self.share!r}, run_id={self.run_id!r}, mode={self.mode!r})"
 
     def call(self, route, params=None, *, method=None, market=None, item_id=None, seed_key=None, agent=None,
-             lane=None, use_cache=True):
+             lane=None, use_cache=True, server_retry_room=None):
         return self._call(route, params, method=method, market=market, item_id=item_id, seed_key=seed_key,
-                          agent=agent, lane=lane, use_cache=use_cache)
+                          agent=agent, lane=lane, use_cache=use_cache, server_retry_room=server_retry_room)
 
     def discover_x(self, params, *, market=None, use_cache=True):
         return self._call("twitter/ai-search", params, market=market, lane="discovery",
@@ -767,7 +791,7 @@ class SocialCrawlClient:
         return self._call(COUNTRY_ROUTES[platform], {"handle": handle.casefold()}, **kwargs)
 
     def _call(self, route, params=None, *, method=None, market=None, item_id=None, seed_key=None, agent=None,
-              lane=None, use_cache=True, discovery=False):
+              lane=None, use_cache=True, discovery=False, server_retry_room=None):
         original_route = route
         route = _normalise(route)
         params = dict(params or {})
@@ -801,6 +825,7 @@ class SocialCrawlClient:
                 return self._served(route, phash, body)
 
         result = self._checked(call, params, quote, floor)
+        first_status = result.http_status
         attempts, charged, failures, transient = 1, result.credits_charged or 0, [], False
         while True:
             wait, extra = self._retry(route, result, attempts, quote)
@@ -813,11 +838,32 @@ class SocialCrawlClient:
             result = self._checked(call, params, quote, floor)
             attempts += 1
             charged += result.credits_charged or 0
-        if attempts == 1:
+        slow = ""
+        # http_5xx names only a live answer of 500 to 599: a timeout, a 4xx, a halt for credits and a store
+        # failure after the call each carry a class of their own, so none of them gets this retry.
+        if server_retry_room is not None and result.failure == "http_5xx":
+            slow = self._server_retry_blocked(quote, charged, server_retry_room)
+            if not slow:
+                log.warning("socialcrawl %s %s; board or panel retry in %ss", route, result.failure,
+                            self.server_retry_wait)
+                self.sleep(self.server_retry_wait)
+                again = self._checked(call, params, quote, floor)
+                if again.status in NOT_LIVE:
+                    slow = "blocked: " + ("balance" if again.status == "balance_floor" else "cap")
+                else:
+                    slow = "made"
+                    failures.append(result.failure)
+                    result = again
+                    attempts += 1
+                    charged += result.credits_charged or 0
+        if attempts == 1 and not slow:
             return result
         if transient and result.failure in TRANSIENT:
             self._exhausted.add(route)
         result.attempts, result.credits_charged = attempts, _whole(charged)
+        result.first_http_status, result.server_retry = first_status, slow
+        if attempts == 1:
+            return result
         if result.status in ("ok", "empty"):
             result.reason = f"{result.status} on attempt {attempts} after {', '.join(failures)}"
             log.warning("socialcrawl %s %s", route, result.reason)
@@ -835,6 +881,18 @@ class SocialCrawlClient:
                 and route not in ALLOWED_TRENDS_ROUTES):
             return self.retry_wait, False
         return None, False
+
+    def _server_retry_blocked(self, quote, charged, room):
+        """Why the one retry of a board or panel 5xx must not be made, or "": what the call has been charged
+        plus this attempt's hold would cross the room the caller gave it, the share's or the month's cap would
+        be crossed, or the balance is under the floor. Nothing is waited for or called when one holds."""
+        if charged + quote > room:
+            return "blocked: room"
+        if self._over_cap(quote):
+            return "blocked: cap"
+        if self._balance is not None and self._balance < self.floor:
+            return "blocked: balance"
+        return ""
 
     def _checked(self, call, params, quote, floor):
         """One live attempt after the cap, key and balance checks."""
