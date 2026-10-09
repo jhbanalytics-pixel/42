@@ -441,6 +441,7 @@ test('Ask about this names the cost and starts nothing until Ask is pressed', as
   const press = (el) => flushSync(() => el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true})));
   const links = [...host.querySelectorAll('a')].filter((a) => a.textContent === 'Ask about this');
   expect(links.length).toBe(2);
+  expect(links.every((a) => a.getAttribute('href').includes('&draft=1'))).toBe(true);
   for (const link of links){
     press(link);
     await settle();
@@ -458,7 +459,7 @@ test('Ask about this names the cost and starts nothing until Ask is pressed', as
   await settle();
   click([...host.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === 'Ask'));
   expect(host.querySelector('[role="dialog"]')).toBeNull();
-  expect(window.location.hash).toBe(links[1].getAttribute('href'));
+  expect(window.location.hash).toBe(links[1].getAttribute('href').replace('&draft=1', ''));
 });
 
 test('a held-back topic says why at the top', async () => {
@@ -771,4 +772,39 @@ test('a market count of one takes the singular, and one young reading of one say
   expect(section('spread').textContent).toContain('0 posts first seen in 7 days');
   expect(section('spread').textContent).not.toContain('1 posts');
   expect(section('series').textContent).toContain('1 day of readings so far: 1 post a day');
+});
+
+/* Wave 8 T6 (R0481) and N10: the topic page heads with the title the card
+   leads with on Today, and never sets a neutral birth label as a name. */
+const LABEL = 'northeast governors, northeast, governors';
+const WRITTEN = 'Independence Day reflections';
+
+test('the topic heading is the checked written title and the cluster label sits in the line under it', async () => {
+  const body = clone(topicFixture);
+  Object.assign(body.card, {title: LABEL, explained: true, title_written: WRITTEN});
+  await mount(body);
+  expect(host.querySelector('h1.tp42-heading').textContent).toBe(WRITTEN);
+  expect(host.querySelector('.tp42-sub').textContent).toContain(LABEL);
+});
+
+test('a topic with no written title, or one that is not explained, keeps the label as its heading', async () => {
+  const unexplained = clone(topicFixture);
+  Object.assign(unexplained.card, {title: LABEL, explained: false, title_written: WRITTEN});
+  await mount(unexplained);
+  expect(host.querySelector('h1.tp42-heading').textContent).toBe(LABEL);
+  expect(host.querySelector('.tp42-sub').textContent).not.toContain(LABEL);
+  flushSync(() => root.unmount());
+  root = createRoot(host);
+  const none = clone(topicFixture);
+  Object.assign(none.card, {title: LABEL, explained: true, title_written: null});
+  await mount(none);
+  expect(host.querySelector('h1.tp42-heading').textContent).toBe(LABEL);
+});
+
+test('a neutral Topic label is not the heading of the topic page', async () => {
+  const body = clone(topicFixture);
+  Object.assign(body.card, {title: 'Topic 4558a7fe', explained: false, title_written: null});
+  await mount(body);
+  expect(host.querySelector('h1.tp42-heading').textContent).toBe('A topic not yet named');
+  expect(host.querySelector('.tp42-sub').textContent).toContain('Topic 4558a7fe');
 });
