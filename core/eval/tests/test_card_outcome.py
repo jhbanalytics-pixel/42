@@ -400,16 +400,18 @@ def test_every_non_overlay_state_has_its_class_trust_and_backtest_flag(state):
         assert other_lane["held_backtest"] is False and other_lane["held_any"] is False
 
 
-OVERLAYS = {  # (state, base_state): (class, held, rising or peaking, PERSISTING): the overlay is classed by its base
+OVERLAYS = {  # base_state: (class, held, rising or peaking, PERSISTING): the overlay is held whatever its base is
+    # (state.sql active28 holds recurring and seasonal), the base only splits confirmed from unconfirmed, and a NULL
+    # base, which state.sql writes for a Recurring overlay on a fresh item, reads unconfirmed
     "rising": ("confirmed", True, True, True), "emerging": ("confirmed", True, False, True),
-    "spike": ("unconfirmed", True, False, False), "new_to_42": ("listed", False, False, False),
-    None: ("other", False, False, False),
+    "spike": ("unconfirmed", True, False, False), "new_to_42": ("unconfirmed", True, False, False),
+    None: ("unconfirmed", True, False, False),
 }
 
 
 @pytest.mark.parametrize("overlay", ["recurring", "seasonal"])
 @pytest.mark.parametrize("base", sorted(OVERLAYS, key=str))
-def test_recurring_and_seasonal_are_classed_by_their_base_state(overlay, base):
+def test_recurring_and_seasonal_are_held_and_split_into_confirmed_and_unconfirmed_by_their_base_state(overlay, base):
     cls, is_held, trust, backtest = OVERLAYS[base]
     r = one_card_outcome(overlay, base=base)
     assert (r["class_t7"], r["held"], r["held_trust"], r["held_backtest"]) == (cls, is_held, trust, backtest)
@@ -491,12 +493,12 @@ def test_summary_has_product_trust_backtest_and_old_any_columns_with_their_own_w
     assert small["rate_trust"] is None and small["lo_backtest"] is None and small["rate_any"] is None
 
 
-def test_listed_rows_are_decided_and_split_into_on_the_boards_and_new_to_42():
+def test_listed_rows_are_decided_and_split_into_on_the_boards_and_new_to_42_and_an_overlay_is_not_listed():
     rows = co.build_outcomes(
         [brief(cards=[card("A", 1), card("B", 2), card("C", 3)])],
         [st("A", 7, "on_the_boards"), st("B", 7, "new_to_42"), st("C", 7, "recurring", base="new_to_42")], ALL_DAYS)
     g = group(co.summarize(rows, end=T, min_n=1), "published", "ZA")
-    assert (g["n"], g["held"], g["listed"], g["on_the_boards"], g["new_to_42"], g["any"]) == (3, 0, 3, 1, 2, 3)
+    assert (g["n"], g["held"], g["listed"], g["on_the_boards"], g["new_to_42"], g["any"]) == (3, 1, 2, 1, 1, 3)   # Recurring over New to 42 is in active28: held
 
 
 def test_markdown_prints_the_state_distribution_before_any_rate():
@@ -538,6 +540,34 @@ def test_schema_carries_the_definition_and_the_columns_the_module_emits():
     assert rows[0]["definition"] == co.DEFINITION
 
 
+def schema_columns():
+    text = SCHEMA.read_text(encoding="utf-8")
+    body = re.search(r"card_outcome`\s*\((.*)\)\s*PARTITION", text, flags=re.S).group(1)
+    cols = {}
+    for part in body.split(","):
+        m = re.match(r"\s*(\w+)\s+(\w+)", part)
+        if m:
+            cols[m.group(1)] = m.group(2)
+    return cols
+
+
+def test_schema_has_a_column_for_every_field_the_module_emits_with_a_matching_type():
+    rows = co.build_outcomes(
+        [brief(cards=[card("A", 1)], held_items=[held("H1")])], [st("A", 7, "rising"), st("H1", 7, "recurring")], ALL_DAYS)
+    cols = schema_columns()
+    assert {"run_id", "scored_at"} <= set(cols)
+    kinds = {bool: "BOOL", int: "INT64", str: "STRING", dt.date: "DATE"}
+    for row in rows:
+        for key, value in row.items():
+            assert key in cols, key
+            if value is not None:
+                assert cols[key] == kinds[type(value)], (key, cols[key], type(value))
+    assert set(cols) - {"run_id", "scored_at"} == set(rows[0]), set(cols) ^ set(rows[0])
+    for h in co.HORIZONS:
+        for prefix in ("state_t", "class_t", "eff_state_t", "outcome_t", "trust_t", "backtest_t", "any_t"):
+            assert f"{prefix}{h}" in cols, f"{prefix}{h}"
+
+
 def test_markdown_prints_the_run_dates_actually_present():
     briefs = [brief(day=D(2026, 9, 28), cards=[card("A", 1)]), brief(day=D(2026, 10, 1), cards=[card("B", 1)], run_id="r2")]
     rows = co.build_outcomes(briefs, [], ALL_DAYS)
@@ -547,9 +577,27 @@ def test_markdown_prints_the_run_dates_actually_present():
 
 
 @pytest.mark.parametrize("base", ["peaking", "mainstream", "fading", "on_the_boards", "recurring", "bogus"])
-def test_an_overlay_whose_base_is_not_one_of_the_four_state_sql_keeps_is_other(base):
+def test_an_overlay_whose_base_is_not_one_of_the_four_state_sql_keeps_is_held_unconfirmed_with_no_base_flags(base):
     r = one_card_outcome("seasonal", base=base)
-    assert (r["class_t7"], r["held"], r["held_trust"], r["held_backtest"]) == ("other", False, False, False)
+    assert (r["class_t7"], r["held"], r["held_trust"], r["held_backtest"]) == ("unconfirmed", True, False, False)
+    assert r["eff_state_t7"] is None
+
+
+def test_every_active28_state_is_held_whatever_base_state_is_written_with_it():
+    for state in sorted(product_active28()):
+        for base in (None, "rising", "emerging", "spike", "new_to_42", "bogus"):
+            assert one_card_outcome(state, base=base)["held"] is True, (state, base)
+    for state in ("on_the_boards", "new_to_42", "fading"):
+        for base in (None, "rising", "spike"):
+            assert one_card_outcome(state, base=base)["held"] is False, (state, base)
+
+
+def test_a_recurring_overlay_on_a_fresh_item_with_no_base_is_held_as_state_sql_writes_it():
+    # state.sql writes ("recurring", NULL base) for a fresh item with a peak in the last 365 days
+    # (test_detect_states.py, the recurring case); that is active28, so the card is held
+    r = one_card_outcome("recurring", base=None)
+    assert r["held"] is True and r["class_t7"] == "unconfirmed" and r["held_any"] is True
+    assert one_card_outcome("recurring", lane="search_presence", base=None)["held"] is False
 
 
 # Measured over every series of the item that day (review finding 3), not the main series alone

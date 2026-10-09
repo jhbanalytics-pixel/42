@@ -24,14 +24,17 @@ A published card or held item is followed to t + 3, t + 7 and t + 14. On each la
     unconfirmed  measured, and Spike
     listed       measured, and On the boards or New to 42
     collapsed    measured and Fading, or no item_state row on a day that has a good detect run (absent)
-    other        measured, with an empty or unknown state, or a Recurring or Seasonal row with no base state
+    other        measured, with an empty or unknown state
 
 Held is the product's own active set, the active28 list in state.sql: spike, emerging, rising, peaking, mainstream,
 recurring and seasonal. On the boards and New to 42 are not in it, so a topic that is only listed is not held; it
 is counted in its own columns. Recurring and Seasonal are an overlay that state.sql puts on top of Rising, Emerging,
-Spike or New to 42, and base_state holds the state underneath, so each is classed by its base: a Recurring row over
-Spike is a spike, over New to 42 is listed, and with no base state is other (a row written before base_state
-existed). The overlays also form the scheduled stratum, so calendar events stay apart from trends.
+Spike or New to 42, and they are in active28 themselves, so a measured overlay row is held whatever base_state
+says. The base only splits confirmed from unconfirmed: Rising or Emerging underneath is confirmed, anything else
+underneath (Spike, New to 42, or NULL) is unconfirmed. base_state is NULL by construction for a Recurring overlay
+on a fresh item (peak_365 implies had_earlier_wave, so the New to 42 base cannot fire), so a NULL base is the
+normal case there and not a row written before the column existed. The overlays also form the scheduled stratum,
+so calendar events stay apart from trends.
 
 Three more columns sit beside the product one. TRUST is the meaning of TRUST.md section 7, still rising or peaking at
 7 days (its "or new platform" part is not computed). The backtest set is PERSISTING from core/detect/backtest.py,
@@ -132,9 +135,12 @@ def _classify(idx, detect_days, day, market, item_id):
         return "collapsed", "absent", "absent"
     state = _state(row.get("state"))
     base = _state(row.get("base_state"))
-    eff = (base if base in BASE_STATES else None) if state in OVERLAY_STATES else state
+    overlay = state in OVERLAY_STATES
+    eff = (base if base in BASE_STATES else None) if overlay else state
     if not _measured(row):
         return "unmeasured", state, eff
+    if overlay:
+        return ("confirmed" if eff in CONFIRMED_STATES else "unconfirmed"), state, eff
     if eff in CONFIRMED_STATES:
         return "confirmed", state, eff
     if eff in UNCONFIRMED_STATES:
@@ -304,7 +310,7 @@ def to_markdown(summary, *, end, horizon=HEADLINE, title=None, persisting_seen=N
              f"Run dates pooled over a window of up to {WEEKS} weeks ending {_date(end).isoformat()}. "
              + (f"Run dates present: {dates[0]} to {dates[1]} ({dates[2]} dates). " if dates else "")
              + f"Held means the product's own active set at {horizon} days on a measured lane (state.sql active28): "
-             "Spike, Emerging, Rising, Peaking, Mainstream, and Recurring or Seasonal classed by the state underneath. "
+             "Spike, Emerging, Rising, Peaking, Mainstream, Recurring and Seasonal (an overlay is confirmed only when Rising or Emerging underneath). "
              "On the boards and New to 42 are not in that set and have their own columns. Rising or peaking is "
              "TRUST.md section 7's meaning without its new platform clause. The backtest set is Emerging, Rising and "
              "Peaking. The last column is the earlier definition, held plus listed. Collapsed means Fading or "
