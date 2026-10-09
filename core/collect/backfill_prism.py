@@ -107,7 +107,8 @@ STRICT_CLASSES = ("desk", "gossip", "song")
 
 
 class Refused(ValueError):
-    """The run is stopped before it writes anything it should not."""
+    """The run is refused. Exit code 2 means either that it was refused before any write, or, for WindowClosed, that it
+    stopped after N insert batches had landed; summary.json's status (stopped) tells the two apart."""
 
 
 class WindowClosed(Refused):
@@ -442,7 +443,8 @@ def _append(path, record):
 
 
 def run(client, *, since, until, apply, run_id, receipts_dir, fns, accept_unconfirmed=False, clock=None):
-    """A dry run (apply False) or the apply. Returns the report; Refused stops it before a row is written."""
+    """A dry run (apply False) or the apply. Returns the report. Refused ends it with exit code 2, either before any row
+    is written or, for WindowClosed, after N insert batches; summary.json's status (stopped) tells the two apart."""
     since, until = check_window(since, until)
     if apply:
         check_quiet_hour(clock)
