@@ -77,8 +77,9 @@ SELECT s.*, cm.kind map_kind, cm.status map_status, cm.label, cm.canonical_key, 
     IF(s.locality_basis = 'locality_v2.1',
       CASE WHEN lo.checked_status IN ('local', 'market_unconfirmed') THEN 0
            WHEN lo.checked_status = 'not_local' THEN 2 ELSE 1 END,
-      CASE WHEN ms.market_scope = 'market' AND ms.total_posts7 >= 3 AND ms.market_posts7 >= 2 THEN 0
-           WHEN ms.market_scope = 'market' THEN 1 ELSE 2 END),
+      CASE WHEN ms.market_scope = 'market' AND ms.market_news_posts7 < ms.market_posts7
+                AND ms.total_posts7 >= 3 AND ms.market_posts7 >= 2 THEN 0
+           WHEN ms.market_scope = 'market' AND ms.market_news_posts7 < ms.market_posts7 THEN 1 ELSE 2 END),
     IF(s.locality_basis = 'locality_v2.1',
       IFNULL(IF(lo.checked_status = 'unreadable', NULL, lo.breadth_creators), 0) < 2,
       IFNULL(lf.creators, 0) < 2),
