@@ -2694,14 +2694,9 @@ def test_claim_checks_rows_fit_the_staging_table():
     assert retained_rows == len([c for c in checks(r) if c["verdict"] == "cut"])
 
 
-@pytest.mark.xfail(strict=True, reason="W8-DEC-14 rows carry span_sha256 and reason_code, which staging claim_checks "
-                   "does not have until core/schema/agent.sql is applied. Recorded on purpose: the job survives it "
-                   "(next test), and this test turns into an unexpected pass if the rows ever fit the old table.")
-def test_claim_checks_rows_fit_the_unaltered_staging_table():
+def test_cut_claim_check_rows_carry_the_two_retained_columns():
     r = brief(world(n=2), model=ScriptedModel(critic=("a scraping artefact", "all collected in one sweep")))
-    assert checks(r)
-    for c in checks(r):
-        assert set(c) == STAGING_CLAIM_CHECKS
+    assert any(set(c) - STAGING_CLAIM_CHECKS == RETAINED_COLUMNS for c in checks(r))
 
 
 class UnalteredStagingClient(Client):
@@ -2734,6 +2729,38 @@ def test_a_missed_alter_costs_the_diagnostics_never_the_brief():
     assert counts["claim_checks"]["status"] == "failed"
     assert counts["claim_checks"]["rows"] > 0
     assert "claim_checks" in counts["claim_checks"]["error"]
+
+
+def test_a_missed_alter_counts_the_rows_it_did_write(monkeypatch):
+    monkeypatch.setattr(job, "INSERT_BATCH", 5)
+    model = ScriptedModel(claim_support={"Local creators are posting": ("unsupported", "x")})
+    client, counts = run_on_unaltered_staging(model)
+    written = client.inserted.get("agent.claim_checks", [])
+    assert 0 < len(written) < counts["claim_checks"]["rows"]
+    assert counts["claim_checks"]["status"] == "failed"
+    assert counts["claim_checks"]["written"] == len(written)
+
+
+def test_insert_returns_the_rows_it_wrote():
+    client = Client(world(n=1))
+    rows = [{"a": str(i)} for i in range(12)]
+    assert job._insert(client, "agent.x", rows) == 12
+    assert job._insert(client, "agent.x", []) == 0
+
+
+def test_a_client_that_raises_part_way_still_reports_the_rows_written(monkeypatch):
+    monkeypatch.setattr(job, "INSERT_BATCH", 5)
+
+    class Dies(Client):
+        def insert_rows_json(self, table, rows):
+            if len(self.inserted.get(table, [])) >= 10:
+                raise ConnectionError("reset")
+            return super().insert_rows_json(table, rows)
+
+    client = Dies(world(n=1))
+    with pytest.raises(job.InsertFailed) as e:
+        job._insert(client, "agent.x", [{"a": str(i)} for i in range(23)])
+    assert e.value.written == 10 == len(client.inserted["agent.x"])
 
 
 def test_briefs_are_written_before_claim_checks():

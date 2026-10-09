@@ -1252,12 +1252,28 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
     return payload
 
 
+class InsertFailed(RuntimeError):
+    """An append that stopped part way. written is the number of rows already in the table."""
+
+    def __init__(self, message, written):
+        super().__init__(message)
+        self.written = written
+
+
 def _insert(client, table, rows):
+    """Append rows in batches and return how many were written. A failing batch raises InsertFailed carrying the
+    count of rows the earlier batches wrote."""
+    written = 0
     for i in range(0, len(rows), INSERT_BATCH):
         batch = json.loads(json.dumps(rows[i:i + INSERT_BATCH], default=str))
-        errors = client.insert_rows_json(table, batch)
+        try:
+            errors = client.insert_rows_json(table, batch)
+        except Exception as e:
+            raise InsertFailed(f"append to {table} failed: {type(e).__name__}: {e}", written) from e
         if errors:
-            raise RuntimeError(f"append to {table} failed: {errors}")
+            raise InsertFailed(f"append to {table} failed: {errors}", written)
+        written += len(batch)
+    return written
 
 
 def _briefs_rows(rows):
@@ -1567,7 +1583,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
         try:
             _insert(client, f"{agent}.claim_checks", check_rows)
         except Exception as e:
-            counts["claim_checks"] = {"status": "failed", "rows": len(check_rows), "error": str(e)[:300]}
+            counts["claim_checks"] = {"status": "failed", "written": getattr(e, "written", 0),
+                                      "rows": len(check_rows), "error": str(e)[:300]}
             print(f"brief {d.isoformat()}: claim_checks not written ({type(e).__name__})", file=sys.stderr)
     return counts
 
