@@ -17,6 +17,7 @@ so which number it refused is not known.
 import json
 import re
 import sys
+from pathlib import Path
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
@@ -99,6 +100,23 @@ def test_a_refused_index_records_how_many_rows_broke_it():
     assert "must have the same array length" in counts["index_error"]
     assert counts["index_unindexable_rows"] == 412
     assert counts["embedded_total"] == 5_000
+
+
+class ExistingIndexWarehouse(StoredEmbeddings):
+    """An index that already exists: the build statement succeeds, and the rows that cannot be indexed are still
+    counted by embedding_count."""
+
+    def __call__(self, text, params, max_bytes=None):
+        if text == sql("index"):
+            self.calls.append((text, params))
+            return {"num_dml_affected_rows": None}
+        return super().__call__(text, params, max_bytes)
+
+
+def test_unindexable_rows_are_recorded_when_the_index_already_exists():
+    counts = embed.run_embed(ExistingIndexWarehouse([768] * 5_000 + [0] * 412), run_date=DAY)
+    assert counts["index"] == "created_or_exists" and "index_error" not in counts
+    assert counts["index_unindexable_rows"] == 412
 
 
 def test_an_index_that_builds_adds_no_unindexable_key():
@@ -241,6 +259,20 @@ def test_every_parse_json_of_the_checkpoint_asks_for_rounding():
     calls = re.findall(r"PARSE_JSON\([^)]*\)", text)
     assert len(calls) == 4
     assert all(re.fullmatch(r"PARSE_JSON\(@\w+, wide_number_mode => 'round'\)", c) for c in calls)
+
+
+def test_every_parse_json_of_a_bound_parameter_in_the_repo_asks_for_rounding():
+    """A bound parameter that carries floats is refused by the default exact mode when a number cannot round-trip.
+    Every PARSE_JSON(@name) in any sql file under core must say wide_number_mode => 'round'."""
+    root = Path(cluster.__file__).resolve().parents[1]
+    bound = []
+    for path in sorted(root.rglob("*.sql")):
+        for call in re.findall(r"PARSE_JSON\(\s*@\w+[^)]*\)", path.read_text(encoding="utf-8")):
+            bound.append((path.name, call))
+    assert {name for name, _ in bound} >= {"cluster_checkpoint.sql", "weekly_quality_insert.sql"}
+    unrounded = [(name, call) for name, call in bound
+                 if not re.fullmatch(r"PARSE_JSON\(\s*@\w+,\s*wide_number_mode\s*=>\s*'round'\s*\)", call)]
+    assert unrounded == []
 
 
 def test_a_run_with_small_numbers_writes_its_clusters_once_the_checkpoint_rounds(monkeypatch):
