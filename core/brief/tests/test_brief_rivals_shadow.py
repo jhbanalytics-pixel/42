@@ -103,6 +103,21 @@ def test_the_record_names_each_input_it_used_with_its_query_id():
     assert record["inputs"]["posts7"] == {"value": 20, "query_id": "q_posts7"}
 
 
+def test_the_record_carries_its_version_and_the_thresholds_it_judged_by():
+    record = rivals.code_rivals(quiet())
+    assert record["record_version"] == 2     # 1 is the unversioned record that read near_dup_share over sized posts only
+    assert record["thresholds"] == {"sponsored": 0.5, "burst": 0.35, "concentrated": 0.6, "near_duplicates": 0.3,
+                                    "min_posts7": 10}
+
+
+def test_the_recorded_thresholds_are_the_ones_the_verdicts_use(monkeypatch):
+    monkeypatch.setattr(rivals, "BURST_AT", 0.05)
+    monkeypatch.setattr(rivals, "MIN_POSTS7", 25)
+    record = rivals.code_rivals(quiet(burst_share=0.1))
+    assert record["thresholds"]["burst"] == 0.05 and record["thresholds"]["min_posts7"] == 25
+    assert "burst" not in record["found"]                       # 20 posts is under the floor of 25
+
+
 # In explain_trend: recorded on the critic row and answer, nothing else moves
 
 
@@ -128,6 +143,7 @@ def test_a_rival_the_critic_ruled_out_is_recorded_as_a_disagreement_and_the_card
     assert row["verdict"] == base_row["verdict"] == "pass" and row["detail"] == base_row["detail"]
     record = row["code_rivals"]
     assert record["found"] == ["burst"] and record["critic_ruled_out"] is True and record["disagreement"] is True
+    assert record["record_version"] == 2 and record["thresholds"]["burst"] == 0.35   # stored with the critic's answer
     assert result["critic"]["code_rivals"] == record
     assert [r for r in base["checks"] if "code_rivals" in r] == []
 

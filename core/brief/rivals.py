@@ -1,12 +1,15 @@
 """The simpler explanations the code can find from detect's own numbers (METHOD-GAPS Gap 7, part three, shadow only).
 
-    code_rivals(pack) -> {"read", "found", "not_assessed", "inputs"} or None
+    code_rivals(pack) -> {"record_version", "read", "found", "not_assessed", "inputs", "thresholds"} or None
 
 For each of the seven rivals the critic is asked to name (a paid push, a coordinated or burst push, one creator or a
 few carrying the count, a news outlet, a scheduled moment, a collection artefact) the code sets a boolean from the
 pack's pinned detect values. found lists the rivals the numbers show, in RIVALS order; not_assessed lists those whose
-input is missing, which is never counted as absent: near_duplicates is not assessed while near_dup_size is unwritten.
-inputs gives each value used with the query id that pinned it. read is the pack's rival_read status (ok,
+input is missing, which is never counted as absent: near_duplicates is not assessed until the near duplicate step has
+run for the window (the pack then has no near_dup_share). inputs gives each value used with the query id that pinned
+it, and thresholds the cut offs the verdicts were judged by, so a stored record can be read after they change.
+record_version is 2; a record with no version is the first form, whose near_dup_share was measured over the 7 day
+posts that had a size and read 1.0 once the step wrote sizes of 2 or more only. read is the pack's rival_read status (ok,
 cutoff_missing or failed), so a failed read is recorded as one rather than as a missing record. None only when the
 pack has neither a detect rival value nor a read status, which is a pack built before these values existed.
 
@@ -28,6 +31,7 @@ BURST_AT = 0.35
 CONCENTRATED_AT = 0.60
 NEAR_DUPLICATES_AT = 0.30
 MIN_POSTS7 = 10
+RECORD_VERSION = 2
 RIVALS = ("sponsored", "burst", "concentrated", "near_duplicates", "calendar_moment", "news_leading", "regime_break")
 USED = ("posts7", "burst_share", "top3_share", "near_dup_share", "sponsored_share", "moment")
 
@@ -72,8 +76,11 @@ def code_rivals(pack):
         "regime_break": None,
     }
     return {
+        "record_version": RECORD_VERSION,
         "read": status or "ok",
         "found": [r for r in RIVALS if verdicts[r] is True],
         "not_assessed": [r for r in RIVALS if verdicts[r] is None],
         "inputs": {f: {"value": got[f]["value"], "query_id": got[f]["query_id"]} for f in USED if f in got},
+        "thresholds": {"sponsored": SPONSORED_AT, "burst": BURST_AT, "concentrated": CONCENTRATED_AT,
+                       "near_duplicates": NEAR_DUPLICATES_AT, "min_posts7": MIN_POSTS7},
     }
