@@ -142,3 +142,133 @@ def test_saved_homepages_keep_their_dates_exactly_as_before(feed_id, name):
             "2026-09-30T12:16:00+02:00"
     else:
         assert dated == {}
+
+
+# Feeds that read their headline from a pulse story card or an article card link take a date from the page's
+# JSON-LD only: there is no heading order to fall back on.
+
+
+def parse(feed_id, html):
+    return {e["text"]: e["published_at"] for e in reader.parse_feed(feed(feed_id), html, NOW)}
+
+
+def ld_page(url, value):
+    return ('<!doctype html><html><head><script type="application/ld+json">'
+            f'{{"@type":"NewsArticle","url":"{url}","datePublished":"{value}"}}</script></head><body>')
+
+
+PULSE_DATED = "https://www.pulse.ng/story/fixture-dated-2026093008000000001"
+PULSE_OTHER = "https://www.pulse.ng/story/fixture-other-2026093008000000002"
+
+
+def test_a_pulse_story_card_is_dated_from_the_json_ld_for_its_url():
+    html = (ld_page(PULSE_DATED, "2026-09-30T08:15:00+01:00")
+            + f'<article><a class="font-accent" href="{PULSE_DATED}">Pulse dated headline</a></article>'
+            + f'<article><a class="font-accent" href="{PULSE_OTHER}">Pulse other headline</a></article></body></html>')
+
+    got = parse("ng_pulse", html)
+
+    assert instant(got["Pulse dated headline"]) == datetime(2026, 9, 30, 7, 15, tzinfo=timezone.utc)
+    assert got["Pulse other headline"] is None
+
+
+def test_a_pulse_story_card_with_two_json_ld_readings_that_disagree_stays_undated():
+    html = (ld_page(PULSE_DATED, "2026-09-30T08:15:00+01:00")
+            + f'<script type="application/ld+json">{{"url":"{PULSE_DATED}","datePublished":"2026-09-30T05:00:00+01:00"}}'
+            + f'</script><article><a class="font-accent" href="{PULSE_DATED}">Pulse dated headline</a></article>'
+            + "</body></html>")
+
+    assert parse("ng_pulse", html)["Pulse dated headline"] is None
+
+
+CARD_DATED = "https://www.tuko.co.ke/123456-fixture-dated-story.html"
+CARD_OTHER = "https://www.tuko.co.ke/123457-fixture-other-story.html"
+
+
+@pytest.mark.parametrize("feed_id,base", [("ke_tuko", "https://www.tuko.co.ke"), ("ng_legit", "https://www.legit.ng")])
+def test_an_article_card_headline_is_dated_from_the_json_ld_for_its_url(feed_id, base):
+    dated, other = (f"{base}/123456-fixture-dated-story.html", f"{base}/123457-fixture-other-story.html")
+    html = (ld_page(dated, "2026-09-30T08:15:00+01:00")
+            + f'<div><a class="c-article-card-horizontal__headline" href="{dated}">Card dated headline</a></div>'
+            + f'<div><a class="c-article-card-horizontal__headline" href="{other}">Card other headline</a></div>'
+            + "</body></html>")
+
+    got = parse(feed_id, html)
+
+    assert instant(got["Card dated headline"]) == datetime(2026, 9, 30, 7, 15, tzinfo=timezone.utc)
+    assert got["Card other headline"] is None
+
+
+def test_an_article_card_headline_with_conflicting_json_ld_stays_undated():
+    html = (ld_page(CARD_DATED, "2026-09-30T08:15:00+01:00")
+            + f'<script type="application/ld+json">{{"url":"{CARD_DATED}","datePublished":"2026-09-30T05:00:00+01:00"}}'
+            + f'</script><div><a class="c-article-card-horizontal__headline" href="{CARD_DATED}">Card dated headline'
+            + "</a></div></body></html>")
+
+    assert parse("ke_tuko", html)["Card dated headline"] is None
+
+
+# A card whose own publish times disagree stays undated even when the page's JSON-LD names one time for it.
+
+
+def test_a_card_with_conflicting_times_stays_undated_though_json_ld_names_one():
+    url = "https://punchng.com/fixture-card-conflict/"
+    html = (ld_page(url, "2026-09-30T08:00:00+01:00")
+            + '<article><time datetime="2026-09-30T05:00:00+01:00" class="published">05:00</time>'
+            + '<time datetime="2026-09-30T06:00:00+01:00" class="published">06:00</time>'
+            + f'<h3 class="entry-title"><a href="{url}">Card conflict headline</a></h3></article></body></html>')
+
+    assert parse("ng_punch", html)["Card conflict headline"] is None
+
+
+def test_a_card_and_json_ld_that_agree_date_the_headline():
+    url = "https://punchng.com/fixture-card-agree/"
+    html = (ld_page(url, "2026-09-30T08:00:00+01:00")
+            + '<article><time datetime="2026-09-30T07:00:00Z" class="published">07:00</time>'
+            + f'<h3 class="entry-title"><a href="{url}">Card agree headline</a></h3></article></body></html>')
+
+    assert instant(parse("ng_punch", html)["Card agree headline"]) == datetime(2026, 9, 30, 7, 0, tzinfo=timezone.utc)
+
+
+# A page that ends inside an open article still dates the headline that card holds.
+
+
+def test_an_article_left_open_at_the_end_of_the_page_still_dates_its_headline():
+    html = ('<!doctype html><html><body><article class="article-tile">'
+            '<time datetime="2026-09-30T08:00:00+02:00">08:00</time>'
+            '<h3 class="heading"><a href="https://www.enca.com/news/fixture-open">Open card headline</a></h3>')
+
+    assert parse("za_enca", html)["Open card headline"] == "2026-09-30T08:00:00+02:00"
+
+
+def test_an_open_article_at_the_end_after_a_closed_one_dates_both():
+    html = ('<!doctype html><html><body>'
+            '<article><time datetime="2026-09-30T07:00:00+02:00">07:00</time>'
+            '<h3 class="heading"><a href="https://www.enca.com/news/fixture-closed">Closed card headline</a></h3>'
+            '</article>'
+            '<article><time datetime="2026-09-30T08:00:00+02:00">08:00</time>'
+            '<h3 class="heading"><a href="https://www.enca.com/news/fixture-open">Open card headline</a></h3>')
+
+    got = parse("za_enca", html)
+
+    assert got["Closed card headline"] == "2026-09-30T07:00:00+02:00"
+    assert got["Open card headline"] == "2026-09-30T08:00:00+02:00"
+
+
+def test_a_card_time_is_not_used_when_the_json_ld_for_its_url_disagrees_with_itself():
+    url = "https://punchng.com/fixture-ld-conflict/"
+    html = (ld_page(url, "2026-09-30T08:00:00+01:00")
+            + f'<script type="application/ld+json">{{"url":"{url}","datePublished":"2026-09-30T05:00:00+01:00"}}</script>'
+            + '<article><time datetime="2026-09-30T07:00:00Z" class="published">07:00</time>'
+            + f'<h3 class="entry-title"><a href="{url}">Ld conflict headline</a></h3></article></body></html>')
+
+    assert parse("ng_punch", html)["Ld conflict headline"] is None
+
+
+def test_json_ld_that_names_a_different_instant_from_the_card_leaves_the_headline_undated():
+    url = "https://punchng.com/fixture-differ/"
+    html = (ld_page(url, "2026-09-30T09:00:00+01:00")
+            + '<article><time datetime="2026-09-30T07:00:00Z" class="published">07:00</time>'
+            + f'<h3 class="entry-title"><a href="{url}">Differ headline</a></h3></article></body></html>')
+
+    assert parse("ng_punch", html)["Differ headline"] is None
