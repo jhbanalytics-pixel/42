@@ -12,7 +12,7 @@ WITH seen AS (
     AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
   GROUP BY po.post_id
 ), creator_ranked AS (
-  SELECT ps.post_id, ps.geo_market, ps.geo_confidence, ps.geo_source, seen.measured,
+  SELECT ps.post_id, ps.platform, ps.geo_market, ps.geo_confidence, ps.geo_source, seen.measured,
     IFNULL(ps.engagement, 0) eng,
     ROW_NUMBER() OVER (PARTITION BY IFNULL(ps.creator_id, ps.post_id)
                        ORDER BY seen.measured DESC, IFNULL(ps.engagement, 0) DESC, ps.post_id) creator_rank
@@ -57,6 +57,9 @@ WITH seen AS (
         AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
     ))
 )
-SELECT COUNT(DISTINCT p.post_id) total_posts7, COUNT(DISTINCT m.post_id) market_posts7
+-- news_posts7 counts the news public-feed posts in the same set: they are feed evidence only (W8-DEC-12), so a set
+-- that is all news is read as Market unconfirmed by read_market_scope.
+SELECT COUNT(DISTINCT p.post_id) total_posts7, COUNT(DISTINCT m.post_id) market_posts7,
+  COUNT(DISTINCT IF(LOWER(TRIM(p.platform)) = 'news', p.post_id, NULL)) news_posts7
 FROM eligible_posts p
 LEFT JOIN market_posts m USING (post_id);
