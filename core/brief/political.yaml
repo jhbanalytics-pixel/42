@@ -2,8 +2,11 @@
 # and electoral terms of the political list in core/detect/sensitive.yaml (W8-DEC-06). Generic political words
 # (government, minister, president, politics, protest, coalition and the like) and names that are also ordinary
 # words or places (Kenyatta, Uhuru, Musyoka, Hlabisa, GNU) stay out: a false hit here holds a card as political.
-# ballot and voter stay out too (W8-DEC-06b): on their own they mark sports ballots and polls of fans as political, and
-# beside a party, leader or election term in the same post that term already makes the post political.
+# ballot and voter are companion-only terms (W8-DEC-06b): on their own they mark sports ballots and polls of fans as
+# political, so they count only beside a party, leader or election term in the same post. Beside a term of this list
+# that term already makes the post political; beside one of the names under companions (Kenyatta, Uhuru, Musyoka,
+# Hlabisa, GNU, which are also ordinary words or places and so are no term on their own) they make it political.
+# vote and voting are terms of their own and unchanged.
 # core/brief/gatectx.py reads "all" plus the market's own list. A term written in capitals (ANC, DA, IEC)
 # matches only in capitals in running text; any other term matches in any case, as whole words. A hashtag
 # or canonical key matches when it is the term itself, when the term is among its words (split on capitals,
@@ -18,6 +21,15 @@ all:
   - local elections
   - electoral
   - referendum
+companion_only:
+  - ballot
+  - voter
+companions:
+  - Kenyatta
+  - Uhuru
+  - Musyoka
+  - Hlabisa
+  - GNU
 ZA:
   - IEC
   - ANC

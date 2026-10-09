@@ -320,6 +320,12 @@ def test_ballot_or_voter_counts_only_beside_a_party_leader_or_election_term_in_t
     assert ctx(con, item(label="ANC voter drive"))["political"] is True
     assert ctx(con, item(hashtags=["#ballot", "#voter"]))["political"] is False
     assert ctx(con, item(canonical_key="ballondorballot"))["political"] is False
+    # Beside one of the five leader names a ballot or a voter is political; the name alone is not.
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Kenyatta ballot")])["political"] is True
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Uhuru voter drive")])["political"] is True
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Kenyatta University open day")])["political"] is False
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Kenyatta University open day"),
+                              ev("p2", "tiktok", "b", text="Hall of Fame ballot")])["political"] is False
 
 
 # corroborated_unbiased
