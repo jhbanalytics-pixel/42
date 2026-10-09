@@ -36,14 +36,13 @@ AGENT = "`ogilvy-trends-v2.intelligence_42_agent`"
 CORE = "`ogilvy-trends-v2.intelligence_42_core`"
 SUBSTAGES = ("aggregate", "stats", "coaction", "breakout", "watch", "seeds", "forecast", "locality")
 BRIEF_MARKETS = ("ZA", "NG", "KE")
-SAST = dt.timezone(dt.timedelta(hours=2), "SAST")
+SAST = jo.SAST
 DEADLINE = dt.time(6, 15)
 SCHEDULED_COLLECT = dt.time(2, 0)
 SKIPPED = "skipped_duplicate"
 CODES = ("IMAGE", "WINDOW", "NOT_ONE_RUN", "TERMINAL", "BOUND", "RETRIED", "ORDER", "UPSTREAM", "SUBSTAGES", "LINEAGE", "DEGRADED",
          "SERVICES", "MANUAL")
 PARSE_JSON_SIGNATURE = ("cannot round-trip through string representation", "PARSE_JSON")
-JOB_LABEL = "run.googleapis.com/job"
 
 # The fixed templates (2.3). Each is one SELECT, carries its partition filter, and is hashed into the bindings.
 TEMPLATES = {
@@ -67,11 +66,11 @@ def template_hashes():
 class BqRunner:
     """Runs only the fixed templates, each dry run first, refused over the cap, and keeps the record the manifest shows."""
 
-    def __init__(self, client, cap):
-        self.client, self.cap, self.log = client, cap, []
+    def __init__(self, client, cap, templates=None):
+        self.client, self.cap, self.templates, self.log = client, cap, templates, []
 
     def run(self, name, params):
-        sql = TEMPLATES[name]
+        sql = (TEMPLATES if self.templates is None else self.templates)[name]
         estimate = self.client.dry_run(sql, params)
         require(isinstance(estimate, int) and not isinstance(estimate, bool), "BYTES_CAP", "The dry run gave no byte estimate")
         require(estimate <= self.cap, "BYTES_CAP", f"The dry run of {name} is over the per query cap")
@@ -84,6 +83,7 @@ class GoogleBq:
     """The real client, through the BigQuery library (never the command line tool). Not exercised offline."""
 
     TYPES = {"d": "DATE", "run_id": "STRING"}
+    ARRAY_TYPES = {"stages": "STRING", "days": "DATE"}
 
     def __init__(self, timeouts):
         self.timeout = timeouts["gcloud"]
@@ -92,7 +92,8 @@ class GoogleBq:
         from google.cloud import bigquery
 
         client = bigquery.Client(project=so.PROJECT)
-        query = [bigquery.ArrayQueryParameter(k, "STRING", v) if isinstance(v, (list, tuple)) else bigquery.ScalarQueryParameter(k, self.TYPES[k], v)
+        query = [bigquery.ArrayQueryParameter(k, self.ARRAY_TYPES[k], v) if isinstance(v, (list, tuple))
+                 else bigquery.ScalarQueryParameter(k, self.TYPES[k], v)
                  for k, v in params.items()]
         config = bigquery.QueryJobConfig(query_parameters=query, dry_run=dry_run, use_query_cache=False,
                                          **({"maximum_bytes_billed": max_bytes} if max_bytes else {}))
@@ -149,34 +150,6 @@ def parse_counts(value):
 
 def iso(value):
     return jo.aware(value).isoformat() if value is not None else None
-
-
-# executions
-
-def execution_view(raw):
-    """The fields the rules read, from a Cloud Run v1 execution description. The digest is the 71 character `sha256:` form taken
-    from the container image reference of this description, and nothing else supplies it."""
-    meta, spec, status = raw.get("metadata", {}), raw.get("spec", {}), raw.get("status", {})
-    containers = spec.get("template", {}).get("spec", {}).get("containers", [])
-    reference = containers[0].get("image", "") if len(containers) == 1 else ""
-    match = re.search(r"@(sha256:[0-9a-f]{64})\Z", str(reference))
-    if match is None:
-        raise Probe("An execution description carries no image digest")
-    return {"name": meta.get("name"), "job": (meta.get("labels") or {}).get(JOB_LABEL), "image_digest": match.group(1),
-            "start": status.get("startTime"), "completion": status.get("completionTime"),
-            "succeeded": status.get("succeededCount", 0), "failed": status.get("failedCount", 0),
-            "cancelled": status.get("cancelledCount", 0), "retried": status.get("retriedCount")}
-
-
-def describe_execution(reader, name):
-    """The view of one named execution; the description must be for the name asked, else it is a contradiction."""
-    view = execution_view(reader.execution(name))
-    require(view["name"] == name, "EXECUTION_IDENTITY", "An execution description is for another execution than the one asked")
-    return view
-
-
-def on_run_date(start, day):
-    return start is not None and (jo.aware(start).astimezone(SAST).date() == day)
 
 
 # rows
@@ -371,7 +344,7 @@ def stage_block(ev, stage, rows, previous, expected, midnight, jobs, bound_names
     else:
         bound_names.add(exec_name)
         try:
-            execution = describe_execution(ev.reader, exec_name)
+            execution = jo.describe_execution(ev.reader, exec_name)
         except so.NotFound:
             ev.fail("BOUND", stage)
     if execution is not None:
@@ -448,7 +421,7 @@ def side_executions(ev, listed, stages, rows, midnight, bound_names):
     day = ev.day
     out = []
     for job in so.JOB_NAMES:
-        todays = [e for e in listed[job] if on_run_date(e.get("status", {}).get("startTime"), day)]
+        todays = [e for e in listed[job] if jo.on_run_date(e.get("status", {}).get("startTime"), day)]
         unbound = [e for e in todays if e["metadata"]["name"] not in bound_names]
         stage = next((s for s, j in jo.STAGE_JOB.items() if j == job), None)
         if stage is not None:
@@ -456,7 +429,7 @@ def side_executions(ev, listed, stages, rows, midnight, bound_names):
             if len(unbound) > allowed:
                 ev.fail("MANUAL", stage)
         for entry in unbound:
-            view = describe_execution(ev.reader, entry["metadata"]["name"])
+            view = jo.describe_execution(ev.reader, entry["metadata"]["name"])
             out.append({"job": job, "name": view["name"], "start": view["start"], "completion": view["completion"],
                         "counts": {"succeeded": view["succeeded"], "failed": view["failed"], "cancelled": view["cancelled"],
                                    "retried": view["retried"]},

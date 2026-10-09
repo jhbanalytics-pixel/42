@@ -210,21 +210,31 @@ class GcloudReader:
         return {"verified_principals_match": True}
 
 
-def main(argv=None, reader_factory=None):
+def main(argv=None, reader_factory=None, bq_factory=None, now=None):
+    from core.setup.release import jobs_only as jo
+
     parser = argparse.ArgumentParser(description="Read-only release readback.")
-    parser.add_argument("--mode", default="services-only", choices=("services-only", "full"))
-    parser.add_argument("--phase", choices=so.PHASES, required=True)
+    parser.add_argument("--mode", default="services-only", choices=("services-only", "jobs", "full"))
+    parser.add_argument("--phase", choices=(*so.PHASES, *[p for p in jo.PHASES if p not in so.PHASES]), required=True)
     parser.add_argument("--bindings", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--tag")
     args = parser.parse_args(argv)
     try:
         bound = json.loads(args.bindings.read_text(encoding="utf-8-sig"))
-        so.require(args.mode == "services-only", "MODE", "Only services-only mode is carried; full mode is Release B's")
-        so.require(isinstance(bound, dict) and bound.get("mode") == "services-only", "MODE", "The bindings are not for services-only mode")
-        so.validate_bindings(bound)
-        reader = (reader_factory or GcloudReader)(bound["readTimeoutSeconds"])
-        result = so.run_phase(bound, args.phase, reader, args.evidence, tag=args.tag)
+        so.require(args.mode in ("services-only", "jobs"), "MODE", "Only services-only and jobs modes are carried; full mode stays refused")
+        so.require(isinstance(bound, dict) and bound.get("mode") == args.mode, "MODE", f"The bindings are not for {args.mode} mode")
+        if args.mode == "jobs":
+            so.require(args.phase in jo.PHASES and args.tag is None, "MODE", "That phase does not belong to jobs mode")
+            jo.validate_jobs_bindings(bound)
+            reader = (reader_factory or GcloudReader)(bound["readTimeoutSeconds"])
+            client = (bq_factory or _default_bq)(bound)
+            result = jo.run_phase(bound, args.phase, reader, args.evidence, now=now, bq=client)
+        else:
+            so.require(args.phase in so.PHASES, "MODE", "That phase does not belong to services-only mode")
+            so.validate_bindings(bound)
+            reader = (reader_factory or GcloudReader)(bound["readTimeoutSeconds"])
+            result = so.run_phase(bound, args.phase, reader, args.evidence, tag=args.tag)
     except so.Stop as error:
         print(f"STOP: {error.code}: {error.message}", file=sys.stderr)
         return 1
@@ -237,6 +247,12 @@ def main(argv=None, reader_factory=None):
         return 1
     print(f"{args.phase}: passed ({result['file']})")
     return 0
+
+
+def _default_bq(bound):
+    from core.setup.release.chain_evidence import GoogleBq
+
+    return GoogleBq(bound["readTimeoutSeconds"])
 
 
 if __name__ == "__main__":

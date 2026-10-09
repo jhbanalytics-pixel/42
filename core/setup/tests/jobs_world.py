@@ -154,7 +154,7 @@ class FakeBq:
         self.log.append(("run", sql, dict(params), max_bytes))
         from core.setup.release import chain_evidence as ce
 
-        name = next(n for n, text in ce.TEMPLATES.items() if text == sql)
+        name = next(n for n, text in {**ce.TEMPLATES, **jo.QUIET_TEMPLATES}.items() if text == sql)
         handler = self.tables[name]
         return (handler(params) if callable(handler) else copy.deepcopy(handler)), self.billed
 
@@ -309,3 +309,69 @@ class ChainFixture:
 
     def manifest_path(self, run_date=RUN_DATE):
         return self.release_dir / f"chain-evidence-{run_date.isoformat()}.json"
+
+
+QUIET_HASH_FIELD = "quietTemplateHashes"
+SAST = dt.timezone(dt.timedelta(hours=2), "SAST")
+
+
+class ReleaseWorld(ChainFixture):
+    """The world a release action sees on the day of JobsUpdate: a produced baseline chain manifest of the day before, the
+    manifest FreezeJobs froze, the registry tag, and a clock at 10:00 SAST. A test changes one thing and runs a phase."""
+
+    def __init__(self, tmp_path, **kw):
+        super().__init__(tmp_path, **kw)
+        self.now = dt.datetime(2026, 10, 11, 8, 0, tzinfo=UTC)
+        self.fake_reader = None
+        self.quiet_rows = []
+
+    def prepare(self, *, baseline=None, **over):
+        """Bindings with every release key. The baseline chain manifest is produced by the producer itself."""
+        from core.setup.release import chain_evidence as ce
+
+        bound = self.write_bindings(**({"baseline": baseline} if baseline else {}))
+        manifest = ce.build_manifest(bound, self.reader(), self.bq(), self.day, "baseline", now=lambda: self.now)
+        path = ce.write_manifest(self.release_dir, manifest)
+        bound.update({"baselineChainPath": str(path), "baselineChainSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                      "buildServiceAccount": rw.BUILD_SA, "buildConfigSha256": "c1" * 32, "dockerfileSha256": "d1" * 32,
+                      "durableManifestSha256": "d2" * 32, "dryRunReceiptSha256": "d3" * 32,
+                      "window": {"startSast": "08:05", "endSast": "21:00", "rollbackDeadlineSast": "23:30"},
+                      "maxBaselineAgeDays": 2, "maxCandidateAgeHours": 12, "priorAttempts": [], "priorLedgers": [],
+                      QUIET_HASH_FIELD: jo.quiet_template_hashes()})
+        bound.update(over)
+        self.freeze(NEW_DIGEST)
+        self.fake_reader = FakeJobsReader(self.world)
+        return bound
+
+    def built(self):
+        """The build ran: the registry now resolves the attempt tag to the digest FreezeJobs froze."""
+        self.world.registry[jo.image_tag(self.bound)] = NEW_DIGEST
+
+    def bq_client(self, **kw):
+        client = FakeBq(self.tables(), **kw)
+        return client
+
+    def tables(self):
+        out = super().tables()
+        out["chain_rows"] = lambda params: [dict(r) for r in self.quiet_rows]
+        return out
+
+    def run(self, phase, *, now=None, bq=None, reader=None):
+        from core.setup.release import jobs_only
+
+        return jobs_only.run_phase(self.bound, phase, reader or self.fake_reader, self.evidence, now=lambda: now or self.now,
+                                   bq=bq or self.bq_client(), sleep=lambda s: None)
+
+    def stop(self, phase, **kw):
+        try:
+            self.run(phase, **kw)
+        except so.Stop as error:
+            return error
+        raise AssertionError(f"{phase} did not stop")
+
+    def update(self, names, digest=NEW_DIGEST):
+        for name in names:
+            set_job_image(self.world, name, digest)
+
+    def update_prefix(self, count, digest=NEW_DIGEST):
+        self.update(jo.UPDATE_ORDER[:count], digest)
