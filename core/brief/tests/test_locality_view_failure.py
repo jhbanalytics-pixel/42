@@ -42,6 +42,9 @@ def test_a_row_on_the_v2_basis_is_held_as_a_data_issue_when_the_view_cannot_be_r
 
 
 def test_a_row_on_the_v1_basis_is_unchanged_when_the_view_cannot_be_read(monkeypatch):
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, "v1")           # the shadow guarantee: under v2 the market is held
     baseline = brief(world(located=True), HonestModel(True), monkeypatch)[1]
     con = world(located=True)
     add_locality(con, 8, 0)                                     # a not_local row that the v1 basis must not read

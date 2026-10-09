@@ -107,10 +107,10 @@ def remove_locality_views(con, monkeypatch):
 def test_in_shadow_detect_runs_when_the_locality_views_are_absent(con, monkeypatch):  # noqa: F811
     """C4 v3 section 10: a failed view never changes an outcome in shadow. State no longer reads the checked view there."""
     world(con)
+    order(monkeypatch, "v1")
     baseline = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
     expected = duck.query(con, "SELECT item_id, eligible, locality_basis FROM {core}.item_state ORDER BY item_id", {})
     con.execute("DELETE FROM core.item_state")
-    order(monkeypatch, "v1")
     remove_locality_views(con, monkeypatch)
     counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
     got = duck.query(con, "SELECT item_id, eligible, locality_basis FROM {core}.item_state ORDER BY item_id", {})

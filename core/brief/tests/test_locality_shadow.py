@@ -113,8 +113,11 @@ class RefusingClient(Client):
         return super().query(sql, job_config)
 
 
-def test_a_failed_locality_read_changes_nothing_but_the_omitted_block(baseline, monkeypatch):
-    _, payload0, _ = baseline
+def test_a_failed_locality_read_changes_nothing_but_the_omitted_block(monkeypatch):
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, "v1")        # the shadow guarantee: under v2 the market is held (test_locality_view_failure)
+    _, payload0, _ = brief(world(located=True), HonestModel(True), monkeypatch)
     con = world(located=True)
     add_locality(con)
     monkeypatch.setattr("core.brief.tests.test_brief_golden_path.Client", RefusingClient)
