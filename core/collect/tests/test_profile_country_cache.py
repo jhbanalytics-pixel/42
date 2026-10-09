@@ -397,4 +397,42 @@ def test_country_capture_introduces_no_new_cap_or_budget(monkeypatch):
     run, runner, made = _ordered_phase(monkeypatch, accounts, 7)
     assert runner.reels_room == 7 and runner.budget.limits is None
     assert len(made) == 7 and run.credits == 7
-    assert run.credits <= 2000 - run.local_credits - run.trends_credits
+
+
+def test_country_capture_stops_exactly_at_the_existing_room(monkeypatch):
+    monkeypatch.setenv("SOCIALCRAWL_OGILVY_API_KEY", "fake")
+    http = FakeHTTP({"tiktok/profile": (200, {"success": True, "data": {"author": {"username": "-"}}}),
+                     "instagram/profile/about": (200, {"success": True, "data": {"author": {"username": "-"}}})})
+    c = make(http=http)
+    c.clock = lambda: NOW
+    cache = location_sources.ProfileCache()
+    for platform, handle in [(p, f"{p[0]}{n}") for n in range(10) for p in ("tiktok", "instagram")]:
+        cache.bind({}, platform, "NG", handle, {"home_market": None})
+    run = job.Collected("country-exact-room")
+    run.credits, run.local_credits, run.trends_credits = 1980, 1, 15
+    runner = job._Runner(c, run, fake_item_id, geo_for_post, lambda: NOW, job.Budget(), {}, NOW.date(), profiles=cache)
+    job.country_phase(run, runner, lambda keys, **kw: [], 2000)
+    assert run.credits == 2000 - 1 - 15 == 1984
+    assert len(http.requests) - 1 == 4
+
+
+def test_credit_room_reason_is_only_for_profile_calls(monkeypatch):
+    from core.collect.tests.test_socialcrawl_client import NoHTTP
+
+    run = job.Collected("room-reels")
+    runner = job._Runner(make(http=NoHTTP()), run, fake_item_id, geo_for_post, lambda: NOW, job.Budget(), {}, NOW.date(),
+                         reels_room=0)
+    runner.calls([job.Call("14i", "instagram/search/reels", {"query": "weekend", "include": "creator"}, "NG", "expansion")], "NG")
+    assert run.records[-1]["status"] == "over_share" and run.records[-1]["reason"] == ""
+
+
+def test_a_call_over_both_the_share_budget_and_the_room_keeps_the_bare_over_share_record():
+    from core.collect.tests.test_socialcrawl_client import NoHTTP
+
+    run = job.Collected("share-first")
+    budget = job.Budget(share_cap=2000)
+    budget.limits = {key: 0 for key in budget.limits}
+    runner = job._Runner(make(http=NoHTTP()), run, fake_item_id, geo_for_post, lambda: NOW, budget, {}, NOW.date(),
+                         reels_room=0)
+    runner.calls([job.Call("C1", "tiktok/profile", {"handle": "creator"}, "NG", "panel")], "NG")
+    assert run.records[-1]["status"] == "over_share" and run.records[-1]["reason"] == ""
