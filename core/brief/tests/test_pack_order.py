@@ -410,4 +410,4 @@ def test_the_statement_names_no_dataset_other_than_the_placeholders_and_is_read_
 def test_the_briefs_rule_version_names_every_wave_8_rule_change():
     from core.brief import job
     assert job.RULE_VERSION == ("warmup-1+n21-near-dup+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12"
-                                "+w8-dec-14+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade")
+                                "+w8-dec-14+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names")

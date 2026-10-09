@@ -57,8 +57,12 @@ def test_the_k6_check_takes_every_a80_term_too(text):
 
 
 def test_the_k6_list_is_the_a80_list_followed_by_the_new_terms():
-    assert claims._K6_TERMS[: len(claims._BREACH_TERMS)] == claims._BREACH_TERMS
-    assert len(claims._K6_TERMS) > len(claims._BREACH_TERMS)
+    breach, k6 = claims._BREACH_TERMS, claims._K6_TERMS
+    same = [i for i, (x, y) in enumerate(zip(breach, k6[: len(breach)])) if x != y]
+    # the one place they differ is the elders pattern, which the K6 claim check reads with the title exemption
+    assert [breach[i].pattern for i in same] == [claims._ELDERS]
+    assert isinstance(k6[same[0]], claims._KinName) and k6[same[0]].pattern == claims._ELDERS
+    assert len(k6) > len(breach)
 
 
 def test_seeds_still_calls_that_same_function_and_keeps_its_a80_answers():
