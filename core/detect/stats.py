@@ -402,4 +402,9 @@ def run_stats(client, d, run_id, rule_version, core=sqlrun.CORE):
                                         write_disposition=bigquery.WriteDisposition.WRITE_APPEND)
         client.load_table_from_json([{k: _json(v) for k, v in r.items()} for r in rows], table,
                                     job_config=config).result()
+        try:
+            from . import early_signal
+            early_signal.record(client, d, run_id, signal, rows, totals, core)
+        except Exception:
+            log.exception("early signal not recorded for %s; the series test rows are loaded", d)
     return len(rows)
