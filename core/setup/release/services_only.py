@@ -22,6 +22,8 @@ import re
 import time
 from pathlib import Path
 
+from core.setup.release.declared_env_removals import declared_removal
+
 SCHEMA_VERSION = 1
 PROJECT = "ogilvy-trends-v2"
 REGION = "us-central1"
@@ -41,16 +43,6 @@ SCALING_ANNOTATIONS = ("autoscaling.knative.dev/minScale", "autoscaling.knative.
                        "run.googleapis.com/cpu-throttling")
 MANAGED_ANNOTATIONS = {"client.knative.dev/user-image", "run.googleapis.com/client-name",
                        "run.googleapis.com/client-version", "run.googleapis.com/operation-id"}
-# Environment names the release deploy is declared to remove from a service, held as the SHA-256 of each name (lower
-# case hex of the UTF-8 text) so the names are not in the repository. A candidate or template may carry a declared name
-# unchanged or without it; any other difference from the expected environment is a stop. The readback compares the
-# digest of each live variable name and records names and the words removed or still_present, never a value.
-# Release A: f42-agent carries two such variables on every live revision, deploy_flags.env does not set them, and the
-# deploy is expected to drop them, so their removal is declared and not a preservation failure. Nothing else is.
-DECLARED_ENV_REMOVAL_DIGESTS: dict = {
-    "f42-agent": ("33d9fa8645f6b19693e867b504665de15a7e14854e1a930165a7b90f9b87cfc0",
-                  "366e51dbd94f0cdc07d4cb3ce2b7648136c105094ef6c5bb120edc26b0f7195d"),
-}
 HEALTH_RETRIES = 3
 HEALTH_RETRY_SECONDS = 10
 
@@ -90,11 +82,6 @@ def fingerprint(value):
 
 def sha_text(text):
     return sha_bytes(text.encode("utf-8"))
-
-
-def declared_removal(service, name):
-    """True when the digest of this environment variable name is one the release declares it removes."""
-    return sha_text(name) in DECLARED_ENV_REMOVAL_DIGESTS.get(service, ())
 
 
 def literal(value):
@@ -331,25 +318,18 @@ def candidate_deltas(bound, baseline, service, rid):
 
 
 def expected_env_variants(baseline, bound, service, rid):
-    """The environment each candidate must carry: the baseline template plus the declared deltas. Names declared as
-    removed by the deploy may be carried unchanged or be absent, so there are two acceptable variants for them."""
+    """The one environment each candidate must carry: the baseline template plus the declared deltas, without the names
+    the release deploy is declared to remove. The deploy removes them, so a candidate that still carries one is a stop."""
     deltas = candidate_deltas(bound, baseline, service, rid)
     base = baseline["services"][service]["template"]["env"]
     removals = tuple(sorted(n for n in base if declared_removal(service, n)))
-    variants = [env_with(base, deltas, removals)]
-    if removals:
-        variants.append(env_with(base, deltas))
-    return variants, removals
+    return [env_with(base, deltas, removals)], removals
 
 
 def env_matches(actual, baseline, bound, service, rid):
-    """True when the environment is the expected one: the baseline template plus the declared deltas, where any of the
-    names declared as removed may be absent and, if present, must be unchanged."""
-    expected = env_with(baseline["services"][service]["template"]["env"], candidate_deltas(bound, baseline, service, rid))
-    for name in [n for n in expected if declared_removal(service, n)]:
-        if name not in actual:
-            del expected[name]
-    return actual == expected
+    """True when the environment is the expected one: the baseline template plus the declared deltas, without the names
+    declared as removed."""
+    return actual == expected_env_variants(baseline, bound, service, rid)[0][0]
 
 
 def stage1(bound, baseline):
@@ -362,7 +342,7 @@ def stage1(bound, baseline):
         variants, removals = expected_env_variants(baseline, bound, name, rid)
         candidates[name] = {"revision": f"{name}-{rid}", "tag": rid, "tag_url": tag_url(rid, baseline["canonical"][name]),
                             "env_deltas": candidate_deltas(bound, baseline, name, rid),
-                            "env_removals_declared": list(removals), "expected_env_sha256": fingerprint(variants[0])}
+                            "env_removals_declared_sha256": sorted(sha_text(n) for n in removals), "expected_env_sha256": fingerprint(variants[0])}
     return {
         "release_id": rid, "mode": "services-only",
         "source": {"commit": bound["target"], "tree": bound["tree"], "short7": bound["target"][:7], "short12": short12(bound)},
@@ -645,7 +625,7 @@ def check_candidate_revisions(rel, live, manifest):
                 f"The {name} candidate environment differs from the expected one")
         if removals:
             rel.observations.setdefault("declared_env_removals", {})[name] = {
-                n: ("still_present" if n in view["env"] else "removed") for n in removals}
+                sha_text(n): ("still_present" if n in view["env"] else "removed") for n in removals}
 
 
 def check_template_candidate(rel, live, manifest):

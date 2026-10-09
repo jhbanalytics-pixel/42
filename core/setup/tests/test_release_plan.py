@@ -33,7 +33,7 @@ def all_plans(ctx=CTX):
 
 def test_plan_ps03_candidate_runs_in_the_contract_order_and_moves_no_traffic_but_the_two_pins():
     assert names(plan.candidate(CTX)) == [
-        "assert:head", "assert:tree", "assert:status", "assert:identity", "helper:BeforeAnyWrite", "archive", "extract", "build",
+        "assert:head", "assert:tree", "assert:status", "assert:identity", "declared_env:describe", "declared_env:match", "helper:BeforeAnyWrite", "archive", "extract", "build",
         "helper:Freeze", "checker:validate", "pin:f42-agent", "pin:f42-api", "helper:BeforeCandidate", "deploy_candidate", "helper:BeforeSmoke", "smoke",
         "helper:AfterSmoke"]
     assert names(plan.candidate(dataclasses.replace(CTX, schema_effects=True))).index("schema_apply") == names(plan.candidate(CTX)).index("pin:f42-agent")
@@ -186,6 +186,12 @@ def test_plan_ps22_every_external_invocation_matches_exactly_one_allowlist_entry
     ["bash", "core/api/deploy.sh", "--no-build"],
     ["py", "-3.13", "core/setup/deploy_jobs.py"],
     ["py", "-3.13", "core/setup/durable_effects_check.py", "--check", "anything", "--evidence", "e", "--manifest", "m"],
+    ["gcloud", "run", "services", "describe", "f42-api", "--project", "ogilvy-trends-v2", "--region", "us-central1", "--format=json"],
+    ["gcloud", "run", "services", "describe", "f42-agent", "--project", "other-project", "--region", "us-central1", "--format=json"],
+    ["gcloud", "run", "services", "describe", "f42-agent", "--project", "ogilvy-trends-v2", "--region", "us-central1", "--format=yaml"],
+    ["py", "-3.13", "-m", "core.setup.release.declared_env_removals", "--service", "f42-api"],
+    ["py", "-3.13", "-m", "core.setup.release.declared_env_removals"],
+    ["py", "-3.13", "-m", "core.schema.apply"],
 ])
 def test_plan_ps22_anything_outside_the_allowlist_matches_nothing(argv):
     assert plan.matching_entries(argv) == []
@@ -215,3 +221,48 @@ def test_the_pins_use_the_baseline_revisions_for_both_services_in_order():
     steps = plan.pin(other)
     assert names(steps) == ["pin:f42-agent", "pin:f42-api"]
     assert "--to-revisions=f42-agent-00099-aaa=100" in steps[0].argv and "--to-revisions=f42-api-00099-bbb=100" in steps[1].argv
+
+
+def test_plan_the_declared_removal_is_read_live_and_matched_before_the_first_write():
+    steps = names(plan.candidate(CTX))
+    assert steps.index("declared_env:describe") + 1 == steps.index("declared_env:match") < steps.index("helper:BeforeAnyWrite")
+    [describe, match] = [s for s in plan.candidate(CTX) if s.name.startswith("declared_env:")]
+    assert plan.matching_entries(describe.argv) == plan.matching_entries(match.argv) == ["declared_env_read"]
+    assert not any(s.name.startswith("declared_env:") for action in ("Promote", "Rollback", "Retire") for s in plan.ACTIONS[action](CTX))
+
+
+def test_plan_f8_the_validate_check_is_an_allowlist_entry_because_it_judges_the_manifest_on_the_acting_path():
+    assert "validate" in plan.CHECKER_KINDS
+    [validate] = [s for s in plan.candidate(CTX) if s.name == "checker:validate"]
+    assert plan.matching_entries(validate.argv) == ["checker"]
+    assert plan.matching_entries(["py", "-3.13", "core/setup/durable_effects_check.py", "--check", "validate", "--manifest", "m"]) == []  # no evidence dir
+
+
+# The calls deploy_candidate.sh makes are judged by their own allowlist: the one deploy of each service, and --remove-env-vars
+# only on f42-agent (finding 3).
+
+def deploy_call(service="f42-agent", *, remove=None, extra=()):
+    argv = ["run", "deploy", service, "--project", "ogilvy-trends-v2", "--region", "us-central1", "--image", "r/f42-web@sha256:" + "ab" * 32,
+            "--revision-suffix", RID, "--tag", RID, "--no-traffic", "--service-account", f"{service}@ogilvy-trends-v2.iam.gserviceaccount.com",
+            "--min-instances", "1", "--update-env-vars", "A=1,B=2"]
+    if remove is not None:
+        argv += ["--remove-env-vars", remove]
+    return argv + ["--set-secrets", "S=S:latest", *extra]
+
+
+def test_plan_ds_the_deploy_script_calls_are_allowed_with_the_remove_flag_on_the_agent_only():
+    assert plan.deploy_call_allowed(deploy_call("f42-agent"))
+    assert plan.deploy_call_allowed(deploy_call("f42-agent", remove="ONE_NAME,TWO_NAME"))
+    assert plan.deploy_call_allowed(deploy_call("f42-api"))
+    assert not plan.deploy_call_allowed(deploy_call("f42-api", remove="ONE_NAME"))
+
+
+@pytest.mark.parametrize("call", [
+    deploy_call("f42-agent", remove=""), deploy_call("f42-agent", remove="BAD NAME"), deploy_call("f42-agent", remove="A,,B"),
+    deploy_call("f42-agent", remove="A;touch x"), deploy_call("f42-agent", remove="A", extra=("--remove-env-vars", "B")),
+    deploy_call("f42-agent", extra=("--allow-unauthenticated",)), deploy_call("f42-agent", extra=("--set-env-vars", "A=1")),
+    deploy_call("f42-agent", extra=("--clear-env-vars",)), deploy_call("f42-agent", extra=("--to-latest",)),
+    deploy_call("other-service"), ["run", "services", "update", "f42-agent"], ["run", "deploy", "f42-agent", "--image", "x"],
+])
+def test_plan_ds_a_deploy_call_outside_the_form_is_refused(call):
+    assert not plan.deploy_call_allowed(call)

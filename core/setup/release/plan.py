@@ -83,6 +83,14 @@ def checker(ctx, kind):
                                     "--evidence", ctx.evidence])
 
 
+def declared_env_reads():
+    """The two reads that show the operator, before the typed DEPLOY, which environment variables the candidate deploy of
+    f42-agent removes: the live service description, then the digest match of its names by the module the deploy script uses."""
+    return [step("declared_env:describe", ["gcloud", "run", "services", "describe", "f42-agent", "--project", PROJECT, "--region", REGION,
+                                           "--format=json"]),
+            step("declared_env:match", ["py", "-3.13", "-m", "core.setup.release.declared_env_removals", "--service", "f42-agent"])]
+
+
 def pin(ctx):
     return [traffic_to(s, ctx.a80[s], f"pin:{s}") for s in SERVICES]
 
@@ -105,6 +113,7 @@ def candidate(ctx):
         step("assert:head", ["git", "rev-parse", "HEAD"]), step("assert:tree", ["git", "rev-parse", "HEAD^{tree}"]),
         step("assert:status", ["git", "status", "--porcelain=v1"]),
         step("assert:identity", ["gcloud", "config", "list", f"--format={IDENTITY_FIELDS}"]),
+        *declared_env_reads(),
         helper(ctx, "BeforeAnyWrite"),
         step("archive", ["git", "archive", "--format=tar", f"--output={ctx.archive}", ctx.commit]),
         step("extract", ["tar", "-xf", ctx.archive, "-C", ctx.extract_dir]),
@@ -225,11 +234,17 @@ def _checker(a):
         and "--evidence" in flags
 
 
+def _declared_env_read(a):
+    return a in (["gcloud", "run", "services", "describe", "f42-agent", "--project", PROJECT, "--region", REGION, "--format=json"],
+                 ["py", "-3.13", "-m", "core.setup.release.declared_env_removals", "--service", "f42-agent"])
+
+
 ALLOWED = {
     "git_read": lambda a: a in (["git", "rev-parse", "HEAD"], ["git", "rev-parse", "HEAD^{tree}"], ["git", "rev-parse", "--short", "HEAD"],
                                 ["git", "rev-parse", "--short=12", "HEAD"], ["git", "status", "--porcelain=v1"], ["git", "remote", "get-url", "origin"]),
     "archive": lambda a: _git_archive(a) or _tar(a),
     "identity": lambda a: a == ["gcloud", "config", "list", f"--format={IDENTITY_FIELDS}"],
+    "declared_env_read": _declared_env_read,
     "build": _build,
     "deploy": _deploy,
     "traffic": _traffic,
@@ -251,3 +266,32 @@ def check_allowlist(steps):
         if len(matching_entries(s.argv)) != 1:
             return s
     return None
+
+
+# The calls deploy_candidate.sh makes (the DS call log), judged apart from the paste's allowlist because the paste never
+# issues them itself. They are the one deploy of each service, and the one flag that removes environment variables is
+# allowed on f42-agent only, with a list of plain names (finding 3). The names themselves never appear in the repository:
+# the script derives them from the live service and the digest table.
+FORBIDDEN_DEPLOY_FLAGS = ("--allow-unauthenticated", "--set-env-vars", "--clear-env-vars", "--to-latest")
+PLAIN_NAME_LIST = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(,[A-Za-z_][A-Za-z0-9_]*)*")
+
+
+def _after(flags, name):
+    return flags[flags.index(name) + 1] if name in flags and flags.index(name) + 1 < len(flags) else ""
+
+
+def deploy_call_allowed(argv):
+    """True when a gcloud call recorded from deploy_candidate.sh (without the leading gcloud) is a no-traffic deploy of one of
+    the two services with the project and region pinned, the release tag as tag and revision suffix, and no forbidden flag."""
+    a = list(argv)
+    if len(a) < 7 or a[:2] != ["run", "deploy"] or a[2] not in SERVICES or a[3:7] != ["--project", PROJECT, "--region", REGION]:
+        return False
+    flags = a[7:]
+    if "--no-traffic" not in flags or any(f in flags for f in FORBIDDEN_DEPLOY_FLAGS):
+        return False
+    if not (RELEASE_ID.fullmatch(_after(flags, "--tag")) and _after(flags, "--tag") == _after(flags, "--revision-suffix")):
+        return False
+    removes = [i for i, f in enumerate(flags) if f == "--remove-env-vars"]
+    if not removes:
+        return True
+    return a[2] == "f42-agent" and len(removes) == 1 and bool(PLAIN_NAME_LIST.fullmatch(_after(flags, "--remove-env-vars")))

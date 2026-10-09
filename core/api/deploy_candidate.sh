@@ -166,11 +166,35 @@ if not ok:
 ' "$1" "$RID" "$2"
 }
 
+# 3b. The declared environment removal. --update-env-vars merges into the existing environment, so a variable the release
+# declares removed stays on the service unless the deploy also names it for removal. The names are not in the repository: the
+# live variable names of f42-agent are hashed and matched against core/setup/release/declared_env_removals.py, and only the
+# matches are removed. A name is never printed, only the count. A matched name that is not a plain identifier stops here,
+# before any deploy.
+AGENT_LIVE=$(gcloud run services describe f42-agent --project "$PROJECT" --region "$REGION" --format=json)
+REMOVE_ENV=$(AGENT_LIVE="$AGENT_LIVE" py -3.13 -c '
+import json
+import os
+import sys
+
+from core.setup.release.declared_env_removals import PLAIN_NAME, declared_live_names
+
+matched = declared_live_names("f42-agent", json.loads(os.environ["AGENT_LIVE"]))
+if not all(PLAIN_NAME.fullmatch(name) for name in matched):
+    sys.stderr.write("deploy_candidate.sh: STOP: DECLARED_ENV: f42-agent: a declared variable name is not a plain identifier\n")
+    sys.exit(65)
+if matched:
+    sys.stderr.write(f"deploy_candidate.sh: removing {len(matched)} declared environment variable(s) from f42-agent\n")
+print(",".join(matched))
+')
+REMOVE_ARGS=()
+if [ -n "$REMOVE_ENV" ]; then REMOVE_ARGS=(--remove-env-vars "$REMOVE_ENV"); fi
+
 # 4 and 5. The agent first. The API is not deployed unless the agent tag is right.
 gcloud run deploy f42-agent --project "$PROJECT" --region "$REGION" --image "$IMAGE_REF" \
   --revision-suffix "$RID" --tag "$RID" --no-traffic \
   --service-account "$(SA "$AGENT_SA")" $AGENT_FLAGS \
-  --update-env-vars "$AGENT_ENV" \
+  --update-env-vars "$AGENT_ENV" ${REMOVE_ARGS[@]+"${REMOVE_ARGS[@]}"} \
   --set-secrets "$AGENT_SECRETS"
 check_tag f42-agent "$AGENT_TAG_URL"
 

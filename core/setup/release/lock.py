@@ -24,6 +24,7 @@ REPO_FILES = (
     "core/setup/release/SERVICES-PASTE.ps1",
     "core/setup/release/bound_readback.py",
     "core/setup/release/services_only.py",
+    "core/setup/release/declared_env_removals.py",
     "core/setup/release/plan.py",
     "core/setup/release/lock.py",
     "core/setup/release/durable-effects-manifest.template.json",

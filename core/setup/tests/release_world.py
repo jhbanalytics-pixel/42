@@ -38,20 +38,29 @@ CONFIG_SHA = "c0" * 32
 SECRET = {"valueFrom": {"secretKeyRef": {"name": "SECRET", "key": "latest"}}}
 
 
-def declared_names():
+# Names that stand in for the two declared ones in every behaviour test. A test makes them declared by patching the digest
+# table (synthetic_digests); only the one test that ties the real digests to the real names reads the names file.
+SYNTHETIC_DECLARED = ("F42_SYNTHETIC_DECLARED_ONE", "F42_SYNTHETIC_DECLARED_TWO")
+
+
+def synthetic_digests():
+    return {"f42-agent": tuple(hashlib.sha256(name.encode("utf-8")).hexdigest() for name in SYNTHETIC_DECLARED)}
+
+
+def real_declared_names():
     """The environment variable names Release A declares removed, one per line, from a file outside the repository
     (F42_DECLARED_ENV_NAMES_FILE, else wave8/release-packet/declared-env-removals.txt beside the repository). Empty when
-    the file is absent, and then the world carries no such variables."""
+    the file is absent."""
     import os
 
     path = Path(os.environ.get("F42_DECLARED_ENV_NAMES_FILE") or Path(__file__).resolve().parents[4] / "42-handoff" / "wave8" / "release-packet" / "declared-env-removals.txt")
     return tuple(line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()) if path.is_file() else ()
 
 
-VERTEX_NAMES = declared_names()
+REAL_NAMES = real_declared_names()
 AGENT_ENV = {"APP_MODULE": "core.api.agent_app:app", "F42_DATA": "bigquery", "F42_PROJECT": PROJECT, "F42_VERSION": A80_VERSION,
              "MODEL_PROVIDER": "gemini", "GEMINI_MODEL": "gemini-3.8-flash", "F42_T2_READY": "1",
-             "SOCIALCRAWL_OGILVY_API_KEY": SECRET, **{name: PROJECT for name in VERTEX_NAMES}}
+             "SOCIALCRAWL_OGILVY_API_KEY": SECRET}
 API_ENV = {"APP_MODULE": "core.api.app:app", "F42_DATA": "bigquery", "F42_PROJECT": PROJECT, "F42_VERSION": A80_VERSION,
            "AGENT_URL": CANON["f42-agent"], "UI_PASSCODE": SECRET}
 SA = {"f42-agent": "f42-agent@ogilvy-trends-v2.iam.gserviceaccount.com", "f42-api": "f42-web@ogilvy-trends-v2.iam.gserviceaccount.com"}
@@ -91,9 +100,10 @@ def job_raw(name):
 class World:
     """The services, their revisions, the jobs and everything a Reader can ask about."""
 
-    def __init__(self):
+    def __init__(self, declared=()):
+        """declared: environment names f42-agent carries on every live revision (the ones a test declares removed)."""
         self.svc, self.revisions, self.revision_names = {}, {}, {}
-        for name, env in (("f42-agent", AGENT_ENV), ("f42-api", API_ENV)):
+        for name, env in (("f42-agent", {**AGENT_ENV, **{n: PROJECT for n in declared}}), ("f42-api", API_ENV)):
             rev = A80_REV[name]
             self.revisions[rev] = revision_raw(rev, name, f"{REPO}:{A80_VERSION}", A80_DIGEST, env)
             self.revisions[OLDER_REV[name]] = revision_raw(OLDER_REV[name], name, f"{REPO}:old", OTHER_DIGEST, env)

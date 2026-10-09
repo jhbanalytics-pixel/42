@@ -7,6 +7,7 @@ entries, a revision listed by name, and a tag entry that appears only after the 
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -55,8 +56,12 @@ def make_manifest(**over):
     return manifest
 
 
-def service(name, *, status_url=None, latest=False, extra=(), candidate=False, candidate_percent=0, tag_to=None):
-    """The description gcloud returns: pinned to the a80 revision by name unless latest."""
+SYNTHETIC = ("F42_SYNTHETIC_DECLARED_ONE", "F42_SYNTHETIC_DECLARED_TWO")
+BASE_ENV = ["APP_MODULE", "F42_DATA", "F42_PROJECT", "F42_VERSION"]
+
+
+def service(name, *, status_url=None, latest=False, extra=(), candidate=False, candidate_percent=0, tag_to=None, env=None):
+    """The description gcloud returns: pinned to the a80 revision by name unless latest. env: the names in the template."""
     first = {"revisionName": SERVING[name], "percent": 100}
     if latest:
         first["latestRevision"] = True
@@ -65,12 +70,26 @@ def service(name, *, status_url=None, latest=False, extra=(), candidate=False, c
         traffic.append({"revisionName": tag_to or f"{name}-{RID}", "percent": candidate_percent, "tag": RID,
                         "url": TAG_URL[name]})
     spec = [{k: v for k, v in t.items() if k != "url"} for t in traffic]
-    return {"metadata": {"annotations": {}}, "spec": {"traffic": spec},
+    names = BASE_ENV if env is None else env
+    return {"metadata": {"annotations": {}},
+            "spec": {"traffic": spec, "template": {"spec": {"containers": [{"env": [{"name": n, "value": "x"} for n in names]}]}}},
             "status": {"url": status_url or CANON[name], "traffic": traffic}}
 
 
+def declared_module(names):
+    """core/setup/release/declared_env_removals.py as the script imports it: the real file, with its digest table replaced by
+    the digests of these synthetic names when names is given, so the script's own import path runs on names that are not real."""
+    text = (ROOT / "core" / "setup" / "release" / "declared_env_removals.py").read_text(encoding="utf-8")
+    if names is None:
+        return text
+    digests = tuple(hashlib.sha256(n.encode("utf-8")).hexdigest() for n in names)
+    table = re.search(r"DECLARED_ENV_REMOVAL_DIGESTS: dict = \{.*?\n\}\n", text, re.S)
+    assert table, "the digest table of declared_env_removals.py changed shape"
+    return text.replace(table.group(0), "DECLARED_ENV_REMOVAL_DIGESTS: dict = " + repr({"f42-agent": digests}) + "\n")
+
+
 def run_candidate(tmp_path, *, manifest=None, hash_arg=None, before=None, after=None, revisions=None, head=COMMIT,
-                  tree=TREE, short12=SHORT12, policy=POLICY, policy_exit=0, deploy_exit=None):
+                  tree=TREE, short12=SHORT12, policy=POLICY, policy_exit=0, deploy_exit=None, declared=None):
     manifest = make_manifest() if manifest is None else manifest
     # A stop that happens because the script is missing proves nothing, so a missing script fails every test.
     assert (ROOT / "core" / "api" / "deploy_candidate.sh").exists(), "core/api/deploy_candidate.sh does not exist"
@@ -80,6 +99,11 @@ def run_candidate(tmp_path, *, manifest=None, hash_arg=None, before=None, after=
         source = ROOT / "core" / "api" / name
         if source.exists():
             target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+    package = tmp_path / "core" / "setup" / "release"
+    package.mkdir(parents=True, exist_ok=True)
+    for init in (tmp_path / "core" / "__init__.py", tmp_path / "core" / "setup" / "__init__.py", package / "__init__.py"):
+        init.write_text("", encoding="utf-8")
+    (package / "declared_env_removals.py").write_text(declared_module(declared), encoding="utf-8", newline="\n")
     (tmp_path / "release").mkdir(exist_ok=True)
     path = tmp_path / "release" / "release-manifest.json"
     path.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
@@ -341,9 +365,10 @@ def test_ds14_a_public_or_unreadable_agent_stops_before_any_deploy(tmp_path):
 def test_ds15_the_script_has_no_iam_write_and_no_env_removal_flags():
     text = (ROOT / "core" / "api" / "deploy_candidate.sh").read_text(encoding="utf-8")
     for word in ("set-iam-policy", "add-iam-policy-binding", "gcloud iam", "--allow-unauthenticated", "--set-env-vars",
-                 "--clear-env-vars", "--remove-env-vars"):
+                 "--clear-env-vars"):
         assert word not in text, word
     assert "--update-env-vars" in text
+    assert text.count("--remove-env-vars") == 1  # the one declared removal, on the f42-agent deploy only
 
 
 def test_ds16_every_gcloud_run_line_names_the_project_and_region_and_the_only_literal_is_the_project():
@@ -415,3 +440,88 @@ def test_ds18_every_a80_test_of_the_two_deploy_files_is_still_there_apart_from_t
             pytest.fail(f"commit {A80} is not available in this checkout; a shallow clone cannot run the release tests")
         missing = names(shown.stdout.decode("utf-8")) - names((ROOT / rel).read_text(encoding="utf-8"))
         assert missing == renamed.get(rel, set()), rel
+
+
+# The declared environment removal: exactly the live f42-agent names whose digest is declared, nothing else.
+
+def remove_flag(call):
+    return flag_value(call, "--remove-env-vars") if "--remove-env-vars" in call else None
+
+
+def agent_with(names):
+    return {"f42-agent": service("f42-agent", env=[*BASE_ENV, *names]), "f42-api": service("f42-api")}
+
+
+def test_ds_removal_the_agent_deploy_removes_exactly_the_declared_names_that_are_live_and_keeps_the_update_flag(tmp_path):
+    result, calls = run_candidate(tmp_path, before=agent_with(SYNTHETIC), declared=SYNTHETIC)
+    assert result.returncode == 0, result.stderr
+    agent, api = deploys(calls)
+    assert remove_flag(agent) == ",".join(sorted(SYNTHETIC))
+    assert "--update-env-vars" in agent and "--no-traffic" in agent
+    assert remove_flag(api) is None
+
+
+@pytest.mark.parametrize("present", [SYNTHETIC[:1], SYNTHETIC[1:]])
+def test_ds_removal_only_the_declared_names_that_are_live_are_removed(tmp_path, present):
+    result, calls = run_candidate(tmp_path, before=agent_with(present), declared=SYNTHETIC)
+    assert result.returncode == 0, result.stderr
+    assert remove_flag(deploys(calls)[0]) == present[0]
+
+
+def test_ds_removal_a_service_with_no_declared_name_gets_no_remove_flag(tmp_path):
+    result, calls = run_candidate(tmp_path, declared=SYNTHETIC)
+    assert result.returncode == 0, result.stderr
+    assert all(remove_flag(call) is None for call in deploys(calls))
+
+
+def test_ds_removal_undeclared_names_are_never_removed_even_next_to_declared_ones(tmp_path):
+    names = [*SYNTHETIC, "F42_OTHER_SETTING", "GEMINI_MODEL"]
+    result, calls = run_candidate(tmp_path, before=agent_with(names), declared=SYNTHETIC)
+    assert result.returncode == 0, result.stderr
+    assert remove_flag(deploys(calls)[0]) == ",".join(sorted(SYNTHETIC))
+
+
+def test_ds_removal_the_api_is_never_asked_to_remove_anything_even_when_it_carries_a_declared_name(tmp_path):
+    before = {"f42-agent": service("f42-agent"), "f42-api": service("f42-api", env=[*BASE_ENV, *SYNTHETIC])}
+    result, calls = run_candidate(tmp_path, before=before, declared=SYNTHETIC)
+    assert result.returncode == 0, result.stderr
+    assert all(remove_flag(call) is None for call in deploys(calls))
+
+
+def test_ds_removal_the_real_table_removes_nothing_that_it_does_not_declare(tmp_path):
+    result, calls = run_candidate(tmp_path, before=agent_with(SYNTHETIC))
+    assert result.returncode == 0, result.stderr
+    assert all(remove_flag(call) is None for call in deploys(calls))
+
+
+def test_ds_removal_the_script_says_how_many_it_removes_and_never_prints_a_name(tmp_path):
+    result, calls = run_candidate(tmp_path, before=agent_with(SYNTHETIC), declared=SYNTHETIC)
+    assert "removing 2 declared environment variable(s)" in result.stderr
+    for name in SYNTHETIC:
+        assert name not in result.stdout and name not in result.stderr
+
+
+def test_ds_removal_a_declared_name_that_is_not_a_plain_identifier_stops_before_any_deploy(tmp_path):
+    bad = "BAD NAME;touch x"
+    result, calls = run_candidate(tmp_path, before=agent_with([bad]), declared=[bad])
+    assert result.returncode != 0 and deploys(calls) == []
+    assert "STOP" in result.stderr and bad not in result.stderr
+
+
+def test_ds_removal_the_removal_is_read_before_the_agent_deploy_and_the_api_deploy_still_follows_the_agent_tag(tmp_path):
+    result, calls = run_candidate(tmp_path, before=agent_with(SYNTHETIC), declared=SYNTHETIC)
+    assert result.returncode == 0, result.stderr
+    assert [c[2] for c in deploys(calls)] == ["f42-agent", "f42-api"]
+    assert not any(call[:2] == ["run", "deploy"] and "--remove-env-vars" in call and call[2] != "f42-agent" for call in calls)
+
+
+def test_ds_removal_every_deploy_the_script_makes_is_inside_the_deploy_allowlist_of_the_release_plan(tmp_path):
+    from core.setup.release import plan
+
+    for label, before, declared in (("with", agent_with(SYNTHETIC), SYNTHETIC), ("without", None, None)):
+        result, calls = run_candidate(tmp_path / label, before=before, declared=declared)
+        assert result.returncode == 0, result.stderr
+        assert len(deploys(calls)) == 2
+        assert all(plan.deploy_call_allowed(call) for call in deploys(calls)), (label, [c[2] for c in deploys(calls)])
+    agent = deploys(run_candidate(tmp_path / "again", before=agent_with(SYNTHETIC), declared=SYNTHETIC)[1])[0]
+    assert "--remove-env-vars" in agent
