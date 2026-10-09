@@ -299,3 +299,42 @@ def test_a_record_for_a_pair_with_a_non_finite_cosine_writes_none_and_refuses_it
     assert row["cosine"] is None and row["shadow_reason"] == "cosine_floor" and row["shadow_accept"] is False
     assert row["shadow_kind"] == "new"
     json.dumps(row, allow_nan=False)
+
+
+@pytest.mark.parametrize("cos", [float("nan"), float("inf"), float("-inf")])
+def test_a_refused_non_finite_pair_is_scored_as_if_its_cosine_sat_on_the_floor(cos):
+    # PS5: the floor stands in for the cosine, so the logit and the score are the floor's, whatever the input.
+    c, item = a_cluster("c1", at(1.0)), an_item("i1", at(0.9), OLD)
+    idf = pair_score.build_idf([c], [item])
+    s = pair_score.score_pair(c, item, cos, idf)
+    assert (s["facet_evidence"], s["keyword_evidence"]) == (0.0, 0.0)    # nothing shared, so only the cosine term remains
+    assert s["logit"] == -2.38 == round(pair_score.W_COSINE * (pair_score.COSINE_FLOOR - pair_score.COSINE_MID), 6)
+    assert s["score"] == 0.084711
+    assert s == {**pair_score.score_pair(c, item, pair_score.COSINE_FLOOR, idf), "reason": "cosine_floor",
+                 "accept": False}
+    assert (s["reason"], s["accept"]) == ("cosine_floor", False)
+
+
+@pytest.mark.parametrize("cos", [float("nan"), float("inf"), float("-inf")])
+def test_a_refused_non_finite_pair_keeps_its_shared_term_evidence_on_top_of_the_floor_logit(cos):
+    c = a_cluster("c1", at(1.0), keywords=["kota"], hashtags=["bgtag1"])
+    item = an_item("i1", at(0.9), OLD, keywords=["kota"], hashtags=["bgtag1"])
+    idf = pair_score.build_idf([c], [item] + background())
+    s = pair_score.score_pair(c, item, cos, idf)
+    assert s["facet_evidence"] > 0 and s["keyword_evidence"] > 0
+    floor = pair_score.W_COSINE * (pair_score.COSINE_FLOOR - pair_score.COSINE_MID)
+    facets = pair_score._evidence(pair_score._facets(c) & pair_score._facets(item), idf["facets"], pair_score.SAT_FACETS)
+    words = pair_score._evidence(pair_score._words(c) & pair_score._words(item), idf["keywords"], pair_score.SAT_KEYWORDS)
+    want = floor + pair_score.W_FACETS * facets + pair_score.W_KEYWORDS * words
+    assert s["logit"] == round(want, 6)
+    assert s["score"] == round(1.0 / (1.0 + np.exp(-want)), 6)
+    assert (s["reason"], s["accept"]) == ("cosine_floor", False)
+
+
+@pytest.mark.parametrize("cos", [float("nan"), float("inf"), float("-inf")])
+def test_the_record_of_a_refused_non_finite_pair_carries_the_floors_logit_and_score(cos):
+    c, item = a_cluster("c1", at(1.0)), an_item("i1", at(0.9), OLD)
+    [row] = pair_score.shadow_records([c], [item], [[(0, cos, [])]], set(), [{"kind": "new", "item_id": None}], DAY,
+                                      variant_cosine=0.8, is_dormant=lambda *_: False)
+    assert row["cosine"] is None
+    assert (row["shadow_logit"], row["shadow_score"]) == (-2.38, 0.084711)
