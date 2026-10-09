@@ -19,9 +19,10 @@ STARTER = {
     "KE": ["IEBC", "UDA", "ODM", "Azimio", "Ruto", "Raila", "Gachagua"],
 }
 
-# Party, leader and electoral terms taken from the political list of core/detect/sensitive.yaml.
+# Party, leader and electoral terms taken from the political list of core/detect/sensitive.yaml. ballot and voter
+# were added with them and are out again under W8-DEC-06b (see NOT_ALONE below).
 ADDED = {
-    "all": ["electoral", "voter", "ballot", "referendum"],
+    "all": ["electoral", "referendum"],
     "ZA": ["democratic alliance", "economic freedom fighters", "african national congress",
            "patriotic alliance", "rise mzansi", "black first land first", "mashatile", "steenhuisen", "mbeki",
            "mbalula", "mashaba", "lesufi", "godongwana", "gayton mckenzie", "south africa votes", "vote anc",
@@ -107,3 +108,81 @@ def test_a_market_does_not_take_another_markets_terms():
     assert not gatectx._political(terms("KE"), ["Mashatile spoke at the rally"], [])
     assert gatectx._political(terms("ZA"), ["Mashatile spoke at the rally"], [])
     assert not gatectx._political(terms("ZA"), ["Kwankwaso spoke at the rally"], [])
+
+
+# W8-DEC-06b (Albert, 9 Oct 2026): ballot and voter count as political only beside a party, leader or election term in
+# the same post; the 31 terms of the sensitive list that W8-DEC-06 neither added nor excluded stay out.
+# Every other term on the list is a party, leader or election term (or one of the 29 starters), so a post with ballot or
+# voter beside one is political through that term, and the two words on their own are not a term at all.
+
+NOT_ALONE = ["ballot", "voter"]
+
+SPORTS = ["Ballon d'Or ballot leaked", "Hall of Fame ballot", "MVP voter fatigue", "The voter for best goal is in",
+          "Ballot for the club's player of the year opens"]
+
+BESIDE = {"ZA": ["ANC", "Ramaphosa", "election"], "NG": ["APC", "Tinubu", "election"],
+          "KE": ["UDA", "Ruto", "election"]}
+
+# The 31 terms of the political list of core/detect/sensitive.yaml (104) that W8-DEC-06 neither added (38) nor named
+# as excluded (35). Written out here, not read from the file under test.
+UNLISTED = ["endsars", "finance bill", "mustgo", "mustfall", "put south africans first", "coup", "minister of finance",
+            "abduction", "coup detat", "national assembly", "afriforum", "kill the boer", "sunday igboho", "ohanaeze",
+            "state of the nation", "sona debate", "post sona", "tribe before nation", "state capture",
+            "cadre deployment", "tenderpreneur", "expropriation", "phala phala", "rhodes must fall", "biafra", "ipob",
+            "nnamdi kanu", "bad governance", "fuel subsidy", "maandamano", "housing levy"]
+
+
+@pytest.mark.parametrize("market", ["ZA", "NG", "KE"])
+@pytest.mark.parametrize("caption", SPORTS)
+def test_a_sports_ballot_or_voter_alone_is_not_political(market, caption):
+    assert not gatectx._political(terms(market), [caption], [])
+
+
+@pytest.mark.parametrize("market", ["ZA", "NG", "KE"])
+@pytest.mark.parametrize("word", NOT_ALONE)
+def test_ballot_and_voter_are_political_beside_a_party_leader_or_election_term_in_the_same_post(market, word):
+    for companion in BESIDE[market]:
+        assert gatectx._political(terms(market), [f"The {word} turnout and the {companion} rally"], []), companion
+
+
+@pytest.mark.parametrize("market", ["ZA", "NG", "KE"])
+@pytest.mark.parametrize("word", NOT_ALONE)
+def test_ballot_and_voter_are_not_terms_of_their_own(market, word):
+    assert word not in {t.casefold() for t in terms(market)}
+
+
+@pytest.mark.parametrize("word", NOT_ALONE)
+def test_two_posts_that_each_hold_only_the_word_are_not_political(word):
+    assert not gatectx._political(terms("ZA"), [f"Hall of Fame {word}", f"MVP {word} fatigue"], [])
+
+
+@pytest.mark.parametrize("word", NOT_ALONE)
+def test_another_markets_leader_beside_the_word_does_not_count(word):
+    assert gatectx._political(terms("NG"), [f"{word} drive for Tinubu"], [])
+    assert not gatectx._political(terms("ZA"), [f"{word} drive for Tinubu"], [])
+
+
+@pytest.mark.parametrize("word", NOT_ALONE)
+def test_a_hashtag_or_key_that_is_only_ballot_or_voter_is_not_political(word):
+    assert not gatectx._political(terms("ZA"), [], [word, f"#{word}", f"{word}fatigue"])
+
+
+def test_the_unlisted_terms_are_exactly_what_the_sensitive_list_holds_beyond_the_added_and_the_excluded():
+    taken = {t.casefold() for group in ADDED.values() for t in group} | set(NOT_ALONE)
+    named = {t.casefold() for t in GENERIC + KEPT_ON_THEIR_KEY_RULE + list(AMBIGUOUS.values())}
+    assert len(taken) == 38 and len(named) == 35
+    assert sorted(sensitive_political() - taken - named) == sorted(UNLISTED)
+    assert len(UNLISTED) == 31 and len(sensitive_political()) == 104
+
+
+@pytest.mark.parametrize("market", ["ZA", "NG", "KE"])
+def test_the_unlisted_terms_stay_out_of_the_political_list(market):
+    have = {t.casefold() for t in terms(market)}
+    for term in UNLISTED:
+        assert term.casefold() not in have, term
+
+
+@pytest.mark.parametrize("market", ["ZA", "NG", "KE"])
+@pytest.mark.parametrize("term", UNLISTED)
+def test_a_caption_with_an_unlisted_term_is_not_political(market, term):
+    assert not gatectx._political(terms(market), [f"Everyone is talking about {term} today"], [])
