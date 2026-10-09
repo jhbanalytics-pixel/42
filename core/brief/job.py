@@ -1344,8 +1344,6 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
         held += payload["held_back"]["count"]
         brief_rows.append(brief_row(m, d, run.run_id, published_at, payload, RULE_VERSION))
 
-    if check_rows:
-        _insert(client, f"{agent}.claim_checks", check_rows)
     _insert(client, f"{agent}.briefs", _briefs_rows(brief_rows))
     counts = {"markets": len(MARKETS), "cards": cards, "held": held, "credits": spend["credits"],
               "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
@@ -1353,6 +1351,14 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
         counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
     if explanation_stop is not None:
         counts["explanation_stop"] = explanation_stop
+    if check_rows:
+        # The diagnostics are written after the briefs: a claim_checks table that has not had its W8-DEC-14
+        # columns added yet costs the diagnostics, never a market's brief.
+        try:
+            _insert(client, f"{agent}.claim_checks", check_rows)
+        except Exception as e:
+            counts["claim_checks"] = {"status": "failed", "rows": len(check_rows), "error": str(e)[:300]}
+            print(f"brief {d.isoformat()}: claim_checks not written ({type(e).__name__})", file=sys.stderr)
     if busy:
         counts["model_busy"] = busy
     pack_errors = {f"{c['market']}:{c['row']['item_id']}": c["error"] for m in MARKETS for c in by_market[m]

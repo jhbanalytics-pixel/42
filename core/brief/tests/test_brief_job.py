@@ -2686,6 +2686,60 @@ def test_claim_checks_rows_fit_the_staging_table():
     assert retained_rows == len([c for c in checks(r) if c["verdict"] == "cut"])
 
 
+@pytest.mark.xfail(strict=True, reason="W8-DEC-14 rows carry span_sha256 and reason_code, which staging claim_checks "
+                   "does not have until core/schema/agent.sql is applied. Recorded on purpose: the job survives it "
+                   "(next test), and this test turns into an unexpected pass if the rows ever fit the old table.")
+def test_claim_checks_rows_fit_the_unaltered_staging_table():
+    r = brief(world(n=2), model=ScriptedModel(critic=("a scraping artefact", "all collected in one sweep")))
+    assert checks(r)
+    for c in checks(r):
+        assert set(c) == STAGING_CLAIM_CHECKS
+
+
+class UnalteredStagingClient(Client):
+    """Rejects an unknown field in claim_checks the way BigQuery does when the ALTER has not been applied."""
+
+    def insert_rows_json(self, table, rows):
+        if table.endswith("claim_checks"):
+            bad = [i for i, row in enumerate(rows) if set(row) - STAGING_CLAIM_CHECKS]
+            if bad:
+                return [{"index": i, "errors": [{"reason": "invalid", "message": "no such field"}]} for i in bad]
+        return super().insert_rows_json(table, rows)
+
+
+def run_on_unaltered_staging(model, order=None):
+    client = UnalteredStagingClient(world(n=1))
+    if order is not None:
+        real = client.insert_rows_json
+        client.insert_rows_json = lambda table, rows: (order.append(table), real(table, rows))[1]
+    counts = job.run(client, D, chain=FakeChain(), model=model, make_sc=lambda run_id: SC, clock=lambda: EARLY,
+                     build_ctx=FakeCtx(), confirm=FakeConfirm(), campaign_hashtags=[],
+                     political_terms={m: ["election"] for m in MARKETS}, workers=5, core="core", agent="agent")
+    return client, counts
+
+
+def test_a_missed_alter_costs_the_diagnostics_never_the_brief():
+    model = ScriptedModel(claim_support={"Local creators are posting": ("unsupported", "x")})
+    client, counts = run_on_unaltered_staging(model)
+    assert len(client.inserted["agent.briefs"]) == len(MARKETS)
+    assert "agent.claim_checks" not in client.inserted
+    assert counts["claim_checks"]["status"] == "failed"
+    assert counts["claim_checks"]["rows"] > 0
+    assert "claim_checks" in counts["claim_checks"]["error"]
+
+
+def test_briefs_are_written_before_claim_checks():
+    order = []
+    model = ScriptedModel(claim_support={"Local creators are posting": ("unsupported", "x")})
+    run_on_unaltered_staging(model, order)
+    assert order.index("agent.briefs") < order.index("agent.claim_checks")
+
+
+def test_claim_checks_are_written_and_not_reported_failed_on_an_altered_table():
+    r = brief(world(n=2), model=ScriptedModel(critic=("a scraping artefact", "all collected in one sweep")))
+    assert checks(r) and "claim_checks" not in r.counts
+
+
 # The suppression list (SETUP.md data protection): the brief stores nothing of a suppressed creator
 
 
