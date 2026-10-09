@@ -21,6 +21,7 @@ from core.brief import gatectx
 from core.brief import job
 from core.brief import market_scope as brief_market_scope
 from core.brief.payload import REASON_TEXT
+from core.trust import locality
 from core.collect import chain as live_chain
 from core.config.caps import model_daily_usd as read_model_daily_usd
 from core.detect.tests import duck
@@ -325,7 +326,8 @@ def test_a_normal_morning_writes_one_briefs_row_per_market_in_the_contract_shape
         assert [c["rank"] for c in all_cards(p)] == [1, 2, 3, 4, 5, 6]
         assert [c["item_id"] for c in all_cards(p)] == [item(m, i) for i in (1, 2, 4, 5, 6, 7)]
         for c in all_cards(p):
-            assert set(c) == CARD_KEYS
+            # market_scope_basis rides beside market_scope once the locality authority is v2 (ruling M4)
+            assert set(c) == CARD_KEYS | ({"market_scope_basis"} if locality.LOCALITY_AUTHORITY == "v2" else set())
             assert c["explained"] is True
             assert c["specificity"]["status"] == "pass"
             assert c["explanation_claim_ids"] == ["c1", "c3"]

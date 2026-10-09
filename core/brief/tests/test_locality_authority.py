@@ -14,6 +14,7 @@ from core.brief import market_scope as brief_market_scope
 from core.brief.tests.test_brief_golden_path import ITEM, HonestModel, world
 from core.brief.tests.test_brief_job import EARLY, Client, FakeChain, FakeConfirm, pin_brief_model_cap
 from core.brief.tests.test_locality_shadow import add_locality
+from core.trust import locality
 from core.detect.tests.fixtures import D
 
 V2 = "locality_v2.1"
@@ -121,5 +122,6 @@ def test_a_candidate_on_the_v1_basis_is_untouched_by_a_v2_row_that_disagrees(mon
     add_locality(con, 8, 0)                                                 # a not_local v2 row beside it
     _, payload, model, _ = run_brief(con, monkeypatch)
     [card] = payload["cards"]
-    assert card["explained"] is True and "market_scope_basis" not in card and card["locality_v2"]["status"] == "not_local"
+    assert card["explained"] is True and card["locality_v2"]["status"] == "not_local"
+    assert card.get("market_scope_basis") == ("v1" if locality.LOCALITY_AUTHORITY == "v2" else None)   # M4
     assert "locality_audit" not in payload                                  # the audit lists only rows written under v2
