@@ -444,6 +444,13 @@ def popen(guard, command, check):
     ["awk", "--load", "filefuncs", "BEGIN { }"], ["awk", "-l", "filefuncs", "BEGIN { }"],
     ["awk", "-e", 'BEGIN { system("id") }'], ["awk", '--source=BEGIN{system("id")}'],
     ["awk", "-e", "BEGIN { print 1 }", "-e", 'BEGIN { system("id") }'],
+    ["awk", '/"/ { system("id") }'], ["awk", '/"/ { print } END { system("id") }'],
+    ["awk", 'BEGIN { f = "system"; @f("id") }'], ["awk", 'function f(x) { return x } BEGIN { @f(1) }'],
+    ["awk", 'BEGIN { printf "%s|%s\\n", 1, 2 }'], ["awk", 'BEGIN { x = "system(" }'],
+    ["awk", 'BEGIN { print "a|b" }'],
+    ["awk", 'BEGIN { print "x" > "/inet/tcp/0/example.com/80" }'], ["awk", 'BEGIN { print "x" > "/dev/tcp/example.com/80" }'],
+    ["awk", "-f", "-"], ["awk", "-f", "/dev/stdin"], ["awk", "--file=-"], ["awk", "--file=/dev/stdin"],
+    ["awk", "-f", "/dev/fd/0"], ["awk", "-f", "/proc/self/fd/0"], ["awk", "-i", "-"],
     ["env", "awk", 'BEGIN { system("id") }'], ["xargs", "awk", 'BEGIN { system("id") }']])
 def test_awk_cannot_start_a_program(guard, command):
     popen(guard, command, refused)
@@ -457,15 +464,18 @@ def test_an_awk_program_file_is_read_before_it_is_allowed(guard, tmp_path):
     popen(guard, ["awk", "-f", str(bad), "data"], refused)
     popen(guard, ["awk", f"--file={bad}"], refused)
     popen(guard, ["awk", "-f", str(good), "data"], allowed)
-    popen(guard, ["awk", "-f", str(tmp_path / "missing.awk")], allowed)
+    popen(guard, ["awk", "-f", str(tmp_path / "missing.awk")], refused)  # a file the guard cannot read is refused
+    big = tmp_path / "big.awk"
+    big.write_text("#" + "x" * (guard.NODE_FILE_LIMIT + 1), encoding="utf-8")
+    popen(guard, ["awk", "-f", str(big)], refused)
+    popen(guard, ["awk", "-f", str(tmp_path)], refused)
 
 
 @pytest.mark.parametrize("command", [
     ["awk", "{ print $1 }", "file"], ["awk", "-F,", "{ print $2 }", "file"], ["awk", "-v", "x=1", "BEGIN { print x }"],
     ["awk", "/a|b/ { print }"], ["awk", "$1 == 1 || $2 == 2 { n++ } END { print n }"],
     ["awk", '{ s += length($0) } END { printf "%d\\n", s }'], ["awk", 'BEGIN { print "system" }'],
-    ["awk", 'BEGIN { printf "%s|%s\\n", 1, 2 }'], ["awk", 'BEGIN { x = "system(" }'],
-    ["awk", 'BEGIN { print "a|b" }'], ["awk", "--version"]])
+    ["awk", 'BEGIN { print "system" }'], ["awk", "--version"]])
 def test_awk_stays_usable_for_local_work(guard, command):
     popen(guard, command, allowed)
 
@@ -490,6 +500,10 @@ def test_a_sed_script_file_is_read_before_it_is_allowed(guard, tmp_path):
     popen(guard, ["sed", "-f", str(bad), "data"], refused)
     popen(guard, ["sed", f"--file={bad}", "data"], refused)
     popen(guard, ["sed", "-f", str(good), "data"], allowed)
+    for unreadable in ("-", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0", str(tmp_path / "missing.sed"), str(tmp_path)):
+        popen(guard, ["sed", "-f", unreadable, "data"], refused)
+        popen(guard, ["sed", f"--file={unreadable}", "data"], refused)
+        popen(guard, ["sed", "-nf", unreadable], refused)
 
 
 @pytest.mark.parametrize("command", [
@@ -517,6 +531,24 @@ def test_sed_stays_usable_for_local_work(guard, command):
     ["env", "tar", "-I", "curl", "-cf", "a.tar", "x"]])
 def test_tar_cannot_start_a_program_or_reach_a_remote_archive(guard, command):
     popen(guard, command, refused)
+
+
+@pytest.mark.parametrize("name", ["TAPE", "RSH", "tape", "Rsh"])
+def test_tar_reads_a_remote_archive_or_shell_from_its_environment_so_those_names_are_refused(guard, name):
+    """With no -f, tar opens the archive named by TAPE, and host:file there goes through the shell named by RSH."""
+    environment = {**KEEPS_GUARD, name: "host:file"}
+    refused(guard, "subprocess.Popen", ("tar", ["tar", "-x"], None, environment))
+    refused(guard, "subprocess.Popen", ("tar", ["tar", "-xf", "a.tar"], None, environment))
+    refused(guard, "subprocess.Popen", ("env", ["env", "tar", "-x"], None, environment))
+    refused(guard, "subprocess.Popen", ("env", ["env", f"{name}=host:file", "tar", "-x"], None, KEEPS_GUARD))
+    refused(guard, "os.exec", ("tar", ["tar", "-x"], environment))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "-u", name, "tar", "-x"], None, environment))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "-i", "tar", "-x"], None, environment))
+    allowed(guard, "subprocess.Popen", ("tar", ["tar", "-x"], None, KEEPS_GUARD))
+
+
+def test_tar_with_an_environment_the_guard_cannot_read_is_refused(guard):
+    refused(guard, "subprocess.Popen", ("tar", ["tar", "-x"], None, 42))
 
 
 @pytest.mark.parametrize("command", [
@@ -603,3 +635,78 @@ def test_the_version_probes_the_platform_module_makes_on_windows_stay_refused(gu
     them only when sys.platform is win32, so the Linux job never does, and the guard makes no exception for a
     program that is off its list."""
     refused(guard, "subprocess.Popen", (words[0], words, None, KEEPS_GUARD))
+
+
+PASTE = ROOT / "core" / "setup" / "release" / "SERVICES-PASTE.ps1"
+
+
+def paste_script(call="Assert-Interactive", paste=PASTE, extra=""):
+    return (f"$ErrorActionPreference = 'Stop'; . '{paste}' -Action Rollback -Lock x -Review x -Bindings x -Receipt x "
+            f"-DefinitionsOnly; try {{ {call}{extra}; 'RESULT:ok' }} catch {{ 'RESULT:' + $_.Exception.Message }}")
+
+
+def pwsh(*words):
+    return ["pwsh", *words]
+
+
+def test_pwsh_may_run_a_driver_file_in_the_repository_or_the_temporary_directory(guard):
+    driver = os.path.join(tempfile.gettempdir(), "pytest-of-ci", "driver.ps1")
+    config = os.path.join(tempfile.gettempdir(), "pytest-of-ci", "config.json")
+    for command in (pwsh("-NoProfile", "-NonInteractive", "-File", driver, "-Config", config),
+                    pwsh("-NoProfile", "-NonInteractive", "-File", str(ROOT / "core" / "setup" / "release" / "x.ps1")),
+                    pwsh("-NoProfile", "-File", driver), pwsh("-NonInteractive", "-NoProfile", "-File", driver),
+                    ["pwsh.exe", "-NoProfile", "-NonInteractive", "-File", driver],
+                    ["/usr/bin/pwsh", "-NoProfile", "-NonInteractive", "-File", driver]):
+        allowed(guard, "subprocess.Popen", (command[0], command, None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("call", ["Assert-Interactive", "Test-Interactive", "Read-Word 'DEPLOY'"])
+@pytest.mark.parametrize("flags", [("-NoProfile",), ("-NoProfile", "-NonInteractive")])
+def test_pwsh_may_run_a_paste_function_defined_by_the_repositorys_paste_text(guard, flags, call):
+    command = pwsh(*flags, "-Command", paste_script(call))
+    allowed(guard, "subprocess.Popen", (command[0], command, None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("command", [
+    pwsh(), pwsh("-NoProfile"), pwsh("-NoProfile", "-NonInteractive"),
+    pwsh("-NoProfile", "-Command", "Invoke-WebRequest https://example.com"),
+    pwsh("-NoProfile", "-Command", "iwr https://example.com"),
+    pwsh("-NoProfile", "-EncodedCommand", "aQB3AHIA"), pwsh("-NoProfile", "-enc", "aQB3AHIA"),
+    pwsh("-NoProfile", "-c", "iwr x"), pwsh("-NoProfile", "-Command", "curl https://example.com"),
+    pwsh("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", os.path.join(tempfile.gettempdir(), "d.ps1")),
+    pwsh("-NoProfile", "-File", "/etc/evil.ps1"), pwsh("-NoProfile", "-File", "evil.ps1"),
+    pwsh("-NoProfile", "-File", str(ROOT / ".." / "evil.ps1")), pwsh("-NoProfile", "-File", str(ROOT / "core" / ".." / ".." / "e.ps1")),
+    pwsh("-NoProfile", "-File", str(ROOT / "core" / "x.txt")),
+    pwsh("-File", os.path.join(tempfile.gettempdir(), "d.ps1")),
+    pwsh("-NoProfile", "-File"), pwsh("-NoProfile", "-Command"),
+    pwsh("-NoProfile", "-File", os.path.join(tempfile.gettempdir(), "d.ps1"), "-Command", "iwr x"),
+    pwsh("-NoProfile", "-File", os.path.join(tempfile.gettempdir(), "d.ps1"), "-Config", os.path.abspath(os.sep + "etc" + os.sep + "passwd")),
+    pwsh("-NoProfile", "-File", os.path.join(tempfile.gettempdir(), "d.ps1"), "-Config"),
+    pwsh("-NoProfile", "-File", os.path.join(tempfile.gettempdir(), "d.ps1"), "-Config", os.path.join(tempfile.gettempdir(), "c.json"), "-Extra"),
+    pwsh("-NoProfile", "-Command", paste_script() + "; iwr https://example.com"),
+    pwsh("-NoProfile", "-Command", "iwr https://example.com; " + paste_script()),
+    pwsh("-NoProfile", "-Command", paste_script(call="iwr https://example.com")),
+    pwsh("-NoProfile", "-Command", paste_script(call="Assert-Interactive; iwr https://example.com")),
+    pwsh("-NoProfile", "-Command", paste_script(call="Read-Word 'x'; Start-Process curl")),
+    pwsh("-NoProfile", "-Command", paste_script(call="Assert-Interactive", extra="; iwr x")),
+    pwsh("-NoProfile", "-Command", paste_script(paste="/tmp/evil.ps1")),
+    pwsh("-NoProfile", "-Command", paste_script(paste=str(ROOT / ".." / "evil.ps1"))),
+    pwsh("-NoProfile", "-Command", paste_script(paste=str(ROOT / "core" / "setup" / "release" / "x.txt"))),
+    pwsh("-NoProfile", "-Command", paste_script().replace("-DefinitionsOnly", "")),
+    pwsh("-NoProfile", "-Command", paste_script().replace("$ErrorActionPreference = 'Stop'; ", "iwr x; ")),
+    pwsh("-NoProfile", "-Command", paste_script(), "iwr x"),
+    pwsh("-NoProfile", "-Command", paste_script() + "\niwr https://example.com"),
+    pwsh("-NoProfile", "-Command", paste_script() + "`\niwr x"),
+    ["powershell", "-NoProfile", "-File", os.path.join(tempfile.gettempdir(), "d.ps1")],
+    ["pwsh-preview", "-NoProfile", "-File", os.path.join(tempfile.gettempdir(), "d.ps1")],
+    ["env", "pwsh", "-NoProfile", "-Command", "iwr x"],
+    ["xargs", "pwsh", "-NoProfile", "-Command", "iwr x"],
+    ["find", ".", "-exec", "pwsh", "-NoProfile", "-Command", "iwr x", ";"]])
+def test_pwsh_started_any_other_way_is_refused(guard, command):
+    refused(guard, "subprocess.Popen", (command[0], command, None, KEEPS_GUARD))
+
+
+def test_pwsh_started_through_env_keeps_the_same_rules(guard):
+    good = pwsh("-NoProfile", "-Command", paste_script())
+    allowed(guard, "subprocess.Popen", ("env", ["env", *good], None, KEEPS_GUARD))
+    allowed(guard, "subprocess.Popen", ("find", ["find", ".", "-exec", *good, ";"], None, KEEPS_GUARD))

@@ -17,6 +17,10 @@ sed (the e command and the s flag e, read the way sed reads a script, inline or 
 `--use-compress-program`, `--to-command`, `--checkpoint-action`, the volume script options, and an archive named
 host:file, which tar sends through a remote shell), sort (`--compress-program`) and zip (-TT and `--unzip-command`).
 Long options are matched by their shortest abbreviation getopt accepts.
+A script file given to awk or sed that cannot be read (standard input, a missing file, a directory, one past the
+size limit) is refused, awk is read as its raw text, and tar is refused when TAPE or RSH is in its environment.
+pwsh is allowed only for the release paste tests: -NoProfile, then -File with a .ps1 under the repository or the
+temporary directory, or -Command with the paste test's own frame over a .ps1 under the repository.
 
 It is the portable counterpart of the Windows guard used for local runs. It needs no ctypes and no platform
 module, so the same file runs on Linux and Windows.
@@ -55,7 +59,7 @@ PROGRAMS = {
     "touch", "chmod", "head", "tail", "wc", "sort", "uniq", "diff", "cmp", "sed", "awk", "grep", "find", "xargs",
     "tr", "cut", "tee", "dirname", "basename", "readlink", "realpath", "pwd", "sleep", "date", "uname", "id",
     "whoami", "nproc", "which", "test", "tar", "gzip", "gunzip", "zip", "unzip", "sha256sum", "shasum", "md5sum",
-    "ldconfig", "getconf",
+    "ldconfig", "getconf", "pwsh",
 }
 REMOTE_GIT = {"push", "pull", "fetch", "clone", "ls-remote", "submodule", "request-pull", "send-email", "svn",
               "imap-send", "fetch-pack", "send-pack", "remote-http", "remote-https", "archive-remote"}
@@ -510,18 +514,20 @@ def _check_sed(event, words):
         return
     for text, is_file in scripts:
         if is_file:
-            text = _read_script_file(text)
+            text = _script_text(event, text)
         if _sed_runs_a_command(text):
             _refuse(event, "sed script that runs a command")
 
 
 AWK_VALUE_OPTIONS = set("FvfeliE")
-AWK_RUNS = re.compile(r"\bsystem\s*\(|\|&|@load|(?<!\|)\|(?!\|)\s*getline\b|\bprintf?\b[^;}\n]*(?<!\|)\|(?![|&])")
-AWK_STRING = re.compile(r'"(?:\\.|[^"\\\n])*"')
+# The raw text is searched, strings and regex literals included: a quote inside a regex literal can pair with a later
+# quote and hide code from a reader that strips strings, so a string that holds system( or a pipe is refused too.
+AWK_RUNS = re.compile(r"\bsystem\s*\(|\|&|@\w|/inet\d?/|/dev/(?:tcp|udp)/|(?<!\|)\|(?!\|)\s*getline\b"
+                      r"|\bprintf?\b[^;}\n]*(?<!\|)\|(?![|&])")
 
 
 def _awk_runs_a_program(program):
-    return bool(AWK_RUNS.search(AWK_STRING.sub('""', program)))
+    return bool(AWK_RUNS.search(program))
 
 
 def _check_awk(event, words):
@@ -564,7 +570,7 @@ def _check_awk(event, words):
         programs.append((positional[0], False))
     for text, is_file in programs:
         if is_file:
-            text = _read_script_file(text)
+            text = _script_text(event, text)
         if _awk_runs_a_program(text):
             _refuse(event, "awk program that starts a program")
 
@@ -579,7 +585,9 @@ def _tar_archive_is_remote(value):
     return bool(re.match(r"^[^/\\]*:", value)) and not re.match(r"^[A-Za-z]:", value)
 
 
-def _check_tar(event, words):
+def _check_tar(event, words, mapping):
+    if mapping is None or "TAPE" in mapping or "RSH" in mapping:
+        _refuse(event, "tar with TAPE or RSH in its environment")
     rest, archives, local_only = list(words[1:]), [], False
     if rest and not rest[0].startswith("-"):
         bundle, rest = rest[0], rest[1:]
@@ -646,6 +654,55 @@ def _node_reaches_out(code):
     return bool(NODE_REACHES_OUT.search(code))
 
 
+REPO_ROOT = os.path.dirname(os.path.dirname(GUARD_DIR))
+PWSH_FLAGS = {"-noprofile", "-noninteractive"}
+PWSH_PASTE = re.compile(
+    r"\$ErrorActionPreference = 'Stop'; \. '([^'\r\n]+\.ps1)'((?: -[A-Za-z]+ [A-Za-z0-9_.-]+)*) -DefinitionsOnly; "
+    r"try \{ ([A-Za-z]+-[A-Za-z]+(?: '[A-Za-z0-9 ]*')?); 'RESULT:ok' \} "
+    r"catch \{ 'RESULT:' \+ \$_\.Exception\.Message \}")
+
+
+def _inside(path, roots):
+    try:
+        path = os.path.normcase(os.path.abspath(os.fsdecode(path)))
+        for root in roots:
+            if os.path.commonpath([path, root]) == root:
+                return True
+    except (TypeError, ValueError):
+        pass
+    return False
+
+
+def _script_in(path, roots):
+    return path.lower().endswith(".ps1") and os.path.isabs(path) and _inside(path, roots)
+
+
+def _check_pwsh(event, words):
+    """pwsh runs the release paste tests and nothing else: -NoProfile (and optionally -NonInteractive), then either
+    -File with a .ps1 under the repository or the temporary directory and `-Name value` script arguments that are
+    absolute paths there too, or -Command with exactly the paste test's own frame, which dot-sources a .ps1 under the
+    repository with -DefinitionsOnly and calls one function by name."""
+    repo, temp = [os.path.normcase(REPO_ROOT)], [os.path.normcase(REPO_ROOT), *_temp_roots()]
+    flags, index = set(), 1
+    while index < len(words) and words[index].lower() in PWSH_FLAGS:
+        flags.add(words[index].lower())
+        index += 1
+    if "-noprofile" not in flags or index >= len(words):
+        _refuse(event, "pwsh other than the release paste tests")
+    mode, rest = words[index].lower(), words[index + 1:]
+    if mode == "-file" and rest and _script_in(rest[0], temp):
+        arguments = rest[1:]
+        if len(arguments) % 2 == 0 and all(
+                name.startswith("-") and name[1:].isalpha() and os.path.isabs(value) and _inside(value, temp)
+                for name, value in zip(arguments[::2], arguments[1::2])):
+            return
+    elif mode == "-command" and len(rest) == 1:
+        found = PWSH_PASTE.fullmatch(rest[0])
+        if found and _script_in(found.group(1), repo):
+            return
+    _refuse(event, "pwsh other than the release paste tests")
+
+
 def _check_node(event, words):
     index = 1
     while index < len(words):
@@ -681,6 +738,22 @@ def _read_script_file(name):
     return ""
 
 
+SCRIPT_STREAM = re.compile(r"^(?:-|/dev/(?:stdin|fd/.*)|/proc/[^/]+/fd/.*)$")
+
+
+def _script_text(event, name):
+    """The text of an awk or sed script file, or a refusal: a script read from standard input, a missing or
+    unreadable file, a directory and a file past the size limit cannot be searched, so they are not trusted."""
+    if not SCRIPT_STREAM.match(str(name).replace("\\", "/")):
+        try:
+            if os.path.isfile(name) and os.path.getsize(name) <= NODE_FILE_LIMIT:
+                with open(name, encoding="utf-8", errors="replace") as stream:
+                    return stream.read()
+        except OSError:
+            pass
+    _refuse(event, "script file the guard could not read")
+
+
 def _check_program(event, executable, words, env=None):
     _check_chain(event, executable, words, _env_mapping(env), 0)
 
@@ -712,12 +785,14 @@ def _check_chain(event, executable, words, mapping, depth):
             _check_chain(event, None, command, mapping, depth + 1)
     elif name in ("node", "nodejs"):
         _check_node(event, words)
+    elif name == "pwsh":
+        _check_pwsh(event, words)
     elif name == "awk":
         _check_awk(event, words)
     elif name == "sed":
         _check_sed(event, words)
     elif name == "tar":
-        _check_tar(event, words)
+        _check_tar(event, words, mapping)
     elif name == "sort":
         _check_sort(event, words)
     elif name == "zip":
