@@ -1,4 +1,5 @@
 """Shared fixtures for the core tests."""
+import os
 import sys
 
 import pytest
@@ -33,3 +34,30 @@ def no_unrecorded_ask_spend():
     if ask is not None and hasattr(ask, "_UNRECORDED"):
         with ask._SPEND_LOCK:
             ask._UNRECORDED.clear()
+
+
+def set_locality_authority(monkeypatch, value):
+    """Patch the locality authority everywhere it has been read into a name: the constant itself, detect's copy of it
+    and the rule version derived from it, including the default of detect's run() and the brief's copy of that version.
+    Modules not imported yet read the patched constant when they are."""
+    from core.trust import locality
+
+    monkeypatch.setattr(locality, "LOCALITY_AUTHORITY", value)
+    detect = sys.modules.get("core.detect.job")
+    if detect is not None:
+        version = detect.rule_version_for(value)
+        monkeypatch.setattr(detect, "LOCALITY_AUTHORITY", value)
+        monkeypatch.setattr(detect, "RULE_VERSION", version)
+        monkeypatch.setitem(detect.run.__kwdefaults__, "rule_version", version)
+        brief = sys.modules.get("core.brief.job")
+        if brief is not None:
+            monkeypatch.setattr(brief, "RULE_VERSION", version)
+
+
+@pytest.fixture(autouse=True)
+def locality_authority_from_environment(monkeypatch):
+    """F42_TEST_LOCALITY_AUTHORITY=v2 runs the whole suite as if the switch had shipped, without touching the
+    constant: the proof that no test depends on the shadow default. Unset, the constant is what it is."""
+    value = os.environ.get("F42_TEST_LOCALITY_AUTHORITY")
+    if value:
+        set_locality_authority(monkeypatch, value)

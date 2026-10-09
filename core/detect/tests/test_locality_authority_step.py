@@ -79,3 +79,15 @@ def test_the_authority_constant_is_one_of_the_two_rules_and_the_job_reads_that_c
 
     assert trust.LOCALITY_AUTHORITY in ("v1", "v2")
     assert job.LOCALITY_AUTHORITY == trust.LOCALITY_AUTHORITY
+
+
+@pytest.mark.parametrize("value", ["v1", "v2"])
+def test_the_suite_fixture_moves_the_authority_everywhere_it_was_read(monkeypatch, value):
+    from core.brief import job as brief_job
+    from core.conftest import set_locality_authority
+    from core.trust import locality as trust
+
+    set_locality_authority(monkeypatch, value)
+    assert trust.LOCALITY_AUTHORITY == job.LOCALITY_AUTHORITY == value
+    assert job.RULE_VERSION == brief_job.RULE_VERSION == job.rule_version_for(value)
+    assert job.run.__kwdefaults__["rule_version"] == job.rule_version_for(value)
