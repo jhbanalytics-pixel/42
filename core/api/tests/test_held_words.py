@@ -65,6 +65,32 @@ def test_briefs_stored_with_the_earlier_wording_still_read_plainly(raw, words):
     assert plain_reason({"reason_text": raw})["reason_text"] == words
 
 
+# W3-5: the gate holds anything under 60% local (core/trust/locality.py status_of), so "Mostly posted outside this market"
+# was false for 50% to 60%. Both locality lines say what is true of every held row: too few posts were in this market,
+# out of those with a known location. 4 of 8 is exactly half, 11 of 19 is 58% and 11 of 20 is 55%.
+NOT_LOCAL_RAW = "Not local: {} of {} located posts in the last 7 days were in this market"
+GLOBAL_RAW = "Global: {} of {} card source posts in the last 7 days were located in this market or came from its feeds"
+TOO_FEW_WORDS = "Too few of its posts were in this market ({} of {} with a known location)"
+
+
+@pytest.mark.parametrize("raw_form", [NOT_LOCAL_RAW, GLOBAL_RAW], ids=["not_local", "global_v1"])
+@pytest.mark.parametrize("local, known", [(4, 8), (11, 19), (11, 20)])
+def test_the_locality_held_lines_read_too_few_of_its_posts_were_in_this_market(raw_form, local, known):
+    raw = raw_form.format(local, known)
+    out = plain_reason({"reason_text": raw})
+    assert out == {"reason_text": TOO_FEW_WORDS.format(local, known), "reason_raw": raw}
+
+
+def test_the_locality_held_line_is_word_for_word_with_the_local_count_first():
+    out = plain_reason({"reason_text": NOT_LOCAL_RAW.format(11, 19)})
+    assert out["reason_text"] == "Too few of its posts were in this market (11 of 19 with a known location)"
+
+
+def test_the_unreadable_evidence_hold_reads_as_signed_off():
+    out = plain_reason({"reason_text": "Evidence could not be read"})
+    assert out == {"reason_text": "We could not read the evidence for this trend", "reason_raw": "Evidence could not be read"}
+
+
 # Tester report, 5 October 2026: "Explanation failed its checks" read as a broken market, and a topic a busy model
 # left unexplained sat under the same words although no check ran on it.
 @pytest.mark.parametrize("raw", ["Explanation failed its checks", "The explanation did not pass its checks"])

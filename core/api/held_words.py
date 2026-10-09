@@ -8,6 +8,14 @@ from core.brief.payload import NOT_RUN_REASONS
 # G3 and G4b also match the wording gate.py used before, so briefs stored with it still read plainly.
 # core/api/tests/test_held_words.py checks that every held reason gate_card writes has plain words here.
 _SHARE = r"(0(?:\.\d+)?|1(?:\.0+)?)"
+
+
+def _too_few(m):
+    """The gate holds a card under 60% local, so the words say what holds for every held row, not that most posts were
+    outside the market (false from 50% to 60%). The first count is the local posts, the second the posts counted."""
+    return f"Too few of its posts were in this market ({m[1]} of {m[2]} with a known location)"
+
+
 GATE_WORDS = (
     (re.compile(r"Data issue: \d+ of the last 3 market-days invalid on the main platform"),
      lambda m: "Not enough clean data on the main platform"),
@@ -17,7 +25,10 @@ GATE_WORDS = (
      lambda m: "We could not confirm which market this comes from"),
     (re.compile(r"Global: (\d+) of (\d+) card source posts in the last 7 days were located in this market or came "
                 r"from its feeds"),
-     lambda m: f"Mostly posted outside this market ({m[1]} of {m[2]} posts local)"),
+     _too_few),
+    (re.compile(r"Not local: (\d+) of (\d+) located posts in the last 7 days were in this market"),
+     _too_few),
+    (re.compile(r"Evidence could not be read"), lambda m: "We could not read the evidence for this trend"),
     (re.compile(rf"Paid-led: sponsored or brand-owned share {_SHARE}"),
      lambda m: f"Mostly sponsored or brand posts ({round(float(m[1]) * 100)}%)"),
     (re.compile(r"Paid-led: (#\S+) is on the campaign hashtag list"), lambda m: f"{m[1]} is a known campaign hashtag"),
