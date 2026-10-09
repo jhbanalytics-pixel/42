@@ -324,3 +324,32 @@ def test_each_budget_stop_reason_reads_in_plain_words(reason, start):
     assert what.startswith(start)
     for text in (what, short, notice):
         assert "reserve" not in text and "verified" not in text and "—" not in text
+
+
+def test_a_tool_that_stops_the_budget_between_research_turns_gives_a_budget_stop_answer_not_a_failed_ask(monkeypatch):
+    # A5: watch_video's model failure with no usage report stops the shared budget; the next research turn was refused
+    # with usage_unknown and the refusal escaped, so the ask failed instead of answering with the plain budget stop.
+    configure_gemini(monkeypatch)
+    _RecordingBudget.made = []
+    monkeypatch.setattr(ask, "AskModelBudget", _RecordingBudget)
+
+    def build(ctx, warehouse, client, tables):
+        def stop_budget():
+            budget = ctx.model_budget
+            budget.settle(budget.reserve("gemini-3.8-flash", 1000, 100, research=True), None)
+            return {"ok": True}
+        return {"budget_status": stop_budget}
+
+    monkeypatch.setattr(gemini_research, "build_functions", build)
+    from core.agent.tests.test_gemini_research_budget import fcall
+    client = FakeClient(reply(fcall("budget_status")), reply(ftext("never")))
+    monkeypatch.setattr(gemini_research, "client_factory", lambda: client)
+
+    result = Harness(research=gemini_research.gemini_research).run(tier="T1")
+
+    budget, = _RecordingBudget.made
+    assert budget.stop_reason == "usage_unknown" and len(client.calls) == 1
+    gap = next(g for g in result["answer"]["gaps"] if g["why"] == ask.BUDGET_STOP)
+    assert gap["what"] == ask.budget_stop_words("usage_unknown")[0]
+    assert result["answer"]["status"] == "insufficient_evidence"
+    assert budget.booked_usd < budget.cap_micros / 1_000_000  # inside the hold

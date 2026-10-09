@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from core.agent import toolset
 from core.agent.context import Refused, RunContext, result_hash
 from core.agent.tools.sql_query import (
     ALLOWED_DATASETS,
@@ -11,6 +12,7 @@ from core.agent.tools.sql_query import (
     MAX_ROWS,
     BigQueryWarehouse,
     check_sql,
+    model_sql_query,
     sql_query,
 )
 
@@ -413,9 +415,15 @@ def test_sql_query_refuses_dry_run_tables_outside_allowlist(ctx, tables):
 
 
 def test_sql_query_accepts_dry_run_tables_in_allowlist(ctx):
-    wh = FakeWarehouse(tables=["intelligence_42_core.posts", "ogilvy-trends-v2.intelligence_42_agent.findings"])
+    wh = FakeWarehouse(tables=["intelligence_42_core.posts", "ogilvy-trends-v2.intelligence_42_agent.runs"])
     sql_query(ctx, wh, "SELECT * FROM intelligence_42_agent.v_items_today", purpose="view")
     assert len(wh.runs) == 1
+    # findings is class D and v_items_today does not read it, so a dry run that lists it is a direct read the parser
+    # missed (this test listed it as an arbitrary allowlisted table before the private-storage fence).
+    wh = FakeWarehouse(tables=["intelligence_42_core.posts", "ogilvy-trends-v2.intelligence_42_agent.findings"])
+    with pytest.raises(Refused):
+        sql_query(ctx, wh, "SELECT * FROM intelligence_42_agent.v_items_today", purpose="view")
+    assert wh.runs == []
 
 
 def test_sql_query_refuses_bytes_over_default_cap(ctx):
@@ -612,3 +620,110 @@ def test_sql_query_refuses_forecast_tables_named_by_the_dry_run(ctx, tables):
 )
 def test_check_sql_still_accepts_the_word_forecast_elsewhere(sql):
     check_sql(sql)
+
+
+# N2. The model's SQL could read the suppression list, other runs' records, skins, feedback and the rest of the
+# datasets, because the guard allowlisted whole datasets and hid only the forecast tables.
+FENCED = ["intelligence_42_core.suppressions", "intelligence_42_core.raw_responses", "intelligence_42_core.credit_ledger",
+          "intelligence_42_agent.runs", "intelligence_42_agent.skins", "intelligence_42_agent.feedback",
+          "intelligence_42_agent.schedules", "intelligence_42_agent.investigations",
+          "intelligence_42_agent.dossier_versions", "intelligence_42_agent.dossier_reviews",
+          "intelligence_42_core.v_suppressed_creators", "intelligence_42_agent.claim_checks",
+          "intelligence_42_agent.watches", "intelligence_42_agent.v_watches_current", "intelligence_42_agent.briefs",
+          "intelligence_42_agent.v_briefs_current", "intelligence_42_agent.findings",
+          "intelligence_42_agent.v_prior_findings", "intelligence_42_agent.v_item_evidence"]
+
+
+def _spellings(table):
+    dataset, name = table.split(".")
+    return [f"SELECT * FROM {table}",
+            f"SELECT * FROM `ogilvy-trends-v2.{table}`",
+            f"SELECT * FROM `ogilvy-trends-v2`.{dataset}.{name}",
+            f"SELECT * FROM {dataset}.{name.upper()}",
+            f"SELECT * FROM {dataset}.{name[:-2]}*",
+            f"SELECT 1 FROM intelligence_42_core.posts p JOIN {table} t ON TRUE",
+            f"WITH x AS (SELECT * FROM {table}) SELECT * FROM x",
+            f"SELECT * FROM {table}$20261001"]
+
+
+@pytest.mark.parametrize("table", FENCED)
+def test_the_models_sql_cannot_name_a_fenced_table_however_it_is_spelled(table):
+    for sql in _spellings(table):
+        with pytest.raises(Refused):
+            check_sql(sql)
+        with pytest.raises(Refused):
+            toolset.guard(RunContext(run_id="run_guard", tier="T0", as_of=datetime(2026, 9, 28, 6, 0)), "sql_query",
+                          {"sql": sql, "purpose": "x"})
+
+
+@pytest.mark.parametrize("table", FENCED)
+def test_a_dry_run_that_reports_a_fenced_table_is_refused_when_no_named_view_reads_it(table, ctx):
+    # The SQL names no view, so nothing reads the fenced table underneath and the dry run is a direct read the parser
+    # missed. The exemptions for the views that do read them are pinned in test_sql_private_fence (B09).
+    for ref in (table, f"ogilvy-trends-v2.{table}"):
+        with pytest.raises(Refused):
+            model_sql_query(ctx, FakeWarehouse(tables=(ref,)), "SELECT 1 AS x", purpose="x")
+        with pytest.raises(Refused):
+            sql_query(ctx, FakeWarehouse(tables=(ref,)), "SELECT 1 AS x", purpose="x")
+
+
+@pytest.mark.parametrize("table", FENCED)
+def test_the_tool_the_model_calls_refuses_a_fenced_table_even_when_the_guard_is_skipped(table, ctx):
+    wh = FakeWarehouse()
+    functions = toolset.build_functions(ctx, wh, None, None)
+    with pytest.raises(Refused):
+        functions["sql_query"](sql=f"SELECT * FROM {table}", purpose="x")
+    assert wh.dry_runs == [] and wh.runs == []
+
+
+@pytest.mark.parametrize("sql", [
+    "SELECT post_id FROM intelligence_42_core.posts",
+    "SELECT * FROM intelligence_42_core.v_item_daily_current",
+    "SELECT * FROM intelligence_42_core.v_item_state_current",
+    "SELECT * FROM intelligence_42_core.v_good_runs",
+    "SELECT * FROM intelligence_42_agent.tvf_item_timeseries('i', 'ZA', 7)",
+])
+def test_the_tables_the_map_and_the_tools_use_still_pass(sql):
+    check_sql(sql)
+
+
+def test_the_warehouse_map_tables_are_never_fenced():
+    from core.agent.tools.sql_query import FENCED_TABLES, WAREHOUSE_MAP
+
+    assert not [t for t in WAREHOUSE_MAP if t.split("(")[0] in FENCED_TABLES]
+
+
+@pytest.mark.parametrize("sql", [
+    "SELECT c.handle FROM intelligence_42_core.creators c JOIN intelligence_42_core.v_suppressed_creators s "
+    "USING (creator_id)",
+    "SELECT c.handle FROM intelligence_42_core.creators c WHERE c.creator_id IN "
+    "(SELECT s.creator_id FROM intelligence_42_core.v_suppressed_creators s)",
+    # the predicate the writer pack prints in a recorded query, copied back by the model (C5 12.5 condition 4)
+    "SELECT p.post_id FROM intelligence_42_core.posts p WHERE NOT EXISTS (SELECT 1 FROM "
+    "intelligence_42_core.v_suppressed_creators s WHERE s.creator_id = p.creator_id)",
+    "SELECT creator_id FROM `ogilvy-trends-v2.intelligence_42_core.V_Suppressed_Creators`",
+    "SELECT reason FROM intelligence_42_agent.claim_checks WHERE rule = 'K4'",
+    "SELECT * FROM intelligence_42_agent.claim_check*",
+])
+def test_the_models_sql_cannot_read_who_is_suppressed_or_a_checkers_reasons_through_a_join_or_subquery(sql):
+    with pytest.raises(Refused) as err:
+        check_sql(sql)
+    assert "not available" in str(err.value)
+
+
+def _nested_forms(table):
+    return [f"SELECT x.* FROM {table} AS x",
+            f"SELECT JSON_QUERY(r.record, '$.answer') AS j FROM {table} r",
+            f"SELECT * FROM intelligence_42_agent.tvf_item_timeseries((SELECT MIN(1) FROM {table}), 'ZA', 7)",
+            f"SELECT (SELECT COUNT(*) FROM {table}) AS n",
+            f"SELECT 1 AS n WHERE EXISTS (SELECT 1 FROM {table})",
+            f"SELECT 1 AS n UNION ALL SELECT 1 FROM {table}",
+            f"SELECT ARRAY(SELECT 1 FROM {table}) AS a",
+            f"SELECT 1 FROM intelligence_42_core.posts p, UNNEST((SELECT ARRAY_AGG(1) FROM {table})) AS u"]
+
+
+@pytest.mark.parametrize("table", FENCED)
+def test_a_fenced_table_is_refused_inside_an_alias_embedded_json_a_function_argument_or_a_subquery(table):
+    for sql in _nested_forms(table):
+        with pytest.raises(Refused):
+            check_sql(sql)

@@ -335,8 +335,11 @@ def test_creator_fit_refuses_a_question_that_names_no_creator(question):
 
 
 def test_creator_fit_reads_page_tier_and_suppression_read_only():
-    from core.agent.tools.sql_query import check_sql
-    check_sql(skills.CREATOR_SQL)
+    from core.agent.context import Refused
+    from core.agent.tools.sql_query import check_sql, check_sql_harness
+    check_sql_harness(skills.CREATOR_SQL)  # the creator tool's own read, outside model SQL
+    with pytest.raises(Refused):
+        check_sql(skills.CREATOR_SQL)  # model SQL may not name the suppression view
     assert "intelligence_42_core.creators" in skills.CREATOR_SQL
     assert "intelligence_42_core.v_suppressed_creators" in skills.CREATOR_SQL
     assert "@key" in skills.CREATOR_SQL

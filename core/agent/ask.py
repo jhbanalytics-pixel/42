@@ -22,7 +22,7 @@ from decimal import Decimal
 from typing import Any, Callable
 from uuid import uuid4
 
-from core.agent import checks, critic, native_review, plain, skills
+from core.agent import answer_state, checks, critic, native_review, plain, skills
 from core.agent.answer import validate_answer
 from core.agent.checks import _text_breaches, _unpinned, check_answer, platform_label, source_gaps, window_text
 from core.agent.context import TIERS, Refused, RunContext
@@ -40,6 +40,7 @@ from core.agent.tools.warehouse import (MAX_POSTS, commit_findings, discover_cre
 from core.llm.provider import default_model, is_gemini_model, price_for, reserve_output
 from core.agent.writer import (FIELD_UNCHECKED_REASON, HEADLINE_BUDGET_REASON, HEADLINE_FAILED_REASON, HEADLINE_GAP,
                                NARROWED_HEADLINE_GAP, NARROWED_K10_REASON,
+                               HEADLINE_INPUT_REASON, HEADLINE_REPEATS_REASON, HEADLINE_UNUSABLE_REASON,
                                HEADLINE_REASONS, HEADLINE_REWRITE_CALLS, HEADLINE_REWRITE_INPUT_TOKENS,
                                HEADLINE_REWRITE_MAX_TOKENS, HEADLINE_REWRITTEN_REASON, HEADLINE_USED_REASON,
                                K4_RECHECK_CALLS, K4_REWRITE_CALLS, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS,
@@ -651,6 +652,11 @@ def _label(model: str, plain: str) -> str:
     return plain
 
 
+def _claim_fingerprint(claim: dict) -> str:
+    """A claim's words and cited posts: what makes a later draft's claim the same claim as an earlier draft's."""
+    return json.dumps([claim.get("text"), sorted(str(e) for e in claim.get("evidence_ids") or [])], ensure_ascii=False)
+
+
 def call_usd(name: str, tokens_in: int, tokens_out: int) -> float:
     """The most one model call may cost, including Gemini's output reserve."""
     price = price_for(name)
@@ -803,7 +809,7 @@ def _critic_counts(rows: list[dict]) -> dict:
 
 
 def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[date, date],
-                 draft_gaps: list) -> tuple[dict, list[dict], list[dict]]:
+                 draft_gaps: list, ledger=None) -> tuple[dict, list[dict], list[dict]]:
     """Withhold what the critic cut, and every claim still pending, which becomes a cut with the critic's fixed
     reason. The status, short answer and items then follow as after a support cut (writer._k10, then
     checks.recheck_fields). Returns the answer, the final critic rows and the rows of those checks."""
@@ -812,6 +818,7 @@ def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[
     cut = {r["claim_id"]: r for r in rows if r["verdict"] == "cut"}
     if not cut:
         return answer, rows, []
+    pre_critic = answer_state.snapshot(answer)
     answer = copy.deepcopy(answer)
     removed = {c["id"]: c for c in answer["claims"] if c.get("id") in cut}
     kept = [c for c in answer["claims"] if c.get("id") not in cut]
@@ -830,8 +837,13 @@ def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[
     # No rewrite here: the field check has already run, and the short answer is never shown unchecked.
     if headline_blanked(before, answer) and HEADLINE_GAP not in answer["gaps"]:
         answer["gaps"].append(dict(HEADLINE_GAP))
+    if ledger is not None:
+        ledger.observe("critic", pre_critic, answer, [k10])
+        pre_recheck = answer_state.snapshot(answer)
     answer, rechecked = checks.recheck_fields(answer, ctx, window=window,
                                               code_gaps=checks.code_gap_indexes(draft_gaps, answer["gaps"]))
+    if ledger is not None:
+        ledger.observe("recheck", pre_recheck, answer, rechecked)
     return answer, rows, [k10, *rechecked]
 
 
@@ -1115,6 +1127,43 @@ def budget_stop_words(reason: str | None) -> tuple[str, str, str]:
     return _STOP_WORDS.get(reason or "", _STOP_BUDGET)
 
 
+STOP_REQUEST_TEXT = "The run was stopped before an answer was written, so there is nothing checked to show."
+REFUSAL_TEXT = "This question was not researched because the model budget for today is spent."
+
+# The rewrite outcome a K10 row on the short answer reports, by the writer's own constant (string equality, never
+# text parsing).
+_REWRITE_OUTCOMES = {HEADLINE_REWRITTEN_REASON: "kept", HEADLINE_USED_REASON: "used_up",
+                     HEADLINE_BUDGET_REASON: "no_budget", HEADLINE_FAILED_REASON: "call_failed",
+                     HEADLINE_INPUT_REASON: "too_long", HEADLINE_UNUSABLE_REASON: "empty",
+                     HEADLINE_REPEATS_REASON: "repeated_removed_claim"}
+
+
+def execution_of(*, finished: str | None, budget_stopped: bool, reason: str | None, refused: bool) -> tuple:
+    """(execution state, stop reason) of a run, from the facts run_ask already holds. The stop reason is the identity
+    of the stop-words tuple budget_stop_words picks, the same decision that chooses the summary text."""
+    if refused:
+        return "refused_budget_spent", None
+    if finished == "stopped":
+        if budget_stopped:
+            words = budget_stop_words(reason)
+            return "stopped_on_budget", ("model_call_unverified" if words is _STOP_FAILED
+                                         else "price_unreadable" if words is _STOP_PRICE else "budget_full")
+        return "stopped_on_request", None
+    return "completed", None
+
+
+def _meta_or_none(ask_id: str, run_id: str, state: str, stop, answer: dict, ledger) -> dict | None:
+    """The answer_meta for this run, or None. A paid Ask is never failed for a metadata fault: the answer and run are
+    kept, no metadata is stored, and the fault is logged."""
+    try:
+        summary_state, removals, rewrite = ledger.finalize(answer, state)
+        return answer_state.build(ask_id=ask_id, check_run_id=run_id, execution_state=state, stop_reason=stop,
+                                  summary_state=summary_state, removals=removals, rewrite=rewrite, answer=answer)
+    except Exception as exc:
+        log.error("ask %s: answer_meta not built: %s", ask_id, type(exc).__name__)
+        return None
+
+
 def _stopped_answer(as_of: str, gaps: list[dict], window: tuple[date, date], *, budget_stopped: bool = False,
                     reason: str | None = None) -> dict:
     if budget_stopped:
@@ -1122,7 +1171,7 @@ def _stopped_answer(as_of: str, gaps: list[dict], window: tuple[date, date], *, 
         why = BUDGET_STOP
     else:
         what = "The run was stopped before the answer was written"
-        short_answer = "The run was stopped before an answer was written, so there is nothing checked to show."
+        short_answer = STOP_REQUEST_TEXT
         why = "stopped on request"
     return {
         "status": "insufficient_evidence",
@@ -1261,7 +1310,7 @@ def _refused_answer(as_of: str, window: tuple[date, date]) -> dict:
     return {
         "status": "insufficient_evidence",
         "as_of": as_of,
-        "short_answer": "This question was not researched because the model budget for today is spent.",
+        "short_answer": REFUSAL_TEXT,
         "claims": [],
         "evidence": [],
         "so_what": [],
@@ -1575,12 +1624,19 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     notices += [n for n in client_notices if n not in notices]
     if refused:
         close_plan()
-        return {"answer": _refused_answer(as_of.isoformat(), window),
-                "run": run_object([], "refused" if inv is not None else None)}
+        refused_answer = _refused_answer(as_of.isoformat(), window)
+        result = {"answer": refused_answer, "run": run_object([], "refused" if inv is not None else None)}
+        meta = _meta_or_none(request.get("ask_id") or run_id, run_id, "refused_budget_spent", None, refused_answer,
+                             answer_state.SummaryLedger())
+        if meta is not None:
+            result["answer_meta"] = meta
+        return result
     stop_model = _StopAwareModel(deps.model, should_stop, model_budget, phase_seconds=phase_seconds)
     research_started = research_reported = False
     finished = None
-    rewrite_attempted: set[str] = set()
+    summary_ledger = answer_state.SummaryLedger()  # the final gate pass's account of the summary
+    stop_facts = (False, None)  # (budget stopped, the budget's stop reason), set where a run stops
+    rewrite_ledger: set[str] = set()  # the words and posts (fingerprint) of every claim whose narrowing was attempted
     headline_rewritten = False  # the one short answer rewrite an ask may make (writer.HEADLINE_REWRITE_CALLS)
     fallback_brief = None
     fallback_post_ids = []
@@ -1633,7 +1689,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         return {**answer, "short_answer": text}, [row("pass", HEADLINE_REWRITTEN_REASON)]
 
     def gate(note: str, source_status: list[dict]) -> tuple:
-        nonlocal numeric_repair_attempted
+        nonlocal numeric_repair_attempted, summary_ledger
+        summary_ledger = answer_state.SummaryLedger()  # a gap round writes a new draft; only the last pass is stored
         """The writer, the code checks, the support check, the recheck and the field check, once. First the posts the
         researchers only saw in query rows become evidence, so the writer sees them as posts and K1 can resolve them.
         Only those published inside the window do: an older post never reaches the writer as a citable block.
@@ -1710,13 +1767,23 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         allowed = writer_gaps(draft["gaps"]) + source_gaps(ctx, window)
         progress.step("check", f"Checking {len(draft['claims'])} claims against the posts and the numbers")
         check = deps.check or check_answer
+        pre_check = answer_state.snapshot(draft)
         checked, verdicts = timed("checks", check, draft, ctx, deps.warehouse, window=window, markets=markets)
+        summary_ledger.observe("first_check", pre_check, checked, verdicts)
         if should_stop():
             raise _StopRequested()
+        # Each gate pass writes a fresh draft whose ids restart at c1, so a claim is known by its words and posts, not
+        # by its id: an earlier attempt blocks a claim here when this draft's claim has the same words and posts, under
+        # any id (writer.apply_support keeps one narrowing per claim).
+        presented = {c["id"]: _claim_fingerprint(c) for c in checked.get("claims") or [] if isinstance(c.get("id"), str)}
+        rewrite_attempted = {cid for cid, seen in presented.items() if seen in rewrite_ledger}
+        pre_support = answer_state.snapshot(checked)
         answer, support, usage = timed("checks", apply_support, stop_model, checked, ctx, model_name,
                                                warehouse=deps.warehouse,
                                                window=window, markets=markets,
                                                rewrite_attempted=rewrite_attempted)
+        rewrite_ledger.update(presented[cid] for cid in rewrite_attempted if cid in presented)
+        summary_ledger.observe("support_check", pre_support, answer, support)
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
             raise _StopRequested()
@@ -1725,10 +1792,17 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         narrowed = any(claim.get("id") in original_words and original_words[claim.get("id")] != claim.get("text")
                        for claim in answer.get("claims") or [])
         answer, rewrote = headline(checked, answer)
+        for row in rewrote:
+            if row.get("claim_id") == "short_answer" and row.get("rule") == "K10" and row.get("reason") in _REWRITE_OUTCOMES:
+                summary_ledger.note_rewrite(_REWRITE_OUTCOMES[row["reason"]])
+        pre_recheck = answer_state.snapshot(answer)
         answer, rechecked = timed("checks", checks.recheck_fields, answer, ctx, window=window,
                                                   code_gaps=checks.code_gap_indexes(draft["gaps"], answer["gaps"]))
+        summary_ledger.observe("recheck", pre_recheck, answer, rechecked)
+        pre_field = answer_state.snapshot(answer)
         answer, fielded, usage = timed("checks", apply_field_check, stop_model, answer, ctx, model_name,
                                       draft_gaps=draft["gaps"])
+        summary_ledger.observe("field_check", pre_field, answer, fielded)
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
             raise _StopRequested()
@@ -1914,6 +1988,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             finished = "stopped"
             budget_stopped = model_budget is not None and model_budget.stopped and not should_stop()
             reason = model_budget.stop_reason if budget_stopped else None
+            stop_facts = (budget_stopped, reason)
             answer = _stopped_answer(as_of.isoformat(), source_gaps(ctx, window), window,
                                      budget_stopped=budget_stopped, reason=reason)
             if budget_stopped:
@@ -1931,7 +2006,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                         draft, answer, verdicts, support, later, allowed = gate(
                             "\n\n".join(n for n in (note, gap_note) if n), source_status)
                         answer, critic_rows, result = review(answer)
-                answer, critic_rows, cut_rows = _critic_cuts(answer, critic_rows, ctx, window, draft["gaps"])
+                answer, critic_rows, cut_rows = _critic_cuts(answer, critic_rows, ctx, window, draft["gaps"],
+                                                             ledger=summary_ledger)
                 verdicts, later = [*verdicts, *critic_rows], [*later, *cut_rows]
             for event in _claim_events(draft, answer, verdicts, support, ctx.evidence, ctx.queries):
                 if should_stop():
@@ -1973,6 +2049,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         billed = getattr(exc, "usage", None)
         if isinstance(billed, dict):
             spend(billed.get("input_tokens"), billed.get("output_tokens"), billed.get("usd"))
+        stop_facts = (budget_stopped, reason)
         answer = _stopped_answer(as_of.isoformat(), source_gaps(ctx, window), window,
                                  budget_stopped=budget_stopped, reason=reason)
         allowed = answer["gaps"]
@@ -2012,6 +2089,11 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         run["ranked_list"] = ranked
     if entities:
         run["entity_lists"] = entities
-    return {"answer": answer,
-            "run": run,
-            "query_receipts": query_receipts(ctx, answer)}
+    result = {"answer": answer,
+              "run": run,
+              "query_receipts": query_receipts(ctx, answer)}
+    state, stop = execution_of(finished=finished, budget_stopped=stop_facts[0], reason=stop_facts[1], refused=False)
+    meta = _meta_or_none(request.get("ask_id") or run_id, run_id, state, stop, answer, summary_ledger)
+    if meta is not None:
+        result["answer_meta"] = meta
+    return result

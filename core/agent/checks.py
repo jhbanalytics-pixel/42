@@ -111,6 +111,19 @@ AGE_PATTERNS = [re.compile(p, re.I) for p in (
     r"\bama[_-]?(?:(?:19|20)\d{2}'?s?|[12]ks?)\b",
     # the kid family as whole words, so "kidney" and "kidnap" stay clean; rule 1 wins over names such as Kid Cudi.
     r"\b(?:kid(?:s|z|dos?|dies?)?|zillenn?ials?|juveniles?|igen(?:eration)?s?|(?:ama|i)khehla)\b",
+    # plain descriptors of a person's age (rule 1): "old man", "elders", "a little girl", "a schoolgirl", "grey-haired".
+    # "elderberry" and "Old Mutual" stay clean because the pattern needs a person word or the whole word.
+    r"\bold[\s-]+(?:man|men|woman|women|lad(?:y|ies)|guys?|couples?|persons?)\b",
+    r"\belders?\b",
+    r"\b(?:little|small)\s+(?:girls?|boys?)\b",
+    r"\bschool[\s-]?(?:girls?|boys?)\b",
+    r"\bgr[ae]y[\s-]?haired\b",
+    # the singular child, with the Brief's exception for Child's Day, and the Brief's learner, school-going and
+    # senior citizen terms (core/trust/claims.py _BREACH_TERMS), so the two lists agree on them.
+    r"\bchild\b(?!'?s?\s+day\b)",
+    r"\blearners?\b(?!'?s?\s+(?:licen[cs]es?|drivers?|permits?)\b)",
+    r"\bschool[\s-]going\b",
+    r"\bsenior\s+citizens?\b",
 )]
 DEMOGRAPHIC = re.compile(
     r"\b(?:demographics?|income brackets?|(?:middle|working|upper)[\s-]class|(?:low|high)[\s-]income|"
@@ -1778,8 +1791,37 @@ def _max_label(claim, records, leaned=(), ctx=None):
     return _tone_cap(claim, records, top, why, ctx)
 
 
+# Ask's evidence records carry only the market_assumed flag, so K5 also reads a post's own disclosure: an ad marker
+# in its words, or the same words posted again under another handle. Neither changes the stored record.
+_PAID_TEXT = re.compile(
+    r"(?<![\w#])#(?:ad|ads|advert|advertisement|sponsored|sponsoredpost|paidpartnership|paidpartner|paidpromo|gifted|"
+    r"prgifted)(?![\w])|\b(?:paid\s+(?:partnership|promotion)|sponsored\s+(?:by|post|content))\b", re.I)
+_DUPLICATE_WORDS = 8  # short captions repeat by chance ("Rate my plate honestly"); a longer one does not
+
+
+def _disclosed_paid(record) -> bool:
+    return _PAID_TEXT.search(str(record.get("text") or "")) is not None
+
+
+def _copied_ids(records) -> set:
+    """Ids of posts whose words, once links, tags and handles are dropped, repeat an earlier post's: the first of
+    each group stands as the author, the rest are copies."""
+    seen, copies = {}, set()
+    for record in sorted(records, key=lambda r: str(r.get("id"))):
+        key = " ".join(_WORD.findall(_LINKS.sub(" ", str(record.get("text") or "")).lower()))
+        if len(key.split()) < _DUPLICATE_WORDS:
+            continue
+        if key in seen:
+            copies.add(record.get("id"))
+        else:
+            seen[key] = record.get("id")
+    return copies
+
+
 def _evidence_label(claim, records, pool=None):
-    independent = [r for r in records if not NOT_INDEPENDENT & {str(f).lower() for f in r.get("flags") or []}]
+    copies = _copied_ids(records)
+    independent = [r for r in records if not NOT_INDEPENDENT & {str(f).lower() for f in r.get("flags") or []}
+                   and not _disclosed_paid(r) and r.get("id") not in copies]
     pairs = {(str(r.get("handle") or "").lower().lstrip("@"),
               PLATFORM_NAMES.get(str(r.get("platform") or "").lower(), str(r.get("platform") or "").lower()))
              for r in independent}  # x and twitter are one platform
@@ -1789,7 +1831,9 @@ def _evidence_label(claim, records, pool=None):
     # W8-DEC-16: Corroborated needs unrelated authors, judged over every stored record of the answer.
     own = {r.get("id"): r for r in records}
     pool = [own.get(r.get("id"), r) for r in pool] if pool is not None else records
-    groups = independent_groups(pool, excluded=NOT_INDEPENDENT, author_ids={r.get("id") for r in records})
+    groups = independent_groups(pool, excluded=NOT_INDEPENDENT,
+                                paid_ids={r.get("id") for r in pool if _disclosed_paid(r)},
+                                author_ids={r.get("id") for r in records})
     if is_corroborated(groups, claim.get("numbers")):
         top = "corroborated"
     elif len(authors) >= 2:

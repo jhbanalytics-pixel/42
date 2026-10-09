@@ -7,7 +7,7 @@ import pytest
 from core.agent import ask, plain, toolset, writer
 from core.agent.skills import load_skill
 from core.agent.tests.test_warehouse_tools import GOOD, FakeWriter, ctx, passed, primed  # noqa: F401
-from core.agent.tools.sql_query import WAREHOUSE_EXAMPLE, check_sql
+from core.agent.tools.sql_query import WAREHOUSE_EXAMPLE, check_sql, check_sql_harness
 from core.agent.tools.warehouse import commit_findings, save_finding
 
 
@@ -226,7 +226,12 @@ def test_recall_findings_takes_or_too(ctx):  # noqa: F811
     wh = FakeWarehouse([])
     recall_findings(ctx, wh, "amapiano OR gqom")
     assert sorted(v for k, v in wh.runs[0][1].items() if k.startswith("term_")) == ["amapiano", "gqom"]
-    check_sql(wh.runs[0][0])
+    # The tool's own read names v_prior_findings, which is not for model SQL (N2): the harness check passes it and the
+    # default check refuses the same text.
+    check_sql_harness(wh.runs[0][0])
+    from core.agent.context import Refused
+    with pytest.raises(Refused):
+        check_sql(wh.runs[0][0])
 
 
 def test_the_purpose_hint_asks_for_plain_words_without_digits():
