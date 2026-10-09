@@ -11,7 +11,12 @@ Python audit hook (PEP 578). It raises before the operation happens when a test 
 A program on the list can start another one, so env, xargs and find are read through to the program they launch,
 and node is refused when its code (inline or in the script file it is given) starts a program or reaches the
 network. A Python child is refused unless it will load this guard: it must not be started with -I, -E or -S, and
-its environment must keep this directory on PYTHONPATH.
+its environment must keep this directory on PYTHONPATH. Five more listed programs have an option or a script
+language that starts a program, so those are read too: awk (system(), a pipe to or from a command, @load and -l),
+sed (the e command and the s flag e, read the way sed reads a script, inline or in a -f file), tar (-I, -F,
+`--use-compress-program`, `--to-command`, `--checkpoint-action`, the volume script options, and an archive named
+host:file, which tar sends through a remote shell), sort (`--compress-program`) and zip (-TT and `--unzip-command`).
+Long options are matched by their shortest abbreviation getopt accepts.
 
 It is the portable counterpart of the Windows guard used for local runs. It needs no ctypes and no platform
 module, so the same file runs on Linux and Windows.
@@ -19,9 +24,10 @@ module, so the same file runs on Linux and Windows.
 What it cannot see: a program that an allowed shell starts (bash -c and sh -c), because the audit hook belongs to
 this interpreter only; whatever a node script does through a module it imports from another file, since node code
 is only searched for the names of the modules and calls that reach the network, in the inline code or the one
-script file it is given; and sockets opened by a C extension or by gRPC, which go straight to the operating system
-and never raise an audit event. The CI workflow therefore also holds no credentials and no secrets, so a program
-that did slip through would have nothing to sign in with.
+script file it is given; an awk program that pulls in another file with @include; and sockets opened by a
+C extension or by gRPC, which go straight to the operating system and never raise an audit event. The CI workflow
+therefore also holds no credentials and no secrets, so a program that did slip through would have nothing to sign
+in with.
 
 Set CORE_OFFLINE_GUARD_LOG to a file name to get one JSON line per refusal (event, a category, the running test).
 The line never holds a host name, a path or a command, only the category.
@@ -316,6 +322,326 @@ def _find_commands(words):
     return commands
 
 
+def _abbreviates(word, name, floor=4):
+    """True when word is the long option `name`, or an abbreviation of it that getopt would accept (at least `floor`
+    characters, so `--co` reaches `--compress-program`), with or without an attached =value."""
+    flag = word.partition("=")[0]
+    return flag.startswith("--") and len(flag) >= floor and name.startswith(flag)
+
+
+def _short_bundle(word, with_value, stop=""):
+    """The first letter of a short option word that takes a value, with the rest of the word as its attached value
+    (None when the value is the next word), and the letters before it. A letter in `stop` ends the scan: what
+    follows it is its own argument, not more options."""
+    for position, letter in enumerate(word[1:], 1):
+        if letter in stop:
+            return None, None, word[1:position]
+        if letter in with_value:
+            attached = word[position + 1:]
+            return letter, (attached or None), word[1:position]
+    return None, None, word[1:]
+
+
+SED_VALUE_OPTIONS = set("efl")
+SED_LONG_VALUE = {"--expression", "--file", "--line-length"}
+
+
+def _sed_scripts(words):
+    """The sed scripts a command line gives, each as (text, is_file_name). The first word that is not an option is
+    the script when no -e or -f was given. Also whether `--sandbox` was an option, which makes GNU sed refuse e itself."""
+    scripts, positional, index, given, sandbox = [], [], 1, False, False
+    while index < len(words):
+        word = words[index]
+        index += 1
+        if word == "--":
+            positional.extend(words[index:])
+            break
+        if word.startswith("--"):
+            flag, equals, value = word.partition("=")
+            if _abbreviates(flag, "--sandbox", 4):
+                sandbox = True
+            for name, is_file in (("--expression", False), ("--file", True)):
+                if _abbreviates(flag, name, 4):
+                    if not equals and index < len(words):
+                        value, index = words[index], index + 1
+                    scripts.append((value, is_file))
+                    given = True
+                    break
+            else:
+                if any(_abbreviates(flag, name, 4) for name in SED_LONG_VALUE) and not equals:
+                    index += 1
+            continue
+        if word.startswith("-") and len(word) > 1:
+            letter, value, _ = _short_bundle(word, SED_VALUE_OPTIONS, stop="i")
+            if letter in ("e", "f"):
+                if value is None and index < len(words):
+                    value, index = words[index], index + 1
+                scripts.append((value or "", letter == "f"))
+                given = True
+            elif letter == "l" and value is None:
+                index += 1
+            continue
+        positional.append(word)
+    if not given and positional:
+        scripts.append((positional[0], False))
+    return scripts, sandbox
+
+
+def _sed_runs_a_command(script):
+    """True when a sed script has the GNU e command, or an s command with the e flag. The script is walked the way
+    sed reads it, so an e inside a regex, a replacement, a label, a file name or the text of a, i and c is not one."""
+    text, size, at = script, len(script), 0
+
+    def delimited(start, delimiter):
+        """The index after the closing delimiter of a regex or replacement that starts at `start`."""
+        index = start
+        while index < size:
+            if text[index] == "\\":
+                index += 2
+                continue
+            if text[index] == delimiter:
+                return index + 1
+            index += 1
+        return None
+
+    def line_end(start):
+        index = text.find("\n", start)
+        return size if index < 0 else index + 1
+
+    while at < size:
+        while at < size and text[at] in " \t\n;{":
+            at += 1
+        if at >= size:
+            return False
+        # an address: a number, $, first~step, /regex/ or \cregexc, then flags, a comma and a second address
+        for _ in range(2):
+            if at >= size:
+                break
+            if text[at] in "0123456789$":
+                at += 1
+                while at < size and text[at] in "0123456789~+$":
+                    at += 1
+            elif text[at] in "/\\":
+                delimiter = text[at]
+                if delimiter == "\\":
+                    at += 1
+                    if at >= size:
+                        return True
+                    delimiter = text[at]
+                at = delimited(at + 1, delimiter)
+                if at is None:
+                    return True
+                while at < size and text[at] in "IM":
+                    at += 1
+            else:
+                break
+            while at < size and text[at] in " \t":
+                at += 1
+            if at < size and text[at] == ",":
+                at += 1
+                while at < size and text[at] in " \t":
+                    at += 1
+                if at < size and text[at] in "+~":
+                    at += 1
+                continue
+            break
+        while at < size and text[at] in " \t!":
+            at += 1
+        if at >= size:
+            return False
+        command = text[at]
+        at += 1
+        if command == "e":
+            return True
+        if command == "s":
+            if at >= size:
+                return True
+            delimiter = text[at]
+            at = delimited(at + 1, delimiter)
+            if at is not None:
+                at = delimited(at, delimiter)
+            if at is None:
+                return True  # a script the walk cannot finish is not trusted
+            while at < size and text[at] in "gpiImMe0123456789":
+                if text[at] == "e":
+                    return True
+                at += 1
+            if at < size and text[at] == "w":
+                at = line_end(at)
+        elif command == "y":
+            if at >= size:
+                return True
+            delimiter = text[at]
+            at = delimited(at + 1, delimiter)
+            if at is not None:
+                at = delimited(at, delimiter)
+            if at is None:
+                return True
+        elif command in "aic":
+            index = at
+            while index < size:
+                if text[index] == "\\" and index + 1 < size:
+                    index += 2
+                    continue
+                if text[index] == "\n":
+                    break
+                index += 1
+            at = min(size, index + 1)
+        elif command in "rRwW":
+            at = line_end(at)
+        elif command in "btTv:":
+            stops = ";\n} \t" if command == ":" else ";\n}"
+            while at < size and text[at] not in stops:
+                at += 1
+        elif command in "lLqQ":
+            while at < size and text[at] in " \t0123456789":
+                at += 1
+        elif command in "{}pPdDnNgGhHxz=F#":
+            if command == "#":
+                at = line_end(at)
+        else:
+            return True  # a command letter sed does not have: refuse rather than guess
+    return False
+
+
+def _check_sed(event, words):
+    scripts, sandbox = _sed_scripts(words)
+    if sandbox:
+        return
+    for text, is_file in scripts:
+        if is_file:
+            text = _read_script_file(text)
+        if _sed_runs_a_command(text):
+            _refuse(event, "sed script that runs a command")
+
+
+AWK_VALUE_OPTIONS = set("FvfeliE")
+AWK_RUNS = re.compile(r"\bsystem\s*\(|\|&|@load|(?<!\|)\|(?!\|)\s*getline\b|\bprintf?\b[^;}\n]*(?<!\|)\|(?![|&])")
+AWK_STRING = re.compile(r'"(?:\\.|[^"\\\n])*"')
+
+
+def _awk_runs_a_program(program):
+    return bool(AWK_RUNS.search(AWK_STRING.sub('""', program)))
+
+
+def _check_awk(event, words):
+    programs, positional, index, given = [], [], 1, False
+    while index < len(words):
+        word = words[index]
+        index += 1
+        if word == "--":
+            positional.extend(words[index:])
+            break
+        if word.startswith("--"):
+            flag, equals, value = word.partition("=")
+            if _abbreviates(flag, "--load", 4):
+                _refuse(event, "awk loading an extension")
+            for name, is_file in (("--file", True), ("--source", False), ("--include", True), ("--exec", True)):
+                if _abbreviates(flag, name, 5):
+                    if not equals and index < len(words):
+                        value, index = words[index], index + 1
+                    programs.append((value, is_file))
+                    given = given or name in ("--file", "--source", "--exec")
+                    break
+            else:
+                if any(_abbreviates(flag, name, 5) for name in ("--assign", "--field-separator")) and not equals:
+                    index += 1
+            continue
+        if word.startswith("-") and len(word) > 1:
+            letter, value, _ = _short_bundle(word, AWK_VALUE_OPTIONS)
+            if letter == "l":
+                _refuse(event, "awk loading an extension")
+            if letter in ("f", "e", "i", "E"):
+                if value is None and index < len(words):
+                    value, index = words[index], index + 1
+                programs.append((value or "", letter != "e"))
+                given = given or letter != "i"
+            elif letter in ("F", "v") and value is None:
+                index += 1
+            continue
+        positional.append(word)
+    if not given and positional:
+        programs.append((positional[0], False))
+    for text, is_file in programs:
+        if is_file:
+            text = _read_script_file(text)
+        if _awk_runs_a_program(text):
+            _refuse(event, "awk program that starts a program")
+
+
+TAR_VALUE_LETTERS = set("bCfFgHIKLNTVX")
+TAR_RUNS_A_PROGRAM = ("--to-command", "--use-compress-program", "--checkpoint-action", "--info-script",
+                      "--new-volume-script", "--rsh-command", "--rmt-command")
+TAR_NOT_AN_ABBREVIATION = {"--checkpoint"}
+
+
+def _tar_archive_is_remote(value):
+    return bool(re.match(r"^[^/\\]*:", value)) and not re.match(r"^[A-Za-z]:", value)
+
+
+def _check_tar(event, words):
+    rest, archives, local_only = list(words[1:]), [], False
+    if rest and not rest[0].startswith("-"):
+        bundle, rest = rest[0], rest[1:]
+        for letter in bundle:
+            if letter in TAR_VALUE_LETTERS and rest:
+                value, rest = rest[0], rest[1:]
+                if letter in "IF":
+                    _refuse(event, "tar starting a program")
+                if letter == "f":
+                    archives.append(value)
+            elif letter in "IF":
+                _refuse(event, "tar starting a program")
+    index = 0
+    while index < len(rest):
+        word = rest[index]
+        index += 1
+        if word == "--":
+            break
+        if word.startswith("--"):
+            flag, equals, value = word.partition("=")
+            if flag == "--force-local":
+                local_only = True
+            if any(_abbreviates(flag, name) and flag not in TAR_NOT_AN_ABBREVIATION for name in TAR_RUNS_A_PROGRAM):
+                _refuse(event, "tar starting a program")
+            if len(flag) >= 5 and "--file".startswith(flag):
+                if not equals and index < len(rest):
+                    value, index = rest[index], index + 1
+                archives.append(value)
+            continue
+        if word.startswith("-") and len(word) > 1:
+            letter, value, _ = _short_bundle(word, TAR_VALUE_LETTERS)
+            if letter in ("I", "F"):
+                _refuse(event, "tar starting a program")
+            if letter == "f":
+                if value is None and index < len(rest):
+                    value, index = rest[index], index + 1
+                archives.append(value or "")
+            elif letter is not None and value is None:
+                index += 1
+    if not local_only and any(_tar_archive_is_remote(value) for value in archives):
+        _refuse(event, "tar archive on another machine")
+
+
+def _check_sort(event, words):
+    for word in words[1:]:
+        if word == "--":
+            break
+        if _abbreviates(word, "--compress-program"):
+            _refuse(event, "sort starting a compress program")
+
+
+def _check_zip(event, words):
+    for word in words[1:]:
+        if word == "--":
+            break
+        if word.startswith("--"):
+            if _abbreviates(word, "--unzip-command"):
+                _refuse(event, "zip starting an unzip command")
+        elif word.startswith("-") and "TT" in word:
+            _refuse(event, "zip starting an unzip command")
+
+
 def _node_reaches_out(code):
     return bool(NODE_REACHES_OUT.search(code))
 
@@ -339,13 +665,13 @@ def _check_node(event, words):
         elif word.startswith("-"):
             continue
         else:
-            code = _read_node_file(word)
+            code = _read_script_file(word)
         if _node_reaches_out(code):
             _refuse(event, "node code that starts a program or reaches the network")
         return
 
 
-def _read_node_file(name):
+def _read_script_file(name):
     try:
         if os.path.isfile(name) and os.path.getsize(name) <= NODE_FILE_LIMIT:
             with open(name, encoding="utf-8", errors="replace") as stream:
@@ -386,6 +712,16 @@ def _check_chain(event, executable, words, mapping, depth):
             _check_chain(event, None, command, mapping, depth + 1)
     elif name in ("node", "nodejs"):
         _check_node(event, words)
+    elif name == "awk":
+        _check_awk(event, words)
+    elif name == "sed":
+        _check_sed(event, words)
+    elif name == "tar":
+        _check_tar(event, words)
+    elif name == "sort":
+        _check_sort(event, words)
+    elif name == "zip":
+        _check_zip(event, words)
     elif PYTHON.match(name):
         for flag, module in zip(words, words[1:]):
             if flag == "-m" and module.lower() in PYTHON_MODULES_REFUSED:

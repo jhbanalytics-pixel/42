@@ -429,6 +429,148 @@ def test_a_relative_path_to_a_credential_file_is_refused_too(guard, path):
         guard.check("open", (path, "r", 0))
 
 
+# Programs on the list that can start another program through their own options or script language
+
+def popen(guard, command, check):
+    check(guard, "subprocess.Popen", (command[0], command, None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("command", [
+    ["awk", 'BEGIN { system("curl https://example.com") }'], ["awk", 'BEGIN{system ("curl x")}'],
+    ["awk", "-F,", '{ system("wget " $1) }', "list"], ["awk", "-v", "x=1", 'BEGIN { system("id") }'],
+    ["awk", 'BEGIN { "curl x" | getline line }'], ["awk", 'BEGIN { cmd = "curl x"; cmd | getline }'],
+    ["awk", '{ print $1 | "sh" }'], ["awk", '{ printf "%s\\n", $1 | "curl -d @- x" }'],
+    ["awk", 'BEGIN { "date" |& getline }'], ["awk", '@load "filefuncs"; BEGIN { }'],
+    ["awk", "--load", "filefuncs", "BEGIN { }"], ["awk", "-l", "filefuncs", "BEGIN { }"],
+    ["awk", "-e", 'BEGIN { system("id") }'], ["awk", '--source=BEGIN{system("id")}'],
+    ["awk", "-e", "BEGIN { print 1 }", "-e", 'BEGIN { system("id") }'],
+    ["env", "awk", 'BEGIN { system("id") }'], ["xargs", "awk", 'BEGIN { system("id") }']])
+def test_awk_cannot_start_a_program(guard, command):
+    popen(guard, command, refused)
+
+
+def test_an_awk_program_file_is_read_before_it_is_allowed(guard, tmp_path):
+    bad = tmp_path / "bad.awk"
+    bad.write_text('BEGIN { system("curl https://example.com") }\n', encoding="utf-8")
+    good = tmp_path / "good.awk"
+    good.write_text("{ print $1 }\n", encoding="utf-8")
+    popen(guard, ["awk", "-f", str(bad), "data"], refused)
+    popen(guard, ["awk", f"--file={bad}"], refused)
+    popen(guard, ["awk", "-f", str(good), "data"], allowed)
+    popen(guard, ["awk", "-f", str(tmp_path / "missing.awk")], allowed)
+
+
+@pytest.mark.parametrize("command", [
+    ["awk", "{ print $1 }", "file"], ["awk", "-F,", "{ print $2 }", "file"], ["awk", "-v", "x=1", "BEGIN { print x }"],
+    ["awk", "/a|b/ { print }"], ["awk", "$1 == 1 || $2 == 2 { n++ } END { print n }"],
+    ["awk", '{ s += length($0) } END { printf "%d\\n", s }'], ["awk", 'BEGIN { print "system" }'],
+    ["awk", 'BEGIN { printf "%s|%s\\n", 1, 2 }'], ["awk", 'BEGIN { x = "system(" }'],
+    ["awk", 'BEGIN { print "a|b" }'], ["awk", "--version"]])
+def test_awk_stays_usable_for_local_work(guard, command):
+    popen(guard, command, allowed)
+
+
+@pytest.mark.parametrize("command", [
+    ["sed", "e"], ["sed", "e curl x"], ["sed", "1e curl x"], ["sed", "$e id"], ["sed", "/x/e id"], ["sed", "1,3e id"],
+    ["sed", "1!e id"], ["sed", "p;e id"], ["sed", "{p;e id}"], ["sed", "s/x/id/e"], ["sed", "s/x/id/ge"],
+    ["sed", "s|x|id|pe"], ["sed", "s,x,id,2e"], ["sed", "s/x/y/;s/a/b/e"], ["sed", "-n", "-e", "p", "-e", "e id"],
+    ["sed", "-ne", "e id"], ["sed", "--expression=e id"], ["sed", "-E", "s/(x)/id/e"], ["sed", "-i", "s/x/id/e", "f"],
+    ["sed", "s/a/b/\ne id"], ["sed", "1k id"], ["sed", "-if", "e id", "file"], ["sed", ":a;e id"],
+    ["sed", "/x/,+2e id"], ["sed", "2,~4e id"],
+    ["env", "sed", "e id"], ["find", ".", "-exec", "sed", "s/x/id/e", "{}", ";"]])
+def test_gnu_sed_cannot_run_a_command_through_e(guard, command):
+    popen(guard, command, refused)
+
+
+def test_a_sed_script_file_is_read_before_it_is_allowed(guard, tmp_path):
+    bad = tmp_path / "bad.sed"
+    bad.write_text("p\ns/x/id/e\n", encoding="utf-8")
+    good = tmp_path / "good.sed"
+    good.write_text("s/x/y/g\n/a/d\n", encoding="utf-8")
+    popen(guard, ["sed", "-f", str(bad), "data"], refused)
+    popen(guard, ["sed", f"--file={bad}", "data"], refused)
+    popen(guard, ["sed", "-f", str(good), "data"], allowed)
+
+
+@pytest.mark.parametrize("command", [
+    ["sed", "-n", "1p"], ["sed", "s/x/y/"], ["sed", "s/x/y/g"], ["sed", "-e", "s/x/y/", "-e", "/a/d"],
+    ["sed", "-i", "s/a/b/", "file"], ["sed", "-n", "/start/,/end/p"], ["sed", "s/a/e/"], ["sed", "s/e/e/g"],
+    ["sed", "s/x/y/w out.txt"], ["sed", "s/x/y/w out;e id"], ["sed", "1d;$d"], ["sed", "y/abc/xyz/"], ["sed", "a\\\nline"], ["sed", "1i text e"],
+    ["sed", "/x/{s/a/b/;p}"], ["sed", "-E", "s/(a|e)+/x/g"], ["sed", "s/\\//e/"], ["sed", ":a;N;$!ba;s/\\n/ /g"],
+    ["sed", "--sandbox", "s/x/y/"], ["sed", "--version"], ["sed", "-n", "$="], ["sed", "r file"], ["sed", "/e/p"],
+    ["sed", "\\,x,p"], ["sed", "/x/,+2p"], ["sed", "2,~4d"], ["sed", "-i.bake", "s/a/b/", "f"]])
+def test_sed_stays_usable_for_local_work(guard, command):
+    popen(guard, command, allowed)
+
+
+@pytest.mark.parametrize("command", [
+    ["tar", "-I", "curl", "-cf", "a.tar", "x"], ["tar", "-Icurl", "-xf", "a.tar"], ["tar", "-cIcurl", "x"],
+    ["tar", "-xzf", "a.tar", "-I", "sh"], ["tar", "--use-compress-program=curl", "-cf", "a.tar", "x"],
+    ["tar", "--use-compress-program", "curl", "-cf", "a.tar", "x"], ["tar", "--use-compress-prog=curl", "-cf", "a"],
+    ["tar", "--use-c=curl", "-cf", "a"], ["tar", "--to-command=curl", "-xf", "a.tar"],
+    ["tar", "--to-command", "sh", "-xf", "a.tar"], ["tar", "--to-c=sh", "-xf", "a.tar"],
+    ["tar", "-xf", "a.tar", "--checkpoint=1", "--checkpoint-action=exec=curl"],
+    ["tar", "-xf", "a.tar", "--checkpoint-action", "exec=sh"], ["tar", "-F", "script", "-cf", "a.tar", "x"],
+    ["tar", "--info-script=script", "-cf", "a.tar", "x"], ["tar", "--new-volume-script=s", "-cf", "a.tar", "x"],
+    ["tar", "--rsh-command=curl", "-cf", "host:a.tar", "x"], ["tar", "cIf", "curl", "a.tar", "x"],
+    ["tar", "-cf", "user@host:a.tar", "x"], ["tar", "-cf", "host:a.tar", "x"], ["tar", "--file=host:a.tar", "-x"],
+    ["env", "tar", "-I", "curl", "-cf", "a.tar", "x"]])
+def test_tar_cannot_start_a_program_or_reach_a_remote_archive(guard, command):
+    popen(guard, command, refused)
+
+
+@pytest.mark.parametrize("command", [
+    ["tar", "-cf", "a.tar", "x"], ["tar", "-czf", "a.tgz", "dir"], ["tar", "-xzf", "a.tgz", "-C", "out"],
+    ["tar", "xf", "a.tar"], ["tar", "cvf", "a.tar", "x"], ["tar", "-tf", "a.tar"], ["tar", "-C/tmp/Inbox", "-xf", "a"],
+    ["tar", "-cf", "C:\\work\\a.tar", "x"], ["tar", "-cf", "C:/work/a.tar", "x"], ["tar", "--file=a.tar", "-x"],
+    ["tar", "--totals", "-cf", "a.tar", "x"], ["tar", "--list", "-f", "a.tar"], ["tar", "-xf", "a.tar", "Index.txt"],
+    ["tar", "--force-local", "-cf", "ab:b.tar", "x"],
+    ["tar", "-xf", "a.tar", "--checkpoint=1"], ["tar", "--exclude=I*", "-cf", "a.tar", "x"],
+    ["tar", "-cf", "a.tar", "-T", "list"], ["tar", "--version"]])
+def test_tar_stays_usable_for_local_work(guard, command):
+    popen(guard, command, allowed)
+
+
+@pytest.mark.parametrize("command", [
+    ["sort", "--compress-program=curl", "f"], ["sort", "--compress-program", "sh", "f"],
+    ["sort", "--compress-prog=sh", "f"], ["sort", "--co=sh", "f"], ["sort", "-S", "1M", "--compress-program=sh", "f"],
+    ["env", "sort", "--compress-program=curl", "f"]])
+def test_sort_cannot_start_a_compress_program(guard, command):
+    popen(guard, command, refused)
+
+
+@pytest.mark.parametrize("command", [
+    ["sort", "f"], ["sort", "-u", "f"], ["sort", "-t,", "-k2", "-n", "f"], ["sort", "--check", "f"],
+    ["sort", "--output=out", "f"], ["sort", "-S", "1M", "-T", "/tmp", "f"], ["sort", "--parallel=2", "f"],
+    ["sort", "--reverse", "f"], ["sort", "--version"]])
+def test_sort_stays_usable_for_local_work(guard, command):
+    popen(guard, command, allowed)
+
+
+@pytest.mark.parametrize("command", [
+    ["zip", "-TT", "curl", "-r", "a.zip", "x"], ["zip", "-rTT", "curl", "a.zip", "x"],
+    ["zip", "-T", "-TT", "sh", "a.zip", "x"], ["zip", "-TTcurl", "a.zip", "x"],
+    ["zip", "--unzip-command", "curl", "a.zip", "x"], ["zip", "--unzip-command=curl", "a.zip", "x"],
+    ["zip", "-qTT", "sh", "a.zip", "x"], ["env", "zip", "-TT", "curl", "a.zip", "x"]])
+def test_zip_cannot_start_an_unzip_command(guard, command):
+    popen(guard, command, refused)
+
+
+@pytest.mark.parametrize("command", [
+    ["zip", "a.zip", "x"], ["zip", "-r", "a.zip", "dir"], ["zip", "-rq", "a.zip", "dir"], ["zip", "-T", "a.zip"],
+    ["zip", "-9", "-j", "a.zip", "x"], ["zip", "-x", "*.tmp", "-r", "a.zip", "dir"],
+    ["zip", "-tt", "2026-01-01", "a.zip"], ["zip", "-r", "TT.zip", "dir"], ["unzip", "-t", "a.zip"],
+    ["zip", "--version"]])
+def test_zip_stays_usable_for_local_work(guard, command):
+    popen(guard, command, allowed)
+
+
+def test_the_docstring_names_the_options_it_reads_through():
+    text = GUARD_FILE.read_text(encoding="utf-8").split('"""')[1]
+    for phrase in ("awk", "sed", "tar", "sort", "zip"):
+        assert phrase in text, phrase
+
+
 def test_the_docstring_names_what_the_guard_cannot_see():
     text = GUARD_FILE.read_text(encoding="utf-8").split('"""')[1]
     for phrase in ("shell", "node", "C extension", "gRPC"):
@@ -451,3 +593,13 @@ def test_the_decision_tests_leave_the_refusal_log_empty_even_when_the_job_names_
     assert done.returncode == 0, done.stdout[-2000:] + done.stderr[-2000:]
     assert " passed" in done.stdout
     assert not log.exists() or log.read_text(encoding="utf-8") == ""
+
+
+@pytest.mark.parametrize("words", [["C:\\WINDOWS\\system32\\cmd.exe", "/c", "ver"],
+                                   ["C:\\WINDOWS\\system32\\cmd.exe", "/c", "command /c ver"],
+                                   ["C:\\WINDOWS\\system32\\cmd.exe", "/c", "cmd /c ver"]])
+def test_the_version_probes_the_platform_module_makes_on_windows_stay_refused(guard, words):
+    """The six refusals at collection on a Windows run are these three probes, made twice. platform.uname() makes
+    them only when sys.platform is win32, so the Linux job never does, and the guard makes no exception for a
+    program that is off its list."""
+    refused(guard, "subprocess.Popen", (words[0], words, None, KEEPS_GUARD))
