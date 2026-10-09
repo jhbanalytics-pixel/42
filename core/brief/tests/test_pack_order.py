@@ -136,6 +136,36 @@ def check_stage_counts_say_which_cap_removed_which_posts(sql):
     assert pack(world(), 3, sql=sql)[0]["after_outlet_cap"] == 27
 
 
+def news_local_world():
+    """Three local news posts and one local TikTok post: all four are local for the rows, one counts for the floor."""
+    con = duck.connect()
+    clusters(con)
+    for n in range(3):
+        post(con, f"n{n}", creator=f"news{n}", eng=900 - n, platform="news", geo="NG", lane_class="panel")
+    post(con, "t0", creator="tt0", eng=100)
+    return con
+
+
+def check_a_local_news_post_is_local_for_the_row_but_does_not_count_in_the_local_stage_counts(sql):
+    # W8-DEC-12: the stage counts are what the 2-local floor is read from, and the floor does not count news
+    rows = pack(news_local_world(), 12, sql=sql)
+    assert sum(r["local_flag"] for r in rows) == 4
+    r = rows[0]
+    assert (r["available_local"], r["after_creator_cap_local"], r["after_outlet_cap_local"]) == (1, 1, 1)
+    assert (r["available_showable"], r["after_creator_cap_showable"], r["after_outlet_cap_showable"]) == (4, 4, 4)
+
+
+def check_the_news_platform_is_read_as_the_floor_reads_it_in_any_case_and_padding_and_a_missing_one_is_not_news(sql):
+    con = duck.connect()
+    clusters(con)
+    for n, platform in enumerate(("News", " news ", "NEWS")):
+        post(con, f"n{n}", creator=f"news{n}", eng=900 - n, platform=platform, geo="NG", lane_class="panel")
+    post(con, "t0", creator="tt0", eng=100)
+    con.execute("UPDATE core.posts SET platform = NULL WHERE post_id = 't0'")
+    r = pack(con, 12, sql=sql)[0]
+    assert (r["available_local"], r["after_creator_cap_local"], r["after_outlet_cap_local"]) == (1, 1, 1)
+
+
 ORIGINAL_COLUMNS = {
     "comments", "creator_rank", "creator_tier", "duration_s", "eng", "flagged", "geo_confidence", "geo_market",
     "geo_source", "handle", "likes", "measured", "near_dup", "platform", "post_id", "published_at", "quote_text",
@@ -367,8 +397,24 @@ MUTANTS = {
                                                   "WHERE k.item_id = @item_id AND UPPER(k.market) = @market")],
     "member window upper bound dropped": [("AND k.cluster_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d",
                                            "AND k.cluster_date >= DATE_SUB(@d, INTERVAL 6 DAY)")],
-    "local stage count from the showable flag": [("(SELECT COUNTIF(c.local_flag) FROM c)",
-                                                  "(SELECT COUNTIF(c.showable_flag) FROM c)")],
+    "local stage count from the showable flag":
+        [("(SELECT COUNTIF(c.local_flag AND IFNULL(LOWER(TRIM(c.platform)), '') != 'news') FROM c)",
+          "(SELECT COUNTIF(c.showable_flag) FROM c)")],
+    "available local count includes news": [(" AND IFNULL(LOWER(TRIM(r.platform)), '') != 'news') FROM r) available_local",
+                                            ") FROM r) available_local")],
+    "creator cap local count includes news": [(" AND IFNULL(LOWER(TRIM(c.platform)), '') != 'news') FROM c) after_creator_cap_local",
+                                               ") FROM c) after_creator_cap_local")],
+    "available local count reads the platform in its own case":
+        [("IFNULL(LOWER(TRIM(r.platform)), '') != 'news') FROM r) available_local",
+          "IFNULL(TRIM(r.platform), '') != 'news') FROM r) available_local")],
+    "creator cap local count reads the platform unpadded":
+        [("IFNULL(LOWER(TRIM(c.platform)), '') != 'news') FROM c) after_creator_cap_local",
+          "IFNULL(LOWER(c.platform), '') != 'news') FROM c) after_creator_cap_local")],
+    "outlet cap local count drops a post with no platform":
+        [("IFNULL(LOWER(TRIM(g.platform)), '') != 'news') FROM g) after_outlet_cap_local",
+          "LOWER(TRIM(g.platform)) != 'news') FROM g) after_outlet_cap_local")],
+    "outlet cap local count includes news": [(" AND IFNULL(LOWER(TRIM(g.platform)), '') != 'news') FROM g) after_outlet_cap_local",
+                                              ") FROM g) after_outlet_cap_local")],
     "unknown handle reads null": [("IFNULL(ps.platform = 'news'", "(ps.platform = 'news'"),
                                   (", FALSE) is_outlet", ") is_outlet")],
     "an original column dropped": [("ps.views, ps.likes,", "ps.likes,")],
@@ -398,7 +444,7 @@ def test_each_mutant_of_the_statement_is_caught_by_at_least_one_check(name):
 
 def test_no_check_or_mutant_has_been_deleted_to_keep_the_suite_green():
     """Nothing else runs these tests, so the totals are pinned here: lowering either needs this line to change."""
-    assert len(CHECKS) == 15 and len(MUTANTS) == 21
+    assert len(CHECKS) == 17 and len(MUTANTS) == 27
 
 
 def test_the_statement_names_no_dataset_other_than_the_placeholders_and_is_read_only():

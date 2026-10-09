@@ -27,6 +27,14 @@ def local_posts(evidence, market):
     return posts
 
 
+def counted_local_posts(evidence, market):
+    """The local posts that count toward the 2-local rule. A news public-feed post is feed evidence only (Albert,
+    8 Oct, W8-DEC-12): it stays local for the wording a card takes, but it never counts toward the rule and
+    never satisfies it alone."""
+    return [record for record in local_posts(evidence, market)
+            if str(record.get("platform") or "").strip().lower() != "news"]
+
+
 # BUILD.md 1.12: every trend shows at least 3 cited posts or is held back with its reason.
 MIN_EVIDENCE = 3
 

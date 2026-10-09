@@ -18,7 +18,7 @@ import yaml
 
 from core.api.store import creator_key
 from core.brief.payload import hold_base  # noqa: F401  (re-exported: the wording holds are grouped by)
-from core.brief.specificity import MIN_EVIDENCE, local_posts, showable_posts
+from core.brief.specificity import MIN_EVIDENCE, counted_local_posts, showable_posts
 
 OUTLET_CAP = 12  # rule 6: a parameter, not a decision. Three is unvalidated, so 12 (the pack size) changes nothing.
 PACK_LIMIT = 12  # the statement's LIMIT
@@ -85,9 +85,10 @@ def read_stages(rows):
 
 
 def final_counts(evidence, market):
-    """The posts, showable posts and local posts of a pack, by the rules the floors are checked by."""
+    """The posts, showable posts and local posts of a pack, by the rules the floors are checked by: the local posts
+    are the ones the 2-local rule counts, so a news public-feed post is not one (W8-DEC-12)."""
     return {"posts": len(evidence or []), "showable": len(showable_posts(evidence, market)),
-            "local": len(local_posts(evidence, market))}
+            "local": len(counted_local_posts(evidence, market))}
 
 
 def hold_detail(stages, floor, evidence, market):

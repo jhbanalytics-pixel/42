@@ -150,13 +150,13 @@ SELECT f.* EXCEPT (enrich_sponsored, enrich_read, vendor_paid),
   (SELECT COUNT(*) FROM r) available_posts,
   (SELECT COUNTIF(r.market_member) FROM r) available_members,
   (SELECT COUNTIF(r.showable_flag) FROM r) available_showable,
-  (SELECT COUNTIF(r.local_flag) FROM r) available_local,
+  (SELECT COUNTIF(r.local_flag AND IFNULL(LOWER(TRIM(r.platform)), '') != 'news') FROM r) available_local,
   (SELECT COUNT(*) FROM c) after_creator_cap,
   (SELECT COUNTIF(c.showable_flag) FROM c) after_creator_cap_showable,
-  (SELECT COUNTIF(c.local_flag) FROM c) after_creator_cap_local,
+  (SELECT COUNTIF(c.local_flag AND IFNULL(LOWER(TRIM(c.platform)), '') != 'news') FROM c) after_creator_cap_local,
   (SELECT COUNT(*) FROM g) after_outlet_cap,
   (SELECT COUNTIF(g.showable_flag) FROM g) after_outlet_cap_showable,
-  (SELECT COUNTIF(g.local_flag) FROM g) after_outlet_cap_local
+  (SELECT COUNTIF(g.local_flag AND IFNULL(LOWER(TRIM(g.platform)), '') != 'news') FROM g) after_outlet_cap_local
 FROM (SELECT 1 one) base
 LEFT JOIN f ON TRUE
 ORDER BY f.market_member DESC, f.measured DESC, f.eng DESC, f.post_id

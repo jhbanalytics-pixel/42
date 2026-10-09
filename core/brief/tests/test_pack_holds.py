@@ -506,3 +506,44 @@ def test_a_missing_file_contributes_nothing(tmp_path):
 def test_the_module_keeps_the_section_in_one_place():
     for name in ("OUTLET_CAP", "FLOORS", "outlet_keys", "read_stages", "hold_detail", "hold_text"):
         assert hasattr(pack_order, name)
+
+
+# A news public-feed post is local for the wording a card takes but never counts toward the 2-local floor (W8-DEC-12),
+# so the hold detail and the stage counts read the posts the gate counts
+
+
+def news_posts_and_one_local_post_world():
+    con = duck.connect()
+    pack_world.clusters(con)
+    for n in range(3):
+        pack_world.post(con, f"n{n}", creator=f"news{n}", eng=900 - n, platform="news", geo="NG", lane_class="panel")
+    pack_world.post(con, "t0", creator="tt0", eng=100, geo="NG")
+    duck.load(con, "core.item_state", [{"metric_date": D, "market": "NG", "item_id": "i1", "kind": "hashtag",
+                                        "state": "emerging", "untested": True, "run_id": "detect-1",
+                                        "rule_version": "r1"}])
+    return con
+
+
+def news_pack_row():
+    return {"item_id": "i1", "run_id": "detect-1", "state": "emerging", "untested": True, "main_series_id": None}
+
+
+def test_the_final_local_count_leaves_out_news_posts_as_the_gate_does():
+    posts = [dict(rec(f"n{n}", market="NG"), platform="news") for n in range(3)] + [rec("t0", market="NG")]
+    assert pack_order.final_counts(posts, "NG") == {"posts": 4, "showable": 4, "local": 1}
+
+
+def test_a_pack_of_local_news_posts_and_one_local_post_counts_one_local_post_at_every_stage():
+    from core.brief import holds_report
+    counts = {}
+    pack, _, _ = evidence.build_pack(Client(news_posts_and_one_local_post_world()), news_pack_row(), pack_world.D, "NG",
+                                     core="core", agent="agent", hidden=(set(), set(), set()), stages=counts)
+    assert len(pack["evidence"]) == 4
+    assert {name: counts[name]["local"] for name in ("available", "after_creator_cap", "after_outlet_cap", "final")} == {
+        "available": 1, "after_creator_cap": 1, "after_outlet_cap": 1, "final": 1}
+    assert counts["available"]["showable"] == 4  # news posts still show
+    detail = pack_order.hold_detail(counts, "local", pack["evidence"], "NG")
+    assert (detail["floor"], detail["minimum"]) == ("local", 2)
+    assert detail["counts"] == {"available": 1, "after_creator_cap": 1, "after_outlet_cap": 1, "final": 1}
+    assert detail["cause"] == "evidence_absent"  # one is below the floor of two at the first stage: not "not a hold"
+    assert holds_report.post_counts(pack["evidence"], "NG")[1] == detail["counts"]["final"] == 1
