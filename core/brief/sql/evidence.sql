@@ -42,7 +42,7 @@ r AS (
   SELECT ps.post_id, ps.platform, ps.url, ps.published_at, ps.creator_tier_at_post creator_tier,
     ps.geo_market, ps.geo_confidence, ps.geo_source,
     source_market_by_post.source_market,
-    IFNULL(NULLIF(ps.text, ''), ps.transcript) quote_text,
+    IFNULL(NULLIF(ps.text, ''), ps.transcript) quote_text, ps.hashtags,
     ps.views, ps.likes, ps.comments, ps.shares, ps.thumbnail_url, ps.duration_s, cr.handle,
     IFNULL(cr_flags.coord_score, 0) >= 1 flagged,
     IFNULL(pe.sponsored, FALSE) enrich_sponsored, IFNULL(pe.sponsor_read, FALSE) enrich_read,

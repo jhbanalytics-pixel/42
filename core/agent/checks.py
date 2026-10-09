@@ -16,7 +16,8 @@ from core.agent.context import result_hash
 from core.agent.forecast_promotion import promoted_forecasts, publishable_line
 from core.agent.native_review import tone_cap_ids
 from core.agent.tools.dates import SAST
-from core.agent.tools.socialcrawl import ALLOWED_ROUTES, PLATFORM_NAMES
+from core.agent.tools.socialcrawl import ALLOWED_ROUTES
+from core.trust.independence import independent_groups, is_corroborated
 from core.agent.tools.sql_query import MAX_BYTES_BILLED, _dispatch_query
 
 # K2 re-runs one answer's distinct queries at the same time, at most this many at once.
@@ -1760,12 +1761,13 @@ def _place_support(places, records, home) -> tuple[list[str], list[str]]:
 def _max_label(claim, records, leaned=(), ctx=None):
     if claim.get("label") == "inferred" or claim.get("kind") in ("interpretation", "proposal"):
         return "inferred", "inferred claims, interpretations and proposals stay inferred"
-    top, why = _evidence_label(claim, records)
+    pool = list(ctx.evidence.values()) if getattr(ctx, "evidence", None) else None
+    top, why = _evidence_label(claim, records, pool)
     fed = [r for r in records if _by_source(r) and _by_source(r) == r.get("market")]
     if fed:
         counted = [dict(r, flags=[f for f in r.get("flags") or [] if str(f).lower() != "market_assumed"])
                    if r in fed else r for r in records]
-        lifted, lifted_why = _evidence_label(claim, counted)
+        lifted, lifted_why = _evidence_label(claim, counted, pool)
         step = next(label for label, rank in LABEL_RANK.items() if rank == max(LABEL_RANK[lifted] - 1, 0))
         if leaned or not any(_located(r) for r in records):
             top, why = step, (f"{lifted_why}; one step lower because its support is only posts seen in a market's "
@@ -1776,17 +1778,18 @@ def _max_label(claim, records, leaned=(), ctx=None):
     return _tone_cap(claim, records, top, why, ctx)
 
 
-def _evidence_label(claim, records):
+def _evidence_label(claim, records, pool=None):
     independent = [r for r in records if not NOT_INDEPENDENT & {str(f).lower() for f in r.get("flags") or []}]
-    pairs = {(str(r.get("handle") or "").lower().lstrip("@"),
-              PLATFORM_NAMES.get(str(r.get("platform") or "").lower(), str(r.get("platform") or "").lower()))
-             for r in independent}  # x and twitter are one platform
-    authors = {h for h, _ in pairs}
-    platforms = {p for _, p in pairs}
-    most_on_one = max((len({h for h, p in pairs if p == plat}) for plat in platforms), default=0)
-    across = any(h1 != h2 and p1 != p2 for h1, p1 in pairs for h2, p2 in pairs)
-    why = f"{len(authors)} independent author(s) on {len(platforms)} platform(s)"
-    if across or (most_on_one >= 3 and claim.get("numbers")):
+    authors = {str(r.get("handle") or "").lower().lstrip("@") for r in independent}
+    # W8-DEC-16: Corroborated needs unrelated authors, judged over every stored record of the answer.
+    own = {r.get("id"): r for r in records}
+    pool = [own.get(r.get("id"), r) for r in pool] if pool is not None else records
+    groups = independent_groups(pool, excluded=NOT_INDEPENDENT, author_ids={r.get("id") for r in records})
+    # The reason counts what the label is judged on: unrelated author groups, and the platforms they stand on.
+    platforms = set().union(*(g["platforms"] for g in groups))
+    why = (f"{len(groups)} unrelated author group{'' if len(groups) == 1 else 's'} on "
+           f"{len(platforms)} platform{'' if len(platforms) == 1 else 's'}")
+    if is_corroborated(groups, claim.get("numbers")):
         top = "corroborated"
     elif len(authors) >= 2:
         top = "observed"
