@@ -360,3 +360,35 @@ def test_the_retired_route_does_not_count_as_a_prior_zero_day(monkeypatch):
         {"market": "GLOBAL", "series": "counter_tiktok_sound", "protocol": "p", "route": "tiktok/song",
          "lane_class": "watchlist"}])
     assert writers.zero_yield_prior(object(), D5) == {("GLOBAL", "counter_tiktok_sound", "tiktok/song", "watchlist")}
+
+
+# write_run reads what it needs (the 28 day reference and the day before's zero-yield keys) before its first write.
+# A read that fails after the observation and counter appends leaves the day with those rows and no collection_health
+# rows, and the rerun appends the observations and counters a second time.
+
+def failing_read(marker, other=()):
+    from core.collect.tests.test_job import FakeBQ, FakeJob
+
+    class ReadFails(FakeBQ):
+        def query(self, sql, job_config=None, **kw):
+            if marker in sql and not any(o in sql for o in other) and not getattr(job_config, "dry_run", False):
+                raise RuntimeError("transient read failure")
+            return super().query(sql, job_config, **kw)
+
+    return ReadFails()
+
+
+@pytest.mark.parametrize("name,marker,other", [
+    ("zero_yield_prior", "l.calls_ok = l.calls", ()),
+    ("reference", "collection_health", ("l.calls_ok = l.calls",)),
+])
+def test_a_failed_read_in_write_run_leaves_every_table_unwritten(name, marker, other):
+    from core.collect.tests.test_job import FakeClient, collect
+
+    run = collect(FakeClient())
+    assert run.observations and run.counters, "the run must hold rows to append"
+    bq = failing_read(marker, other)
+    with pytest.raises(RuntimeError, match="transient read failure"):
+        writers.write_run(bq, run, "collect-1")
+    assert bq.loads == [], f"{name} failed after an append: {[t for t, _, _ in bq.loads]}"
+    assert bq.posts == {} and bq.mapped == [] and bq.creators == {}

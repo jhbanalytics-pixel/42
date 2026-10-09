@@ -931,7 +931,11 @@ def write_telegram_raw(bq, rows):
 
 def write_run(bq, run, run_id, carry=None):
     """Every write of one collect run. Returns the row counts. carry holds a repair run's base health rows
-    (repair_base): the ones for keys the repair wrote no row for are appended again under run_id."""
+    (repair_base): the ones for keys the repair wrote no row for are appended again under run_id. The reads the health
+    rows need (the reference and the zero-yield prior of each day) come first: a read that failed after an append would
+    leave the day with observations and counters and no health rows, and the rerun would append them again."""
+    refs = {day: reference(bq, date.fromisoformat(day)) for day in sorted({r["day"] for r in run.records})}
+    prior = {day: zero_yield_prior(bq, date.fromisoformat(day)) for day in refs}
     public_posts = [post for post in run.posts if post.get("source_regime") == "public_feed"]
     legacy_posts = [post for post in run.posts if post.get("source_regime") != "public_feed"]
     statements = merge_posts(bq, legacy_posts)
@@ -940,8 +944,6 @@ def write_run(bq, run, run_id, carry=None):
     counters = run.counters + appearances(run.counters, run_id) + deltas(bq, run.counters, run_id)
     observations = append(bq, "post_observations", run.observations)
     counter_rows = append(bq, "item_counter_daily", counters)
-    refs = {day: reference(bq, date.fromisoformat(day)) for day in sorted({r["day"] for r in run.records})}
-    prior = {day: zero_yield_prior(bq, date.fromisoformat(day)) for day in refs}
     own = health_rows(run.records, run.posts, refs, run_id, prior)
     carried = carry_forward(carry, own, run_id) if carry is not None else []
     health = append(bq, "collection_health", own + carried)
