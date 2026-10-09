@@ -121,8 +121,14 @@ def _political(terms, texts, tags):
     if any(_in_text(t, x) for t in plain for x in texts) or any(_in_tag(t, g) for t in plain for g in tags):
         return True
     return any(any(_in_text(t, x) and any(_in_text(n, x) for n in t.beside) for x in texts)
-               or any(_in_tag(t, g) and any(_in_tag(n, g) for n in t.beside) for g in tags)
+               or any(_in_tag(t, g) and (any(_in_tag(n, g) for n in t.beside) or any(_caps_in_tag(n, g) for n in plain))
+                      for g in tags)
                for t in terms if isinstance(t, Companion))
+
+
+def _caps_in_tag(term, tag):
+    """A party or electoral acronym fused into a tag (ANCvoterdrive): all capitals, bounded by non capitals."""
+    return term.isupper() and re.search(r"(?<![A-Z])" + re.escape(term) + r"(?![A-Z])", _norm(tag)) is not None
 
 
 def _tag(value):
