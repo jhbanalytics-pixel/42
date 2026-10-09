@@ -42,11 +42,11 @@ Item rules (trend cards):
 | G4b | Election or political item (SA local elections 4 November 2026; NG and KE campaign seasons) | Publishes only when Corroborated and authenticity Clear |
 | G5b | Tag on the Ogilvy and client campaign hashtag list | Paid-led automatically |
 | G5 | sponsored or brand-owned share 0.5 or more | "Paid-led", out of the organic list |
-| G6 | local_share under 0.6, computed only over posts with a known location (geo_confidence 0.7 or more from ext.region, creator home market or place mentions; language alone never counts), with at least 8 such posts | Out of that market's list; under 8 known posts the card says "Market unconfirmed" instead of dropping it |
+| G6 | local_share under 0.6, computed only over posts with a known location (geo_confidence 0.7 or more from ext.region, creator home market or place mentions; language alone never counts), with at least 8 such posts | Out of that market's list; under 8 known posts the card says "Market unconfirmed" instead of dropping it. The label Local additionally needs the lower end of the 95% Wilson interval of local_share to be 0.5 or more; otherwise the card carries Market unconfirmed (W8-DEC-17, core/trust/locality.py) |
 | G7 | Route regime break in the last 14 days | No growth figure |
 | G8 | Calendar or last-year match | Seasonal, not Rising |
 | G9 | Cluster label not supported by 3 of 12 representative posts | Named by top hashtag or sound |
-| G10 | Explanation fails claim checks after one repair (and, when the critic held only its why-now, after one critic-informed second draft) | Numbers and posts only |
+| G10 | Explanation fails claim checks after one repair (and, when the critic held only its why-now, after one critic-informed second draft) | Held, reason shown |
 
 Claim rules (answers and explanations):
 
@@ -63,7 +63,7 @@ Claim rules (answers and explanations):
 | K9 | Forecast before forecasts beat persistence | Cut |
 | K10 | Headline rests on a cut claim | Status partial; under 2 supported claims gives insufficient_evidence |
 
-Market by source (Albert's decision, 29 September 2026). A post from a market's own feeds may back a claim about that market, in the brief's place check and in Ask's (K3 and G6). A post counts as market by source when it came from a market-scoped route (that country's trending or local feed, or a hashtag or search sent with that country's region), from a local outlet listed for that market, or from a creator whose profile names that country. A located post (geo_confidence 0.7 or more) still ranks above a market-by-source post. A market-by-source claim is worded as seen in that market's feeds ("seen in Kenya's feeds"), never as what people there are or think ("Kenyans"). A post from another market's feed never backs the claim. Its confidence label sits one step below the label the same claim would get from located evidence. Collect is adding each post's source market per sighting (route and region), so detect and Ask will read the same field.
+Market by source (Albert's decision, 29 September 2026). A post from a market's own feeds may back a claim about that market, in the brief's place check and in Ask's (K3 and G6). A post counts as market by source when it came from a market-scoped route (that country's trending or local feed, or a hashtag or search sent with that country's region), from a local outlet listed for that market, or from a creator whose profile names that country. A located post (geo_confidence 0.7 or more) still ranks above a market-by-source post. A market-by-source claim is worded as seen in that market's feeds ("seen in Kenya's feeds"), never as what people there are or think ("Kenyans"). A post from another market's feed never backs the claim. Its confidence label sits one step below the label the same claim would get from located evidence. Collect is adding each post's source market per sighting (route and region), so detect and Ask will read the same field. News public-feed posts count toward market scope only as feed evidence and never alone: an item whose scoped posts are all news-feed posts stays Market unconfirmed, keeps feed wording, and cannot satisfy the 2-local rule (W8-DEC-12).
 
 If over 30% of a market's candidates are held for data reasons, that market carries a banner. The brief is never silently delayed.
 
@@ -77,7 +77,7 @@ Every Ask answer and every morning explanation. Steps 3 to 5 are code on 100% of
 2. Decompose sentences into atomic claims, only where the reading is unambiguous (Claimify) [11].
 3. Resolve ids, handles, URLs, dates, markets, window; verbatim quotes.
 4. Numbers: every numeral matched to numbers[]; derived tables are append-only with a run_id and read through views of the latest good run, so every numeral is pinned to its run_id and a hash of its query result and re-run exactly (BigQuery time travel covers only 7 days and not views); post counts recounted.
-5. Labels and gaps: code computes the maximum label (Corroborated: independent non-brand authors on 2 platforms, or 3 unrelated authors plus a metric). Non-ok sources insert gaps; cited-post flags propagate.
+5. Labels and gaps: code computes the maximum label. Corroborated: unrelated non-brand authors on 2 platforms, or 3 unrelated authors plus a metric. Authors are unrelated when no post of one reuses media, caption text, a linked page or a reply relation with a post of the other, and a person posting under several handles counts once. Non-ok sources insert gaps; cited-post flags propagate.
 6. Support check per claim, fresh context, claim plus cited text only (FActScore and SAFE style) [12][13]. Until 300 claims are human-labelled, a claim passes only when the checker marks it supported; after that the threshold is set by conformal calibration so accepted claims are wrong at most 3% of the time [14].
 7. Critic, plus one test: name the simplest non-cultural explanation (collection change, one creator, a campaign, a scheduled event, bots) and say whether evidence rules it out.
 8. One repair round, then cut. One exception (Albert, 4 October 2026): when the critic rules out the simpler explanation, or passes a news or scheduled event on local reaction, and holds the morning explanation only because its why-now is not shown, the writer gets one second draft with the critic's reason. Every check in steps 3 to 7 runs again in full on that draft, with no further repair round; if it fails, cut. A simpler explanation left standing never gets a second draft.
@@ -91,7 +91,7 @@ Stage 1 subset (28 September): Stage 1A runs gate rules G1, G3, G4b, G5, G5b, G6
 
 Measurement units. Each series is measured in the unit its source supports, recorded in item_counter_daily and item_daily with the protocol that produced it:
 - Rank lists (TikTok local feed, hashtag board, YouTube trending, charts, the X trends archive): entry, rank, rank climb and days present. Post counts in a fixed-length list are small and zero-sum, so they are never a volume.
-- Counters (hashtag and sound totals, sound adoption curves, view counts on re-read posts): daily deltas.
+- Counters (hashtag and sound totals, view counts on re-read posts): daily deltas. Sound adoption points from tiktok/song/videos are a page sample by publish day, so they write no series; the job counts them as song_curve_sample_skipped.
 - Searches (expansion, confirmation, agent live calls): presence only, never volume, never baseline.
 - Panels (hub accounts, sentinel creators, measurement panel): posts per day by a fixed protocol, which is the market-level volume.
 Days before a series was tracked are NULL, never zero, so a newly watched item never reads as a surge. A rank list or panel tracks every item from the day the list or panel started, so an item's absence from it is a real zero; a counter is tracked from the item's first read (DATA.md section 3).
@@ -116,7 +116,7 @@ No platform-internal data needed. A meme trend is, by nature, reused audio, temp
 
 1. Co-action network (Pacheco et al. [16], CooRTweet [17]) built from features other than the item's defining key (for a sound trend, not the sound): the same URL, caption template, hashtag sequence or near-identical text (MinHash Jaccard 0.8, embedding cosine 0.95) by the same pair of accounts within 10 minutes, across 2 or more items or days. Components of 5 or more accounts are candidate networks. Fused similarity types beat single ones [18][19]; on TikTok add reused voiceover and screen text [20].
 2. Election-season signals, because bought X trends in Kenya often run for one evening [4]: the same pool of accounts reused across unrelated tags within 30 days, and templated text posted the same evening by many accounts.
-3. Share-based flags from DATA.md (near-duplicates, accounts under 30 days old, busiest 10 minutes, top-3 creator share) give Check pattern only, never a hold.
+3. Share-based flags from DATA.md (near-duplicates, accounts under 30 days old, busiest 10 minutes, top-3 creator share) give Check pattern only, never a hold. The near-duplicates flag is live: detect writes post_enrichment.near_dup_size (core/detect/neardup.py), so the share is computed and the flag is set at 0.30 or more (core/detect/sql/state.sql).
 4. creators.coord_score: networks an account joined across items. Machine-text tells are a weak signal only [5].
 
 Status: Clear, Check pattern (one signal), Likely coordinated (a network holding 20% of the item's posts, or two network signals), Not assessed (42 saw too small a share of the item's posts to judge; never shown as Clear). Validate on a labelled library of past ZA, NG and KE campaigns (including the Kenyan hashtag-for-hire cases documented by Mozilla in 2021 [4]) plus reviewer tags; report flag precision monthly. Card wording: "posting pattern consistent with coordination"; no named party is ever accused.

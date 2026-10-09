@@ -51,10 +51,12 @@ The writer proposes confidence labels; code may lower them to what the evidence 
 
 | Label | Needs |
 |---|---|
-| Corroborated | Independent authors on two platforms, or three authors plus a pinned number |
+| Corroborated | Unrelated authors on two platforms, or three unrelated authors plus a metric, as defined below |
 | Observed | Two independent authors |
 | Single source | One author |
 | Inferred | An interpretation. Interpretations always stay Inferred |
+
+Corroborated: unrelated authors on 2 platforms, or 3 unrelated authors plus a metric. Authors are unrelated when no post of one reuses media, caption text, a linked page or a reply relation with a post of the other, and a person posting under several handles counts once.
 
 Brand accounts, paid or sponsored posts, near-duplicates and generated posts do not count as independent authors.
 
