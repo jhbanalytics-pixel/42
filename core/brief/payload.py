@@ -17,6 +17,9 @@ LABELS = {"ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya"}
 MODEL_BUSY = "Model busy: not explained before the deadline"
 MODEL_REFUSED = "Model busy: the model kept refusing calls, so this was not explained"
 NOT_RUN_REASONS = (MODEL_BUSY, MODEL_REFUSED)
+# The held reason of a Today-bound item the explanation loop never reached (a cap, a day change or the deadline stopped
+# the run before it) when the model was not busy: no explanation was tried, so no check failed.
+NOT_REACHED_TEXT = "Not explained: the run stopped before this topic was reached"
 NOT_ASSESSED_REASONS = {
     "outside_candidate_pool": "Outside the morning candidate pool; checks did not run.",
     "judged_limit_reached": "The morning assessment limit was reached before this topic; checks did not run.",
@@ -210,14 +213,22 @@ def _held_item(c):
     evidence = c.get("evidence") or []
     # The same figures a card would show, growth dropped while untested, so a reader can weigh the hold.
     numbers = [n for n in c.get("numbers") or [] if not (_untested(c) and _is_growth(n["unit"]))]
-    return {
+    held = {
         "item_id": c["item_id"], "title": c["title"], "rule": dec.get("rule"), "reason": reason,
         "reason_text": dec.get("reason") or REASON_TEXT[reason],
         "evidence_ids": [e["id"] for e in evidence], "evidence": evidence,
         "numbers": numbers, "count_line": _count_line(numbers),
         # The job's fixed wording for the check that held the explanation back, as on cards.
         "failed_reason": _failed_reason(c, c.get("explanation_status")),
+        # failed_checks when the explanation ran and failed its checks; not_run when it never ran (a busy model's items
+        # also carry its fixed wording as failed_reason). An item held on other grounds reads not_run.
+        "explanation_status": c.get("explanation_status") or "not_run",
     }
+    # Items merged into this one before it was held (core/brief/job.py _merge) stay listed, as on a card, so rule 5
+    # holds for them too. The key is left out when nothing was merged, so every other held item keeps its shape.
+    if c.get("also"):
+        held["also"] = list(c["also"])
+    return held
 
 
 # The brief job's own holds, summarised by what held them (singular, plural); every other hold by its reason.
@@ -226,6 +237,7 @@ HELD_SUMMARY = {
     "Fewer than 3 posts 42 can show": ("with fewer than 3 posts", "with fewer than 3 posts"),
     "No readable name": ("without a readable name", "without a readable name"),
     "Evidence could not be read": ("with evidence that could not be read", "with evidence that could not be read"),
+    NOT_REACHED_TEXT: ("not explained before the run stopped", "not explained before the run stopped"),
 }
 
 

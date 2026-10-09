@@ -1,4 +1,7 @@
-# Terms that mark an item as election or political (TRUST.md section 2, G4b). A starter list.
+# Terms that mark an item as election or political (TRUST.md section 2, G4b). The starter list, plus the party, leader
+# and electoral terms of the political list in core/detect/sensitive.yaml (W8-DEC-06). Generic political words
+# (government, minister, president, politics, protest, coalition and the like) and names that are also ordinary
+# words or places (Kenyatta, Uhuru, Musyoka, Hlabisa, GNU) stay out: a false hit here holds a card as political.
 # core/brief/gatectx.py reads "all" plus the market's own list. A term written in capitals (ANC, DA, IEC)
 # matches only in capitals in running text; any other term matches in any case, as whole words. A hashtag
 # or canonical key matches when it is the term itself, when the term is among its words (split on capitals,
@@ -11,6 +14,10 @@ all:
   - parliament
   - manifesto
   - local elections
+  - electoral
+  - voter
+  - ballot
+  - referendum
 ZA:
   - IEC
   - ANC
@@ -20,6 +27,24 @@ ZA:
   - Ramaphosa
   - Zuma
   - Malema
+  - democratic alliance
+  - economic freedom fighters
+  - african national congress
+  - patriotic alliance
+  - rise mzansi
+  - black first land first
+  - mashatile
+  - steenhuisen
+  - mbeki
+  - mbalula
+  - mashaba
+  - lesufi
+  - godongwana
+  - gayton mckenzie
+  - south africa votes
+  - vote anc
+  - vote eff
+  - vote mk
 NG:
   - INEC
   - APC
@@ -28,6 +53,18 @@ NG:
   - Tinubu
   - Atiku
   - Obi
+  - all progressives congress
+  - peoples democratic party
+  - obidient
+  - peter obi
+  - buhari
+  - shettima
+  - kwankwaso
+  - obasanjo
+  - wike
+  - nigeria decides
+  - vote apc
+  - vote pdp
 KE:
   - IEBC
   - UDA
@@ -36,3 +73,7 @@ KE:
   - Ruto
   - Raila
   - Gachagua
+  - kenya kwanza
+  - kalonzo
+  - vote uda
+  - vote odm

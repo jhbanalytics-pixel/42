@@ -16,8 +16,8 @@ again with the same floors, so it can become a card in the same run (counts "reg
 confirm-share SocialCrawl client is built right after chain.begin; if it cannot be built, confirm is skipped
 with a thin-coverage note and the brief goes on. No explanation starts once
 chain.past_deadline is true, once the run is FINISH_MARGIN short of its task timeout (chain.TIMEOUTS), or once
-the day's model spend reaches the current cap; whatever is unexplained then publishes as numbers and posts only
-(G10). A model that refuses for capacity (429) is waited out call by call, with backoff, never past the deadline,
+the day's model spend reaches the current cap; whatever is unexplained then is held back with its reason
+shown (G10). A model that refuses for capacity (429) is waited out call by call, with backoff, never past the deadline,
 that time limit or the SAST day, and the breaker stops the run's calls only once it keeps refusing; an item the busy
 model left unexplained says so in its failed_reason. No G1 backfill round, and no market's confirm or regrow, starts
 past the deadline or that time limit either. The gate runs again with each explanation's result, and one briefs row
@@ -62,7 +62,8 @@ from core.api.today import without_hidden
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import TITLE_RULE, explain_trend
 from core.brief.market_scope import read_market_scope
-from core.brief.payload import MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, _worth, brief_row, build_market_payload
+from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _worth, brief_row,
+                               build_market_payload)
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, local_posts, showable_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
@@ -848,7 +849,7 @@ def _explain_one(cand, *, model, spent_before, d, model_call_guard):
                                window_end=end, market=cand["market"], rerun=cand["rerun"],
                                model_call_guard=model_call_guard, second_draft=True)
     except Exception as exc:
-        # One bad trend publishes as numbers and posts; it never costs the other markets their brief.
+        # One bad trend is held back with its reason; it never costs the other markets their brief.
         return {"explanation": None, "explanation_claim_ids": [], "claims": [], "numbers_only": True,
                 "reason": "job_error", "usage_usd": 0.0, "checks": [], "error": f"{type(exc).__name__}: {exc}",
                 "rests_on": []}
@@ -1037,7 +1038,10 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
         item = _payload_candidate(c, result, specificity)
         if where == "today" and (item["explanation_status"] != "explained" or publish is not True
                                  or numbers_only is not False or specificity["status"] != "pass"):
-            item["decision"] = _held("Explanation failed its checks", "G10")
+            # An item the loop never reached has no failed check to report; a busy model's items keep the generic
+            # wording, which their failed_reason qualifies. The hold is G10 either way.
+            never_reached = item["explanation_status"] == "not_run" and not c.get("busy_reason") and result is None
+            item["decision"] = _held(NOT_REACHED_TEXT if never_reached else "Explanation failed its checks", "G10")
             item["held_reason"] = "explanation_failed"
         items.append(item)
     # An evidence read that failed is a data problem too, so it counts with G1 toward the over-30% banner. The
