@@ -51,10 +51,10 @@ the file it wrote. Reads BigQuery only, and nothing is ever updated or removed. 
 written and the keys that stay off. python -m core.detect.backtest --as-of YYYY-MM-DD --apply FILE --sha256 HEX
 writes the rows of that reviewed file instead of replaying again. HEX is the digest --report printed, typed by the
 reviewer, so an edited file is refused before any client is built; the file must also be the one a replay recorded
-(its 'replayed' runs row carries the same digest), as of the day named and no more than MAX_AGE_DAYS before today,
-and carry the thresholds in force. The rows are recomputed from the file's counts, and its run id gets the runs
-row. A run that already has an ok runs row is refused, and so is a file whose run id is cited by a test_switch row
-it does not write.
+(its 'replayed' runs row carries the same digest), as of the day named, no later than today and no more than
+MAX_AGE_DAYS before it, and carry the thresholds in force. The rows are recomputed from the file's counts, and its
+run id gets the runs row. A run that already has an ok runs row is refused, and so is a file whose run id is cited
+by a test_switch row it does not write.
 """
 
 import argparse
@@ -662,8 +662,9 @@ def digest_of(data):
 def reviewed(path, as_of, sha256, today):
     """The result in the saved file at path, once it is shown to be the one reviewed: its bytes hash to the sha256
     the reviewer typed from the report, named by its own run id, as of the day the caller names (not the day it
-    states about itself) and no more than MAX_AGE_DAYS before today, and judged by the thresholds in force. The file
-    is read once, so the bytes checked are the bytes parsed. Raises ValueError otherwise; returns (results, digest)."""
+    states about itself), no later than today and no more than MAX_AGE_DAYS before it, and judged by the thresholds
+    in force. The file is read once, so the bytes checked are the bytes parsed. Raises ValueError otherwise; returns
+    (results, digest)."""
     path = Path(path)
     data = path.read_bytes()
     digest = digest_of(data)
@@ -677,6 +678,8 @@ def reviewed(path, as_of, sha256, today):
         raise ValueError(f"file name {path.name} is not its backtest run id {results.get('run_id')!r}")
     if results.get("as_of") != as_of.isoformat():
         raise ValueError(f"{path.name} is as of {results.get('as_of')}, not {as_of.isoformat()}")
+    if as_of > today:
+        raise ValueError(f"{path.name} is as of {as_of.isoformat()}, after {today.isoformat()}")
     if (today - as_of).days > MAX_AGE_DAYS:
         raise ValueError(f"{path.name} is {(today - as_of).days} days old as of {as_of.isoformat()}, "
                          f"more than {MAX_AGE_DAYS} days before {today.isoformat()}")
