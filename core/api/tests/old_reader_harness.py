@@ -127,16 +127,34 @@ def kind_of(row):
     return "partial" if (record.get("answer") or {}).get("status") == "partial" else "complete"
 
 
+def without_meta(row, ask_id):
+    """The row as an a80 writer leaves it: answer_meta absent, under another ask id."""
+    out = copy.deepcopy(row)
+    out["record"].pop("answer_meta", None)
+    out["record"]["ask_id"], out["run_id"] = ask_id, ask_id
+    return out
+
+
 def corpus(written):
-    """(rows, twin_of): the written rows (the key absent), then one clone per state with answer_meta present. twin_of maps
-    each clone's ask id to the ask id of the written row it was cloned from."""
-    base = {kind_of(row): row for row in written}
-    assert set(base) == {"complete", "partial", "failed", "stopped"}, sorted(base)
-    rows, twin_of = [copy.deepcopy(row) for row in written], {}
+    """(rows, twin_of): the written rows as they are, a key-absent twin of each written row that already carries answer_meta
+    (the candidate writers store it once C1 lane 2 is in), then one clone per state with a synthetic answer_meta. twin_of maps
+    every row that carries the key, clone or written, to the ask id of the row with the key absent that the previous readers
+    are judged against: a row is never compared with another state's answer_meta."""
+    rows, twin_of, absent = [copy.deepcopy(row) for row in written], {}, {}
+    for row in written:
+        if "answer_meta" in row["record"]:
+            twin = without_meta(row, row["record"]["ask_id"] + "_legacy")
+            rows.append(twin)
+            twin_of[row["record"]["ask_id"]] = twin["record"]["ask_id"]
+            absent[kind_of(row)] = twin
+        else:
+            absent[kind_of(row)] = row
+    assert set(absent) == {"complete", "partial", "failed", "stopped"}, sorted(absent)
     for number, (kind, execution, stop_reason, summary, removals, rewrite) in enumerate(STATES, 1):
-        clone = copy.deepcopy(base[kind])
+        twin = absent[kind]
+        clone = copy.deepcopy(twin)
         ask_id = f"a_20261009_meta{number:02d}"
-        twin_of[ask_id] = clone["record"]["ask_id"]
+        twin_of[ask_id] = twin["record"]["ask_id"]
         clone["record"]["ask_id"] = ask_id
         clone["run_id"] = ask_id
         clone["record"]["answer_meta"] = make_meta(clone["record"], execution, stop_reason, summary, removals, rewrite)

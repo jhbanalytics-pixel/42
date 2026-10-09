@@ -59,7 +59,7 @@ def test_de05_the_corpus_holds_every_execution_and_summary_state_and_the_key_pre
 def test_de05_the_previous_readers_give_no_5xx_declared_keys_and_legacy_compatible_types_on_the_corpus(world):
     assert check(world, world["rows"]) == []
     reads = world["reader"].read([h.ask_id_of(row) for row in world["rows"]])
-    clones = [reads[a] for a in world["twin_of"]]
+    clones = [reads[a] for a in world["twin_of"] if a.startswith("a_20261009_meta")]  # the synthetic states, not the writers' own rows
     assert len(clones) == len(h.STATES)
     assert all(r["ask read"]["status"] == 200 for r in clones)
     assert all("answer_meta" in r["ask read"]["shape"] for r in clones)
@@ -196,7 +196,8 @@ def test_the_type_tags_and_path_reads():
 def test_the_corpus_clones_each_kind_once_per_state_and_keeps_the_written_rows_unchanged(world):
     rows, twin_of = world["rows"], world["twin_of"]
     written = [row for row in rows if "answer_meta" not in row["record"]]
-    assert len(written) == 4 and len(rows) == 4 + len(h.STATES) and len(twin_of) == len(h.STATES)
+    stored = len(twin_of) - len(h.STATES)  # written rows that already carry answer_meta (C1 lane 2), each with a key-absent twin
+    assert 0 <= stored <= 4 and len(written) == 4 and len(rows) == 4 + stored + len(h.STATES)
     by_id = {h.ask_id_of(row): row for row in rows}
     for clone_id, twin_id in twin_of.items():
         clone, twin = by_id[clone_id]["record"], by_id[twin_id]["record"]
@@ -216,3 +217,54 @@ def test_make_meta_binds_the_facts_of_its_record_and_a_digest_of_the_rest():
     assert meta["digest"] == "sha256:" + h.hashlib.sha256(h.canonical(body).encode("utf-8")).hexdigest()
     none = h.make_meta({"ask_id": "a_2"}, "failed", None, "no_answer", [], "not_attempted")
     assert none["bound"] == {"answer_status": None, "summary_blank": None, "claims": None} and none["check_run_id"] is None
+
+
+# The candidate writers store answer_meta themselves once C1 lane 2 is merged, so a written row may already carry the key.
+# The previous readers are then judged on the row against the same row with the key absent, never against another state.
+
+def fake_row(ask_id, status, answer_status, meta=None):
+    record = {"ask_id": ask_id, "status": status, "answer": {"status": answer_status}, "run": {"run_id": "r_" + ask_id}}
+    if meta is not None:
+        record["answer_meta"] = meta
+    return {"run_id": ask_id, "record": record}
+
+
+WRITTEN_META = {"check": "verified", "v": 1, "ask_id": "x", "execution": {"state": "completed", "stop_reason": None},
+                "summary": {"state": "removed", "removals": [{"stage": "first_check", "cause": "K6"}], "rewrite": "not_attempted"},
+                "bound": {"answer_status": "complete", "summary_blank": False, "claims": 1}, "digest": "sha256:" + "0" * 64}
+
+
+def written(with_meta):
+    meta = WRITTEN_META if with_meta else None
+    return [fake_row("a_1", "complete", "complete", meta), fake_row("a_2", "complete", "partial", meta),
+            fake_row("a_3", "failed", None, meta), fake_row("a_4", "stopped", "insufficient_evidence", meta)]
+
+
+def test_a_corpus_of_rows_without_the_key_is_as_before_the_written_rows_are_their_own_twins():
+    rows, twin_of = h.corpus(written(False))
+    assert len(rows) == 4 + len(h.STATES) and len(twin_of) == len(h.STATES)
+    assert {twin_of[a] for a in twin_of} <= {"a_1", "a_2", "a_3", "a_4"}
+
+
+def test_rows_the_writers_stored_with_the_key_get_a_key_absent_twin_and_the_old_readers_are_judged_against_it():
+    rows, twin_of = h.corpus(written(True))
+    by_id = {h.ask_id_of(row): row for row in rows}
+    stored = [a for a in ("a_1", "a_2", "a_3", "a_4")]
+    assert all(by_id[a]["record"]["answer_meta"] == WRITTEN_META for a in stored)  # the producer's rows are kept as written
+    assert len(rows) == 4 + 4 + len(h.STATES) and len(twin_of) == 4 + len(h.STATES)
+    for a in stored:
+        twin = by_id[twin_of[a]]["record"]
+        assert "answer_meta" not in twin and {k: v for k, v in twin.items() if k != "ask_id"} == {k: v for k, v in by_id[a]["record"].items() if k not in ("ask_id", "answer_meta")}
+        assert h.kind_of(by_id[twin_of[a]]) == h.kind_of(by_id[a])
+    for clone_id in (c for c in twin_of if c.startswith("a_20261009_meta")):
+        assert "answer_meta" not in by_id[twin_of[clone_id]]["record"]  # a clone is never judged against another state's meta
+    assert len({h.ask_id_of(row) for row in rows}) == len(rows)
+
+
+def test_the_declared_key_is_answer_meta_alone_whatever_a_stored_state_holds_inside_it():
+    twin = {"ask read": read_of(200, {"a": "string"})}
+    produced = {"ask read": read_of(200, {"a": "string", "answer_meta": {"v": "number", "summary": {"removals": ["object"]}}})}
+    assert h.layer2_problems({"t": twin, "p": produced}, {"p": "t"}) == []
+    against_another_state = {"ask read": read_of(200, {"a": "string", "answer_meta": {"summary": {"removals": []}}})}
+    problems = h.layer2_problems({"t": against_another_state, "p": produced}, {"p": "t"})
+    assert "p ask read.answer_meta.summary.removals[]: undeclared key" in problems  # why the twin must be the key-absent row
