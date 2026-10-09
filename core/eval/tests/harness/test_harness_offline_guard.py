@@ -211,6 +211,37 @@ def test_a_refusal_is_written_to_the_log_when_one_is_named(guard, monkeypatch, t
     assert "example.com" not in log.read_text(encoding="utf-8")
 
 
+@pytest.mark.parametrize("executable, words, named", [
+    ("C:\\WINDOWS\\system32\\cmd.exe", ["C:\\WINDOWS\\system32\\cmd.exe", "/c", "ver"], "cmd"),
+    ("/usr/bin/curl", ["/usr/bin/curl", "https://example.com/secret-path"], "curl"),
+    ("Wmic.EXE", ["Wmic.EXE", "cpu", "get", "name"], "wmic"),
+    ("bad;name$(x)", ["bad;name$(x)"], "bad?name??x?"),
+    ("a" * 60, ["a" * 60], "a" * 40),
+])
+def test_a_program_off_the_list_is_named_in_the_log_and_nothing_else_about_it_is(
+        guard, monkeypatch, tmp_path, executable, words, named):
+    log = tmp_path / "guard.jsonl"
+    monkeypatch.setenv("CORE_OFFLINE_GUARD_LOG", str(log))
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "test_x.py::test_y (call)")
+    refused(guard, "subprocess.Popen", (executable, words, None, KEEPS_GUARD))
+    text = log.read_text(encoding="utf-8")
+    [line] = [__import__("json").loads(row) for row in text.splitlines()]
+    assert line["detail"] == f"program off the list: {named}"
+    for leaked in ("system32", "/usr/bin", "secret-path", "https", "/c"):
+        assert leaked not in text, leaked
+
+
+def test_the_refusal_check_prints_the_program_the_guard_refused(guard, monkeypatch, tmp_path):
+    log = tmp_path / "guard.jsonl"
+    monkeypatch.setenv("CORE_OFFLINE_GUARD_LOG", str(log))
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    refused(guard, "subprocess.Popen", ("C:\\WINDOWS\\system32\\cmd.exe", ["cmd.exe", "/c", "ver"], None, KEEPS_GUARD))
+    done = subprocess.run([sys.executable, str(ROOT / "tests_support" / "ci_guard_refusals.py"), str(log)],
+                          capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert done.returncode == 1, done.stdout
+    assert "collection subprocess.Popen program off the list: cmd" in done.stdout, done.stdout
+
+
 def child(code, *, guarded=True, extra_env=None):
     env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "GOOGLE_APPLICATION_CREDENTIALS")}
     if guarded:

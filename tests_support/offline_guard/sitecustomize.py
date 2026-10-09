@@ -40,7 +40,9 @@ therefore also holds no credentials and no secrets, so a program that did slip t
 in with.
 
 Set CORE_OFFLINE_GUARD_LOG to a file name to get one JSON line per refusal (event, a category, the running test).
-The line never holds a host name, a path or a command, only the category.
+The line never holds a host name, a path or a command, only the category. The one addition is a program off the
+list, which is named by its bare program name (lower case, no directory, no .exe, no arguments, other characters
+shown as ?, cut at 40), so that a refusal in the log can be traced to the program.
 """
 import ipaddress
 import json
@@ -793,7 +795,7 @@ def _check_chain(event, executable, words, mapping, depth):
         _refuse(event, "program chain too deep")
     name = _program_name(executable, words)
     if not (name in PROGRAMS or name in SHELLS or PYTHON.match(name)):
-        _refuse(event, "program off the list")
+        _refuse(event, "program off the list: " + re.sub(r"[^a-z0-9._+-]", "?", name)[:40])
     if name == "git":
         sub, rest = _git_subcommand(words)
         if sub in REMOTE_GIT or (sub == "remote" and "update" in rest):
