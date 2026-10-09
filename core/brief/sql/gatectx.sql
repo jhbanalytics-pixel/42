@@ -41,6 +41,17 @@ WHERE h.market = @market AND h.day BETWEEN DATE_SUB(@d, INTERVAL 2 DAY) AND @d
   AND h.lane_class IN ('unbiased_rank', 'panel', 'unbiased_counter')
 GROUP BY h.day;
 
+-- name: health_first
+-- The earliest day in the 60 days to @d with a baseline health row for the platform in the market, by the same
+-- rows the health statement reads. A day after it with no row at all is a gap (a collect run that failed or never
+-- ran), not warm-up: TRUST.md G1 excuses only days with no history yet.
+SELECT MIN(h.day) first_day
+FROM {core}.v_collection_health_current h
+WHERE h.market = @market AND h.day BETWEEN DATE_SUB(@d, INTERVAL 60 DAY) AND @d
+  AND (h.platform = @platform
+    OR (h.platform IS NULL AND CONCAT(@item_id, '|', h.market, '|', h.series, '|', h.protocol) = @series_id))
+  AND h.lane_class IN ('unbiased_rank', 'panel', 'unbiased_counter');
+
 -- name: post_lanes
 -- Which of the cited posts (@post_ids, comma separated) were sighted in the market in a measured post lane
 -- (unbiased_rank or panel) over the 14 days to @d. Counters carry no posts.

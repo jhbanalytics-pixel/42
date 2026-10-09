@@ -119,6 +119,35 @@ def test_a_day_with_no_health_row_is_none_not_invalid():
     assert ctx(con)["valid_days"] == [True, True, None]
 
 
+def test_a_missing_middle_day_after_earlier_baseline_history_is_invalid_and_holds_g1():
+    # TRUST.md G1 excuses only days with no history yet. A day after history began whose collect run failed has no
+    # good-run health row, so it is a gap in the baseline, not warm-up.
+    con = world()
+    series_platform(con, "tiktok")
+    duck.load(con, "core.collection_health", [
+        health("feed_tiktok", day(3)), health("feed_tiktok", day(1)), health("feed_tiktok", D)])
+    got = ctx(con)
+    assert got["valid_days"] == [True, True, False]
+    assert gate_card({"item_id": "i1"}, got).rule == "G1"
+
+
+def test_a_missing_day_with_no_history_before_it_is_still_warm_up():
+    con = world()
+    series_platform(con, "tiktok")
+    duck.load(con, "core.collection_health", [health("feed_tiktok", day(1)), health("feed_tiktok", D)])
+    assert ctx(con)["valid_days"] == [True, True, None]
+
+
+def test_history_in_another_market_or_on_another_platform_or_only_in_search_is_not_history_here():
+    con = world()
+    series_platform(con, "tiktok")
+    duck.load(con, "core.collection_health", [
+        health("feed_tiktok", day(4), market="NG"), health("board_youtube", day(4), platform="youtube"),
+        health("search_tiktok", day(4), lane_class="search_presence"),
+        health("feed_tiktok", day(1)), health("feed_tiktok", D)])
+    assert ctx(con)["valid_days"] == [True, True, None]
+
+
 def test_health_from_another_market_or_a_superseded_run_is_ignored():
     con = world()
     series_platform(con, "tiktok")
