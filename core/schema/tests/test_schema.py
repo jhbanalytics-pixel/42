@@ -12,6 +12,8 @@ SQL_FILES = {
     "intelligence_42_core": SCHEMA_DIR / "core.sql",
     "intelligence_42_agent": SCHEMA_DIR / "agent.sql",
 }
+# The setup runner's own list of files: every parity test below reads what the runner creates, not a list of its own.
+RUNNER_FILES = tuple(apply.SQL_FILES)
 PROJECT = "ogilvy-trends-v2"
 IDENT = re.compile(r"^[a-z_][a-z0-9_]*$")
 
@@ -160,7 +162,9 @@ def doc_tables():
 # Schema files
 
 def statements(dataset):
-    return apply.split_statements(SQL_FILES[dataset].read_text(encoding="utf-8"))
+    """Every statement of the runner's files that belongs to dataset, in the runner's order."""
+    return [s for path in RUNNER_FILES for s in apply.split_statements(path.read_text(encoding="utf-8"))
+            if apply.dataset_of(s) == dataset]
 
 
 def our_tables():
@@ -403,8 +407,17 @@ def test_inferred_types_follow_the_plain_rules():
 
 # Tests: rule 7 and rule 1
 
+def test_the_runner_lists_the_two_dataset_files_and_every_other_file_is_a_table_the_doc_names():
+    assert set(SQL_FILES.values()) <= set(RUNNER_FILES)
+    for path in RUNNER_FILES:
+        for statement in apply.load_statements([path]):
+            if apply.kind(statement) == "table":
+                table = apply.statement_name(statement).rsplit(".", 1)[1]
+                assert table in doc_tables(), f"{path.name} creates {table}, which DATA.md does not name"
+
+
 def test_no_destructive_or_expiring_sql():
-    for path in SQL_FILES.values():
+    for path in RUNNER_FILES:
         text = path.read_text(encoding="utf-8")
         for pattern in (r"CREATE\s+OR\s+REPLACE", r"\bDROP\b", r"\bTRUNCATE\b", r"\bDELETE\b",
                         r"expir", r"\bREPLACE\b"):
@@ -989,11 +1002,8 @@ def test_apply_mode_dry_runs_before_creating_and_lists_tables(capsys):
     assert all(loc == "US" for _, _, _, loc in q)
     out = capsys.readouterr().out
     expected = doc_tables()
-    extra = [s for f in apply.SQL_FILES if f not in SQL_FILES.values()
-             for s in apply.load_statements([f]) if apply.kind(s) == "table"]
     for dataset in SQL_FILES:
         n = sum(1 for d in expected.values() if d == dataset)
-        n += sum(1 for s in extra if apply.dataset_of(s) == dataset)
         v = sum(1 for s in stmts if apply.kind(s) == "view" and apply.dataset_of(s) == dataset)
         assert f"{dataset}: {n} tables (expected {n}), {v} views (expected {v})" in out
     assert "missing" not in out

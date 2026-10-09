@@ -116,8 +116,9 @@ def test_no_gate_state_card_payload_or_rank_reads_the_table_or_the_module():
     allowed = {"core/detect/early_signal.py", "core/detect/early_signal_backtest.py", "core/detect/stats.py",
                "core/detect/tests/early_identity.py", "core/detect/tests/test_detect_early_signal.py",
                "core/detect/tests/test_detect_early_signal_backtest.py",
-               "core/detect/tests/test_detect_early_signal_record.py", "core/schema/apply.py",
+               "core/detect/tests/test_detect_early_signal_record.py",
                "core/schema/early_signal.sql", "core/schema/tests/test_early_signal_schema.py"}
+    named_apart = "core/schema/apply.py"
     hits = []
     for path in ROOT.rglob("*"):
         parts = path.relative_to(ROOT).parts
@@ -125,9 +126,22 @@ def test_no_gate_state_card_payload_or_rank_reads_the_table_or_the_module():
                 {".py", ".sql", ".js", ".jsx", ".ts", ".tsx", ".yaml", ".yml", ".json", ".html"}):
             continue
         text = path.read_text(encoding="utf-8", errors="ignore").lower()
-        if ("early_signal" in text or "cusum" in text) and path.relative_to(ROOT).as_posix() not in allowed:
-            hits.append(path.relative_to(ROOT).as_posix())
+        rel = path.relative_to(ROOT).as_posix()
+        if ("early_signal" in text or "cusum" in text) and rel not in allowed and rel != named_apart:
+            hits.append(rel)
     assert hits == []
+
+
+def test_the_setup_runner_names_the_table_only_in_its_file_list_and_its_docstring():
+    """core/schema/apply.py runs DDL for every file it lists and reads no table, so it may name early_signal.sql in
+    SQL_FILES and in the module docstring and nowhere else: a reader added to it would be a reader of the table."""
+    src = (ROOT / "core/schema/apply.py").read_text(encoding="utf-8")
+    _, docstring, code = src.split('"""', 2)
+    assert "early_signal" in docstring
+    assert code.lower().count("early_signal") == 1 and 'HERE / "early_signal.sql"' in code
+    assert "cusum" not in src.lower()
+    in_list = [line for line in code.splitlines() if "early_signal" in line]
+    assert len(in_list) == 1 and in_list[0].startswith("SQL_FILES = (")
 
 
 def test_stats_only_calls_record_after_the_series_test_rows_are_loaded():
