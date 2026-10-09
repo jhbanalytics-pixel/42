@@ -118,6 +118,21 @@ def test_the_recorded_thresholds_are_the_ones_the_verdicts_use(monkeypatch):
     assert "burst" not in record["found"]                       # 20 posts is under the floor of 25
 
 
+@pytest.mark.parametrize("constant,name,field,rival", [
+    ("SPONSORED_AT", "sponsored", "sponsored_share", "sponsored"),
+    ("BURST_AT", "burst", "burst_share", "burst"),
+    ("CONCENTRATED_AT", "concentrated", "top3_share", "concentrated"),
+    ("NEAR_DUPLICATES_AT", "near_duplicates", "near_dup_share", "near_duplicates")])
+def test_each_recorded_share_threshold_is_the_constant_its_own_verdict_uses(monkeypatch, constant, name, field, rival):
+    """Moving one constant moves the recorded threshold and the verdict with it, and moves no other threshold."""
+    before = rivals.code_rivals(quiet())["thresholds"]
+    monkeypatch.setattr(rivals, constant, 0.77)
+    record = rivals.code_rivals(quiet(**{field: 0.77}))
+    assert record["thresholds"] == {**before, name: 0.77}
+    assert record["found"] == [rival]
+    assert rivals.code_rivals(quiet(**{field: 0.76}))["found"] == []
+
+
 # In explain_trend: recorded on the critic row and answer, nothing else moves
 
 
