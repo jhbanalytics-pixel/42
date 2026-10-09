@@ -57,9 +57,9 @@ WITH seen AS (
         AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
     ))
 )
--- news_posts7 counts the news public-feed posts in the same set: they are feed evidence only (W8-DEC-12), so a set
--- that is all news is read as Market unconfirmed by read_market_scope.
+-- market_news_posts7 counts the news public-feed posts among the market posts: they are feed evidence only
+-- (W8-DEC-12), so market posts that are all news are read as Market unconfirmed by read_market_scope.
 SELECT COUNT(DISTINCT p.post_id) total_posts7, COUNT(DISTINCT m.post_id) market_posts7,
-  COUNT(DISTINCT IF(LOWER(TRIM(p.platform)) = 'news', p.post_id, NULL)) news_posts7
+  COUNT(DISTINCT IF(LOWER(TRIM(p.platform)) = 'news', m.post_id, NULL)) market_news_posts7
 FROM eligible_posts p
 LEFT JOIN market_posts m USING (post_id);

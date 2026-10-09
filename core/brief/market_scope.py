@@ -37,18 +37,18 @@ def read_market_scope(client, row, d, market, *, core=CORE, agent=AGENT):
     if total_posts7 < 0 or market_posts7 < 0 or market_posts7 > total_posts7:
         raise ValueError("market scope query counts must be between zero and total")
     market_share7 = market_posts7 / total_posts7 if total_posts7 else None
-    if "news_posts7" not in counts:
+    if "market_news_posts7" not in counts:
         raise ValueError("market scope query row is missing required count fields")
-    news_count = counts["news_posts7"]
+    news_count = counts["market_news_posts7"]
     if not isinstance(news_count, Integral) or isinstance(news_count, bool):
         raise ValueError("market scope query counts must be finite non-boolean integers")
-    news_posts7 = int(news_count)
-    if news_posts7 < 0 or news_posts7 > total_posts7:
-        raise ValueError("market scope query counts must be between zero and total")
+    market_news_posts7 = int(news_count)
+    if market_news_posts7 < 0 or market_news_posts7 > market_posts7:
+        raise ValueError("market scope query news count must be between zero and the market posts")
     result = {"market_scope": "market" if market_share7 is not None and market_share7 > 0.5 else "global",
               "market_posts7": market_posts7, "total_posts7": total_posts7, "market_share7": market_share7}
-    # News public-feed posts count toward scope as feed evidence and never alone (W8-DEC-12): a set that is all
-    # news is Market unconfirmed. Detect's own not_local verdict is not softened.
-    if total_posts7 and news_posts7 == total_posts7 and row.get("geo_status") != "not_local":
+    # News public-feed posts count toward scope as feed evidence and never alone (W8-DEC-12): market posts that are
+    # all news are Market unconfirmed. Detect's own not_local verdict is not softened.
+    if market_posts7 and market_news_posts7 == market_posts7 and row.get("geo_status") != "not_local":
         result["geo_status"] = "market_unconfirmed"
     return result

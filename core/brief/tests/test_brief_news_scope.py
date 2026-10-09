@@ -243,6 +243,55 @@ def test_no_scoped_posts_is_not_all_news():
     assert result == {"market_scope": "global", "market_posts7": 0, "total_posts7": 0, "market_share7": None}
 
 
+def add_other_market(con, n, *, platform="tiktok"):
+    for i in range(n):
+        add_post(con, f"ng_{i}", creator_id=f"ng_creator_{i}", engagement=40 - i, geo_market="NG",
+                 geo_confidence=0.9, geo_source="ext_region")
+        con.execute(f"UPDATE core.posts SET platform = '{platform}' WHERE post_id = 'ng_{i}'")
+
+
+def test_market_scope_that_rests_on_news_alone_is_market_unconfirmed_though_other_posts_fill_the_twelve():
+    # 7 news posts sighted in the ZA feeds plus 5 TikTok posts located in NG: the 7 posts that make the market
+    # share are all news, so the news count is compared with them and not with the twelve
+    con = news_world(news_posts=7)
+    add_other_market(con, 5)
+    result = read(con)
+
+    assert result == {"market_scope": "market", "market_posts7": 7, "total_posts7": 12, "market_share7": 7 / 12,
+                      "geo_status": "market_unconfirmed"}
+
+
+def test_one_non_news_market_post_among_the_market_posts_is_not_news_alone():
+    con = news_world(news_posts=6, local_posts_=1)
+    add_other_market(con, 5)
+    result = read(con)
+
+    assert result["market_posts7"] == 7 and result["total_posts7"] == 12 and "geo_status" not in result
+
+
+def test_news_posts_outside_the_market_do_not_make_the_market_posts_news_alone():
+    # 6 news posts sighted only in NG (not market posts), 3 located ZA TikTok posts: market posts are the 3 TikTok
+    con = news_world(news_posts=0, local_posts_=3)
+    for n in range(6):
+        add_post(con, f"ngnews_{n}", creator_id=f"ngnews_creator_{n}", engagement=500 - n,
+                 source_sightings=[sighting("NG", D)])
+        con.execute(f"UPDATE core.posts SET platform = 'news' WHERE post_id = 'ngnews_{n}'")
+    result = read(con)
+
+    assert result["market_posts7"] == 3 and result["total_posts7"] == 9 and "geo_status" not in result
+
+
+def test_news_posts_with_no_market_posts_do_not_relabel():
+    con = news_world(news_posts=0)
+    for n in range(4):
+        add_post(con, f"ngnews_{n}", creator_id=f"ngnews_creator_{n}", engagement=500 - n,
+                 source_sightings=[sighting("NG", D)])
+        con.execute(f"UPDATE core.posts SET platform = 'news' WHERE post_id = 'ngnews_{n}'")
+    result = read(con)
+
+    assert result["market_posts7"] == 0 and result["total_posts7"] == 4 and "geo_status" not in result
+
+
 def test_news_counts_only_the_posts_in_the_scoped_set():
     # twelve non-news posts outrank two news posts, so the scoped twelve hold no news and the item is not all news
     con = news_world(news_posts=2, local_posts_=12)
@@ -253,16 +302,32 @@ def test_news_counts_only_the_posts_in_the_scoped_set():
 
 @pytest.mark.parametrize(("row", "message"), [
     ({"total_posts7": 4, "market_posts7": 2}, "missing required count fields"),
-    ({"total_posts7": 4, "market_posts7": 2, "news_posts7": 5}, "between zero and total"),
-    ({"total_posts7": 4, "market_posts7": 2, "news_posts7": -1}, "between zero and total"),
-    ({"total_posts7": 4, "market_posts7": 2, "news_posts7": 1.5}, "finite non-boolean integers"),
-    ({"total_posts7": 4, "market_posts7": 2, "news_posts7": True}, "finite non-boolean integers"),
+    ({"total_posts7": 4, "market_posts7": 2, "market_news_posts7": 3}, "between zero and the market posts"),
+    ({"total_posts7": 4, "market_posts7": 2, "market_news_posts7": -1}, "between zero and the market posts"),
+    ({"total_posts7": 4, "market_posts7": 2, "market_news_posts7": 1.5}, "finite non-boolean integers"),
+    ({"total_posts7": 4, "market_posts7": 2, "market_news_posts7": True}, "finite non-boolean integers"),
+    ({"total_posts7": 4, "market_posts7": 2, "news_posts7": 1}, "missing required count fields"),
 ])
 def test_a_scope_row_without_a_valid_news_count_fails_closed(monkeypatch, row, message):
     monkeypatch.setattr(market_scope.sqlrun, "query", lambda *args, **kwargs: [row])
 
     with pytest.raises(ValueError, match=message):
         read_market_scope(object(), {"item_id": "i1"}, D, "ZA")
+
+
+@pytest.mark.parametrize(("counts", "relabelled"), [
+    ({"total_posts7": 12, "market_posts7": 7, "market_news_posts7": 7}, True),
+    ({"total_posts7": 12, "market_posts7": 7, "market_news_posts7": 6}, False),
+    ({"total_posts7": 12, "market_posts7": 0, "market_news_posts7": 0}, False),
+    ({"total_posts7": 0, "market_posts7": 0, "market_news_posts7": 0}, False),
+    ({"total_posts7": 5, "market_posts7": 1, "market_news_posts7": 1}, True),
+])
+def test_the_relabel_fires_only_when_the_market_posts_are_all_news(monkeypatch, counts, relabelled):
+    monkeypatch.setattr(market_scope.sqlrun, "query", lambda *args, **kwargs: [counts])
+
+    result = read_market_scope(object(), {"item_id": "i1"}, D, "ZA")
+
+    assert (result.get("geo_status") == "market_unconfirmed") is relabelled
 
 
 def test_the_label_reaches_the_card_flag():
