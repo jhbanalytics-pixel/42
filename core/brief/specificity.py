@@ -27,6 +27,14 @@ def local_posts(evidence, market):
     return posts
 
 
+def counted_local_posts(evidence, market):
+    """The local posts that count toward the 2-local rule. A news public-feed post is feed evidence only (Albert,
+    8 Oct, W8-DEC-12): it stays local for the wording a card takes, but it never counts toward the rule and
+    never satisfies it alone."""
+    return [record for record in local_posts(evidence, market)
+            if str(record.get("platform") or "").strip().lower() != "news"]
+
+
 # BUILD.md 1.12: every trend shows at least 3 cited posts or is held back with its reason.
 MIN_EVIDENCE = 3
 
@@ -65,7 +73,7 @@ def specificity_basis(*, explanation, claims, explanation_claim_ids, evidence, m
         return result
 
     referenced_claims = [claims_by_id[claim_id][0] for claim_id in referenced_ids]
-    local_by_id = {post["id"]: post for post in local_posts(evidence, market)}
+    local_by_id = {post["id"]: post for post in counted_local_posts(evidence, market)}
     seen_local_ids = set()
     for claim in referenced_claims:
         claim_evidence_ids = claim.get("evidence_ids")

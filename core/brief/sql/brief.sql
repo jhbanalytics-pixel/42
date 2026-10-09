@@ -63,8 +63,9 @@ ordered AS (
 SELECT s.*, cm.kind map_kind, cm.status map_status, cm.label, cm.canonical_key, fs.first_seen,
   seen.platforms seen_platforms, ms.market_scope _selection_market_scope,
   ROW_NUMBER() OVER (ORDER BY s.eligible IS NOT TRUE,
-    CASE WHEN ms.market_scope = 'market' AND ms.total_posts7 >= 3 AND ms.market_posts7 >= 2 THEN 0
-         WHEN ms.market_scope = 'market' THEN 1 ELSE 2 END,
+    CASE WHEN ms.market_scope = 'market' AND ms.market_news_posts7 < ms.market_posts7
+              AND ms.total_posts7 >= 3 AND ms.market_posts7 >= 2 THEN 0
+         WHEN ms.market_scope = 'market' AND ms.market_news_posts7 < ms.market_posts7 THEN 1 ELSE 2 END,
     IFNULL(lf.creators, 0) < 2,
     IFNULL(s.creators3, 0) < 2 OR IFNULL(s.posts3, 0) < 3,
     s.worth_raw IS NULL, s.worth_raw DESC, s.item_id) _selection_sql_rank

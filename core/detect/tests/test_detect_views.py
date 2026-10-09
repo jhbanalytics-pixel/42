@@ -598,3 +598,28 @@ def test_market_scope_leaves_suppressed_creators_out_before_ranking(con):
     rows = duck.query(con, "SELECT s.market_scope, s.market_posts7, s.total_posts7 "
                            "FROM {core}.v_item_market_scope s WHERE s.item_id = 'i1'")
     assert rows == [{"market_scope": "global", "market_posts7": 2, "total_posts7": 12}]
+
+
+def test_market_scope_counts_the_news_posts_among_the_market_posts_only(con):
+    # W8-DEC-12 at the view: seven located news posts, and five posts located in another market (one of them news),
+    # make a market scope of seven posts that are all news, whatever case or padding the platform carries.
+    duck.load(con, "agent.runs", [run("detect", D)])
+    duck.load(con, "core.item_state", [{"metric_date": D, "market": "ZA", "item_id": "i1",
+                                        "run_id": rid("detect", D)}])
+    za = {"geo_market": "ZA", "geo_confidence": 0.9, "geo_source": "ext_region"}
+    ng = {"geo_market": "NG", "geo_confidence": 0.9, "geo_source": "ext_region"}
+    platforms = ["news", "News", " NEWS ", "news", "news", "news", "news"]
+    posts = ([(f"news_{n}", 1000 + n, platforms[n], za) for n in range(7)]
+             + [("ngnews", 500, "news", ng)]
+             + [(f"ng_{n}", 100 + n, "tiktok", ng) for n in range(4)])
+    duck.load(con, "core.posts", [post(p, p, day(1), platform=pf, engagement=e, **geo) for p, e, pf, geo in posts])
+    duck.load(con, "core.post_items", [{"post_id": p, "item_id": "i1", "via": "hashtag"} for p, _, _, _ in posts])
+    duck.load(con, "core.post_observations", [obs(p, day(1), "unbiased_rank", "sweep") for p, _, _, _ in posts])
+    query = ("SELECT s.market_scope, s.market_posts7, s.total_posts7, s.market_news_posts7 "
+             "FROM {core}.v_item_market_scope s WHERE s.item_id = 'i1'")
+    assert duck.query(con, query) == [{"market_scope": "market", "market_posts7": 7, "total_posts7": 12,
+                                       "market_news_posts7": 7}]
+
+    # one market post that is not news, and the same count is six
+    con.execute("UPDATE core.posts SET platform = 'tiktok' WHERE post_id = 'news_0'")
+    assert duck.query(con, query)[0]["market_news_posts7"] == 6

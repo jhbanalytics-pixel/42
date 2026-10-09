@@ -140,6 +140,14 @@ def _published_at(value: str | None, text: str) -> str | None:
     return parsed.replace(tzinfo=timezone(offset)).isoformat()
 
 
+def _instant(value: str) -> datetime:
+    return datetime.fromisoformat(value).astimezone(timezone.utc)
+
+
+# Meta names a card may carry for its own publish time. A modified time is never a publish time.
+_PUBLISHED_META = {"datepublished", "article:published_time", "og:article:published_time", "pubdate"}
+
+
 def _article_url(feed: FeedSpec, href: str | None) -> str | None:
     if not href:
         return None
@@ -186,13 +194,80 @@ class _FeedHTMLParser(HTMLParser):
         self.pulse_titles: list[dict] = []
         self.card_title: dict | None = None
         self.card_titles: list[dict] = []
+        # Dates read from the page already fetched: by the card (article element) that holds the headline, and by
+        # article URL from JSON-LD. A None under an index or URL means two readings of it disagreed.
+        self.articles: list[dict] = []
+        self.article_dates: dict[int, str | None] = {}
+        self.ld: list[str] | None = None
+        self.ld_dates: dict[str, str | None] = {}
 
     def _finish_heading(self) -> None:
         if self.heading is None:
             return
         self.heading["text"] = _text(self.heading.pop("parts"))
+        if self.articles:
+            self.articles[-1]["headings"].append(len(self.headings))
         self.headings.append(self.heading)
         self.heading = None
+
+    def _finish_article(self) -> None:
+        article = self.articles.pop()
+        if len(article["headings"]) == 1:
+            instants = {_instant(value) for value in article["dates"]}
+            if len(instants) == 1:
+                self.article_dates[article["headings"][0]] = article["dates"][0]
+            elif instants:
+                self.article_dates[article["headings"][0]] = None
+            return
+        # A card holding no headline or several cannot say which one a date belongs to: those dates fall back to
+        # the order of the headings on the page, as they did before cards were read.
+        for index, value in article["weak"]:
+            self.published.setdefault(index, value)
+
+    def _finish_articles(self) -> None:
+        while self.articles:
+            self._finish_article()
+
+    def _finish_ld(self) -> None:
+        text, self.ld = "".join(self.ld or []), None
+        try:
+            document = json.loads(text)
+        except ValueError:
+            return
+        pending, seen = [(document, 0)], 0
+        while pending and seen < 5000:
+            node, depth = pending.pop()
+            seen += 1
+            if depth > 12:
+                continue
+            if isinstance(node, list):
+                pending.extend((child, depth + 1) for child in node)
+            elif isinstance(node, dict):
+                published = node.get("datePublished")
+                main = node.get("mainEntityOfPage")
+                links = [node.get("url"), node.get("@id"), main.get("@id") if isinstance(main, dict) else main]
+                value = _published_at(published, "") if isinstance(published, str) else None
+                if value:
+                    for link in links:
+                        url = _article_url(self.feed_spec, link) if isinstance(link, str) else None
+                        if url is None:
+                            continue
+                        known = self.ld_dates.get(url, value)
+                        agrees = known is not None and _instant(known) == _instant(value)
+                        self.ld_dates[url] = value if agrees else None
+                pending.extend((child, depth + 1) for child in node.values() if isinstance(child, (dict, list)))
+
+    def published_for(self, index: int, url: str | None) -> str | None:
+        """The publish time of a headline. The card holding it and the page's JSON-LD for its URL are read first;
+        when both name a time they must name the same instant or the headline stays undated. Without either, the
+        time next to it in the page order."""
+        strong = [v for v in (self.article_dates.get(index, ""), self.ld_dates.get(url, "") if url else "")
+                  if v != ""]
+        if not strong:
+            return self.published.get(index)
+        if None in strong or len({_instant(v) for v in strong}) > 1:
+            return None
+        return strong[0]
 
     def _finish_cell(self) -> None:
         if self.cell is None or self.row is None:
@@ -232,10 +307,19 @@ class _FeedHTMLParser(HTMLParser):
         hidden = ("hidden" in attrs or (attrs.get("aria-hidden") or "").lower() == "true"
                   or "display:none" in style or "visibility:hidden" in style
                   or bool(classes & {"screen-reader-text", "sr-only", "visually-hidden"}))
+        if tag == "script" and "ld+json" in (attrs.get("type") or "").lower():
+            self.ld = []
         if tag in _HIDDEN_TAGS or hidden:
             if tag not in _VOID_TAGS:
                 self.skipped.append(tag)
             return
+        if tag == "article":
+            self.articles.append({"headings": [], "dates": [], "weak": []})
+        elif tag == "meta" and self.articles:
+            name = (attrs.get("itemprop") or attrs.get("property") or attrs.get("name") or "").lower()
+            value = _published_at(attrs.get("content"), "") if name in _PUBLISHED_META else None
+            if value:
+                self.articles[-1]["dates"].append(value)
         if self.feed_spec.feed_id == "ng_pulse" and tag == "article":
             self.pulse_article_depth += 1
         if tag == "div" and self.feed_spec.kind == "playlist":
@@ -276,8 +360,11 @@ class _FeedHTMLParser(HTMLParser):
             self._finish_heading()
             self.heading = {"parts": [], "href": next((href for href in reversed(self.anchors) if href), None)}
         elif tag == "time":
+            modified = (bool(classes & {"updated", "modified"}) and "published" not in classes
+                        or (attrs.get("itemprop") or "").lower() == "datemodified")
             self.time = {
                 "datetime": attrs.get("datetime"),
+                "modified": modified,
                 "parts": [],
                 "heading_index": len(self.headings) if self.heading is not None else len(self.headings) - 1,
             }
@@ -304,12 +391,16 @@ class _FeedHTMLParser(HTMLParser):
                 self.playlist_label_stack.append((tag, label))
 
     def handle_endtag(self, tag: str) -> None:
+        if tag == "script" and self.ld is not None:
+            self._finish_ld()
         if self.skipped:
             for index in range(len(self.skipped) - 1, -1, -1):
                 if self.skipped[index] == tag:
                     del self.skipped[index:]
                     break
             return
+        if tag == "article" and self.articles:
+            self._finish_article()
         for index in range(len(self.playlist_label_stack) - 1, -1, -1):
             if self.playlist_label_stack[index][0] == tag:
                 del self.playlist_label_stack[index:]
@@ -332,7 +423,11 @@ class _FeedHTMLParser(HTMLParser):
             visible_text = _text(self.time.pop("parts"))
             index = self.time.get("heading_index", -1)
             published = _published_at(value, visible_text)
-            if published and 0 <= index < len(self.headings):
+            if self.articles:
+                if published and not self.time.get("modified"):
+                    self.articles[-1]["dates"].append(published)
+                    self.articles[-1]["weak"].append((index, published))
+            elif published and 0 <= index < len(self.headings):
                 self.published.setdefault(index, published)
             if self.row is not None and self.feed_spec.kind == "playlist":
                 self.row["time_text"] = visible_text
@@ -353,6 +448,8 @@ class _FeedHTMLParser(HTMLParser):
             self.pulse_article_depth -= 1
 
     def handle_data(self, data: str) -> None:
+        if self.ld is not None:
+            self.ld.append(data)
         if self.skipped:
             return
         if self.heading is not None:
@@ -465,7 +562,7 @@ def _news_entries(feed: FeedSpec, parser: _FeedHTMLParser, observed_at: str) -> 
         url = _article_url(feed, heading.get("href"))
         if not url:
             continue
-        entry = _base_entry(feed, observed_at, title, url, parser.published.get(index))
+        entry = _base_entry(feed, observed_at, title, url, parser.published_for(index, url))
         if not entry["post_id"]:
             continue
         entry["kind"] = "news"
@@ -484,7 +581,7 @@ def _pulse_entries(feed: FeedSpec, parser: _FeedHTMLParser, observed_at: str) ->
         url = _article_url(feed, title_link.get("href"))
         if not url or not urlsplit(url).path.startswith("/story/"):
             continue
-        entry = _base_entry(feed, observed_at, title, url, None)
+        entry = _base_entry(feed, observed_at, title, url, parser.published_for(-1, url))
         if not entry["post_id"]:
             continue
         entry["kind"] = "news"
@@ -501,7 +598,7 @@ def _card_entries(feed: FeedSpec, parser: _FeedHTMLParser, observed_at: str) -> 
         url = _article_url(feed, title_link.get("href"))
         if not url or not _CARD_ARTICLE_PATH.search(urlsplit(url).path):
             continue
-        entry = _base_entry(feed, observed_at, title, url, None)
+        entry = _base_entry(feed, observed_at, title, url, parser.published_for(-1, url))
         if not entry["post_id"]:
             continue
         entry["kind"] = "news"
@@ -632,6 +729,7 @@ def parse_feed(feed: FeedSpec, html: str, fetched_at: datetime) -> list[dict]:
     parser.feed(html)
     parser.close()
     parser._finish_heading()
+    parser._finish_articles()
     parser._finish_row()
     parser._finish_playlist_card()
     if feed.kind == "news":

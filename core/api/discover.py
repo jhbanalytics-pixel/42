@@ -100,16 +100,39 @@ def _brief_cards(store, date):
     return out
 
 
+def _market_posts_all_news(row):
+    """W8-DEC-12 as the brief reads it (core/brief/market_scope.py): the posts that make the market share are all
+    news feed posts, so the item is Market unconfirmed unless detect already called it not local."""
+    market, news = row.get("market_posts7"), row.get("market_news_posts7")
+    return (type(market) is int and type(news) is int and market > 0 and news == market
+            and row.get("geo_status") != "not_local")
+
+
 def _flag(row):
     if (row.get("sponsored_share") or 0) >= PAID_LED_SHARE:
         return "paid_led"
     if row.get("authenticity") in ("likely_coordinated", "check_pattern"):
         return row["authenticity"]
-    if row.get("geo_status") == "market_unconfirmed":
+    if row.get("geo_status") == "market_unconfirmed" or _market_posts_all_news(row):
         return "market_unconfirmed"
     if row.get("authenticity") == "not_assessed":
         return "not_assessed"
     return None
+
+
+FLAG_ORDER = ("paid_led", "likely_coordinated", "check_pattern", "market_unconfirmed", "not_assessed")
+
+
+def _higher_flag(row_flag, card_flag):
+    """The one of two flags that _flag's own order puts first (paid-led, then the two authenticity flags, then
+    market_unconfirmed, then not_assessed). A tie, or a flag outside the order, goes to the row's."""
+    def rank(flag):
+        return FLAG_ORDER.index(flag) if flag in FLAG_ORDER else len(FLAG_ORDER)
+    if row_flag is None:
+        return card_flag
+    if card_flag is None:
+        return row_flag
+    return card_flag if rank(card_flag) < rank(row_flag) else row_flag
 
 
 def _gate_for(rows, run_date):
@@ -207,7 +230,7 @@ def _build_card(row, brief_card, warmup, order):
     status = _explanation_status(brief_card)
     if status != "explained":
         card.update(explanation=None, explanation_claim_ids=[], claims=[])
-    flag = _flag(row) or card.get("flag")
+    flag = _higher_flag(_flag(row), card.get("flag"))
     step = LIFECYCLE.get(row.get("state"))
     last_wave = row.get("last_wave") if row.get("novelty") == "recurrence" else None
     card.update(

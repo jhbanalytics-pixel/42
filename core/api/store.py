@@ -227,14 +227,15 @@ default day and Coverage's way back from an empty day)."""
                 and market in ("all", r["market"])]
         scope_rows = self._optional("item_market_scope")
         if scope_rows is None:
-            return [dict(r, market_scope=None, market_posts7=None, total_posts7=None, market_share7=None)
-                    for r in rows]
+            return [dict(r, market_scope=None, market_posts7=None, market_news_posts7=None, total_posts7=None,
+                         market_share7=None) for r in rows]
         scopes = {(r.get("metric_date"), r.get("item_id"), r.get("market")): r for r in scope_rows}
         out = []
         for r in rows:
             scope_row = scopes.get((r["metric_date"], r["item_id"], r["market"]))
             out.append(dict(r, market_scope="market" if (scope_row or {}).get("market_scope") == "market"
                             else "global", market_posts7=(scope_row or {}).get("market_posts7"),
+                            market_news_posts7=(scope_row or {}).get("market_news_posts7"),
                             total_posts7=(scope_row or {}).get("total_posts7"),
                             market_share7=(scope_row or {}).get("market_share7")))
         return out
@@ -922,12 +923,16 @@ or None."""
             parts.append(f"SELECT '{AGENT}' AS ds, c.column_name AS n, 'findings_column' AS what "
                          f"FROM `{self.project}.{AGENT}.INFORMATION_SCHEMA.COLUMNS` c "
                          "WHERE c.table_name = 'findings'")
+            parts.append(f"SELECT '{CORE}' AS ds, c.column_name AS n, 'scope_column' AS what "
+                         f"FROM `{self.project}.{CORE}.INFORMATION_SCHEMA.COLUMNS` c "
+                         "WHERE c.table_name = 'v_item_market_scope'")
             rows = self._query(" UNION ALL ".join(parts))
             cat = {"at": time.monotonic(),
                    "objects": {f"{r['ds']}.{r['n']}" for r in rows if r["what"] in ("table", "routine")},
                    "runs_columns": {r["n"] for r in rows if r["what"] == "runs_column"},
                    "map_columns": {r["n"] for r in rows if r["what"] == "map_column"},
-                   "findings_columns": {r["n"] for r in rows if r["what"] == "findings_column"}}
+                   "findings_columns": {r["n"] for r in rows if r["what"] == "findings_column"},
+                   "scope_columns": {r["n"] for r in rows if r["what"] == "scope_column"}}
             _CATALOG[self.project] = cat
         return cat
 
@@ -955,7 +960,18 @@ or None."""
         in that market, over any run that day. tone_today and tone_before are the item's tone in that market on
         the run's date and the day before, from L2's v_item_tone_daily, read by _tones in a query of its own so a
         tone failure never fails the page: NULL under 5 enriched posts, until the view exists, or when that read
-        fails."""
+        fails. After a rollback the view can lose market_news_posts7 while this process's catalog still lists it:
+        the read then fails with "Unrecognized name", so the catalog is dropped and the read made once more."""
+        try:
+            return self._item_states(run, market)
+        except Exception as e:
+            if "Unrecognized name" not in str(e) or "market_news_posts7" not in str(e):
+                raise
+            with _CATALOG_LOCK:
+                _CATALOG.pop(self.project, None)
+            return self._item_states(run, market)
+
+    def _item_states(self, run, market):
         tests, cmap = self._find("v_series_test_current"), self._find("cultural_map")
         breakouts, tones = self._find("breakout_signals"), self._find("v_item_tone_daily")
         objects = self._catalog()["objects"]
@@ -978,17 +994,20 @@ or None."""
             labels = ("s.item_id AS label, CAST(NULL AS STRING) AS canonical_key, CAST([] AS ARRAY<STRING>) AS aliases, "
                       "'unknown' AS map_status, CAST(NULL AS DATE) AS first_seen")
         if scope_view:
+            # The view gains market_news_posts7 when detect next re-creates it; until then the count is unknown.
+            news = "market_news_posts7" in self._catalog().get("scope_columns", ())
             ctes.append(f"ms AS (SELECT t.item_id, t.market, t.metric_date, t.market_scope, t.market_posts7, "
-                        f"t.total_posts7, t.market_share7 FROM {scope_view} t "
-                        "WHERE t.metric_date = @d)")
+                        f"{'t.market_news_posts7, ' if news else ''}t.total_posts7, t.market_share7 "
+                        f"FROM {scope_view} t WHERE t.metric_date = @d)")
             joins.append("LEFT JOIN ms ON ms.item_id = s.item_id AND ms.market = s.market "
                          "AND ms.metric_date = s.metric_date")
             scope = "IF(ms.market_scope = 'market', 'market', 'global')"
-            scope_basis = "ms.market_posts7, ms.total_posts7, ms.market_share7"
+            scope_basis = ("ms.market_posts7, " + ("ms.market_news_posts7" if news
+                           else "CAST(NULL AS INT64) AS market_news_posts7") + ", ms.total_posts7, ms.market_share7")
         else:
             scope = "CAST(NULL AS STRING)"
-            scope_basis = ("CAST(NULL AS INT64) AS market_posts7, CAST(NULL AS INT64) AS total_posts7, "
-                           "CAST(NULL AS FLOAT64) AS market_share7")
+            scope_basis = ("CAST(NULL AS INT64) AS market_posts7, CAST(NULL AS INT64) AS market_news_posts7, "
+                           "CAST(NULL AS INT64) AS total_posts7, CAST(NULL AS FLOAT64) AS market_share7")
         if breakouts:
             ctes.append(f"bo AS (SELECT b.item_id, b.market, MAX(b.creators) AS breakout_creators FROM {breakouts} b "
                         "WHERE b.metric_date = @d GROUP BY b.item_id, b.market)")

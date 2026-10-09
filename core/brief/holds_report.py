@@ -14,7 +14,7 @@ import sys
 from collections import Counter, defaultdict
 from datetime import date
 
-from core.brief.specificity import local_posts
+from core.brief.specificity import counted_local_posts
 from core.trust.claims import located_market
 
 PROJECT = "ogilvy-trends-v2"
@@ -47,7 +47,7 @@ ORDER BY market, day, platform, series"""
 
 def post_counts(evidence, market):
     """(posts in the pack, local posts, posts 42 can show) as _gate counts them."""
-    local = {r["id"] for r in local_posts(evidence, market)}
+    local = {r["id"] for r in counted_local_posts(evidence, market)}
     showable = [r for r in evidence if located_market(r) is None or r.get("id") in local]
     return len(evidence), len(local), len(showable)
 
