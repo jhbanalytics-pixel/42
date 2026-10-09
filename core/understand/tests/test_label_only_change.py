@@ -187,3 +187,12 @@ def test_run_cluster_keeps_the_label_and_counts_the_drift_candidate_when_nothing
     [row] = json.loads(writes[0]["map_rows"])
     assert (row["label"], row["aliases"]) == (OLD_LABEL, [])
     assert counts["label_drift_candidates"] == 1 and "label_changes" not in counts
+
+
+def test_a_match_carried_by_votes_below_the_match_cosine_keeps_its_label():
+    """A shared hashtag and the recent sighting make 0.75 a continuity match (cluster.assign); rule (b) still asks for
+    0.82, so two shared members alone do not rename it."""
+    got, decisions = drifted(["p1", "p2"], ["p1", "p2"], cos=0.75)
+    assert decisions[0]["kind"] == "match" and decisions[0]["cosine"] < cluster.MATCH_COSINE
+    assert got["map_rows"][0]["label"] == OLD_LABEL and got["label_changes"] == []
+    assert got["label_drift_candidates"] == []
