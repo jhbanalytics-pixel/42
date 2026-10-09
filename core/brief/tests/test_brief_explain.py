@@ -1158,10 +1158,12 @@ def test_a_model_exception_gives_numbers_only_with_the_error_recorded():
 
 
 def test_a_support_check_exception_keeps_the_spend_already_made():
-    model = FakeModel([good()], error=TimeoutError("slow"), error_on_support=True)
+    # A timeout is a call that gave nothing back and is tried once more (test_brief_check_retry.py), so this case
+    # uses an error that is not one.
+    model = FakeModel([good()], error=RuntimeError("scripted failure"), error_on_support=True)
     result = run(model)
     assert_numbers_only(result, "model_error")
-    assert "TimeoutError" in result["error"]
+    assert "RuntimeError" in result["error"]
     assert result["usage_usd"] == pytest.approx(0.01)
 
 

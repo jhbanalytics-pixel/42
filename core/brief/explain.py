@@ -40,7 +40,7 @@ Returns {explanation, explanation_claim_ids, claims, numbers_only, reason, usage
 news_driven is true when a news event or a scheduled event the posts do not rule out passed the critic on local
 reaction; its claims then stand one confidence step lower.
 reason is None when the explanation passed, else one of model_cap, model_error, breach, failed_checks,
-too_few_claims. error holds the exception text on model_error. checks are claim_checks rows. critic is the
+too_few_claims, check_incomplete (a support or critic call gave nothing back twice). error holds the exception text on model_error. checks are claim_checks rows. critic is the
 critic's own answer as it returned it (CRITIC_FIELDS), kept for audit, or None when the critic was not called;
 nothing reads it to decide.
 
@@ -63,6 +63,7 @@ from core.brief.specificity import assess_specificity, local_posts, specificity_
 from core.config.caps import model_daily_usd
 from core.llm.provider import default_model, price_for, reserve_output
 from core.plain_dates import format_generated_dates
+from core.trust import retained
 from core.trust.claims import (
     _QUOTE_MARKS, _QUOTED, LABELS, MARKET_NAMES, _norm, _quote_fault, _quoted, _strip_quotes, _verified_quotes,
     check_answer, inferred_only_by_source_step, located_market, named_markets, place_fault, source_market,
@@ -290,7 +291,26 @@ class _Cap(Exception):
 
 
 class _ModelError(Exception):
+    no_answer = False  # True when the call gave nothing back: a timeout or an empty reply (_no_answer)
+
+
+class _CheckIncomplete(Exception):
     pass
+
+
+# The detail of the check row for a support or critic call that gave nothing back twice (W8-DEC-15).
+CHECK_INCOMPLETE = "check did not complete"
+
+
+def _no_answer(exc):
+    """True when a failed model call gave nothing back: it timed out, or its reply held no text. A refusal (the
+    model blocked the request, or declined it for capacity), a reply cut off at the token limit, an error from the
+    auth or cleanup machinery and anything else are not 'no answer' and are never tried again."""
+    if getattr(exc, "auth_unresolved", False) or getattr(exc, "request_cleanup_failed", False):
+        return False
+    if any("Timeout" in k.__name__ or k.__name__ == "DeadlineExceeded" for k in type(exc).__mro__):
+        return True
+    return isinstance(exc, TimeoutError) or "returned no text" in str(exc)
 
 
 def _fence(text):
@@ -1007,8 +1027,21 @@ def _breached(rows):
     return any(r["verdict"] == "breach" for r in rows)
 
 
+def _stamped(row, text):
+    """The check row with span_sha256, the digest of the span it rejected (core/trust/retained.py), when it is a
+    failed support or sentence check. The span itself is never put on the row."""
+    digest = retained.span_sha256(text) if retained.is_retained(row) else None
+    return {**row, "span_sha256": digest} if digest else row
+
+
+def _spans(answer):
+    """({claim id: claim text}, sentence) of an answer, read before the checks change it."""
+    claims = {c.get("id"): c.get("text") for c in answer.get("claims") or [] if isinstance(c, dict)}
+    return claims, answer.get("short_answer")
+
+
 def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, window_end, market, rerun=None,
-                  model_id=None, model_call_guard=None, second_draft=False):
+                  model_id=None, model_call_guard=None, second_draft=False, retry_guard=None):
     """See the module docstring."""
     model_id = model_id or default_model()
     spent = {"usd": 0.0}
@@ -1038,9 +1071,41 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
                 exc.reserved_usd = booked
                 detail += f"; usage unknown, model reservation retained: USD {booked:.8f}"
             spent["usd"] += booked
-            raise _ModelError(detail) from exc
+            err = _ModelError(detail)
+            err.no_answer = _no_answer(exc)
+            raise err from exc
         spent["usd"] += usage.get("usd", 0.0)
         return out
+
+    def answered(system, user, schema, max_tokens):
+        out = call(system, user, schema, max_tokens)
+        if not isinstance(out, dict) or not out:
+            err = _ModelError("the model returned no answer")
+            err.no_answer = True
+            raise err
+        return out
+
+    def check_call(system, user, schema, max_tokens, claim_id, rule, text):
+        """A support or critic call, with one further attempt when the first gave nothing back (W8-DEC-15). The
+        further attempt is a call like any other: the day guard, the cap and the booking apply to it before it is
+        sent, and retry_guard (the run's deadline) must still allow it. A refusal, a cut-off reply, a failing
+        verdict, a cap or the deadline stop it, and the first error stands. A second non-return leaves a row for
+        the check and holds the explanation (_CheckIncomplete)."""
+        try:
+            return answered(system, user, schema, max_tokens)
+        except _ModelError as first:
+            if not first.no_answer or (retry_guard is not None and not retry_guard()):
+                raise
+            try:
+                return answered(system, user, schema, max_tokens)
+            except _Cap:
+                raise first from None
+            except _ModelError as second:
+                if not second.no_answer:
+                    raise
+                checks.append(_stamped({"claim_id": claim_id, "rule": rule, "verdict": "cut", "checker": "model",
+                                        "detail": CHECK_INCOMPLETE}, text))
+                raise _CheckIncomplete() from second
 
     def assess(explanation, claims, refs, local_why_now=False):
         return assess_specificity(
@@ -1075,11 +1140,14 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         return True
 
     def check(answer, rerun_numbers, rests_on):
+        claim_texts, sentence_text = _spans(answer)
         checked, rows = check_answer(answer, window_start=window_start, window_end=window_end, market=market,
                                      rerun=rerun_numbers)
         _exact_quotes(checked, records)
         rows.extend(_k9_rows(checked, rests_on, records))
         rows.extend(_crowd_rows(checked, rests_on, records, pack))
+        rows = [_stamped(r, sentence_text if r["claim_id"] is None else claim_texts.get(r["claim_id"]))
+                for r in rows]
         return checked, rows
 
     def repair_support(draft, user, failures, passed, start):
@@ -1228,13 +1296,13 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
             market=market,
         )
         if basis["reason"] is not None:
-            checks.append(_specificity_row(basis["reason"]))
+            checks.append(_stamped(_specificity_row(basis["reason"]), checked.get("short_answer")))
             failed_specificity = assess(checked.get("short_answer"), checked.get("claims") or [], rests_on)
             return result("failed_checks", specificity=failed_specificity), None
         # Every claim the sentence rests on must also pass the support check below, or _sentence_fault cuts it there.
         place = _place_fault(checked["short_answer"], checked, rests_on, records)
         if place:
-            checks.append(_place_row(place))
+            checks.append(_stamped(_place_row(place), checked["short_answer"]))
             return result("failed_checks"), None
         if len(checked["claims"]) < 2:
             return result("too_few_claims"), None
@@ -1242,12 +1310,13 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         supported, failures = [], []
         for claim in checked["claims"]:
             cited = [records[i] for i in claim.get("evidence_ids") or []]
-            out = call(SUPPORT_SYSTEM, _support_user(claim, cited, pack, market, terms), SUPPORT_SCHEMA,
-                       SUPPORT_MAX_TOKENS)
+            out = check_call(SUPPORT_SYSTEM, _support_user(claim, cited, pack, market, terms), SUPPORT_SCHEMA,
+                             SUPPORT_MAX_TOKENS, claim.get("id"), "K4", claim.get("text"))
             verdict = out.get("verdict")
-            checks.append({"claim_id": claim.get("id"), "rule": "K4", "verdict": "pass" if verdict == "supported"
-                           else "cut", "checker": "model",
-                           "detail": f"support check {verdict}: {out.get('reason', '')}"})
+            checks.append(_stamped({"claim_id": claim.get("id"), "rule": "K4",
+                                    "verdict": "pass" if verdict == "supported" else "cut", "checker": "model",
+                                    "detail": f"support check {verdict}: {out.get('reason', '')}"},
+                                   claim.get("text")))
             if verdict == "supported":
                 supported.append(claim)
             else:
@@ -1271,25 +1340,26 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
             return result("failed_checks"), None
         # The sentence is the text a strategist reads and no word list names every place, so it gets its own K4
         # check.
-        out = call(SUPPORT_SYSTEM, _sentence_user(sentence, rechecked["claims"], rests_on, records, pack, market,
-                                                  terms),
-                   SUPPORT_SCHEMA, SUPPORT_MAX_TOKENS)
+        out = check_call(SUPPORT_SYSTEM, _sentence_user(sentence, rechecked["claims"], rests_on, records, pack, market,
+                                                        terms),
+                         SUPPORT_SCHEMA, SUPPORT_MAX_TOKENS, None, "K4", sentence)
         verdict = out.get("verdict")
-        checks.append({"claim_id": None, "rule": "K4", "verdict": "pass" if verdict == "supported" else "cut",
-                       "checker": "model",
-                       "detail": f"explanation sentence support check {verdict}: {out.get('reason', '')}"})
+        checks.append(_stamped({"claim_id": None, "rule": "K4",
+                                "verdict": "pass" if verdict == "supported" else "cut", "checker": "model",
+                                "detail": f"explanation sentence support check {verdict}: {out.get('reason', '')}"},
+                               sentence))
         if verdict != "supported":
             if support_repair:
                 return repair_support(draft, user, failures + [(None, verdict, out.get("reason", ""))], passed,
                                       start)
             return result("failed_checks"), None
         # A simpler explanation that the evidence does not rule out holds the cultural reading back (G10).
-        out = call(CRITIC_SYSTEM, _critic_user(candidate, market, sentence, rechecked["claims"], pack, rests_on),
-                   CRITIC_SCHEMA, CRITIC_MAX_TOKENS)
+        out = check_call(CRITIC_SYSTEM, _critic_user(candidate, market, sentence, rechecked["claims"], pack, rests_on),
+                         CRITIC_SCHEMA, CRITIC_MAX_TOKENS, None, "critic", sentence)
         cited = {i for c in rechecked["claims"] if c["id"] in rests_on for i in c.get("evidence_ids") or []}
         reacting = len({str(r.get("handle") or "").strip().lower() for r in local_posts(evidence, market)
                         if r.get("id") in cited and str(r.get("handle") or "").strip()})
-        row = _critic_row(out, reacting)
+        row = _stamped(_critic_row(out, reacting), sentence)
         checks.append(row)
         critic = _critic_answer(out)
         local_why_now = out.get("local_why_now") is True
@@ -1320,5 +1390,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         return second
     except _Cap:
         return result("model_cap")
+    except _CheckIncomplete:
+        return result("check_incomplete")
     except _ModelError as exc:
         return result("model_error", error=str(exc))

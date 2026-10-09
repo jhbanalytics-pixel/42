@@ -103,7 +103,8 @@ def test_an_ambiguous_quote_is_left_as_written_and_held_with_a_specificity_reaso
     assert result["specificity"]["reason"] == "quote_not_verbatim"
     rows = [r for r in result["checks"] if r["rule"] == "specificity"]
     assert rows == [{"claim_id": None, "rule": "specificity", "verdict": "cut", "checker": "code",
-                     "detail": "short_answer: local specificity: quote_not_verbatim"}]
+                     "detail": "short_answer: local specificity: quote_not_verbatim",
+                     "span_sha256": "9b75a183d13b21a4655a5688dc605eebad5d1898b4ac3286d0ca4cdb7536c485"}]
     assert job.failed_reason({**result, "rests_on": ["c1", "c3"]}) == SPECIFICITY_HELD
     assert job.check_reason(rows[0]) == SPECIFICITY_HELD
     # Specificity is never asked to accept a quote that is not the post's exact characters.
