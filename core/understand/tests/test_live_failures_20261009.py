@@ -16,10 +16,8 @@ so which number it refused is not known.
 """
 import json
 import re
-import sys
 from pathlib import Path
-from datetime import date, datetime, timezone
-from decimal import Decimal
+from datetime import datetime, timezone
 
 import numpy as np
 import pytest
@@ -263,13 +261,19 @@ def test_every_parse_json_of_the_checkpoint_asks_for_rounding():
 
 def test_every_parse_json_of_a_bound_parameter_in_the_repo_asks_for_rounding():
     """A bound parameter that carries floats is refused by the default exact mode when a number cannot round-trip.
-    Every PARSE_JSON(@name) in any sql file under core must say wide_number_mode => 'round'."""
+    Every PARSE_JSON(@name) in any sql file or python sql string under core, tests aside, must say
+    wide_number_mode => 'round'."""
     root = Path(cluster.__file__).resolve().parents[1]
     bound = []
-    for path in sorted(root.rglob("*.sql")):
-        for call in re.findall(r"PARSE_JSON\(\s*@\w+[^)]*\)", path.read_text(encoding="utf-8")):
-            bound.append((path.name, call))
-    assert {name for name, _ in bound} >= {"cluster_checkpoint.sql", "weekly_quality_insert.sql"}
+    for pattern in ("*.sql", "*.py"):
+        for path in sorted(root.rglob(pattern)):
+            if "tests" in path.relative_to(root).parts:
+                continue
+            for call in re.findall(r"PARSE_JSON\(\s*@\w+[^)]*\)", path.read_text(encoding="utf-8")):
+                bound.append((path.relative_to(root).as_posix(), call))
+    assert {name for name, _ in bound} >= {
+        "understand/sql/cluster_checkpoint.sql", "eval/sql/weekly_quality_insert.sql", "eval/blind_test.py",
+        "understand/embed.py", "understand/enrich.py"}
     unrounded = [(name, call) for name, call in bound
                  if not re.fullmatch(r"PARSE_JSON\(\s*@\w+,\s*wide_number_mode\s*=>\s*'round'\s*\)", call)]
     assert unrounded == []

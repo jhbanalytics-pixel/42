@@ -307,7 +307,7 @@ def test_the_run_books_one_eval_row_apart_from_the_daily_model_cap():
     # Ask's daily spend read counts model_usd only, so this row never reaches MODEL_DAILY_USD
     assert "model_usd" in SPEND_SQL and "eval_usd" not in SPEND_SQL
     assert blind_test.EVAL_ROW_SQL.startswith("INSERT INTO `ogilvy-trends-v2.intelligence_42_agent.runs`")
-    assert "'eval'" in blind_test.EVAL_ROW_SQL and "PARSE_JSON(@counts)" in blind_test.EVAL_ROW_SQL
+    assert "'eval'" in blind_test.EVAL_ROW_SQL and "PARSE_JSON(@counts, wide_number_mode => 'round')" in blind_test.EVAL_ROW_SQL
 
 
 def test_a_run_that_crashes_still_books_what_it_spent(monkeypatch):

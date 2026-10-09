@@ -135,7 +135,7 @@ BATCH_ROW_SQL = (
     "INSERT INTO `ogilvy-trends-v2.intelligence_42_agent.runs` "
     "(run_id, stage, run_date, status, started_at, finished_at, counts)\n"
     "VALUES (@run_id, 'understand_batch', @run_date, 'submitted', CAST(@started_at AS TIMESTAMP), "
-    "CAST(@started_at AS TIMESTAMP), PARSE_JSON(@counts))")
+    "CAST(@started_at AS TIMESTAMP), PARSE_JSON(@counts, wide_number_mode => 'round'))")
 # The same row for a suffix whose job never ran (its submit raised, or Vertex has no job by its name), which
 # enrich_batches.sql then no longer lists.
 BATCH_FAILED_SQL = BATCH_ROW_SQL.replace("'submitted'", "'failed'")
@@ -147,7 +147,7 @@ BATCH_CLOSED_SQL = BATCH_ROW_SQL.replace("'submitted'", "'closed'")
 BATCH_CLOSED_SPEND_SQL = (
     f"{BATCH_CLOSED_SQL},\n"
     "(@spend_run_id, 'understand_spend', @spend_run_date, 'ok', CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), "
-    "PARSE_JSON(@spend_counts))")
+    "PARSE_JSON(@spend_counts, wide_number_mode => 'round'))")
 
 FORMATS = ["talking_head", "skit", "dance", "duet", "stitch", "tutorial", "slideshow", "meme_image", "news_clip",
            "other"]

@@ -96,7 +96,7 @@ EVAL_ROW_SQL = (
     "INSERT INTO `ogilvy-trends-v2.intelligence_42_agent.runs` "
     "(run_id, stage, run_date, status, started_at, finished_at, counts)\n"
     "VALUES (@run_id, 'eval', @run_date, @status, CAST(@started_at AS TIMESTAMP), CAST(@finished_at AS TIMESTAMP), "
-    "PARSE_JSON(@counts))")
+    "PARSE_JSON(@counts, wide_number_mode => 'round'))")
 DEFAULT_GRADER = llm.gemini_model("smart")
 ROLES = ("orchestrator", "writer", "critic")
 MARGIN = 0.05

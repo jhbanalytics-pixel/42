@@ -67,7 +67,7 @@ SPEND_ROW_SQL = (
     "INSERT INTO `ogilvy-trends-v2.intelligence_42_agent.runs` "
     "(run_id, stage, run_date, status, started_at, finished_at, counts)\n"
     "VALUES (@run_id, 'understand_spend', @run_date, 'ok', CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), "
-    "PARSE_JSON(@counts))")
+    "PARSE_JSON(@counts, wide_number_mode => 'round'))")
 
 
 def load(name):
