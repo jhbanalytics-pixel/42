@@ -309,7 +309,7 @@ function FrozenBody({view, onFailure, editAgain}){
           {kept.map((claim) => {
             const review = reviews[claim.claim_id];
             return (
-              <li className="dossiers42-claim" key={claim.claim_id} data-claim={claim.claim_id} data-withheld={claim.withheld === true ? 'true' : undefined}>
+              <li className="dossiers42-claim" key={claim.claim_id} data-claim={claim.claim_id} data-withheld={claim.withheld === true ? '' : undefined}>
                 <ClaimBody claim={claim} records={records} pinnedId={pinnedId} onPin={setPinnedId} />
                 {review && review.ticked && <span className="dossiers42-muted">{'Reviewed' + (review.note ? ': ' + review.note : '')}</span>}
                 {claim.note && <span className="dossiers42-note">{"Reviewer's note: " + claim.note}</span>}
@@ -496,7 +496,7 @@ export function DossierPage({dossierId, onAuth}){
               const noteValue = Object.hasOwn(noteDrafts, cid) ? noteDrafts[cid] : (claim.note || '');
               const noteId = 'dossiers42-note-' + cid;
               return (
-                <li className="dossiers42-claim" key={cid} data-claim={cid} data-withheld={claim.withheld === true ? 'true' : undefined}>
+                <li className="dossiers42-claim" key={cid} data-claim={cid} data-withheld={claim.withheld === true ? '' : undefined}>
                   <ClaimBody claim={claim} records={records} pinnedId={pinnedId} onPin={setPinnedId} />
                   <div className="dossiers42-review">
                     <label className="dossiers42-tick">

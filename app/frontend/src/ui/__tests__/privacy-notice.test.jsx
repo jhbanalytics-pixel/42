@@ -225,10 +225,11 @@ for (const surface of ['draft', 'frozen', 'shared']){
     await until(() => claimLis().length > 0, 'the claims');
     const slots = claimLis();
     expect(slots.map((node) => node.getAttribute('data-claim'))).toEqual(['c1', 'c2', 'c3']);
-    expect(slots.map((node) => node.getAttribute('data-withheld'))).toEqual([null, 'true', 'true']);
-    const words = 'This finding was left out because it rested on a post 42 no longer shows.';
-    expect(plain(slots[1].textContent)).toContain(words);
-    expect(plain(slots[2].textContent)).toContain(words);
+    expect(slots.map((node) => node.hasAttribute('data-withheld'))).toEqual([false, true, true]);
+    /* The frozen and shared views say it in the server's words; a draft may say it in its own, so long as it says it. */
+    const words = surface === 'draft' ? /post 42 no longer shows/ : /This finding was left out because it rested on a post 42 no longer shows\./;
+    expect(plain(slots[1].textContent)).toMatch(words);
+    expect(plain(slots[2].textContent)).toMatch(words);
     expect(plain(slots[0].textContent)).toContain('Amapiano posts rose');
     expect(slots[1].parentElement.tagName).toBe('OL');
     expect([...slots[1].parentElement.children].indexOf(slots[1])).toBe(1);
@@ -245,7 +246,7 @@ test('F03 an unavailable dossier says so and shows every slot withheld', async (
   await act(async () => root.render(<DossierPage dossierId="d_fixture1" onAuth={() => {}} />));
   await until(() => claimLis().length > 0, 'the claims');
   expect([...host.querySelectorAll('[data-privacy-notice]')].map((node) => plain(node.textContent))).toEqual([UNAVAILABLE]);
-  expect(claimLis().filter((node) => node.getAttribute('data-withheld') === 'true')).toHaveLength(claimLis().length);
+  expect(claimLis().filter((node) => node.hasAttribute('data-withheld'))).toHaveLength(claimLis().length);
 });
 
 /* F04 */
