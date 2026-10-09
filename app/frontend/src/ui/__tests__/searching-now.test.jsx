@@ -66,16 +66,16 @@ test('reads freshness against an injected now', () => {
   expect(freshnessWords('2025-12-31', now)).toBe('31 Dec 2025');
 });
 
-test('orders by rank, live before daily, then term, and repeats tied ranks', () => {
+test('orders live rows by rank then term and repeats tied ranks', () => {
   const now = Date.parse('2026-10-04T03:50:00Z');
   const row = (term, source, rank, refreshed_at) => ({term, market: 'ZA', source, rank, refreshed_at});
   const html = render({market: 'ZA', now, signals: [
-    row('wales vs norway', 'google_bq', 3, '2026-10-01'),
+    row('wales vs norway', 'google_trending', 3, '2026-10-04T02:00:00Z'),
     row('farmer', 'google_trending', null, '2026-10-04T03:30:00Z'),
-    row('denmark vs portugal', 'google_bq', 1, '2026-10-01'),
+    row('denmark vs portugal', 'google_trending', 1, '2026-10-04T02:00:00Z'),
     row('croatia vs england', 'google_trending', 1, '2026-10-04T00:45:59Z'),
-    row('south africa green id end date', 'google_bq', 2, '2026-10-01'),
-    row('eritrea vs south africa', 'google_bq', 1, '2026-10-01'),
+    row('south africa green id end date', 'google_trending', 2, '2026-10-04T01:00:00Z'),
+    row('eritrea vs south africa', 'google_trending', 1, '2026-10-04T02:30:00Z'),
   ]});
   const terms = [...html.matchAll(/class="searching-now__term">([^<]+)/g)].map((match) => match[1]);
   expect(terms).toEqual(['croatia vs england', 'denmark vs portugal', 'eritrea vs south africa', 'wales vs norway', 'south africa green id end date', 'farmer']);
@@ -84,22 +84,37 @@ test('orders by rank, live before daily, then term, and repeats tied ranks', () 
   expect(html).toContain('Other searches · 2');
   expect([...html.matchAll(/data-google-rank="1"><span class="sr-only">, <\/span>Google rank 1</g)]).toHaveLength(3);
   expect([...html.matchAll(/searching-now__local/g)]).toHaveLength(2);
-  expect(html.replace(/<[^>]+>/g, '')).toContain('Live trending, 20 min ago · Daily top terms, 1 Oct');
+  expect(html.replace(/<[^>]+>/g, '')).toContain('Live trending, 20 min ago');
   expect([...html.matchAll(/searching-now__mark--fresh/g)]).toHaveLength(1);
-  expect(html).not.toMatch(/[\u2013\u2014]/);
-  expect(render({market: 'ZA', now, nameMarket: false, signals: [row('farmer', 'google_bq', 1, '2026-10-01')]})).not.toContain('searching-now__place');
+  expect(html).not.toMatch(new RegExp('[' + String.fromCharCode(0x2013, 0x2014) + ']'));
+  expect(render({market: 'ZA', now, nameMarket: false, signals: [row('farmer', 'google_trending', 1, '2026-10-04T03:30:00Z')]})).not.toContain('searching-now__place');
 });
 
-test('accepts the Google Trends daily feed as a daily source and still drops unknown sources', () => {
+// Wave 8 decision W8-DEC-04: the strip shows only Google's live trending list,
+// as search interest and never as post evidence. The daily sources are not shown.
+test('shows only live Google trending rows and drops the daily sources and unknown ones', () => {
   const now = Date.parse('2026-10-04T03:50:00Z');
-  const feed = {term: 'lotto results', market: 'ZA', source: 'google_rss', rank: 2, refreshed_at: '2026-10-03'};
-  const html = render({market: 'ZA', now, signals: [feed]});
-  expect(html).toContain('lotto results');
-  expect(html).toContain('title="Google Trends daily feed"');
-  expect(html).toContain('data-search-source="daily"');
-  expect(html).not.toContain('searching-now__mark--live');
-  expect(html.replace(/<[^>]+>/g, '')).toContain('Daily feed, 3 Oct');
-  expect(render({market: 'ZA', now, signals: [{...feed, source: 'google_news'}]})).toBe('');
+  const live = {term: 'springboks', market: 'ZA', source: 'google_trending', rank: 1, refreshed_at: '2026-10-04T03:30:00Z'};
+  const bq = {term: 'daily top term', market: 'ZA', source: 'google_bq', rank: 2, refreshed_at: '2026-10-03'};
+  const rss = {term: 'lotto results', market: 'ZA', source: 'google_rss', rank: 3, refreshed_at: '2026-10-03'};
+  const html = render({market: 'ZA', now, signals: [bq, rss, live]});
+  expect(html).toContain('springboks');
+  expect(html).not.toContain('daily top term');
+  expect(html).not.toContain('lotto results');
+  expect(html).not.toContain('data-search-source="daily"');
+  expect(html).toContain('data-search-source="live"');
+  expect(html).not.toContain('Google Trends daily feed');
+  expect(html.replace(/<[^>]+>/g, '')).not.toMatch(/Daily top terms|Daily feed/);
+  expect(html.replace(/<[^>]+>/g, '')).toContain('Live trending, 20 min ago');
+  expect(html).toContain('Google search interest, not posts');
+  expect(html).not.toMatch(/evidence/i);
+  expect(html).toContain('data-logo="google"');
+  expect(render({market: 'ZA', now, signals: [bq, rss]})).toBe('');
+  expect(render({market: 'ALL', now, signals: [bq, rss]})).toBe('');
+  expect(render({market: 'ZA', now, signals: [{...live, source: 'google_news'}]})).toBe('');
+  const all = render({market: 'ALL', now, signals: [bq, {...live, market: 'NG', term: 'naija live'}, {...rss, market: 'KE'}]});
+  expect([...all.matchAll(/data-search-market="([A-Z]{2})"/g)].map((match) => match[1])).toEqual(['NG']);
+  expect(all).not.toContain('daily top term');
 });
 
 test('a plain refresh day cannot prove that a live row is less than an hour old', () => {
@@ -176,4 +191,21 @@ test('the caption sits under the heading and explains Google ranks', () => {
   const header = /\.searching-now__header \{[^}]*\}/.exec(css)[0];
   expect(header).toContain('grid-template-columns: minmax(0, 1fr);');
   expect(/\.searching-now__caption \{[^}]*\}/.exec(css)[0]).not.toContain('text-align: right');
+});
+
+// Wave 8: the heading carries Google's mark, vendored inline and decorative,
+// beside the words; the heading and caption markup is otherwise unchanged.
+test('the header carries a decorative Google logo beside the heading text', () => {
+  const html = render({signals, market: 'NG'});
+  const svg = /<svg[^>]*class="pl-logo[^"]*"[^>]*>/.exec(html);
+  expect(svg).not.toBeNull();
+  expect(svg[0]).toContain('aria-hidden="true"');
+  expect(svg[0]).toContain('data-logo="google"');
+  expect(html.indexOf('pl-logo')).toBeLessThan(html.indexOf('searching-now__heading'));
+  expect(html.indexOf('<svg')).toBeGreaterThan(html.indexOf('searching-now__header'));
+  expect(html).toContain('>Trending on Google');
+  expect(html).not.toMatch(/<svg[^>]*>[^]*<title>/);
+  expect(html).not.toMatch(/<image|<img/);
+  const css = readFileSync(new URL('../../styles/searching-now.css', import.meta.url), 'utf8');
+  expect(css).toMatch(/\.searching-now__logo\s*\{[^}]*position:\s*absolute/);
 });

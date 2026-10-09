@@ -15,6 +15,8 @@ const actEnvironment = globalThis.IS_REACT_ACT_ENVIRONMENT;
 const {AskAboutThis} = await import('../AskAboutThis.jsx');
 const {AskPage} = await import('../../ask42.jsx');
 const {legacyHashTarget} = await import('../../legacyRoutes.js');
+const {parseAskQuery} = await import('../../App.jsx');
+const {grantAsk, consumeAsk} = await import('../../askConsent.js');
 
 const realFetch = globalThis.fetch;
 const realWindowFetch = window.fetch;
@@ -33,6 +35,7 @@ afterAll(() => {
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   calls = [];
+  consumeAsk({});
   window.history.replaceState(null, '', '#/');
   window.localStorage.setItem('pulse_passcode', 'fixture-pass');
   host = document.createElement('div');
@@ -97,6 +100,8 @@ test('the Ask about this address is a draft and confirming goes to the live ask 
   const confirm = [...host.querySelectorAll('button')].find((node) => plain(node.textContent) === 'Ask');
   await act(async () => { confirm.click(); });
   expect(window.location.hash).toBe(LIVE);
+  expect(parseAskQuery(window.location.hash).draft).toBe(true);
+  expect(consumeAsk(parseAskQuery(window.location.hash))).toBe(true);
 });
 
 test('a draft from a card fills the question and starts nothing, then Ask posts the card it came from', async () => {
@@ -116,4 +121,98 @@ test('an older Console address that carries a question is a draft too', () => {
   expect(legacyHashTarget('#/console?work=ask&q=What%20changed%3F&market=NG')).toBe('#/ask?q=What+changed%3F&market=NG&draft=1');
   expect(legacyHashTarget('#/console?work=ask&q=What%20changed%3F&draft=1')).toBe('#/ask?q=What+changed%3F&draft=1');
   expect(legacyHashTarget('#/console?work=ask')).toBe('#/ask');
+});
+
+/* L7-5: any address that carries a question is a draft, with or without
+   draft=1 or live=1. Only the cost confirm lets one start, by granting a
+   one-shot token held in memory for that question, market, item and date. */
+const OLD = '#/ask?q=What%20is%20behind%20this%3F&market=ZA&item=it_1&date=2026-10-01';
+const posts = () => calls.filter((call) => call.method === 'POST');
+
+async function mountAddress(hash){
+  await act(async () => root.render(<AskPage region="ZA" setRegion={() => {}} query={parseAskQuery(hash)} />));
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
+}
+
+test('an old ?q= link renders the draft and makes no request to the ask endpoint', async () => {
+  serve(clone(completeRecord));
+  expect(parseAskQuery(OLD).draft).toBe(true);
+  await mountAddress(OLD);
+  expect(host.querySelector('textarea').value).toBe('What is behind this?');
+  expect(calls.filter((call) => call.path.includes('/api/ask'))).toEqual([]);
+  await act(async () => { [...host.querySelectorAll('button')].find((node) => plain(node.textContent) === 'Ask').click(); });
+  await until(() => posts().length === 1, 'the ask');
+  expect(posts()[0].body).toMatchObject({question: 'What is behind this?', market: 'ZA', from_card: {item_id: 'it_1', market: 'ZA', date: '2026-10-01'}});
+});
+
+test('a crafted live=1 or draft=0 address makes no POST and shows the draft', async () => {
+  serve(clone(completeRecord));
+  for (const extra of ['&live=1', '&live=true&draft=0', '&draft=1&live=1']){
+    calls = [];
+    expect(parseAskQuery(OLD + extra).draft).toBe(true);
+    await mountAddress(OLD + extra);
+    expect(host.querySelector('textarea').value).toBe('What is behind this?');
+    expect(posts()).toEqual([]);
+    await act(async () => root.render(null));
+  }
+});
+
+test('a granted token starts one ask for its own question, market, item and date, then is spent', async () => {
+  serve(clone(completeRecord));
+  grantAsk(parseAskQuery(OLD));
+  await mountAddress(OLD);
+  await until(() => posts().length === 1, 'the confirmed ask');
+  expect(posts()[0].body).toMatchObject({question: 'What is behind this?', market: 'ZA', from_card: {item_id: 'it_1'}});
+  await act(async () => root.render(null));
+  calls = [];
+  await mountAddress(OLD);
+  expect(posts()).toEqual([]);
+  expect(host.querySelector('textarea').value).toBe('What is behind this?');
+});
+
+test('a token for another question, market, item or date does not start this one', async () => {
+  serve(clone(completeRecord));
+  for (const other of [
+    OLD.replace('behind', 'under'),
+    OLD.replace('market=ZA', 'market=NG'),
+    OLD.replace('item=it_1', 'item=it_2'),
+    OLD.replace('2026-10-01', '2026-10-02'),
+    OLD.replace('&item=it_1', ''),
+  ]){
+    calls = [];
+    grantAsk(parseAskQuery(other));
+    await mountAddress(OLD);
+    expect(posts()).toEqual([]);
+    await act(async () => root.render(null));
+    consumeAsk(parseAskQuery(other));
+  }
+});
+
+test('a token that was not used within thirty seconds is stale', async () => {
+  serve(clone(completeRecord));
+  const now = Date.now;
+  try {
+    grantAsk(parseAskQuery(OLD));
+    Date.now = () => now() + 31000;
+    await mountAddress(OLD);
+    expect(posts()).toEqual([]);
+  } finally { Date.now = now; }
+});
+
+test('a failed start is not posted again by a reload, back or restore of the same address', async () => {
+  const failing = async (url, init = {}) => {
+    const method = String(init.method || 'GET').toUpperCase();
+    calls.push({path: String(url), method, body: init.body ? JSON.parse(init.body) : null});
+    return json(503, {error: 'unavailable'});
+  };
+  globalThis.fetch = failing;
+  window.fetch = failing;
+  grantAsk(parseAskQuery(OLD));
+  window.location.hash = OLD;
+  await mountAddress(OLD);
+  await until(() => posts().length === 1, 'the failed start');
+  await act(async () => root.render(null));
+  await mountAddress(OLD);
+  await mountAddress(window.location.hash);
+  expect(posts()).toHaveLength(1);
 });
