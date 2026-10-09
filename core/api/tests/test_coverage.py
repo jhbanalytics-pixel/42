@@ -804,3 +804,12 @@ def test_coverage_shows_an_ok_understand_run_that_embedded_nothing_as_degraded(f
 def test_the_bigquery_degraded_read_includes_embed_error():
     assert "JSON_VALUE(r.counts, '$.embed_error')" in store_mod.DEGRADED_SQL
     assert store_mod.DEGRADED_SQL.index("$.embed_error") < store_mod.DEGRADED_SQL.index("$.enrich_error")
+
+
+# N55 with the partial understand run (wave8/detect): the embed soft failure and a clusterer failure both show as degraded.
+def test_degraded_shows_embed_in_python_and_sql_and_a_cluster_stack_failure_per_market():
+    counts = {"embed_error": "NoWindowSent: spend_unknown", "partial": True, "partial_reason": "cluster_stack_failed",
+              "cluster": {"za": {"error": "ImportError: stack"}, "ng": {"error": "ImportError: stack"},
+                          "ke": {"error": "ImportError: stack"}, "pan": {"error": "ImportError: stack"}}}
+    assert store_mod.degraded_writes(counts) == ["embed", "cluster:za", "cluster:ng", "cluster:ke", "cluster:pan"]
+    assert store_mod.DEGRADED_SQL.index("$.embed_error") < store_mod.DEGRADED_SQL.index("$.cluster.za.error")

@@ -1157,6 +1157,24 @@ def _latest_run(runs):
     return max(runs, key=key, default=None)
 
 
+# core/understand/job.py records a run whose clusterer failed as ok but partial; the page says so in these words.
+TOPICS_PARTIAL_REASON = "cluster_stack_failed"
+TOPICS_FAILED_TEXT = "Data issue: topic grouping failed today"
+
+
+def _topics_failed(runs):
+    """True when the day's latest understand row says the topic grouping failed (partial_reason cluster_stack_failed)."""
+    latest = _latest_run(runs)
+    counts = latest.get("counts") if latest else None
+    if isinstance(counts, str):
+        try:
+            counts = json.loads(counts)
+        except ValueError:
+            return False
+    return (isinstance(counts, dict) and counts.get("partial") is True
+            and counts.get("partial_reason") == TOPICS_PARTIAL_REASON)
+
+
 def _stage_failed(runs):
     latest = _latest_run(runs)
     return latest is not None and latest.get("status") == "failed"
@@ -1223,7 +1241,7 @@ def _headline(markets):
 
 
 def _market(store, market, date, row, health_rows, calendar_rows, warmup, collect_ok, stage_failed, creator_labels,
-            day="today"):
+            day="today", topics_failed=False):
     payload = row.get("payload") if row and isinstance(row.get("payload"), dict) else {}
     status = row["status"] if row else "data_issue"
     prev = _prev_ranks(store, market, date) if row else None
@@ -1312,6 +1330,9 @@ def _market(store, market, date, row, health_rows, calendar_rows, warmup, collec
         n = len(failed_sources)
         noun = "source" if n == 1 else "sources"
         banners.append({"kind": "data_issue", "text": f"{n} {noun} failed today: {', '.join(failed_sources)}"})
+
+    if topics_failed:
+        banners.append({"kind": "data_issue", "text": TOPICS_FAILED_TEXT})
 
     existing_kinds = {b["kind"] for b in banners}
     payload_banners = []
@@ -1548,8 +1569,9 @@ def build_today(store, date=None, now=None):
     stage_failed = _stage_failed(collect_runs) or _stage_failed(detect_runs)
     creator_labels = _today_creator_labels(store, rows)
     day = "today" if current else f"on {_long_date(date)}"
+    topics_failed = _topics_failed(store.runs("understand", date))
     markets = [_market(store, m, date, rows.get(m), health_rows, calendar_rows, warmup, collect_ok, stage_failed,
-                       creator_labels, day)
+                       creator_labels, day, topics_failed)
                for m in MARKETS]
     _with_held_details(store, rows, markets)
     breaking = _breaking(store, store._hidden, now) if current else {}

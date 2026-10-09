@@ -2236,3 +2236,70 @@ def test_the_contract_lists_explanation_status_among_the_held_item_fields():
     from pathlib import Path
     text = (Path(__file__).resolve().parent.parent / "contract.md").read_text(encoding="utf-8")
     assert "`explanation_status`" in text and "`failed_checks` or `not_run`" in text
+
+
+# wave8/detect: an understand run whose clusterer failed is recorded ok with counts.partial, partial_reason
+# cluster_stack_failed and data_issue. Today reads that row and says so.
+TOPICS_FAILED = "Data issue: topic grouping failed today"
+
+
+def _understand(counts, run_id="r_understand_20260930_09", started="2026-09-30T05:00:00+02:00", as_text=False):
+    import json as _json
+    return {"run_id": run_id, "stage": "understand", "run_date": D30, "status": "ok", "started_at": started,
+            "finished_at": started.replace("05:00", "05:30"), "counts": _json.dumps(counts) if as_text else counts,
+            "error": None, "model_usd": 0.0}
+
+
+def _topics_store(*rows):
+    base = FixtureStore()
+    return Patched(runs=lambda stage, d: list(rows) if stage == "understand" else base.runs(stage, d))
+
+
+PARTIAL = {"partial": True, "partial_reason": "cluster_stack_failed", "partial_error": "ImportError: no module",
+           "data_issue": TOPICS_FAILED}
+
+
+@pytest.mark.parametrize("as_text", [False, True])
+def test_a_topic_grouping_failure_shows_as_a_data_issue_in_every_market(as_text):
+    out = today.build_today(_topics_store(_understand(PARTIAL, as_text=as_text)), D30)
+    for m in out["markets"]:
+        issues = [b for b in m["banners"] if b["text"] == TOPICS_FAILED]
+        assert issues == [{"kind": "data_issue", "text": TOPICS_FAILED}], m["market"]
+
+
+def test_the_banner_is_the_fixed_words_not_the_text_the_row_carries():
+    row = _understand({**PARTIAL, "data_issue": "Data issue: something else the row said"})
+    out = today.build_today(_topics_store(row), D30)
+    za = market(out, "ZA")
+    assert TOPICS_FAILED in [b["text"] for b in za["banners"]]
+    assert not any("something else" in b["text"] for b in za["banners"])
+
+
+@pytest.mark.parametrize("counts", [
+    {}, {"embedded": 40}, {"partial": True, "partial_reason": "something_else", "data_issue": "Data issue: other"},
+    {"partial": False, "partial_reason": "cluster_stack_failed"}])
+def test_an_understand_run_that_did_not_fail_on_the_clusterer_adds_no_banner(counts):
+    out = today.build_today(_topics_store(_understand(counts)), D30)
+    assert not any(b["text"] == TOPICS_FAILED for m in out["markets"] for b in m["banners"])
+
+
+def test_a_later_clean_understand_run_clears_the_banner():
+    failed = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
+    clean = _understand({"embedded": 40}, run_id="r_understand_20260930_09", started="2026-09-30T06:00:00+02:00")
+    out = today.build_today(_topics_store(failed, clean), D30)
+    assert not any(b["text"] == TOPICS_FAILED for m in out["markets"] for b in m["banners"])
+    again = today.build_today(_topics_store(clean, failed), D30)  # the order the rows come in does not matter
+    assert not any(b["text"] == TOPICS_FAILED for m in again["markets"] for b in m["banners"])
+
+
+def test_a_day_with_no_understand_row_adds_no_banner():
+    out = today.build_today(_topics_store(), D30)
+    assert not any(b["text"] == TOPICS_FAILED for m in out["markets"] for b in m["banners"])
+
+
+def test_the_banner_is_shown_once_and_the_fixture_day_is_otherwise_unchanged():
+    plain = today.build_today(FixtureStore(), D30)
+    marked = today.build_today(_topics_store(_understand(PARTIAL)), D30)
+    for a, b in zip(plain["markets"], marked["markets"]):
+        assert [x for x in b["banners"] if x["text"] != TOPICS_FAILED] == a["banners"]
+        assert sum(x["text"] == TOPICS_FAILED for x in b["banners"]) == 1
