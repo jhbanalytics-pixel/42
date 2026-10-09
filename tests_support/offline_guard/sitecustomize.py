@@ -19,11 +19,14 @@ host:file, which tar sends through a remote shell), sort (`--compress-program`) 
 Long options are matched by their shortest abbreviation getopt accepts.
 A script file given to awk or sed that cannot be read (standard input, a missing file, a directory, one past the
 size limit) is refused. awk is read after backslash-newline continuations are joined: system(, @ and the network
-files in the raw text, pipes and getline with the strings emptied. tar is refused when TAPE, RSH or TAR_OPTIONS is
-in its environment, and zip when ZIPOPT is.
+files in the raw text, pipes and getline with the strings emptied both in the joined program and in the program as
+written, since gawk does not continue a comment that ends in a backslash and a join across one can hide a pipe.
+awk is also refused when AWKPATH is in its environment, because -f then finds the program in a directory the guard
+did not read. tar is refused when TAPE, RSH or TAR_OPTIONS is in its environment, and zip when ZIPOPT or ZIP is.
 pwsh is allowed for the release paste tests: -NoProfile, then -File with a .ps1 under the repository or the
 temporary directory, or -Command with the paste test's own frame over a .ps1 under the repository. The -File form
-admits any temporary script, the same accepted blind spot as bash -c.
+admits any temporary script, the same accepted blind spot as bash -c. An earlier version refused pwsh outright, so
+this is a deliberate widening that is already done and not a regression to undo.
 
 It is the portable counterpart of the Windows guard used for local runs. It needs no ctypes and no platform
 module, so the same file runs on Linux and Windows.
@@ -537,15 +540,20 @@ AWK_CONTINUATION = re.compile(r"\\\r?\n")
 
 
 def _awk_runs_a_program(program):
-    program = AWK_CONTINUATION.sub(" ", program)
+    unjoined, program = program, AWK_CONTINUATION.sub(" ", program)
     if AWK_RAW_RUNS.search(program):
         return True
-    if AWK_PIPE_RUNS.search(AWK_STRING.sub('""', program)):
+    # gawk does not continue a comment that ends in a backslash, so the line after it runs as code. Joining that line
+    # onto the comment lets a quote in the comment pair with a later quote and hide a pipe, so the strings are also
+    # emptied in the program as written, and a pipe in either reading is refused.
+    if AWK_PIPE_RUNS.search(AWK_STRING.sub('""', program)) or AWK_PIPE_RUNS.search(AWK_STRING.sub('""', unjoined)):
         return True
     return bool(AWK_QUOTE_IN_REGEX.search(program)) and bool(AWK_LONE_PIPE.search(program))
 
 
-def _check_awk(event, words):
+def _check_awk(event, words, mapping):
+    if mapping is None or "AWKPATH" in mapping:
+        _refuse(event, "awk with AWKPATH in its environment")
     programs, positional, index, given = [], [], 1, False
     while index < len(words):
         word = words[index]
@@ -658,8 +666,8 @@ def _check_sort(event, words):
 
 
 def _check_zip(event, words, mapping):
-    if mapping is None or "ZIPOPT" in mapping:
-        _refuse(event, "zip with ZIPOPT in its environment")
+    if mapping is None or "ZIPOPT" in mapping or "ZIP" in mapping:
+        _refuse(event, "zip with ZIPOPT or ZIP in its environment")
     for word in words[1:]:
         if word == "--":
             break
@@ -810,7 +818,7 @@ def _check_chain(event, executable, words, mapping, depth):
     elif name == "pwsh":
         _check_pwsh(event, words)
     elif name == "awk":
-        _check_awk(event, words)
+        _check_awk(event, words, mapping)
     elif name == "sed":
         _check_sed(event, words)
     elif name == "tar":
