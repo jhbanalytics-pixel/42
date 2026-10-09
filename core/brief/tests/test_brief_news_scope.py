@@ -354,7 +354,7 @@ def tier_case():
     """The tier CASE of brief.sql's candidates query, as written in the file."""
     sql = (Path(job.__file__).parent / "sql" / "brief.sql").read_text(encoding="utf-8")
     start = sql.index(TIER_START)
-    end = sql.index("END,", start) + len("END")
+    end = sql.index("ELSE 2 END", start) + len("ELSE 2 END")
     return sql[start:end]
 
 
