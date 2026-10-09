@@ -125,3 +125,25 @@ def test_a_candidate_on_the_v1_basis_is_untouched_by_a_v2_row_that_disagrees(mon
     assert card["explained"] is True and card["locality_v2"]["status"] == "not_local"
     assert card.get("market_scope_basis") == ("v1" if locality.LOCALITY_AUTHORITY == "v2" else None)   # M4
     assert "locality_audit" not in payload                                  # the audit lists only rows written under v2
+
+
+def test_the_shadow_count_records_the_pack_scope_not_the_scope_derived_from_the_row(monkeypatch):
+    """The count compares the 12-post pack scope with the v2 status. On the v2 basis the card's market_scope is derived
+    from v2, so the count reads the observation kept beside it, pack_scope_v1."""
+    con = v2_world(status="local")
+    add_locality(con, 20, 20)
+
+    def pack_says_global(client, row, d, market, core, agent):
+        return {"market_scope": "global", "market_posts7": 0, "total_posts7": 12, "market_share7": 0.0}
+
+    counts, payload, _, _ = run_brief(con, monkeypatch, scope=pack_says_global)
+    assert payload["cards"][0]["market_scope"] == "market"
+    assert counts["locality_shadow"] == [{"market": "ZA", "item_id": ITEM, "pack_scope": "global",
+                                          "v2_status": "local", "v2_label": "local"}]
+
+
+def test_the_shadow_count_of_a_row_on_the_v1_basis_is_the_pack_scope_as_before(monkeypatch):
+    con = world(located=True)
+    add_locality(con, 20, 20)
+    counts, payload, _, _ = run_brief(con, monkeypatch)
+    assert counts["locality_shadow"][0]["pack_scope"] == payload["cards"][0]["market_scope"] == "market"

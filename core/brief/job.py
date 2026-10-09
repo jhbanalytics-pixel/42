@@ -1395,7 +1395,9 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
               "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
     if spend.get("model_reserved_usd"):
         counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
-    shadow = [{"market": m, "item_id": c["row"]["item_id"], "pack_scope": c["row"].get("market_scope"),
+    shadow = [{"market": m, "item_id": c["row"]["item_id"],
+               "pack_scope": (c["row"].get("pack_scope_v1") or {}).get("market_scope") if c["row"].get(
+                   "locality_basis") == V2_BASIS else c["row"].get("market_scope"),
                "v2_status": c["row"]["locality_v2"]["status"], "v2_label": c["row"]["locality_v2"]["label"]}
               for m in MARKETS for c in by_market[m] if c.get("decision") is not None and c["row"].get("locality_v2")]
     if shadow:
