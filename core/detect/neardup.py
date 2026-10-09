@@ -24,7 +24,7 @@ from pathlib import Path
 from .aggregate import _run, _struct_array
 from core.trust.independence import plain_text, shingles, similar
 
-from .coaction import JACCARD, NUM_PERM
+from .coaction import JACCARD as JACCARD, NUM_PERM  # JACCARD is the confirmation threshold the tests read here
 from .sqlrun import AGENT, CORE, query
 
 # LSH built at the confirmation threshold JACCARD returns only about 40% of the pairs at Jaccard 0.80 (68.6% at 0.85,
