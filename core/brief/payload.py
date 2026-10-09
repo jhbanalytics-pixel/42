@@ -11,6 +11,7 @@ show a reader that posts were hidden, so the hold is served with counts over the
 counts as the query left them are kept here, with the item_id.
 """
 
+import re
 from collections import Counter
 
 from core.trust import locality
@@ -269,10 +270,13 @@ HELD_SUMMARY = {
 }
 
 
+_CAP_NAMED = re.compile(r": the [^:]+ left \d+ of \d+$")  # core/brief/pack_order.py hold_text, the whole of its suffix
+
+
 def hold_base(text):
     """A floor hold's wording without the cap it may name (core/brief/pack_order.py hold_text): what groups holds of
     one kind together here, in the holds report and in ops."""
-    return text.split(": the ")[0]
+    return _CAP_NAMED.sub("", text)
 
 
 def _held_group(item):
