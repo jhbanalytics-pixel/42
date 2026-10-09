@@ -12,7 +12,9 @@ from core.setup import deploy_jobs as dj
 SETUP = Path(dj.__file__).resolve().parent
 FILES = [SETUP / n for n in ("jobs.Dockerfile", "requirements-jobs.txt", "cloudbuild.jobs.yaml", "deploy_jobs.py",
                              "tests/test_deploy_jobs.py")]
-SHA = "abc1234"
+# SHA is the image tag: the first twelve hex characters of the commit and the attempt number (JB-01)
+COMMIT = "abc1234def5678abc1234def5678abc1234def56"
+SHA = f"{COMMIT[:12]}-01"
 DIGEST = "sha256:" + "d" * 64
 IMAGE = "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/jobs"
 DEPLOYER = "projects/ogilvy-trends-v2/serviceAccounts/f42-deployer@ogilvy-trends-v2.iam.gserviceaccount.com"
@@ -102,7 +104,7 @@ class FakeGit:
     def __call__(self, args):
         self.calls.append(list(args))
         if args[:1] == ["rev-parse"]:
-            return SHA + "\n"
+            return COMMIT + "\n"
         if args[:1] == ["status"]:
             return self.dirty
         return ""
@@ -271,12 +273,12 @@ def test_jobs_build_and_upload_read_the_shared_source_directory(tmp_path, monkey
     monkeypatch.setattr(dj, "AGENT_FLAGS", flags)
     argv = dj.upload_argv("source.tar.gz", SHA)
     assert argv[3] == f"gs://fixture-bucket/release-source/jobs-{SHA}.tar.gz"
-    assert dj.build_request(SHA)["source"] == {
+    assert dj.build_request(SHA, COMMIT)["source"] == {
         "storageSource": {"bucket": "fixture-bucket", "object": f"release-source/jobs-{SHA}.tar.gz"}}
 
 
 def test_build_request_reads_the_config_and_substitutes_image_and_tag():
-    body = dj.build_request(SHA)
+    body = dj.build_request(SHA, COMMIT)
     assert body["source"] == {"storageSource": {"bucket": BUCKET, "object": OBJECT}}
     assert body["serviceAccount"] == DEPLOYER
     assert body["options"]["logging"] == "CLOUD_LOGGING_ONLY"
@@ -300,7 +302,7 @@ def test_build_creates_the_build_through_the_api_and_polls_every_15_seconds_to_s
     assert [c[:2] for c in gcloud.calls] == [["storage", "cp"]]
     assert gcloud.calls[0][2] == str(Path("unused") / "source.tar.gz")
     assert [url for url, _ in session.posts] == [BUILDS]
-    assert session.posts[0][1] == dj.build_request(SHA)
+    assert session.posts[0][1] == dj.build_request(SHA, COMMIT)
     assert session.gets == [f"{BUILDS}/{BUILD_ID}"] * 4
     assert sleeps == [15] * 4
     assert out.count("WORKING") == 1 and "SUCCESS" in out
@@ -341,7 +343,7 @@ def test_build_then_apply_deploys_each_enabled_job_by_the_digest_from_the_build_
     for c in gcloud.deploys():
         assert flag(c, "--image") == f"{IMAGE}@{DIGEST}"
     archive = [c for c in git.calls if c[:1] == ["archive"]]
-    assert archive == [["archive", "--format=tar.gz", f"--output={Path('unused') / 'source.tar.gz'}", SHA,
+    assert archive == [["archive", "--format=tar.gz", f"--output={Path('unused') / 'source.tar.gz'}", COMMIT,
                         "core", "docs/full-42/reference/sc_routes.json"]]
 
 
@@ -1363,6 +1365,6 @@ def test_apply_when_the_digest_is_ready_deploys_it_as_it_is_and_starts_nothing(m
 def test_cloudbuild_config_passes_the_commit_sha_to_the_image_as_the_git_sha_build_argument():
     cfg = yaml.safe_load((SETUP / "cloudbuild.jobs.yaml").read_text(encoding="utf-8"))
     args = cfg["steps"][0]["args"]
-    assert args[args.index("--build-arg") + 1] == "GIT_SHA=${_TAG}"
-    built = dj.build_request(SHA)["steps"][0]["args"]
-    assert built[built.index("--build-arg") + 1] == f"GIT_SHA={SHA}"
+    assert args[args.index("--build-arg") + 1] == "GIT_SHA=${_GIT_SHA}"
+    built = dj.build_request(SHA, COMMIT)["steps"][0]["args"]
+    assert built[built.index("--build-arg") + 1] == f"GIT_SHA={COMMIT}"
