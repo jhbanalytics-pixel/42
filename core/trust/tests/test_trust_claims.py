@@ -1193,3 +1193,27 @@ def test_l3_a_market_assumed_flag_never_hides_a_stated_foreign_market():
     assert verdict(checks, "c1", "K3") == "cut"
     assert "c1" not in surviving(new)
     assert located_market(ans["evidence"][2]) is None
+
+
+def test_n22_every_flag_the_brief_evidence_builder_sets_for_a_non_independent_post_is_not_independent():
+    # core/brief/evidence.py _record sets flagged (a creator with a coordination score), sponsored and
+    # near_duplicate; market_assumed only says the location is unknown. K5 must read the first three as
+    # non-independent, as the gate context does for corroboration.
+    for flag in ("flagged", "sponsored", "near_duplicate"):
+        c = claim("c1", "Creators are posting the step", ["tt_1", "yt_8"], label="corroborated")
+        ans = answer([c] + filler())
+        ans["evidence"][7]["flags"] = [flag]
+        new, _ = run(ans)
+        assert label_of(new, "c1") == "single_source", flag
+    c = claim("c1", "Creators are posting the step", ["tt_1", "yt_8"], label="corroborated")
+    ans = answer([c] + filler())
+    ans["evidence"][7]["flags"] = ["market_assumed"]
+    new, _ = run(ans)
+    assert label_of(new, "c1") == "corroborated"
+
+
+def test_n22_k5_excludes_everything_the_gate_context_excludes_from_corroboration():
+    from core.brief.gatectx import NOT_INDEPENDENT as GATE_SET
+    from core.trust.claims import NOT_INDEPENDENT as K5_SET
+
+    assert GATE_SET <= K5_SET, sorted(GATE_SET - K5_SET)
