@@ -2,6 +2,7 @@
 
 import re
 import json
+from collections import Counter
 from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -9,6 +10,8 @@ from pathlib import Path
 
 ROUTES = ("youtube/search/advanced", "tiktok/location/posts", "tiktok/profile")
 COUNTRY_ROUTES = {"tiktok": "tiktok/profile", "instagram": "instagram/profile/about"}
+UNSERVED = "credit_room"  # the reason an account got no country call for want of credit room
+PLATFORM_ORDER = ("tiktok", "instagram")
 
 
 @lru_cache(maxsize=1)
@@ -48,7 +51,7 @@ def profile_country(body, handle, *, platform="tiktok"):
 
 class ProfileCache:
     def __init__(self):
-        self.known, self.accounts, self.attempted = {}, {}, set()
+        self.known, self.accounts, self.attempted, self.unserved = {}, {}, set(), set()
         self.posts, self.creators = [], []
 
     @staticmethod
@@ -69,6 +72,9 @@ class ProfileCache:
     def seed(self, rows):
         for row in rows:
             key = self.key(row.get("platform"), row.get("handle"))
+            if key and row.get("country_source") == UNSERVED:
+                self.unserved.add(key)
+                continue
             sources = (COUNTRY_ROUTES.get(row.get("platform")),)
             if row.get("platform") == "instagram":
                 sources += ("instagram/search/reels",)
@@ -102,7 +108,17 @@ class ProfileCache:
         self.creators.append(row)
 
     def needed(self):
-        return [account for key, account in self.accounts.items() if key not in self.known and key not in self.attempted]
+        """Accounts still to look up: the two platforms in turn, TikTok first. Within a platform the accounts
+        left unserved for credit room come first, then the one with most market posts, then by account key."""
+        posts = Counter(self.key(platform, handle) for _, platform, _, handle, _ in self.posts)
+        lanes = {platform: sorted((key for key in self.accounts if key[0] == platform and key not in self.known
+                                   and key not in self.attempted),
+                                  key=lambda key: (key not in self.unserved, -posts[key], key))
+                 for platform in PLATFORM_ORDER}
+        order = []
+        for turn in range(max(map(len, lanes.values()))):
+            order += [lanes[platform][turn] for platform in PLATFORM_ORDER if turn < len(lanes[platform])]
+        return [self.accounts[key] for key in order]
 
     def apply(self, geo_fn):
         for post, platform, market, handle, signals in self.posts:

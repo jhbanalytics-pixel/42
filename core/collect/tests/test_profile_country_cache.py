@@ -297,3 +297,104 @@ def test_transient_country_endpoint_failure_does_not_repeat_across_accounts(monk
     job.country_phase(run, runner, lambda keys, **kw: [], 2000)
     assert c.http.routes().count("tiktok/profile") == 1
     assert c.http.routes().count("instagram/profile/about") == 1 and run.stopped is None
+
+
+def _ordered_phase(monkeypatch, accounts, room, *, reader=lambda keys, **kw: []):
+    """Run country_phase for (platform, handle, market posts) accounts with room for `room` calls."""
+    monkeypatch.setenv("SOCIALCRAWL_OGILVY_API_KEY", "fake")
+    http = FakeHTTP({"tiktok/profile": (200, {"success": True, "data": {"author": {"username": "-"}}}),
+                     "instagram/profile/about": (200, {"success": True, "data": {"author": {"username": "-"}}})})
+    c = make(http=http)
+    c.clock = lambda: NOW
+    cache = location_sources.ProfileCache()
+    for platform, handle, posts in accounts:
+        for _ in range(posts):
+            cache.bind({}, platform, "NG", handle, {"home_market": None})
+    run = job.Collected("country-order")
+    run.local_credits, run.trends_credits = 1, 15
+    runner = job._Runner(c, run, fake_item_id, geo_for_post, lambda: NOW, job.Budget(), {}, NOW.date(), profiles=cache)
+    job.country_phase(run, runner, reader, 16 + room)
+    made = [(r["route"], r["params"]["handle"]) for r in http.requests if r["route"] != "credits/balance"]
+    return run, runner, made
+
+
+TT, IG = "tiktok/profile", "instagram/profile/about"
+
+
+def test_country_calls_alternate_between_platforms_within_the_room(monkeypatch):
+    accounts = [("tiktok", f"t{n}", 1) for n in range(4)] + [("instagram", f"i{n}", 1) for n in range(4)]
+    run, runner, made = _ordered_phase(monkeypatch, accounts, 4)
+    assert [route for route, _ in made] == [TT, IG, TT, IG]
+    assert run.credits == 4
+
+
+def test_alternation_continues_with_the_other_platform_when_one_runs_out(monkeypatch):
+    accounts = [("tiktok", f"t{n}", 1) for n in range(4)] + [("instagram", "i0", 1)]
+    run, runner, made = _ordered_phase(monkeypatch, accounts, 4)
+    assert [route for route, _ in made] == [TT, IG, TT, TT]
+
+
+def test_accounts_are_served_by_market_post_count_then_key(monkeypatch):
+    accounts = [("tiktok", "tlow", 1), ("tiktok", "tbeta", 3), ("tiktok", "talpha", 3), ("tiktok", "tmid", 2),
+                ("instagram", "ilow", 1), ("instagram", "ihigh", 5), ("instagram", "imid", 2)]
+    run, runner, made = _ordered_phase(monkeypatch, accounts, 7)
+    assert [handle for _, handle in made] == ["talpha", "ihigh", "tbeta", "imid", "tmid", "ilow", "tlow"]
+
+
+def test_unserved_accounts_are_recorded_with_credit_room_and_their_platform(monkeypatch):
+    accounts = [("tiktok", f"t{n}", 1) for n in range(3)] + [("instagram", f"i{n}", 1) for n in range(3)]
+    run, runner, made = _ordered_phase(monkeypatch, accounts, 2)
+    assert len(made) == 2
+    held = [r for r in run.records if r["status"] == "over_share"]
+    assert len(held) == 4
+    assert {r["reason"] for r in held} == {"credit_room"}
+    assert sorted(r["platform"] for r in held) == ["instagram", "instagram", "tiktok", "tiktok"]
+    assert all(r["calls"] == 0 for r in held)
+
+
+def test_a_call_over_a_share_budget_keeps_the_bare_over_share_record(monkeypatch):
+    from core.collect.tests.test_socialcrawl_client import NoHTTP
+
+    cache = location_sources.ProfileCache()
+    cache.bind({}, "tiktok", "NG", "creator", {"home_market": None})
+    run = job.Collected("country-share")
+    budget = job.Budget(share_cap=2000)
+    budget.limits = {key: 0 for key in budget.limits}
+    runner = job._Runner(make(http=NoHTTP()), run, fake_item_id, geo_for_post, lambda: NOW, budget, {}, NOW.date(), profiles=cache)
+    job.country_phase(run, runner, lambda keys, **kw: [], 2000)
+    assert run.records[-1]["status"] == "over_share" and run.records[-1]["reason"] == ""
+
+
+def test_accounts_unserved_yesterday_lead_the_next_order():
+    cache = location_sources.ProfileCache()
+    for handle, posts in (("fresh_high", 9), ("old_low", 1), ("fresh_mid", 4)):
+        for _ in range(posts):
+            cache.bind({}, "tiktok", "NG", handle, {"home_market": None})
+    assert [a["handle"] for a in cache.needed()] == ["fresh_high", "fresh_mid", "old_low"]
+    cache.seed([{"platform": "tiktok", "handle": "old_low", "country_source": "credit_room"}])
+    assert [a["handle"] for a in cache.needed()] == ["old_low", "fresh_high", "fresh_mid"]
+    assert cache.country("tiktok", "old_low") is None and ("tiktok", "old_low") not in cache.attempted
+
+
+def test_served_accounts_drop_out_so_the_unserved_come_first_the_next_day(monkeypatch):
+    accounts = [("tiktok", "ta", 5), ("tiktok", "tb", 3), ("tiktok", "tc", 1)]
+    day1, _, made1 = _ordered_phase(monkeypatch, accounts, 2)
+    assert [h for _, h in made1] == ["ta", "tb"]
+    served = [{"platform": "tiktok", "handle": h, "country": "NG", "country_source": "tiktok/profile"} for h in ("ta", "tb")]
+    cache = location_sources.ProfileCache()
+    for platform, handle, posts in accounts:
+        for _ in range(posts):
+            cache.bind({}, platform, "NG", handle, {"home_market": None})
+    cache.seed(served)
+    assert [a["handle"] for a in cache.needed()] == ["tc"]
+
+
+def test_country_capture_introduces_no_new_cap_or_budget(monkeypatch):
+    import inspect
+
+    assert list(inspect.signature(job.country_phase).parameters) == ["run", "runner", "profile_reader", "cap"]
+    accounts = [("tiktok", f"t{n}", 1) for n in range(30)] + [("instagram", f"i{n}", 1) for n in range(30)]
+    run, runner, made = _ordered_phase(monkeypatch, accounts, 7)
+    assert runner.reels_room == 7 and runner.budget.limits is None
+    assert len(made) == 7 and run.credits == 7
+    assert run.credits <= 2000 - run.local_credits - run.trends_credits
