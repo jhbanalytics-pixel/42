@@ -15,6 +15,7 @@ import pytest
 
 from core.collect import backfill_prism as bf
 from core.collect import curated_creators, job, local_sources, writers
+from core.collect.socialcrawl_client import PRICED, params_hash
 from core.collect.parse import COUNTER_COLUMNS, CREATOR_COLUMNS, OBSERVATION_COLUMNS, POST_COLUMNS
 from core.collect.tests.test_parse import FakeGeo, fake_item_id
 
@@ -58,9 +59,11 @@ def song_body(sound, uses):
     return body
 
 
-def raw(route, market, fetched, body, *, run_id="r-raw", seed_key=None, lane="panel", job_name="collect"):
+def raw(route, market, fetched, body, *, run_id="r-raw", seed_key=None, lane="panel", job_name="collect", params=None):
+    method = PRICED[route].method
     return {"run_id": run_id, "job": job_name, "market": market, "route": route, "lane": lane, "seed_key": seed_key,
-            "fetched_at": fetched, "body": json.dumps(body)}
+            "fetched_at": fetched, "body": json.dumps(body),
+            "params_hash": None if params is None else params_hash(method, params)}
 
 
 def desk_items(market):
@@ -83,24 +86,26 @@ def scenario():
     for m_index, market in enumerate(("ZA", "NG", "KE")):
         base = at(DAY, 0, 30 + m_index)
         call, items = desk_items(market)
-        rows.append(raw("prism/profiles", market, base, prism_body(items, f"desk{market}"), run_id=f"r-{market}"))
+        rows.append(raw("prism/profiles", market, base, prism_body(items, f"desk{market}"), run_id=f"r-{market}",
+                        params=call.params))
         gossip = gossip_fetch(market)
         rows.append(raw("prism/profiles", market, base + timedelta(minutes=5),
-                        prism_body(gossip.params["items"], f"gos{market}"), run_id=f"r-{market}"))
+                        prism_body(gossip.params["items"], f"gos{market}"), run_id=f"r-{market}",
+                        params=gossip.params))
         for n, c in enumerate(curated_calls(market)):
             rows.append(raw("prism/profiles", market, base + timedelta(minutes=10 + n),
-                            prism_body(c.params["items"], f"cur{market}{n}"), run_id=f"r-{market}"))
+                            prism_body(c.params["items"], f"cur{market}{n}"), run_id=f"r-{market}", params=c.params))
     # The same desk read again the next night: the same posts, a new observation each.
     rows.append(raw("prism/profiles", "ZA", at(DAY + timedelta(days=1), 0, 30), prism_body(desk_items("ZA")[1], "deskZA"),
-                    run_id="r-ZA-next"))
+                    run_id="r-ZA-next", params={**desk_items("ZA")[0].params, "since": "2026-10-03"}))
     odd = [{"platform": "instagram", "handle": "not-in-any-list"}]
     rows.append(raw("prism/profiles", "NG", at(DAY, 0, 50), prism_body(odd, "odd"), run_id="r-NG"))
     rows.append(raw("tiktok/song", "ZA", at(date(2026, 9, 30), 17, 49), song_body("S1", 100), seed_key="S1",
-                    lane="watchlist", run_id="r-s1"))
+                    lane="watchlist", run_id="r-s1", params={"clipId": "S1"}))
     rows.append(raw("tiktok/song", "NG", at(date(2026, 10, 1), 17, 49), song_body("S1", 130), seed_key="S1",
-                    lane="watchlist", run_id="r-s2"))
+                    lane="watchlist", run_id="r-s2", params={"clipId": "S1"}))
     rows.append(raw("tiktok/song", "KE", at(date(2026, 10, 1), 17, 50), song_body("S2", 50), seed_key="S2",
-                    lane="watchlist", run_id="r-s3"))
+                    lane="watchlist", run_id="r-s3", params={"clipId": "S2"}))
     return rows
 
 
@@ -637,6 +642,56 @@ def test_a_call_the_parser_refuses_is_skipped_and_counted():
 def test_a_failed_body_gives_no_rows_but_a_receipt():
     plan = plan_of([raw("prism/profiles", "ZA", at(DAY, 1), {"success": False, "error": "x"})])
     assert plan.posts == [] and plan.calls[0]["posts"] == 0
+
+
+# the stored params_hash is the independent check on what the module reconstructs
+
+def _verified(plan, klass):
+    return [c["params_verified"] for c in plan.calls if c["class"] == klass]
+
+
+def test_the_stored_params_hash_confirms_the_desk_gossip_and_song_calls_as_reconstructed():
+    plan = plan_of(scenario())
+    assert _verified(plan, "desk") == [True] * 4
+    assert _verified(plan, "gossip") == [True] * 3
+    assert _verified(plan, "song") == [True] * 3
+    assert _verified(plan, "unclassified") == [None]
+
+
+def test_a_curated_batch_is_confirmed_when_the_day_read_the_whole_list():
+    market = "ZA"
+    calls = curated_calls(market, limit=10 ** 6)
+    assert len(calls) > 1
+    rows = [raw("prism/profiles", market, at(DAY, 0, 40 + n), prism_body(c.params["items"], f"c{n}"), run_id="r-c",
+                params=c.params) for n, c in enumerate(calls)]
+    plan = plan_of(rows)
+    assert _verified(plan, "curated") == [True] * len(calls)
+
+
+def test_a_stored_hash_that_the_reconstruction_does_not_reproduce_is_reported_false():
+    call, items = desk_items("ZA")
+    wrong_day = {**call.params, "since": "2026-10-01"}
+    plan = plan_of([raw("prism/profiles", "ZA", at(DAY, 0, 30), prism_body(items, "d"), params=wrong_day),
+                    raw("tiktok/song", "ZA", at(date(2026, 9, 30), 17, 49), song_body("S1", 100), seed_key="S1",
+                        lane="watchlist", params={"clipId": "OTHER"})])
+    assert [c["params_verified"] for c in plan.calls] == [False, False]
+
+
+def test_a_row_without_a_stored_hash_is_unchecked_not_confirmed():
+    call, items = desk_items("ZA")
+    plan = plan_of([raw("prism/profiles", "ZA", at(DAY, 0, 30), prism_body(items, "d"))])
+    assert _verified(plan, "desk") == [None]
+
+
+def test_the_report_counts_confirmed_unconfirmed_and_unchecked_calls(capsys):
+    bq = DuckBQ(scenario())
+    run_cli(bq)
+    report = json.loads(capsys.readouterr().out)
+    got = report["params_verified"]
+    # Desk, gossip and song calls are all confirmed. A curated batch is confirmed only where the day's rotation
+    # starts at the head of the list, so the curated calls may split either way; the unlisted panel is unchecked.
+    assert got["unchecked"] == 1 and sum(got.values()) == PRISM_CALLS + 3
+    assert 10 <= got["confirmed"] <= 10 + sum(CURATED.values()) and got["unconfirmed"] <= sum(CURATED.values())
 
 
 # receipts

@@ -19,6 +19,11 @@ What it does, in order:
    union of the curated calls of the same stored run and market, because the job hashes the whole rotation and
    reads it in batches. A call that matches none of them is unclassified: it is written under the token of its own
    members and claims no source_market. tiktok/song takes tiktok/song?proto=v2 from the parser.
+   The class, the members and the since day are not taken on the body's word alone: the params_hash stored with
+   each call is compared with the hash of the params rebuilt here (the desk and gossip lists as the job holds them,
+   a batch of the full curated rotation, the song's clipId), and the result is reported per call and in total as
+   params_verified. A curated batch confirms only when that day read the whole list; a mismatch is reported, not
+   hidden, and does not change what is written.
 4. source_market is the call's market on a desk or curated call (the job sets it the same way). A gossip call sets it
    only on posts whose creator is on the market's curated list, as local_sources does, and an unclassified call on
    none, so the backfill never claims more locality than the live job would have.
@@ -48,6 +53,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from core.collect import curated_creators, job, local_sources, writers
+from core.collect.socialcrawl_client import PRICED, params_hash
 from core.collect.parse import (
     COUNTER_COLUMNS, GLOBAL, MARKETS, OBSERVATION_COLUMNS, _local_day, _utc, parse_with_creators)
 
@@ -81,7 +87,8 @@ SPECS = {
 }
 
 READ_SQL = (
-    "SELECT r.run_id, r.job, r.market, r.route, r.lane, r.seed_key, r.fetched_at, TO_JSON_STRING(r.body) AS body\n"
+    "SELECT r.run_id, r.job, r.market, r.route, r.lane, r.seed_key, r.params_hash, r.fetched_at,\n"
+    "  TO_JSON_STRING(r.body) AS body\n"
     "FROM `{table}` r\n"
     "WHERE DATE(r.fetched_at) BETWEEN @since AND @until AND r.http_status = 200 AND r.body IS NOT NULL\n"
     "  AND r.job IN UNNEST(@jobs) AND r.route IN UNNEST(@routes)\n"
@@ -233,6 +240,9 @@ def _references(manifest, config, day):
     for market in MARKETS:
         curated = curated_creators.daily_rotation(manifest, market, day, 10 ** 6)
         refs[market] = {
+            "desk_items": desk_calls[market].params["items"] if market in desk_calls else [],
+            "gossip_items": gossip[market].params["items"] if market in gossip else [],
+            "rotation": [{"platform": r["platform"], "handle": r["handle"]} for r in curated],
             "desk": (_fold((i["platform"], i["handle"]) for i in desk_calls[market].params["items"]),
                      desk_calls[market].series_protocol()) if market in desk_calls else (frozenset(), None),
             "gossip": (_fold((i["platform"], i["handle"]) for i in gossip[market].params["items"]),
@@ -281,9 +291,10 @@ def build(raw_rows, *, run_id, item_id_fn, geo_fn, manifest=None, config=None):
         entry = {"run_id": run_id, "raw_run_id": r["run_id"], "job": r.get("job"), "route": r["route"],
                  "market": market, "fetched_at": _utc(r["fetched_at"]).isoformat(), "seed_key": r.get("seed_key"),
                  "class": klass, "protocol": None, "posts": 0, "observations": 0, "creators": 0, "counters": 0,
-                 "dropped": 0, "post_ids": []}
+                 "dropped": 0, "params_verified": None, "post_ids": []}
         try:
             if klass == "song":
+                entry["params_verified"] = _confirmed(r, klass, None, None)
                 out = parse_with_creators(r["route"], {"clipId": r.get("seed_key")}, market, body, r["fetched_at"],
                                           run_id, item_id_fn=item_id_fn, geo_fn=geo)
                 entry["protocol"] = (out["counters"] or [{}])[0].get("protocol")
@@ -296,6 +307,7 @@ def build(raw_rows, *, run_id, item_id_fn, geo_fn, manifest=None, config=None):
                 protocol = _prism_protocol(klass, members, refs[market] if market in refs else None,
                                            rotation.get((r["run_id"], r["market"])))
                 since = (date.fromisoformat(_local_day(_utc(r["fetched_at"]), market)) - timedelta(days=1)).isoformat()
+                entry["params_verified"] = _confirmed(r, klass, refs.get(market), since)
                 out = parse_with_creators(r["route"], {"include": "posts", "since": since}, market, body,
                                           r["fetched_at"], run_id, item_id_fn=item_id_fn, geo_fn=geo,
                                           protocol=protocol)
@@ -314,6 +326,25 @@ def build(raw_rows, *, run_id, item_id_fn, geo_fn, manifest=None, config=None):
     plan.counters = _once(totals, ("obs_date", "market", "item_id", "series", "protocol", "unit", "observed_at"))
     plan.counters += _deltas(plan.counters)
     return plan
+
+
+def _confirmed(row, klass, ref, since):
+    """True when the params_hash stored with the call is the hash of the params this module reconstructs for it, False
+    when it is not, None when there is nothing to compare (no stored hash, or an unclassified panel). The job's hash
+    covers the panel's members and order, include and since (prism/profiles) or the clipId (tiktok/song), so a match
+    confirms the class, the member list and the since day against a value the stored call itself carries."""
+    stored = row.get("params_hash")
+    if stored is None or klass in ("unclassified", "skipped"):
+        return None
+    method = PRICED[row["route"]].method
+    if klass == "song":
+        expected = [params_hash(method, {"clipId": row.get("seed_key")})]
+    else:
+        panels = {"desk": [ref["desk_items"]], "gossip": [ref["gossip_items"]],
+                  "curated": [ref["rotation"][i:i + job.PROFILES_PER_CALL]
+                              for i in range(0, len(ref["rotation"]), job.PROFILES_PER_CALL)]}[klass]
+        expected = [params_hash(method, {"items": items, "include": "posts", "since": since}) for items in panels]
+    return stored in expected
 
 
 def _prism_protocol(klass, members, ref, union):
@@ -407,6 +438,9 @@ def run(client, *, since, until, apply, run_id, receipts_dir, fns):
               "run_id": run_id if apply else None,
               "raw_rows": dict(Counter(r["route"] for r in raw)), "jobs": dict(Counter(r["job"] for r in raw)),
               "classes": dict(Counter(c["class"] for c in plan.calls)), "skipped": plan.skipped,
+              "params_verified": {"confirmed": sum(c["params_verified"] is True for c in plan.calls),
+                                  "unconfirmed": sum(c["params_verified"] is False for c in plan.calls),
+                                  "unchecked": sum(c["params_verified"] is None for c in plan.calls)},
               "rows": {t: len(rows) for t, rows in tables.items()},
               "estimated_bytes": {"read": read_bytes, **estimates},
               "caps": {"read": READ_CAP, "write": WRITE_CAP}}
