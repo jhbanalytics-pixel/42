@@ -680,3 +680,127 @@ test('the Also on line is shown by the stylesheet, not hidden or clipped away', 
     expect(body, selector.trim()).not.toMatch(/display\s*:\s*none|visibility\s*:\s*hidden|clip|position\s*:\s*absolute|opacity\s*:\s*0|font-size\s*:\s*0|height\s*:\s*0|overflow\s*:\s*hidden/);
   }
 });
+
+/* Other ways to hide the Also on line (FE-A). A rule counts when its selector matches the rendered line itself, however
+   it is written (a class, an attribute, a parent-child path), or one of the elements above it for the declarations
+   that carry down to a child whatever the child sets. */
+
+const ZERO = /^[+-]?(?:0+\.?0*|\.0+)(?:%|[a-z]*)$/;
+const bare = (value) => value.toLowerCase().replace(/!important/g, '').replace(/\s+/g, ' ').trim();
+const args = (call) => call.slice(call.indexOf('(') + 1, call.lastIndexOf(')')).split(/[\s,/]+/).filter(Boolean);
+// scale(a), scale(a, b), scaleX(a), scaleY(a) and scale3d(a, b, c) reach nothing when the width or the height is zero.
+const collapses = (value) => [...bare(value).matchAll(/\bscale(x|y|z|3d)?\([^)]*\)/g)].some(([call, axis]) => {
+  const given = args(call);
+  if (axis === 'z') return false;
+  if (axis === 'x' || axis === 'y') return ZERO.test(given[0]);
+  return ZERO.test(given[0]) || ZERO.test(given[1] ?? given[0]);
+});
+const farOff = (value) => bare(value).split(' ').some((part) => /^-/.test(part) || Math.abs(parseFloat(part)) >= 100);
+
+// What a declaration does to the line it reaches: [property, value] -> why it hides, or ''.
+function carriesDown([prop, raw]){
+  const value = bare(raw);
+  if (prop === 'display' && value === 'none') return 'display none';
+  if (prop === 'visibility' && value === 'hidden') return 'visibility hidden';
+  if (prop === 'opacity' && ZERO.test(value)) return 'opacity zero';
+  if (prop === 'transform' && collapses(value)) return 'transform scales it to nothing';
+  if (prop === 'scale' && collapses(`scale(${value})`)) return 'scale zero';
+  if (prop === 'text-indent' && farOff(value)) return 'text-indent off screen';
+  return '';
+}
+function onTheLine([prop, raw]){
+  const value = bare(raw);
+  if (prop === 'color' && (value === 'transparent' || /^(?:rgb|hsl)a?\(.*[,/]\s*(?:0|0?\.0+|\.0+|0%)\s*\)$/.test(value))) return 'color transparent';
+  if (prop === 'font-size' && ZERO.test(value)) return 'font-size zero';
+  return '';
+}
+const declarations = (body) => body.split(';').map((d) => d.trim()).filter(Boolean).map((d) => {
+  const at = d.indexOf(':');
+  return [d.slice(0, at).trim().toLowerCase(), d.slice(at + 1)];
+});
+const selectorsOf = (list) => {
+  const out = [];
+  let depth = 0;
+  let from = 0;
+  for (let i = 0; i < list.length; i++) {
+    if ('(['.includes(list[i])) depth++;
+    if (')]'.includes(list[i])) depth--;
+    if (list[i] === ',' && depth === 0) { out.push(list.slice(from, i)); from = i + 1; }
+  }
+  out.push(list.slice(from));
+  return out.map((s) => s.trim()).filter(Boolean);
+};
+const reaches = (element, selector) => {
+  // A state a reader can put the line in is still the line: hover, focus and the like are read as always on.
+  const plain = selector.replace(/:(?:hover|focus|focus-visible|focus-within|active|visited)\b/g, '');
+  if (/::/.test(plain)) return false;
+  try { return element.matches(plain); } catch { return /also/.test(plain); }
+};
+function hidingRules(sheetText, also){
+  const sheet = sheetText.replace(/\/\*[\s\S]*?\*\//g, '');
+  const above = [];
+  for (let n = also.parentElement; n; n = n.parentElement) above.push(n);
+  const found = [];
+  for (const [, list, body] of sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    for (const selector of selectorsOf(list)) {
+      if (reaches(also, selector)) {
+        for (const d of declarations(body)) {
+          const why = carriesDown(d) || onTheLine(d);
+          if (why) found.push(`${selector}: ${why}`);
+        }
+      } else if (above.some((n) => reaches(n, selector))) {
+        for (const d of declarations(body)) {
+          const why = carriesDown(d);
+          if (why) found.push(`${selector} (above the line): ${why}`);
+        }
+      }
+    }
+  }
+  return found;
+}
+
+test('no stylesheet rule hides the Also on line whatever selector or property it uses', () => {
+  show({boards: serverBoards()});
+  const also = host.querySelector('.tb-also');
+  expect(also).not.toBeNull();
+  expect(hidingRules(css('today-boards.css'), also)).toEqual([]);
+});
+
+test('the hiding check reads the routes it exists to refuse, and none of the plain ones', () => {
+  show({boards: serverBoards()});
+  const also = host.querySelector('.tb-also');
+  const refused = [
+    '.tb-also { color: transparent; }',
+    '.tb-also { color: rgba(0, 0, 0, 0); }',
+    '.tb-also { transform: scale(0); }',
+    '.tb-also { transform: scale(0, 0); }',
+    '.tb-also { transform: scaleY(0); }',
+    '.tb-also { transform: scale3d(0, 1, 1); }',
+    '.tb-also { opacity: 0; }',
+    '.tb-also { opacity: .0; }',
+    '.tb-also { opacity: 0.0; }',
+    '.tb-also { opacity: 0%; }',
+    '.tb-also { text-indent: -9999px; }',
+    '.tb-also { text-indent: 200%; }',
+    '.tb-also { font-size: 0; }',
+    '[class~="tb-also"] { display: none; }',
+    'span[class$="-also"] { visibility: hidden; }',
+    '.tb-row > span:last-child { display: none; }',
+    `.tb-row > .tb-main > span:nth-child(${[...also.parentElement.children].indexOf(also) + 1}) { opacity: 0; }`,
+    '.tb-row > .tb-main { display: none; }',
+    '.tb-main { opacity: .0; }',
+    '.tb-x, .tb-also { display: none; }',
+    '.tb-also:hover { display: none; }',
+    '@media (max-width: 600px) { .tb-also { display: none; } }',
+  ];
+  for (const rule of refused) expect(hidingRules(rule, also), rule).not.toEqual([]);
+  const allowed = [
+    '.tb-also { color: var(--muted); font-size: var(--t-2); opacity: .7; transform: scale(1); text-indent: 0; }',
+    '.tb-also { text-indent: 1em; transform: translateY(1px); }',
+    '.tb-row > span:first-child { display: none; }',
+    '.tb-title { opacity: 0; }',
+    '.tb-also::before { content: ""; display: none; }',
+    '.tb-main { color: transparent; font-size: 0; }',
+  ];
+  for (const rule of allowed) expect(hidingRules(rule, also), rule).toEqual([]);
+});
