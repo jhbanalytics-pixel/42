@@ -2,8 +2,11 @@
 -- core/detect/stats.py runs each statement with @d; {core} is the dataset name. Nothing here writes.
 
 -- test_switch rows in force on @d: the market, platform and lane class pairs the test is switched on for.
-SELECT ts.market, ts.platform, ts.lane_class, ts.switched_on, ts.rule_version
+-- A row counts only when the backtest run it cites has an ok runs row, the same join backtest.py reads: a
+-- backtest apply appends its rows before its runs row, so a failed apply leaves rows nothing accepted.
+SELECT ts.market, ts.platform, ts.lane_class, ts.switched_on, ts.backtest_run_id, ts.rule_version
 FROM {core}.test_switch ts
+JOIN {agent}.runs r ON r.run_id = ts.backtest_run_id AND r.stage = 'backtest' AND r.status = 'ok'
 WHERE ts.switched_on <= @d;
 
 -- Route totals per market, platform, lane class and day over the 8 weeks before @d, for the weekday factor.

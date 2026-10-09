@@ -4,7 +4,7 @@ every series without a row stays on the untested branch. These tests build backt
 the rule is read from counts and never from the rates or flags a file states about itself."""
 
 import json
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -322,5 +322,100 @@ def test_run_with_a_truthy_apply_that_is_not_true_writes_nothing(tmp_path):
             backtest.run(BacktestClient(con), D, apply="yes", days=7, out_dir=tmp_path, core="core", agent="agent")
         assert duck.query(con, "SELECT * FROM {core}.test_switch") == []
         assert duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'") == []
+    finally:
+        con.close()
+
+
+# 6. A row is in force only when the backtest run it cites has an ok runs row
+
+
+def switch_con(*run_rows):
+    from .test_detect_backtest import connect, duck
+    con = connect()
+    duck.load(con, "core.test_switch", [GOOD_ROW])
+    if run_rows:
+        duck.load(con, "agent.runs", list(run_rows))
+    return con
+
+
+def backtest_run(run_id=RUN, status="ok", stage="backtest"):
+    from .fixtures import run
+    return run(stage, date(2026, 10, 7), run_id=run_id, status=status)
+
+
+def forced(con, d=date(2026, 10, 8)):
+    from .test_detect_backtest import duck
+    return stats.in_force(duck.query(con, stats.SWITCH_SQL, {"d": d}), d)
+
+
+def test_a_row_whose_backtest_run_has_no_runs_row_is_not_in_force():
+    con = switch_con()
+    try:
+        assert forced(con) == set()
+    finally:
+        con.close()
+
+
+@pytest.mark.parametrize("change, on", [
+    ({}, True),
+    ({"status": "error"}, False),
+    ({"status": "running"}, False),
+    ({"stage": "stats"}, False),
+    ({"run_id": "backtest-20261007-ffffffffffff"}, False),
+])
+def test_only_an_ok_backtest_runs_row_of_the_cited_run_puts_the_row_in_force(change, on):
+    con = switch_con(backtest_run(**change))
+    try:
+        assert forced(con) == ({("ZA", "facebook", "panel")} if on else set())
+    finally:
+        con.close()
+
+
+def test_an_ok_runs_row_does_not_bring_the_row_in_force_before_its_day():
+    con = switch_con(backtest_run())
+    try:
+        assert forced(con, date(2026, 10, 7)) == set()
+    finally:
+        con.close()
+
+
+class RunsAppendFails:
+    """A BacktestClient whose append to agent.runs raises after the test_switch insert has already landed."""
+
+    def __new__(cls, con):
+        from .test_detect_backtest import BacktestClient
+
+        class Client(BacktestClient):
+            def insert_rows_json(self, table, rows):
+                if table.endswith("runs"):
+                    raise RuntimeError("runs append failed")
+                return super().insert_rows_json(table, rows)
+        return Client(con)
+
+
+def test_an_apply_whose_runs_append_fails_leaves_no_row_in_force_the_next_day(tmp_path):
+    from .test_detect_backtest import D, World, connect, duck, stable_panel
+    con = connect()
+    try:
+        stable_panel(World(), 30).load(con)
+        with pytest.raises(RuntimeError, match="runs append failed"):
+            backtest.run(RunsAppendFails(con), D, apply=True, days=7, out_dir=tmp_path, core="core", agent="agent")
+        [row] = duck.query(con, "SELECT * FROM {core}.test_switch")
+        assert row["backtest_run_id"].startswith("backtest-")
+        assert duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'") == []
+        assert forced(con, D + timedelta(days=1)) == set()
+        assert forced(con, D + timedelta(days=30)) == set()
+    finally:
+        con.close()
+
+
+def test_an_apply_that_completes_puts_the_row_in_force_from_the_next_day(tmp_path):
+    from .test_detect_backtest import BacktestClient, D, World, connect, stable_panel
+    con = connect()
+    try:
+        stable_panel(World(), 30).load(con)
+        backtest.run(BacktestClient(con), D, apply=True, days=7, out_dir=tmp_path, core="core", agent="agent")
+        assert forced(con, D + timedelta(days=1)) == {("ZA", "facebook", "panel")}
+        assert forced(con, D) == set()
     finally:
         con.close()
