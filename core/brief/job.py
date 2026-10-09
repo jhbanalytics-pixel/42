@@ -390,8 +390,7 @@ def _gate(cand, passed):
     decision = gate_card(card, {**ctx, "explanation_passed": passed})
     # G1 is an invalid day. The gate also answers G1 for a row whose locality row cannot be read; that one is held
     # below with the scope read failures, so that it takes a judged slot and no replacement is prepared for it.
-    invalid_day = any(ok is False for ok in ctx["valid_days"])
-    if decision.rule == "G1" and (invalid_day or not cand.get("scope_error")):
+    if decision.rule == "G1" and (not cand.get("scope_error") or any(ok is False for ok in ctx["valid_days"])):
         return decision
     if cand.get("scope_error"):
         cand["held_reason"] = "data_issue"
