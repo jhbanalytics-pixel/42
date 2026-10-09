@@ -45,15 +45,20 @@ got one is not counted as written, so a failed apply neither switches anything o
 
 Entry point: python -m core.detect.backtest --as-of YYYY-MM-DD [--days N] [--apply]. The results always go
 to one JSON file in core/detect/backtests; only --apply appends the test_switch rows and then the runs row
-(stage 'backtest'). Reads BigQuery only, and nothing is ever updated or removed. python -m core.detect.backtest
---report FILE prints, from a saved result file and with no client, the rows that would be written and the keys
-that stay off. python -m core.detect.backtest --as-of YYYY-MM-DD --apply FILE writes the rows of that reviewed file
-instead of replaying again: the rows are recomputed from the file's counts, the file must be as of the day named
-and carry the thresholds in force, and its run id gets the runs row. A run that already has an ok runs row is
-refused.
+(stage 'backtest'). A replay without --apply appends a runs row with status 'replayed' that carries the sha256 of
+the file it wrote. Reads BigQuery only, and nothing is ever updated or removed. python -m core.detect.backtest
+--report FILE prints, from a saved result file and with no client, the sha256 of its bytes, the rows that would be
+written and the keys that stay off. python -m core.detect.backtest --as-of YYYY-MM-DD --apply FILE --sha256 HEX
+writes the rows of that reviewed file instead of replaying again. HEX is the digest --report printed, typed by the
+reviewer, so an edited file is refused before any client is built; the file must also be the one a replay recorded
+(its 'replayed' runs row carries the same digest), as of the day named and no more than MAX_AGE_DAYS before today,
+and carry the thresholds in force. The rows are recomputed from the file's counts, and its run id gets the runs
+row. A run that already has an ok runs row is refused, and so is a file whose run id is cited by a test_switch row
+it does not write.
 """
 
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -83,6 +88,7 @@ FA_MAX, RECALL_MIN, RECALL_AT = 0.05, 0.8, "3"
 THRESHOLDS = {"false_alarm_max": FA_MAX, "recall_min": RECALL_MIN, "recall_at": RECALL_AT,
               "min_observed_days": MIN_OBSERVED_DAYS, "min_tested": MIN_TESTED, "min_injected": MIN_INJECTED}
 TOP_N, LATER_DAYS = 10, 7
+MAX_AGE_DAYS = 3                    # --apply FILE refuses a file whose as_of is more than this many days old
 RUN_ID = re.compile(r"backtest-(\d{8})-[0-9a-f]{12}")
 SWITCH_ROW_FIELDS = ("market", "platform", "lane_class", "switched_on", "backtest_run_id", "rule_version")
 PERSISTING = ("emerging", "rising", "peaking")
@@ -102,6 +108,12 @@ WHERE r.stage = 'backtest' AND r.status = 'ok' AND DATE(r.finished_at) <= @as_of
 # The backtest runs that were accepted: those with an ok runs row, whenever it landed.
 ACCEPTED_SQL = """
 SELECT r.run_id FROM {agent}.runs r WHERE r.stage = 'backtest' AND r.status = 'ok'
+"""
+
+
+# The replays that left a file: the runs row of a replay without --apply carries the sha256 of the file it wrote.
+REPLAYED_SQL = """
+SELECT r.run_id, r.counts FROM {agent}.runs r WHERE r.stage = 'backtest' AND r.status = 'replayed'
 """
 
 
@@ -643,31 +655,61 @@ def accepted_keys(switched, accepted):
             if s["backtest_run_id"] in ok}
 
 
-def reviewed(path, as_of):
-    """The result in the saved file at path, once it is shown to be the one reviewed: named by its own run id,
-    as of the day the caller names (not the day it states about itself), and judged by the thresholds in force.
-    Raises ValueError otherwise."""
+def digest_of(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def reviewed(path, as_of, sha256, today):
+    """The result in the saved file at path, once it is shown to be the one reviewed: its bytes hash to the sha256
+    the reviewer typed from the report, named by its own run id, as of the day the caller names (not the day it
+    states about itself) and no more than MAX_AGE_DAYS before today, and judged by the thresholds in force. The file
+    is read once, so the bytes checked are the bytes parsed. Raises ValueError otherwise; returns (results, digest)."""
     path = Path(path)
-    results = json.loads(path.read_text(encoding="utf-8"))
+    data = path.read_bytes()
+    digest = digest_of(data)
+    if digest != str(sha256).strip().lower():
+        raise ValueError(f"{path.name} has sha256 {digest}, not the sha256 given ({sha256!r}); "
+                         "it is not the file that was reported")
+    results = json.loads(data.decode("utf-8"))
     if not isinstance(results, dict):
         raise ValueError(f"{path.name} is not a backtest result")
     if path.stem != results.get("run_id"):
         raise ValueError(f"file name {path.name} is not its backtest run id {results.get('run_id')!r}")
     if results.get("as_of") != as_of.isoformat():
         raise ValueError(f"{path.name} is as of {results.get('as_of')}, not {as_of.isoformat()}")
+    if (today - as_of).days > MAX_AGE_DAYS:
+        raise ValueError(f"{path.name} is {(today - as_of).days} days old as of {as_of.isoformat()}, "
+                         f"more than {MAX_AGE_DAYS} days before {today.isoformat()}")
     if results.get("thresholds") != THRESHOLDS:
         raise ValueError(f"{path.name} was not judged by the thresholds in force: {results.get('thresholds')!r}")
     _run_id(results)
-    return results
+    return results, digest
 
 
-def apply_file(path, as_of, client=None, core=sqlrun.CORE, agent=sqlrun.AGENT, out=print):
+def replayed_digests(replayed, run_id):
+    """The sha256 values the 'replayed' runs rows of run_id carry in their counts."""
+    out = set()
+    for r in replayed:
+        if r["run_id"] != run_id:
+            continue
+        counts = r["counts"]
+        try:
+            counts = json.loads(counts) if isinstance(counts, str) else counts
+        except ValueError:
+            continue
+        if isinstance(counts, dict) and isinstance(counts.get("sha256"), str):
+            out.add(counts["sha256"])
+    return out
+
+
+def apply_file(path, as_of, sha256, client=None, core=sqlrun.CORE, agent=sqlrun.AGENT, out=print, today=None):
     """Write the test_switch rows a reviewed result file earns and then its runs row, with no new replay. The rows
     are recomputed from the counts in the file, the file's own switch_on list is ignored, and a key already
-    accepted for the rule version is not written again. Returns 0, or 1 when the file is refused before anything
-    is read or written; a client is built only once the file is accepted."""
+    accepted for the rule version is not written again. The file's bytes must hash to sha256 (the digest the
+    report printed) and to the digest a 'replayed' runs row of the same run id carries. Returns 0, or 1 when the
+    file is refused; a client is built only once the digest, the age and the contents of the file are accepted."""
     try:
-        results = reviewed(path, as_of)
+        results, digest = reviewed(path, as_of, sha256, today or datetime.now(UTC).date())
         if results.get("rule_version") != RULE_VERSION:
             raise ValueError(f"backtest rule version {results.get('rule_version')!r} cannot write {RULE_VERSION} rows")
     except (ValueError, OSError) as e:
@@ -679,8 +721,21 @@ def apply_file(path, as_of, client=None, core=sqlrun.CORE, agent=sqlrun.AGENT, o
     if results["run_id"] in {r["run_id"] for r in accepted}:
         print(f"refused: backtest run {results['run_id']} already has an ok runs row", file=sys.stderr)
         return 1
+    replayed = sqlrun.query(client, REPLAYED_SQL, core=core, agent=agent)
+    if digest not in replayed_digests(replayed, results["run_id"]):
+        print(f"refused: no replay of backtest run {results['run_id']} recorded a file with sha256 {digest}",
+              file=sys.stderr)
+        return 1
     switched = sqlrun.query(client, QUERIES["switched"], core=core, agent=agent)
     rows, _ = switch_rows(results, accepted_keys(switched, accepted))
+    written_keys = {(r["market"], r["platform"], r["lane_class"], r["rule_version"]) for r in rows}
+    strays = sorted("|".join(s[k] for k in KEY_FIELDS) for s in switched
+                    if s["backtest_run_id"] == results["run_id"]
+                    and (s["market"], s["platform"], s["lane_class"], s["rule_version"]) not in written_keys)
+    if strays:
+        print(f"refused: test_switch already holds rows that cite backtest run {results['run_id']} which this file "
+              f"does not write: {', '.join(strays)}", file=sys.stderr)
+        return 1
     if rows:
         started = runs.now()
         write_switch_rows(client, core, rows, True)
@@ -699,7 +754,8 @@ def report(path, out=print):
     file is refused."""
     path = Path(path)
     try:
-        results = json.loads(path.read_text(encoding="utf-8"))
+        data = path.read_bytes()
+        results = json.loads(data.decode("utf-8"))
         if path.stem != results.get("run_id"):
             raise ValueError(f"file name {path.name} is not its backtest run id {results.get('run_id')!r}")
         rows, refused = switch_rows(results)
@@ -707,6 +763,7 @@ def report(path, out=print):
         print(f"refused: {e}", file=sys.stderr)
         return 1
     out(f"dry run of {path.name}: nothing is written")
+    out(f"sha256 {digest_of(data)}")
     out(f"would write {len(rows)} test_switch row{'' if len(rows) == 1 else 's'} from backtest run {results['run_id']}")
     for r in rows:
         out(f"  {r['market']}|{r['platform']}|{r['lane_class']} from {r['switched_on']} cites {r['backtest_run_id']}")
@@ -820,14 +877,18 @@ def run(client, as_of, *, apply=False, days=WINDOW_DAYS, out_dir=OUT_DIR, core=s
     rows, _ = switch_rows(results, accepted_keys(inputs["switched"], inputs["accepted"]))
     results["switch_on"] = rows
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / f"{run_id}.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
+    data = json.dumps(results, indent=2).encode("utf-8")
+    (out_dir / f"{run_id}.json").write_bytes(data)
     if apply:
         write_switch_rows(client, core, rows, apply)
         runs.append(client, run_id, "backtest", as_of, "ok", started, runs.now(), results, agent=agent)
+    else:
+        runs.append(client, run_id, "backtest", as_of, "replayed", started, runs.now(),
+                    {"sha256": digest_of(data)}, agent=agent)
     return results
 
 
-def main(argv=None, client=None, out_dir=OUT_DIR, core=sqlrun.CORE, agent=sqlrun.AGENT):
+def main(argv=None, client=None, out_dir=OUT_DIR, core=sqlrun.CORE, agent=sqlrun.AGENT, today=None):
     ap = argparse.ArgumentParser(prog="python -m core.detect.backtest",
                                  description="Backtest the series test and switch it on where it passes.")
     ap.add_argument("--as-of", type=date.fromisoformat, help="last replayed day, YYYY-MM-DD")
@@ -836,7 +897,10 @@ def main(argv=None, client=None, out_dir=OUT_DIR, core=sqlrun.CORE, agent=sqlrun
     ap.add_argument("--apply", nargs="?", const=True, default=False, metavar="FILE",
                     help="append the test_switch rows and the runs row; with FILE, write the rows of that reviewed "
                          "result file (it must be as of --as-of) instead of replaying again")
+    ap.add_argument("--sha256", help="with --apply FILE: the sha256 that --report printed for FILE")
     a = ap.parse_args(argv)
+    if a.sha256 is not None and not isinstance(a.apply, str):
+        ap.error("--sha256 goes with --apply FILE")
     if a.report:
         if a.apply or a.as_of:
             ap.error("--report reads a saved result file and takes neither --apply nor --as-of")
@@ -846,7 +910,9 @@ def main(argv=None, client=None, out_dir=OUT_DIR, core=sqlrun.CORE, agent=sqlrun
     if isinstance(a.apply, str):
         if a.days is not None:
             ap.error("--apply FILE writes a reviewed result and takes no --days")
-        return apply_file(a.apply, a.as_of, client, core, agent)
+        if a.sha256 is None:
+            ap.error("--apply FILE needs --sha256, the digest that --report printed for the file")
+        return apply_file(a.apply, a.as_of, a.sha256, client, core, agent, today=today)
     if client is None:
         client = bigquery.Client(project=PROJECT)
     res = run(client, a.as_of, apply=a.apply, days=WINDOW_DAYS if a.days is None else a.days, out_dir=out_dir,

@@ -3,8 +3,10 @@ placebo false alarms of at most 0.05 and recall at 3 times of at least 0.8, the 
 every series without a row stays on the untested branch. These tests build backtest result files by hand, so
 the rule is read from counts and never from the rates or flags a file states about itself."""
 
+import hashlib
 import json
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -467,15 +469,47 @@ def apply_world():
     return con, BacktestClient(con)
 
 
-def apply_file(path, client, tmp_path, *more, as_of=AS_OF):
-    return backtest.main(["--as-of", as_of, "--apply", str(path), *more], client=client, out_dir=tmp_path,
-                         core="core", agent="agent")
+TODAY = date(2026, 10, 8)
+
+
+def digest(path):
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except OSError:
+        return "0" * 64
+
+
+def replayed_row(run_id, sha, status="replayed"):
+    return {**backtest_run(run_id=run_id, status=status), "counts": json.dumps({"sha256": sha})}
+
+
+def record_replay(client, path, recorded="file"):
+    """The runs row a replay leaves for the file at path (recorded "file": the digest of the file on disk)."""
+    from .test_detect_backtest import duck
+    try:
+        run_id = json.loads(Path(path).read_text(encoding="utf-8"))["run_id"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return
+    if not duck.query(client.con, "SELECT * FROM {agent}.runs r WHERE r.run_id = '%s' AND r.status = 'replayed'" % run_id):
+        duck.load(client.con, "agent.runs", [replayed_row(run_id, digest(path) if recorded == "file" else recorded)])
+
+
+def apply_file(path, client, tmp_path, *more, as_of=AS_OF, sha="file", replayed="file", today=TODAY):
+    """backtest --apply FILE as the reviewer runs it: with the digest --report printed (sha "file" is the digest
+    of the file on disk) and after a replay that recorded a digest (replayed "file" is the digest of the file on
+    disk, as the replay itself records it; None is no replay at all)."""
+    if replayed is not None:
+        record_replay(client, path, replayed)
+    args = ["--as-of", as_of, "--apply", str(path)]
+    if sha is not None:
+        args += ["--sha256", digest(path) if sha == "file" else sha]
+    return backtest.main([*args, *more], client=client, out_dir=tmp_path, core="core", agent="agent", today=today)
 
 
 def stored(con):
     from .test_detect_backtest import duck
     return (duck.query(con, "SELECT * FROM {core}.test_switch"),
-            duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'"))
+            duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest' AND r.status <> 'replayed'"))
 
 
 def test_the_run_result_states_the_thresholds_it_was_judged_by(tmp_path):
@@ -599,7 +633,8 @@ def test_a_refused_file_never_builds_a_client(tmp_path, monkeypatch):
     res = reviewed_result({"ZA|facebook|panel": key()})
     res["thresholds"]["recall_min"] = 0.5
     path = save(tmp_path, res)
-    assert backtest.main(["--as-of", AS_OF, "--apply", str(path)], out_dir=tmp_path) == 1
+    assert backtest.main(["--as-of", AS_OF, "--apply", str(path), "--sha256", digest(path)], out_dir=tmp_path,
+                         today=TODAY) == 1
 
 
 def test_a_run_that_already_has_an_ok_runs_row_is_refused_and_writes_nothing_more(tmp_path, capsys):
@@ -657,13 +692,14 @@ def test_a_file_apply_whose_runs_append_fails_leaves_nothing_in_force_and_can_be
 def test_apply_file_needs_the_day_the_reviewer_read(tmp_path):
     path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
     with pytest.raises(SystemExit):
-        backtest.main(["--apply", str(path)], out_dir=tmp_path)
+        backtest.main(["--apply", str(path), "--sha256", digest(path)], out_dir=tmp_path)
 
 
 def test_apply_file_takes_no_window_length(tmp_path):
     path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
     with pytest.raises(SystemExit):
-        backtest.main(["--as-of", AS_OF, "--days", "7", "--apply", str(path)], out_dir=tmp_path)
+        backtest.main(["--as-of", AS_OF, "--days", "7", "--apply", str(path), "--sha256", digest(path)],
+                      out_dir=tmp_path)
 
 
 def test_report_still_refuses_apply_with_or_without_a_file(tmp_path):
@@ -695,5 +731,273 @@ def test_a_run_whose_runs_row_is_not_ok_does_not_count_as_already_applied(tmp_pa
         duck.load(con, "agent.runs", [backtest_run(status="error")])
         assert apply_file(save(tmp_path, reviewed_result({"ZA|facebook|panel": key()})), client, tmp_path) == 0
         assert len(stored(con)[0]) == 1
+    finally:
+        con.close()
+
+
+# 9. --apply FILE writes only the file that was reviewed (S2-1): the digest --report printed, and a replay that ran
+
+
+def test_report_prints_the_sha256_of_the_file_bytes(tmp_path, capsys):
+    path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+    assert backtest.main(["--report", str(path)]) == 0
+    assert f"sha256 {hashlib.sha256(path.read_bytes()).hexdigest()}" in capsys.readouterr().out
+
+
+def test_apply_file_without_a_sha256_is_a_usage_error(tmp_path):
+    path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+    with pytest.raises(SystemExit):
+        backtest.main(["--as-of", AS_OF, "--apply", str(path)], out_dir=tmp_path, today=TODAY)
+
+
+def test_a_sha256_without_apply_file_is_a_usage_error(tmp_path):
+    path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+    for argv in (["--report", str(path), "--sha256", digest(path)], ["--as-of", AS_OF, "--sha256", digest(path)]):
+        with pytest.raises(SystemExit):
+            backtest.main(argv, out_dir=tmp_path, today=TODAY)
+
+
+def test_probe_a_a_file_edited_after_the_report_is_refused_whatever_it_would_earn(tmp_path, capsys):
+    """The report says NG stays off; the same file with the alarms edited is not the file that was reviewed."""
+    res = reviewed_result({"ZA|facebook|panel": key(), "NG|facebook|panel": key(alarms=30)})
+    path = save(tmp_path, res)
+    assert backtest.main(["--report", str(path)]) == 0
+    printed = capsys.readouterr().out
+    reported = printed.split("sha256 ")[1].split()[0]
+    assert "NG|facebook|panel stays off" in printed and reported == digest(path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["keys"]["NG|facebook|panel"]["alarms"] = 2
+    path.write_text(json.dumps(data), encoding="utf-8")
+    con, client = apply_world()
+    try:
+        assert apply_file(path, client, tmp_path, sha=reported) == 1
+        assert stored(con) == ([], []) and client.sql == []
+    finally:
+        con.close()
+    assert "sha256" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("sha", ["", "abc", "z" * 64, "0" * 64])
+def test_a_wrong_or_malformed_sha256_is_refused_before_a_client_is_built(tmp_path, monkeypatch, capsys, sha):
+    def no_client(*a, **k):
+        raise AssertionError("a refused file must not build a BigQuery client")
+
+    monkeypatch.setattr(backtest.bigquery, "Client", no_client)
+    path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+    assert backtest.main(["--as-of", AS_OF, "--apply", str(path), "--sha256", sha], out_dir=tmp_path, today=TODAY) == 1
+    assert "sha256" in capsys.readouterr().err
+
+
+def test_an_upper_case_sha256_of_the_right_file_is_accepted(tmp_path):
+    con, client = apply_world()
+    try:
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+        assert apply_file(path, client, tmp_path, sha=digest(path).upper()) == 0
+        assert forced(con) == {("ZA", "facebook", "panel")}
+    finally:
+        con.close()
+
+
+def test_probe_a2_a_file_no_replay_produced_is_refused_even_with_its_own_digest(tmp_path, capsys):
+    """A hand written file with a correct digest still has no replayed runs row, so it earns no accepted run."""
+    res = reviewed_result({"KE|tiktok|panel": key(observed=99, tested=1000, alarms=0, injected=500, detected=500)},
+                          run_id="backtest-20261007-abcdefabcdef")
+    con, client = apply_world()
+    try:
+        assert apply_file(save(tmp_path, res), client, tmp_path, replayed=None) == 1
+        assert stored(con) == ([], []) and forced(con) == set()
+    finally:
+        con.close()
+    assert "replay" in capsys.readouterr().err
+
+
+def test_a_replay_that_recorded_another_digest_does_not_vouch_for_the_file(tmp_path, capsys):
+    con, client = apply_world()
+    try:
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+        assert apply_file(path, client, tmp_path, replayed="f" * 64) == 1
+        assert stored(con) == ([], [])
+    finally:
+        con.close()
+    assert "replay" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("status", ["ok", "error", "running"])
+def test_only_a_replayed_runs_row_vouches_for_the_file(tmp_path, status):
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+        duck.load(con, "agent.runs", [replayed_row(RUN, digest(path), status=status)])
+        assert apply_file(path, client, tmp_path, replayed=None) == 1
+        assert stored(con)[0] == []
+    finally:
+        con.close()
+
+
+def test_a_replayed_runs_row_of_another_stage_does_not_vouch_for_the_file(tmp_path):
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+        duck.load(con, "agent.runs", [{**replayed_row(RUN, digest(path)), "stage": "stats"}])
+        assert apply_file(path, client, tmp_path, replayed=None) == 1
+        assert stored(con)[0] == []
+    finally:
+        con.close()
+
+
+def test_a_replay_without_apply_appends_a_replayed_runs_row_with_the_digest_of_the_file(tmp_path):
+    from .test_detect_backtest import BacktestClient, D, World, connect, duck, stable_panel
+    con = connect()
+    try:
+        stable_panel(World(), 30).load(con)
+        res = backtest.run(BacktestClient(con), D, apply=False, days=7, out_dir=tmp_path, core="core", agent="agent")
+        [row] = duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'")
+        assert row["run_id"] == res["run_id"] and row["status"] == "replayed"
+        assert json.loads(row["counts"])["sha256"] == digest(tmp_path / f"{res['run_id']}.json")
+        assert duck.query(con, "SELECT * FROM {core}.test_switch") == []
+    finally:
+        con.close()
+
+
+def test_a_replayed_runs_row_neither_puts_a_row_in_force_nor_counts_as_accepted():
+    from .test_detect_backtest import duck
+    con = switch_con(replayed_row(RUN, "a" * 64))
+    try:
+        assert forced(con) == set()
+        assert duck.query(con, backtest.ACCEPTED_SQL) == []
+    finally:
+        con.close()
+
+
+def test_a_replay_with_apply_appends_the_ok_row_and_no_replayed_row(tmp_path):
+    from .test_detect_backtest import BacktestClient, D, World, connect, duck, stable_panel
+    con = connect()
+    try:
+        stable_panel(World(), 30).load(con)
+        backtest.run(BacktestClient(con), D, apply=True, days=7, out_dir=tmp_path, core="core", agent="agent")
+        got = duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'")
+        assert [r["status"] for r in got] == ["ok"]
+    finally:
+        con.close()
+
+
+def test_replay_then_report_then_apply_file_with_the_reported_digest_writes_the_rows(tmp_path, capsys):
+    from .test_detect_backtest import BacktestClient, D, World, connect, stable_panel
+    con = connect()
+    try:
+        stable_panel(World(), 30).load(con)
+        client = BacktestClient(con)
+        res = backtest.run(client, D, apply=False, days=7, out_dir=tmp_path, core="core", agent="agent")
+        path = tmp_path / f"{res['run_id']}.json"
+        assert backtest.main(["--report", str(path)]) == 0
+        reported = capsys.readouterr().out.split("sha256 ")[1].split()[0]
+        argv = ["--as-of", D.isoformat(), "--apply", str(path), "--sha256", reported]
+        assert backtest.main(argv, client=client, out_dir=tmp_path, core="core", agent="agent", today=D) == 0
+        assert forced(con, D + timedelta(days=1)) == {("ZA", "facebook", "panel")}
+    finally:
+        con.close()
+
+
+# 10. A row that cites the run but is not about to be written blocks the apply (S2-2)
+
+
+def test_probe_b_a_stray_row_citing_the_run_that_the_file_does_not_earn_blocks_the_apply(tmp_path, capsys):
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        duck.load(con, "core.test_switch", [{**GOOD_ROW, "market": "NG"}])
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key(), "NG|facebook|panel": key(alarms=30)}))
+        assert apply_file(path, client, tmp_path) == 1
+        rows, run_rows = stored(con)
+        assert [r["market"] for r in rows] == ["NG"] and run_rows == [] and forced(con) == set()
+    finally:
+        con.close()
+    assert "NG|facebook|panel" in capsys.readouterr().err
+
+
+def test_a_row_citing_the_run_for_a_key_the_file_writes_again_does_not_block_the_repeat(tmp_path):
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        duck.load(con, "core.test_switch", [GOOD_ROW])
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+        assert apply_file(path, client, tmp_path) == 0
+        assert forced(con) == {("ZA", "facebook", "panel")}
+    finally:
+        con.close()
+
+
+def test_a_row_of_another_run_for_a_key_the_file_does_not_earn_does_not_block(tmp_path):
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        other = "backtest-20261001-aaaaaaaaaaaa"
+        duck.load(con, "core.test_switch", [{**GOOD_ROW, "market": "NG", "backtest_run_id": other}])
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key(), "NG|facebook|panel": key(alarms=30)}))
+        assert apply_file(path, client, tmp_path) == 0
+    finally:
+        con.close()
+
+
+# 11. A file that is too old is refused (S2-3, lead ruling: at most 3 days before today)
+
+
+def aged(as_of):
+    run_id = f"backtest-{as_of.replace('-', '')}-0123456789ab"
+    return reviewed_result({"ZA|facebook|panel": key()}, run_id=run_id, as_of=as_of)
+
+
+@pytest.mark.parametrize("as_of, ok", [("2026-10-08", True), ("2026-10-05", True), ("2026-10-04", False),
+                                       ("2026-08-08", False)])
+def test_a_file_more_than_three_days_before_today_is_refused(tmp_path, capsys, as_of, ok):
+    con, client = apply_world()
+    try:
+        assert apply_file(save(tmp_path, aged(as_of)), client, tmp_path, as_of=as_of) == (0 if ok else 1)
+        assert bool(stored(con)[0]) is ok
+        assert ok or client.sql == []
+    finally:
+        con.close()
+    assert ok or "days old" in capsys.readouterr().err
+
+
+def test_the_age_is_read_from_the_clock_given_not_the_real_one(tmp_path):
+    path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+    for today, code in ((date(2026, 10, 10), 0), (date(2026, 10, 11), 1)):
+        con, client = apply_world()
+        try:
+            assert apply_file(path, client, tmp_path, today=today) == code
+        finally:
+            con.close()
+
+
+# 12. Two near-equivalent mutants pinned (S2-6)
+
+
+def test_a_non_backtest_ok_runs_row_with_the_run_id_is_not_an_accepted_run(tmp_path):
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+        duck.load(con, "agent.runs", [{**backtest_run(), "stage": "stats"}])
+        assert duck.query(con, backtest.ACCEPTED_SQL) == []
+        assert apply_file(path, client, tmp_path) == 0
+        assert forced(con) == {("ZA", "facebook", "panel")}
+    finally:
+        con.close()
+
+
+def test_a_key_accepted_for_the_candidate_rule_does_not_block_the_current_rule(tmp_path):
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        old = "backtest-20261001-aaaaaaaaaaaa"
+        duck.load(con, "core.test_switch", [{**GOOD_ROW, "backtest_run_id": old,
+                                             "rule_version": stats.SERIES_RULE_VERSION}])
+        duck.load(con, "agent.runs", [backtest_run(run_id=old)])
+        assert apply_file(save(tmp_path, reviewed_result({"ZA|facebook|panel": key()})), client, tmp_path) == 0
+        assert sorted(r["rule_version"] for r in stored(con)[0]) == sorted(
+            [stats.SERIES_RULE_VERSION, stats.RULE_VERSION])
     finally:
         con.close()
