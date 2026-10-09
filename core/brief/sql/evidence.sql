@@ -134,10 +134,13 @@ c AS (
   FROM r WHERE r.creator_rank <= 2),
 f AS (
   SELECT c.* FROM c WHERE NOT c.is_outlet OR c.class_rank <= @outlet_cap),
--- What the outlet cap left for the stage counts: an outlet it removed from behind the 12th place was never going to
--- be in the pack, so it still counts. A cap of 12 therefore changes neither the pack nor any stage count.
+-- What the outlet cap left for the stage counts: an outlet it removed still counts when 12 or more posts the cap kept
+-- rank ahead of it, since it was never going to be in the pack. An outlet it removed from inside the first 12 places
+-- does not count: that is the cap's doing. A cap of 12 therefore changes neither the pack nor any stage count.
 g AS (
-  SELECT c.* FROM c WHERE NOT c.is_outlet OR c.class_rank <= @outlet_cap OR c.pack_rank > 12)
+  SELECT c.* FROM c
+  WHERE NOT c.is_outlet OR c.class_rank <= @outlet_cap
+    OR (SELECT COUNT(*) FROM f WHERE f.pack_rank < c.pack_rank) >= 12)
 SELECT f.* EXCEPT (enrich_sponsored, enrich_read, vendor_paid),
   f.enrich_sponsored OR IFNULL(f.vendor_paid, FALSE) sponsored,
   f.enrich_read OR f.vendor_paid IS NOT NULL sponsor_checked,

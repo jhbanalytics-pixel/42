@@ -125,14 +125,15 @@ def check_ties_resolve_by_post_id_whatever_order_the_rows_arrived_in(sql):
 
 
 def check_stage_counts_say_which_cap_removed_which_posts(sql):
-    # With the cap at 0 the outlets in the pack's first 12 places (o_news0 to o_news2, behind the 9 members) are
-    # removed; the other five outlets rank past 12 and would not have been in the pack, so they are not counted.
+    # With the cap at 0 all 8 outlets are removed, and none had 12 kept posts ahead of it (only the 9 members do), so
+    # the pack's places were the cap's to give and every one of them counts as removed by it.
     r = pack(world(), 0, sql=sql)[0]
-    assert (r["available_posts"], r["after_creator_cap"], r["after_outlet_cap"]) == (31, 27, 24)
+    assert (r["available_posts"], r["after_creator_cap"], r["after_outlet_cap"]) == (31, 27, 19)
     assert r["available_members"] == 12  # of 13 the producer assigned
     assert (r["available_local"], r["after_creator_cap_local"], r["after_outlet_cap_local"]) == (23, 19, 19)
-    assert (r["available_showable"], r["after_creator_cap_showable"], r["after_outlet_cap_showable"]) == (31, 27, 24)
-    assert pack(world(), 3, sql=sql)[0]["after_outlet_cap"] == 27  # a cap that removes nothing from the pack
+    assert (r["available_showable"], r["after_creator_cap_showable"], r["after_outlet_cap_showable"]) == (31, 27, 19)
+    # At 3 the five outlets it removes all rank behind 12 kept posts, so they were never going to be in the pack.
+    assert pack(world(), 3, sql=sql)[0]["after_outlet_cap"] == 27
 
 
 ORIGINAL_COLUMNS = {
@@ -214,10 +215,32 @@ def check_stage_counts_survive_a_pack_the_outlet_cap_empties(sql):
     assert (rows[0]["available_posts"], rows[0]["after_creator_cap"], rows[0]["after_outlet_cap"]) == (3, 3, 0)
 
 
+def abroad_outlets_world():
+    """15 news outlets: the first 12 by engagement are located abroad (not showable here), the 3 below them are."""
+    con = duck.connect()
+    clusters(con)
+    for n in range(15):
+        post(con, f"o{n:02d}", creator=f"news{n}", eng=9000 - n, platform="news", geo="KE" if n < 12 else None,
+             lane_class="panel")
+    return con
+
+
+def check_the_outlet_stage_counts_a_capped_outlet_only_when_12_posts_rank_ahead_of_it(sql):
+    # A cap of 12 removes the 3 showable outlets from behind the 12th place, so they still count at the outlet stage
+    # and only the pack size loses them. A cap of 3 or 0 removes them from inside the first 12 places: that is the cap.
+    def stage(cap, column):
+        rows = pack(abroad_outlets_world(), cap, sql=sql)
+        assert rows, f"no row at cap {cap}"
+        return rows[0][column] or 0  # a COUNTIF over no rows reads null in the harness, 0 in BigQuery
+
+    assert {cap: stage(cap, "after_outlet_cap_showable") for cap in (12, 11, 3, 0)} == {12: 3, 11: 0, 3: 0, 0: 0}
+    assert {cap: stage(cap, "after_outlet_cap") for cap in (12, 11, 3, 0)} == {12: 15, 11: 11, 3: 3, 0: 0}
+
+
 def test_the_sql_pack_size_is_the_one_pack_order_names():
     sql = statement()
     assert re.findall(r"LIMIT (\d+)", sql) == [str(pack_order.PACK_LIMIT)]
-    assert re.findall(r"pack_rank > (\d+)", sql) == [str(pack_order.PACK_LIMIT)]
+    assert re.findall(r"f\.pack_rank < c\.pack_rank\) >= (\d+)", sql) == [str(pack_order.PACK_LIMIT)]
 
 
 def test_the_default_outlet_cap_is_12_and_changes_nothing():
@@ -331,7 +354,12 @@ MUTANTS = {
     "registry handle not normalised": [("LOWER(REGEXP_REPLACE(TRIM(cr.handle), r'^@*(u/)?', ''))", "LOWER(cr.handle)")],
     "outlet stage count from the wrong stage": [("(SELECT COUNT(*) FROM g) after_outlet_cap",
                                                  "(SELECT COUNT(*) FROM c) after_outlet_cap")],
-    "outlet stage counts the cap's removals past the pack": [(" OR c.pack_rank > 12)", ")")],
+    "outlet stage counts the cap's removals past the pack":
+        [(" OR (SELECT COUNT(*) FROM f WHERE f.pack_rank < c.pack_rank) >= 12)", ")")],
+    "outlet stage counts a removal with only 11 kept posts ahead of it": [("c.pack_rank) >= 12", "c.pack_rank) >= 11")],
+    "outlet stage counts a removal with 13 kept posts ahead of it": [("c.pack_rank) >= 12", "c.pack_rank) >= 13")],
+    "outlet stage counts a removal by its place among all posts, not the kept ones":
+        [("FROM f WHERE f.pack_rank < c.pack_rank", "FROM c c2 WHERE c2.pack_rank < c.pack_rank")],
     "member tier dropped from the outlet class rank": [("ORDER BY r.market_member DESC, r.measured DESC",
                                                         "ORDER BY r.measured DESC")],
     "pooled run flag read from the market run": [("WHERE k.item_id = @item_id AND LOWER(k.market) = 'pan'",
@@ -369,7 +397,7 @@ def test_each_mutant_of_the_statement_is_caught_by_at_least_one_check(name):
 
 def test_no_check_or_mutant_has_been_deleted_to_keep_the_suite_green():
     """Nothing else runs these tests, so the totals are pinned here: lowering either needs this line to change."""
-    assert len(CHECKS) == 14 and len(MUTANTS) == 18
+    assert len(CHECKS) == 15 and len(MUTANTS) == 21
 
 
 def test_the_statement_names_no_dataset_other_than_the_placeholders_and_is_read_only():
