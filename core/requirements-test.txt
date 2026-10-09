@@ -1,0 +1,12 @@
+# Everything the core test suite imports, for .github/workflows/tests.yml. It adds no pin of its own except
+# openpyxl: each package is pinned once, in the requirements file of the image that ships it, and this file
+# installs those files together in one resolve (the jobs image already installs the last three together).
+# bertopic is not here: it declares sentence-transformers and torch, so it is installed with --no-deps after this
+# file, as core/understand/requirements.txt says.
+-r api/requirements.txt
+-r agent/requirements.txt
+-r setup/requirements-jobs.txt
+-r understand/requirements.txt
+-r understand/requirements-test.txt
+# core/collect/curated_creators.py reads the curated creator workbook with it; no image file pins it.
+openpyxl==3.1.5
