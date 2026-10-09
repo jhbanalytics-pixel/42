@@ -2059,7 +2059,7 @@ class RollbackClient(FakeClient):
         elif "t.market_news_posts7" in sql:
             self.calls.append((sql, job_config))
             self.failures += 1
-            raise RuntimeError("400 Unrecognized name: market_news_posts7 at [1:300]")
+            raise RuntimeError("400 Name market_news_posts7 not found inside t at [1:300]")
         return super().query(sql, job_config)
 
 
@@ -2097,6 +2097,20 @@ def test_item_states_does_not_retry_an_unrecognised_name_that_is_not_the_news_co
             if "INFORMATION_SCHEMA" not in sql:
                 self.calls.append((sql, job_config))
                 raise RuntimeError("400 Unrecognized name: sponsored_share at [1:9]")
+            return super().query(sql, job_config)
+
+    client = Other(CATALOG_FULL + [{"ds": "intelligence_42_core", "n": "v_item_market_scope", "what": "table"}])
+    with pytest.raises(RuntimeError, match="sponsored_share"):
+        BigQueryStore(client=client).item_states({"run_id": RUN, "run_date": D30}, "ZA")
+    assert len([s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s]) == 1
+
+
+def test_item_states_does_not_retry_a_not_found_inside_error_for_another_name():
+    class Other(FakeClient):
+        def query(self, sql, job_config=None):
+            if "INFORMATION_SCHEMA" not in sql:
+                self.calls.append((sql, job_config))
+                raise RuntimeError("400 Name sponsored_share not found inside t at [1:9]")
             return super().query(sql, job_config)
 
     client = Other(CATALOG_FULL + [{"ds": "intelligence_42_core", "n": "v_item_market_scope", "what": "table"}])
