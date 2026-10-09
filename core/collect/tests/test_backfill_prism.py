@@ -356,6 +356,51 @@ def test_apply_outside_the_collect_window_goes_ahead(clock, tmp_path):
     assert bq.count("posts") > 0
 
 
+def _closing_clock(bq, *, after_dry_inserts=None, after_real_inserts=None):
+    """Noon until the given number of INSERT statements has been seen, then 03:00 SAST."""
+    def clock():
+        dry = sum(e["sql"].lstrip().upper().startswith("INSERT") and e["dry_run"] for e in bq.log)
+        real = sum(e["sql"].lstrip().upper().startswith("INSERT") and not e["dry_run"] for e in bq.log)
+        closed = (after_dry_inserts is not None and dry > after_dry_inserts) or                  (after_real_inserts is not None and real >= after_real_inserts)
+        return datetime(2026, 10, 10, 3, 0, tzinfo=SAST) if closed else datetime(2026, 10, 10, 12, 0, tzinfo=SAST)
+    return clock
+
+
+def test_the_window_closing_during_the_apply_stops_it_before_the_next_batch(tmp_path, monkeypatch):
+    monkeypatch.setattr(bf, "BATCH", 5)
+    bq = DuckBQ(scenario())
+    clock = _closing_clock(bq, after_real_inserts=1)
+    assert run_cli(bq, *apply_args(), receipts=tmp_path / "r", clock=clock) == 2
+    real = [e for e in bq.log if e["sql"].lstrip().upper().startswith("INSERT") and not e["dry_run"]]
+    assert len(real) == 1
+    statements = [json.loads(line) for line in (tmp_path / "r" / "statements.jsonl").read_text().splitlines()]
+    assert len(statements) == 1
+    summary = json.loads((tmp_path / "r" / "summary.json").read_text())
+    assert summary["status"] == "stopped" and "02:00 to 06:30 SAST" in summary["error"]
+    assert sum(summary["inserted"].values()) == statements[0]["inserted"]
+
+
+def test_the_window_closing_before_the_first_insert_writes_nothing(tmp_path):
+    bq = DuckBQ(scenario())
+    clock = _closing_clock(bq, after_dry_inserts=0)
+    assert run_cli(bq, *apply_args(), receipts=tmp_path / "r", clock=clock) == 2
+    assert not any(e["sql"].lstrip().upper().startswith("INSERT") and not e["dry_run"] for e in bq.log)
+    assert all(bq.count(t) == 0 for t in TABLE_TYPES)
+    summary = json.loads((tmp_path / "r" / "summary.json").read_text())
+    assert summary["status"] == "stopped" and sum(summary["inserted"].values()) == 0
+
+
+def test_a_stopped_apply_is_finished_by_a_rerun_outside_the_window(tmp_path, monkeypatch):
+    monkeypatch.setattr(bf, "BATCH", 5)
+    bq = DuckBQ(scenario())
+    run_cli(bq, *apply_args("bf-run-1"), receipts=tmp_path / "one", clock=_closing_clock(bq, after_real_inserts=2))
+    assert 0 < sum(bq.count(t) for t in TABLE_TYPES)
+    assert run_cli(bq, *apply_args("bf-run-2"), receipts=tmp_path / "two") == 0
+    clean = DuckBQ(scenario())
+    run_cli(clean, *apply_args("bf-run-3"), receipts=tmp_path / "three")
+    assert {t: bq.count(t) for t in TABLE_TYPES} == {t: clean.count(t) for t in TABLE_TYPES}
+
+
 def test_a_dry_run_inside_the_collect_window_is_allowed():
     bq = DuckBQ(scenario())
     assert run_cli(bq, clock=sast(4)) == 0
@@ -910,6 +955,38 @@ def test_apply_goes_ahead_on_an_unconfirmed_call_when_it_is_accepted_by_name(kla
     assert json.loads((tmp_path / "r" / "summary.json").read_text())["accept_unconfirmed"] is True
 
 
+def _hash_removed(rows, index):
+    rows = [dict(r) for r in rows]
+    rows[index]["params_hash"] = None
+    return rows
+
+
+@pytest.mark.parametrize("klass", ["desk", "gossip", "song"])
+def test_apply_refuses_while_a_desk_gossip_or_song_call_is_unchecked(klass, tmp_path):
+    """A call stored without a params_hash cannot be compared with anything, so it is no better than a mismatch for
+    the three classes the stop rule covers: it must not slip through without --accept-unconfirmed."""
+    rows = _hash_removed(scenario(), _index_of(scenario(), klass))
+    bq = DuckBQ(rows)
+    assert run_cli(bq, *apply_args(), receipts=tmp_path / "r") == 2
+    assert not any(e["sql"].lstrip().upper().startswith("INSERT") for e in bq.log)
+    assert all(bq.count(t) == 0 for t in TABLE_TYPES) and not (tmp_path / "r").exists()
+
+
+@pytest.mark.parametrize("klass", ["desk", "gossip", "song"])
+def test_apply_goes_ahead_on_an_unchecked_call_when_it_is_accepted_by_name(klass, tmp_path):
+    rows = _hash_removed(scenario(), _index_of(scenario(), klass))
+    bq = DuckBQ(rows)
+    assert run_cli(bq, *apply_args(), "--accept-unconfirmed", receipts=tmp_path / "r") == 0
+    assert all(bq.count(t) > 0 for t in TABLE_TYPES)
+
+
+def test_an_unchecked_call_is_still_reported_as_unchecked_and_not_as_unconfirmed(capsys):
+    rows = _hash_removed(scenario(), _index_of(scenario(), "desk"))
+    assert run_cli(DuckBQ(rows)) == 0
+    desk = json.loads(capsys.readouterr().out)["params_verified"]["desk"]
+    assert desk == {"confirmed": 3, "unconfirmed": 0, "unchecked": 1}
+
+
 def test_a_dry_run_reports_an_unconfirmed_call_and_does_not_refuse(capsys):
     rows = _hash_wrong(scenario(), _index_of(scenario(), "desk"))
     assert run_cli(DuckBQ(rows)) == 0
@@ -933,6 +1010,26 @@ def test_creators_are_keyed_by_platform_as_well_as_creator_id(tmp_path):
     mine = [r for r in bq.table("creators") if r["creator_id"] == creator["creator_id"]]
     assert {r["platform"] for r in mine} == {"another-platform", creator["platform"]}
     assert bq.count("creators") == len(writers.dedupe_creators(plan_of(scenario()).creators)) + 1
+
+
+@pytest.mark.parametrize("table", ["post_observations", "item_counter_daily"])
+def test_a_stored_row_under_another_protocol_does_not_stop_the_same_row_under_this_one(table, tmp_path):
+    """The protocol is part of the NOT EXISTS key: a row that differs from a stored one only in its protocol is a
+    different row, as the live writers key it, and must land."""
+    bq = DuckBQ(scenario())
+    assert run_cli(bq, *apply_args("bf-run-1"), receipts=tmp_path / "one") == 0
+    first = bq.count(table)
+    assert first > 0
+    bq.con.execute(f"UPDATE core.{table} SET protocol = 'legacy:v1'")
+    assert run_cli(bq, *apply_args("bf-run-2"), receipts=tmp_path / "two") == 0
+    assert bq.count(table) == 2 * first
+    assert {r["protocol"] for r in bq.table(table)} >= {"legacy:v1"} and len({r["protocol"] for r in bq.table(table)}) > 1
+
+
+@pytest.mark.parametrize("table", ["post_observations", "item_counter_daily"])
+def test_the_not_exists_key_of_the_observations_and_counters_names_the_protocol(table):
+    assert "protocol" in bf.SPECS[table][1]
+    assert "T.protocol = S.protocol" in bf.insert_sql(table) and "T.protocol = S.protocol" in bf.count_sql(table)
 
 
 def test_a_post_listed_under_two_profiles_of_one_body_gives_one_observation():
