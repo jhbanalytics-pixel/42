@@ -531,3 +531,34 @@ def test_rb_t1_a_real_run_refuses_an_alias_over_a_name_it_invokes_before_it_read
     done = paste_run(f"Set-Alias -Scope Global -Name {name} -Value Get-Date", tmp_path)
     assert GUARD_REFUSED + name + "'" in done.stdout and "packet lock" not in done.stdout, (done.stdout, done.stderr)
 
+
+
+def test_rb_t1_confirm_update_asks_for_a_console_again_before_the_first_word(tmp_path):
+    # Test-Interactive is a declared double of the driver; it turns false after the BeforeJobsUpdate readback, so only a second
+    # console check inside Confirm-Update can stop the words from being asked.
+    result = JobsPasteWorld(tmp_path, "JobsUpdate").run(extra={"inject_at_run": 1, "inject": "function global:Test-Interactive { $false }\n"})
+    assert result.returncode != 0 and "NOT INTERACTIVE" in result.stderr, (result.stdout, result.stderr)
+    assert prompts_of(result) == [] and "jobs-run-update" not in result.names
+
+
+def test_rb_t1_a_name_written_with_a_module_prefix_inside_the_paste_is_refused_before_anything_runs(tmp_path):
+    world = JobsPasteWorld(tmp_path, mutate_paste=lambda t: t + "\nfunction Show-Extra { Microsoft.PowerShell.Utility\Get-Date }\n")
+    world.relock()
+    result = world.run()
+    assert result.returncode != 0 and "Microsoft.PowerShell.Utility\Get-Date" in result.stderr and result.external == [], (result.stdout, result.stderr)
+
+
+def test_rb_t1_a_command_added_to_the_paste_is_checked_without_any_list_being_edited(tmp_path):
+    world = JobsPasteWorld(tmp_path, mutate_paste=lambda t: t + "\nfunction Show-Extra { Get-Date }\n")
+    world.relock()
+    assert world.run().returncode == 0
+    again = world.run(extra={"attack": "Set-Alias -Scope Global -Name Get-Date -Value Get-Process\n"})
+    assert again.returncode != 0 and "'Get-Date'" in again.stderr and again.external == [], (again.stdout, again.stderr)
+
+
+def test_rb_t1_a_function_the_paste_defines_but_never_calls_is_checked_too(tmp_path):
+    world = JobsPasteWorld(tmp_path, mutate_paste=lambda t: t + "\nfunction Show-Extra { 1 }\n")
+    world.relock()
+    assert world.run().returncode == 0
+    taken = world.run(extra={"attack": "Set-Alias -Scope Global -Name Show-Extra -Value Get-Process\n"})
+    assert taken.returncode != 0 and "'Show-Extra'" in taken.stderr and taken.external == [], (taken.stdout, taken.stderr)
