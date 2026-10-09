@@ -17,8 +17,9 @@ import html
 import json
 import re
 
+from core.api import summary_state
 from core.api.export import (
-    _LABEL, _MARKET, _PLATFORM, _STYLE, _date_text, _e, _normal, _number, _p, _web_link,
+    EXPORT_NOTICE, _LABEL, _MARKET, _PLATFORM, _STYLE, _date_text, _e, _normal, _number, _p, _web_link,
 )
 
 LABELS = ("observed", "corroborated", "single_source", "inferred")
@@ -153,7 +154,42 @@ def build(record, sel, *, dossier_id, version, created_at, source, who="passcode
     }
     if people:
         body["people"] = copy.deepcopy(people)
+    # The source's typed summary state, read from the raw source record here, whatever the caller already did (C1 6.4).
+    meta = summary_state.wire(record)
+    body.update(body_v=2, source_answer_meta=meta)
+    if meta.get("check") == "unverified":
+        body["summary"] = None  # a state that did not verify withholds the summary; the claims are re-checked at freeze
     return body
+
+
+SHOWN_STATES = ("shown", "shown_rewritten", "fixed_text")
+ABSENT_STATES = ("removed", "blank_unexplained", "no_answer")
+
+
+def summary_state_of(body):
+    """What the view says became of the one-line summary: omitted_by_selection when a claim is not kept, else the
+    source's state when the body is version 2, the state verified and it agrees with the summary the body holds, else
+    legacy_unknown (C1 6.4: the stored wire value carries no digest, so it is trusted only where it agrees)."""
+    if any(not claim["kept"] for claim in body["claims"]):
+        return "omitted_by_selection"
+    meta = body.get("source_answer_meta")
+    if body.get("body_v") != 2 or not isinstance(meta, dict) or meta.get("check") != "verified":
+        return "legacy_unknown"
+    state = meta["summary"]["state"]
+    has_text = bool(str(body.get("summary") or "").strip())
+    if (state in SHOWN_STATES and has_text) or (state in ABSENT_STATES and not has_text):
+        return state
+    return "legacy_unknown"
+
+
+def summary_sentence(body):
+    """The sentence that stands for a summary the dossier does not show."""
+    state = body.get("summary_state") or summary_state_of(body)
+    if state == "omitted_by_selection":
+        return summary_state.OMITTED
+    if state in ABSENT_STATES:
+        return summary_state.summary_sentence(body["source_answer_meta"])
+    return summary_state.NEUTRAL
 
 
 def shown(body):
@@ -161,6 +197,7 @@ def shown(body):
     skins.mask_people works on a copy, so the stored quotes stay verbatim for the freeze re-check."""
     if any(not claim["kept"] for claim in body["claims"]):
         body = {**body, "summary": None}
+    body = {**body, "summary_state": summary_state_of(body)}
     people = body.get("people")
     if not people:
         return body
@@ -255,10 +292,13 @@ def render_html(body):
     if body.get("answer_status") in ("partial", "insufficient_evidence"):
         out.append(_p("Partial answer" if body["answer_status"] == "partial" else "Not enough evidence to answer",
                       "review"))
+    if body.get("privacy"):
+        out.append(_p(EXPORT_NOTICE, "review"))
     out.append("</header><main>")
 
     out.append("<section><h2>Summary</h2>")
-    out.append(_p(body.get("summary")))
+    summary = str(body.get("summary") or "").strip()
+    out.append(_p(summary) if summary else _p(summary_sentence(body), "note"))
     out.append("</section>")
 
     if kept:

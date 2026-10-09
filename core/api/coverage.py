@@ -43,7 +43,7 @@ SCORECARD = {
 }
 MARKET_ORDER = ("ZA", "NG", "KE")
 # What a run that finished ok could not write (store.degraded_writes, from the understand row's counts).
-DEGRADED_WORDS = {"enrich": "Enrichment"}
+DEGRADED_WORDS = {"embed": "Embedding", "enrich": "Enrichment"}
 CLUSTER_WORDS = {"pan": "the three markets pooled"}
 
 

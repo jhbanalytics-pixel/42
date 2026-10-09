@@ -772,7 +772,7 @@ STAGING_SERIES = [  # the 17 distinct (platform, series) pairs in staging collec
     ("tiktok", "board_tiktok_hashtag", "TikTok hashtag board"),
     ("tiktok", "counter_tiktok_hashtag", "TikTok hashtag totals"),
     ("tiktok", "counter_tiktok_sound", "TikTok sound totals"),
-    ("tiktok", "curve_tiktok_sound", "TikTok sound popularity"),
+    ("tiktok", "curve_tiktok_sound", "TikTok sound popularity (no longer collected)"),
     ("tiktok", "feed_tiktok", "TikTok"),
     ("tiktok", "search", "TikTok search"),
     ("twitter", "panel_x_hub", "X"),
@@ -1039,7 +1039,9 @@ def test_board_entries_keep_their_own_best_rank_with_ties_and_gaps():
 
 
 def test_a_board_of_only_ids_stays_with_its_count():
-    za = market(today.build_today(boards_store([ID_BOARD]), D30), "ZA")
+    import datetime as dt
+    on_the_day = dt.datetime(2026, 9, 30, 9, 0, tzinfo=today.SAST)  # "today" words the reason on the brief's own day
+    za = market(today.build_today(boards_store([ID_BOARD]), D30, now=on_the_day), "ZA")
     # Every entry left out: the reason says none had a name, not that a few were missing one.
     assert za["boards"] == [{"platform": "youtube", "list": "YouTube trending board", "entries": [],
                              "left_out": 1, "left_out_reason": today.NO_NAMES_READ}]
@@ -2045,3 +2047,397 @@ def test_a_title_check_row_never_names_a_held_items_reason():
     store, _ = _critic_store([title_row, _check(CRITIC_HELD, "cut", "Critic: a simpler explanation was not ruled out")])
     assert _held_by_id(store)[CRITIC_HELD]["held_detail"] == (
         "A simpler explanation could not be ruled out from these posts.")
+
+
+def test_running_row_does_not_outrank_the_failed_row_of_the_same_run(fx):
+    real_briefs = fx.briefs
+
+    def briefs(date):
+        rows = real_briefs(date)
+        for row in rows:
+            if row["brief_date"] == D30 and row["market"] == "ZA":
+                row["status"] = "data_issue"
+                row["payload"]["banners"] = [{"kind": "data_issue",
+                                               "text": "Data issue: the steps before the brief did not finish by 06:15, so no trends were checked today"}]
+        return rows
+
+    def runs(stage, run_date):
+        if stage == "collect":
+            return [{"run_id": "collect-ok", "stage": stage, "run_date": run_date, "status": "ok",
+                     "started_at": "2026-09-30 02:00:00", "finished_at": "2026-09-30 02:10:00"}]
+        if stage == "detect":
+            return [{"run_id": "detect-x", "stage": stage, "run_date": run_date, "status": "running",
+                     "started_at": "2026-09-30 02:10:00", "finished_at": None},
+                    {"run_id": "detect-x", "stage": stage, "run_date": run_date, "status": "failed",
+                     "started_at": "2026-09-30 02:10:00", "finished_at": "2026-09-30 02:20:00"}]
+        return []
+
+    za = market(today.build_today(Patched(briefs=briefs, runs=runs), D30), "ZA")
+    texts = [b["text"] for b in za["banners"] if b["kind"] == "data_issue"]
+    assert "Data issue: collection or detection failed for South Africa" in texts
+    assert not any("no failed stage is recorded" in text for text in texts)
+
+
+def test_latest_run_prefers_the_finished_row_of_a_run_over_its_running_row():
+    running = {"run_id": "detect-x", "status": "running", "started_at": "2026-09-30 02:10:00", "finished_at": None}
+    failed = {"run_id": "detect-x", "status": "failed", "started_at": "2026-09-30 02:10:00",
+              "finished_at": "2026-09-30 02:20:00"}
+    for pair in ([running, failed], [failed, running]):
+        assert today._latest_run(pair) is failed
+        assert today._stage_failed(pair) is True
+
+
+def test_a_later_attempt_still_running_outranks_an_earlier_failed_attempt():
+    failed = {"run_id": "detect-a", "status": "failed", "started_at": "2026-09-30 02:10:00",
+              "finished_at": "2026-09-30 02:20:00"}
+    retry = {"run_id": "detect-b", "status": "running", "started_at": "2026-09-30 02:30:00", "finished_at": None}
+    assert today._latest_run([failed, retry]) is retry
+    assert today._stage_failed([failed, retry]) is False
+
+
+# Review of the boards redesign, finding 3: the app counts "on N charts" from the entries it receives, and _boards
+# had already dropped the id-titled ones and the in-chart repeats. The server counts first, over every stored entry.
+def _chart_counts(boards, code="ZA"):
+    return {b["list"]: b.get("chart_counts") for b in
+            market(today.build_today(boards_store(boards), D30), code)["boards"]}
+
+
+def test_an_item_on_three_stored_charts_counts_three_though_one_of_them_names_it_by_an_id():
+    shared = iid("hashtag", "#fixture_shared")
+    boards = [
+        {"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
+            {"rank": 2, "title": "#fixture_shared", "item_id": shared}]},
+        {"platform": "youtube", "list": "YouTube trending board", "entries": [
+            {"rank": 17, "title": "#fixture_shared", "item_id": shared}]},
+        {"platform": "twitter", "list": "X trending board", "entries": [
+            {"rank": 4, "title": FAKE_CHANNEL, "item_id": shared}]},
+    ]
+    counts = _chart_counts(boards)
+    assert counts["TikTok hashtag board"] == {shared: 3}
+    assert counts["YouTube trending board"] == {shared: 3}
+    assert counts["X trending board"] is None  # nothing on it is shown, so it carries no counts
+
+
+def test_a_chart_counts_once_however_often_it_repeats_the_item_and_a_null_rank_still_counts():
+    shared = iid("hashtag", "#fixture_repeat")
+    boards = [
+        {"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
+            {"rank": 1, "title": "#fixture_repeat", "item_id": shared},
+            {"rank": 5, "title": "#fixture_repeat", "item_id": shared}]},
+        {"platform": "youtube", "list": "YouTube trending board", "entries": [
+            {"rank": None, "title": "#fixture_repeat", "item_id": shared}]},
+    ]
+    assert _chart_counts(boards) == {"TikTok hashtag board": {shared: 2}, "YouTube trending board": {shared: 2}}
+
+
+def test_a_chart_is_its_platform_and_its_list_and_a_city_list_is_one_chart_per_city():
+    shared = iid("sound", "fixture shared sound")
+    entry = [{"rank": 3, "title": "Back 2 U", "item_id": shared}]
+    boards = [
+        {"platform": "apple_music", "list": "Apple Music chart", "entries": entry},
+        {"platform": "apple_music", "list": "Apple Music new", "entries": entry},
+        {"platform": "shazam", "list": "board shazam city", "city": "Lagos", "entries": entry},
+        {"platform": "shazam", "list": "board shazam city", "city": "Abuja", "entries": entry},
+    ]
+    for chart in market(today.build_today(boards_store(boards), D30), "ZA")["boards"]:
+        assert chart["chart_counts"] == {shared: 4}
+
+
+def test_an_item_with_no_item_id_has_no_count_and_the_same_item_in_another_market_is_separate():
+    other = iid("hashtag", "#fixture_both_markets")
+    board = {"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
+        {"rank": 1, "title": "#no_id_here"}, {"rank": 2, "title": "#fixture_both_markets", "item_id": other}]}
+    za_only = {"platform": "youtube", "list": "YouTube trending board", "entries": [
+        {"rank": 3, "title": "#fixture_both_markets", "item_id": other}]}
+    base = FixtureStore()
+
+    def briefs(date):
+        rows = base.briefs(date)
+        for r in rows:
+            if r["market"] == "ZA":
+                r["payload"]["boards"] = json.loads(json.dumps([board, za_only]))
+            elif r["market"] == "NG":
+                r["payload"]["boards"] = json.loads(json.dumps([board]))
+        return rows
+
+    out = today.build_today(Patched(briefs=briefs), D30)
+    za, ng = market(out, "ZA")["boards"], market(out, "NG")["boards"]
+    assert [b["chart_counts"] for b in za] == [{other: 2}, {other: 2}]  # two charts in ZA
+    assert [b["chart_counts"] for b in ng] == [{other: 1}]  # one chart in NG: the ZA charts are not counted there
+    assert all(not any(k is None or k == "" for k in b["chart_counts"]) for b in za + ng)  # no marker without an id
+
+
+def test_a_board_of_only_ids_on_a_past_brief_says_the_brief_day_not_today():
+    """The server worded this reason "today" whatever the day. The app shows it beside the brief's own date."""
+    import datetime as dt
+    ahead = dt.datetime(2026, 10, 8, 9, 0, tzinfo=today.SAST)
+    za = market(today.build_today(boards_store([ID_BOARD]), D30, now=ahead), "ZA")["boards"][0]
+    assert za["left_out_reason"] == "None of this list's entries had a readable name on 30 September 2026"
+    assert za["left_out"] == 1
+
+
+def test_a_board_of_only_ids_on_todays_brief_still_says_today():
+    import datetime as dt
+    same_day = dt.datetime(2026, 9, 30, 9, 0, tzinfo=today.SAST)
+    za = market(today.build_today(boards_store([ID_BOARD]), D30, now=same_day), "ZA")["boards"][0]
+    assert za["left_out_reason"] == today.NO_NAMES_READ
+
+
+# W8-DEC-11: a paid route whose calls succeed on two consecutive days and land nothing is recorded invalid with
+# reason zero_yield (core/collect/writers.py). The source answered, so Today says that, not "not usable" or "failed".
+def test_a_zero_yield_series_is_worded_as_a_source_that_answered_but_returned_nothing():
+    answered = dict(health_row("tiktok", "feed_tiktok", False, items=0, reason="zero_yield"), calls=4, calls_ok=4)
+    broken = dict(health_row("instagram", "ig_location", False, reason="calls"), calls=4, calls_ok=0)
+    store = Patched(collection_health=lambda date: [answered, broken])
+    za = market(today.build_today(store, D30), "ZA")
+    assert za["coverage"]["issues"] == ["TikTok: answered but returned no posts or counts",
+                                        "Instagram location posts: could not be read"]
+    assert not any("not usable" in i for i in za["coverage"]["issues"])
+    failed = [b["text"] for b in za["banners"] if "failed today" in b["text"]]
+    assert failed == ["1 source failed today: Instagram locations"]
+
+
+# The brief payload carries explanation_status on held items (failed_checks or not_run). A G10 hold is worded from it.
+G10_CASES = [
+    ({"explanation_status": "not_run", "failed_reason": None}, "Not explained: the model did not get to this topic"),
+    ({"explanation_status": "not_run", "failed_reason": "BUSY"}, "Not explained in time: the model was busy"),
+    ({"explanation_status": "failed_checks", "failed_reason": "A claim was not supported by its posts"},
+     "The explanation did not pass our checks"),
+    ({"explanation_status": "explained", "failed_reason": None}, "The explanation did not pass our checks"),
+    ({}, "The explanation did not pass our checks"),  # a brief stored before the field existed
+]
+
+
+def _g10_store(fields):
+    from core.brief.payload import NOT_RUN_REASONS
+    fields = {k: (sorted(NOT_RUN_REASONS)[0] if v == "BUSY" else v) for k, v in fields.items()}
+    rows = deepcopy(FixtureStore().briefs(D30))
+    za = next(r for r in rows if r["market"] == "ZA")
+    item = next(i for i in za["payload"]["held_back"]["items"] if i["item_id"] == ZA_I)
+    for key in ("explanation_status", "failed_reason"):
+        item.pop(key, None)
+    item.update(rule="G10", reason="explanation_failed", reason_text="Explanation failed its checks", **fields)
+    return Patched(briefs=lambda date: rows if date == D30 else [])
+
+
+@pytest.mark.parametrize("fields, words", G10_CASES)
+def test_a_g10_hold_on_today_is_worded_from_the_status_the_brief_carries(fields, words):
+    shown = next(i for i in market(today.build_today(_g10_store(fields), D30), "ZA")["held_back"]["items"]
+                 if i["item_id"] == ZA_I)
+    assert shown["reason_text"] == words
+
+
+@pytest.mark.parametrize("fields, words", G10_CASES)
+def test_a_g10_hold_on_the_trend_page_is_worded_from_the_status_the_brief_carries(fields, words):
+    assert today.build_trend(_g10_store(fields), ZA_I, "ZA", D30)["held_back"]["reason_text"] == words
+
+
+def test_the_contract_lists_explanation_status_among_the_held_item_fields():
+    from pathlib import Path
+    text = (Path(__file__).resolve().parent.parent / "contract.md").read_text(encoding="utf-8")
+    assert "`explanation_status`" in text and "`failed_checks` or `not_run`" in text
+
+
+# wave8/detect: an understand run whose clusterer failed is recorded ok with counts.partial, partial_reason
+# cluster_stack_failed and data_issue. Today reads that row and says so.
+TOPICS_FAILED = "Data issue: topic grouping failed today"
+
+
+def _understand(counts, run_id="r_understand_20260930_09", started="2026-09-30T05:00:00+02:00", as_text=False):
+    import json as _json
+    return {"run_id": run_id, "stage": "understand", "run_date": D30, "status": "ok", "started_at": started,
+            "finished_at": started.replace("05:00", "05:30"), "counts": _json.dumps(counts) if as_text else counts,
+            "error": None, "model_usd": 0.0}
+
+
+def _topics_store(*rows, detect=()):
+    base = FixtureStore()
+    other = {"understand": list(rows), "detect": list(detect)}
+    return Patched(runs=lambda stage, d: other[stage] if stage in other else base.runs(stage, d))
+
+
+PARTIAL = {"partial": True, "partial_reason": "cluster_stack_failed", "partial_error": "ImportError: no module",
+           "data_issue": TOPICS_FAILED}
+
+
+@pytest.mark.parametrize("as_text", [False, True])
+def test_a_topic_grouping_failure_shows_as_a_data_issue_in_every_market(as_text):
+    out = today.build_today(_topics_store(_understand(PARTIAL, as_text=as_text)), D30)
+    for m in out["markets"]:
+        issues = [b for b in m["banners"] if b["text"] == TOPICS_FAILED]
+        assert issues == [{"kind": "data_issue", "text": TOPICS_FAILED}], m["market"]
+
+
+def test_the_banner_is_the_fixed_words_not_the_text_the_row_carries():
+    row = _understand({**PARTIAL, "data_issue": "Data issue: something else the row said"})
+    out = today.build_today(_topics_store(row), D30)
+    za = market(out, "ZA")
+    assert TOPICS_FAILED in [b["text"] for b in za["banners"]]
+    assert not any("something else" in b["text"] for b in za["banners"])
+
+
+@pytest.mark.parametrize("counts", [
+    {}, {"embedded": 40}, {"partial": True, "partial_reason": "something_else", "data_issue": "Data issue: other"},
+    {"partial": False, "partial_reason": "cluster_stack_failed"}])
+def test_an_understand_run_that_did_not_fail_on_the_clusterer_adds_no_banner(counts):
+    out = today.build_today(_topics_store(_understand(counts)), D30)
+    assert not any(b["text"] == TOPICS_FAILED for m in out["markets"] for b in m["banners"])
+
+
+def test_a_later_clean_understand_run_clears_the_banner():
+    failed = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
+    clean = _understand({"embedded": 40}, run_id="r_understand_20260930_09", started="2026-09-30T06:00:00+02:00")
+    out = today.build_today(_topics_store(failed, clean), D30)
+    assert not any(b["text"] == TOPICS_FAILED for m in out["markets"] for b in m["banners"])
+    again = today.build_today(_topics_store(clean, failed), D30)  # the order the rows come in does not matter
+    assert not any(b["text"] == TOPICS_FAILED for m in again["markets"] for b in m["banners"])
+
+
+def test_a_day_with_no_understand_row_adds_no_banner():
+    out = today.build_today(_topics_store(), D30)
+    assert not any(b["text"] == TOPICS_FAILED for m in out["markets"] for b in m["banners"])
+
+
+def test_the_banner_is_shown_once_and_the_fixture_day_is_otherwise_unchanged():
+    plain = today.build_today(FixtureStore(), D30)
+    marked = today.build_today(_topics_store(_understand(PARTIAL)), D30)
+    for a, b in zip(plain["markets"], marked["markets"]):
+        assert [x for x in b["banners"] if x["text"] != TOPICS_FAILED] == a["banners"]
+        assert sum(x["text"] == TOPICS_FAILED for x in b["banners"]) == 1
+
+
+# The banner reads the run detect reads: the newest ok understand run by finished_at, whatever came after it.
+def _failed_rerun(run_id="r_understand_20260930_10", started="2026-09-30T07:00:00+02:00"):
+    row = _understand({}, run_id=run_id, started=started)
+    return {**row, "status": "failed", "finished_at": started.replace("07:00", "07:05"), "counts": None,
+            "error": "the run raised"}
+
+
+def _banner(*rows):
+    out = today.build_today(_topics_store(*rows), D30)
+    return [any(b["text"] == TOPICS_FAILED for b in m["banners"]) for m in out["markets"]]
+
+
+def _topics_banner(understand, detect):
+    out = today.build_today(_topics_store(*understand, detect=detect), D30)
+    return [any(b["text"] == TOPICS_FAILED for b in m["banners"]) for m in out["markets"]]
+
+
+def test_a_failed_rerun_after_a_partial_ok_run_keeps_the_banner():
+    partial = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
+    for rows in ((partial, _failed_rerun()), (_failed_rerun(), partial)):
+        assert all(_banner(*rows))
+
+
+def test_a_clean_ok_run_after_a_partial_ok_run_shows_no_banner_even_with_a_failed_rerun_after_it():
+    partial = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
+    clean = _understand({"embedded": 40}, run_id="r_understand_20260930_09", started="2026-09-30T06:00:00+02:00")
+    assert not any(_banner(partial, clean))
+    assert not any(_banner(partial, clean, _failed_rerun()))
+
+
+def test_the_newest_ok_run_is_taken_by_finished_at_not_started_at():
+    slow_partial = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
+    slow_partial["finished_at"] = "2026-09-30T08:00:00+02:00"  # started first, finished last
+    quick_clean = _understand({"embedded": 40}, run_id="r_understand_20260930_09", started="2026-09-30T06:00:00+02:00")
+    assert all(_banner(slow_partial, quick_clean))
+    assert all(_banner(quick_clean, slow_partial))
+
+
+def test_a_day_with_only_a_failed_understand_run_adds_no_topics_banner():
+    assert not any(_banner(_failed_rerun()))
+
+
+# The banner reads detect's own record (counts.topics_failed of the day's good detect run), and the understand rule
+# only while no ok detect run exists. Scenarios A to F of the detect re-review: the same rows go to both readers.
+TOPICS_FAILED_COUNTS = {"topics_failed": {"reason": "cluster_stack_failed", "data_issue": TOPICS_FAILED,
+                                          "topic_items_judged": 0}}
+
+
+def _detect(counts, run_id="r_detect_20260930_10", status="ok", started="2026-09-30T06:30:00+02:00", finished=True):
+    return {"run_id": run_id, "stage": "detect", "run_date": D30, "status": status, "started_at": started,
+            "finished_at": started.replace(":00+", ":40+", 1) if finished else None, "counts": counts, "error": None,
+            "model_usd": 0.0}
+
+
+def detect_reads(understand_rows):
+    """What core/detect/job.py topics_failed_today decides from these understand rows: the newest ok row by
+    finished_at, and a partial_reason of cluster_stack_failed on it."""
+    ok = [r for r in understand_rows if r["status"] == "ok" and r["finished_at"] is not None]
+    newest = max(ok, key=lambda r: r["finished_at"], default=None)
+    return bool(newest and (newest["counts"] or {}).get("partial_reason") == "cluster_stack_failed")
+
+
+def _scenario(name):
+    partial = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
+    later = "2026-09-30T07:00:00+02:00"
+    if name == "A":
+        return [partial]
+    if name == "B":  # an operator re-triggers f42-understand without FORCE_RERUN
+        return [partial, {**_understand({}, run_id="r_understand_20260930_09", started=later), "status": "skipped_duplicate"}]
+    if name == "C":
+        return [partial, _failed_rerun()]
+    if name == "D":
+        return [partial, {**_understand({}, run_id="r_understand_20260930_09", started=later), "status": "running",
+                          "finished_at": None, "counts": None}]
+    if name == "E":  # overlapping runs: the partial one starts first and finishes last
+        clean = _understand({"embedded": 40}, run_id="r_understand_20260930_09", started="2026-09-30T04:10:00+02:00")
+        return [{**partial, "finished_at": "2026-09-30T05:00:00+02:00"}, {**clean, "finished_at": "2026-09-30T04:20:00+02:00"}]
+    repaired = _understand({"embedded": 40}, run_id="r_understand_20260930_09", started=later)  # F
+    return [partial, repaired]
+
+
+@pytest.mark.parametrize("name", ["A", "B", "C", "D", "E"])
+def test_scenarios_a_to_e_with_no_detect_run_yet_read_the_understand_rows_as_detect_would(name):
+    rows = _scenario(name)
+    assert detect_reads(rows) is True
+    assert all(_banner(*rows))
+
+
+@pytest.mark.parametrize("name", ["A", "B", "C", "D", "E", "F"])
+def test_scenarios_a_to_f_with_detect_having_left_topics_out_show_the_banner(name):
+    rows = _scenario(name)
+    assert all(_topics_banner(rows, [_detect(TOPICS_FAILED_COUNTS)]))
+
+
+def test_scenario_f_detect_ran_on_the_partial_day_and_a_later_repair_does_not_lift_the_banner():
+    rows = _scenario("F")
+    assert detect_reads(rows) is False  # detect asked now would judge topics, but that day's item_state has none
+    assert all(_topics_banner(rows, [_detect(TOPICS_FAILED_COUNTS)]))
+    assert not any(_topics_banner(rows, []))  # no detect run yet: the repaired understand run decides
+
+
+def test_a_good_detect_run_without_topics_failed_shows_no_banner_whatever_understand_says_later():
+    clean_detect = _detect({"item_state": 120})
+    assert not any(_topics_banner(_scenario("A"), [clean_detect]))
+    assert not any(_topics_banner(_scenario("C"), [clean_detect]))
+
+
+def test_the_newest_ok_detect_run_by_finished_at_decides_and_a_failed_or_running_one_does_not():
+    bad = _detect(TOPICS_FAILED_COUNTS, run_id="r_detect_20260930_10", started="2026-09-30T06:30:00+02:00")
+    clean = _detect({"item_state": 9}, run_id="r_detect_20260930_11", started="2026-09-30T07:30:00+02:00")
+    failed = _detect({}, run_id="r_detect_20260930_12", status="failed", started="2026-09-30T08:30:00+02:00")
+    running = _detect({}, run_id="r_detect_20260930_13", status="running", started="2026-09-30T09:30:00+02:00", finished=False)
+    partial = _scenario("A")
+    assert all(_topics_banner(partial, [bad, failed, running]))
+    assert not any(_topics_banner(partial, [bad, clean, failed, running]))
+    assert not any(_topics_banner(partial, [clean, bad, failed]))
+
+
+def test_with_only_a_failed_detect_run_the_understand_rule_still_applies():
+    failed = _detect({}, status="failed")
+    assert all(_topics_banner(_scenario("A"), [failed]))
+    assert not any(_topics_banner([_understand({"embedded": 40})], [failed]))
+
+
+@pytest.mark.parametrize("counts", [{"topics_failed": None}, {"topics_failed": {}}, {"topics_failed": "yes"},
+                                    {"topics_failed": {"reason": "something_else"}}])
+def test_a_detect_record_that_does_not_name_the_clusterer_failure_adds_no_banner(counts):
+    assert not any(_topics_banner(_scenario("A"), [_detect(counts)]))
+
+
+def test_detect_counts_stored_as_text_are_read():
+    import json as _json
+    assert all(_topics_banner([], [_detect(_json.dumps(TOPICS_FAILED_COUNTS))]))
+    assert all(_topics_banner(_scenario("A"), [_detect("not json")]))  # an unreadable record falls back
+    assert not any(_topics_banner([_understand({"embedded": 40})], [_detect("not json")]))

@@ -19,6 +19,8 @@ from pathlib import Path
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 MAX_BYTES = 2_000_000_000
+_ASK_DAY = re.compile(r"a_(\d{8})_")
+GATE_DAYS = 14  # brief dates item_gate reads; a market's latest brief decides its holds, so older ones add nothing
 log = logging.getLogger("f42.api.store")
 MARKET_TZ = {"ZA": dt.timezone(dt.timedelta(hours=2)), "NG": dt.timezone(dt.timedelta(hours=1)),
              "KE": dt.timezone(dt.timedelta(hours=3))}
@@ -118,17 +120,19 @@ CLUSTER_MARKETS = ("za", "ng", "ke", "pan")  # core.understand.job.CLUSTER_MARKE
 
 
 def degraded_writes(counts):
-    """The writes an understand run failed soft on, from its counts: "enrich" when it has enrich_error, then
-    "cluster:<market>" for each market whose cluster counts carry an error. Empty for a clean run."""
+    """The writes an understand run failed soft on, from its counts: "embed" when it has embed_error (it embedded
+    nothing), "enrich" when it has enrich_error, then "cluster:<market>" for each market whose cluster counts carry
+    an error. Empty for a clean run."""
     counts = counts if isinstance(counts, dict) else {}
     cluster = counts.get("cluster") if isinstance(counts.get("cluster"), dict) else {}
-    return (["enrich"] if counts.get("enrich_error") else []) + [
+    return (["embed"] if counts.get("embed_error") else []) + (["enrich"] if counts.get("enrich_error") else []) + [
         f"cluster:{m}" for m in CLUSTER_MARKETS if isinstance(cluster.get(m), dict) and cluster[m].get("error")]
 
 
 # degraded_writes in SQL, over the latest runs row's counts; WITH OFFSET keeps the order above.
 DEGRADED_SQL = "ARRAY(SELECT w FROM UNNEST([{}]) AS w WITH OFFSET o WHERE w IS NOT NULL ORDER BY o)".format(", ".join(
-    ["IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
+    ["IF(JSON_VALUE(r.counts, '$.embed_error') IS NOT NULL, 'embed', NULL)",
+     "IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
     + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.error') IS NOT NULL, 'cluster:{m}', NULL)" for m in CLUSTER_MARKETS]))
 
 
@@ -250,7 +254,7 @@ default day and Coverage's way back from an empty day)."""
                 out.setdefault(r["watch_id"], []).append(r["item_id"])
         return out
 
-    def item_gate(self, market):
+    def item_gate(self, market, run_date):
         rows = self._optional("item_gate")
         return None if rows is None else [r for r in rows if market in ("all", r["market"])]
 
@@ -574,6 +578,19 @@ default day and Coverage's way back from an empty day)."""
             return None
         return current_suppressions(list(SUPPRESSIONS))
 
+    def hidden_people_rows(self):
+        """{"ids": creator ids, "people": [(platform, handle)]} of everyone hidden now, composed from the list reads
+        above. None while the suppression list does not exist."""
+        ids = self.suppressed_creators()
+        if ids is None:
+            return None
+        held = [r for r in self.suppressions() or [] if r.get("status") != "lifted"]
+        wanted = set(ids) | {r["creator_id"] for r in held if r.get("creator_id")}
+        creators = (self.creators_by_id(sorted(wanted)) or []) if wanted else []
+        people = {(c["platform"], c["handle"]) for c in creators if c.get("platform") and c.get("handle")}
+        people |= {(r["platform"], r["handle"]) for r in held if r.get("platform") and r.get("handle")}
+        return {"ids": wanted, "people": sorted(people)}
+
     def _posts(self):
         posts = self._both("posts", "people_posts")
         if posts is None:
@@ -629,6 +646,17 @@ default day and Coverage's way back from an empty day)."""
 
     def posts_by_id(self, post_ids):
         return [p for p in self._posts() or [] if p["post_id"] in post_ids]
+
+    def post_creators(self, post_ids, since, until):
+        """{post_id, creator_id} of these posts whose post_date falls in [since, until], as the date-bounded lookup of
+        the partitioned posts table finds them (core/api/privacy.py). None until posts exists."""
+        posts = self._both("posts", "people_posts")
+        if posts is None:
+            return None
+        wanted = set(post_ids)
+        return [{"post_id": p["post_id"], "creator_id": p.get("creator_id")} for p in posts
+                if p["post_id"] in wanted
+                and since <= str(p.get("post_date") or str(p.get("published_at") or "")[:10]) <= until]
 
     def seed_path_posts(self, market, terms, start, end, limit):
         """The rows BigQueryStore.seed_path_posts returns, computed the same way over the fixture posts. The
@@ -883,11 +911,23 @@ or None."""
         return rows[0]["d"] if rows else None
 
     def ask_record(self, ask_id):
+        # An ask id is a_YYYYMMDD_xxxxxxxx with the market's day, and its runs row is dated by the SAST day of its
+        # start: at most a day apart, so those partitions are the only ones read. Any other id reads them all.
+        m = _ASK_DAY.match(ask_id) if isinstance(ask_id, str) else None
+        try:
+            day = dt.datetime.strptime(m[1], "%Y%m%d").date() if m else None
+        except ValueError:
+            day = None
+        window = {}
+        if day:
+            window = {"lo": ("DATE", (day - dt.timedelta(days=1)).isoformat()),
+                      "hi": ("DATE", (day + dt.timedelta(days=1)).isoformat())}
         rows = self._query(
             f"SELECT r.record FROM {self._t('intelligence_42_agent.runs')} r "
             "WHERE r.stage = 'ask' AND JSON_VALUE(r.record, '$.ask_id') = @ask_id "
-            "ORDER BY r.finished_at DESC LIMIT 1",
-            ask_id=("STRING", ask_id))
+            + ("AND r.run_date BETWEEN @lo AND @hi " if day else "")
+            + "ORDER BY r.finished_at DESC LIMIT 1",
+            ask_id=("STRING", ask_id), **window)
         return viewer_record(rows[0]["record"]) if rows else None
 
     def health(self):
@@ -1050,13 +1090,16 @@ or None."""
             out.setdefault(r["watch_id"], []).append(r["item_id"])
         return out
 
-    def item_gate(self, market):
+    def item_gate(self, market, run_date):
         gate = self._find("v_item_gate_current")
         if gate is None:
             return None
         return self._query(f"SELECT g.item_id, g.market, g.brief_date, g.place, g.rule, g.reason, g.reason_text "
                            f"FROM {gate} g "
-                           "WHERE @market = 'all' OR g.market = @market", market=("STRING", market))
+                           "WHERE (@market = 'all' OR g.market = @market) "
+                           f"AND g.brief_date >= DATE_SUB(@run_date, INTERVAL {GATE_DAYS} DAY) "
+                           "AND g.brief_date <= @run_date",
+                           market=("STRING", market), run_date=("DATE", run_date))
 
     def item_history(self, item_id, market, start, end):
         return self._query(
@@ -1482,6 +1525,41 @@ or None."""
             return None
         return {r["creator_id"] for r in self._query(f"SELECT DISTINCT s.creator_id FROM {view} s")}
 
+    def hidden_people_rows(self):
+        """Everyone hidden now, in one job: the ids on v_suppressed_creators and on the current suppression rows that
+        are not lifted, each with the platform and handle of its creators row, and the rows that name only a platform
+        and handle. {"ids": ..., "people": [(platform, handle)]}, or None while the view does not exist. Read only."""
+        view, table, creators = (self._find(n) for n in ("v_suppressed_creators", "suppressions", "creators"))
+        if view is None:
+            return None
+        current = (
+            f"cur AS (SELECT x.suppression_id, x.status, x.creator_id, x.platform, x.handle FROM {table} x\n"
+            "  WHERE TRUE QUALIFY ROW_NUMBER() OVER (PARTITION BY x.suppression_id\n"
+            "    ORDER BY x.status_at DESC, x.status = 'lifted', TO_JSON_STRING(x)) = 1)"
+            if table else
+            "cur AS (SELECT CAST(NULL AS STRING) AS suppression_id, CAST(NULL AS STRING) AS status, "
+            "CAST(NULL AS STRING) AS creator_id, CAST(NULL AS STRING) AS platform, CAST(NULL AS STRING) AS handle "
+            "FROM (SELECT 1) WHERE FALSE)")
+        named = (
+            f"named AS (SELECT i.creator_id, k.platform, k.handle FROM ids i LEFT JOIN {creators} k\n"
+            "  ON k.creator_id = i.creator_id WHERE TRUE QUALIFY ROW_NUMBER() OVER (PARTITION BY i.creator_id\n"
+            "    ORDER BY k.followers DESC) = 1)"
+            if creators else
+            "named AS (SELECT i.creator_id, CAST(NULL AS STRING) AS platform, CAST(NULL AS STRING) AS handle "
+            "FROM ids i)")
+        rows = self._query(
+            f"WITH {current},\n"
+            f"ids AS (SELECT s.creator_id FROM {view} s WHERE s.creator_id IS NOT NULL\n"
+            "  UNION DISTINCT\n"
+            "  SELECT c.creator_id FROM cur c WHERE c.status != 'lifted' AND c.creator_id IS NOT NULL),\n"
+            f"{named}\n"
+            "SELECT n.creator_id, n.platform, n.handle FROM named n\n"
+            "UNION ALL\n"
+            "SELECT CAST(NULL AS STRING), c.platform, c.handle FROM cur c\n"
+            "WHERE c.status != 'lifted' AND c.platform IS NOT NULL AND c.handle IS NOT NULL")
+        return {"ids": {r["creator_id"] for r in rows if r.get("creator_id")},
+                "people": sorted({(r["platform"], r["handle"]) for r in rows if r.get("platform") and r.get("handle")})}
+
     def suppressions(self):
         """L1's suppression list as f42-web reads it (contract.md section 16): the current row per suppression_id,
         chosen as v_suppressed_creators chooses it, newest first. None while the table does not exist."""
@@ -1572,6 +1650,16 @@ or None."""
             "ORDER BY creator_a, creator_b",
             market=("STRING", market), start=("DATE", start), end=("DATE", end),
             excluded=("ARRAY<STRING>", sorted(excluded)))
+
+    def post_creators(self, post_ids, since, until):
+        """Who wrote these posts, from posts partitioned by post_date, so the date bounds are required."""
+        posts = self._find("posts")
+        if posts is None or not post_ids:
+            return None if posts is None else []
+        return self._query(
+            f"SELECT p.post_id, p.creator_id FROM {posts} p "
+            "WHERE p.post_id IN UNNEST(@post_ids) AND p.post_date BETWEEN @since AND @until",
+            post_ids=("ARRAY<STRING>", list(post_ids)), since=("DATE", since), until=("DATE", until))
 
     def posts_by_id(self, post_ids):
         posts, links = self._find("posts"), self._find("post_items")

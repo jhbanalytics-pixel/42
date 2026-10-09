@@ -392,8 +392,8 @@ class Loosened(FixtureStore):
         return [dict(r, eligible=True, authenticity="clear", sponsored_share=0.0, geo_status="local",
                      map_status="active") for r in rows]
 
-    def item_gate(self, market):
-        return [] if self.drop == "rule_3" else super().item_gate(market)
+    def item_gate(self, market, run_date):
+        return [] if self.drop == "rule_3" else super().item_gate(market, run_date)
 
 
 @pytest.mark.parametrize("drop", ["sensitive", "generic", "board", "rule_3"])
@@ -408,8 +408,8 @@ class BriefHeldEverything(FixtureStore):
     """The fixtures with the brief holding the community's shared items for a reason that is not about coordination
     or payment, as staging's briefs of 1 to 3 October 2026 held every item."""
 
-    def item_gate(self, market):
-        rows = super().item_gate(market) or []
+    def item_gate(self, market, run_date):
+        rows = super().item_gate(market, run_date) or []
         held = [{"item_id": i, "market": "NG", "rule": None, "reason": "explanation_failed"} for i in (A, B, J)]
         return rows + [r for r in held if market in ("all", "NG")]
 

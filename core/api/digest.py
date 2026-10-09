@@ -36,7 +36,7 @@ from email.message import EmailMessage
 from pathlib import Path
 from urllib.parse import quote
 
-from core.api import discover, store as store_mod, watchlist
+from core.api import discover, privacy, store as store_mod, watchlist
 from core.api.email_kit import button, document, esc, safe_url
 from core.api.email_kit.layout import (ACCENT, CARD, FONT_BODY, FONT_SERIF, INK, INK_DIM, INK_SOFT, PAPER, RULE,
                                        TABLE, WARN)
@@ -88,10 +88,13 @@ def post_links(card):
     """Up to two (url, words) for the card's posts whose addresses pass the safety rule."""
     out = []
     for e in card.get("evidence") or []:
-        url = safe_url(e.get("url"))
-        if url:
-            platform = PLATFORM_WORDS.get(e.get("platform"), e.get("platform") or "the web")
-            out.append((url, f"{e.get('handle') or 'A post'} on {platform}"))
+        platform = PLATFORM_WORDS.get(e.get("platform"), e.get("platform") or "the web")
+        if e.get("withheld") is True:  # a hidden person's post: no handle, no address (core/api/privacy.py)
+            out.append((None, f"A post on {platform}"))
+        else:
+            url = safe_url(e.get("url"))
+            if url:
+                out.append((url, f"{e.get('handle') or 'A post'} on {platform}"))
         if len(out) == MAX_POSTS:
             break
     return out
@@ -122,7 +125,8 @@ def _alert_row(a, base):
                      f'padding-top:4px;">Held back: {esc(held.get("reason_text") or held.get("reason"))}</div>')
     posts = post_links(card)
     if posts:
-        links = ", ".join(f'<a href="{esc(u)}" style="color:{ACCENT};">{esc(w)}</a>' for u, w in posts)
+        links = ", ".join(f'<a href="{esc(u)}" style="color:{ACCENT};">{esc(w)}</a>' if u else esc(w)
+                          for u, w in posts)
         parts.append(f'<div style="font-family:{FONT_BODY};font-size:13px;color:{INK_SOFT};padding-top:8px;">'
                      f'Posts: {links}</div>')
     parts.append('<div style="font-size:0;line-height:12px;">&nbsp;</div>')
@@ -168,7 +172,7 @@ def render_text(resp, base):
         lines.append(f"{card.get('title')}: {facts}" if facts else str(card.get("title")))
         if card.get("held_back"):
             lines.append(f"Held back: {card['held_back'].get('reason_text') or card['held_back'].get('reason')}")
-        lines += [f"{w}: {u}" for u, w in post_links(card)]
+        lines += [f"{w}: {u}" if u else w for u, w in post_links(card)]
         lines.append(f"Topic page: {topic_url(base, a['item_id'], a['market'])}")
         lines.append("")
     if not resp["alerts"]:
@@ -182,7 +186,7 @@ def render_text(resp, base):
 
 
 def build(store, watches, date, base):
-    resp = discover.build_alerts(store, watches, date=date)
+    resp = privacy.withhold_digest(discover.build_alerts(store, watches, date=date), store)
     return {"date": resp["date"], "subject": subject(resp), "html": render_html(resp, base),
             "text": render_text(resp, base), "alerts": len(resp["alerts"]), "waiting": len(resp["waiting"])}
 

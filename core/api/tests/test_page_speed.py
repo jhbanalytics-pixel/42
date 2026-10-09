@@ -23,6 +23,15 @@ STEP = "7107ad863306852108ebb88392f1d5e0293922af5f5e7a5a4b81d466930f646e"
 HER = "afe2bf2632b65cd9b5354f5bd4272ea81a4f7e004d01b3615fa9b479990a5156"
 PASS = "speed-test-passcode"
 
+@pytest.fixture(autouse=True)
+def fresh_health_checks():
+    """Each test asks the health route for checks of its own, not those an earlier test cached."""
+    from core.api import app as api_app
+    api_app._reset_health_cache()
+    yield
+    api_app._reset_health_cache()
+
+
 
 # Reads one after another are counted as rounds, not timed, so a loaded machine cannot change the count. A read is
 # one round after the latest read whose result its caller had when it asked; a read the pool runs starts from the
@@ -619,6 +628,7 @@ def test_health_runs_its_checks_together_and_answers_as_before(monkeypatch):
     monkeypatch.setattr(api_mod, "_bigquery_check", lambda: "ok")
     monkeypatch.setattr(api_mod, "_today_check", lambda: "published")
     monkeypatch.setattr(api_mod, "_agent_check", down)
+    api_mod._reset_health_cache()  # the cache window has passed
     body = client.get("/api/health").json()
     assert body["ok"] is False and body["t2_ready"] is False  # t2 follows the agent check, as before
 

@@ -186,7 +186,7 @@ def test_briefs_count_a_card_on_a_suppressed_persons_post_as_held_as_today_does(
     """A card whose evidence includes a suppressed creator's post is held on Today; History counts it the same."""
     hidden = ({"tiktok:fixture_za_6"}, set(), set())
     monkeypatch.setattr(today_mod, "hidden_people", lambda store: hidden)
-    monkeypatch.setattr(history, "hidden_people", lambda store: hidden)
+    monkeypatch.setattr(history.privacy, "read_hidden", lambda store: hidden)
     body = history.build_history_briefs(fx)
     za = [m for d in body["dates"] if d["date"] == "2026-09-30" for m in d["markets"] if m["market"] == "ZA"][0]
     t = [m for m in today_mod.build_today(fx, "2026-09-30")["markets"] if m["market"] == "ZA"][0]

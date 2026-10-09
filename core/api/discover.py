@@ -91,14 +91,34 @@ def _run(store, until=None):
     return run
 
 
-def _brief_cards(store, date):
-    out = {}
+def _brief_items(store, date):
+    """The day's brief by (market, item_id): its cards and more, and apart from them its held_back.items. A G10 hold
+    sits in held_back.items, so the cards alone never say why an explanation was held."""
+    shown, held = {}, {}
     for row in store.briefs(date):
         if row.get("brief_date") != date:
             continue
-        for c in (row["payload"].get("cards") or []) + (row["payload"].get("more") or []):
-            out[(row["market"], c["item_id"])] = c
-    return out
+        payload = row["payload"]
+        for c in (payload.get("cards") or []) + (payload.get("more") or []):
+            shown[(row["market"], c["item_id"])] = c
+        block = payload.get("held_back") if isinstance(payload.get("held_back"), dict) else {}
+        for h in block.get("items") or []:
+            if isinstance(h, dict) and isinstance(h.get("item_id"), str):
+                held[(row["market"], h["item_id"])] = h
+    return shown, held
+
+
+def _hold_basis(brief_card, brief_held):
+    """(explanation_status, failed_reason) for the words of a G10 hold, from the brief's own record of the item: its
+    card when it has one, else its held item. The held item carries the job's failed_reason (a check it failed, or
+    a busy model's fixed wording) and, when the job writes it, explanation_status. Nothing else shows the model
+    skipped a topic, so an item with neither gets no status and the words for a failed check."""
+    if brief_card is not None:
+        return _explanation_status(brief_card), brief_card.get("failed_reason")
+    if brief_held is not None:
+        status = brief_held.get("explanation_status")
+        return (status if isinstance(status, str) else None), brief_held.get("failed_reason")
+    return None, None
 
 
 def _market_posts_all_news(row):
@@ -137,20 +157,26 @@ def _higher_flag(row_flag, card_flag):
 
 
 def _gate_for(rows, run_date):
-    """The gate's own placement per (item, market) for the run: the row of the latest brief date on or before
-    run_date. v_item_gate_current keeps every brief date and the admitted rows ('today', 'moments', with no
-    reason) beside the held ones, so only a held_back row is a hold (contract.md section 10.2). A row with no
-    place or date, as older fixtures give, counts as a hold on the run date."""
+    """The gate's own placement per (item, market) for the run: the rows of each market's latest brief date on or
+    before run_date, and nothing from an earlier brief, so an item the newest brief does not name keeps no old hold
+    (N42). v_item_gate_current keeps every brief date and the admitted rows ('today', 'moments', with no reason)
+    beside the held ones, so only a held_back row is a hold (contract.md section 10.2). A row with no place or
+    date, as older fixtures give, counts as a hold on the run date."""
     day = str(run_date)[:10] if run_date else None
-    best = {}
+    dated = []
     for g in rows:
         when = str(g.get("brief_date") or day or "")[:10]
         if day and when > day:
             continue
-        key = (g["item_id"], g["market"])
-        if key not in best or when > best[key][0]:
-            best[key] = (when, g)
-    return {k: g for k, (_, g) in best.items() if (g.get("place") or "held_back") == "held_back"}
+        dated.append((when, g))
+    latest = {}
+    for when, g in dated:
+        latest[g["market"]] = max(latest.get(g["market"], when), when)
+    best = {}
+    for when, g in dated:
+        if when == latest[g["market"]]:
+            best.setdefault((g["item_id"], g["market"]), g)
+    return {k: g for k, g in best.items() if (g.get("place") or "held_back") == "held_back"}
 
 
 def _held(row, gate):
@@ -313,8 +339,8 @@ def _cards(store, run, market, hidden=UNREAD):
         # An item with no row there (no measured post in the view's 7 days) keeps item_state's line.
         lines = {(s["item_id"], s["market"]): s.get("spread_line") for s in spreads}
         rows = [dict(r, spread_line=lines.get((r["item_id"], r["market"]), r.get("spread_line"))) for r in rows]
-    gate = _gate_for(store.item_gate(market) or [], run["run_date"])
-    briefs = _brief_cards(store, run["run_date"])
+    gate = _gate_for(store.item_gate(market, run["run_date"]) or [], run["run_date"])
+    briefs, brief_held = _brief_items(store, run["run_date"])
     warmup = _warmup(store, run["run_date"])["active"]
     held = {r["item_id"] + "|" + r["market"]: _held(r, gate) for r in rows}
     order = {}
@@ -328,7 +354,12 @@ def _cards(store, run, market, hidden=UNREAD):
         card = without_hidden(_build_card(r, briefs.get((r["market"], r["item_id"])), warmup, order.get(key)), hidden)
         if held[key]:
             rule, reason, text = held[key]
-            card["held_back"] = plain_reason({"rule": rule, "reason": reason, "reason_text": text})
+            status, failed = _hold_basis(briefs.get((r["market"], r["item_id"])),
+                                         brief_held.get((r["market"], r["item_id"])))
+            wording = {"rule": rule, "reason": reason, "reason_text": text}
+            if isinstance(failed, str) and failed.strip():
+                wording["failed_reason"] = failed.strip()
+            card["held_back"] = plain_reason(wording, status)
         out.append((r, card, held[key]))
     return out, warmup
 
