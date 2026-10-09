@@ -919,7 +919,7 @@ def test_fixture_store_market_scope_joins_the_required_za_couple_row_by_date_ite
 
     rows = FixtureStore(root=tmp_path).item_states({"run_id": RUN, "run_date": D30}, "ZA")
     assert rows == [dict(state, breakout_creators=None, tone_today=None, tone_before=None, market_scope="global",
-                         market_posts7=3, total_posts7=12, market_share7=0.25)]
+                         market_posts7=3, market_news_posts7=None, total_posts7=12, market_share7=0.25)]
     card = discover._build_card(rows[0], None, False, None)
     assert card["item_id"] == couple and card["market"] == "ZA" and card["market_scope"] == "global"
     assert (card["market_posts7"], card["total_posts7"], card["market_share7"]) == (3, 12, 0.25)
@@ -943,6 +943,75 @@ def test_fixture_store_present_unproven_scope_stays_global_over_brief(scope_rows
     assert row["market_scope"] == "global" and card["market_scope"] == "global"
     assert (row["market_posts7"], row["total_posts7"], row["market_share7"]) == (None, None, None)
     assert (card["market_posts7"], card["total_posts7"], card["market_share7"]) == (None, None, None)
+
+
+def news_scope_row(market_posts7, market_news_posts7, **extra):
+    return {"item_id": STEP, "market": "ZA", "metric_date": D30, "run_id": RUN, "label": "#step",
+            "state": "rising", "market_scope": "market", "market_posts7": market_posts7,
+            "market_news_posts7": market_news_posts7, "total_posts7": 12, "market_share7": market_posts7 / 12,
+            "geo_status": "local", **extra}
+
+
+@pytest.mark.parametrize(("row", "flag"), [
+    (news_scope_row(7, 7), "market_unconfirmed"),
+    (news_scope_row(7, 6), None),
+    (news_scope_row(7, 0), None),
+    (news_scope_row(0, 0, market_scope="global", market_share7=0.0), None),
+    (news_scope_row(7, 7, geo_status="not_local"), None),
+    (news_scope_row(7, 7, authenticity="check_pattern"), "check_pattern"),
+    (news_scope_row(7, 7, authenticity="not_assessed"), "market_unconfirmed"),
+    (news_scope_row(7, None), None),
+])
+def test_an_item_whose_market_posts_are_all_news_carries_market_unconfirmed(row, flag):
+    card = discover._build_card(row, None, False, None)
+
+    assert card["flag"] == flag
+    assert card["market_scope"] == row["market_scope"]
+
+
+def test_fixture_store_hands_on_the_market_news_count(tmp_path):
+    state = {"item_id": STEP, "metric_date": D30, "market": "ZA", "run_id": RUN, "label": "#step"}
+    (tmp_path / "item_state.json").write_text(json.dumps([state]), encoding="utf-8")
+    (tmp_path / "item_market_scope.json").write_text(json.dumps([
+        {"item_id": STEP, "metric_date": D30, "market": "ZA", "market_scope": "market", "market_posts7": 7,
+         "market_news_posts7": 7, "total_posts7": 12, "market_share7": 7 / 12}]), encoding="utf-8")
+
+    (row,) = FixtureStore(root=tmp_path).item_states({"run_id": RUN, "run_date": D30}, "ZA")
+
+    assert row["market_news_posts7"] == 7
+    assert discover._build_card(row, None, False, None)["flag"] == "market_unconfirmed"
+
+
+def test_bigquery_item_states_reads_the_market_news_count_from_the_view():
+    catalog = CATALOG_FULL + [{"ds": "intelligence_42_core", "n": "v_item_market_scope", "what": "table"},
+                              {"ds": "intelligence_42_core", "n": "market_news_posts7", "what": "scope_column"}]
+    client = FakeClient(catalog, rows=[news_scope_row(7, 7)])
+    (row,) = BigQueryStore(client=client).item_states({"run_id": RUN, "run_date": D30}, "ZA")
+    sql = next(s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s)
+
+    assert "t.market_news_posts7" in sql and "ms.market_news_posts7" in sql
+    assert row["market_news_posts7"] == 7
+
+
+def test_bigquery_item_states_before_the_view_gains_the_news_column_reads_it_as_unknown():
+    # the API image can run before the detect job re-creates the view: the page must still load, without the count
+    catalog = CATALOG_FULL + [{"ds": "intelligence_42_core", "n": "v_item_market_scope", "what": "table"}]
+    client = FakeClient(catalog, rows=[news_scope_row(7, None)])
+    (row,) = BigQueryStore(client=client).item_states({"run_id": RUN, "run_date": D30}, "ZA")
+    sql = next(s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s)
+
+    assert "t.market_news_posts7" not in sql and "ms.market_news_posts7" not in sql
+    assert "CAST(NULL AS INT64) AS market_news_posts7" in sql
+    assert "ms.market_posts7" in sql and "ms.total_posts7" in sql
+    assert row["market_news_posts7"] is None
+
+
+def test_bigquery_item_states_without_the_scope_view_has_no_market_news_count():
+    client = FakeClient(CATALOG_FULL, rows=[{"item_id": STEP, "market": "ZA", "metric_date": D30, "run_id": RUN}])
+    BigQueryStore(client=client).item_states({"run_id": RUN, "run_date": D30}, "ZA")
+    sql = next(s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s)
+
+    assert "CAST(NULL AS INT64) AS market_news_posts7" in sql
 
 
 class FakeJob:
