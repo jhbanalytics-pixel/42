@@ -184,3 +184,114 @@ def test_the_lookups_add_no_model_call(monkeypatch):
     assert [c["schema"] for c in h.model.calls] == [c["schema"] for c in baseline.model.calls]
     first_prompt = one_turn.calls[0]["contents"][0].parts[0].text
     assert "Already fetched" in first_prompt
+
+
+BOTH = "What is trending and rising in South Africa right now?"
+
+
+def test_a_question_that_is_both_rising_and_trending_takes_the_trending_route_and_gets_no_rising_topics_read():
+    wh = RisingWarehouse()
+    h, prompts = harness(BOTH, warehouse=wh)
+    assert ask._MOVING.search(BOTH) and ask._current_trending_intent(BOTH)  # the case really is both
+
+    h.run(question=BOTH)
+
+    assert wh.rising_reads == 0 and "rising_topics" not in fetched(prompts[0])
+
+
+def test_a_trending_board_fallback_window_gets_no_dates_lookup_because_the_window_is_not_the_questions(monkeypatch):
+    from core.agent.tests.test_ask import TrendingFallbackWarehouse, trending_snapshot
+
+    monkeypatch.setattr(ask, "get_trending_fallback_snapshot",
+                        lambda ctx, warehouse, market: trending_snapshot(market, as_of=ctx.as_of), raising=False)
+    h, prompts = harness(TRENDING, warehouse=TrendingFallbackWarehouse("ZA"))
+
+    out = h.run(question=TRENDING, market=None)
+
+    assert "Today's board is empty, so this uses the last 7 days" in out["run"]["notices"]  # the fallback ran
+    assert "budget_status" in fetched(prompts[0])
+    assert "resolve_dates" not in fetched(prompts[0])  # a date lookup for the question's words would name another window
+
+
+def test_a_trending_question_with_a_board_still_gets_its_dates_lookup(monkeypatch):
+    from core.agent.tests.test_ask import TrendingFallbackWarehouse, trending_snapshot
+
+    monkeypatch.setattr(ask, "get_trending_fallback_snapshot",
+                        lambda ctx, warehouse, market: trending_snapshot(market, as_of=ctx.as_of, available=True),
+                        raising=False)
+    h, prompts = harness(TRENDING, warehouse=TrendingFallbackWarehouse("ZA"))
+
+    h.run(question=TRENDING, market=None)
+
+    assert "resolve_dates" in fetched(prompts[0])
+
+
+def test_t2_researchers_get_no_opening_lookups_and_run_no_lookup_tools():
+    from core.agent.tests.test_ask_t2 import CriticModel, Lanes
+
+    lanes = Lanes()
+    h = Harness(research=lanes, model=CriticModel())
+    h.warehouse = RisingWarehouse()
+    h.deps.warehouse = h.warehouse
+
+    h.run(question=RISING, tier="T2")
+
+    assert lanes.calls and all("Already fetched" not in call["prompt"] for call in lanes.calls)
+    assert h.warehouse.rising_reads == 0
+    steps = [e["text"] for e in h.events if e.get("event") == "step"]
+    assert "Checking the live search budget" not in steps and "Reading rising topics, South Africa" not in steps
+
+
+def test_t3_research_gets_no_opening_lookups_and_runs_no_lookup_tools():
+    from core.agent.tests.test_ask import K4IntegrationModel
+
+    plan = {"sub_questions": [{"id": "q1", "text": "What do TikTok posts say about amapiano this week?",
+                               "platforms": ["tiktok"], "credits": 20}],
+            "gap_round": False, "max_credits": 100, "max_model_usd": 10.0}
+    seen = []
+
+    def research(ctx, prompt, options, emit, should_stop):
+        seen.append(prompt)
+        return {"note": "Reading: done.", "tokens": {"input": 10, "output": 5}, "usd": 0.001}
+
+    h = Harness(research=research, check=None, model=K4IntegrationModel())
+    h.warehouse = RisingWarehouse()
+    h.deps.warehouse = h.warehouse
+
+    h.run(question=RISING, tier="T3", plan=plan, max_credits=100, max_model_usd=10.0,
+          investigation_id="i_20260928_test")
+
+    assert seen and all("Already fetched" not in prompt for prompt in seen)
+    assert h.warehouse.rising_reads == 0
+
+
+def test_the_note_names_the_default_window_rising_topics_ran_with_and_does_not_claim_the_questions_window():
+    import inspect
+
+    from core.agent.tools.warehouse import rising_topics
+
+    default_days = inspect.signature(rising_topics).parameters["window_days"].default
+    window = ask._window(RISING, NOW)
+    asked_days = (window[1] - window[0]).days + 1
+    assert asked_days != default_days  # the case the note exists for: the question's window is not the default
+
+    note = ask.OPENING_NOTE
+
+    assert f"{default_days} days" in note and "window_days" in note
+    assert "the same tools and arguments you would have used" not in note
+    h, prompts = harness(RISING, warehouse=RisingWarehouse())
+    h.run(question=RISING)
+    assert note in prompts[0]
+    assert f"rising_topics {{}}" in prompts[0]  # the arguments each lookup ran with are printed on its line
+
+
+def test_a_failed_opening_lookup_shows_a_failure_step_and_the_ask_goes_on():
+    h, prompts = harness(RISING, warehouse=RisingWarehouse(fail_rising=True))
+
+    out = h.run(question=RISING)
+
+    steps = [e["text"] for e in h.events if e.get("event") == "step"]
+    assert "Reading rising topics did not run" in steps  # the same line the model-driven path writes
+    assert steps.index("Reading rising topics, South Africa") < steps.index("Reading rising topics did not run")
+    assert out["run"]["tokens"]["input"] >= 10  # research ran after the failed lookup
+    assert not any("v_items_today" in t for t in steps)  # the error text stays in the log, not in the step

@@ -11,7 +11,7 @@ import threading
 import pytest
 
 from core.agent import ask
-from core.agent.context import RunContext
+from core.agent.context import Refused, RunContext
 from core.agent.tests.test_ask import COUNT_SQL, NOW, FakeWarehouse, Harness, make_research
 from core.agent.tools.sql_query import MAX_BYTES_BILLED, sql_query
 from core.agent.tools.warehouse import STORE_TOOL, store_breadth, store_totals
@@ -131,7 +131,28 @@ def test_the_bytes_billed_for_the_store_reads_equal_the_serial_run_and_no_read_i
     assert len(ran) == len(store_sql) == 4  # each store read ran exactly once
     assert sum(b for _, b, _ in ran) == sum(b for sql, b, _ in ref_wh.log if sql in store_sql)
     assert all(cap == MAX_BYTES_BILLED for _, _, cap in ran)
-    assert h.warehouse.billed == sum(b for _, b, _ in h.warehouse.log)  # the ledger lost no update to a race
+
+
+def test_a_store_read_over_the_per_query_byte_cap_is_refused_on_the_background_lane_as_on_the_serial_one():
+    """The only byte limit is sql_query's per-query dry run (there is no per-ask ledger to race), so the background
+    lane must meet it exactly as the serial count did: the over-cap read never runs and the notice is the serial one."""
+    class OverCap(StoreWarehouse):
+        def dry_run(self, sql, params):
+            if "GROUP BY p.platform ORDER BY posts DESC" in sql:
+                return {"bytes": MAX_BYTES_BILLED + 1, "tables": ["ogilvy-trends-v2.intelligence_42_core.posts"]}
+            return super().dry_run(sql, params)
+
+    window = ask._window(QUESTION, NOW)
+    ref_ctx = RunContext(run_id="r_ref", tier="T1", as_of=NOW, market="ZA", window_start=window[0], window_end=window[1])
+    with pytest.raises(Refused, match="bytes"):
+        store_breadth(ref_ctx, OverCap(), ask.question_platforms(QUESTION))  # what the serial count did
+    h = harness(research_that_counts())
+    h.warehouse = h.deps.warehouse = OverCap()
+
+    out = h.run(question=QUESTION)
+
+    assert ask.STORE_FAILED in out["run"]["notices"] and "store" not in out["run"]
+    assert not any("GROUP BY p.platform ORDER BY posts DESC" in sql for sql, _, _ in h.warehouse.log)  # never ran
 
 
 def test_a_background_count_adds_no_model_call():
@@ -161,15 +182,30 @@ def test_a_count_that_fails_keeps_the_reads_it_made_and_the_serial_notice():
     assert "store" not in out["run"]
 
 
-def test_a_stopped_ask_drops_the_count_and_returns_promptly():
+def test_a_stopped_ask_drops_the_count_and_returns_without_waiting_for_it():
     flag = {"stop": False}
-    h = harness(make_research(stop_flag=flag), stop_flag=flag)
+    release = threading.Event()
+    started = threading.Event()
+    done = []
+
+    def slow(ctx, warehouse, platforms=None):
+        started.set()
+        release.wait(WAIT_S * 2)  # a count that is still reading when the ask has already stopped
+        done.append(True)
+        return {}
+
+    h = harness(make_research(stop_flag=flag), store=slow, stop_flag=flag)
 
     out = h.run(question=QUESTION)
 
-    assert out["answer"]["status"] == "insufficient_evidence"
-    assert store_receipts(out["query_receipts"]) == {}
-    assert "store" not in out["run"]
+    try:
+        assert started.wait(WAIT_S)  # the count was really running on its own thread
+        assert not release.is_set() and not done  # and the ask returned while it was still going
+        assert out["answer"]["status"] == "insufficient_evidence"
+        assert store_receipts(out["query_receipts"]) == {}
+        assert "store" not in out["run"]
+    finally:
+        release.set()
 
 
 def test_a_count_started_beside_research_is_not_run_again_by_the_writer_gate():
@@ -217,3 +253,31 @@ def test_the_warehouse_client_is_built_once_when_research_and_the_store_count_as
 
     assert len(built) == 1
     assert warehouse._client is built[0]
+
+
+def test_a_count_no_ask_waited_for_still_leaves_a_line_with_its_reads_and_dry_run_bytes(caplog):
+    import logging
+
+    flag = {"stop": False}
+    release = threading.Event()
+
+    def held_then_counting(ctx, warehouse, platforms=None):
+        release.wait(WAIT_S * 2)
+        return store_breadth(ctx, warehouse, platforms)
+
+    h = harness(make_research(stop_flag=flag), store=held_then_counting, stop_flag=flag)
+    with caplog.at_level(logging.INFO, logger="f42-agent"):
+        out = h.run(question=QUESTION)
+        assert store_receipts(out["query_receipts"]) == {}  # the ask stopped and never adopted the count
+        release.set()
+        for thread in [t for t in threading.enumerate() if t.name.startswith("store-count-")]:
+            thread.join(WAIT_S)
+
+    window = ask._window(QUESTION, NOW)
+    ref = RunContext(run_id="r_ref", tier="T1", as_of=NOW, market="ZA", window_start=window[0], window_end=window[1])
+    ref_wh = StoreWarehouse()
+    store_breadth(ref, ref_wh, ask.question_platforms(QUESTION))
+    lines = [r.getMessage() for r in caplog.records if "store count finished" in r.getMessage()]
+    assert len(lines) == 1
+    assert f"{len(ref_wh.log)} reads" in lines[0] and f"{sum(b for _, b, _ in ref_wh.log)} dry-run bytes" in lines[0]
+    assert len(ref_wh.log) == 4 and lines[0].endswith("ok")

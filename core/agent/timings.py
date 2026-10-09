@@ -29,7 +29,7 @@ OTHER = "other"
 
 # Attribute keys that hold a number. Anything not named here or in ENUM_ATTRS is dropped.
 NUMBER_ATTRS = ("attempt", "input", "output", "thinking", "cached", "wait_s", "batch", "lane", "rows", "bytes",
-                "claims", "pass", "downgrade", "cut")
+                "claims", "pass", "downgrade", "cut", "reserved")
 ENUM_ATTRS = ("purpose", "model", "status", "tool", "rule")
 
 

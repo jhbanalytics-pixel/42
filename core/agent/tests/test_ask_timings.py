@@ -311,3 +311,91 @@ def test_a_failed_ask_keeps_its_timings_and_drops_them_before_it_drops_its_spend
     assert len(json.dumps(huge)) > agent_app.MAX_RUN_BYTES
     trimmed = agent_app.failed_run({"run_id": "r_x", "tier": "T1", "model_usd": 0.5, "credits": 0, "timings": huge})
     assert trimmed["run_id"] == "r_x" and trimmed["model_usd"] == 0.5 and "timings" not in trimmed
+
+
+def test_a_numeric_repair_is_one_numeric_repair_call_inside_the_numeric_repair_phase_after_a_prepare_phase():
+    import copy
+
+    from core.agent.tests.test_ask import WRITER_OUT, NumericRepairModel
+
+    draft = copy.deepcopy(WRITER_OUT)
+    draft["claims"][1]["text"] += " 20% faster."
+    model = NumericRepairModel([draft, copy.deepcopy(WRITER_OUT)])
+    h = Harness(check=None, model=model)
+    h.deps.store_counts = lambda ctx, warehouse, platforms=None: {}
+
+    run = h.run()["run"]
+
+    assert len([c for c in model.calls if c["schema"] is WRITER_SCHEMA]) == 2  # counted at the model, not in the record
+    calls = spans(run, "model_call")
+    repairs = [s for s in calls if s["name"] == "numeric_repair"]
+    writes = [s for s in calls if s["name"] == "write"]
+    assert len(repairs) == 1 and len(writes) == 1
+    assert repairs[0]["attrs"]["purpose"] == "numeric_repair" and writes[0]["attrs"]["purpose"] == "write"
+    phases = spans(run, "phase")
+    repair_phase = next(s for s in phases if s["name"] == "numeric_repair")
+    write_phase = next(s for s in phases if s["name"] == "write")
+    assert repair_phase["t0"] <= repairs[0]["t0"] and repairs[0]["t1"] <= repair_phase["t1"]
+    assert write_phase["t0"] <= writes[0]["t0"] and writes[0]["t1"] <= write_phase["t1"]
+    names = [s["name"] for s in phases]
+    assert names.index("prepare") == names.index("store_count") + 1 and names.index("write") == names.index("prepare") + 1
+    assert names.index("numeric_repair") > names.index("write")
+
+
+def test_a_run_with_nothing_to_repair_has_no_numeric_repair_call_or_phase():
+    run = Harness().run()["run"]
+
+    assert not [s for s in spans(run, "model_call") if s["name"] == "numeric_repair"]
+    assert "numeric_repair" not in [s["name"] for s in spans(run, "phase")]
+
+
+def _api_error(cls, code, usage=None):
+    exc = cls(code, {"error": {"message": "x", "status": "X"}})
+    if usage is not None:
+        exc.usage = usage
+    return exc
+
+
+@pytest.mark.parametrize("make, expected", [
+    (lambda: __import__("core.llm.deadline", fromlist=["x"]).DeadlineExpired(), "timeout"),
+    (lambda: __import__("httpx").ReadTimeout("read timed out"), "timeout"),
+    (lambda: _api_error(__import__("google.genai.errors", fromlist=["x"]).ServerError, 504), "timeout"),
+    (lambda: _api_error(__import__("google.genai.errors", fromlist=["x"]).ClientError, 408), "timeout"),
+    (lambda: _api_error(__import__("google.genai.errors", fromlist=["x"]).ClientError, 429), "busy"),
+    (lambda: _api_error(__import__("google.genai.errors", fromlist=["x"]).ClientError, 429,
+                        usage={"input_tokens": 5}), "error"),
+    (lambda: _api_error(__import__("google.genai.errors", fromlist=["x"]).ServerError, 500), "error"),
+    (lambda: type("DeadlineExceeded", (Exception,), {})("provider deadline"), "timeout"),
+    (lambda: RuntimeError("returned no text"), "error"),
+])
+def test_failure_status_names_how_a_failed_call_ended(make, expected):
+    from core.agent import timings
+
+    assert timings.failure_status(make()) == expected
+
+
+def test_span_token_sums_equal_the_ledger_when_usage_is_unknown_and_the_budget_books_the_full_reserve(monkeypatch):
+    from core.agent.tests.test_ask_model_budget import _IncompleteChecksModel
+
+    configure_gemini(monkeypatch)
+    ledger = []
+    settle = AskModelBudget.settle
+
+    def recording(self, reservation, usage_, **kwargs):
+        ledger.append((reservation, usage_))
+        return settle(self, reservation, usage_, **kwargs)
+
+    monkeypatch.setattr(AskModelBudget, "settle", recording)
+    h = Harness(model=_IncompleteChecksModel())
+
+    run = h.run()["run"]
+
+    unknown = [(r, u) for r, u in ledger if u is None]
+    assert unknown and len(unknown) < len(ledger)  # the checks after the writer, and the writer itself
+    booked_in = sum(u["input_tokens"] if u is not None else r.input_bound for r, u in ledger)
+    booked_out = sum(u["output_tokens"] if u is not None else r.output_bound for r, u in ledger)
+    calls = spans(run, "model_call")
+    assert len(calls) == len(ledger)
+    assert sum(s["attrs"]["input"] for s in calls) == booked_in
+    assert sum(s["attrs"]["output"] for s in calls) == booked_out
+    assert sum(1 for s in calls if s["attrs"].get("reserved") == 1) == len(unknown)
