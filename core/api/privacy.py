@@ -233,12 +233,15 @@ def _json(value):
 def project_record(record, store, hidden=READ, inbound=None, creators=None):
     """An Ask record (or an investigation's) as a reader may see it now (5.2). The input is not changed. inbound is
     the privacy marker of f42-agent's response to f42-api's own call, merged with this pass's (R7). The typed
-    summary state, answer_meta, is judged from the record as it comes in, before any claim is withheld, and leaves in its
-    wire form only: a stored value is never passed through (C1 condition 1)."""
+    summary state, answer_meta, is held outside the masking pass and handed on as it came in. This function judges
+    nothing: it never calls a verifier. A value that is not a wire value is a caller fault, and becomes unverified
+    with an error log (hop ruling, C1 condition 1)."""
     if not isinstance(record, dict):
         return record
-    if "answer_meta" in record:  # judged before anything is withheld, and only its wire form is passed on
-        record = {**record, "answer_meta": summary_state.reader_meta(record)}
+    meta = record.get("answer_meta")
+    if meta is not None and not summary_state.is_wire(meta):  # a caller skipped with_wire; never pass a stored shape on
+        log.error("ask %s: answer_meta reached the privacy projection unprojected", record.get("ask_id"))
+        record = {**record, "answer_meta": {"check": "unverified", "problem": "shape"}}
     base = {k: v for k, v in record.items() if k != "privacy"}
     carried = _inbound(inbound)
     hidden = _resolve(hidden, store)

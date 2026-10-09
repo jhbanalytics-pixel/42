@@ -429,7 +429,7 @@ def short_answer_section(page):
 
 
 def test_a_removed_summary_is_explained_in_the_export_from_the_state_not_from_gap_text_p13():
-    page = export.render_answer_html(with_meta("removed"))
+    page = export.render_answer_html(prepared(with_meta("removed")))
     text = short_answer_section(page)
     assert SENTENCES["removed"] in text and "did not pass the checks" not in text
     assert "4 checked findings" in text
@@ -437,7 +437,7 @@ def test_a_removed_summary_is_explained_in_the_export_from_the_state_not_from_ga
 
 
 def test_a_blank_summary_with_no_reason_says_so_p13():
-    assert SENTENCES["blank_unexplained"] in short_answer_section(export.render_answer_html(with_meta("blank_unexplained")))
+    assert SENTENCES["blank_unexplained"] in short_answer_section(export.render_answer_html(prepared(with_meta("blank_unexplained"))))
 
 
 @pytest.mark.parametrize("breaker", ["legacy", "forged", "wire_forged"])
@@ -451,16 +451,16 @@ def test_a_blank_summary_with_no_verified_state_gets_the_neutral_sentence_p13(br
         record["answer_meta"] = {"check": "verified", "v": 1, "execution": {"state": "completed", "stop_reason": None},
                                  "summary": {"state": "blank_unexplained", "removals": [], "rewrite": "not_attempted"}}
         record["answer"]["status"] = "insufficient_evidence"  # it does not fit this record
-    text = short_answer_section(export.render_answer_html(record))
+    text = short_answer_section(export.render_answer_html(prepared(record, from_agent=breaker == "wire_forged")))
     assert SENTENCES["neutral"] in text and SENTENCES["blank_unexplained"] not in text
     assert "did not pass the checks" not in text
 
 
-def test_the_export_of_the_wire_value_reads_the_same_as_the_export_of_the_raw_record_p13():
+def test_the_export_of_the_wire_value_reads_the_same_whichever_way_it_was_prepared_p13():
     for kind in KINDS:
         record = with_meta(kind)
         sent = {**record, "answer_meta": wire_of(record)}
-        assert export.render_answer_html(sent) == export.render_answer_html(record), kind
+        assert export.render_answer_html(prepared(sent, from_agent=True)) == export.render_answer_html(prepared(record)), kind
 
 
 @pytest.mark.parametrize("kind, words", [
@@ -471,7 +471,7 @@ def test_the_export_of_the_wire_value_reads_the_same_as_the_export_of_the_raw_re
     ("refused_budget_spent", "Not researched: the model budget for today is spent"),
 ])
 def test_how_the_run_ended_is_said_from_the_verified_state_p13(kind, words):
-    page = export.render_answer_html(with_meta(kind))
+    page = export.render_answer_html(prepared(with_meta(kind)))
     assert words in page.replace("&#x27;", "'")
 
 
@@ -479,26 +479,29 @@ def test_a_stop_that_came_after_the_answer_was_final_does_not_say_stopped_early_
     record = with_meta("shown")
     record["status"] = "stopped"
     record["answer_meta"] = meta_for(record, make("shown")[1])
-    page = export.render_answer_html(record)
+    page = export.render_answer_html(prepared(record))
     assert "Stopped before the end" not in page
     legacy = {k: v for k, v in record.items() if k != "answer_meta"}
-    assert "Stopped before the end" in export.render_answer_html(legacy)
+    assert "Stopped before the end" in export.render_answer_html(prepared(legacy))
 
 
 def test_a_rewritten_summary_says_so_under_the_text_p13():
-    page = export.render_answer_html(with_meta("shown_rewritten"))
+    page = export.render_answer_html(prepared(with_meta("shown_rewritten")))
     assert "This summary was rewritten once from the findings that passed." in short_answer_section(page)
 
 
-def test_the_export_and_the_dossier_read_the_state_through_meta_view_themselves_p17(monkeypatch):
+def test_the_dossier_build_reads_the_state_through_meta_view_itself_and_the_export_calls_no_verifier_p17(monkeypatch):
     seen = []
     real = answer_state.meta_view
     monkeypatch.setattr(answer_state, "meta_view", lambda record: seen.append(record) or real(record))
     record = with_meta("shown")
-    export.render_answer_html(record)
+    prepared_record = prepared(record)  # the route's own meta_view
+    seen.clear()
+    export.render_answer_html(prepared_record)
+    assert seen == []  # the renderer reads the wire value it was given (hop ruling, C1 6.3 amended)
     dossiers.build(record, {"keep": ["c1"], "title": "t", "notes": {}}, dossier_id="d_1", version=1,
                    created_at="2026-10-07T10:00:00+02:00", source={"ask_id": ASK})
-    assert len(seen) == 2 and all(s is record for s in seen)
+    assert len(seen) == 1 and seen[0] is record
 
 
 def build_body(record, keep):
@@ -568,37 +571,16 @@ def test_dossier_routes_keep_the_state_through_create_and_edit_p14(agent):
     assert edited["source_answer_meta"]["check"] == "verified" and edited["version"] == 2
 
 
-# privacy.project_record is a boundary too: it never hands a raw stored answer_meta to a reader (C1 condition 1).
-STORED_KEYS = ("digest", "bound", "ask_id", "check_run_id")
-
-
-@pytest.mark.parametrize("hidden", [False, True])
-def test_project_record_never_passes_a_raw_stored_state_through_p06(hidden):
-    record = with_meta("shown")
-    assert "digest" in record["answer_meta"]
-    store = RouteStore(hide={"c_hid"} if hidden else set())
-    shown = privacy.project_record(record, store, privacy.read_hidden(store))
-    assert shown["answer_meta"] == wire_of(record) and shown["answer_meta"]["check"] == "verified"
-    for key in STORED_KEYS:
-        assert key not in shown["answer_meta"]
-    assert ("privacy" in shown) is hidden
-
-
-def test_project_record_does_not_believe_a_stored_value_that_is_shaped_like_the_wire_p06():
-    record = with_meta("shown")
-    record["answer_meta"] = {"check": "verified", "v": 1, "execution": {"state": "completed", "stop_reason": None},
-                             "summary": {"state": "removed", "removals": [("first_check", "K6")], "rewrite": "not_attempted"}}
-    shown = privacy.project_record(record, RouteStore(hide=set()), privacy.read_hidden(RouteStore(hide=set())))
-    assert shown["answer_meta"]["check"] != "verified" or answer_state.check_wire(shown) is None
-
-
-def test_project_record_leaves_a_record_with_no_state_key_alone_p11():
-    record = ask_record()
-    store = RouteStore(hide=set())
-    assert "answer_meta" not in privacy.project_record(record, store, privacy.read_hidden(store))
+# The privacy projection holds answer_meta out of its pass and judges nothing: T3 in test_answer_meta_hop.py.
 
 
 # The release smoke on a real Ask: the real producer, the real execute and f42-api's own GET, no double (finding 1).
+def prepared(record, from_agent=False):
+    """The record as a route hands it to the renderers: with_wire has run (C1 hop ruling)."""
+    from core.api import summary_state
+    return summary_state.with_wire(record, from_agent=from_agent)
+
+
 def release_smoke():
     """The smoke that gates the release. core.api.smoke once it holds the typed-state check; until then the copy of
     wave8/release (2f35df9) kept beside the tests, byte for byte."""
@@ -894,7 +876,7 @@ def test_each_removal_is_explained_in_its_own_words_in_the_export_and_the_dossie
     from core.api import summary_state
     record = removed_record([removal])
     assert summary_state.summary_sentence(wire_of(record)) == REMOVAL_SENTENCES[removal]
-    assert REMOVAL_SENTENCES[removal] in html.unescape(short_answer_section(export.render_answer_html(record)))
+    assert REMOVAL_SENTENCES[removal] in html.unescape(short_answer_section(export.render_answer_html(prepared(record))))
     body = build_body(record, ["c1", "c2", "c3", "c4"])
     frozen = dossiers.freeze(body, version=2, created_at="2026-10-07T11:00:00+02:00", ticks={})
     assert REMOVAL_SENTENCES[removal] in html.unescape(dossiers.render_html(frozen))
@@ -907,7 +889,7 @@ def test_a_rewrite_that_failed_its_checks_adds_its_sentence_and_only_then_p13():
         record = removed_record(removals, "removed_after_check")
         first = REMOVAL_SENTENCES[removals[0]]
         assert summary_state.summary_sentence(wire_of(record)) == first + AFTER_CHECK
-        assert first + AFTER_CHECK in html.unescape(short_answer_section(export.render_answer_html(record)))
+        assert first + AFTER_CHECK in html.unescape(short_answer_section(export.render_answer_html(prepared(record))))
     plain = removed_record([("support_check", "claim_cut")], "empty")
     assert AFTER_CHECK not in summary_state.summary_sentence(wire_of(plain))
 

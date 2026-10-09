@@ -278,7 +278,8 @@ def render_answer_html(record: dict) -> str:
     meta = _meta_line(record)
     if meta:
         out.append(_p(meta, "meta"))
-    state = summary_state.reader_meta(record)  # a raw record is judged here; a wire value only if it fits the record
+    meta = record.get("answer_meta")  # the wire value the route prepared; this renderer judges nothing
+    state = meta if summary_state.is_wire(meta) else {"check": "unverified", "problem": "shape"}
     if _status_words(answer, state):
         out.append(_p(_status_words(answer, state), "review"))
     if summary_state.stopped_early_line(record, state):

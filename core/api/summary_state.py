@@ -1,9 +1,10 @@
-"""The typed summary state on the API side (C1 v2 sections 3, 5 and 6).
+"""The typed summary state on the API side (C1 v2 sections 3, 5 and 6, and the hop ruling D1).
 
-core/agent/answer_state.py (lane 1) builds and judges the value: execute stores it, and every reader sends the browser
-its wire form, never the stored one. This module only calls it. Nothing here sets a state, and a value that fails a
-check is reported as unverified or legacy, never repaired. Raw stored values cross every internal hop except the one
-from f42-agent to f42-api, which carries the wire form its own code made (C1 5.2)."""
+core/agent/answer_state.py (lane 1) builds and judges the value: execute stores it, and f42-agent makes the wire value
+from the raw record before its own privacy pass. f42-api re-checks a wire value that arrives over that hop with
+check_wire, which can only lower a state, and reads a record it takes from runs itself with meta_view. This module
+only calls them. Nothing here sets a state, and a value that fails a check is reported as unverified or legacy, never
+repaired. The privacy projection and the renderers read the wire value they are given and judge nothing."""
 import logging
 
 log = logging.getLogger("f42.api.summary_state")
@@ -61,15 +62,6 @@ def _checked_wire(record, meta):
     if meta["check"] == "legacy_unknown" and set(meta) == {"check"}:
         return meta
     return {"check": "unverified", "problem": "shape"}
-
-
-def reader_meta(record):
-    """The wire value an export or a dossier reads for a record that is either raw (from the store) or already in wire
-    form (from the API's own boundary). A raw value is judged by meta_view; a wire value only if it fits the record."""
-    meta = record.get("answer_meta")
-    if is_wire(meta):
-        return _checked_wire(record, meta)
-    return wire(record)
 
 
 def removal_sentence(stage, cause):
