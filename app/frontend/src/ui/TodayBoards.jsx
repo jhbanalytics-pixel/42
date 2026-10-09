@@ -140,7 +140,7 @@ function Row({chart, row, where, found}){
         <span className="sr-only">{rankWords}. </span>
         <span className="tb-title">{name}</span>
         {artists && <span className="tb-artists">{artists}</span>}
-        {count > 1 && <span className="tb-multi" title={others.length ? 'Also on ' + others.join('; ') : undefined}>On {count} charts</span>}
+        {count > 1 && <span className="tb-multi">On {count} charts</span>}
         {others.length > 0 && <span className="tb-also">Also on {others.join('; ')}</span>}
         <span className="sr-only">. {where}</span>
       </span>

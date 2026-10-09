@@ -459,7 +459,7 @@ test('Ask about this names the cost and starts nothing until Ask is pressed', as
   await settle();
   click([...host.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === 'Ask'));
   expect(host.querySelector('[role="dialog"]')).toBeNull();
-  expect(window.location.hash).toBe(links[1].getAttribute('href').replace('&draft=1', '') + '&live=1');
+  expect(window.location.hash).toBe(links[1].getAttribute('href').replace('&draft=1', ''));
 });
 
 test('a held-back topic says why at the top', async () => {

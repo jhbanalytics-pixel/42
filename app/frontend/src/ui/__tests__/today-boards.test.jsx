@@ -295,8 +295,8 @@ test('one item at ranks 2 and 17 in two charts is marked on both as on 2 charts'
   expect(multi(inSpotify)).toBe('On 2 charts');
   expect(inApple.querySelector('.tb-rank').textContent).toBe('2');
   expect(inSpotify.querySelector('.tb-rank').textContent).toBe('17');
-  expect(inApple.querySelector('.tb-multi').getAttribute('title')).toContain('Spotify');
-  expect(inApple.querySelector('.tb-multi').getAttribute('title')).not.toContain('Apple Music');
+  expect(inApple.querySelector('.tb-also').textContent).toContain('Spotify');
+  expect(inApple.querySelector('.tb-also').textContent).not.toContain('Apple Music');
 });
 
 test('a duplicate inside one chart is deduplicated before counting', () => {
@@ -346,7 +346,7 @@ test('a chart is identified by platform and list together: two lists on one plat
   expect(chartCounts(one).get('both')).toBe(1);
   show({boards: sameShop});
   for (const card of host.querySelectorAll('[data-board-card]')) expect(multi(rowsOf(card)[0])).toBe('On 2 charts');
-  expect(host.querySelector('[data-board-card] .tb-multi').getAttribute('title')).toMatch(/Also on Apple Music Top 100: (Nigeria|South Africa)/);
+  expect(host.querySelector('[data-board-card] .tb-also').textContent).toMatch(/Also on Apple Music Top 100: (Nigeria|South Africa)/);
   show({boards: sameName});
   for (const card of host.querySelectorAll('[data-board-card]')) expect(multi(rowsOf(card)[0])).toBe('On 2 charts');
 });
@@ -625,9 +625,9 @@ test('the hidden chart name on each row and the Also on names say the platform o
   expect(spotifyRow.querySelector('.sr-only:last-child').textContent).toBe('. Spotify daily chart');
   const text = (node) => node.textContent.replace(/\s+/g, ' ');
   expect(text(spotifyRow)).not.toMatch(/Spotify Spotify/);
-  expect(spotifyRow.querySelector('.tb-multi').getAttribute('title')).toBe('Also on Apple Music chart');
+  expect(spotifyRow.querySelector('.tb-also').textContent).toBe('Also on Apple Music chart');
   const appleRow = rowsOf(cardFor('Apple Music'))[0];
-  expect(appleRow.querySelector('.tb-multi').getAttribute('title')).toBe('Also on Spotify daily chart');
+  expect(appleRow.querySelector('.tb-also').textContent).toBe('Also on Spotify daily chart');
 });
 
 test('a list name that only begins with the same letters as the platform keeps the platform word', () => {
@@ -643,6 +643,7 @@ test('the Also on names are visible text beside the count, not only a hover titl
   const also = row.querySelector('.tb-also');
   expect(also.textContent).toBe('Also on Apple Music chart');
   expect(also.hasAttribute('hidden')).toBe(false);
+  expect(host.querySelector('.tb-multi').hasAttribute('title')).toBe(false);
   expect(also.closest('[aria-hidden="true"]')).toBeNull();
   expect(rowsOf(cardFor('Spotify'))[1].querySelector('.tb-also')).toBeNull();
   expect(host.querySelector('[data-board-card] .tb-also')).not.toBeNull();
@@ -668,4 +669,12 @@ test('every card caption in All reads the brief day, with nothing missing after 
   ], day: PAST});
   const captions = [...host.querySelectorAll('.tb-caption')].map((c) => c.textContent);
   expect(captions).toEqual(['Best rank on 30 September 2026', 'Best rank on 30 September 2026']);
+});
+
+test('the Also on line is shown by the stylesheet, not hidden or clipped away', () => {
+  const sheet = css('today-boards.css');
+  const rule = sheet.match(/\.tb-also\s*\{([^}]*)\}/);
+  expect(rule).not.toBeNull();
+  expect(rule[1]).not.toMatch(/display\s*:\s*none|visibility\s*:\s*hidden|clip|position\s*:\s*absolute|opacity\s*:\s*0|font-size\s*:\s*0|height\s*:\s*0|overflow\s*:\s*hidden/);
+  expect(sheet).not.toMatch(/\.tb-also[^{]*\{[^}]*display\s*:\s*none/);
 });

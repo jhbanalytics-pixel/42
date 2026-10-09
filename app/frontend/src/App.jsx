@@ -268,10 +268,10 @@ export function parseAskQuery(hashText){
   const at = text.indexOf('?');
   const query = new URLSearchParams(at >= 0 ? text.slice(at + 1) : '');
   const parsed = {q: query.get('q') || '', market: query.get('market') || null, item: query.get('item') || null, date: query.get('date') || null, follow: query.get('follow') || null, fit: query.get('fit') || null};
-  /* A question in the address is a draft unless the address says live=1, which
-     only the cost confirm writes. A link made before drafts existed has neither,
-     so opening it fills in the question and spends nothing. */
-  if (query.get('draft') === '1' || (parsed.q && query.get('live') !== '1')) parsed.draft = true;
+  /* A question in the address is always a draft, whatever else the address says.
+     Nothing in a link can start a paid ask: only the cost confirm can, by
+     granting a one-shot token in memory that the Ask page spends (askConsent.js). */
+  if (parsed.q) parsed.draft = true;
   /* An investigation's follow-up names the answer it follows. */
   const parent = query.get('parent');
   parsed.parent = parent && /^[A-Za-z0-9_-]{1,128}$/.test(parent) ? parent : null;

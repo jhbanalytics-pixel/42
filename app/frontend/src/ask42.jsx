@@ -24,6 +24,7 @@ import {platformLabel} from './ui/PlatformGlyph.jsx';
 import {platformWord} from './ui/TrendCard.jsx';
 import {BarList} from './ui/Charts42.jsx';
 import {safeUrl} from './safeUrl.js';
+import {consumeAsk} from './askConsent.js';
 
 const MARKETS = [
   {code: 'ZA', name: 'South Africa'},
@@ -816,7 +817,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
     const mkt = marketCode(q.market) || marketToSend({question: q.q, selected: market, picked: marketPicked.current});
     setQuestion(q.q);
     setMarket(mkt);
-    if (q.draft){
+    if (q.draft && !consumeAsk(q)){
       draftParent.current = q.parent || null;
       draftCard.current = q.item ? {item_id: q.item, market: mkt || null, date: q.date || null} : null;
       return;
