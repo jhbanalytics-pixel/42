@@ -1,0 +1,641 @@
+{
+ "applied": {
+  "ask_id": "a_20261007_aaaa0001",
+  "question": "What is @*** doing with amapiano in South Africa?",
+  "market": "ZA",
+  "status": "complete",
+  "created_at": "2026-10-07T09:00:00+02:00",
+  "finished_at": "2026-10-07T09:02:00+02:00",
+  "error": null,
+  "parent_id": null,
+  "steps": [
+   {
+    "seq": 1,
+    "text": "Searching TikTok for amapiano from @***"
+   },
+   {
+    "seq": 2,
+    "text": "Reading 3 posts"
+   }
+  ],
+  "run": {
+   "posts": 3,
+   "ranked_list": {
+    "platform": "tiktok",
+    "items": [
+     {
+      "claim_id": "c1",
+      "usage_handle": "vis_handle",
+      "tied_with_previous": false
+     },
+     {
+      "claim_id": "c4",
+      "usage_handle": null,
+      "tied_with_previous": false
+     }
+    ]
+   },
+   "run_id": "r_20261007_aaaa0001"
+  },
+  "answer": {
+   "status": "complete",
+   "as_of": "2026-10-07T09:00:00+02:00",
+   "short_answer": "This summary was left out because part of it rested on posts 42 no longer shows.",
+   "evidence": [
+    {
+     "id": "obs1_11111111111111111111111111111111",
+     "platform": "tiktok",
+     "handle": "vis_handle",
+     "url": "https://www.tiktok.com/@vis_handle/video/1",
+     "posted_at": "2026-10-05T09:00:00+02:00",
+     "market": "ZA",
+     "text": "visible fixture words"
+    },
+    {
+     "id": "obs1_cccccccccccccccccccccccccccccccc",
+     "platform": "tiktok",
+     "handle": "hid_old_handle",
+     "url": "https://www.tiktok.com/@hid_old_handle/video/1",
+     "posted_at": "2026-10-05T01:00:00+02:00",
+     "market": "ZA",
+     "text": "renamed creator words"
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "text": "Amapiano posts rose",
+     "label": "observed",
+     "kind": "observation",
+     "evidence_ids": [
+      "obs1_11111111111111111111111111111111"
+     ],
+     "quotes": [
+      {
+       "evidence_id": "obs1_11111111111111111111111111111111",
+       "text": "visible fixture words"
+      }
+     ],
+     "numbers": [
+      {
+       "value": 3,
+       "unit": "posts",
+       "query_id": "q_1",
+       "run_id": "r_1",
+       "result_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      }
+     ]
+    },
+    {
+     "id": "c4",
+     "text": "A renamed creator posted",
+     "label": "single_source",
+     "kind": "observation",
+     "evidence_ids": [
+      "obs1_cccccccccccccccccccccccccccccccc"
+     ]
+    }
+   ],
+   "so_what": [
+    {
+     "text": "s2",
+     "claim_ids": [
+      "c1"
+     ]
+    }
+   ],
+   "watch_next": [
+    {
+     "text": "w1",
+     "claim_ids": [
+      "c4"
+     ],
+     "forecast": false
+    }
+   ],
+   "gaps": [
+    {
+     "what": "Some findings were left out because they rested on posts 42 no longer shows.",
+     "searched": "",
+     "why": "withheld_privacy"
+    }
+   ],
+   "context": ""
+  },
+  "answer_meta": {
+   "check": "legacy_unknown"
+  },
+  "privacy": {
+   "v": 1,
+   "state": "applied",
+   "withheld": {
+    "posts": 1,
+    "claims": 2,
+    "summary": true
+   }
+  }
+ },
+ "unavailable": {
+  "ask_id": "a_20261007_aaaa0001",
+  "question": "What is @*** doing with amapiano in South Africa?",
+  "market": "ZA",
+  "status": "complete",
+  "created_at": "2026-10-07T09:00:00+02:00",
+  "finished_at": "2026-10-07T09:02:00+02:00",
+  "error": null,
+  "parent_id": null,
+  "steps": [
+   {
+    "seq": 1,
+    "text": "Searching TikTok for amapiano from @***"
+   },
+   {
+    "seq": 2,
+    "text": "Reading 3 posts"
+   }
+  ],
+  "run": {
+   "posts": 3,
+   "run_id": "r_20261007_aaaa0001"
+  },
+  "answer": {
+   "status": "partial",
+   "as_of": "2026-10-07T09:00:00+02:00",
+   "short_answer": "This summary was left out because part of it rested on posts 42 no longer shows.",
+   "evidence": [],
+   "claims": [],
+   "so_what": [],
+   "watch_next": [],
+   "gaps": [
+    {
+     "what": "Some findings were left out because they rested on posts 42 no longer shows.",
+     "searched": "",
+     "why": "withheld_privacy"
+    }
+   ],
+   "context": ""
+  },
+  "answer_meta": {
+   "check": "legacy_unknown"
+  },
+  "privacy": {
+   "v": 1,
+   "state": "unavailable",
+   "withheld": {
+    "posts": 3,
+    "claims": 4,
+    "summary": true
+   },
+   "note": "42 could not check its hidden-people list just now, so the posts behind this answer are not shown."
+  }
+ },
+ "all_hidden": {
+  "ask_id": "a_20261007_aaaa0001",
+  "question": "What is @*** doing with amapiano in South Africa?",
+  "market": "ZA",
+  "status": "complete",
+  "created_at": "2026-10-07T09:00:00+02:00",
+  "finished_at": "2026-10-07T09:02:00+02:00",
+  "error": null,
+  "parent_id": null,
+  "steps": [
+   {
+    "seq": 1,
+    "text": "Searching TikTok for amapiano from @***"
+   },
+   {
+    "seq": 2,
+    "text": "Reading 3 posts"
+   }
+  ],
+  "run": {
+   "posts": 3,
+   "run_id": "r_20261007_aaaa0001"
+  },
+  "answer": {
+   "status": "partial",
+   "as_of": "2026-10-07T09:00:00+02:00",
+   "short_answer": "This summary was left out because part of it rested on posts 42 no longer shows.",
+   "evidence": [
+    {
+     "id": "obs1_11111111111111111111111111111111",
+     "platform": "tiktok",
+     "handle": "vis_handle",
+     "url": "https://www.tiktok.com/@vis_handle/video/1",
+     "posted_at": "2026-10-05T09:00:00+02:00",
+     "market": "ZA",
+     "text": "visible fixture words"
+    },
+    {
+     "id": "obs1_cccccccccccccccccccccccccccccccc",
+     "platform": "tiktok",
+     "handle": "hid_old_handle",
+     "url": "https://www.tiktok.com/@hid_old_handle/video/1",
+     "posted_at": "2026-10-05T01:00:00+02:00",
+     "market": "ZA",
+     "text": "renamed creator words"
+    }
+   ],
+   "claims": [],
+   "so_what": [],
+   "watch_next": [],
+   "gaps": [
+    {
+     "what": "Some findings were left out because they rested on posts 42 no longer shows.",
+     "searched": "",
+     "why": "withheld_privacy"
+    }
+   ],
+   "context": ""
+  },
+  "answer_meta": {
+   "check": "legacy_unknown"
+  },
+  "privacy": {
+   "v": 1,
+   "state": "applied",
+   "withheld": {
+    "posts": 1,
+    "claims": 4,
+    "summary": true
+   }
+  }
+ },
+ "not_hidden": {
+  "ask_id": "a_20261007_aaaa0001",
+  "question": "What is @hid_handle doing with amapiano in South Africa?",
+  "market": "ZA",
+  "status": "complete",
+  "created_at": "2026-10-07T09:00:00+02:00",
+  "finished_at": "2026-10-07T09:02:00+02:00",
+  "error": null,
+  "parent_id": null,
+  "steps": [
+   {
+    "seq": 1,
+    "text": "Searching TikTok for amapiano from @hid_handle"
+   },
+   {
+    "seq": 2,
+    "text": "Reading 3 posts"
+   }
+  ],
+  "run": {
+   "posts": 3,
+   "ranked_list": {
+    "platform": "tiktok",
+    "items": [
+     {
+      "claim_id": "c1",
+      "usage_handle": "vis_handle",
+      "tied_with_previous": false
+     },
+     {
+      "claim_id": "c2",
+      "usage_handle": "hid_handle",
+      "tied_with_previous": true
+     },
+     {
+      "claim_id": "c4",
+      "usage_handle": null,
+      "tied_with_previous": false
+     }
+    ]
+   },
+   "run_id": "r_20261007_aaaa0001"
+  },
+  "answer": {
+   "status": "complete",
+   "as_of": "2026-10-07T09:00:00+02:00",
+   "short_answer": "@hid_handle leads amapiano this week.",
+   "evidence": [
+    {
+     "id": "obs1_11111111111111111111111111111111",
+     "platform": "tiktok",
+     "handle": "vis_handle",
+     "url": "https://www.tiktok.com/@vis_handle/video/1",
+     "posted_at": "2026-10-05T09:00:00+02:00",
+     "market": "ZA",
+     "text": "visible fixture words"
+    },
+    {
+     "id": "obs1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "platform": "tiktok",
+     "handle": "hid_handle",
+     "url": "https://www.tiktok.com/@hid_handle/video/1",
+     "posted_at": "2026-10-05T09:00:00+02:00",
+     "market": "ZA",
+     "text": "fixture hidden words one"
+    },
+    {
+     "id": "obs1_cccccccccccccccccccccccccccccccc",
+     "platform": "tiktok",
+     "handle": "hid_old_handle",
+     "url": "https://www.tiktok.com/@hid_old_handle/video/1",
+     "posted_at": "2026-10-05T01:00:00+02:00",
+     "market": "ZA",
+     "text": "renamed creator words"
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "text": "Amapiano posts rose",
+     "label": "observed",
+     "kind": "observation",
+     "evidence_ids": [
+      "obs1_11111111111111111111111111111111"
+     ],
+     "quotes": [
+      {
+       "evidence_id": "obs1_11111111111111111111111111111111",
+       "text": "visible fixture words"
+      }
+     ],
+     "numbers": [
+      {
+       "value": 3,
+       "unit": "posts",
+       "query_id": "q_1",
+       "run_id": "r_1",
+       "result_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      }
+     ]
+    },
+    {
+     "id": "c2",
+     "text": "The hidden creator led",
+     "label": "single_source",
+     "kind": "observation",
+     "evidence_ids": [
+      "obs1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     ],
+     "quotes": [
+      {
+       "evidence_id": "obs1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "text": "fixture hidden words one"
+      }
+     ]
+    },
+    {
+     "id": "c3",
+     "text": "Both posted",
+     "label": "corroborated",
+     "kind": "observation",
+     "evidence_ids": [
+      "obs1_11111111111111111111111111111111",
+      "obs1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     ]
+    },
+    {
+     "id": "c4",
+     "text": "A renamed creator posted",
+     "label": "single_source",
+     "kind": "observation",
+     "evidence_ids": [
+      "obs1_cccccccccccccccccccccccccccccccc"
+     ]
+    }
+   ],
+   "so_what": [
+    {
+     "text": "s1",
+     "claim_ids": [
+      "c2"
+     ]
+    },
+    {
+     "text": "s2",
+     "claim_ids": [
+      "c1"
+     ]
+    },
+    {
+     "text": "s3",
+     "claim_ids": [
+      "c1",
+      "c3"
+     ]
+    }
+   ],
+   "watch_next": [
+    {
+     "text": "w1",
+     "claim_ids": [
+      "c4"
+     ],
+     "forecast": false
+    }
+   ],
+   "gaps": [],
+   "context": ""
+  },
+  "answer_meta": {
+   "check": "legacy_unknown"
+  }
+ },
+ "dossier_applied": {
+  "dossier_id": "d_fixture1",
+  "version": 1,
+  "state": "draft",
+  "created_at": "2026-10-07T10:00:00+02:00",
+  "who": "passcode",
+  "title": "Amapiano",
+  "source": {
+   "kind": "ask",
+   "ask_id": "a_20261007_aaaa0001"
+  },
+  "source_ask_id": "a_20261007_aaaa0001",
+  "question": "What is @*** doing with amapiano in South Africa?",
+  "market": "ZA",
+  "as_of": "2026-10-07T09:00:00+02:00",
+  "answer_status": "complete",
+  "summary": null,
+  "claims": [
+   {
+    "claim_id": "c1",
+    "text": "Amapiano posts rose",
+    "label": "observed",
+    "kind": "observation",
+    "evidence_ids": [
+     "obs1_11111111111111111111111111111111"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "obs1_11111111111111111111111111111111",
+      "text": "visible fixture words"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 3,
+      "unit": "posts",
+      "query_id": "q_1",
+      "run_id": "r_1",
+      "result_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+     }
+    ],
+    "kept": true,
+    "note": null
+   },
+   {
+    "claim_id": "c2",
+    "text": "This finding was left out because it rested on a post 42 no longer shows.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [],
+    "quotes": [],
+    "numbers": [],
+    "kept": true,
+    "note": null,
+    "withheld": true
+   },
+   {
+    "claim_id": "c3",
+    "text": "This finding was left out because it rested on a post 42 no longer shows.",
+    "label": "corroborated",
+    "kind": "observation",
+    "evidence_ids": [],
+    "quotes": [],
+    "numbers": [],
+    "kept": true,
+    "note": null,
+    "withheld": true
+   },
+   {
+    "claim_id": "c4",
+    "text": "A renamed creator posted",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "obs1_cccccccccccccccccccccccccccccccc"
+    ],
+    "quotes": [],
+    "numbers": [],
+    "kept": false,
+    "note": null
+   }
+  ],
+  "evidence": [
+   {
+    "id": "obs1_11111111111111111111111111111111",
+    "platform": "tiktok",
+    "handle": "vis_handle",
+    "url": "https://www.tiktok.com/@vis_handle/video/1",
+    "posted_at": "2026-10-05T09:00:00+02:00",
+    "market": "ZA",
+    "text": "visible fixture words"
+   }
+  ],
+  "gaps": [],
+  "left_out": [],
+  "body_v": 2,
+  "source_answer_meta": {
+   "check": "legacy_unknown"
+  },
+  "summary_state": "omitted_by_selection",
+  "privacy": {
+   "v": 1,
+   "state": "applied",
+   "withheld": {
+    "posts": 1,
+    "claims": 2,
+    "summary": false
+   }
+  }
+ },
+ "dossier_unavailable": {
+  "dossier_id": "d_fixture1",
+  "version": 1,
+  "state": "draft",
+  "created_at": "2026-10-07T10:00:00+02:00",
+  "who": "passcode",
+  "title": "Amapiano",
+  "source": {
+   "kind": "ask",
+   "ask_id": "a_20261007_aaaa0001"
+  },
+  "source_ask_id": "a_20261007_aaaa0001",
+  "question": "What is @*** doing with amapiano in South Africa?",
+  "market": "ZA",
+  "as_of": "2026-10-07T09:00:00+02:00",
+  "answer_status": "complete",
+  "summary": null,
+  "claims": [
+   {
+    "claim_id": "c1",
+    "text": "This finding was left out because it rested on a post 42 no longer shows.",
+    "label": "observed",
+    "kind": "observation",
+    "evidence_ids": [],
+    "quotes": [],
+    "numbers": [
+     {
+      "value": 3,
+      "unit": "posts",
+      "query_id": "q_1",
+      "run_id": "r_1",
+      "result_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+     }
+    ],
+    "kept": true,
+    "note": null,
+    "withheld": true
+   },
+   {
+    "claim_id": "c2",
+    "text": "This finding was left out because it rested on a post 42 no longer shows.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [],
+    "quotes": [],
+    "numbers": [],
+    "kept": true,
+    "note": null,
+    "withheld": true
+   },
+   {
+    "claim_id": "c3",
+    "text": "This finding was left out because it rested on a post 42 no longer shows.",
+    "label": "corroborated",
+    "kind": "observation",
+    "evidence_ids": [],
+    "quotes": [],
+    "numbers": [],
+    "kept": true,
+    "note": null,
+    "withheld": true
+   },
+   {
+    "claim_id": "c4",
+    "text": "This finding was left out because it rested on a post 42 no longer shows.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [],
+    "quotes": [],
+    "numbers": [],
+    "kept": false,
+    "note": null,
+    "withheld": true
+   }
+  ],
+  "evidence": [],
+  "gaps": [],
+  "left_out": [],
+  "body_v": 2,
+  "source_answer_meta": {
+   "check": "legacy_unknown"
+  },
+  "summary_state": "omitted_by_selection",
+  "privacy": {
+   "v": 1,
+   "state": "unavailable",
+   "withheld": {
+    "posts": 2,
+    "claims": 4,
+    "summary": false
+   },
+   "note": "42 could not check its hidden-people list just now, so the posts behind this answer are not shown."
+  }
+ }
+}

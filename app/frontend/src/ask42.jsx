@@ -26,6 +26,7 @@ import {BarList} from './ui/Charts42.jsx';
 import {safeUrl} from './safeUrl.js';
 import {consumeAsk} from './askConsent.js';
 import {missingSummarySentence, statusWords, stoppedEarly, summaryNotice} from './answerMeta.js';
+import {peopleWords, privacyNotice} from './privacyNotice.js';
 
 const MARKETS = [
   {code: 'ZA', name: 'South Africa'},
@@ -386,6 +387,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   }
   const notices = Array.isArray(run.notices) ? run.notices : [];
   const followups = Array.isArray(run.followups) ? run.followups.slice(0, 3) : [];
+  const privacyWords = privacyNotice(record);
   const summary = summaryNotice(record);
   const hasSummary = String(answer.short_answer || '').trim() !== '';
 
@@ -400,7 +402,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
     setExportError('');
     try { await downloadExport(record.ask_id); }
     catch (error){
-      setExportError(error && error.message ? error.message : 'The export failed.');
+      setExportError(peopleWords(error, 'The export failed.'));
       if (onFailure) onFailure(error);
     }
     finally { setExporting(false); }
@@ -415,7 +417,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
       const made = await createDossier(record.ask_id);
       go('/dossiers/' + encodeURIComponent(made.dossier_id));
     } catch (error){
-      setAddError(error && error.message ? error.message : 'The dossier could not be started.');
+      setAddError(peopleWords(error, 'The dossier could not be started.'));
       if (onFailure) onFailure(error);
     } finally { setAdding(false); }
   }
@@ -436,7 +438,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
     } catch (error){
       if (findingSaveRequest.current !== request) return;
       findingSaveRequest.current = null;
-      setFindingSave({askId, phase: 'error', error: error && error.message ? error.message : 'The Finding could not be saved.'});
+      setFindingSave({askId, phase: 'error', error: peopleWords(error, 'The Finding could not be saved.')});
       if (onFailure) onFailure(error);
     }
   }
@@ -460,6 +462,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
         )}
         <h2 className="ask42-question">{record.question}</h2>
         <p className="ask42-meta">{metaLine(record)}</p>
+        {privacyWords && <p className="ask42-status" role="note" data-privacy-notice="">{privacyWords}</p>}
         {/* Wide screens: the answer reads down the main column and its evidence
            (posts, figures, what each platform returned) sits beside it, so the
            page uses the whole width without stretching any line of prose. */}
@@ -956,7 +959,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
 
         {run.phase === 'error' && (
           <div className="ask42-failed" role="alert">
-            <p>{run.error && run.error.auth ? 'Enter the passcode to ask a question.' : (run.error && run.error.message) || 'The question could not be asked.'}</p>
+            <p>{run.error && run.error.auth ? 'Enter the passcode to ask a question.' : peopleWords(run.error, 'The question could not be asked.')}</p>
             <button type="button" className="ask42-quiet" onClick={tryAgain}>Try again</button>
           </div>
         )}

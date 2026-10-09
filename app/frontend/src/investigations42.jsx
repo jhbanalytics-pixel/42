@@ -16,6 +16,7 @@ import {costWords, itemsWords} from './costWords.js';
 import {validateAnswer} from './answerContract.js';
 import {answerStatusWords, noShortAnswer} from './ask42.jsx';
 import {stoppedEarly, summaryNotice} from './answerMeta.js';
+import {peopleWords, privacyNotice} from './privacyNotice.js';
 import {createInvestigation, createInvestigationDossier, getInvestigation, listInvestigations, startInvestigation, stopInvestigation, streamInvestigation, updateInvestigationPlan} from './api42.js';
 import {downloadExport} from './askTransport42.js';
 import {go} from './router.js';
@@ -700,6 +701,7 @@ function InvestigationAnswer({record, investigationId, onFailure}){
   const notices = Array.isArray(run.notices) ? run.notices : [];
   const followups = Array.isArray(run.followups) ? run.followups.slice(0, 3) : [];
   const tokens = run.tokens || {};
+  const privacyWords = privacyNotice(record);
   const summary = summaryNotice(record);
   const hasSummary = String(answer.short_answer || '').trim() !== '';
 
@@ -708,7 +710,7 @@ function InvestigationAnswer({record, investigationId, onFailure}){
     setExportError('');
     try { await downloadExport(record.ask_id); }
     catch (error){
-      setExportError(error && error.message ? error.message : 'The export failed.');
+      setExportError(peopleWords(error, 'The export failed.'));
       onFailure(error);
     }
     finally { setExporting(false); }
@@ -736,6 +738,7 @@ function InvestigationAnswer({record, investigationId, onFailure}){
           </ul>
         )}
         <p className="ask42-meta">{metaLine(record)}</p>
+        {privacyWords && <p className="ask42-status" role="note" data-privacy-notice="">{privacyWords}</p>}
         {answerStatusWords(answer, record) && <p className="ask42-status">{answerStatusWords(answer, record)}</p>}
         {stoppedEarly(record) && <p className="ask42-status">Stopped early: this answer holds only what had passed its checks</p>}
         <p id={shortId} className="ask42-short">{hasSummary ? answer.short_answer : noShortAnswer(answer, record)}</p>
