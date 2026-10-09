@@ -332,6 +332,29 @@ def test_spend_booked_by_another_stage_during_the_wait_is_seen_before_the_cap_ch
         assert {i["failed_reason"] for i in held_items(r, m).values()} == {MODEL_REFUSED}
 
 
+@pytest.mark.parametrize("other, resumed", [(0.25, False), (0.0, True)], ids=["spend_equals_cap", "spend_below_cap"])
+def test_after_the_wait_a_day_whose_spend_equals_the_cap_is_not_asked_again(monkeypatch, other, resumed):
+    # Three refusals book 0.75 and the cap is 1.0, so the stop itself leaves room and the wait is made. What other
+    # stages book during the wait decides the re-read: 0.25 more makes the day's spend exactly the cap, which is
+    # reached (>=), so nothing is asked after the wait; with nothing booked the day is 0.75 under the cap and asks.
+    monkeypatch.setattr(job, "model_daily_usd", lambda: 1.0)
+    monkeypatch.setattr(explain, "model_daily_usd", lambda: 80.0)
+    con = world(n=2)
+    clock = Clock(EARLY)
+
+    def sleep(seconds):
+        clock.sleep(seconds)
+        if seconds == WAIT and other:
+            _earlier_spend(con, other)
+    model = spend_refusing(3)
+    r = run(con, model=model, clock=clock, sleep=sleep)
+    assert resumes(clock) == 1
+    if resumed:
+        assert len(model.calls) > 3 and "model_resume" in r.counts
+    else:
+        assert len(model.calls) == 3 and "model_resume" not in r.counts and explained(r) == []
+
+
 def test_the_resumed_pass_counts_the_spend_booked_during_the_wait_against_the_cap(monkeypatch):
     plain = run(world(n=2), model=FakeModel())
     per_item = plain.counts["model_usd"] / 6
