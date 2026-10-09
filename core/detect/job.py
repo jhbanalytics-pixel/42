@@ -34,7 +34,15 @@ from core.trust.locality import LOCALITY_AUTHORITY
 from . import aggregate, breakout, centroids, coaction, forecasts, locality, runs, seeds, sqlrun, stats, watches
 
 PROJECT = "ogilvy-trends-v2"
-RULE_VERSION = "warmup-1"
+
+
+def rule_version_for(authority):
+    """The version of the rule that writes item_state.eligible: warmup-1 while detect's own geo_status does, warmup-2
+    once the retained locality_v2 row does (C4 v3 section 7.2), so a reader that groups by it sees the break."""
+    return "warmup-1" if authority == "v1" else "warmup-2"
+
+
+RULE_VERSION = rule_version_for(LOCALITY_AUTHORITY)
 SQL = Path(__file__).parent / "sql"
 
 ITEM_STATE_COUNT_SQL = "SELECT COUNT(*) n FROM {core}.item_state s WHERE s.metric_date = @d AND s.run_id = @run_id"
@@ -137,11 +145,24 @@ def run_breakout_step(client, d, rule_version, core=sqlrun.CORE, agent=sqlrun.AG
     return counts
 
 
-def run_locality_step(client, d, detect, core=sqlrun.CORE, agent=sqlrun.AGENT, *, max_bytes=locality.MAX_BYTES_BILLED):
-    """Write and verify the locality_v2 rows of the detect run under their own run_id (C4 v3 section 8). Shadow: it
-    never stops state, brief or the chain. Any error, a key that fails write-time verification, a bytes refusal or a
-    timeout appends a 'failed' runs row and returns the status and error in place of the counts. The runs row carries
-    the step's duration and the bytes it billed (review Q15)."""
+def run_locality_shadow(client, d, detect_run_id, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """The read-only cross-tabulation of detect's geo_status against the checked v2 status for the run (section 10).
+    A failed read is returned as a status and an error, and changes nothing."""
+    try:
+        return locality.shadow_comparison(client, d, detect_run_id, core, agent)
+    except Exception as e:
+        return {"status": "failed", "error": f"{type(e).__name__}: {e}"}
+
+
+def run_locality_step(client, d, detect, core=sqlrun.CORE, agent=sqlrun.AGENT, *, max_bytes=locality.MAX_BYTES_BILLED,
+                      compare=True):
+    """Write and verify the locality_v2 rows of the detect run under their own run_id (C4 v3 section 8). It never
+    stops state, brief or the chain: in shadow the rows are only evidence, and when authoritative a step that failed
+    leaves its keys unread, which state carries as unreadable and the brief holds as a data issue. Any error, a key
+    that fails write-time verification, a bytes refusal or a timeout appends a 'failed' runs row and returns the
+    status and error in place of the counts. The runs row carries the step's duration and the bytes it billed
+    (review Q15). compare: take the shadow cross-tabulation here, which needs the item_state rows of the run; the
+    authoritative placement runs before state and takes it afterwards."""
     run_id = runs.new_run_id("locality", d)
     started = runs.now()
     began = time.monotonic()
@@ -155,10 +176,8 @@ def run_locality_step(client, d, detect, core=sqlrun.CORE, agent=sqlrun.AGENT, *
         runs.append(client, run_id, "locality", d, "failed", started, runs.now(),
                     {"duration_s": round(time.monotonic() - began, 3)}, error=error, agent=agent)
         return {"status": "failed", "error": error}
-    try:
-        counts["locality_shadow"] = locality.shadow_comparison(client, d, detect.run_id, core, agent)
-    except Exception as e:
-        counts["locality_shadow"] = {"status": "failed", "error": f"{type(e).__name__}: {e}"}
+    if compare:
+        counts["locality_shadow"] = run_locality_shadow(client, d, detect.run_id, core, agent)
     runs.append(client, run_id, "locality", d, "ok", started, runs.now(), counts, agent=agent)
     return counts
 
@@ -303,9 +322,15 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
         counts["series_test"] = _step(client, "stats", d, agent, lambda rid: {
             "series_test": stats.run_stats(client, d, rid, rule_version, core=core)})["series_test"]
         counts["coaction"] = run_coaction_step(client, d, rule_version, core, agent)
-        counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent)
-        counts["locality"] = run_locality_step(client, d, detect, core, agent)
-        counts["locality_shadow"] = counts["locality"].pop("locality_shadow", None)
+        if LOCALITY_AUTHORITY == "v2":
+            # State reads the checked view for its own run, so the rows must exist first (section 8.1).
+            counts["locality"] = run_locality_step(client, d, detect, core, agent, compare=False)
+            counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent)
+            counts["locality_shadow"] = run_locality_shadow(client, d, detect.run_id, core, agent)
+        else:
+            counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent)
+            counts["locality"] = run_locality_step(client, d, detect, core, agent)
+            counts["locality_shadow"] = counts["locality"].pop("locality_shadow", None)
         counts["breakout"] = run_breakout_step(client, d, rule_version, core, agent)
         counts["watch"] = run_watch_step(client, d, detect.run_id, core, agent)
         counts["seeds"] = run_seeds_step(client, d, detect.run_id, core, agent)

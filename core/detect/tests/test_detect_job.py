@@ -29,7 +29,7 @@ from .test_detect_seeds import EXTRA as SEED_COLUMNS
 from .test_detect_seeds import LEDGER, qrow
 from .test_detect_states import World, fresh
 
-HEX_ID = re.compile(r"^(aggregate|stats|breakout|watch|seeds|forecast|detect)-20260920-[0-9a-f]{12}$")
+HEX_ID = re.compile(r"^(aggregate|stats|breakout|watch|seeds|forecast|detect|locality)-20260920-[0-9a-f]{12}$")
 CATCH_UP_ID = re.compile(r"^aggregate-20260919-[0-9a-f]{12}$")
 
 
@@ -49,6 +49,13 @@ class JobClient(duck.Client):
             temp, insert = [_strip_leading_comments(s) for s in sqlrun.split(sql)]
             self.con.execute(temp_macro(temp))
             run_duck(self.con, insert, {p.name: duck._value(p) for p in job_config.query_parameters})
+            return duck._Job([])
+        if text.upper().startswith("BEGIN TRANSACTION"):
+            self.sql.append(sql)
+            params = {p.name: duck._value(p) for p in job_config.query_parameters}
+            for stmt in sqlrun.split(sql):
+                if not stmt.strip().upper().startswith(("BEGIN", "COMMIT")):
+                    run_duck(self.con, _strip_leading_comments(stmt), params)
             return duck._Job([])
         return super().query(sql, job_config)
 
@@ -250,6 +257,7 @@ def test_run_applies_views_then_waves_and_never_creates_or_removes_a_table(con):
     creates = [_strip_leading_comments(s) for s in client.sql if _strip_leading_comments(s).upper().startswith("CREATE OR")]
     names = [sqlrun.object_name(s) for s in creates]
     assert names == ([sqlrun.object_name(s) for s in sqlrun.statements("core", "agent")] + ["core.v_item_waves"]
+                     + [sqlrun.object_name(s) for s in sqlrun.locality_view_statements("core", "agent")]
                      + ["core.v_item_spread"]
                      + [sqlrun.object_name(s) for s in sqlrun.agent_statements("core", "agent")]
                      + [sqlrun.object_name(s) for s in sqlrun.news_statements("core", "agent")]
@@ -353,8 +361,8 @@ def test_detect_step_runs_rows_carry_model_usd_zero_in_counts_and_only_staging_c
     job.run(client, D, chain=FakeChain(con), core="core", agent="agent")
     monkeypatch.setattr(seeds, "run_seeds", lambda *a, **k: 1 / 0)
     job.run(client, D, chain=FakeChain(con), core="core", agent="agent")
-    inserted = [r for _, rs in client.inserted for r in rs]
-    assert inserted and all(set(r) <= STAGING_RUNS_COLUMNS for r in inserted)
+    inserted = [r for table, rs in client.inserted if table.endswith(".runs") for r in rs]   # the runs rows, not the
+    assert inserted and all(set(r) <= STAGING_RUNS_COLUMNS for r in inserted)                # verification rows
     rows = duck.query(con, "SELECT r.stage, r.status, r.counts FROM {agent}.runs r "
                            "WHERE r.stage IN ('aggregate', 'stats', 'coaction', 'breakout', 'watch', 'seeds', "
                            "'forecast')")
