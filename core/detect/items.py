@@ -35,7 +35,9 @@ items_for_post(post)
 is_generic(kind, canonical_key)
     True when the item is platform-generic per stoplist.yaml: a hashtag such as #fyp or #viral
     that rides on every kind of post. The key is folded again, so a raw spelling works too.
-    Only hashtags are listed; any other kind is never generic. cultural_map carries such items
+    A tag stretched by a run of three or more of one letter (#fyppppp), or carrying zero-width or variation
+    selector characters, counts as the tag it stretches; a run of two is left as written. Only hashtags are
+    listed; any other kind is never generic. cultural_map carries such items
     with status 'generic', so they keep their states but are never eligible (item_state.eligible
     false); the brief skips ineligible items.
 """
@@ -54,6 +56,7 @@ HASHTAG_MAX = 100
 STOPLIST_PATH = Path(__file__).parent / "stoplist.yaml"
 
 _SPACE = re.compile(r"\s+")
+_RUN = re.compile(r"(.)\1{2,}")
 
 
 def _nfkc(value: object) -> str:
@@ -143,5 +146,18 @@ def _stoplist() -> frozenset[str]:
     return frozenset(canonical_key("hashtag", t) for t in raw.get("hashtag") or [])
 
 
+def _variants(key: str) -> tuple[str, ...]:
+    """The key as written, then with invisible format characters and variation selectors removed, then with
+    every run of three or more of one character cut to two (for a term with a double letter, as in reels) and
+    to a single one: the forms in which a stoplisted tag can be stretched or padded. The item's own key and
+    item_id are never changed by this."""
+    bare = "".join(ch for ch in key if unicodedata.category(ch) != "Cf" and not "\ufe00" <= ch <= "\ufe0f")
+    return tuple(dict.fromkeys((key, bare, _RUN.sub(r"\1\1", bare), _RUN.sub(r"\1", bare))))
+
+
 def is_generic(kind: str, canonical_key: str) -> bool:
-    return kind == "hashtag" and _hashtag_key(canonical_key) in _stoplist()
+    if kind != "hashtag":
+        return False
+    key = _hashtag_key(canonical_key)
+    stoplist = _stoplist()
+    return key is not None and any(v in stoplist for v in _variants(key))

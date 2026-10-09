@@ -14,6 +14,8 @@
 -- It is not written and it is counted as failed. It still has no embedding, so it is sent again when a
 -- later sighting of the post falls in a later window, and a backfill run (EMBED_DAYS) retries every post
 -- sighted in its days that is still unembedded, the failed ones and those past @max_rows alike.
+-- A post by a creator on the suppression list (v_suppressed_creators) is left out of the window like a post past
+-- 400 days: its text never goes to the model and it is not counted as skipped. A post with no creator_id stays.
 -- BigQuery tables store a NULL array as an empty one, so "has an embedding" is ARRAY_LENGTH > 0.
 -- The last statement returns the counts: embedded, failed, skipped (no text, or embedded already), chars_sent,
 -- the characters of content sent to the model, and tokens, the input tokens the spend correction is priced from:
@@ -42,6 +44,11 @@ WHERE p.post_date >= DATE_SUB(@from_date, INTERVAL 400 DAY)
     SELECT 1
     FROM `ogilvy-trends-v2.intelligence_42_core.post_observations` AS o
     WHERE o.post_id = p.post_id AND o.observed_date BETWEEN @from_date AND @to_date
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM `ogilvy-trends-v2.intelligence_42_core.v_suppressed_creators` AS v
+    WHERE v.creator_id = p.creator_id
   );
 
 CREATE TEMP TABLE IF NOT EXISTS to_send AS
