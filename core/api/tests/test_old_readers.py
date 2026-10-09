@@ -3,6 +3,7 @@ candidate writers store, and the candidate readers must not turn a record withou
 
 Real processes on localhost, so the deploy partition's rules apply: nothing here needs a network beyond the loopback."""
 import copy
+import os
 
 import pytest
 
@@ -268,3 +269,51 @@ def test_the_declared_key_is_answer_meta_alone_whatever_a_stored_state_holds_ins
     against_another_state = {"ask read": read_of(200, {"a": "string", "answer_meta": {"summary": {"removals": []}}})}
     problems = h.layer2_problems({"t": against_another_state, "p": produced}, {"p": "t"})
     assert "p ask read.answer_meta.summary.removals[]: undeclared key" in problems  # why the twin must be the key-absent row
+
+
+# CC-9: a child the harness starts loads the offline guard (no -I, -E or -S, and the guard directory kept on PYTHONPATH) and stays
+# isolated in the ways that matter here: no user site, and an environment built from a short list rather than inherited.
+
+class Started(Exception):
+    pass
+
+
+def captured_child(monkeypatch, tmp_path, start):
+    seen = {}
+
+    def record(argv, **kwargs):
+        seen["argv"], seen["env"] = list(argv), kwargs["env"]
+        raise Started
+
+    monkeypatch.setattr(ch.subprocess, "Popen", record)
+    monkeypatch.setattr(h.subprocess, "run", record)
+    with pytest.raises(Started):
+        start()
+    return seen
+
+
+def start_server(tmp_path):
+    ch.Server(tmp_path, "app:app", {}, tmp_path).start()
+
+
+@pytest.mark.parametrize("start", [start_server, lambda tmp_path: h.written_rows(tmp_path)], ids=["compat server", "corpus driver"])
+def test_cc9_the_children_are_not_started_in_a_mode_that_skips_the_guard_and_still_skip_the_user_site(monkeypatch, tmp_path, start):
+    seen = captured_child(monkeypatch, tmp_path, lambda: start(tmp_path))
+    options = [a for a in seen["argv"][1:] if a.startswith("-") and not a.startswith("--")][:1]
+    assert not set("IES") & set("".join(options).lstrip("-")), seen["argv"][:3]
+    assert seen["argv"][1] == "-s"
+
+
+def test_cc9_the_child_environment_keeps_the_guard_directory_and_nothing_else_from_python_settings(monkeypatch, tmp_path):
+    guard, other = tmp_path / "guard", tmp_path / "other"
+    guard.mkdir()
+    other.mkdir()
+    (guard / "sitecustomize.py").write_text("", encoding="utf-8")
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join([str(other), str(guard)]))
+    for stray in ("PYTHONSTARTUP", "PYTHONHOME", "PYTHONINSPECT", "PYTHONUSERBASE"):
+        monkeypatch.setenv(stray, str(other))
+    env = ch._environment({})
+    assert env["PYTHONPATH"] == str(guard)
+    assert not [k for k in env if k.startswith("PYTHON") and k not in ("PYTHONPATH", "PYTHONUTF8", "PYTHONDONTWRITEBYTECODE")]
+    monkeypatch.delenv("PYTHONPATH")
+    assert "PYTHONPATH" not in ch._environment({})

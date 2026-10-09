@@ -314,13 +314,23 @@ def archive(commit, dest):
     return dest
 
 
+def _guard_directories():
+    """The directories on this interpreter's PYTHONPATH that hold a sitecustomize.py: the offline guard it loaded, if any."""
+    entries = [entry for entry in os.environ.get("PYTHONPATH", "").split(os.pathsep) if entry]
+    return [entry for entry in entries if (Path(entry) / "sitecustomize.py").is_file()]
+
+
+# A child is started with -s (no user site) and never with -I, -E or -S: those would keep the offline guard from loading. Its
+# environment is built from a short list, so no other PYTHON setting reaches it, and the guard directory is the one entry of
+# PYTHONPATH it keeps.
 def _environment(extra):
     keep = {key: os.environ[key] for key in ("SYSTEMROOT", "PATH", "TEMP", "TMP", "HOME", "USERPROFILE") if key in os.environ}
-    return {**keep, "PYTHONUTF8": "1", "PYTHONDONTWRITEBYTECODE": "1", **extra}
+    guard = _guard_directories()
+    return {**keep, **({"PYTHONPATH": os.pathsep.join(guard)} if guard else {}), "PYTHONUTF8": "1", "PYTHONDONTWRITEBYTECODE": "1", **extra}
 
 
 class Server:
-    """One uvicorn process serving `module:app` from `tree`, isolated (`python -I`) with `--app-dir tree`."""
+    """One uvicorn process serving `module:app` from `tree`, started with `python -s` and `--app-dir tree`."""
 
     def __init__(self, tree, module, env, log_dir, health="/health"):
         self.tree, self.module, self.env, self.health, self.port = Path(tree), module, env, health, free_port()
@@ -336,7 +346,7 @@ class Server:
         path = self.health
         handle = open(self.log, "wb")
         self.process = subprocess.Popen(
-            [sys.executable, "-I", "-m", "uvicorn", "--app-dir", str(self.tree), self.module, "--host", "127.0.0.1",
+            [sys.executable, "-s", "-m", "uvicorn", "--app-dir", str(self.tree), self.module, "--host", "127.0.0.1",
              "--port", str(self.port), "--log-level", "warning"],
             cwd=self.tree, env=_environment(self.env), stdout=handle, stderr=subprocess.STDOUT)
         deadline = time.time() + 60

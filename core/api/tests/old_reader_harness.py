@@ -70,7 +70,7 @@ sys.stdout.write("CORPUS " + json.dumps(agent_app.SINK) + "\n")
 
 def written_rows(tree):
     """The runs rows a writer tree leaves behind on its fixture path: complete, partial, failed and stopped Asks."""
-    done = subprocess.run([sys.executable, "-I", "-c", DRIVER, str(tree)], cwd=tree, env=ch._environment({}),
+    done = subprocess.run([sys.executable, "-s", "-c", DRIVER, str(tree)], cwd=tree, env=ch._environment({}),
                           capture_output=True, encoding="utf-8", timeout=120)
     lines = [line for line in done.stdout.splitlines() if line.startswith("CORPUS ")]
     if done.returncode != 0 or len(lines) != 1:
