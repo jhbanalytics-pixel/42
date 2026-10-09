@@ -182,7 +182,8 @@ def independent_groups(records, *, excluded, names=None, paid_ids=(), author_ids
             continue
         g = groups.setdefault(find(row["handle"]), {"handles": set(), "platforms": set(), "post_ids": set()})
         g["handles"].add(row["handle"])
-        g["platforms"].add(platform_name(r.get("platform")))
+        if platform_name(r.get("platform")):  # a record with no platform is not a platform
+            g["platforms"].add(platform_name(r.get("platform")))
         g["post_ids"].add(r.get("id"))
     return list(groups.values())
 

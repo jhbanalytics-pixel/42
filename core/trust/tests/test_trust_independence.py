@@ -127,3 +127,24 @@ def test_flags_are_read_in_lower_case_and_an_author_needs_a_handle():
             record("a3", "x", None, "Matric farewell rehearsal went completely off the rails")]
     groups = independence.independent_groups(rows, excluded={"paid"})
     assert [g["handles"] for g in groups] == [{"b"}]
+
+
+def test_a_record_with_no_platform_is_not_a_second_platform():
+    one = record("a1", "tiktok", "@thandi", "Nobody told me the step was this hard on the knees")
+    two = record("a2", None, "@sipho", "My gran learned the new school dance in one afternoon")
+    blank = record("a3", "  ", "@zodwa", "Matric farewell rehearsal went completely off the rails")
+    groups = independence.independent_groups([one, two, blank], excluded=gatectx.NOT_INDEPENDENT)
+    assert len(groups) == 3
+    assert sorted(p for g in groups for p in g["platforms"]) == ["tiktok"]
+    assert independence.is_corroborated(groups, False) is False
+    assert labelled([one, two], ["a1", "a2"]) == ("observed", "downgrade")
+
+
+def test_a_missing_platform_still_counts_the_author_toward_three_with_a_metric():
+    rows = [record("a1", "tiktok", "@thandi", "Nobody told me the step was this hard on the knees"),
+            record("a2", None, "@sipho", "My gran learned the new school dance in one afternoon"),
+            record("a3", "tiktok", "@zodwa", "Matric farewell rehearsal went completely off the rails")]
+    groups = independence.independent_groups(rows, excluded=gatectx.NOT_INDEPENDENT)
+    assert independence.is_corroborated(groups, True) is True
+    assert independence.is_corroborated(groups, False) is False
+
