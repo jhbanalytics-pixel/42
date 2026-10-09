@@ -23,12 +23,13 @@ Entry point: python -m core.detect.job. The run date is RUN_DATE when set, else 
 
 import json
 import sys
+import time
 import traceback
 from pathlib import Path
 
 from google.cloud import bigquery
 
-from . import aggregate, breakout, centroids, coaction, forecasts, runs, seeds, sqlrun, stats, watches
+from . import aggregate, breakout, centroids, coaction, forecasts, locality, runs, seeds, sqlrun, stats, watches
 
 PROJECT = "ogilvy-trends-v2"
 RULE_VERSION = "warmup-1"
@@ -39,7 +40,7 @@ ITEM_STATE_COUNT_SQL = "SELECT COUNT(*) n FROM {core}.item_state s WHERE s.metri
 CATCH_UP_DAYS = 3
 
 # The detect counts keys of the steps that build views or centroids with no runs row of their own.
-VIEW_STEPS = ("spread", "agent_views", "news", "item_centroids")
+VIEW_STEPS = ("spread", "agent_views", "news", "item_centroids", "locality_views")
 
 # Whether detect builds v_sensitive_items_complete (sqlrun.agent_statements). The API turns creator item lists,
 # recent posts and named communities on as soon as that view exists, so it stays False until Albert says go on
@@ -134,6 +135,32 @@ def run_breakout_step(client, d, rule_version, core=sqlrun.CORE, agent=sqlrun.AG
     return counts
 
 
+def run_locality_step(client, d, detect, core=sqlrun.CORE, agent=sqlrun.AGENT, *, max_bytes=locality.MAX_BYTES_BILLED):
+    """Write and verify the locality_v2 rows of the detect run under their own run_id (C4 v3 section 8). Shadow: it
+    never stops state, brief or the chain. Any error, a key that fails write-time verification, a bytes refusal or a
+    timeout appends a 'failed' runs row and returns the status and error in place of the counts. The runs row carries
+    the step's duration and the bytes it billed (review Q15)."""
+    run_id = runs.new_run_id("locality", d)
+    started = runs.now()
+    began = time.monotonic()
+    try:
+        counts = locality.run_locality_step(client, d, detect, core, agent, max_bytes=max_bytes)
+    except locality.LocalityFailed as e:
+        runs.append(client, run_id, "locality", d, "failed", started, runs.now(), e.counts, error=str(e), agent=agent)
+        return {"status": "failed", "error": str(e), **e.counts}
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        runs.append(client, run_id, "locality", d, "failed", started, runs.now(),
+                    {"duration_s": round(time.monotonic() - began, 3)}, error=error, agent=agent)
+        return {"status": "failed", "error": error}
+    try:
+        counts["locality_shadow"] = locality.shadow_comparison(client, d, detect.run_id, core, agent)
+    except Exception as e:
+        counts["locality_shadow"] = {"status": "failed", "error": f"{type(e).__name__}: {e}"}
+    runs.append(client, run_id, "locality", d, "ok", started, runs.now(), counts, agent=agent)
+    return counts
+
+
 def run_watch_step(client, d, detect_run_id, core=sqlrun.CORE, agent=sqlrun.AGENT):
     """Append today's watch_matches rows for the detect run under their own run_id. It never stops detect or
     brief: any error appends a 'failed' runs row and returns the status and error in place of the counts."""
@@ -185,6 +212,18 @@ def apply_news_step(client, core=sqlrun.CORE, agent=sqlrun.AGENT):
     except Exception as e:
         error = f"{type(e).__name__}: {e}"
         print(f"news views failed: {error}", file=sys.stderr)
+        return {"status": "failed", "error": error}
+    return {"status": "ok"}
+
+
+def apply_locality_views_step(client, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """Apply v_item_locality_checked and v_item_locality_current (sql/locality_views.sql, C4 v3 section 7.1). The
+    locality step's readers use them, so a failure is logged and returned as the status and error."""
+    try:
+        sqlrun.apply_locality_views(client, core, agent)
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        print(f"locality views failed: {error}", file=sys.stderr)
         return {"status": "failed", "error": error}
     return {"status": "ok"}
 
@@ -243,6 +282,7 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
     try:
         sqlrun.apply_views(client, core, agent)
         apply_waves(client, core, agent)
+        counts["locality_views"] = apply_locality_views_step(client, core, agent)
         counts["spread"] = apply_spread_step(client, core, agent)
         counts["agent_views"] = apply_agent_views_step(client, core, agent)
         counts["news"] = apply_news_step(client, core, agent)
@@ -261,6 +301,8 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
             "series_test": stats.run_stats(client, d, rid, rule_version, core=core)})["series_test"]
         counts["coaction"] = run_coaction_step(client, d, rule_version, core, agent)
         counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent)
+        counts["locality"] = run_locality_step(client, d, detect, core, agent)
+        counts["locality_shadow"] = counts["locality"].pop("locality_shadow", None)
         counts["breakout"] = run_breakout_step(client, d, rule_version, core, agent)
         counts["watch"] = run_watch_step(client, d, detect.run_id, core, agent)
         counts["seeds"] = run_seeds_step(client, d, detect.run_id, core, agent)
