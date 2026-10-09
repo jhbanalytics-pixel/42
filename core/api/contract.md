@@ -150,13 +150,15 @@ Evidence (one shape everywhere: Today cards, Ask answers, SSE events). It is the
   "engagement": {"views": 184000, "likes": 9100, "comments": 300, "shares": 120}, "flags": [],
   "thumbnail_url": "https://...", "duration_s": 21.0,
   "transcript_span": {"start_s": 4.2, "end_s": 9.8, "text": "..."},
-  "creator_tier": "micro"
+  "creator_tier": "micro", "outlet_class": "creator"
 }
 ```
 
 `source_market` is optional and nullable; a non-null value is `ZA`, `NG` or `KE`. The current Ask selector may choose it from dated `source_sightings` in the Ask window, creator `home_market`, or a profile-sourced `geo_market`. Because these sources are mixed, it is selected source or profile context, not proof that the post originated in that market, that its creator lives there, or of national popularity. The answer-level `market`, `evidence.market` and `platform` do not supply or imply `source_market`. Show `Market assumed: Country` only when `flags` includes `market_assumed` and `source_market` is recognized.
 
 `sponsor_checked` is optional on brief evidence: true when 42 has a paid-label reading for the post (the enrich model's marker or the vendor's label), false when it has none. It never says a post is paid; the `sponsored` flag does.
+
+`outlet_class` is optional on brief evidence: `outlet` when the post is from a news outlet, `creator` when it is not. It is left out when the evidence statement does not say, so a post of unknown class is never read as a creator's own reaction.
 
 ## 5. Trends
 

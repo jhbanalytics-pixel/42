@@ -16,7 +16,7 @@ UTC = timezone.utc
 DETECT = rid("detect", D)
 SERIES = "i1|ZA|tt_board|p1"
 CONTRACT_FIELDS = {"id", "platform", "handle", "url", "posted_at", "market", "text", "engagement", "flags",
-                   "thumbnail_url", "duration_s", "creator_tier", "source_market"}
+                   "thumbnail_url", "duration_s", "creator_tier", "source_market", "outlet_class"}
 
 
 def utc(d, hour, minute=0):
