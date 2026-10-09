@@ -24,6 +24,7 @@ from core.agent.tools.socialcrawl import (
     socialcrawl_call,
 )
 from core.agent.tools.sql_query import QUERY_PAGE_ROWS, check_sql, query_preview, query_rows, sql_query, warehouse_map_text
+from core.agent.tools.warehouse import search_view
 
 TOOL_NAMES = ["sql_query", "search_posts", "socialcrawl_call", "rising_topics", "recall_findings", "save_finding",
               "budget_status", "resolve_dates", "get_comments", "get_transcript", "watch_video", "log_forecast",
@@ -192,7 +193,7 @@ def build_functions(ctx: RunContext, warehouse, client, writer) -> dict:
 
     functions = {
         "sql_query": lambda **a: query_preview(ctx, sql_query(ctx, warehouse, **a)),
-        "search_posts": lambda **a: wh.search_posts(ctx, warehouse, **a),
+        "search_posts": lambda **a: search_view(wh.search_posts(ctx, warehouse, **a)),
         "socialcrawl_call": lambda **a: socialcrawl_call(ctx, client, **{"params": {}, **a}, warehouse=warehouse),
         "rising_topics": lambda **a: wh.rising_topics(ctx, warehouse, **a),
         "recall_findings": lambda **a: wh.recall_findings(ctx, warehouse, **a),

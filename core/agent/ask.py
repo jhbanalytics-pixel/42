@@ -48,7 +48,8 @@ from core.agent.writer import (FIELD_UNCHECKED_REASON, HEADLINE_BUDGET_REASON, H
                                MAX_CLAIMS, MAX_GAPS, MAX_ITEMS, ROWS_SHOWN, SUPPORT_INPUT_TOKENS, SUPPORT_MAX_TOKENS,
                                _failed_call_usage, _fence, _k10, _usage_or_reserve, apply_field_check, apply_support,
                                field_max_tokens, headline_blanked, _input_token_upper_bound, repair_answer_numbers,
-                               rewrite_headline, unpinned_claim_numerals, write_answer, writer_gaps)
+                               pin_numerals_in_code, rewrite_headline, unpinned_claim_numerals, write_answer,
+                               writer_gaps)
 from core.agent.model_budget import AskModelBudget, BudgetRefused
 
 MODEL = default_model("smart")  # Gemini on Vertex (core/llm/provider.py)
@@ -1879,7 +1880,13 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         if should_stop():
             raise _StopRequested()
         if not numeric_repair_attempted:
-            issues = unpinned_claim_numerals(draft, ctx, deps.warehouse, window=window)
+            reruns = {}
+            issues = unpinned_claim_numerals(draft, ctx, deps.warehouse, window=window, reruns=reruns)
+            pinned = pin_numerals_in_code(draft, issues, ctx, deps.warehouse, window=window,
+                                          reruns=reruns) if issues else None
+            if pinned is not None and not unpinned_claim_numerals(pinned, ctx, deps.warehouse, window=window,
+                                                                  reruns=reruns):
+                draft, issues = pinned, []  # every listed numeral pinned in code and K2 lists none: no repair call
             if issues:
                 numeric_repair_attempted = True
                 timings.phase("numeric_repair")
