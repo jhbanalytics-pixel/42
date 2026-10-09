@@ -268,3 +268,39 @@ def test_a_refusal_the_tests_did_not_ask_for_fails_the_core_job():
     order = [s.get("run", "") for _, s in steps(data)]
     assert next(i for i, r in enumerate(order) if "-m pytest" in r) < next(
         i for i, r in enumerate(order) if "ci_guard_refusals.py" in r)
+
+
+JOB_TOKEN = re.compile(r"github\s*(\.|\[\s*['\"])\s*token|github_token", re.I)
+
+
+@pytest.mark.parametrize("path", workflow_files(), ids=lambda p: p.name)
+def test_no_spelling_of_the_job_token_reaches_a_live_workflow(path):
+    """The plain forms are in FORBIDDEN_TEXT. The expression syntax also reads github['token'] and github . token."""
+    data, _ = load(path)
+    text = chr(10).join(strings(data))
+    assert not JOB_TOKEN.search(text), JOB_TOKEN.search(text).group(0)
+
+
+@pytest.mark.parametrize("path", workflow_files(), ids=lambda p: p.name)
+def test_no_step_writes_to_the_runner_environment_file(path):
+    """A line appended to GITHUB_ENV sets a variable for every later step, so PYTEST_ADDOPTS could be written there
+    under a name the text check cannot see (the name split in the shell). The file is not needed by this workflow."""
+    data, _ = load(path)
+    text = chr(10).join(strings(data)).lower()
+    assert "github_env" not in text
+
+
+CORE_PASSED_FLOOR = 17_000  # raise this with the floor in the workflow when the ratchet says the tree has grown
+RATCHET_GAP_CEILING = 1_000
+
+
+def test_the_core_job_pins_a_floor_on_tests_that_passed_and_a_ratchet_that_makes_it_follow_the_tree():
+    """`--min-total` counts skipped tests, so a run that skipped most of the tree still met it."""
+    data = core_workflow()
+    [report] = [s for _, s in steps(data) if "ci_skip_report.py" in s.get("run", "")]
+    floor = re.search(r"--min-passed\s+(\d+)", report["run"])
+    gap = re.search(r"--ratchet-gap\s+(\d+)", report["run"])
+    assert floor and gap, report["run"]
+    assert int(floor.group(1)) >= CORE_PASSED_FLOOR, floor.group(1)
+    assert 0 < int(gap.group(1)) <= RATCHET_GAP_CEILING, gap.group(1)
+    assert report.get("if") == "always()"

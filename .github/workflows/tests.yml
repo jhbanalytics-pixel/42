@@ -71,11 +71,13 @@ jobs:
           F42_REQUIRE_OFFLINE_GUARD: "1"
         run: python -m pytest core -q -p no:cacheprovider -ra --junitxml="${RUNNER_TEMP}/core-junit.xml"
 
-      # The floor is a little under the 17446 tests the core tree collected when it was pinned. A run that collects
-      # fewer than that has lost a part of the tree, and the job fails even if everything it did run passed.
+      # Two floors, a little under the 17446 tests the core tree collected when they were pinned. A run that collects
+      # fewer than the total floor has lost a part of the tree. The passed floor counts only tests that passed, so a
+      # run that skipped most of the tree cannot meet it. The ratchet fails the job when the passed count has grown
+      # more than 800 past the floor: raise the floor then, so a later loss of that growth is caught too.
       - name: Report the skipped opt-in tests and the number of tests that ran
         if: always()
-        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 17000 >> "${GITHUB_STEP_SUMMARY}"
+        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 17000 --min-passed 17000 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
 
       # A refusal the product code catches and carries on from leaves the suite green, so the log is checked here.
       - name: Fail on any offline guard refusal the tests did not ask for

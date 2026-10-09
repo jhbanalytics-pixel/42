@@ -1,11 +1,15 @@
 """Summarise a pytest JUnit file for the CI job summary: how many tests ran, passed, failed and were skipped, and
 the skipped ones by reason, with the native opt-in tests named apart.
 
-usage: python tests_support/ci_skip_report.py <junit.xml> [--min-total N]
+usage: python tests_support/ci_skip_report.py <junit.xml> [--min-total N] [--min-passed N [--ratchet-gap G]]
 
 Prints Markdown. Exits 1 when the file is missing, unreadable or holds no test, so a crashed collection cannot read
 as a clean run with nothing skipped. With --min-total N it also exits 1 when fewer than N tests are in the file, so a
-run that quietly collected less than the tree holds cannot pass. The workflow, not this script, keeps the opt-in switches off.
+run that quietly collected less than the tree holds cannot pass. With --min-passed N it exits 1 when fewer than N
+tests passed: skipped, expected-failure, failed and errored tests do not count, so a run that skips most of the tree
+cannot meet it however many tests it collected. With --ratchet-gap G (it needs --min-passed) it also exits 1 when more
+than G tests passed above the floor, which makes the floor follow the tree up instead of staying where it was pinned.
+The workflow, not this script, keeps the opt-in switches off.
 """
 import collections
 import sys
@@ -62,18 +66,28 @@ def report(cases):
     return "\n".join(lines) + "\n"
 
 
-def floor_from(argv):
-    """The --min-total value, 0 when absent, or None when the arguments are not usage."""
-    if len(argv) == 2:
-        return 0
-    if len(argv) == 4 and argv[2] == "--min-total" and argv[3].isdigit() and int(argv[3]) > 0:
-        return int(argv[3])
-    return None
+FLAGS = {"--min-total": "total", "--min-passed": "passed", "--ratchet-gap": "gap"}
+
+
+def options_from(argv):
+    """The floors named after the JUnit path as a dict, or None when the arguments are not usage. Each flag takes one
+    positive whole number and may appear once; `--ratchet-gap` needs `--min-passed`."""
+    options, rest = {}, argv[2:]
+    if len(rest) % 2:
+        return None
+    for flag, value in zip(rest[::2], rest[1::2]):
+        key = FLAGS.get(flag)
+        if key is None or key in options or not value.isdigit() or int(value) <= 0:
+            return None
+        options[key] = int(value)
+    if "gap" in options and "passed" not in options:
+        return None
+    return options
 
 
 def main(argv):
-    floor = floor_from(argv) if len(argv) >= 2 else None
-    if floor is None:
+    options = options_from(argv) if len(argv) >= 2 else None
+    if options is None:
         print(__doc__)
         return 1
     try:
@@ -85,12 +99,21 @@ def main(argv):
         print("the JUnit file holds no test")
         return 1
     print(report(cases))
+    messages = []
+    floor = options.get("total", 0)
     if len(cases) < floor:
-        message = f"{len(cases)} tests ran: fewer tests than the floor of {floor}"
+        messages.append(f"{len(cases)} tests ran: fewer tests than the floor of {floor}")
+    passed = sum(1 for _, outcome, _ in cases if outcome == "passed")
+    if "passed" in options:
+        if passed < options["passed"]:
+            messages.append(f"{passed} tests passed: fewer than the passed floor of {options['passed']}")
+        elif "gap" in options and passed - options["passed"] > options["gap"]:
+            messages.append(f"{passed} tests passed: {passed - options['passed']} above the passed floor of "
+                            f"{options['passed']}, more than the {options['gap']} allowed; raise the floor")
+    for message in messages:
         print(message)
         print(message, file=sys.stderr)
-        return 1
-    return 0
+    return 1 if messages else 0
 
 
 if __name__ == "__main__":
