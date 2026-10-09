@@ -1086,13 +1086,14 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
     def check_call(system, user, schema, max_tokens, claim_id, rule, text):
         """A support or critic call, with one further attempt when the first gave nothing back (W8-DEC-15). The
         further attempt is a call like any other: the day guard, the cap and the booking apply to it before it is
-        sent, and retry_guard (the run's deadline) must still allow it. A refusal, a cut-off reply, a failing
-        verdict, a cap or the deadline stop it, and the first error stands. A second non-return leaves a row for
-        the check and holds the explanation (_CheckIncomplete)."""
+        sent, and retry_guard (the run's deadline) must still allow it; with no guard there is no deadline to check
+        and no retry. A refusal, a cut-off reply, a failing verdict, a cap or the deadline stop it, and the first
+        error stands. A second non-return leaves a row for the check and holds the explanation
+        (_CheckIncomplete)."""
         try:
             return answered(system, user, schema, max_tokens)
         except _ModelError as first:
-            if not first.no_answer or (retry_guard is not None and not retry_guard()):
+            if not first.no_answer or retry_guard is None or not retry_guard():
                 raise
             try:
                 return answered(system, user, schema, max_tokens)

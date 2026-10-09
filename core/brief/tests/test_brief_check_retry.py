@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.brief import explain, job
-from core.brief.tests.test_brief_explain import FakeModel, good, run
+from core.brief.tests.test_brief_explain import FakeModel, good, run as run_unguarded
 from core.brief.tests.test_brief_job import (
     CHECK_KEYS, D, SAST, FakeModel as JobModel, brief, checks, held_items, payload, world,
 )
@@ -22,6 +22,13 @@ BLOCKED = "gemini-3.8-flash blocked the request or reply (finish reason SAFETY)"
 
 class RateLimitError(Exception):
     pass
+
+
+def run(model, **kw):
+    """explain_trend with the run's deadline still open, as the job gives it. No retry_guard at all is the case that
+    never retries (test_without_a_retry_guard_nothing_is_retried)."""
+    kw.setdefault("retry_guard", lambda: True)
+    return run_unguarded(model, **kw)
 
 
 def outcome(kind, usd=0.0):
@@ -203,6 +210,23 @@ def test_a_title_check_with_no_answer_is_not_tried_again_and_never_holds_the_car
     assert failed_rows(result) == []
 
 
+# A timeout the auth or cleanup machinery reports is not "no answer" and is never tried again.
+
+
+@pytest.mark.parametrize("flag", ["auth_unresolved", "request_cleanup_failed"])
+def test_a_timeout_with_an_unresolved_auth_or_cleanup_flag_is_not_retried(flag):
+    exc = TimeoutError("model dispatch deadline expired")
+    exc.usd = 0.0
+    setattr(exc, flag, True)
+    model = Scripted([good()], script={"support": [exc, "ok"]})
+    result = run(model)
+    assert result["reason"] == "model_error"
+    assert model.count("support") == 1 and failed_rows(result) == []
+    plain = TimeoutError("model dispatch deadline expired")
+    plain.usd = 0.0
+    assert run(Scripted([good()], script={"support": [plain, "ok"]}))["reason"] is None
+
+
 # The retry is inside the budget guard and the deadline.
 
 
@@ -244,6 +268,16 @@ def test_the_cap_counts_the_failed_attempts_bill_before_the_retry_is_reserved(mo
     model = Scripted([good()], script={"support": [outcome("timeout", usd=0.5), "ok"]})
     result = run(model)
     assert result["reason"] is None and model.count("support") == 5
+
+
+def test_without_a_retry_guard_nothing_is_retried():
+    model = Scripted([good()], script={"support": ["timeout", "ok"]})
+    result = run_unguarded(model)
+    assert result["reason"] == "model_error"
+    assert model.count("support") == 1 and failed_rows(result) == []
+    model = Scripted([good()], script={"critic": ["timeout", "ok"]})
+    result = run_unguarded(model)
+    assert result["reason"] == "model_error" and model.count("critic") == 1
 
 
 def test_deadline_passed_means_no_retry():
