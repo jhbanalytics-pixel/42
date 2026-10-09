@@ -74,10 +74,16 @@ APPEND_SQL = """
 INSERT INTO {agent}.engine_scorecard (week_start, week_end, market, run_id, rule_version, time_to_detect,
   lead_time, precision, recall, breadth_platforms, expansion_cluster_share, expansion_platform_share,
   expansion_language_share, cost_per_confirmed)
-SELECT n.week_start, n.week_end, n.market, n.run_id, n.rule_version, PARSE_JSON(n.time_to_detect),
-  PARSE_JSON(n.lead_time), PARSE_JSON(n.precision), PARSE_JSON(n.recall), PARSE_JSON(n.breadth_platforms),
-  PARSE_JSON(n.expansion_cluster_share), PARSE_JSON(n.expansion_platform_share),
-  PARSE_JSON(n.expansion_language_share), PARSE_JSON(n.cost_per_confirmed)
+SELECT n.week_start, n.week_end, n.market, n.run_id, n.rule_version,
+  PARSE_JSON(n.time_to_detect, wide_number_mode => 'round'),
+  PARSE_JSON(n.lead_time, wide_number_mode => 'round'),
+  PARSE_JSON(n.precision, wide_number_mode => 'round'),
+  PARSE_JSON(n.recall, wide_number_mode => 'round'),
+  PARSE_JSON(n.breadth_platforms, wide_number_mode => 'round'),
+  PARSE_JSON(n.expansion_cluster_share, wide_number_mode => 'round'),
+  PARSE_JSON(n.expansion_platform_share, wide_number_mode => 'round'),
+  PARSE_JSON(n.expansion_language_share, wide_number_mode => 'round'),
+  PARSE_JSON(n.cost_per_confirmed, wide_number_mode => 'round')
 FROM UNNEST(@rows) n
 """
 
