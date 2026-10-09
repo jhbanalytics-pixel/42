@@ -1001,3 +1001,17 @@ def test_a_key_accepted_for_the_candidate_rule_does_not_block_the_current_rule(t
             [stats.SERIES_RULE_VERSION, stats.RULE_VERSION])
     finally:
         con.close()
+
+
+def test_a_replayed_runs_row_of_another_run_does_not_vouch_for_the_file(tmp_path, capsys):
+    """The digest is the file's own, but the replay that recorded it was of a different run id."""
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        path = save(tmp_path, reviewed_result({"ZA|facebook|panel": key()}))
+        duck.load(con, "agent.runs", [replayed_row("backtest-20261001-aaaaaaaaaaaa", digest(path))])
+        assert apply_file(path, client, tmp_path, replayed=None) == 1
+        assert stored(con) == ([], [])
+    finally:
+        con.close()
+    assert "replay" in capsys.readouterr().err
