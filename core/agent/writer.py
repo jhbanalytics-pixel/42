@@ -539,13 +539,32 @@ def unpinned_claim_numerals(draft: dict, ctx: RunContext, warehouse, *, window, 
     return issues
 
 
+def _anchor_row(good_numbers: list, ctx: RunContext) -> tuple | None:
+    """(query_id, row index) of the anchor row, the one row of a recorded query that holds the value of each good
+    number entry on the claim, or None when a good number is held by no row or by more than one, or the good numbers
+    sit on different rows, or a row is not a plain dict."""
+    anchors = set()
+    for number in good_numbers:
+        query_id = number.get("query_id")
+        rows = ctx.queries[query_id]["rows"]
+        if not all(isinstance(row, dict) for row in rows):
+            return None
+        holders = {(query_id, i) for i, row in enumerate(rows)
+                   if any(type(cell) in (int, float) and cell == number.get("value") for cell in row.values())}
+        if len(holders) != 1:
+            return None
+        anchors |= holders
+    return next(iter(anchors)) if len(anchors) == 1 else None
+
+
 def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, *, window,
                          reruns: dict | None = None) -> dict | None:
     """The draft with each listed numeral pinned in code, or None when any cannot be settled beyond doubt, so the
     repair call gets the writer's own draft and every issue. A numeral is pinned only when it is a whole number (no
     percent, no decimals), the claim has no bad number entry, and exactly one column of exactly one row of a query the
     claim already cites holds the value, a row of a many-row query counting only when it names something the claim
-    names (the subject's row, as _supporting_rows reads it), and a word within two words after the figure in the claim
+    names (the subject's row, as _supporting_rows reads it), that row being the claim's anchor row, the one row holding
+    its existing good number (_anchor_row; none or more than one refuses), and a word within two words after the figure in the claim
     names that column ("5 creators", column creators). The entry is the one the writer writes: value, unit (the column), query_id, and run_id and
     result_hash set from the recorded query, as write_answer sets them. The caller checks the result with
     unpinned_claim_numerals; the K2 and support checks run on it as on any draft."""
@@ -563,6 +582,9 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
         if invalid_numbers or not open_numerals:
             return None
         cited = list(dict.fromkeys(n.get("query_id") for n in good_numbers))
+        anchor = _anchor_row(good_numbers, ctx)
+        if anchor is None:
+            return None
         text = checks.normalise(claim.get("text"))
         for numeral, value, decimals, _percent in open_numerals:
             # A percent always has decimals, and a range (dozens of) is a tuple: only a whole figure goes on.
@@ -571,22 +593,26 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
             if text.count(numeral) != 1:
                 return None
             after = _unit_words(" ".join(re.findall(r"[A-Za-z]+", text.split(numeral, 1)[1])[:2]))
-            found, holders = {}, 0
+            found, held_by = {}, []
             for query_id in cited:
                 rows = ctx.queries[query_id]["rows"]
                 if not all(isinstance(row, dict) for row in rows):
                     return None
                 # A query of several rows is read only at the rows that name something the claim names; a lone row
                 # is the claim's subject by itself.
-                subject = rows if len(rows) == 1 else [row for row in rows if _named_cells(claim.get("text") or "", row)]
-                for row in subject:
+                subject = [i for i, row in enumerate(rows)
+                           if len(rows) == 1 or _named_cells(claim.get("text") or "", row)]
+                for i in subject:
                     held = False
-                    for column, cell in row.items():
+                    for column, cell in rows[i].items():
                         if type(cell) in (int, float) and cell == value:
                             found.setdefault((query_id, column), cell)
                             held = True
-                    holders += held
-            if holders != 1:
+                    if held:
+                        held_by.append((query_id, i))
+            # The figure comes only from the anchor row, the one row holding the claim's own good number: another
+            # row it shares a platform or market cell with, or that the claim also names, never lends it a figure.
+            if held_by != [anchor]:
                 return None
             hits = [key for key in found if _unit_words(str(key[1]).replace("_", " ")) & after]
             if len(found) != len(hits) or len(hits) != 1:

@@ -131,6 +131,7 @@ def test_the_pin_adds_one_entry_that_the_k2_numeral_check_accepts_and_changes_no
     ("6 posts came from 5 creators and 5 creators.", [SIX], COUNT_ROWS, "the figure is written twice"),
     ("6 posts came from 5 creators.", [], COUNT_ROWS, "the claim cites no query yet"),
     ("6 posts came from 5 or so more creators.", [SIX], COUNT_ROWS, "the column word is past the two words after the figure"),
+    ("6 posts came from 5 or more creators.", [SIX], COUNT_ROWS, "the column word is the third word after the figure"),
     ("6 posts came from 1 creators.", [SIX], [{"posts": 6, "creators": True}], "a bool cell is not a count"),
     ("6 posts came from 5 creators.", [SIX], [{"posts": 6, "creators": Decimal(5)}], "only int and float cells are read"),
     ("6 posts came from 5 creators.", [{"value": 61, "unit": "posts"}], COUNT_ROWS, "an entry already on the claim is bad"),
@@ -215,5 +216,71 @@ def test_a_value_held_by_more_than_one_row_the_claim_names_is_not_pinned():
 
     _, issues, pinned, *_ = pinned_for(rows, "#gqom and #amapiano drew 6 posts from 5 creators.",
                                        [{"value": 6, "unit": "posts"}])
+
+    assert issues and pinned is None
+
+
+def shared(extra):
+    return [{**extra, "hashtag": "#amapiano", "posts": 6, "creators": 5}, {**extra, "hashtag": "#gqom", "posts": 9, "creators": 3}]
+
+
+@pytest.mark.parametrize("rows, text", [
+    (TAGS, "#gqom outpaced #amapiano, drawing 9 posts from 5 creators."),
+    (shared({"platform": "TikTok"}), "#gqom drew 9 posts from 5 creators on TikTok."),
+    (shared({"market": "ZA"}), "In ZA, #gqom drew 9 posts from 5 creators."),
+], ids=["claim-names-both-subjects", "rows-share-a-platform-cell", "rows-share-a-market-cell"])
+def test_a_figure_is_pinned_only_from_the_row_that_holds_the_claims_own_good_number(rows, text):
+    """The anchor row is the one row holding the existing good number (9 posts, #gqom's). The 5 sits on #amapiano's
+    row, so naming both subjects, or sharing a platform or market cell, must not let it be pinned."""
+    draft, issues, pinned, ctx, wh, _, _ = pinned_for(rows, text, [NINE])
+
+    assert issues and pinned is None
+    assert any(v == "cut" and "numeral 5 has no pinned" in why for v, why in k2_verdicts(draft, ctx, wh))
+
+
+def test_a_figure_on_the_anchor_row_is_still_pinned_when_the_claim_names_both_subjects():
+    _, _, pinned, ctx, wh, window, reruns = pinned_for(
+        TAGS, "#gqom outpaced #amapiano, drawing 9 posts from 3 creators.", [NINE])
+
+    assert pinned is not None and pinned["claims"][0]["numbers"][-1]["value"] == 3
+    assert writer.unpinned_claim_numerals(pinned, ctx, wh, window=window, reruns=reruns) == []
+
+
+def test_a_good_number_held_by_more_than_one_row_has_no_anchor_row_and_nothing_is_pinned():
+    rows = [{"hashtag": "#amapiano", "posts": 6, "creators": 5}, {"hashtag": "#gqom", "posts": 6, "creators": 4}]
+
+    _, issues, pinned, *_ = pinned_for(rows, "#amapiano drew 6 posts from 5 creators.", [SIX])
+
+    assert issues and pinned is None
+
+
+@pytest.mark.parametrize("numbers", [[SIX, NINE], [NINE, SIX]], ids=["amapiano-first", "gqom-first"])
+def test_good_numbers_held_by_different_rows_have_no_single_anchor_row_and_nothing_is_pinned(numbers):
+    rows = [{"hashtag": "#amapiano", "posts": 6, "creators": 5}, {"hashtag": "#gqom", "posts": 9, "creators": 3}]
+
+    _, issues, pinned, *_ = pinned_for(rows, "#amapiano drew 6 posts and #gqom 9 posts, 5 creators.", numbers)
+
+    assert issues and pinned is None
+
+
+@pytest.mark.parametrize("figure", ["5", "3"], ids=["amapiano-figure", "gqom-figure"])
+def test_the_figure_of_either_of_two_anchor_candidates_is_not_pinned(figure):
+    rows = [{"hashtag": "#amapiano", "posts": 6, "creators": 5}, {"hashtag": "#gqom", "posts": 9, "creators": 3}]
+
+    _, issues, pinned, *_ = pinned_for(rows, f"#amapiano drew 6 posts and #gqom 9 posts, {figure} creators.", [SIX, NINE])
+
+    assert issues and pinned is None
+
+
+def test_a_good_number_no_plain_cell_holds_leaves_no_anchor_row_whatever_the_other_good_numbers_hold():
+    rows = [{"hashtag": "#amapiano", "posts": 6, "creators": 5}, {"hashtag": "#gqom", "posts": Decimal(9), "creators": 3}]
+
+    _, issues, pinned, *_ = pinned_for(rows, "#amapiano drew 6 posts and #gqom 9 posts, 5 creators.", [SIX, NINE])
+
+    assert issues and pinned is None
+
+
+def test_a_row_the_claim_does_not_name_is_not_read_even_when_it_is_the_anchor():
+    _, issues, pinned, *_ = pinned_for(TAGS, "9 posts came from 3 creators.", [NINE])
 
     assert issues and pinned is None
