@@ -69,11 +69,16 @@ from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_loc
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
 from core.detect import sqlrun
-from core.detect.job import PROJECT, RULE_VERSION
+from core.detect.job import PROJECT, RULE_VERSION as DETECT_RULE_VERSION
 from core.detect.sqlrun import AGENT, CORE
 from core.llm.gemini import GeminiModel
 from core.trust import retained
 from core.trust.gate import Decision, gate_card, market_banner
+
+# The version stamped on brief rows. The evidence pack is now ordered member-first (C4 v2 section 19), so a brief
+# written from this code reads a different pack from the same posts than an earlier one; the marker lets a reader
+# tell the two regimes apart. Detect's own version is unchanged.
+RULE_VERSION = DETECT_RULE_VERSION + "+pack-member-first"
 
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1

@@ -376,3 +376,11 @@ def test_the_statement_names_no_dataset_other_than_the_placeholders_and_is_read_
     sql = statement()
     assert not re.search(r"\b(INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|TRUNCATE)\b", sql, re.IGNORECASE)
     assert "{core}." in sql and "intelligence_42" not in sql
+
+
+def test_the_briefs_rule_version_marks_the_member_first_pack_order_and_keeps_the_detect_version():
+    from core.brief import job
+    from core.detect.job import RULE_VERSION as DETECT_RULE_VERSION
+
+    assert job.RULE_VERSION == DETECT_RULE_VERSION + "+pack-member-first"
+    assert DETECT_RULE_VERSION == "warmup-1"
