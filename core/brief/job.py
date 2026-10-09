@@ -68,11 +68,13 @@ from core.brief.specificity import MIN_EVIDENCE, assess_specificity, local_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
 from core.detect import sqlrun
-from core.detect.job import PROJECT, RULE_VERSION
+from core.detect.job import PROJECT, RULE_VERSION as DETECT_RULE_VERSION
 from core.detect.sqlrun import AGENT, CORE
 from core.llm.gemini import GeminiModel
 from core.trust.gate import Decision, gate_card, market_banner
 
+# One token per decision that changes what a brief row says for the same inputs, appended in tree order.
+RULE_VERSION = DETECT_RULE_VERSION + "+k6-b7-decade"
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe

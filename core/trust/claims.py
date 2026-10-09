@@ -341,7 +341,10 @@ class _AgeContext(_Conditional):
     age. It does not count only when a weather, score or money word sits within six words of it in the same sentence
     (temperatures, highs, degrees, score, won, rand, KSh, naira, dollars, price, costs, fees). With none of those it
     counts, whoever the sentence is about, so a new way to name a group of people cannot slip past a word list. An
-    age marker (aged, ages, in their, in her, in his) counts whatever else the sentence holds."""
+    age marker counts whatever else the sentence holds: aged, ages, in their, in her, in his, and every audience word
+    that 3d5dd63 read as age context (people, fans, women, men, users, audience, viewers, creators, followers,
+    students, youth, adults, girls, boys, parents, listeners), anywhere in the sentence, so nothing held at 3d5dd63
+    clears here."""
 
     _MEASURE = re.compile(
         r"\b(?:temperatures?|temps?|degrees?|celsius|fahrenheit|weather|forecasts?|highs?|lows?|heat|hot|cold|warm"
@@ -349,7 +352,9 @@ class _AgeContext(_Conditional):
         r"|bowled|all\s+out|dismissed|innings"
         r"|(?:a|the)\s+lead|leads?\s+by|led\s+by|rand|naira|dollars?|usd|pounds?|euros?|shillings?|ksh|price[sd]?"
         r"|costs?|costing|fees?|revenue|salary|salaries|wages?|worth)\b|\u00b0|[$\u00a3\u20ac]|(?-i:\bR\s?\d|\bR\b)", re.I)
-    _AGE_MARKER = re.compile(r"\b(?:aged?|ages|in\s+(?:their|her|his))\b", re.I)
+    _AGE_MARKER = re.compile(
+        r"\b(?:aged?|ages|in\s+(?:their|her|his)|people|fans?|women|men|users?|audiences?|viewers?|creators?"
+        r"|followers?|students?|youth|adults?|girls|boys|parents|listeners?)\b", re.I)
     _SENTENCE_END = re.compile(r"[.!?]\s+")
     _WORDS_BESIDE = 6
 
