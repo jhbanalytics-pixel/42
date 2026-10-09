@@ -16,7 +16,7 @@ The job it does for a strategist: "Show me what is taking off right now, why, an
 
 Product rules (Albert, 28 September 2026):
 1. Nothing about Gen Z. No age lens anywhere: not in seeding, scoring, prompts, copy or screens. The agent never infers age. Audience is described only by what posts show: language, place, interest, community, creator type, platform.
-2. Google search interest comes only from SocialCrawl's google_trends/trending route, labelled as Google search data, and only to decide what to look into: never post evidence, never a count, a place, a quote or why-now proof, and never enough on its own for Today (RULES.md rule 2). Prism earliness and trend-board stay banned.
+2. Google search interest comes from two sources only: SocialCrawl's google_trends/trending route and the Google Trends daily RSS (google_rss). It is labelled as Google search data and used only to decide what to look into: never post evidence, post counts, country or location proof, a quote, why-now evidence or standalone Today support (RULES.md rule 2). SocialCrawl google_trends/explore and google_trends/rising, and public BigQuery search terms, stay parked. Prism earliness and trend-board stay banned.
 3. SocialCrawl is the main source. Everything else (GDELT, news feeds, Wikipedia, music and app charts, calendars) supports it.
 4. Generated outputs from Gemini or Nano Banana are never evidence. Models are chosen per role by blind test on the 42 question set. Embedding models are not generative and may be used.
 5. Every claim is tied to evidence someone can open. Every number is tied to the query that produced it. Gaps are said out loud.
