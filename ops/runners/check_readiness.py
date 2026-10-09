@@ -67,11 +67,16 @@ _STEP_COLUMNS = ",\n  ".join(
 
 SQL = {
     "brief runs": f"""
-SELECT b.run_id, MIN(b.published_at) published_at, ANY_VALUE(r.status) run_status
+SELECT b.run_id, MIN(b.published_at) published_at, MIN(r.status) run_status
 FROM {AGENT}.briefs b
-LEFT JOIN {AGENT}.runs r ON r.run_id = b.run_id AND r.run_date = @d AND r.stage = 'brief'
+LEFT JOIN (
+  SELECT run_id, status FROM {AGENT}.runs
+  WHERE run_date = @d AND stage = 'brief' AND status != 'skipped_duplicate'
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY run_id
+    ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC, status) = 1) r
+  ON r.run_id = b.run_id
 WHERE b.brief_date = @d
-GROUP BY b.run_id ORDER BY published_at""",
+GROUP BY b.run_id ORDER BY published_at, b.run_id""",
     "brief payloads": f"""
 SELECT market, status, TO_JSON_STRING(payload) p FROM {AGENT}.briefs
 WHERE brief_date = @d AND run_id = @rid""",
