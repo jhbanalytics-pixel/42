@@ -438,7 +438,9 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
         cand["error"] = f"{type(e).__name__}: {e}"
         return cand
     cand["ctx"] = build_ctx(client, row, d, market, cand["pack"]["evidence"], campaign_hashtags=campaign_hashtags,
-                            political_terms=political_terms, numbers=cand["pack"]["numbers"], core=core, agent=agent)
+                            political_terms=political_terms,
+                            numbers=[n for n in cand["pack"]["numbers"] if "rival_field" not in n], core=core,
+                            agent=agent)
     return cand
 
 
@@ -1370,6 +1372,9 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
         counts["title_majority_receipts"] = title_receipts
     if receipt_omitted:
         counts["title_majority_receipts_omitted"] = receipt_omitted
+    reads = Counter(c["pack"].get("rival_read") for cands in by_market.values() for c in cands)
+    if reads.keys() - {None}:
+        counts["rival_reads"] = {k: reads.get(k, 0) for k in ("ok", "cutoff_missing", "failed")}
     if explanation_stop is not None:
         counts["explanation_stop"] = explanation_stop
     if busy:

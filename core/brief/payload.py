@@ -146,7 +146,8 @@ def _card(c, market, day, rank, shown_above=frozenset()):
                  and set(rests_on) <= {cl["id"] for cl in claims})
     if not explained:
         claims, rests_on = [], []
-    numbers = [n for n in c.get("numbers") or [] if not (untested and _is_growth(n["unit"]))]
+    numbers = [n for n in c.get("numbers") or []
+               if "rival_field" not in n and not (untested and _is_growth(n["unit"]))]
     flag = _flag(c, dec)
     sp = c.get("sparkline") or {"unit": "posts a day", "points": []}
     points = [{"date": _iso(p["date"]), "value": p.get("value"),
@@ -216,7 +217,8 @@ def _held_item(c):
         reason = "too_few_creators" if _misses_floors(c) else "not_confirmed"
     evidence = c.get("evidence") or []
     # The same figures a card would show, growth dropped while untested, so a reader can weigh the hold.
-    numbers = [n for n in c.get("numbers") or [] if not (_untested(c) and _is_growth(n["unit"]))]
+    numbers = [n for n in c.get("numbers") or []
+               if "rival_field" not in n and not (_untested(c) and _is_growth(n["unit"]))]
     held = {
         "item_id": c["item_id"], "title": c["title"], "rule": dec.get("rule"), "reason": reason,
         "reason_text": dec.get("reason") or REASON_TEXT[reason],

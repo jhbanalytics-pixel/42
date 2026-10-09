@@ -168,6 +168,85 @@ WHERE s.item_id = @item_id AND s.market = @market AND s.metric_date = @d AND s.r
 SELECT s.main_ratio value FROM {core}.item_state s
 WHERE s.item_id = @item_id AND s.market = @market AND s.metric_date = @d AND s.run_id = @run_id;
 
+-- name: rival_state
+-- Detect's rival-explanation values for the item (METHOD-GAPS Gap 7): the columns of item_state that name a simpler
+-- explanation, read pinned to the detect @run_id exactly as the number queries above read creators3. One row;
+-- evidence.py takes one column per pinned value and a re-run takes the same column, so each re-runs to the value
+-- it pinned.
+SELECT st.sponsored_share, st.local_share, st.markets_hot, st.share_flags, st.diffusion, st.lead_market, st.novelty,
+  st.moment
+FROM {core}.item_state st
+WHERE st.item_id = @item_id AND st.market = @market AND st.metric_date = @d AND st.run_id = @run_id;
+
+-- name: rival_cutoff
+-- The data cutoff of the detect run the pack is pinned to: the time that run started. The window numbers below read
+-- observations up to it, so a post observed after the run cannot change what a K2 re-run returns. runs is
+-- partitioned by run_date, and the detect run for a brief date started within a day before it or two after. The run
+-- must be the one that wrote this item's state for the date (item_state is partitioned by metric_date).
+SELECT r.started_at value
+FROM {agent}.runs r
+WHERE r.run_id = @run_id AND r.run_date BETWEEN DATE_SUB(@d, INTERVAL 1 DAY) AND DATE_ADD(@d, INTERVAL 2 DAY)
+  AND EXISTS (SELECT 1 FROM {core}.item_state st
+              WHERE st.run_id = r.run_id AND st.item_id = @item_id AND st.market = @market AND st.metric_date = @d);
+
+-- name: rival_posts
+-- The snapshot of the posts the window numbers are computed over: every post linked to the item (post_items) that the
+-- market observed by @cutoff in the 28 days to @d, outside the lanes detect leaves out. post_items has no timestamp,
+-- and the brief's own confirm step adds links after the pack is built, so the links are read once here, at pack
+-- time, and rival_window is run over exactly these ids ever after. Partition filter: post_observations by
+-- observed_date. post_items is unpartitioned, as the table function reads it.
+SELECT DISTINCT po.post_id
+FROM {core}.post_observations po
+JOIN {core}.post_items pi ON pi.post_id = po.post_id
+WHERE pi.item_id = @item_id AND po.market = @market
+  AND po.observed_date BETWEEN DATE_SUB(@d, INTERVAL 27 DAY) AND @d
+  AND po.observed_at <= @cutoff
+  AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
+ORDER BY po.post_id;
+
+-- name: rival_window
+-- The 7 day window values item_state does not store, computed as tvf_item_window (views.sql) computes them for this
+-- market, but only over the snapshot post ids (@post_ids, one id a line, from rival_posts) and only from observations made by
+-- @cutoff, the detect run's start (rival_cutoff), so the numbers re-run to the same value for that run whatever links
+-- the brief writes afterwards. A post observed before the cutoff but written late still counts. near_dup_share is
+-- measured over the 7 day posts that have a near_dup_size and is NULL when none has: the table function reads a
+-- missing size as 1, which would pin a measured 0 from a column nothing writes yet. Partition filter:
+-- post_observations by observed_date, the 28 days to @d. posts and post_enrichment have no date filter (posts is
+-- partitioned by publish date, and a post seen this week can be older); both are read only for the snapshot ids.
+WITH o AS (
+  SELECT po.post_id, po.lane_class IN ('unbiased_rank', 'panel') AS measured, MIN(po.observed_date) first_day
+  FROM {core}.post_observations po
+  WHERE po.post_id IN UNNEST(SPLIT(@post_ids, CHR(10))) AND po.market = @market
+    AND po.observed_date BETWEEN DATE_SUB(@d, INTERVAL 27 DAY) AND @d
+    AND po.observed_at <= @cutoff
+    AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
+  GROUP BY po.post_id, measured),
+p AS (
+  SELECT o.post_id, o.measured, o.first_day > DATE_SUB(@d, INTERVAL 7 DAY) in7,
+    ps.creator_id, ps.creator_tier_at_post tier, ps.published_at, pe.near_dup_size nds
+  FROM o
+  JOIN {core}.posts ps ON ps.post_id = o.post_id
+  LEFT JOIN (SELECT pe0.post_id, MAX(pe0.near_dup_size) near_dup_size
+             FROM {core}.post_enrichment pe0 GROUP BY pe0.post_id) pe ON pe.post_id = o.post_id),
+a7 AS (
+  SELECT COUNT(DISTINCT IF(p.in7, p.post_id, NULL)) posts7,
+    SAFE_DIVIDE(COUNT(DISTINCT IF(p.in7 AND p.nds >= 3, p.post_id, NULL)),
+                COUNT(DISTINCT IF(p.in7 AND p.nds IS NOT NULL, p.post_id, NULL))) near_dup_share,
+    MIN(IF(p.measured AND p.tier IN ('nano', 'micro'), p.published_at, NULL)) small_at,
+    MIN(IF(p.measured AND p.tier IN ('macro', 'mega'), p.published_at, NULL)) large_at
+  FROM p),
+t3 AS (
+  SELECT SAFE_DIVIDE(SUM(IF(c.rn <= 3, c.n, 0)), SUM(c.n)) top3_share
+  FROM (SELECT cn.creator_id, cn.n, ROW_NUMBER() OVER (ORDER BY cn.n DESC, cn.creator_id) rn
+        FROM (SELECT p.creator_id, COUNT(DISTINCT p.post_id) n FROM p WHERE p.in7 GROUP BY p.creator_id) cn) c),
+bu AS (
+  SELECT SAFE_DIVIDE(MAX(b.n), SUM(b.n)) burst_share
+  FROM (SELECT DIV(UNIX_SECONDS(p.published_at), 600) bucket, COUNT(DISTINCT p.post_id) n
+        FROM p WHERE p.in7 AND p.published_at IS NOT NULL GROUP BY bucket) b)
+SELECT a7.posts7, bu.burst_share, t3.top3_share, a7.near_dup_share, a7.small_at, a7.large_at
+FROM a7 CROSS JOIN t3 CROSS JOIN bu
+WHERE a7.posts7 > 0;
+
 -- name: sparkline
 -- The main series' last 14 days; days with no row (before the series started) are filled in by evidence.py.
 SELECT sd.day, sd.value, sd.lane_class FROM {core}.v_series_daily sd
