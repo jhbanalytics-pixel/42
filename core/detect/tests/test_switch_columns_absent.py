@@ -66,7 +66,8 @@ def test_under_v2_the_statements_are_the_files_as_written(monkeypatch):
     assert len(statements_reading_the_columns()) == 9
 
 
-PARAMS = {"d": D, "run_id": "detect-1", "market": "ZA", "week_start": date(2026, 10, 5), "week_end": date(2026, 10, 11)}
+PARAMS = {"d": D, "run_id": "detect-1", "market": "ZA", "week_start": date(2026, 10, 5), "week_end": date(2026, 10, 11),
+          "since": date(2026, 10, 5), "until": date(2026, 10, 11)}
 
 
 def test_under_v1_the_watch_and_scorecard_statements_run_on_the_a80_table(a80_table, monkeypatch):
