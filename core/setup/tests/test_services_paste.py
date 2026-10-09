@@ -770,20 +770,22 @@ def test_f5_the_passcode_is_never_echoed_or_written_anywhere(tmp_path):
     assert all(c["secure"] for c in prompts(result) if c["prompt"] == "Smoke passcode")
 
 
-def paste_function(call, *, stdin=None, flags=("-NonInteractive",)):
-    """Run the real Test-Interactive or Assert-Interactive of the paste in a real pwsh, with no double."""
+def paste_function(call, tmp_path, *, stdin=None, flags=("-NonInteractive",)):
+    """Run the real Test-Interactive or Assert-Interactive of the paste in a real pwsh, with no double. The frame is written to
+    a .ps1 in the test's temporary folder and run with -File, so the offline guard admits it whatever the frame holds."""
     import subprocess
 
     paste = ROOT / "core/setup/release/SERVICES-PASTE.ps1"
-    script = (f"$ErrorActionPreference = 'Stop'; . '{paste}' -Action Rollback -Lock x -Review x -Bindings x -Receipt x -DefinitionsOnly; "
-              f"try {{ {call}; 'RESULT:ok' }} catch {{ 'RESULT:' + $_.Exception.Message }}")
-    return subprocess.run(["pwsh", "-NoProfile", *flags, "-Command", script], input=stdin, capture_output=True, encoding="utf-8", timeout=120)
+    frame = Path(tmp_path) / "frame.ps1"
+    frame.write_text(f"$ErrorActionPreference = 'Stop'; . '{paste}' -Action Rollback -Lock x -Review x -Bindings x -Receipt x -DefinitionsOnly; "
+                     f"try {{ {call}; 'RESULT:ok' }} catch {{ 'RESULT:' + $_.Exception.Message }}", encoding="utf-8", newline="\n")
+    return subprocess.run(["pwsh", "-NoProfile", *flags, "-File", str(frame)], input=stdin, capture_output=True, encoding="utf-8", timeout=120)
 
 
-def test_f5_the_real_interactivity_check_refuses_a_redirected_stdin_and_a_noninteractive_host():
-    piped = paste_function("Assert-Interactive", stdin="DEPLOY\n", flags=())
+def test_f5_the_real_interactivity_check_refuses_a_redirected_stdin_and_a_noninteractive_host(tmp_path):
+    piped = paste_function("Assert-Interactive", tmp_path, stdin="DEPLOY\n", flags=())
     assert "RESULT:NOT INTERACTIVE" in piped.stdout, (piped.stdout, piped.stderr)
-    noninteractive = paste_function("Read-Word 'DEPLOY'")
+    noninteractive = paste_function("Read-Word 'DEPLOY'", tmp_path)
     assert "RESULT:" in noninteractive.stdout and "RESULT:ok" not in noninteractive.stdout, (noninteractive.stdout, noninteractive.stderr)
 
 
@@ -861,13 +863,65 @@ def test_f7_the_checkout_is_asserted_before_the_passcode_is_set_so_no_git_child_
 
 # Round 2 review of the release paste (R-2, R-3, R-5, R-7, R-9, R-10)
 
-def test_r2_a_function_named_read_host_cannot_stand_in_for_the_typed_word():
+def test_r2_a_function_named_read_host_cannot_stand_in_for_the_typed_word(tmp_path):
     # Read-Host is called by its module-qualified name, so a function of that name defined by the caller is never run. The
     # real prompt is refused here (no console), so the word is never accepted.
-    shadowed = paste_function("function global:Read-Host { 'DEPLOY' }; Read-Word 'DEPLOY'")
+    shadowed = paste_function("function global:Read-Host { 'DEPLOY' }; Read-Word 'DEPLOY'", tmp_path)
     assert "RESULT:ok" not in shadowed.stdout and "RESULT:NOT INTERACTIVE" in shadowed.stdout, (shadowed.stdout, shadowed.stderr)
-    passcode = paste_function("function global:Read-Host { ConvertTo-SecureString 'x' -AsPlainText -Force }; Read-Passcode")
+    passcode = paste_function("function global:Read-Host { ConvertTo-SecureString 'x' -AsPlainText -Force }; Read-Passcode", tmp_path)
     assert "RESULT:ok" not in passcode.stdout, (passcode.stdout, passcode.stderr)
+
+
+# CC-1: an alias is resolved before any function, in every scope, so an alias over a paste function or over Read-Host could
+# stand in for a typed word with no console. Invoke-Release refuses first, whatever the alias form and whatever the target.
+
+SHADOWABLE = ("Read-Typed", "Read-Word", "Read-Passcode", "Test-Interactive", "Assert-Interactive", "Get-UtcNow", "Test-QuietWindow",
+              "Get-InflightCount", "Read-Native", "Run-Logged", "Step", "Read-Host")
+ALIAS_FORMS = {
+    "global": "Set-Alias -Scope Global -Name {n} -Value Get-Date; Invoke-Release",
+    "script": "Set-Alias -Scope Script -Name {n} -Value Get-Date; Invoke-Release",
+    "child scope": "& {{ Set-Alias -Name {n} -Value Get-Date; Invoke-Release }}",
+    "new-alias read-only": "New-Alias -Scope Global -Name {n} -Value Get-Date -Option ReadOnly; Invoke-Release",
+    "alias over a function": "function global:Fake {{ 'DEPLOY' }}; Set-Alias -Scope Global -Name {n} -Value Fake; Invoke-Release",
+}
+REFUSED = "RESULT:NOT EXECUTABLE: an alias shadows a paste function or the prompt cmdlet"
+
+
+@pytest.mark.parametrize("form", sorted(ALIAS_FORMS))
+@pytest.mark.parametrize("name", SHADOWABLE)
+def test_cc1_an_alias_over_a_paste_function_or_read_host_refuses_the_run(tmp_path, name, form):
+    done = paste_function(ALIAS_FORMS[form].format(n=name), tmp_path)
+    assert REFUSED in done.stdout, (name, form, done.stdout, done.stderr)
+
+
+@pytest.mark.parametrize("name", ["Read-Typed", "Read-Host"])
+def test_cc1_the_refusal_holds_when_get_alias_is_itself_replaced_by_a_function_or_an_alias(tmp_path, name):
+    blinded = paste_function(f"function global:Get-Alias {{ }}; Set-Alias -Scope Global -Name {name} -Value Get-Date; Invoke-Release", tmp_path)
+    assert REFUSED in blinded.stdout, (blinded.stdout, blinded.stderr)
+    renamed = paste_function(f"Set-Alias -Scope Global -Name Get-Alias -Value Get-Date; Set-Alias -Scope Global -Name {name} -Value Get-Date; Invoke-Release", tmp_path)
+    assert REFUSED in renamed.stdout, (renamed.stdout, renamed.stderr)
+
+
+def test_cc1_an_alias_that_shadows_nothing_of_the_paste_is_not_refused(tmp_path):
+    done = paste_function("Set-Alias -Scope Global -Name Show-Elsewhere -Value Get-Date; Set-Alias -Scope Global -Name ll -Value Get-ChildItem; Invoke-Release", tmp_path)
+    assert "an alias shadows" not in done.stdout and "RESULT:NOT EXECUTABLE: the packet lock is missing" in done.stdout, (done.stdout, done.stderr)
+
+
+@pytest.mark.parametrize("action", ACTIONS)
+@pytest.mark.parametrize("name", ["Read-Typed", "Test-Interactive", "Get-UtcNow", "Read-Host"])
+def test_cc1_with_a_valid_packet_an_alias_stops_every_action_before_any_call_prompt_or_file(tmp_path, action, name):
+    world = promote_world(tmp_path) if action == "Promote" else PasteWorld(tmp_path, action)
+    if action == "Retire":
+        world.readback("AfterRollback")
+    result = world.run(extra={"aliases": [{"name": name, "value": "Get-Date"}]})
+    assert result.returncode != 0 and "an alias shadows a paste function or the prompt cmdlet" in result.stderr, (result.stdout, result.stderr)
+    assert result.external == [] and prompts(result) == []
+    assert not (world.release_dir / "runs").exists()
+
+
+def test_cc1_the_same_packet_without_the_alias_runs_to_the_end(tmp_path):
+    result = PasteWorld(tmp_path).run(extra={"aliases": []})
+    assert result.returncode == 0, result.stderr
 
 
 def test_r2_the_paste_calls_the_prompt_cmdlet_only_by_its_module_qualified_name():

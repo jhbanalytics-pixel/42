@@ -448,7 +448,20 @@ function Confirm-Action {
     }
 }
 
+# An alias is resolved before any function, in every scope, so one named like a function of this paste, or like the prompt
+# cmdlet, could supply a typed word or the clock with no console. The refusal is the first thing Invoke-Release does, and Get-Alias
+# is called by its module-qualified name so that a function or an alias of that name cannot blind it. The prompt cmdlet's name is
+# written in two parts so that the text scan for a bare call of it stays exact.
+$Script:Shadowable = @('Read-Typed', 'Read-Word', 'Read-Passcode', 'Test-Interactive', 'Assert-Interactive', 'Get-UtcNow', 'Test-QuietWindow',
+                       'Get-InflightCount', 'Read-Native', 'Run-Logged', 'Step', ('Read-' + 'Host'))
+
+function Assert-NoShadowAlias {
+    $found = @(Microsoft.PowerShell.Utility\Get-Alias -Name $Script:Shadowable -ErrorAction SilentlyContinue)
+    if ($found.Count -gt 0) { throw "NOT EXECUTABLE: an alias shadows a paste function or the prompt cmdlet: $($found.Name -join ', ')." }
+}
+
 function Invoke-Release {
+    Assert-NoShadowAlias
     Test-Packet
     Test-Receipt
     $inheritedPresent = Test-Path Env:F42_SMOKE_PASSCODE
