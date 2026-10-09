@@ -18,7 +18,7 @@ from scipy import stats as st
 
 from core.detect import early_signal as es, stats
 from core.detect.tests import duck, early_identity as ident
-from core.detect.tests.fixtures import D, day
+from core.detect.tests.fixtures import D, at, day, run
 from core.detect.tests.test_detect_stats import SW_PANEL, StatsClient, panel_world
 
 B0_TABLES = "072ea11c14e4da253514b096cc2ad060a4fa003a3d77e80d559bef5ca13c1fb8"
@@ -162,12 +162,14 @@ def con():
     c.execute(ident.early_signal_ddl())
     panel_world().load(c)
     duck.load(c, "core.test_switch", [SW_PANEL])
+    duck.load(c, "agent.runs", [{**run("backtest", day(3), run_id=SW_PANEL["backtest_run_id"]),
+                                 "finished_at": at(day(3))}])
     yield c
     c.close()
 
 
 def test_run_stats_records_one_row_per_tested_series_and_returns_the_same_count(con):
-    assert stats.run_stats(StatsClient(con), D, "stats-x", "r1", core="core") == 3
+    assert stats.run_stats(StatsClient(con), D, "stats-x", "r1", core="core", agent="agent") == 3
     got = duck.query(con, "SELECT * FROM {core}.early_signal ORDER BY item_id")
     assert [r["item_id"] for r in got] == ["p0", "p1", "p2"]
     assert {r["run_id"] for r in got} == {"stats-x"} and {r["metric_date"] for r in got} == {D}
@@ -179,7 +181,7 @@ def test_a_failing_record_logs_and_leaves_the_series_test_untouched(con, monkeyp
 
     monkeypatch.setattr(es, "record", boom)
     with caplog.at_level(logging.ERROR, logger="core.detect.stats"):
-        assert stats.run_stats(StatsClient(con), D, "stats-x", "r1", core="core") == 3
+        assert stats.run_stats(StatsClient(con), D, "stats-x", "r1", core="core", agent="agent") == 3
     assert len(duck.query(con, "SELECT * FROM {core}.series_test")) == 3
     assert "early signal" in caplog.text and "load failed" in caplog.text
 
