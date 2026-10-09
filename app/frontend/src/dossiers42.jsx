@@ -31,6 +31,12 @@ const CONFIDENCE = {
 
 const NEEDS_TICK = new Set(['single_source', 'inferred']);
 
+/* The view marks a claim that rests on a post or person 42 no longer shows
+   with withheld: true. The server refuses to keep it (409 not_ready). */
+const WITHHELD_REASON = 'This claim rests on a post 42 no longer shows.';
+const isWithheld = (claim) => Boolean(claim && claim.withheld === true);
+const CANNOT_KEEP = /cannot be kept/i;
+
 const PAGE = 50;
 
 const readable = (view) => Boolean(view && typeof view === 'object' && Array.isArray(view.claims));
@@ -395,25 +401,38 @@ export function DossierPage({dossierId, onAuth}){
   }
 
   const claims = readable(view) ? view.claims : [];
-  const kept = claims.filter((claim) => claim.kept).map((claim) => claim.claim_id);
+  /* kept holds the claims the reader keeps; a withheld claim is never in it. */
+  const kept = claims.filter((claim) => claim.kept && !isWithheld(claim)).map((claim) => claim.claim_id);
+  const heldBack = claims.some((claim) => claim.kept && isWithheld(claim));
   const textOf = (claimId) => {
     const claim = claims.find((item) => item.claim_id === claimId);
     return claim && claim.text ? claim.text : 'A claim this dossier no longer holds';
   };
 
-  /* The only body an edit ever sends. */
-  function edit({keep = kept, title: nextTitle = view.title, notes = {}}){
-    const current = Object.fromEntries(claims.map((claim) => [claim.claim_id, claim.note || null]));
-    return write(async () => show(await updateDossier(dossierId, {keep, order: keep, title: nextTitle, notes: {...current, ...notes}, fromVersion: view.version}), true));
+  /* The only body an edit ever sends: the version it was made from and the
+     fields that changed. While a kept claim is withheld the server refuses to
+     carry it forward, so keep goes too, with the claims the reader keeps. */
+  function edit({keep, order, title: nextTitle, notes} = {}){
+    const body = {fromVersion: view.version};
+    if (keep !== undefined) body.keep = keep;
+    else if (heldBack) body.keep = kept;
+    if (order !== undefined) body.order = order;
+    if (nextTitle !== undefined) body.title = nextTitle;
+    if (notes !== undefined) body.notes = notes;
+    return write(async () => show(await updateDossier(dossierId, body), true), (error) => (
+      error && error.status === 409 && CANNOT_KEEP.test(error.message || '')
+        ? {message: 'A claim in this dossier can no longer be kept because it rests on a post 42 no longer shows. Reload to see which one, remove it, then save again.', stale: true}
+        : {message: failureWords(error, 'The change was not saved.')}
+    ));
   }
 
   function move(claimId, step){
     const at = kept.indexOf(claimId);
     const to = at + step;
     if (at === -1 || to < 0 || to >= kept.length) return;
-    const keep = [...kept];
-    [keep[at], keep[to]] = [keep[to], keep[at]];
-    edit({keep});
+    const order = [...kept];
+    [order[at], order[to]] = [order[to], order[at]];
+    edit({order});
   }
 
   function tick(claimId, ticked){
@@ -448,14 +467,14 @@ export function DossierPage({dossierId, onAuth}){
     return (
       <main className="dossiers42" aria-labelledby="dossiers42-title">
         <h1 className="dossiers42-title" id="dossiers42-title">{heading}</h1>
-        <FrozenBody view={view} onFailure={handover} editAgain={{busy, problem, start: () => edit({}), reload}} />
+        <FrozenBody view={view} onFailure={handover} editAgain={{busy, problem, start: () => edit(), reload}} />
       </main>
     );
   }
 
   const records = new Map((view.evidence || []).map((record) => [record.id, record]));
   const removed = claims.filter((claim) => !claim.kept);
-  const needs = (claim) => claim.kept && NEEDS_TICK.has(claim.label) && !(ticks[claim.claim_id] && ticks[claim.claim_id].ticked);
+  const needs = (claim) => claim.kept && !isWithheld(claim) && NEEDS_TICK.has(claim.label) && !(ticks[claim.claim_id] && ticks[claim.claim_id].ticked);
   const waiting = claims.filter(needs).length;
   const pinned = pinnedId ? records.get(pinnedId) : null;
   const titleChanged = title.trim() && title.trim() !== view.title;
@@ -478,8 +497,20 @@ export function DossierPage({dossierId, onAuth}){
           <p className="dossiers42-summary">{String(view.summary || '').trim() ? view.summary : plainGapWhat((view.gaps || []).find((gap) => /short[ _-]answer|summary/i.test(gap.searched))?.what) || 'No summary: see the claims below'}</p>
 
           <ol className="dossiers42-claims" aria-label="Claims">
-            {claims.filter((claim) => claim.kept).map((claim, index, list) => {
+            {claims.filter((claim) => claim.kept).map((claim) => {
               const cid = claim.claim_id;
+              if (isWithheld(claim)){
+                return (
+                  <li className="dossiers42-claim" key={cid} data-claim={cid} data-withheld="">
+                    <span className="dossiers42-claim-head"><span className="dossiers42-claim-text">{WITHHELD_REASON}</span></span>
+                    <div className="dossiers42-review">
+                      <button type="button" className="dossiers42-quiet" disabled={busy} onClick={() => edit({keep: kept})}>Remove</button>
+                    </div>
+                  </li>
+                );
+              }
+              const index = kept.indexOf(cid);
+              const list = kept;
               const ticked = Boolean(ticks[cid] && ticks[cid].ticked);
               const noteValue = Object.hasOwn(noteDrafts, cid) ? noteDrafts[cid] : (claim.note || '');
               const noteId = 'dossiers42-note-' + cid;
@@ -515,10 +546,14 @@ export function DossierPage({dossierId, onAuth}){
               <ul className="dossiers42-claims dossiers42-removed">
                 {removed.map((claim) => (
                   <li className="dossiers42-claim" key={claim.claim_id} data-claim={claim.claim_id}>
-                    <ClaimBody claim={claim} records={records} pinnedId={pinnedId} onPin={setPinnedId} />
-                    <div className="dossiers42-review">
-                      <button type="button" className="dossiers42-quiet" disabled={busy} onClick={() => edit({keep: [...kept, claim.claim_id]})}>Keep</button>
-                    </div>
+                    {isWithheld(claim)
+                      ? <span className="dossiers42-claim-head"><span className="dossiers42-claim-text">{WITHHELD_REASON}</span></span>
+                      : <ClaimBody claim={claim} records={records} pinnedId={pinnedId} onPin={setPinnedId} />}
+                    {!isWithheld(claim) && (
+                      <div className="dossiers42-review">
+                        <button type="button" className="dossiers42-quiet" disabled={busy} onClick={() => edit({keep: [...kept, claim.claim_id]})}>Keep</button>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

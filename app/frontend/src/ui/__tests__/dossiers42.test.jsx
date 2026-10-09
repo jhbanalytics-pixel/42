@@ -381,7 +381,7 @@ test('Freeze is the one red action on a draft, and a draft offers no export', as
   expect(button('Export PDF')).toBeUndefined();
 });
 
-test('removing a claim sends keep, order, title and notes only, with no claim content', async () => {
+test('removing a claim sends from_version and keep only, with no claim content', async () => {
   const next = draft();
   next.version = 2;
   next.claims = [next.claims[0], next.claims[2], {...next.claims[1], kept: false}];
@@ -389,11 +389,7 @@ test('removing a claim sends keep, order, title and notes only, with no claim co
   await click(button('Remove', claimItem(c2.text)));
   await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
   const put = calls.find((call) => call.method === 'PUT');
-  expect(Object.keys(put.body).sort()).toEqual(['from_version', 'keep', 'notes', 'order', 'title']);
-  expect(put.body.from_version).toBe(1);
-  expect(put.body.keep).toEqual(['c1', 'c3']);
-  expect(put.body.order).toEqual(['c1', 'c3']);
-  expect(put.body.title).toBe(completeRecord.question);
+  expect(put.body).toEqual({from_version: 1, keep: ['c1', 'c3']});
   for (const words of [c1.text, c2.text, C3_TEXT, answer.short_answer, 'corroborated', 'inferred', 'single_source', 'tt_fixture_1', 'kitchen table']){
     expect(put.raw).not.toContain(words);
   }
@@ -409,8 +405,7 @@ test('moving a claim down sends the new order', async () => {
   await click(button('Move down', claimItem(c1.text)));
   await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
   const put = calls.find((call) => call.method === 'PUT');
-  expect(put.body.keep).toEqual(['c2', 'c1', 'c3']);
-  expect(put.body.order).toEqual(['c2', 'c1', 'c3']);
+  expect(put.body).toEqual({from_version: 1, order: ['c2', 'c1', 'c3']});
   await until(() => host.querySelector('li[data-claim]') && plain(host.querySelector('li[data-claim]').textContent).includes(c2.text), 'the new order on screen');
 });
 
@@ -426,8 +421,7 @@ test('a note is saved against its claim and shown as the reviewer\'s note', asyn
   await click(button('Save note', claimItem(c1.text)));
   await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
   const put = calls.find((call) => call.method === 'PUT');
-  expect(put.body.notes.c1).toBe('Lead the deck with this');
-  expect(Object.keys(put.body).sort()).toEqual(['from_version', 'keep', 'notes', 'order', 'title']);
+  expect(put.body).toEqual({from_version: 1, notes: {c1: 'Lead the deck with this'}});
 });
 
 test('a new title is saved through the same edit', async () => {
@@ -440,7 +434,7 @@ test('a new title is saved through the same edit', async () => {
   await click(button('Save title'));
   await until(() => host.querySelector('h1').textContent === 'Kitchen-table dance', 'the new title');
   const put = calls.find((call) => call.method === 'PUT');
-  expect(put.body.title).toBe('Kitchen-table dance');
+  expect(put.body).toEqual({from_version: 1, title: 'Kitchen-table dance'});
 });
 
 test('saving one note keeps the unsaved note on another claim, and a reorder keeps an unsaved title', async () => {
@@ -569,11 +563,7 @@ test('a frozen version offers Edit again, which starts a new draft version throu
   const writes = calls.filter((call) => call.method !== 'GET');
   expect(writes.map((call) => call.method + ' ' + call.path)).toEqual(['PUT /api/dossiers/d_fixture01']);
   const put = writes[0];
-  expect(Object.keys(put.body).sort()).toEqual(['from_version', 'keep', 'notes', 'order', 'title']);
-  expect(put.body.from_version).toBe(2);
-  expect(put.body.keep).toEqual(['c1', 'c2', 'c3']);
-  expect(put.body.order).toEqual(['c1', 'c2', 'c3']);
-  expect(put.body.title).toBe(completeRecord.question);
+  expect(put.body).toEqual({from_version: 2});
   for (const words of [c1.text, c2.text, C3_TEXT, answer.short_answer, 'corroborated', 'inferred', 'single_source']){
     expect(put.raw).not.toContain(words);
   }
@@ -723,3 +713,109 @@ test('the Freeze explanation stays when a claim still needs a tick or an edit is
   expect(plain(host.querySelector('.dossiers42-actions').textContent)).toContain('Save your edits first');
   expect(described()).toContain('cannot be undone');
 });
+
+/* wave8/api refuses an edit that keeps a claim resting on a post or person 42
+   no longer shows (409 not_ready). The view marks such a claim withheld:true.
+   The page shows its slot with a plain reason and Remove, sends keep only for
+   claims the reader keeps, and sends only the fields that changed. */
+const WITHHELD_WORDS = 'This claim rests on a post 42 no longer shows.';
+const SERVER_WITHHELD_TEXT = 'This finding was left out because it rested on a post 42 no longer shows.';
+
+function withheldDraft(){
+  const body = draft();
+  body.claims[2] = {...body.claims[2], text: SERVER_WITHHELD_TEXT, evidence_ids: [], quotes: [], withheld: true};
+  return body;
+}
+const withheldItem = () => [...host.querySelectorAll('li[data-claim]')].find((node) => node.getAttribute('data-claim') === 'c3');
+
+test('a withheld claim keeps its slot with a plain reason and Remove, and offers no review, move or note', async () => {
+  await openDraft(withheldDraft());
+  const slot = withheldItem();
+  expect(slot).toBeDefined();
+  expect(plain(slot.textContent)).toContain(WITHHELD_WORDS);
+  expect(button('Remove', slot)).toBeDefined();
+  expect(slot.querySelector('input[type="checkbox"]')).toBeNull();
+  expect(slot.querySelector('textarea')).toBeNull();
+  expect(button('Move up', slot)).toBeUndefined();
+  expect(button('Move down', slot)).toBeUndefined();
+  expect(plain(slot.textContent)).not.toContain('needs a tick');
+  expect(plain(host.querySelector('.dossiers42-actions').textContent)).toContain('1 claim still needs a tick');
+});
+
+test('renaming with a withheld claim sends the title and the claims the reader keeps, without it', async () => {
+  const next = withheldDraft();
+  next.version = 2;
+  next.title = 'Kitchen-table dance';
+  next.claims[2].kept = false;
+  await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Kitchen-table dance'));
+  await click(button('Save title'));
+  await until(() => host.querySelector('h1').textContent === 'Kitchen-table dance', 'the new title');
+  const put = calls.find((call) => call.method === 'PUT');
+  expect(put.body).toEqual({from_version: 1, title: 'Kitchen-table dance', keep: ['c1', 'c2']});
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+});
+
+test('removing a withheld claim sends keep without it, and the removed slot cannot be kept again', async () => {
+  const next = withheldDraft();
+  next.version = 2;
+  next.claims[2].kept = false;
+  await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+  await click(button('Remove', withheldItem()));
+  await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
+  expect(calls.find((call) => call.method === 'PUT').body).toEqual({from_version: 1, keep: ['c1', 'c2']});
+  await until(() => !button('Remove', withheldItem()), 'the claim removed');
+  const slot = withheldItem();
+  expect(plain(slot.textContent)).toContain(WITHHELD_WORDS);
+  expect(button('Keep', slot)).toBeUndefined();
+});
+
+test('another edit with a withheld claim still on the page leaves it out of keep and order', async () => {
+  const next = withheldDraft();
+  next.version = 2;
+  next.claims = [next.claims[1], next.claims[0], next.claims[2]];
+  await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+  await click(button('Move down', claimItem(c1.text)));
+  await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
+  expect(calls.find((call) => call.method === 'PUT').body).toEqual({from_version: 1, order: ['c2', 'c1'], keep: ['c1', 'c2']});
+});
+
+test('Edit again on a frozen version with a withheld claim sends keep without it', async () => {
+  const body = frozen();
+  body.claims[2] = {...body.claims[2], text: SERVER_WITHHELD_TEXT, evidence_ids: [], quotes: [], withheld: true};
+  const next = draft();
+  next.version = 3;
+  next.needs_tick = [];
+  await openDraft(body, [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+  await click(button('Edit again'));
+  await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
+  expect(calls.find((call) => call.method === 'PUT').body).toEqual({from_version: 2, keep: ['c1', 'c2']});
+});
+
+for (const [label, message] of [
+  ['a keep that names it', 'c3 cannot be kept: it rests on a post, or names a person, 42 no longer shows.'],
+  ['a carried-forward choice', 'c3 cannot be kept any more: it rests on a post, or names a person, 42 no longer shows. Send keep without it to save a new version.'],
+]){
+  test(`a 409 for ${label} reads in plain words with Reload and no claim id`, async () => {
+    const latest = withheldDraft();
+    latest.version = 2;
+    let reads = 0;
+    serve([
+      ['PUT', '/api/dossiers/d_fixture01', json(409, {error: 'not_ready', message})],
+      ['GET', '/api/dossiers/d_fixture01', () => { reads += 1; return json(200, reads === 1 ? draft() : latest); }],
+    ]);
+    await act(async () => root.render(<DossierPage dossierId="d_fixture01" onAuth={() => {}} />));
+    await until(() => text().includes(answer.short_answer), 'the draft');
+    await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Kitchen-table dance'));
+    await click(button('Save title'));
+    await until(() => host.querySelector('[role="alert"]'), 'the refusal');
+    const words = plain(host.querySelector('[role="alert"]').textContent);
+    expect(words).toContain('can no longer be kept because it rests on a post 42 no longer shows');
+    expect(words).toContain('remove it');
+    expect(words).not.toMatch(/\bc3\b/);
+    expect(words).not.toContain('Send keep');
+    await click(button('Reload'));
+    await until(() => withheldItem() && plain(withheldItem().textContent).includes(WITHHELD_WORDS), 'the withheld slot after Reload');
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+}
