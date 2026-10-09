@@ -38,9 +38,10 @@ What it does, in order:
 
 Scope (Albert, batch 6): evidence only. Posts and creators land, and the series and the closed days are not rewritten:
 the command writes no collection_health, item_daily or post_items row, and the counter rows it writes carry this run's
-id, so v_item_counter_daily_current does not read them. `--apply` runs only outside 02:00 to 06:30 SAST (check_quiet_hour)
-and refuses while a desk, gossip or song call does not match its stored params_hash, unless `--accept-unconfirmed` is
-given. The guard (assert_insert_only) allows exactly the nine statement texts this module builds.
+id, so v_item_counter_daily_current does not read them. `--apply` runs only outside 02:00 to 06:30 SAST (check_quiet_hour,
+read again before every insert batch, so a run that reaches the window stops between two batches with status stopped)
+and refuses while a desk, gossip or song call does not match its stored params_hash or has none (unchecked), unless
+`--accept-unconfirmed` is given. The guard (assert_insert_only) allows exactly the nine statement texts this module builds.
 
 `--dry-run` (the default) reads, parses and reports counts, how many rows are not yet stored, and the dry-run byte
 estimate of every statement. It writes no row and no file. `--apply` needs `--run-id` and `--receipts-dir`, writes the
@@ -109,6 +110,10 @@ class Refused(ValueError):
     """The run is stopped before it writes anything it should not."""
 
 
+class WindowClosed(Refused):
+    """The quiet hours began while an apply was running."""
+
+
 def panel_protocol(members):
     return job.panel_protocol(members, job.PRISM_PROTOCOL_VERSION)
 
@@ -126,7 +131,7 @@ def check_quiet_hour(clock=None):
     collect MERGE of the same post_id landing meanwhile could leave two rows."""
     now = (clock() if clock is not None else datetime.now(UTC)).astimezone(SAST)
     if COLLECT_BUSY[0] <= now.time() <= COLLECT_BUSY[1]:
-        raise Refused(f"it is {now.strftime('%H:%M:%S')} SAST; --apply runs outside 02:00 to 06:30 SAST only")
+        raise WindowClosed(f"it is {now.strftime('%H:%M:%S')} SAST; --apply runs outside 02:00 to 06:30 SAST only")
 
 
 def assert_insert_only(sql):
@@ -453,10 +458,13 @@ def run(client, *, since, until, apply, run_id, receipts_dir, fns, accept_unconf
     plan = build(raw, run_id=run_id if apply else "dry-run", item_id_fn=item_id_fn, geo_fn=geo_fn)
     verified = Counter((c["class"], {True: "confirmed", False: "unconfirmed", None: "unchecked"}[c["params_verified"]])
                        for c in plan.calls)
-    unconfirmed = {k: n for (k, state), n in verified.items() if state == "unconfirmed" and k in STRICT_CLASSES}
+    unconfirmed = {}
+    for (k, state), n in verified.items():
+        if state in ("unconfirmed", "unchecked") and k in STRICT_CLASSES:
+            unconfirmed[k] = unconfirmed.get(k, 0) + n
     if apply and unconfirmed and not accept_unconfirmed:
         raise Refused(f"{sum(unconfirmed.values())} desk, gossip or song calls do not match the params_hash stored with "
-                      f"them ({unconfirmed}); pass --accept-unconfirmed to go on")
+                      f"them or have none to match ({unconfirmed}); pass --accept-unconfirmed to go on")
     tables = rows_by_table(plan)
     batches = [(t, n, b) for t, rows in tables.items() for n, b in enumerate(_batches(rows, BATCH)) if b]
     estimates = {t: 0 for t in tables}
@@ -487,6 +495,7 @@ def run(client, *, since, until, apply, run_id, receipts_dir, fns, accept_unconf
     status, error = "ok", None
     try:
         for table, n, batch in batches:
+            check_quiet_hour(clock)
             sql, params = insert_sql(table), _params(table, batch)
             size = _dry(client, sql, params, WRITE_CAP)
             job_, _ = _run(client, sql, params, WRITE_CAP)
@@ -496,6 +505,9 @@ def run(client, *, since, until, apply, run_id, receipts_dir, fns, accept_unconf
                 "run_id": run_id, "table": table, "batch": n, "rows": len(batch), "inserted": affected,
                 "job_id": getattr(job_, "job_id", None), "bytes_estimated": size,
                 "bytes_billed": getattr(job_, "total_bytes_billed", None)})
+    except WindowClosed as exc:
+        status, error = "stopped", str(exc)[:500]
+        raise
     except Exception as exc:
         status, error = "failed", f"{type(exc).__name__}: {exc}"[:500]
         raise
@@ -517,7 +529,7 @@ def main(argv=None, *, client=None, fns=None, clock=None):
     args.add_argument("--until", default=WINDOW[1].isoformat(), help="last UTC fetch day, inside the window")
     args.add_argument("--receipts-dir", help="a new directory for calls.jsonl, statements.jsonl and summary.json")
     args.add_argument("--accept-unconfirmed", action="store_true",
-                      help="let --apply go on although a desk, gossip or song call does not match its stored params_hash")
+                      help="let --apply go on although a desk, gossip or song call does not match its stored params_hash or has none")
     args.add_argument("--principal", default=PRINCIPAL)
     opts = args.parse_args(argv)
     try:
