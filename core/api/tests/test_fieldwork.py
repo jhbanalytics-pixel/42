@@ -239,7 +239,7 @@ def test_a_source_that_answered_but_landed_nothing_says_so_not_not_usable():
     out = fieldwork.build_fieldwork(Patched(collection_health=lambda d: rows), D30, now=NOW)
     feed = source(out, "ZA", "feed_tiktok")
     assert feed["status"] == "failed"
-    assert feed["status_words"] == "Failed: answered but returned no posts or counts"
+    assert feed["status_words"] == "Failed: answered but returned nothing for a second day"
 
 
 def test_the_sound_curve_series_says_it_is_no_longer_written():

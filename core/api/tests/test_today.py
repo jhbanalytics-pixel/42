@@ -2190,7 +2190,7 @@ def test_a_zero_yield_series_is_worded_as_a_source_that_answered_but_returned_no
     broken = dict(health_row("instagram", "ig_location", False, reason="calls"), calls=4, calls_ok=0)
     store = Patched(collection_health=lambda date: [answered, broken])
     za = market(today.build_today(store, D30), "ZA")
-    assert za["coverage"]["issues"] == ["TikTok: answered but returned no posts or counts",
+    assert za["coverage"]["issues"] == ["TikTok: answered but returned nothing for a second day",
                                         "Instagram location posts: could not be read"]
     assert not any("not usable" in i for i in za["coverage"]["issues"])
     failed = [b["text"] for b in za["banners"] if "failed today" in b["text"]]
