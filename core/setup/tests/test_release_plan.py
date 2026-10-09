@@ -330,3 +330,30 @@ def test_plan_r4_the_two_real_deploy_forms_are_allowed_and_equals_forms_parse():
 ])
 def test_plan_r4_a_flag_outside_the_positive_list_or_used_twice_or_on_the_wrong_service_is_refused(call):
     assert not plan.deploy_call_allowed(call)
+
+
+def swapped(call, old, new):
+    return [new if a == old else a for a in call]
+
+
+SA_AGENT = "f42-agent@ogilvy-trends-v2.iam.gserviceaccount.com"
+IMAGE_AGENT = "r/f42-web@sha256:" + "ab" * 32
+WITHOUT_SA = [a for i, a in enumerate(AGENT_REAL) if a != "--service-account" and AGENT_REAL[i - 1] != "--service-account"]
+WITHOUT_ENV = [a for i, a in enumerate(AGENT_REAL) if a != "--update-env-vars" and AGENT_REAL[i - 1] != "--update-env-vars"]
+
+
+@pytest.mark.parametrize("label, call", [
+    ("wrong project", swapped(AGENT_REAL, "ogilvy-trends-v2", "other-project")),
+    ("wrong region", swapped(AGENT_REAL, "us-central1", "europe-west1")),
+    ("image by tag", swapped(AGENT_REAL, IMAGE_AGENT, "r/f42-web:latest")),
+    ("no service account", WITHOUT_SA),
+    ("no --update-env-vars", WITHOUT_ENV),
+    ("--min-instances=x", ["--min-instances=x" if a == "1" and AGENT_REAL[i - 1] == "--min-instances" else a for i, a in enumerate(AGENT_REAL)
+                           if not (a == "--min-instances" and AGENT_REAL[i + 1] == "1")]),
+    ("tag differs from the revision suffix", [("rel-d666ef6-02" if AGENT_REAL[i - 1] == "--tag" else a) for i, a in enumerate(AGENT_REAL)]),
+    ("--service-account --no-traffic", swapped(AGENT_REAL, SA_AGENT, "--no-traffic")),
+])
+def test_plan_cc3_the_eight_refusal_rows_of_the_positive_list(label, call):
+    assert plan.deploy_call_allowed(AGENT_REAL)  # the base row is allowed, so each row below differs from it in the one thing named
+    assert call != AGENT_REAL
+    assert not plan.deploy_call_allowed(call), label

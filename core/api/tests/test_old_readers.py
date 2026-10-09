@@ -197,7 +197,7 @@ def test_the_corpus_clones_each_kind_once_per_state_and_keeps_the_written_rows_u
     rows, twin_of = world["rows"], world["twin_of"]
     written = [row for row in rows if "answer_meta" not in row["record"]]
     stored = len(twin_of) - len(h.STATES)  # written rows that already carry answer_meta (C1 lane 2), each with a key-absent twin
-    assert 0 <= stored <= 4 and len(written) == 4 and len(rows) == 4 + stored + len(h.STATES)
+    assert stored in (0, 4) and len(written) == 4 and len(rows) == 4 + stored + len(h.STATES)
     by_id = {h.ask_id_of(row): row for row in rows}
     for clone_id, twin_id in twin_of.items():
         clone, twin = by_id[clone_id]["record"], by_id[twin_id]["record"]
