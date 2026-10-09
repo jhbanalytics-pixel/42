@@ -84,6 +84,13 @@ def test_local_posts_come_back_from_the_share_and_the_known_count():
         assert locality.local_posts(*bad) is None, bad
 
 
+@pytest.mark.parametrize("share,known", [(1.25, 8), (1.5, 4), (2, 5), (-0.5, 8), (-1, 3)])
+def test_a_share_outside_zero_to_one_is_rejected_even_when_it_multiplies_to_a_whole_count(share, known):
+    assert locality.local_posts(share, known) is None
+    row = {"geo_status": "local", "local_share": share, "geo_known_posts7": known}
+    assert locality.geo_status(row) == "market_unconfirmed"
+
+
 @pytest.mark.parametrize("share,known,expected", [
     (7 / 8, 8, "local"), (5 / 8, 8, "market_unconfirmed"), (0.9, 10, "local"), (0.6, 100, "local"),
     (0.6, 8, "market_unconfirmed"), (0.2, 12, "market_unconfirmed"), (float("nan"), 12, "market_unconfirmed"),

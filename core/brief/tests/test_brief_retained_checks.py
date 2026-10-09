@@ -309,3 +309,46 @@ def test_a_standing_key_outside_the_four_words_is_not_trusted():
                                               "local why-now not checked"}
     assert job._critic_parts(row) == ("not ruled out", False)
 
+
+# Which span each failed code row digests. The expected digests are worked out here, from the texts the fake models
+# write, with hashlib directly: NFKC, whitespace runs as one space, SHA-256.
+
+
+def digest_of(text):
+    import hashlib
+    import unicodedata
+    return hashlib.sha256(" ".join(unicodedata.normalize("NFKC", text).split()).encode("utf-8")).hexdigest()
+
+
+def test_a_crowd_wording_cut_on_a_claim_keeps_the_digest_of_that_claim_not_the_sentence():
+    from core.brief.tests.test_brief_writer_claims import one_creator_pack
+
+    claim_text = 'Multiple creators post the "shaya step" dance.'
+    draft = good()
+    draft["claims"][0]["text"] = claim_text
+    draft["claims"][0]["number_ids"] = []
+    result = run(FakeModel([draft, draft]), pack=one_creator_pack())
+    rows = [r for r in result["checks"] if r["claim_id"] == "c1" and r["rule"] == "K4" and r["checker"] == "code"
+            and r["verdict"] == "cut"]
+    assert rows and all("crowd wording" in r["detail"] for r in rows)
+    assert {r["span_sha256"] for r in rows} == {digest_of(claim_text)}
+    assert digest_of(claim_text) != digest_of(draft["explanation"])
+
+
+def test_a_crowd_wording_cut_on_the_sentence_keeps_the_digest_of_the_sentence():
+    from core.brief.tests.test_brief_writer_claims import one_creator_pack
+
+    sentence = "Multiple creators pair the shaya step with braais, likely because of the holiday weekend."
+    draft = good(explanation=sentence)
+    result = run(FakeModel([draft, draft]), pack=one_creator_pack())
+    rows = [r for r in result["checks"] if r["claim_id"] is None and r["rule"] == "K4" and r["checker"] == "code"]
+    assert rows and {r["span_sha256"] for r in rows} == {digest_of(sentence)}
+
+
+def test_a_failed_sentence_place_check_keeps_the_digest_of_the_sentence():
+    sentence = "31 creators in Nigeria are posting the shaya step, likely because of the Heritage Day weekend."
+    result = run(FakeModel([good(explanation=sentence), good(explanation=sentence)]))
+    rows = [r for r in result["checks"] if r["claim_id"] is None and r["rule"] == "K3" and r["verdict"] == "cut"]
+    assert rows
+    assert {r["span_sha256"] for r in rows} == {digest_of(sentence)}
+    assert {job.retained_columns(r)["reason_code"] for r in rows} <= retained.REASON_CODES
