@@ -16,10 +16,8 @@ so which number it refused is not known.
 """
 import json
 import re
-import sys
 from pathlib import Path
-from datetime import date, datetime, timezone
-from decimal import Decimal
+from datetime import datetime, timezone
 
 import numpy as np
 import pytest
