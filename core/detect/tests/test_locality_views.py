@@ -106,7 +106,9 @@ def test_a_key_without_a_verification_row_is_invisible_to_both_views(con):
 
 
 def test_the_summary_that_agrees_with_itself_but_not_with_its_members_gets_no_verification_row(con):
-    members = [{"post_id": f"p{n}", "locality_class": c, "creator_key": f"t:{n}", "feed_sighted": False}
+    geo = {"local": ("NG", 0.9, "ext_region"), "foreign": ("AE", 0.9, "ext_region")}
+    members = [{"post_id": f"p{n}", "locality_class": c, "creator_key": f"t:{n}", "feed_sighted": False,
+                **dict(zip(("geo_market", "geo_confidence", "geo_source"), geo[c]))}
                for n, c in enumerate(["local"] * 5 + ["foreign"] * 3)]
     honest = row("honest", 8, 5, population_digest=digest(members))
     forged = row("forged", 8, 6, population_digest=digest(members))        # consistent counts, one member too many local
