@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_agent.feedback` (
 
 CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_agent.claim_checks` (
   answer_or_brief_id STRING, claim_id STRING, rule STRING, verdict STRING, checker STRING,
-  run_id STRING, reason STRING);
+  run_id STRING, reason STRING, span_sha256 STRING, reason_code STRING);
 
 CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_agent.briefs` (
   brief_date DATE NOT NULL, market STRING NOT NULL, run_id STRING NOT NULL,
@@ -109,6 +109,14 @@ ADD COLUMN IF NOT EXISTS `at` TIMESTAMP;
 
 ALTER TABLE `ogilvy-trends-v2.intelligence_42_agent.claim_checks`
 ADD COLUMN IF NOT EXISTS reason STRING;
+
+/* W8-DEC-14: a failed support or sentence check keeps the SHA-256 of the rejected span (after NFKC and whitespace
+   normalisation) and a reason code from a fixed list; never post text or model words. */
+ALTER TABLE `ogilvy-trends-v2.intelligence_42_agent.claim_checks`
+ADD COLUMN IF NOT EXISTS span_sha256 STRING;
+
+ALTER TABLE `ogilvy-trends-v2.intelligence_42_agent.claim_checks`
+ADD COLUMN IF NOT EXISTS reason_code STRING;
 
 ALTER TABLE `ogilvy-trends-v2.intelligence_42_agent.watches`
 ADD COLUMN IF NOT EXISTS status_at TIMESTAMP;

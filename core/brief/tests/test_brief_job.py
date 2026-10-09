@@ -2414,6 +2414,9 @@ def test_invalid_data_days_are_checked_before_the_briefs_own_holds():
 
 # intelligence_42_agent.claim_checks as get_table read it on staging, 29 September 2026 (all STRING, NULLABLE).
 STAGING_CLAIM_CHECKS = {"answer_or_brief_id", "claim_id", "rule", "verdict", "checker", "run_id", "reason"}
+# W8-DEC-14 adds these two columns, on a failed support or sentence check only. They are in core/schema/agent.sql as
+# ALTER ... ADD COLUMN and are not on staging until that file is applied, so it is applied before this job runs.
+RETAINED_COLUMNS = {"span_sha256", "reason_code"}
 # The reviewer's leak phrases (round 2): age readings past the word lists, names, contacts and post text.
 LEAKS = [
     "Thabo Mokoena is just dancing at home, nothing cultural", "one creator, Thabo Mokoena, made every clip",
@@ -2676,9 +2679,94 @@ def test_every_wording_is_bounded():
 def test_claim_checks_rows_fit_the_staging_table():
     r = brief(world(n=2), model=ScriptedModel(critic=("a scraping artefact", "all collected in one sweep")))
     assert checks(r)
+    retained_rows = 0
     for c in checks(r):
-        assert set(c) == STAGING_CLAIM_CHECKS
+        assert set(c) - RETAINED_COLUMNS == STAGING_CLAIM_CHECKS
+        assert set(c) & RETAINED_COLUMNS in (set(), RETAINED_COLUMNS)
+        retained_rows += bool(set(c) & RETAINED_COLUMNS)
         assert all(v is None or isinstance(v, str) for v in c.values())
+    assert retained_rows == len([c for c in checks(r) if c["verdict"] == "cut"])
+
+
+def test_cut_claim_check_rows_carry_the_two_retained_columns():
+    r = brief(world(n=2), model=ScriptedModel(critic=("a scraping artefact", "all collected in one sweep")))
+    assert any(set(c) - STAGING_CLAIM_CHECKS == RETAINED_COLUMNS for c in checks(r))
+
+
+class UnalteredStagingClient(Client):
+    """Rejects an unknown field in claim_checks the way BigQuery does when the ALTER has not been applied."""
+
+    def insert_rows_json(self, table, rows):
+        if table.endswith("claim_checks"):
+            bad = [i for i, row in enumerate(rows) if set(row) - STAGING_CLAIM_CHECKS]
+            if bad:
+                return [{"index": i, "errors": [{"reason": "invalid", "message": "no such field"}]} for i in bad]
+        return super().insert_rows_json(table, rows)
+
+
+def run_on_unaltered_staging(model, order=None):
+    client = UnalteredStagingClient(world(n=1))
+    if order is not None:
+        real = client.insert_rows_json
+        client.insert_rows_json = lambda table, rows: (order.append(table), real(table, rows))[1]
+    counts = job.run(client, D, chain=FakeChain(), model=model, make_sc=lambda run_id: SC, clock=lambda: EARLY,
+                     build_ctx=FakeCtx(), confirm=FakeConfirm(), campaign_hashtags=[],
+                     political_terms={m: ["election"] for m in MARKETS}, workers=5, core="core", agent="agent")
+    return client, counts
+
+
+def test_a_missed_alter_costs_the_diagnostics_never_the_brief():
+    model = ScriptedModel(claim_support={"Local creators are posting": ("unsupported", "x")})
+    client, counts = run_on_unaltered_staging(model)
+    assert len(client.inserted["agent.briefs"]) == len(MARKETS)
+    assert "agent.claim_checks" not in client.inserted
+    assert counts["claim_checks"]["status"] == "failed"
+    assert counts["claim_checks"]["rows"] > 0
+    assert "claim_checks" in counts["claim_checks"]["error"]
+
+
+def test_a_missed_alter_counts_the_rows_it_did_write(monkeypatch):
+    monkeypatch.setattr(job, "INSERT_BATCH", 5)
+    model = ScriptedModel(claim_support={"Local creators are posting": ("unsupported", "x")})
+    client, counts = run_on_unaltered_staging(model)
+    written = client.inserted.get("agent.claim_checks", [])
+    assert 0 < len(written) < counts["claim_checks"]["rows"]
+    assert counts["claim_checks"]["status"] == "failed"
+    assert counts["claim_checks"]["written"] == len(written)
+
+
+def test_insert_returns_the_rows_it_wrote():
+    client = Client(world(n=1))
+    rows = [{"a": str(i)} for i in range(12)]
+    assert job._insert(client, "agent.x", rows) == 12
+    assert job._insert(client, "agent.x", []) == 0
+
+
+def test_a_client_that_raises_part_way_still_reports_the_rows_written(monkeypatch):
+    monkeypatch.setattr(job, "INSERT_BATCH", 5)
+
+    class Dies(Client):
+        def insert_rows_json(self, table, rows):
+            if len(self.inserted.get(table, [])) >= 10:
+                raise ConnectionError("reset")
+            return super().insert_rows_json(table, rows)
+
+    client = Dies(world(n=1))
+    with pytest.raises(job.InsertFailed) as e:
+        job._insert(client, "agent.x", [{"a": str(i)} for i in range(23)])
+    assert e.value.written == 10 == len(client.inserted["agent.x"])
+
+
+def test_briefs_are_written_before_claim_checks():
+    order = []
+    model = ScriptedModel(claim_support={"Local creators are posting": ("unsupported", "x")})
+    run_on_unaltered_staging(model, order)
+    assert order.index("agent.briefs") < order.index("agent.claim_checks")
+
+
+def test_claim_checks_are_written_and_not_reported_failed_on_an_altered_table():
+    r = brief(world(n=2), model=ScriptedModel(critic=("a scraping artefact", "all collected in one sweep")))
+    assert checks(r) and "claim_checks" not in r.counts
 
 
 # The suppression list (SETUP.md data protection): the brief stores nothing of a suppressed creator
@@ -2870,8 +2958,11 @@ def test_the_critics_answer_is_stored_in_the_briefs_payload_for_shown_and_held_i
         assert [c["item_id"] for c in all_cards(payload(shown, m))] == [item(m, 1)]
         assert all("critic" not in c for c in all_cards(payload(shown, m)))
         assert all("critic" not in i for i in payload(held, m)["held_back"]["items"])
-    # The claim_checks rows keep their fixed wording; the answer is not written there.
-    assert all(set(c) == CHECK_KEYS for c in checks(held))
+    # The claim_checks rows keep their fixed wording; the answer is not written there. A failed sentence check
+    # (the critic's cut) also carries the digest of the rejected sentence and a reason code (W8-DEC-14).
+    cut = [c for c in checks(held) if c["verdict"] == "cut"]
+    assert cut and all(set(c) == CHECK_KEYS | {"span_sha256", "reason_code"} for c in cut)
+    assert all(set(c) == CHECK_KEYS for c in checks(held) if c["verdict"] != "cut")
     assert {c["reason"] for c in checks(held) if c["rule"] == "critic"} == {
         "Critic: a simpler explanation was not ruled out: a paid campaign"}
 
