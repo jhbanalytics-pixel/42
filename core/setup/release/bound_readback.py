@@ -36,7 +36,8 @@ PROJECT, REGION = so.PROJECT, so.REGION
 # The gcloud commands this helper may issue. Anything else is refused before it runs.
 READ_PREFIXES = (("config", "list"), ("run", "services", "describe"), ("run", "services", "get-iam-policy"),
                  ("run", "revisions", "describe"), ("run", "revisions", "list"), ("run", "jobs", "describe"),
-                 ("artifacts", "docker", "images", "describe"), ("builds", "describe"), ("auth", "print-access-token"))
+                 ("artifacts", "docker", "images", "describe"), ("builds", "describe"), ("auth", "print-access-token"),
+                 ("run", "jobs", "executions", "list"), ("run", "jobs", "executions", "describe"))
 
 
 def gcloud_command():
@@ -53,10 +54,12 @@ class GcloudReader:
 
     def __init__(self, timeouts):
         self.gcloud_timeout, self.http_timeout = timeouts["gcloud"], timeouts["http"]
+        self.argv_log = []
 
     def _gcloud(self, args, *, raw=False):
         if not any(tuple(args[:len(prefix)]) == prefix for prefix in READ_PREFIXES):
             raise so.Stop("WRITE_REFUSED", "The helper issues read commands only")
+        self.argv_log.append(list(args))
         try:
             result = subprocess.run([*gcloud_command(), *args], stdin=subprocess.DEVNULL, capture_output=True,
                                     encoding="utf-8", errors="strict", timeout=self.gcloud_timeout)
@@ -91,6 +94,12 @@ class GcloudReader:
 
     def job(self, name):
         return self._gcloud(["run", "jobs", "describe", name, "--project", PROJECT, "--region", REGION, "--format=json"])
+
+    def executions(self, job):
+        return self._gcloud(["run", "jobs", "executions", "list", "--job", job, "--project", PROJECT, "--region", REGION, "--format=json"])
+
+    def execution(self, name):
+        return self._gcloud(["run", "jobs", "executions", "describe", name, "--project", PROJECT, "--region", REGION, "--format=json"])
 
     def policy(self):
         return self._gcloud(["run", "services", "get-iam-policy", "f42-agent", "--project", PROJECT, "--region", REGION,
