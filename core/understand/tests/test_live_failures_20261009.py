@@ -299,13 +299,19 @@ def _parse_json_calls(text):
 
 def _bound_parse_json(text):
     """(call, rounded) of every PARSE_JSON call in text whose first argument holds a bound parameter (@name, also
-    inside a CAST), or is a field of the alias of an UNNEST(@name); rounded when it says wide_number_mode => 'round'."""
+    inside a CAST), or is a field of the alias of an UNNEST(@name), or is a bare column in a text whose FROM or JOIN
+    reads an UNNEST(@name) with no alias, where the array's fields are the columns; rounded when it says
+    wide_number_mode => 'round'. An IN UNNEST(@name) reads no rows and binds nothing."""
     aliases = {m.group(1) for m in re.finditer(r"UNNEST\s*\(\s*@\w+\s*\)\s+(?:AS\s+)?(?!WITH\b|ON\b|WHERE\b|JOIN\b|"
                                               r"CROSS\b|LEFT\b|GROUP\b|ORDER\b|LIMIT\b)(\w+)", text, re.IGNORECASE)}
+    bare_rows = re.search(r"\b(?:FROM|JOIN)\s+UNNEST\s*\(\s*@\w+\s*\)\s*(?:$|[^\w\s]|(?:WITH|ON|WHERE|JOIN|CROSS|LEFT|"
+                          r"RIGHT|INNER|FULL|GROUP|ORDER|LIMIT|HAVING|QUALIFY|UNION|WINDOW)\b)", text, re.IGNORECASE)
     found = []
     for call, args in _parse_json_calls(text):
-        bound = re.search(r"@\w+", args[0]) or any(re.search(rf"\b{re.escape(a)}\s*\.\s*\w+", args[0], re.IGNORECASE)
-                                                  for a in aliases)
+        bound = (re.search(r"@\w+", args[0]) or any(re.search(rf"\b{re.escape(a)}\s*\.\s*\w+", args[0], re.IGNORECASE)
+                                                   for a in aliases)
+                 or (bare_rows and re.fullmatch(r"(?:CAST\s*\(\s*)?[A-Za-z_]\w*(?:\s+AS\s+\w+\s*\))?", args[0],
+                                                re.IGNORECASE)))
         rounded = any(re.fullmatch(r"wide_number_mode\s*=>\s*'round'", a, re.IGNORECASE) for a in args[1:])
         if bound:
             found.append((" ".join(call.split()), bool(rounded)))
@@ -326,6 +332,11 @@ def _unrounded_bound_parse_json(text):
     "SELECT PARSE_JSON(n.precision) FROM UNNEST(@rows) n",
     "SELECT parse_json(n.precision) FROM UNNEST( @rows ) AS n",
     "SELECT PARSE_JSON(CAST(n.precision AS STRING)) FROM UNNEST(@rows) n",
+    "SELECT PARSE_JSON(evidence), query_text FROM UNNEST(@rows)",
+    "SELECT PARSE_JSON(evidence)\nFROM UNNEST(@rows)\n",
+    "SELECT PARSE_JSON(CAST(evidence AS STRING)) FROM UNNEST( @rows ) WHERE TRUE",
+    "SELECT parse_json(evidence) FROM t CROSS JOIN unnest(@rows)",
+    "SELECT PARSE_JSON(evidence, wide_number_mode => 'exact') FROM UNNEST(@rows)",
 ])
 def test_the_bound_json_scan_finds_a_call_in_the_default_mode(text):
     assert len(_unrounded_bound_parse_json(text)) == 1
@@ -339,6 +350,11 @@ def test_the_bound_json_scan_finds_a_call_in_the_default_mode(text):
     "SELECT SAFE.PARSE_JSON(S.name) FROM t S",
     "SELECT PARSE_JSON(m.precision) FROM other m JOIN UNNEST(@rows) n ON n.k = m.k",
     "PARSE_JSON('{\"a\": 1}')",
+    "SELECT PARSE_JSON(evidence, wide_number_mode => 'round') FROM UNNEST(@rows)",
+    "SELECT PARSE_JSON(evidence) FROM t WHERE m IN UNNEST(@markets)",
+    "SELECT PARSE_JSON(evidence) FROM t",
+    "SELECT PARSE_JSON(evidence) FROM t JOIN UNNEST(@rows) AS n ON n.k = t.k",
+    "SELECT PARSE_JSON(CAST(evidence AS STRING)) FROM t",
 ])
 def test_the_bound_json_scan_leaves_a_call_that_is_rounded_or_not_bound(text):
     assert _unrounded_bound_parse_json(text) == []
@@ -360,7 +376,7 @@ def test_every_parse_json_of_a_bound_parameter_in_the_repo_asks_for_rounding():
             bound += [name for _ in _bound_parse_json(text)]
     assert set(bound) >= {
         "understand/sql/cluster_checkpoint.sql", "eval/sql/weekly_quality_insert.sql", "eval/blind_test.py",
-        "understand/embed.py", "understand/enrich.py", "detect/learn.py"}
+        "understand/embed.py", "understand/enrich.py", "detect/learn.py", "collect/calendar.py"}
     assert not unrounded, "default number mode:\n" + "\n".join(f"{name}: {call}" for name, call in unrounded)
 
 
@@ -373,6 +389,19 @@ def test_a_run_with_small_numbers_writes_its_clusters_once_the_checkpoint_rounds
     plan = con.execute("SELECT status FROM \"ogilvy-trends-v2\".intelligence_42_agent.runs "
                        "WHERE stage = 'understand_cluster_plan' ORDER BY status").fetchall()
     assert [s for (s,) in plan] == ["batch", "ready"]
+
+
+def test_the_checkpoint_summary_is_parsed_in_rounding_mode(monkeypatch):
+    """The summary parameter is the run's counts as JSON. A net that bills under 1e-04 USD puts model_usd in the
+    counts as 1.2e-05, the exponent form the exact mode refuses, so only a rounding PARSE_JSON(@summary) lets the
+    checkpoint through. The cluster, map and member payloads in this run are rounded either way."""
+    con, strict, execute = run_with(monkeypatch, StrictJson, small_valued())
+    counts = cluster.run_cluster(execute, run_date=DAY, market="za", model=NetModel(usage=(12, 0)))
+    assert strict.refused == []
+    assert counts["model_usd"] == 1.2e-05 and counts["clusters"] == 2
+    [summary] = con.execute("SELECT counts FROM \"ogilvy-trends-v2\".intelligence_42_agent.runs "
+                            "WHERE stage = 'understand_cluster_plan' AND status = 'ready'").fetchone()
+    assert json.loads(summary)["summary"]["model_usd"] == 1.2e-05
 
 
 # The 9 Oct counts, replayed through the job
