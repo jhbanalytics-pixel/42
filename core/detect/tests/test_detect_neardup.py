@@ -62,6 +62,66 @@ def test_the_sizes_do_not_depend_on_the_order_of_the_rows():
         assert neardup.near_dup_sizes(shuffled) == expected
 
 
+# The cost: identical captions are grouped first, and only the distinct texts are compared.
+
+OTHER = "My gran learned the new school dance in one afternoon"
+
+
+def comparisons(monkeypatch, *texts):
+    """(the number of Jaccard confirmations near_dup_sizes made, its sizes) over the given captions."""
+    seen = []
+    real = neardup.similar
+    monkeypatch.setattr(neardup, "similar", lambda a, b: seen.append(1) or real(a, b))
+    return seen, neardup.near_dup_sizes(rows(*texts))
+
+
+def test_a_large_cluster_of_one_masked_caption_does_not_grow_the_comparisons(monkeypatch):
+    small, small_sizes = comparisons(monkeypatch, *([CAPTION] * 200), OTHER)
+    large, large_sizes = comparisons(monkeypatch, *([CAPTION] * 2000), OTHER)
+    assert len(large_sizes) == 2000 and set(large_sizes.values()) == {2000}
+    assert set(small_sizes.values()) == {200}
+    assert len(large) == len(small) <= 4
+
+
+def test_a_cluster_of_varying_links_and_numbers_is_one_masked_text(monkeypatch):
+    texts = [f"{CAPTION} https://t.example/{i} {i}" for i in range(1500)] + [CAPTION.upper()] * 500 + [OTHER]
+    seen, sizes = comparisons(monkeypatch, *texts)
+    assert set(sizes.values()) == {2000} and len(sizes) == 2000
+    assert len(seen) <= 4
+
+
+def test_two_near_clusters_count_each_other_and_a_distant_one_does_not(monkeypatch):
+    variant = CAPTION + "!"
+    seen, sizes = comparisons(monkeypatch, *([CAPTION] * 300), *([variant] * 200), *([OTHER] * 50))
+    by_text = {t: {sizes[f"p{i}"] for i, x in enumerate([CAPTION] * 300 + [variant] * 200 + [OTHER] * 50)
+                   if x == t and f"p{i}" in sizes} for t in (CAPTION, variant, OTHER)}
+    assert by_text == {CAPTION: {500}, variant: {500}, OTHER: {50}}
+    assert len(seen) <= 12
+
+
+def test_the_sizes_equal_the_pairwise_definition_on_a_mixed_set():
+    from core.trust.independence import plain_text, shingles, similar
+    rng = random.Random(8)
+    pool = [CAPTION, CAPTION + "!", CAPTION.upper() + " https://x.example/1", OTHER, OTHER + " today",
+            "Matric farewell rehearsal went completely off the rails", "so true", "", None,
+            "Nobody told me the shaya step was this hard on the knees"]
+    texts = [rng.choice(pool) for _ in range(60)]
+    data = rows(*texts)
+    grams = {r["post_id"]: shingles(plain_text(r["text"])) for r in data if plain_text(r["text"])}
+    expected = {}
+    for a, ga in grams.items():
+        near = [b for b, gb in grams.items() if b != a and similar(ga, gb)]
+        if near:
+            expected[a] = 1 + len(near)
+    assert neardup.near_dup_sizes(data) == expected
+
+
+def test_a_post_listed_twice_counts_once_and_keeps_its_first_caption():
+    data = [{"post_id": "p0", "text": CAPTION}, {"post_id": "p0", "text": OTHER}, {"post_id": "p1", "text": CAPTION},
+            {"post_id": "p2", "text": OTHER}]
+    assert neardup.near_dup_sizes(data) == {"p0": 2, "p1": 2}
+
+
 # Reading and writing post_enrichment
 
 

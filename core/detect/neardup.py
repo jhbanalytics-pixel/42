@@ -42,25 +42,33 @@ def read_sql():
 
 
 def near_dup_sizes(rows):
-    """{post_id: size} for each post of rows ({post_id, text}) with size 2 or more."""
+    """{post_id: size} for each post of rows ({post_id, text}) with size 2 or more.
+
+    Posts are grouped by their exact masked caption first, and MinHash finds neighbours among the distinct captions
+    only, so the work follows the number of distinct captions and not the size of the largest cluster of copies. A
+    post's size is the number of posts whose caption is its own or a near duplicate of it, itself included."""
     from datasketch import MinHash, MinHashLSH
 
-    sets = {}
+    members, seen = {}, set()
     for r in sorted(rows, key=lambda r: r["post_id"]):
         plain = plain_text(r.get("text"))
-        if plain and r["post_id"] not in sets:
-            sets[r["post_id"]] = shingles(plain)
+        if plain and r["post_id"] not in seen:
+            seen.add(r["post_id"])
+            members.setdefault(plain, []).append(r["post_id"])
+    sets = {plain: shingles(plain) for plain in members}
     lsh, hashes = MinHashLSH(threshold=JACCARD, num_perm=NUM_PERM), {}
-    for pid, grams in sets.items():
+    for plain, grams in sets.items():
         m = MinHash(num_perm=NUM_PERM, seed=1)
         m.update_batch([g.encode("utf-8") for g in grams])
-        hashes[pid] = m
-        lsh.insert(pid, m)
+        hashes[plain] = m
+        lsh.insert(plain, m)
     sizes = {}
-    for pid, grams in sets.items():
-        near = [q for q in lsh.query(hashes[pid]) if q != pid and similar(grams, sets[q])]
-        if near:
-            sizes[pid] = 1 + len(near)
+    for plain, grams in sets.items():
+        size = len(members[plain])
+        size += sum(len(members[q]) for q in lsh.query(hashes[plain]) if q != plain and similar(grams, sets[q]))
+        if size > 1:
+            for pid in members[plain]:
+                sizes[pid] = size
     return sizes
 
 
