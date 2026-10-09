@@ -7,6 +7,7 @@ week is Monday 28 September to Sunday 4 October 2026, across a month end.
 
 import json
 import os
+import re
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -434,3 +435,304 @@ def test_the_staging_dry_run_skips_while_the_table_is_missing(con):
 @pytest.mark.skipif(os.environ.get("F42_BQ") != "1", reason="set F42_BQ=1 to dry-run on BigQuery staging")
 def test_the_append_dry_runs_on_staging_once_the_table_exists():
     dry_run_append(bigquery.Client(project=learn.PROJECT))
+
+
+# The weekly card and hold outcome step: information only
+
+
+def outcome_inputs(items=("item-secret-1", "item-secret-2")):
+    """What read_inputs returns for one published ZA card, one held item and a good detect run on every day."""
+    d = date(2026, 9, 20)
+    brief = {"brief_date": d, "market": "ZA", "run_id": "b1", "status": "published",
+             "published_at": datetime(2026, 9, 20, 5, tzinfo=timezone.utc),
+             "cards_json": json.dumps([{"item_id": items[0], "rank": 1, "state": "rising"}]), "more_json": "[]",
+             "held_json": json.dumps([{"item_id": items[1], "reason": "not_confirmed", "rule": "G3"}])}
+    states = [{"metric_date": date(2026, 9, 27), "market": "ZA", "item_id": items[0], "state": "peaking",
+               "base_state": None, "untested": False, "main_lane_class": "panel", "signal_lanes": ["panel"]},
+              {"metric_date": date(2026, 9, 27), "market": "ZA", "item_id": items[1], "state": "rising",
+               "base_state": None, "untested": False, "main_lane_class": "panel",
+               "signal_lanes": ["panel", "search_presence"]}]
+    days = [{"run_date": date(2026, 9, 10) + timedelta(days=i)} for i in range(40)]
+    return {"briefs": [brief], "states": states, "detect_days": days}
+
+
+META = [{"name": n, "job_id": f"job-{n}", "estimated_bytes": 1000, "bytes_processed": 900, "bytes_billed": 1048576,
+         "maximum_bytes_billed": 5 * 1024 ** 3, "cache_hit": False, "row_count": 1}
+        for n in ("briefs", "states", "detect_days")]
+
+
+@pytest.fixture(autouse=True)
+def outcome_reads(monkeypatch):
+    """The outcome step reads BigQuery SQL that the DuckDB harness cannot run; every test gets a fake read and
+    records how it was called."""
+    calls = []
+
+    def read(client, queries, start, end, **kw):
+        calls.append({"queries": queries, "start": start, "end": end, "kw": kw})
+        return outcome_inputs(), META
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", read)
+    return calls
+
+
+def outcome_counts(con):
+    return json.loads(learn_runs(con)[-1]["counts"])["card_outcome"]
+
+
+def test_learn_reads_the_outcome_window_ending_a_week_before_the_weeks_end_through_the_runner_queries(con, outcome_reads):
+    assert main(con) == 0
+    [call] = outcome_reads
+    assert call["end"] == date(2026, 9, 27) and call["start"] == date(2026, 8, 31)   # 4 weeks, ending t + 7 inside the week
+    assert call["queries"] is learn.card_outcome_read.QUERIES and set(call["queries"]) == {"briefs", "states", "detect_days"}
+    assert set(call["kw"]) == {"core", "agent", "deadline"}      # no byte cap of its own: the runner's caps stand
+
+
+def test_the_weekly_outcome_step_records_the_definition_window_bytes_and_group_counts_in_the_runs_row(con):
+    assert main(con) == 0
+    out = outcome_counts(con)
+    assert out["definition"] == "active28_by_base_v3" and out["horizon"] == 7
+    assert out["window"] == ["2026-08-31", "2026-09-27"] and out["error"] is None
+    assert out["bytes_billed"] == 3 * 1048576 and [q["name"] for q in out["queries"]] == ["briefs", "states", "detect_days"]
+    assert {(g["market"], g["hold_reason"]) for g in out["groups"]} == {("ALL", None)}      # no per-market or per-reason row
+    assert {g["stratum"] for g in out["groups"]} == {"all", "trend"}
+    published = next(g for g in out["groups"] if g["kind"] == "published" and g["market"] == "ALL" and g["stratum"] == "all")
+    held = next(g for g in out["groups"] if g["kind"] == "held" and g["market"] == "ALL" and g["hold_reason"] is None
+                and g["stratum"] == "all")
+    # the card is Peaking on a panel lane at t + 7: held. The held item is Rising but a search lane also signalled: unmeasured.
+    assert (published["n"], published["held"], published["unmeasured"], published["text"]) == (1, 1, 0, "not enough data")
+    assert (held["n"], held["held"], held["unmeasured"]) == (0, 0, 1)
+
+
+def test_the_outcome_counts_carry_no_item_id_title_or_row(con):
+    assert main(con) == 0
+    blob = learn_runs(con)[-1]["counts"]
+    assert "item-secret" not in blob and "item_id" not in blob and "title" not in blob
+
+
+def test_a_failing_outcome_read_is_recorded_and_the_learn_run_is_still_ok(con, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("warehouse said no")
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", boom)
+    assert main(con) == 0
+    [run] = learn_runs(con)
+    assert run["status"] == "ok" and len(scorecard_rows(con)) == 3
+    assert outcome_counts(con)["error"] == "RuntimeError: warehouse said no"
+
+
+def test_a_read_over_the_byte_cap_is_recorded_and_the_learn_run_is_still_ok(con, monkeypatch):
+    def refuse(*a, **k):
+        raise learn.card_outcome_read.Refused("states: estimate 6442450944 is over the 5368709120 byte cap")
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", refuse)
+    assert main(con) == 0
+    assert learn_runs(con)[-1]["status"] == "ok" and "byte cap" in outcome_counts(con)["error"]
+
+
+def test_the_scorecard_and_scores_are_identical_whether_the_outcome_step_succeeds_or_fails(con, monkeypatch):
+    def written(c):
+        """The three tables with every run id masked, and every result_hash too, since a hash digests rows that carry
+        the run id; the values the hashes stand for are compared in full."""
+        drop = ("scored_at", "finished_at")
+        tables = [scorecard_rows(c), score_rows(c, "forecast_score"), score_rows(c, "weekly_quality")]
+        text = json.dumps([[{k: v for k, v in r.items() if k not in drop} for r in t] for t in tables], default=str,
+                          sort_keys=True)
+        text = re.sub(r"(learn|forecast|quality)[-_a-z]*-\d{8}-[0-9a-f]+|[a-z_]+-\d{8}-[0-9a-f]{8,}", "RUN", text)
+        return re.sub(r"sha256:[0-9a-f]{64}", "HASH", text)
+
+    con.execute(SCORE_TABLES)
+    duck.load(con, "agent.forecasts", beats_persistence())
+    assert main(con) == 0
+    with_step = written(con)
+    other = duck.connect()
+    other.execute(EXTRA_TABLES)
+    duck.load(other, "core.credit_ledger", [ledger(date(2026, 9, 30), 6.0, item="i1"), ledger(date(2026, 10, 2), 2.0, item="i2")])
+    other.execute(SCORE_TABLES)
+    duck.load(other, "agent.forecasts", beats_persistence())
+
+    def boom(*a, **k):
+        raise RuntimeError("down")
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", boom)
+    assert main(other) == 0
+    without = written(other)
+    other.close()
+    assert with_step == without and "promotion_eligible" in with_step
+
+
+def test_a_rerun_after_an_ok_run_does_not_read_again_and_force_rerun_does(con, monkeypatch, outcome_reads):
+    assert main(con) == 0 and len(outcome_reads) == 1
+    assert main(con) == 0 and len(outcome_reads) == 1
+    assert "card_outcome" not in json.loads(learn_runs(con)[-1]["counts"])
+    monkeypatch.setenv("FORCE_RERUN", "1")
+    assert main(con) == 0 and len(outcome_reads) == 2
+
+
+def test_the_outcome_step_writes_nothing_and_creates_nothing(con):
+    client = LearnClient(con)
+    assert learn.main(["--week", WEEK.isoformat()], client=client, now=AFTER, core="core", agent="agent") == 0
+    assert not any("card_outcome" in sql for sql in client.sql)
+    assert not learn.table_exists(client, "agent", "card_outcome")
+
+
+ROOT = Path(learn.__file__).parents[2]
+READERS_OF_THE_MEASURE = {"core/eval/card_outcome.py", "core/eval/card_outcome_read.py", "core/detect/learn.py",
+                          "ops/card_outcome_report.py"}
+SOURCE = (".py", ".sql", ".mjs", ".js", ".jsx", ".yaml", ".yml", ".sh", ".json")
+
+
+def test_no_gate_threshold_card_or_hold_reads_the_outcome_measure():
+    found = set()
+    for folder in ("core", "ops", "app/src", "app/scripts"):
+        for path in (ROOT / folder).rglob("*"):
+            if (not path.is_file() or path.suffix not in SOURCE or "tests" in path.parts or "node_modules" in path.parts
+                    or path.name.startswith("test_") or "__pycache__" in path.parts):
+                continue
+            if "card_outcome" in path.read_text(encoding="utf-8", errors="ignore"):
+                found.add(path.relative_to(ROOT).as_posix())
+    assert found == READERS_OF_THE_MEASURE | {"core/eval/sql/card_outcome.sql", "core/schema/card_outcome.sql"}
+
+
+def test_learn_uses_the_outcome_measure_only_inside_its_step_and_stores_the_result_under_one_counts_key():
+    import ast
+
+    tree = ast.parse(Path(learn.__file__).read_text(encoding="utf-8"))
+    step = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "score_outcomes")
+    inside = {id(n) for n in ast.walk(step)}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id in ("card_outcome_read", "card_outcome"):
+            assert id(node) in inside, f"line {node.lineno} uses the outcome measure outside score_outcomes"
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "score_outcomes"]
+    assert len(calls) == 1
+    run = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "run")
+    [assign] = [n for n in ast.walk(run) if isinstance(n, ast.Assign) and any(c is calls[0] for c in ast.walk(n))]
+    assert ast.unparse(assign.targets[0]) == "counts['card_outcome']"
+    later = [n for n in ast.walk(run) if isinstance(n, ast.Name) and n.id in ("status", "error", "rows")
+             and isinstance(n.ctx, ast.Store) and n.lineno > assign.lineno]
+    assert later == []              # the run's status, error and rows are all settled before the step
+
+
+# O3 and O4. The outcome step is bounded by a deadline and reads the datasets learn was run with.
+
+
+@pytest.fixture
+def release():
+    """Lets a deliberately slow read finish once the test is over, so no thread outlives it."""
+    import threading
+
+    event = threading.Event()
+    yield event
+    event.set()
+
+
+def test_the_default_deadline_of_the_outcome_step_is_eight_minutes():
+    assert learn.OUTCOME_DEADLINE_SECONDS == 480
+
+
+def test_a_slow_outcome_read_times_out_and_the_runs_row_is_still_written(con, monkeypatch, release):
+    import time
+
+    monkeypatch.setattr(learn, "OUTCOME_DEADLINE_SECONDS", 0.3)
+
+    def slow(client, queries, start, end, **kw):
+        release.wait(20)
+        return outcome_inputs(), META
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", slow)
+    began = time.monotonic()
+    assert main(con) == 0
+    assert time.monotonic() - began < 10          # not 20: the run did not wait for the read
+    [run] = learn_runs(con)
+    assert run["status"] == "ok" and run["error"] is None and len(scorecard_rows(con)) == 3
+    assert json.loads(run["counts"])["card_outcome"]["status"] == "timeout"
+    assert "groups" not in json.loads(run["counts"])["card_outcome"]
+
+
+def test_a_read_that_finishes_inside_the_deadline_records_ok(con):
+    assert main(con) == 0
+    out = outcome_counts(con)
+    assert out["status"] == "ok" and out["error"] is None and out["groups"]
+
+
+def test_a_failed_read_records_status_error(con, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("warehouse said no")
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", boom)
+    assert main(con) == 0
+    assert outcome_counts(con)["status"] == "error"
+
+
+def test_a_read_that_runs_out_its_own_deadline_is_a_timeout_too(con, monkeypatch):
+    def late(*a, **k):
+        raise learn.card_outcome_read.DeadlineExceeded("states: the deadline passed")
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", late)
+    assert main(con) == 0
+    assert outcome_counts(con)["status"] == "timeout"
+
+
+def test_the_deadline_is_configurable_from_the_environment(con, monkeypatch, outcome_reads):
+    import time
+
+    monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", "90")
+    before = time.monotonic()
+    assert main(con) == 0
+    [call] = outcome_reads
+    assert before + 85 < call["kw"]["deadline"] <= time.monotonic() + 90
+
+
+def test_the_deadline_the_reads_get_is_the_one_for_the_whole_step(con, outcome_reads):
+    import time
+
+    before = time.monotonic()
+    assert main(con) == 0
+    [call] = outcome_reads
+    assert before + 470 < call["kw"]["deadline"] <= time.monotonic() + 480
+
+
+def test_a_late_read_cannot_change_what_was_recorded(con, monkeypatch, release):
+    monkeypatch.setattr(learn, "OUTCOME_DEADLINE_SECONDS", 0.2)
+    seen = []
+
+    def slow(client, queries, start, end, **kw):
+        release.wait(20)
+        seen.append("finished")
+        return outcome_inputs(), META
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", slow)
+    assert main(con) == 0
+    release.set()
+    import time
+
+    time.sleep(0.3)
+    assert json.loads(learn_runs(con)[-1]["counts"])["card_outcome"] == {
+        "definition": "active28_by_base_v3", "horizon": 7, "window": ["2026-08-31", "2026-09-27"],
+        "status": "timeout", "error": "the outcome step passed its 0.2 second deadline"}
+
+
+def test_learn_passes_its_own_dataset_names_to_the_outcome_reads(con, outcome_reads):
+    assert main(con) == 0
+    [call] = outcome_reads
+    assert call["kw"]["core"] == "core" and call["kw"]["agent"] == "agent"
+
+
+@pytest.mark.parametrize("value", ["", "abc", "0", "-5", "nan", "inf"])
+def test_a_bad_deadline_in_the_environment_falls_back_to_the_default(monkeypatch, value):
+    monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", value)
+    assert learn.outcome_deadline() == learn.OUTCOME_DEADLINE_SECONDS
+
+
+def test_a_read_left_behind_by_a_timeout_cannot_hold_the_process_open(con, monkeypatch, release):
+    import threading
+
+    monkeypatch.setattr(learn, "OUTCOME_DEADLINE_SECONDS", 0.2)
+
+    def slow(client, queries, start, end, **kw):
+        release.wait(20)
+        return outcome_inputs(), META
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", slow)
+    assert main(con) == 0
+    left = [t for t in threading.enumerate() if t.name == "learn-card-outcome"]
+    assert left and all(t.daemon for t in left)
