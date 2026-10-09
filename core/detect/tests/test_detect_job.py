@@ -994,3 +994,11 @@ def test_a_centroid_failure_is_recorded_and_detect_and_brief_carry_on(con, monke
     assert status == "ok" and finish_error is None
     assert finish_counts["item_centroids"] == {"status": "failed", "error": error}
     assert chain.of("start_next") == [("start_next", "detect", D)]
+
+
+def test_the_stats_step_reads_the_switch_from_the_jobs_own_agent_dataset(con, monkeypatch):
+    world(con)
+    seen = []
+    monkeypatch.setattr(stats, "run_stats", lambda *a, **k: seen.append(k) or 0)
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert seen == [{"core": "core", "agent": "agent"}]

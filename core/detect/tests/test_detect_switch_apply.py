@@ -671,3 +671,29 @@ def test_report_still_refuses_apply_with_or_without_a_file(tmp_path):
     for apply in (["--apply"], ["--apply", str(path)]):
         with pytest.raises(SystemExit):
             backtest.main(["--report", str(path), *apply])
+
+
+@pytest.mark.parametrize("status", ["error", "failed", "running"])
+def test_a_key_whose_only_row_cites_a_run_with_a_not_ok_runs_row_is_written_again(tmp_path, status):
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        old = "backtest-20261001-aaaaaaaaaaaa"
+        duck.load(con, "core.test_switch", [{**GOOD_ROW, "backtest_run_id": old}])
+        duck.load(con, "agent.runs", [backtest_run(run_id=old, status=status)])
+        assert apply_file(save(tmp_path, reviewed_result({"ZA|facebook|panel": key()})), client, tmp_path) == 0
+        assert sorted(r["backtest_run_id"] for r in stored(con)[0]) == sorted([old, RUN])
+        assert forced(con) == {("ZA", "facebook", "panel")}
+    finally:
+        con.close()
+
+
+def test_a_run_whose_runs_row_is_not_ok_does_not_count_as_already_applied(tmp_path):
+    from .test_detect_backtest import duck
+    con, client = apply_world()
+    try:
+        duck.load(con, "agent.runs", [backtest_run(status="error")])
+        assert apply_file(save(tmp_path, reviewed_result({"ZA|facebook|panel": key()})), client, tmp_path) == 0
+        assert len(stored(con)[0]) == 1
+    finally:
+        con.close()
