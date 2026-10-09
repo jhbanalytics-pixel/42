@@ -17,7 +17,7 @@ and the job logs one line naming them; the detect run still reads 'ok'. Before a
 date, any of the three days before it that has collection_health rows but no ok aggregate run is aggregated
 first, each with its own runs row; stats, coaction and state run for the run date only.
 A day whose understand run is partial with cluster_stack_failed (its clusterer produced nothing) still runs: state
-judges no topic (cluster) items that day, the detect counts carry topics_failed with the plain-words data_issue, and
+judges no topic items that day, the detect counts carry topics_failed with the plain-words data_issue, and
 every other item is judged as usual.
 Lane L1's chain helper opens and closes the detect run and starts the next job. Every write appends.
 
@@ -32,17 +32,23 @@ from pathlib import Path
 from google.cloud import bigquery
 
 from . import aggregate, breakout, centroids, coaction, forecasts, runs, seeds, sqlrun, stats, watches
+from .items import TOPIC_KIND
 
 PROJECT = "ogilvy-trends-v2"
 RULE_VERSION = "warmup-1"
 SQL = Path(__file__).parent / "sql"
 
 ITEM_STATE_COUNT_SQL = "SELECT COUNT(*) n FROM {core}.item_state s WHERE s.metric_date = @d AND s.run_id = @run_id"
+TOPIC_ITEM_STATE_COUNT_SQL = """
+SELECT COUNT(*) n FROM {core}.item_state s
+JOIN {core}.cultural_map cm ON cm.item_id = s.item_id AND cm.valid_to IS NULL
+WHERE s.metric_date = @d AND s.run_id = @run_id AND cm.kind = @kind
+"""
 
 CATCH_UP_DAYS = 3
 
 # Understand records a day whose clusterer produced nothing as ok but partial (counts.partial_reason). Detect then
-# judges no topic (cluster) items for that day and still runs for the rest.
+# judges no topic items for that day and still runs for the rest.
 TOPICS_PARTIAL_REASON = "cluster_stack_failed"
 TOPICS_DATA_ISSUE = "Data issue: topic grouping failed today"
 UNDERSTAND_COUNTS_SQL = """
@@ -228,11 +234,11 @@ def run_centroids_step(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
 
 
 def without_topics(script):
-    """state.sql with topic (cluster) items left out of item_state. It stops rather than guess if the join it extends
+    """state.sql with topic items left out of item_state. It stops rather than guess if the join it extends
     is no longer in the text exactly once."""
     if script.count(STATE_MAP_JOIN) != 1:
         raise RuntimeError("state.sql no longer has the cultural_map join detect extends to leave out topic items")
-    return script.replace(STATE_MAP_JOIN, STATE_MAP_JOIN + " AND cm.kind != 'cluster'")
+    return script.replace(STATE_MAP_JOIN, STATE_MAP_JOIN + f" AND cm.kind != '{TOPIC_KIND}'")
 
 
 def topics_failed_today(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
@@ -243,13 +249,20 @@ def topics_failed_today(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
     counts = json.loads(counts) if isinstance(counts, str) else counts
     if not isinstance(counts, dict) or counts.get("partial_reason") != TOPICS_PARTIAL_REASON:
         return None
-    return {"reason": TOPICS_PARTIAL_REASON, "topic_items_judged": 0,
-            "data_issue": counts.get("data_issue") or TOPICS_DATA_ISSUE}
+    return {"reason": TOPICS_PARTIAL_REASON, "data_issue": counts.get("data_issue") or TOPICS_DATA_ISSUE}
+
+
+def topic_items_judged(client, d, run_id, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """How many topic items this run's state step wrote to item_state for d. It is read back from item_state, so it
+    says what was judged and not what the stop was meant to leave out."""
+    rows = sqlrun.query(client, TOPIC_ITEM_STATE_COUNT_SQL, {"d": d, "run_id": run_id, "kind": TOPIC_KIND},
+                        core=core, agent=agent)
+    return rows[0]["n"]
 
 
 def run_state(client, d, run_id, rule_version, core=sqlrun.CORE, agent=sqlrun.AGENT, topics_failed=False):
     """Run the state.sql script (a temp function and the item_state INSERT) and return the rows it wrote. With
-    topics_failed, topic (cluster) items are not judged."""
+    topics_failed, topic items are not judged."""
     config = bigquery.QueryJobConfig(query_parameters=[
         bigquery.ScalarQueryParameter("d", "DATE", d),
         bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
@@ -303,6 +316,8 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
             print(f"detect {d.isoformat()}: {topics['data_issue']}; no topic items judged", file=sys.stderr)
         counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent,
                                          topics_failed=bool(topics))
+        if topics:
+            topics["topic_items_judged"] = topic_items_judged(client, d, detect.run_id, core, agent)
         counts["breakout"] = run_breakout_step(client, d, rule_version, core, agent)
         counts["watch"] = run_watch_step(client, d, detect.run_id, core, agent)
         counts["seeds"] = run_seeds_step(client, d, detect.run_id, core, agent)

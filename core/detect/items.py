@@ -52,6 +52,7 @@ from functools import cache
 from pathlib import Path
 
 KINDS = ("topic", "hashtag", "sound", "format", "meme", "creator", "brand", "event")
+TOPIC_KIND = "topic"
 HASHTAG_MAX = 100
 STOPLIST_PATH = Path(__file__).parent / "stoplist.yaml"
 

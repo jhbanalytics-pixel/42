@@ -17,7 +17,7 @@ import pytest
 from google.cloud import bigquery
 
 from .. import breakout, centroids, forecasts, job, runs, seeds, sqlrun, stats, watches
-from ..items import item_id
+from ..items import KINDS, TOPIC_KIND, item_id
 from . import duck
 from .fixtures import D, at, cmap, day, obs, post, run
 from .duck import run_duck, temp_macro
@@ -1011,7 +1011,7 @@ PARTIAL = {"partial": True, "partial_reason": "cluster_stack_failed", "partial_e
 
 def topic_world(con, *understand):
     world(con)
-    con.execute("UPDATE core.cultural_map SET kind = 'cluster' WHERE item_id = 'two'")
+    con.execute(f"UPDATE core.cultural_map SET kind = '{TOPIC_KIND}' WHERE item_id = 'two'")
     if understand:
         duck.load(con, "agent.runs", list(understand))
 
@@ -1067,7 +1067,41 @@ def test_the_newest_ok_understand_run_decides_when_a_clean_one_came_first(con):
 def test_the_topic_filter_changes_only_the_cultural_map_join_of_state_sql_and_stops_if_the_shape_moves():
     text = (job.SQL / "state.sql").read_text(encoding="utf-8")
     patched = job.without_topics(text)
-    assert patched != text and patched.count("cm.kind != 'cluster'") == 1
-    assert patched.replace(" AND cm.kind != 'cluster'", "") == text
+    stop = f" AND cm.kind != '{TOPIC_KIND}'"
+    assert patched != text and patched.count(stop) == 1
+    assert patched.replace(stop, "") == text
     with pytest.raises(RuntimeError):
         job.without_topics(text.replace("cm.item_id = a.item_id", "cm.item_id = a.item_id AND TRUE"))
+
+
+def test_the_topic_kind_is_the_kind_the_understand_clusterer_writes_and_a_real_item_kind():
+    assert TOPIC_KIND == "topic" and TOPIC_KIND in KINDS
+    assert "cluster" not in KINDS
+
+
+def test_topic_items_judged_is_counted_from_item_state_for_the_run_and_not_taken_as_zero(con):
+    topic_world(con)
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    topic_rows = [r for r in current(con, "v_item_state_current") if r["item_id"] == "two"]
+    assert len(topic_rows) == 1
+    rid = con.execute("SELECT run_id FROM core.item_state WHERE item_id = 'two'").fetchone()[0]
+    assert job.topic_items_judged(JobClient(con), D, rid, core="core", agent="agent") == 1
+    assert job.topic_items_judged(JobClient(con), D, "some-other-run", core="core", agent="agent") == 0
+
+
+def test_if_the_stop_ever_lets_a_topic_item_through_the_detect_counts_say_so(con, monkeypatch):
+    topic_world(con, understand_row(counts=PARTIAL))
+    monkeypatch.setattr(job, "without_topics", lambda script: script)
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new", "two"}
+    assert counts["topics_failed"]["topic_items_judged"] == 1
+
+
+def test_the_kind_understand_writes_for_a_new_topic_item_is_the_kind_detect_stops_on():
+    from core.understand import cluster as understand_cluster
+
+    c = {"cluster_id": "20260928-za-000", "label": "A topic", "centroid": [1.0, 0.0], "market": "za",
+         "platform": "tiktok", "keywords": ["a"], "local_terms": [], "members": [("p1", 1.0)]}
+    planned = understand_cluster.plan([c], [{"kind": "new", "item_id": None, "candidates": []}], [], D, "za")
+    [row] = planned["map_rows"]
+    assert row["change"] == "insert" and row["kind"] == TOPIC_KIND
