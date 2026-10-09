@@ -225,11 +225,12 @@ test(`a checked ${kind} projection appears before the short answer prose`, async
 });
 }
 
-test('only draft=1 marks an Ask query as unsubmitted', () => {
+test('every Ask query that carries a question is a draft, whatever else the address says', () => {
   expect(parseAskQuery('#/ask?q=football&draft=1').draft).toBe(true);
-  for (const value of ['true', '0', '01', '']){
-    expect(parseAskQuery('#/ask?q=football&draft=' + value).draft).toBeUndefined();
+  for (const extra of ['&draft=true', '&draft=0', '&draft=01', '&draft=', '&live=1', '&live=1&draft=0']){
+    expect(parseAskQuery('#/ask?q=football' + extra).draft).toBe(true);
   }
+  expect(parseAskQuery('#/ask').draft).toBeUndefined();
 });
 
 test('a checked platform list leads the full Ask answer and opens its original cited source', async () => {

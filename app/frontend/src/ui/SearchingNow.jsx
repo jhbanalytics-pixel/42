@@ -1,4 +1,5 @@
 import {REGION_NAME} from '../model.js';
+import {PlatformLogo} from './PlatformLogo.jsx';
 import {useEffect, useState} from 'react';
 import '../styles/searching-now.css';
 
@@ -7,13 +8,13 @@ const FIELDS = new Set(['term', 'market', 'source', 'rank', 'refreshed_at']);
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const UTC_TIMESTAMP = /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?Z$/;
 
-/* Each Google source the API may send: whether it is the live list or a
-   daily one, the word a row shows, the full name in its title, and the clause
-   the header uses for its freshness. Live sorts before daily. */
+/* The one Google source the strip shows: the live trending list, as search
+   interest and never as post evidence (decision W8-DEC-04). The daily sources
+   (google_bq, google_rss) are no longer shown, so a row from them is unusable
+   here. Each source names the word a row shows, the full name in its title and
+   the clause the header uses for its freshness. */
 const SOURCES = {
   google_trending: {live: true, word: 'live', title: 'Google live trending searches', clause: 'Live trending', order: 0},
-  google_bq: {live: false, word: 'daily', title: 'Google daily top and rising terms', clause: 'Daily top terms', order: 1},
-  google_rss: {live: false, word: 'daily', title: 'Google Trends daily feed', clause: 'Daily feed', order: 2},
 };
 
 /* A term that names its own market reads as local: country name or demonym. */
@@ -111,7 +112,8 @@ function refreshMs(value){
 /* Only a live fetch timestamp can establish an age under one hour. A plain
    day carries no time of day, so it cannot earn the fresh mark. */
 export function isFresh(signal, now = Date.now()){
-  if (!SOURCES[signal.source].live) return false;
+  const source = SOURCES[signal.source];
+  if (!source || !source.live) return false;
   if (DATE_ONLY.test(signal.refreshed_at)) return false;
   const age = now - Date.parse(signal.refreshed_at);
   return age >= 0 && age < HOUR;
@@ -200,6 +202,7 @@ export function SearchingNow({signals, market, nameMarket = true, now}){
   return (
     <section className="searching-now" data-section="searching-now" aria-label="Trending on Google">
       <header className="searching-now__header">
+        <PlatformLogo platform="google" size={24} className="searching-now__logo" />
         <h2 className="searching-now__heading">
           Trending on Google
           {single && nameMarket && <span className="searching-now__place"> · {REGION_NAME[market]}</span>}
