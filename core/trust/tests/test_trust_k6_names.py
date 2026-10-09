@@ -23,6 +23,7 @@ NAMES = [
     "Babu Owino said", "Bibi Titi Mohamed", "Koko Rapapa", "Hon. Babu Owino spoke", "Gogo Skhotheni new show",
     "Koko Chanel", "Ugogo Skhotheni was on air", "Raila, Babu and Sifuna joined the rally",
     "Babu Owino won and later Babu thanked supporters", OCT7_KE_CLAIM,
+    "Babu, Raila and Sifuna joined",
     "babu owino said", "BABU OWINO said", "BABU Owino said", "babu Owino said",
 ]
 
