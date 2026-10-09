@@ -48,6 +48,14 @@ ALLOWED = {
     "trust/gate.py::_pack_scope": "G6 as written for v1, used only for a card not on the v2 basis",
     "trust/locality.py::read_locality": "local_share of the retained v2 row",
     "trust/locality.py::locality_block": "local_share of the retained v2 row",
+    # W8-DEC-17 on the v1 basis (trust-tighten): the label of a row whose item_state geo_status is the card's source.
+    # brief/payload.py _flag calls it only for a row whose scope did not come from locality_v2.1.
+    "trust/locality.py::geo_status": "the v1 basis label: reads geo_status and local_share of a row on the v1 basis",
+    "trust/locality.py::local_posts": "the v1 basis label: the whole count of local posts a v1 row's share gives back",
+    # The rival window (intel-rivals) shows item_state's local_share as one descriptor number of the trend, beside the
+    # card and never as an admission input.
+    "brief/evidence.py::<module>": "rival_state descriptor: item_state local_share shown as an observation",
+    "brief/sql/evidence.sql::rival_state": "rival_state descriptor: item_state local_share shown as an observation",
     # Detect: the producer of geo_status and local_share, the shadow comparison, and the one place a row's basis decides.
     "detect/sql/state.sql::<file>": "producer of geo_status and local_share; eligible follows @authority; eligible_v1 kept",
     "detect/sql/watches.sql::items": "geo_status line applies only to a row not on the v2 basis",
@@ -61,6 +69,8 @@ ALLOWED = {
 }
 
 PENDING = {
+    "api/discover.py::_market_posts_all_news": "lane 2 (L-23): W8-DEC-12 reads the pack scope's news count; the switch needs the retained row",
+    "api/store.py::_item_states": "lane 2: the pack scope and its news column for a v1 row; the v2 basis reads the retained row",
     "api/discover.py::_build_card": "lane 2 (L-23): scope from the retained row, v1 fields kept and clamped",
     "api/discover.py::_flag": "lane 2 (L-23): flag from the retained row for a v2-basis row",
     "api/discover.py::_held": "lane 2 (L-23): held reason from the retained row for a v2-basis row",
