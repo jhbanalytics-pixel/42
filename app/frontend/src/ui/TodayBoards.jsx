@@ -37,7 +37,15 @@ const itemIdOf = (entry) => (isObject(entry) && typeof entry.item_id === 'string
 const validRank = (rank) => (typeof rank === 'number' && Number.isFinite(rank) && rank > 0 ? rank : null);
 const groupOf = (id) => (MUSIC.has(id) ? 'music' : APPS.has(id) ? 'apps' : 'social');
 const wordFor = (id) => WORDS[id] || (id ? platformWord(id) : '');
-const nameOf = (chart) => [chart.word, chart.list].filter(Boolean).join(' ');
+/* The server names a list in its own words and they start with the platform
+   ("Spotify daily chart"), so the platform word is left out when the list
+   already begins with it. */
+const startsWithWord = (word, list) => {
+  const w = word.toLowerCase();
+  const l = list.toLowerCase();
+  return w !== '' && l.startsWith(w) && !/[a-z0-9]/.test(l.charAt(w.length));
+};
+const nameOf = (chart) => (startsWithWord(chart.word, chart.list) ? chart.list : [chart.word, chart.list].filter(Boolean).join(' '));
 
 /* A chart's identity for counting. */
 const chartKey = (platform, list) => platform + '\u0000' + list;
@@ -133,6 +141,7 @@ function Row({chart, row, where, found}){
         <span className="tb-title">{name}</span>
         {artists && <span className="tb-artists">{artists}</span>}
         {count > 1 && <span className="tb-multi" title={others.length ? 'Also on ' + others.join('; ') : undefined}>On {count} charts</span>}
+        {others.length > 0 && <span className="tb-also">Also on {others.join('; ')}</span>}
         <span className="sr-only">. {where}</span>
       </span>
     </li>
@@ -145,6 +154,7 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
   const headId = base + '-h';
   const rowsId = base + '-rows';
   const where = chart.invalid ? '' : nameOf(chart);
+  const named = Boolean(chart.list) && startsWithWord(chart.word, chart.list);
   const shown = open ? chart.rows : chart.rows.slice(0, TOP);
   const more = chart.rows.length > TOP;
   const flagged = chart.state === 'invalid';
@@ -158,8 +168,12 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
       <div className="tb-card-head">
         <span className="tb-logo"><PlatformLogo platform={chart.id} size={22} /></span>
         <Heading className="tb-card-title" id={headId}>
-          <span className="tb-platform fact-unit">{flagged ? 'Unknown source' : chart.word || 'Unnamed source'}</span>
-          {chart.list && <>{' '}<span className="tb-list fact-unit">{chart.list}</span></>}
+          {named
+            ? <span className="tb-list tb-list-named fact-unit">{chart.list}</span>
+            : <>
+                <span className="tb-platform fact-unit">{flagged ? 'Unknown source' : chart.word || 'Unnamed source'}</span>
+                {chart.list && <>{' '}<span className="tb-list fact-unit">{chart.list}</span></>}
+              </>}
         </Heading>
       </div>
       {chart.state === 'ok'

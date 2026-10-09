@@ -119,6 +119,12 @@
   font-size: var(--t-3);
 }
 
+.tb-list-named {
+  color: var(--ink);
+  font-size: inherit;
+  font-weight: 600;
+}
+
 .tb-caption {
   margin: 0 0 var(--s-1);
   color: var(--muted);
@@ -185,6 +191,14 @@
   color: var(--accent-text, var(--ink-2));
   font-size: var(--t-2);
   line-height: 1.5;
+}
+
+/* The other charts that hold the same item, as text a keyboard or touch reader can reach. */
+.tb-also {
+  color: var(--muted);
+  font-size: var(--t-2);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .tb-more {

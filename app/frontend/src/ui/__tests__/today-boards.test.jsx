@@ -600,3 +600,72 @@ test('the stylesheet gives the disclosure a visible focus ring, wraps long text 
   expect(text).not.toMatch(/font-size:\s*\d+px/);
   expect(text).not.toMatch(new RegExp('[' + String.fromCharCode(0x2013, 0x2014) + ']'));
 });
+
+/* The platform word, said once (N5) */
+
+/* The server names every list in its own words and those words start with the
+   platform ("Spotify daily chart", "Apple Music chart", "YouTube trending board"). */
+const serverBoards = () => [
+  board('spotify', 'Spotify daily chart', [entry(1, 'Shared Song by Shared Artist', 'shared'), entry(2, 'Only Here by Someone', 'only')]),
+  board('apple_music', 'Apple Music chart', [entry(1, 'Shared Song by Shared Artist', 'shared')]),
+  board('youtube', 'YouTube trending board', [entry(1, 'A video', 'v1')]),
+  board('tiktok', 'Culture accounts we follow', [entry(1, '#fixture', 't1')]),
+];
+
+test('a list the server names with its platform is not said with the platform twice', () => {
+  show({boards: serverBoards()});
+  const heads = [...host.querySelectorAll('.tb-card-title')].map((node) => node.textContent);
+  expect(heads).toEqual(['Spotify daily chart', 'Apple Music chart', 'YouTube trending board', 'TikTok Culture accounts we follow']);
+  for (const card of host.querySelectorAll('[data-board-card]')) expect(card.textContent).not.toMatch(/(Spotify|Apple Music|YouTube) \1/);
+});
+
+test('the hidden chart name on each row and the Also on names say the platform once', () => {
+  show({boards: serverBoards()});
+  const spotifyRow = rowsOf(cardFor('Spotify'))[0];
+  expect(spotifyRow.querySelector('.sr-only:last-child').textContent).toBe('. Spotify daily chart');
+  const text = (node) => node.textContent.replace(/\s+/g, ' ');
+  expect(text(spotifyRow)).not.toMatch(/Spotify Spotify/);
+  expect(spotifyRow.querySelector('.tb-multi').getAttribute('title')).toBe('Also on Apple Music chart');
+  const appleRow = rowsOf(cardFor('Apple Music'))[0];
+  expect(appleRow.querySelector('.tb-multi').getAttribute('title')).toBe('Also on Spotify daily chart');
+});
+
+test('a list name that only begins with the same letters as the platform keeps the platform word', () => {
+  show({boards: [board('x', 'Xylophone trends', [entry(1, 'a', 'a')])]});
+  expect(host.querySelector('.tb-card-title').textContent).toBe('X Xylophone trends');
+});
+
+/* The Also on names are text on the page (7b-6) */
+
+test('the Also on names are visible text beside the count, not only a hover title', () => {
+  show({boards: serverBoards()});
+  const row = rowsOf(cardFor('Spotify'))[0];
+  const also = row.querySelector('.tb-also');
+  expect(also.textContent).toBe('Also on Apple Music chart');
+  expect(also.hasAttribute('hidden')).toBe(false);
+  expect(also.closest('[aria-hidden="true"]')).toBeNull();
+  expect(rowsOf(cardFor('Spotify'))[1].querySelector('.tb-also')).toBeNull();
+  expect(host.querySelector('[data-board-card] .tb-also')).not.toBeNull();
+});
+
+test('a row on three charts names both of the other two', () => {
+  show({boards: [
+    board('spotify', 'Daily top songs', [entry(1, 'Hit by Star', 'hit')]),
+    board('apple_music', 'Top 100: South Africa', [entry(3, 'Hit by Star', 'hit')]),
+    board('shazam', 'Shazam national chart', [entry(9, 'Hit by Star', 'hit')]),
+  ]});
+  const row = rowsOf(cardFor('Spotify'))[0];
+  expect(row.querySelector('.tb-multi').textContent).toBe('On 3 charts');
+  expect(row.querySelector('.tb-also').textContent).toBe('Also on Apple Music Top 100: South Africa; Shazam national chart');
+});
+
+/* The All view hands every card the brief day (N3, mutant B14) */
+
+test('every card caption in All reads the brief day, with nothing missing after it', () => {
+  show({groups: [
+    {market: 'ZA', label: 'South Africa', boards: [board('spotify', 'Spotify daily chart', [entry(1, 'A by B', 'a')])]},
+    {market: 'NG', label: 'Nigeria', boards: [board('youtube', 'YouTube trending board', [entry(1, 'V', 'v')])]},
+  ], day: PAST});
+  const captions = [...host.querySelectorAll('.tb-caption')].map((c) => c.textContent);
+  expect(captions).toEqual(['Best rank on 30 September 2026', 'Best rank on 30 September 2026']);
+});
