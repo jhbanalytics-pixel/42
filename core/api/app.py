@@ -833,7 +833,7 @@ async def api_skin_report(skin_id: str, request: Request) -> Response:
     _check_skin_id(skin_id)
     auth.ask_limiter.check(request)
     skin = await _skin(skin_id)
-    return _passthrough(await _forward("POST", "/api/investigations", json_body=skins.report_plan(skin)))
+    return await _again(await _forward("POST", "/api/investigations", json_body=skins.report_plan(skin)), "investigation")
 
 
 @gated.post("/api/feedback")

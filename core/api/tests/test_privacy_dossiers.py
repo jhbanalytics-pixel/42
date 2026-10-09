@@ -467,3 +467,30 @@ def test_each_mask_form_the_stored_words_lack_is_refused_in_a_title_and_in_a_not
         r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "from_version": 2, **body})
         assert r.status_code == 409 and r.json()["error"] == "not_ready"
     assert len(versions(did)) == before
+
+
+def test_a_note_with_a_mask_on_a_claim_that_had_no_note_is_refused_not_stored(world):
+    hold(source())
+    did = world.client.post("/api/dossiers", json={"from": {"ask_id": ASK}}).json()["dossier_id"]
+    before = len(versions(did))
+    r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "notes": {"c1": "ask @*** about this"},
+                                                       "from_version": 1})
+    assert r.status_code == 409 and r.json()["error"] == "not_ready" and len(versions(did)) == before
+
+
+def test_a_masked_title_sent_back_with_trailing_space_is_still_the_stored_title(world):
+    did = named_draft(world)
+    world.store.hide = {"c_hid"}
+    view = world.client.get(f"/api/dossiers/{did}").json()
+    r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "title": view["title"] + " \n",
+                                                       "from_version": view["version"]})
+    assert r.status_code == 200 and versions(did)[-1]["title"] == "Amapiano and @hid_handle"
+
+
+def test_words_that_keep_a_mask_the_stored_words_already_hold_are_not_refused(world):
+    hold(source())
+    made = world.client.post("/api/dossiers", json={"from": {"ask_id": ASK}, "title": "Rated ***"}).json()
+    assert made["title"] == "Rated ***"  # created with it: only an edit that adds a mask is refused
+    r = world.client.put(f"/api/dossiers/{made['dossier_id']}", json={"keep": ["c1"], "title": "Rated *** twice",
+                                                                      "from_version": 1})
+    assert r.status_code == 200 and versions(made["dossier_id"])[-1]["title"] == "Rated *** twice"

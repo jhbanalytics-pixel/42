@@ -905,3 +905,32 @@ def test_a_dossier_view_keeps_its_summary_state_words_under_a_skin_mask_p12():
                              "posted_at": "2026-10-05T09:00:00+02:00", "market": "ZA", "text": "x"})
     masked = skins.mask_people(view, [], [])
     assert masked["summary_state"] == "removed" and masked["source_answer_meta"] == view["source_answer_meta"]
+
+
+# A4 and A5: what the fixture ids say they serve, and what F19, F20 and the removed fixtures carry.
+def test_f05_is_not_listed_as_servable_and_says_why_it_cannot_be():
+    from core.api import fixture_states
+    assert "F05" not in fixture_states.ids() and "F09" in fixture_states.ids()
+    with pytest.raises(ValueError, match="stop request"):
+        fixture_states.build("F05", {"ask_id": ASK}, {}, {})
+    with pytest.raises(ValueError) as error:
+        fixture_states.build("F99", {"ask_id": ASK}, {}, {})
+    assert "F05" not in str(error.value)
+
+
+def test_the_legacy_fixtures_carry_the_gaps_and_status_the_catalogue_names_p19(api, monkeypatch):
+    from core.agent import checks, plain, writer
+    k6 = plain.gap(checks._code_gap("Short answer removed", "K6", "the short answer text"))
+    f19 = ask_with_fixture(api, monkeypatch, "F19")["answer"]
+    f20 = ask_with_fixture(api, monkeypatch, "F20")["answer"]
+    assert f19["status"] == "partial" and k6 in f19["gaps"] and writer.HEADLINE_GAP not in f19["gaps"]
+    assert f20["status"] == "partial" and writer.HEADLINE_GAP in f20["gaps"] and k6 not in f20["gaps"]
+
+
+@pytest.mark.parametrize("fixture_id", sorted(CATALOGUE))
+def test_no_fixture_carries_the_same_gap_twice_p19(api, monkeypatch, fixture_id):
+    gaps = ask_with_fixture(api, monkeypatch, fixture_id)["answer"]["gaps"]
+    assert len(gaps) == len({json.dumps(g, sort_keys=True) for g in gaps})
+    if fixture_id == "F13":
+        from core.agent import writer
+        assert gaps.count(writer.HEADLINE_GAP) == 1 and writer.NARROWED_HEADLINE_GAP in gaps

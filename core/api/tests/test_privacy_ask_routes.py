@@ -469,3 +469,13 @@ def test_a_dossier_or_investigation_an_older_agent_returns_from_a_write_is_proje
         assert r.status_code == status, path
         assert leaks(r.json(), [P_HID1]) == [], path
         assert r.headers["cache-control"] == "no-store", path
+
+
+def test_the_skin_report_draft_an_older_agent_returns_is_projected_again_r7(api):
+    skin = {"skin_id": "sk_0123456789ab", "name": "Acme", "markets": ["ZA"], "terms": [], "hashtags": [], "accounts": []}
+    inv = {"investigation_id": "i_0123456789ab", "status": "draft", "question": ask_record()["question"],
+           "plan": {"focus": "Posts by @hid_handle"}, "record": ask_record()}
+    client = api.serve(older_agent({"/api/skins/sk_0123456789ab": (200, skin), "/api/investigations": (201, inv)}))
+    r = client.post("/api/skins/sk_0123456789ab/report", headers=GOOD)
+    assert r.status_code == 201 and leaks(r.json(), [P_HID1]) == [] and "@hid_handle" not in r.text
+    assert r.headers["cache-control"] == "no-store"

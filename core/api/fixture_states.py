@@ -46,7 +46,7 @@ STOP_REASONS = {"budget_full": None, "model_call_unverified": "usage_unknown"}
 
 
 def ids():
-    return sorted(set(SPECS) | {FAILS, *NO_STATE, "F05"})
+    return sorted(set(SPECS) | {FAILS, *NO_STATE})
 
 
 def removal_gaps(removals):
@@ -109,6 +109,8 @@ def build(fixture_id, request, base, run):
             answer.update(status="partial", short_answer="", gaps=answer["gaps"] + removal_gaps(
                 [("support_check", "claim_cut")]))
         return answer, None
+    if fixture_id == "F05":
+        raise ValueError("F05 needs a stop request from outside, which the fixture agent cannot make")
     if fixture_id not in SPECS:
         raise ValueError(f"F42_FIXTURE_STATE {fixture_id!r} is not a fixture this agent can serve: "
                          + ", ".join(ids()))

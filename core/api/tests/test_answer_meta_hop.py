@@ -163,8 +163,13 @@ def test_a_state_built_for_another_ask_reaches_no_page_t2(api, monkeypatch):
 
 
 # T3: the privacy projection holds answer_meta out of the pass and never judges it.
+class Called(BaseException):
+    """Not an Exception: the fault guards in summary_state catch Exception, so a verifier call cannot hide behind
+    them and read as an unverified value."""
+
+
 def boom(*_args, **_kwargs):
-    raise AssertionError("the projection called a verifier")
+    raise Called("the projection called a verifier")
 
 
 def block_verifiers(monkeypatch):
@@ -273,9 +278,10 @@ def test_an_a80_agent_forwarding_stored_rows_is_judged_with_the_full_check_t5(ap
     assert got[3] == {"check": "legacy_unknown"}
 
 
-@pytest.mark.xfail(strict=True, reason="deviation D1: believed on pairing over the hop; closed only by Q7")
+@pytest.mark.xfail(strict=True, raises=AssertionError,
+                   reason="deviation D1: believed on pairing over the hop; closed only by Q7")
 def test_an_a80_agent_forwarding_a_planted_wire_row_is_refused_t5(api, monkeypatch):
-    assert forwarded(api, monkeypatch, planted()) == FORBIDDEN
+    assert forwarded(api, monkeypatch, planted())["check"] == "unverified"  # whichever code refuses it closes D1
 
 
 # T6: the agent's wire value survives f42-api's second pass after the agent withheld content.

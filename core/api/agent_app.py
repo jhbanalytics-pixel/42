@@ -1365,11 +1365,14 @@ def stored_words(change, latest):
         return any(token in sent and token not in held for token in (skins.MASK, skins.URL_MASK, skins.LINK_MASK))
 
     def settle(sent, held, what):
-        if not isinstance(sent, str) or not isinstance(held, str) or sent.strip() == held.strip():
+        if not isinstance(sent, str):
             return sent
-        if same(sent, held):
+        text = held if isinstance(held, str) else ""  # a claim with no note holds no words, so any mask is new
+        if sent.strip() == text.strip():
+            return sent
+        if isinstance(held, str) and same(sent, held):
             return held
-        if carries_a_mask(sent, held):
+        if carries_a_mask(sent, text):
             raise dossiers.Refused(409, "not_ready", f"The {what} you sent holds words that were hidden when the page "
                                                      "was loaded. Reload the dossier and send your edit again.")
         return sent
