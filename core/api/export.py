@@ -74,9 +74,11 @@ _SINGULAR = {"posts": "post", "creators": "creator", "items": "item", "days": "d
 _RECORD_ID = re.compile(r"\bobs\d*_[0-9a-f]{8,}\b", re.I)
 _BUDGET_STOP = "model cost or usage could not be verified within the per-question budget"
 def short_answer_fallback(answer, why=None) -> str:
-    """What stands in for a short answer that is not there: what did pass, as the Ask page says it
-    (app/frontend/src/ask42.jsx noShortAnswer), then why the summary is missing. why is the sentence of the verified
-    state, or the neutral sentence when the state is legacy or unverified (core/api/summary_state.py)."""
+    """What stands in for a short answer that is not there: the count of what did pass, then why the summary is
+    missing. why is the sentence of the verified state, or the neutral sentence when the state is legacy or unverified
+    (core/api/summary_state.py). The Ask page writes the same line (noShortAnswer in app/frontend/src/ask42.jsx).
+    app/frontend/src/ui/__tests__/answer-meta.test.jsx pins the page to the words this function wrote for each summary
+    state, in the fixture it reads, so a change to the words here means making that fixture again."""
     claims = answer.get("claims") or []
     if not claims:
         return "Nothing passed the checks to sum up."
