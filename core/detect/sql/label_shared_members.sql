@@ -11,11 +11,11 @@ WITH pairs AS (
   WHERE t.cluster_date BETWEEN @start AND @end AND t.match_kind IN ('match', 'recurrence')
     AND IFNULL(t.label, '') != IFNULL(p.label, '')),
 shared AS (
-  SELECT q.cluster_date, q.cluster_id,
-    (SELECT COUNT(*) FROM {core}.cluster_members m1
-     JOIN {core}.cluster_members m2 ON m2.post_id = m1.post_id AND m2.cluster_id = q.prior_id
-     WHERE m1.cluster_id = q.cluster_id) shared_members
-  FROM pairs q)
+  SELECT q.cluster_date, q.cluster_id, q.prior_id, COUNT(m2.post_id) shared_members
+  FROM pairs q
+  LEFT JOIN {core}.cluster_members m1 ON m1.cluster_id = q.cluster_id
+  LEFT JOIN {core}.cluster_members m2 ON m2.post_id = m1.post_id AND m2.cluster_id = q.prior_id
+  GROUP BY q.cluster_date, q.cluster_id, q.prior_id)
 SELECT s.cluster_date, COUNT(*) label_changes,
   COUNTIF(s.shared_members >= 1) at_1, COUNTIF(s.shared_members >= 2) at_2, COUNTIF(s.shared_members >= 3) at_3
 FROM shared s GROUP BY s.cluster_date ORDER BY s.cluster_date
