@@ -134,7 +134,8 @@ export function stoppedEarly(record){
    agrees with whether the version holds a summary, else the neutral
    sentence. */
 export function dossierSummaryWords(view){
-  const claims = Array.isArray(view && view.claims) ? view.claims : [];
+  if (!isObject(view)) return NEUTRAL;
+  const claims = Array.isArray(view.claims) ? view.claims : [];
   if (claims.some((claim) => !claim || !claim.kept)) return OMITTED;
   const wire = view.body_v === 2 ? verifiedWire(view.source_answer_meta) : null;
   if (!wire) return NEUTRAL;

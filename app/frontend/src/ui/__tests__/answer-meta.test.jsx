@@ -232,6 +232,17 @@ test('F-01 each verified summary state gives its kind and the export sentence', 
   expect(sentence({state: 'removed', removals: [], rewrite: 'not_attempted'})).toEqual({kind: 'neutral', sentence: NEUTRAL});
 });
 
+test('F-01 a summary that is missing is explained only by a state that explains a missing summary', () => {
+  const notice = (state, removals = [], rewrite = 'not_attempted') => meta.summaryNotice({answer_meta: WIRE(state, {summary: {state, removals, rewrite}})});
+  expect(meta.missingSummarySentence(notice('shown_rewritten', [{stage: 'support_check', cause: 'claim_cut'}], 'kept'))).toBe(NEUTRAL);
+  expect(meta.missingSummarySentence(notice('shown'))).toBe(NEUTRAL);
+  expect(meta.missingSummarySentence(notice('fixed_text'))).toBe(NEUTRAL);
+  expect(meta.missingSummarySentence(notice('blank_unexplained'))).toBe('No one-line summary was written for this answer.');
+  expect(meta.missingSummarySentence(notice('no_answer'))).toBe('There is no answer: the run did not finish.');
+  expect(meta.missingSummarySentence(null)).toBe(NEUTRAL);
+  expect(meta.missingSummarySentence({kind: 'neutral', sentence: NEUTRAL})).toBe(NEUTRAL);
+});
+
 test('F-01 the status words of a verified run, and only of a verified run', () => {
   const run = (state, stop_reason) => ({answer_meta: WIRE('fixed_text', {execution: {state, stop_reason}})});
   expect(meta.statusWords(run('stopped_on_budget', 'budget_full'))).toBe("Stopped at this question's model budget, not for lack of evidence");
@@ -445,6 +456,8 @@ const DOSSIER_CASES = [
   ['a selection that leaves a claim out', {claims: dossierView().claims.map((claim, index) => ({...claim, kept: index === 0})), summary_state: 'omitted_by_selection'}, 'The one-line summary is left out because not every finding is kept.'],
   ['a body from before the state existed', {body_v: undefined, source_answer_meta: undefined, summary_state: 'legacy_unknown'}, NEUTRAL],
   ['a state that did not verify', {source_answer_meta: {check: 'unverified', problem: 'digest'}, summary_state: 'legacy_unknown'}, NEUTRAL],
+  ['a first version body that carries a verified state', {body_v: undefined, summary_state: 'legacy_unknown'}, NEUTRAL],
+  ['a body of a version this page does not know', {body_v: 3, summary_state: 'legacy_unknown'}, NEUTRAL],
   ['a removal the blank summary does not fit', {summary: 'Text the state says was removed.'}, 'Text the state says was removed.'],
   ['a shown state with no summary', {source_answer_meta: WIRE('shown'), summary_state: 'shown'}, NEUTRAL],
   ['a wire value with an extra key', {source_answer_meta: {...REMOVED_K6, digest: 'sha256:x'}}, NEUTRAL],
@@ -460,6 +473,14 @@ for (const surface of ['draft', 'frozen', 'shared']){
     });
   }
 }
+
+test('F-05 a dossier that holds a summary is never explained by a state that says it has none', () => {
+  const view = {...dossierView(), summary: 'Some words that are held.'};
+  expect(meta.dossierSummaryWords(view)).toBe(NEUTRAL);
+  expect(meta.dossierSummaryWords({...view, summary: ''})).toBe('The one-line summary was removed because it used a term or source the trust rules do not allow.');
+  expect(meta.dossierSummaryWords(null)).toBe(NEUTRAL);
+  expect(meta.dossierSummaryWords({})).toBe(NEUTRAL);
+});
 
 /* F-06: the words are the producer's words */
 
