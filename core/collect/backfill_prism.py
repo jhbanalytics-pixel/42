@@ -31,8 +31,8 @@ What it does, in order:
    when the same sound has a total on the previous day. Posts, observations and creators the song page might yield
    are counted and not written.
 
---dry-run (the default) reads, parses and reports counts, how many rows are not yet stored, and the dry-run byte
-estimate of every statement. It writes no row and no file. --apply needs --run-id and --receipts-dir, writes the
+`--dry-run` (the default) reads, parses and reports counts, how many rows are not yet stored, and the dry-run byte
+estimate of every statement. It writes no row and no file. `--apply` needs `--run-id` and `--receipts-dir`, writes the
 per-call receipts first, then the inserts batch by batch, a statement receipt after each, and a summary.
 
     py -3.13 -m core.collect.backfill_prism

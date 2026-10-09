@@ -276,6 +276,15 @@ def test_dry_run_and_apply_are_exclusive():
         run_cli(bq, "--dry-run", "--apply", "--run-id", "bf-run-1")
 
 
+def test_a_receipts_directory_that_holds_a_run_is_not_reused(tmp_path):
+    bq = DuckBQ(scenario())
+    assert run_cli(bq, *apply_args("bf-run-1"), receipts=tmp_path / "r") == 0
+    before = bq.log.copy()
+    assert run_cli(bq, *apply_args("bf-run-2"), receipts=tmp_path / "r") != 0
+    assert bq.log == before
+    assert json.loads((tmp_path / "r" / "summary.json").read_text())["run_id"] == "bf-run-1"
+
+
 def test_dry_run_is_the_default_and_writes_nothing(tmp_path, capsys):
     bq = DuckBQ(scenario())
     assert run_cli(bq) == 0
@@ -384,10 +393,16 @@ def test_every_executed_statement_is_a_select_or_an_insert(tmp_path):
     assert not any(STATEMENT_WORDS.search(e["sql"]) for e in bq.log)
 
 
+@pytest.mark.parametrize("word", ["UPDATE", "DELETE", "MERGE", "TRUNCATE", "DROP", "ALTER", "CREATE", "REPLACE", "EXPORT"])
+def test_the_guard_refuses_each_changing_word_inside_an_insert(word):
+    with pytest.raises(bf.Refused):
+        bf.assert_insert_only(f"INSERT INTO t SELECT 1 FROM (SELECT 1) WHERE x IN ({word.lower()} y)")
+
+
 def test_a_statement_that_is_not_a_select_or_an_insert_is_refused_by_the_guard():
     for sql in ("UPDATE t SET a = 1", "DELETE FROM t WHERE TRUE", "MERGE t USING s ON TRUE",
                 "INSERT INTO t SELECT 1; DELETE FROM t WHERE TRUE", "SELECT 1; DROP TABLE t",
-                "INSERT INTO t SELECT 1 WHERE EXISTS (SELECT 1) -- update"):
+                "INSERT INTO t SELECT 1 WHERE EXISTS (SELECT 1) " + "-" * 2 + " update"):
         with pytest.raises(bf.Refused):
             bf.assert_insert_only(sql)
     bf.assert_insert_only(bf.insert_sql("posts"))
@@ -520,6 +535,15 @@ def test_tiktok_song_writes_counters_only():
     plan = plan_of([r for r in scenario() if r["route"] == "tiktok/song"])
     assert plan.posts == [] and plan.observations == [] and plan.creators == []
     assert len(plan.counters) == 4
+
+
+def test_posts_a_song_page_carries_are_counted_and_not_written():
+    body = song_body("S1", 100)
+    body["data"]["items"] = [{"post": {"id": "v1", "url": "https://example.invalid/v1", "published_at": "2026-09-29T10:00:00Z",
+                                       "author": {"username": "someone"}}}]
+    plan = plan_of([raw("tiktok/song", "ZA", at(date(2026, 9, 30), 17, 49), body, seed_key="S1", lane="watchlist")])
+    assert plan.posts == [] and plan.observations == [] and plan.creators == []
+    assert [c["unit"] for c in plan.counters] == ["total"] and plan.calls[0]["dropped"] >= 2
 
 
 # source_market
