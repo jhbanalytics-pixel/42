@@ -113,7 +113,7 @@ SEED_FIELDS = (("seed_date", "DATE"), ("market", "STRING"), ("item_id", "STRING"
 def statements():
     """The named statements of seeds.sql, dataset placeholders left in."""
     out = {}
-    for piece in sqlrun.split(SQL.read_text(encoding="utf-8")):
+    for piece in sqlrun.split(sqlrun.for_authority(SQL.read_text(encoding="utf-8"))):
         m = _NAME.search(piece)
         out[m.group(1)] = sqlrun._strip_leading_comments(piece[m.end():])
     return out

@@ -116,7 +116,7 @@ def test_in_shadow_detect_runs_when_the_locality_views_are_absent(con, monkeypat
     got = duck.query(con, "SELECT item_id, eligible, locality_basis FROM {core}.item_state ORDER BY item_id", {})
     assert counts["locality_views"]["status"] == "failed" and counts["locality_shadow"]["status"] == "failed"
     assert counts["item_state"] == baseline["item_state"] and got == expected and got
-    assert {r["locality_basis"] for r in got} == {"v1"}
+    assert {r["locality_basis"] for r in got} == {None}        # v1 writes none of the three switch columns
 
 
 def test_when_authoritative_a_missing_locality_view_still_fails_state(con, monkeypatch):  # noqa: F811

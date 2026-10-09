@@ -280,13 +280,22 @@ _NO_CHECKED_ROWS = ("(SELECT CAST(NULL AS DATE) run_date, CAST(NULL AS STRING) i
                     "CAST(NULL AS STRING) detect_run_id, CAST(NULL AS STRING) checked_status LIMIT 0) k")
 
 
+# Under v1 the INSERT also names exactly the 36 columns of the table a80 left and writes none of the three switch
+# columns (core/schema/locality_switch.sql): a80's own INSERT is positional, so a table widened before the switch
+# release would fail every a80 run, and a rollback to it with it.
+_SWITCH_NAMES = ", eligible_v1, locality_basis, locality_status)"
+_SWITCH_VALUES = (",\n  wr.eligible_v1, IF(@authority = 'v2', 'locality_v2.1', 'v1') locality_basis, "
+                  "wr.locality_status")
+
+
 def state_script(authority, core=sqlrun.CORE, agent=sqlrun.AGENT):
     """The text of state.sql to run for a locality authority: the file as it is under v2, and with the checked view
     replaced by the empty relation under v1."""
     sql = (SQL / "state.sql").read_text(encoding="utf-8")
     if authority != "v2":
-        assert sql.count(_CHECKED_VIEW) == 1
-        sql = sql.replace(_CHECKED_VIEW, _NO_CHECKED_ROWS)
+        for old, new in ((_CHECKED_VIEW, _NO_CHECKED_ROWS), (_SWITCH_NAMES, ")"), (_SWITCH_VALUES, "")):
+            assert sql.count(old) == 1, old
+            sql = sql.replace(old, new)
     return sqlrun.render(sql, core, agent)
 
 

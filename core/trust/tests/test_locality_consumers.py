@@ -55,6 +55,8 @@ ALLOWED = {
     "detect/sql/locality_summary.sql::<file>": "local_share of the retained v2 row",
     "detect/sql/locality_views.sql::<file>": "local_share of the retained v2 row",
     "schema/core.sql::<file>": "column definitions",
+    "schema/locality_switch.sql::<file>": "the column definitions of the switch release only",
+    "detect/job.py::<module>": "state_script: the text that drops the switch columns from the INSERT under v1",
     "collect/probe_report.py::main": "a probe report, read only",
 }
 

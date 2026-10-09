@@ -14,6 +14,7 @@ SQL_FILES = {
 }
 PROJECT = "ogilvy-trends-v2"
 IDENT = re.compile(r"^[a-z_][a-z0-9_]*$")
+SWITCH_COLUMNS = ["eligible_v1", "locality_basis", "locality_status"]
 
 
 # DATA.md parsing
@@ -291,9 +292,11 @@ def test_bullet_tables_carry_the_doc_columns():
     for table, (_, key, columns) in doc_bullets().items():
         ours = [name for name, _, _ in our_tables()[table][0][3]]
         for name in key + columns:
-            assert name in ours, f"{table} lacks {name}"
+            assert name in ours + (SWITCH_COLUMNS if table == "item_state" else []), f"{table} lacks {name}"
         if table == "item_state":
-            assert ours == columns
+            # DATA.md shows the INSERT the switch release runs: the 36 columns of the table plus the three of
+            # core/schema/locality_switch.sql, which the default apply does not create (test_switch_columns.py).
+            assert ours + SWITCH_COLUMNS == columns
 
 
 def test_bullet_tables_keys_not_null_and_partitioned_on_their_date():
@@ -463,9 +466,6 @@ ALTERS = [
     ("post_observations", "source_region", "STRING"),
     ("post_items", "linked_on", "DATE"),
     ("post_items", "link_market", "STRING"),
-    ("item_state", "eligible_v1", "BOOL"),
-    ("item_state", "locality_basis", "STRING"),
-    ("item_state", "locality_status", "STRING"),
     ("creators", "display_name", "STRING"),
     ("creators", "verified", "BOOL"),
     ("creators", "profile_location", "STRING"),

@@ -130,7 +130,7 @@ def reference_sql(entries):
 def queries(entries):
     """name -> SQL of scorecard.sql without its comment header, the reference list and the shared fragments
     (names starting with _) filled in, and dataset names left as placeholders."""
-    text = SQL.read_text(encoding="utf-8").replace("{reference}", reference_sql(entries))
+    text = sqlrun.for_authority(SQL.read_text(encoding="utf-8")).replace("{reference}", reference_sql(entries))
     named = {}
     for stmt in sqlrun.split(text):
         name = next(line.split(":", 1)[1].strip() for line in stmt.splitlines() if line.startswith("-- name:"))

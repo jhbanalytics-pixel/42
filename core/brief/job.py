@@ -217,12 +217,17 @@ EVENT_PASS = "Critic: event-driven, local creators react in their own words"
 # The standings of a news or scheduled event that passed on local reaction; a cut there failed the why-now only.
 REACTION_STANDINGS = ("news-driven with local reaction", "event-driven with local reaction")
 
+def query_sql(name):
+    """The text of a named statement for the locality authority in force (sqlrun.for_authority)."""
+    return sqlrun.for_authority(QUERIES[name])
+
+
 def _query(client, name, params, core, agent, receipt=None):
     if receipt is None:
-        return sqlrun.query(client, QUERIES[name], params, core=core, agent=agent)
+        return sqlrun.query(client, query_sql(name), params, core=core, agent=agent)
     from google.cloud import bigquery
 
-    sql = sqlrun.render(QUERIES[name], core, agent)
+    sql = sqlrun.render(query_sql(name), core, agent)
     config = bigquery.QueryJobConfig(query_parameters=[sqlrun._param(k, v) for k, v in params.items()])
     query = client.query(sql, job_config=config)
     rows = [dict(row.items()) for row in query.result()]

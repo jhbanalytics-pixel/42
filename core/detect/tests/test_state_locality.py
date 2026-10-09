@@ -74,7 +74,8 @@ def test_state_reads_this_runs_locality_row_while_the_detect_run_is_running(con)
     v1 = state(con, "v1")
     assert {k: (v["eligible"], v["geo_status"], v["locality_basis"], v["locality_status"]) for k, v in v1.items()
             if k in ("d1", "d3", "none")} == {
-        "d1": (False, "not_local", "v1", None), "d3": (True, "local", "v1", None), "none": (True, "market_unconfirmed", "v1", None)}
+        "d1": (False, "not_local", None, None), "d3": (True, "local", None, None),     # v1 writes none of the three columns
+        "none": (True, "market_unconfirmed", None, None)}
     con.execute("DELETE FROM core.item_state")
     v2 = state(con, "v2")
     assert len(duck.query(con, "SELECT 1 x FROM {core}.item_state WHERE item_id = 'd1'", {})) == 1
@@ -90,7 +91,7 @@ def test_in_v1_mode_eligible_is_the_v1_expression_even_when_a_v2_row_disagrees(c
     put(con, "d3", 8, 0, "not_local")
     put(con, "d1", 3, 3, "market_unconfirmed")
     v1 = state(con, "v1")
-    assert (v1["d3"]["eligible"], v1["d1"]["eligible"]) == (True, False) and v1["d3"]["eligible_v1"] is True
+    assert (v1["d3"]["eligible"], v1["d1"]["eligible"]) == (True, False) and v1["d3"]["eligible_v1"] is None
 
 
 def test_a_row_without_a_verification_row_reads_as_missing_in_v2_mode(con):
@@ -157,7 +158,7 @@ def test_state_does_not_read_the_locality_view_under_v1(con):
     con.execute("DROP VIEW core.v_item_locality_current")
     con.execute("DROP VIEW core.v_item_locality_checked")
     got = {k: (v["eligible"], v["locality_basis"]) for k, v in state(con, "v1").items()}
-    assert got == expected and got["d1"] == (False, "v1")
+    assert got == expected and got["d1"] == (False, None)
 
 
 def test_state_under_v2_still_reads_the_view(con):

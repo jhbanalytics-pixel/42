@@ -42,6 +42,22 @@ def render(sql, core=CORE, agent=AGENT):
     return sql.replace("{core}", core).replace("{agent}", agent)
 
 
+# The three item_state columns of the locality switch (eligible_v1, locality_basis, locality_status) are not in the
+# table the shadow release meets (core/schema/locality_switch.sql, applied by the switch release only). Under the v1
+# authority a statement that reads one reads a typed NULL in its place, which is what a row written without it holds.
+_SWITCH_READS = re.compile(r"\b[sx]\.locality_(?:basis|status)\b")
+
+
+def for_authority(sql, authority=None):
+    """sql as the locality authority runs it: unchanged under v2, with the reads of the switch columns replaced by
+    NULL of their type otherwise. authority defaults to the LOCALITY_AUTHORITY constant at the time of the call."""
+    if authority is None:
+        from core.trust import locality
+
+        authority = locality.LOCALITY_AUTHORITY
+    return sql if authority == "v2" else _SWITCH_READS.sub("CAST(NULL AS STRING)", sql)
+
+
 def split(sql):
     """Split a script on semicolons outside quotes and comments; drop pieces that hold only comments."""
     out, buf, i, n = [], [], 0, len(sql)
