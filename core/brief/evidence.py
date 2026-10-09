@@ -205,4 +205,9 @@ def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=No
         name, query_params = registry[entry["query_id"]]
         return _value(run(name, query_params))
 
-    return {"evidence": evidence, "numbers": numbers, "facts": facts}, sparkline, rerun
+    pack = {"evidence": evidence, "numbers": numbers, "facts": facts}
+    if item_row.get("kind") == "topic":
+        from core.brief.title_purity import read_snapshot
+
+        pack["title_snapshot"] = read_snapshot(client, item_row, d, market, pack, core=core, agent=agent)
+    return pack, sparkline, rerun
