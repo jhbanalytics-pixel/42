@@ -160,7 +160,7 @@ def test_jp02_the_paste_world_call_logs_carry_no_forbidden_verb(tmp_path):
 # JP-03: no statement that removes or replaces data in a file B adds under core/setup/release
 
 B_FILES = ("chain_evidence.py", "jobs_only.py", "jobs_run.py", "JOBS-PASTE.ps1")
-SERVICES_FILES = {"bound_readback.py", "declared_env_removals.py", "lock.py", "plan.py", "services_only.py", "SERVICES-PASTE.ps1",
+SERVICES_FILES = {"bound_readback.py", "declared_env_removals.py", "lock.py", "packet.py", "plan.py", "services_only.py", "SERVICES-PASTE.ps1",
                   "durable-effects-manifest.template.json", "__init__.py"}
 DESTRUCTIVE = re.compile(r"create\s+or\s+replace|\bdrop\s+(table|view|schema|function|index)\b|\bdelete\s+from\b|\btruncate\s+table\b|\bdrop\b|\btruncate\b", re.I)
 
