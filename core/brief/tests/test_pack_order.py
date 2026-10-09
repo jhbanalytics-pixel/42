@@ -240,7 +240,7 @@ def check_the_outlet_stage_counts_a_capped_outlet_only_when_12_posts_rank_ahead_
 def test_the_sql_pack_size_is_the_one_pack_order_names():
     sql = statement()
     assert re.findall(r"LIMIT (\d+)", sql) == [str(pack_order.PACK_LIMIT)]
-    assert re.findall(r"f\.pack_rank < c\.pack_rank\) >= (\d+)", sql) == [str(pack_order.PACK_LIMIT)]
+    assert re.findall(r"kept_ahead, 0\) >= (\d+)", sql) == [str(pack_order.PACK_LIMIT)]
 
 
 def test_the_default_outlet_cap_is_12_and_changes_nothing():
@@ -261,14 +261,15 @@ def order_by_clauses(sql):
         while end < len(sql) and not (sql[end] == ")" and depth == 0) and not sql.startswith("LIMIT", end):
             depth += {"(": 1, ")": -1}.get(sql[end], 0)
             end += 1
-        out.append(sql[at + 8:end].strip().rstrip(";").strip())
+        clause = re.sub(r"\s+ROWS\s+BETWEEN\s.*$", "", sql[at + 8:end].strip().rstrip(";").strip(), flags=re.DOTALL)
+        out.append(clause)
         at = end
     return out
 
 
 def check_every_order_by_ends_in_the_post_id_so_no_tie_is_left_to_the_engine(sql):
     clauses = order_by_clauses(sql_without_comments(sql))
-    assert len(clauses) == 4 and all(c.endswith("post_id") for c in clauses), clauses
+    assert len(clauses) == 5 and all(c.endswith("post_id") for c in clauses), clauses
 
 
 CHECKS = {name[len("check_"):]: fn for name, fn in sorted(globals().items()) if name.startswith("check_")}
@@ -355,11 +356,11 @@ MUTANTS = {
     "outlet stage count from the wrong stage": [("(SELECT COUNT(*) FROM g) after_outlet_cap",
                                                  "(SELECT COUNT(*) FROM c) after_outlet_cap")],
     "outlet stage counts the cap's removals past the pack":
-        [(" OR (SELECT COUNT(*) FROM f WHERE f.pack_rank < c.pack_rank) >= 12)", ")")],
-    "outlet stage counts a removal with only 11 kept posts ahead of it": [("c.pack_rank) >= 12", "c.pack_rank) >= 11")],
-    "outlet stage counts a removal with 13 kept posts ahead of it": [("c.pack_rank) >= 12", "c.pack_rank) >= 13")],
+        [(" OR IFNULL(k.kept_ahead, 0) >= 12)", ")")],
+    "outlet stage counts a removal with only 11 kept posts ahead of it": [("kept_ahead, 0) >= 12", "kept_ahead, 0) >= 11")],
+    "outlet stage counts a removal with 13 kept posts ahead of it": [("kept_ahead, 0) >= 12", "kept_ahead, 0) >= 13")],
     "outlet stage counts a removal by its place among all posts, not the kept ones":
-        [("FROM f WHERE f.pack_rank < c.pack_rank", "FROM c c2 WHERE c2.pack_rank < c.pack_rank")],
+        [("COUNTIF(NOT c.is_outlet OR c.class_rank <= @outlet_cap)", "COUNT(*)")],
     "member tier dropped from the outlet class rank": [("ORDER BY r.market_member DESC, r.measured DESC",
                                                         "ORDER BY r.measured DESC")],
     "pooled run flag read from the market run": [("WHERE k.item_id = @item_id AND LOWER(k.market) = 'pan'",

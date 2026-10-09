@@ -114,8 +114,9 @@ def hold_detail(stages, floor, evidence, market):
 
 def masked_after_ranking(stages, floor, evidence, market):
     """True when the suppression mask took posts of the floor's kind out of the pack after the query: fewer are in the
-    evidence the gate read than the query left (stages["final"]). Such a hold must not carry its counts or name a cap,
-    because either would let a reader of the API see that posts were hidden; the job keeps them as an audit record."""
+    evidence the gate read than the query left (stages["final"]). Such a hold must not serve its counts or name a cap,
+    because either would let a reader of the API see that posts were hidden; the job serves the detail of the posts
+    that are visible (hold_detail with no stages) and keeps these counts as an audit record."""
     if not stages or "final" not in stages:
         return False
     return stages["final"][floor] > final_counts(evidence, market)[floor]
