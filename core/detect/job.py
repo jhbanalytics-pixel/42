@@ -34,7 +34,7 @@ from google.cloud import bigquery
 
 from core.trust.locality import LOCALITY_AUTHORITY
 
-from . import aggregate, breakout, centroids, coaction, forecasts, locality, runs, seeds, sqlrun, stats, watches
+from . import aggregate, breakout, centroids, coaction, forecasts, locality, neardup, runs, seeds, sqlrun, stats, watches
 from .items import TOPIC_KIND
 
 PROJECT = "ogilvy-trends-v2"
@@ -54,6 +54,7 @@ TOPIC_ITEM_STATE_COUNT_SQL = (
     "SELECT COUNT(*) n FROM {core}.item_state s WHERE s.metric_date = @d AND s.run_id = @run_id AND s.kind = @kind")
 
 CATCH_UP_DAYS = 3
+_clock = time.monotonic
 
 # Understand records a day whose clusterer produced nothing as ok but partial (counts.partial_reason). Detect then
 # judges no topic items for that day and still runs for the rest.
@@ -279,6 +280,21 @@ def apply_agent_views_step(client, core=sqlrun.CORE, agent=sqlrun.AGENT):
     return {"status": "ok"}
 
 
+def run_neardup_step(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """Write near_dup_size for the posts of the 7 days to d (neardup.py, N21). It has no runs row of its own and never
+    stops detect or brief: a missing library returns 'skipped' and any other error 'failed', with the error. Every
+    result carries the step's wall time in seconds, as the grouping costs the square of a cluster of distinct near
+    captions and the run should show it."""
+    start = _clock()
+    try:
+        return {**neardup.run_neardup(client, d, core, agent), "seconds": round(_clock() - start, 3)}
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        print(f"near duplicate sizes not written: {error}", file=sys.stderr)
+        return {"status": "skipped" if isinstance(e, ImportError) else "failed", "error": error,
+                "seconds": round(_clock() - start, 3)}
+
+
 def run_centroids_step(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
     """Write d's hashtag and sound centroids (centroids.py). Only analogues read them, so a failure never stops
     detect or brief: it is logged and returned as the status and error."""
@@ -407,6 +423,7 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
         counts["series_test"] = _step(client, "stats", d, agent, lambda rid: {
             "series_test": stats.run_stats(client, d, rid, rule_version, core=core, agent=agent)})["series_test"]
         counts["coaction"] = run_coaction_step(client, d, rule_version, core, agent)
+        counts["near_dup"] = run_neardup_step(client, d, core, agent)
         topics = topics_failed_today(client, d, core, agent)
         if topics:
             counts["topics_failed"] = topics

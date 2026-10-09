@@ -22,8 +22,12 @@ ctx keys:
     campaign_hashtags      passed through.
     political              True when a political term for the market matches the item's label, canonical key,
                            hashtags or any evidence text; else False, never None.
-    corroborated_unbiased  TRUST.md section 3 step 5 on posts sighted in unbiased_rank or panel: independent authors
-                           on 2 platforms, or 3 such authors plus a pinned number.
+    corroborated_unbiased  TRUST.md section 3 step 5 on posts sighted in unbiased_rank or panel: unrelated authors
+                           on 2 platforms, or 3 unrelated authors plus a pinned number (W8-DEC-16). Authors are
+                           unrelated when no post of one reuses media, caption text, a linked page or a reply
+                           relation with a post of the other, and a person posting under several handles counts
+                           once. independent_groups below builds the groups; a signal that is not stored never
+                           links two authors.
     explanation_passed     passed through.
     sponsored_share        share of the evidence records that are paid: flagged sponsored, or carrying a paid-post
                            marker (PAID_POST_TAGS as a whole hashtag in the text or the post's stored hashtags, or
@@ -41,6 +45,8 @@ import yaml
 
 from core.detect import sqlrun
 from core.detect.sqlrun import AGENT, CORE
+from core.trust.independence import independent_groups as _groups
+from core.trust.independence import is_corroborated
 
 HERE = Path(__file__).parent
 SQL = HERE / "sql" / "gatectx.sql"
@@ -102,10 +108,15 @@ def _tag(value):
     return _norm(value).strip().lstrip("#").casefold()
 
 
-def _paid(record, hashtags):
-    if "sponsored" in (record.get("flags") or []) or any(_tag(h) in PAID_POST_TAGS for h in hashtags):
+def paid_markers(record, hashtags):
+    """True when the post's stored hashtags or its caption carry a paid-post marker (not the sponsored flag)."""
+    if any(_tag(h) in PAID_POST_TAGS for h in hashtags or ()):
         return True
     return any(_PAID_TEXT.search(record.get(k) or "") for k in ("text", "quote_text"))
+
+
+def _paid(record, hashtags):
+    return "sponsored" in (record.get("flags") or []) or paid_markers(record, hashtags)
 
 
 def _handle(record):
@@ -113,17 +124,32 @@ def _handle(record):
     return _norm(handle).strip().lstrip("@").casefold() if handle else None
 
 
-def _corroborated(evidence, measured_ids, numbers):
-    authors = {}
-    for record in evidence:
-        handle = _handle(record)
-        if not handle or record.get("id") not in measured_ids or NOT_INDEPENDENT & set(record.get("flags") or []):
-            continue
-        authors.setdefault(handle, set()).add(record.get("platform"))
-    two_platforms = any(p1 != p2 for a1, s1 in authors.items() for a2, s2 in authors.items() if a1 != a2
-                        for p1 in s1 for p2 in s2)
-    pinned = any(n.get("query_id") for n in numbers)
-    return two_platforms or (len(authors) >= 3 and pinned)
+def independent_groups(records, *, names=None, paid_ids=(), measured_ids=None, item=None):
+    """The groups of unrelated authors among records, with the gate's not-independent flags
+    (core/trust/independence.py independent_groups). measured_ids limits authors to posts sighted in a measured
+    lane; every record still links."""
+    return _groups(records, excluded=NOT_INDEPENDENT, names=names, paid_ids=paid_ids, author_ids=measured_ids,
+                   item=item)
+
+
+def _corroborated(evidence, measured_ids, numbers, *, names=None, post_tags=None, item=None):
+    post_tags = post_tags or {}
+    paid_ids = {r.get("id") for r in evidence if _paid(r, post_tags.get(r.get("id"), ()))}
+    groups = independent_groups(evidence, names=names, paid_ids=paid_ids, measured_ids=measured_ids, item=item)
+    return is_corroborated(groups, any(n.get("query_id") for n in numbers))
+
+
+def read_post_signals(run, ids, market, d):
+    """(measured post ids, post id to creator display name, post id to stored hashtags) for the cited post ids.
+    run(name, params) runs the named query of this module."""
+    if not ids:
+        return set(), {}, {}
+    joined = ",".join(ids)
+    measured = {r["post_id"] for r in run("post_lanes", {"post_ids": joined, "market": market, "d": d})}
+    names = {r["post_id"]: r["display_name"] for r in run("post_authors", {"post_ids": joined})
+             if r["display_name"]}
+    tags = {r["post_id"]: r["hashtags"] or [] for r in run("post_tags", {"post_ids": joined})}
+    return measured, names, tags
 
 
 def build_ctx(client, item_row, d, market, evidence, *, campaign_hashtags, political_terms, explanation_passed=None,
@@ -165,13 +191,7 @@ def build_ctx(client, item_row, d, market, evidence, *, campaign_hashtags, polit
     political = _political(political_terms, [t for t in texts if t], [t for t in tags if t])
 
     ids = sorted({r["id"] for r in evidence if r.get("id")})
-    measured = set()
-    if ids:
-        measured = {r["post_id"] for r in run("post_lanes", {"post_ids": ",".join(ids), "market": market, "d": d})}
-
-    post_tags = {}
-    if ids:
-        post_tags = {r["post_id"]: r["hashtags"] or [] for r in run("post_tags", {"post_ids": ",".join(ids)})}
+    measured, names_of, post_tags = read_post_signals(run, ids, market, d)
     paid = sum(1 for r in evidence if _paid(r, post_tags.get(r.get("id"), ())))
     key = item_row.get("canonical_key") or next((r["canonical_key"] for r in names if r["canonical_key"]), None)
 
@@ -182,6 +202,7 @@ def build_ctx(client, item_row, d, market, evidence, *, campaign_hashtags, polit
         "lane_classes": sorted(lanes),
         "campaign_hashtags": list(campaign_hashtags),
         "political": political,
-        "corroborated_unbiased": _corroborated(evidence, measured, numbers),
+        "corroborated_unbiased": _corroborated(evidence, measured, numbers, names=names_of, post_tags=post_tags,
+                                               item=item_row),
         "explanation_passed": explanation_passed,
     }

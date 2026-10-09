@@ -37,11 +37,13 @@ rerun(entry): re-executes the query named by entry["query_id"] with the same par
 import hashlib
 import json
 import re
+import unicodedata
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 
 from core.api.store import creator_key
 from core.api.today import without_hidden
+from core.brief.gatectx import paid_markers
 from core.brief.payload import STATE_WORDS
 from core.brief.specificity import local_posts
 from core.collect.writers import KNOWN_GEO
@@ -109,10 +111,28 @@ def _located(row):
     return (row["geo_market"] or None) if known else None
 
 
-def _record(row, tz):
+BRAND_KEY_MIN = 3  # letters and digits; a shorter brand key never marks an author
+
+
+def _alnum(value):
+    return "".join(ch for ch in unicodedata.normalize("NFKC", str(value or "")).casefold() if ch.isalnum())
+
+
+def _brand_owned(row, item):
+    """True when the item is a brand and the author's handle is the brand's own key or label (K5: the brand talking,
+    not a person). The tables hold no list of brand accounts, so no other handle is read as one."""
+    if not item or item.get("kind") != "brand" or not row["handle"]:
+        return False
+    handle = _alnum(row["handle"])
+    return len(handle) >= BRAND_KEY_MIN and handle in {_alnum(item.get("canonical_key")), _alnum(item.get("label"))}
+
+
+def _record(row, tz, item=None):
     full = row["quote_text"] or ""
     located = _located(row)
-    flags = [name for name, on in (("flagged", row["flagged"]), ("sponsored", row["sponsored"]),
+    paid = paid_markers({"text": full, "quote_text": full}, row.get("hashtags"))
+    flags = [name for name, on in (("flagged", row["flagged"]), ("sponsored", row["sponsored"]), ("paid", paid),
+                                   ("brand_owned", _brand_owned(row, item)),
                                    ("near_duplicate", row["near_dup"]), ("market_assumed", located is None)) if on]
     return {
         "id": row["post_id"], "platform": row["platform"], "handle": row["handle"], "url": row["url"],
@@ -179,7 +199,7 @@ def build_pack(client, item_row, d, market, *, core=CORE, agent=AGENT, hidden=No
     start = datetime.combine(d - timedelta(days=WINDOW_DAYS - 1), time(), tz)
     end = datetime.combine(d + timedelta(days=1), time(), tz)
     posts = run("evidence", {"item_id": item_id, "market": market, "d": d, "start": start, "end": end})
-    evidence = without_hidden({"evidence": [_record(r, tz) for r in posts]}, hidden)["evidence"]
+    evidence = without_hidden({"evidence": [_record(r, tz, item_row) for r in posts]}, hidden)["evidence"]
 
     registry, numbers, pinned = {}, [], {}
     params = {"item_id": item_id, "market": market, "d": d, "run_id": run_id}
