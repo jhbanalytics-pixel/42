@@ -2019,3 +2019,38 @@ def test_alert_titles_use_only_the_checked_brief_for_the_detect_date_and_market(
     assert result["card"]["title"] != "A checked story title"
     assert dates == [D30]
     assert json.dumps(watches) == before
+
+
+# W8-DEC-17 on Discover: the flag reads the row's counts through locality.geo_status, as the brief card does, not the
+# raw geo_status item_state wrote.
+
+def _with_counts(item_id, **fields):
+    def item_states(run, market):
+        return [dict(r, **fields) if r["item_id"] == item_id else r for r in FixtureStore().item_states(run, market)]
+    return item_states
+
+
+def test_an_unbriefed_item_whose_counts_do_not_confirm_local_is_market_unconfirmed():
+    counts = dict(geo_status="local", local_share=5 / 8, geo_known_posts7=8, authenticity="clear",
+                  sponsored_share=0)
+    out = discover.build_discover(Patched(item_states=_with_counts(RISING, **counts)), "ZA")
+    card = next(c for c in out["items"] if c["item_id"] == RISING)
+    assert card["flag"] == "market_unconfirmed" and card["flag_word"] == "Market unconfirmed"
+
+
+def test_counts_that_confirm_local_leave_the_flag_clear():
+    counts = dict(geo_status="local", local_share=1.0, geo_known_posts7=30, authenticity="clear", sponsored_share=0)
+    out = discover.build_discover(Patched(item_states=_with_counts(RISING, **counts)), "ZA")
+    card = next(c for c in out["items"] if c["item_id"] == RISING)
+    assert card["flag"] is None and card["flag_word"] is None
+
+
+def test_not_assessed_does_not_override_the_briefs_market_unconfirmed():
+    counts = dict(geo_status="local", local_share=5 / 8, geo_known_posts7=8, authenticity="not_assessed",
+                  sponsored_share=0)
+    briefs = json.loads(json.dumps(FixtureStore().briefs(D30)))
+    step_brief = next(c for b in briefs for c in b["payload"].get("cards", []) if c["item_id"] == STEP)
+    step_brief["flag"] = "market_unconfirmed"
+    store = Patched(item_states=_with_counts(STEP, **counts), briefs=lambda date: briefs if date == D30 else [])
+    card = next(c for c in discover.build_discover(store, "ZA")["items"] if c["item_id"] == STEP)
+    assert card["flag"] == "market_unconfirmed"

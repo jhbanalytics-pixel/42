@@ -15,6 +15,7 @@ from core.api.searching import searching_now
 from core.api.store import canon_platform, creator_key
 from core.api.today import (FLAG_WORDS, LABELS, MARKETS, SAST, NotFound, NotReady, _card, _display_title,
                             _platform_word, _series_name, _warmup, hidden_people, state_word, without_hidden)
+from core.trust import locality
 
 SORTS = ("order", "velocity", "reach", "new")
 MAX_LIMIT = 200
@@ -113,7 +114,7 @@ def _flag(row):
         return "paid_led"
     if row.get("authenticity") in ("likely_coordinated", "check_pattern"):
         return row["authenticity"]
-    if row.get("geo_status") == "market_unconfirmed" or _market_posts_all_news(row):
+    if locality.geo_status(row) == "market_unconfirmed" or _market_posts_all_news(row):
         return "market_unconfirmed"
     if row.get("authenticity") == "not_assessed":
         return "not_assessed"

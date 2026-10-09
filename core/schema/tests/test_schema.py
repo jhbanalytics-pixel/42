@@ -469,6 +469,8 @@ def test_no_banned_text_in_schema_package():
 ALTERS = [
     ("runs", "model_usd", "FLOAT64"),
     ("claim_checks", "reason", "STRING"),
+    ("claim_checks", "span_sha256", "STRING"),
+    ("claim_checks", "reason_code", "STRING"),
     ("feedback", "at", "TIMESTAMP"),
     ("watches", "status_at", "TIMESTAMP"),
     ("gdelt_daily", "market_rule", "STRING"),
@@ -1061,3 +1063,12 @@ def test_apply_module_never_touches_credentials():
     text = (SCHEMA_DIR / "apply.py").read_text(encoding="utf-8").lower()
     for word in ("credential", "token", "secret"):
         assert word not in text, word
+
+
+def test_claim_checks_keeps_a_digest_and_a_code_and_no_text_column():
+    columns = our_tables()["claim_checks"][0][3]
+    assert columns == [
+        ("answer_or_brief_id", "STRING", False), ("claim_id", "STRING", False), ("rule", "STRING", False),
+        ("verdict", "STRING", False), ("checker", "STRING", False), ("run_id", "STRING", False),
+        ("reason", "STRING", False), ("span_sha256", "STRING", False), ("reason_code", "STRING", False),
+    ]

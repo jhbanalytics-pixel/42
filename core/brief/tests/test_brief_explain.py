@@ -406,7 +406,8 @@ def test_checks_hold_code_rows_for_every_claim_and_a_support_row_per_claim():
         assert {"K1", "K2", "K3", "K5", "K6", "K8", "K9"} <= code_rules
         support = [r for r in rows if r["claim_id"] == cid and r["rule"] == "K4"]
         assert len(support) == 1 and support[0]["verdict"] == "pass" and support[0]["checker"] == "model"
-    assert all(set(r) == {"claim_id", "rule", "verdict", "checker", "detail"} for r in rows)
+    base = {"claim_id", "rule", "verdict", "checker", "detail"}
+    assert all(set(r) == base | ({"standing", "local_why_now"} if r["rule"] == "critic" else set()) for r in rows)
 
 
 def test_conditional_watch_question_is_allowed_under_k9():
@@ -1158,10 +1159,12 @@ def test_a_model_exception_gives_numbers_only_with_the_error_recorded():
 
 
 def test_a_support_check_exception_keeps_the_spend_already_made():
-    model = FakeModel([good()], error=TimeoutError("slow"), error_on_support=True)
+    # A timeout is a call that gave nothing back and is tried once more (test_brief_check_retry.py), so this case
+    # uses an error that is not one.
+    model = FakeModel([good()], error=RuntimeError("scripted failure"), error_on_support=True)
     result = run(model)
     assert_numbers_only(result, "model_error")
-    assert "TimeoutError" in result["error"]
+    assert "RuntimeError" in result["error"]
     assert result["usage_usd"] == pytest.approx(0.01)
 
 
@@ -1599,7 +1602,8 @@ def test_a_critic_that_rules_out_the_simple_explanation_lets_the_card_publish(mo
     row = critic_row(result)
     assert row["claim_id"] is None and row["verdict"] == "pass" and row["checker"] == "model"
     assert "a paid campaign" in row["detail"] and "no post is flagged sponsored" in row["detail"]
-    assert set(row) == {"claim_id", "rule", "verdict", "checker", "detail"}
+    assert set(row) == {"claim_id", "rule", "verdict", "checker", "detail", "standing", "local_why_now"}
+    assert row["standing"] == "ruled out" and row["local_why_now"] is True
 
 
 def test_generic_explanation_fails_when_critic_rejects_its_local_why_now():
