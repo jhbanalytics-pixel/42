@@ -18,6 +18,11 @@ def zero(series, d, **kw):
     return dict(health(series, d, **kw), items=0, valid=False, invalid_reason="zero_yield")
 
 
+def first_zero(series, d, **kw):
+    """The first day of a zero run as the writer stores it: every call answered, nothing landed, still valid."""
+    return dict(health(series, d, **kw), items=0)
+
+
 def view(con):
     rows = duck.query(con, "SELECT v.day, v.market, v.series, v.valid, v.invalid_reason, v.run_id "
                            "FROM {core}.v_collection_health_current v ORDER BY v.day, v.market, v.series")
@@ -33,14 +38,14 @@ def loaded(rows, platform=None):
 
 
 def test_the_day_before_a_zero_yield_day_reads_zero_yield_too():
-    got = view(loaded([health("panel_culture_desk", day(1), lane_class="panel", platform=None),
+    got = view(loaded([first_zero("panel_culture_desk", day(1), lane_class="panel", platform=None),
                        zero("panel_culture_desk", D, lane_class="panel", platform=None)]))
     assert got[(day(1), "ZA", "panel_culture_desk")] == (False, "zero_yield")
     assert got[(D, "ZA", "panel_culture_desk")] == (False, "zero_yield")
 
 
 def test_a_chain_of_zero_days_reads_zero_yield_from_the_first_day():
-    got = view(loaded([health("p", day(2)), zero("p", day(1)), zero("p", D)]))
+    got = view(loaded([first_zero("p", day(2)), zero("p", day(1)), zero("p", D)]))
     assert [got[(d, "ZA", "p")] for d in (day(2), day(1), D)] == [(False, "zero_yield")] * 3
 
 
@@ -51,19 +56,77 @@ def test_the_day_before_keeps_its_own_reason_when_it_was_already_invalid():
 
 def test_other_markets_series_and_days_are_not_marked():
     got = view(loaded([
-        health("p", day(1)), health("p", day(1), market="NG"), health("q", day(1)),
-        health("p", day(3)), zero("p", D)]))
+        first_zero("p", day(1)), first_zero("p", day(1), market="NG"), first_zero("q", day(1)),
+        first_zero("p", day(3)), zero("p", D)]))
+    assert got[(day(1), "ZA", "p")] == (False, "zero_yield")
     assert got[(day(1), "NG", "p")] == (True, None)
     assert got[(day(1), "ZA", "q")] == (True, None)
     assert got[(day(3), "ZA", "p")] == (True, None)
 
 
 def test_only_the_protocol_that_landed_nothing_is_marked():
-    con = loaded([health("p", day(1), protocol="p1"), health("p", day(1), protocol="p2"),
+    con = loaded([first_zero("p", day(1), protocol="p1"), health("p", day(1), protocol="p2"),
                   zero("p", D, protocol="p1")])
     rows = duck.query(con, "SELECT v.protocol, v.valid FROM {core}.v_collection_health_current v "
                            "WHERE v.day = @d ORDER BY v.protocol", {"d": day(1)})
     assert rows == [{"protocol": "p1", "valid": False}, {"protocol": "p2", "valid": True}]
+
+
+def rot(protocol, d, *, route="prism/profiles", series="panel_culture_desk", items=50, **kw):
+    row = health(series, d, protocol=protocol, lane_class="panel", platform=None, **kw)
+    return dict(row, route=route, items=items)
+
+
+def rotating_protocols():
+    """Three days of a curated panel whose protocol changes every day, beside a desk panel that does not."""
+    rows = []
+    for n, d in enumerate((day(2), day(1), D)):
+        rows.append(dict(rot("panel:desk", d), items=4))
+        rows.append(dict(rot(f"panel:rot{n}", d), items=0))
+    rows[-1] = dict(rows[-1], valid=False, invalid_reason="zero_yield")
+    rows[-3] = dict(rows[-3], valid=False, invalid_reason="zero_yield")
+    return rows
+
+
+def by_protocol(con):
+    rows = duck.query(con, "SELECT v.day, v.protocol, v.valid, v.invalid_reason "
+                           "FROM {core}.v_collection_health_current v")
+    return {(r["day"], r["protocol"]): (r["valid"], r["invalid_reason"]) for r in rows}
+
+
+def test_three_rotating_curated_protocols_read_zero_yield_from_the_first_day():
+    got = by_protocol(loaded(rotating_protocols()))
+    assert [got[(d, f"panel:rot{n}")] for n, d in enumerate((day(2), day(1), D))] == [(False, "zero_yield")] * 3
+
+
+def test_a_live_desk_row_on_the_shared_route_is_not_flipped_by_a_dead_curated_row():
+    got = by_protocol(loaded(rotating_protocols()))
+    assert [got[(d, "panel:desk")] for d in (day(2), day(1), D)] == [(True, None)] * 3
+
+
+def test_the_v2_switch_day_flips_the_day_before_whatever_the_protocol():
+    got = by_protocol(loaded([rot("panel:abc", day(1), items=0), dict(rot("panel:abc:v2", D, items=0),
+                                                                    valid=False, invalid_reason="zero_yield")]))
+    assert got[(day(1), "panel:abc")] == (False, "zero_yield")
+
+
+def test_a_day_that_was_not_a_zero_day_is_not_flipped_by_a_zero_yield_row_of_its_route():
+    partly = dict(rot("panel:partly", day(1), items=0), calls_ok=1)
+    nocalls = dict(rot("panel:nocalls", day(1), items=0), calls=0, calls_ok=0)
+    got = by_protocol(loaded([partly, nocalls, dict(rot("panel:today", D, items=0),
+                                                    valid=False, invalid_reason="zero_yield")]))
+    assert got[(day(1), "panel:partly")] == (True, None)
+    assert got[(day(1), "panel:nocalls")] == (True, None)
+
+
+def test_a_zero_yield_row_of_another_route_lane_or_market_flips_nothing():
+    dead = dict(rot("panel:today", D, items=0), valid=False, invalid_reason="zero_yield")
+    others = [rot("panel:other_route", day(1), items=0, route="twitter/user/tweets"),
+              dict(rot("panel:other_lane", day(1), items=0), lane_class="watchlist"),
+              rot("panel:other_market", day(1), items=0, market="NG")]
+    got = by_protocol(loaded(others + [dead]))
+    assert {k[1]: v for k, v in got.items() if k[0] == day(1)} == {
+        "panel:other_route": (True, None), "panel:other_lane": (True, None), "panel:other_market": (True, None)}
 
 
 def test_a_day_invalid_for_any_other_reason_marks_nothing():
