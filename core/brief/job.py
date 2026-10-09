@@ -1043,6 +1043,10 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
             never_reached = item["explanation_status"] == "not_run" and not c.get("busy_reason") and result is None
             item["decision"] = _held(NOT_REACHED_TEXT if never_reached else "Explanation failed its checks", "G10")
             item["held_reason"] = "explanation_failed"
+            if item["explanation_status"] == "explained":
+                # The model explained it but the gate or the specificity check held it: report a failed check, not
+                # an explanation (the enum in core/api/contract.md has no explained-and-held value).
+                item["explanation_status"] = "failed_checks"
         items.append(item)
     # An evidence read that failed is a data problem too, so it counts with G1 toward the over-30% banner. The
     # denominator is every current-market candidate considered: the G1 holds that _candidates backfilled past as well
