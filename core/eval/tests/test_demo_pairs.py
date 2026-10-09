@@ -1,6 +1,10 @@
 from datetime import date, datetime, timedelta, timezone
 import hashlib
 import json
+import os
+import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -22,6 +26,23 @@ from core.eval.demo_pairs import (
 
 RUN_DATE = date(2026, 10, 1)
 SAST = timezone(timedelta(hours=2))
+RANK_MATRIX_PATH = Path("C:/Users/AlbertMeintjes/dev/42-inputs/FREE-RETRIEVAL-RANK-MATRIX-2026-10-01.json")
+RANK_MATRIX_SKIP_REASON = (
+    "local only: " + RANK_MATRIX_PATH.name + " lists creator links and is never copied into the repository, "
+    "so this test runs only on a machine that holds it")
+
+
+def require_rank_matrix(path=None):
+    """The bytes of the ranking matrix, or a skip with the reason when this machine does not hold the file."""
+    path = RANK_MATRIX_PATH if path is None else Path(path)
+    if not path.is_file():
+        pytest.skip(RANK_MATRIX_SKIP_REASON)
+    return path.read_bytes()
+
+
+@pytest.fixture
+def rank_matrix_bytes():
+    return require_rank_matrix()
 
 
 @pytest.fixture(autouse=True)
@@ -309,15 +330,14 @@ def test_attempt_uses_session_budget_once_and_keeps_context_separate(tmp_path):
     }
 
 
-def test_ranked_once_profile_uses_verified_prior_funding_and_preserves_old_receipts(tmp_path):
+def test_ranked_once_profile_uses_verified_prior_funding_and_preserves_old_receipts(tmp_path, rank_matrix_bytes):
     profile = demo_pairs.RANKED_NOW_ONCE_PROFILE
     prior_dir = tmp_path / "prior"
     app_ids = _write_prior_five(prior_dir)
     before = {path.name: path.read_bytes() for path in prior_dir.iterdir()}
     ranked_dir = tmp_path / "ranked-once"
     calls = []
-    proof_path = Path("C:/Users/AlbertMeintjes/dev/42-inputs/FREE-RETRIEVAL-RANK-MATRIX-2026-10-01.json")
-    proof_bytes = proof_path.read_bytes()
+    proof_bytes = rank_matrix_bytes
 
     def dispatch(request, budget):
         calls.append(request)
@@ -364,13 +384,14 @@ def test_ranked_once_profile_uses_verified_prior_funding_and_preserves_old_recei
 
 
 @pytest.mark.parametrize(("question_id", "attempt_number"), (("DEMO-01", 1), ("DEMO-03", 1), ("NOW-01", 2)))
-def test_ranked_once_profile_rejects_other_questions_and_slots(tmp_path, question_id, attempt_number):
+def test_ranked_once_profile_rejects_other_questions_and_slots(
+        tmp_path, question_id, attempt_number, rank_matrix_bytes):
     profile = demo_pairs.RANKED_NOW_ONCE_PROFILE
     prior_dir = tmp_path / "prior"
     app_ids = _write_prior_five(prior_dir)
     ranked_dir = tmp_path / "ranked-once"
     calls = []
-    proof_bytes = Path("C:/Users/AlbertMeintjes/dev/42-inputs/FREE-RETRIEVAL-RANK-MATRIX-2026-10-01.json").read_bytes()
+    proof_bytes = rank_matrix_bytes
 
     with pytest.raises(DemoRunRefused, match="ranked_attempt_not_authorized"):
         run_attempt(
@@ -385,12 +406,12 @@ def test_ranked_once_profile_rejects_other_questions_and_slots(tmp_path, questio
     assert calls == [] and not ranked_dir.exists()
 
 
-def test_ranked_once_profile_refuses_changed_proof_before_marker(tmp_path):
+def test_ranked_once_profile_refuses_changed_proof_before_marker(tmp_path, rank_matrix_bytes):
     profile = demo_pairs.RANKED_NOW_ONCE_PROFILE
     prior_dir = tmp_path / "prior"
     app_ids = _write_prior_five(prior_dir)
     ranked_dir = tmp_path / "ranked-once"
-    proof_bytes = Path("C:/Users/AlbertMeintjes/dev/42-inputs/FREE-RETRIEVAL-RANK-MATRIX-2026-10-01.json").read_bytes() + b" "
+    proof_bytes = rank_matrix_bytes + b" "
 
     with pytest.raises(DemoRunRefused, match="ranked_proof_hash_mismatch"):
         run_attempt(
@@ -412,12 +433,12 @@ def test_ranked_once_profile_refuses_changed_proof_before_marker(tmp_path):
      (3_426_563, 426_564, 5, "attempt_cap_exhausted")),
 )
 def test_ranked_once_profile_refuses_funding_or_cap_mismatch(
-        tmp_path, allocated, consumed, proof_app_count, reason):
+        tmp_path, allocated, consumed, proof_app_count, reason, rank_matrix_bytes):
     profile = demo_pairs.RANKED_NOW_ONCE_PROFILE
     prior_dir = tmp_path / "prior"
     app_ids = _write_prior_five(prior_dir)
     ranked_dir = tmp_path / "ranked-once"
-    proof_bytes = Path("C:/Users/AlbertMeintjes/dev/42-inputs/FREE-RETRIEVAL-RANK-MATRIX-2026-10-01.json").read_bytes()
+    proof_bytes = rank_matrix_bytes
 
     with pytest.raises(DemoRunRefused, match=reason):
         run_attempt(
@@ -963,3 +984,63 @@ def test_attempt_two_reconciliation_keeps_unknown_cost_held(tmp_path, unknown_so
     assert held["status"] == "ambiguous"
     assert held["guarded_charge_micros"] == 1_297_428
     assert "reconciliation_reason" not in held
+
+
+# The ranking matrix lists creator links. Albert ruled it local only: these tests run where the file exists, show as
+# skipped with the reason on CI, and the file is never copied into the repository.
+REPO_ROOT = Path(__file__).resolve().parents[3]
+RANK_MATRIX_TESTS = "ranked_once_profile"
+
+
+def test_a_machine_without_the_matrix_skips_with_the_reason(tmp_path):
+    with pytest.raises(pytest.skip.Exception) as caught:
+        require_rank_matrix(tmp_path / "absent.json")
+    assert caught.value.msg == RANK_MATRIX_SKIP_REASON
+    for phrase in ("local only", "FREE-RETRIEVAL-RANK-MATRIX-2026-10-01.json", "creator links",
+                   "never copied into the repository"):
+        assert phrase in RANK_MATRIX_SKIP_REASON, phrase
+
+
+def test_a_machine_with_the_matrix_reads_its_bytes(tmp_path):
+    present = tmp_path / "present.json"
+    present.write_bytes(b'{"rows": []}')
+    assert require_rank_matrix(present) == b'{"rows": []}'
+
+
+def test_ci_reports_the_eight_matrix_tests_as_skipped_with_the_reason(tmp_path):
+    """Run the eight tests as a machine without the file would, by pointing the module at a path that is absent."""
+    plugin = tmp_path / "f42_absent_matrix.py"
+    plugin.write_text(
+        "import pathlib\n"
+        "def pytest_collection_finish(session):\n"
+        "    for item in session.items:\n"
+        f"        item.module.RANK_MATRIX_PATH = pathlib.Path({str(tmp_path / 'absent.json')!r})\n",
+        encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k != "PYTEST_ADDOPTS"}
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(tmp_path), env.get("PYTHONPATH", "")]))
+    done = subprocess.run(
+        [sys.executable, "-m", "pytest", str(Path(__file__)), "-q", "-p", "no:cacheprovider", "-p",
+         "f42_absent_matrix", "-rs", "-k", RANK_MATRIX_TESTS],
+        cwd=REPO_ROOT, env=env, capture_output=True, text=True, encoding="utf-8", timeout=600)
+    out = done.stdout
+    assert done.returncode == 0, out[-3000:] + done.stderr[-1000:]
+    assert re.search(r"^8 skipped, \d+ deselected", out, re.M), out[-1500:]
+    assert "failed" not in out and "passed" not in out, out[-1500:]
+    grouped = re.findall(r"^SKIPPED \[(\d+)\] .*?: (.*)$", out, re.M)
+    assert sum(int(count) for count, _ in grouped) == 8 and {reason for _, reason in grouped} == {
+        RANK_MATRIX_SKIP_REASON}, grouped
+
+
+def test_the_matrix_is_not_in_the_repository_and_its_local_path_is_named_only_here():
+    tracked = subprocess.run(["git", "-C", str(REPO_ROOT), "ls-files", "-z"], capture_output=True, check=True)
+    names = [name for name in tracked.stdout.decode("utf-8").split("\0") if name]
+    assert not [name for name in names if "RANK-MATRIX" in name.upper()], "a file named for the matrix is tracked"
+    pinned = demo_pairs.RANKED_NOW_ONCE_PROFILE.source_proof_sha256
+    for name in names:
+        path = REPO_ROOT / name
+        if path.is_file() and 100_000 < path.stat().st_size < 20_000_000:
+            assert hashlib.sha256(path.read_bytes()).hexdigest() != pinned, f"{name} holds the matrix"
+    named = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "grep", "-l", "-E", r"[/\]FREE-RETRIEVAL-RANK-MATRIX"],
+        capture_output=True, encoding="utf-8")
+    assert sorted(named.stdout.split()) == ["core/eval/tests/test_demo_pairs.py"], named.stdout
