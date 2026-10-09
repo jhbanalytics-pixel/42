@@ -18,9 +18,12 @@ sed (the e command and the s flag e, read the way sed reads a script, inline or 
 host:file, which tar sends through a remote shell), sort (`--compress-program`) and zip (-TT and `--unzip-command`).
 Long options are matched by their shortest abbreviation getopt accepts.
 A script file given to awk or sed that cannot be read (standard input, a missing file, a directory, one past the
-size limit) is refused, awk is read as its raw text, and tar is refused when TAPE or RSH is in its environment.
-pwsh is allowed only for the release paste tests: -NoProfile, then -File with a .ps1 under the repository or the
-temporary directory, or -Command with the paste test's own frame over a .ps1 under the repository.
+size limit) is refused. awk is read after backslash-newline continuations are joined: system(, @ and the network
+files in the raw text, pipes and getline with the strings emptied. tar is refused when TAPE, RSH or TAR_OPTIONS is
+in its environment, and zip when ZIPOPT is.
+pwsh is allowed for the release paste tests: -NoProfile, then -File with a .ps1 under the repository or the
+temporary directory, or -Command with the paste test's own frame over a .ps1 under the repository. The -File form
+admits any temporary script, the same accepted blind spot as bash -c.
 
 It is the portable counterpart of the Windows guard used for local runs. It needs no ctypes and no platform
 module, so the same file runs on Linux and Windows.
@@ -520,14 +523,26 @@ def _check_sed(event, words):
 
 
 AWK_VALUE_OPTIONS = set("FvfeliE")
-# The raw text is searched, strings and regex literals included: a quote inside a regex literal can pair with a later
-# quote and hide code from a reader that strips strings, so a string that holds system( or a pipe is refused too.
-AWK_RUNS = re.compile(r"\bsystem\s*\(|\|&|@\w|/inet\d?/|/dev/(?:tcp|udp)/|(?<!\|)\|(?!\|)\s*getline\b"
-                      r"|\bprintf?\b[^;}\n]*(?<!\|)\|(?![|&])")
+# Two readings of the program, after backslash-newline continuations are joined into a space. system(, @ and the
+# network files are searched in the raw text, strings and regex literals included: a quote inside a regex literal can
+# pair with a later quote and hide code from a reader that strips strings, so a string that holds one is refused too.
+# A pipe is searched with the strings emptied, so a ; or } inside a string cannot end the print pattern early. A
+# program with a quote inside a /regex/ span cannot be stripped with confidence, so any pipe in it is refused.
+AWK_RAW_RUNS = re.compile(r"\bsystem\s*\(|@\w|/inet\d?/|/dev/(?:tcp|udp)/")
+AWK_PIPE_RUNS = re.compile(r"\|&|(?<!\|)\|(?!\|)\s*getline\b|\bprintf?\b[^;}\n]*(?<!\|)\|(?![|&])")
+AWK_STRING = re.compile(r'"(?:\\.|[^"\\\n])*"')
+AWK_LONE_PIPE = re.compile(r"(?<!\|)\|(?!\|)")
+AWK_QUOTE_IN_REGEX = re.compile(r'/[^/\n]*"[^/\n]*/')
+AWK_CONTINUATION = re.compile(r"\\\r?\n")
 
 
 def _awk_runs_a_program(program):
-    return bool(AWK_RUNS.search(program))
+    program = AWK_CONTINUATION.sub(" ", program)
+    if AWK_RAW_RUNS.search(program):
+        return True
+    if AWK_PIPE_RUNS.search(AWK_STRING.sub('""', program)):
+        return True
+    return bool(AWK_QUOTE_IN_REGEX.search(program)) and bool(AWK_LONE_PIPE.search(program))
 
 
 def _check_awk(event, words):
@@ -579,6 +594,9 @@ TAR_VALUE_LETTERS = set("bCfFgHIKLNTVX")
 TAR_RUNS_A_PROGRAM = ("--to-command", "--use-compress-program", "--checkpoint-action", "--info-script",
                       "--new-volume-script", "--rsh-command", "--rmt-command")
 TAR_NOT_AN_ABBREVIATION = {"--checkpoint"}
+# TAPE and RSH name the archive and its shell, and TAR_OPTIONS is put in front of the command line, so it can carry
+# `--to-command` and the rest without any of them appearing in the words the guard reads.
+TAR_ENVIRONMENT = ("TAPE", "RSH", "TAR_OPTIONS")
 
 
 def _tar_archive_is_remote(value):
@@ -586,8 +604,8 @@ def _tar_archive_is_remote(value):
 
 
 def _check_tar(event, words, mapping):
-    if mapping is None or "TAPE" in mapping or "RSH" in mapping:
-        _refuse(event, "tar with TAPE or RSH in its environment")
+    if mapping is None or any(name in mapping for name in TAR_ENVIRONMENT):
+        _refuse(event, "tar with TAPE, RSH or TAR_OPTIONS in its environment")
     rest, archives, local_only = list(words[1:]), [], False
     if rest and not rest[0].startswith("-"):
         bundle, rest = rest[0], rest[1:]
@@ -639,7 +657,9 @@ def _check_sort(event, words):
             _refuse(event, "sort starting a compress program")
 
 
-def _check_zip(event, words):
+def _check_zip(event, words, mapping):
+    if mapping is None or "ZIPOPT" in mapping:
+        _refuse(event, "zip with ZIPOPT in its environment")
     for word in words[1:]:
         if word == "--":
             break
@@ -678,10 +698,12 @@ def _script_in(path, roots):
 
 
 def _check_pwsh(event, words):
-    """pwsh runs the release paste tests and nothing else: -NoProfile (and optionally -NonInteractive), then either
-    -File with a .ps1 under the repository or the temporary directory and `-Name value` script arguments that are
-    absolute paths there too, or -Command with exactly the paste test's own frame, which dot-sources a .ps1 under the
-    repository with -DefinitionsOnly and calls one function by name."""
+    """pwsh is for the release paste tests, but the guard cannot hold it to them: -NoProfile (and optionally
+    -NonInteractive), then either -File with a .ps1 under the repository or the temporary directory and `-Name value`
+    script arguments that are absolute paths there too, or -Command with exactly the paste test's own frame, which
+    dot-sources a .ps1 under the repository with -DefinitionsOnly and calls one function by name. -File admits any
+    temporary script whatever it holds, which is the same accepted blind spot as bash -c. Only -Command is pinned
+    to the paste frame."""
     repo, temp = [os.path.normcase(REPO_ROOT)], [os.path.normcase(REPO_ROOT), *_temp_roots()]
     flags, index = set(), 1
     while index < len(words) and words[index].lower() in PWSH_FLAGS:
@@ -796,7 +818,7 @@ def _check_chain(event, executable, words, mapping, depth):
     elif name == "sort":
         _check_sort(event, words)
     elif name == "zip":
-        _check_zip(event, words)
+        _check_zip(event, words, mapping)
     elif PYTHON.match(name):
         for flag, module in zip(words, words[1:]):
             if flag == "-m" and module.lower() in PYTHON_MODULES_REFUSED:
