@@ -8,9 +8,10 @@ import pytest
 from core.trust import claims
 from core.trust.tests.test_trust_claims import answer, claim, filler, run, verdict
 
-# Each is breached by the wide list and passed by the a80be1d list.
+# Each is breached by the wide list and passed by the a80be1d list. (An elder, the elders, an old man, an old woman and
+# the plural forms are on the narrow list too since the rule 1 ruling of wave 8 integration, so they are not here.)
 NEW_ONLY = [
-    "grandmas love it", "aged between 18 and 24", "the gogos queued", "an elder spoke", "toddlers copy it",
+    "grandmas love it", "aged between 18 and 24", "the gogos queued", "toddlers copy it",
     "90s born creators", "the nineties babies", "old people dancing", "old folks joined", "the old heads agree",
     "old timers remember", "middle-aged viewers", "born in 1995", "digital natives", "retirees posted",
 ]

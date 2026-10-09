@@ -33,21 +33,21 @@ BOTH_LANES = "N15 (lanes 1 and 4: the two lists must agree)"
 # The wrong answers on the base commit, found by running the corpus against both lists. Each is one strict xfail.
 # Ask's list lets these through, or flags them when it should not:
 ASK_WRONG = (
-    'a child', 'senior citizens', 'school-going learners', 'baby', 'old man', 'old woman', 'elders',
+    'baby',
     'skews female', 'mostly women', 'predominantly male', 'likely female', 'LSM 5', "Children's Day",
 )
 # The brief gate's list lets these through, or flags them when it should not:
 BRIEF_WRONG = (
     'born-frees', 'digital natives', 'iGen', '#genzrevolution', 'GenZProtests', 'toddlers', 'babies', 'infants',
     'old people', 'middle-aged', 'matriculants', 'school leavers', 'first-time voters', 'grandmothers',
-    'retirees', 'minors', 'baby', 'old man', 'old woman', 'elders', 'early twenties', 'twenty-somethings',
+    'retirees', 'minors', 'baby', 'early twenties', 'twenty-somethings',
     'thirty-somethings', 'the 25-34s', 'born in 1998', 'grew up in the 90s', 'middle class', 'working-class',
     'demographics', 'life stage', 'high income', 'low-income households', 'June 18-24', '25-30 minutes',
 )
 # The two lists answer differently on these:
 DISAGREE = (
-    'born-frees', 'digital natives', 'iGen', '#genzrevolution', 'GenZProtests', 'a child', 'toddlers', 'babies',
-    'infants', 'senior citizens', 'old people', 'middle-aged', 'matriculants', 'school-going learners',
+    'born-frees', 'digital natives', 'iGen', '#genzrevolution', 'GenZProtests', 'toddlers', 'babies',
+    'infants', 'old people', 'middle-aged', 'matriculants',
     'school leavers', 'first-time voters', 'grandmothers', 'retirees', 'minors', 'early twenties',
     'twenty-somethings', 'thirty-somethings', 'the 25-34s', 'born in 1998', 'grew up in the 90s',
     'middle class', 'working-class', 'demographics', 'life stage', 'skews female', 'mostly women',

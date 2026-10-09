@@ -408,6 +408,10 @@ _BREACH_TERMS = [
         r"\bgoogle[\s_-]*trends?\b",
         r"\bsearch[\s-]volumes?\b",
         r"\bsearch\s+interest\b",
+        # Rule 1, lead ruling in wave 8 integration: the plain old-age person words Ask already flags (core/agent/checks.py
+        # AGE_PATTERNS) are on this list too, so the brief's list and Ask's agree on them. Seeds read this list.
+        r"\bold[\s-](?:man|men|woman|women|lady|ladies)\b",
+        r"\belders?\b",
     )
 ]
 
@@ -450,9 +454,7 @@ _K6_ONLY_TERMS = [
         r"\bgen(?:eration)?[_-]?(?:z|alpha)(?=(?-i:[A-Z])|[\d_])",
         r"\b(?:kid(?:z|dos?|dies?)|zillenn?ials?|igen(?:eration)?s?|ama[_-]?(?:(?:19|20)\d{2}'?s?|[12]ks?))\b",
         r"\bold[\s-]?(?:people|folks?|heads|timers?)\b",
-        r"\bold[\s-](?:man|men|woman|women|lady|ladies)\b",
         rf"\b(?:older|elder)\s+{_PERSON}\b",
-        r"\belders?\b",
     )
 ]
 _K6_TERMS = _BREACH_TERMS + _K6_ONLY_TERMS
