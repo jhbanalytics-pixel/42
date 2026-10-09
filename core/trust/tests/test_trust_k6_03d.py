@@ -451,7 +451,7 @@ def test_the_age_group_sentences_breached_when_off_too(off, text):
 
 @pytest.mark.parametrize("text", ["The age of the Chiefs won 24-17", "Event runs Sept 20-26 for the group stage",
                                   "Chiefs won 24-17 in the group stage", "Chiefs won 24-17 in a group match",
-                                  "The group stage: Chiefs won 24-17", "Event runs Sept 20-26 in the focus group room"])
+                                  "The group stage: Chiefs won 24-17"])
 def test_a_group_that_is_not_straight_after_the_range_stays_clear(on, text):
     assert not _k6_term(text, set()), text
 
@@ -502,3 +502,74 @@ def test_e_g_must_start_at_a_word(on):
     # "Pre.g." is a word that ends in e, then .g., and not the abbreviation: its full stops end the clause.
     assert not _k6_term("Women cheered Pre.g. Chiefs won 24-17", set())
     assert not _k6_term("Women cheered Chi.e. Chiefs won 24-17", set())
+
+
+# CR-3b: the singular of each of the 60 CR-3 words, written here by hand. A singular is stricter, never looser.
+CR3B_SINGULARS = [
+    "pupil", "lady", "guy", "lad", "folk", "mother", "father", "sister", "brother", "daughter", "son", "couple",
+    "family", "African", "Ghanaian", "Zimbabwean", "Ugandan", "Tanzanian", "Nairobian", "Lagosian", "citizen",
+    "respondent", "participant", "attendee", "member", "supporter", "stan", "player", "athlete", "driver", "commuter",
+    "employee", "staff", "buyer", "reader", "influencer", "streamer", "artist", "musician", "Instagrammer", "YouTuber",
+    "netizen", "tweep", "individual", "client", "patient", "husband", "wife", "girlfriend", "boyfriend", "grad",
+    "fresher", "punter", "bettor", "gambler", "raver", "clubgoer", "partygoer", "festivalgoer", "churchgoer",
+]
+
+
+def test_the_cr3b_singulars_are_sixty_distinct_words():
+    assert len(CR3B_SINGULARS) == 60 and len({w.lower() for w in CR3B_SINGULARS}) == 60
+
+
+@pytest.mark.parametrize("word", CR3B_SINGULARS)
+def test_each_cr3b_singular_blocks_a_date_before_or_after_the_range(on, word):
+    assert _k6_term(f"In May 18-24 the {word} led the trend", set())
+    assert _k6_term(f"The {word} drove it in June 18-24", set())
+    assert _k6_term(f"A {word} led it in May 18-24", set())
+    assert _k6_term(f"Event runs Sept 20-26 for a {word}", set())
+
+
+@pytest.mark.parametrize("word", CR3B_SINGULARS)
+def test_each_cr3b_singular_blocks_a_score_before_or_after_the_pair(on, word):
+    assert _k6_term(f"The {word} saw the Chiefs won 24-17", set())
+    assert _k6_term(f"Chiefs won 24-17 in front of the {word}", set())
+
+
+@pytest.mark.parametrize("word", CR3B_SINGULARS[:3] + CR3B_SINGULARS[-3:])
+def test_each_cr3b_singular_blocks_in_any_case(on, word):
+    assert _k6_term(f"In May 18-24 the {word.upper()} led the trend", set())
+
+
+@pytest.mark.parametrize("word", ["Membership", "Readership", "Citizenship", "Fatherland", "Motherwell", "Sonic",
+                                  "Clientele", "Playerunknown", "Staffordshire", "Ladybird", "Familyman"])
+def test_a_singular_must_be_a_whole_word(on, word):
+    assert not _k6_term(f"{word} won 24-17 on Saturday", set()), word
+    assert not _k6_term(f"Event runs Sept 20-26 at {word}", set()), word
+
+
+# CR-3b: a focus group holds anywhere in the clause, as an age group already did. A bare "group" still does not.
+FOCUS_SENTENCES = [
+    "the Sept 18-24 focus group", "In the focus group, Chiefs won 24-17", "Chiefs won 24-17 in the focus group",
+    "Event runs Sept 20-26 in the focus group room", "The focus-group saw the Chiefs won 24-17",
+    "Event runs Sept 20-26 for focus groups", "Chiefs won 24-17 in front of focus  groups",
+    "The age group saw the Chiefs won 24-17", "Chiefs won 24-17 in front of the age group",
+    "The age group was in the room, then Event runs Sept 20-26", "Chiefs won 24-17 in a focus - group", "Chiefs won 24-17 in the focusgroup", "Event runs Sept 20-26 for the age-group",
+]
+
+
+@pytest.mark.parametrize("text", FOCUS_SENTENCES)
+def test_a_focus_group_or_age_group_holds_anywhere_in_the_clause(on, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", FOCUS_SENTENCES)
+def test_the_focus_group_sentences_breached_when_off_too(off, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", ["Women posted. The focus group met. Event runs Sept 20-26 in Joburg",
+                                  "Event runs Sept 20-26 in Joburg. The focus group met",
+                                  "Chiefs won 24-17 on Saturday; the age group met",
+                                  "Chiefs won 24-17 on Saturday. The focus group met",
+                                  "Chiefs won 24-17 in the group stage", "Event runs Sept 20-26 in the group room",
+                                  "Women led it in June. 18-24", "Women: Sept 18-24"])
+def test_a_focus_group_in_another_clause_and_the_ruled_stops_still_clear(on, text):
+    assert not _k6_term(text, set()), text
