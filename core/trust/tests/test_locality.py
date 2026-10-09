@@ -53,6 +53,10 @@ def test_truth_table(r, status):
     (row(8, 5, status=None), "status_mismatch"),
     (row(8, 5, local_share=0.1), "share_mismatch"),
     (row(0, 0, local_share=0.0), "share_mismatch"),
+    (row(8, 5, local_share=float("nan")), "share_mismatch"),   # a stored NaN must not slip past the comparison
+    (row(8, 5, local_share=float("inf")), "share_mismatch"),
+    (row(8, 5, local_share="0.625"), "share_mismatch"),
+    (row(8, 5, local_share=None), "share_mismatch"),
 ])
 def test_invalid_and_unreadable_rows_are_never_zero(r, reason):
     got = read_locality(r)

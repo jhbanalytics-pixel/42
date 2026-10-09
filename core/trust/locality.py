@@ -93,7 +93,11 @@ def read_locality(row, *, expected_version=METRIC_VERSION):
     if row.get("status") != status:
         return _unreadable("status_mismatch")
     stored = row.get("local_share")
-    if (share is None) != (stored is None) or (share is not None and abs(share - stored) > 1e-9):
+    if (share is None) != (stored is None):
+        return _unreadable("share_mismatch")
+    if share is not None and (
+        not isinstance(stored, (int, float)) or not math.isfinite(stored) or abs(share - stored) > 1e-9
+    ):
         return _unreadable("share_mismatch")
     return Locality(status, None, known, local, share)
 
