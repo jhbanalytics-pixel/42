@@ -5,6 +5,9 @@ Pure Python: no cloud or model calls. f42-api adds tag, dropped and coverage its
 critic lists, for each item whose explanation reached the critic, the critic's own answer as it returned it
 (core/brief/explain.py CRITIC_FIELDS) with the item_id. It is kept for audit beside the cards and held items, never
 on them, so no reader shows it: f42-api builds Today from the named fields and creator pages read cards.
+
+hold_audit does the same for a post floor hold the suppression mask changed: the stage counts of such a hold would
+show a reader that posts were hidden, so the hold is served without them and they are kept here, with the item_id.
 """
 
 from collections import Counter
@@ -306,6 +309,8 @@ def build_market_payload(market, brief_date, candidates, *, moments, boards, ban
         "coverage": {"issues": list(issues)},
         "critic": [{"item_id": c["item_id"], **c["critic"]} for c in candidates
                    if isinstance(c.get("critic"), dict)],
+        "hold_audit": [{"item_id": c["item_id"], **c["held_reason_audit"]} for c in candidates
+                       if isinstance(c.get("held_reason_audit"), dict)],
     }
 
 

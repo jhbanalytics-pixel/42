@@ -3,7 +3,9 @@ section 19 rules 5 to 7). The floors themselves (3 showable, 2 local) are pinned
 
 import pytest
 
+from core.api import today
 from core.brief import evidence, job, pack_order
+from core.brief import payload as payload_module
 from core.brief.specificity import MIN_EVIDENCE
 from core.brief.tests import test_pack_order as pack_world
 from core.brief.tests.test_brief_job import Client, add_item, brief, held_items, item, payload, world
@@ -92,6 +94,18 @@ def test_the_local_floor_of_two_is_also_met_at_exactly_two(counts, cause):
     posts = [rec(f"l{n}") for n in range(f)]
     detail = pack_order.hold_detail(stages(stage(a), stage(b), stage(c)), "local", posts, "ZA")
     assert detail["cause"] == cause and detail["minimum"] == 2
+
+
+def test_the_final_count_never_reads_lower_than_the_posts_the_gate_read():
+    """A merge or a second read can put more posts in the pack than the query's own read had: 1 at the query's end,
+    2 in the evidence the gate read. The final count is then the 2, and no mask is involved."""
+    posts = [rec("a"), rec("b")]
+    counts = stages(stage(2), stage(2), stage(2))
+    counts["final"] = stage(1)
+    detail = pack_order.hold_detail(counts, "showable", posts, "ZA")
+    assert detail["counts"] == {"available": 2, "after_creator_cap": 2, "after_outlet_cap": 2, "final": 2}
+    assert detail["cause"] == "evidence_absent"
+    assert pack_order.masked_after_ranking(counts, "showable", posts, "ZA") is False
 
 
 def test_posts_removed_after_the_ranking_are_not_blamed_on_the_12_post_limit_and_their_number_is_not_shown():
@@ -271,6 +285,29 @@ def test_build_pack_reads_an_empty_pack_the_outlet_cap_left_as_no_posts_with_its
     assert counts["available"]["posts"] == 3 and counts["after_outlet_cap"]["posts"] == 0
 
 
+@pytest.mark.parametrize("cap,cause,text", [
+    (12, "capped_by_size", "Fewer than 3 posts 42 can show: the 12-post limit left 0 of 3"),
+    (3, "capped_by_outlet", "Fewer than 3 posts 42 can show: the outlet cap left 0 of 3"),
+    (0, "capped_by_outlet", "Fewer than 3 posts 42 can show: the outlet cap left 0 of 3")])
+def test_an_outlet_cap_below_12_is_named_when_it_removed_the_showable_posts_from_inside_the_first_12_places(
+        gate_passes, monkeypatch, cap, cause, text):
+    monkeypatch.setattr(pack_order, "OUTLET_CAP", cap)
+    con = pack_world.abroad_outlets_world()
+    duck.load(con, "core.item_state", [{"metric_date": D, "market": "NG", "item_id": "i1", "kind": "hashtag",
+                                        "state": "emerging", "untested": True, "run_id": "detect-1",
+                                        "rule_version": "r1"}])
+    row = {"item_id": "i1", "run_id": "detect-1", "state": "emerging", "untested": True, "main_series_id": None}
+    counts = {}
+    pack, _, _ = evidence.build_pack(Client(con), row, pack_world.D, "NG", core="core", agent="agent",
+                                     hidden=(set(), set(), set()), stages=counts)
+    assert len(pack["evidence"]) == min(cap, 12)
+    cand = candidate(pack["evidence"])
+    cand.update(market="NG", stages=counts)
+    decision = job._gate(cand, None)
+    assert (cand["held_reason_detail"]["cause"], decision.reason) == (cause, text)
+    assert cand["held_reason_detail"]["counts"] == {"available": 3, "after_creator_cap": 3, "after_outlet_cap": 3 if cap == 12 else 0, "final": 0}
+
+
 def test_posts_the_suppression_mask_removes_after_the_query_are_not_blamed_on_the_12_post_limit(gate_passes):
     con = duck.connect()
     pack_world.clusters(con)
@@ -288,9 +325,83 @@ def test_posts_the_suppression_mask_removes_after_the_query_are_not_blamed_on_th
     cand["stages"] = counts
     decision = job._gate(cand, None)
     assert decision.reason == "Fewer than 3 posts 42 can show"  # says nothing of a limit, or of what was removed
-    assert cand["held_reason_detail"]["cause"] == "removed_after_ranking"
-    assert cand["held_reason_detail"]["counts"] == {"available": 4, "after_creator_cap": 4, "after_outlet_cap": 4,
-                                                    "final": 4}
+    assert cand["held_reason_detail"] is None  # nothing served: its counts would show the posts that were hidden
+    assert cand["held_reason_audit"]["cause"] == "removed_after_ranking"
+    assert cand["held_reason_audit"]["counts"] == {"available": 4, "after_creator_cap": 4, "after_outlet_cap": 4,
+                                                   "final": 4}
+
+
+def served_hold(cand, decision):
+    """The held item as the brief stores it and as the API serves it to a reader."""
+    cand["decision"] = {"publish": decision.publish, "where": decision.where, "flag": decision.flag,
+                        "reason": decision.reason, "rule": decision.rule, "numbers_only": decision.numbers_only}
+    cand.setdefault("title", "t")
+    cand.setdefault("item_id", "i1")
+    cand["evidence"] = cand["pack"]["evidence"]
+    stored = payload_module._held_item(cand)
+    return stored, today._held_item(stored, {})
+
+
+def test_a_reader_of_the_api_cannot_tell_from_a_hold_that_posts_were_hidden(gate_passes):
+    """The reviewer's probe: 4 posts reached the end of the query, 2 of them are by people on the hidden list."""
+    con = duck.connect()
+    pack_world.clusters(con)
+    for n in range(4):
+        pack_world.post(con, f"p{n}", creator=f"h{n}", eng=100 - n)
+    duck.load(con, "core.item_state", [{"metric_date": D, "market": "NG", "item_id": "i1", "kind": "hashtag",
+                                        "state": "emerging", "untested": True, "run_id": "detect-1",
+                                        "rule_version": "r1"}])
+    row = {"item_id": "i1", "run_id": "detect-1", "state": "emerging", "untested": True, "main_series_id": None}
+    counts = {}
+    pack, _, _ = evidence.build_pack(Client(con), row, pack_world.D, "NG", core="core", agent="agent",
+                                     hidden=({"tiktok:h0", "tiktok:h1"}, set(), set()), stages=counts)
+    cand = candidate(pack["evidence"])
+    cand.update(market="NG", stages=counts)
+    stored, served = served_hold(cand, job._gate(cand, None))
+    assert len(served["evidence"]) == 2 and served["reason_text"] == "Fewer than 3 posts 42 can show"
+    assert "held_reason_detail" not in stored and "held_reason_detail" not in served
+    assert "counts" not in str(served) and "removed_after_ranking" not in str(served)
+
+
+def test_the_audit_record_reaches_the_candidate_the_payload_is_built_from(gate_passes):
+    cand = candidate([rec("a")], stages=stages(stage(4), stage(4), stage(4)))
+    cand["stages"]["final"] = stage(4)
+    cand["pack"]["numbers"] = []
+    cand.update(sparkline=None, decision=job._gate(cand, None))
+    item = job._payload_candidate(cand, None)
+    assert item["held_reason_audit"]["cause"] == "removed_after_ranking" and item["held_reason_detail"] is None
+
+
+@pytest.mark.parametrize("floor_posts,shown,counts", [
+    ((4, 2, 2, 2), 1, {"available": 4, "after_creator_cap": 2, "after_outlet_cap": 2, "final": 2}),
+    ((4, 4, 4, 3), 2, {"available": 4, "after_creator_cap": 4, "after_outlet_cap": 4, "final": 3})])
+def test_a_hold_whose_pack_lost_posts_to_the_mask_names_no_cap_and_serves_no_counts(
+        gate_passes, floor_posts, shown, counts):
+    a, b, c, f = floor_posts
+    cand = candidate([rec(f"l{n}") for n in range(shown)], stages=stages(stage(a), stage(b), stage(c)))
+    cand["stages"]["final"] = stage(f)
+    decision = job._gate(cand, None)
+    assert decision.reason == "Fewer than 3 posts 42 can show"  # a cap is not named: it would place the loss
+    assert cand["held_reason_detail"] is None
+    assert cand["held_reason_audit"]["counts"] == counts and cand["held_reason_audit"]["minimum"] == 3
+
+
+def test_a_hold_that_lost_nothing_to_the_mask_still_serves_its_counts(gate_passes):
+    cand = candidate([rec("a"), rec("b")], stages=stages(stage(4), stage(2), stage(2)))
+    cand["stages"]["final"] = stage(2)
+    decision = job._gate(cand, None)
+    assert decision.reason == "Fewer than 3 posts 42 can show: the creator cap left 2 of 4"
+    assert cand["held_reason_detail"]["cause"] == "capped_by_creator" and cand["held_reason_audit"] is None
+
+
+def test_the_mask_check_reads_only_the_floors_own_kind_of_post_and_a_missing_stage_means_no_mask():
+    posts = [rec("a"), rec("b", market="KE")]  # 2 posts, one showable here, one not
+    both = {"final": stage(3, showable=2, local=1)}
+    assert pack_order.masked_after_ranking(both, "showable", posts, "ZA") is True   # 2 showable were left, 1 shown
+    assert pack_order.masked_after_ranking({"final": stage(2, showable=1, local=1)}, "showable", posts, "ZA") is False
+    assert pack_order.masked_after_ranking({"final": stage(3, showable=1, local=1)}, "showable", posts, "ZA") is False
+    assert pack_order.masked_after_ranking({}, "showable", posts, "ZA") is False
+    assert pack_order.masked_after_ranking(None, "showable", posts, "ZA") is False
 
 
 # The outlet registry

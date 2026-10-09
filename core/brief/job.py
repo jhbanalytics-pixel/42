@@ -352,8 +352,16 @@ def _held(reason_text, rule=None):
 
 def _floor_held_decision(cand, floor, text, evidence):
     """A hold on a post floor, with the stage at which the pack fell below it (pack_order.hold_detail) kept in
-    held_reason_detail, and the cap that did it named in the text. The reason code stays not_confirmed."""
+    held_reason_detail, and the cap that did it named in the text. The reason code stays not_confirmed.
+
+    When the suppression mask took posts out of the pack after the query, the stage counts include posts a reader
+    must not learn of, and a cap named in the text would place a loss the mask caused. The wording stays plain, the
+    detail is not served, and it is kept in held_reason_audit, which the payload stores apart from cards and held
+    items (payload.py hold_audit) and no reader shows."""
     detail = pack_order.hold_detail(cand.get("stages"), floor, evidence, cand["market"])
+    if pack_order.masked_after_ranking(cand.get("stages"), floor, evidence, cand["market"]):
+        cand["held_reason_audit"] = detail
+        return _held(text)
     cand["held_reason_detail"] = detail
     return _held(pack_order.hold_text(text, detail))
 
@@ -363,7 +371,8 @@ def _gate(cand, passed):
     platform-generic tag is not a trend (G2), and a card needs at least 3 posts 42 can show. Invalid data days
     (G1) are checked before the brief's own holds, so the data-issue count is never undercounted. A market scope
     that could not be read is held as unreadable evidence, not as global."""
-    cand["held_reason"], cand["floor_held"], cand["held_reason_detail"] = None, False, None
+    cand["held_reason"], cand["floor_held"] = None, False
+    cand["held_reason_detail"], cand["held_reason_audit"] = None, None
     if cand.get("error"):
         cand["held_reason"] = "data_issue"
         return _held("Evidence could not be read")
@@ -1013,7 +1022,7 @@ def _payload_candidate(cand, result, specificity=None):
     return {
         **row, "decision": cand["decision"], "explanation_status": status, "numbers": pack["numbers"],
         "evidence": pack["evidence"], "sparkline": cand["sparkline"], "held_reason": cand.get("held_reason"),
-        "held_reason_detail": cand.get("held_reason_detail"),
+        "held_reason_detail": cand.get("held_reason_detail"), "held_reason_audit": cand.get("held_reason_audit"),
         "failed_reason": failed_reason(result) if status == "failed_checks" else (
             cand.get("busy_reason") if status == "not_run" else None),
         "explanation": result.get("explanation") if explained else None,

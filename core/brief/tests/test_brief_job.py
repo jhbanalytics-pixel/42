@@ -50,7 +50,7 @@ CAP_BEFORE_EXPIRY = datetime(2026, 10, 2, 23, 59, 59, tzinfo=SAST)
 CAP_AFTER_EXPIRY = datetime(2026, 10, 3, 0, 0, tzinfo=SAST)
 MARKETS = ("ZA", "NG", "KE")
 MARKET_KEYS = {"market", "label", "status", "headline", "banners", "cards", "more", "held_back", "moments", "boards",
-               "coverage", "critic", "not_assessed", "selection_receipt"}
+               "coverage", "critic", "hold_audit", "not_assessed", "selection_receipt"}
 CARD_KEYS = {"item_id", "market", "date", "rank", "kind", "title", "state", "state_word", "flag", "flag_word",
              "explained", "explanation", "explanation_claim_ids", "claims", "count_line", "numbers", "sparkline",
              "thumbnails", "evidence_ids", "evidence", "ask", "explanation_status", "failed_reason", "also",

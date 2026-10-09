@@ -13,7 +13,7 @@ D = "2026-09-30"
 # Contract version 1, section 4, less what f42-api computes (tag, dropped), plus the headline object section 8
 # puts on each market row, and coverage carrying only the issues the brief itself found (f42-api adds the rest).
 MARKET_KEYS = {"market", "label", "status", "headline", "banners", "cards", "more", "held_back", "moments", "boards",
-               "coverage", "critic", "not_assessed", "selection_receipt"}
+               "coverage", "critic", "hold_audit", "not_assessed", "selection_receipt"}
 CARD_KEYS = {
     "item_id", "market", "date", "rank", "kind", "title", "state", "state_word", "flag", "flag_word",
     "explained", "explanation", "explanation_claim_ids", "claims", "count_line", "numbers", "sparkline",
@@ -696,6 +696,16 @@ def test_the_critics_answers_sit_apart_from_cards_and_held_items():
     assert p["critic"] == [{"item_id": "it_1", **shown}, {"item_id": "it_2", **held_answer}]
     assert all("critic" not in c for c in p["cards"] + p["more"])
     assert all("critic" not in i for i in p["held_back"]["items"])
+
+
+def test_a_floor_hold_the_mask_changed_keeps_its_counts_in_hold_audit_and_not_on_the_held_item():
+    audit = {"block_version": 1, "floor": "showable", "minimum": 3, "cause": "removed_after_ranking",
+             "counts": {"available": 4, "after_creator_cap": 4, "after_outlet_cap": 4, "final": 4}}
+    held = decision("held_back", reason="Fewer than 3 posts 42 can show")
+    p = build([cand(1, decision=held, held_reason_audit=audit), cand(2, decision=held)])
+    assert p["hold_audit"] == [{"item_id": "it_1", **audit}]
+    assert all("held_reason_audit" not in i and "held_reason_detail" not in i for i in p["held_back"]["items"])
+    assert build([cand(1), cand(2, held_reason_audit=None)])["hold_audit"] == []
 
 
 def test_the_critics_answers_are_empty_when_no_critic_ran():
