@@ -148,3 +148,13 @@ def test_a_missing_platform_still_counts_the_author_toward_three_with_a_metric()
     assert independence.is_corroborated(groups, True) is True
     assert independence.is_corroborated(groups, False) is False
 
+
+def test_the_jaccard_boundary_is_at_or_above_eight_tenths():
+    base = {"a", "b", "c", "d", "e"}
+    assert independence.JACCARD == 0.8
+    assert independence.similar(base, base - {"e"}) is True  # 4 of 5: exactly 0.8
+    assert independence.similar(base, base - {"e", "d"}) is False  # 3 of 5: 0.6
+    assert independence.similar(base, base | {"f"}) is True  # 5 of 6: 0.83
+    assert independence.similar(base, base | {"f", "g"}) is False  # 5 of 7: 0.71
+    assert independence.similar(base, set(base)) is True
+    assert independence.similar(set(), set()) is False
