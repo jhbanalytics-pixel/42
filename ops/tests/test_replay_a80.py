@@ -5,6 +5,8 @@ anywhere. The last block reads the retained snapshots; it runs only when F42_REP
 import difflib
 import hashlib
 import os
+import re
+import subprocess
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -148,8 +150,19 @@ def view_statement(name, text):
     return next(s for s in text if sqlrun.object_name(s).endswith(name))
 
 
+A80_COMMIT = "a80be1d"
+REPO = Path(__file__).resolve().parents[2]
+
+
+def a80_views_sql():
+    """core/detect/sql/views.sql as it stood at the live staging commit, read from git."""
+    done = subprocess.run(["git", "-C", str(REPO), "show", f"{A80_COMMIT}:core/detect/sql/views.sql"],
+                          capture_output=True, check=True)
+    return done.stdout.decode("utf-8").replace("\r\n", "\n")
+
+
 def test_the_v1_view_differs_from_the_a80_view_only_in_the_veto_clauses():
-    a80 = view_statement("v_item_market_scope", sqlrun.statements(core="core", agent="agent")).splitlines()
+    a80 = ra.scope_view_sql("a80").splitlines()
     v1 = ra.scope_view_sql("v1").splitlines()
     hunks = [op for op in difflib.SequenceMatcher(None, v1, a80).get_opcodes() if op[0] != "equal"]
     veto = [(a, b) for a, b in ((chr(10).join(v1[a0:a1]), chr(10).join(a80[b0:b1])) for _, a0, a1, b0, b1 in hunks)
@@ -161,9 +174,29 @@ def test_the_v1_view_differs_from_the_a80_view_only_in_the_veto_clauses():
     assert "NULLIF" not in chr(10).join(v1)
 
 
-def test_the_a80_view_is_the_one_in_the_worktree():
-    assert ra.scope_view_sql("a80") == view_statement("v_item_market_scope",
-                                                      sqlrun.statements(core="core", agent="agent"))
+def test_the_a80_arm_is_the_pinned_copy_of_the_view_at_the_live_staging_commit_not_the_checkout():
+    pinned = ra.SCOPE_A80.read_text(encoding="utf-8").strip()
+    live = [s for s in sqlrun.split(a80_views_sql())
+            if s.lstrip().startswith("CREATE OR REPLACE VIEW {core}.v_item_market_scope ")]
+    assert len(live) == 1
+    live = live[0].strip()
+    assert pinned == live, f"scope_view_a80.sql is not the view in {A80_COMMIT}:core/detect/sql/views.sql"
+    assert ra.scope_view_sql("a80") == sqlrun.render(pinned, "core", "agent").strip()
+
+
+def test_the_a80_arm_does_not_read_the_checkouts_scope_view(monkeypatch):
+    pinned = ra.scope_view_sql("a80")
+    other = "CREATE OR REPLACE VIEW core.v_item_market_scope AS SELECT 1 AS metric_date"
+    monkeypatch.setattr(sqlrun, "statements", lambda **_: [other])
+    assert ra.scope_view_sql("a80") == pinned != other
+    assert "market_news_posts7" not in pinned, "the a80 view predates the news scope column"
+
+
+def test_every_insert_in_the_replay_names_its_columns():
+    """The harness tables grow columns (locality-v2b added two to post_items), so a positional insert breaks."""
+    text = Path(ra.__file__).read_text(encoding="utf-8")
+    inserts = re.findall(r"INSERT INTO\s+[\w.]+\s*(\(?)", text)
+    assert inserts and all(inserts), "an INSERT INTO without a column list"
 
 
 # Scope: a post the Nigerian feed saw but the post says is elsewhere

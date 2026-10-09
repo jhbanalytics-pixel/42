@@ -4,14 +4,15 @@ Release B will run a80 understand and scope code live for the first time. This h
 snapshots of 5 to 8 October, what that code does to a day the earlier code already ran. Nothing here touches a network
 or a warehouse: the inputs are seven parquet files per day and, for the control, the pinned detect states.
 
-What it can and cannot replay. The scope rule is replayed exactly: the repo's own v_item_market_scope view and its own
-candidates statement (core/brief/sql/brief.sql) run on DuckDB through core/detect/tests/duck.py, once with the pinned
-copy of the view as it stood before a80 (scope_view_v1.sql, the text of 34725f1, equal to the definition read from the
-warehouse on 7 October) and once with the a80 view. The clustering is not refitted, because the snapshots hold no text
-and no embeddings. What a80 changes there is known, though: the earlier code reassigned every HDBSCAN outlier to its
-nearest topic and kept it at probability zero, and a80 leaves the outlier unassigned. A cluster member with
-probability zero in a retained day is therefore a reassigned outlier, and a80 would not have written that row. The
-effect on links is replayed by dropping the cluster links whose every supporting member is such a row. The matching
+What it can and cannot replay. The scope rule is replayed exactly: the repo's own candidates statement
+(core/brief/sql/brief.sql) runs on DuckDB through core/detect/tests/duck.py over a v_item_market_scope view that is a
+pinned copy, never the checkout's view. The v1 copy is the view as it stood before a80 (scope_view_v1.sql, the text of
+34725f1, equal to the definition read from the warehouse on 7 October). The a80 copy is the view at a80be1d
+(scope_view_a80.sql), which the checkout's view has since moved on from. The clustering is not refitted, because the
+snapshots hold no text and no embeddings. What a80 changes there is known, though: the earlier code reassigned every
+HDBSCAN outlier to its nearest topic and kept it at probability zero, and a80 leaves the outlier unassigned. A cluster
+member with probability zero in a retained day is therefore a reassigned outlier, and a80 would not have written that
+row. The effect on links is replayed by dropping the cluster links whose every supporting member is such a row. The matching
 change in a80 (a topical vote) needs centroids and keywords the snapshots do not carry and is not replayed.
 
 Two inputs are missing from the snapshots and are approximated: post engagement (every post ties at zero, so the 12
@@ -38,6 +39,10 @@ CLUSTER_VIA = ("cluster", "cluster_pan", "lineage")
 # the list itself, pinned here, is what stops a changed file and its rewritten line from passing together.
 PINNED_SUMS_SHA256 = "7288cba0aeab817b0af1e65c3d57b6acd60d67cb94261b87a2e15760731edede"
 SCOPE_V1 = Path(__file__).with_name("scope_view_v1.sql")
+# The v_item_market_scope statement of core/detect/sql/views.sql at a80be1d, the live staging commit, copied verbatim.
+# The checkout's own view has moved on (it adds the news scope column and the locality members), so the "a80" arm
+# reads this copy and not the checkout. A test compares the copy with that commit.
+SCOPE_A80 = Path(__file__).with_name("scope_view_a80.sql")
 # The understand run's own counts for the four days, from agent.runs (stage understand, status ok, counts.cluster):
 # kind -> (clusters, members, today_posts, posts fitted on). The earlier code assigned every post sighted today.
 RECORDED_UNDERSTAND = {
@@ -114,8 +119,8 @@ def load_world(snap_dir, day, links="recorded"):
       (post_id, platform, creator_id, published_at, post_date, geo_market, geo_confidence, geo_source)
       SELECT post_id, platform, creator_key_hash, published_at, post_date, geo_market, geo_confidence, geo_source
       FROM {p('posts')}""")
-    con.execute(f"INSERT INTO core.post_items SELECT post_id, item_id, via FROM {p('post_items')}")
-    con.execute(f"""INSERT INTO core.source_market_fixture
+    con.execute(f"INSERT INTO core.post_items (post_id, item_id, via) SELECT post_id, item_id, via FROM {p('post_items')}")
+    con.execute(f"""INSERT INTO core.source_market_fixture (post_id, source_markets, source_sightings)
       SELECT post_id, list(DISTINCT source_market ORDER BY source_market),
         list(CAST(ROW(source_market, source_region, route, NULL, observed_at, observed_date) AS
                   STRUCT(source_market VARCHAR, source_region VARCHAR, route VARCHAR, protocol VARCHAR,
@@ -130,8 +135,10 @@ def load_world(snap_dir, day, links="recorded"):
       (item_id, kind, canonical_key, label, first_seen, first_seen_market, last_seen, status, valid_from, valid_to)
       SELECT item_id, kind, canonical_key, label, first_seen, first_seen_market, last_seen, status, valid_from,
         valid_to FROM {p('cultural_map')}""")
-    con.execute(f"INSERT INTO core.clusters SELECT cluster_date, cluster_id, market, item_id, match_kind FROM {p('clusters')}")
-    con.execute(f"INSERT INTO core.cluster_members SELECT cluster_id, post_id, probability FROM {p('cluster_members')}")
+    con.execute(f"""INSERT INTO core.clusters (cluster_date, cluster_id, market, item_id, match_kind)
+      SELECT cluster_date, cluster_id, market, item_id, match_kind FROM {p('clusters')}""")
+    con.execute(f"""INSERT INTO core.cluster_members (cluster_id, post_id, probability)
+      SELECT cluster_id, post_id, probability FROM {p('cluster_members')}""")
     if links == "a80":
         via = ", ".join(f"'{v}'" for v in CLUSTER_VIA)
         support = """SELECT 1 FROM core.cluster_members cm JOIN core.clusters c ON c.cluster_id = cm.cluster_id
@@ -181,12 +188,11 @@ def add_pinned_states(con, day, market, rows):
 
 def scope_view_sql(variant):
     """The v_item_market_scope statement as rendered for the DuckDB schemas: "v1" is the pinned copy from before a80,
-    "a80" is the one in this checkout."""
+    "a80" is the pinned copy from a80be1d, not the view in this checkout."""
     if variant == "v1":
         return sqlrun.render(SCOPE_V1.read_text(encoding="utf-8"), "core", "agent").strip()
     if variant == "a80":
-        return next(s for s in sqlrun.statements(core="core", agent="agent")
-                    if sqlrun.object_name(s).endswith("v_item_market_scope"))
+        return sqlrun.render(SCOPE_A80.read_text(encoding="utf-8"), "core", "agent").strip()
     raise ValueError(f"scope variant must be v1 or a80, got {variant!r}")
 
 
