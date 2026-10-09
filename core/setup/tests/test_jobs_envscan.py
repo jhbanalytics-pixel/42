@@ -168,3 +168,78 @@ def test_jb06_with_f42_fixture_state_unset_the_fixture_agent_takes_the_normal_pa
     got = agent_app.fixture_agent(request, lambda event: None, lambda: False)
     assert set(got) == {"answer", "run", "answer_meta"}
     assert got["answer"]["status"] == "complete"
+
+
+# RB-C7: an optional tuning read, and two names classified explicitly
+
+LEARN = ("core/detect/learn.py", "LEARN_OUTCOME_DEADLINE_SECONDS")
+TUNING_SOURCE = 'import os\n\n\ndef f():\n    return float(os.environ.get("LEARN_OUTCOME_DEADLINE_SECONDS", ""))\n'
+
+
+def test_rbc7_the_optional_tuning_read_passes_in_its_own_file_and_nowhere_else():
+    assert scan([(LEARN[0], TUNING_SOURCE)]) == []
+    assert one([("core/detect/other.py", TUNING_SOURCE)]).name == LEARN[1]
+    assert one([(LEARN[0], TUNING_SOURCE.replace("LEARN_OUTCOME_DEADLINE_SECONDS", "LEARN_OTHER_SECONDS"))]).name == "LEARN_OTHER_SECONDS"
+
+
+def test_rbc7_the_pinned_default_is_what_the_code_uses_when_the_variable_is_unset_empty_or_not_a_number(monkeypatch):
+    from core.detect import learn
+
+    assert env_scan.OPTIONAL_TUNING == {LEARN: 480}
+    for value in (None, "", "soon", "-5", "0", "nan"):
+        if value is None:
+            monkeypatch.delenv("LEARN_OUTCOME_DEADLINE_SECONDS", raising=False)
+        else:
+            monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", value)
+        assert learn.outcome_deadline_setting() == (env_scan.OPTIONAL_TUNING[LEARN], None), value
+    assert learn.OUTCOME_DEADLINE_SECONDS == env_scan.OPTIONAL_TUNING[LEARN]
+    monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", "60")
+    assert learn.outcome_deadline_setting() == (60.0, None)
+    monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", "9999")      # never above the default: a longer wait costs the run its row
+    assert learn.outcome_deadline_setting() == (480.0, 9999.0)
+
+
+def test_rbc7_no_job_definition_sets_the_tuning_variable_so_every_run_takes_the_default():
+    for job in dj.JOBS:
+        assert not any(entry.startswith("LEARN_OUTCOME_DEADLINE_SECONDS") for entry in job.env), job.name
+
+
+def test_rbc7_agent_audience_is_classified_as_service_only_in_its_file_and_that_file_is_not_job_code():
+    pair = ("core/api/app.py", "AGENT_AUDIENCE")
+    assert pair in env_scan.SERVICE_ONLY
+    source = 'import os\nx = os.environ.get("AGENT_AUDIENCE", "")\n'
+    assert scan([(pair[0], source)]) == []
+    assert one([("core/api/other.py", source)]).name == "AGENT_AUDIENCE"
+    files = env_scan.tree_from_disk(ROOT / "core", ROOT)
+    entries = sorted({job.module for job in dj.JOBS if job.module} | {job.module for job in dj.SMOKE_JOBS})
+    reachable = env_scan.import_closure(files, entries)
+    assert "core.api.digest" in reachable and "core.api.scheduled" in reachable      # the closure does reach the api package
+    assert "core.api.app" not in reachable, "a job now imports core.api.app, which AGENT_AUDIENCE was classified as not reaching"
+
+
+def test_rbc7_the_closure_follows_plain_from_and_lazy_imports():
+    files = [("core/a.py", "import core.b\n"), ("core/b.py", "def f():\n    from core import c\n"), ("core/c.py", "x = 1\n"),
+             ("core/d.py", "x = 1\n"), ("core/e.py", "x = 1\n"), ("core/__init__.py", "import core.e\n")]
+    # importing core.a runs core/__init__.py first, which imports core.e; core.d is imported by nothing
+    assert env_scan.import_closure(files, ["core.a"]) == {"core", "core.a", "core.b", "core.c", "core.e"}
+    nested = [("core/__init__.py", ""), ("core/pkg/__init__.py", "import core.e\n"), ("core/pkg/m.py", "x = 1\n"), ("core/e.py", "x = 1\n")]
+    assert env_scan.import_closure(nested, ["core.pkg.m"]) == {"core", "core.pkg", "core.pkg.m", "core.e"}
+
+
+def test_rbc7_the_test_harness_variable_is_classified_in_conftest_and_that_file_is_outside_the_scan():
+    pair = ("core/conftest.py", "F42_TEST_LOCALITY_AUTHORITY")
+    assert pair in env_scan.TEST_HARNESS
+    assert not env_scan.in_scope(pair[0])
+    read = env_scan.Read(pair[0], 61, pair[1], "get")
+    assert env_scan.classified(read, set())
+    assert not env_scan.classified(env_scan.Read("core/other.py", 1, pair[1], "get"), set())
+    readers = {p for p, t in env_scan.tree_from_disk(ROOT / "core", ROOT) if "F42_TEST_LOCALITY_AUTHORITY" in t}
+    assert readers == {"core/conftest.py", "core/detect/tests/test_detect_scorecard.py", "core/setup/release/env_scan.py",
+                       "core/setup/tests/test_jobs_envscan.py"}
+
+
+def test_rbc7_the_scan_of_this_checkout_no_longer_reports_the_three_names():
+    a80 = de.git_tree_files(A80, "core", ROOT)
+    head = env_scan.tree_from_disk(ROOT / "core", ROOT)
+    names = {f.name for f in env_scan.scan(a80, head, set())}
+    assert not names & {"LEARN_OUTCOME_DEADLINE_SECONDS", "AGENT_AUDIENCE", "F42_TEST_LOCALITY_AUTHORITY"}

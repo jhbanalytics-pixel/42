@@ -12,6 +12,13 @@ commit has and a80 did not, and fails any whose name is not in one of four class
     process local       a setdefault, which only fills the process's own environment
     baseline-J          a name in the env name list of the 14 job definitions captured in baseline-J
 
+and three classes the whole-diff review added (RB-C7), each pinned to a file and a name, never to a name alone:
+
+    optional tuning     OPTIONAL_TUNING: a read whose unset value is the pinned default; a test calls the code with the
+                        variable unset, empty and malformed and compares with the pinned value
+    service only        SERVICE_ONLY: a read in a file no job imports; a test walks the import closure of every job module
+    test harness        TEST_HARNESS: a read in a conftest, which the scan excludes already; listed so it is classified
+
 A read is os.environ.get / .pop / [...] / `in`, os.getenv and environ.get / .setdefault. A name that is not a literal is
 <dynamic>. A whole mapping taken from the environment (`env = os.environ`) is judged by the literal names its function reads
 with .get or [...]; with none it is <mapping>. A read of a name a80's file already made is not new. Every finding carries the
@@ -33,6 +40,10 @@ from core.setup import durable_effects_check as de  # noqa: E402
 
 PLATFORM = re.compile(r"CLOUD_RUN_[A-Z0-9_]+\Z")
 IMAGE_BAKED = frozenset({"F42_GIT_SHA"})
+# (file, name) -> the value the code uses when the variable is unset. core/detect/learn.py OUTCOME_DEADLINE_SECONDS.
+OPTIONAL_TUNING = {("core/detect/learn.py", "LEARN_OUTCOME_DEADLINE_SECONDS"): 480}
+SERVICE_ONLY = frozenset({("core/api/app.py", "AGENT_AUDIENCE")})
+TEST_HARNESS = frozenset({("core/conftest.py", "F42_TEST_LOCALITY_AUTHORITY")})
 ENV_NAME = re.compile(r"[A-Z][A-Z0-9_]{2,}\Z")
 RELEASE_TOOLING = "core/setup/release/"
 
@@ -164,7 +175,40 @@ def added_reads(a80_files, head_files):
 
 
 def classified(read, baseline_names):
-    return read.kind == "setdefault" or bool(PLATFORM.match(read.name)) or read.name in IMAGE_BAKED or read.name in baseline_names
+    pair = (read.path, read.name)
+    return (read.kind == "setdefault" or bool(PLATFORM.match(read.name)) or read.name in IMAGE_BAKED or read.name in baseline_names
+            or pair in OPTIONAL_TUNING or pair in SERVICE_ONLY or pair in TEST_HARNESS)
+
+
+def import_closure(files, entries):
+    """The modules reachable from entries through import statements (plain, from and lazy ones inside functions), with the
+    parent packages a module import runs first. files is (path, text); an import of a module not in files is not followed."""
+    texts = dict(files)
+    modules = {}
+    for path in texts:
+        if path.endswith(".py"):
+            name = path[:-3].replace("/", ".")
+            modules[name[:-len(".__init__")] if name.endswith(".__init__") else name] = path
+    seen, todo = set(), list(entries)
+    while todo:
+        module = todo.pop()
+        if module in seen or module not in modules:
+            continue
+        seen.add(module)
+        todo += [".".join(module.split(".")[:i]) for i in range(1, len(module.split(".")))]
+        package = module if modules[module].endswith("__init__.py") else module.rsplit(".", 1)[0] if "." in module else ""
+        for node in ast.walk(ast.parse(texts[modules[module]])):
+            if isinstance(node, ast.Import):
+                todo += [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                if node.level:
+                    parts = package.split(".")[:len(package.split(".")) - (node.level - 1)]
+                    base = ".".join(parts + ([node.module] if node.module else []))
+                else:
+                    base = node.module or ""
+                todo.append(base)
+                todo += [f"{base}.{alias.name}" for alias in node.names]
+    return seen
 
 
 def scan(a80_files, head_files, baseline_names):
