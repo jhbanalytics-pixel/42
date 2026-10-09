@@ -3,33 +3,102 @@
   "success": true,
   "credits_used": 5,
   "data": {
-    "items": [
+    "results": [
       {
         "platform": "instagram",
-        "handle": "gossip.page.one",
         "status": "ok",
-        "author": {"username": "gossip.page.one", "followers": 1200000, "location": "Lagos"},
-        "posts": [
-          {"post": {"id": "igg_1", "url": "https://www.instagram.com/p/igg_1/", "published_at": "2026-10-04T19:00:00Z",
-                    "content": {"text": "Ade Bright and Chioma Rays spotted at the Owambe Season shoot #owambe"},
-                    "engagement": {"views": 90000, "likes": 12000, "comments": 800}}},
-          {"post": {"id": "igg_2", "url": "https://www.instagram.com/p/igg_2/", "published_at": "2026-10-04T08:00:00Z",
-                    "content": {"text": "Who is going to the Lagos concert this weekend? #detty"},
-                    "engagement": {"views": 40000, "likes": 5100, "comments": 640}}}
-        ]
+        "target": {
+          "platform": "instagram",
+          "handle": "gossip.page.one"
+        },
+        "data": {
+          "author": {
+            "username": "gossip.page.one",
+            "followers": 1200000
+          }
+        },
+        "posts": {
+          "status": "ok",
+          "items": [
+            {
+              "post": {
+                "id": "igg_1",
+                "url": "https://www.instagram.com/p/igg_1/",
+                "published_at": "2026-10-04T19:00:00Z",
+                "content": {
+                  "text": "Ade Bright and Chioma Rays spotted at the Owambe Season shoot #owambe"
+                },
+                "engagement": {
+                  "views": 90000,
+                  "likes": 12000,
+                  "comments": 800
+                }
+              }
+            },
+            {
+              "post": {
+                "id": "igg_2",
+                "url": "https://www.instagram.com/p/igg_2/",
+                "published_at": "2026-10-04T08:00:00Z",
+                "content": {
+                  "text": "Who is going to the Lagos concert this weekend? #detty"
+                },
+                "engagement": {
+                  "views": 40000,
+                  "likes": 5100,
+                  "comments": 640
+                }
+              }
+            }
+          ],
+          "has_more": false,
+          "next_cursor": null
+        }
       },
       {
         "platform": "instagram",
-        "handle": "blog.page.two",
         "status": "ok",
-        "author": {"username": "blog.page.two", "followers": 800000},
-        "posts": [
-          {"post": {"id": "igg_3", "url": "https://www.instagram.com/p/igg_3/", "published_at": "2026-10-04T12:30:00Z",
-                    "content": {"text": "Japa Letter video out now #japa"},
-                    "engagement": {"views": 30000, "likes": 2500, "comments": 190}}}
-        ]
+        "target": {
+          "platform": "instagram",
+          "handle": "blog.page.two"
+        },
+        "data": {
+          "author": {
+            "username": "blog.page.two",
+            "followers": 800000
+          }
+        },
+        "posts": {
+          "status": "ok",
+          "items": [
+            {
+              "post": {
+                "id": "igg_3",
+                "url": "https://www.instagram.com/p/igg_3/",
+                "published_at": "2026-10-04T12:30:00Z",
+                "content": {
+                  "text": "Japa Letter video out now #japa"
+                },
+                "engagement": {
+                  "views": 30000,
+                  "likes": 2500,
+                  "comments": 190
+                }
+              }
+            }
+          ],
+          "has_more": false,
+          "next_cursor": null
+        }
       },
-      {"platform": "instagram", "handle": "gone.page.three", "status": "not_found"}
+      {
+        "platform": "instagram",
+        "status": "not_found",
+        "target": {
+          "platform": "instagram",
+          "handle": "gone.page.three"
+        }
+      }
     ]
   }
 }

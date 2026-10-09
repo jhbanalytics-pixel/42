@@ -887,7 +887,8 @@ def write_run(bq, run, run_id, carry=None):
         except Exception as exc:
             log.error("public_feed_raw_write_failed")
             raw_error = f"{type(exc).__name__}: {exc}"[:500]
-    search_count, search_error = write_search_signals(bq, getattr(run, "search_rows", ()) or ())
+    search_rows, search_held = split_search_rows(getattr(run, "search_rows", ()) or ())
+    search_count, search_error = _append_search_rows(bq, search_rows)
     telegram = write_telegram_raw(bq, getattr(run, "telegram_raw_rows", ()) or ())
     return {**telegram, "merge_statements": statements + public_statements,
             "public_feed_posts": len(deduped_public_posts),
@@ -897,12 +898,32 @@ def write_run(bq, run, run_id, carry=None):
             "health": health, "health_own": len(own), "health_carried": len(carried),
             "cultural_map": len(mapped), "labels_blocked": left["blocked"],
             "labels_missing": left["unnamed"], "creators_written": creators, "creators_error": error,
-            "google_search_signals": search_count, "google_search_signals_error": search_error}
+            "google_search_signals": search_count, "google_search_signals_error": search_error,
+            "google_search_signals_blocked": len(search_held)}
+
+
+def split_search_rows(rows):
+    """(rows that may be written, rows blocked): rule 1 (gdelt.blocked) applies to every Google search term here,
+    whichever phase read it, because the table feeds the Today strip and Ask."""
+    from core.collect.gdelt import blocked
+
+    kept, held = [], []
+    for row in rows:
+        (held if blocked(row.get("term") or "") else kept).append(row)
+    return kept, held
 
 
 def write_search_signals(bq, rows):
     """(rows appended, error) for google_search_signals: Google search interest rows, kept apart from posts.
-    A failing append (the table not yet created, say) is logged and returned, never raised."""
+    A term that fails rule 1 is dropped and counted in the log only. A failing append (the table not yet
+    created, say) is logged and returned, never raised."""
+    kept, held = split_search_rows(rows)
+    if held:
+        log.warning("google_search_signals: %d rule 1 terms not written", len(held))
+    return _append_search_rows(bq, kept)
+
+
+def _append_search_rows(bq, rows):
     if not rows:
         return 0, None
     try:

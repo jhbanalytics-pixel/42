@@ -40,6 +40,11 @@ class MemoryLedgerStore:
                 total += charged
         return total
 
+    def first_day(self):
+        """The earliest trend_date in the ledger, or None when it is empty."""
+        days = [_day(r["trend_date"]) for r in self.rows]
+        return min(days) if days else None
+
 
 class MemoryRawStore:
     def __init__(self):
@@ -105,6 +110,11 @@ class BigQueryLedgerStore(_BigQueryStore):
         if rows[0]["bad"]:
             raise ValueError(f"credit_ledger holds {rows[0]['bad']} non-finite credits_charged values")
         return rows[0]["spent"]
+
+    def first_day(self):
+        """The earliest trend_date in the ledger, or None when it is empty."""
+        rows = self._query("SELECT MIN(trend_date) AS first_day FROM `{table}`", [])
+        return rows[0]["first_day"]
 
 
 class BigQueryRawStore(_BigQueryStore):

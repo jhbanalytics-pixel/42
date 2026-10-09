@@ -98,7 +98,7 @@ import yaml
 from core.collect import chain, curated_creators, google_rss, google_trends, local_sources, research_terms, writers
 from core.collect import location_sources
 from core.collect import seeds as seeding
-from core.collect.parse import (LANES, ROUTES, SEARCH_LANES, SEEDED, _dict, _first, _local_day, _protocol, _rows,
+from core.collect.parse import (LANES, adoption_sample_points, ROUTES, board_hashtag, SEARCH_LANES, SEEDED, _dict, _first, _local_day, _protocol, _rows,
                                 parse_with_creators)
 from core.collect.socialcrawl_client import PRICED, TRANSIENT, Refused, Result, load_caps, quote_for
 
@@ -158,11 +158,13 @@ PROFILES_PER_CALL = 25                  # prism/profiles with posts takes at mos
 # A live run starts only inside this SAST window, which keeps it clear of 23:00 SAST (midnight EAT) and
 # 01:00 SAST (midnight WAT), where a market's day would change under it.
 START_WINDOW = (time(1, 30), time(22, 30))
+# Country capture stops this long before the task timeout, so the public feeds, the Google reads and every write
+# that follows it still run inside the task.
+COUNTRY_TAIL_RESERVE = timedelta(minutes=40)
 EVIDENCE_PER_MARKET, EVIDENCE_RATE = 20, 2  # post-stats: hosts at 1 or 2 credits a URL only
 TRENDS_ARCHIVE = "https://trends24.in/{}/"
 # Platform-wide tags that sit on most posts and say nothing about the market.
 GENERIC_TAGS = frozenset({"fyp", "foryou", "foryoupage", "viral", "trending", "shorts", "reels", "explore"})
-BOARD_KEYS = ("hashtag_name", "hashtag", "name", "title")
 POST_FAMILIES = ("rank", "panel", "search", "location", "restat")
 GLOBAL_SHARE = 0.10                     # of an overridden cap, for row 4 and the row 12 counter reads
 
@@ -217,10 +219,14 @@ def load_config():
     return {"markets": read("markets.yaml")["markets"], "hubs": read("hubs.yaml")}
 
 
-def panel_protocol(members):
-    """panel: plus a short hash of the membership, so a changed list starts a new series (DATA.md 3.2)."""
+PRISM_PROTOCOL_VERSION = "v2"  # prism/profiles panels landed nothing before the parser fix; v2 starts a fresh health reference
+
+
+def panel_protocol(members, version=None):
+    """panel: plus a short hash of the membership, so a changed list starts a new series (DATA.md 3.2); a version
+    starts one too, which is how a panel that parsed to zero items leaves its zero item health reference."""
     text = json.dumps(sorted(members, key=json.dumps), separators=(",", ":"))
-    return "panel:" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+    return "panel:" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:12] + (f":{version}" if version else "")
 
 
 def search_protocol(route, params, planned):
@@ -299,12 +305,12 @@ def panel_calls(market, day, config, curated_records=(), curated_limit=0):
     if desk:
         # Own feeds of the market, like the curated panel below (Albert's yes to D2, 4 Oct 2026).
         calls.append(Call("23", "prism/profiles", {"items": desk, "include": "posts", "since": _since(day)}, market,
-                          "panel", protocol=panel_protocol(desk), source_market=market))
+                          "panel", protocol=panel_protocol(desk, PRISM_PROTOCOL_VERSION), source_market=market))
     selected = curated_creators.daily_rotation(curated_records, market, day, curated_limit)
     if selected:
         items = [{"platform": row["platform"], "handle": row["handle"]} for row in selected]
         # One panel over the day's whole rotation, read in batches of the vendor's 25 profiles a call.
-        protocol = panel_protocol(items)
+        protocol = panel_protocol(items, PRISM_PROTOCOL_VERSION)
         for start in range(0, len(items), PROFILES_PER_CALL):
             calls.append(Call("23", "prism/profiles",
                               {"items": items[start:start + PROFILES_PER_CALL], "include": "posts",
@@ -553,7 +559,7 @@ def sightings(done):
     for call, result, parsed in done:
         if call.route == "tiktok/hashtags/popular" and result.status in OK:
             for entry in result.items:
-                raw = next((entry.get(k) for k in BOARD_KEYS if isinstance(entry, dict) and entry.get(k)), None)
+                raw = board_hashtag(entry)
                 if _tag(raw):
                     out.append(("hashtag", _tag(raw), call.row, "tiktok"))
         for post in (parsed or {}).get("posts", []):
@@ -931,10 +937,12 @@ class Collected:
     candidates: dict = field(default_factory=dict)
     client_calls: list = field(default_factory=list)
     stopped: str | None = None
+    balance_unread: bool = False
     stopped_markets: set = field(default_factory=set)
     credits: float = 0
     spent: dict = field(default_factory=dict)
     item_id_skips: int = 0
+    song_curve_sample_skipped: int = 0
     seed_rows: list = field(default_factory=list)
     local_credits: float = 0
     local_error: str | None = None
@@ -972,7 +980,7 @@ class Collected:
         trends = {} if self.search_states is None else {
             "search_signals": len(self.search_signals), "search_signal_states": dict(self.search_states),
             "trends_credits": self.trends_credits, "trends_error": self.trends_error}
-        counts = {"calls": len(self.client_calls), "calls_ok": sum(r["ok"] for r in job_records),
+        counts = {"calls": len(self.client_calls), "calls_ok": sum(r["ok"] for r in job_records if r["row"] != local_sources.ROW),
                 "credits_charged": self.credits + self.local_credits,
                 "credits_by_share": {**self.spent, "LOCAL": self.local_credits},
                 "local_credits": self.local_credits, "local_error": self.local_error,
@@ -982,7 +990,8 @@ class Collected:
                 "posts": len({p["post_id"] for p in self.posts}), "observations": len(self.observations),
                 "counters": len(self.counters),
                 "creators": len({(c["platform"], c["creator_id"]) for c in self.creators}),
-                "item_id_skips": self.item_id_skips, "stopped": self.stopped,
+                "item_id_skips": self.item_id_skips,
+                "song_curve_sample_skipped": self.song_curve_sample_skipped, "stopped": self.stopped,
                 "markets_stopped": sorted(self.stopped_markets),
                 "not_made": sum(r["status"] in ("not_made", "over_share", "day_changed")
                                  for r in job_records),
@@ -1104,6 +1113,7 @@ class _Runner:
                 self.run.stopped_markets.add(market)
             elif result.status in STOP_ALL:
                 self.run.stopped = result.status
+                self.run.balance_unread = self.run.balance_unread or result.failure == "balance_unread"
 
     def _on_day(self, call, moment):
         return {_local_day(moment, call.market), _local_day(moment, call.health_market())} == {self.day}
@@ -1124,6 +1134,8 @@ class _Runner:
             pull_seq=call.pull_seq, protocol=call.protocol, profile_cache=self.profiles)
         if call.family == "profile" and not parsed["creators"]:
             raise ValueError("account profile owner unavailable")
+        if call.route == "tiktok/song/videos" and call.seed is None:
+            self.run.song_curve_sample_skipped += adoption_sample_points(result.body)
         listed_key = "pageId" if call.route == "facebook/profile/posts" else \
             "location_id" if call.route == "instagram/location/posts" else \
             "subreddit" if call.route == "reddit/subreddit" else None
@@ -1322,12 +1334,25 @@ def trends_phase(run, client, day, *, clock, cap, reserve=0):
     run.trends_credits = lane.charged
 
 
+def google_bq_enabled():
+    """False while the public BigQuery Google Trends phase is parked (core/config/google_sources.yaml, W8-DEC-04).
+    A missing file or key reads as parked."""
+    try:
+        config = yaml.safe_load((CONFIG / "google_sources.yaml").read_text(encoding="utf-8")) or {}
+    except FileNotFoundError:
+        return False
+    return (config.get("google_bq") or {}).get("enabled") is True
+
+
 def bq_trends_phase(run, bq, day, *, clock):
     """The free BigQuery Google Trends tables for ZA and NG (google_trends.read_bq_signals): the newest
     partition of the top and rising terms, no SocialCrawl credits. The rows join run.search_signals with the
     same label and join run.search_rows for google_search_signals. Search interest only: never posts, evidence
     or a Today card, and never a seed. An exception is recorded as run.bq_trends_error and never stops the run."""
     keys = [f"{m}:{k}" for k in google_trends.BQ_TABLES for m in google_trends.BQ_MARKETS]
+    if not google_bq_enabled():
+        run.bq_search_states = {key: "parked" for key in keys}
+        return
     try:
         batch = google_trends.read_bq_signals(bq, run_date=day, fetched_at=clock())
         rows = batch.load_rows()
@@ -1400,7 +1425,7 @@ def country_phase(run, runner, profile_reader, cap):
         reader_kwargs["timeout"] = min(timeout, remaining / 2)
     if keys:
         try:
-            cache.seed(profile_reader(keys, **reader_kwargs))
+            cache.seed(profile_reader(keys, **reader_kwargs), today=runner.clock().astimezone(timezone.utc).date())
         except Exception as exc:
             log.warning("collect %s: account country cache unreadable (%s)", run.run_id, type(exc).__name__)
             apply()
@@ -1432,7 +1457,7 @@ def country_phase(run, runner, profile_reader, cap):
 def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None, x_trends=False, share_cap=None,
             last_pulls=None, seeds=None, local_get=None, watches=None, known_posts=None,
             public_feed_transport=None, search_signals=False, only_routes=None, keep=frozenset(),
-            google_rss_transport=None, google_terms=None, country_profiles=None):
+            google_rss_transport=None, google_terms=None, country_profiles=None, on_run=None):
     """Make every call of the run through client and parse each response. Nothing is written here.
     share_cap is the overridden collect cap (None without an override); last_pulls maps (market, series,
     protocol) to the last pull number already stored; seeds holds the seed_queue rows seeds.read gave;
@@ -1450,6 +1475,8 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
     are not run, and no other call is made or recorded."""
     config = config or load_config()
     run = Collected(run_id)
+    if on_run is not None:
+        on_run(run)  # a failed run still has its calls and credits to report
     ids = _CountedIds(item_id_fn)
     budget = Budget(share_cap)
     cap = share_cap if share_cap is not None else load_caps()["ENGINE_DAILY"]["collect"]
@@ -1461,7 +1488,7 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
                      profiles=location_sources.ProfileCache() if country_profiles is not None and only_routes is None else None)
     timeout = getattr(client, "timeout", None)
     if runner.profiles is not None and isinstance(timeout, (int, float)) and math.isfinite(timeout) and timeout > 0:
-        runner.country_deadline = clock() + chain.TIMEOUTS["collect"] - timedelta(seconds=timeout)
+        runner.country_deadline = clock() + chain.TIMEOUTS["collect"] - COUNTRY_TAIL_RESERVE             - timedelta(seconds=timeout)
     if only_routes is not None:
         search_signals, local_get, public_feed_transport = False, None, None
         google_rss_transport, google_terms = None, None
@@ -1817,14 +1844,17 @@ def print_plan(day, *, x_trends=False, share_cap=None, only_routes=None):
     if planned["total"] + local > cap:
         print("  the local phase is made only when the collect share still has its hold left "
               "after the SocialCrawl phases")
-    print(f"Google Trends tables: {', '.join(google_trends.BQ_MARKETS)}, 0 SocialCrawl credits; the newest "
-          f"partition from {google_trends.BQ_DATASET}.INFORMATION_SCHEMA.PARTITIONS (dry run first, refused above "
-          f"{google_trends.BQ_META_MAX_BYTES:,} bytes), then each table dry-run first, refused above "
-          f"{google_trends.BQ_MAX_BYTES:,} bytes and run with maximum_bytes_billed at that cap; rows append to "
-          "google_search_signals as search interest, never posts; the reads below show the day before, a live "
-          "run reads the newest partition")
-    for kind in google_trends.BQ_TABLES:
-        print("  " + " ".join(google_trends.bq_read_sql(kind, day - timedelta(days=1)).split()))
+    if google_bq_enabled():
+        print(f"Google Trends tables: {', '.join(google_trends.BQ_MARKETS)}, 0 SocialCrawl credits; the newest "
+              f"partition from {google_trends.BQ_DATASET}.INFORMATION_SCHEMA.PARTITIONS (dry run first, refused above "
+              f"{google_trends.BQ_META_MAX_BYTES:,} bytes), then each table dry-run first, refused above "
+              f"{google_trends.BQ_MAX_BYTES:,} bytes and run with maximum_bytes_billed at that cap; rows append to "
+              "google_search_signals as search interest, never posts; the reads below show the day before, a live "
+              "run reads the newest partition")
+        for kind in google_trends.BQ_TABLES:
+            print("  " + " ".join(google_trends.bq_read_sql(kind, day - timedelta(days=1)).split()))
+    else:
+        print("Google Trends tables: parked (core/config/google_sources.yaml), no read, no bytes billed")
     print(f"Google daily trends feed: {', '.join(google_rss.MARKETS)}, one anonymous HTTPS read a market before the "
           "SocialCrawl phases after one robots.txt read, 0 SocialCrawl credits; rows append to google_search_signals "
           f"as source {google_rss.SOURCE}")
@@ -1847,6 +1877,17 @@ def print_plan(day, *, x_trends=False, share_cap=None, only_routes=None):
               f"{telegram_feed.POLITE_DELAY_SECONDS:g} s apart, newest {telegram_feed.MAX_POSTS_PER_CHANNEL} posts each")
         for channel in channels:
             print(f"  {channel.market} {channel.name} {channel.url}")
+
+
+def _failed_counts(collected, started):
+    """The counts of a run that failed: the finished collection's, else those of the partial one collect() had built
+    when it raised, so the spend and calls made before the failure are not lost. {} when neither can be counted."""
+    partial = collected or (started[0] if started else None)
+    try:
+        return partial.counts() if partial is not None else {}
+    except Exception:
+        log.exception("the counts of a failed collect run could not be built")
+        return {}
 
 
 def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None, fns=None, clock=None, get=None,
@@ -1919,7 +1960,7 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
     except chain.AlreadyDone as exc:
         print(f"nothing to collect: {exc}")
         return restart_next(run_date, runs, jobs)
-    collected = None
+    collected, started = None, []
     try:
         item_id_fn, geo_fn = fns or detect_fns()
         last = writers.last_pulls(bq, run_date)
@@ -1935,7 +1976,8 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
                             public_feed_transport=public_feed_transport, search_signals=True,
                             only_routes=only, keep=keep, google_rss_transport=public_feed_transport,
                             google_terms=lambda: google_trends.read_terms(bq, run_date, MARKETS),
-                            country_profiles=lambda keys, **kw: writers.read_profile_countries(bq, keys, **kw))
+                            country_profiles=lambda keys, **kw: writers.read_profile_countries(bq, keys, **kw),
+                            on_run=started.append)
         if only is None:
             bq_trends_phase(collected, bq, run_date, clock=clock)
         written = writers.write_run(bq, collected, run.run_id, carry=base["health"] if base else None)
@@ -1944,19 +1986,19 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
     except Exception as exc:
         if isinstance(exc, writers.PublicFeedWriteError):
             log.error("collect %s failed (%s)", run.run_id, exc.category)
-            counts = collected.counts() if collected else {}
+            counts = _failed_counts(collected, started)
             counts["public_feed_write_error"] = exc.category
             chain.finish(run, "failed", counts, exc.category, runs=runs)
             return 1
         log.exception("collect %s failed", run.run_id)
-        chain.finish(run, "failed", collected.counts() if collected else {}, f"{type(exc).__name__}: {exc}"[:1000],
+        chain.finish(run, "failed", _failed_counts(collected, started), f"{type(exc).__name__}: {exc}"[:1000],
                      runs=runs)
         return 1
     counts = {**collected.counts(),
               **{k: written[k] for k in ("cultural_map", "labels_blocked", "labels_missing", "creators_written",
                                          "creators_error", "public_feed_posts", "public_feed_raw_rows",
                                          "public_feed_raw_error", "public_feed_merge_statements", "google_search_signals",
-                                         "google_search_signals_error")},
+                                         "google_search_signals_error", "google_search_signals_blocked")},
               **{k: written[k] for k in ("telegram_raw_rows_written", "telegram_raw_error") if k in written}}
     if collected.public_feed_error:
         counts["public_feed_error"] = "phase_failed"
@@ -1965,6 +2007,10 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
     if written["public_feed_raw_error"]:
         counts["public_feed_raw_error"] = "append_failed"
         chain.finish(run, "failed", counts, "public_feed_raw_append_failed", runs=runs)
+        return 1
+    if collected.balance_unread:
+        chain.finish(run, "failed", counts, "balance_unreadable: the SocialCrawl balance could not be read, "
+                     "so no paid call was made", runs=runs)
         return 1
     if base is not None:
         counts = repair_counts(base, counts, written, only, keep)

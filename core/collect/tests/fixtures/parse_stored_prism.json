@@ -1,0 +1,5848 @@
+{
+ "prism_profiles_ZA": {
+  "market": "ZA",
+  "fetched_at": "2026-10-04T00:34:54.226602+00:00",
+  "lane": "panel",
+  "params": {
+   "include": "posts",
+   "since": null
+  },
+  "body": {
+   "cached": false,
+   "credits_remaining": 246166,
+   "credits_used": 43,
+   "data": {
+    "legs": [
+     {
+      "credits_used": 0,
+      "endpoint": "/v1/tiktok/profile",
+      "error": "text-001",
+      "latency_ms": 513,
+      "status": 404
+     },
+     {
+      "credits_used": 0,
+      "endpoint": "/v1/tiktok/profile",
+      "error": "text-001",
+      "latency_ms": 579,
+      "status": 404
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1137,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1531,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1127,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 842,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1228,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1760,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1086,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1414,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2861,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2923,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1317,
+      "status": 200
+     },
+     {
+      "credits_used": 0,
+      "endpoint": "/v1/instagram/profile",
+      "error": "text-001",
+      "latency_ms": 3312,
+      "status": 404
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1165,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1669,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1361,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 8443,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 6401,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 1841,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2235,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2242,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1779,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 4166,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 752,
+      "status": 200
+     }
+    ],
+    "results": [
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-001",
+        "bio": "text-002",
+        "display_name": "name-001",
+        "ext": {
+         "bio_link": "https://example.invalid/u-002",
+         "business_category": "text-003"
+        },
+        "followers": 11774,
+        "following": 59,
+        "id": "id-001",
+        "joined_at": null,
+        "likes_count": 75853,
+        "posts_count": 272,
+        "private": false,
+        "url": "https://example.invalid/u-003",
+        "username": "handle-001",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:30.201Z",
+      "index": 0,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-001",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-004",
+        "bio": null,
+        "display_name": "name-002",
+        "ext": {
+         "bio_link": null,
+         "business_category": "text-003"
+        },
+        "followers": 15387,
+        "following": 2840,
+        "id": "id-002",
+        "joined_at": null,
+        "likes_count": 191640,
+        "posts_count": 441,
+        "private": false,
+        "url": "https://example.invalid/u-005",
+        "username": "handle-002",
+        "verified": false
+       },
+       "computed": {
+        "content_category": null,
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:30.202Z",
+      "index": 1,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": null,
+          "engagement_rate": 0.13312,
+          "estimated_reach": 1127,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-006",
+           "display_name": "name-002",
+           "username": "handle-002",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 38.134,
+           "media_urls": "https://example.invalid/u-007",
+           "text": null,
+           "thumbnail_url": "https://example.invalid/u-008"
+          },
+          "engagement": {
+           "comments": 7,
+           "likes": 117,
+           "saves": 7,
+           "shares": 1,
+           "views": 939
+          },
+          "ext": {
+           "author_followers": 15209,
+           "author_id": "id-002",
+           "download_count": 1,
+           "music_id": "id-003",
+           "on_screen_texts": [
+            "text-004"
+           ],
+           "published_at_epoch": 1791013391
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-004",
+          "published_at": "2026-10-03T07:43:11.000Z",
+          "url": "https://example.invalid/u-009"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-002",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 1,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-010",
+        "bio": null,
+        "display_name": "name-003",
+        "ext": {
+         "bio_link": null,
+         "business_category": null
+        },
+        "followers": 5407,
+        "following": 9970,
+        "id": "id-005",
+        "joined_at": null,
+        "likes_count": 19850,
+        "posts_count": null,
+        "private": null,
+        "url": "https://example.invalid/u-011",
+        "username": "handle-003",
+        "verified": false
+       },
+       "computed": {
+        "content_category": null,
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:30.202Z",
+      "index": 2,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 0,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "empty"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-003",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-012",
+        "bio": "text-005",
+        "display_name": "name-004",
+        "ext": {
+         "bio_link": null,
+         "business_category": "text-003"
+        },
+        "followers": 62090,
+        "following": 793,
+        "id": "id-006",
+        "joined_at": null,
+        "likes_count": 3255319,
+        "posts_count": 1741,
+        "private": false,
+        "url": "https://example.invalid/u-013",
+        "username": "handle-004",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:30.202Z",
+      "index": 3,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.087518,
+          "estimated_reach": 836,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-014",
+           "display_name": "name-004",
+           "username": "handle-004",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 13.634,
+           "media_urls": "https://example.invalid/u-015",
+           "text": "text-006",
+           "thumbnail_url": "https://example.invalid/u-016"
+          },
+          "engagement": {
+           "comments": 1,
+           "likes": 60,
+           "saves": 1,
+           "shares": 0,
+           "views": 697
+          },
+          "ext": {
+           "author_followers": 61943,
+           "author_id": "id-006",
+           "download_count": 0,
+           "music_id": "id-007",
+           "on_screen_texts": [
+            "text-007"
+           ],
+           "published_at_epoch": 1791055447
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-008",
+          "published_at": "2026-10-03T19:24:07.000Z",
+          "url": "https://example.invalid/u-017"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.042261,
+          "estimated_reach": 4543,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-014",
+           "display_name": "name-004",
+           "username": "handle-004",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 5.467,
+           "media_urls": "https://example.invalid/u-018",
+           "text": "text-008",
+           "thumbnail_url": "https://example.invalid/u-019"
+          },
+          "engagement": {
+           "comments": 0,
+           "likes": 160,
+           "saves": 7,
+           "shares": 0,
+           "views": 3786
+          },
+          "ext": {
+           "author_followers": 61943,
+           "author_id": "id-006",
+           "download_count": 0,
+           "music_id": "id-009",
+           "on_screen_texts": [
+            "text-007"
+           ],
+           "published_at_epoch": 1791055072
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-010",
+          "published_at": "2026-10-03T19:17:52.000Z",
+          "url": "https://example.invalid/u-020"
+         }
+        },
+        {
+         "computed": {
+          "content_category": null,
+          "engagement_rate": 0.117494,
+          "estimated_reach": 13349,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-014",
+           "display_name": "name-004",
+           "username": "handle-004",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 27.608,
+           "media_urls": "https://example.invalid/u-021",
+           "text": null,
+           "thumbnail_url": "https://example.invalid/u-022"
+          },
+          "engagement": {
+           "comments": 14,
+           "likes": 1292,
+           "saves": 28,
+           "shares": 1,
+           "views": 11124
+          },
+          "ext": {
+           "author_followers": 61943,
+           "author_id": "id-006",
+           "download_count": 19,
+           "music_id": "id-011",
+           "on_screen_texts": [
+            "text-009"
+           ],
+           "published_at_epoch": 1791041284
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-012",
+          "published_at": "2026-10-03T15:28:04.000Z",
+          "url": "https://example.invalid/u-023"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.094622,
+          "estimated_reach": 1763,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-014",
+           "display_name": "name-004",
+           "username": "handle-004",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 40.053,
+           "media_urls": "https://example.invalid/u-024",
+           "text": "text-010",
+           "thumbnail_url": "https://example.invalid/u-025"
+          },
+          "engagement": {
+           "comments": 1,
+           "likes": 137,
+           "saves": 1,
+           "shares": 1,
+           "views": 1469
+          },
+          "ext": {
+           "author_followers": 61943,
+           "author_id": "id-006",
+           "download_count": 2,
+           "music_id": "id-013",
+           "on_screen_texts": [
+            "text-011"
+           ],
+           "published_at_epoch": 1791040321
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-014",
+          "published_at": "2026-10-03T15:12:01.000Z",
+          "url": "https://example.invalid/u-026"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.120761,
+          "estimated_reach": 1451,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-014",
+           "display_name": "name-004",
+           "username": "handle-004",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 59.634,
+           "media_urls": "https://example.invalid/u-027",
+           "text": "text-012",
+           "thumbnail_url": "https://example.invalid/u-028"
+          },
+          "engagement": {
+           "comments": 0,
+           "likes": 145,
+           "saves": 2,
+           "shares": 1,
+           "views": 1209
+          },
+          "ext": {
+           "author_followers": 61943,
+           "author_id": "id-006",
+           "download_count": 1,
+           "music_id": "id-015",
+           "on_screen_texts": [
+            "text-007"
+           ],
+           "published_at_epoch": 1791030475
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-016",
+          "published_at": "2026-10-03T12:27:55.000Z",
+          "url": "https://example.invalid/u-029"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.15368,
+          "estimated_reach": 554,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-014",
+           "display_name": "name-004",
+           "username": "handle-004",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 92.034,
+           "media_urls": "https://example.invalid/u-030",
+           "text": "text-013",
+           "thumbnail_url": "https://example.invalid/u-031"
+          },
+          "engagement": {
+           "comments": 1,
+           "likes": 68,
+           "saves": 0,
+           "shares": 2,
+           "views": 462
+          },
+          "ext": {
+           "author_followers": 61943,
+           "author_id": "id-006",
+           "download_count": 1,
+           "music_id": "id-017",
+           "on_screen_texts": [
+            "text-007"
+           ],
+           "published_at_epoch": 1791020588
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-018",
+          "published_at": "2026-10-03T09:43:08.000Z",
+          "url": "https://example.invalid/u-032"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.136986,
+          "estimated_reach": 1577,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-014",
+           "display_name": "name-004",
+           "username": "handle-004",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 29.7,
+           "media_urls": "https://example.invalid/u-033",
+           "text": "text-014",
+           "thumbnail_url": "https://example.invalid/u-034"
+          },
+          "engagement": {
+           "comments": 2,
+           "likes": 178,
+           "saves": 1,
+           "shares": 0,
+           "views": 1314
+          },
+          "ext": {
+           "author_followers": 61943,
+           "author_id": "id-006",
+           "download_count": 1,
+           "music_id": "id-019",
+           "on_screen_texts": [
+            "text-015",
+            "text-007"
+           ],
+           "published_at_epoch": 1791004815
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-020",
+          "published_at": "2026-10-03T05:20:15.000Z",
+          "url": "https://example.invalid/u-035"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-004",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-036",
+        "bio": "text-016",
+        "display_name": "name-005",
+        "ext": {
+         "bio_link": null,
+         "business_category": "text-003"
+        },
+        "followers": 13432,
+        "following": 152,
+        "id": "id-021",
+        "joined_at": null,
+        "likes_count": 409806,
+        "posts_count": 96,
+        "private": false,
+        "url": "https://example.invalid/u-037",
+        "username": "handle-005",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:30.202Z",
+      "index": 4,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-005",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 0,
+      "error": {
+       "message": "text-001",
+       "type": "text-017"
+      },
+      "fetched_at": "2026-10-04T00:34:30.202Z",
+      "index": 5,
+      "platform": "tiktok",
+      "status": "not_found",
+      "target": {
+       "handle": "handle-006",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 0,
+      "error": {
+       "message": "text-001",
+       "type": "text-017"
+      },
+      "fetched_at": "2026-10-04T00:34:30.203Z",
+      "index": 6,
+      "platform": "tiktok",
+      "status": "not_found",
+      "target": {
+       "handle": "handle-007",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-038",
+        "bio": "text-018",
+        "display_name": "name-006",
+        "ext": {
+         "bio_link": "https://example.invalid/u-039",
+         "business_category": "text-003"
+        },
+        "followers": 16243,
+        "following": 640,
+        "id": "id-022",
+        "joined_at": null,
+        "likes_count": 610402,
+        "posts_count": 103,
+        "private": false,
+        "url": "https://example.invalid/u-040",
+        "username": "handle-008",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:30.203Z",
+      "index": 7,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-008",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-041",
+        "bio": "text-019",
+        "display_name": "name-007",
+        "ext": {
+         "bio_link": "https://example.invalid/u-042",
+         "business_category": "text-003"
+        },
+        "followers": 20499,
+        "following": 1263,
+        "id": "id-023",
+        "joined_at": null,
+        "likes_count": 583082,
+        "posts_count": 275,
+        "private": false,
+        "url": "https://example.invalid/u-043",
+        "username": "handle-009",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:30.725Z",
+      "index": 8,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-009",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-044",
+        "bio": "text-020",
+        "display_name": "name-008",
+        "ext": {
+         "bio_link": null,
+         "business_category": "text-003"
+        },
+        "followers": 20284,
+        "following": 4330,
+        "id": "id-024",
+        "joined_at": null,
+        "likes_count": 166810,
+        "posts_count": 85,
+        "private": false,
+        "url": "https://example.invalid/u-045",
+        "username": "handle-010",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:30.789Z",
+      "index": 9,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-010",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-046",
+        "bio": "text-021",
+        "display_name": "name-009",
+        "ext": {
+         "business_category": "text-022",
+         "public_email": "text-023"
+        },
+        "followers": 21491,
+        "following": 1845,
+        "id": "id-025",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T10:41:14.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-047",
+        "username": "handle-011",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "lifestyle",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:32.719Z",
+      "index": 10,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.025641,
+          "estimated_reach": 3370,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-048",
+           "display_name": "name-009",
+           "username": "handle-011",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 37.7,
+           "media_urls": "https://example.invalid/u-049",
+           "text": "text-024",
+           "thumbnail_url": "https://example.invalid/u-050"
+          },
+          "engagement": {
+           "comments": 13,
+           "likes": 59,
+           "saves": null,
+           "shares": null,
+           "views": 2808
+          },
+          "ext": {
+           "author_id": "id-025",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791006654
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-026",
+          "published_at": "2026-10-03T05:50:54.000Z",
+          "url": "https://example.invalid/u-051"
+         }
+        },
+        {
+         "computed": {
+          "content_category": null,
+          "engagement_rate": 0.032909,
+          "estimated_reach": 1604,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-048",
+           "display_name": "name-009",
+           "username": "handle-011",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 18.25,
+           "media_urls": "https://example.invalid/u-052",
+           "text": null,
+           "thumbnail_url": "https://example.invalid/u-053"
+          },
+          "engagement": {
+           "comments": 0,
+           "likes": 44,
+           "saves": null,
+           "shares": null,
+           "views": 1337
+          },
+          "ext": {
+           "author_id": "id-025",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791024074
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-027",
+          "published_at": "2026-10-03T10:41:14.000Z",
+          "url": "https://example.invalid/u-054"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-011",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-055",
+        "bio": "text-025",
+        "display_name": "name-010",
+        "ext": {
+         "business_category": "text-026",
+         "public_email": "text-027"
+        },
+        "followers": 23913,
+        "following": 1223,
+        "id": "id-028",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T13:32:03.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-056",
+        "username": "handle-012",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:33.045Z",
+      "index": 11,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.055504,
+          "estimated_reach": 1297,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-057",
+           "display_name": "name-010",
+           "username": "handle-012",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 43.766,
+           "media_urls": "https://example.invalid/u-058",
+           "text": "text-028",
+           "thumbnail_url": "https://example.invalid/u-059"
+          },
+          "engagement": {
+           "comments": 4,
+           "likes": 56,
+           "saves": null,
+           "shares": null,
+           "views": 1081
+          },
+          "ext": {
+           "author_id": "id-028",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791034323
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-029",
+          "published_at": "2026-10-03T13:32:03.000Z",
+          "url": "https://example.invalid/u-060"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-012",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-061",
+        "bio": "text-029",
+        "display_name": "name-011",
+        "ext": {
+         "business_category": "text-030"
+        },
+        "followers": 32180,
+        "following": 1959,
+        "id": "id-030",
+        "joined_at": null,
+        "last_post_at": "2026-10-02T16:31:54.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-062",
+        "username": "handle-013",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:33.131Z",
+      "index": 12,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-013",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-063",
+        "bio": "text-031",
+        "display_name": "name-012",
+        "ext": {
+         "bio_link": null,
+         "business_category": "text-003"
+        },
+        "followers": 31691,
+        "following": 7790,
+        "id": "id-031",
+        "joined_at": null,
+        "likes_count": 436506,
+        "posts_count": 652,
+        "private": false,
+        "url": "https://example.invalid/u-064",
+        "username": "handle-014",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:33.180Z",
+      "index": 13,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.166667,
+          "estimated_reach": 338,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-065",
+           "display_name": "name-012",
+           "username": "handle-014",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 0,
+           "media_urls": [
+            "https://example.invalid/u-066",
+            "https://example.invalid/u-067"
+           ],
+           "text": "text-032",
+           "thumbnail_url": "https://example.invalid/u-068"
+          },
+          "engagement": {
+           "comments": 0,
+           "likes": 47,
+           "saves": 0,
+           "shares": 0,
+           "views": 282
+          },
+          "ext": {
+           "author_followers": 31683,
+           "author_id": "id-031",
+           "download_count": 0,
+           "music_id": "id-032",
+           "published_at_epoch": 1791030263
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-033",
+          "published_at": "2026-10-03T12:24:23.000Z",
+          "url": "https://example.invalid/u-069"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-014",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-070",
+        "bio": "text-033",
+        "display_name": "name-013",
+        "ext": {
+         "bio_link": "https://example.invalid/u-071",
+         "business_category": "text-003"
+        },
+        "followers": 61305,
+        "following": 50,
+        "id": "id-034",
+        "joined_at": null,
+        "likes_count": 3436664,
+        "posts_count": 2173,
+        "private": false,
+        "url": "https://example.invalid/u-072",
+        "username": "handle-015",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:33.493Z",
+      "index": 14,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "sports",
+          "engagement_rate": 0.196321,
+          "estimated_reach": 148202,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-073",
+           "display_name": "name-013",
+           "username": "handle-015",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 13.967,
+           "media_urls": "https://example.invalid/u-074",
+           "text": "text-034",
+           "thumbnail_url": "https://example.invalid/u-075"
+          },
+          "engagement": {
+           "comments": 41,
+           "likes": 21875,
+           "saves": 999,
+           "shares": 2330,
+           "views": 123502
+          },
+          "ext": {
+           "author_followers": 61214,
+           "author_id": "id-034",
+           "download_count": 298,
+           "music_id": "id-035",
+           "on_screen_texts": [
+            "text-035"
+           ],
+           "published_at_epoch": 1791047458
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-036",
+          "published_at": "2026-10-03T17:10:58.000Z",
+          "url": "https://example.invalid/u-076"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-015",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-077",
+        "bio": "text-036",
+        "display_name": "name-014",
+        "ext": {
+         "bio_link": "https://example.invalid/u-078",
+         "business_category": "text-003"
+        },
+        "followers": 53660,
+        "following": 319,
+        "id": "id-037",
+        "joined_at": null,
+        "likes_count": 2696739,
+        "posts_count": 917,
+        "private": false,
+        "url": "https://example.invalid/u-079",
+        "username": "handle-016",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:33.976Z",
+      "index": 15,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.167282,
+          "estimated_reach": 5854,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-080",
+           "display_name": "name-014",
+           "username": "handle-016",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 24.467,
+           "media_urls": "https://example.invalid/u-081",
+           "text": "text-037",
+           "thumbnail_url": "https://example.invalid/u-082"
+          },
+          "engagement": {
+           "comments": 30,
+           "likes": 776,
+           "saves": 22,
+           "shares": 10,
+           "views": 4878
+          },
+          "ext": {
+           "author_followers": 53646,
+           "author_id": "id-037",
+           "download_count": 16,
+           "music_id": "id-038",
+           "on_screen_texts": [
+            "text-038"
+           ],
+           "published_at_epoch": 1791056136
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-039",
+          "published_at": "2026-10-03T19:35:36.000Z",
+          "url": "https://example.invalid/u-083"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-016",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-084",
+        "bio": "text-039",
+        "display_name": "name-015",
+        "ext": {
+         "bio_link": "https://example.invalid/u-085",
+         "business_category": "text-003"
+        },
+        "followers": 194931,
+        "following": 114,
+        "id": "id-040",
+        "joined_at": null,
+        "likes_count": 20769997,
+        "posts_count": 2768,
+        "private": false,
+        "url": "https://example.invalid/u-086",
+        "username": "handle-017",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "fr"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:35.443Z",
+      "index": 16,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-017",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-087",
+        "bio": "text-040",
+        "display_name": "name-016",
+        "ext": {
+         "bio_link": null,
+         "business_category": "text-003"
+        },
+        "followers": 23952,
+        "following": 46,
+        "id": "id-041",
+        "joined_at": null,
+        "likes_count": 326442,
+        "posts_count": 618,
+        "private": false,
+        "url": "https://example.invalid/u-088",
+        "username": "handle-018",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:37.231Z",
+      "index": 17,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-018",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 0,
+      "error": {
+       "message": "text-001",
+       "type": "text-017"
+      },
+      "fetched_at": "2026-10-04T00:34:38.213Z",
+      "index": 18,
+      "platform": "instagram",
+      "status": "not_found",
+      "target": {
+       "handle": "handle-019",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-089",
+        "bio": "text-041",
+        "display_name": "name-017",
+        "ext": {
+         "bio_link": "https://example.invalid/u-090",
+         "business_category": "text-003"
+        },
+        "followers": 207812,
+        "following": 848,
+        "id": "id-042",
+        "joined_at": null,
+        "likes_count": 5574349,
+        "posts_count": 1128,
+        "private": false,
+        "url": "https://example.invalid/u-091",
+        "username": "handle-020",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:38.456Z",
+      "index": 19,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-020",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-092",
+        "bio": "text-042",
+        "display_name": "name-018",
+        "ext": {
+         "bio_link": null,
+         "business_category": "text-003"
+        },
+        "followers": 405846,
+        "following": 4541,
+        "id": "id-043",
+        "joined_at": null,
+        "likes_count": 4841739,
+        "posts_count": 2975,
+        "private": false,
+        "url": "https://example.invalid/u-093",
+        "username": "handle-021",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:38.890Z",
+      "index": 20,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-021",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-094",
+        "bio": "text-043",
+        "display_name": "name-019",
+        "ext": {
+         "business_category": "text-022",
+         "public_email": "text-044"
+        },
+        "followers": 322031,
+        "following": 2165,
+        "id": "id-044",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T06:31:23.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-095",
+        "username": "handle-022",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:41.526Z",
+      "index": 21,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": null,
+          "estimated_reach": null,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-096",
+           "display_name": "name-019",
+           "username": "handle-022",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": null,
+           "media_urls": [
+            "https://example.invalid/u-097",
+            "https://example.invalid/u-098"
+           ],
+           "text": "text-045",
+           "thumbnail_url": null
+          },
+          "engagement": {
+           "comments": 57,
+           "likes": 1425,
+           "saves": null,
+           "shares": null,
+           "views": null
+          },
+          "ext": {
+           "author_id": "id-044",
+           "carousel_count": 2,
+           "coauthors": [],
+           "media_type": "carousel",
+           "published_at_epoch": 1791009083
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-045",
+          "published_at": "2026-10-03T06:31:23.000Z",
+          "url": "https://example.invalid/u-099"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-022",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-100",
+        "bio": "text-046",
+        "display_name": "name-020",
+        "ext": {
+         "business_category": null
+        },
+        "followers": 38986,
+        "following": 3835,
+        "id": "id-046",
+        "joined_at": null,
+        "last_post_at": "2026-09-30T12:14:59.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-023",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "entertainment",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:41.591Z",
+      "index": 22,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-023",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-101",
+        "bio": "text-047",
+        "display_name": "name-021",
+        "ext": {
+         "business_category": null
+        },
+        "followers": 49956,
+        "following": 1564,
+        "id": "id-047",
+        "joined_at": null,
+        "last_post_at": "2026-09-14T05:41:06.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-102",
+        "username": "handle-024",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:41.621Z",
+      "index": 23,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-024",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-103",
+        "bio": "text-048",
+        "display_name": "name-022",
+        "ext": {
+         "business_category": "text-049",
+         "public_email": "text-050"
+        },
+        "followers": 3449297,
+        "following": 985,
+        "id": "id-048",
+        "joined_at": null,
+        "last_post_at": "2026-09-30T09:56:04.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-025",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:34:41.639Z",
+      "index": 24,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-025",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     }
+    ],
+    "summary": {
+     "coverage": 0.88,
+     "credits_charged": 43,
+     "credits_refunded": 7,
+     "deferred": 0,
+     "error": 0,
+     "not_found": 3,
+     "ok": 22,
+     "total": 25,
+     "unsupported": 0
+    }
+   },
+   "endpoint": "/v1/prism/profiles",
+   "platform": "prism",
+   "request_id": "id-049",
+   "success": true
+  }
+ },
+ "prism_profiles_NG": {
+  "market": "NG",
+  "fetched_at": "2026-10-04T00:36:47.571410+00:00",
+  "lane": "panel",
+  "params": {
+   "include": "posts",
+   "since": null
+  },
+  "body": {
+   "cached": false,
+   "credits_remaining": 245905,
+   "credits_used": 45,
+   "data": {
+    "legs": [
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2340,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2586,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2865,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2685,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 3644,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 3204,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 3087,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 4311,
+      "status": 200
+     },
+     {
+      "credits_used": 0,
+      "endpoint": "/v1/instagram/profile",
+      "error": "text-001",
+      "latency_ms": 3670,
+      "status": 404
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 1765,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2085,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2214,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 1836,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2176,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 3767,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2740,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2753,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 1924,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 1991,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2453,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2174,
+      "status": 200
+     },
+     {
+      "credits_used": 0,
+      "endpoint": "/v1/instagram/profile",
+      "error": "text-001",
+      "latency_ms": 4717,
+      "status": 404
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1961,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 1544,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 2236,
+      "status": 200
+     }
+    ],
+    "results": [
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-104",
+        "bio": "text-051",
+        "display_name": "name-023",
+        "ext": {
+         "business_category": "text-022"
+        },
+        "followers": 43302,
+        "following": 2582,
+        "id": "id-050",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T18:23:12.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-105",
+        "username": "handle-026",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:27.208Z",
+      "index": 0,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.089247,
+          "estimated_reach": 17520,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-106",
+           "display_name": "name-023",
+           "username": "handle-026",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 16.276,
+           "media_urls": "https://example.invalid/u-107",
+           "text": "text-052",
+           "thumbnail_url": "https://example.invalid/u-108"
+          },
+          "engagement": {
+           "comments": 31,
+           "likes": 1272,
+           "saves": null,
+           "shares": null,
+           "views": 14600
+          },
+          "ext": {
+           "author_id": "id-050",
+           "coauthors": [
+            {
+             "full_name": "text-053",
+             "id": "id-051",
+             "is_verified": true,
+             "profile_pic_url": "https://example.invalid/u-109",
+             "username": "handle-027"
+            }
+           ],
+           "media_type": "video",
+           "published_at_epoch": 1791051792
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-052",
+          "published_at": "2026-10-03T18:23:12.000Z",
+          "url": "https://example.invalid/u-110"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-026",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-111",
+        "bio": "text-054",
+        "display_name": "name-024",
+        "ext": {
+         "business_category": "text-022"
+        },
+        "followers": 12892,
+        "following": 1143,
+        "id": "id-053",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T09:13:02.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-112",
+        "username": "handle-028",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:27.209Z",
+      "index": 1,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.156152,
+          "estimated_reach": 1921,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-113",
+           "display_name": "name-024",
+           "username": "handle-028",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 155.166,
+           "media_urls": "https://example.invalid/u-114",
+           "text": "text-055",
+           "thumbnail_url": "https://example.invalid/u-115"
+          },
+          "engagement": {
+           "comments": 19,
+           "likes": 231,
+           "saves": null,
+           "shares": null,
+           "views": 1601
+          },
+          "ext": {
+           "author_id": "id-053",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791018782
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-054",
+          "published_at": "2026-10-03T09:13:02.000Z",
+          "url": "https://example.invalid/u-116"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-028",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-117",
+        "bio": "text-056",
+        "display_name": "name-025",
+        "ext": {
+         "business_category": "text-022",
+         "public_email": "text-057"
+        },
+        "followers": 20076,
+        "following": 2810,
+        "id": "id-055",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T16:46:07.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-029",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:27.209Z",
+      "index": 2,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.057371,
+          "estimated_reach": 7676,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-118",
+           "display_name": "name-025",
+           "username": "handle-029",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 49.366,
+           "media_urls": "https://example.invalid/u-119",
+           "text": "text-058",
+           "thumbnail_url": "https://example.invalid/u-120"
+          },
+          "engagement": {
+           "comments": 125,
+           "likes": 242,
+           "saves": null,
+           "shares": null,
+           "views": 6397
+          },
+          "ext": {
+           "author_id": "id-055",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791045967
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-056",
+          "published_at": "2026-10-03T16:46:07.000Z",
+          "url": "https://example.invalid/u-121"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-029",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-122",
+        "bio": "text-059",
+        "display_name": "name-026",
+        "ext": {
+         "business_category": null
+        },
+        "followers": 6326,
+        "following": 50,
+        "id": "id-057",
+        "joined_at": null,
+        "last_post_at": "2026-09-11T14:27:05.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-030",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:27.209Z",
+      "index": 3,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-030",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-123",
+        "bio": "text-060",
+        "display_name": "name-027",
+        "ext": {
+         "business_category": "text-061"
+        },
+        "followers": 13103,
+        "following": 820,
+        "id": "id-058",
+        "joined_at": null,
+        "last_post_at": "2026-09-04T09:10:35.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-124",
+        "username": "handle-031",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:27.209Z",
+      "index": 4,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-031",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-125",
+        "bio": "text-062",
+        "display_name": "name-028",
+        "ext": {
+         "business_category": null,
+         "public_email": "text-063"
+        },
+        "followers": 24713,
+        "following": 116,
+        "id": "id-059",
+        "joined_at": null,
+        "last_post_at": "2026-10-02T23:26:12.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-032",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:27.209Z",
+      "index": 5,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-032",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-126",
+        "bio": "text-064",
+        "display_name": "name-029",
+        "ext": {
+         "business_category": "text-022",
+         "public_email": "text-065"
+        },
+        "followers": 24267,
+        "following": 211,
+        "id": "id-060",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T20:12:49.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-033",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "sports",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:27.209Z",
+      "index": 6,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.138292,
+          "estimated_reach": 2291,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-127",
+           "display_name": "name-029",
+           "username": "handle-033",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 65.9,
+           "media_urls": "https://example.invalid/u-128",
+           "text": "text-066",
+           "thumbnail_url": "https://example.invalid/u-129"
+          },
+          "engagement": {
+           "comments": 15,
+           "likes": 249,
+           "saves": null,
+           "shares": null,
+           "views": 1909
+          },
+          "ext": {
+           "author_id": "id-060",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791058369
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-061",
+          "published_at": "2026-10-03T20:12:49.000Z",
+          "url": "https://example.invalid/u-130"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.093627,
+          "estimated_reach": 3653,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-127",
+           "display_name": "name-029",
+           "username": "handle-033",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 221.767,
+           "media_urls": "https://example.invalid/u-131",
+           "text": "text-067",
+           "thumbnail_url": "https://example.invalid/u-132"
+          },
+          "engagement": {
+           "comments": 20,
+           "likes": 265,
+           "saves": null,
+           "shares": null,
+           "views": 3044
+          },
+          "ext": {
+           "author_id": "id-060",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791055542
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-062",
+          "published_at": "2026-10-03T19:25:42.000Z",
+          "url": "https://example.invalid/u-133"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.114137,
+          "estimated_reach": 1850,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-127",
+           "display_name": "name-029",
+           "username": "handle-033",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 135.4,
+           "media_urls": "https://example.invalid/u-134",
+           "text": "text-068",
+           "thumbnail_url": "https://example.invalid/u-135"
+          },
+          "engagement": {
+           "comments": 1,
+           "likes": 175,
+           "saves": null,
+           "shares": null,
+           "views": 1542
+          },
+          "ext": {
+           "author_id": "id-060",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791052657
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-063",
+          "published_at": "2026-10-03T18:37:37.000Z",
+          "url": "https://example.invalid/u-136"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-033",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-137",
+        "bio": "text-069",
+        "display_name": "name-030",
+        "ext": {
+         "business_category": "text-070",
+         "public_email": "text-071"
+        },
+        "followers": 17355,
+        "following": 977,
+        "id": "id-064",
+        "joined_at": null,
+        "last_post_at": "2026-10-01T08:14:50.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-138",
+        "username": "handle-034",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:27.209Z",
+      "index": 7,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-034",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 0,
+      "error": {
+       "message": "text-001",
+       "type": "text-017"
+      },
+      "fetched_at": "2026-10-04T00:36:31.465Z",
+      "index": 8,
+      "platform": "instagram",
+      "status": "not_found",
+      "target": {
+       "handle": "handle-035",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-139",
+        "bio": "text-072",
+        "display_name": "name-031",
+        "ext": {
+         "business_category": "text-073"
+        },
+        "followers": 24491,
+        "following": 1502,
+        "id": "id-065",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T16:44:34.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-036",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:31.495Z",
+      "index": 9,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.177372,
+          "estimated_reach": 7435,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-140",
+           "display_name": "name-031",
+           "username": "handle-036",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 139.88,
+           "media_urls": "https://example.invalid/u-141",
+           "text": "text-074",
+           "thumbnail_url": "https://example.invalid/u-142"
+          },
+          "engagement": {
+           "comments": 50,
+           "likes": 1049,
+           "saves": null,
+           "shares": null,
+           "views": 6196
+          },
+          "ext": {
+           "author_id": "id-065",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791045874
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-066",
+          "published_at": "2026-10-03T16:44:34.000Z",
+          "url": "https://example.invalid/u-143"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-036",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-144",
+        "bio": "text-075",
+        "display_name": "name-032",
+        "ext": {
+         "business_category": null
+        },
+        "followers": 5741,
+        "following": 2320,
+        "id": "id-067",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T16:58:09.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-037",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:31.988Z",
+      "index": 10,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0,
+          "estimated_reach": 713,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-145",
+           "display_name": "name-033",
+           "username": "handle-038",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 58.838,
+           "media_urls": "https://example.invalid/u-146",
+           "text": "text-076",
+           "thumbnail_url": "https://example.invalid/u-147"
+          },
+          "engagement": {
+           "comments": 0,
+           "likes": null,
+           "saves": null,
+           "shares": null,
+           "views": 594
+          },
+          "ext": {
+           "author_id": "id-068",
+           "coauthors": [
+            {
+             "full_name": "text-077",
+             "id": "id-067",
+             "is_verified": false,
+             "profile_pic_url": "https://example.invalid/u-148",
+             "username": "handle-037"
+            }
+           ],
+           "media_type": "video",
+           "published_at_epoch": 1791046689
+          },
+          "flags": {
+           "deleted": false,
+           "likes_hidden": true,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-069",
+          "published_at": "2026-10-03T16:58:09.000Z",
+          "url": "https://example.invalid/u-149"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.036082,
+          "estimated_reach": 698,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-148",
+           "display_name": "name-032",
+           "username": "handle-037",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 39.5,
+           "media_urls": "https://example.invalid/u-150",
+           "text": "text-078",
+           "thumbnail_url": "https://example.invalid/u-151"
+          },
+          "engagement": {
+           "comments": 0,
+           "likes": 21,
+           "saves": null,
+           "shares": null,
+           "views": 582
+          },
+          "ext": {
+           "author_id": "id-067",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791010044
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-070",
+          "published_at": "2026-10-03T06:47:24.000Z",
+          "url": "https://example.invalid/u-152"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-037",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-153",
+        "bio": "text-079",
+        "display_name": "name-034",
+        "ext": {
+         "business_category": null
+        },
+        "followers": 19232,
+        "following": 6304,
+        "id": "id-071",
+        "joined_at": null,
+        "last_post_at": "2026-10-02T20:54:36.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-154",
+        "username": "handle-039",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "sports",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:32.437Z",
+      "index": 11,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-039",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-155",
+        "bio": "text-080",
+        "display_name": "name-035",
+        "ext": {
+         "business_category": "text-030",
+         "public_email": "text-081"
+        },
+        "followers": 22130,
+        "following": 123,
+        "id": "id-072",
+        "joined_at": null,
+        "last_post_at": "2026-09-29T18:20:18.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-156",
+        "username": "handle-040",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:32.626Z",
+      "index": 12,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-040",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-157",
+        "bio": "text-082",
+        "display_name": "name-036",
+        "ext": {
+         "business_category": "text-083"
+        },
+        "followers": 22917,
+        "following": 3467,
+        "id": "id-073",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T21:14:55.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-158",
+        "username": "handle-041",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "sports",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:32.684Z",
+      "index": 13,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.109529,
+          "estimated_reach": 2191,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-159",
+           "display_name": "name-036",
+           "username": "handle-041",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 170.1,
+           "media_urls": "https://example.invalid/u-160",
+           "text": "text-084",
+           "thumbnail_url": "https://example.invalid/u-161"
+          },
+          "engagement": {
+           "comments": 4,
+           "likes": 196,
+           "saves": null,
+           "shares": null,
+           "views": 1826
+          },
+          "ext": {
+           "author_id": "id-073",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791062095
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-074",
+          "published_at": "2026-10-03T21:14:55.000Z",
+          "url": "https://example.invalid/u-162"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.07743,
+          "estimated_reach": 2185,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-159",
+           "display_name": "name-036",
+           "username": "handle-041",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 130,
+           "media_urls": "https://example.invalid/u-163",
+           "text": "text-085",
+           "thumbnail_url": "https://example.invalid/u-164"
+          },
+          "engagement": {
+           "comments": 4,
+           "likes": 137,
+           "saves": null,
+           "shares": null,
+           "views": 1821
+          },
+          "ext": {
+           "author_id": "id-073",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791057866
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-075",
+          "published_at": "2026-10-03T20:04:26.000Z",
+          "url": "https://example.invalid/u-165"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.140039,
+          "estimated_reach": 608,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-159",
+           "display_name": "name-036",
+           "username": "handle-041",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 151.4,
+           "media_urls": "https://example.invalid/u-166",
+           "text": "text-086",
+           "thumbnail_url": "https://example.invalid/u-167"
+          },
+          "engagement": {
+           "comments": 3,
+           "likes": 68,
+           "saves": null,
+           "shares": null,
+           "views": 507
+          },
+          "ext": {
+           "author_id": "id-073",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791054481
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-076",
+          "published_at": "2026-10-03T19:08:01.000Z",
+          "url": "https://example.invalid/u-168"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.078506,
+          "estimated_reach": 5656,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-159",
+           "display_name": "name-036",
+           "username": "handle-041",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 178.666,
+           "media_urls": "https://example.invalid/u-169",
+           "text": "text-087",
+           "thumbnail_url": "https://example.invalid/u-170"
+          },
+          "engagement": {
+           "comments": 9,
+           "likes": 361,
+           "saves": null,
+           "shares": null,
+           "views": 4713
+          },
+          "ext": {
+           "author_id": "id-073",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791051968
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-077",
+          "published_at": "2026-10-03T18:26:08.000Z",
+          "url": "https://example.invalid/u-171"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.164352,
+          "estimated_reach": 518,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-159",
+           "display_name": "name-036",
+           "username": "handle-041",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 195.433,
+           "media_urls": "https://example.invalid/u-172",
+           "text": "text-088",
+           "thumbnail_url": "https://example.invalid/u-173"
+          },
+          "engagement": {
+           "comments": 15,
+           "likes": 56,
+           "saves": null,
+           "shares": null,
+           "views": 432
+          },
+          "ext": {
+           "author_id": "id-073",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791032623
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-078",
+          "published_at": "2026-10-03T13:03:43.000Z",
+          "url": "https://example.invalid/u-174"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.154292,
+          "estimated_reach": 1034,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-159",
+           "display_name": "name-036",
+           "username": "handle-041",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 240.033,
+           "media_urls": "https://example.invalid/u-175",
+           "text": "text-089",
+           "thumbnail_url": "https://example.invalid/u-176"
+          },
+          "engagement": {
+           "comments": 4,
+           "likes": 129,
+           "saves": null,
+           "shares": null,
+           "views": 862
+          },
+          "ext": {
+           "author_id": "id-073",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791027306
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-079",
+          "published_at": "2026-10-03T11:35:06.000Z",
+          "url": "https://example.invalid/u-177"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.094398,
+          "estimated_reach": 4284,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-159",
+           "display_name": "name-036",
+           "username": "handle-041",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 178.186,
+           "media_urls": "https://example.invalid/u-178",
+           "text": "text-090",
+           "thumbnail_url": "https://example.invalid/u-179"
+          },
+          "engagement": {
+           "comments": 15,
+           "likes": 322,
+           "saves": null,
+           "shares": null,
+           "views": 3570
+          },
+          "ext": {
+           "author_id": "id-073",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791024092
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-080",
+          "published_at": "2026-10-03T10:41:32.000Z",
+          "url": "https://example.invalid/u-180"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.120725,
+          "estimated_reach": 2316,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-159",
+           "display_name": "name-036",
+           "username": "handle-041",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 170.633,
+           "media_urls": "https://example.invalid/u-181",
+           "text": "text-091",
+           "thumbnail_url": "https://example.invalid/u-182"
+          },
+          "engagement": {
+           "comments": 5,
+           "likes": 228,
+           "saves": null,
+           "shares": null,
+           "views": 1930
+          },
+          "ext": {
+           "author_id": "id-073",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791020887
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-081",
+          "published_at": "2026-10-03T09:48:07.000Z",
+          "url": "https://example.invalid/u-183"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-041",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-184",
+        "bio": "text-092",
+        "display_name": "name-037",
+        "ext": {
+         "business_category": null,
+         "public_email": "text-093"
+        },
+        "followers": 48543,
+        "following": 305,
+        "id": "id-082",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T07:15:40.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-042",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "sports",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:33.046Z",
+      "index": 14,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.146491,
+          "estimated_reach": 18398,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-185",
+           "display_name": "name-037",
+           "username": "handle-042",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 153.3,
+           "media_urls": "https://example.invalid/u-186",
+           "text": "text-094",
+           "thumbnail_url": "https://example.invalid/u-187"
+          },
+          "engagement": {
+           "comments": 33,
+           "likes": 2213,
+           "saves": null,
+           "shares": null,
+           "views": 15332
+          },
+          "ext": {
+           "author_id": "id-082",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791011740
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-083",
+          "published_at": "2026-10-03T07:15:40.000Z",
+          "url": "https://example.invalid/u-188"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.088899,
+          "estimated_reach": 62471,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-185",
+           "display_name": "name-037",
+           "username": "handle-042",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 152.166,
+           "media_urls": "https://example.invalid/u-189",
+           "text": "text-095",
+           "thumbnail_url": "https://example.invalid/u-190"
+          },
+          "engagement": {
+           "comments": 213,
+           "likes": 4415,
+           "saves": null,
+           "shares": null,
+           "views": 52059
+          },
+          "ext": {
+           "author_id": "id-082",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791008347
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-084",
+          "published_at": "2026-10-03T06:19:07.000Z",
+          "url": "https://example.invalid/u-191"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-042",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-192",
+        "bio": "text-096",
+        "display_name": "name-038",
+        "ext": {
+         "business_category": null,
+         "public_email": "text-097"
+        },
+        "followers": 31855,
+        "following": 92,
+        "id": "id-085",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T21:28:27.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-193",
+        "username": "handle-043",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "sports",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:33.526Z",
+      "index": 15,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.195228,
+          "estimated_reach": 1106,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-194",
+           "display_name": "name-038",
+           "username": "handle-043",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 110.965,
+           "media_urls": "https://example.invalid/u-195",
+           "text": "text-098",
+           "thumbnail_url": "https://example.invalid/u-196"
+          },
+          "engagement": {
+           "comments": 1,
+           "likes": 179,
+           "saves": null,
+           "shares": null,
+           "views": 922
+          },
+          "ext": {
+           "author_id": "id-085",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791062907
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-086",
+          "published_at": "2026-10-03T21:28:27.000Z",
+          "url": "https://example.invalid/u-197"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.210072,
+          "estimated_reach": 1668,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-194",
+           "display_name": "name-038",
+           "username": "handle-043",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 102.347,
+           "media_urls": "https://example.invalid/u-198",
+           "text": "text-099",
+           "thumbnail_url": "https://example.invalid/u-199"
+          },
+          "engagement": {
+           "comments": 7,
+           "likes": 285,
+           "saves": null,
+           "shares": null,
+           "views": 1390
+          },
+          "ext": {
+           "author_id": "id-085",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791061672
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-087",
+          "published_at": "2026-10-03T21:07:52.000Z",
+          "url": "https://example.invalid/u-200"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "sports",
+          "engagement_rate": 0.115702,
+          "estimated_reach": 871,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-194",
+           "display_name": "name-038",
+           "username": "handle-043",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 95.379,
+           "media_urls": "https://example.invalid/u-201",
+           "text": "text-100",
+           "thumbnail_url": "https://example.invalid/u-202"
+          },
+          "engagement": {
+           "comments": 0,
+           "likes": 84,
+           "saves": null,
+           "shares": null,
+           "views": 726
+          },
+          "ext": {
+           "author_id": "id-085",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791056563
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-088",
+          "published_at": "2026-10-03T19:42:43.000Z",
+          "url": "https://example.invalid/u-203"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.089349,
+          "estimated_reach": 51398,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-194",
+           "display_name": "name-038",
+           "username": "handle-043",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 140.885,
+           "media_urls": "https://example.invalid/u-204",
+           "text": "text-101",
+           "thumbnail_url": "https://example.invalid/u-205"
+          },
+          "engagement": {
+           "comments": 138,
+           "likes": 3689,
+           "saves": null,
+           "shares": null,
+           "views": 42832
+          },
+          "ext": {
+           "author_id": "id-085",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791038003
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-089",
+          "published_at": "2026-10-03T14:33:23.000Z",
+          "url": "https://example.invalid/u-206"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.093848,
+          "estimated_reach": 1151,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-194",
+           "display_name": "name-038",
+           "username": "handle-043",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 112.94,
+           "media_urls": "https://example.invalid/u-207",
+           "text": "text-102",
+           "thumbnail_url": "https://example.invalid/u-208"
+          },
+          "engagement": {
+           "comments": 0,
+           "likes": 90,
+           "saves": null,
+           "shares": null,
+           "views": 959
+          },
+          "ext": {
+           "author_id": "id-085",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791020405
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-090",
+          "published_at": "2026-10-03T09:40:05.000Z",
+          "url": "https://example.invalid/u-209"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-043",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-210",
+        "bio": "text-103",
+        "display_name": "name-039",
+        "ext": {
+         "business_category": "text-083",
+         "public_email": "text-104"
+        },
+        "followers": 26797,
+        "following": 3199,
+        "id": "id-091",
+        "joined_at": null,
+        "last_post_at": "2026-10-01T08:40:48.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-211",
+        "username": "handle-044",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:35.136Z",
+      "index": 16,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-044",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-212",
+        "bio": "text-105",
+        "display_name": "name-040",
+        "ext": {
+         "business_category": "text-070",
+         "public_email": "text-106"
+        },
+        "followers": 16237,
+        "following": 146,
+        "id": "id-092",
+        "joined_at": null,
+        "last_post_at": "2026-10-04T00:32:32.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-045",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:36.208Z",
+      "index": 17,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.454545,
+          "estimated_reach": 26,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-213",
+           "display_name": "name-040",
+           "username": "handle-045",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 145,
+           "media_urls": "https://example.invalid/u-214",
+           "text": "text-107",
+           "thumbnail_url": "https://example.invalid/u-215"
+          },
+          "engagement": {
+           "comments": 1,
+           "likes": 9,
+           "saves": null,
+           "shares": null,
+           "views": 22
+          },
+          "ext": {
+           "author_id": "id-092",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791073952
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-093",
+          "published_at": "2026-10-04T00:32:32.000Z",
+          "url": "https://example.invalid/u-216"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.21564,
+          "estimated_reach": 506,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-213",
+           "display_name": "name-040",
+           "username": "handle-045",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 84.5,
+           "media_urls": "https://example.invalid/u-217",
+           "text": "text-108",
+           "thumbnail_url": "https://example.invalid/u-218"
+          },
+          "engagement": {
+           "comments": 5,
+           "likes": 86,
+           "saves": null,
+           "shares": null,
+           "views": 422
+          },
+          "ext": {
+           "author_id": "id-092",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791068202
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-094",
+          "published_at": "2026-10-03T22:56:42.000Z",
+          "url": "https://example.invalid/u-219"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.28361,
+          "estimated_reach": 652,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-213",
+           "display_name": "name-040",
+           "username": "handle-045",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 35.501,
+           "media_urls": "https://example.invalid/u-220",
+           "text": "text-109",
+           "thumbnail_url": "https://example.invalid/u-221"
+          },
+          "engagement": {
+           "comments": 8,
+           "likes": 146,
+           "saves": null,
+           "shares": null,
+           "views": 543
+          },
+          "ext": {
+           "author_id": "id-092",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791063899
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-095",
+          "published_at": "2026-10-03T21:44:59.000Z",
+          "url": "https://example.invalid/u-222"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.192555,
+          "estimated_reach": 1870,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-213",
+           "display_name": "name-040",
+           "username": "handle-045",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 167.668,
+           "media_urls": "https://example.invalid/u-223",
+           "text": "text-110",
+           "thumbnail_url": "https://example.invalid/u-224"
+          },
+          "engagement": {
+           "comments": 37,
+           "likes": 263,
+           "saves": null,
+           "shares": null,
+           "views": 1558
+          },
+          "ext": {
+           "author_id": "id-092",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791054404
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-096",
+          "published_at": "2026-10-03T19:06:44.000Z",
+          "url": "https://example.invalid/u-225"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-045",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-226",
+        "bio": "text-111",
+        "display_name": "name-041",
+        "ext": {
+         "business_category": null,
+         "public_email": "text-112"
+        },
+        "followers": 13134,
+        "following": 268,
+        "id": "id-097",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T21:35:40.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-046",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:36.790Z",
+      "index": 18,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.281628,
+          "estimated_reach": 1091,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-227",
+           "display_name": "name-041",
+           "username": "handle-046",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 116.91,
+           "media_urls": "https://example.invalid/u-228",
+           "text": "text-113",
+           "thumbnail_url": "https://example.invalid/u-229"
+          },
+          "engagement": {
+           "comments": 5,
+           "likes": 251,
+           "saves": null,
+           "shares": null,
+           "views": 909
+          },
+          "ext": {
+           "author_id": "id-097",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791063340
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-098",
+          "published_at": "2026-10-03T21:35:40.000Z",
+          "url": "https://example.invalid/u-230"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.232777,
+          "estimated_reach": 3310,
+          "language": "nl"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-227",
+           "display_name": "name-041",
+           "username": "handle-046",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 28.633,
+           "media_urls": "https://example.invalid/u-231",
+           "text": "text-114",
+           "thumbnail_url": "https://example.invalid/u-232"
+          },
+          "engagement": {
+           "comments": 58,
+           "likes": 584,
+           "saves": null,
+           "shares": null,
+           "views": 2758
+          },
+          "ext": {
+           "author_id": "id-097",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791062633
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-099",
+          "published_at": "2026-10-03T21:23:53.000Z",
+          "url": "https://example.invalid/u-233"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.327586,
+          "estimated_reach": 1949,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-227",
+           "display_name": "name-041",
+           "username": "handle-046",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 171.096,
+           "media_urls": "https://example.invalid/u-234",
+           "text": "text-115",
+           "thumbnail_url": "https://example.invalid/u-235"
+          },
+          "engagement": {
+           "comments": 15,
+           "likes": 517,
+           "saves": null,
+           "shares": null,
+           "views": 1624
+          },
+          "ext": {
+           "author_id": "id-097",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791061413
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-100",
+          "published_at": "2026-10-03T21:03:33.000Z",
+          "url": "https://example.invalid/u-236"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.224177,
+          "estimated_reach": 3752,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-227",
+           "display_name": "name-041",
+           "username": "handle-046",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 142.166,
+           "media_urls": "https://example.invalid/u-237",
+           "text": "text-116",
+           "thumbnail_url": "https://example.invalid/u-238"
+          },
+          "engagement": {
+           "comments": 24,
+           "likes": 677,
+           "saves": null,
+           "shares": null,
+           "views": 3127
+          },
+          "ext": {
+           "author_id": "id-097",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791025814
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-101",
+          "published_at": "2026-10-03T11:10:14.000Z",
+          "url": "https://example.invalid/u-239"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-046",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-240",
+        "bio": "text-117",
+        "display_name": "name-042",
+        "ext": {
+         "business_category": "text-118"
+        },
+        "followers": 8818,
+        "following": 2979,
+        "id": "id-102",
+        "joined_at": null,
+        "last_post_at": "2026-08-22T08:28:39.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-047",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:36.826Z",
+      "index": 19,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-047",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-241",
+        "bio": "text-119",
+        "display_name": "name-043",
+        "ext": {
+         "business_category": "text-022",
+         "public_email": "text-120"
+        },
+        "followers": 19510,
+        "following": 1726,
+        "id": "id-103",
+        "joined_at": null,
+        "last_post_at": "2026-10-02T11:01:55.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-242",
+        "username": "handle-048",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:36.866Z",
+      "index": 20,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-048",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 0,
+      "error": {
+       "message": "text-001",
+       "type": "text-017"
+      },
+      "fetched_at": "2026-10-04T00:36:37.344Z",
+      "index": 21,
+      "platform": "instagram",
+      "status": "not_found",
+      "target": {
+       "handle": "handle-049",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 1,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-243",
+        "bio": null,
+        "display_name": "name-044",
+        "ext": {
+         "business_category": null
+        },
+        "followers": 2,
+        "following": 6,
+        "id": "id-104",
+        "joined_at": null,
+        "last_post_at": null,
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-050",
+        "verified": false
+       },
+       "computed": {
+        "content_category": null,
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:37.844Z",
+      "index": 22,
+      "platform": "instagram",
+      "posts": {
+       "credits": 0,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "empty"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-050",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-244",
+        "bio": "text-121",
+        "display_name": "name-045",
+        "ext": {
+         "bio_link": null,
+         "business_category": "text-003"
+        },
+        "followers": 16611,
+        "following": 196,
+        "id": "id-105",
+        "joined_at": null,
+        "likes_count": 1118796,
+        "posts_count": 38,
+        "private": false,
+        "url": "https://example.invalid/u-245",
+        "username": "handle-051",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:37.884Z",
+      "index": 23,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-051",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-246",
+        "bio": "text-122",
+        "display_name": "name-046",
+        "ext": {
+         "bio_link": null,
+         "business_category": "text-003"
+        },
+        "followers": 23227,
+        "following": 289,
+        "id": "id-106",
+        "joined_at": null,
+        "likes_count": 1860788,
+        "posts_count": 1789,
+        "private": false,
+        "url": "https://example.invalid/u-247",
+        "username": "handle-052",
+        "verified": false
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:36:39.456Z",
+      "index": 24,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.328267,
+          "estimated_reach": 395,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-248",
+           "display_name": "name-046",
+           "username": "handle-052",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 92.467,
+           "media_urls": "https://example.invalid/u-249",
+           "text": "text-123",
+           "thumbnail_url": "https://example.invalid/u-250"
+          },
+          "engagement": {
+           "comments": 2,
+           "likes": 106,
+           "saves": 6,
+           "shares": 0,
+           "views": 329
+          },
+          "ext": {
+           "author_followers": 23213,
+           "author_id": "id-106",
+           "download_count": 0,
+           "music_id": "id-107",
+           "published_at_epoch": 1791065576
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-108",
+          "published_at": "2026-10-03T22:12:56.000Z",
+          "url": "https://example.invalid/u-251"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.315562,
+          "estimated_reach": 833,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-248",
+           "display_name": "name-046",
+           "username": "handle-052",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 88.867,
+           "media_urls": "https://example.invalid/u-252",
+           "text": "text-124",
+           "thumbnail_url": "https://example.invalid/u-253"
+          },
+          "engagement": {
+           "comments": 4,
+           "likes": 214,
+           "saves": 7,
+           "shares": 1,
+           "views": 694
+          },
+          "ext": {
+           "author_followers": 23213,
+           "author_id": "id-106",
+           "download_count": 0,
+           "music_id": "id-109",
+           "published_at_epoch": 1791063666
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-110",
+          "published_at": "2026-10-03T21:41:06.000Z",
+          "url": "https://example.invalid/u-254"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.380851,
+          "estimated_reach": 564,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-248",
+           "display_name": "name-046",
+           "username": "handle-052",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 99.567,
+           "media_urls": "https://example.invalid/u-255",
+           "text": "text-125",
+           "thumbnail_url": "https://example.invalid/u-256"
+          },
+          "engagement": {
+           "comments": 3,
+           "likes": 176,
+           "saves": 5,
+           "shares": 0,
+           "views": 470
+          },
+          "ext": {
+           "author_followers": 23213,
+           "author_id": "id-106",
+           "download_count": 0,
+           "music_id": "id-111",
+           "published_at_epoch": 1791061354
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-112",
+          "published_at": "2026-10-03T21:02:34.000Z",
+          "url": "https://example.invalid/u-257"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.254777,
+          "estimated_reach": 754,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-248",
+           "display_name": "name-046",
+           "username": "handle-052",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 68.734,
+           "media_urls": "https://example.invalid/u-258",
+           "text": "text-126",
+           "thumbnail_url": "https://example.invalid/u-259"
+          },
+          "engagement": {
+           "comments": 2,
+           "likes": 158,
+           "saves": 6,
+           "shares": 0,
+           "views": 628
+          },
+          "ext": {
+           "author_followers": 23213,
+           "author_id": "id-106",
+           "download_count": 0,
+           "music_id": "id-113",
+           "published_at_epoch": 1791053524
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-114",
+          "published_at": "2026-10-03T18:52:04.000Z",
+          "url": "https://example.invalid/u-260"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.286537,
+          "estimated_reach": 3334,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-248",
+           "display_name": "name-046",
+           "username": "handle-052",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 156.234,
+           "media_urls": "https://example.invalid/u-261",
+           "text": "text-127",
+           "thumbnail_url": "https://example.invalid/u-262"
+          },
+          "engagement": {
+           "comments": 24,
+           "likes": 768,
+           "saves": 38,
+           "shares": 4,
+           "views": 2778
+          },
+          "ext": {
+           "author_followers": 23213,
+           "author_id": "id-106",
+           "download_count": 0,
+           "music_id": "id-115",
+           "published_at_epoch": 1791027840
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-116",
+          "published_at": "2026-10-03T11:44:00.000Z",
+          "url": "https://example.invalid/u-263"
+         }
+        },
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.165442,
+          "estimated_reach": 9959,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-248",
+           "display_name": "name-046",
+           "username": "handle-052",
+           "verified": false
+          },
+          "content": {
+           "duration_seconds": 98.467,
+           "media_urls": "https://example.invalid/u-264",
+           "text": "text-128",
+           "thumbnail_url": "https://example.invalid/u-265"
+          },
+          "engagement": {
+           "comments": 17,
+           "likes": 1351,
+           "saves": 75,
+           "shares": 5,
+           "views": 8299
+          },
+          "ext": {
+           "author_followers": 23213,
+           "author_id": "id-106",
+           "download_count": 3,
+           "music_id": "id-117",
+           "published_at_epoch": 1791025307
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-118",
+          "published_at": "2026-10-03T11:01:47.000Z",
+          "url": "https://example.invalid/u-266"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-052",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     }
+    ],
+    "summary": {
+     "coverage": 0.92,
+     "credits_charged": 45,
+     "credits_refunded": 5,
+     "deferred": 0,
+     "error": 0,
+     "not_found": 2,
+     "ok": 23,
+     "total": 25,
+     "unsupported": 0
+    }
+   },
+   "endpoint": "/v1/prism/profiles",
+   "platform": "prism",
+   "request_id": "id-119",
+   "success": true
+  }
+ },
+ "prism_profiles_KE": {
+  "market": "KE",
+  "fetched_at": "2026-10-04T00:38:20.762989+00:00",
+  "lane": "panel",
+  "params": {
+   "include": "posts",
+   "since": null
+  },
+  "body": {
+   "cached": false,
+   "credits_remaining": 245734,
+   "credits_used": 17,
+   "data": {
+    "legs": [
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/tiktok/profile",
+      "error": null,
+      "latency_ms": 1077,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 3224,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2993,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2645,
+      "status": 200
+     },
+     {
+      "credits_used": 0,
+      "endpoint": "/v1/instagram/profile",
+      "error": "text-001",
+      "latency_ms": 3179,
+      "status": 404
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 3262,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 4127,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 4661,
+      "status": 200
+     },
+     {
+      "credits_used": 0,
+      "endpoint": "/v1/tiktok/profile",
+      "error": "text-001",
+      "latency_ms": 1621,
+      "status": 404
+     },
+     {
+      "credits_used": 0,
+      "endpoint": "/v1/instagram/profile",
+      "error": "text-001",
+      "latency_ms": 4193,
+      "status": 404
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 2466,
+      "status": 200
+     },
+     {
+      "credits_used": 1,
+      "endpoint": "/v1/instagram/profile",
+      "error": null,
+      "latency_ms": 1377,
+      "status": 200
+     }
+    ],
+    "results": [
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-267",
+        "bio": "text-129",
+        "display_name": "name-047",
+        "ext": {
+         "business_category": "text-049",
+         "public_email": "text-130"
+        },
+        "followers": 2550756,
+        "following": 5659,
+        "id": "id-120",
+        "joined_at": null,
+        "last_post_at": "2026-09-30T19:37:48.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-268",
+        "username": "handle-053",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:38:05.488Z",
+      "index": 0,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-053",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-269",
+        "bio": "text-131",
+        "display_name": "name-048",
+        "ext": {
+         "business_category": "text-132"
+        },
+        "followers": 1623822,
+        "following": 1182,
+        "id": "id-121",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T06:57:08.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-270",
+        "username": "handle-054",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "business",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:38:05.489Z",
+      "index": 1,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.113443,
+          "estimated_reach": 417216,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-271",
+           "display_name": "name-048",
+           "username": "handle-054",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 82.476,
+           "media_urls": "https://example.invalid/u-272",
+           "text": "text-133",
+           "thumbnail_url": "https://example.invalid/u-273"
+          },
+          "engagement": {
+           "comments": 1070,
+           "likes": 38372,
+           "saves": null,
+           "shares": null,
+           "views": 347680
+          },
+          "ext": {
+           "author_id": "id-121",
+           "coauthors": [
+            {
+             "full_name": "text-134",
+             "id": "id-122",
+             "is_verified": false,
+             "profile_pic_url": "https://example.invalid/u-274",
+             "username": "handle-055"
+            },
+            {
+             "full_name": "text-135",
+             "id": "id-123",
+             "is_verified": false,
+             "profile_pic_url": "https://example.invalid/u-275",
+             "username": "handle-056"
+            }
+           ],
+           "media_type": "video",
+           "published_at_epoch": 1791010628
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-124",
+          "published_at": "2026-10-03T06:57:08.000Z",
+          "url": "https://example.invalid/u-276"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-054",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-277",
+        "bio": "text-136",
+        "display_name": "name-049",
+        "ext": {
+         "business_category": "text-022",
+         "public_email": "text-137"
+        },
+        "followers": 368008,
+        "following": 4630,
+        "id": "id-125",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T18:09:32.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": null,
+        "username": "handle-057",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:38:05.490Z",
+      "index": 2,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.049273,
+          "estimated_reach": 1486,
+          "language": "en"
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-278",
+           "display_name": "name-049",
+           "username": "handle-057",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 57.933,
+           "media_urls": "https://example.invalid/u-279",
+           "text": "text-138",
+           "thumbnail_url": "https://example.invalid/u-280"
+          },
+          "engagement": {
+           "comments": 4,
+           "likes": 57,
+           "saves": null,
+           "shares": null,
+           "views": 1238
+          },
+          "ext": {
+           "author_id": "id-125",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791050972
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-126",
+          "published_at": "2026-10-03T18:09:32.000Z",
+          "url": "https://example.invalid/u-281"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-057",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-282",
+        "bio": null,
+        "display_name": "name-050",
+        "ext": {
+         "business_category": null
+        },
+        "followers": 875842,
+        "following": 870,
+        "id": "id-127",
+        "joined_at": null,
+        "last_post_at": "2026-10-01T14:42:16.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-283",
+        "username": "handle-058",
+        "verified": true
+       },
+       "computed": {
+        "content_category": null,
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:38:05.490Z",
+      "index": 3,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-058",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 1,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-284",
+        "bio": null,
+        "display_name": null,
+        "ext": {
+         "hd_avatar_url": "https://example.invalid/u-285"
+        },
+        "followers": 35,
+        "following": 189,
+        "id": "id-128",
+        "last_post_at": null,
+        "likes_count": null,
+        "posts_count": 0,
+        "private": true,
+        "url": null,
+        "username": "handle-059",
+        "verified": false
+       },
+       "computed": {
+        "content_category": null,
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:38:05.490Z",
+      "index": 4,
+      "platform": "instagram",
+      "posts": {
+       "credits": 0,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "empty"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-059",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-286",
+        "bio": "text-139",
+        "display_name": "name-051",
+        "ext": {
+         "bio_link": null,
+         "business_category": "text-003"
+        },
+        "followers": 2477872,
+        "following": 59,
+        "id": "id-129",
+        "joined_at": null,
+        "likes_count": 65844660,
+        "posts_count": 809,
+        "private": false,
+        "url": "https://example.invalid/u-287",
+        "username": "handle-060",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": "en"
+       }
+      },
+      "fetched_at": "2026-10-04T00:38:05.490Z",
+      "index": 5,
+      "platform": "tiktok",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/tiktok/profile/videos",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-060",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-288",
+        "bio": "text-140",
+        "display_name": "name-052",
+        "ext": {
+         "business_category": null
+        },
+        "followers": 2749243,
+        "following": 926,
+        "id": "id-130",
+        "joined_at": null,
+        "last_post_at": "2026-10-02T16:34:37.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-289",
+        "username": "handle-061",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:38:05.490Z",
+      "index": 6,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-061",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-290",
+        "bio": null,
+        "display_name": "name-053",
+        "ext": {
+         "business_category": "text-141"
+        },
+        "followers": 2222003,
+        "following": 32,
+        "id": "id-131",
+        "joined_at": null,
+        "last_post_at": "2026-10-02T06:05:13.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-291",
+        "username": "handle-062",
+        "verified": true
+       },
+       "computed": {
+        "content_category": null,
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:38:05.490Z",
+      "index": 7,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-062",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 0,
+      "error": {
+       "message": "text-001",
+       "type": "text-017"
+      },
+      "fetched_at": "2026-10-04T00:38:08.001Z",
+      "index": 8,
+      "platform": "instagram",
+      "status": "not_found",
+      "target": {
+       "handle": "handle-063",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 2,
+      "data": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-292",
+        "bio": "text-142",
+        "display_name": "name-054",
+        "ext": {
+         "business_category": "text-143"
+        },
+        "followers": 4461634,
+        "following": 8,
+        "id": "id-132",
+        "joined_at": null,
+        "last_post_at": "2026-10-03T17:25:04.000Z",
+        "likes_count": null,
+        "posts_count": null,
+        "private": false,
+        "url": "https://example.invalid/u-293",
+        "username": "handle-064",
+        "verified": true
+       },
+       "computed": {
+        "content_category": "other",
+        "engagement_rate": null,
+        "estimated_reach": null,
+        "language": null
+       }
+      },
+      "fetched_at": "2026-10-04T00:38:10.393Z",
+      "index": 9,
+      "platform": "instagram",
+      "posts": {
+       "credits": 1,
+       "endpoint": "/v1/instagram/profile/posts",
+       "has_more": false,
+       "items": [
+        {
+         "computed": {
+          "content_category": "other",
+          "engagement_rate": 0.102791,
+          "estimated_reach": 521240,
+          "language": null
+         },
+         "post": {
+          "author": {
+           "avatar_url": "https://example.invalid/u-294",
+           "display_name": "name-054",
+           "username": "handle-064",
+           "verified": true
+          },
+          "content": {
+           "duration_seconds": 101.447,
+           "media_urls": "https://example.invalid/u-295",
+           "text": "text-144",
+           "thumbnail_url": "https://example.invalid/u-296"
+          },
+          "engagement": {
+           "comments": 941,
+           "likes": 43708,
+           "saves": null,
+           "shares": null,
+           "views": 434367
+          },
+          "ext": {
+           "author_id": "id-132",
+           "coauthors": [],
+           "media_type": "video",
+           "published_at_epoch": 1791048304
+          },
+          "flags": {
+           "deleted": false,
+           "nsfw": null,
+           "pinned": false,
+           "spoiler": null
+          },
+          "id": "id-133",
+          "published_at": "2026-10-03T17:25:04.000Z",
+          "url": "https://example.invalid/u-297"
+         }
+        }
+       ],
+       "next_cursor": null,
+       "status": "ok",
+       "stopped_at": "since"
+      },
+      "status": "ok",
+      "target": {
+       "handle": "handle-064",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 0,
+      "error": {
+       "message": "text-001",
+       "type": "text-017"
+      },
+      "fetched_at": "2026-10-04T00:38:10.578Z",
+      "index": 10,
+      "platform": "instagram",
+      "status": "not_found",
+      "target": {
+       "handle": "handle-065",
+       "platform": "instagram"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "cost": 0,
+      "error": {
+       "message": "text-001",
+       "type": "text-017"
+      },
+      "fetched_at": "2026-10-04T00:38:11.078Z",
+      "index": 11,
+      "platform": "tiktok",
+      "status": "not_found",
+      "target": {
+       "handle": "handle-066",
+       "platform": "tiktok"
+      },
+      "vendor_labels": {}
+     }
+    ],
+    "summary": {
+     "coverage": 0.75,
+     "credits_charged": 17,
+     "credits_refunded": 7,
+     "deferred": 0,
+     "error": 0,
+     "not_found": 3,
+     "ok": 9,
+     "total": 12,
+     "unsupported": 0
+    }
+   },
+   "endpoint": "/v1/prism/profiles",
+   "platform": "prism",
+   "request_id": "id-134",
+   "success": true
+  }
+ }
+}

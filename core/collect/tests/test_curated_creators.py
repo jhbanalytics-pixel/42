@@ -488,8 +488,8 @@ def test_curated_profile_observations_use_the_tab_market_for_source_market():
 
     panels = json.loads((FIXTURES / "parse_panels.json").read_text(encoding="utf-8"))
     body = copy.deepcopy(panels["prism_profiles"])
-    body["data"]["items"][0]["posts"][0]["post"]["author"] = {"username": "culture.desk.za"}
-    body["data"]["items"][0]["posts"][0]["post"]["content"]["text"] = "Fit check"
+    body["data"]["results"][0]["posts"]["items"][0]["post"]["author"] = {"username": "culture.desk.za"}
+    body["data"]["results"][0]["posts"]["items"][0]["post"]["content"]["text"] = "Fit check"
     runner = job._Runner(
         SimpleNamespace(), job.Collected("run1"), job._CountedIds(fake_item_id), job.safe_geo(FakeGeo()),
         lambda: datetime(2026, 9, 30, 0, 30, tzinfo=timezone.utc), job.Budget(), {}, date(2026, 9, 30))
