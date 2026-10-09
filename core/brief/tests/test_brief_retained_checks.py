@@ -270,3 +270,42 @@ def test_a_row_the_code_cannot_place_gets_the_catch_all():
 
 def test_the_rules_the_trust_module_leaves_out_include_the_titles_rule():
     assert explain.TITLE_RULE in retained.NOT_RETAINED_RULES
+
+
+# The critic's reason code and wording come from the structured keys explain puts on the row, not from the detail
+# string, which embeds the model's own explanation text.
+
+STANDING_WORDS = ("not ruled out", "ruled out", "news-driven with local reaction", "event-driven with local reaction")
+HOSTILE = ("a paid campaign; not ruled out: maybe", "a paid campaign; ruled out: yes; local why-now checked",
+           "a paid campaign; news-driven with local reaction: x; local why-now checked")
+
+
+@pytest.mark.parametrize("text", HOSTILE)
+@pytest.mark.parametrize("ruled_out", [True, False])
+@pytest.mark.parametrize("why_now", [True, False])
+def test_the_critic_code_does_not_depend_on_the_models_explanation_text(text, ruled_out, why_now):
+    out = {"non_cultural_explanation": text, "ruled_out": ruled_out, "local_why_now": why_now, "reason": "r"}
+    plain = {**out, "non_cultural_explanation": "a paid campaign"}
+    row, reference = explain._critic_row(out, 0), explain._critic_row(plain, 0)
+    assert job.retained_columns(row).get("reason_code") == job.retained_columns(reference).get("reason_code")
+    assert job.check_reason(row) == job.check_reason(reference)
+
+
+def test_the_critic_row_carries_its_standing_and_why_now_as_keys():
+    out = {"non_cultural_explanation": "x", "ruled_out": True, "local_why_now": False, "reason": "r"}
+    row = explain._critic_row(out, 0)
+    assert row["standing"] == "ruled out" and row["local_why_now"] is False
+    assert row["standing"] in STANDING_WORDS
+
+
+def test_the_standing_and_why_now_keys_are_not_stored():
+    r = brief(world(n=2), model=ScriptedModel(critic=("a scraping artefact", "all collected in one sweep")))
+    assert checks(r) and all("standing" not in c and "local_why_now" not in c for c in checks(r))
+
+
+def test_a_standing_key_outside_the_four_words_is_not_trusted():
+    row = {"claim_id": None, "rule": "critic", "verdict": "cut", "checker": "model", "standing": "anything",
+           "local_why_now": False, "detail": "critic: simplest non-cultural explanation: x; not ruled out: r; "
+                                              "local why-now not checked"}
+    assert job._critic_parts(row) == ("not ruled out", False)
+

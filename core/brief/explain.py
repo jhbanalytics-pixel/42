@@ -716,7 +716,12 @@ def _event_driven(out, reacting_creators):
             and out.get("local_reaction") is True and reacting_creators >= NEWS_MIN_CREATORS)
 
 
+STANDINGS = ("ruled out", "news-driven with local reaction", "event-driven with local reaction", "not ruled out")
+
+
 def _critic_row(out, reacting_creators=0):
+    """The critic's check row. standing and local_why_now are the structured reading job.py derives the stored
+    reason code and wording from; the detail embeds the model's own text and is never parsed for them."""
     ruled_out = out.get("ruled_out") is True
     local_why_now = out.get("local_why_now") is True
     news = _news_driven(out, reacting_creators)
@@ -725,6 +730,7 @@ def _critic_row(out, reacting_creators=0):
     standing = ("ruled out" if ruled_out else "news-driven with local reaction" if news
                 else "event-driven with local reaction" if event else "not ruled out")
     return {"claim_id": None, "rule": "critic", "verdict": "pass" if passed else "cut", "checker": "model",
+            "standing": standing, "local_why_now": local_why_now,
             "detail": f"critic: simplest non-cultural explanation: {out.get('non_cultural_explanation', '')}; "
                       f"{standing}: {out.get('reason', '')}; "
                       f"local why-now {'checked' if local_why_now else 'not checked'}"}

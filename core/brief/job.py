@@ -60,7 +60,7 @@ from core.brief import gatectx
 from core.api.store import creator_key
 from core.api.today import without_hidden
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
-from core.brief.explain import CHECK_INCOMPLETE, TITLE_RULE, explain_trend
+from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.market_scope import read_market_scope
 from core.brief.payload import MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, _worth, brief_row, build_market_payload
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, local_posts, showable_posts
@@ -750,11 +750,15 @@ def _menu(detail):
     return hits[0]
 
 
-def _critic_parts(detail):
-    """(standing, local_why_now) as explain._critic_row recorded them in a critic row's detail: standing is
-    "ruled out", "news-driven with local reaction", "event-driven with local reaction", "not ruled out" or None when
-    unreadable."""
-    detail = str(detail or "")
+def _critic_parts(chk):
+    """(standing, local_why_now) of a critic row. explain._critic_row puts both on the row as structured keys, and
+    they are read from there: the detail embeds the model's own explanation text, so a standing parsed out of it
+    could be chosen by that text. A row without the keys (only a hand-built one) falls back to its detail, which
+    can name only the four standings or None when unreadable."""
+    standing, local = chk.get("standing"), chk.get("local_why_now")
+    if standing in STANDINGS and isinstance(local, bool):
+        return standing, local
+    detail = str(chk.get("detail") or "")
     m = _CRITIC_PARTS.match(detail)
     return (m.group(1) if m else None), detail.endswith("local why-now checked")
 
@@ -766,7 +770,7 @@ def _wording(chk, rested=False):
         return f"{'Critic' if rule == 'critic' else RULE_NAMES.get(rule, 'Claim checks')}: {CHECK_INCOMPLETE}"
     if rule == "critic":
         menu = _menu(chk.get("detail"))
-        standing, local = _critic_parts(chk.get("detail"))
+        standing, local = _critic_parts(chk)
         news = standing == "news-driven with local reaction"
         event = standing == "event-driven with local reaction"
         if verdict == "pass":
@@ -826,7 +830,7 @@ def _reason_code(chk):
         m = _SUPPORT_VERDICT.match(detail)
         return f"support_{scope}_{m.group(1)}" if m and m.group(1) != "supported" else f"support_{scope}_other"
     if rule == "critic":
-        standing, local = _critic_parts(detail)
+        standing, local = _critic_parts(chk)
         if standing == "not ruled out":
             return "critic_rival_not_ruled_out" if local else "critic_rival_and_why_now"
         if standing is not None and not local:
@@ -1347,10 +1351,6 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     _insert(client, f"{agent}.briefs", _briefs_rows(brief_rows))
     counts = {"markets": len(MARKETS), "cards": cards, "held": held, "credits": spend["credits"],
               "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
-    if spend.get("model_reserved_usd"):
-        counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
-    if explanation_stop is not None:
-        counts["explanation_stop"] = explanation_stop
     if check_rows:
         # The diagnostics are written after the briefs: a claim_checks table that has not had its W8-DEC-14
         # columns added yet costs the diagnostics, never a market's brief.
@@ -1359,6 +1359,10 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
         except Exception as e:
             counts["claim_checks"] = {"status": "failed", "rows": len(check_rows), "error": str(e)[:300]}
             print(f"brief {d.isoformat()}: claim_checks not written ({type(e).__name__})", file=sys.stderr)
+    if spend.get("model_reserved_usd"):
+        counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
+    if explanation_stop is not None:
+        counts["explanation_stop"] = explanation_stop
     if busy:
         counts["model_busy"] = busy
     pack_errors = {f"{c['market']}:{c['row']['item_id']}": c["error"] for m in MARKETS for c in by_market[m]
