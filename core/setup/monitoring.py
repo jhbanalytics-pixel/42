@@ -4,8 +4,8 @@
     py -3.13 core/setup/monitoring.py --second-email NAME@ogilvy.co.za  the same, with the second person's channel
     py -3.13 core/setup/monitoring.py --apply --second-email ...       creates each channel and policy that is missing
 
-One email channel per address, then twelve log-based alert policies sent to every channel: one per
-"42 ALERT <name>:" line (the watchdog job core/setup/watchdog.py writes eight, the nightly reconcile job
+One email channel per address, then thirteen log-based alert policies sent to every channel: one per
+"42 ALERT <name>:" line (the watchdog job core/setup/watchdog.py writes nine, the nightly reconcile job
 core/collect/reconcile.py writes credits_low and reconcile, the weekly job core/collect/drift.py writes
 drift) and job_failed on Cloud Run's error lines for any f42- job execution. Each policy closes
 itself after AUTO_CLOSE and notifies at most once per RATE_LIMIT.
@@ -32,7 +32,7 @@ API = f"https://monitoring.googleapis.com/v3/projects/{PROJECT}"
 ALBERT = "albert.meintjes@ogilvy.co.za"
 ALERTS = ("collection_missing", "job_failed", "brief_late", "credits_low", "model_spend", "zero_rows",
           "schema_drift", "agent_error_rate", "reconcile", "drift", "seeds_failed",
-          "agent_views_failed")
+          "agent_views_failed", "understand_degraded")
 LOG_ALERTS = watchdog.ALERTS + ("credits_low", "reconcile", "drift")
 RATE_LIMIT = "300s"
 AUTO_CLOSE = "21600s"  # six hours: one incident per failing morning, a fresh one the next day
@@ -58,6 +58,10 @@ DOCS = {
     "agent_views_failed": "Today's latest f42-detect run could not apply the agent views L4's API reads "
                           "(v_item_gate_current, v_item_evidence, tvf_item_timeseries, v_sensitive_items), so they may "
                           "be stale. See counts.agent_views.error on that detect runs row.",
+    "understand_degraded": "Today's latest understand run finished ok but is partial or could not write a step "
+                           "(topic clusters, embeddings or enrichment), so detect ran on thinner data. See "
+                           "counts.partial_reason, counts.embed_error, counts.enrich_error and counts.cluster on "
+                           "that understand runs row.",
 }
 
 

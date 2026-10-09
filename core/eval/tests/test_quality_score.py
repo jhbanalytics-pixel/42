@@ -289,3 +289,20 @@ def test_cli_help_works():
                           capture_output=True, cwd=Path(__file__).resolve().parents[3])
     assert done.returncode == 0
     assert b"--dry-run" in done.stdout and b"--scores" in done.stdout
+
+
+# N61, "quality score blind": core/eval/results is not in the job image, so f42-learn never sees a replay score.
+# Each part must say that, not that no file was dated in the week. The run notes stay as they are: f42-learn's own
+# test pins them empty.
+
+def test_a_missing_score_folder_is_said_plainly_by_both_replay_parts(tmp_path):
+    gone = tmp_path / "results"
+    for part in (quality_score.eval_pass_rate(gone, WEEK), quality_score.honest_gaps(gone, WEEK)):
+        assert part["insufficient"] is True and part["value"] is None
+        assert "does not exist" in part["reason"] and "results" in part["reason"]
+        assert "no valid score_run file" not in part["reason"]
+
+
+def test_an_existing_folder_with_no_dated_file_keeps_the_old_reason(tmp_path):
+    for part in (quality_score.eval_pass_rate(tmp_path, WEEK), quality_score.honest_gaps(tmp_path, WEEK)):
+        assert part["reason"] == "no valid score_run file dated in the week"

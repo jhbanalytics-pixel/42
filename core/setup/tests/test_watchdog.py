@@ -21,8 +21,13 @@ class FakeStore:
     """A healthy day unless a test says otherwise."""
 
     def __init__(self, collect_ok=True, observations=None, published=("ZA", "NG", "KE"), usd=0.0, keys=None,
-                 ask=(0, 0), runs=None, seeds=None, detect=None):
+                 ask=(0, 0), runs=None, seeds=None, detect=None, briefs=None, understand=None, stages=None,
+                 watchdog_at=None):
         self.runs = runs
+        self._briefs = briefs
+        self._understand = understand
+        self._stages = stages or []
+        self._watchdog_at = watchdog_at
         self._seeds = seeds
         self._detect = detect
         self._collect_ok = collect_ok
@@ -64,6 +69,30 @@ class FakeStore:
     def detect_latest(self, d):
         self.asked.append(("detect_latest", d))
         return self._detect
+
+    def brief_state(self, d):
+        self.asked.append(("brief_state", d))
+        if self._briefs is not None:
+            return dict(self._briefs)
+        return {m: {"status": "published", "cards": 3, "held": 0} for m in self._published}
+
+    def understand_latest(self, d):
+        self.asked.append(("understand_latest", d))
+        return self._understand
+
+    def stage_latest(self, d):
+        self.asked.append(("stage_latest", d))
+        return list(self._stages)
+
+    def watchdog_last(self, d):
+        """When the watchdog last ran today. A healthy fake ran just now, so no test sees a gap unless it asks."""
+        self.asked.append(("watchdog_last", d))
+        if self._watchdog_at is not None:
+            return self._watchdog_at
+        rows = [r for r in (self.runs.rows if self.runs is not None else []) if r["stage"] == "watchdog"]
+        if rows:
+            return max(datetime.fromisoformat(r["finished_at"]) for r in rows)
+        return datetime(2099, 1, 1, tzinfo=timezone.utc)
 
     def fired_today(self, d):
         """Read back from the watchdog rows main() appended, as BigQueryStore does from the runs table."""
@@ -340,7 +369,7 @@ def test_run_date_in_the_environment_overrides_the_day(monkeypatch):
 
 def test_every_alert_name_is_one_of_the_rules():
     assert wd.ALERTS == ("collection_missing", "zero_rows", "brief_late", "model_spend", "schema_drift",
-                         "agent_error_rate", "seeds_failed", "agent_views_failed")
+                         "agent_error_rate", "seeds_failed", "agent_views_failed", "understand_degraded")
 
 
 def lines(out):
@@ -509,3 +538,443 @@ def test_job_and_schedule_constants_for_deploy_jobs_and_schedule():
     assert job["retries"] == 0 and job["secret"] is False and job["timeout"] <= timedelta(minutes=10)
     crons = dict(wd.SCHEDULES)
     assert crons == {"f42-watchdog-quarter": "*/15 2-7 * * *", "f42-watchdog-hourly": "0 0,1,8-23 * * *"}
+
+
+# N33 and the L2 watchdog rule: log-only signals. They write "42 ALERT <name>:" lines like the others but belong
+# to no Cloud Monitoring policy, so they add no cloud resource.
+
+def brief(status="published", cards=3, held=0):
+    return {"status": status, "cards": cards, "held": held}
+
+
+def severity_of(alerts, name):
+    return [a.severity for a in alerts if a.name == name]
+
+
+def test_log_only_signals_are_not_policy_alerts():
+    from core.setup import monitoring
+
+    assert wd.LOG_ONLY == ("brief_empty", "brief_all_held", "brief_data_issue", "stage_dead", "watchdog_gap")
+    assert set(wd.LOG_ONLY).isdisjoint(wd.ALERTS)
+    assert set(wd.LOG_ONLY).isdisjoint(monitoring.ALERTS) and set(wd.LOG_ONLY).isdisjoint(monitoring.LOG_ALERTS)
+
+
+@pytest.mark.parametrize("hh,mm,fires", [(6, 29, False), (6, 30, True), (9, 0, True)])
+def test_brief_empty_fires_from_0630_for_a_published_market_with_no_cards_and_nothing_held(hh, mm, fires):
+    briefs = {"ZA": brief(cards=0, held=0), "NG": brief(), "KE": brief()}
+    alerts = wd.check(at(hh, mm), FakeStore(briefs=briefs))
+    assert ("brief_empty" in names(alerts)) is fires
+    if fires:
+        [alert] = [a for a in alerts if a.name == "brief_empty"]
+        assert "ZA" in alert.reason and "NG" not in alert.reason and "KE" not in alert.reason
+        assert severity_of(alerts, "brief_empty") == ["WARNING"]
+
+
+def test_brief_empty_covers_a_partial_brief_too():
+    alerts = wd.check(at(7, 0), FakeStore(briefs={"NG": brief("partial", 0, 0), "ZA": brief(), "KE": brief()}))
+    assert names(alerts) == ["brief_empty"] and "NG" in alerts[0].reason
+
+
+def test_a_brief_with_cards_fires_none_of_the_empty_signals():
+    assert wd.check(at(7, 0), FakeStore(keys=STABLE)) == []
+
+
+def test_zero_cards_with_items_held_is_information_not_a_silent_failure():
+    briefs = {"ZA": brief(cards=0, held=10), "NG": brief(), "KE": brief()}
+    alerts = wd.check(at(7, 0), FakeStore(briefs=briefs))
+    assert names(alerts) == ["brief_all_held"]
+    assert severity_of(alerts, "brief_all_held") == ["INFO"]
+    assert "ZA" in alerts[0].reason and "10" in alerts[0].reason
+
+
+def test_a_data_issue_brief_is_named_at_any_hour_and_is_not_also_called_empty():
+    briefs = {"ZA": brief("data_issue", 0, 0), "NG": brief("data_issue", 0, 0), "KE": brief()}
+    alerts = wd.check(at(6, 20), FakeStore(briefs=briefs))
+    assert names(alerts) == ["brief_data_issue"]
+    assert "ZA" in alerts[0].reason and "NG" in alerts[0].reason and "KE" not in alerts[0].reason
+    assert severity_of(alerts, "brief_data_issue") == ["WARNING"]
+    assert "brief_empty" not in names(wd.check(at(9, 0), FakeStore(briefs=briefs)))
+
+
+def understand(status="ok", degraded=(), run_id="understand-20261001-abc123", partial=False, partial_reason=None,
+               partial_error=None, embed_error=None):
+    return {"run_id": run_id, "status": status, "degraded": list(degraded), "embed_error": embed_error,
+            "partial": partial, "partial_reason": partial_reason, "partial_error": partial_error}
+
+
+def test_understand_degraded_fires_as_an_alert_for_an_ok_run_that_could_not_write_something():
+    [alert] = wd.check(at(5, 0), FakeStore(understand=understand(degraded=["enrich", "cluster:ng"])))
+    assert alert.name == "understand_degraded" and alert.severity == "ERROR"
+    assert "understand-20261001-abc123" in alert.reason and "finished ok" in alert.reason
+    assert "enrichment" in alert.reason and "topic clusters for NG" in alert.reason
+    assert "cluster:ng" not in alert.reason
+
+
+def test_a_run_with_no_embeddings_is_a_degraded_run_with_the_embed_error_in_the_reason():
+    [alert] = wd.check(at(5, 0), FakeStore(understand=understand(embed_error="retry_capped: no window was sent")))
+    assert alert.name == "understand_degraded" and alert.severity == "ERROR"
+    assert "embeddings" in alert.reason and "retry_capped: no window was sent" in alert.reason
+
+
+def test_a_partial_run_is_an_alert_whatever_its_status_says():
+    # wave8/detect records a failed clusterer as status ok, counts.partial true, and the job exits 0.
+    row = understand(partial=True, partial_reason="cluster_stack_failed", partial_error="ImportError: numba cache")
+    [alert] = wd.check(at(5, 0), FakeStore(understand=row))
+    assert alert.name == "understand_degraded" and alert.severity == "ERROR"
+    assert "understand-20261001-abc123" in alert.reason and "finished ok" in alert.reason
+    assert "topic grouping failed" in alert.reason and "cluster_stack_failed" in alert.reason
+    assert "ImportError: numba cache" in alert.reason
+
+
+def test_a_partial_run_with_a_reason_nobody_wrote_a_sentence_for_still_alerts_and_names_the_code():
+    [alert] = wd.check(at(5, 0), FakeStore(understand=understand(partial=True, partial_reason="video_stack_failed")))
+    assert alert.name == "understand_degraded" and "video_stack_failed" in alert.reason
+    [bare] = wd.check(at(5, 0), FakeStore(understand=understand(partial=True)))
+    assert bare.name == "understand_degraded" and "partial" in bare.reason and "None" not in bare.reason
+
+
+def test_a_partial_and_degraded_run_is_one_alert_that_names_both():
+    row = understand(degraded=["enrich"], embed_error="spend_unknown", partial=True, partial_reason="cluster_stack_failed")
+    [alert] = wd.check(at(5, 0), FakeStore(understand=row))
+    for word in ("topic grouping failed", "embeddings", "enrichment", "spend_unknown"):
+        assert word in alert.reason
+    assert "; it could not write embeddings (spend_unknown), enrichment" in alert.reason
+
+
+@pytest.mark.parametrize("latest", [None, understand(), understand("failed", ["enrich"]),
+                                    understand("running", ["enrich"]), understand("failed", partial=True),
+                                    understand("running", embed_error="x"), understand(partial=False, embed_error=""),
+                                    {"run_id": "understand-1", "status": "ok", "degraded": []}])
+def test_understand_degraded_stays_quiet_for_no_row_a_clean_run_or_a_run_that_is_not_ok(latest):
+    assert "understand_degraded" not in names(wd.check(at(5, 0), FakeStore(understand=latest)))
+
+
+def test_a_long_or_multiline_error_is_cut_to_one_short_line_in_the_reason():
+    row = understand(embed_error="first line\n" + "x" * 500, partial=True, partial_reason="cluster_stack_failed",
+                     partial_error="a\nb " + "y" * 500)
+    [alert] = wd.check(at(5, 0), FakeStore(understand=row))
+    assert "\n" not in alert.reason and len(alert.reason) < 700
+    assert "first line" in alert.reason and "x" * 300 not in alert.reason and "y" * 300 not in alert.reason
+
+
+def test_a_partial_run_writes_one_error_line_with_the_alert_name_and_the_job_still_exits_0(capsys):
+    runs = chain.MemoryRunsStore()
+    row = understand(partial=True, partial_reason="cluster_stack_failed", partial_error="ImportError: numba cache")
+    assert wd.main(now=at(7, 0), store=FakeStore(keys=STABLE, runs=runs, understand=row), runs=runs) == 0
+    [line] = lines(capsys.readouterr().out)
+    assert line["severity"] == "ERROR" and line["alert"] == "understand_degraded"
+    assert line["message"].startswith("42 ALERT understand_degraded: the latest understand run for 2026-10-01")
+    [saved] = runs.rows
+    assert saved["status"] == "ok" and saved["counts"]["fired"] == ["understand_degraded"]
+
+
+def test_a_partial_run_alerts_once_a_day(capsys):
+    runs = chain.MemoryRunsStore()
+    store = FakeStore(keys=STABLE, runs=runs, understand=understand(partial=True, partial_reason="cluster_stack_failed"))
+    wd.main(now=at(7, 0), store=store, runs=runs)
+    capsys.readouterr()
+    wd.main(now=at(7, 15), store=store, runs=runs)
+    assert "42 ALERT understand_degraded" not in capsys.readouterr().out
+
+
+def stage_row(stage, status, started, run_id=None):
+    return {"stage": stage, "status": status, "started_at": started, "run_id": run_id or f"{stage}-20261001-aaa"}
+
+
+@pytest.mark.parametrize("stage,age_min,fires", [
+    ("collect", 3 * 60 + 1, True), ("collect", 3 * 60 - 1, False),
+    ("understand", 2 * 60 + 1, True), ("understand", 2 * 60 - 1, False),
+    ("detect", 61, True), ("detect", 59, False),
+    ("brief", 61, True), ("brief", 59, False),
+    ("reconcile", 16, True), ("reconcile", 14, False),
+])
+def test_stage_dead_fires_when_the_latest_row_is_running_past_its_chain_timeout(stage, age_min, fires):
+    now = at(9, 0)
+    rows = [stage_row(stage, "running", now - timedelta(minutes=age_min))]
+    alerts = wd.check(now, FakeStore(stages=rows))
+    assert ("stage_dead" in names(alerts)) is fires
+    if fires:
+        [alert] = [a for a in alerts if a.name == "stage_dead"]
+        assert alert.severity == "WARNING" and f"{stage}-20261001-aaa" in alert.reason and stage in alert.reason
+
+
+def test_stage_dead_uses_the_same_timeouts_chain_does():
+    from core.collect import chain as chain_module
+
+    now = at(12, 0)
+    for stage, limit in chain_module.TIMEOUTS.items():
+        old = [stage_row(stage, "running", now - limit - timedelta(seconds=1))]
+        new = [stage_row(stage, "running", now - limit + timedelta(seconds=1))]
+        assert "stage_dead" in names(wd.check(now, FakeStore(stages=old))), stage
+        assert "stage_dead" not in names(wd.check(now, FakeStore(stages=new))), stage
+
+
+def test_stage_dead_ignores_finished_blocked_and_unknown_rows_and_names_every_dead_stage():
+    now = at(12, 0)
+    long_ago = now - timedelta(hours=9)
+    rows = [stage_row("collect", "ok", long_ago), stage_row("understand", "failed", long_ago),
+            stage_row("detect", "blocked", long_ago), stage_row("ask", "running", long_ago),
+            stage_row("brief", "running", long_ago), stage_row("reconcile", "running", long_ago)]
+    [alert] = [a for a in wd.check(now, FakeStore(stages=rows)) if a.name == "stage_dead"]
+    assert "brief" in alert.reason and "reconcile" in alert.reason
+    for quiet in ("collect", "understand", "detect", "ask"):
+        assert f"{quiet}-20261001" not in alert.reason
+
+
+def test_stage_dead_reads_a_row_started_as_text_as_well_as_a_datetime():
+    now = at(12, 0)
+    rows = [stage_row("detect", "running", (now - timedelta(hours=2)).isoformat())]
+    assert "stage_dead" in names(wd.check(now, FakeStore(stages=rows)))
+
+
+@pytest.mark.parametrize("minutes,fires", [(20, False), (89, False), (91, True), (300, True)])
+def test_watchdog_gap_fires_when_the_last_run_today_is_more_than_90_minutes_old(minutes, fires):
+    now = at(9, 0)
+    alerts = wd.check(now, FakeStore(watchdog_at=now - timedelta(minutes=minutes)))
+    assert ("watchdog_gap" in names(alerts)) is fires
+    if fires:
+        [alert] = [a for a in alerts if a.name == "watchdog_gap"]
+        assert alert.severity == "WARNING" and "watchdog" in alert.reason
+
+
+def test_watchdog_gap_measures_from_midnight_when_it_has_not_run_today():
+    store = FakeStore()
+    store.watchdog_last = lambda d: None
+    assert "watchdog_gap" not in names(wd.check(at(0, 30), store))
+    assert "watchdog_gap" in names(wd.check(at(1, 31), store))
+
+
+def test_watchdog_gap_is_not_judged_for_a_run_date_override(monkeypatch):
+    monkeypatch.setenv("RUN_DATE", "2026-09-29")
+    store = FakeStore()
+    store.watchdog_last = lambda d: None
+    assert "watchdog_gap" not in names(wd.check(at(9, 0), store))
+
+
+def test_log_only_signals_write_warning_lines_once_a_day_and_stay_out_of_the_error_stream(capsys):
+    runs = chain.MemoryRunsStore()
+    now = at(7, 0)
+    store = FakeStore(runs=runs, briefs={"ZA": brief("data_issue", 0, 0), "NG": brief(), "KE": brief()},
+                      stages=[stage_row("collect", "running", now - timedelta(hours=5))])
+    assert wd.main(now=now, store=store, runs=runs) == 0
+    out = lines(capsys.readouterr().out)
+    by_alert = {o["alert"]: o for o in out if o.get("alert")}
+    assert set(by_alert) == {"brief_data_issue", "stage_dead"}
+    assert all(o["severity"] == "WARNING" for o in by_alert.values())
+    assert all(o["message"].startswith(f"42 ALERT {n}: ") for n, o in by_alert.items())
+    assert [o for o in out if o["severity"] == "ERROR"] == []
+    assert wd.main(now=at(7, 15), store=store, runs=runs) == 0
+    [again] = lines(capsys.readouterr().out)
+    assert again["severity"] == "INFO" and "stage_dead" in again["message"]
+
+
+class BrokenStageStore(FakeStore):
+    tries = 0
+
+    def stage_latest(self, d):
+        self.tries += 1
+        raise RuntimeError("runs unreadable")
+
+
+def test_a_log_only_rule_that_cannot_run_is_logged_as_a_warning_and_does_not_fail_the_job(capsys):
+    # Changed from "fails the job like any other": a failing job reaches the job_failed policy and pages, and a
+    # log-only signal must never page, least of all because its own read (v_briefs_current) is the likeliest to fail.
+    runs = chain.MemoryRunsStore()
+    store = BrokenStageStore(runs=runs, published=("ZA",))
+    assert wd.main(now=at(7, 0), store=store, runs=runs) == 0
+    out = lines(capsys.readouterr().out)
+    [warning] = [o for o in out if "stage_dead" in o["message"] and "runs unreadable" in o["message"]]
+    assert warning["severity"] == "WARNING" and not warning["message"].startswith("42 ALERT")
+    assert [o for o in out if o["severity"] == "ERROR" and not o.get("alert")] == []
+    [row] = runs.rows
+    assert row["status"] == "ok" and row["error"] is None
+    assert row["counts"]["errors"] == [] and row["counts"]["log_only_errors"] == ["stage_dead"]
+    assert ("ask_runs", DAY) in store.asked  # the other rules still ran
+
+
+def test_a_policy_rule_error_still_fails_the_job_when_a_log_only_rule_also_fails(capsys):
+    class Both(BrokenStageStore):
+        def model_usd(self, d):
+            raise RuntimeError("query failed")
+
+    runs = chain.MemoryRunsStore()
+    assert wd.main(now=at(7, 0), store=Both(runs=runs), runs=runs) == 1
+    [row] = runs.rows
+    assert row["status"] == "failed" and "model_spend" in row["error"] and "stage_dead" not in row["error"]
+    assert row["counts"]["errors"] == ["model_spend"] and row["counts"]["log_only_errors"] == ["stage_dead"]
+
+
+def boom(*args):
+    raise RuntimeError("rule failed")
+
+
+@pytest.mark.parametrize("name", wd.ALERTS)
+def test_every_policy_rule_that_cannot_run_fails_the_job(monkeypatch, capsys, name):
+    # The job_failed policy is how an operator learns a policy rule is blind, so none of them may be exempted.
+    monkeypatch.setitem(wd.RULES, name, boom)
+    runs = chain.MemoryRunsStore()
+    assert wd.main(now=at(7, 0), store=FakeStore(keys=STABLE, runs=runs), runs=runs) == 1
+    out = lines(capsys.readouterr().out)
+    [error] = [o for o in out if o["severity"] == "ERROR"]
+    assert error["message"] == f"42 watchdog: rule {name} could not run: RuntimeError: rule failed"
+    assert [o for o in out if "no new alert" in o["message"]] == []
+    [row] = runs.rows
+    assert row["status"] == "failed" and row["error"] == f"{name}: RuntimeError: rule failed"
+    assert row["counts"]["errors"] == [name] and row["counts"]["log_only_errors"] == []
+
+
+@pytest.mark.parametrize("name", wd.LOG_ONLY)
+def test_every_log_only_rule_that_cannot_run_is_one_warning_and_leaves_the_job_ok(monkeypatch, capsys, name):
+    monkeypatch.setitem(wd.RULES, name, boom)
+    runs = chain.MemoryRunsStore()
+    assert wd.main(now=at(7, 0), store=FakeStore(keys=STABLE, runs=runs), runs=runs) == 0
+    [only] = lines(capsys.readouterr().out)  # no "no new alert" line either: a rule did not run, so nothing is clear
+    assert only["severity"] == "WARNING" and not only.get("alert")
+    assert only["message"] == f"42 watchdog: log-only rule {name} could not run: RuntimeError: rule failed"
+    [row] = runs.rows
+    assert row["status"] == "ok" and row["error"] is None
+    assert row["counts"]["errors"] == [] and row["counts"]["log_only_errors"] == [name]
+
+
+def test_a_log_only_rule_error_is_not_retried_as_fired_and_runs_again_next_time(capsys):
+    runs = chain.MemoryRunsStore()
+    store = BrokenStageStore(runs=runs)
+    wd.main(now=at(7, 0), store=store, runs=runs)
+    wd.main(now=at(7, 15), store=store, runs=runs)
+    assert store.tries == 2
+
+
+def test_brief_state_is_read_once_per_check_whatever_the_number_of_brief_rules():
+    store = FakeStore()
+    wd.check(at(7, 0), store)
+    assert store.asked.count(("brief_state", DAY)) == 1
+
+
+def test_stage_dead_does_not_fire_at_exactly_the_timeout():
+    from core.collect import chain as chain_module
+
+    now = at(12, 0)
+    for stage, limit in chain_module.TIMEOUTS.items():
+        exact = [stage_row(stage, "running", now - limit)]
+        assert "stage_dead" not in names(wd.check(now, FakeStore(stages=exact))), stage
+
+
+def duck_agent_sql(name):
+    return (wd.SQL[name].replace(f"`{wd.AGENT}.runs`", "{agent}.runs")
+            .replace(f"`{wd.AGENT}.v_briefs_current`", "{agent}.v_briefs_current"))
+
+
+def test_bigquery_store_reads_the_log_only_questions_with_parameterised_selects():
+    client = FakeClient({
+        "v_briefs_current": [{"market": "ZA", "status": "published", "cards": 0, "held": 0},
+                             {"market": "NG", "status": "data_issue", "cards": None, "held": None}],
+        "stage = 'understand'": [{"run_id": "understand-1", "status": "ok", "degraded": ["enrich"], "embed_error": None,
+                                 "partial": False, "partial_reason": None, "partial_error": None}],
+        "stage IN": [{"stage": "collect", "run_id": "collect-1", "status": "running", "started_at": at(2)}],
+        "stage = 'watchdog'": [{"last_at": at(8)}],
+    })
+    store = wd.BigQueryStore(client)
+    assert store.brief_state(DAY) == {"ZA": {"status": "published", "cards": 0, "held": 0},
+                                      "NG": {"status": "data_issue", "cards": 0, "held": 0}}
+    assert store.understand_latest(DAY) == {"run_id": "understand-1", "status": "ok", "degraded": ["enrich"],
+                                            "embed_error": None, "partial": False, "partial_reason": None,
+                                            "partial_error": None}
+    assert store.stage_latest(DAY) == [{"stage": "collect", "run_id": "collect-1", "status": "running",
+                                        "started_at": at(2)}]
+    assert store.watchdog_last(DAY) == at(8)
+    assert len(client.queries) == 4
+    for sql, params in client.queries:
+        assert params == {"d": DAY} and "2026-10-01" not in sql
+        for word in ("INSERT", "UPDATE", "MERGE", "DELETE", "CREATE", "DROP"):
+            assert word not in sql.upper().split()
+    assert wd.BigQueryStore(FakeClient({"stage = 'understand'": []})).understand_latest(DAY) is None
+    assert wd.BigQueryStore(FakeClient({"stage = 'watchdog'": [{"last_at": None}]})).watchdog_last(DAY) is None
+
+
+def test_the_degraded_expression_is_the_one_coverage_reads():
+    from core.api import store as api_store
+
+    assert api_store.DEGRADED_SQL in wd.SQL["understand_latest"]
+
+
+def understand_row(run_id, counts, status="ok", hour=3, minute=0):
+    t = datetime(2026, 10, 1, hour, minute, tzinfo=timezone.utc)
+    return {"run_id": run_id, "stage": "understand", "run_date": DAY, "status": status, "started_at": t,
+            "finished_at": t, "counts": json.dumps(counts)}
+
+
+def read_understand(rows):
+    con = duck.connect(views=False)
+    duck.load(con, "agent.runs", rows)
+    [row] = duck.query(con, duck_agent_sql("understand_latest"), {"d": DAY})
+    return row
+
+
+def test_the_understand_question_reads_partial_embed_and_cluster_errors_from_the_latest_row():
+    row = read_understand([understand_row("u1", {"partial": True, "partial_reason": "cluster_stack_failed",
+                                                 "partial_error": "ImportError: numba",
+                                                 "embed_error": "retry_capped", "enrich_error": "Boom: x",
+                                                 "cluster": {"za": {"error": "e"}, "ng": {"clusters": 3}}})])
+    assert row == {"run_id": "u1", "status": "ok", "degraded": ["enrich", "cluster:za"], "embed_error": "retry_capped",
+                   "partial": True, "partial_reason": "cluster_stack_failed", "partial_error": "ImportError: numba"}
+
+
+def test_the_understand_question_gives_false_and_nulls_for_a_clean_row_and_for_a_partial_false():
+    clean = read_understand([understand_row("u1", {"model_usd": 0.1})])
+    assert clean["partial"] is False and clean["embed_error"] is None and clean["partial_reason"] is None
+    assert clean["degraded"] == []
+    assert read_understand([understand_row("u1", {"partial": False})])["partial"] is False
+
+
+def test_the_understand_question_takes_the_newest_row_and_ignores_skipped_ones():
+    rows = [understand_row("old", {"partial": True}, hour=2), understand_row("new", {}, hour=4),
+            understand_row("skip", {"partial": True}, status=chain.SKIPPED, hour=5)]
+    assert read_understand(rows)["run_id"] == "new"
+
+
+def test_stage_latest_sql_takes_the_newest_row_per_stage_and_skips_duplicates():
+    con = duck.connect(views=False)
+    a, b, c = at(2), at(2, 30), at(3)
+    duck.load(con, "agent.runs", [
+        {"run_id": "collect-old", "stage": "collect", "run_date": DAY, "status": "running", "started_at": a},
+        {"run_id": "collect-old", "stage": "collect", "run_date": DAY, "status": "failed", "started_at": a,
+         "finished_at": b},
+        {"run_id": "collect-new", "stage": "collect", "run_date": DAY, "status": "running", "started_at": c},
+        {"run_id": "collect-dup", "stage": "collect", "run_date": DAY, "status": "skipped_duplicate",
+         "started_at": at(4), "finished_at": at(4)},
+        {"run_id": "detect-1", "stage": "detect", "run_date": DAY, "status": "running", "started_at": a},
+        {"run_id": "detect-1", "stage": "detect", "run_date": DAY, "status": "ok", "started_at": a, "finished_at": b},
+        {"run_id": "ask-1", "stage": "ask", "run_date": DAY, "status": "running", "started_at": a},
+        {"run_id": "collect-yesterday", "stage": "collect", "run_date": DAY - timedelta(days=1),
+         "status": "running", "started_at": a},
+    ])
+    rows = {r["stage"]: r for r in duck.query(con, duck_agent_sql("stage_latest"), {"d": DAY})}
+    assert set(rows) == {"collect", "detect"}
+    assert (rows["collect"]["run_id"], rows["collect"]["status"]) == ("collect-new", "running")
+    assert (rows["detect"]["run_id"], rows["detect"]["status"]) == ("detect-1", "ok")
+
+
+def test_brief_state_sql_counts_cards_and_held_from_the_current_brief_of_each_market():
+    con = duck.connect()
+    t = at(6, 20)
+    duck.load(con, "agent.runs", [
+        {"run_id": "brief-1", "stage": "brief", "run_date": DAY, "status": "ok", "started_at": t, "finished_at": t},
+        {"run_id": "brief-2", "stage": "brief", "run_date": DAY, "status": "ok", "started_at": at(8),
+         "finished_at": at(8)},
+    ])
+    full = json.dumps({"cards": [{"id": 1}, {"id": 2}], "held_back": {"count": 4}})
+    empty = json.dumps({"cards": [], "held_back": {"count": 0}})
+    duck.load(con, "agent.briefs", [
+        {"brief_date": DAY, "market": "ZA", "run_id": "brief-1", "published_at": t, "status": "data_issue",
+         "payload": empty},
+        {"brief_date": DAY, "market": "ZA", "run_id": "brief-2", "published_at": at(8), "status": "published",
+         "payload": full},
+        {"brief_date": DAY, "market": "NG", "run_id": "brief-2", "published_at": at(8), "status": "published",
+         "payload": empty},
+        {"brief_date": DAY, "market": "KE", "run_id": "brief-1", "published_at": t, "status": "published",
+         "payload": full},
+    ])
+    rows = {r["market"]: r for r in duck.query(con, duck_agent_sql("brief_state"), {"d": DAY})}
+    assert (rows["ZA"]["status"], rows["ZA"]["cards"], rows["ZA"]["held"]) == ("published", 2, 4)
+    assert (rows["NG"]["status"], rows["NG"]["cards"], rows["NG"]["held"]) == ("published", 0, 0)
+    assert "KE" not in rows  # its row belongs to brief-1, which brief-2 superseded as the day's good run

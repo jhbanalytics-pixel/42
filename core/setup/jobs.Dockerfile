@@ -22,8 +22,19 @@ RUN pip install --no-cache-dir --only-binary=numpy,scipy,statsmodels,pandas \
 COPY core/ /app/core/
 COPY docs/full-42/reference/sc_routes.json /app/docs/full-42/reference/sc_routes.json
 
+# The commit this image was built from. Cloud Build passes it (core/setup/cloudbuild.jobs.yaml); core/setup/stamp.py reads
+# F42_GIT_SHA, so a run record can be tied to a commit. After the pip layers, so a new commit does not rebuild them.
+ARG GIT_SHA=unknown
+ENV F42_GIT_SHA=$GIT_SHA
+
 RUN useradd --system --uid 10001 --no-create-home f42
 USER 10001
+
+# Build-time check, as the job user and with the job env: import the clustering stack and fit a tiny UMAP, which makes numba
+# compile and cache its functions. A missing module (the 1 to 3 October bertopic outage) or a cache folder this user cannot
+# write (3 and 4 October) fails the image build and the deploy never happens, instead of f42-understand writing zero clusters
+# and finishing ok.
+RUN python -c "import numba, numpy; from bertopic import BERTopic; from hdbscan import HDBSCAN; from umap import UMAP; UMAP(n_neighbors=5, random_state=0).fit(numpy.random.RandomState(0).rand(30, 8))"
 
 # A job deployed without its own command fails loudly instead of exiting 0 from an idle interpreter.
 CMD ["python", "-c", "raise SystemExit('no job command set: deploy with python -m <module>')"]
