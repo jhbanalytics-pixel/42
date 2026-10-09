@@ -349,6 +349,7 @@ def test_the_pull_request_trigger_is_limited_to_the_branches_the_push_trigger_na
     assert sorted(triggers) == ["pull_request", "push", "workflow_dispatch"]
 
 
-def test_the_workflow_comment_says_integration_will_need_a_floor_raise():
+def test_the_workflow_comment_records_the_floor_raise_made_at_integration():
+    # Until the wave 8 lanes were integrated the comment said integration would need a floor raise; it now records it.
     text = (LIVE / "tests.yml").read_text(encoding="utf-8")
-    assert "integration will need a floor raise" in text
+    assert "Raised at the wave 8 integration" in text and "integration will need a floor raise" not in text

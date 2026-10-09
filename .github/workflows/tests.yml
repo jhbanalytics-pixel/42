@@ -76,10 +76,10 @@ jobs:
       # fewer than the total floor has lost a part of the tree. The passed floor counts only tests that passed, so a
       # run that skipped most of the tree cannot meet it. The ratchet fails the job when the passed count has grown
       # more than 800 past the floor: raise the floor then, so a later loss of that growth is caught too.
-      # Integrating the wave 8 lanes adds tests, so integration will need a floor raise (and a new gap) in this line.
+      # Raised at the wave 8 integration, when the core tree collected 24870 tests and 24688 passed under the guard.
       - name: Report the skipped opt-in tests and the number of tests that ran
         if: always()
-        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 17000 --min-passed 17000 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
+        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 24300 --min-passed 24300 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
 
       # A refusal the product code catches and carries on from leaves the suite green, so the log is checked here.
       - name: Fail on any offline guard refusal the tests did not ask for
