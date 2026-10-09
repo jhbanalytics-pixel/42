@@ -64,7 +64,7 @@ from core.brief.explain import CHECK_INCOMPLETE, TITLE_RULE, explain_trend
 from core.brief.market_scope import read_market_scope
 from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _worth, brief_row,
                                build_market_payload)
-from core.brief.specificity import MIN_EVIDENCE, assess_specificity, local_posts, showable_posts
+from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
 from core.detect import sqlrun
@@ -382,7 +382,7 @@ def _gate(cand, passed):
     if cand["row"].get("authenticity") == "likely_coordinated":
         return _coordinated()
     evidence = cand["pack"]["evidence"]
-    local = local_posts(evidence, cand["market"])
+    local = counted_local_posts(evidence, cand["market"])
     showable = showable_posts(evidence, cand["market"])
     if decision.where == "today" and len(showable) < MIN_EVIDENCE:
         cand["held_reason"], cand["floor_held"] = "not_confirmed", True

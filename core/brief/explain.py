@@ -59,7 +59,7 @@ import re
 import unicodedata
 from datetime import datetime
 
-from core.brief.specificity import assess_specificity, local_posts, specificity_basis
+from core.brief.specificity import assess_specificity, counted_local_posts, local_posts, specificity_basis
 from core.config.caps import model_daily_usd
 from core.llm.provider import default_model, price_for, reserve_output
 from core.plain_dates import format_generated_dates
@@ -486,9 +486,12 @@ def _writer_user(candidate, pack, market, window_start, window_end):
     code = str(market or "").upper() or None
     evidence = pack.get("evidence") or []
     earliest = _earliest_id(pack)
-    local = {r.get("id") for r in local_posts(evidence, market)}
+    local = {r.get("id") for r in counted_local_posts(evidence, market)}
+    # A news public-feed post is feed evidence only (W8-DEC-12): local for wording, not marked local.
+    feed_evidence = {r.get("id") for r in local_posts(evidence, market)} - local
     terms = _title_terms(candidate.get("title"))
     posts, citable_ids, local_ids, located_ids, own_feed_ids, off_topic_ids = [], [], [], [], [], []
+    feed_evidence_ids = []
     for r in _on_topic_first(evidence, terms):
         head = {k: r.get(k) for k in ("id", "platform", "posted_at")}
         head["market"] = located_market(r)
@@ -503,6 +506,9 @@ def _writer_user(candidate, pack, market, window_start, window_end):
             continue
         head["citable"] = True
         head["local"] = r.get("id") in local
+        if r.get("id") in feed_evidence:
+            head["feed_evidence"] = True
+            feed_evidence_ids.append(r.get("id"))
         head["located_in_market"] = code is not None and head["market"] == code
         head["text_has_non_tag_words"] = _has_non_tag_words(_source_text(r))
         if terms:
@@ -514,18 +520,22 @@ def _writer_user(candidate, pack, market, window_start, window_end):
             local_ids.append(r.get("id"))
         if head["located_in_market"]:
             located_ids.append(r.get("id"))
-        if _own_feed_local(r, market):
+        if head["local"] and _own_feed_local(r, market):
             own_feed_ids.append(r.get("id"))
         posts.append(f"post {json.dumps(head, ensure_ascii=False, default=str)}\n{_fence(_scraped(r))}")
     numbers = [json.dumps({"id": i, "value": n.get("value"), "unit": n.get("unit"), "query_id": n.get("query_id")},
                           ensure_ascii=False) for i, n in _number_ids(pack).items()]
     dump = lambda ids: json.dumps(ids, ensure_ascii=False, default=str)  # noqa: E731
     feeds = MARKET_NAMES.get(code, market)
+    feed_news = (f"News posts found in {feeds}'s feeds, marked feed_evidence true: {dump(feed_evidence_ids)}; they "
+                 f"show only what the news feed ran, are not local posts, never count among the local posts and "
+                 f"support only feed wording. " if feed_evidence_ids else "")
     scope = (f"Posts you may cite, marked citable true: {dump(citable_ids)}. "
              f"Of those, local to {market} (located in {market} or found in {market}'s feeds), marked local true: "
              f"{dump(local_ids)}. Of those, located in {market}, marked located_in_market true: {dump(located_ids)}. "
              f"Of the local posts, found in {feeds}'s feeds with location unknown: {dump(own_feed_ids)}; a why-now "
              f"resting only on them is worded as seen in {feeds}'s feeds and names no place in {feeds} as the cause. "
+             f"{feed_news}"
              f"Posts marked citable false are located in another market; their text is left out and no claim may "
              f"cite them.")
     if terms:
@@ -1357,7 +1367,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         out = check_call(CRITIC_SYSTEM, _critic_user(candidate, market, sentence, rechecked["claims"], pack, rests_on),
                          CRITIC_SCHEMA, CRITIC_MAX_TOKENS, None, "critic", sentence)
         cited = {i for c in rechecked["claims"] if c["id"] in rests_on for i in c.get("evidence_ids") or []}
-        reacting = len({str(r.get("handle") or "").strip().lower() for r in local_posts(evidence, market)
+        reacting = len({str(r.get("handle") or "").strip().lower() for r in counted_local_posts(evidence, market)
                         if r.get("id") in cited and str(r.get("handle") or "").strip()})
         row = _stamped(_critic_row(out, reacting), sentence)
         checks.append(row)
