@@ -537,3 +537,53 @@ def test_capture_baseline_as_a_process_exits_0_on_success_and_1_on_a_refusal(ben
     assert bench.baseline.is_file() and pw.sha(bench.baseline) in done.stdout
     again = subprocess.run(command, cwd=ROOT, capture_output=True, encoding="utf-8", timeout=120)
     assert again.returncode == 1 and "REFUSED" in again.stderr
+
+
+# bind: the durable manifest must belong to the release being bound (flag F10)
+
+def rewrite_durable(path, change):
+    """Change the manifest, then recompute its hash so the checker still accepts it and only the binding to the release can refuse it."""
+    manifest = json.loads(Path(path).read_text(encoding="utf-8"))
+    change(manifest)
+    manifest["manifest_sha256"] = dec.manifest_hash(manifest)
+    assert dec.validate_manifest(manifest) == []
+    Path(path).write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+
+
+OTHER_COMMIT = "b" * 40
+
+
+@pytest.mark.parametrize("field,change", [
+    ("release_id", lambda m: m.update(release_id="rel-1234567-01")),
+    ("release_id", lambda m: m.update(release_id=m["release_id"][:-2] + "02")),
+    ("release_id", lambda m: m.update(release_id="")),
+    ("release_id", lambda m: m.update(release_id=None)),
+    ("source.commit", lambda m: m["source"].update(commit=OTHER_COMMIT)),
+    ("source.tree", lambda m: m["source"].update(tree=OTHER_COMMIT)),
+    ("source", lambda m: m.update(source="not an object")),
+    ("generated_from.head", lambda m: m["generated_from"].update(head=OTHER_COMMIT)),
+    ("generated_from", lambda m: m.update(generated_from=[])),
+])
+def test_bind_refuses_a_durable_manifest_that_belongs_to_another_release_and_writes_nothing(bench, capsys, field, change):
+    bench.prepare_inputs()
+    assert run(bench.capture_argv(), capsys)[0] == 0
+    rewrite_durable(bench.durable, change)
+    code, out, err = run(bench.bind_argv(), capsys)
+    assert code == 1 and "durable" in err and field in err and not bench.bindings.exists()
+    assert OTHER_COMMIT not in err + out
+
+
+def test_bind_names_the_field_but_never_the_value_of_a_mismatched_durable_manifest(bench, capsys):
+    bench.prepare_inputs()
+    assert run(bench.capture_argv(), capsys)[0] == 0
+    rewrite_durable(bench.durable, lambda m: m.update(release_id="rel-abcdef0-77"))
+    code, out, err = run(bench.bind_argv(), capsys)
+    assert code == 1 and "release_id" in err and "rel-abcdef0-77" not in err + out and not bench.bindings.exists()
+
+
+def test_bind_still_accepts_a_durable_manifest_written_for_this_release_and_attempt(bench, capsys):
+    bench.prepare_inputs()
+    assert run(bench.capture_argv(), capsys)[0] == 0
+    code, out, err = run(bench.bind_argv(), capsys)
+    assert code == 0, err
+    assert bench.bindings_value()["release_id"] == json.loads(bench.durable.read_text(encoding="utf-8"))["release_id"]

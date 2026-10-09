@@ -235,6 +235,20 @@ def passing_receipt(path, label):
     return sha_bytes(path)
 
 
+def durable_binding_problem(manifest, release_id, commit, tree):
+    """The first field of the durable manifest that does not name this release, or None. The expected values are the ones bind computed
+    from git, never read from the manifest; a refusal names the field and never the value."""
+    source, generated = manifest.get("source"), manifest.get("generated_from")
+    for field, found, expected in (
+            ("release_id", manifest.get("release_id"), release_id),
+            ("source.commit", source.get("commit") if isinstance(source, dict) else None, commit),
+            ("source.tree", source.get("tree") if isinstance(source, dict) else None, tree),
+            ("generated_from.head", generated.get("head") if isinstance(generated, dict) else None, commit)):
+        if found != expected:
+            return field
+    return None
+
+
 def cmd_bind(args):
     packet_dir = Path(args.packet_dir)
     out = packet_dir / BINDINGS_FILE
@@ -250,9 +264,13 @@ def cmd_bind(args):
     compat = passing_receipt(packet_dir / COMPAT_FILE, "compat")
     old = passing_receipt(packet_dir / OLD_READER_FILE, "old-reader")
     durable = Path(args.durable_manifest)
-    problems = dec.validate_manifest(read_json(durable, "the durable-effects manifest"))
+    durable_value = read_json(durable, "the durable-effects manifest")
+    problems = dec.validate_manifest(durable_value)
     if problems:
         raise Refused("The durable-effects manifest is not valid: " + problems[0])
+    other = durable_binding_problem(durable_value, release_id, head, tree)
+    if other:
+        raise Refused(f"The durable-effects manifest is for another release: {other} does not match the release being bound")
     build_config = blob_sha256(repo, head, BUILD_CONFIG)
     agent = baseline["canonical"]["f42-agent"]
     short = head[:12]
