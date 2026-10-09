@@ -594,3 +594,17 @@ def test_an_unreadable_api_object_inventory_counts_as_a_failure(dataset):
     assert any("API views read failed (RuntimeError)" in line for line in lines)
     assert not any("denied" in line for line in lines)
     assert check_pages.run_bq(Readable(), DAY, out=lambda _line: None) == 0
+
+
+def test_the_test_switch_line_reads_only_rows_whose_backtest_run_has_an_ok_runs_row(local_api):
+    """A failed apply leaves test_switch rows nothing accepted, so the freshness line must not report them as a
+    switch: it reads the same join as core/detect/sql/stats.sql."""
+    on = "ON r.run_id = ts.backtest_run_id AND r.stage = 'backtest' AND r.status = 'ok'"
+    stats_sql = (Path(__file__).resolve().parents[2] / "core" / "detect" / "sql" / "stats.sql").read_text(encoding="utf-8")
+    assert on in stats_sql
+    client, _seen = local_api
+    fake = FakeBQ()
+    run(client, argv=("--bq",), bq=fake)
+    [sql] = [s for s in fake.sql if "test_switch" in s]
+    assert on in sql and "`ogilvy-trends-v2.intelligence_42_agent.runs` r" in sql
+    assert "MAX(switched_on)" in sql and "COUNT(*)" in sql

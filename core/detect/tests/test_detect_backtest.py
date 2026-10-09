@@ -535,7 +535,9 @@ def test_dry_run_prints_what_would_switch_on_and_writes_nothing_to_bigquery(con,
     out = capsys.readouterr().out
     assert "would switch on" in out and KEY in out
     assert duck.query(con, "SELECT * FROM {core}.test_switch") == []
-    assert duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'") == []
+    # a replay leaves one runs row, status replayed, which puts nothing in force and is never an accepted run
+    assert [r["status"] for r in duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'")] == [
+        "replayed"]
     assert backtest.main(["--as-of", D.isoformat(), "--days", "7", "--apply"], client=client, out_dir=tmp_path,
                          core="core", agent="agent") == 0
     assert "switched on" in capsys.readouterr().out
