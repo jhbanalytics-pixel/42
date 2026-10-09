@@ -12,7 +12,8 @@
 -- before it may rename the item (cluster.py label_drift). The @member_cap highest membership probabilities per
 -- item are kept, ties by post id; a longer list could only hide a share, and a hidden share keeps the earlier label.
 -- renamed_today: another market's run of @run_date has already planned a rename of the item (the label_changes of its
--- saved plan), and an item is renamed at most once a day.
+-- saved plan: the full renamed_item_ids when it has them, else the label_changes of a plan saved before they existed,
+-- which list at most the first 50), and an item is renamed at most once a day.
 WITH cur AS (
   SELECT
     cm.item_id, cm.kind, cm.canonical_key, cm.label, cm.aliases, cm.parent_item_id, cm.centroid, cm.first_seen,
@@ -89,8 +90,13 @@ prior_lists AS (
   GROUP BY q.item_id
 ),
 renamed AS (
-  SELECT DISTINCT JSON_VALUE(c, '$.item_id') AS item_id
+  SELECT JSON_VALUE(c, '$.item_id') AS item_id
   FROM `ogilvy-trends-v2.intelligence_42_agent.runs` AS r, UNNEST(JSON_QUERY_ARRAY(r.counts, '$.summary.label_changes')) AS c
+  WHERE r.stage = 'understand_cluster_plan' AND r.status = 'ready' AND r.run_date = @run_date
+    AND JSON_VALUE(r.counts, '$.market') != @market
+  UNION DISTINCT
+  SELECT i AS item_id
+  FROM `ogilvy-trends-v2.intelligence_42_agent.runs` AS r, UNNEST(JSON_VALUE_ARRAY(r.counts, '$.summary.renamed_item_ids')) AS i
   WHERE r.stage = 'understand_cluster_plan' AND r.status = 'ready' AND r.run_date = @run_date
     AND JSON_VALUE(r.counts, '$.market') != @market
 )

@@ -94,6 +94,7 @@ DORMANT_DAYS = 28
 EMA_OLD = 0.8
 REVIEW_COSINE = 0.9
 MERGE_REVIEW_LISTED = 50
+RENAMED_IDS = "renamed_item_ids"
 # The member posts of an item's cluster of the previous day that cluster_items.sql returns, highest membership
 # probability first. It must stay well above MIN_SHARED_MEMBERS: a cap of 1 would silently switch rule (b) off.
 RECENT_MEMBERS_CAP = 1000
@@ -651,7 +652,7 @@ def _saved_plan(rows):
         batches.append({k: json.dumps(batch[k]) for k in WRITE_PARAMS})
     if len(batches) != checkpoint["batch_count"]:
         raise RuntimeError("incomplete cluster recovery plan")
-    return batches, checkpoint["summary"]
+    return batches, {k: v for k, v in checkpoint["summary"].items() if k != RENAMED_IDS}
 
 
 def item_params(run_date, market):
@@ -670,6 +671,12 @@ def counts_lists(planned):
             out[key] = planned[key][:MERGE_REVIEW_LISTED]
             out[f"{key}_total"] = len(planned[key])
     return out
+
+
+def renamed_item_ids(planned):
+    """Every item the plan renames, for the checkpoint summary only. counts_lists lists the first MERGE_REVIEW_LISTED
+    of them for display; another market's run of the same day must see all of them (cluster_items.sql renamed)."""
+    return list(dict.fromkeys(c["item_id"] for c in planned.get("label_changes") or []))
 
 
 def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None, clock=None):
@@ -722,8 +729,9 @@ def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None,
                       merge_review_total=len(planned["merge_review"]),
                       # present only when the rule fired, so a run that renames nothing keeps its counts as they were
                       **counts_lists(planned))
+        renamed = renamed_item_ids(planned)
         checkpoint = {**params, "plan_id": uuid.uuid4().hex, "batch_count": len(batches),
-                      "summary": json.dumps(counts)}
+                      "summary": json.dumps({**counts, **({RENAMED_IDS: renamed} if renamed else {})})}
         for index, batch in enumerate(batches):
             execute(load("cluster_checkpoint"), {**checkpoint, "batch_index": index, **batch})
         execute(load("cluster_checkpoint"), {**checkpoint, "batch_index": -1,

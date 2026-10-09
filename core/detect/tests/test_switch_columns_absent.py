@@ -19,7 +19,7 @@ from core.detect.tests.test_state_locality import SQL, world
 from core.schema.tests.test_switch_columns import SWITCH_COLUMNS
 
 D = date(2026, 10, 7)
-READ = re.compile(r"\b[sx]\.locality_(?:basis|status)\b")
+READ = re.compile(r"\b\w+\.(?:eligible_v1|locality_(?:basis|status))\b")
 THREE = ",\n  eligible_v1 BOOLEAN, locality_basis VARCHAR, locality_status VARCHAR);"
 
 
@@ -39,7 +39,8 @@ def statements_reading_the_columns():
     out.update({f"seeds.{k}": v for k, v in seeds.statements().items()})
     out.update({f"scorecard.{k}": v for k, v in scorecard.queries(scorecard.load_reference()).items()})
     out.update({f"brief.{k}": brief_job.query_sql(k) for k in brief_job.QUERIES})
-    return {k: v for k, v in out.items() if READ.search(v)}
+    # Prose in a comment may name a column (brief.sql does); only code reads one.
+    return {k: v for k, v in out.items() if READ.search(re.sub(r"--[^\n]*", "", v))}
 
 
 def test_the_statements_that_read_the_columns_are_the_ones_expected(monkeypatch):
@@ -96,3 +97,31 @@ def test_under_v1_the_state_step_inserts_into_the_a80_table_and_writes_none_of_t
     columns = [r[0] for r in a80_table.execute("DESCRIBE core.item_state").fetchall()]
     assert not set(SWITCH_COLUMNS) & set(columns)
     assert a80_table.execute("SELECT COUNT(*) FROM core.item_state").fetchone()[0] > 0
+
+
+@pytest.mark.parametrize("alias", ["s", "x", "i", "item_state", "st2"])
+@pytest.mark.parametrize("column", ["eligible_v1", "locality_basis", "locality_status"])
+def test_under_v1_a_read_of_any_alias_and_any_switch_column_is_replaced_and_binds_on_the_a80_table(
+        a80_table, monkeypatch, alias, column):
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, "v1")
+    sql = f"SELECT {alias}.{column} AS seen FROM core.item_state {alias} WHERE {alias}.run_id IS NULL OR TRUE"
+    assert READ.search(sql)
+    v1 = sqlrun.for_authority(sql)
+    assert not READ.search(v1) and column not in v1
+    assert v1.count("CAST(NULL AS BOOL)") == (column == "eligible_v1")       # a typed NULL, as the column is
+    assert duck.query(a80_table, v1, {}) == []                     # binds on the 36 columns; the table is empty
+    set_locality_authority(monkeypatch, "v2")
+    assert sqlrun.for_authority(sql) == sql                        # under v2 the file as written
+
+
+def test_under_v1_prose_and_quoted_text_that_name_a_switch_column_are_left_alone():
+    sql = ("-- a row whose item_state.locality_basis is v2\n"
+           "SELECT 'x.locality_status' AS note, i.locality_status FROM t i")
+    assert sqlrun.for_authority(sql, "v1") == sql.replace("i.locality_status", "CAST(NULL AS STRING)")
+
+
+def test_under_v1_a_read_through_a_dotted_path_is_replaced_whole():
+    sql = "SELECT core.item_state.eligible_v1, `p.d.t`.locality_basis FROM t"
+    assert sqlrun.for_authority(sql, "v1") == "SELECT CAST(NULL AS BOOL), CAST(NULL AS STRING) FROM t"
