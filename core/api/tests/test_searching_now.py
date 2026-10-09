@@ -14,9 +14,9 @@ NOW = dt.datetime(2026, 9, 30, 16, 0, tzinfo=SAST)
 FIELDS = {"term", "market", "source", "rank", "refreshed_at"}
 
 ZA_ROWS = [
-    {"term": "fixture za search one", "market": "ZA", "source": "google_bq", "rank": 1, "refreshed_at": "2026-09-28"},
-    {"term": "fixture za search two", "market": "ZA", "source": "google_bq", "rank": 2, "refreshed_at": "2026-09-28"},
-    {"term": "fixture za search rising", "market": "ZA", "source": "google_bq", "rank": None,
+    {"term": "fixture za search one", "market": "ZA", "source": "google_trending", "rank": 1, "refreshed_at": "2026-09-28"},
+    {"term": "fixture za search two", "market": "ZA", "source": "google_trending", "rank": 2, "refreshed_at": "2026-09-28"},
+    {"term": "fixture za search rising", "market": "ZA", "source": "google_trending", "rank": None,
      "refreshed_at": "2026-09-28"},
 ]
 NG_ROWS = [
@@ -33,7 +33,7 @@ class Patched(FixtureStore):
 
 
 def row(**over):
-    base = {"market": "ZA", "term": "fixture term", "source": "google_bq", "rank": 1, "refreshed_at": "2026-09-28",
+    base = {"market": "ZA", "term": "fixture term", "source": "google_trending", "rank": 1, "refreshed_at": "2026-09-28",
             "fetch_day": "2026-09-30"}
     return {**base, **over}
 
@@ -76,7 +76,7 @@ class FakeClient:
 
 
 def test_bigquery_store_reads_the_table_by_window_and_market_with_the_cap(monkeypatch):
-    client = FakeClient([{"market": "ZA", "term": "t", "source": "google_bq", "rank": 1, "refreshed_at": "2026-09-28",
+    client = FakeClient([{"market": "ZA", "term": "t", "source": "google_trending", "rank": 1, "refreshed_at": "2026-09-28",
                           "fetch_day": dt.date(2026, 9, 30)}])
     bq = BigQueryStore(client=client)
     monkeypatch.setattr(bq, "_find", lambda name: f"`p.intelligence_42_core.{name}`")
@@ -114,17 +114,15 @@ def test_the_window_ends_on_the_asked_day_and_reaches_back_three_days():
 
 def test_a_day_with_older_rows_only_shows_those_rows():
     out = searching.searching_now(FixtureStore(), ["ZA"], "2026-09-29", NONE_HIDDEN)
-    assert out == [{"term": "fixture za search old", "market": "ZA", "source": "google_bq", "rank": 1,
+    assert out == [{"term": "fixture za search old", "market": "ZA", "source": "google_trending", "rank": 1,
                     "refreshed_at": "2026-09-27"}]
 
 
-def test_each_market_and_source_keeps_its_own_newest_day():
+def test_each_market_keeps_its_own_newest_day():
     rows = [row(term="za new", fetch_day="2026-09-30"), row(term="za old", fetch_day="2026-09-29"),
-            row(market="NG", term="ng old", fetch_day="2026-09-29"),
-            row(source="google_trending", term="za trending", refreshed_at="2026-09-29T08:00:00Z",
-                fetch_day="2026-09-29")]
+            row(market="NG", term="ng old", fetch_day="2026-09-29")]
     out = searching.searching_now(Patched(search_signals=lambda s, e, m: rows), ["ZA", "NG"], "2026-09-30", NONE_HIDDEN)
-    assert [(r["market"], r["term"]) for r in out] == [("ZA", "za new"), ("ZA", "za trending"), ("NG", "ng old")]
+    assert [(r["market"], r["term"]) for r in out] == [("ZA", "za new"), ("NG", "ng old")]
 
 
 def test_rows_outside_the_asked_markets_or_window_are_left_out():
@@ -148,7 +146,7 @@ def test_rows_the_strip_would_reject_are_dropped_here(bad):
 def test_terms_are_trimmed_and_a_repeated_term_keeps_its_best_rank():
     rows = [row(term=" Bafana ", rank=5), row(term="bafana", rank=2), row(term="BAFANA", rank=None)]
     out = searching.searching_now(Patched(search_signals=lambda s, e, m: rows), ["ZA"], "2026-09-30", NONE_HIDDEN)
-    assert out == [{"term": "bafana", "market": "ZA", "source": "google_bq", "rank": 2, "refreshed_at": "2026-09-28"}]
+    assert out == [{"term": "bafana", "market": "ZA", "source": "google_trending", "rank": 2, "refreshed_at": "2026-09-28"}]
 
 
 def test_a_term_both_sources_report_is_shown_once_at_its_best_rank():
@@ -301,3 +299,43 @@ def test_discover_drops_terms_naming_a_suppressed_person_and_fails_closed():
         raise RuntimeError("view gone")
 
     assert discover.build_discover(Patched(suppressed_creators=broken), "all", now=NOW)["searching_now"] == []
+
+
+# Rule 1 on the way out (N18) and the live-only strip (W8-DEC-04).
+
+class RowsStore(FixtureStore):
+    def __init__(self, rows):
+        super().__init__()
+        self._rows = rows
+
+    def search_signals(self, start, end, markets):
+        return self._rows
+
+
+def live(term, market="KE", **over):
+    base = {"market": market, "term": term, "source": "google_trending", "rank": 1,
+            "refreshed_at": "2026-09-30T05:12:30Z", "fetch_day": "2026-09-30"}
+    return {**base, **over}
+
+
+@pytest.mark.parametrize("term", ["gen z protests", "school holidays", "teen drivers licence"])
+def test_a_term_that_fails_rule_one_never_leaves_the_api(term):
+    from core.collect.gdelt import blocked
+    assert blocked(term)
+    out = searching.searching_now(RowsStore([live(term), live("bafana bafana", rank=2)]), ["KE"], "2026-09-30",
+                                  ((), (), ()))
+    assert [s["term"] for s in out] == ["bafana bafana"]
+    assert not any(blocked(s["term"]) for s in out)
+
+
+@pytest.mark.parametrize("source", ["google_bq", "google_rss"])
+def test_only_live_google_trending_rows_reach_the_strip(source):
+    rows = [live("parked or triage term", source=source, refreshed_at="2026-09-30"), live("live term", rank=2)]
+    out = searching.searching_now(RowsStore(rows), ["KE"], "2026-09-30", ((), (), ()))
+    assert [(s["term"], s["source"]) for s in out] == [("live term", "google_trending")]
+
+
+def test_the_strip_is_empty_when_only_parked_or_triage_sources_have_rows():
+    rows = [live("a", source="google_bq", refreshed_at="2026-09-30"),
+            live("b", source="google_rss", refreshed_at="2026-09-30")]
+    assert searching.searching_now(RowsStore(rows), ["KE"], "2026-09-30", ((), (), ())) == []

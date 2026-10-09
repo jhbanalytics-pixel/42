@@ -772,7 +772,7 @@ STAGING_SERIES = [  # the 17 distinct (platform, series) pairs in staging collec
     ("tiktok", "board_tiktok_hashtag", "TikTok hashtag board"),
     ("tiktok", "counter_tiktok_hashtag", "TikTok hashtag totals"),
     ("tiktok", "counter_tiktok_sound", "TikTok sound totals"),
-    ("tiktok", "curve_tiktok_sound", "TikTok sound popularity"),
+    ("tiktok", "curve_tiktok_sound", "TikTok sound popularity (no longer collected)"),
     ("tiktok", "feed_tiktok", "TikTok"),
     ("tiktok", "search", "TikTok search"),
     ("twitter", "panel_x_hub", "X"),
@@ -1039,7 +1039,9 @@ def test_board_entries_keep_their_own_best_rank_with_ties_and_gaps():
 
 
 def test_a_board_of_only_ids_stays_with_its_count():
-    za = market(today.build_today(boards_store([ID_BOARD]), D30), "ZA")
+    import datetime as dt
+    on_the_day = dt.datetime(2026, 9, 30, 9, 0, tzinfo=today.SAST)  # "today" words the reason on the brief's own day
+    za = market(today.build_today(boards_store([ID_BOARD]), D30, now=on_the_day), "ZA")
     # Every entry left out: the reason says none had a name, not that a few were missing one.
     assert za["boards"] == [{"platform": "youtube", "list": "YouTube trending board", "entries": [],
                              "left_out": 1, "left_out_reason": today.NO_NAMES_READ}]
@@ -2045,3 +2047,192 @@ def test_a_title_check_row_never_names_a_held_items_reason():
     store, _ = _critic_store([title_row, _check(CRITIC_HELD, "cut", "Critic: a simpler explanation was not ruled out")])
     assert _held_by_id(store)[CRITIC_HELD]["held_detail"] == (
         "A simpler explanation could not be ruled out from these posts.")
+
+
+def test_running_row_does_not_outrank_the_failed_row_of_the_same_run(fx):
+    real_briefs = fx.briefs
+
+    def briefs(date):
+        rows = real_briefs(date)
+        for row in rows:
+            if row["brief_date"] == D30 and row["market"] == "ZA":
+                row["status"] = "data_issue"
+                row["payload"]["banners"] = [{"kind": "data_issue",
+                                               "text": "Data issue: the steps before the brief did not finish by 06:15, so no trends were checked today"}]
+        return rows
+
+    def runs(stage, run_date):
+        if stage == "collect":
+            return [{"run_id": "collect-ok", "stage": stage, "run_date": run_date, "status": "ok",
+                     "started_at": "2026-09-30 02:00:00", "finished_at": "2026-09-30 02:10:00"}]
+        if stage == "detect":
+            return [{"run_id": "detect-x", "stage": stage, "run_date": run_date, "status": "running",
+                     "started_at": "2026-09-30 02:10:00", "finished_at": None},
+                    {"run_id": "detect-x", "stage": stage, "run_date": run_date, "status": "failed",
+                     "started_at": "2026-09-30 02:10:00", "finished_at": "2026-09-30 02:20:00"}]
+        return []
+
+    za = market(today.build_today(Patched(briefs=briefs, runs=runs), D30), "ZA")
+    texts = [b["text"] for b in za["banners"] if b["kind"] == "data_issue"]
+    assert "Data issue: collection or detection failed for South Africa" in texts
+    assert not any("no failed stage is recorded" in text for text in texts)
+
+
+def test_latest_run_prefers_the_finished_row_of_a_run_over_its_running_row():
+    running = {"run_id": "detect-x", "status": "running", "started_at": "2026-09-30 02:10:00", "finished_at": None}
+    failed = {"run_id": "detect-x", "status": "failed", "started_at": "2026-09-30 02:10:00",
+              "finished_at": "2026-09-30 02:20:00"}
+    for pair in ([running, failed], [failed, running]):
+        assert today._latest_run(pair) is failed
+        assert today._stage_failed(pair) is True
+
+
+def test_a_later_attempt_still_running_outranks_an_earlier_failed_attempt():
+    failed = {"run_id": "detect-a", "status": "failed", "started_at": "2026-09-30 02:10:00",
+              "finished_at": "2026-09-30 02:20:00"}
+    retry = {"run_id": "detect-b", "status": "running", "started_at": "2026-09-30 02:30:00", "finished_at": None}
+    assert today._latest_run([failed, retry]) is retry
+    assert today._stage_failed([failed, retry]) is False
+
+
+# Review of the boards redesign, finding 3: the app counts "on N charts" from the entries it receives, and _boards
+# had already dropped the id-titled ones and the in-chart repeats. The server counts first, over every stored entry.
+def _chart_counts(boards, code="ZA"):
+    return {b["list"]: b.get("chart_counts") for b in
+            market(today.build_today(boards_store(boards), D30), code)["boards"]}
+
+
+def test_an_item_on_three_stored_charts_counts_three_though_one_of_them_names_it_by_an_id():
+    shared = iid("hashtag", "#fixture_shared")
+    boards = [
+        {"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
+            {"rank": 2, "title": "#fixture_shared", "item_id": shared}]},
+        {"platform": "youtube", "list": "YouTube trending board", "entries": [
+            {"rank": 17, "title": "#fixture_shared", "item_id": shared}]},
+        {"platform": "twitter", "list": "X trending board", "entries": [
+            {"rank": 4, "title": FAKE_CHANNEL, "item_id": shared}]},
+    ]
+    counts = _chart_counts(boards)
+    assert counts["TikTok hashtag board"] == {shared: 3}
+    assert counts["YouTube trending board"] == {shared: 3}
+    assert counts["X trending board"] is None  # nothing on it is shown, so it carries no counts
+
+
+def test_a_chart_counts_once_however_often_it_repeats_the_item_and_a_null_rank_still_counts():
+    shared = iid("hashtag", "#fixture_repeat")
+    boards = [
+        {"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
+            {"rank": 1, "title": "#fixture_repeat", "item_id": shared},
+            {"rank": 5, "title": "#fixture_repeat", "item_id": shared}]},
+        {"platform": "youtube", "list": "YouTube trending board", "entries": [
+            {"rank": None, "title": "#fixture_repeat", "item_id": shared}]},
+    ]
+    assert _chart_counts(boards) == {"TikTok hashtag board": {shared: 2}, "YouTube trending board": {shared: 2}}
+
+
+def test_a_chart_is_its_platform_and_its_list_and_a_city_list_is_one_chart_per_city():
+    shared = iid("sound", "fixture shared sound")
+    entry = [{"rank": 3, "title": "Back 2 U", "item_id": shared}]
+    boards = [
+        {"platform": "apple_music", "list": "Apple Music chart", "entries": entry},
+        {"platform": "apple_music", "list": "Apple Music new", "entries": entry},
+        {"platform": "shazam", "list": "board shazam city", "city": "Lagos", "entries": entry},
+        {"platform": "shazam", "list": "board shazam city", "city": "Abuja", "entries": entry},
+    ]
+    for chart in market(today.build_today(boards_store(boards), D30), "ZA")["boards"]:
+        assert chart["chart_counts"] == {shared: 4}
+
+
+def test_an_item_with_no_item_id_has_no_count_and_the_same_item_in_another_market_is_separate():
+    other = iid("hashtag", "#fixture_both_markets")
+    board = {"platform": "tiktok", "list": "TikTok hashtag board", "entries": [
+        {"rank": 1, "title": "#no_id_here"}, {"rank": 2, "title": "#fixture_both_markets", "item_id": other}]}
+    za_only = {"platform": "youtube", "list": "YouTube trending board", "entries": [
+        {"rank": 3, "title": "#fixture_both_markets", "item_id": other}]}
+    base = FixtureStore()
+
+    def briefs(date):
+        rows = base.briefs(date)
+        for r in rows:
+            if r["market"] == "ZA":
+                r["payload"]["boards"] = json.loads(json.dumps([board, za_only]))
+            elif r["market"] == "NG":
+                r["payload"]["boards"] = json.loads(json.dumps([board]))
+        return rows
+
+    out = today.build_today(Patched(briefs=briefs), D30)
+    za, ng = market(out, "ZA")["boards"], market(out, "NG")["boards"]
+    assert [b["chart_counts"] for b in za] == [{other: 2}, {other: 2}]  # two charts in ZA
+    assert [b["chart_counts"] for b in ng] == [{other: 1}]  # one chart in NG: the ZA charts are not counted there
+    assert all(not any(k is None or k == "" for k in b["chart_counts"]) for b in za + ng)  # no marker without an id
+
+
+def test_a_board_of_only_ids_on_a_past_brief_says_the_brief_day_not_today():
+    """The server worded this reason "today" whatever the day. The app shows it beside the brief's own date."""
+    import datetime as dt
+    ahead = dt.datetime(2026, 10, 8, 9, 0, tzinfo=today.SAST)
+    za = market(today.build_today(boards_store([ID_BOARD]), D30, now=ahead), "ZA")["boards"][0]
+    assert za["left_out_reason"] == "None of this list's entries had a readable name on 30 September 2026"
+    assert za["left_out"] == 1
+
+
+def test_a_board_of_only_ids_on_todays_brief_still_says_today():
+    import datetime as dt
+    same_day = dt.datetime(2026, 9, 30, 9, 0, tzinfo=today.SAST)
+    za = market(today.build_today(boards_store([ID_BOARD]), D30, now=same_day), "ZA")["boards"][0]
+    assert za["left_out_reason"] == today.NO_NAMES_READ
+
+
+# W8-DEC-11: a paid route whose calls succeed on two consecutive days and land nothing is recorded invalid with
+# reason zero_yield (core/collect/writers.py). The source answered, so Today says that, not "not usable" or "failed".
+def test_a_zero_yield_series_is_worded_as_a_source_that_answered_but_returned_nothing():
+    answered = dict(health_row("tiktok", "feed_tiktok", False, items=0, reason="zero_yield"), calls=4, calls_ok=4)
+    broken = dict(health_row("instagram", "ig_location", False, reason="calls"), calls=4, calls_ok=0)
+    store = Patched(collection_health=lambda date: [answered, broken])
+    za = market(today.build_today(store, D30), "ZA")
+    assert za["coverage"]["issues"] == ["TikTok: answered but returned no posts or counts",
+                                        "Instagram location posts: could not be read"]
+    assert not any("not usable" in i for i in za["coverage"]["issues"])
+    failed = [b["text"] for b in za["banners"] if "failed today" in b["text"]]
+    assert failed == ["1 source failed today: Instagram locations"]
+
+
+# The brief payload carries explanation_status on held items (failed_checks or not_run). A G10 hold is worded from it.
+G10_CASES = [
+    ({"explanation_status": "not_run", "failed_reason": None}, "Not explained: the model did not get to this topic"),
+    ({"explanation_status": "not_run", "failed_reason": "BUSY"}, "Not explained in time: the model was busy"),
+    ({"explanation_status": "failed_checks", "failed_reason": "A claim was not supported by its posts"},
+     "The explanation did not pass our checks"),
+    ({"explanation_status": "explained", "failed_reason": None}, "The explanation did not pass our checks"),
+    ({}, "The explanation did not pass our checks"),  # a brief stored before the field existed
+]
+
+
+def _g10_store(fields):
+    from core.brief.payload import NOT_RUN_REASONS
+    fields = {k: (sorted(NOT_RUN_REASONS)[0] if v == "BUSY" else v) for k, v in fields.items()}
+    rows = deepcopy(FixtureStore().briefs(D30))
+    za = next(r for r in rows if r["market"] == "ZA")
+    item = next(i for i in za["payload"]["held_back"]["items"] if i["item_id"] == ZA_I)
+    for key in ("explanation_status", "failed_reason"):
+        item.pop(key, None)
+    item.update(rule="G10", reason="explanation_failed", reason_text="Explanation failed its checks", **fields)
+    return Patched(briefs=lambda date: rows if date == D30 else [])
+
+
+@pytest.mark.parametrize("fields, words", G10_CASES)
+def test_a_g10_hold_on_today_is_worded_from_the_status_the_brief_carries(fields, words):
+    shown = next(i for i in market(today.build_today(_g10_store(fields), D30), "ZA")["held_back"]["items"]
+                 if i["item_id"] == ZA_I)
+    assert shown["reason_text"] == words
+
+
+@pytest.mark.parametrize("fields, words", G10_CASES)
+def test_a_g10_hold_on_the_trend_page_is_worded_from_the_status_the_brief_carries(fields, words):
+    assert today.build_trend(_g10_store(fields), ZA_I, "ZA", D30)["held_back"]["reason_text"] == words
+
+
+def test_the_contract_lists_explanation_status_among_the_held_item_fields():
+    from pathlib import Path
+    text = (Path(__file__).resolve().parent.parent / "contract.md").read_text(encoding="utf-8")
+    assert "`explanation_status`" in text and "`failed_checks` or `not_run`" in text

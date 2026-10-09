@@ -55,7 +55,8 @@ SERIES_WORDS = {"feed_tiktok": "TikTok", "board_tiktok_hashtag": "TikTok hashtag
                 "panel_fb_hub": "Facebook", "panel_culture_desk": "Culture accounts we follow",
                 "panel_x_hub": "X", "panel_telegram": "Telegram",
                 "ig_location": "Instagram location posts", "counter_tiktok_hashtag": "TikTok hashtag totals",
-                "counter_tiktok_sound": "TikTok sound totals", "curve_tiktok_sound": "TikTok sound popularity",
+                "counter_tiktok_sound": "TikTok sound totals",
+                "curve_tiktok_sound": "TikTok sound popularity (no longer collected)",
                 "news_rss": "News feeds", "panel_ig_gossip": "Gossip and entertainment accounts on Instagram",
                 "board_kworb_spotify": "Spotify daily chart", "board_boomplay": "Boomplay trending songs",
                 "board_audiomack": "Audiomack trending", "board_shazam": "Shazam national chart",
@@ -72,11 +73,13 @@ CHART_FEED_WORDS = {"mdundo": "Mdundo top songs", "turntable": "TurnTable Top 10
 CHART_FEED_LIST = "board music country"
 CHART_FEED_FALLBACK = "National music chart"
 # A board whose every entry was left out: said so, so an empty list does not read as one with a few names missing.
-NO_NAMES_READ = "None of this list's entries had a readable name today"
+NO_NAMES_READ_AT = "None of this list's entries had a readable name {day}"
+NO_NAMES_READ = NO_NAMES_READ_AT.format(day="today")
 PLATFORM_SERIES_WORDS = {"board_global_music": "global music board", "search": "search"}
 CROSS_SERIES_WORDS = {"counter_post_views": "Post view re-reads", "search": "Searches"}
 INVALID_WORDS = {"calls": "could not be read", "items": "post count far from usual",
-                 "effort": "too few accounts checked", "drift": "mix of posts far from usual"}
+                 "effort": "too few accounts checked", "drift": "mix of posts far from usual",
+                 "zero_yield": "answered but returned no posts or counts"}
 # Each news feed is its own collection_health row (one protocol a feed), so Today names the feeds that failed
 # and how many of the market's feeds were read, instead of one "News feeds" line per failed feed. The failure
 # class is the one writers.call_failure writes after "calls: "; any other class is not worded.
@@ -153,15 +156,21 @@ def hidden_people(store):
             return None
         rows = (store.creators_by_id(sorted(ids)) or []) if ids else []
         keys = {creator_key(c.get("platform"), c.get("handle")) for c in rows} - {None}
-        channels = _channel_ids(keys, ids)
-        items = _creator_items((), channels)
-        mapped = (store.map_items(sorted(items)) or []) if items else []
+        names = hidden_names(store, keys, ids)
     except Exception as exc:
         log.warning("the suppression list could not be read (%s); no evidence author is named", type(exc).__name__)
         return None
-    names = {r["label"].strip() for r in mapped if isinstance(r, dict) and r.get("item_id") in items
-             and isinstance(r.get("label"), str) and _readable(r["label"])}
     return keys, set(ids), names
+
+
+def hidden_names(store, keys, ids):
+    """The display names of the hidden people's YouTube channels: the map labels of their own creator items. One
+    read of the map, and only when one of them is a channel."""
+    channels = _channel_ids(keys, ids)
+    items = _creator_items((), channels)
+    mapped = (store.map_items(sorted(items)) or []) if items else []
+    return {r["label"].strip() for r in mapped if isinstance(r, dict) and r.get("item_id") in items
+            and isinstance(r.get("label"), str) and _readable(r["label"])}
 
 
 def _channel_ids(keys, ids):
@@ -298,8 +307,8 @@ def _recheck_explanation(card, gone):
     A claim with no post left is not touched here: Today's own check holds its card for posts that could not be read.
     Then the card floors: the explanation must still rest on claims that stand (at least 2, every one it names, its
     named places supported) and, for a card in a market, at least MIN_EVIDENCE posts must be showable. A card that
-    fails is held as the brief holds one whose explanation failed its checks: numbers and posts only, with a
-    failed_reason."""
+    fails is held as the brief holds one whose explanation failed its checks (G10): held, reason shown, with its
+    numbers and posts and a failed_reason."""
     claims, rests_on = card.get("claims"), card.get("explanation_claim_ids")
     if (card.get("explained") is not True or not isinstance(claims, list) or not isinstance(rests_on, list)
             or not all(isinstance(c, dict) and isinstance(c.get("evidence_ids"), list)
@@ -576,13 +585,38 @@ def _entry_keys(entry, music):
     return keys
 
 
-def _boards(boards):
+def _chart_key(board):
+    """A chart is one platform and list of a market's boards for the brief date; a city list is one chart per city."""
+    list_ = board.get("list")
+    return (board.get("platform"), list_.strip() if isinstance(list_, str) else "", board.get("city"))
+
+
+def _chart_sets(boards):
+    """item_id to the charts that hold it, read from every stored entry before any is left out or merged: an entry
+    titled with an id, one with no rank and a repeat within its chart all still count, each chart once."""
+    found = {}
+    for b in boards:
+        if not isinstance(b, dict):
+            continue
+        for e in b.get("entries") or []:
+            item_id = e.get("item_id") if isinstance(e, dict) else None
+            if isinstance(item_id, str) and item_id.strip():
+                found.setdefault(item_id, set()).add(_chart_key(b))
+    return found
+
+
+def _boards(boards, day="today"):
     """Each board keeps its own list and each entry its own rank, L2's best rank today, so ties and gaps stay.
     Entries titled with an id are left out, never named, and added to any count the board already carries. Two
     entries of one board that are the same entry (_entry_keys: one song under two item ids) show once, at the better
-    positive integer rank. Equal ranks keep the first input row; unrelated entries keep their source order."""
+    positive integer rank. Equal ranks keep the first input row; unrelated entries keep their source order.
+    chart_counts, on a board with shown entries that have an item id, gives the number of charts holding each item
+    in this market's boards, counted over the stored entries (_chart_sets). day words the all-ids reason: "today",
+    or "on 30 September 2026" on a past brief."""
     out = []
-    for b in _platform_x(boards):
+    boards = _platform_x(boards)
+    charts = _chart_sets(boards)
+    for b in boards:
         named = [dict(e, title=t) for e in b.get("entries") or [] for t in [_board_title(e, b.get("platform"))] if t]
         music = b.get("list") in MUSIC_LISTS or b.get("platform") in MUSIC_PLATFORMS
         ranked = []
@@ -598,9 +632,11 @@ def _boards(boards):
             seen |= keys
         shown = [e for _, e in sorted(shown, key=lambda row: row[0])]
         left_out = (b.get("left_out") or 0) + len(b.get("entries") or []) - len(named)
-        reason = b.get("left_out_reason") or (NO_NAMES_READ if not shown else NO_NAME)
+        reason = b.get("left_out_reason") or (NO_NAMES_READ_AT.format(day=day) if not shown else NO_NAME)
+        counts = {e["item_id"]: len(charts[e["item_id"]]) for e in shown
+                  if isinstance(e.get("item_id"), str) and e["item_id"].strip()}
         out.append(dict(b, list=_board_list(b), entries=shown, left_out=left_out,
-                        left_out_reason=reason if left_out else None))
+                        left_out_reason=reason if left_out else None, **({"chart_counts": counts} if counts else {})))
     return out
 
 
@@ -649,10 +685,31 @@ def _card(card, market, date, prev_ranks):
     return out
 
 
+def _claim_lost_every_post(card):
+    """True when an explained card has a claim whose cited posts are none of the posts the card returns, as when a
+    suppressed creator's post was its only support. Today holds such a card; the trend readers show it unexplained."""
+    evidence = card.get("evidence")
+    if card.get("explained") is not True or not isinstance(evidence, list) or not isinstance(card.get("claims"), list):
+        return False
+    returned = {e.get("id") for e in evidence if isinstance(e, dict)}
+    return any(isinstance(c, dict) and isinstance(c.get("evidence_ids"), list) and c["evidence_ids"]
+               and not returned & set(c["evidence_ids"]) for c in card["claims"])
+
+
+def _trend_card(card, market, date, ranks):
+    out = _card(card, market, date, ranks)
+    if _claim_lost_every_post(out):
+        out.update(explained=False, explanation=None, explanation_claim_ids=[], claims=[], news_driven=False,
+                   explanation_status="failed_checks", failed_reason=HIDDEN_UNSUPPORTED)
+        if "title_written" in out:
+            out["title_written"] = None
+    return out
+
+
 def _cards(payload, market, date, prev):
     ranks = prev[0] if prev else None
-    cards = [_card(c, market, date, ranks) for c in payload.get("cards") or []]
-    more = [_card(c, market, date, ranks) for c in payload.get("more") or []]
+    cards = [_trend_card(c, market, date, ranks) for c in payload.get("cards") or []]
+    more = [_trend_card(c, market, date, ranks) for c in payload.get("more") or []]
     return cards, more
 
 
@@ -1095,7 +1152,7 @@ def _latest_run(runs):
         finished = row.get("finished_at")
         started = started.isoformat() if hasattr(started, "isoformat") else str(started or "")
         finished = finished.isoformat() if hasattr(finished, "isoformat") else str(finished or "")
-        return started, row.get("finished_at") is None, finished, str(row.get("run_id") or "")
+        return started, row.get("finished_at") is not None, finished, str(row.get("run_id") or "")
 
     return max(runs, key=key, default=None)
 
@@ -1165,7 +1222,8 @@ def _headline(markets):
     return None
 
 
-def _market(store, market, date, row, health_rows, calendar_rows, warmup, collect_ok, stage_failed, creator_labels):
+def _market(store, market, date, row, health_rows, calendar_rows, warmup, collect_ok, stage_failed, creator_labels,
+            day="today"):
     payload = row.get("payload") if row and isinstance(row.get("payload"), dict) else {}
     status = row["status"] if row else "data_issue"
     prev = _prev_ranks(store, market, date) if row else None
@@ -1281,7 +1339,7 @@ def _market(store, market, date, row, health_rows, calendar_rows, warmup, collec
         "held_back": {"count": len(held_items), "text": held_text, "items": held_items},
         "not_assessed": not_assessed,
         "moments": moments,
-        "boards": _boards(payload.get("boards")),
+        "boards": _boards(payload.get("boards"), day),
         "coverage": _with_brief_issues(_coverage(rows), payload),
         "_headline": payload.get("headline"),
     }
@@ -1489,8 +1547,9 @@ def build_today(store, date=None, now=None):
     collect_ok = any(r.get("status") == "ok" for r in collect_runs)
     stage_failed = _stage_failed(collect_runs) or _stage_failed(detect_runs)
     creator_labels = _today_creator_labels(store, rows)
+    day = "today" if current else f"on {_long_date(date)}"
     markets = [_market(store, m, date, rows.get(m), health_rows, calendar_rows, warmup, collect_ok, stage_failed,
-                       creator_labels)
+                       creator_labels, day)
                for m in MARKETS]
     _with_held_details(store, rows, markets)
     breaking = _breaking(store, store._hidden, now) if current else {}
@@ -1536,6 +1595,8 @@ def _trend_held(h):
     """A held item's reason as Today words it: the job's failed_reason goes through, so a topic a busy model left
     unexplained reads as busy here too, not as a failed check."""
     out = {"rule": h.get("rule"), "reason": h.get("reason"), "reason_text": h.get("reason_text")}
+    if isinstance(h.get("explanation_status"), str):
+        out["explanation_status"] = h["explanation_status"]
     failed_reason = h.get("failed_reason")
     if isinstance(failed_reason, str) and failed_reason.strip():
         out["failed_reason"] = failed_reason.strip()

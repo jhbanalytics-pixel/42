@@ -34,16 +34,21 @@ GATE_WORDS = (
 EXPLANATION_HELD = frozenset({"Explanation failed its checks", "The explanation did not pass its checks"})
 EXPLANATION_WORDS = "The explanation did not pass our checks"
 BUSY_WORDS = "Not explained in time: the model was busy"
+# A topic the model never reached (explanation_status not_run, no busy wording): no check ran on it either.
+NOT_REACHED_WORDS = "Not explained: the model did not get to this topic"
 
 
-def plain_reason(out):
-    """Swap a gate reason for its plain words, keeping the gate's own text in reason_raw."""
+def plain_reason(out, status=None):
+    """Swap a gate reason for its plain words, keeping the gate's own text in reason_raw. status is the held item's
+    explanation_status when the caller knows it (else the item's own explanation_status, if it carries one)."""
     raw = out.get("reason_text")
     if not isinstance(raw, str):
         return out
     if raw.strip() in EXPLANATION_HELD:
         busy = isinstance(out.get("failed_reason"), str) and out["failed_reason"].strip() in NOT_RUN_REASONS
-        out["reason_text"], out["reason_raw"] = BUSY_WORDS if busy else EXPLANATION_WORDS, raw
+        never = (status if status is not None else out.get("explanation_status")) == "not_run"
+        words = BUSY_WORDS if busy else NOT_REACHED_WORDS if never else EXPLANATION_WORDS
+        out["reason_text"], out["reason_raw"] = words, raw
         return out
     for rx, words in GATE_WORDS:
         m = rx.fullmatch(raw.strip())

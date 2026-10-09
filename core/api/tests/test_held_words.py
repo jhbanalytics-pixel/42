@@ -80,3 +80,54 @@ def test_a_topic_a_busy_model_left_unexplained_says_so(busy):
     out = plain_reason({"reason_text": "Explanation failed its checks", "failed_reason": busy})
     assert out["reason_text"] == "Not explained in time: the model was busy"
     assert out["reason_raw"] == "Explanation failed its checks" and out["failed_reason"] == busy
+
+
+# N23: a topic the model never reached is held under the brief job's G10 reason, but no check ran on it.
+def test_a_topic_the_model_never_reached_is_not_said_to_have_failed_checks():
+    out = plain_reason({"reason_text": "Explanation failed its checks", "explanation_status": "not_run"})
+    assert out["reason_text"] == "Not explained: the model did not get to this topic"
+    assert out["reason_raw"] == "Explanation failed its checks"
+
+
+@pytest.mark.parametrize("status", ["failed_checks", "explained", None])
+def test_only_a_not_run_status_changes_the_explanation_hold_words(status):
+    out = plain_reason({"reason_text": "Explanation failed its checks", "explanation_status": status})
+    assert out["reason_text"] == "The explanation did not pass our checks"
+
+
+def test_a_busy_model_wording_still_wins_over_the_not_reached_wording():
+    busy = list(NOT_RUN_REASONS)[0]
+    out = plain_reason({"reason_text": "Explanation failed its checks", "explanation_status": "not_run",
+                        "failed_reason": busy})
+    assert out["reason_text"] == "Not explained in time: the model was busy"
+
+
+# W8-DEC-02: G10 keeps the hold, and the words say held with the reason shown, not "numbers and posts only".
+def _contract_text():
+    from pathlib import Path
+    return (Path(__file__).resolve().parent.parent / "contract.md").read_text(encoding="utf-8")
+
+
+def test_the_contract_words_a_g10_hold_as_held_with_the_reason_shown():
+    text = _contract_text()
+    for old in ("published numbers and posts only", "G10 keeps the card as numbers and posts",
+                "numbers and posts still show on non-Today read surfaces"):
+        assert old not in text
+    assert "`partial` (at least one market held an item whose explanation failed its checks, reason shown" in text
+    assert "`explanation_failed` (G10 holds the item, reason shown" in text
+    assert "the item stays held, with its reason shown" in text
+
+
+def test_the_recheck_docstring_words_a_failed_card_as_held_with_the_reason_shown():
+    from core.api import today
+    doc = " ".join(today._recheck_explanation.__doc__.split())
+    assert "numbers and posts only" not in doc
+    assert "held, reason shown" in doc
+
+
+def test_the_contract_documents_the_keys_and_refusals_of_the_hidden_people_readers():
+    text = _contract_text()
+    for needle in ("## 22. Hidden people on stored copies", "`privacy`", "`state`", "\"withheld\": {\"posts\"", "`chart_counts`",
+                   "503 `people_unavailable`", "`withheld: true`", "cannot keep a claim", "`not_eligible`",
+                   "Cache-Control: no-store"):
+        assert needle in text, needle

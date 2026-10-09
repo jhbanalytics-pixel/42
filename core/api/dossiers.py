@@ -18,7 +18,7 @@ import json
 import re
 
 from core.api.export import (
-    _LABEL, _MARKET, _PLATFORM, _STYLE, _date_text, _e, _normal, _number, _p, _web_link,
+    EXPORT_NOTICE, _LABEL, _MARKET, _PLATFORM, _STYLE, _date_text, _e, _normal, _number, _p, _web_link,
 )
 
 LABELS = ("observed", "corroborated", "single_source", "inferred")
@@ -255,6 +255,8 @@ def render_html(body):
     if body.get("answer_status") in ("partial", "insufficient_evidence"):
         out.append(_p("Partial answer" if body["answer_status"] == "partial" else "Not enough evidence to answer",
                       "review"))
+    if body.get("privacy"):
+        out.append(_p(EXPORT_NOTICE, "review"))
     out.append("</header><main>")
 
     out.append("<section><h2>Summary</h2>")

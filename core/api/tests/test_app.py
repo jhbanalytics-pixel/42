@@ -19,6 +19,15 @@ from core.api import auth
 pytestmark = pytest.mark.usefixtures("old_model_cap_schedule")
 
 PASS = "s3cret-passcode"
+
+@pytest.fixture(autouse=True)
+def fresh_health_checks():
+    """Each test asks the health route for checks of its own, not those an earlier test cached."""
+    from core.api import app as api_app
+    api_app._reset_health_cache()
+    yield
+    api_app._reset_health_cache()
+
 GOOD = {"X-Passcode": PASS}
 
 
@@ -164,6 +173,14 @@ STORED = {
         ],
     }
 }
+
+
+@pytest.fixture(autouse=True)
+def nobody_hidden(monkeypatch):
+    """Readers now ask who is hidden. These tests are about other things and their stores hold no suppression list;
+    the readers' own behaviour is pinned in test_privacy_*.py."""
+    from core.api import privacy
+    monkeypatch.setattr(privacy, "read_hidden", lambda store: (set(), set(), set()))
 
 
 @pytest.fixture
@@ -1193,7 +1210,222 @@ def test_health_uses_one_fresh_agent_response_for_status_and_readiness(ctx, monk
     assert response.json()["t2_ready"] is expected_ready
     assert calls == ["/health"]
     monkeypatch.setenv("F42_AUTH_MODE", "fixture_unavailable")
+    api_mod._reset_health_cache()  # the cache window has passed
     second = ctx.client.get("/api/health").json()
     assert calls == ["/health", "/health"]
     assert second["auth_mode"] == "unavailable" and second["passcode"] is False
     assert second["checks"]["auth"] == "not_configured" and second["ok"] is False
+
+
+# F2a: the open health route must not run its three BigQuery-backed checks on every request.
+
+def test_health_runs_its_checks_once_inside_the_cache_window_and_again_after_it(ctx, monkeypatch):
+    runs = {"bigquery": 0, "agent": 0, "today": 0}
+    clock = {"t": 1000.0}
+
+    def bigquery():
+        runs["bigquery"] += 1
+        return "ok"
+
+    def today():
+        runs["today"] += 1
+        return "ok"
+
+    async def agent():
+        runs["agent"] += 1
+        return "ok", True
+
+    monkeypatch.setattr(api_mod, "_bigquery_check", bigquery)
+    monkeypatch.setattr(api_mod, "_today_check", today)
+    monkeypatch.setattr(api_mod, "_agent_check", agent)
+    monkeypatch.setattr(api_mod, "_health_clock", lambda: clock["t"], raising=False)
+    api_mod._reset_health_cache()
+
+    bodies = [ctx.client.get("/api/health") for _ in range(20)]
+    assert {r.status_code for r in bodies} == {200}
+    assert runs == {"bigquery": 1, "agent": 1, "today": 1}
+    assert bodies[0].json()["checks"] == {"auth": "ok", "bigquery": "ok", "agent": "ok", "today": "ok"}
+
+    clock["t"] += api_mod.HEALTH_CACHE_SECONDS + 1
+    ctx.client.get("/api/health")
+    assert runs == {"bigquery": 2, "agent": 2, "today": 2}
+
+
+def test_health_cache_keeps_time_and_auth_fresh(ctx, monkeypatch):
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(api_mod, "_health_clock", lambda: clock["t"], raising=False)
+    api_mod._reset_health_cache()
+    first = ctx.client.get("/api/health").json()
+    ctx.client.app  # same app
+    monkeypatch.setenv("F42_VERSION", "def456")
+    second = ctx.client.get("/api/health").json()
+    assert first["version"] == "abc123" and second["version"] == "def456"
+
+
+# F2b: Radar was 2.1 MB and Discover 308 KB, both sent uncompressed.
+
+@pytest.fixture
+def big_routes():
+    from fastapi.responses import PlainTextResponse
+
+    @api_mod.app.get("/__big_json")
+    def big_json():
+        return {"rows": [{"hash": "sha256:" + "ab" * 32, "n": n} for n in range(400)]}
+
+    @api_mod.app.get("/__big_stream")
+    def big_stream():
+        return PlainTextResponse("data: " + "x" * 5000 + "\n\n", media_type="text/event-stream")
+
+    paths = {"/__big_json", "/__big_stream"}
+    routes = api_mod.app.router.routes
+    added = [r for r in routes if getattr(r, "path", None) in paths]
+    routes[:] = added + [r for r in routes if r not in added]  # ahead of the app-shell catch-all
+    yield
+    api_mod.app.router.routes[:] = [r for r in api_mod.app.router.routes if getattr(r, "path", None) not in paths]
+
+
+def test_large_json_is_gzipped_for_a_client_that_accepts_it(ctx, big_routes):
+    plain = ctx.client.get("/__big_json", headers={"Accept-Encoding": "identity"})
+    zipped = ctx.client.get("/__big_json", headers={"Accept-Encoding": "gzip"})
+    assert plain.headers.get("content-encoding") is None
+    assert zipped.headers.get("content-encoding") == "gzip"
+    assert zipped.json() == plain.json()
+    assert int(zipped.headers["content-length"]) < len(plain.content) / 3
+
+
+def test_an_event_stream_is_never_gzipped(ctx, big_routes):
+    r = ctx.client.get("/__big_stream", headers={"Accept-Encoding": "gzip"})
+    assert r.headers.get("content-encoding") is None
+
+
+# Contract 3.4b (C2 v2.1 section 2.1, tests AU-01 to AU-09): the request URL and the token audience are two values.
+# The audience is always the canonical agent URL; a tag URL is only ever a place to send requests.
+CANON = "https://f42-agent-fibxg5ynpq-uc.a.run.app"
+TAGGED = "https://rel-1234567-01---f42-agent-fibxg5ynpq-uc.a.run.app"
+
+
+def agent_config(monkeypatch, url, audience=None):
+    monkeypatch.setenv("AGENT_URL", url)
+    if audience is None:
+        monkeypatch.delenv("AGENT_AUDIENCE", raising=False)
+    else:
+        monkeypatch.setenv("AGENT_AUDIENCE", audience)
+    minted = []
+    monkeypatch.setattr(api_mod, "_id_token", lambda audience: minted.append(audience) or "idtok")
+    return minted
+
+
+def build_client():
+    import asyncio
+    return asyncio.run(api_mod._agent_client(httpx.Timeout(1.0)))
+
+
+def refusal_of(monkeypatch, url, audience, caplog):
+    from core.api.auth import ApiError
+    minted = agent_config(monkeypatch, url, audience)
+    with caplog.at_level("WARNING", logger="f42.api"):
+        with pytest.raises(ApiError) as caught:
+            build_client()
+    assert (caught.value.status, caught.value.error) == (502, "agent_unavailable")
+    assert minted == []  # no token is minted for a refused configuration
+    assert url not in caplog.text and (not audience or audience not in caplog.text)
+
+
+def test_au01_a_canonical_agent_url_with_no_audience_is_its_own_audience(monkeypatch):
+    minted = agent_config(monkeypatch, CANON)
+    assert str(build_client().base_url).rstrip("/") == CANON
+    assert minted == [CANON]
+
+
+def test_au02_a_tagged_request_url_still_mints_the_token_for_the_canonical_audience(monkeypatch):
+    minted = agent_config(monkeypatch, TAGGED, CANON)
+    client = build_client()
+    assert str(client.base_url).rstrip("/") == TAGGED
+    assert minted == [CANON]
+    assert client.headers["Authorization"] == "Bearer idtok"
+
+
+def test_au03_a_tagged_request_url_with_no_audience_fails_closed(monkeypatch, caplog):
+    refusal_of(monkeypatch, TAGGED, None, caplog)
+
+
+@pytest.mark.parametrize("audience", [CANON + "/x", CANON + "/", CANON.upper(), "http://f42-agent-fibxg5ynpq-uc.a.run.app",
+                                      CANON + "?a=1", "f42-agent-fibxg5ynpq-uc.a.run.app"])
+def test_au04_a_malformed_audience_is_refused(monkeypatch, caplog, audience):
+    refusal_of(monkeypatch, TAGGED, audience, caplog)
+    caplog.clear()
+    refusal_of(monkeypatch, CANON, audience, caplog)
+
+
+def test_au05_a_canonical_url_with_an_audience_on_another_host_is_refused(monkeypatch, caplog):
+    refusal_of(monkeypatch, CANON, "https://f42-other-fibxg5ynpq-uc.a.run.app", caplog)
+
+
+def test_a_canonical_url_with_the_same_audience_is_accepted(monkeypatch):
+    minted = agent_config(monkeypatch, CANON, CANON)
+    build_client()
+    assert minted == [CANON]
+
+
+def test_au06_a_local_agent_url_mints_no_token_whatever_the_audience(monkeypatch):
+    minted = agent_config(monkeypatch, "http://127.0.0.1:8081", "not even a url")
+    assert str(build_client().base_url).rstrip("/") == "http://127.0.0.1:8081"
+    assert minted == []
+
+
+def test_no_agent_url_stays_the_in_process_agent(monkeypatch):
+    minted = agent_config(monkeypatch, "", "garbage")
+    assert str(build_client().base_url).startswith("http://f42-agent")
+    assert minted == []
+
+
+def test_au07_the_health_check_and_the_events_relay_use_the_same_audience_rule(ctx, monkeypatch):
+    seen = []
+    agent_config(monkeypatch, TAGGED, CANON)
+    monkeypatch.setattr(api_mod, "_id_token", lambda audience: seen.append(audience) or "idtok")
+
+    def handler(request):
+        seen.append(str(request.url.host))
+        if request.url.path == "/health":
+            return httpx.Response(200, json={"ok": True, "t2_ready": True})
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=b"")
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **k: real(*a, **{**k, "transport": httpx.MockTransport(handler)}))
+    import asyncio
+    assert asyncio.run(api_mod._agent_check()) == ("ok", True)
+    ctx.client.get("/api/ask/a_1/events", headers=GOOD)
+    assert CANON in seen and TAGGED not in seen
+    assert {s for s in seen if s.startswith("https://")} == {CANON}
+    assert "rel-1234567-01---f42-agent-fibxg5ynpq-uc.a.run.app" in seen
+
+    from core.api.auth import ApiError
+    agent_config(monkeypatch, TAGGED, None)
+    assert asyncio.run(api_mod._agent_check()) == ("unreachable", False)
+    with pytest.raises(ApiError):
+        build_client()
+
+
+@pytest.mark.parametrize("url", ["https://rel-1234567-01---f42-other-fibxg5ynpq-uc.a.run.app",
+                                 "https://---f42-agent-fibxg5ynpq-uc.a.run.app",
+                                 "https://rel-1234567-01---rel-1234567-01---f42-agent-fibxg5ynpq-uc.a.run.app"])
+def test_au08_a_tag_host_that_does_not_end_in_the_audience_host_is_refused(monkeypatch, caplog, url):
+    refusal_of(monkeypatch, url, CANON, caplog)
+
+
+def test_au09_the_tag_url_the_release_tools_build_is_accepted(monkeypatch):
+    from ops.deploy.release import asset_origin
+    tagged = asset_origin(CANON, "question-abc1234")
+    minted = agent_config(monkeypatch, tagged, CANON)
+    assert str(build_client().base_url).rstrip("/") == tagged
+    assert minted == [CANON]
+
+
+def test_a_tag_host_is_never_the_audience(monkeypatch, caplog):
+    """C2 2.1: the audience is the service itself, never a revision tag URL."""
+    from core.api.auth import ApiError
+    tagged = "https://t---a---svc-abc-uc.a.run.app"
+    minted = agent_config(monkeypatch, tagged, "https://a---svc-abc-uc.a.run.app")
+    with caplog.at_level("WARNING", logger="f42.api"), pytest.raises(ApiError):
+        build_client()
+    assert minted == []
