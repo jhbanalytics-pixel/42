@@ -780,11 +780,15 @@ function saysHeadline(headline, card, specificity){
     && sentenceKey(headline.text) === sentenceKey(specificity.whyNow));
 }
 
-/* A market the brief has no row for: a data issue with nothing held. It has no checks to have cleared. */
+/* A market the brief has no row for. The server says so in its own banner,
+   "Data issue: no brief was published for ..."; a brief that was published
+   with a data-issue status has its own wording and its own held count. */
+const NO_BRIEF_BANNER = /^Data issue: no brief was published for /;
 function hasNoBrief(market){
   const held = market.held_back;
   return market.status === 'data_issue' && Boolean(held) && held.count === 0
-    && (!Array.isArray(held.items) || held.items.length === 0);
+    && (!Array.isArray(held.items) || held.items.length === 0)
+    && Array.isArray(market.banners) && market.banners.some((banner) => banner && banner.kind === 'data_issue' && NO_BRIEF_BANNER.test(String(banner.text || '')));
 }
 
 function emptyMarketWords(market, day){
