@@ -82,6 +82,7 @@ function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
 $Script:RunCount = 0
 function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
     $Script:RunCount++
+    if ($Script:Cfg.inject -and $Script:RunCount -eq [int]$Script:Cfg.inject_at_run) { . ([scriptblock]::Create($Script:Cfg.inject)) }
     Log-Call @{ kind = 'run'; name = $Name; argv = $Argv; passcode_sha = (Env-Sha); workdir = $WorkDir; run_dir_existed = (Test-Path -LiteralPath $Script:RunDir -PathType Container); env = (Env-Snap) }
     $code = 0
     if ($Argv[0] -match '(^|[\\/])tar(\.exe)?$') {
@@ -118,6 +119,7 @@ function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [strin
     return $code
 }
 
+if (-not $Script:Cfg.real_console) {
 function Test-Interactive { return (-not $Script:Cfg.no_interactive) }
 
 function Read-Typed {
@@ -137,10 +139,14 @@ function Read-Typed {
     if ($null -ne $answer) { return [string]$answer.Value }
     return $word
 }
+}
 
 function Start-Sleep { param($Seconds) Log-Call @{ kind = 'sleep'; seconds = $Seconds } }
 
+$Script:TestDoubles = @('Read-Native', 'Run-Logged', 'Get-UtcNow', 'Start-Sleep')
+if (-not $cfg.real_console) { $Script:TestDoubles += @('Read-Typed', 'Test-Interactive') }
 foreach ($alias in @($cfg.aliases)) { Set-Alias -Scope Global -Name $alias.name -Value $alias.value }
+if ($cfg.attack) { . ([scriptblock]::Create($cfg.attack)) }
 try { Invoke-Release } finally { Log-Call @{ kind = 'env_at_end'; env = (Env-Snap) }; Log-Call @{ kind = 'end'; passcode_sha = (Env-Sha) } }
 '''
 
@@ -253,13 +259,13 @@ class PasteWorld:
             "typed": typed, "no_interactive": not interactive, "inherited": inherited, "freeze_hash": FREEZE_HASH, "api_tag_url": API_TAG_URL,
             "no_readback": list(no_readback), "no_manifest_on_freeze": no_manifest_on_freeze, "manifest_hash_on_freeze": None, "reads_after": {},
             "words": {}, "describe_json": json.dumps(DESCRIBE), "declared_matches": "", "inflight_running": 0, "inflight_refused": False,
-            "minutes_per_prompt": 0, "aliases": [],
+            "minutes_per_prompt": 0, "aliases": [], "real_console": False, "attack": "", "inject": "", "inject_at_run": 0,
             **(extra or {})}
         self.write(self.tmp / "config.json", config)
         driver = self.tmp / "driver.ps1"
         driver.write_text(DRIVER, encoding="utf-8", newline="\n")
         clean = {k: v for k, v in os.environ.items() if k not in ("CLOUDSDK_CORE_DISABLE_FILE_LOGGING", "PYTHONDONTWRITEBYTECODE", "GIT_OPTIONAL_LOCKS")}
         proc = subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(driver), "-Config", str(self.tmp / "config.json")],
-                              capture_output=True, encoding="utf-8", timeout=120, env=clean)
+                              capture_output=True, stdin=subprocess.DEVNULL, encoding="utf-8", timeout=120, env=clean)
         entries = [json.loads(line) for line in calls.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
         return Result(proc.returncode, proc.stdout, proc.stderr, entries)
