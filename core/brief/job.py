@@ -61,8 +61,8 @@ from core.api.store import creator_key
 from core.api.today import without_hidden
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import TITLE_RULE, explain_trend
+from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
-from core.trust.locality import locality_block
 from core.brief.payload import MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, _worth, brief_row, build_market_payload
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
 from core.collect import chain as collect_chain
@@ -72,6 +72,7 @@ from core.detect.job import PROJECT, RULE_VERSION
 from core.detect.sqlrun import AGENT, CORE
 from core.llm.gemini import GeminiModel
 from core.trust.gate import Decision, gate_card, market_banner
+from core.trust.locality import V2_BASIS, locality_block, read_locality, row_from_prefixed
 
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
@@ -124,6 +125,27 @@ _PLATFORM_ID = re.compile(r"[#@]?(?:\d{8,}|user\d{6,}|t[1-6]_[a-z0-9]{4,})", re.
 FAILED_CHECKS = {"breach", "failed_checks", "too_few_claims"}
 _NAME = re.compile(r"^--\s*name:\s*(\w+)\s*$", re.MULTILINE)
 QUERIES = {_NAME.search(s).group(1): s for s in sqlrun.split(SQL.read_text(encoding="utf-8"))}
+
+# The candidate statement reads the retained locality row through v_item_locality_current. If that read fails, the
+# statement runs again with the view replaced by an empty one of the same columns: a row on the v1 basis then orders,
+# scopes and gates exactly as before (it never reads the view), and a row on the v2 basis has no locality row, which
+# is unreadable and held as a data issue (C4 v3 sections 8.4 and 10). The failure is printed, never swallowed.
+_LOCALITY_COLUMNS = (
+    ("run_date", "DATE"), ("item_id", "STRING"), ("market", "STRING"), ("detect_run_id", "STRING"),
+    ("metric_version", "STRING"), ("schema_version", "INT64"), ("population_posts", "INT64"),
+    ("known_posts", "INT64"), ("local_posts", "INT64"), ("foreign_posts", "INT64"), ("unknown_posts", "INT64"),
+    ("feed_only_posts", "INT64"), ("vetoed_feed_posts", "INT64"), ("breadth_creators", "INT64"),
+    ("status", "STRING"), ("local_share", "FLOAT64"), ("population_digest", "STRING"),
+    ("population_cutoff", "TIMESTAMP"), ("checked_status", "STRING"), ("checked_label", "STRING"))
+_NO_LOCALITY = ("(SELECT " + ", ".join(f"CAST(NULL AS {kind}) {name}" for name, kind in _LOCALITY_COLUMNS)
+                + " LIMIT 0) lo")
+_LOCALITY_VIEW = "{core}.v_item_locality_current lo"
+assert QUERIES["candidates"].count(_LOCALITY_VIEW) == 1
+QUERIES["candidates_without_locality"] = QUERIES["candidates"].replace(_LOCALITY_VIEW, _NO_LOCALITY)
+
+# Which market the retained locality result gives a candidate on the v2 basis (C4 v3 section 11.2): the status of
+# read_locality, never a v1 value. An unreadable result gives none, and the candidate is held as a data issue.
+_V2_SCOPE = {"local": "market", "market_unconfirmed": "market", "not_local": "global"}
 
 # Held reasons (TRUST.md section 2). claim_checks.reason and a card's failed_reason carry fixed wording per rule,
 # never the check's detail: model text and the claim text inside code details can carry names, post text or an age
@@ -414,16 +436,23 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
         print(f"brief {d.isoformat()}: market_scope_read_failed", file=sys.stderr)
     if scope.get("market_scope") != "market":
         scope["market_scope"] = "global"
-    row.update(scope)
-    try:
-        # Shadow (C4 v3 section 10): the retained locality_v2 row is stored beside the v1 fields and controls nothing.
-        # A read that fails, or a key with no verified row, omits the block and changes no outcome.
-        got = _query(client, "locality_row", {"d": d, "market": market, "item_id": row["item_id"],
-                                              "run_id": row.get("run_id")}, core, agent)
-        if got:
-            row["locality_v2"] = locality_block(got[0])
-    except Exception:
-        print(f"brief {d.isoformat()}: locality_read_failed", file=sys.stderr)
+    # The retained locality row the candidate statement joined, with the lrow_ prefix off; None when no verified row
+    # exists. A row whose item_state says it was admitted under locality_v2.1 is read by that rule whatever this
+    # job's own constant is (C4 v3 section 7.4): its scope comes from the checked status and the pack scope is kept
+    # only as the observation pack_scope_v1. Any other row is read by the pack scope, as before, and the locality
+    # row is stored beside it as an observation (section 10).
+    record = row_from_prefixed(row) if row.get("lrow_metric_version") is not None else None
+    if row.get("locality_basis") == V2_BASIS:
+        derived = _V2_SCOPE.get(read_locality(record).status)
+        row["pack_scope_v1"] = {k: scope.get(k) for k in ("market_scope", "market_posts7", "total_posts7",
+                                                          "market_share7")}
+        row.update({k: scope.get(k) for k in ("market_posts7", "total_posts7", "market_share7")})
+        row["market_scope"], row["market_scope_basis"] = derived or "global", V2_BASIS
+        scope_error = derived is None
+    else:
+        row.update(scope)
+    if record is not None or row.get("locality_basis") == V2_BASIS:
+        row["locality_v2"] = locality_block(record)
     cand = {"row": row, "market": market, "sparkline": None, "rerun": None, "ctx": {},
             "pack": {"evidence": [], "numbers": [], "facts": []}, "scope_error": scope_error}
     try:
@@ -526,6 +555,37 @@ def _selection_result(snapshot, receipt, ranked, prepared, taken, cutoff, observ
         "judged_limit": CANDIDATES, "count": len(items), "items": items}, "selection_receipt": receipt}
 
 
+def _candidate_rows(client, d, market, core, agent, receipt):
+    """The market's candidate rows. If the read fails, one more read without the locality view (see QUERIES), so a
+    missing or failing view never changes a row on the v1 basis."""
+    params = {"d": d, "market": market}
+    try:
+        return _query(client, "candidates", params, core, agent, receipt=receipt)
+    except Exception:
+        print(f"brief {d.isoformat()}: locality_view_read_failed", file=sys.stderr)
+        receipt.clear()
+        return _query(client, "candidates_without_locality", params, core, agent, receipt=receipt)
+
+
+def _locality_audit_inputs(client, d, market, rows, core, agent):
+    """What the locality_audit block is built from (C4 v3 section 11.2): the not_local rows of the run, up to 50 with
+    their total, and the count of eligible rows whose locality row is missing or unreadable. Read only when the
+    pool holds a row admitted under locality_v2.1 (every row of a run is written under one rule, so the pool tells which
+    rule the run used); None when there is nothing to audit or a read failed (the block is then left out, and the pool
+    and the holds are unchanged)."""
+    if not any(r.get("locality_basis") == V2_BASIS for r in rows):
+        return None
+    run_id = rows[0].get("run_id")
+    try:
+        return {"detect_run_id": run_id,
+                "not_local": _query(client, "not_local_audit", {"d": d, "market": market}, core, agent),
+                "unreadable_total": _query(client, "unreadable_audit", {"d": d, "market": market, "run_id": run_id},
+                                           core, agent)[0]["unreadable_total"]}
+    except Exception:
+        print(f"brief {d.isoformat()}: locality_audit_read_failed", file=sys.stderr)
+        return None
+
+
 def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, core, agent, hidden=None, chain=None,
                 clock=None, started=None, calendar=None, selection_audits=None):
     """{market: candidates in rank order}, packs and contexts built PACK_WORKERS at a time across the markets.
@@ -544,7 +604,7 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
     pools, snapshots, receipts = {}, {}, {}
     for m in MARKETS:
         receipts[m] = {}
-        rows = _query(client, "candidates", {"d": d, "market": m}, core, agent, receipt=receipts[m])
+        rows = _candidate_rows(client, d, m, core, agent, receipts[m])
         snapshots[m] = _selection_snapshot(rows, receipts[m])
         pools[m] = [{k: v for k, v in row.items() if k not in (
             "_selection_sql_rank", "_selection_market_scope", "_selection_snapshot")} for row in rows]
@@ -584,6 +644,7 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
         for m in MARKETS:
             selection_audits[m] = _selection_result(snapshots[m], receipts[m], ranked[m], by_market[m],
                                                     taken[m], cutoff, observed)
+            selection_audits[m]["locality_audit_inputs"] = _locality_audit_inputs(client, d, m, pools[m], core, agent)
     return by_market
 
 
@@ -1028,7 +1089,10 @@ def _payload_candidate(cand, result, specificity=None):
 def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues, selection_audit=None):
     # A candidate whose market scope could not be read is not known to be global, so it stays, held for its
     # unreadable evidence.
-    local_cands = [c for c in cands if c["row"].get("market_scope") == "market" or c.get("scope_error")]
+    # A candidate admitted under locality_v2.1 stays whatever its scope: a not_local one is held by G6 and shown, which
+    # is the silent drop of the pack scope no longer applying (C4 v3 section 11.3).
+    local_cands = [c for c in cands if c["row"].get("market_scope") == "market" or c.get("scope_error")
+                   or c["row"].get("locality_basis") == V2_BASIS]
     items = []
     for c in local_cands:
         result = results.get(id(c))
@@ -1076,6 +1140,13 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
         payload = build_market_payload(market, d, items, moments=moments_, boards=boards_, banners=banners,
             headline=headline, issues=issues, not_assessed=audit.get("not_assessed"),
             selection_receipt=audit.get("selection_receipt"))
+    inputs = audit.get("locality_audit_inputs")
+    if inputs is not None:
+        shown = {i["item_id"] for part in ("cards", "more") for i in payload[part]}
+        shown |= {i["item_id"] for i in payload["held_back"]["items"]}
+        shown |= {i["item_id"] for i in (payload.get("not_assessed") or {}).get("items") or []}
+        payload["locality_audit"] = build_locality_audit(inputs["detect_run_id"], inputs["not_local"],
+                                                         inputs["unreadable_total"], represented_ids=shown)
     return payload
 
 

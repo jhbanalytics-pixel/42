@@ -9,6 +9,8 @@ on them, so no reader shows it: f42-api builds Today from the named fields and c
 
 from collections import Counter
 
+from core.trust.locality import V2_BASIS
+
 LABELS = {"ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya"}
 
 # The brief job's fixed wording for a Today-bound item a busy model left unexplained (core/brief/job.py
@@ -119,7 +121,9 @@ def _decision(c):
 def _flag(c, dec):
     if dec.get("flag"):
         return FLAG_CODES[dec["flag"].lower()]
-    if c.get("geo_status") == "market_unconfirmed":
+    # Detect's geo_status is an observation once a candidate is admitted under locality_v2.1: the flag comes from the
+    # gate's decision, which read the W8-DEC-17 label of the retained row.
+    if c.get("geo_status") == "market_unconfirmed" and c.get("market_scope_basis") != V2_BASIS:
         return "market_unconfirmed"
     return c.get("authenticity") if c.get("authenticity") in ITEM_FLAGS else None
 
@@ -128,6 +132,14 @@ def _shown_first(evidence, shown_above):
     """The card's posts with those a higher card already shows moved after the rest, order kept otherwise."""
     return ([e for e in evidence if e["id"] not in shown_above]
             + [e for e in evidence if e["id"] in shown_above])
+
+
+def _scope_basis(c):
+    """market_scope_basis and the pack scope kept as an observation, on a card whose scope came from locality_v2.1.
+    A card on any other basis carries neither, so its payload is what it always was."""
+    if c.get("market_scope_basis") != V2_BASIS:
+        return {}
+    return {"market_scope_basis": V2_BASIS, "pack_scope_v1": c.get("pack_scope_v1")}
 
 
 def _card(c, market, day, rank, shown_above=frozenset()):
@@ -163,6 +175,7 @@ def _card(c, market, day, rank, shown_above=frozenset()):
         **({"locality_v2": c["locality_v2"]} if c.get("locality_v2") else {}),
         "item_id": c["item_id"], "market": market, "date": day, "rank": rank, "kind": c["kind"],
         "market_scope": "market" if c.get("market_scope") == "market" else "global",
+        **_scope_basis(c),
         "market_posts7": c.get("market_posts7"), "total_posts7": c.get("total_posts7"),
         "market_share7": c.get("market_share7"),
         "title": c["title"], "title_written": _title_written(c, explained),

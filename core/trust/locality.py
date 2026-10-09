@@ -173,8 +173,8 @@ def locality_block(record):
     """The versioned `locality_v2` block of a card or held item: what the reader decided from one retained row, the
     W8-DEC-17 label, and the counts that support them. record: the columns of the row, prefix removed. An unreadable
     or absent row gives a block with no counts, never zeros."""
-    record = record if isinstance(record, Mapping) else {}
     got = read_locality(record)
+    record = record if isinstance(record, Mapping) else {}
     readable = got.status != "unreadable"
     keep = ("population_posts", "unknown_posts", "foreign_posts", "feed_only_posts", "vetoed_feed_posts",
             "breadth_creators")
