@@ -93,6 +93,16 @@ FROM ordered CROSS JOIN selection_snapshot
 ORDER BY _selection_sql_rank
 LIMIT 90;
 
+-- name: locality_row
+-- The retained locality_v2 row of one item in the market for the good detect run of @d, as the checked view shows it
+-- (C4 v3 section 10): only a row that passed write-time verification, at the pinned metric version. Read per candidate
+-- in its own statement, so that a view that is missing or a read that fails omits the block and changes nothing else.
+SELECT lo.item_id, lo.metric_version, lo.schema_version, lo.population_posts, lo.known_posts, lo.local_posts,
+  lo.foreign_posts, lo.unknown_posts, lo.feed_only_posts, lo.vetoed_feed_posts, lo.breadth_creators, lo.status,
+  lo.local_share
+FROM {core}.v_item_locality_current lo
+WHERE lo.run_date = @d AND lo.market = @market AND lo.item_id = @item_id AND lo.detect_run_id = @run_id;
+
 -- name: post_set
 -- Every post the card for one item could rest on, not only the 12 of its evidence pack: linked to the item and
 -- sighted in the market in the pack's days and lanes (core/brief/sql/evidence.sql, any lane but placebo,

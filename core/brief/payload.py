@@ -160,6 +160,7 @@ def _card(c, market, day, rank, shown_above=frozenset()):
     # after the claim checks).
     status = "explained" if explained else (c.get("explanation_status") or "not_run")
     return {
+        **({"locality_v2": c["locality_v2"]} if c.get("locality_v2") else {}),
         "item_id": c["item_id"], "market": market, "date": day, "rank": rank, "kind": c["kind"],
         "market_scope": "market" if c.get("market_scope") == "market" else "global",
         "market_posts7": c.get("market_posts7"), "total_posts7": c.get("total_posts7"),
@@ -211,6 +212,7 @@ def _held_item(c):
     # The same figures a card would show, growth dropped while untested, so a reader can weigh the hold.
     numbers = [n for n in c.get("numbers") or [] if not (_untested(c) and _is_growth(n["unit"]))]
     return {
+        **({"locality_v2": c["locality_v2"]} if c.get("locality_v2") else {}),
         "item_id": c["item_id"], "title": c["title"], "rule": dec.get("rule"), "reason": reason,
         "reason_text": dec.get("reason") or REASON_TEXT[reason],
         "evidence_ids": [e["id"] for e in evidence], "evidence": evidence,

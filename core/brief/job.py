@@ -62,6 +62,7 @@ from core.api.today import without_hidden
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import TITLE_RULE, explain_trend
 from core.brief.market_scope import read_market_scope
+from core.trust.locality import locality_block
 from core.brief.payload import MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, _worth, brief_row, build_market_payload
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
 from core.collect import chain as collect_chain
@@ -414,6 +415,15 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
     if scope.get("market_scope") != "market":
         scope["market_scope"] = "global"
     row.update(scope)
+    try:
+        # Shadow (C4 v3 section 10): the retained locality_v2 row is stored beside the v1 fields and controls nothing.
+        # A read that fails, or a key with no verified row, omits the block and changes no outcome.
+        got = _query(client, "locality_row", {"d": d, "market": market, "item_id": row["item_id"],
+                                              "run_id": row.get("run_id")}, core, agent)
+        if got:
+            row["locality_v2"] = locality_block(got[0])
+    except Exception:
+        print(f"brief {d.isoformat()}: locality_read_failed", file=sys.stderr)
     cand = {"row": row, "market": market, "sparkline": None, "rerun": None, "ctx": {},
             "pack": {"evidence": [], "numbers": [], "facts": []}, "scope_error": scope_error}
     try:
@@ -1292,6 +1302,11 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
               "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
     if spend.get("model_reserved_usd"):
         counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
+    shadow = [{"market": m, "item_id": c["row"]["item_id"], "pack_scope": c["row"].get("market_scope"),
+               "v2_status": c["row"]["locality_v2"]["status"], "v2_label": c["row"]["locality_v2"]["label"]}
+              for m in MARKETS for c in by_market[m] if c.get("decision") is not None and c["row"].get("locality_v2")]
+    if shadow:
+        counts["locality_shadow"] = shadow
     if explanation_stop is not None:
         counts["explanation_stop"] = explanation_stop
     if busy:
