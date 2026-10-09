@@ -35,7 +35,8 @@
 s0 AS (
   SELECT s.* FROM {core}.v_item_state_current s
   WHERE s.market = @market AND s.metric_date BETWEEN {since}
-    AND DATE_ADD(@week_end, INTERVAL {recall_days} DAY) AND s.eligible),
+    AND DATE_ADD(@week_end, INTERVAL {recall_days} DAY) AND s.eligible
+    AND IFNULL(s.locality_status, '') NOT IN ('unreadable', 'missing')),
 gr AS (                     -- ok detect and stats runs with their start and finish times
   SELECT r.stage, r.run_date, r.started_at, r.finished_at FROM {agent}.runs r
   WHERE r.status = 'ok' AND r.stage IN ('detect', 'stats')
