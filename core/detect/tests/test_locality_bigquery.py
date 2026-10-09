@@ -3,7 +3,8 @@
 The DuckDB harness accepts forms BigQuery may refuse, and nothing in the locality work has run on BigQuery (C4 v3
 section 27, review F11). These are the dry runs to make before the release: the locality script and its two
 inserts, the two views, the step's reads, the cross-tabulation, the state script under both authorities, the
-label_shared_members measurement and the brief's candidate, not_local_audit and unreadable_audit statements.
+label_shared_members measurement and the brief's candidate, not_local_audit and unreadable_audit statements, and the understand job's cluster_items
+statement (previous-day members, renamed_today).
 
 The dry runs are skipped unless F42_BQ=1. Every job is a dry run: BigQuery parses, resolves names and plans the query
 without running it, so nothing is created, written or billed. They resolve names, so the locality tables of
@@ -19,6 +20,7 @@ import pytest
 from core.brief import job as brief_job
 from core.detect import job, locality, sqlrun
 from core.detect.tests.duck import split_create
+from core.understand import cluster
 
 PROJECT = "ogilvy-trends-v2"
 D = date(2026, 10, 7)
@@ -55,6 +57,7 @@ def cases():
         ("candidates_without_locality", brief_job.QUERIES["candidates_without_locality"], BRIEF),
         ("not_local_audit", brief_job.QUERIES["not_local_audit"], BRIEF),
         ("unreadable_audit", brief_job.QUERIES["unreadable_audit"], {**BRIEF, "run_id": KEY["detect_run_id"]}),
+        ("cluster_items", cluster.load("cluster_items"), cluster.item_params(D, "ng")),
     ]
     out += [(f"view_{sqlrun.object_name(s).split('.')[-1]}", body_with_params(s), {"d": D} if split_create(s)[2] else {})
             for s in sqlrun.locality_view_statements()]
