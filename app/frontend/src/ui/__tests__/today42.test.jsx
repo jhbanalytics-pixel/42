@@ -15,8 +15,12 @@ const {flushSync} = await import('react-dom');
 const {getJson, fetchToday, fetchTrend, fetchAlerts, listInvestigations, listSchedules} = await import('../../api42.js');
 const {TodayPage42} = await import('../../today42.jsx');
 const {topicHref} = await import('../TrendCard.jsx');
+const {TodayBoards} = await import('../TodayBoards.jsx');
 
 const realFetch = globalThis.fetch;
+const realNow = Date.now;
+/* The fixtures are the brief of 30 September 2026. A test that reads it as the current day's stands the clock on that day (standOnFixtureDay); a test for a past brief moves it (withClock). The tests of the last-7-days strips build their dates from the real clock and leave it alone. */
+const FIXTURE_DAY_NOW = Date.parse('2026-09-30T08:00:00Z');
 let calls = [];
 let host = null;
 let root = null;
@@ -80,6 +84,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  Date.now = realNow;
   if (root) flushSync(() => root.unmount());
   root = null;
   if (host) host.remove();
@@ -130,7 +135,10 @@ function trackTodaySlowTimers(){
   };
 }
 
+function standOnFixtureDay(){ if (Date.now === realNow) Date.now = () => FIXTURE_DAY_NOW; }
+
 async function mount(props = {}, today = todayFixture){
+  standOnFixtureDay();
   serve([['/api/today', reply(200, today)], ['/api/trends/', reply(200, trendFixture)]]);
   flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" {...props} />));
   await settle();
@@ -639,7 +647,7 @@ test('the Ask link carries the question, market, item and date', async () => {
   const first = cardTitled('#fixture_za_step');
   const link = [...first.querySelectorAll('a')].find((a) => a.textContent === 'Ask about this');
   const card = todayFixture.markets[0].cards[0];
-  expect(link.getAttribute('href')).toBe('#/ask?q=' + encodeURIComponent(card.ask) + '&market=ZA&item=' + card.item_id + '&date=2026-09-30');
+  expect(link.getAttribute('href')).toBe('#/ask?q=' + encodeURIComponent(card.ask) + '&market=ZA&item=' + card.item_id + '&date=2026-09-30&draft=1');
 });
 
 test('the sparkline leaves gaps as breaks and draws the band only when expected values exist', async () => {
@@ -770,7 +778,9 @@ test('a post or board collected as "twitter" is named X, never Twitter', async (
   await mount({}, today);
   const shown = cardTitled('#fixture_za_step');
   expect(shown.querySelector('.t42-thumbs img').getAttribute('alt')).toBe('Post on X');
-  expect(host.querySelector('[data-section="boards"]').textContent).toContain("X's own list: Hashtag board, 7 days");
+  const xCard = host.querySelector('[data-section="boards"] [data-board-card]');
+  expect(xCard.querySelector('.tb-platform').textContent).toBe('X');
+  expect(xCard.querySelector('.tb-list').textContent).toBe('Hashtag board, 7 days');
   expect(host.innerHTML).not.toMatch(/twitter/i);
 });
 
@@ -1275,6 +1285,14 @@ test('cards filtered by the reader do not become held evidence items', async () 
   expect(details.querySelector('[data-held-item-id="reader-filtered-only"]')).toBeNull();
 });
 
+/* A board row as the old list read it: its rank (with = for a tie) and its title,
+   or the title alone where the row is unranked (wave 8: boards are chart cards). */
+const boardWords = (li) => {
+  const rank = li.querySelector('.tb-rank').textContent;
+  const title = li.querySelector('.tb-title').textContent;
+  return rank === '-' ? title : rank + ' ' + title;
+};
+
 /* UX pass, 3 October 2026: Today ends with moments and boards; the coverage
    strip left the page and its figures live on Coverage. */
 test('moments and boards render below the cards, with no coverage strip', async () => {
@@ -1283,7 +1301,8 @@ test('moments and boards render below the cards, with no coverage strip', async 
   expect(moments.textContent).toContain('Fixture spring festival');
   expect(moments.textContent).toContain('3 October 2026');
   const boards = host.querySelector('[data-section="boards"]');
-  expect(boards.textContent).toContain("TikTok's own list: Hashtag board, 7 days");
+  expect(boards.querySelector('.tb-platform').textContent).toBe('TikTok');
+  expect(boards.querySelector('.tb-list').textContent).toBe('Hashtag board, 7 days');
   expect(boards.textContent).toContain('#fixture_za_board');
   expect(host.querySelector('[data-section="coverage"]')).toBeNull();
   const details = host.querySelector('[data-market="ZA"] details[data-section="source-details"]');
@@ -1310,12 +1329,15 @@ test('a board lists each entry with its own best rank, no automatic numbering, a
   await mount({}, today);
   const boards = host.querySelector('[data-section="boards"]');
   expect(boards.querySelector('ol')).toBeNull();
-  const list = boards.querySelector('ul.t42-board-rows');
+  const list = boards.querySelector('ul.tb-rows');
   expect(list).not.toBeNull();
-  expect([...list.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['=1 #shorts', '=1 #ishowspeed', '2 #fixture_za_step']);
-  expect(boards.querySelector('.t42-board').textContent).toContain("TikTok's own list: Hashtag board, 7 days, best rank today");
-  const css = await Bun.file(new URL('../../styles/today42.css', import.meta.url)).text();
-  expect(css).toMatch(/\.t42-board-rows\s*\{[^}]*list-style:\s*none/);
+  expect([...list.querySelectorAll('.tb-row')].map(boardWords)).toEqual(['=1 #shorts', '=1 #ishowspeed', '2 #fixture_za_step']);
+  const card = boards.querySelector('[data-board-card]');
+  expect(card.querySelector('.tb-card-title').textContent).toContain('TikTok');
+  expect(card.querySelector('.tb-card-title').textContent).toContain('Hashtag board, 7 days');
+  expect(card.querySelector('.tb-caption').textContent).toBe('Best rank today');
+  const css = await Bun.file(new URL('../../styles/today-boards.css', import.meta.url)).text();
+  expect(css).toMatch(/\.tb-rows\s*\{[^}]*list-style:\s*none/);
 });
 
 test('Today repeated rows stay compact and wrap their full labels', async () => {
@@ -1332,7 +1354,7 @@ test('Today repeated rows stay compact and wrap their full labels', async () => 
   expect(appCss).toMatch(/\.t42-card-metrics\s*\{\s*display:\s*contents;\s*\}/);
   await mount();
   expect(host.querySelector('[data-market="ZA"]').classList.contains('t42-today-market')).toBe(true);
-  expect(host.querySelectorAll('[data-section="boards"] .t42-board-rows > li').length).toBeGreaterThan(0);
+  expect(host.querySelectorAll('[data-section="boards"] .tb-rows > li').length).toBeGreaterThan(0);
   expect(host.querySelectorAll('[data-section="held-back"] .t42-rows > li').length).toBeGreaterThan(0);
 });
 
@@ -1347,8 +1369,12 @@ test('a board leaves null and missing ranks off unranked titles without changing
     {rank: null, title: '#also_unranked', item_id: 'f'},
   ];
   await mount({}, today);
-  const rows = host.querySelectorAll('[data-section="boards"] .t42-board-rows li');
-  expect([...rows].map((li) => li.textContent)).toEqual([
+  /* Cards show the top five; the sixth row is behind the show all control. */
+  const more = host.querySelector('[data-section="boards"] button.tb-more');
+  expect(more.textContent).toBe('Show all 6');
+  flushSync(() => more.click());
+  const rows = host.querySelectorAll('[data-section="boards"] .tb-row');
+  expect([...rows].map(boardWords)).toEqual([
     '=1 #shorts',
     '=1 #ishowspeed',
     '2 #fixture_za_step',
@@ -1381,24 +1407,24 @@ test('a board never shows an id as a title, says how many were left out, and kee
   await mount({}, today);
   const section = host.querySelector('[data-section="boards"]');
   expect(section.textContent).not.toMatch(/uc[a-z0-9_-]{22}/i);
-  const groups = [...section.querySelectorAll('.t42-board')];
+  const groups = [...section.querySelectorAll('[data-board-card]')];
   expect(groups).toHaveLength(2);
-  for (const group of groups) expect(group.querySelector('.t42-line-text').textContent).toContain('best rank today');
-  const rows = groups.map((g) => [...g.querySelectorAll('ul.t42-board-rows li')].map((li) => li.textContent));
+  for (const group of groups) expect(group.querySelector('.tb-caption').textContent).toBe('Best rank today');
+  const rows = groups.map((g) => [...g.querySelectorAll('ul.tb-rows .tb-row')].map(boardWords));
   expect(rows).toEqual([['1 #fixture_tt_one', '3 #fixture_tt_two'], ['1 #fixture_yt_one', '=2 fixture yt name', '=2 #fixture_yt_two']]);
   const shown = rows.flat().map((row) => Number(row.replace(/^=/, '').split(' ')[0]));
   expect(shown).toEqual([1, 3, 1, 2, 2]);
   expect(groups[0].textContent).not.toContain('left out');
-  expect(groups[1].querySelector('.t42-board-left-out').textContent).toBe('5 left out: No readable name');
+  expect(groups[1].querySelector('.tb-left-out').textContent).toBe('5 left out: No readable name');
 });
 
 test('a board whose every entry is an id shows only its count', async () => {
   const today = clone(todayFixture);
   today.markets[0].boards = [{platform: 'youtube', list: 'YouTube trending board', left_out: 10, left_out_reason: 'No readable name', entries: []}];
   await mount({}, today);
-  const board = host.querySelector('[data-section="boards"] .t42-board');
+  const board = host.querySelector('[data-section="boards"] [data-board-card]');
   expect(board.querySelector('ul')).toBeNull();
-  expect(board.querySelector('.t42-board-left-out').textContent).toBe('10 left out: No readable name');
+  expect(board.querySelector('.tb-left-out').textContent).toBe('10 left out: No readable name');
 });
 
 test('a card whose series has too few measured days says so instead of a lone dash, and no series shows nothing', async () => {
@@ -1691,6 +1717,7 @@ const TODAY_ALERTS = {date: '2026-09-30', alerts: [
 ]};
 
 async function mountStage2(props = {}, alerts = reply(200, TODAY_ALERTS)){
+  standOnFixtureDay();
   serve([['/api/today', reply(200, todayFixture)], ['/api/trends/', reply(200, trendFixture)], ['/api/alerts', alerts]]);
   flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" loadAlerts={fetchAlerts} {...props} />));
   await settle();
@@ -1920,7 +1947,7 @@ test('Today card titles open the market topic without changing Ask or Posts cont
   const titleLink = shown.querySelector('h3 a.tc-title-link');
   expect(titleLink?.getAttribute('href')).toBe(topicHref(card.item_id, 'ZA'));
   const askLink = [...shown.querySelectorAll('a')].find((link) => link.textContent.trim() === 'Ask about this');
-  expect(askLink?.getAttribute('href')).toBe('#/ask?q=' + encodeURIComponent(card.ask) + '&market=ZA&item=' + card.item_id + '&date=2026-09-30');
+  expect(askLink?.getAttribute('href')).toBe('#/ask?q=' + encodeURIComponent(card.ask) + '&market=ZA&item=' + card.item_id + '&date=2026-09-30&draft=1');
   expect(button(shown, 'Posts')?.getAttribute('aria-expanded')).toBe('false');
   expect(shown.querySelector('[data-today-specificity] blockquote')?.textContent).toContain(card.specificity.quote.text);
   expect(shown.querySelector('[data-local-examples]')).not.toBeNull();
@@ -2366,10 +2393,10 @@ test('a moment keeps its facts in one inline line with their word spaces', async
 
 test('a board caption breaks only between whose list it is and the list itself', async () => {
   await mount();
-  const caption = host.querySelector('[data-section="boards"] .t42-board > .t42-line-text');
-  expect(caption.textContent).toBe("TikTok's own list: Hashtag board, 7 days, best rank today");
-  expect([...caption.querySelectorAll('.fact-unit')].map((unit) => unit.textContent))
-    .toEqual(["TikTok's own list:", 'Hashtag board, 7 days, best rank today']);
+  const head = host.querySelector('[data-section="boards"] [data-board-card] .tb-card-title');
+  expect([...head.querySelectorAll('.fact-unit')].map((unit) => unit.textContent))
+    .toEqual(['TikTok', 'Hashtag board, 7 days']);
+  expect(host.querySelector('[data-section="boards"] [data-board-card] .tb-caption').textContent).toBe('Best rank today');
 });
 
 test('an empty market groups its held items by reason, says each reason once and keeps posts behind a disclosure', async () => {
@@ -2476,7 +2503,7 @@ test('a board title with source <br> tags reads as one line, with no tag text', 
   ];
   await mount({}, today);
   const boards = host.querySelector('[data-section="boards"]');
-  expect([...boards.querySelectorAll('ul.t42-board-rows li')].map((li) => li.textContent)).toEqual(['19 Gratitude · Asake', '22 IMALI · Fireboy DML, JAZZWRLD & Thukuthela']);
+  expect([...boards.querySelectorAll('ul.tb-rows .tb-row')].map((li) => li.querySelector('.tb-rank').textContent + ' ' + [...li.querySelectorAll('.tb-title, .tb-artists')].map((n) => n.textContent).join(' · '))).toEqual(['19 Gratitude · Asake', '22 IMALI · Fireboy DML, JAZZWRLD & Thukuthela']);
   expect(boards.textContent).not.toContain('<br');
   expect(boards.textContent).toContain('1 left out');
 });
@@ -2631,4 +2658,338 @@ test('a long Today page offers a way back to the top', async () => {
     window.scrollTo = realScrollTo;
     Object.defineProperty(window, 'scrollY', {value: 0, configurable: true});
   }
+});
+
+/* Wave 8, W8-DEC-04: the Searching now strip sits below the cards in every
+   Today market, never above them. */
+test('Searching now sits below the cards on a market tab, on All, and under the held list of an empty market', async () => {
+  const today = clone(todayFixture);
+  today.searching_now = clone(searchingNowFixture);
+  const follows = (first, second) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+  await mount({region: 'NG'}, today);
+  let strip = host.querySelector('[data-section="searching-now"]');
+  expect(strip).not.toBeNull();
+  const lastCard = cards().filter((card) => strip.closest('[data-market]').contains(card)).pop();
+  expect(follows(lastCard, strip)).toBe(true);
+
+  click(tab('All'));
+  const groups = [...host.querySelectorAll('[data-market]')].filter((node) => node.querySelector('[data-section="searching-now"]'));
+  expect(groups.length).toBeGreaterThan(1);
+  for (const group of groups){
+    const own = group.querySelector('[data-section="searching-now"]');
+    for (const card of group.querySelectorAll('[data-card]')) expect(follows(card, own)).toBe(true);
+    const heldList = group.querySelector('[id^="t42-held-"]');
+    if (heldList) expect(follows(heldList, own)).toBe(true);
+  }
+});
+
+/* Wave 8 N43 (R0261, R0276): the heading and the held-status line describe the
+   market in view, not every market in the brief. */
+const heldChecked = (id = 'checked-hold') => ({count: 1, items: [{item_id: id, title: 'Checked topic', rule: 'G10', reason: 'explanation_failed',
+  reason_text: 'The explanation did not pass our checks', failed_reason: 'A simpler explanation was not ruled out', evidence: []}]});
+
+test('the heading says Taking off only over a market that has cleared trends', async () => {
+  await mount({region: 'ZA'});
+  expect(plainHeading()).toBe('Taking off, 30 September 2026');
+  resetRoot();
+  await mount({region: 'KE'});
+  expect(plainHeading()).toBe('Today, 30 September 2026');
+  click(tab('All'));
+  expect(plainHeading()).toBe('Taking off, 30 September 2026');
+  click(tab('Kenya'));
+  expect(plainHeading()).toBe('Today, 30 September 2026');
+});
+const plainHeading = () => host.querySelector('h1.t42-heading').textContent.replace(/\s+/g, ' ').trim();
+
+test('the held-status line names only the market in view and joins names with and', async () => {
+  const today = clone(todayFixture);
+  for (const code of ['NG', 'KE']){
+    const market = today.markets.find((entry) => entry.market === code);
+    market.status = 'partial';
+    market.cards = [];
+    market.more = [];
+    market.banners = [];
+    market.held_back = heldChecked('checked-hold-' + code);
+  }
+  await mount({region: 'ZA'}, today);
+  expect(host.querySelector('[data-today-held-status]')).toBeNull();
+  click(tab('Nigeria'));
+  expect(host.querySelector('[data-today-held-status]')?.textContent).toBe('All the topics checked in Nigeria were held back. See their reasons below.');
+  click(tab('All'));
+  expect(host.querySelector('[data-today-held-status]')?.textContent).toBe('All the topics checked in Nigeria and Kenya were held back. See their reasons below.');
+});
+
+/* Wave 8 N43 (R0262, R0277): every failed explanation carries the same reason
+   text, so the held chart and groups split them by the check named in
+   failed_reason, as the caption says. */
+test('held explanations that failed different checks are charted and grouped by the check', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((market) => market.market === 'KE');
+  const base = kenya.held_back.items[0];
+  const failed = (id, failed_reason) => ({...clone(base), item_id: id, title: 'Topic ' + id, rule: 'G10', reason: 'explanation_failed',
+    reason_text: 'The explanation did not pass our checks', held_detail: undefined, failed_reason});
+  kenya.held_back.items = [
+    failed('c1', 'Critic: a simpler explanation was not ruled out'),
+    failed('c2', 'Critic: local why-now not shown'),
+    failed('s1', 'Support check: the explanation sentence was not supported by its posts'),
+    failed('b1', 'Banned term check: the explanation used a banned term'),
+  ];
+  kenya.held_back.count = 4;
+  await mount({region: 'KE'}, today);
+  const details = host.querySelector('[data-market="KE"] details[data-section="held-for-evidence"]');
+  const labels = [...details.querySelectorAll('[data-held-reasons] .ch42-key-label')].map((node) => node.textContent);
+  expect(labels).toEqual([
+    'The explanation did not pass our checks: Critic',
+    'The explanation did not pass our checks: Support check',
+    'The explanation did not pass our checks: Banned term check',
+  ]);
+  const groups = [...details.querySelectorAll('[data-held-group]')];
+  expect(groups.map((group) => group.querySelectorAll('li[data-held-item-id]').length)).toEqual([2, 1, 1]);
+});
+
+test('held explanations with no check named, or held for a busy model, keep one reason each', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((market) => market.market === 'KE');
+  const base = kenya.held_back.items[0];
+  const failed = (id, failed_reason, reason_text) => ({...clone(base), item_id: id, title: 'Topic ' + id, rule: 'G10', reason: 'explanation_failed', reason_text, failed_reason});
+  kenya.held_back.items = [
+    failed('n1', null, 'The explanation did not pass our checks'),
+    failed('n2', 'No check detail here', 'The explanation did not pass our checks'),
+    failed('m1', 'Model busy: not explained before the deadline', 'The model was busy'),
+  ];
+  kenya.held_back.count = 3;
+  await mount({region: 'KE'}, today);
+  const details = host.querySelector('[data-market="KE"] details[data-section="held-for-evidence"]');
+  expect([...details.querySelectorAll('[data-held-reasons] .ch42-key-label')].map((node) => node.textContent)).toEqual([
+    'The explanation did not pass our checks', 'The model was busy']);
+});
+
+/* Wave 8 N43 (R0273, R0483): the All tab shows the top three of a market and
+   says so, with a way to the rest. */
+test('the All tab says how many cleared trends it leaves out and opens the market for them', async () => {
+  const today = clone(todayFixture);
+  const market = today.markets.find((entry) => entry.market === 'ZA');
+  const source = market.cards[0];
+  market.cards = ['One', 'Two', 'Three', 'Four', 'Five'].map((title, index) => checkedCard(source, title, 'top-' + index));
+  market.more = ['Six', 'Seven'].map((title, index) => checkedCard(source, title, 'more-' + index));
+  await mount({region: 'ALL'}, today);
+  const za = host.querySelector('[data-market="ZA"]');
+  expect(za.querySelectorAll('[data-card]').length).toBe(3);
+  const note = za.querySelector('[data-all-cap]');
+  expect(note).not.toBeNull();
+  expect(note.textContent.replace(/\s+/g, ' ')).toContain('Showing the top 3 of 7 trends in South Africa.');
+  click(note.querySelector('button'));
+  expect(tab('South Africa').getAttribute('aria-selected')).toBe('true');
+  expect(cards().length).toBe(5);
+  expect(host.querySelector('[data-all-cap]')).toBeNull();
+});
+
+test('the All tab says nothing about a cap when every cleared trend is shown', async () => {
+  await mount({region: 'ALL'});
+  expect(host.querySelector('[data-market="ZA"] [data-all-cap]')).toBeNull();
+  expect(host.querySelector('[data-market="KE"] [data-all-cap]')).toBeNull();
+});
+
+/* Wave 8 N43 (R0264) and the honest-state rule: a market with no brief, or one
+   whose held count was not sent, is never worded as a published market with
+   nothing held. */
+test('a market with no published brief says so, with no held count and no held link', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((entry) => entry.market === 'KE');
+  kenya.status = 'data_issue';
+  kenya.cards = [];
+  kenya.more = [];
+  kenya.held_back = {count: 0, items: [], text: 'Nothing held back'};
+  kenya.banners = [{kind: 'data_issue', text: 'Data issue: no brief was published for Kenya'}];
+  await mount({region: 'KE'}, today);
+  const lead = host.querySelector('[data-empty-market-reason]');
+  expect(lead.textContent).not.toContain('cleared our checks');
+  expect(lead.textContent).toContain('no brief');
+  expect(host.querySelector('[data-held-count]')).toBeNull();
+  expect(text()).not.toContain('Why each was held');
+  expect(text()).not.toContain('0 are held back');
+  expect(host.querySelector('[data-section="held-for-evidence"]')).toBeNull();
+});
+
+test('a published market that sent no held count does not say none are held', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((entry) => entry.market === 'KE');
+  kenya.status = 'published';
+  kenya.cards = [];
+  kenya.more = [];
+  kenya.banners = [];
+  delete kenya.held_back;
+  await mount({region: 'KE'}, today);
+  expect(host.querySelector('[data-held-count]').textContent).toBe('How many were held back is unavailable.');
+  expect(text()).not.toContain('0 are held back');
+  expect(text()).not.toContain('Nothing held back');
+});
+
+/* Wave 8 N43 (R0263): a brief opened for a past day is worded for that day. */
+async function withClock(isoNow, run){
+  const pinned = Date.now;
+  Date.now = () => Date.parse(isoNow);
+  try { await run(); } finally { Date.now = pinned; }
+}
+
+test('a past brief names its day instead of saying today', async () => {
+  await withClock('2026-10-08T08:00:00Z', async () => {
+    await mountStage2({region: 'KE'});
+    const page = text();
+    expect(host.querySelector('[data-section="alerts"]').textContent).toContain('2 alerts on 30 September 2026');
+    expect(page).toContain('No trend cleared our checks in Kenya on 30 September 2026.');
+    expect(page).toContain('Some sources were incomplete on 30 September 2026');
+    expect(page).not.toMatch(/\b(?:alerts?|checks in Kenya|incomplete) today/);
+    click(tab('South Africa'));
+    expect(text()).toContain('Left out on 30 September 2026:');
+    expect(text()).not.toContain('Left out today');
+  });
+});
+
+test('a brief for the current day still says today', async () => {
+  await withClock('2026-09-30T08:00:00Z', async () => {
+    await mountStage2({region: 'KE'});
+    expect(host.querySelector('[data-section="alerts"]').textContent).toContain('2 alerts today');
+    expect(text()).toContain('No trend cleared our checks in Kenya today.');
+  });
+});
+
+/* A payload with no date of its own falls back to the date the page was asked for. */
+test('a past brief with no date in its payload is worded from the date asked for', async () => {
+  await withClock('2026-10-08T08:00:00Z', async () => {
+    const today = clone(todayFixture);
+    delete today.date;
+    await mount({region: 'ZA', date: '2026-09-30'}, today);
+    expect(text()).toContain('Left out on 30 September 2026:');
+    expect(text()).not.toContain('Left out today');
+  });
+});
+
+test('a brief with no date in its payload for the current day still says today', async () => {
+  await withClock('2026-09-30T08:00:00Z', async () => {
+    const today = clone(todayFixture);
+    delete today.date;
+    await mount({region: 'ZA', date: '2026-09-30'}, today);
+    expect(text()).toContain('Left out today:');
+  });
+});
+
+/* What Today hands the boards. TodayBoards words its own cards, so these read the
+   props the page passes it, from the React fiber above the section it renders. */
+function boardsProps(){
+  const nodes = [...host.querySelectorAll('[data-section="boards"]')];
+  const out = nodes.map((node) => {
+    const key = Object.keys(node).find((name) => name.startsWith('__reactFiber$'));
+    let fiber = key ? node[key] : null;
+    while (fiber && fiber.type !== TodayBoards) fiber = fiber.return;
+    return fiber ? fiber.memoizedProps : null;
+  });
+  return out;
+}
+
+test('a past brief hands its boards the day it is worded for, and a current brief hands them today', async () => {
+  await withClock('2026-10-08T08:00:00Z', async () => {
+    await mount({region: 'ZA'});
+    const [props, ...rest] = boardsProps();
+    expect(rest).toEqual([]);
+    expect(props.day).toBe('on 30 September 2026');
+    expect(props.boards).toEqual(todayFixture.markets[0].boards);
+  });
+  resetRoot();
+  await withClock('2026-09-30T08:00:00Z', async () => {
+    await mount({region: 'ZA'});
+    expect(boardsProps().map((props) => props.day)).toEqual(['today']);
+  });
+});
+
+test('the All tab renders the boards once, with every market as its own group in page order', async () => {
+  await withClock('2026-10-08T08:00:00Z', async () => {
+    await mount({region: 'ALL'});
+    expect(host.querySelectorAll('[data-section="boards"]')).toHaveLength(1);
+    const [props] = boardsProps();
+    expect(props.boards).toBeUndefined();
+    expect(props.day).toBe('on 30 September 2026');
+    expect(props.groups).toEqual(todayFixture.markets.map((market) => ({market: market.market, label: market.label, boards: market.boards})));
+    expect(props.groups.map((group) => group.market)).toEqual(['ZA', 'NG', 'KE']);
+    expect([...host.querySelectorAll('[data-board-market]')].map((node) => node.getAttribute('data-board-market'))).toEqual(['ZA', 'NG', 'KE']);
+    expect(host.querySelector('[data-market="ZA"] [data-section="boards"]')).toBeNull();
+  });
+});
+
+test('a single market tab renders only its own boards, not the groups', async () => {
+  await mount({region: 'NG'});
+  const [props, ...rest] = boardsProps();
+  expect(rest).toEqual([]);
+  expect(props.groups).toBeUndefined();
+  expect(props.boards).toEqual(todayFixture.markets[1].boards);
+});
+
+/* Wave 8 N44 (R0269, R0279): the page re-checks every admitted card with its
+   own copy of the server's specificity rule. The copy must count words as the
+   server does, and a card it still rejects must be said, not dropped. */
+function cardWithQuote(quote){
+  const today = clone(todayFixture);
+  const card = today.markets[0].cards[0];
+  card.specificity = specificityFor(card);
+  const source = card.evidence.find((item) => item.id === card.specificity.quote.evidence_id);
+  source.text = 'Loved ' + quote + ' again';
+  source.quote_text = null;
+  setSpecificityQuote(card, quote);
+  return {today, card};
+}
+
+test('a quote of two words split by a control-character space is two words, as the server counts them', async () => {
+  for (const space of ['\u0085', '\u001c', '\u001f']){
+    const {today, card} = cardWithQuote('Durban' + space + 'nights');
+    flushSync(() => root.unmount());
+    root = createRoot(host);
+    await mount({}, today);
+    expect(cardTitled(card.title)).toBeDefined();
+  }
+});
+
+test('a card the page rejects after the server admitted it is counted in a line, not dropped silently', async () => {
+  const today = clone(todayFixture);
+  const market = today.markets[0];
+  const source = market.cards[0];
+  source.specificity = specificityFor(source);
+  const good = checkedCard(source, 'Admitted card', 'admitted-1');
+  const bad = checkedCard(source, 'Rejected card', 'rejected-1');
+  setSpecificityQuote(bad, 'This quote is absent from the post');
+  market.cards = [good, bad];
+  market.more = [];
+  await mount({}, today);
+  expect(cardTitled('Admitted card')).toBeDefined();
+  expect(cardTitled('Rejected card')).toBeUndefined();
+  const line = host.querySelector('[data-market="ZA"] [data-client-held]');
+  expect(line).not.toBeNull();
+  expect(line.textContent).toContain('1 trend the brief cleared is not shown here');
+});
+
+test('no such line appears when the page admits every card the server did', async () => {
+  const today = clone(todayFixture);
+  const market = today.markets[0];
+  const source = market.cards[0];
+  source.specificity = specificityFor(source);
+  market.cards = [checkedCard(source, 'Admitted card', 'admitted-1')];
+  market.more = [];
+  await mount({}, today);
+  expect(cardTitled('Admitted card')).toBeDefined();
+  expect(host.querySelector('[data-market="ZA"] [data-client-held]')).toBeNull();
+});
+
+test('the glance says No brief for a market the brief has no row for, not 0 trends cleared', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((entry) => entry.market === 'KE');
+  kenya.status = 'data_issue';
+  kenya.cards = [];
+  kenya.more = [];
+  kenya.held_back = {count: 0, items: [], text: 'Nothing held back'};
+  kenya.banners = [{kind: 'data_issue', text: 'Data issue: no brief was published for Kenya'}];
+  await mount({region: 'ZA'}, today);
+  const glance = host.querySelector('[data-glance-market="KE"]');
+  expect(glance.textContent).toContain('No brief');
+  expect(glance.textContent).not.toContain('0 trends');
+  expect(glance.querySelector('button').getAttribute('aria-label')).toContain('no brief');
+  expect(host.querySelector('[data-glance-market="ZA"]').textContent).toContain('trend');
 });

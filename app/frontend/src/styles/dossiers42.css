@@ -80,6 +80,7 @@
 .dossiers42-plain-list { margin: 0; padding-left: var(--s-5); display: grid; gap: var(--s-2); line-height: 1.5; }
 
 .dossiers42-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); margin: 0 0 var(--s-4); }
+.dossiers42-freeze-explain { flex-basis: 100%; margin: 0; max-width: 62ch; }
 .dossiers42-share { font-size: var(--type-body); }
 
 @media (prefers-reduced-motion: reduce) {

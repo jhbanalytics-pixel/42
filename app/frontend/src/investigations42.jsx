@@ -12,6 +12,7 @@ import './styles/ask42.css';
 import './styles/today42.css';
 import './styles/investigations42.css';
 import {readerFigure} from './api.js';
+import {costWords, itemsWords} from './costWords.js';
 import {validateAnswer} from './answerContract.js';
 import {plainGapWhat} from './ask42.jsx';
 import {createInvestigation, createInvestigationDossier, getInvestigation, listInvestigations, startInvestigation, stopInvestigation, streamInvestigation, updateInvestigationPlan} from './api42.js';
@@ -278,7 +279,7 @@ const EMPTY_LIVE = {steps: [], stopping: false, stopError: null, lost: null};
 const FINISH_READS = 10;
 const FINISH_WAIT_MS = 1000;
 
-export function InvestigationPage({investigationId, onAuth}){
+export function InvestigationPage({investigationId, onAuth, streamOptions}){
   const [load, setLoad] = useState({phase: 'loading', inv: null, error: null});
   const [budget, setBudget] = useState(() => BUDGETS.get(investigationId) || null);
   const [editing, setEditing] = useState(false);
@@ -321,7 +322,7 @@ export function InvestigationPage({investigationId, onAuth}){
       await streamInvestigation(investigationId, (event) => {
         if (ctrl.signal.aborted || event.type !== 'step') return;
         setLive((current) => (current.steps.some((step) => step.seq === event.data.seq) ? current : {...current, steps: [...current.steps, event.data]}));
-      }, {signal: ctrl.signal, lastEventId: seen});
+      }, {...streamOptions, signal: ctrl.signal, lastEventId: seen});
       /* The finish row is written just after the run's done event, so a
          read that still says running is read again, for a short while. */
       let done = await getInvestigation(investigationId, {signal: ctrl.signal});
@@ -680,12 +681,13 @@ function ClaimSources({claim, records, answer, pinnedId, onPin}){
   );
 }
 
-function followupHref(text, market){
+function followupHref(text, market, parentId){
   /* draft=1: Ask fills in the question and waits, so a follow-up never
      starts a paid ask on its own (ask42.jsx). */
   const query = new URLSearchParams({q: text});
   if (MARKET_NAME[market]) query.set('market', market);
   query.set('draft', '1');
+  if (parentId) query.set('parent', parentId);
   return '/ask?' + query.toString();
 }
 
@@ -810,14 +812,14 @@ function InvestigationAnswer({record, investigationId, onFailure}){
           <button type="button" className="ask42-primary" onClick={openAsDossier} disabled={opening} aria-busy={opening ? 'true' : 'false'}>Open as dossier</button>
           <button type="button" className="ask42-quiet" onClick={exportAnswer} disabled={exporting} aria-busy={exporting ? 'true' : 'false'}>Export answer</button>
           {followups.map((followup) => (
-            <button type="button" className="ask42-quiet" key={followup} onClick={() => go(followupHref(followup, record.market))}>{followup}</button>
+            <button type="button" className="ask42-quiet" key={followup} onClick={() => go(followupHref(followup, record.market, record.ask_id))}>{followup}</button>
           ))}
         </div>
         {openError && <p className="ask42-error" role="alert">{openError}</p>}
         {exportError && <p className="ask42-error" role="alert">{exportError}</p>}
 
         <footer className="ask42-footer">
-          <span>{readerFigure(run.credits ?? 0) + ' credits · ' + (run.seconds ?? 0) + ' s'}</span>
+          <span>{costWords(run)}</span>
           <details>
             <summary>Details</summary>
             <dl className="ask42-details">
@@ -828,7 +830,7 @@ function InvestigationAnswer({record, investigationId, onFailure}){
               <dd>
                 <ul className="ask42-list">
                   {(run.source_status || []).map((source, index) => (
-                    <li key={index}>{(platformLabel(source.platform) || source.platform) + ' · ' + source.route + ' · ' + why(source.status) + ' · ' + readerFigure(source.items ?? 0) + ' items'}</li>
+                    <li key={index}>{(platformLabel(source.platform) || source.platform) + ' · ' + source.route + ' · ' + why(source.status) + ' · ' + itemsWords(source.items)}</li>
                   ))}
                 </ul>
               </dd>

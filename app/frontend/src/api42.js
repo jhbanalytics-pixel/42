@@ -363,6 +363,23 @@ export function askQuestion({question, market, tier, skill}, options){
 }
 
 const POLL_MS = 2000;
+/* The fallback poll slows while nothing changes, rests in a hidden tab, and
+   gives up once a run that reads running has shown no new step for this long. */
+const POLL_MAX_MS = 15000;
+const IDLE_LIMIT_MS = 5 * 60 * 1000;
+
+const tabShowing = (signal) => new Promise((resolve, reject) => {
+  if (typeof document === 'undefined' || !document.hidden){ resolve(); return; }
+  const onAbort = () => { document.removeEventListener('visibilitychange', onShow); reject(signal.reason || new Error('aborted')); };
+  const onShow = () => {
+    if (document.hidden) return;
+    document.removeEventListener('visibilitychange', onShow);
+    if (signal) signal.removeEventListener('abort', onAbort);
+    resolve();
+  };
+  document.addEventListener('visibilitychange', onShow);
+  if (signal) signal.addEventListener('abort', onAbort, {once: true});
+});
 
 const pause = (ms, signal) => new Promise((resolve, reject) => {
   const onAbort = () => { clearTimeout(timer); reject(signal.reason || new Error('aborted')); };
@@ -375,9 +392,12 @@ const pause = (ms, signal) => new Promise((resolve, reject) => {
    Ask's parser, and resolved with the done event's data. If the stream
    cannot open, ends early or breaks, the investigation is polled instead,
    passing on the steps not yet seen, until it stops running; that resolves
-   with {status, investigation}. A 401 is thrown, never polled. */
+   with {status, investigation}. A 401 is thrown, never polled. A run that
+   still reads running after idleMs with no new step is not held by the
+   agent any more (it restarted), so the poll ends with a 'lost' error
+   instead of asking for ever. */
 export async function streamInvestigation(investigationId, onEvent, options = {}){
-  const {signal, pollMs = POLL_MS} = options;
+  const {signal, pollMs = POLL_MS, maxPollMs = POLL_MAX_MS, idleMs = IDLE_LIMIT_MS} = options;
   let lastEventId = options.lastEventId != null ? String(options.lastEventId) : null;
   let lastSeq = lastEventId != null && Number.isFinite(Number(lastEventId)) ? Number(lastEventId) : 0;
   let done = null;
@@ -418,17 +438,31 @@ export async function streamInvestigation(investigationId, onEvent, options = {}
     if (aborted()) throw error;
   }
 
+  let delay = pollMs;
+  let lastProgress = Date.now();
   for (;;){
     if (aborted()) throw signal.reason || new Error('aborted');
+    if (typeof document !== 'undefined' && document.hidden){
+      await tabShowing(signal);
+      lastProgress = Date.now();
+    }
     const investigation = await getInvestigation(investigationId, {signal});
     const steps = investigation && investigation.record && Array.isArray(investigation.record.steps) ? investigation.record.steps : [];
+    let progressed = false;
     for (const step of steps){
       if (typeof step.seq === 'number' && step.seq > lastSeq){
         lastSeq = step.seq;
+        progressed = true;
         onEvent({type: 'step', id: String(step.seq), data: step});
       }
     }
     if (investigation.status !== 'running') return {status: investigation.status, investigation};
-    await pause(pollMs, signal);
+    if (progressed){ lastProgress = Date.now(); delay = pollMs; }
+    else if (Date.now() - lastProgress >= idleMs){
+      const lost = new Error('This investigation still reads as running, but nothing has happened for a while and the agent is not holding it. It most likely stopped when the service restarted, so its result was not saved.');
+      lost.code = 'lost';
+      throw lost;
+    } else delay = Math.min(delay * 2, maxPollMs);
+    await pause(delay, signal);
   }
 }

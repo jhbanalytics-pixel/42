@@ -10,6 +10,7 @@ import {lifecycleRuleWords} from '../plainLabels.js';
 import {safeUrl} from '../safeUrl.js';
 import {AskAboutThis} from './AskAboutThis.jsx';
 import {Facts} from './Facts.jsx';
+import {UNNAMED_TOPIC_WORDS, isUnnamedTopic} from '../topicNames.js';
 import '../styles/today42.css';
 import '../styles/discover42.css';
 import '../styles/alerts42.css';
@@ -77,8 +78,8 @@ export function topicHref(itemId, market){
   return '#/t/' + encodeURIComponent(itemId) + '?market=' + encodeURIComponent(market);
 }
 
-function askHref(card, market, date){
-  return '#/ask?q=' + encodeURIComponent(card.ask || card.title || '')
+function askHref(card, market, date, question){
+  return '#/ask?q=' + encodeURIComponent(question || '')
     + '&market=' + encodeURIComponent(market)
     + '&item=' + encodeURIComponent(card.item_id)
     + '&date=' + encodeURIComponent(date);
@@ -111,6 +112,13 @@ export function writtenTitle(card, label){
   return written && titleKey(written) !== titleKey(label) ? written : null;
 }
 
+/* The question an Ask link carries. The server words it from the cluster label, so a card that shows a written title asks about that title in the same sentence; a question that does not hold the label is left as the server wrote it. */
+export function askQuestion(card, label, written){
+  const base = typeof card.ask === 'string' && card.ask.trim() ? card.ask : '';
+  if (!written) return base || card.title || '';
+  return base ? (base.includes(label) ? base.split(label).join(written) : base) : written;
+}
+
 /* scope: context nodes that belong in the facts row (Discover's search
    label). extraActions: links that sit with Ask, Watch and Posts. index: the
    card's place in its list, which the stylesheet turns into a capped entrance
@@ -128,7 +136,9 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
   const open = posts.state !== 'closed';
   const label = isYoutubeChannelId(card.title) ? 'YouTube channel' : card.title;
   const written = writtenTitle(card, label);
-  const title = written || label;
+  const unnamed = !written && isUnnamedTopic(label);
+  const title = written || (unnamed ? UNNAMED_TOPIC_WORDS : label);
+  const question = askQuestion(card, label, written);
 
   const loadPosts = () => {
     if (ctrl.current) ctrl.current.abort();
@@ -197,7 +207,7 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
         <h3 className="t42-card-title">
           {linkTopic ? <a className="tc-title-link" href={topicHref(card.item_id, where)}>{title}</a> : title}
         </h3>
-        {written && <p className="t42-card-label" data-card-label="">{label}</p>}
+        {(written || unnamed) && <p className="t42-card-label" data-card-label="">{label}</p>}
         {(hasMeta || hasLifecycle) && (
           <div className="t42-card-kicker">
             {hasMeta && (
@@ -245,9 +255,9 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
           extra links are quiet secondary actions of the same height. */}
       <div className="t42-card-foot">
         <div className="t42-actions">
-          <AskAboutThis className="t42-action t42-action-primary" href={askHref(card, where, when)} question={card.ask || card.title} />
+          <AskAboutThis className="t42-action t42-action-primary" href={askHref(card, where, when, question)} question={question} />
           {onWatch
-            ? <button type="button" className="t42-action" aria-pressed={watching ? 'true' : 'false'} onClick={() => onWatch(card, where)}>
+            ? <button type="button" className="t42-action" aria-pressed={watching ? 'true' : 'false'} onClick={() => onWatch(written ? {...card, title: written} : card, where)}>
                 {watching ? 'Watching' : 'Watch'}
               </button>
             : watching && <span className="tc-watching">Watching</span>}

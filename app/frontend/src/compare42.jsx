@@ -11,7 +11,7 @@ import {fetchCompare, fetchDiscover} from './api42.js';
 import {readerFigure, sentenceCase, seriesFigure} from './api.js';
 import {unitFor} from './readerUnits.js';
 import {SpikeConfirm} from './ui/SpikeConfirm.jsx';
-import {figureWords, longDate, platformWord, topicHref} from './ui/TrendCard.jsx';
+import {figureWords, longDate, platformWord, topicHref, writtenTitle} from './ui/TrendCard.jsx';
 import './styles/today42.css';
 import './styles/compare42.css';
 
@@ -76,7 +76,9 @@ function needs(choice){
 
 export function Compare42({search, region, onAuth}){
   const [choice, setChoice] = useState(() => parseCompareQuery(search, region));
+  /* names: what the picker took from Discover. labels: what a comparison called its subjects, which is the raw map label and only a fallback. */
   const [names, setNames] = useState({});
+  const [labels, setLabels] = useState({});
   const [load, setLoad] = useState({state: 'idle'});
   const [tick, setTick] = useState(0);
   const authRef = useRef(onAuth);
@@ -111,12 +113,16 @@ export function Compare42({search, region, onAuth}){
         if (ctrl.signal.aborted) return;
         const body = data || {};
         setLoad({state: 'ready', data: body});
-        setNames((prev) => ({...prev, ...Object.fromEntries(list(body.subjects).map((s) => [s.item_id, s.label]))}));
+        setLabels((prev) => ({...prev, ...Object.fromEntries(list(body.subjects).map((s) => [s.item_id, s.label]))}));
       })
       .catch((error) => { if (!ctrl.signal.aborted) setLoad(failed(error)); });
     return () => ctrl.abort();
   }, [hash, tick]);
 
+  /* A subject is named as the rest of 42 names it: a checked written title, else the name Discover gave it, else the label the comparison carried. */
+  const shown = load.state === 'ready' && load.data
+    ? {...load, data: {...load.data, subjects: list(load.data.subjects).map((s) => ({...s, label: (s.card && writtenTitle(s.card, s.label)) || names[s.item_id] || s.label}))}}
+    : load;
   const update = (change) => setChoice((prev) => ({...prev, ...change(prev)}));
   const toggle = (key, order, value) => update((prev) => {
     const next = prev[key].includes(value) ? prev[key].filter((v) => v !== value) : prev[key].concat(value);
@@ -131,7 +137,7 @@ export function Compare42({search, region, onAuth}){
       </header>
       <Picker
         choice={choice}
-        names={names}
+        names={{...labels, ...names}}
         waiting={waiting}
         failed={failed}
         onNames={(found) => setNames((prev) => ({...found, ...prev}))}
@@ -143,7 +149,7 @@ export function Compare42({search, region, onAuth}){
         onAdd={(id) => update((prev) => ({items: prev.items.includes(id) ? prev.items : prev.items.concat(id).slice(0, most(prev.mode))}))}
         onRemove={(id) => update((prev) => ({items: prev.items.filter((v) => v !== id)}))}
       />
-      <Result load={load} onRetry={() => setTick((t) => t + 1)} onAuth={onAuth} />
+      <Result load={shown} onRetry={() => setTick((t) => t + 1)} onAuth={onAuth} />
     </section>
   );
 }
