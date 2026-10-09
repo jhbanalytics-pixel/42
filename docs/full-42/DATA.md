@@ -136,12 +136,17 @@ CLUSTER BY kind, item_id;
 Other tables (key: columns; partitioned on their date column where they have one):
 
 - post_enrichment (post_id): embedding (768-d, gemini-embedding-001), langs, code_switched, entities, sounds, formats, tone, stance, sponsored, near_dup_size, screen_text, video_notes, sensitive (the sensitive topics the post is about: political, religion, religious_holiday, health, sex_life, race_ethnicity, crime, or none; empty on rows written while core/understand/enrich.py SENSITIVE_ENRICH_READY was off).
-- post_items (post_id, item_id, via).
+- post_items (post_id, item_id, via, linked_on, link_market).
 - creators (creator_id): platform, handle, followers, tier, account_created_at, home_market, verified_region, coord_score (candidate networks joined in 30 days; 1 or more marks the creator flagged), display_name, verified, profile_location, first_seen, last_seen (the collect job's creators MERGE on platform and creator_id; switched off until every reader joins creators on platform as well as creator_id).
 - media (sha256): post_id, gcs_uri, kind (clip, keyframe, thumbnail). Clips are linked; a copy is kept only for macro-tier accounts, brands, or a clip a dossier cites (SETUP.md data protection).
 - entities (entity_id): kind, name, aliases.
 - clusters (cluster_date, cluster_id): market or 'pan', item_id, match_kind, label, keywords, local_terms, centroid.
 - cluster_members (cluster_id, post_id, probability).
+- item_locality (run_date, market, item_id, detect_run_id, population_cutoff, metric_version): schema_version, computed_at, population_posts, known_posts, local_posts, foreign_posts, unknown_posts, feed_only_posts, vetoed_feed_posts, local_creators, known_creators, feed_only_creators, breadth_creators, status, local_share, population_digest.
+- item_locality_post (run_date, market, item_id, detect_run_id, population_cutoff, metric_version, post_id): creator_key, platform, locality_class, geo_market, geo_confidence, geo_source, feed_sighted, feed_obs_date.
+- item_locality_verified (run_date, market, item_id, detect_run_id, metric_version): verified_at, member_rows, population_digest.
+- post_item_lineage (post_id, item_id, linked_on): link_market, lineage_id.
+- post_item_end (post_id, item_id, ended_on): reason, lineage_id, recorded_at.
 - item_state (metric_date, market, item_id, run_id): the columns of the final SELECT in section 3.7, append-only.
 - coord_signals (metric_date, item_id, market, run_id): signal (coaction | pool_reuse | same_evening_template), component_id, accounts, item_posts_share. Written by the co-action job (task 2.11), append-only.
 - breakout_signals (metric_date, market, item_id, run_id): creators, posts, evidence_post_ids ARRAY<STRING>, top_ratio, held_flagged, rule_version. Creator breakouts on one sound or format (task 2.13, core/detect/breakout.py), with flagged accounts left out and counted in held_flagged; append-only, clustered by market, item_id.
@@ -523,7 +528,11 @@ CREATE TEMP FUNCTION state_level(s STRING) AS (
     WHEN 'spike' THEN 4 WHEN 'peaking' THEN 4 WHEN 'mainstream' THEN 4 WHEN 'new_to_42' THEN 3
     WHEN 'on_the_boards' THEN 2 WHEN 'fading' THEN 1 ELSE 0 END);
 
-INSERT INTO intelligence_42_core.item_state
+INSERT INTO intelligence_42_core.item_state (
+  metric_date, market, item_id, kind, state_raw, state, untested, main_series_id, main_y, main_mu, main_ratio,
+  q_min, sig_days3, creators3, posts3, top_creator_share3, authenticity, share_flags, sponsored_share,
+  geo_status, local_share, geo_known_posts7, spread_platforms, found_platforms, markets_hot, lead_market,
+  diffusion, novelty, last_wave, moment, eligible, worth_raw, worth_pct, run_id, rule_version, base_state)
 WITH t AS (SELECT st.* FROM intelligence_42_core.v_series_test_current st WHERE st.metric_date = @d),
 agg AS (                    -- the item's series in this market today
   SELECT t.item_id, t.market,

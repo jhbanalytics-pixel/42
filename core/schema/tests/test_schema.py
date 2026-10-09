@@ -461,6 +461,8 @@ ALTERS = [
     ("gdelt_daily", "market_rule", "STRING"),
     ("post_observations", "source_market", "STRING"),
     ("post_observations", "source_region", "STRING"),
+    ("post_items", "linked_on", "DATE"),
+    ("post_items", "link_market", "STRING"),
     ("creators", "display_name", "STRING"),
     ("creators", "verified", "BOOL"),
     ("creators", "profile_location", "STRING"),
@@ -1035,7 +1037,7 @@ def test_list_tables_flags_a_missing_view(capsys):
     out = capsys.readouterr().out
     assert "intelligence_42_agent: 16 tables (expected 16), 0 views (expected 1)" in out
     assert "missing: v_watches_current" in out
-    assert "intelligence_42_core: 27 tables (expected 27), 0 views (expected 3)" in out
+    assert "intelligence_42_core: 32 tables (expected 32), 0 views (expected 3)" in out
     assert "missing: v_breaking_signals_current, v_post_source_markets, v_suppressed_creators" in out
 
 

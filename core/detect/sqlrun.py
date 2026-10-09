@@ -143,6 +143,25 @@ def apply_views(client, core=CORE, agent=AGENT):
     return names
 
 
+LOCALITY_VIEWS_SQL = Path(__file__).parent / "sql" / "locality_views.sql"
+
+
+def locality_view_statements(core=CORE, agent=AGENT):
+    """The CREATE statements of locality_views.sql (v_item_locality_checked, v_item_locality_current) with dataset
+    names filled in, in file order."""
+    return [_strip_leading_comments(s) for s in split(render(LOCALITY_VIEWS_SQL.read_text(encoding="utf-8"), core, agent))]
+
+
+def apply_locality_views(client, core=CORE, agent=AGENT):
+    """Create or replace the locality_v2 views. They read views.sql's v_good_runs, so apply_views must have run first.
+    Returns the object names."""
+    names = []
+    for stmt in locality_view_statements(core, agent):
+        client.query(stmt).result()
+        names.append(object_name(stmt))
+    return names
+
+
 KEY_RULES = ("label", "keys", "words", "starts", "g4b", "edges", "inside")  # how far a term reaches
 _RULE_LISTS = {"labels_only": "label", "keys_only": "keys", "whole_words_in_keys": "words",
                "start_of_keys": "starts", "anywhere_in_keys": "inside"}

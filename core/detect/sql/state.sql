@@ -7,7 +7,11 @@ CREATE TEMP FUNCTION state_level(s STRING) AS (
     WHEN 'spike' THEN 4 WHEN 'peaking' THEN 4 WHEN 'mainstream' THEN 4 WHEN 'new_to_42' THEN 3
     WHEN 'on_the_boards' THEN 2 WHEN 'fading' THEN 1 ELSE 0 END);
 
-INSERT INTO {core}.item_state
+INSERT INTO {core}.item_state (
+  metric_date, market, item_id, kind, state_raw, state, untested, main_series_id, main_y, main_mu, main_ratio,
+  q_min, sig_days3, creators3, posts3, top_creator_share3, authenticity, share_flags, sponsored_share,
+  geo_status, local_share, geo_known_posts7, spread_platforms, found_platforms, markets_hot, lead_market,
+  diffusion, novelty, last_wave, moment, eligible, worth_raw, worth_pct, run_id, rule_version, base_state)
 WITH t AS (SELECT st.* FROM {core}.v_series_test_current st WHERE st.metric_date = @d),
 agg AS (                    -- the item's series in this market today
   SELECT t.item_id, t.market,
