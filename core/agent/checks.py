@@ -1822,17 +1822,13 @@ def _evidence_label(claim, records, pool=None):
     copies = _copied_ids(records)
     independent = [r for r in records if not NOT_INDEPENDENT & {str(f).lower() for f in r.get("flags") or []}
                    and not _disclosed_paid(r) and r.get("id") not in copies]
-    pairs = {(str(r.get("handle") or "").lower().lstrip("@"),
-              PLATFORM_NAMES.get(str(r.get("platform") or "").lower(), str(r.get("platform") or "").lower()))
-             for r in independent}  # x and twitter are one platform
-    authors = {h for h, _ in pairs}
-    platforms = {p for _, p in pairs}
-    why = f"{len(authors)} independent author(s) on {len(platforms)} platform(s)"
-    # W8-DEC-16: Corroborated needs unrelated authors, judged over every stored record of the answer.
+    authors = {str(r.get("handle") or "").lower().lstrip("@") for r in independent}
+    # W8-DEC-16: Corroborated needs unrelated authors, judged over every stored record of the answer. A disclosed ad
+    # and a copy of an earlier post are not authors and lend no platform, so both go in as paid_ids.
     own = {r.get("id"): r for r in records}
     pool = [own.get(r.get("id"), r) for r in pool] if pool is not None else records
     groups = independent_groups(pool, excluded=NOT_INDEPENDENT,
-                                paid_ids={r.get("id") for r in pool if _disclosed_paid(r)},
+                                paid_ids={r.get("id") for r in pool if _disclosed_paid(r)} | copies,
                                 author_ids={r.get("id") for r in records})
     # The reason counts what the label is judged on: unrelated author groups that stand on a platform, and the
     # platforms they stand on. A group with no platform is named apart, as it can never make a second platform.

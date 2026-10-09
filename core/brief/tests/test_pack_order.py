@@ -405,3 +405,9 @@ def test_the_statement_names_no_dataset_other_than_the_placeholders_and_is_read_
     sql = statement()
     assert not re.search(r"\b(INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|TRUNCATE)\b", sql, re.IGNORECASE)
     assert "{core}." in sql and "intelligence_42" not in sql
+
+
+def test_the_briefs_rule_version_names_every_wave_8_rule_change():
+    from core.brief import job
+    assert job.RULE_VERSION == ("warmup-1+n21-near-dup+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12"
+                                "+w8-dec-14+w8-dec-15+w8-dec-16+w8-dec-17")

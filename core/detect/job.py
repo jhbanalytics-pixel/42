@@ -42,8 +42,9 @@ PROJECT = "ogilvy-trends-v2"
 
 def rule_version_for(authority):
     """The version of the rule that writes item_state.eligible: warmup-1 while detect's own geo_status does, warmup-2
-    once the retained locality_v2 row does (C4 v3 section 7.2), so a reader that groups by it sees the break."""
-    return "warmup-1" if authority == "v1" else "warmup-2"
+    once the retained locality_v2 row does (C4 v3 section 7.2), so a reader that groups by it sees the break. The
+    n21-near-dup token marks the rows written once near_dup_size is written and its share flag is live."""
+    return ("warmup-1" if authority == "v1" else "warmup-2") + "+n21-near-dup"
 
 
 RULE_VERSION = rule_version_for(LOCALITY_AUTHORITY)
