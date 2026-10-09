@@ -356,11 +356,13 @@ def _floor_held_decision(cand, floor, text, evidence):
 
     When the suppression mask took posts out of the pack after the query, the stage counts include posts a reader
     must not learn of, and a cap named in the text would place a loss the mask caused. The wording stays plain, the
-    detail is not served, and it is kept in held_reason_audit, which the payload stores apart from cards and held
-    items (payload.py hold_audit) and no reader shows."""
+    detail served is counted over the posts a reader can see (no stage counts, so the same as a hold that lost nothing
+    to the mask and had that many posts), and the counts as the query left them are kept in held_reason_audit, which
+    the payload stores apart from cards and held items (payload.py hold_audit) and no reader shows."""
     detail = pack_order.hold_detail(cand.get("stages"), floor, evidence, cand["market"])
     if pack_order.masked_after_ranking(cand.get("stages"), floor, evidence, cand["market"]):
         cand["held_reason_audit"] = detail
+        cand["held_reason_detail"] = pack_order.hold_detail(None, floor, evidence, cand["market"])
         return _held(text)
     cand["held_reason_detail"] = detail
     return _held(pack_order.hold_text(text, detail))

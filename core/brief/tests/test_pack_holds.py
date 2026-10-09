@@ -1,6 +1,8 @@
 """Holds when the pack caps leave too little evidence, the outlet registry and the pack's stage counts (C4 v2
 section 19 rules 5 to 7). The floors themselves (3 showable, 2 local) are pinned here and must not move."""
 
+import json
+
 import pytest
 
 from core.api import today
@@ -211,6 +213,26 @@ def test_every_floor_hold_in_a_job_run_has_a_detail_and_its_text_still_groups_in
     assert held["samsung"]["held_reason_detail"]["counts"]["available"] == 0
 
 
+def test_a_floor_hold_the_suppression_mask_caused_in_a_job_run_has_a_detail_like_any_other(monkeypatch):
+    # The query leaves out creators the list names by id; the mask this is about takes out those it names by handle.
+    monkeypatch.setattr(job, "read_hidden", lambda *a, **k: ({"tiktok:masked_c1"}, set(), set()))
+    con = world(n=2)
+    add_item(con, "NG", "masked", 0.98, posts=3, creators3=2)  # 3 posts reach the end of the query
+    add_item(con, "NG", "two_posts", 0.97, posts=2, creators3=2)  # 2 posts, nobody hidden
+    r = brief(con)
+    held = held_items(r, "NG")
+    for item_id in ("masked", "two_posts"):
+        assert held[item_id]["reason"] == "not_confirmed"
+        assert held[item_id]["reason_text"] == "Fewer than 3 posts 42 can show"
+        assert len(held[item_id]["evidence"]) == 2
+        assert held[item_id]["held_reason_detail"]["cause"] == "evidence_absent"
+        assert held[item_id]["held_reason_detail"]["counts"] == {
+            "available": 2, "after_creator_cap": 2, "after_outlet_cap": 2, "final": 2}
+    stored = payload(r, "NG")
+    assert [a["item_id"] for a in stored["hold_audit"]] == ["masked"]  # the mask's own counts are kept apart
+    assert stored["hold_audit"][0]["cause"] == "removed_after_ranking" and stored["hold_audit"][0]["counts"]["final"] == 3
+
+
 def one_creator_item(con, item_id, n):
     add_item(con, "NG", item_id, 0.98, posts=0, creators3=2)
     for k in range(n):
@@ -322,10 +344,13 @@ def test_posts_the_suppression_mask_removes_after_the_query_are_not_blamed_on_th
                                      hidden=({"tiktok:h0", "tiktok:h1"}, set(), set()), stages=counts)
     assert len(pack["evidence"]) == 2 and counts["after_outlet_cap"]["posts"] == 4
     cand = candidate(pack["evidence"])
-    cand["stages"] = counts
+    cand.update(market="NG", stages=counts)  # the posts are NG posts, so the floor counts them as showable in NG
     decision = job._gate(cand, None)
     assert decision.reason == "Fewer than 3 posts 42 can show"  # says nothing of a limit, or of what was removed
-    assert cand["held_reason_detail"] is None  # nothing served: its counts would show the posts that were hidden
+    # What is served is counted over the posts a reader can see, so it shows nothing of the posts that were hidden.
+    assert cand["held_reason_detail"]["cause"] == "evidence_absent"
+    assert cand["held_reason_detail"]["counts"] == {"available": 2, "after_creator_cap": 2, "after_outlet_cap": 2,
+                                                    "final": 2}
     assert cand["held_reason_audit"]["cause"] == "removed_after_ranking"
     assert cand["held_reason_audit"]["counts"] == {"available": 4, "after_creator_cap": 4, "after_outlet_cap": 4,
                                                    "final": 4}
@@ -342,25 +367,43 @@ def served_hold(cand, decision):
     return stored, today._held_item(stored, {})
 
 
-def test_a_reader_of_the_api_cannot_tell_from_a_hold_that_posts_were_hidden(gate_passes):
-    """The reviewer's probe: 4 posts reached the end of the query, 2 of them are by people on the hidden list."""
+def served_in_world(posts, hidden_keys):
+    """The hold of item i1 as stored and as served, in a world of these (post id, creator, engagement) posts."""
     con = duck.connect()
     pack_world.clusters(con)
-    for n in range(4):
-        pack_world.post(con, f"p{n}", creator=f"h{n}", eng=100 - n)
+    for post_id, creator, eng in posts:
+        pack_world.post(con, post_id, creator=creator, eng=eng)
     duck.load(con, "core.item_state", [{"metric_date": D, "market": "NG", "item_id": "i1", "kind": "hashtag",
                                         "state": "emerging", "untested": True, "run_id": "detect-1",
                                         "rule_version": "r1"}])
     row = {"item_id": "i1", "run_id": "detect-1", "state": "emerging", "untested": True, "main_series_id": None}
     counts = {}
     pack, _, _ = evidence.build_pack(Client(con), row, pack_world.D, "NG", core="core", agent="agent",
-                                     hidden=({"tiktok:h0", "tiktok:h1"}, set(), set()), stages=counts)
+                                     hidden=(hidden_keys, set(), set()), stages=counts)
     cand = candidate(pack["evidence"])
     cand.update(market="NG", stages=counts)
     stored, served = served_hold(cand, job._gate(cand, None))
-    assert len(served["evidence"]) == 2 and served["reason_text"] == "Fewer than 3 posts 42 can show"
-    assert "held_reason_detail" not in stored and "held_reason_detail" not in served
-    assert "counts" not in str(served) and "removed_after_ranking" not in str(served)
+    return cand, stored, served
+
+
+def test_a_reader_of_the_api_cannot_tell_from_a_hold_that_posts_were_hidden(gate_passes):
+    """The reviewer's probe. World A: 4 posts reached the end of the query, 2 of them by people on the hidden list.
+    World B: the same 2 visible posts and nobody hidden. The served items must be identical, byte for byte."""
+    visible = [("p2", "h2", 98), ("p3", "h3", 97)]
+    cand_a, stored_a, served_a = served_in_world([("p0", "h0", 100), ("p1", "h1", 99)] + visible,
+                                                 {"tiktok:h0", "tiktok:h1"})
+    cand_b, stored_b, served_b = served_in_world(visible, set())
+    assert len(served_a["evidence"]) == 2 and served_a["reason_text"] == "Fewer than 3 posts 42 can show"
+    assert json.dumps(served_a, sort_keys=True) == json.dumps(served_b, sort_keys=True)
+    assert json.dumps(stored_a, sort_keys=True) == json.dumps(stored_b, sort_keys=True)
+    detail = served_a["held_reason_detail"]  # counted over the posts a reader can see, as in world B
+    assert detail["cause"] == "evidence_absent"
+    assert detail["counts"] == {"available": 2, "after_creator_cap": 2, "after_outlet_cap": 2, "final": 2}
+    # The counts of the pack before the mask stay with the audit record, which the API does not serve.
+    assert cand_a["held_reason_audit"]["cause"] == "removed_after_ranking"
+    assert cand_a["held_reason_audit"]["counts"]["final"] == 4
+    assert cand_b["held_reason_audit"] is None
+    assert "removed_after_ranking" not in json.dumps(served_a) and "4" not in str(served_a["held_reason_detail"])
 
 
 def test_the_audit_record_reaches_the_candidate_the_payload_is_built_from(gate_passes):
@@ -369,7 +412,9 @@ def test_the_audit_record_reaches_the_candidate_the_payload_is_built_from(gate_p
     cand["pack"]["numbers"] = []
     cand.update(sparkline=None, decision=job._gate(cand, None))
     item = job._payload_candidate(cand, None)
-    assert item["held_reason_audit"]["cause"] == "removed_after_ranking" and item["held_reason_detail"] is None
+    assert item["held_reason_audit"]["cause"] == "removed_after_ranking"
+    assert item["held_reason_detail"]["cause"] == "evidence_absent"
+    assert item["held_reason_detail"]["counts"]["final"] == 1
 
 
 @pytest.mark.parametrize("floor_posts,shown,counts", [
@@ -382,7 +427,8 @@ def test_a_hold_whose_pack_lost_posts_to_the_mask_names_no_cap_and_serves_no_cou
     cand["stages"]["final"] = stage(f)
     decision = job._gate(cand, None)
     assert decision.reason == "Fewer than 3 posts 42 can show"  # a cap is not named: it would place the loss
-    assert cand["held_reason_detail"] is None
+    visible = {name: shown for name in ("available", "after_creator_cap", "after_outlet_cap", "final")}
+    assert cand["held_reason_detail"]["cause"] == "evidence_absent" and cand["held_reason_detail"]["counts"] == visible
     assert cand["held_reason_audit"]["counts"] == counts and cand["held_reason_audit"]["minimum"] == 3
 
 

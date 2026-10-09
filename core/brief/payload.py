@@ -7,7 +7,8 @@ critic lists, for each item whose explanation reached the critic, the critic's o
 on them, so no reader shows it: f42-api builds Today from the named fields and creator pages read cards.
 
 hold_audit does the same for a post floor hold the suppression mask changed: the stage counts of such a hold would
-show a reader that posts were hidden, so the hold is served without them and they are kept here, with the item_id.
+show a reader that posts were hidden, so the hold is served with counts over the posts a reader can see and the
+counts as the query left them are kept here, with the item_id.
 """
 
 from collections import Counter
