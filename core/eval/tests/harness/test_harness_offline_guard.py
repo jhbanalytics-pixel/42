@@ -797,6 +797,70 @@ def test_the_version_probes_the_platform_module_makes_on_windows_stay_refused(gu
     refused(guard, "subprocess.Popen", (words[0], words, None, KEEPS_GUARD))
 
 
+WMI_THAT_TIMES_OUT = ("def exec_query(query):\n"
+                      "    raise TimeoutError(258, 'The wait operation timed out')\n")
+
+
+def with_a_wmi_that_times_out(tmp_path):
+    """Environment for a child whose WMI query fails the way it does when several runs share a Windows machine.
+    platform reads the operating system through the _wmi module, falls back to the cmd.exe ver probes when the
+    query raises OSError, and numpy.testing asks for platform.machine() when scipy imports it."""
+    (tmp_path / "stub").mkdir()
+    (tmp_path / "stub" / "_wmi.py").write_text(WMI_THAT_TIMES_OUT, encoding="utf-8")
+    return {"PYTHONPATH": os.pathsep.join([str(tmp_path / "stub"), str(GUARD_DIR)]),
+            "CORE_OFFLINE_GUARD_LOG": str(tmp_path / "child.jsonl")}
+
+
+def test_a_failed_wmi_query_makes_no_refusal_when_a_library_asks_for_the_platform(tmp_path):
+    """Run 5 of the integration gates: the refusal check reported three refusals at collection, the three ver probes
+    of one platform.uname() call that numpy.testing made while a test module imported scipy. No test started
+    anything. The call is made before the hook goes in, so the probes run and the answer is cached. On Linux
+    platform.uname() starts nothing, so this holds there for the plain reason."""
+    env = with_a_wmi_that_times_out(tmp_path)
+    done = child("import platform, sys\nprint('MACHINE', platform.machine(), platform.system())", extra_env=env)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.startswith("MACHINE "), done.stdout
+    log = Path(env["CORE_OFFLINE_GUARD_LOG"])
+    assert not log.exists() or log.read_text(encoding="utf-8") == ""
+
+
+def test_the_cached_platform_answer_does_not_open_the_guard_to_a_program_the_test_starts(tmp_path):
+    env = with_a_wmi_that_times_out(tmp_path)
+    code = ("import platform, subprocess\nplatform.uname()\n"
+            "for command in (['cmd', '/c', 'ver'], ['hostname'], ['where', 'python']):\n"
+            "    try:\n        subprocess.run(command)\n        print('STARTED', command)\n"
+            "    except OSError as error:\n        print('REFUSED', command[0], error)\n")
+    done = child(code, extra_env=env)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.splitlines() == [
+        "REFUSED cmd offline guard: program off the list: cmd",
+        "REFUSED hostname offline guard: program off the list: hostname",
+        "REFUSED where offline guard: program off the list: where"], done.stdout
+    rows = [__import__("json").loads(row) for row in Path(env["CORE_OFFLINE_GUARD_LOG"]).read_text("utf-8").splitlines()]
+    assert [row["detail"] for row in rows] == [
+        "program off the list: cmd", "program off the list: hostname", "program off the list: where"]
+
+
+@pytest.mark.parametrize("platform_name, calls", [("win32", 1), ("linux", 0), ("darwin", 0)])
+def test_the_platform_answer_is_asked_for_before_the_hook_only_on_windows(guard, monkeypatch, platform_name, calls):
+    import platform
+    asked = []
+    monkeypatch.setattr(platform, "uname", lambda: asked.append(1))
+    monkeypatch.setattr(sys, "platform", platform_name)
+    guard.warm_platform_cache()
+    assert len(asked) == calls
+
+
+def test_a_platform_answer_that_cannot_be_had_does_not_stop_python_starting(guard, monkeypatch):
+    import platform
+
+    def broken():
+        raise RuntimeError("no answer")
+    monkeypatch.setattr(platform, "uname", broken)
+    monkeypatch.setattr(sys, "platform", "win32")
+    guard.warm_platform_cache()
+
+
 PASTE = ROOT / "core" / "setup" / "release" / "SERVICES-PASTE.ps1"
 
 

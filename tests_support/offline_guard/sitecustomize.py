@@ -28,8 +28,9 @@ temporary directory, or -Command with the paste test's own frame over a .ps1 und
 admits any temporary script, the same accepted blind spot as bash -c. An earlier version refused pwsh outright, so
 this is a deliberate widening that is already done and not a regression to undo.
 
-It is the portable counterpart of the Windows guard used for local runs. It needs no ctypes and no platform
-module, so the same file runs on Linux and Windows.
+It is the portable counterpart of the Windows guard used for local runs. It needs no ctypes, so the same file runs
+on Linux and Windows. It loads the platform module on Windows only, once, before the hook goes in, so that the
+standard library's own version probe is not read as a program a test started (see warm_platform_cache).
 
 What it cannot see: a program that an allowed shell starts (bash -c and sh -c), because the audit hook belongs to
 this interpreter only; whatever a node script does through a module it imports from another file, since node code
@@ -936,9 +937,29 @@ def check(event, args):
     return None
 
 
+def warm_platform_cache():
+    """Ask the platform module for the operating system once, before the hook is in, on Windows only.
+
+    platform.uname() reads the system through a WMI query and, when the query raises OSError, falls back to three
+    cmd.exe probes (ver, command /c ver, cmd /c ver). The query times out when several runs share the machine, and
+    numpy.testing calls platform.machine() when it is imported, which scipy does. Without this, the probes run
+    under the hook, are refused, and put three program refusals into the log at collection although no test
+    started anything. platform keeps the answer, so the later call is a lookup and starts nothing. Only the
+    standard library's own version probe runs here; nothing a test starts is let through, and the refusal of the
+    three probes as a test's own command is unchanged. On Linux and macOS platform.uname() starts no program."""
+    if sys.platform != "win32":
+        return
+    try:
+        import platform
+        platform.uname()
+    except Exception:
+        pass
+
+
 def install():
     global INSTALLED
     if not INSTALLED:
+        warm_platform_cache()
         sys.addaudithook(check)
         INSTALLED = True
 
