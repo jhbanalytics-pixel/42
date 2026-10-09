@@ -116,8 +116,8 @@ def test_no_gate_state_card_payload_or_rank_reads_the_table_or_the_module():
     allowed = {"core/detect/early_signal.py", "core/detect/early_signal_backtest.py", "core/detect/stats.py",
                "core/detect/tests/early_identity.py", "core/detect/tests/test_detect_early_signal.py",
                "core/detect/tests/test_detect_early_signal_backtest.py",
-               "core/detect/tests/test_detect_early_signal_record.py", "core/schema/early_signal.sql",
-               "core/schema/tests/test_early_signal_schema.py"}
+               "core/detect/tests/test_detect_early_signal_record.py", "core/schema/apply.py",
+               "core/schema/early_signal.sql", "core/schema/tests/test_early_signal_schema.py"}
     hits = []
     for path in ROOT.rglob("*"):
         parts = path.relative_to(ROOT).parts

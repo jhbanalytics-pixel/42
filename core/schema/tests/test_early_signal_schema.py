@@ -83,3 +83,10 @@ def test_record_never_creates_a_missing_table_it_raises_and_the_hook_logs(caplog
     with pytest.raises(NotFound):
         es.record(client, d, "r", signal, rows, totals, "core")
     assert client.created == [] and client.queries == []
+
+
+def test_the_default_setup_runner_list_creates_early_signal():
+    names = [apply.statement_name(s) for s in apply.load_statements() if apply.kind(s) == "table"]
+    assert NAME in names
+    assert names.count(NAME) == 1
+    assert PATH in apply.SQL_FILES

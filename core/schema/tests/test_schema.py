@@ -989,8 +989,11 @@ def test_apply_mode_dry_runs_before_creating_and_lists_tables(capsys):
     assert all(loc == "US" for _, _, _, loc in q)
     out = capsys.readouterr().out
     expected = doc_tables()
+    extra = [s for f in apply.SQL_FILES if f not in SQL_FILES.values()
+             for s in apply.load_statements([f]) if apply.kind(s) == "table"]
     for dataset in SQL_FILES:
         n = sum(1 for d in expected.values() if d == dataset)
+        n += sum(1 for s in extra if apply.dataset_of(s) == dataset)
         v = sum(1 for s in stmts if apply.kind(s) == "view" and apply.dataset_of(s) == dataset)
         assert f"{dataset}: {n} tables (expected {n}), {v} views (expected {v})" in out
     assert "missing" not in out
@@ -1035,7 +1038,7 @@ def test_list_tables_flags_a_missing_view(capsys):
     out = capsys.readouterr().out
     assert "intelligence_42_agent: 16 tables (expected 16), 0 views (expected 1)" in out
     assert "missing: v_watches_current" in out
-    assert "intelligence_42_core: 27 tables (expected 27), 0 views (expected 3)" in out
+    assert "intelligence_42_core: 28 tables (expected 28), 0 views (expected 3)" in out
     assert "missing: v_breaking_signals_current, v_post_source_markets, v_suppressed_creators" in out
 
 
