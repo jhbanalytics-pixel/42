@@ -1001,11 +1001,13 @@ or None."""
         the run's date and the day before, from L2's v_item_tone_daily, read by _tones in a query of its own so a
         tone failure never fails the page: NULL under 5 enriched posts, until the view exists, or when that read
         fails. After a rollback the view can lose market_news_posts7 while this process's catalog still lists it:
-        the read then fails with "Unrecognized name", so the catalog is dropped and the read made once more."""
+        the read then fails with "Unrecognized name" or, for the qualified column this query selects, "Name
+        market_news_posts7 not found inside t", so the catalog is dropped and the read made once more."""
         try:
             return self._item_states(run, market)
         except Exception as e:
-            if "Unrecognized name" not in str(e) or "market_news_posts7" not in str(e):
+            text = str(e)
+            if "market_news_posts7" not in text or not ("Unrecognized name" in text or "not found inside" in text):
                 raise
             with _CATALOG_LOCK:
                 _CATALOG.pop(self.project, None)
