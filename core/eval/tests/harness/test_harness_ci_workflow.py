@@ -304,3 +304,51 @@ def test_the_core_job_pins_a_floor_on_tests_that_passed_and_a_ratchet_that_makes
     assert int(floor.group(1)) >= CORE_PASSED_FLOOR, floor.group(1)
     assert 0 < int(gap.group(1)) <= RATCHET_GAP_CEILING, gap.group(1)
     assert report.get("if") == "always()"
+
+
+ALLOWED_EXPRESSIONS = {"github.ref", "github.workspace", "runner.temp"}
+PINNED_PYTEST_COMMAND = 'python -m pytest core -q -p no:cacheprovider -ra --junitxml="${RUNNER_TEMP}/core-junit.xml"'
+ALLOWED_REDIRECT_TARGETS = {'"${GITHUB_STEP_SUMMARY}"', '"${GITHUB_PATH}"'}
+
+
+@pytest.mark.parametrize("path", workflow_files(), ids=lambda p: p.name)
+def test_every_expression_in_a_live_workflow_names_one_allowed_value(path):
+    """toJSON(github), toJSON(secrets), github['token'] and the other ways to reach the job token or a secret all sit
+    inside an expression, so the expressions are limited to the three values this workflow needs."""
+    data, _ = load(path)
+    text = chr(10).join(strings(data))
+    found = [re.sub(r"\s+", "", e) for e in re.findall(r"\$\{\{(.*?)\}\}", text, flags=re.S)]
+    assert found, "the workflow uses no expression at all, so the allow list is not being read"
+    assert set(found) <= ALLOWED_EXPRESSIONS, sorted(set(found) - ALLOWED_EXPRESSIONS)
+    assert "${{" not in re.sub(r"\$\{\{.*?\}\}", "", text, flags=re.S)
+
+
+def test_the_pytest_step_is_exactly_the_pinned_command():
+    """Attached options (-k"not api", -pplugin), a split PYTEST_ADDOPTS, an export or any other word on the line
+    change what the run collects or loads, so the command is pinned whole."""
+    data = core_workflow()
+    [step] = [s for _, s in steps(data) if "-m pytest" in s.get("run", "")]
+    assert " ".join(step["run"].split()) == PINNED_PYTEST_COMMAND
+
+
+@pytest.mark.parametrize("path", workflow_files(), ids=lambda p: p.name)
+def test_a_run_line_cannot_build_an_environment_by_indirection_or_redirect_anywhere_else(path):
+    data, _ = load(path)
+    for _, step in steps(data):
+        run = step.get("run", "")
+        assert not re.search(r"\$\{!|\beval\b|\bexport\b|\bdeclare\b|\btypeset\b|\bprintf\s+-v\b|\btee\b|\bsource\b", run), run
+        for target in re.findall(r"(?<![0-9&])>>?\s*(?!&)(\S+)", run):
+            assert target in ALLOWED_REDIRECT_TARGETS, (target, run)
+
+
+def test_the_pull_request_trigger_is_limited_to_the_branches_the_push_trigger_names():
+    """Narrowing only: pull_request runs for PRs into full-42 and release/**, and the push trigger is untouched."""
+    _, triggers = load(LIVE / "tests.yml")
+    assert triggers["push"] == {"branches": ["full-42", "release/**"]}
+    assert triggers["pull_request"] == {"branches": ["full-42", "release/**"]}
+    assert sorted(triggers) == ["pull_request", "push", "workflow_dispatch"]
+
+
+def test_the_workflow_comment_says_integration_will_need_a_floor_raise():
+    text = (LIVE / "tests.yml").read_text(encoding="utf-8")
+    assert "integration will need a floor raise" in text

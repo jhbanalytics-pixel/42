@@ -9,6 +9,7 @@ name: tests
 
 on:
   pull_request:
+    branches: [full-42, "release/**"]
   push:
     branches: [full-42, "release/**"]
   workflow_dispatch:
@@ -75,6 +76,7 @@ jobs:
       # fewer than the total floor has lost a part of the tree. The passed floor counts only tests that passed, so a
       # run that skipped most of the tree cannot meet it. The ratchet fails the job when the passed count has grown
       # more than 800 past the floor: raise the floor then, so a later loss of that growth is caught too.
+      # Integrating the wave 8 lanes adds tests, so integration will need a floor raise (and a new gap) in this line.
       - name: Report the skipped opt-in tests and the number of tests that ran
         if: always()
         run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 17000 --min-passed 17000 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
