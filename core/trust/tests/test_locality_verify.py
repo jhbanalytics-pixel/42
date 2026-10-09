@@ -5,19 +5,26 @@ v2 ordering reads breadth_creators from the row, so a damaged derived count has 
 
 import pytest
 
-from core.trust.locality import DERIVED_COUNTS, counts_from_members, digest, read_locality, verify
+from core.trust.locality import (DERIVED_COUNTS, MIN_CONFIDENCE, VALID_SOURCES, counts_from_members, digest,
+                                 member_class, read_locality, verify)
+
+MARKET = "NG"
+GEO = {"local": (MARKET, 0.9, "ext_region"), "foreign": ("AE", 0.9, "ext_region"), "unknown": (None, None, None)}
 
 
 def member(n, cls, creator="auto", feed=False):
+    """A member row as MEMBERS_SQL returns it: the geo fields that decide the class travel with it."""
+    geo_market, geo_confidence, geo_source = GEO[cls]
     return {"post_id": f"p{n:02d}", "locality_class": cls, "feed_sighted": feed,
-            "creator_key": f"t:{n}" if creator == "auto" else creator}
+            "creator_key": f"t:{n}" if creator == "auto" else creator,
+            "geo_market": geo_market, "geo_confidence": geo_confidence, "geo_source": geo_source}
 
 
 def honest_row(members):
     counts = counts_from_members(members)
     known, local = counts["known_posts"], counts["local_posts"]
     status = "market_unconfirmed" if known < 8 else ("local" if 5 * local >= 3 * known else "not_local")
-    return {"metric_version": "locality_v2.1", **counts, "status": status,
+    return {"metric_version": "locality_v2.1", "market": MARKET, **counts, "status": status,
             "local_share": local / known if known else None, "population_digest": digest(members)}
 
 
@@ -82,3 +89,57 @@ def test_class_counts_digest_and_status_are_still_checked():
     assert not verify(dict(row, local_posts=5, foreign_posts=1), MEMBERS)
     assert not verify(dict(row, population_digest="0" * 64), MEMBERS)
     assert not verify(row, MEMBERS[:-1])
+
+
+@pytest.mark.parametrize(("geo_market", "geo_confidence", "geo_source", "expected"), [
+    ("NG", 0.9, "ext_region", "local"),
+    (" ng ", 0.8, "home_market", "local"),                   # trimmed and upper-cased, as the SQL does
+    ("NG", MIN_CONFIDENCE, "place_mention", "local"),        # exactly the floor
+    ("AE", 0.9, "ext_region", "foreign"),
+    ("NG", 0.69, "ext_region", "unknown"),                   # below the floor
+    ("NG", 1.0, "language", "unknown"),                      # a source that never counts
+    ("NG", 0.9, None, "unknown"),
+    ("", 0.9, "home_market", "unknown"),                     # an empty location
+    (None, 0.9, "home_market", "unknown"),
+    ("NG", None, "ext_region", "unknown"),
+    ("NG", "0.9", "ext_region", "unknown"),                  # not a number
+])
+def test_member_class_is_the_rule_of_the_sql_with_the_modules_own_constants(geo_market, geo_confidence, geo_source,
+                                                                           expected):
+    assert member_class({"geo_market": geo_market, "geo_confidence": geo_confidence, "geo_source": geo_source},
+                        MARKET) == expected
+
+
+def test_the_valid_sources_are_the_three_the_sql_names():
+    assert set(VALID_SOURCES) == {"ext_region", "home_market", "place_mention"}
+
+
+def faulty(members, n, **geo):
+    out = [dict(m) for m in members]
+    out[n].update(geo)
+    return out
+
+
+def test_a_class_that_the_members_own_geo_fields_do_not_give_is_refused_though_every_count_and_the_digest_agree():
+    """A fault in the class rule writes a class, counts and a digest that agree with one another. Only recomputing the
+    class from the geo fields of the same member rows catches it (ruling finding F10)."""
+    for n, geo in ((0, {"geo_confidence": 0.5}),                 # stored local, confidence under the floor
+                   (0, {"geo_source": "language"}),              # stored local, a source that never counts
+                   (0, {"geo_market": "ZA"}),                    # stored local, located elsewhere
+                   (3, {"geo_market": MARKET}),                  # stored foreign, located here
+                   (5, {"geo_market": MARKET, "geo_confidence": 0.9, "geo_source": "ext_region"})):   # stored unknown
+        members = faulty(MEMBERS, n, **geo)
+        row = honest_row(members)                                # counts and digest follow the stored classes
+        assert counts_from_members(members) == {k: row[k] for k in counts_from_members(members)}
+        assert not verify(row, members), (n, geo)
+
+
+def test_a_member_without_its_geo_fields_cannot_be_verified():
+    members = [{k: v for k, v in m.items() if not k.startswith("geo_")} for m in MEMBERS]
+    assert not verify(honest_row(MEMBERS), members)
+
+
+def test_a_summary_without_a_market_cannot_be_verified():
+    row = honest_row(MEMBERS)
+    del row["market"]
+    assert not verify(row, MEMBERS)

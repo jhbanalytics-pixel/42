@@ -83,11 +83,19 @@ def test_row_from_prefixed_strips_only_the_prefix_and_keeps_local_share():
     assert got == {"local_share": 0.5, "status": "local"}                 # item_state.locality_status is not the row's status
 
 
+GEO = {"local": ("NG", 0.9, "ext_region"), "foreign": ("AE", 0.9, "ext_region"), "unknown": (None, None, None)}
+
+
+def geo(cls):
+    """The geo fields of a member row that give it the class cls in market NG (verify recomputes the class from them)."""
+    return dict(zip(("geo_market", "geo_confidence", "geo_source"), GEO[cls]))
+
+
 def test_verify_accepts_a_key_whose_members_reproduce_its_row_and_refuses_a_row_that_only_agrees_with_itself():
     from core.trust.locality import digest, verify
-    members = [{"post_id": f"p{n}", "locality_class": c, "creator_key": f"t:{n}", "feed_sighted": False}
+    members = [{"post_id": f"p{n}", "locality_class": c, "creator_key": f"t:{n}", "feed_sighted": False, **geo(c)}
                for n, c in enumerate(["local"] * 5 + ["foreign"] * 3 + ["unknown"] * 2)]
-    good = row(8, 5, unknown=2, population_digest=digest(members), **DERIVED)
+    good = row(8, 5, unknown=2, population_digest=digest(members), market="NG", **DERIVED)
     assert verify(good, members)
     moved = dict(good, local_posts=6, foreign_posts=2, local_share=6 / 8, status="local")
     assert read_locality(moved).status == "local"                  # consistent with itself, so the reader accepts it
@@ -101,10 +109,10 @@ def test_verify_accepts_a_key_whose_members_reproduce_its_row_and_refuses_a_row_
 def test_verify_refuses_a_summary_whose_digest_belongs_to_other_members_with_the_same_class_counts():
     from core.trust.locality import digest, verify
     def make(prefix):
-        return [{"post_id": f"{prefix}{n}", "locality_class": c, "creator_key": f"t:{n}", "feed_sighted": False}
-                for n, c in enumerate(["local"] * 5 + ["foreign"] * 3)]
+        return [{"post_id": f"{prefix}{n}", "locality_class": c, "creator_key": f"t:{n}", "feed_sighted": False,
+                 **geo(c)} for n, c in enumerate(["local"] * 5 + ["foreign"] * 3)]
     mine, other = make("a"), make("b")
-    summary = row(8, 5, population_digest=digest(mine), **DERIVED)
+    summary = row(8, 5, population_digest=digest(mine), market="NG", **DERIVED)
     assert verify(summary, mine)
     assert not verify(summary, other)                              # identical counts, different posts: only the digest differs
 

@@ -32,7 +32,8 @@ MAX_BYTES_BILLED = 10 * 1024 ** 3
 JOB_TIMEOUT_MS = 600_000
 
 _KEY = "run_date = @d AND detect_run_id = @detect_run_id AND metric_version = @metric_version"
-MEMBERS_SQL = ("SELECT market, item_id, post_id, creator_key, locality_class, feed_sighted "
+MEMBERS_SQL = ("SELECT market, item_id, post_id, creator_key, locality_class, feed_sighted, geo_market, "
+               "geo_confidence, geo_source "
                f"FROM {{core}}.item_locality_post WHERE {_KEY}")
 SUMMARY_SQL = f"SELECT * FROM {{core}}.item_locality WHERE {_KEY}"
 VERIFIED_SQL = f"SELECT DISTINCT market, item_id FROM {{core}}.item_locality_verified WHERE {_KEY}"

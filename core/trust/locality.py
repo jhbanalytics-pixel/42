@@ -143,6 +143,19 @@ def row_from_prefixed(row, prefix="lrow_"):
     return {k[len(prefix):]: v for k, v in row.items() if k.startswith(prefix)}
 
 
+def member_class(member, market):
+    """The class of one member post in a market, from the geo fields of the same member row: the rule of
+    locality_members.sql with this module's constants. A post is located when its confidence reaches MIN_CONFIDENCE, its
+    source is one of VALID_SOURCES and its location is not empty; it is then local in its own market and foreign in
+    any other, and otherwise unknown. A confidence that is not a number locates nothing."""
+    where = (member.get("geo_market") or "").strip().upper() if isinstance(member.get("geo_market"), str) else ""
+    confidence = member.get("geo_confidence")
+    if (type(confidence) in (int, float) and confidence >= MIN_CONFIDENCE
+            and member.get("geo_source") in VALID_SOURCES and where):
+        return "local" if where == market else "foreign"
+    return "unknown"
+
+
 def counts_from_members(members):
     """All eleven counts of a summary row, recounted from its member rows: the five class counts and the six derived
     ones. A creator is the creator key, or the post id when the post has none (section 6.4)."""
@@ -167,11 +180,16 @@ def counts_from_members(members):
 
 def verify(summary, members):
     """Write-time verification of one key, in Python with its own code: recount every count from the members,
-    compare the digest and the status. True only when every check agrees. The step writes a verification row for a
+    compare the digest and the status. Each member's class is recomputed too, from the geo fields of the same member
+    row, because counts and digest that follow a wrong class agree with each other (ruling finding F10). True only when
+    every check agrees. The step writes a verification row for a
     key only when this returns True, and both views require that row. A derived count the consumers read, breadth
     among them, is checked too: the reader cannot, because it never holds the members (ruling finding F1)."""
     want = counts_from_members(members)
     if any(summary.get(k) != v for k, v in want.items()):
+        return False
+    market = summary.get("market")
+    if any(m.get("locality_class") != member_class(m, market) for m in members):
         return False
     if summary.get("population_digest") != digest(members):
         return False
