@@ -53,6 +53,11 @@ skipped, one "understand partial:" line goes to stderr and detect still starts. 
 no topic (cluster) items that day, because blocking it would drop about 1,000 non-cluster candidates per market per
 day. The row status stays "ok" because chain.begin lets a stage start only after an upstream row that is ok.
 
+A refused vector index (8 and 9 Oct 2026: BigQuery will not build it over rows whose embedding is empty or not 768 long,
+and enrichment writes such rows) is recorded in counts only: embed gives index "failed", index_error and the row count
+in index_unindexable_rows. The run stays ok and is not partial, and nothing is printed, since nothing reads the index
+(tvf_search_posts scores exact cosine).
+
 An ok run with enrich_error, or with any other error under a market in cluster, is a degraded run: Coverage reads those
 counts and shows the understand stage as degraded with what failed (core/api/store.py, runs_of_day), while the
 status stays ok and detect still starts, so the morning brief is never held for it. A run whose embed step sent

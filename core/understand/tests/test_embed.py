@@ -334,9 +334,10 @@ def test_embedding_count_reads_non_empty_embeddings_only():
     text = sql("embedding_count")
     statement = sqlglot.parse_one(text, read="bigquery")
     assert isinstance(statement, exp.Select)
-    assert statement.named_selects == ["n"]
+    assert statement.named_selects == ["n", "unindexable"]
     assert "`ogilvy-trends-v2.intelligence_42_core.post_enrichment`" in text
-    assert "ARRAY_LENGTH(embedding) > 0" in statement.args["where"].sql("bigquery")
+    assert statement.args.get("where") is None, "one scan counts both, so no row is filtered out before the second count"
+    assert "COUNTIF(ARRAY_LENGTH(embedding) > 0) AS n" in statement.sql("bigquery")
     code = " ".join(line.split("--", 1)[0] for line in text.splitlines())
     assert not re.search(r"\b(CREATE|INSERT|DROP|TRUNCATE|DELETE|REPLACE|MERGE|UPDATE)\b", code, re.I)
 
