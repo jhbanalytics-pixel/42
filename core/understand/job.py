@@ -53,14 +53,10 @@ skipped, one "understand partial:" line goes to stderr and detect still starts. 
 no topic (cluster) items that day, because blocking it would drop about 1,000 non-cluster candidates per market per
 day. The row status stays "ok" because chain.begin lets a stage start only after an upstream row that is ok.
 
-The vector index being refused is the second outcome that is not a plain ok (8 and 9 Oct 2026: BigQuery will not build
-it over rows whose embedding is empty or not 768 long, and enrichment writes such rows). embed counts it as index
-"failed" with index_error and the row count in index_unindexable_rows. The run is recorded ok but partial: counts carry
-partial true, partial_reason "index_failed" and the error under partial_error, one "understand partial:" line goes to
-stderr, and everything else runs as usual. It carries no data_issue and detect does not read it (detect and the Today
-banner act only on cluster_stack_failed): search scores exact cosine and needs no index, so no topic is missing. When
-both happen the cluster reason is the one recorded, and the index failure stays in index_error and on stderr.
-The core/setup watchdog reads partial, whatever its reason.
+A refused vector index (8 and 9 Oct 2026: BigQuery will not build it over rows whose embedding is empty or not 768 long,
+and enrichment writes such rows) is recorded in counts only: embed gives index "failed", index_error and the row count
+in index_unindexable_rows. The run stays ok and is not partial, and nothing is printed, since nothing reads the index
+(tvf_search_posts scores exact cosine).
 
 An ok run with enrich_error, or with any other error under a market in cluster, is a degraded run: Coverage reads those
 counts and shows the understand stage as degraded with what failed (core/api/store.py, runs_of_day), while the
@@ -217,8 +213,6 @@ def degraded_reasons(counts) -> dict:
         out["embed"] = counts["embed_error"]
     if counts.get("enrich_error"):
         out["enrich"] = counts["enrich_error"]
-    if counts.get("index") == "failed":
-        out["index"] = counts.get("index_error") or "the vector index could not be built"
     cluster = counts.get("cluster") if isinstance(counts.get("cluster"), dict) else {}
     for market in CLUSTER_MARKETS:
         if isinstance(cluster.get(market), dict) and cluster[market].get("error"):
@@ -231,7 +225,6 @@ def degraded_steps(counts) -> list:
 
 
 PARTIAL_REASON = "cluster_stack_failed"
-INDEX_PARTIAL_REASON = "index_failed"
 TOPICS_FAILED_TEXT = "Data issue: topic grouping failed today"
 
 
@@ -372,11 +365,6 @@ def main(execute=None):
         counts.update(partial=True, partial_reason=PARTIAL_REASON, partial_error=stack_error,
                       data_issue=TOPICS_FAILED_TEXT)
         print(f"understand partial: {PARTIAL_REASON}: {stack_error}", file=sys.stderr)
-    if counts.get("index") == "failed":
-        index_error = counts.get("index_error") or "the vector index could not be built"
-        if not stack_error:
-            counts.update(partial=True, partial_reason=INDEX_PARTIAL_REASON, partial_error=index_error)
-        print(f"understand partial: {INDEX_PARTIAL_REASON}: {index_error}", file=sys.stderr)
     caps, why = video_plan()
     if backfill:
         counts["video"] = {"skipped": "backfill"}

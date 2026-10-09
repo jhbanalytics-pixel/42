@@ -7,7 +7,7 @@ counts["index"] is deferred_below_5000, or deferred_no_embeddings at none. An in
 recorded as failed, with the error class and the first line of its message in index_error, and the run goes on: the
 embeddings are written. embedding_count.sql also counts the rows whose embedding is not 768 long (every row enrich
 wrote, which holds no vector), and a count above zero is recorded as index_unindexable_rows: BigQuery refuses to build
-the index over them (8 and 9 Oct 2026), and the job reads a failed index back as a partial run (job.py). Every
+the index over them (8 and 9 Oct 2026). Nothing reads the index, so a failure stays in the counts. Every
 statement is CREATE ... IF NOT EXISTS, an append or a read, so a rerun repeats nothing. execute(sql, params,
 max_bytes=None) runs one query job with named parameters, billing at most max_bytes when given, and returns its rows, or a job-like dict holding them under "rows". The counts it returns add
 chars_sent, the characters sent to the model across all windows, tokens, the input tokens embed.sql counts for them

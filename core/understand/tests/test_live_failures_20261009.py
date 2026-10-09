@@ -106,48 +106,45 @@ def test_an_index_that_builds_adds_no_unindexable_key():
     assert counts["index"] == "created_or_exists" and "index_unindexable_rows" not in counts
 
 
-def test_a_run_whose_index_failed_is_partial_on_the_row_and_on_stderr(monkeypatch, capsys):
+def index_run(monkeypatch, lengths, cluster_error=None):
     monkeypatch.delenv("EMBED_DAYS", raising=False)
     log = fake_chain(monkeypatch)
     monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 3})
-    monkeypatch.setattr(job, "run_cluster", lambda execute, *, market, **kw: {"market": market, "clusters": 4})
-    assert job.main(execute=StoredEmbeddings([768] * 5_000 + [0] * 412)) == 0
+    if cluster_error:
+        monkeypatch.setattr(job, "run_cluster", lambda execute, **kw: (_ for _ in ()).throw(cluster_error))
+    else:
+        monkeypatch.setattr(job, "run_cluster", lambda execute, *, market, **kw: {"market": market, "clusters": 4})
+    assert job.main(execute=StoredEmbeddings(lengths)) == 0
+    return log
+
+
+def test_a_refused_index_is_recorded_and_leaves_the_run_ok_and_not_partial(monkeypatch, capsys):
+    """Nothing reads the index (tvf_search_posts scores exact cosine), so a refusal is a count, never an alert."""
+    log = index_run(monkeypatch, [768] * 5_000 + [0] * 412)
     finished = finished_run(log)
     assert finished[2] == "ok" and finished[4] is None
     counts = finished[3]
-    assert counts["index"] == "failed" and counts["index_unindexable_rows"] == 412
-    assert counts["partial"] is True and counts["partial_reason"] == job.INDEX_PARTIAL_REASON == "index_failed"
-    assert counts["partial_error"] == counts["index_error"]
-    assert "data_issue" not in counts, "no topics banner: the topics were grouped"
-    assert counts["video"] != {"skipped": "index_failed"}, "the index does not stop the video step"
+    assert counts["index"] == "failed" and "same array length" in counts["index_error"]
+    assert counts["index_unindexable_rows"] == 412
+    assert not {"partial", "partial_reason", "partial_error", "data_issue"} & set(counts)
+    assert job.degraded_steps(counts) == []
     assert log[-1] == ("start_next", "understand", DAY), "detect still starts"
-    err = capsys.readouterr().err
-    assert "understand partial: index_failed" in err and "same array length" in err
-    assert "understand degraded: index (" in err
+    assert capsys.readouterr().err == ""
 
 
 def test_a_clean_index_leaves_the_run_unmarked(monkeypatch, capsys):
-    monkeypatch.delenv("EMBED_DAYS", raising=False)
-    log = fake_chain(monkeypatch)
-    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 3})
-    monkeypatch.setattr(job, "run_cluster", lambda execute, *, market, **kw: {"market": market, "clusters": 4})
-    assert job.main(execute=StoredEmbeddings([768] * 5_000)) == 0
-    counts = finished_run(log)[3]
-    assert "partial" not in counts and "partial_reason" not in counts
-    assert "partial" not in capsys.readouterr().err
+    counts = finished_run(index_run(monkeypatch, [768] * 5_000))[3]
+    assert counts["index"] == "created_or_exists" and "index_unindexable_rows" not in counts
+    assert "partial" not in counts and "partial" not in capsys.readouterr().err
 
 
-def test_an_index_failure_never_replaces_the_cluster_reason_detect_and_today_read(monkeypatch, capsys):
-    monkeypatch.delenv("EMBED_DAYS", raising=False)
-    log = fake_chain(monkeypatch)
-    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 3})
-    monkeypatch.setattr(job, "run_cluster", lambda execute, **kw: (_ for _ in ()).throw(RuntimeError("stack gone")))
-    assert job.main(execute=StoredEmbeddings([768] * 5_000 + [0] * 3)) == 0
-    counts = finished_run(log)[3]
+def test_a_cluster_stack_failure_is_still_partial_whether_or_not_the_index_failed(monkeypatch, capsys):
+    counts = finished_run(index_run(monkeypatch, [768] * 5_000 + [0] * 3, RuntimeError("stack gone")))[3]
     assert counts["partial_reason"] == "cluster_stack_failed" and counts["data_issue"] == job.TOPICS_FAILED_TEXT
     assert counts["index"] == "failed" and "same array length" in counts["index_error"]
     err = capsys.readouterr().err
-    assert "understand partial: cluster_stack_failed" in err and "understand partial: index_failed" in err
+    assert "understand partial: cluster_stack_failed" in err and "index_failed" not in err
+    assert "index" not in job.degraded_reasons(counts)
 
 
 # Failure 2: PARSE_JSON in the cluster checkpoint
