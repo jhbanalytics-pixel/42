@@ -2,7 +2,9 @@
    live ask as soon as it opens with a question, and a live ask spends
    credits, so the link asks first: the confirm names the ceiling and Cancel
    takes first focus. The link keeps its address, so the question, market,
-   item and date it carries stay readable. */
+   item and date it carries stay readable. Wave 8: that address is a draft
+   (draft=1), so a new tab, a copied link or a reload fills in the question
+   and spends nothing; only the confirm goes to the live address. */
 import {Suspense, lazy, useState} from 'react';
 import {go} from '../router.js';
 
@@ -13,6 +15,10 @@ const CostConfirm = lazy(() => import('./SpikeConfirm.jsx').then((module) => ({d
 /* With no tier the agent picks T0 or T1, so the T1 ceiling is the one to name. */
 const ASK_CEILING = 60;
 
+const DRAFT = /([?&])draft=1(?:&|$)/;
+const withDraft = (href) => (DRAFT.test(href) ? href : href + (String(href).includes('?') ? '&' : '?') + 'draft=1');
+const withoutDraft = (href) => String(href).replace(/&draft=1(?=&|$)/, '').replace(/\?draft=1&/, '?').replace(/\?draft=1$/, '');
+
 export function AskAboutThis({href, className, question}){
   const [open, setOpen] = useState(false);
   const onClick = (event) => {
@@ -21,11 +27,11 @@ export function AskAboutThis({href, className, question}){
   };
   const confirm = () => {
     setOpen(false);
-    go(String(href).replace(/^#/, ''));
+    go(withoutDraft(href).replace(/^#/, ''));
   };
   return (
     <>
-      <a className={className} href={href} onClick={onClick}>Ask about this</a>
+      <a className={className} href={withDraft(href)} onClick={onClick}>Ask about this</a>
       {open && (
         <Suspense fallback={null}>
           <CostConfirm

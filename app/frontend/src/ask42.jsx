@@ -11,6 +11,8 @@ import {validateAnswer} from './answerContract.js';
 import {createDossier, fetchDiscover, saveFinding} from './api42.js';
 import {downloadExport, getAsk, startAsk, stopAsk, streamAsk} from './askTransport42.js';
 import {go} from './router.js';
+import {marketToSend} from './askMarkets.js';
+import {costWords, itemsWords} from './costWords.js';
 import {EvidenceChip, monthName} from './ui/EvidenceChip.jsx';
 import {PostStrip} from './ui/PostStrip.jsx';
 import {RankedAnswer} from './RankedAnswer.jsx';
@@ -573,13 +575,13 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
           <details className="ask42-technical" data-run-id={run.run_id || undefined}>
             <summary>Technical details</summary>
             <dl className="ask42-details">
-              <dt>Cost</dt><dd>{readerFigure(run.credits ?? 0) + ' credits · ' + (run.seconds ?? 0) + ' s'}</dd>
+              <dt>Cost</dt><dd>{costWords(run)}</dd>
               <dt>Depth</dt><dd>{TIER_WORDS[run.tier] || run.tier}</dd>
               <dt>Sources</dt>
               <dd>
                 <ul className="ask42-list">
                   {(run.source_status || []).map((source, index) => (
-                    <li key={index}>{(platformLabel(source.platform) || source.platform) + ' · ' + why(source.status) + ' · ' + readerFigure(source.items ?? 0) + ' items'}</li>
+                    <li key={index}>{(platformLabel(source.platform) || source.platform) + ' · ' + why(source.status) + ' · ' + itemsWords(source.items)}</li>
                   ))}
                 </ul>
               </dd>
@@ -679,6 +681,12 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   const q = query || {};
   const [question, setQuestion] = useState(q.q || '');
   const [market, setMarket] = useState(() => marketCode(q.market) || marketCode(region));
+  /* The select starts on the page's region. Only a market the reader chose, or a link or starter carried in, is held against the market the question names. */
+  /* A draft that names the answer it follows (an investigation's follow-up) posts that answer as its parent, once. */
+  const draftParent = useRef(null);
+  /* A draft opened from a card keeps the card, so the ask the reader presses still reads from it. */
+  const draftCard = useRef(null);
+  const marketPicked = useRef(Boolean(marketCode(q.market)));
   const [run, setRun] = useState(EMPTY_RUN);
   const [retry, setRetry] = useState(null);
   /* A reopened answer (follow) leads with the answer: the composer folds to
@@ -695,12 +703,24 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   }
   function pickStarter(text, mkt){
     setQuestion(text);
-    if (mkt) setMarket(mkt);
+    if (mkt){ marketPicked.current = true; setMarket(mkt); }
     if (questionField.current) questionField.current.focus();
   }
   function submitQuestion(){
     if (q.follow && run.record && run.record.ask_id){ followUp(question); return; }
-    ask(question, market);
+    const parent = draftParent.current;
+    const card = draftCard.current;
+    draftParent.current = null;
+    draftCard.current = null;
+    const sent = marketFor(question);
+    const extra = parent ? {parent_id: parent} : {};
+    if (card) extra.from_card = {...card, market: card.market || sent || null};
+    ask(question, sent, extra);
+  }
+  function marketFor(text){
+    const sent = marketToSend({question: text, selected: market, picked: marketPicked.current});
+    if (sent !== market) setMarket(sent);
+    return sent;
   }
   const control = useRef(null);
   const asked = useRef(null);
@@ -795,10 +815,15 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   useEffect(() => {
     if (!q.q || q.follow) return;
     const key = [q.q, q.market, q.item, q.date].join('|');
-    const mkt = marketCode(q.market) || market;
+    if (marketCode(q.market)) marketPicked.current = true;
+    const mkt = marketCode(q.market) || marketToSend({question: q.q, selected: market, picked: marketPicked.current});
     setQuestion(q.q);
     setMarket(mkt);
-    if (q.draft) return;
+    if (q.draft){
+      draftParent.current = q.parent || null;
+      draftCard.current = q.item ? {item_id: q.item, market: mkt || null, date: q.date || null} : null;
+      return;
+    }
     if (asked.current === key) return;
     asked.current = key;
     const extra = q.item ? {from_card: {item_id: q.item, market: mkt || null, date: q.date || null}} : {};
@@ -806,6 +831,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   }, [q.q, q.market, q.item, q.date, q.draft]);
 
   function chooseMarket(value){
+    marketPicked.current = true;
     setMarket(value);
     if (value && setRegion) setRegion(value);
   }
@@ -823,7 +849,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   function followUp(text){
     const record = run.record;
     setQuestion(text);
-    ask(text, (record && record.market) || market, {parent_id: record ? record.ask_id : null});
+    ask(text, marketFor(text), {parent_id: record ? record.ask_id : null});
   }
 
   /* A followed ask was started elsewhere with its own confirm, so asking it

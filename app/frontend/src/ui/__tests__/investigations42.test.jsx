@@ -825,3 +825,115 @@ test('the drafting hint says drafting uses a little model spend and the research
   expect(text()).not.toContain('before anything runs');
   expect(text()).not.toContain('Nothing runs');
 });
+
+/* Wave 8 N46 (R0288): a follow-up of an investigation answer is a follow-up
+   of that answer, so the link carries its ask id and Ask posts it as parent_id. */
+test('a follow-up on a finished investigation carries the answer it follows', async () => {
+  await openDraft(finished());
+  await until(() => text().includes(completeRecord.answer.short_answer), 'the answer');
+  const label = completeRecord.run.followups[0];
+  const node = buttons().find((b) => plain(b.textContent) === plain(label));
+  await act(async () => { node.click(); });
+  const params = new URLSearchParams(window.location.hash.split('?')[1]);
+  expect(params.get('parent')).toBe(completeRecord.ask_id);
+  expect(params.get('draft')).toBe('1');
+});
+
+/* Wave 8 L3 (frontend half): a run the agent no longer holds answers the event
+   stream with a 409 and reads as running for ever. The page must not poll it
+   for ever, and must say so. */
+const RUNNING_NO_RECORD = () => json(200, draft({status: 'running', ask_id: completeRecord.ask_id, record: null}));
+
+test('an orphaned run, event stream 409 and a row that reads running with no steps, stops polling and says it was lost', async () => {
+  let reads = 0;
+  serve([
+    ['GET', '/api/investigations/' + ID + '/events', json(409, {error: 'not_ready', message: 'Investigation ' + ID + ' is not held here and has no stored record yet.'})],
+    ['GET', '/api/investigations/' + ID, () => { reads += 1; return RUNNING_NO_RECORD(); }],
+  ]);
+  const outcome = await api.streamInvestigation(ID, () => {}, {pollMs: 1, maxPollMs: 4, idleMs: 60}).catch((error) => error);
+  expect(outcome instanceof Error).toBe(true);
+  expect(outcome.code).toBe('lost');
+  expect(outcome.message).toContain('restart');
+  const afterSettle = reads;
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  expect(reads).toBe(afterSettle);
+  expect(reads).toBeLessThan(60);
+});
+
+test('a run that keeps adding steps is polled past the idle limit and still resolves when it finishes', async () => {
+  let reads = 0;
+  serve([
+    ['GET', '/api/investigations/' + ID + '/events', json(502, {error: 'agent_unavailable', message: 'Down.'})],
+    ['GET', '/api/investigations/' + ID, () => {
+      reads += 1;
+      if (reads > 30) return json(200, finished());
+      const step = {...completeRecord.steps[0], seq: 100 + reads};
+      return json(200, draft({status: 'running', ask_id: completeRecord.ask_id, record: {...finishedRecord(), status: 'running', answer: null, steps: [step]}}));
+    }],
+  ]);
+  const result = await api.streamInvestigation(ID, () => {}, {pollMs: 3, maxPollMs: 3, idleMs: 25});
+  expect(result.status).toBe('complete');
+  expect(reads).toBe(31);
+});
+
+/* The poll waits longer after every read that brought no step, up to a cap, and
+   starts again from the first wait when a step arrives. The waits are read from
+   the timer calls themselves, so the test does not depend on how fast the machine is. */
+test('the poll doubles its wait up to the cap while nothing arrives and starts again when a step arrives', async () => {
+  let reads = 0;
+  serve([
+    ['GET', '/api/investigations/' + ID + '/events', json(502, {error: 'agent_unavailable', message: 'Down.'})],
+    ['GET', '/api/investigations/' + ID, () => {
+      reads += 1;
+      if (reads === 7) return json(200, finished());
+      const steps = reads >= 5 ? [{...completeRecord.steps[0], seq: 500}] : [];
+      return json(200, draft({status: 'running', ask_id: completeRecord.ask_id, record: {...finishedRecord(), status: 'running', answer: null, steps}}));
+    }],
+  ]);
+  const realSetTimeout = globalThis.setTimeout;
+  const waits = [];
+  globalThis.setTimeout = (callback, ms, ...args) => {
+    if (ms === 7 || ms === 14 || ms === 28 || ms === 50) waits.push(ms);
+    return realSetTimeout(callback, 0, ...args);
+  };
+  try {
+    const result = await api.streamInvestigation(ID, () => {}, {pollMs: 7, maxPollMs: 50, idleMs: 600000});
+    expect(result.status).toBe('complete');
+  } finally {
+    globalThis.setTimeout = realSetTimeout;
+  }
+  expect(reads).toBe(7);
+  expect(waits).toEqual([14, 28, 50, 50, 7, 14]);
+});
+
+test('a hidden tab does not poll, and polling resumes when the tab shows again', async () => {
+  let reads = 0;
+  let hidden = true;
+  Object.defineProperty(document, 'hidden', {configurable: true, get: () => hidden});
+  try {
+    serve([
+      ['GET', '/api/investigations/' + ID + '/events', json(502, {error: 'agent_unavailable', message: 'Down.'})],
+      ['GET', '/api/investigations/' + ID, () => { reads += 1; return reads < 3 ? RUNNING_NO_RECORD() : json(200, finished()); }],
+    ]);
+    const running = api.streamInvestigation(ID, () => {}, {pollMs: 1, maxPollMs: 2, idleMs: 5000});
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(reads).toBe(0);
+    hidden = false;
+    document.dispatchEvent(new window.Event('visibilitychange'));
+    expect((await running).status).toBe('complete');
+    expect(reads).toBe(3);
+  } finally {
+    delete document.hidden;
+  }
+});
+
+test('the investigation page shows a lost run in plain words with Read again, not a live log for ever', async () => {
+  serve([
+    ['GET', '/api/investigations/' + ID + '/events', json(409, {error: 'not_ready', message: 'not held here'})],
+    ['GET', '/api/investigations/' + ID, RUNNING_NO_RECORD],
+  ]);
+  await act(async () => root.render(<InvestigationPage investigationId={ID} streamOptions={{pollMs: 1, maxPollMs: 2, idleMs: 30}} />));
+  await until(() => host.querySelector('[role="alert"]'), 'the lost notice');
+  expect(plain(host.querySelector('[role="alert"]').textContent)).toContain('restart');
+  expect(plain(host.querySelector('[role="alert"]').textContent)).toContain('Read again');
+});

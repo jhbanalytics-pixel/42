@@ -8,6 +8,7 @@
    what they are, so no hint line repeats it above them. */
 import {useState} from 'react';
 import {PASS_KEY, storedValue} from '../api.js';
+import {releaseExportUrlLater} from '../exportUrl.js';
 
 const FORMATS = [
   {ext: 'html', label: 'Download as HTML'},
@@ -35,9 +36,11 @@ function save(blob, name){
     document.body.appendChild(link);
     link.click();
     link.remove();
-  } finally {
+  } catch (error){
     URL.revokeObjectURL(url);
+    throw error;
   }
+  releaseExportUrlLater(url);
 }
 
 export function AnswerExport({requestId}){

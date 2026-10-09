@@ -443,3 +443,42 @@ test('an empty picker does not repeat the subtitle, and a picker with one thing 
   await mount('mode=items&items=i_step&market=ZA&days=7');
   expect(host.querySelector('.c42-need').textContent).toBe('Add at least one more thing to compare.');
 });
+
+/* Wave 8 T6 (R0311): Compare names a subject as the rest of 42 does. The name
+   the picker took from Discover is not overwritten by the raw map label the
+   comparison carries, and a matched card's checked written title leads. */
+const RAW_ID = '7351234567890123456';
+function rawLabelled(mutate = () => {}){
+  const body = clone(itemsFixture);
+  body.subjects[0].label = RAW_ID;
+  mutate(body);
+  return body;
+}
+
+test('a subject keeps the name Discover gave it when the comparison carries a raw label', async () => {
+  await mount('mode=items&items=i_step,i_cola&market=ZA&days=7', [
+    ['/api/discover', reply(200, DISCOVER)],
+    ['/api/compare', reply(200, rawLabelled())],
+  ]);
+  expect(text()).not.toContain(RAW_ID);
+  expect(text(section('picker').querySelector('.c42-chosen'))).toContain('#fixture_za_step');
+  expect([...host.querySelectorAll('.c42-subject')].map((node) => node.textContent)[0]).toBe('#fixture_za_step');
+  expect(host.querySelector('.c42-multiple-title').textContent).toContain('#fixture_za_step');
+});
+
+test('a comparison whose subject the picker never named still shows the label it was sent', async () => {
+  await mount('mode=items&items=i_step,i_cola&market=ZA&days=7', [
+    ['/api/discover', reply(200, {...DISCOVER, items: []})],
+    ['/api/compare', reply(200, rawLabelled())],
+  ]);
+  expect([...host.querySelectorAll('.c42-subject')].map((node) => node.textContent)[0]).toBe(RAW_ID);
+});
+
+test('a matched card with a checked written title names the subject by it', async () => {
+  await mount('mode=items&items=i_step,i_cola&market=ZA&days=7', [
+    ['/api/discover', reply(200, DISCOVER)],
+    ['/api/compare', reply(200, rawLabelled((body) => { Object.assign(body.subjects[0].card, {explained: true, title_written: 'Step dance craze in Soweto'}); }))],
+  ]);
+  expect([...host.querySelectorAll('.c42-subject')].map((node) => node.textContent)[0]).toBe('Step dance craze in Soweto');
+  expect(text()).not.toContain(RAW_ID);
+});
