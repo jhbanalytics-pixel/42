@@ -577,6 +577,16 @@ def test_the_rank_query_has_no_limit_and_gives_ranks_past_the_pool(world):
     assert rows[0]["market_scope"] == "market" and rows[0]["total_posts7"] >= 3
 
 
+def test_the_rank_query_adds_the_scope_counts_beside_the_selections_own_market_scope():
+    """The candidates statement derives _selection_market_scope itself (from the locality row for a v2 item, else from
+    the pack scope), so the counts are added after that expression, wherever it comes from, and only once."""
+    text = fs.BRIEF_SQL_FILE.read_text(encoding="utf-8")
+    block = text.split("-- name: candidates", 1)[1].split("-- name:", 1)[0]
+    assert block.count(" _selection_market_scope,") == 1, "the brief's select list names the selection scope once"
+    sql = fs.rank_sql()
+    assert sql.count(" _selection_market_scope, ms.total_posts7 _scope_total, ms.market_posts7 _scope_market,") == 1
+
+
 def test_the_scope_bucket_follows_the_briefs_case():
     assert fs.scope_bucket("market", 3, 2) == 0
     assert fs.scope_bucket("market", 12, 6) == 0
@@ -591,6 +601,17 @@ def test_a_brief_sql_that_loses_the_shape_this_needs_stops_the_run(tmp_path, mon
     broken = tmp_path / "brief.sql"
     broken.write_text("-- name: candidates\nWITH seen AS (SELECT 1)\nSELECT 1;\n", encoding="utf-8")
     monkeypatch.setattr(fs, "BRIEF_SQL_FILE", broken)
+    with pytest.raises(SystemExit) as stopped:
+        fs.rank_sql()
+    assert "no longer has the candidates shape" in str(stopped.value)
+
+
+@pytest.mark.parametrize("scope_columns", ["", " _selection_market_scope, 1 _selection_market_scope,"])
+def test_a_brief_sql_with_no_selection_scope_column_or_two_of_them_stops_the_run(tmp_path, monkeypatch, scope_columns):
+    changed = tmp_path / "brief.sql"
+    text = fs.BRIEF_SQL_FILE.read_text(encoding="utf-8")
+    changed.write_text(text.replace(" _selection_market_scope,", scope_columns or " _renamed_scope,"), encoding="utf-8")
+    monkeypatch.setattr(fs, "BRIEF_SQL_FILE", changed)
     with pytest.raises(SystemExit) as stopped:
         fs.rank_sql()
     assert "no longer has the candidates shape" in str(stopped.value)

@@ -237,7 +237,9 @@ SELECT brief_date, market, run_id, published_at, status, TO_JSON_STRING(payload)
 FROM {AGENT_Q}.briefs WHERE brief_date BETWEEN @first_day AND @last_day
 """
 
-_SCOPE_ANCHOR = "ms.market_scope _selection_market_scope,"
+# The select list names the selection's market scope once. Its expression is the brief's own (the locality row's
+# checked status for a v2 item, else the pack scope), so the anchor is the alias and not the expression.
+_SCOPE_ANCHOR = " _selection_market_scope,"
 
 
 def rank_sql():
