@@ -54,6 +54,7 @@ def stub_every_step_but_neardup(monkeypatch):
     monkeypatch.setattr(detect_job, "run_coaction_step", lambda *a, **k: {})
     monkeypatch.setattr(detect_job, "run_state", lambda *a, **k: 0)
     for name in ("run_breakout_step", "run_watch_step", "run_seeds_step", "run_forecast_step", "run_centroids_step",
+                 "run_locality_step",
                  "apply_spread_step", "apply_agent_views_step", "apply_news_step"):
         monkeypatch.setattr(detect_job, name, lambda *a, **k: {})
     monkeypatch.setattr(detect_job.sqlrun, "apply_views", lambda *a, **k: None)
@@ -83,6 +84,8 @@ def test_the_counts_detects_job_stores_make_the_rival_window_measure_near_dup_sh
     assert near_dup(build(con)[0]) is None            # no counts yet: the step has not run for the window
     stub_every_step_but_neardup(monkeypatch)
     counts = detect_job.run(duck.Client(con), D, chain=Chain(con), core="core", agent="agent")
+    # the step also carries its wall time (corroborated), which is a measurement and not a count
+    assert isinstance(counts["near_dup"].pop("seconds"), float)
     assert counts["near_dup"] == {"posts": 14, "near_dup_posts": 5, "written": 5}
     share = near_dup(build(con)[0])
     assert share is not None, "the stored detect counts do not hold what the rival window reads"

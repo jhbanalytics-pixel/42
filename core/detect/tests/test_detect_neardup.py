@@ -309,6 +309,7 @@ def test_the_job_runs_the_step_after_coaction_and_before_state(con, monkeypatch)
     monkeypatch.setattr(job, "run_neardup_step", lambda *a, **k: order.append("neardup") or {})
     monkeypatch.setattr(job, "run_state", lambda *a, **k: order.append("state") or 0)
     for name in ("run_breakout_step", "run_watch_step", "run_seeds_step", "run_forecast_step", "run_centroids_step",
+                 "run_locality_step",
                  "apply_spread_step", "apply_agent_views_step", "apply_news_step"):
         monkeypatch.setattr(job, name, lambda *a, **k: {})
     monkeypatch.setattr(job.sqlrun, "apply_views", lambda *a, **k: None)
