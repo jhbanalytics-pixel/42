@@ -1,4 +1,5 @@
 import re
+import types
 from pathlib import Path
 
 import pytest
@@ -455,6 +456,7 @@ def test_no_banned_text_in_schema_package():
 
 ALTERS = [
     ("runs", "model_usd", "FLOAT64"),
+    ("runs", "stamp", "JSON"),
     ("claim_checks", "reason", "STRING"),
     ("claim_checks", "span_sha256", "STRING"),
     ("claim_checks", "reason_code", "STRING"),
@@ -867,6 +869,13 @@ def test_runs_carries_nullable_ask_payloads():
     assert ("record", "JSON", False) in columns
 
 
+def test_runs_carries_a_nullable_json_stamp_added_by_alter():
+    # core/setup/stamp.py writes it: the git sha, image digest and prompt hashes of the code that wrote the row.
+    _, _, _, columns, _ = our_tables()["runs"][0]
+    assert ("stamp", "JSON", False) in columns
+    assert ("runs", "stamp", "JSON") in alters()
+
+
 # Tests: apply.py with a fake client
 
 class FakeJob:
@@ -878,12 +887,18 @@ class FakeJob:
 
 
 class FakeClient:
-    def __init__(self, missing=(), fail_on=None, absent=()):
+    """live_views maps a view's name to the SQL it already has in BigQuery. A view not named there is taken to
+    be identical to the file's, so a test that does not care about drift sees none."""
+
+    def __init__(self, missing=(), fail_on=None, absent=(), live_views=None):
         self.calls = []
         self.missing = set(missing)
         self.absent = set(absent)
         self.fail_on = fail_on
         self.created = {}
+        self.live_views = dict(live_views or {})
+        self.file_views = {apply.statement_name(st).split(".")[2]: apply.view_body(st)
+                           for st in apply.load_statements() if apply.kind(st) == "view"}
 
     def get_table(self, ref):
         self.calls.append(("get_table", ref, None))
@@ -891,7 +906,7 @@ class FakeClient:
         created = table in self.created.get(dataset, {})
         if not created and (dataset in self.missing or table in self.absent):
             raise apply.NotFound(ref)
-        return object()
+        return types.SimpleNamespace(view_query=self.live_views.get(table, self.file_views.get(table)))
 
     def get_dataset(self, ref):
         self.calls.append(("get_dataset", ref, None))
@@ -908,6 +923,9 @@ class FakeClient:
         if m and not dry:
             kind = "BASE TABLE" if m.group(1) == "TABLE" else "VIEW"
             self.created.setdefault(m.group(2), {})[m.group(3)] = kind
+            if kind == "VIEW":
+                # IF NOT EXISTS: BigQuery keeps a view that is already there and accepts the statement.
+                self.live_views.setdefault(m.group(3), apply.view_body(sql))
         m = re.search(r"`[\w-]+\.(\w+)\.INFORMATION_SCHEMA\.TABLES`", sql)
         if m:
             made = self.created.get(m.group(1), {})
@@ -1054,3 +1072,54 @@ def test_claim_checks_keeps_a_digest_and_a_code_and_no_text_column():
         ("verdict", "STRING", False), ("checker", "STRING", False), ("run_id", "STRING", False),
         ("reason", "STRING", False), ("span_sha256", "STRING", False), ("reason_code", "STRING", False),
     ]
+
+
+# N54: CREATE VIEW IF NOT EXISTS leaves an existing view as it is, so an edited view must be reported, not "ok".
+
+def edited_view_client(**kw):
+    return FakeClient(live_views={"v_suppressed_creators": "SELECT creator_id FROM old_table"}, **kw)
+
+
+def test_apply_reports_a_view_whose_live_sql_differs_from_the_file_and_exits_1(capsys):
+    client = edited_view_client()
+    assert apply.run(client, apply.load_statements(), apply=True) == 1
+    out = capsys.readouterr().out
+    assert "v_suppressed_creators" in out and "differs" in out
+    assert not [ln for ln in out.splitlines() if ln.startswith("run ok: ") and ln.endswith("v_suppressed_creators")]
+    assert out.count("view differs") == 1
+    assert [sql for _, sql, dry, _ in queries(client) if "CREATE OR REPLACE" in sql.upper()] == []
+
+
+def test_apply_exits_0_and_names_no_drift_when_every_live_view_matches_the_file(capsys):
+    assert apply.run(FakeClient(), apply.load_statements(), apply=True) == 0
+    assert "view differs" not in capsys.readouterr().out
+
+
+def test_a_whitespace_only_difference_is_not_drift(capsys):
+    body = next(apply.view_body(st) for st in apply.load_statements()
+                if apply.statement_name(st).endswith("v_suppressed_creators"))
+    client = FakeClient(live_views={"v_suppressed_creators": body.replace(" ", "\n   ")})
+    assert apply.run(client, apply.load_statements(), apply=True) == 0
+    assert "view differs" not in capsys.readouterr().out
+
+
+def test_the_dry_run_also_reports_an_edited_view_that_already_exists(capsys):
+    assert apply.run(edited_view_client(), apply.load_statements()) == 1
+    out = capsys.readouterr().out
+    assert "view differs" in out and "v_suppressed_creators" in out
+    assert "dry run only; nothing created" in out
+
+
+def test_a_view_that_does_not_exist_yet_is_not_drift(capsys):
+    client = FakeClient(absent={"v_suppressed_creators"})
+    assert apply.run(client, apply.load_statements()) == 0
+    assert "view differs" not in capsys.readouterr().out
+
+
+def test_a_view_that_already_existed_is_not_reported_as_run_ok(capsys):
+    client = FakeClient(live_views={"v_suppressed_creators": "SELECT creator_id FROM old_table"},
+                        absent={"v_post_source_markets"})
+    apply.run(client, apply.load_statements(), apply=True)
+    out = capsys.readouterr().out
+    assert not [ln for ln in out.splitlines() if ln.startswith("run ok: ") and ln.endswith("v_suppressed_creators")]
+    assert "left unchanged" in out

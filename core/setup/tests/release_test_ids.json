@@ -1,0 +1,741 @@
+{
+ "ids": {
+  "AU-01": {
+   "owner": "lane 2",
+   "partition": "core",
+   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
+   "status": "pending"
+  },
+  "AU-02": {
+   "owner": "lane 2",
+   "partition": "core",
+   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
+   "status": "pending"
+  },
+  "AU-03": {
+   "owner": "lane 2",
+   "partition": "core",
+   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
+   "status": "pending"
+  },
+  "AU-04": {
+   "owner": "lane 2",
+   "partition": "core",
+   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
+   "status": "pending"
+  },
+  "AU-05": {
+   "owner": "lane 2",
+   "partition": "core",
+   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
+   "status": "pending"
+  },
+  "AU-06": {
+   "owner": "lane 2",
+   "partition": "core",
+   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
+   "status": "pending"
+  },
+  "AU-07": {
+   "owner": "lane 2",
+   "partition": "core",
+   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
+   "status": "pending"
+  },
+  "AU-08": {
+   "owner": "lane 2",
+   "partition": "core",
+   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
+   "status": "pending"
+  },
+  "AU-09": {
+   "owner": "lane 2",
+   "partition": "core",
+   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
+   "status": "pending"
+  },
+  "CT-01": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "CT-02": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "CT-03": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "CT-04": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "CT-05": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "CT-06": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "CT-07": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DE-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-09": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-10": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-11": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-12": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-13": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-14": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DE-15": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "DS-01": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-02": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-03": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-04": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-05": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-06": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-07": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-08": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-09": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-10": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-11": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-12": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-13": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-14": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-15": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-16": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-17": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-18": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-19": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-20": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-21": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "DS-22": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "HR-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "full mode is Release B's helper and is not carried, so there is no full-mode output to regress",
+   "status": "not_applicable"
+  },
+  "HR-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-09": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-10": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-11": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-12": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-13": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-14": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-15": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-16": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-17": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-18": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-19": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-20": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-21": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-22": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-23": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-24": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-25": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-26": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-27": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-28": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-29": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-30": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-31": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-32": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-33": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-34": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-35": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-36": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-37": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-38": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-39": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-40": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-41": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-42": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-43": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-44": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-45": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-46": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-47": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-48": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "full mode is not carried, so it cannot be run against a tagged or pinned service",
+   "status": "not_applicable"
+  },
+  "HR-49": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-50": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-51": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-52": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-53": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "HR-54": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "PS-01": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-02": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-03": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-04": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-05": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-06": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-07": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-08": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-09": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-10": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-11": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-12": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-13": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-14": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-15": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-16": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-17": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-18": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-19": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-20": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-21": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-22": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "PS-23": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "RT-01": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "RT-02": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "RT-03": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "RT-04": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "RT-05": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "SM-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "TM-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "TM-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "TM-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "TM-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "TM-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  }
+ },
+ "partitions": {
+  "core": [
+   "core/schema/tests/test_durable_effects.py",
+   "core/api/tests/test_smoke.py",
+   "core/api/tests/test_smoke_state.py",
+   "core/setup/tests/test_bound_readback_services.py",
+   "core/setup/tests/test_bound_readback_services_edges.py",
+   "core/setup/tests/test_declared_env_removals.py",
+   "core/setup/tests/test_release_map.py",
+   "core/setup/tests/test_release_plan.py",
+   "core/api/tests/test_old_readers.py"
+  ],
+  "deploy": [
+   "core/api/tests/test_deploy_candidate.py",
+   "core/api/tests/test_deploy_script.py",
+   "core/api/tests/test_agent_compat.py",
+   "core/setup/tests/test_release_retry.py",
+   "core/setup/tests/test_services_paste.py"
+  ]
+ },
+ "schema_version": 1
+}
