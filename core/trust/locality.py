@@ -35,7 +35,7 @@ BLOCK_VERSION = 1
 
 # W8-DEC-01a (typed 9 Oct 2026): which rule writes item_state.eligible. The release that switches sets it to "v2";
 # a row records the rule that wrote it in item_state.locality_basis, and the readers follow the row.
-LOCALITY_AUTHORITY = "v1"
+LOCALITY_AUTHORITY = "v2"
 V1_BASIS = "v1"
 V2_BASIS = METRIC_VERSION
 
