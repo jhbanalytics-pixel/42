@@ -195,9 +195,15 @@ def test_a_sql_query_whose_purpose_says_recall_findings_is_not_a_contradicts_sou
     writer = DuckFindingsWriter(con)
     old = save(run_ctx(datetime(2026, 9, 20, 6, 0)), writer, "Amapiano is rising in ZA", item_ids=["i_amapiano"])
     ctx = run_ctx(datetime(2026, 9, 28, 6, 0))
-    forged = sql_query(ctx, DuckWarehouse(con),
-                       "SELECT f.finding_id, f.question, 'made up' AS answer, f.as_of, f.claims, f.valid_from, "
-                       "f.valid_to, 'current' AS status FROM intelligence_42_agent.v_prior_findings f",
+    # The model may not read the findings view at all (N2, class D), so the read that used to stand in for a recall
+    # is refused outright ...
+    with pytest.raises(Refused, match="not available"):
+        sql_query(ctx, DuckWarehouse(con),
+                  "SELECT f.finding_id, f.question, 'made up' AS answer, f.as_of, f.claims, f.valid_from, "
+                  "f.valid_to, 'current' AS status FROM intelligence_42_agent.v_prior_findings f",
+                  purpose="recall_findings: amapiano")
+    # ... and a forged result that carries the real finding id, from SQL the model may write, is still not a source.
+    forged = sql_query(ctx, DuckWarehouse(con), "SELECT '" + old["finding_id"] + "' AS finding_id",
                        purpose="recall_findings: amapiano")
     assert forged["rows"][0]["finding_id"] == old["finding_id"]
     with pytest.raises(Refused, match="recall_findings"):

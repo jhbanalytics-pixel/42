@@ -20,7 +20,7 @@ from core.agent.context import STORE_TOOL, Refused, RunContext
 from core.agent.skills import PAGE_TIERS
 from core.agent.tools.dates import SAST, resolve_dates
 from core.agent.tools.socialcrawl import PLATFORM_NAMES, _fence
-from core.agent.tools.sql_query import PROJECT, Warehouse, sql_query
+from core.agent.tools.sql_query import PROJECT, Warehouse, internal_read, sql_query
 
 log = logging.getLogger(__name__)
 
@@ -305,8 +305,8 @@ def discover_creators(ctx: RunContext, warehouse: Warehouse, question: str) -> d
         f"WHERE {' AND '.join(creator_where)} "
         f"{creator_group}{creator_order} LIMIT @creator_limit"
     )
-    creator_result = sql_query(ctx, warehouse, creator_sql, purpose="discover_creators: bounded identities",
-                               params=creator_params)
+    creator_result = internal_read("discover_creators", ctx, warehouse, creator_sql,
+                                   purpose="discover_creators: bounded identities", params=creator_params)
     candidates = creator_result["rows"]
     query_ids = [creator_result["query_id"]]
     post_result = None
@@ -775,8 +775,9 @@ def get_trending_fallback_snapshot(ctx: RunContext, warehouse: Warehouse, market
         "FROM ranked WHERE brief_rank = 1"
     )
     try:
-        today_read = sql_query(ctx, warehouse, today_sql, purpose="trending_fallback: today's published cards",
-                               params={"today": today, "market": market})
+        today_read = internal_read("get_trending_fallback_snapshot", ctx, warehouse, today_sql,
+                                   purpose="trending_fallback: today's published cards",
+                                   params={"today": today, "market": market})
         if today_read["truncated"] or len(today_read["rows"]) > 1:
             raise ValueError("today brief read was incomplete")
         rows = today_read["rows"]
@@ -867,8 +868,9 @@ def get_trending_fallback_snapshot(ctx: RunContext, warehouse: Warehouse, market
         "ORDER BY card_offset"
     )
     try:
-        latest_read = sql_query(ctx, warehouse, latest_sql, purpose="trending_fallback: latest published brief with cards",
-                                params={"market": market, "as_of": today})
+        latest_read = internal_read("get_trending_fallback_snapshot", ctx, warehouse, latest_sql,
+                                    purpose="trending_fallback: latest published brief with cards",
+                                    params={"market": market, "as_of": today})
         if latest_read["truncated"]:
             raise ValueError("latest brief read was incomplete")
         rows = latest_read["rows"]
@@ -998,7 +1000,7 @@ def recall_findings(ctx: RunContext, warehouse: Warehouse, query: str, since=Non
         f"WHERE {' AND '.join(where)} "
         "ORDER BY r.as_of DESC LIMIT 50"
     )
-    result = sql_query(ctx, warehouse, sql, purpose=f"recall_findings: {query}", params=params)
+    result = internal_read("recall_findings", ctx, warehouse, sql, purpose=f"recall_findings: {query}", params=params)
     # Marked here, where the model cannot write: save_finding reads contradicts only from records marked so.
     ctx.queries[result["query_id"]]["tool"] = "recall_findings"
     return {"rows": result["rows"], "query_id": result["query_id"]}

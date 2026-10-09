@@ -16,7 +16,7 @@ from core.agent.answer import normalise
 from core.agent.checks import SPELLED, _text_breaches
 from core.agent.context import Refused, RunContext
 from core.agent.tools.dates import resolve_dates
-from core.agent.tools.sql_query import Warehouse, _run_query, sql_query
+from core.agent.tools.sql_query import Warehouse, internal_read, sql_query
 
 FORECASTS_TABLE = "intelligence_42_agent.forecasts"
 RULE = "ask_v1"
@@ -93,10 +93,10 @@ def log_forecast(ctx: RunContext, warehouse: Warehouse, writer, item_id, market,
     try:
         # Only the id: DATA.md section 6 keeps a stored forecast's prob and outcome from the agent.
         # The agent's sql_query refuses this table (TRUST.md K9); this one read may name it.
-        logged = _run_query(ctx, warehouse, f"SELECT f.forecast_id FROM {FORECASTS_TABLE} f "
-                            "WHERE f.forecast_id = @forecast_id LIMIT 1",
-                            purpose=f"log_forecast dedup: {item_id}",
-                            params={"forecast_id": forecast_id}, hidden_ok=(FORECASTS_TABLE,))["rows"]
+        logged = internal_read("log_forecast", ctx, warehouse, f"SELECT f.forecast_id FROM {FORECASTS_TABLE} f "
+                               "WHERE f.forecast_id = @forecast_id LIMIT 1",
+                               purpose=f"log_forecast dedup: {item_id}",
+                               params={"forecast_id": forecast_id})["rows"]
     except Exception as e:
         raise Refused(f"Could not check {FORECASTS_TABLE} for this forecast ({type(e).__name__}), so it is not "
                       f"logged rather than risk a duplicate.") from None

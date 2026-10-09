@@ -171,6 +171,16 @@ def test_query_rows_progress_uses_plain_text_without_query_content(name):
     assert events[-1]["kind"] == "read" and events[-1]["platform"] is None
 
 
+def _unfenced(value):
+    if isinstance(value, str):
+        return value.removeprefix("<untrusted_content>").removesuffix("</untrusted_content>")
+    if isinstance(value, list):
+        return [_unfenced(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _unfenced(v) for k, v in value.items()}
+    return value
+
+
 def test_same_question_frozen_replay_compacts_repeated_history_without_changing_writer_payload(monkeypatch):
     monkeypatch.setenv("MODEL_PROVIDER", "gemini")
     rows = frozen_rows()
@@ -190,9 +200,14 @@ def test_same_question_frozen_replay_compacts_repeated_history_without_changing_
     full = json.dumps({"rows": rows, "query_id": "q_1", "bytes": 1234,
                        "result_hash": result_hash(rows), "truncated": False}, ensure_ascii=False).encode("utf-8")
     assert len(compact) < len(full) / 10
-    assert json.loads(compact)["rows"] == rows[:10]
+    # The model reads the recorded cells with free text fenced as untrusted content (N2 RC195); the recorded rows, their
+    # hash and the writer payload below stay exactly as recorded, so the cells are compared after taking the fence off.
+    seen = json.loads(compact)["rows"]
+    assert seen[0]["text"].startswith("<untrusted_content>") and seen[0]["text"].endswith("</untrusted_content>")
+    assert _unfenced(seen) == rows[:10]
     tail = json.loads(client.calls[2]["contents"][4].parts[0].function_response.response["output"])
-    assert tail["rows"] == [rows[499]]
+    assert tail["rows"][0]["text"].startswith("<untrusted_content>")
+    assert _unfenced(tail["rows"]) == [rows[499]]
     baseline = RunContext(run_id="baseline", tier="T1", as_of=ctx.as_of)
     baseline.record_query(SQL, PARAMS, rows, "posts by cohort")
     assert ctx.queries == baseline.queries
