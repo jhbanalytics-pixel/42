@@ -90,12 +90,18 @@ def test_a_cluster_of_varying_links_and_numbers_is_one_masked_text(monkeypatch):
     assert len(seen) <= 4
 
 
-def test_two_near_clusters_count_each_other_and_a_distant_one_does_not(monkeypatch):
-    variant = CAPTION + "!"
-    seen, sizes = comparisons(monkeypatch, *([CAPTION] * 300), *([variant] * 200), *([OTHER] * 50))
-    by_text = {t: {sizes[f"p{i}"] for i, x in enumerate([CAPTION] * 300 + [variant] * 200 + [OTHER] * 50)
-                   if x == t and f"p{i}" in sizes} for t in (CAPTION, variant, OTHER)}
-    assert by_text == {CAPTION: {500}, variant: {500}, OTHER: {50}}
+NEAR = CAPTION.replace("weekend", "morning")
+
+
+def test_two_distinct_near_clusters_count_each_other_and_a_distant_one_does_not(monkeypatch):
+    from core.trust.independence import plain_text, shingles, similar
+    assert plain_text(CAPTION) != plain_text(NEAR)
+    assert similar(shingles(plain_text(CAPTION)), shingles(plain_text(NEAR)))
+    texts = [CAPTION] * 300 + [NEAR] * 200 + [OTHER] * 50
+    seen, sizes = comparisons(monkeypatch, *texts)
+    by_text = {t: {sizes[f"p{i}"] for i, x in enumerate(texts) if x == t and f"p{i}" in sizes}
+               for t in (CAPTION, NEAR, OTHER)}
+    assert by_text == {CAPTION: {500}, NEAR: {500}, OTHER: {50}}
     assert len(seen) <= 12
 
 
@@ -114,6 +120,54 @@ def test_the_sizes_equal_the_pairwise_definition_on_a_mixed_set():
         if near:
             expected[a] = 1 + len(near)
     assert neardup.near_dup_sizes(data) == expected
+
+
+BORDER_BASE = "Capetonians are going mad for the new shaya step challenge this weekend and my whole street joined in at sunset"
+FILLERS = ["zebra", "quartz", "ember", "violin", "harbour", "kettle", "lantern", "pillow"]
+
+
+def borderline_variants(n, seed=7):
+    """n one-word variants of BORDER_BASE whose Jaccard with it is 0.80 to 0.85, found by a seeded search."""
+    from core.trust.independence import plain_text, shingles
+    base = plain_text(BORDER_BASE)
+    grams = shingles(base)
+    rng = random.Random(seed)
+    out = []
+    while len(out) < n:
+        words = base.split()
+        words[rng.randrange(len(words))] = rng.choice(FILLERS)
+        v = " ".join(words)
+        g = shingles(v)
+        if 0.80 <= len(grams & g) / len(grams | g) <= 0.85 and v not in out:
+            out.append(v)
+    return out
+
+
+def pairwise_sizes(data):
+    from core.trust.independence import plain_text, shingles, similar
+    grams = {r["post_id"]: shingles(plain_text(r["text"])) for r in data if plain_text(r["text"])}
+    expected = {}
+    for a, ga in grams.items():
+        near = [b for b, gb in grams.items() if b != a and similar(ga, gb)]
+        if near:
+            expected[a] = 1 + len(near)
+    return expected
+
+
+def test_the_sizes_equal_the_pairwise_definition_on_borderline_pairs():
+    from core.trust.independence import plain_text, shingles
+    texts = [BORDER_BASE] + borderline_variants(24)
+    grams = [shingles(plain_text(t)) for t in texts]
+    borderline = [1 for i in range(len(grams)) for j in range(i) if 0.80 <= len(grams[i] & grams[j]) / len(grams[i] | grams[j]) <= 0.85]
+    assert len(borderline) >= 20
+    data = rows(*texts)
+    expected = pairwise_sizes(data)
+    assert len(expected) >= 20
+    assert neardup.near_dup_sizes(data) == expected
+
+
+def test_the_candidate_threshold_is_below_the_confirmation_threshold():
+    assert neardup.CANDIDATE_JACCARD == 0.6 and neardup.JACCARD == 0.8
 
 
 def test_a_post_listed_twice_counts_once_and_keeps_its_first_caption():
@@ -234,8 +288,9 @@ class Chain:
 
 def test_the_step_returns_the_counts(con):
     copies(con, 3)
-    assert job.run_neardup_step(duck.Client(con), D, "core", "agent") == {"posts": 3, "near_dup_posts": 3,
-                                                                          "written": 3}
+    out = job.run_neardup_step(duck.Client(con), D, "core", "agent")
+    assert isinstance(out.pop("seconds"), float)  # the wall time is new in this change; the counts are unchanged
+    assert out == {"posts": 3, "near_dup_posts": 3, "written": 3}
 
 
 @pytest.mark.parametrize("error, status", [(ImportError("No module named datasketch"), "skipped"),

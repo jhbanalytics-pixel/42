@@ -1785,10 +1785,13 @@ def _evidence_label(claim, records, pool=None):
     own = {r.get("id"): r for r in records}
     pool = [own.get(r.get("id"), r) for r in pool] if pool is not None else records
     groups = independent_groups(pool, excluded=NOT_INDEPENDENT, author_ids={r.get("id") for r in records})
-    # The reason counts what the label is judged on: unrelated author groups, and the platforms they stand on.
-    platforms = set().union(*(g["platforms"] for g in groups))
-    why = (f"{len(groups)} unrelated author group{'' if len(groups) == 1 else 's'} on "
-           f"{len(platforms)} platform{'' if len(platforms) == 1 else 's'}")
+    # The reason counts what the label is judged on: unrelated author groups that stand on a platform, and the
+    # platforms they stand on. A group with no platform is named apart, as it can never make a second platform.
+    on = [g for g in groups if g["platforms"]]
+    platforms = set().union(*(g["platforms"] for g in on))
+    why = (f"{len(on)} unrelated author group{'' if len(on) == 1 else 's'} on "
+           f"{len(platforms)} platform{'' if len(platforms) == 1 else 's'}"
+           + (f", {len(groups) - len(on)} with no platform" if len(groups) > len(on) else ""))
     if is_corroborated(groups, claim.get("numbers")):
         top = "corroborated"
     elif len(authors) >= 2:

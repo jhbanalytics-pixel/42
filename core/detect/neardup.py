@@ -3,9 +3,9 @@
 near_dup_size of a post is 1 plus the number of other posts sighted in the 7 days to d whose caption is a near
 duplicate of its own, by the rule core/detect/coaction.py already uses for near-identical text: Jaccard 0.8 on
 character 5-grams of the caption in lower case with links, handles and numbers masked and hashtags left out, at least
-20 characters of it. MinHash with locality sensitive hashing finds the candidate pairs, as in coaction, and each pair is
-confirmed on the exact 5-gram sets. The size counts neighbours, not a chain: a post is counted by what it matches
-itself.
+20 characters of it. MinHash with locality sensitive hashing at the lower CANDIDATE_JACCARD finds the candidate
+pairs, and each pair is confirmed at Jaccard 0.8 on the exact 5-gram sets. The size counts neighbours, not a chain: a
+post is counted by what it matches itself.
 
 Only sizes of 2 or more are written, as a post_enrichment row holding post_id and near_dup_size and nothing else, the
 way embed and video rows leave the columns they do not own empty. A post with no row reads as 1, which the views and
@@ -27,6 +27,10 @@ from core.trust.independence import plain_text, shingles, similar
 from .coaction import JACCARD, NUM_PERM
 from .sqlrun import AGENT, CORE, query
 
+# LSH built at the confirmation threshold JACCARD returns only about 40% of the pairs at Jaccard 0.80 (68.6% at 0.85,
+# 92.9% at 0.90), so a size read from it falls short of the pairwise rule. Candidates come from this lower threshold
+# instead and each is confirmed at JACCARD on the exact 5-gram sets; exact grouping keeps the extra candidates cheap.
+CANDIDATE_JACCARD = 0.6
 SQL = Path(__file__).parent / "sql" / "neardup.sql"
 CHUNK = 5000  # rows per INSERT, so no one request nears BigQuery's 10 MB limit
 INSERT_SQL = """
@@ -56,7 +60,7 @@ def near_dup_sizes(rows):
             seen.add(r["post_id"])
             members.setdefault(plain, []).append(r["post_id"])
     sets = {plain: shingles(plain) for plain in members}
-    lsh, hashes = MinHashLSH(threshold=JACCARD, num_perm=NUM_PERM), {}
+    lsh, hashes = MinHashLSH(threshold=CANDIDATE_JACCARD, num_perm=NUM_PERM), {}
     for plain, grams in sets.items():
         m = MinHash(num_perm=NUM_PERM, seed=1)
         m.update_batch([g.encode("utf-8") for g in grams])

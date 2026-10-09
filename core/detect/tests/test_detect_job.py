@@ -994,3 +994,21 @@ def test_a_centroid_failure_is_recorded_and_detect_and_brief_carry_on(con, monke
     assert status == "ok" and finish_error is None
     assert finish_counts["item_centroids"] == {"status": "failed", "error": error}
     assert chain.of("start_next") == [("start_next", "detect", D)]
+
+
+def test_the_near_duplicate_step_records_its_wall_time(monkeypatch):
+    ticks = iter([100.0, 103.25])
+    monkeypatch.setattr(job, "_clock", lambda: next(ticks))
+    monkeypatch.setattr(job.neardup, "run_neardup", lambda client, d, core, agent: {"posts": 4, "written": 1})
+    assert job.run_neardup_step(None, None) == {"posts": 4, "written": 1, "seconds": 3.25}
+
+
+def test_a_failed_near_duplicate_step_records_its_wall_time_too(monkeypatch):
+    ticks = iter([5.0, 9.0])
+    monkeypatch.setattr(job, "_clock", lambda: next(ticks))
+
+    def boom(client, d, core, agent):
+        raise RuntimeError("no")
+    monkeypatch.setattr(job.neardup, "run_neardup", boom)
+    out = job.run_neardup_step(None, None)
+    assert out["status"] == "failed" and out["seconds"] == 4.0

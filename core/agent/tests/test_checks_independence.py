@@ -85,13 +85,34 @@ def test_an_unrelated_pair_is_worded_as_two_groups_and_corroborates():
     assert checks._evidence_label({"numbers": []}, [a, b]) == ("corroborated", "2 unrelated author groups on 2 platforms")
 
 
-def test_the_reason_counts_x_and_twitter_as_one_platform_and_ignores_a_missing_platform():
+def test_the_reason_counts_x_and_twitter_as_one_platform_and_names_a_group_with_no_platform():
     from core.agent import checks
 
     a = rec("p1", "alice", "x", "Dancing to this in Soweto all weekend long")
     b = rec("p2", "bob", "twitter", "My gran tried the step at the braai and nailed it")
     c = rec("p3", "cleo", None, "Nobody told me the step was this hard on the knees")
-    assert checks._evidence_label({"numbers": []}, [a, b, c])[1] == "3 unrelated author groups on 1 platform"
+    assert checks._evidence_label({"numbers": []}, [a, b, c])[1] == "2 unrelated author groups on 1 platform, 1 with no platform"
+
+
+def test_a_group_with_no_platform_is_not_counted_toward_the_reason_that_the_label_does_not_count():
+    from core.agent import checks
+
+    a = rec("p1", "alice", "tiktok", "Dancing to this in Soweto all weekend long")
+    a2 = rec("p2", "alice", "instagram", "My gran tried the step at the braai and nailed it")
+    b = rec("p3", "bob", None, "Our whole taxi rank was singing it this morning")
+    assert checks._evidence_label({"numbers": []}, [a, a2, b]) == (
+        "observed", "1 unrelated author group on 2 platforms, 1 with no platform")
+    c = rec("p4", "carol", None, "Cannot stop replaying the bridge on the way to work")
+    assert checks._evidence_label({"numbers": []}, [a, a2, b, c]) == (
+        "observed", "1 unrelated author group on 2 platforms, 2 with no platform")
+
+
+def test_a_reason_with_every_record_on_a_platform_has_no_tail():
+    from core.agent import checks
+
+    a = rec("p1", "alice", "tiktok", "Dancing to this in Soweto all weekend long")
+    b = rec("p2", "bob", "instagram", "My gran tried the step at the braai and nailed it")
+    assert "no platform" not in checks._evidence_label({"numbers": []}, [a, b])[1]
 
 
 def test_the_reason_is_worded_from_groups_for_a_single_author_too():
