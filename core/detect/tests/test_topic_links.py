@@ -101,7 +101,7 @@ def test_a_non_topic_link_passes_unchanged(con):
 
 
 def test_the_observation_scan_is_bounded_to_the_28_day_window():
-    text = (SQL / "views.sql").read_text(encoding="utf-8")
+    text = (SQL / "locality_views.sql").read_text(encoding="utf-8")
     text = text[text.index("TABLE FUNCTION {core}.tvf_post_items"):]      # the counted-link function only
     assert "o.observed_date BETWEEN DATE_SUB(d, INTERVAL 27 DAY) AND d" in text
 

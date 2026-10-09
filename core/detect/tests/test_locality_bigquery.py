@@ -56,7 +56,7 @@ def cases():
         ("not_local_audit", brief_job.QUERIES["not_local_audit"], BRIEF),
         ("unreadable_audit", brief_job.QUERIES["unreadable_audit"], {**BRIEF, "run_id": KEY["detect_run_id"]}),
     ]
-    out += [(f"view_{sqlrun.object_name(s).split('.')[-1]}", body_with_params(s), {})
+    out += [(f"view_{sqlrun.object_name(s).split('.')[-1]}", body_with_params(s), {"d": D} if split_create(s)[2] else {})
             for s in sqlrun.locality_view_statements()]
     return [(name, sqlrun.render(sql), params) for name, sql, params in out]
 

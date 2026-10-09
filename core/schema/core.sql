@@ -330,7 +330,7 @@ CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.item_locality_
   member_rows INT64 NOT NULL, population_digest STRING NOT NULL)
 PARTITION BY run_date CLUSTER BY market, item_id;
 
-/* The dated, market-aware links of C4 v3 sections 7.2 and 16 that tvf_post_items (views.sql) reads. A row of
+/* The dated, market-aware links of C4 v3 sections 7.2 and 16 that tvf_post_items (locality_views.sql) reads. A row of
    post_items written before these columns existed keeps NULL in both and is read as always, in any market. */
 ALTER TABLE `ogilvy-trends-v2.intelligence_42_core.post_items`
 ADD COLUMN IF NOT EXISTS linked_on DATE;
