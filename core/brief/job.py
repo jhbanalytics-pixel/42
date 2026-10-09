@@ -161,6 +161,24 @@ _LOCALITY_VIEW = "{core}.v_item_locality_current lo"
 assert QUERIES["candidates"].count(_LOCALITY_VIEW) == 1
 QUERIES["candidates_without_locality"] = QUERIES["candidates"].replace(_LOCALITY_VIEW, _NO_LOCALITY)
 
+# a80's detect job re-creates v_item_market_scope on every run without market_news_posts7, so a brief on this code run while
+# detect is still a80 (a mixed prefix of the jobs update or its restore) finds the column absent. The candidate statement
+# then runs again with a typed NULL in its place, as core/api/store.py does for the same view: a NULL count is not below
+# the market's posts, so the row ranks in the third tier for that run. The locality view is still read. This is its own
+# reason (missing_view_column), never a locality failure, and under v2 it holds nothing.
+_NEWS_COLUMN = "ms.market_news_posts7"
+_NULL_COLUMN = "CAST(NULL AS INT64)"
+assert QUERIES["candidates"].count(_NEWS_COLUMN) == 2
+QUERIES["candidates_without_news_column"] = QUERIES["candidates"].replace(_NEWS_COLUMN, _NULL_COLUMN)
+QUERIES["candidates_without_locality_or_news_column"] = QUERIES["candidates_without_locality"].replace(_NEWS_COLUMN, _NULL_COLUMN)
+MISSING_VIEW_COLUMN = "missing_view_column"
+# Both faults at once, as live staging showed before detect re-created its views: no locality view and the old scope view.
+BOTH_VIEW_FAULTS = "read_without_view+missing_view_column"
+
+
+def _names_news_column(error):
+    return "market_news_posts7" in str(error)
+
 # Which market the retained locality result gives a candidate on the v2 basis (C4 v3 section 11.2): the status of
 # read_locality, never a v1 value. An unreadable result gives none, and the candidate is held as a data issue.
 _V2_SCOPE = {"local": "market", "market_unconfirmed": "market", "not_local": "global"}
@@ -618,15 +636,29 @@ def _candidate_rows(client, d, market, core, agent, receipt, failed=None):
     params = {"d": d, "market": market}
     try:
         return _query(client, "candidates", params, core, agent, receipt=receipt)
-    except Exception:
-        print(f"brief {d.isoformat()}: locality_view_read_failed", file=sys.stderr)
+    except Exception as error:
         receipt.clear()
+        if _names_news_column(error):
+            print(f"brief {d.isoformat()}: {MISSING_VIEW_COLUMN} market_news_posts7", file=sys.stderr)
+            if failed is not None:
+                failed[market] = MISSING_VIEW_COLUMN
+            return _query(client, "candidates_without_news_column", params, core, agent, receipt=receipt)
+        print(f"brief {d.isoformat()}: locality_view_read_failed", file=sys.stderr)
         held = locality.LOCALITY_AUTHORITY == "v2"
         if failed is not None:
             failed[market] = "held" if held else "read_without_view"
         if held:
             return []
-        return _query(client, "candidates_without_locality", params, core, agent, receipt=receipt)
+        try:
+            return _query(client, "candidates_without_locality", params, core, agent, receipt=receipt)
+        except Exception as second:
+            if not _names_news_column(second):
+                raise
+            receipt.clear()
+            print(f"brief {d.isoformat()}: {MISSING_VIEW_COLUMN} market_news_posts7", file=sys.stderr)
+            if failed is not None:
+                failed[market] = BOTH_VIEW_FAULTS
+            return _query(client, "candidates_without_locality_or_news_column", params, core, agent, receipt=receipt)
 
 
 def _locality_audit_inputs(client, d, market, rows, core, agent):
@@ -1588,6 +1620,10 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     if shadow:
         counts["locality_shadow"] = shadow
     unread = {m: a["candidate_read"] for m, a in selection_audits.items() if a.get("candidate_read")}
+    column_missing = [m for m, v in unread.items() if MISSING_VIEW_COLUMN in v]
+    if column_missing:
+        counts["view_column_missing"] = {"markets": column_missing, "column": "market_news_posts7", "action": "null_column"}
+    unread = {m: v for m, v in unread.items() if v != MISSING_VIEW_COLUMN}
     if unread:
         counts["locality_view_failed"] = {"markets": list(unread), "action": "held" if "held" in unread.values()
                                           else "read_without_view"}
