@@ -1068,3 +1068,31 @@ def test_a_failed_briefs_read_does_not_skip_any_rank_read(tmp_path):
     client = DuckClient(w.con, fail=("briefs",))
     call(w, tmp_path, client)
     assert len(rank_configs(client)) == 3
+
+
+# recorded_rank: a rank counts as recorded only when the brief wrote a whole number for that day, market and item
+
+def _briefs(sql_rank, day=D5, market="ZA", item="itemA", extra=None):
+    entry = {"sql_rank": sql_rank, **(extra or {})}
+    return {(day.isoformat(), market): {"not_assessed": {item: entry}}}
+
+
+def test_recorded_rank_returns_a_whole_number_the_brief_wrote():
+    assert fs.recorded_rank(_briefs(2), D5, "ZA", "itemA") == 2
+    assert fs.recorded_rank(_briefs(0), D5, "ZA", "itemA") == 0
+
+
+@pytest.mark.parametrize("written", ["2", 2.0, 2.5, True, False, None, [2], {"rank": 2}])
+def test_recorded_rank_ignores_a_rank_that_is_not_a_whole_number(written):
+    assert fs.recorded_rank(_briefs(written), D5, "ZA", "itemA") is None
+
+
+def test_recorded_rank_ignores_an_entry_with_no_rank_and_other_days_markets_and_items():
+    no_rank = {(D5.isoformat(), "ZA"): {"not_assessed": {"itemA": {"reason": "judged_limit_reached"}}}}
+    assert fs.recorded_rank(no_rank, D5, "ZA", "itemA") is None
+    briefs = _briefs(3)
+    assert fs.recorded_rank(briefs, D6, "ZA", "itemA") is None
+    assert fs.recorded_rank(briefs, D5, "NG", "itemA") is None
+    assert fs.recorded_rank(briefs, D5, "ZA", "itemB") is None
+    assert fs.recorded_rank(None, D5, "ZA", "itemA") is None
+    assert fs.recorded_rank({}, D5, "ZA", "itemA") is None
