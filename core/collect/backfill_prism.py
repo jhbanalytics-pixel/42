@@ -61,7 +61,7 @@ from pathlib import Path
 from core.collect import curated_creators, job, local_sources, writers
 from core.collect.socialcrawl_client import PRICED, params_hash
 from core.collect.parse import (
-    COUNTER_COLUMNS, GLOBAL, MARKETS, OBSERVATION_COLUMNS, _local_day, _utc, parse_with_creators)
+    COUNTER_COLUMNS, MARKETS, OBSERVATION_COLUMNS, _local_day, _utc, parse_with_creators)
 
 WINDOW = (date(2026, 9, 28), date(2026, 10, 7))  # UTC fetch days
 ROUTES = ("prism/profiles", "tiktok/song")
