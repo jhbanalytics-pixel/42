@@ -22,7 +22,7 @@ from core.api import dossiers, finding_save, investigations, privacy, skins, sum
 from core.api.store import SUPPRESSIONS, viewer_record
 # The watch list read and its table live in core/api/watchlist.py so the f42-digest job can read watches
 # without fastapi; WATCHES and _lock are the same objects there and here.
-from core.api.watchlist import WATCHES, _lock, watch_of
+from core.api.watchlist import WATCHES, _lock
 from core.api.watchlist import current_watches as _current_watches
 
 log = logging.getLogger("f42-agent")
@@ -1340,22 +1340,38 @@ def keepable(record):
 def stored_words(change, latest):
     """change with the title and notes the page sent back unchanged put back to what is stored. The page shows a
     dossier through the list of hidden people and sends the words it was shown on every edit; a title or note equal
-    to the masked form of the stored one is the stored one, not new words. Masked text is never stored (R5, A37)."""
+    to the masked form of the stored one is the stored one, not new words. Masked text is never stored (R5, A37).
+    The list can change between the page load and the edit, so a lift leaves the page holding masked words that the
+    list now read no longer reproduces: the form with every handle masked is accepted too, and words that carry a
+    mask the stored words do not are refused, never stored."""
     from core.api.store import get_store
     hidden = privacy.read_hidden(privacy.LazyStore(get_store))
-    if privacy.nothing_hidden(hidden):
-        return change
 
-    def masked(text):
-        return privacy.mask({"text": text}, hidden)["text"]
+    def same(sent, held):
+        forms = {privacy.mask({"text": held}, None)["text"]}
+        if not privacy.nothing_hidden(hidden):
+            forms.add(privacy.mask({"text": held}, hidden)["text"])
+        return sent.strip() in forms
+
+    def carries_a_mask(sent, held):
+        return any(token in sent and token not in held for token in (skins.MASK, skins.URL_MASK, skins.LINK_MASK))
+
+    def settle(sent, held, what):
+        if not isinstance(sent, str) or not isinstance(held, str) or sent.strip() == held.strip():
+            return sent
+        if same(sent, held):
+            return held
+        if carries_a_mask(sent, held):
+            raise dossiers.Refused(409, "not_ready", f"The {what} you sent holds words that were hidden when the page "
+                                                     "was loaded. Reload the dossier and send your edit again.")
+        return sent
 
     change = dict(change)
-    if isinstance(change.get("title"), str) and change["title"].strip() == masked(latest["title"]):
-        change["title"] = latest["title"]
+    if "title" in change:
+        change["title"] = settle(change["title"], latest["title"], "title")
     if isinstance(change.get("notes"), dict):
         held = {c["claim_id"]: c.get("note") for c in latest["claims"]}
-        change["notes"] = {cid: held[cid] if isinstance(note, str) and isinstance(held.get(cid), str)
-                           and note.strip() == masked(held[cid]) else note for cid, note in change["notes"].items()}
+        change["notes"] = {cid: settle(note, held.get(cid), "note") for cid, note in change["notes"].items()}
     return change
 
 
@@ -1452,7 +1468,10 @@ def edit_dossier_to(dossier_id, change, from_version=None):
         ok = keepable(record)
         if ok is None:
             return people_unavailable()
-        change = stored_words(change, latest)
+        try:
+            change = stored_words(change, latest)
+        except dossiers.Refused as exc:
+            return refused(exc)
         if "keep" not in change:
             # The edit carries the earlier choice forward. A claim the list no longer lets it keep is not dropped
             # quietly: the reader is told which, and sends keep without them to go on.

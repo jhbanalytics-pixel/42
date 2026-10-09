@@ -447,3 +447,25 @@ def test_the_second_pass_merges_the_agents_dossier_marker_not_drops_it(api):
     api.store.hide = set()  # the list has been lifted by the time the API looks again
     body = api.serve(older_agent({"/api/dossiers/d_fixture1": (200, first)})).get("/api/dossiers/d_fixture1", headers=GOOD).json()
     assert body["privacy"] == first["privacy"]
+
+
+def test_a_dossier_or_investigation_an_older_agent_returns_from_a_write_is_projected_again_r7(api):
+    from core.api.tests.test_privacy_dossiers import dossier_view_for
+    view = dossier_view_for(ask_record())
+    inv = {"investigation_id": "i_0123456789ab", "status": "draft", "question": ask_record()["question"],
+           "plan": {"focus": "Posts by @hid_handle"}, "record": ask_record()}
+    payloads = {
+        "/api/dossiers": (201, view), "/api/dossiers/d_fixture1": (200, view),
+        "/api/dossiers/d_fixture1/freeze": (201, view),
+        "/api/investigations": (201, inv), "/api/investigations/i_0123456789ab/plan": (200, inv),
+    }
+    client = api.serve(older_agent(payloads))
+    calls = [("post", "/api/dossiers", {"from": {"ask_id": ASK}}, 201), ("put", "/api/dossiers/d_fixture1", {"title": "t"}, 200),
+             ("post", "/api/dossiers/d_fixture1/freeze", {"from_version": 1}, 201),
+             ("post", "/api/investigations", {"question": "q"}, 201),
+             ("put", "/api/investigations/i_0123456789ab/plan", {"plan": {}}, 200)]
+    for method, path, body, status in calls:
+        r = client.request(method.upper(), path, headers=GOOD, json=body)
+        assert r.status_code == status, path
+        assert leaks(r.json(), [P_HID1]) == [], path
+        assert r.headers["cache-control"] == "no-store", path

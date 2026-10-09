@@ -182,10 +182,11 @@ async def _forward(method: str, path: str, json_body=None, params=None) -> httpx
 async def _again(resp: httpx.Response, kind: str) -> Response:
     """The agent's JSON answer read through the list of hidden people a second time (C5 v2 rule R7), so an agent that
     predates the check cannot leak through the hop. kind says what the body is: a record, an investigation, a list
-    of investigations, a dossier view or a list of dossiers. Anything but a 200 goes through as it is."""
+    of investigations, a dossier view or a list of dossiers. Anything but a 200 or a 201 (a write that made a dossier
+    or a draft) goes through as it is, and the status the agent sent is kept."""
     from core.api import privacy, store, summary_state
 
-    if resp.status_code != 200:
+    if resp.status_code not in (200, 201):
         return _passthrough(resp)
     try:
         body = resp.json()
@@ -214,7 +215,7 @@ async def _again(resp: httpx.Response, kind: str) -> Response:
             return body
 
     shown = await run_in_threadpool(project)
-    return JSONResponse(jsonable_encoder(shown), headers=privacy.NO_STORE)
+    return JSONResponse(jsonable_encoder(shown), status_code=resp.status_code, headers=privacy.NO_STORE)
 
 
 def _passthrough(resp: httpx.Response) -> Response:
@@ -1107,7 +1108,7 @@ def _known(**params) -> dict:
 @gated.post("/api/dossiers")
 async def api_dossier_create(request: Request) -> Response:
     auth.ask_limiter.check(request)
-    return _passthrough(await _forward("POST", "/api/dossiers", json_body=await _body(request)))
+    return await _again(await _forward("POST", "/api/dossiers", json_body=await _body(request)), "dossier")
 
 
 @gated.post("/api/findings")
@@ -1131,7 +1132,7 @@ async def api_dossier(dossier_id: str) -> Response:
 async def api_dossier_edit(dossier_id: str, request: Request) -> Response:
     _check_id(dossier_id, "a dossier")
     auth.ask_limiter.check(request)
-    return _passthrough(await _forward("PUT", f"/api/dossiers/{dossier_id}", json_body=await _body(request)))
+    return await _again(await _forward("PUT", f"/api/dossiers/{dossier_id}", json_body=await _body(request)), "dossier")
 
 
 @gated.post("/api/dossiers/{dossier_id}/ticks")
@@ -1146,7 +1147,7 @@ async def api_dossier_freeze(dossier_id: str, request: Request) -> Response:
     _check_id(dossier_id, "a dossier")
     auth.ask_limiter.check(request)
     body = await _body(request) if (await request.body()).strip() else None
-    return _passthrough(await _forward("POST", f"/api/dossiers/{dossier_id}/freeze", json_body=body))
+    return await _again(await _forward("POST", f"/api/dossiers/{dossier_id}/freeze", json_body=body), "dossier")
 
 
 @gated.get("/api/dossiers/{dossier_id}/versions/{version}")
@@ -1165,7 +1166,7 @@ async def api_dossier_export(dossier_id: str, version: int, format: str = "html"
 @gated.post("/api/investigations")
 async def api_investigation_draft(request: Request) -> Response:
     auth.ask_limiter.check(request)
-    return _passthrough(await _forward("POST", "/api/investigations", json_body=await _body(request)))
+    return await _again(await _forward("POST", "/api/investigations", json_body=await _body(request)), "investigation")
 
 
 @gated.get("/api/investigations")
@@ -1183,8 +1184,8 @@ async def api_investigation(investigation_id: str) -> Response:
 async def api_investigation_plan(investigation_id: str, request: Request) -> Response:
     _check_id(investigation_id, "an investigation")
     auth.ask_limiter.check(request)
-    return _passthrough(await _forward("PUT", f"/api/investigations/{investigation_id}/plan",
-                                       json_body=await _body(request)))
+    return await _again(await _forward("PUT", f"/api/investigations/{investigation_id}/plan",
+                                       json_body=await _body(request)), "investigation")
 
 
 @gated.post("/api/investigations/{investigation_id}/start")

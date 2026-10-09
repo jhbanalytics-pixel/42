@@ -410,3 +410,37 @@ def dossier_view_for(record):
     body = dossiers.build(record, sel, dossier_id="d_fixture1", version=1, created_at="2026-10-07T10:00:00+02:00",
                           source={"ask_id": record["ask_id"]})
     return {**body, "content_hash": dossiers.content_hash(body), "ticks": {}, "needs_tick": []}
+
+
+# A lift between the page load and the edit: the page still holds the masked words, the list is now empty, and the
+# masked words must never be stored in place of the reader's.
+def test_an_edit_sent_after_the_list_was_lifted_never_stores_the_masked_words(world):
+    did = named_draft(world)
+    world.store.hide = {"c_hid"}
+    view = world.client.get(f"/api/dossiers/{did}").json()
+    notes = {c["claim_id"]: c["note"] for c in view["claims"] if c.get("note")}
+    assert "hid_handle" not in view["title"]
+    world.store.hide = set()  # lifted before the reader pressed save
+    r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "title": view["title"], "notes": notes,
+                                                       "from_version": view["version"]})
+    assert r.status_code == 200
+    stored = versions(did)[-1]
+    assert stored["title"] == "Amapiano and @hid_handle"
+    assert next(c for c in stored["claims"] if c["claim_id"] == "c1")["note"] == "ask @hid_handle about this"
+
+
+def test_words_that_carry_a_mask_the_stored_words_do_not_are_refused_not_stored(world):
+    did = named_draft(world)
+    before = len(versions(did))
+    r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "title": "Something else about @***",
+                                                       "notes": {"c1": "a note"}, "from_version": 2})
+    assert r.status_code == 409 and r.json()["error"] == "not_ready"
+    assert len(versions(did)) == before
+
+
+def test_typed_words_with_no_mask_in_them_are_stored_after_a_lift(world):
+    did = named_draft(world)
+    world.store.hide = set()
+    r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "title": "A better title",
+                                                       "notes": {"c1": "a new note"}, "from_version": 2})
+    assert r.status_code == 200 and versions(did)[-1]["title"] == "A better title"
