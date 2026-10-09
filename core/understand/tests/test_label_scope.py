@@ -302,7 +302,21 @@ def test_the_saved_summary_holds_every_renamed_item_while_the_counts_list_only_f
 
 
 def test_a_run_that_renames_nothing_saves_no_id_list(monkeypatch, v2):
+    """Asserted on the summary the run saved in the plan's ready checkpoint, as _fifty_one_renames does: the counts
+    never hold the key (cluster._saved_plan strips it), so only the saved summary can show a stray empty list."""
+    checkpoints, real = [], cluster.run_cluster
+
+    def recording(execute, **kwargs):
+        def seen(text, params):
+            if text == cluster.load("cluster_checkpoint"):
+                checkpoints.append(dict(params))
+            return execute(text, params)
+        return real(seen, **kwargs)
+
+    monkeypatch.setattr(cluster, "run_cluster", recording)
     counts, _ = _run(monkeypatch, ["z1"])
+    [ready] = [p for p in checkpoints if p["batch_index"] == -1]
+    assert "renamed_item_ids" not in json.loads(ready["summary"])
     assert "renamed_item_ids" not in counts
 
 
