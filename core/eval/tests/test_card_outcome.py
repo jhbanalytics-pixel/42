@@ -699,7 +699,7 @@ def test_every_block_that_reads_a_table_filters_that_tables_own_date_column_in_t
     seen = set()
     for name, query in queries.items():
         for block, text in (blocks(query).items() if name == "states" else [("final", query)]):
-            if "`ogilvy-trends-v2." in text:
+            if "`{core}." in text or "`{agent}." in text:
                 seen.add((name, block))
                 for predicate in expected[(name, block)]:
                     assert text.count(predicate) == 1, (name, block, predicate)
@@ -708,12 +708,12 @@ def test_every_block_that_reads_a_table_filters_that_tables_own_date_column_in_t
 
 def test_each_table_is_read_from_the_view_that_keeps_one_current_row_and_the_good_run_view():
     states = blocks(co.split_queries(SQL.read_text(encoding="utf-8"))["states"])
-    assert "intelligence_42_agent.v_briefs_current` b" in states["items"]
-    assert "intelligence_42_core.v_series_test_current` st" in states["sig"]
-    assert "intelligence_42_core.v_series_test_current` st" in states["lane"]
-    assert "intelligence_42_core.v_item_state_current` s" in states["final"]
+    assert "`{agent}.v_briefs_current` b" in states["items"]
+    assert "`{core}.v_series_test_current` st" in states["sig"]
+    assert "`{core}.v_series_test_current` st" in states["lane"]
+    assert "`{core}.v_item_state_current` s" in states["final"]
     days = co.split_queries(SQL.read_text(encoding="utf-8"))["detect_days"]
-    assert "intelligence_42_core.v_good_runs` g" in days
+    assert "`{core}.v_good_runs` g" in days
 
 
 def test_the_joins_key_on_market_and_item_and_the_lane_guard_needs_one_lane_class():

@@ -484,7 +484,7 @@ def test_learn_reads_the_outcome_window_ending_a_week_before_the_weeks_end_throu
     [call] = outcome_reads
     assert call["end"] == date(2026, 9, 27) and call["start"] == date(2026, 8, 31)   # 4 weeks, ending t + 7 inside the week
     assert call["queries"] is learn.card_outcome_read.QUERIES and set(call["queries"]) == {"briefs", "states", "detect_days"}
-    assert call["kw"] == {}                     # the runner's own byte caps, not a second set
+    assert set(call["kw"]) == {"core", "agent", "deadline"}      # no byte cap of its own: the runner's caps stand
 
 
 def test_the_weekly_outcome_step_records_the_definition_window_bytes_and_group_counts_in_the_runs_row(con):
@@ -610,3 +610,129 @@ def test_learn_uses_the_outcome_measure_only_inside_its_step_and_stores_the_resu
     later = [n for n in ast.walk(run) if isinstance(n, ast.Name) and n.id in ("status", "error", "rows")
              and isinstance(n.ctx, ast.Store) and n.lineno > assign.lineno]
     assert later == []              # the run's status, error and rows are all settled before the step
+
+
+# O3 and O4. The outcome step is bounded by a deadline and reads the datasets learn was run with.
+
+
+@pytest.fixture
+def release():
+    """Lets a deliberately slow read finish once the test is over, so no thread outlives it."""
+    import threading
+
+    event = threading.Event()
+    yield event
+    event.set()
+
+
+def test_the_default_deadline_of_the_outcome_step_is_eight_minutes():
+    assert learn.OUTCOME_DEADLINE_SECONDS == 480
+
+
+def test_a_slow_outcome_read_times_out_and_the_runs_row_is_still_written(con, monkeypatch, release):
+    import time
+
+    monkeypatch.setattr(learn, "OUTCOME_DEADLINE_SECONDS", 0.3)
+
+    def slow(client, queries, start, end, **kw):
+        release.wait(20)
+        return outcome_inputs(), META
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", slow)
+    began = time.monotonic()
+    assert main(con) == 0
+    assert time.monotonic() - began < 10          # not 20: the run did not wait for the read
+    [run] = learn_runs(con)
+    assert run["status"] == "ok" and run["error"] is None and len(scorecard_rows(con)) == 3
+    assert json.loads(run["counts"])["card_outcome"]["status"] == "timeout"
+    assert "groups" not in json.loads(run["counts"])["card_outcome"]
+
+
+def test_a_read_that_finishes_inside_the_deadline_records_ok(con):
+    assert main(con) == 0
+    out = outcome_counts(con)
+    assert out["status"] == "ok" and out["error"] is None and out["groups"]
+
+
+def test_a_failed_read_records_status_error(con, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("warehouse said no")
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", boom)
+    assert main(con) == 0
+    assert outcome_counts(con)["status"] == "error"
+
+
+def test_a_read_that_runs_out_its_own_deadline_is_a_timeout_too(con, monkeypatch):
+    def late(*a, **k):
+        raise learn.card_outcome_read.DeadlineExceeded("states: the deadline passed")
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", late)
+    assert main(con) == 0
+    assert outcome_counts(con)["status"] == "timeout"
+
+
+def test_the_deadline_is_configurable_from_the_environment(con, monkeypatch, outcome_reads):
+    import time
+
+    monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", "90")
+    before = time.monotonic()
+    assert main(con) == 0
+    [call] = outcome_reads
+    assert before + 85 < call["kw"]["deadline"] <= time.monotonic() + 90
+
+
+def test_the_deadline_the_reads_get_is_the_one_for_the_whole_step(con, outcome_reads):
+    import time
+
+    before = time.monotonic()
+    assert main(con) == 0
+    [call] = outcome_reads
+    assert before + 470 < call["kw"]["deadline"] <= time.monotonic() + 480
+
+
+def test_a_late_read_cannot_change_what_was_recorded(con, monkeypatch, release):
+    monkeypatch.setattr(learn, "OUTCOME_DEADLINE_SECONDS", 0.2)
+    seen = []
+
+    def slow(client, queries, start, end, **kw):
+        release.wait(20)
+        seen.append("finished")
+        return outcome_inputs(), META
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", slow)
+    assert main(con) == 0
+    release.set()
+    import time
+
+    time.sleep(0.3)
+    assert json.loads(learn_runs(con)[-1]["counts"])["card_outcome"] == {
+        "definition": "active28_by_base_v3", "horizon": 7, "window": ["2026-08-31", "2026-09-27"],
+        "status": "timeout", "error": "the outcome step passed its 0.2 second deadline"}
+
+
+def test_learn_passes_its_own_dataset_names_to_the_outcome_reads(con, outcome_reads):
+    assert main(con) == 0
+    [call] = outcome_reads
+    assert call["kw"]["core"] == "core" and call["kw"]["agent"] == "agent"
+
+
+@pytest.mark.parametrize("value", ["", "abc", "0", "-5", "nan", "inf"])
+def test_a_bad_deadline_in_the_environment_falls_back_to_the_default(monkeypatch, value):
+    monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", value)
+    assert learn.outcome_deadline() == learn.OUTCOME_DEADLINE_SECONDS
+
+
+def test_a_read_left_behind_by_a_timeout_cannot_hold_the_process_open(con, monkeypatch, release):
+    import threading
+
+    monkeypatch.setattr(learn, "OUTCOME_DEADLINE_SECONDS", 0.2)
+
+    def slow(client, queries, start, end, **kw):
+        release.wait(20)
+        return outcome_inputs(), META
+
+    monkeypatch.setattr(learn.card_outcome_read, "read_inputs", slow)
+    assert main(con) == 0
+    left = [t for t in threading.enumerate() if t.name == "learn-card-outcome"]
+    assert left and all(t.daemon for t in left)
