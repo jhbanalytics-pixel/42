@@ -5,7 +5,7 @@ the rule is read from counts and never from the rates or flags a file states abo
 
 import hashlib
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -982,6 +982,31 @@ def test_a_file_as_of_a_day_after_today_is_refused(tmp_path, capsys, as_of, ok):
     finally:
         con.close()
     assert ok or "after" in capsys.readouterr().err
+
+
+def test_a_file_as_of_the_sast_day_is_accepted_between_midnight_and_2_am_sast(tmp_path, monkeypatch):
+    """01:00 SAST on 9 Oct is 23:00 UTC on 8 Oct: the apply reads today as the SAST day, like the replay."""
+    from .test_detect_backtest import at_clock
+    at_clock(monkeypatch, datetime(2026, 10, 9, 1, 0, tzinfo=timezone(timedelta(hours=2))))
+    assert backtest.datetime.now(backtest.UTC).date() == date(2026, 10, 8)
+    con, client = apply_world()
+    try:
+        assert apply_file(save(tmp_path, aged("2026-10-09")), client, tmp_path, as_of="2026-10-09", today=None) == 0
+        assert bool(stored(con)[0])
+    finally:
+        con.close()
+
+
+def test_a_file_two_days_after_the_sast_day_is_still_refused(tmp_path, monkeypatch, capsys):
+    from .test_detect_backtest import at_clock
+    at_clock(monkeypatch, datetime(2026, 10, 9, 1, 0, tzinfo=timezone(timedelta(hours=2))))
+    con, client = apply_world()
+    try:
+        assert apply_file(save(tmp_path, aged("2026-10-10")), client, tmp_path, as_of="2026-10-10", today=None) == 1
+        assert client.sql == []
+    finally:
+        con.close()
+    assert "after" in capsys.readouterr().err
 
 
 # 12. Two near-equivalent mutants pinned (S2-6)

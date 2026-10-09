@@ -43,8 +43,8 @@ without a row stays on the untested branch of state.sql.
 A row is in force only once the runs row of the run it cites is ok (stats.sql joins it), and a row whose run never
 got one is not counted as written, so a failed apply neither switches anything on nor blocks the next apply.
 
-Entry point: python -m core.detect.backtest --as-of YYYY-MM-DD [--days N] [--apply]; an --as-of after today is
-refused before anything is read or written. The results always go
+Entry point: python -m core.detect.backtest --as-of YYYY-MM-DD [--days N] [--apply]; an --as-of after today (the SAST
+date) is refused before anything is read or written. The results always go
 to one JSON file in core/detect/backtests; only --apply appends the test_switch rows and then the runs row
 (stage 'backtest'). A replay without --apply appends a runs row with status 'replayed' that carries the sha256 of
 the file it wrote. Reads BigQuery only, and nothing is ever updated or removed. python -m core.detect.backtest
@@ -70,6 +70,8 @@ from pathlib import Path
 
 from google.cloud import bigquery
 from scipy import stats as st
+
+from core.collect.chain import SAST
 
 from . import runs, sqlrun, stats
 
@@ -713,7 +715,7 @@ def apply_file(path, as_of, sha256, client=None, core=sqlrun.CORE, agent=sqlrun.
     report printed) and to the digest a 'replayed' runs row of the same run id carries. Returns 0, or 1 when the
     file is refused; a client is built only once the digest, the age and the contents of the file are accepted."""
     try:
-        results, digest = reviewed(path, as_of, sha256, today or datetime.now(UTC).date())
+        results, digest = reviewed(path, as_of, sha256, today or sast_today())
         if results.get("rule_version") != RULE_VERSION:
             raise ValueError(f"backtest rule version {results.get('rule_version')!r} cannot write {RULE_VERSION} rows")
     except (ValueError, OSError) as e:
@@ -892,6 +894,12 @@ def run(client, as_of, *, apply=False, days=WINDOW_DAYS, out_dir=OUT_DIR, core=s
     return results
 
 
+def sast_today():
+    """Today for the backtest: the SAST date, the day the collect chain and the brief run on. From 00:00 to 02:00 SAST
+    the UTC date is still yesterday, and an --as-of of the SAST day is not a day that has not come."""
+    return datetime.now(UTC).astimezone(SAST).date()
+
+
 def main(argv=None, client=None, out_dir=OUT_DIR, core=sqlrun.CORE, agent=sqlrun.AGENT, today=None):
     ap = argparse.ArgumentParser(prog="python -m core.detect.backtest",
                                  description="Backtest the series test and switch it on where it passes.")
@@ -917,7 +925,7 @@ def main(argv=None, client=None, out_dir=OUT_DIR, core=sqlrun.CORE, agent=sqlrun
         if a.sha256 is None:
             ap.error("--apply FILE needs --sha256, the digest that --report printed for the file")
         return apply_file(a.apply, a.as_of, a.sha256, client, core, agent, today=today)
-    today = today or datetime.now(UTC).date()
+    today = today or sast_today()
     if a.as_of > today:
         print(f"refused: --as-of {a.as_of.isoformat()} is after {today.isoformat()}; a backtest cannot be as of a "
               "day that has not come", file=sys.stderr)

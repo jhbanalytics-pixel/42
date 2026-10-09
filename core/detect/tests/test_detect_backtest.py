@@ -8,7 +8,7 @@ series are drawn from a negative binomial with a fixed seed.
 
 import json
 import os
-from datetime import timedelta
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -596,10 +596,44 @@ def test_a_replay_as_of_today_is_not_refused(con, tmp_path, capsys, extra):
 
 def test_the_day_after_today_is_read_from_the_real_clock_when_none_is_given(con, tmp_path, capsys):
     stable_panel(World(), 30).load(con)
-    tomorrow = (backtest.datetime.now(backtest.UTC).date() + timedelta(days=1)).isoformat()
+    tomorrow = (backtest.sast_today() + timedelta(days=1)).isoformat()
     assert backtest.main(["--as-of", tomorrow, "--days", "7"], client=BacktestClient(con), out_dir=tmp_path,
                          core="core", agent="agent") == 1
     assert "after" in capsys.readouterr().err
+
+
+def at_clock(monkeypatch, instant):
+    """backtest's real clock, set to instant (an aware datetime): datetime.now(tz) answers it in tz."""
+    class Clock(backtest.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instant.astimezone(tz) if tz else instant.replace(tzinfo=None)
+
+    monkeypatch.setattr(backtest, "datetime", Clock)
+
+
+SAST = timezone(timedelta(hours=2))
+
+
+def test_a_replay_as_of_the_sast_day_is_not_refused_between_midnight_and_2_am_sast(con, tmp_path, capsys, monkeypatch):
+    """01:00 SAST on D + 1 is 23:00 UTC on D. Today for the backtest is the SAST date, the day the collect chain
+    and the brief run on, so --as-of D + 1 is not a day that has not come."""
+    stable_panel(World(), 30).load(con)
+    at_clock(monkeypatch, datetime.combine(D + timedelta(days=1), time(1), SAST))
+    assert backtest.datetime.now(backtest.UTC).date() == D, "the clock under test is a UTC day behind SAST"
+    assert backtest.main(["--as-of", (D + timedelta(days=1)).isoformat(), "--days", "7"], client=BacktestClient(con),
+                         out_dir=tmp_path, core="core", agent="agent") == 0
+    assert "refused" not in capsys.readouterr().err
+
+
+def test_a_replay_as_of_two_days_after_the_sast_day_is_still_refused(con, tmp_path, capsys, monkeypatch):
+    stable_panel(World(), 30).load(con)
+    at_clock(monkeypatch, datetime.combine(D + timedelta(days=1), time(1), SAST))
+    client = BacktestClient(con)
+    assert backtest.main(["--as-of", (D + timedelta(days=2)).isoformat(), "--days", "7"], client=client,
+                         out_dir=tmp_path, core="core", agent="agent") == 1
+    err = capsys.readouterr().err
+    assert "refused:" in err and (D + timedelta(days=1)).isoformat() in err and client.sql == []
 
 
 # 6b. A key with no platform (a curated creator panel's collection_health rows) is skipped, not measured
