@@ -22,9 +22,9 @@ agg AS (
     COUNT(DISTINCT IF(m.locality_class = 'unknown' AND m.feed_sighted, IFNULL(m.creator_key, m.post_id), NULL)) feed_only_creators,
     COUNT(DISTINCT IF(m.locality_class = 'local' OR (m.locality_class = 'unknown' AND m.feed_sighted),
                       IFNULL(m.creator_key, m.post_id), NULL)) breadth_creators,
-    TO_HEX(SHA256(STRING_AGG(
-      CONCAT(m.post_id, '|', m.locality_class, '|', IFNULL(m.creator_key, ''), '|', IF(m.feed_sighted, '1', '0')),
-      CHR(10) ORDER BY m.post_id))) population_digest
+    TO_HEX(SHA256(ARRAY_TO_STRING(ARRAY_AGG(
+      CONCAT(m.post_id, '|', m.locality_class, '|', IFNULL(m.creator_key, ''), '|', IF(m.feed_sighted, '1', '0'))
+      ORDER BY m.post_id), CHR(10)))) population_digest
   FROM {core}.item_locality_post m
   WHERE m.run_date = @d AND m.detect_run_id = @detect_run_id AND m.metric_version = @metric_version
   GROUP BY m.item_id, m.market)
