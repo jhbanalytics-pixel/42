@@ -1,6 +1,6 @@
 import pytest
 
-from core.trust.locality import METRIC_VERSION, read_locality
+from core.trust.locality import METRIC_VERSION, locality_block, read_locality
 
 
 # The six derived counts of a row whose members are five local and three foreign posts by distinct creators (and,
@@ -107,3 +107,29 @@ def test_verify_refuses_a_summary_whose_digest_belongs_to_other_members_with_the
     summary = row(8, 5, population_digest=digest(mine), **DERIVED)
     assert verify(summary, mine)
     assert not verify(summary, other)                              # identical counts, different posts: only the digest differs
+
+
+COUNT_KEYS = ("known_posts", "local_posts", "local_share", "population_posts", "unknown_posts", "foreign_posts",
+              "feed_only_posts", "vetoed_feed_posts", "breadth_creators")
+STORED = {"feed_only_posts": 1, "vetoed_feed_posts": 2, "breadth_creators": 4, "schema_version": 1}
+
+
+@pytest.mark.parametrize("record", [
+    row(8, 0, status="local"),                               # the stored status contradicts the counts
+    row(8, 5, local_share=0.1),                              # the share contradicts them
+    row(8, 5, metric_version="locality_v2.0"),               # another version
+    row(8, 5, unknown_posts=None),                           # a null count
+    None,                                                    # no row at all
+])
+def test_an_unreadable_row_shows_no_counts_not_the_ones_it_stores(record):
+    """Whatever a row stores, an unreadable one gives the consumer no count to quote: None for every one, never zero."""
+    block = locality_block(None if record is None else {**record, **STORED})
+    assert block["status"] == "unreadable" and block["label"] is None
+    assert {k: block[k] for k in COUNT_KEYS} == dict.fromkeys(COUNT_KEYS)
+
+
+def test_a_readable_row_shows_its_counts():
+    block = locality_block({**row(10, 8, unknown=2), **STORED})
+    assert (block["status"], block["known_posts"], block["local_posts"], block["local_share"]) == ("local", 10, 8, 0.8)
+    assert (block["population_posts"], block["unknown_posts"], block["foreign_posts"]) == (12, 2, 2)
+    assert (block["feed_only_posts"], block["vetoed_feed_posts"], block["breadth_creators"]) == (1, 2, 4)
