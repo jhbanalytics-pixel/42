@@ -20,7 +20,7 @@ from .test_detect_scorecard import EXTRA_TABLES, FIGURES, ledger
 
 WEEK = date(2026, 9, 28)
 WEEK_END = date(2026, 10, 4)
-FIGURE_KEYS = {"value", "unit", "query_id", "run_id", "result_hash", "n", "reason"}
+FIGURE_KEYS = {"value", "unit", "query_id", "run_id", "result_hash", "n", "reason", "regime"}   # scorecard-2
 
 
 class LearnClient(duck.Client):

@@ -29,7 +29,7 @@ from .test_detect_seeds import EXTRA as SEED_COLUMNS
 from .test_detect_seeds import LEDGER, qrow
 from .test_detect_states import World, fresh
 
-HEX_ID = re.compile(r"^(aggregate|stats|breakout|watch|seeds|forecast|detect)-20260920-[0-9a-f]{12}$")
+HEX_ID = re.compile(r"^(aggregate|stats|breakout|watch|seeds|forecast|detect|locality)-20260920-[0-9a-f]{12}$")
 CATCH_UP_ID = re.compile(r"^aggregate-20260919-[0-9a-f]{12}$")
 
 
@@ -49,6 +49,13 @@ class JobClient(duck.Client):
             temp, insert = [_strip_leading_comments(s) for s in sqlrun.split(sql)]
             self.con.execute(temp_macro(temp))
             run_duck(self.con, insert, {p.name: duck._value(p) for p in job_config.query_parameters})
+            return duck._Job([])
+        if text.upper().startswith("BEGIN TRANSACTION"):
+            self.sql.append(sql)
+            params = {p.name: duck._value(p) for p in job_config.query_parameters}
+            for stmt in sqlrun.split(sql):
+                if not stmt.strip().upper().startswith(("BEGIN", "COMMIT")):
+                    run_duck(self.con, _strip_leading_comments(stmt), params)
             return duck._Job([])
         return super().query(sql, job_config)
 
@@ -232,7 +239,8 @@ def test_run_end_to_end_writes_steps_and_state_for_the_detect_run(con):
     state = {r["item_id"]: r for r in current(con, "v_item_state_current")}
     assert set(state) == {"new", "two"}
     assert {r["run_id"] for r in state.values()} == {detect_id}
-    assert {r["rule_version"] for r in state.values()} == {job.RULE_VERSION} == {"warmup-1"}
+    # the rule version is the version of the locality authority constant (rule_version_for pins both values)
+    assert {r["rule_version"] for r in state.values()} == {job.RULE_VERSION} == {job.rule_version_for(job.LOCALITY_AUTHORITY)}
     assert state["new"]["state"] == "new_to_42"
     assert counts["item_state"] == 2
 
@@ -250,6 +258,7 @@ def test_run_applies_views_then_waves_and_never_creates_or_removes_a_table(con):
     creates = [_strip_leading_comments(s) for s in client.sql if _strip_leading_comments(s).upper().startswith("CREATE OR")]
     names = [sqlrun.object_name(s) for s in creates]
     assert names == ([sqlrun.object_name(s) for s in sqlrun.statements("core", "agent")] + ["core.v_item_waves"]
+                     + [sqlrun.object_name(s) for s in sqlrun.locality_view_statements("core", "agent")]
                      + ["core.v_item_spread"]
                      + [sqlrun.object_name(s) for s in sqlrun.agent_statements("core", "agent")]
                      + [sqlrun.object_name(s) for s in sqlrun.news_statements("core", "agent")]
@@ -259,10 +268,11 @@ def test_run_applies_views_then_waves_and_never_creates_or_removes_a_table(con):
         for word in ("DELETE", "DROP", "TRUNCATE", "ALTER"):
             assert word not in upper
         assert not re.search(r"CREATE\s+(OR\s+REPLACE\s+)?TABLE\s+(?!FUNCTION)", upper)
-    # aggregate, stats, coaction, breakout, watch, seeds and forecast
-    assert [t for t, _ in client.inserted] == ["agent.runs"] * 7
-    assert [r["stage"] for _, rs in client.inserted for r in rs] == [
-        "aggregate", "stats", "coaction", "breakout", "watch", "seeds", "forecast"]
+    # aggregate, stats, coaction, locality, breakout, watch, seeds and forecast write runs rows; the locality step
+    # also streams its write-time verification rows into item_locality_verified
+    assert sorted({t for t, _ in client.inserted}) == ["agent.runs", "core.item_locality_verified"]
+    assert [r["stage"] for t, rs in client.inserted if t == "agent.runs" for r in rs] == [
+        "aggregate", "stats", "coaction", "locality", "breakout", "watch", "seeds", "forecast"]
 
 
 def test_the_agent_views_exist_and_read_after_a_job_run(con):
@@ -353,8 +363,8 @@ def test_detect_step_runs_rows_carry_model_usd_zero_in_counts_and_only_staging_c
     job.run(client, D, chain=FakeChain(con), core="core", agent="agent")
     monkeypatch.setattr(seeds, "run_seeds", lambda *a, **k: 1 / 0)
     job.run(client, D, chain=FakeChain(con), core="core", agent="agent")
-    inserted = [r for _, rs in client.inserted for r in rs]
-    assert inserted and all(set(r) <= STAGING_RUNS_COLUMNS for r in inserted)
+    inserted = [r for table, rs in client.inserted if table.endswith(".runs") for r in rs]   # the runs rows, not the
+    assert inserted and all(set(r) <= STAGING_RUNS_COLUMNS for r in inserted)                # verification rows
     rows = duck.query(con, "SELECT r.stage, r.status, r.counts FROM {agent}.runs r "
                            "WHERE r.stage IN ('aggregate', 'stats', 'coaction', 'breakout', 'watch', 'seeds', "
                            "'forecast')")

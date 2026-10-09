@@ -28,7 +28,8 @@ LEFT JOIN (
 WHERE s.metric_date = @d AND s.run_id = @run_id
   AND IFNULL(s.eligible, FALSE)
   AND IFNULL(s.authenticity, '') != 'likely_coordinated'
-  AND IFNULL(s.geo_status, '') != 'not_local'
+  AND IFNULL(s.locality_status, '') NOT IN ('unreadable', 'missing')
+  AND IF(s.locality_basis = 'locality_v2.1', TRUE, IFNULL(s.geo_status, '') != 'not_local')
   AND IFNULL(s.sponsored_share, 0) < 0.5
   AND IFNULL(cm.status, '') = 'active'
 ORDER BY s.market, s.item_id;

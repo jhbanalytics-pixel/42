@@ -54,8 +54,8 @@ CREATE VIEW core.v_suppressed_creators AS SELECT creator_id FROM core.suppressed
 
 CREATE TABLE core.post_observations (
   post_id VARCHAR NOT NULL, observed_at TIMESTAMPTZ NOT NULL, observed_date DATE NOT NULL,
-  market VARCHAR NOT NULL, platform VARCHAR, route VARCHAR, series VARCHAR, protocol VARCHAR,
-  lane VARCHAR, lane_class VARCHAR NOT NULL, seed_key VARCHAR, pull_seq BIGINT, rank BIGINT,
+  market VARCHAR NOT NULL, source_market VARCHAR, source_region VARCHAR, platform VARCHAR, route VARCHAR,
+  series VARCHAR, protocol VARCHAR, lane VARCHAR, lane_class VARCHAR NOT NULL, seed_key VARCHAR, pull_seq BIGINT, rank BIGINT,
   views BIGINT, likes BIGINT, comments BIGINT, shares BIGINT, run_id VARCHAR);
 
 CREATE TABLE core.item_counter_daily (
@@ -98,7 +98,32 @@ CREATE TABLE core.cultural_map (
   recurrences BIGINT, lifecycle VARCHAR, status VARCHAR, rejected_until DATE,
   valid_from TIMESTAMPTZ, valid_to TIMESTAMPTZ);
 
-CREATE TABLE core.post_items (post_id VARCHAR, item_id VARCHAR, via VARCHAR);
+CREATE TABLE core.post_items (post_id VARCHAR, item_id VARCHAR, via VARCHAR, linked_on DATE, link_market VARCHAR);
+
+-- The dated lineage links and the ends of links (C4 v3 section 16, read by tvf_post_items).
+CREATE TABLE core.post_item_end (post_id VARCHAR NOT NULL, item_id VARCHAR NOT NULL, ended_on DATE NOT NULL,
+  reason VARCHAR NOT NULL, lineage_id VARCHAR NOT NULL);
+CREATE TABLE core.post_item_lineage (post_id VARCHAR NOT NULL, item_id VARCHAR NOT NULL, linked_on DATE NOT NULL,
+  link_market VARCHAR, lineage_id VARCHAR NOT NULL);
+
+-- locality_v2 (C4 v3 section 7.1): the retained row, its members and the verification row.
+CREATE TABLE core.item_locality_post (
+  run_date DATE NOT NULL, market VARCHAR NOT NULL, item_id VARCHAR NOT NULL, detect_run_id VARCHAR NOT NULL,
+  population_cutoff TIMESTAMPTZ NOT NULL, metric_version VARCHAR NOT NULL, post_id VARCHAR NOT NULL,
+  creator_key VARCHAR, platform VARCHAR, locality_class VARCHAR NOT NULL, geo_market VARCHAR,
+  geo_confidence DOUBLE, geo_source VARCHAR, feed_sighted BOOLEAN NOT NULL, feed_obs_date DATE);
+CREATE TABLE core.item_locality (
+  run_date DATE NOT NULL, market VARCHAR NOT NULL, item_id VARCHAR NOT NULL, detect_run_id VARCHAR NOT NULL,
+  population_cutoff TIMESTAMPTZ NOT NULL, metric_version VARCHAR NOT NULL, schema_version BIGINT NOT NULL,
+  computed_at TIMESTAMPTZ NOT NULL, population_posts BIGINT NOT NULL, known_posts BIGINT NOT NULL,
+  local_posts BIGINT NOT NULL, foreign_posts BIGINT NOT NULL, unknown_posts BIGINT NOT NULL,
+  feed_only_posts BIGINT NOT NULL, vetoed_feed_posts BIGINT NOT NULL, local_creators BIGINT NOT NULL,
+  known_creators BIGINT NOT NULL, feed_only_creators BIGINT NOT NULL, breadth_creators BIGINT NOT NULL,
+  status VARCHAR NOT NULL, local_share DOUBLE, population_digest VARCHAR NOT NULL);
+CREATE TABLE core.item_locality_verified (
+  run_date DATE NOT NULL, market VARCHAR NOT NULL, item_id VARCHAR NOT NULL, detect_run_id VARCHAR NOT NULL,
+  metric_version VARCHAR NOT NULL, verified_at TIMESTAMPTZ NOT NULL, member_rows BIGINT NOT NULL,
+  population_digest VARCHAR NOT NULL);
 
 CREATE TABLE core.post_enrichment (post_id VARCHAR, embedding DOUBLE[], langs VARCHAR[], tone VARCHAR, stance VARCHAR,
   sponsored BOOLEAN, near_dup_size BIGINT);
@@ -120,7 +145,8 @@ CREATE TABLE core.item_state (
   local_share DOUBLE, geo_known_posts7 BIGINT, spread_platforms BIGINT, found_platforms BIGINT,
   markets_hot BIGINT, lead_market VARCHAR, diffusion VARCHAR, novelty VARCHAR,
   last_wave STRUCT(peak_date DATE, peak_posts BIGINT), moment VARCHAR, eligible BOOLEAN,
-  worth_raw DOUBLE, worth_pct DOUBLE, run_id VARCHAR, rule_version VARCHAR, base_state VARCHAR);
+  worth_raw DOUBLE, worth_pct DOUBLE, run_id VARCHAR, rule_version VARCHAR, base_state VARCHAR,
+  eligible_v1 BOOLEAN, locality_basis VARCHAR, locality_status VARCHAR);
 
 CREATE TABLE core.coord_signals (
   metric_date DATE, item_id VARCHAR, market VARCHAR, run_id VARCHAR,
@@ -265,6 +291,8 @@ def connect(views=True):
     con.execute(TABLES)
     if views:
         for stmt in sqlrun.statements(core="core", agent="agent"):
+            con.execute(create_statement(stmt))
+        for stmt in sqlrun.locality_view_statements(core="core", agent="agent"):
             con.execute(create_statement(stmt))
     return con
 
