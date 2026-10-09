@@ -280,9 +280,20 @@ class _KinName(_Conditional):
     elsewhere in the text followed by a surname (the short form of a name given in full). A surname is a capitalised
     word that is not another kin word and not a platform or common word (Gogo TikTok, Babu Joins). Lower case, all
     capitals, a plural, a bare capitalised word and a headline in title case stay age terms.
+
+    Three further forms are read as a name or a title, each only in its written form. A lower case hashtag of the
+    word ("#granny") is a name when the capitalised word is also in the text, where it is judged on its own ("Granny
+    Horror Gameplay #granny"). A persona title is "The", one capitalised word, then the capitalised kin word ("The
+    Hospitality Pikin"), unless that middle word is itself an age word (The Little Pikin). For elders only a title
+    counts, never a name: "Council of Elders" with both capitals, or a capitalised "Elders" straight after an acronym
+    of two to six capitals that is not a common word ("APC Elders"). So "Elder Mavuso", a bare "Elders" and "council
+    of elders" stay age terms.
     """
 
     _NAME = r"[A-Z][a-z][\w'\u2019-]*"
+    _COUNCIL_OF = re.compile(r"(?<![A-Za-z])Council of $")
+    _ACRONYM_BEFORE = re.compile(r"(?<![A-Za-z0-9_])([A-Z]{2,6})\s+$")
+    _PERSONA_BEFORE = re.compile(r"(?<![A-Za-z])The\s+([A-Z][a-z]+)\s+$")
     _AFTER = re.compile(r"\s+(" + _NAME + ")")
     _LIST_AFTER = re.compile(r"\s*(?:,|&|\band\b)\s*(" + _NAME + ")")
     _LIST_BEFORE = re.compile(r"\b(" + _NAME + r")\s*(?:,|&|\band\b)\s*$")
@@ -295,6 +306,19 @@ class _KinName(_Conditional):
         " at to for with new video videos music show song party fans fan viral day night week post posts story"
         " stories vibes style fashion food recipe recipes kitchen church group team band queue queues era life".split()
     )
+
+    # Capitals that are common words and not the name of a party or a body: "OUR Elders" is not "APC Elders".
+    _NOT_ACRONYMS = frozenset(
+        "THE OUR ALL OLD YOUR MY AND FOR WITH NEW ONE TWO ANY HIS HER ITS OF TO IN ON AT BY AS IS IT OR SO UP US WE NO"
+        " BIG OUT ARE WAS NOT BUT CAN HAS HAD MAY NOW WHO HOW WHY DID SAY SAID THESE THOSE SOME MANY MORE MOST FEW SUCH"
+        " THEIR WISE GREAT GOOD BAD".split()
+    )
+    # An age word between "The" and the kin word makes it a description and not a persona name.
+    _NOT_PERSONAS = frozenset("young younger youngest little small old older elder baby new first last big tiny".split())
+
+    def __init__(self, source, by_name=True):
+        super().__init__(source)
+        self._by_name = by_name
 
     def _is_kin(self, word):
         return bool(self._re.fullmatch(word))
@@ -314,12 +338,41 @@ class _KinName(_Conditional):
     def _list_mate(self, word):
         return self._is_surname(word) and not word.lower().endswith(("'s", "\u2019s"))
 
+    def _is_title(self, text, m):
+        term, before = m.group(0), text[: m.start()]
+        if term == "Elders":
+            acronym = self._ACRONYM_BEFORE.search(before)
+            return bool(self._COUNCIL_OF.search(before)) or bool(acronym and acronym.group(1) not in self._NOT_ACRONYMS)
+        persona = self._PERSONA_BEFORE.search(before)
+        return (
+            self._by_name
+            and term == term.capitalize()
+            and not term.lower().endswith("s")
+            and bool(persona)
+            and persona.group(1).lower() not in self._NOT_PERSONAS
+        )
+
+    def _is_hashtag_of_name(self, text, m):
+        term = m.group(0)
+        return (
+            m.start() > 0
+            and text[m.start() - 1] == "#"
+            and term == term.lower()
+            and any(other.group(0) == term.capitalize() for other in self._re.finditer(text))
+        )
+
     def _is_name(self, text, m):
         term = m.group(0)
         if any(known.start() == m.start() for known in self._KNOWN_FULL_NAMES.finditer(text)):
             return True
-        if term != term.capitalize() or term.lower().endswith("s") or self._headline(text):
+        if self._is_title(text, m):
+            return True
+        if not self._by_name:
             return False
+        if term.lower().endswith("s") or self._headline(text):
+            return False
+        if term != term.capitalize():
+            return self._is_hashtag_of_name(text, m)
         if self._surname_after(text, m.end()):
             return True
         after = self._LIST_AFTER.match(text, m.end())
@@ -435,12 +488,12 @@ _K6_ONLY_TERMS = [
         r"\b(?:matriculants?|matric[\s-]+(?:learners?|pupils?|students?)|first[\s-]?time[\s-]+voters?"
         r"|school[\s-]?leavers?)\b",
         r"(?<!\bfur\s)(?<!\bplant\s)(?<!\bsugar\s)\bbabies\b",
-        r"\b(?:grann(?:y|ies)|grandmas?|grandmothers?|grandfathers?|grandparents?|watoto|abantwana|vijana|wazee"
-        r"|pikins?|(?:ama|i)khehla)\b",
+        r"\b(?:grandmas?|grandmothers?|grandfathers?|grandparents?|watoto|abantwana|vijana|wazee|(?:ama|i)khehla)\b",
         # Grandpa and grandad: in neither this list nor the Ask list before.
         r"\bgrand(?:pa|dad|ad)s?\b",
         # Kin words that are also names (Babu Owino, Bibi Titi Mohamed, Koko Rapapa): read as a name when written as one.
-        _KinName(r"\b(?:(?:u|o|ko)?gogos?|mkhulus?|(?:u|o)?makhulus?|koko|bibi|babu)\b"),
+        # Granny and pikin are here too: a game title or a persona name, written as one, is a name.
+        _KinName(r"\b(?:(?:u|o|ko)?gogos?|mkhulus?|(?:u|o)?makhulus?|koko|bibi|babu|grann(?:y|ies)|pikins?)\b"),
         r"\bborn\s+(?:in|after|before|since|around|between)\s+(?:the\s+)?(?:early|mid|late)?[\s-]*"
         r"['\u2019]?(?:(?:19|20)\d{2}|\d0s)",
         r"(?:\d0s|nineties|noughties)[\s-](?:born|generation|babies)\b",
@@ -450,14 +503,16 @@ _K6_ONLY_TERMS = [
         _AgeContext(r"\b(?:early|mid|late)[\s-]?['\u2019]?[2-7]0s\b"),
         # "once in a generation" and "for a generation" are lengths of time, not an audience.
         r"\b(?:next|this|(?:the|a)\s+new)[\s-]+generation\b(?!\s+(?:of|ago)\b)",
-        r"(?<!\bonce[\s-]in[\s-])(?<!\bfor\s)\ba[\s-]+generation\b(?!\s+(?:of|ago)\b)",
+        # "a generation match" is a storage precondition (the object store's generation match), not an audience.
+        r"(?<!\bonce[\s-]in[\s-])(?<!\bfor\s)\ba[\s-]+generation\b(?!\s+(?:of|ago)\b)(?!\s+match\b(?!-))",
         r"#gen(?:eration)?[_-]?(?:z|alpha)",
-        r"\bgen(?:eration)?[_-]?(?:z|alpha)(?=(?-i:[A-Z])|[\d_])",
+        # genz_score and genz_markers are column names: lower case, the whole identifier, and not a handle or a tag.
+        r"(?!(?<![@#])(?-i:genz_(?:score|markers)\b))\bgen(?:eration)?[_-]?(?:z|alpha)(?=(?-i:[A-Z])|[\d_])",
         r"\b(?:kid(?:z|dos?|dies?)|zillenn?ials?|igen(?:eration)?s?|ama[_-]?(?:(?:19|20)\d{2}'?s?|[12]ks?))\b",
         r"\bold[\s-]?(?:people|folks?|heads|timers?)\b",
         r"\bold[\s-](?:man|men|woman|women|lady|ladies)\b",
         rf"\b(?:older|elder)\s+{_PERSON}\b",
-        r"\belders?\b",
+        _KinName(r"\belders?\b", by_name=False),
     )
 ]
 _K6_TERMS = _BREACH_TERMS + _K6_ONLY_TERMS
