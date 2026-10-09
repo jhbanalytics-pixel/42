@@ -72,7 +72,7 @@ from core.detect.job import PROJECT, RULE_VERSION
 from core.detect.sqlrun import AGENT, CORE
 from core.llm.gemini import GeminiModel
 from core.trust.gate import Decision, gate_card, market_banner
-from core.trust.locality import V2_BASIS, locality_block, read_locality, row_from_prefixed
+from core.trust.locality import V2_BASIS, locality_block, read_locality, row_from_prefixed, scope_basis
 
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
@@ -451,6 +451,8 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
         scope_error = False          # a pack read that failed is an observation lost; an unreadable row is held by G1
     else:
         row.update(scope)
+        if scope_basis(row.get("locality_basis")):
+            row["market_scope_basis"] = scope_basis(row.get("locality_basis"))
     if record is not None or row.get("locality_basis") == V2_BASIS:
         row["locality_v2"] = locality_block(record)
     cand = {"row": row, "market": market, "sparkline": None, "rerun": None, "ctx": {},
@@ -537,6 +539,7 @@ def _selection_result(snapshot, receipt, ranked, prepared, taken, cutoff, observ
         return {"not_assessed": None, "selection_receipt": receipt if receipt.get("job_id") else None}
     prepared_ids = {c["row"]["item_id"] for c in prepared}
     pool = {row["item_id"]: (n, row) for n, row in enumerate(ranked, 1)}
+    basis = scope_basis(ranked[0].get("locality_basis") if ranked else None)   # one run, one rule
     items = []
     for item in snapshot.get("items") or []:
         item_id = item["item_id"]
@@ -550,7 +553,8 @@ def _selection_result(snapshot, receipt, ranked, prepared, taken, cutoff, observ
         title = card_title(row) or f"Unnamed {item.get('map_kind') or 'topic'}"
         items.append({"item_id": item_id, "title": title, "status": "not_assessed", "reason": reason,
             "reason_text": NOT_ASSESSED_REASONS[reason], "sql_rank": item["sql_rank"],
-            "pool_rank": in_pool[0] if in_pool else None, "market_scope": item.get("market_scope")})
+            "pool_rank": in_pool[0] if in_pool else None, "market_scope": item.get("market_scope"),
+            **({"market_scope_basis": basis} if basis else {})})
     return {"not_assessed": {"detect_run_id": snapshot["detect_run_id"], "pool_limit": POOL,
         "judged_limit": CANDIDATES, "count": len(items), "items": items}, "selection_receipt": receipt}
 

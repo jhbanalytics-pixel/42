@@ -118,6 +118,16 @@ def label(status, known, local):
     return None
 
 
+def scope_basis(row_basis):
+    """market_scope_basis for a market_scope written from a row whose item_state.locality_basis is row_basis (ruling
+    M4): locality_v2.1 for a row admitted under the retained locality row, v1 for any other row once the authority
+    constant is v2, and None, so that the key stays out of the payload, for a v1 row while the constant is v1. The
+    shadow payload therefore stays what it was."""
+    if row_basis == V2_BASIS:
+        return V2_BASIS
+    return V1_BASIS if LOCALITY_AUTHORITY == "v2" else None
+
+
 def digest(members):
     """The population digest of one key from its retained member rows (dicts with post_id, locality_class,
     creator_key, feed_sighted). Same bytes as locality_summary.sql builds, computed with this code."""

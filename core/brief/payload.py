@@ -135,11 +135,13 @@ def _shown_first(evidence, shown_above):
 
 
 def _scope_basis(c):
-    """market_scope_basis and the pack scope kept as an observation, on a card whose scope came from locality_v2.1.
-    A card on any other basis carries neither, so its payload is what it always was."""
-    if c.get("market_scope_basis") != V2_BASIS:
+    """market_scope_basis beside market_scope (ruling M4), and the pack scope kept as an observation when the scope
+    came from locality_v2.1. The job sets the basis only when it applies (core.trust.locality.scope_basis), so a card
+    written under the v1 authority on the v1 basis carries neither and its payload is what it always was."""
+    basis = c.get("market_scope_basis")
+    if not basis:
         return {}
-    return {"market_scope_basis": V2_BASIS, "pack_scope_v1": c.get("pack_scope_v1")}
+    return {"market_scope_basis": basis, **({"pack_scope_v1": c.get("pack_scope_v1")} if basis == V2_BASIS else {})}
 
 
 def _card(c, market, day, rank, shown_above=frozenset()):
