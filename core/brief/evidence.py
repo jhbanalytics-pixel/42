@@ -74,8 +74,6 @@ from core.brief.gatectx import paid_markers
 from core.brief.payload import STATE_WORDS
 from core.brief.specificity import local_posts
 from core.collect.writers import KNOWN_GEO
-from google.cloud import bigquery
-
 from core.brief.holds_report import MAX_BYTES
 from core.detect import sqlrun
 from core.detect.sqlrun import AGENT, CORE
