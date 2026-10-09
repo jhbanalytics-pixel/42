@@ -7,6 +7,7 @@
 # that term already makes the post political; beside one of the names under companions (Kenyatta, Uhuru, Musyoka,
 # Hlabisa, GNU, which are also ordinary words or places and so are no term on their own) they make it political.
 # vote and voting are terms of their own and unchanged.
+# Inside one hashtag a term of three letters or more written straight before or after ballot or voter counts as beside it.
 # core/brief/gatectx.py reads "all" plus the market's own list. A term written in capitals (ANC, DA, IEC)
 # matches only in capitals in running text; any other term matches in any case, as whole words. A hashtag
 # or canonical key matches when it is the term itself, when the term is among its words (split on capitals,

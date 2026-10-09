@@ -55,6 +55,7 @@ POLITICAL = HERE / "political.yaml"
 CAMPAIGN = HERE / "campaign_hashtags.yaml"
 NOT_INDEPENDENT = {"brand", "paid", "sponsored", "brand_owned", "generated", "near_duplicate", "flagged"}
 LONG_TERM = 5  # letters; a term this long matches anywhere inside a hashtag
+FUSED_MIN = 3  # letters; a term this long, written straight onto ballot or voter in a tag, makes the tag political
 # Caption markers of paid posts, read until enrichment fills post_enrichment.sponsored. #collab and #partner also
 # mark ordinary music collaborations, so in a post they are not paid markers; as an item's own key they are.
 PAID_POST_TAGS = {"ad", "ads", "sponsored", "spon", "paidpartnership", "advert", "advertisement"}
@@ -118,12 +119,29 @@ def _in_tag(term, tag):
 
 def _political(terms, texts, tags):
     plain = [t for t in terms if not isinstance(t, Companion)]
+    # A hashtag item's stored key is casefolded; its label and the posts keep the tag as written, so read those too.
+    tags = list(tags) + [w for x in texts for w in re.findall(r"#\w+", _norm(x))]
     if any(_in_text(t, x) for t in plain for x in texts) or any(_in_tag(t, g) for t in plain for g in tags):
         return True
     return any(any(_in_text(t, x) and any(_in_text(n, x) for n in t.beside) for x in texts)
-               or any(_in_tag(t, g) and (any(_in_tag(n, g) for n in t.beside) or any(_caps_in_tag(n, g) for n in plain))
+               or any(_in_tag(t, g) and (any(_in_tag(n, g) for n in t.beside) or any(_caps_in_tag(n, g) for n in plain)
+                                      or _fused_in_tag(t, g, plain))
                       for g in tags)
                for t in terms if isinstance(t, Companion))
+
+
+def _fused_in_tag(companion, tag, plain):
+    """A plain term of three letters or more written straight before or after the companion in the tag, case folded
+    and squashed (zumaballot, voteballot, ballotwike); an s after the companion is its plural."""
+    squashed, word = _squash(tag), _squash(companion)
+    keys = {_squash(n) for n in plain if len(_squash(n)) >= FUSED_MIN}
+    for i in range(len(squashed)):
+        if squashed.startswith(word, i):
+            before, after = squashed[:i], squashed[i + len(word):]
+            tails = (after, after[1:]) if after.startswith("s") else (after,)
+            if any(before.endswith(k) for k in keys) or any(tail.startswith(k) for tail in tails for k in keys):
+                return True
+    return False
 
 
 def _caps_in_tag(term, tag):
