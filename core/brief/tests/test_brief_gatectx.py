@@ -304,6 +304,30 @@ def test_another_markets_terms_do_not_count():
                terms=gatectx.load_political_terms("KE"))["political"] is True
 
 
+def test_ballot_or_voter_counts_only_beside_a_party_leader_or_election_term_in_the_same_post():
+    con = world()
+    sport = ev("p1", "tiktok", "a", text="Hall of Fame ballot is out")
+    assert ctx(con, evidence=[sport])["political"] is False
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="MVP voter fatigue")])["political"] is False
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="The ballot papers for the election are out")])[
+        "political"] is True
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Every voter in the ANC queue")])["political"] is True
+    # A post's text and its quote are the same post.
+    assert ctx(con, evidence=[{**ev("p1", "tiktok", "a", text="Hall of Fame ballot"),
+                               "quote_text": "the ANC march"}])["political"] is True
+    # The label is not a post: a label that is only the word is not political.
+    assert ctx(con, item(label="Hall of Fame ballot"))["political"] is False
+    assert ctx(con, item(label="ANC voter drive"))["political"] is True
+    assert ctx(con, item(hashtags=["#ballot", "#voter"]))["political"] is False
+    assert ctx(con, item(canonical_key="ballondorballot"))["political"] is False
+    # Beside one of the five leader names a ballot or a voter is political; the name alone is not.
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Kenyatta ballot")])["political"] is True
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Uhuru voter drive")])["political"] is True
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Kenyatta University open day")])["political"] is False
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Kenyatta University open day"),
+                              ev("p2", "tiktok", "b", text="Hall of Fame ballot")])["political"] is False
+
+
 # corroborated_unbiased
 
 

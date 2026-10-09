@@ -67,9 +67,24 @@ QUERIES = {_NAME.search(s).group(1): s for s in sqlrun.split(SQL.read_text(encod
 _TAG_WORDS = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|[^\W\d_]+")
 
 
+class Companion(str):
+    """A term that is political only beside one of `beside` (a leader name that is no term on its own) in the same
+    text or tag. Beside a term of the list the post is political through that term, so it is not named here."""
+
+    beside = ()
+
+
 def load_political_terms(market, path=POLITICAL):
+    """The market's terms: the list's "all" and its own, then the companion-only terms (Companion strings, each
+    carrying the leader companions of the file) that count only beside a companion."""
     lists = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
-    return list(lists.get("all") or []) + list(lists.get(market) or [])
+    names = tuple(lists.get("companions") or [])
+    companion_only = []
+    for word in lists.get("companion_only") or []:
+        term = Companion(word)
+        term.beside = names
+        companion_only.append(term)
+    return list(lists.get("all") or []) + list(lists.get(market) or []) + companion_only
 
 
 def load_campaign_hashtags(path=CAMPAIGN):
@@ -102,7 +117,12 @@ def _in_tag(term, tag):
 
 
 def _political(terms, texts, tags):
-    return any(_in_text(t, x) for t in terms for x in texts) or any(_in_tag(t, g) for t in terms for g in tags)
+    plain = [t for t in terms if not isinstance(t, Companion)]
+    if any(_in_text(t, x) for t in plain for x in texts) or any(_in_tag(t, g) for t in plain for g in tags):
+        return True
+    return any(any(_in_text(t, x) and any(_in_text(n, x) for n in t.beside) for x in texts)
+               or any(_in_tag(t, g) and any(_in_tag(n, g) for n in t.beside) for g in tags)
+               for t in terms if isinstance(t, Companion))
 
 
 def _tag(value):
