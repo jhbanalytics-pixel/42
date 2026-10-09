@@ -65,7 +65,8 @@ def test_a_failed_step_leaves_every_row_missing_and_the_run_going(con, monkeypat
     assert rows and {(r["eligible"], r["locality_status"]) for r in rows} == {(True, "missing")}
 
 
-@pytest.mark.parametrize(("authority", "version"), [("v1", "warmup-1"), ("v2", "warmup-2")])
+# the n21-near-dup token marks the rows written once near_dup_size is written (core/detect/job.py rule_version_for)
+@pytest.mark.parametrize(("authority", "version"), [("v1", "warmup-1+n21-near-dup"), ("v2", "warmup-2+n21-near-dup")])
 def test_the_rule_version_names_the_rule_that_writes_eligible(authority, version):
     assert job.rule_version_for(authority) == version
 
