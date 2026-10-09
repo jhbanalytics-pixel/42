@@ -5,9 +5,11 @@ yet, at most slice_limit posts per window, then makes sure tvf_search_posts exis
 post_enrichment holds INDEX_MIN_ROWS embeddings (BigQuery refuses an IVF index below 5,000 rows). Below that
 counts["index"] is deferred_below_5000, or deferred_no_embeddings at none. An index BigQuery refuses anyway is
 recorded as failed, with the error class and the first line of its message in index_error, and the run goes on: the
-embeddings are written. Every statement is CREATE ... IF NOT EXISTS, an append or a read, so a rerun repeats
-nothing. execute(sql, params, max_bytes=None) runs one query job with named parameters, billing at most max_bytes
-when given, and returns its rows, or a job-like dict holding them under "rows". The counts it returns add
+embeddings are written. embedding_count.sql also counts the rows whose embedding is not 768 long (every row enrich
+wrote, which holds no vector), and a count above zero is recorded as index_unindexable_rows: BigQuery refuses to build
+the index over them (8 and 9 Oct 2026), and the job reads a failed index back as a partial run (job.py). Every
+statement is CREATE ... IF NOT EXISTS, an append or a read, so a rerun repeats nothing. execute(sql, params,
+max_bytes=None) runs one query job with named parameters, billing at most max_bytes when given, and returns its rows, or a job-like dict holding them under "rows". The counts it returns add
 chars_sent, the characters sent to the model across all windows, tokens, the input tokens embed.sql counts for them
 (the token_count Vertex reports in ml_generate_embedding_statistics, or where it reports none the post's UTF-8 bytes
 at three a token, at most 2,048), model_usd, those tokens at the list price, and embedded_total, every
@@ -217,7 +219,8 @@ def run_embed(execute, *, run_date, days=1, slice_limit=SLICE_LIMIT, book=None, 
     except Exception as err:
         err.embed_counts = totals
         raise
-    stored = int(_counts_row(execute(load("embedding_count"), {}), "embedding_count").get("n") or 0)
+    row = _counts_row(execute(load("embedding_count"), {}), "embedding_count")
+    stored = int(row.get("n") or 0)
     totals["embedded_total"] = stored
     if stored == 0:
         totals["index"] = "deferred_no_embeddings"
@@ -231,5 +234,7 @@ def run_embed(execute, *, run_date, days=1, slice_limit=SLICE_LIMIT, book=None, 
         except Exception as err:
             first = (str(err).splitlines() or [""])[0][:300]
             totals["index"], totals["index_error"] = "failed", f"{type(err).__name__}: {first}"
+        if unindexable := int(row.get("unindexable") or 0):
+            totals["index_unindexable_rows"] = unindexable
     execute(load("tvf_search_posts"), {})
     return totals

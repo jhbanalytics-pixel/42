@@ -1164,3 +1164,12 @@ def test_a_data_issue_understand_wrote_is_carried_as_it_was_written(con):
     topic_world(con, understand_row(counts={**PARTIAL, "data_issue": "Data issue: written by understand"}))
     counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
     assert counts["topics_failed"]["data_issue"] == "Data issue: written by understand"
+
+
+def test_an_understand_run_partial_on_the_vector_index_stops_no_topic_items(con):
+    """understand marks an index the warehouse refused as partial (partial_reason index_failed) so the watchdog alerts;
+    the topics were grouped, so detect judges them and records no topics_failed."""
+    index_failed = {"partial": True, "partial_reason": "index_failed", "partial_error": "BadRequest: Column 'embedding'"}
+    topic_world(con, understand_row(counts=index_failed))
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    assert judged(con) == {"new", "two"} and "topics_failed" not in counts
