@@ -262,5 +262,149 @@ def test_what_the_resume_does_not_reach_keeps_the_wording_of_the_first_stop():
     assert r.counts["explanation_stop"]["reason"] == "deadline" and len(r.counts["explanation_stop"]["skipped"]) == 5
     left = [i for m in MARKETS for i in held_items(r, m).values()]
     assert explained(r) == [] and len(left) == 6
-    assert sorted(i["failed_reason"] is None for i in left) == [False] * 5 + [True]
-    assert {i["failed_reason"] for i in left if i["failed_reason"]} == {MODEL_REFUSED}
+    # The sixth card was reached by the resume and ended in a model_error with no wording of its own. It was refused in
+    # the first pass, so it says so too rather than showing no reason.
+    assert {i["failed_reason"] for i in left} == {MODEL_REFUSED}
+
+
+class Uncertain(Exception):
+    """A call whose usage is unknown: the explainer books the estimate and keeps it as a reservation."""
+
+    reserve_model_estimate = True
+
+
+class UncertainAt(Refusing):
+    """Call numbers in `at` end in an uncertain failure; the next TRIP_CALLS calls after the first of them are 429s."""
+
+    def __init__(self, at):
+        super().__init__(lambda n: False)
+        self.at = at
+        self.uncertain = []
+
+    def complete_json(self, **kw):
+        n = len(self.calls) + 1
+        if n in self.at or 2 <= n <= TRIP_CALLS + 1:
+            self.calls.append({"user": kw["user"], "support": False, "critic": False, "refused": True})
+            if n in self.at:
+                self.uncertain.append(Uncertain("timed out after send"))
+                raise self.uncertain[-1]
+            raise Busy()
+        return super().complete_json(**kw)
+
+
+def _reserved(at):
+    clock = Clock(EARLY)
+    model = UncertainAt(at)
+    r = run(world(n=2), model=model, clock=clock, sleep=clock.sleep)
+    return r, model
+
+
+def test_the_reservation_of_an_uncertain_call_in_each_pass_adds_up():
+    """Each pass has its own breaker, so the second pass used to replace the first pass's reservation."""
+    for at in ({1}, {TRIP_CALLS + 2}, {1, TRIP_CALLS + 2}):
+        r, model = _reserved(at)
+        assert len(model.uncertain) == len(at) and "model_resume" in r.counts
+        booked = sum(exc.reserved_usd for exc in model.uncertain)
+        assert booked > 0 and r.counts["model_reserved_usd"] == pytest.approx(booked, abs=1e-6)
+        assert r.counts["model_usd"] >= r.counts["model_reserved_usd"]
+
+
+def _earlier_spend(con, usd):
+    duck.load(con, "agent.runs", [{**job_tests.run("brief", D, run_id=f"brief-other-{usd}", status="failed"),
+                                   "counts": json.dumps({"model_usd": usd})}])
+
+
+def test_spend_booked_by_another_stage_during_the_wait_is_seen_before_the_cap_check(monkeypatch):
+    monkeypatch.setattr(job, "model_daily_usd", lambda: 1.0)
+    monkeypatch.setattr(explain, "model_daily_usd", lambda: 80.0)
+    con = world(n=2)
+    clock = Clock(EARLY)
+
+    def sleep(seconds):
+        clock.sleep(seconds)
+        if seconds == WAIT:
+            _earlier_spend(con, 5.0)
+    model = spend_refusing(3)
+    r = run(con, model=model, clock=clock, sleep=sleep)
+    assert resumes(clock) == 1 and len(model.calls) == 3  # the wait was made, and nothing was asked after it
+    assert "model_resume" not in r.counts and explained(r) == []
+    for m in MARKETS:
+        assert {i["failed_reason"] for i in held_items(r, m).values()} == {MODEL_REFUSED}
+
+
+def test_the_resumed_pass_counts_the_spend_booked_during_the_wait_against_the_cap(monkeypatch):
+    plain = run(world(n=2), model=FakeModel())
+    per_item = plain.counts["model_usd"] / 6
+    other = 0.2
+    # Three refusals book 0.75. After the wait the day holds `other` more, which still leaves room, and the cap falls
+    # inside the second resumed explanation, so the resume stops there.
+    monkeypatch.setattr(job, "model_daily_usd", lambda: 0.75 + other + 1.5 * per_item)
+    monkeypatch.setattr(explain, "model_daily_usd", lambda: 80.0)
+    con = world(n=2)
+    clock = Clock(EARLY)
+
+    def sleep(seconds):
+        clock.sleep(seconds)
+        if seconds == WAIT:
+            _earlier_spend(con, other)
+    r = run(con, model=spend_refusing(3), clock=clock, sleep=sleep)
+    assert resumes(clock) == 1 and r.counts["model_resume"]["retried"] == 6
+    assert len(explained(r)) == 2
+
+
+def test_spend_of_an_earlier_run_counts_against_the_cap_at_the_stop(monkeypatch):
+    monkeypatch.setattr(job, "model_daily_usd", lambda: 0.8)
+    monkeypatch.setattr(explain, "model_daily_usd", lambda: 80.0)
+    con = world(n=2)
+    _earlier_spend(con, 0.1)
+    clock = Clock(EARLY)
+    model = spend_refusing(3)
+    r = run(con, model=model, clock=clock, sleep=clock.sleep)
+    # 0.1 from the earlier run and 0.75 booked by the three refusals have passed the cap, though 0.75 alone has not.
+    assert resumes(clock) == 0 and len(model.calls) == 3 and "model_resume" not in r.counts
+
+
+def test_a_failed_read_of_the_days_spend_after_the_wait_keeps_the_value_from_the_start(monkeypatch, capsys):
+    clock = Clock(EARLY)
+    reads = []
+    real = job.spent_today
+
+    def spent(client, d, core=job.CORE, agent=job.AGENT):
+        reads.append(1)
+        if len(reads) > 1:
+            raise RuntimeError("BigQuery unreachable")
+        return real(client, d, core, agent)
+    monkeypatch.setattr(job, "spent_today", spent)
+    r = run(world(n=2), model=Refusing(lambda n: n <= TRIP_CALLS), clock=clock, sleep=clock.sleep)
+    assert len(reads) == 2 and resumes(clock) == 1
+    assert len(explained(r)) == 6 and r.counts["model_resume"]["tripped_again"] is False
+    assert "could not be read again" in capsys.readouterr().err
+
+
+class RefusedThenOutOfTime(Refusing):
+    """Refuses every call. The last call of the first pass lands at 06:04:00, where the breaker trips; the first call
+    of the resume lands one second before 06:15, so no wait after its refusal can end in time."""
+
+    def __init__(self, clock):
+        super().__init__(lambda n: True)
+        self.clock = clock
+
+    def complete_json(self, **kw):
+        n = len(self.calls) + 1
+        if n == TRIP_CALLS:
+            self.clock.now = DEADLINE - timedelta(minutes=11)
+        if n == TRIP_CALLS + 1:
+            self.clock.now = DEADLINE - timedelta(seconds=1)
+        return super().complete_json(**kw)
+
+
+def test_the_resumes_own_wording_is_kept_over_the_first_stops():
+    from core.brief.payload import MODEL_BUSY
+
+    clock = Clock(EARLY)
+    r = run(world(n=2), model=RefusedThenOutOfTime(clock), clock=clock, sleep=clock.sleep)
+    assert resumes(clock) == 1
+    left = [i["failed_reason"] for m in MARKETS for i in held_items(r, m).values()]
+    assert len(left) == 6 and explained(r) == []
+    # The resume ran out of time on its own refusal, and says so for every card it left, over the first stop's wording.
+    assert left == [MODEL_BUSY] * 6

@@ -907,6 +907,7 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
     ({id(cand): result}, the breaker's error or None, the deadline stop or None)."""
     results, running, capped = {}, {}, False
     explanation_stop = None
+    reserved_before = spend.get("model_reserved_usd", 0.0)  # an earlier pass's reservation stays in the total
 
     def can_wait(seconds):
         then = clock() + timedelta(seconds=seconds)
@@ -939,7 +940,7 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
             spend["usd"] += result["usage_usd"]
             reserved = sum(getattr(exc, "reserved_usd", 0.0) for exc in breaker.uncertain_calls)
             if reserved:
-                spend["model_reserved_usd"] = reserved
+                spend["model_reserved_usd"] = reserved_before + reserved
             capped = capped or result["reason"] == "model_cap"
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -1224,14 +1225,16 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
     return grown, merged
 
 
-def _resume_after_429(tasks, results, busy, *, model, base_usd, spend, clock, chain, d, workers, started, sleep):
+def _resume_after_429(tasks, results, busy, *, model, base_usd, spend, clock, chain, d, workers, started, sleep,
+                      read_base):
     """DEC-18: when the breaker stopped the run on 429 before 06:15 SAST, wait RESUME_WAIT_S and explain once more
     what the 429s left, once. Only explanations the busy model left (no result, or a model_error that carries its
     busy_reason) are asked for again; a card already explained, or one that failed for another reason, is kept as it
     is. Nothing is resumed at or after 06:15, when the wait would end at or past the deadline or the time limit, or
-    when the day's spend has reached the cap. Returns (results, unavailable, explanation_stop, resume): the pass's own
-    results and stops, and the record for the run counts, or None when no resume happened. results is changed in
-    place."""
+    when the day's spend has reached the cap. The day's spend before this run's own is read again after the wait with
+    read_base(), because other stages spend meanwhile; a failed read keeps the value read at the start. Returns
+    (results, unavailable, explanation_stop, resume): the pass's own results and stops, and the record for the run
+    counts, or None when no resume happened. results is changed in place."""
     stopped = busy.get("tripped")
     now = clock()
     if (stopped is None or now.astimezone(SAST) >= datetime.combine(d, collect_chain.DEADLINE, SAST)
@@ -1244,14 +1247,22 @@ def _resume_after_429(tasks, results, busy, *, model, base_usd, spend, clock, ch
                or (results[id(c)]["reason"] == "model_error" and c.get("busy_reason"))]
     if not pending:
         return None
-    before = {id(c): c.pop("busy_reason", None) for c in pending}
     (sleep or _sleep)(RESUME_WAIT_S)
+    try:
+        base_usd = read_base()
+    except Exception as exc:
+        print(f"brief {d.isoformat()}: the day's spend could not be read again after the wait "
+              f"({type(exc).__name__}); the value read at the start stands", file=sys.stderr)
+    if base_usd + spend["usd"] >= model_daily_usd():
+        return None
+    before = {id(c): c.pop("busy_reason", None) for c in pending}
     again = {}
     got, unavailable, stop = _explain_all(pending, model=model, base_usd=base_usd, spend=spend, clock=clock,
                                           chain=chain, d=d, workers=workers, started=started, sleep=sleep, busy=again)
     results.update(got)
     for c in pending:
-        if id(c) not in got and not c.get("busy_reason") and before[id(c)]:
+        reached_without_wording = id(c) in got and got[id(c)]["reason"] == "model_error"
+        if (id(c) not in got or reached_without_wording) and not c.get("busy_reason") and before[id(c)]:
             c["busy_reason"] = before[id(c)]
     busy.update({"refusals": busy["refusals"] + again.get("refusals", 0),
                  "gave_up": busy["gave_up"] + again.get("gave_up", 0),
@@ -1297,7 +1308,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                                                            clock=clock, chain=chain, d=d, workers=workers,
                                                            started=started, sleep=sleep, busy=busy)
     resume = _resume_after_429(tasks, results, busy, model=model, base_usd=base_usd, spend=spend, clock=clock,
-                               chain=chain, d=d, workers=workers, started=started, sleep=sleep)
+                               chain=chain, d=d, workers=workers, started=started, sleep=sleep,
+                               read_base=lambda: spent_today(client, d, core, agent))
     if resume is not None:
         _, unavailable, explanation_stop, resume = resume
 
