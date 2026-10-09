@@ -3,6 +3,7 @@ cap, and the receipt records it (W8-DEC-19). No network: HTTP is a fake and the 
 
 import json
 from datetime import date, datetime, timezone
+from pathlib import Path
 
 import pytest
 
@@ -35,7 +36,7 @@ def board(client, room=ROOM, **kw):
     return client.call(*BOARD, market="ZA", server_retry_room=room, **kw)
 
 
-# The rule ---------------------------------------------------------------------
+# The rule
 
 
 def test_the_wait_is_sixty_seconds_and_is_a_client_setting():
@@ -166,7 +167,7 @@ def test_a_5xx_after_a_timeout_on_the_quick_retries_is_retried_once_after_sixty_
     assert r.status == "ok" and waits == [2, 8, 60] and r.attempts == 4 and r.first_http_status is None
 
 
-# The credit cap -------------------------------------------------------------
+# The credit cap
 
 
 def test_a_retry_that_would_cross_the_room_is_not_made_and_nothing_is_waited():
@@ -229,7 +230,33 @@ def test_a_balance_below_the_floor_before_the_wait_stops_the_retry_without_waiti
     assert r.server_retry == "blocked: balance" and waits == [] and http.routes().count(ROUTE) == 1
 
 
-# Rows and receipt ------------------------------------------------------------
+def test_the_comments_of_this_file_hold_no_runs_of_hyphens():
+    pair = "-" * 2
+    hits = [n for n, line in enumerate(Path(__file__).read_text(encoding="utf-8").splitlines(), 1)
+            if "#" in line and pair in line.split("#", 1)[1]]
+    assert hits == []
+
+
+def test_a_balance_exactly_on_the_floor_still_allows_the_retry():
+    hold = quote_for(BOARD[0], "GET", BOARD[1])
+    http = FakeHTTP({ROUTE: [(500, None), board_ok()]}, balance=make().floor + hold)
+    waits = []
+    client = make(http=http, sleep=waits.append)
+    r = board(client)  # the first attempt's charge leaves the balance exactly on the floor
+    assert r.server_retry == "made" and r.status == "ok" and waits == [60]
+
+
+def test_a_blocked_single_attempt_keeps_the_reason_of_the_plain_5xx():
+    plain_client, _, _ = retrying([(500, None)])
+    plain = plain_client.call(*BOARD, market="ZA")
+    client, http, waits = retrying([(500, None), board_ok()])
+    blocked = board(client, room=quote_for(BOARD[0], "GET", BOARD[1]))
+    assert blocked.server_retry == "blocked: room" and blocked.attempts == 1
+    assert blocked.reason == plain.reason and "attempts" not in blocked.reason
+
+
+
+# Rows and receipt
 
 
 def test_both_attempts_are_ledgered_and_stored_and_the_caller_sees_their_sum():
@@ -254,7 +281,7 @@ def test_a_cache_hit_makes_no_retry():
     assert again.status == "cached" and waits == [] and again.server_retry == ""
 
 
-# The job passes the room to boards and panels only -----------------------------
+# The job passes the room to boards and panels only
 
 BOARD_ROUTES = {"youtube/videos/trending", "youtube/shorts/trending", "tiktok/hashtags/popular",
                 "instagram/music/trending", "apple_music/charts"}
@@ -386,7 +413,7 @@ def test_a_retry_that_clears_the_5xx_leaves_the_board_valid_in_health():
     assert rows and all(h["calls"] == h["calls_ok"] and h["valid"] for h in rows)
 
 
-# The local sources phase ------------------------------------------------------
+# The local sources phase
 
 
 def test_the_local_phase_passes_a_room_to_its_boards_and_its_panel_only_inside_the_plan():
