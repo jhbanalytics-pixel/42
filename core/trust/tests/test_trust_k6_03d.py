@@ -40,6 +40,7 @@ SCORE_WORDS = ["won", "lost", "beat", "drew", "scored", "final score", "full-tim
 AUDIENCE_NOUNS = ["voters", "fans", "users", "women", "men", "people", "viewers", "listeners", "audience", "customers",
                   "voter", "crowds", "consumers", "followers", "shoppers", "adults", "Kenyans",
                   "South Africans", "Nigerians", "Voters", "FANS"]
+ABBREVIATED_MONTHS = {"Jan", "Feb", "Mar", "Aug", "Sep", "Sept", "Oct", "Nov", "Dec"}
 MONTHS = ["Jan", "January", "Feb", "February", "Mar", "April", "May", "June", "July", "Aug", "Sep", "Sept", "September",
           "Oct", "Nov", "Dec"]
 
@@ -154,8 +155,12 @@ def test_a_person_noun_after_the_range_blocks_a_date(on, noun):
 @pytest.mark.parametrize("month", MONTHS)
 def test_every_month_clears_a_day_range_when_on(on, month):
     assert not _k6_term(f"{month} 20-26", set())
-    assert not _k6_term(f"{month}. 20-26", set())
     assert not _k6_term(f"Event runs {month} 20-26 in Joburg", set())
+    if month in ABBREVIATED_MONTHS:
+        assert not _k6_term(f"{month}. 20-26", set())
+    else:
+        # W1-1: a full stop after a whole month name ends the clause, so the range opens a new one and is no date.
+        assert _k6_term(f"{month}. 20-26", set())
 
 
 @pytest.mark.parametrize("month", MONTHS)
@@ -570,6 +575,63 @@ def test_the_focus_group_sentences_breached_when_off_too(off, text):
                                   "Chiefs won 24-17 on Saturday; the age group met",
                                   "Chiefs won 24-17 on Saturday. The focus group met",
                                   "Chiefs won 24-17 in the group stage", "Event runs Sept 20-26 in the group room",
-                                  "Women led it in June. 18-24", "Women: Sept 18-24"])
+                                  "Women: Sept 18-24"])
 def test_a_focus_group_in_another_clause_and_the_ruled_stops_still_clear(on, text):
     assert not _k6_term(text, set()), text
+
+
+# W1-1: the month must sit in the range's own clause. A full stop after a whole month name ends the previous clause, so
+# the range that opens the next sentence is an age range. A full stop after an abbreviation does not end it.
+MONTH_STOP_BREACHES = [
+    "It took off in May. 18-24 led the trend.", "Viewers peaked in June. 18-24 was the biggest group.",
+    "Peak was in September. 18-24 drove it.", "Most posts came in July. 25-30 were the most active.",
+    "Women led it in June. 18-24", "Women led it in September. 18-24",
+]
+
+
+@pytest.mark.parametrize("text", MONTH_STOP_BREACHES)
+def test_a_range_that_opens_a_sentence_after_a_month_is_no_date(on, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", MONTH_STOP_BREACHES)
+def test_the_month_stop_sentences_breached_when_off_too(off, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", ["Sept. 18-24", "Sept 20-26", "Event runs Sept. 20-26 in Joburg",
+                                  "Peak was in Sept. 18-24", "Women posted. Event runs Sept. 20-26 in Joburg"])
+def test_a_month_abbreviation_with_a_full_stop_still_clears_its_own_range(on, text):
+    assert not _k6_term(text, set()), text
+
+
+# W1-2: the quote floor counts words with the list the a80be1d floor used, so a quote whose range reads as a date or a
+# score on its own is not stripped just because the 03d list calls it clear.
+QUOTE_FLOOR_BREACHES = [
+    ('Women said "won 24-17 today"', "won 24-17 today"),
+    ('Fans posted "May 18-24 vibes"', "May 18-24 vibes"),
+    ('Students wrote "in June 18-24"', "in June 18-24"),
+]
+
+
+@pytest.mark.parametrize("text,quote", QUOTE_FLOOR_BREACHES)
+def test_a_verified_three_word_quote_still_breaches_when_its_range_is_its_only_age_word(on, text, quote):
+    assert _k6_term(text, {quote}), text
+    assert _k6_term(text, set()), text
+    assert _k6({"text": text}, {}, {quote})[0] == "breach"
+
+
+@pytest.mark.parametrize("text,quote", QUOTE_FLOOR_BREACHES)
+def test_the_quote_floor_sentences_breach_when_off_too(off, text, quote):
+    assert _k6_term(text, {quote}), text
+
+
+def test_a_verified_quote_with_three_words_besides_its_range_is_still_exempt(on):
+    assert not _k6_term('Women said "we won 24-17 today folks"', {"we won 24-17 today folks"})
+    assert not _k6_term('Fans posted "see you May 18-24 vibes"', {"see you May 18-24 vibes"})
+
+
+def test_the_quote_floor_counts_with_the_k6_list_not_the_seeds_list_when_on(on):
+    # "elders" is a K6 term and no seeds term, so the floor takes it out of the count when it counts quote words.
+    assert _k6_term('He wrote "the elders spoke"', {"the elders spoke"}) == "elders"
+    assert not _k6_term('He wrote "the elders spoke today"', {"the elders spoke today"})

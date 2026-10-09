@@ -508,7 +508,8 @@ _PLUS_AFTER = re.compile(r"\s*(?:\+|plus\b)", re.I)
 def _exempt_range(text, m):
     """A range the plain age pattern flags that is a score or a date. A score is a falling pair after a score word
     ("won 24-17"; a cohort rises, as core/collect/gdelt.py reads it). A date is a rising pair of day numbers after a
-    month name, not followed by + or plus. A person word anywhere in the clause keeps either a breach."""
+    month name in the range's own clause, not followed by + or plus. A person word anywhere in the clause keeps either a
+    breach."""
     low, high = (int(g) for g in _RANGE_PARTS.match(m.group(0)).groups())
     before, after = text[: m.start()], text[m.end() :]
     latin = [a.span() for a in _LATIN_ABBREVIATION.finditer(text)]
@@ -527,7 +528,7 @@ def _exempt_range(text, m):
         return False
     if _SCORE_BEFORE.search(before):
         return low > high
-    if _MONTH_BEFORE.search(before):
+    if _MONTH_BEFORE.search(text[clause_start : m.start()]):
         return low < high <= 31 and not _PLUS_AFTER.match(after)
     return False
 
@@ -970,7 +971,10 @@ def _k3(claim, records, start, end, market):
 
 
 def _first_term(text, exempt, terms):
-    text = _norm(_strip_quotes(text, exempt, k6=True, terms=terms))
+    # The quote floor counts words with the a80be1d K6 list when the 03d list is in force, so a range that reads as a date
+    # or a score inside the quote alone does not lift the quote above the floor.
+    floor_terms = _K6_TERMS if terms is _K6_TERMS_03D else terms
+    text = _norm(_strip_quotes(text, exempt, k6=True, terms=floor_terms))
     for pattern in terms:
         m = pattern.search(text)
         if m:
