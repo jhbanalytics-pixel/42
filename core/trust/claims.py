@@ -448,15 +448,12 @@ _K6_ONLY_TERMS = [
 ]
 _K6_TERMS = _BREACH_TERMS + _K6_ONLY_TERMS
 
-# W8-DEC-03d, not decided, so False ships and K6 answers are exactly those of _K6_TERMS. Flipping it to True makes
-# K6, for claims, quote translations, basis, falsifier and answer fields only, (1) stop holding a falling pair after a
-# score word, (2) stop holding a rising day range of 31 or less after a month name, both unless a person noun follows
-# in the same clause, and (3) hold "the 18-24s" as a group noun. Seeds (_breach_term) and the Ask rule 1 check never
-# read it. Flipping it fails 66 tests, none in core/brief, so the commit that sets it True must edit them and say so:
-# in test_trust_k6_03d.py every test with "off" or "ships_false" in its name (56 cases), and in
-# test_trust_k6_boundary.py the UNCHANGED rows won 24-17, final score 21-14, scored 30-28 at the weekend, Sept 20-26 and
-# 18-24s, the STILL_PASS row 18-24s, and the four DEFERRED_W8_DEC_03D rows.
-K6_03D_ENABLED = False
+# W8-DEC-03d, decided YES on 9 Oct 2026, so True ships. Set False, K6 answers are exactly those of _K6_TERMS. True
+# makes K6, for claims, quote translations, basis, falsifier and answer fields only, (1) stop holding a falling pair
+# after a score word, (2) stop holding a rising day range of 31 or less after a month name, both unless a person noun
+# follows in the same clause, and (3) hold "the 18-24s" as a group noun. Seeds (_breach_term) and the Ask rule 1 check
+# never read it. test_trust_k6_03d.py keeps the off path pinned through its off fixture.
+K6_03D_ENABLED = True
 
 
 class _Exempt(_Conditional):

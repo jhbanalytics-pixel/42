@@ -1,7 +1,7 @@
 """W8-DEC-03d candidate: narrow score and date exceptions to the K6 age-range pattern, and the N-Ns group noun band.
 
-The exceptions sit behind claims.K6_03D_ENABLED, which ships False. With it False the K6 answers are the ones
-test_trust_k6_boundary.py already pins. With it True every row of the plan's boundary and counterexample table
+The exceptions sit behind claims.K6_03D_ENABLED, which ships True after W8-DEC-03d YES. The off fixture pins the K6
+answers with it False. With it True every row of the plan's boundary and counterexample table
 (PLAN-revision4-copy.md, "K6 boundary table" and "Counterexamples") gets the answer in TABLE below. Expected values are
 written here, not read from the checker.
 
@@ -85,8 +85,13 @@ def on(monkeypatch):
     monkeypatch.setattr(claims, "K6_03D_ENABLED", True)
 
 
-def test_the_constant_ships_false():
-    assert claims.K6_03D_ENABLED is False
+@pytest.fixture
+def off(monkeypatch):
+    monkeypatch.setattr(claims, "K6_03D_ENABLED", False)
+
+
+def test_the_constant_ships_true():
+    assert claims.K6_03D_ENABLED is True
 
 
 def test_the_table_has_every_row_and_counterexample():
@@ -101,7 +106,7 @@ def test_the_whole_table_when_on(on, text, breach):
 
 
 @pytest.mark.parametrize(("text", "breach"), sorted(TABLE_OFF.items()))
-def test_the_whole_table_when_off(text, breach):
+def test_the_whole_table_when_off(off, text, breach):
     assert claims.K6_03D_ENABLED is False
     assert bool(_k6_term(text, set())) is breach, text
 
@@ -123,7 +128,7 @@ def test_every_score_word_breaches_a_rising_pair_when_on(on, word):
 
 
 @pytest.mark.parametrize("word", SCORE_WORDS)
-def test_every_score_word_breaches_when_off(word):
+def test_every_score_word_breaches_when_off(off, word):
     assert _k6_term(f"{word} 24-17", set())
 
 
@@ -148,7 +153,7 @@ def test_every_month_clears_a_day_range_when_on(on, month):
 
 
 @pytest.mark.parametrize("month", MONTHS)
-def test_every_month_breaches_a_day_range_when_off(month):
+def test_every_month_breaches_a_day_range_when_off(off, month):
     assert _k6_term(f"{month} 20-26", set())
 
 
@@ -168,12 +173,12 @@ def test_a_duration_or_a_decade_still_passes_when_on(on, text):
 
 
 @pytest.mark.parametrize("text", BAND_BREACH_WHEN_ON[:4] + BAND_PASS_WHEN_ON)
-def test_the_band_is_untouched_when_off(text):
+def test_the_band_is_untouched_when_off(off, text):
     assert not _k6_term(text, set()), text
 
 
 @pytest.mark.parametrize("text", [t for t in STILL_BREACH_WHEN_ON if t not in ("Sept 20-32", "Sept 20-20", "Sept 24-20")])
-def test_the_held_texts_breach_when_off_too(text):
+def test_the_held_texts_breach_when_off_too(off, text):
     assert _k6_term(text, set()), text
 
 
@@ -206,6 +211,7 @@ def test_one_term_is_swapped_and_one_is_added():
 def test_off_reads_the_original_list_object(monkeypatch):
     seen = []
     monkeypatch.setattr(claims, "_first_term", lambda text, exempt, terms: seen.append(terms))
+    monkeypatch.setattr(claims, "K6_03D_ENABLED", False)
     claims._k6_term("anything", set())
     assert seen == [claims._K6_TERMS]
     monkeypatch.setattr(claims, "K6_03D_ENABLED", True)
@@ -224,7 +230,7 @@ def test_a_claim_reads_the_exceptions_when_on(on):
     assert _k6(c, {}, set())[0] == "breach"
 
 
-def test_a_claim_breaches_the_same_text_when_off():
+def test_a_claim_breaches_the_same_text_when_off(off):
     c = {"id": "c1", "text": "Pirates won 24-17 on Saturday", "evidence_ids": [], "quotes": []}
     assert _k6(c, {}, set())[0] == "breach"
     c["text"] = "popular with the 25-34s."
