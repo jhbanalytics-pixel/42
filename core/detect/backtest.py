@@ -43,7 +43,8 @@ without a row stays on the untested branch of state.sql.
 A row is in force only once the runs row of the run it cites is ok (stats.sql joins it), and a row whose run never
 got one is not counted as written, so a failed apply neither switches anything on nor blocks the next apply.
 
-Entry point: python -m core.detect.backtest --as-of YYYY-MM-DD [--days N] [--apply]. The results always go
+Entry point: python -m core.detect.backtest --as-of YYYY-MM-DD [--days N] [--apply]; an --as-of after today is
+refused before anything is read or written. The results always go
 to one JSON file in core/detect/backtests; only --apply appends the test_switch rows and then the runs row
 (stage 'backtest'). A replay without --apply appends a runs row with status 'replayed' that carries the sha256 of
 the file it wrote. Reads BigQuery only, and nothing is ever updated or removed. python -m core.detect.backtest
@@ -916,6 +917,11 @@ def main(argv=None, client=None, out_dir=OUT_DIR, core=sqlrun.CORE, agent=sqlrun
         if a.sha256 is None:
             ap.error("--apply FILE needs --sha256, the digest that --report printed for the file")
         return apply_file(a.apply, a.as_of, a.sha256, client, core, agent, today=today)
+    today = today or datetime.now(UTC).date()
+    if a.as_of > today:
+        print(f"refused: --as-of {a.as_of.isoformat()} is after {today.isoformat()}; a backtest cannot be as of a "
+              "day that has not come", file=sys.stderr)
+        return 1
     if client is None:
         client = bigquery.Client(project=PROJECT)
     res = run(client, a.as_of, apply=a.apply, days=WINDOW_DAYS if a.days is None else a.days, out_dir=out_dir,
