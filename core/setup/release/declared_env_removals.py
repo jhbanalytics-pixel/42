@@ -49,7 +49,10 @@ def main(argv):
     except ValueError:
         sys.stderr.write("declared_env_removals: stdin is not JSON\n")
         return 65
-    names = declared_live_names(argv[1], description if isinstance(description, dict) else {})
+    if not isinstance(description, dict):
+        sys.stderr.write("declared_env_removals: stdin is not a JSON object\n")
+        return 65
+    names = declared_live_names(argv[1], description)
     if not all(PLAIN_NAME.fullmatch(name) for name in names):
         sys.stderr.write("declared_env_removals: a declared variable name is not a plain identifier\n")
         return 65

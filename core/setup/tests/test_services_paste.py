@@ -2,6 +2,7 @@
 external command runs. A missing pwsh fails the tests: it is never a reason to skip them."""
 import hashlib
 import json
+import os
 import re
 import shutil
 import dataclasses
@@ -789,7 +790,7 @@ def test_f5_the_real_interactivity_check_refuses_a_redirected_stdin_and_a_nonint
 # Finding 3 at the paste: the declared removal list is read live and shown before the DEPLOY prompt
 
 NAMES = ("F42_SYNTHETIC_DECLARED_ONE", "F42_SYNTHETIC_DECLARED_TWO")
-DECLARE_CMD = "py -3.13 -m core.setup.release.declared_env_removals --service f42-agent"
+DECLARE_CMD = "py -3.13 -B -m core.setup.release.declared_env_removals --service f42-agent"
 DESCRIBE_CMD = "gcloud run services describe f42-agent --project ogilvy-trends-v2 --region us-central1 --format=json"
 
 
@@ -856,3 +857,114 @@ def test_f7_the_checkout_is_asserted_before_the_passcode_is_set_so_no_git_child_
     assert result.calls[smoke_at]["passcode_sha"] == sha(TYPED)
     text = (ROOT / "core/setup/release/SERVICES-PASTE.ps1").read_text(encoding="utf-8")
     assert "never passed to a child" not in text and "the smoke child alone" in text
+
+
+# Round 2 review of the release paste (R-2, R-3, R-5, R-7, R-9, R-10)
+
+def test_r2_a_function_named_read_host_cannot_stand_in_for_the_typed_word():
+    # Read-Host is called by its module-qualified name, so a function of that name defined by the caller is never run. The
+    # real prompt is refused here (no console), so the word is never accepted.
+    shadowed = paste_function("function global:Read-Host { 'DEPLOY' }; Read-Word 'DEPLOY'")
+    assert "RESULT:ok" not in shadowed.stdout and "RESULT:NOT INTERACTIVE" in shadowed.stdout, (shadowed.stdout, shadowed.stderr)
+    passcode = paste_function("function global:Read-Host { ConvertTo-SecureString 'x' -AsPlainText -Force }; Read-Passcode")
+    assert "RESULT:ok" not in passcode.stdout, (passcode.stdout, passcode.stderr)
+
+
+def test_r2_the_paste_calls_the_prompt_cmdlet_only_by_its_module_qualified_name():
+    text = (ROOT / "core/setup/release/SERVICES-PASTE.ps1").read_text(encoding="utf-8")
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    assert len(re.findall(r"Microsoft\.PowerShell\.Utility\\Read-Host", code)) == 2
+    assert not re.findall(r"(?<![\\\w-])Read-Host", code)
+
+
+def test_r3_the_extract_calls_the_system_tar_by_its_full_path_not_the_first_tar_on_path(tmp_path):
+    result = PasteWorld(tmp_path).run()
+    tar = result.run("extract")["argv"][0]
+    if os.name == "nt":
+        assert re.fullmatch(r"(?i)[a-z]:\\[^\\]+\\System32\\tar\.exe", tar), tar
+    assert plan.matching_entries(result.run("extract")["argv"]) == ["archive"]
+
+
+def logged_calls(result):
+    return [c for c in result.calls if c["kind"] in ("read", "run")]
+
+
+@pytest.mark.parametrize("action", ["Candidate", "Promote", "Rollback", "Retire"])
+def test_r5_r9_every_child_runs_with_gcloud_file_logging_off_no_bytecode_and_no_git_index_lock(tmp_path, action):
+    world = promote_world(tmp_path) if action == "Promote" else PasteWorld(tmp_path, action)
+    if action == "Retire":
+        world.readback("AfterRollback")
+    result = world.run()
+    assert result.returncode == 0, result.stderr
+    calls = logged_calls(result)
+    assert len(calls) > 3
+    for call in calls:
+        assert call["env"] == {"file_logging": "1", "bytecode": "1", "locks": "0"}, (call.get("name") or call["argv"], call["env"])
+    assert [c for c in result.calls if c["kind"] == "env_at_end"] == [{"kind": "env_at_end", "env": {"file_logging": "", "bytecode": "", "locks": ""}}]
+
+
+def test_r9_the_module_read_runs_without_writing_bytecode(tmp_path):
+    result = PasteWorld(tmp_path).run()
+    argv = next(c["argv"] for c in result.calls if c["kind"] == "read" and "core.setup.release.declared_env_removals" in c["argv"])
+    assert argv == ["py", "-3.13", "-B", "-m", "core.setup.release.declared_env_removals", "--service", "f42-agent"]
+
+
+# R-7: the in-flight count comes before IDLE, and a count that is refused or above zero asks for IDLE again
+
+INFLIGHT = "core/setup/durable_effects_check.py"
+
+
+def count_read(result):
+    return next(i for i, c in enumerate(result.calls) if c["kind"] == "read" and c["argv"][2:3] == [INFLIGHT])
+
+
+def test_r7_promote_shows_the_inflight_count_before_it_asks_for_idle(tmp_path):
+    result = promote_world(tmp_path).run()
+    assert result.returncode == 0, result.stderr
+    first_prompt = next(i for i, c in enumerate(result.calls) if c["kind"] == "prompt")
+    assert count_read(result) < first_prompt
+    assert "In-flight Asks: 0" in result.stdout
+    assert [c["prompt"] for c in prompts(result)] == ["Type IDLE to continue", "Type DEPLOY to continue"]
+
+
+def test_r7_the_count_is_read_with_the_bound_checker_into_a_folder_outside_the_release_directory(tmp_path):
+    world = promote_world(tmp_path)
+    result = world.run()
+    argv = result.calls[count_read(result)]["argv"]
+    evidence = Path(argv[argv.index("--evidence") + 1])
+    assert argv[argv.index("--bindings") + 1] == str(world.bindings) and "inflight-asks" in argv
+    assert world.release_dir not in evidence.parents and not evidence.exists()  # nothing is left behind
+    assert plan.matching_entries(argv) == ["checker"]
+
+
+@pytest.mark.parametrize("extra, said", [({"inflight_running": 2}, "2 Ask(s) are running"), ({"inflight_refused": True}, "could not be counted")])
+def test_r7_a_running_or_refused_count_asks_for_idle_a_second_time(tmp_path, extra, said):
+    result = promote_world(tmp_path).run(extra=extra)
+    assert result.returncode == 0, result.stderr
+    assert said in result.stdout
+    assert [c["prompt"] for c in prompts(result)] == ["Type IDLE to continue", "Type IDLE to continue", "Type DEPLOY to continue"]
+
+
+@pytest.mark.parametrize("extra", [{"inflight_running": 1}, {"inflight_refused": True}])
+def test_r7_the_second_idle_must_be_typed_exactly_too(tmp_path, extra):
+    result = promote_world(tmp_path).run(extra={**extra, "words": {"IDLE": ["IDLE", "idle"]}})
+    assert result.returncode != 0 and result.runs == [] and "NOT CONFIRMED" in result.stderr
+    assert [c["prompt"] for c in prompts(result)] == ["Type IDLE to continue", "Type IDLE to continue"]
+
+
+def test_r7_a_zero_count_asks_for_idle_once_and_the_candidate_does_not_count(tmp_path):
+    result = PasteWorld(tmp_path).run()
+    assert not [c for c in result.calls if c["kind"] == "read" and c["argv"][2:3] == [INFLIGHT]]
+
+
+# R-10: the second quiet-window check after the typed words, and the read of a description that is not an object
+
+def test_r10_a_quiet_window_that_goes_stale_while_the_words_are_typed_stops_promote_before_any_command(tmp_path):
+    import datetime as dt
+
+    verified = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=12)).isoformat()
+    result = promote_world(tmp_path).run(quiet=verified, extra={"minutes_per_prompt": 1.6})
+    assert result.returncode != 0 and result.runs == [] and "older than 15 minutes" in result.stderr
+    assert [c["prompt"] for c in prompts(result)] == ["Type IDLE to continue", "Type DEPLOY to continue"]  # both words were typed first
+    fresh = promote_world(tmp_path / "fresh").run(quiet=verified, extra={"minutes_per_prompt": 0.2})
+    assert fresh.returncode == 0, fresh.stderr

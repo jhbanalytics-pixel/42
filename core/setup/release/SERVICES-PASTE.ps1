@@ -21,6 +21,7 @@ $Script:Helper = 'core/setup/release/bound_readback.py'
 $Script:ReleasePattern = '^rel-[0-9a-f]{7}-[0-9]{2}$'
 $Script:Retries = 3
 $Script:SmokeSecret = $null
+$Script:Tar = if ($env:SystemRoot) { Join-Path $env:SystemRoot 'System32\tar.exe' } else { 'tar' }
 $Script:RetrySeconds = 10
 
 # Text files of the repository are hashed with a CRLF read as LF, as lock.py does, so a Windows checkout and a Linux one agree.
@@ -277,7 +278,7 @@ function Invoke-Candidate {
     # refuses a directory that is already there. The build then runs inside the extracted tree, so what is uploaded is the
     # archive of the bound commit and nothing else from the checkout.
     New-Item -ItemType Directory -Path $extract | Out-Null
-    Step -Name 'extract' -Argv @('tar', '-xf', $archive, '-C', $extract) | Out-Null
+    Step -Name 'extract' -Argv @($Script:Tar, '-xf', $archive, '-C', $extract) | Out-Null
     Step -Name 'build' -WorkDir $extract -Argv @('gcloud', 'builds', 'submit', '--project', 'ogilvy-trends-v2', '--region', 'us-central1', '--config', 'core/api/cloudbuild.yaml',
         '--substitutions', "_IMAGE=$tag", '--gcs-source-staging-dir', 'gs://ogilvy-trends-v2-f42-media-staging/build-source',
         '--service-account', 'projects/ogilvy-trends-v2/serviceAccounts/f42-deployer@ogilvy-trends-v2.iam.gserviceaccount.com', '.') | Out-Null
@@ -305,7 +306,7 @@ function Invoke-Candidate {
 
 function Test-QuietWindow {
     if ([string]::IsNullOrEmpty($QuietWindowVerifiedAtUtc)) { throw 'Promote needs the quiet-window verification time (-QuietWindowVerifiedAtUtc).' }
-    $age = [DateTimeOffset]::UtcNow - [DateTimeOffset]::Parse($QuietWindowVerifiedAtUtc)
+    $age = (Get-UtcNow) - [DateTimeOffset]::Parse($QuietWindowVerifiedAtUtc)
     if ($age.TotalMinutes -gt 15 -or $age.TotalMinutes -lt -1) { throw 'The quiet-window verification is older than 15 minutes.' }
 }
 
@@ -362,13 +363,22 @@ function Assert-Interactive {
     if (-not (Test-Interactive)) { throw 'NOT INTERACTIVE: DEPLOY, IDLE and the passcode are typed at a console. This run is not at one, and there is no fallback.' }
 }
 
+# Read-Host is called by its module-qualified name, so a function of that name defined by whoever invoked the paste is never run
+# in its place. Read-Typed is the one place either prompt is made.
+function Read-Typed([string]$Prompt, [switch]$Secure) {
+    if ($Secure) { return (Microsoft.PowerShell.Utility\Read-Host -AsSecureString -Prompt $Prompt) }
+    return (Microsoft.PowerShell.Utility\Read-Host -Prompt $Prompt)
+}
+
+function Get-UtcNow { return [DateTimeOffset]::UtcNow }
+
 function Read-Word([string]$Word) {
-    try { $typed = Read-Host -Prompt "Type $Word to continue" } catch { throw "NOT INTERACTIVE: the prompt for $Word could not be shown." }
+    try { $typed = Read-Typed "Type $Word to continue" } catch { throw "NOT INTERACTIVE: the prompt for $Word could not be shown." }
     if ($typed -cne $Word) { throw "NOT CONFIRMED: $Word was not typed exactly. Nothing was written." }
 }
 
 function Read-Passcode {
-    try { $secret = Read-Host -AsSecureString -Prompt 'Smoke passcode' } catch { throw 'NOT INTERACTIVE: the passcode prompt could not be shown.' }
+    try { $secret = Read-Typed 'Smoke passcode' -Secure } catch { throw 'NOT INTERACTIVE: the passcode prompt could not be shown.' }
     if ($null -eq $secret -or $secret.Length -eq 0) { throw 'NOT CONFIRMED: no smoke passcode was typed. Nothing was written.' }
     return $secret
 }
@@ -378,13 +388,30 @@ function Read-Passcode {
 # directory.
 function Show-DeclaredRemoval {
     $live = Read-Native -Exe gcloud -Arguments @('run', 'services', 'describe', 'f42-agent', '--project', 'ogilvy-trends-v2', '--region', 'us-central1', '--format=json')
-    $matched = Read-Native -Exe py -Arguments @('-3.13', '-m', 'core.setup.release.declared_env_removals', '--service', 'f42-agent') -InputText $live
+    $matched = Read-Native -Exe py -Arguments @('-3.13', '-B', '-m', 'core.setup.release.declared_env_removals', '--service', 'f42-agent') -InputText $live
     $names = @($matched -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
     if ($names.Count -eq 0) {
         Write-Host 'f42-agent carries no declared environment variable; the deploy removes none.'
     } else {
         Write-Host "The candidate deploy removes $($names.Count) environment variable(s) from f42-agent, and only these:"
         foreach ($name in $names) { Write-Host "  $name" }
+    }
+}
+
+# The number of Asks still running, read before IDLE is asked for so the operator sees it first. The checker needs an evidence
+# folder, so this read uses a scratch folder in the temp directory, outside the release directory, and removes it. A count that
+# is refused or unreadable is returned as null, which the caller treats as unknown, never as zero.
+function Get-InflightCount {
+    $dir = Join-Path ([IO.Path]::GetTempPath()) ('f42-inflight-' + [guid]::NewGuid().ToString('N'))
+    try {
+        Read-Native -Exe py -Arguments @('-3.13', 'core/setup/durable_effects_check.py', '--check', 'inflight-asks', '--bindings', $Bindings, '--evidence', $dir) | Out-Null
+        $result = Get-Content -LiteralPath (Join-Path $dir 'inflight-asks.json') -Raw | ConvertFrom-Json
+        if ($result.running -is [int] -or $result.running -is [long]) { return [int]$result.running }
+        return $null
+    } catch {
+        return $null
+    } finally {
+        Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -401,7 +428,21 @@ function Confirm-Action {
         Test-PromoteInputs
         Assert-Source
         Assert-Identity
+        $running = Get-InflightCount
+        $again = $true
+        if ($null -eq $running) {
+            Write-Host 'In-flight Asks: unknown. The count could not be counted: the check was refused or failed.'
+        } elseif ($running -gt 0) {
+            Write-Host "In-flight Asks: $running. $running Ask(s) are running, and promoting now can cut them off."
+        } else {
+            Write-Host 'In-flight Asks: 0'
+            $again = $false
+        }
         Read-Word 'IDLE'
+        if ($again) {
+            Write-Host 'Type IDLE a second time to confirm you accept that.'
+            Read-Word 'IDLE'
+        }
         Read-Word 'DEPLOY'
         Test-QuietWindow
     }
@@ -412,7 +453,13 @@ function Invoke-Release {
     Test-Receipt
     $inheritedPresent = Test-Path Env:F42_SMOKE_PASSCODE
     $inherited = $env:F42_SMOKE_PASSCODE
+    # Every child inherits these: gcloud keeps no file log of its arguments (the removed names travel in one), Python writes no
+    # bytecode into the checkout, and git status takes no index lock. They are put back at the end of the run.
+    $childEnv = [ordered]@{ CLOUDSDK_CORE_DISABLE_FILE_LOGGING = '1'; PYTHONDONTWRITEBYTECODE = '1'; GIT_OPTIONAL_LOCKS = '0' }
+    $savedEnv = @{}
+    foreach ($name in $childEnv.Keys) { $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
+        foreach ($name in $childEnv.Keys) { [Environment]::SetEnvironmentVariable($name, $childEnv[$name]) }
         Remove-Item Env:F42_SMOKE_PASSCODE -ErrorAction SilentlyContinue
         Set-Location -LiteralPath $Repo
         Confirm-Action
@@ -426,6 +473,7 @@ function Invoke-Release {
             'Retire' { Invoke-Retire }
         }
     } finally {
+        foreach ($name in $childEnv.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnv[$name]) }
         if ($inheritedPresent) { $env:F42_SMOKE_PASSCODE = $inherited } else { Remove-Item Env:F42_SMOKE_PASSCODE -ErrorAction SilentlyContinue }
         if ($null -ne $Script:SmokeSecret) { $Script:SmokeSecret.Dispose(); $Script:SmokeSecret = $null }
     }

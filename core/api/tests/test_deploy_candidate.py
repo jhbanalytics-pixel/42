@@ -117,7 +117,7 @@ def run_candidate(tmp_path, *, manifest=None, hash_arg=None, before=None, after=
         bash = resolve_bash()
     except FileNotFoundError as error:
         pytest.fail(str(error))
-    env = {**os.environ, "R3_CALLS": calls.as_posix(), "R3_STATE": state.as_posix(), "R3_PYTHON": Path(sys.executable).as_posix(),
+    env = {**{k: v for k, v in os.environ.items() if k != "CLOUDSDK_CORE_DISABLE_FILE_LOGGING"}, "R3_CALLS": calls.as_posix(), "R3_STATE": state.as_posix(), "R3_PYTHON": Path(sys.executable).as_posix(),
            "R3_POLICY": json.dumps(policy), "R3_POLICY_EXIT": str(policy_exit),
            "R3_HEAD": head, "R3_TREE": tree, "R3_SHORT12": short12, "MSYS_NO_PATHCONV": "1",
            **{f"R3_BEFORE_{n.replace('-', '_')}": json.dumps(v) for n, v in before.items()},
@@ -140,6 +140,7 @@ py() {
   return 98
 }
 gcloud() {
+  printf '%s\n' "${CLOUDSDK_CORE_DISABLE_FILE_LOGGING-unset}" >> "$R3_STATE/filelog"
   printf '%s\0' "$@" >> "$R3_CALLS"
   printf '\0' >> "$R3_CALLS"
   case "$1 $2 $3" in
@@ -525,3 +526,11 @@ def test_ds_removal_every_deploy_the_script_makes_is_inside_the_deploy_allowlist
         assert all(plan.deploy_call_allowed(call) for call in deploys(calls)), (label, [c[2] for c in deploys(calls)])
     agent = deploys(run_candidate(tmp_path / "again", before=agent_with(SYNTHETIC), declared=SYNTHETIC)[1])[0]
     assert "--remove-env-vars" in agent
+
+
+def test_ds_removal_every_gcloud_the_script_runs_has_gcloud_file_logging_off_so_the_removed_names_stay_out_of_its_log(tmp_path):
+    # gcloud logs every specified argument at DEBUG to its own file unless this is set, and the remove flag carries the names
+    result, calls = run_candidate(tmp_path, before=agent_with(SYNTHETIC), declared=SYNTHETIC)
+    assert result.returncode == 0, result.stderr
+    seen = (tmp_path / "state" / "filelog").read_text(encoding="utf-8").split()
+    assert len(seen) == len(calls) and len(seen) > 5 and set(seen) == {"1"}

@@ -249,3 +249,9 @@ def test_no_declared_name_is_written_to_the_manifest_or_to_any_readback_only_its
         assert name not in text and name.lower() not in text.lower()
     for digest in DIGESTS:
         assert digest in text
+
+
+@pytest.mark.parametrize("text", ["[]", "null", "3", '"x"', "true"])
+def test_a_description_that_is_not_a_json_object_is_refused_not_read_as_removing_nothing(capsys, monkeypatch, text):
+    code, out, err = run_cli(capsys, monkeypatch, text, "--service", "f42-agent")
+    assert code != 0 and out == "" and "not a JSON object" in err

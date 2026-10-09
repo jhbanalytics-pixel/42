@@ -1,6 +1,7 @@
 """The release steps and the recovery table as data (W8-REL 3.1, 3.3, 3.5, 2.11 and PS-03 to PS-08, PS-21, PS-22 at plan
 level). No command is run; the paste renders these lists, and these tests hold them to the contract."""
 import dataclasses
+import re
 
 import pytest
 
@@ -265,4 +266,67 @@ def test_plan_ds_the_deploy_script_calls_are_allowed_with_the_remove_flag_on_the
     deploy_call("other-service"), ["run", "services", "update", "f42-agent"], ["run", "deploy", "f42-agent", "--image", "x"],
 ])
 def test_plan_ds_a_deploy_call_outside_the_form_is_refused(call):
+    assert not plan.deploy_call_allowed(call)
+
+
+def test_plan_r3_the_extract_uses_the_system_tar_by_full_path_and_a_tar_from_path_is_not_allowed():
+    [extract] = [s for s in plan.candidate(CTX) if s.name == "extract"]
+    assert re.fullmatch(r"[A-Za-z]:\\[^\\]+\\System32\\tar\.exe", extract.argv[0]), extract.argv[0]
+    assert plan.matching_entries(extract.argv) == ["archive"]
+    assert plan.matching_entries(["tar", *extract.argv[1:]]) == []
+    assert plan.matching_entries([r"C:\tools\tar.exe", *extract.argv[1:]]) == []
+    assert plan.matching_entries([extract.argv[0], "-xf", "a.tar", "-C", "d", "--to-command=x"]) == []
+
+
+def test_plan_r9_the_module_read_runs_without_bytecode_and_the_form_without_it_is_not_allowed():
+    [match] = [s for s in plan.candidate(CTX) if s.name == "declared_env:match"]
+    assert match.argv == ("py", "-3.13", "-B", "-m", "core.setup.release.declared_env_removals", "--service", "f42-agent")
+    assert plan.matching_entries(match.argv) == ["declared_env_read"]
+    assert plan.matching_entries(["py", "-3.13", "-m", "core.setup.release.declared_env_removals", "--service", "f42-agent"]) == []
+
+
+AGENT_REAL = ["run", "deploy", "f42-agent", "--project", "ogilvy-trends-v2", "--region", "us-central1", "--image", "r/f42-web@sha256:" + "ab" * 32,
+              "--revision-suffix", RID, "--tag", RID, "--no-traffic", "--service-account", "f42-agent@ogilvy-trends-v2.iam.gserviceaccount.com",
+              "--min-instances", "1", "--max-instances", "1", "--no-cpu-throttling", "--timeout", "3600", "--memory", "1Gi",
+              "--update-env-vars", "A=1,B=2", "--set-secrets", "S=S:latest"]
+API_REAL = ["run", "deploy", "f42-api", "--project", "ogilvy-trends-v2", "--region", "us-central1", "--image", "r/f42-web@sha256:" + "ab" * 32,
+            "--revision-suffix", RID, "--tag", RID, "--no-traffic", "--service-account", "f42-web@ogilvy-trends-v2.iam.gserviceaccount.com",
+            "--no-invoker-iam-check", "--min-instances", "1", "--max-instances", "3", "--timeout", "3600",
+            "--update-env-vars", "A=1,B=2", "--set-secrets", "S=S:latest"]
+
+
+def equals_form(call, flags):
+    out, i = list(call[:3]), 3
+    while i < len(call):
+        if call[i] in flags and i + 1 < len(call):
+            out.append(f"{call[i]}={call[i + 1]}")
+            i += 2
+        else:
+            out.append(call[i])
+            i += 1
+    return out
+
+
+def test_plan_r4_the_two_real_deploy_forms_are_allowed_and_equals_forms_parse():
+    assert plan.deploy_call_allowed(AGENT_REAL) and plan.deploy_call_allowed(API_REAL)
+    assert plan.deploy_call_allowed(AGENT_REAL + ["--remove-env-vars", "ONE_NAME,TWO_NAME"])
+    assert plan.deploy_call_allowed(AGENT_REAL + ["--remove-env-vars=ONE_NAME,TWO_NAME"])
+    valued = {"--min-instances", "--max-instances", "--timeout", "--memory", "--image", "--tag", "--update-env-vars"}
+    assert plan.deploy_call_allowed(equals_form(AGENT_REAL, valued)) and plan.deploy_call_allowed(equals_form(API_REAL, valued))
+
+
+@pytest.mark.parametrize("call", [
+    [x if x != "--no-cpu-throttling" else "--no-cpu-throttling=false" for x in AGENT_REAL], [x if x != "--no-invoker-iam-check" else "--no-invoker-iam-check=true" for x in API_REAL],
+    API_REAL + ["--remove-env-vars=X"], API_REAL + ["--remove-env-vars", "X"], AGENT_REAL + ["--remove-env-vars="], AGENT_REAL + ["--remove-env-vars=A B"],
+    AGENT_REAL + ["--remove-env-vars=A", "--remove-env-vars=B"], AGENT_REAL + ["--remove-env-vars=A", "--remove-env-vars", "B"],
+    AGENT_REAL + ["--set-env-vars=A=1"], AGENT_REAL + ["--set-env-vars", "A=1"], AGENT_REAL + ["--env-vars-file", "f.yaml"],
+    AGENT_REAL + ["--env-vars-file=f.yaml"], AGENT_REAL + ["--clear-secrets"], AGENT_REAL + ["--remove-secrets", "S"],
+    AGENT_REAL + ["--remove-secrets=S"], AGENT_REAL + ["--clear-env-vars"], AGENT_REAL + ["--no-invoker-iam-check"],
+    AGENT_REAL + ["--allow-unauthenticated"], AGENT_REAL + ["--allow-unauthenticated=true"], AGENT_REAL + ["--to-latest"],
+    AGENT_REAL + ["--no-traffic=false"], AGENT_REAL + ["--cpu=8"], AGENT_REAL + ["--vpc-connector", "x"], AGENT_REAL + ["--min-instances", "1"],
+    AGENT_REAL + ["--update-env-vars", "C=3"], AGENT_REAL + ["stray-positional"], API_REAL + ["--no-cpu-throttling"], API_REAL + ["--memory", "1Gi"],
+    [a for a in AGENT_REAL if a != "--no-traffic"], AGENT_REAL + ["--min-instances"],
+    [a.replace(RID, "latest") if a == RID else a for a in AGENT_REAL],
+])
+def test_plan_r4_a_flag_outside_the_positive_list_or_used_twice_or_on_the_wrong_service_is_refused(call):
     assert not plan.deploy_call_allowed(call)
