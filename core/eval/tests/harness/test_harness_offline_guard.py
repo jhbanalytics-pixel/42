@@ -488,6 +488,14 @@ BS, NL = chr(92), chr(10)
     ["awk", 'BEGIN { print "id" | ' + BS + NL + '"sh" }'],
     ["awk", 'BEGIN { y = x' + BS + NL + 'system("id") }'],
     ["awk", 'BEGIN { print "a' + BS + '"b;" | "sh" }'], ["awk", 'BEGIN { print "a' + BS + BS + '" | "sh" }'],
+    # gawk does not continue a comment that ends in a backslash, so the next line runs as code; joined onto the
+    # comment's line, a quote in the comment pairs with the next quote and hides the pipe from a reader of strings
+    ["awk", 'BEGIN { # "' + BS + NL + 'print "hello" | "cat > m_comment.txt" }'],
+    ["awk", 'BEGIN { # "' + BS + NL + 'print "hi" |& "cat > m_coproc.txt" }'],
+    ["awk", 'BEGIN { # "' + BS + NL + '"id" | getline x }'],
+    ["awk", 'BEGIN { # "' + BS + NL + 'print "hi" |& "cat"; close("cat") }'],
+    ["awk", '# "' + BS + NL + '|&"}"'], ["awk", '# "' + BS + NL + '|&"x"'], ["awk", '"' + BS + NL + '""|&"|"' + NL],
+    ["awk", '/"' + BS + NL + 'printf "|'], ["awk", "BEGIN { # x " + BS + NL + 'print "x" | "sh" }'],
     # a quote inside a regex literal can pair with a later quote and hide the pipe from a reader of strings
     ["awk", '/"/ { print "x" | "sh" }'], ["awk", '/"/ { "id" | getline x }'], ["awk", '/[^"]/ { print $0 |& "sh" }'],
     ["awk", '/"/ { print "x"; print "id;" | "sh" }'],
@@ -506,6 +514,27 @@ def test_an_awk_program_file_with_a_pipe_past_a_string_or_a_continuation_is_refu
         popen(guard, ["awk", "-f", str(script)], refused)
 
 
+@pytest.mark.parametrize("name", ["AWKPATH", "awkpath", "AwkPath"])
+def test_awk_reads_its_program_search_path_from_awkpath_so_that_name_is_refused(guard, name, tmp_path):
+    """awk -f prog.awk looks in the directories AWKPATH names, so the file the guard reads in the working directory
+    need not be the file awk runs."""
+    environment = {**KEEPS_GUARD, name: "/somewhere/else"}
+    good = tmp_path / "good.awk"
+    good.write_text("{ print $1 }" + NL, encoding="utf-8")
+    allowed(guard, "subprocess.Popen", ("awk", ["awk", "-f", str(good)], None, KEEPS_GUARD))
+    refused(guard, "subprocess.Popen", ("awk", ["awk", "-f", str(good)], None, environment))
+    refused(guard, "subprocess.Popen", ("awk", ["awk", "{ print $1 }", "file"], None, environment))
+    refused(guard, "subprocess.Popen", ("awk", ["awk", "{ print $1 }", "file"], None, {**KEEPS_GUARD, name: ""}))
+    refused(guard, "subprocess.Popen", ("env", ["env", "awk", "{ print $1 }", "file"], None, environment))
+    refused(guard, "subprocess.Popen", ("env", ["env", f"{name}=/x", "awk", "{ print $1 }", "file"], None, KEEPS_GUARD))
+    refused(guard, "os.exec", ("awk", ["awk", "{ print $1 }", "file"], environment))
+    refused(guard, "subprocess.Popen", ("awk", ["awk", "{ print $1 }", "file"], None, 42))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "-u", name, "awk", "{ print $1 }", "file"], None, environment))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "-i", "awk", "{ print $1 }", "file"], None, environment))
+    allowed(guard, "subprocess.Popen", ("awk", ["awk", "{ print $1 }", "file"], None, KEEPS_GUARD))
+    allowed(guard, "subprocess.Popen", ("ls", ["ls"], None, environment))
+
+
 @pytest.mark.parametrize("command", [
     ["awk", "{ print $1 }", "file"], ["awk", "-F,", "{ print $2 }", "file"], ["awk", "-v", "x=1", "BEGIN { print x }"],
     ["awk", "/a|b/ { print }"], ["awk", "$1 == 1 || $2 == 2 { n++ } END { print n }"],
@@ -514,7 +543,8 @@ def test_an_awk_program_file_with_a_pipe_past_a_string_or_a_continuation_is_refu
     ["awk", 'BEGIN { printf "%s|%s\\n", 1, 2 }'], ["awk", 'BEGIN { print "a|b" }'],
     ["awk", 'BEGIN { x = "a | getline" }'], ["awk", 'BEGIN { print "a;b}c" > "out" }'],
     ["awk", '/"/ { print $1 }'], ["awk", '/"/ || /x/ { print "a" }'],
-    ["awk", 'BEGIN { print "a" ' + BS + NL + ', "b" }'], ["awk", 'BEGIN { print 1 ' + BS + NL + '}']])
+    ["awk", 'BEGIN { print "a" ' + BS + NL + ', "b" }'], ["awk", 'BEGIN { print 1 ' + BS + NL + '}'],
+    ["awk", 'BEGIN { # "' + BS + NL + 'print "a|b" }'], ["awk", 'BEGIN { # note' + BS + NL + 'print 1 }']])
 def test_awk_stays_usable_for_local_work(guard, command):
     popen(guard, command, allowed)
 
@@ -658,6 +688,21 @@ def test_zip_reads_options_from_zipopt_so_that_name_is_refused(guard, name, valu
     allowed(guard, "subprocess.Popen", ("env", ["env", "-u", name, "zip", "a.zip", "x"], None, environment))
     allowed(guard, "subprocess.Popen", ("env", ["env", "-i", "zip", "a.zip", "x"], None, environment))
     allowed(guard, "subprocess.Popen", ("zip", ["zip", "a.zip", "x"], None, KEEPS_GUARD))
+    allowed(guard, "subprocess.Popen", ("unzip", ["unzip", "-t", "a.zip"], None, environment))
+
+
+@pytest.mark.parametrize("name", ["ZIP", "zip", "Zip"])
+@pytest.mark.parametrize("value", ["-TT sh", "-TTsh", "--unzip-command=sh", ""])
+def test_zip_reads_options_from_zip_so_that_name_is_refused(guard, name, value):
+    """zip also reads its options from ZIP, the same as ZIPOPT, so it can carry -TT out of sight of the guard."""
+    environment = {**KEEPS_GUARD, name: value}
+    refused(guard, "subprocess.Popen", ("zip", ["zip", "-T", "a.zip", "x"], None, environment))
+    refused(guard, "subprocess.Popen", ("zip", ["zip", "a.zip", "x"], None, environment))
+    refused(guard, "subprocess.Popen", ("env", ["env", "zip", "a.zip", "x"], None, environment))
+    refused(guard, "subprocess.Popen", ("env", ["env", f"{name}={value}", "zip", "a.zip", "x"], None, KEEPS_GUARD))
+    refused(guard, "os.exec", ("zip", ["zip", "a.zip", "x"], environment))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "-u", name, "zip", "a.zip", "x"], None, environment))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "-i", "zip", "a.zip", "x"], None, environment))
     allowed(guard, "subprocess.Popen", ("unzip", ["unzip", "-t", "a.zip"], None, environment))
 
 
