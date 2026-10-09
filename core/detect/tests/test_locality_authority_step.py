@@ -87,10 +87,39 @@ def test_the_suite_fixture_moves_the_authority_everywhere_it_was_read(monkeypatc
     from core.conftest import set_locality_authority
     from core.trust import locality as trust
 
+    detect_before, brief_before = job.RULE_VERSION, brief_job.RULE_VERSION
+    assert brief_before.startswith(detect_before)
+    tail = brief_before[len(detect_before):]  # the brief's own rule tokens, which the authority does not own
+    assert not tail or tail.startswith("+")
     set_locality_authority(monkeypatch, value)
     assert trust.LOCALITY_AUTHORITY == job.LOCALITY_AUTHORITY == value
-    assert job.RULE_VERSION == brief_job.RULE_VERSION == job.rule_version_for(value)
+    assert job.RULE_VERSION == job.rule_version_for(value)
+    assert brief_job.RULE_VERSION == job.rule_version_for(value) + tail
     assert job.run.__kwdefaults__["rule_version"] == job.rule_version_for(value)
+
+
+def test_the_suite_fixture_keeps_every_brief_token_through_repeated_swaps(monkeypatch):
+    from core.brief import job as brief_job
+    from core.conftest import set_locality_authority
+
+    tail = brief_job.RULE_VERSION[len(job.RULE_VERSION):]
+    for value in ("v2", "v1", "v2"):
+        set_locality_authority(monkeypatch, value)
+        assert brief_job.RULE_VERSION == job.rule_version_for(value) + tail
+        assert brief_job.RULE_VERSION.count("+") == job.rule_version_for(value).count("+") + tail.count("+")
+
+
+@pytest.mark.parametrize(("baked", "value"), [("v2", "v1"), ("v1", "v2"), ("v1", "v1")])
+def test_the_suite_fixture_swaps_the_detect_prefix_the_brief_was_imported_under(monkeypatch, baked, value):
+    """A module first imported inside a patched test keeps that test's version after it, so the brief can begin with
+    either authority's version when the fixture runs."""
+    from core.brief import job as brief_job
+    from core.conftest import set_locality_authority
+
+    tail = brief_job.RULE_VERSION[len(job.RULE_VERSION):]
+    monkeypatch.setattr(brief_job, "RULE_VERSION", job.rule_version_for(baked) + tail)
+    set_locality_authority(monkeypatch, value)
+    assert brief_job.RULE_VERSION == job.rule_version_for(value) + tail
 
 
 def remove_locality_views(con, monkeypatch):
