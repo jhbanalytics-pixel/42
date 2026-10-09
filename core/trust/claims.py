@@ -475,9 +475,19 @@ _MONTH_BEFORE = re.compile(
     r"(?:(?i:\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|June?|July?|Aug(?:ust)?|Sept?(?:ember)?"
     r"|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?))|\bMay)\b\.?\s+$"
 )
-# A person noun anywhere in the rest of the clause keeps the pair a breach: the file's _PERSON set and customers.
-_PERSON_IN_CLAUSE = re.compile(rf"\b(?:{_PERSON}|customers?)\b", re.I)
+# A person word anywhere in the clause keeps the pair a breach: the file's _PERSON set, customers, the nouns below that
+# _PERSON does not hold, and the group words. Not single or singles: a music single is the common sense in this data.
+_PERSON_IN_CLAUSE = re.compile(
+    rf"\b(?:{_PERSON}|customers?|m[ae]n|wom[ae]n|girls?|boys?|students?|parents?|mums?|moms?|dads?|gamers?"
+    r"|graduates?|residents?|workers?|tiktokers?|subscribers?|cohorts?|brackets?|demographics?|age\s+groups?)\b",
+    re.I,
+)
+# "group" alone counts only as the word straight after the range ("the Sept 18-24 group"): "won 24-17 in the group
+# stage" is a score.
+_GROUP_AFTER = re.compile(r"\s*groups?\b", re.I)
 _CLAUSE_END = re.compile(r"[;!?:]|[.,](?!\d)")
+# A full stop after a month abbreviation ("Sept. 18-24") is not the end of a clause.
+_MONTH_ABBREVIATION = re.compile(r"\b(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)$", re.I)
 _RANGE_PARTS = re.compile(r"(\d+)\s*(?:-|\u2013)\s*(\d+)")
 _PLUS_AFTER = re.compile(r"\s*(?:\+|plus\b)", re.I)
 
@@ -485,11 +495,20 @@ _PLUS_AFTER = re.compile(r"\s*(?:\+|plus\b)", re.I)
 def _exempt_range(text, m):
     """A range the plain age pattern flags that is a score or a date. A score is a falling pair after a score word
     ("won 24-17"; a cohort rises, as core/collect/gdelt.py reads it). A date is a rising pair of day numbers after a
-    month name, not followed by + or plus. A person noun anywhere in the rest of the clause keeps either a breach."""
+    month name, not followed by + or plus. A person word anywhere in the clause keeps either a breach."""
     low, high = (int(g) for g in _RANGE_PARTS.match(m.group(0)).groups())
     before, after = text[: m.start()], text[m.end() :]
     clause_end = _CLAUSE_END.search(after)
-    if _PERSON_IN_CLAUSE.search(after[: clause_end.start()] if clause_end else after):
+    clause_start = max(
+        [0]
+        + [
+            c.end()
+            for c in _CLAUSE_END.finditer(before)
+            if not (c.group(0) == "." and _MONTH_ABBREVIATION.search(before[: c.start()]))
+        ]
+    )
+    clause = before[clause_start:] + " " + (after[: clause_end.start()] if clause_end else after)
+    if _PERSON_IN_CLAUSE.search(clause) or _GROUP_AFTER.match(after):
         return False
     if _SCORE_BEFORE.search(before):
         return low >= high
