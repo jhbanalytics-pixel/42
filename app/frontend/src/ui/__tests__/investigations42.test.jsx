@@ -607,11 +607,15 @@ test('a finished investigation renders its answer as Ask does: short answer, lab
   expect(primaries.map((node) => plain(node.textContent))).toEqual(['Open as dossier']);
 });
 
+/* A record with no typed summary state: the page says what passed and that
+   the summary is not available, as the export does, and no longer reads a
+   gap's words to guess why (C1 v2 section 6.1). */
+const NO_SUMMARY_WORDS = '2 checked findings from 2 posts on TikTok and X are below. The one-line summary is not available for this answer.';
 for (const [label, summary, gaps, expected] of [
-  ['empty', '', [], 'No summary: see the claims below'],
-  ['whitespace', ' \n\t ', [], 'No summary: see the claims below'],
-  ['unrelated gap', '', [{what: 'No Instagram posts in the window', searched: 'Instagram', why: 'empty'}], 'No summary: see the claims below'],
-  ['summary gap', '', [{what: 'One-line summary removed: it repeated a claim that did not pass its checks', searched: 'the short answer text', why: 'partial'}], 'One-line summary removed: it repeated a claim that did not pass its checks'],
+  ['empty', '', [], NO_SUMMARY_WORDS],
+  ['whitespace', ' \n\t ', [], NO_SUMMARY_WORDS],
+  ['unrelated gap', '', [{what: 'No Instagram posts in the window', searched: 'Instagram', why: 'empty'}], NO_SUMMARY_WORDS],
+  ['summary gap', '', [{what: 'One-line summary removed: it repeated a claim that did not pass its checks', searched: 'the short answer text', why: 'partial'}], NO_SUMMARY_WORDS],
   ['real summary', '  The checked findings stay here.  ', [{what: 'An earlier summary was removed', searched: 'the short answer text', why: 'partial'}], '  The checked findings stay here.  '],
 ]){
   test('a finished investigation preserves claims with an ' + label + ' summary', async () => {

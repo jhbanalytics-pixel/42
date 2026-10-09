@@ -25,6 +25,7 @@ import {platformWord} from './ui/TrendCard.jsx';
 import {BarList} from './ui/Charts42.jsx';
 import {safeUrl} from './safeUrl.js';
 import {consumeAsk} from './askConsent.js';
+import {missingSummarySentence, statusWords, stoppedEarly, summaryNotice} from './answerMeta.js';
 
 const MARKETS = [
   {code: 'ZA', name: 'South Africa'},
@@ -63,7 +64,9 @@ const ANSWER_STATUS = {
    stop's own gap (core/agent/ask.py _stopped_answer) names why it stopped,
    so the heading says that instead. */
 const BUDGET_STOP = 'model cost or usage could not be verified within the per-question budget';
-export function answerStatusWords(answer){
+export function answerStatusWords(answer, record){
+  const verified = statusWords(record);
+  if (verified) return verified;
   const gaps = Array.isArray(answer && answer.gaps) ? answer.gaps : [];
   if (answer && answer.status === 'insufficient_evidence'){
     if (gaps.some((gap) => gap && gap.why === BUDGET_STOP)) return "Stopped at this question's model budget, not for lack of evidence";
@@ -72,18 +75,21 @@ export function answerStatusWords(answer){
   return ANSWER_STATUS[answer && answer.status] || null;
 }
 
-/* A partial answer can arrive with no short answer at all (the one-line
-   summary failed a check). The space says what did pass instead of standing
-   empty or only saying what did not (core/api/export.py shortAnswerFallback
-   writes the same words). */
-export function noShortAnswer(answer){
+/* A partial answer can arrive with no short answer at all. The space says
+   what did pass, then why the summary is missing as far as the typed state
+   (answerMeta.js) knows it: a verified removal says which check removed it,
+   a verified blank says none was written, and any other record says only that
+   the summary is not available, never that a check failed. The export writes
+   the same line (core/api/export.py short_answer_fallback), and
+   answer-meta.test.jsx holds the two to the same words. */
+export function noShortAnswer(answer, record){
   const claims = Array.isArray(answer && answer.claims) ? answer.claims : [];
   if (claims.length === 0) return 'Nothing passed the checks to sum up.';
   const evidence = Array.isArray(answer.evidence) ? answer.evidence : [];
   const platforms = [...new Set(evidence.map((item) => platformLabel(item && item.platform) || (item && item.platform)).filter(Boolean))];
   const found = readerFigure(claims.length) + (claims.length === 1 ? ' checked finding' : ' checked findings');
   const from = evidence.length ? ' from ' + readerFigure(evidence.length) + (evidence.length === 1 ? ' post' : ' posts') + (platforms.length ? ' on ' + listWords(platforms) : '') : '';
-  return found + from + (claims.length === 1 ? ' is' : ' are') + ' below. The one-line summary did not pass the checks.';
+  return found + from + (claims.length === 1 ? ' is' : ' are') + ' below. ' + missingSummarySentence(summaryNotice(record));
 }
 
 const WHY = {
@@ -380,6 +386,8 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   }
   const notices = Array.isArray(run.notices) ? run.notices : [];
   const followups = Array.isArray(run.followups) ? run.followups.slice(0, 3) : [];
+  const summary = summaryNotice(record);
+  const hasSummary = String(answer.short_answer || '').trim() !== '';
 
   useEffect(() => {
     findingSaveRequest.current = null;
@@ -457,11 +465,12 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
            page uses the whole width without stretching any line of prose. */}
         <div className="ask42-answer-body">
         <div className="ask42-answer-main">
-        {answerStatusWords(answer) && <p className="ask42-status">{answerStatusWords(answer)}</p>}
-        {record.status === 'stopped' && <p className="ask42-status">Stopped early: this answer holds only what had passed its checks</p>}
+        {answerStatusWords(answer, record) && <p className="ask42-status">{answerStatusWords(answer, record)}</p>}
+        {stoppedEarly(record) && <p className="ask42-status">Stopped early: this answer holds only what had passed its checks</p>}
         <RankedAnswer record={record} windowLabel={windowWords(run.ranked_list?.window)}
           renderSources={(claim) => <ClaimSources claim={claim} records={records} answer={answer} pinnedId={pinnedId} onPin={setPinnedId} />} />
-        <p id={shortId} className="ask42-short">{String(answer.short_answer || '').trim() ? <ShortAnswer text={answer.short_answer} /> : noShortAnswer(answer)}</p>
+        <p id={shortId} className="ask42-short">{hasSummary ? <ShortAnswer text={answer.short_answer} /> : noShortAnswer(answer, record)}</p>
+        {hasSummary && summary.kind === 'shown_rewritten' && <p className="ask42-short-note ask42-muted">{summary.sentence}</p>}
 
         {answer.claims && answer.claims.length > 0 && (
           <ol className="ask42-claims" aria-label="Claims">

@@ -18,7 +18,7 @@ import {Facts} from './ui/Facts.jsx';
 import {FigureLine} from './ui/FigureLine.jsx';
 import {SourcePanel} from './ui/SourcePanel.jsx';
 import {plainSearched} from './readerUnits.js';
-import {plainGapWhat} from './ask42.jsx';
+import {dossierSummaryWords} from './answerMeta.js';
 
 const MARKET_NAME = {ZA: 'South Africa', NG: 'Nigeria', KE: 'Kenya'};
 
@@ -293,7 +293,7 @@ function FrozenBody({view, onFailure, editAgain}){
     <div className="ask42-answer-layout">
       <article className="dossiers42-body">
         <p className="dossiers42-meta">{metaLine(view)}</p>
-        <p className="dossiers42-summary">{String(view.summary || '').trim() ? view.summary : plainGapWhat((view.gaps || []).find((gap) => /short[ _-]answer|summary/i.test(gap.searched))?.what) || 'No summary: see the claims below'}</p>
+        <p className="dossiers42-summary">{String(view.summary || '').trim() ? view.summary : dossierSummaryWords(view)}</p>
         <ol className="dossiers42-claims" aria-label="Claims">
           {kept.map((claim) => {
             const review = reviews[claim.claim_id];
@@ -475,7 +475,7 @@ export function DossierPage({dossierId, onAuth}){
             <input id="dossiers42-title-input" name="title" className="dossiers42-input" maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} />
             <button type="submit" className="dossiers42-quiet" disabled={busy || !titleChanged}>Save title</button>
           </form>
-          <p className="dossiers42-summary">{String(view.summary || '').trim() ? view.summary : plainGapWhat((view.gaps || []).find((gap) => /short[ _-]answer|summary/i.test(gap.searched))?.what) || 'No summary: see the claims below'}</p>
+          <p className="dossiers42-summary">{String(view.summary || '').trim() ? view.summary : dossierSummaryWords(view)}</p>
 
           <ol className="dossiers42-claims" aria-label="Claims">
             {claims.filter((claim) => claim.kept).map((claim, index, list) => {
