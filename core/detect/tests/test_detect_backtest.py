@@ -527,7 +527,7 @@ def test_backtests_directory_is_kept_in_the_repository():
     assert (backtest.OUT_DIR / ".gitkeep").exists()
 
 
-def test_dry_run_prints_what_would_switch_on_and_writes_nothing_to_bigquery(con, tmp_path, capsys):
+def test_dry_run_prints_what_would_switch_on_and_writes_one_runs_row_and_nothing_else(con, tmp_path, capsys):
     stable_panel(World(), 30).load(con)
     client = BacktestClient(con)
     assert backtest.main(["--as-of", D.isoformat(), "--days", "7"], client=client, out_dir=tmp_path,

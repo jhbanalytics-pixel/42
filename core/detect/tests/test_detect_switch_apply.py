@@ -972,6 +972,18 @@ def test_the_age_is_read_from_the_clock_given_not_the_real_one(tmp_path):
             con.close()
 
 
+@pytest.mark.parametrize("as_of, ok", [("2026-10-08", True), ("2026-10-09", False), ("2026-11-08", False)])
+def test_a_file_as_of_a_day_after_today_is_refused(tmp_path, capsys, as_of, ok):
+    con, client = apply_world()
+    try:
+        assert apply_file(save(tmp_path, aged(as_of)), client, tmp_path, as_of=as_of) == (0 if ok else 1)
+        assert bool(stored(con)[0]) is ok
+        assert ok or client.sql == []
+    finally:
+        con.close()
+    assert ok or "after" in capsys.readouterr().err
+
+
 # 12. Two near-equivalent mutants pinned (S2-6)
 
 
