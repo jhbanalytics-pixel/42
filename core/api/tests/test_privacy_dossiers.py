@@ -444,3 +444,26 @@ def test_typed_words_with_no_mask_in_them_are_stored_after_a_lift(world):
     r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "title": "A better title",
                                                        "notes": {"c1": "a new note"}, "from_version": 2})
     assert r.status_code == 200 and versions(did)[-1]["title"] == "A better title"
+
+
+def test_a_title_that_names_the_person_without_an_at_sign_comes_back_as_the_stored_words_while_hidden(world):
+    hold(source())
+    did = world.client.post("/api/dossiers", json={"from": {"ask_id": ASK}}).json()["dossier_id"]
+    assert world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "title": "Amapiano and hid_handle",
+                                                          "from_version": 1}).status_code == 200
+    world.store.hide = {"c_hid"}
+    view = world.client.get(f"/api/dossiers/{did}").json()
+    assert "hid_handle" not in view["title"]
+    r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "title": view["title"],
+                                                       "from_version": view["version"]})
+    assert r.status_code == 200 and versions(did)[-1]["title"] == "Amapiano and hid_handle"
+
+
+@pytest.mark.parametrize("token", ["***", "[link]", "@***"])
+def test_each_mask_form_the_stored_words_lack_is_refused_in_a_title_and_in_a_note(world, token):
+    did = named_draft(world)
+    before = len(versions(did))
+    for body in ({"title": f"Plain {token}"}, {"notes": {"c1": f"Plain {token}"}}):
+        r = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "from_version": 2, **body})
+        assert r.status_code == 409 and r.json()["error"] == "not_ready"
+    assert len(versions(did)) == before
