@@ -347,6 +347,38 @@ def test_the_credits_low_alert_fires_under_30_days_of_runway(balance, spend_30d,
     assert all(r.levelno == logging.ERROR for r in lines)
 
 
+def test_a_ledger_younger_than_30_days_is_averaged_over_the_days_it_covers(caplog):
+    ledger = Ledger()
+    for i in range(12):
+        day = DAY - timedelta(days=i)
+        ledger.append({"trend_date": day.isoformat(), "run_id": "old", "job": "collect", "route": "tiktok/trending",
+                       "credits_charged": 3000, "logged_at": at(3, day=day).isoformat()})
+    http = FakeHTTP({None: page([], None, has_more=False)}, balance=60000)
+    with caplog.at_level(logging.INFO, logger=rc.log.name):
+        _, runs = go(ledger, http)
+    counts = final(runs)["counts"]
+    assert counts["spend_30d"] == 36000 and counts["mean_daily_spend"] == 3000
+    assert counts["runway_days"] == pytest.approx(13.33)
+    assert counts["alerts"].count("credits_low") == 1
+    assert counts["spend_days"] == 12
+
+
+def test_a_first_day_ledger_is_one_day_of_spend_not_a_thirtieth(caplog):
+    ledger = Ledger()
+    charge(ledger, at(3), 600)
+    http = FakeHTTP({None: page([], None, has_more=False)}, balance=30000)
+    _, runs = go(ledger, http)
+    counts = final(runs)["counts"]
+    assert counts["mean_daily_spend"] == 600 and counts["spend_days"] == 1
+    assert counts["runway_days"] == pytest.approx(16.67)
+
+
+def test_an_empty_ledger_has_no_spend_and_no_runway_limit():
+    _, runs = go(Ledger(), FakeHTTP({None: page([], None, has_more=False)}, balance=60000))
+    counts = final(runs)["counts"]
+    assert counts["mean_daily_spend"] == 0 and counts["runway_days"] is None
+
+
 def test_below_the_floor_the_free_reads_still_run_and_both_alerts_fire(caplog):
     ledger = Ledger()
     month_of_spend(ledger, 3000)
@@ -527,3 +559,13 @@ def test_plan_prints_what_it_reads_and_compares_and_touches_nothing(capsys, monk
     assert "larger of 2 credits and 2%" in out
     assert str(FLOOR) in out and "reserve" in out
     assert SENTINEL not in out
+
+
+def test_the_first_ledger_day_is_one_read_only_min_select():
+    bq = FakeBQ([Row(first_day=DAY)])
+    assert rc.LedgerDay(bq, chain.PROJECT).first_day() == DAY
+    sql, _ = bq.queries[0]
+    assert sql.lstrip().upper().startswith("SELECT MIN(TREND_DATE)")
+    assert "`ogilvy-trends-v2.intelligence_42_core.credit_ledger`" in sql
+    for word in ("DELETE", "MERGE", "UPDATE", "INSERT", "TRUNCATE", "DROP", "REPLACE"):
+        assert word not in sql.upper()

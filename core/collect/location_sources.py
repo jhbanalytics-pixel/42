@@ -2,13 +2,15 @@
 
 import re
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 
 
 ROUTES = ("youtube/search/advanced", "tiktok/location/posts", "tiktok/profile")
 COUNTRY_ROUTES = {"tiktok": "tiktok/profile", "instagram": "instagram/profile/about"}
+# A successful account lookup that gave no recognised country is not bought again for this many days.
+NO_COUNTRY_RETRY_DAYS = 30
 
 
 @lru_cache(maxsize=1)
@@ -46,6 +48,21 @@ def profile_country(body, handle, *, platform="tiktok"):
     return None
 
 
+def _within(fetched_at, today, days):
+    """True when fetched_at (a datetime, or an ISO string) falls on one of the last days days up to today."""
+    if isinstance(fetched_at, str):
+        try:
+            fetched_at = datetime.fromisoformat(fetched_at)
+        except ValueError:
+            return False
+    if not isinstance(fetched_at, datetime):
+        return False
+    if fetched_at.tzinfo is None:
+        fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+    age = (today - fetched_at.astimezone(timezone.utc).date()).days
+    return 0 <= age <= days
+
+
 class ProfileCache:
     def __init__(self):
         self.known, self.accounts, self.attempted = {}, {}, set()
@@ -66,7 +83,10 @@ class ProfileCache:
         if key and code:
             self.known[key] = code
 
-    def seed(self, rows):
+    def seed(self, rows, *, today=None):
+        """Stored receipts into the cache. With today, a successful profile lookup that gave no recognised country
+        and was fetched within NO_COUNTRY_RETRY_DAYS counts as attempted, so the account is not looked up again
+        daily; a receipt with no readable fetch time never does."""
         for row in rows:
             key = self.key(row.get("platform"), row.get("handle"))
             sources = (COUNTRY_ROUTES.get(row.get("platform")),)
@@ -79,7 +99,8 @@ class ProfileCache:
                 code = country_code(raw)
                 if key[0] == "tiktok" and not (isinstance(raw, str) and re.fullmatch(r"[A-Za-z]{2}", raw.strip())):
                     code = None
-                if code:
+                if code or (today is not None and key[1] and row.get("country_source") == COUNTRY_ROUTES.get(key[0])
+                            and _within(row.get("fetched_at"), today, NO_COUNTRY_RETRY_DAYS)):
                     self.attempted.add(key)
                 if key not in self.known and code:
                     self.remember(key[0], key[1], code)

@@ -1,0 +1,176 @@
+{
+ "tiktok_song_ZA": {
+  "market": "ZA",
+  "fetched_at": "2026-09-28T19:49:05.769757+00:00",
+  "lane": "watchlist",
+  "body": {
+   "cached": false,
+   "credits_remaining": 249908,
+   "credits_used": 1,
+   "data": {
+    "computed": {
+     "content_category": "other",
+     "engagement_rate": null,
+     "estimated_reach": 101,
+     "language": null
+    },
+    "post": {
+     "author": {
+      "avatar_url": null,
+      "display_name": null,
+      "username": null,
+      "verified": false
+     },
+     "content": {
+      "duration_seconds": 119,
+      "media_urls": "https://example.invalid/u-298",
+      "text": "text-145",
+      "thumbnail_url": "https://example.invalid/u-299"
+     },
+     "engagement": {
+      "comments": null,
+      "likes": null,
+      "saves": null,
+      "shares": null,
+      "views": 84
+     },
+     "ext": {
+      "music_id": "id-135",
+      "published_at_epoch": 1770860297,
+      "use_count": 84,
+      "use_count_unit": "videos"
+     },
+     "flags": {
+      "deleted": false,
+      "nsfw": null,
+      "pinned": null,
+      "spoiler": null
+     },
+     "id": "id-135",
+     "published_at": "2026-02-12T01:38:17.000Z",
+     "url": "https://example.invalid/u-300"
+    }
+   },
+   "endpoint": "/v1/tiktok/song",
+   "platform": "tiktok",
+   "request_id": "id-136",
+   "success": true
+  }
+ },
+ "tiktok_song_NG": {
+  "market": "NG",
+  "fetched_at": "2026-10-07T00:13:35.494470+00:00",
+  "lane": "watchlist",
+  "body": {
+   "cached": false,
+   "credits_remaining": 241563,
+   "credits_used": 1,
+   "data": {
+    "computed": {
+     "content_category": "other",
+     "engagement_rate": null,
+     "estimated_reach": 359784,
+     "language": null
+    },
+    "post": {
+     "author": {
+      "avatar_url": null,
+      "display_name": null,
+      "username": null,
+      "verified": false
+     },
+     "content": {
+      "duration_seconds": 172,
+      "media_urls": "https://example.invalid/u-301",
+      "text": "text-146",
+      "thumbnail_url": "https://example.invalid/u-302"
+     },
+     "engagement": {
+      "comments": null,
+      "likes": null,
+      "saves": null,
+      "shares": null,
+      "views": 299820
+     },
+     "ext": {
+      "music_id": "id-137",
+      "published_at_epoch": 1753807929,
+      "use_count": 299820,
+      "use_count_unit": "videos"
+     },
+     "flags": {
+      "deleted": false,
+      "nsfw": null,
+      "pinned": null,
+      "spoiler": null
+     },
+     "id": "id-137",
+     "published_at": "2025-07-29T16:52:09.000Z",
+     "url": "https://example.invalid/u-303"
+    }
+   },
+   "endpoint": "/v1/tiktok/song",
+   "platform": "tiktok",
+   "request_id": "id-138",
+   "success": true
+  }
+ },
+ "tiktok_song_KE": {
+  "market": "KE",
+  "fetched_at": "2026-10-02T00:14:40.419164+00:00",
+  "lane": "watchlist",
+  "body": {
+   "cached": false,
+   "credits_remaining": 247969,
+   "credits_used": 1,
+   "data": {
+    "computed": {
+     "content_category": "other",
+     "engagement_rate": null,
+     "estimated_reach": 121496,
+     "language": null
+    },
+    "post": {
+     "author": {
+      "avatar_url": null,
+      "display_name": null,
+      "username": null,
+      "verified": false
+     },
+     "content": {
+      "duration_seconds": 51,
+      "media_urls": "https://example.invalid/u-304",
+      "text": "text-147",
+      "thumbnail_url": "https://example.invalid/u-305"
+     },
+     "engagement": {
+      "comments": null,
+      "likes": null,
+      "saves": null,
+      "shares": null,
+      "views": 101247
+     },
+     "ext": {
+      "music_id": "id-139",
+      "published_at_epoch": 1624003312,
+      "use_count": 101247,
+      "use_count_unit": "videos"
+     },
+     "flags": {
+      "deleted": false,
+      "nsfw": null,
+      "pinned": null,
+      "spoiler": null
+     },
+     "id": "id-139",
+     "published_at": "2021-06-18T08:01:52.000Z",
+     "url": "https://example.invalid/u-306"
+    }
+   },
+   "endpoint": "/v1/tiktok/song",
+   "platform": "tiktok",
+   "request_id": "id-140",
+   "success": true
+  }
+ }
+}

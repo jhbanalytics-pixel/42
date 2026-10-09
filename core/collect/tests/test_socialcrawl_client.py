@@ -322,6 +322,31 @@ def test_unreadable_balance_refuses():
     ]
 
 
+GOOD_BALANCE = (200, {"success": True, "data": {"balance": 250000}})
+
+
+def test_a_failed_balance_read_is_read_again_before_any_paid_call_is_refused():
+    http = FakeHTTP({"tiktok/trending": ok("trending"),
+                     "credits/balance": [TimeoutError("read timed out"), GOOD_BALANCE]}, balance=None)
+    client = make(http=http)
+    r = client.call(*TRENDING)
+    assert r.status == "ok"
+    assert http.routes() == ["credits/balance", "credits/balance", "tiktok/trending"]
+    balance_rows = [row for row in client.ledger.rows if row["route"] == "credits/balance"]
+    assert len(balance_rows) == 1 and balance_rows[0]["calls"] == 2 and balance_rows[0]["credits_charged"] == 0
+
+
+def test_a_balance_that_stays_unreadable_dispatches_no_paid_call_and_reads_a_bounded_number_of_times():
+    http = FakeHTTP({"tiktok/trending": ok("trending"), "credits/balance": (500, None)}, balance=None)
+    client = make(http=http)
+    first = client.call(*TRENDING)
+    second = client.call(*TRENDING)
+    assert first.status == second.status == "balance_floor"
+    assert first.failure == "balance_unread" and "could not be read" in first.reason
+    assert "tiktok/trending" not in http.routes()
+    assert http.routes().count("credits/balance") == 3
+
+
 FREE_CALLS = [
     ("credits/balance", {}),
     ("credits/transactions", {"limit": 50}),

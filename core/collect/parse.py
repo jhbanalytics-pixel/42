@@ -237,9 +237,9 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
         for row in _rows(data):
             if not _ok(row):
                 continue
-            author = _dict(row.get("author")) or _dict(row.get("profile"))
-            handle = _first(row, "handle") or _first(author, "username")
-            for item in _list(row.get("posts")) or _list(row.get("items")):
+            author = _dict(row.get("author")) or _dict(row.get("profile")) or _dict(_dict(row.get("data")).get("author"))
+            handle = _first(row, "handle") or _first(author, "username") or _first(_dict(row.get("target")), "handle")
+            for item in _panel_posts(row):
                 _post(out, ctx, item, row.get("platform"), fallback=handle, author=author, handle=handle)
     elif family == "profile":
         from core.collect.location_sources import profile_country
@@ -379,8 +379,15 @@ def _since(raw, market):
         return moment.astimezone(_zone(market)).date() if moment else None
 
 
+# A route whose parser fix started landing items on a series with a zero item health reference takes a version in
+# its protocol, so the series starts a fresh reference (DATA.md 3.2: a new protocol is a new series).
+PROTOCOL_VERSIONS = {"tiktok/song": "v2"}
+
+
 def _protocol(route, params, keys):
     fixed = sorted((k, params[k]) for k in keys if params.get(k) not in (None, ""))
+    if route in PROTOCOL_VERSIONS:
+        fixed = sorted([*fixed, ("proto", PROTOCOL_VERSIONS[route])])
     return route + ("?" + "&".join(f"{k}={v}" for k, v in fixed) if fixed else "")
 
 
@@ -426,6 +433,12 @@ def _sources(data):
     if rows or not isinstance(sources, dict):
         return [(None, rows)]
     return [(name, _rows(group)) for name, group in sources.items()]
+
+
+def _panel_posts(row):
+    """A profile row's posts: a list, else the items array of the object the vendor wraps them in, else row items."""
+    posts = row.get("posts")
+    return _list(posts) or _list(_dict(posts).get("items")) or _list(row.get("items"))
 
 
 def _ok(row):
@@ -646,6 +659,15 @@ def _rank(ctx, platform, item_id, rank):
                     pull_seq=ctx["pull_seq"])
 
 
+def board_hashtag(row):
+    """The tag on a hashtags/popular row, bare or in the {computed, post} envelope: a name key, else the post
+    text, else the /tag/<name> path of its url."""
+    node = _dict(_dict(row).get("post")) or _dict(row)
+    path = [part for part in urlsplit(str(node.get("url") or "")).path.split("/") if part]
+    return _first(node, "hashtag_name", "hashtag", "name", "title") or _first(_dict(node.get("content")), "text") \
+        or (path[1] if len(path) == 2 and path[0] == "tag" else None)
+
+
 def _board(out, ctx, route, platform, rows):
     """Board and chart entries, bare or in the post envelope: the vendor's rank when it gives one, else list position."""
     for position, row in enumerate(rows, 1):
@@ -654,10 +676,7 @@ def _board(out, ctx, route, platform, rows):
         rank = _number(_dict(ext.get("trend")), "rank") or _number(ext, "rank", "position") \
             or _number(node, "rank", "position") or position
         if route == "tiktok/hashtags/popular":
-            path = [part for part in urlsplit(str(node.get("url") or "")).path.split("/") if part]
-            raw = _first(node, "hashtag_name", "hashtag", "name", "title") or _first(_dict(node.get("content")), "text") \
-                or (path[1] if len(path) == 2 and path[0] == "tag" else None)
-            item_id = _item(ctx, "hashtag", raw, platform)
+            item_id = _item(ctx, "hashtag", board_hashtag(row), platform)
         elif route == "instagram/music/trending":
             track = _dict(node.get("track"))
             raw = _first(track, "audio_cluster_id", "audio_asset_id", "audio_id", "id") \
@@ -697,6 +716,8 @@ def _curve(out, ctx, market, platform, item_id, series, points):
 
 
 def _count(out, ctx, route, family, platform, params, data):
+    if family == "curve":
+        return  # the adoption points are a page sample, not a daily total, so no series is written (adoption_sample_points)
     node = _dict(data)
     post = _dict(node.get("post"))  # live: one {computed, post} entry at data level, the total in post.ext
     if route == "tiktok/hashtag":
@@ -707,19 +728,35 @@ def _count(out, ctx, route, family, platform, params, data):
         item_id = _item(ctx, "sound", raw, platform)
     if item_id is None:
         return
-    if family == "curve":
-        _curve(out, ctx, GLOBAL, platform, item_id, ctx["counter_series"], _list(node.get("adoption")))
-        return
-    total = None
-    for part in (node, _dict(post.get("ext")), *(v for v in node.values() if isinstance(v, dict))):
-        total = _number(part, "video_count", "videoCount", "user_count", "userCount", "media_count", "reels_count",
-                        "clips_count", "videos", "posts")
-        if total is not None:
-            break
+    total = _sound_uses(post) if route == "tiktok/song" else None
+    if total is None:
+        for part in (node, _dict(post.get("ext")), *(v for v in node.values() if isinstance(v, dict))):
+            total = _number(part, "video_count", "videoCount", "user_count", "userCount", "media_count",
+                            "reels_count", "clips_count", "videos", "posts")
+            if total is not None:
+                break
     if total is not None:
         out["counters"].append(_counter(ctx, market=GLOBAL, platform=platform, item_id=item_id,
                                         series=ctx["counter_series"], lane_class="unbiased_counter", unit="total",
                                         value=total))
+
+
+def _adoption_points(adoption):
+    """The adoption curve's points: the list itself, else the by_day list of the object the vendor wraps it in."""
+    return _list(adoption) or _list(_dict(adoption).get("by_day"))
+
+
+def adoption_sample_points(body):
+    """How many adoption points a tiktok/song/videos body carries. In every stored body they total the videos on the
+    page that came with them, so they sample those videos by publish day and are not written as a series; the job
+    counts them as skipped."""
+    return len(_adoption_points(_dict(_dict(body).get("data")).get("adoption")))
+
+
+def _sound_uses(post):
+    """The videos made with a sound, from post.ext.use_count; only when the unit is videos (or absent)."""
+    ext = _dict(post.get("ext"))
+    return _number(ext, "use_count") if ext.get("use_count_unit") in (None, "videos") else None
 
 
 def _restat(out, ctx, row):

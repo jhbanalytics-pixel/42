@@ -89,7 +89,7 @@ def test_panel_creators_take_the_handle_from_the_call_and_the_profile_location()
         item_id_fn=fake_item_id, geo_fn=geo_for_post)
     [creator] = prism["creators"]
     assert (creator["handle"], creator["followers"], creator["profile_location"]) == (
-        "culture.desk.za", 750000, "Johannesburg")
+        "culture.desk.za", 750000, None)  # the stored profile block carries no location
 
 
 def test_boards_and_charts_are_not_posts_and_give_no_creators():
@@ -165,9 +165,12 @@ def test_a_trending_call_region_is_never_a_market():
 
 
 def test_the_panel_profile_location_places_a_post_that_carries_its_own_author():
-    body = copy.deepcopy(PANELS["prism_profiles"])
-    body["data"]["items"][0]["posts"][0]["post"]["author"] = {"username": "culture.desk.za"}
-    body["data"]["items"][0]["posts"][0]["post"]["content"]["text"] = "Fit check"
+    # Older row shape: the profile block at row level, with a location. The stored data.author has none, so this
+    # path is kept alive by an inline body.
+    body = {"success": True, "data": {"results": [{"platform": "instagram", "status": "ok", "handle": "culture.desk.za",
+        "author": {"username": "culture.desk.za", "followers": 750000, "location": "Johannesburg"},
+        "posts": [{"post": {"id": "p1", "url": "https://example.invalid/p1", "published_at": "2026-09-28T00:10:00Z",
+                            "author": {"username": "culture.desk.za"}, "content": {"text": "Fit check"}}}]}]}}
     out = parse.parse_with_creators("prism/profiles", {"include": "posts"}, "ZA", body, FETCHED, "run1",
                                     item_id_fn=fake_item_id, geo_fn=geo_for_post)
     assert geo_of(out["posts"][0]) == ("ZA", 0.8, "home_market")
