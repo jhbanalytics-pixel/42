@@ -969,6 +969,30 @@ def test_an_item_whose_market_posts_are_all_news_carries_market_unconfirmed(row,
     assert card["market_scope"] == row["market_scope"]
 
 
+def test_a_flag_the_card_holds_is_not_overridden_by_a_lower_flag_of_the_row():
+    # the row cannot see the news count (a catalog that lags): not_assessed must not hide the card's market_unconfirmed
+    row = news_scope_row(7, None, authenticity="not_assessed")
+    card = {"item_id": STEP, "flag": "market_unconfirmed", "explanation_status": "held", "title": "x"}
+
+    assert discover._build_card(row, card, False, None)["flag"] == "market_unconfirmed"
+
+
+@pytest.mark.parametrize(("row_flag", "card_flag", "expected"), [
+    ("not_assessed", "market_unconfirmed", "market_unconfirmed"),
+    ("market_unconfirmed", "not_assessed", "market_unconfirmed"),
+    ("paid_led", "market_unconfirmed", "paid_led"),
+    ("market_unconfirmed", "paid_led", "paid_led"),
+    ("check_pattern", "not_assessed", "check_pattern"),
+    ("not_assessed", "likely_coordinated", "likely_coordinated"),
+    ("market_unconfirmed", "market_unconfirmed", "market_unconfirmed"),
+    (None, "market_unconfirmed", "market_unconfirmed"),
+    ("not_assessed", None, "not_assessed"),
+    (None, None, None),
+])
+def test_the_higher_of_the_row_and_card_flags_is_kept(row_flag, card_flag, expected):
+    assert discover._higher_flag(row_flag, card_flag) == expected
+
+
 def test_fixture_store_hands_on_the_market_news_count(tmp_path):
     state = {"item_id": STEP, "metric_date": D30, "market": "ZA", "run_id": RUN, "label": "#step"}
     (tmp_path / "item_state.json").write_text(json.dumps([state]), encoding="utf-8")
@@ -2019,3 +2043,93 @@ def test_alert_titles_use_only_the_checked_brief_for_the_detect_date_and_market(
     assert result["card"]["title"] != "A checked story title"
     assert dates == [D30]
     assert json.dumps(watches) == before
+
+
+class RollbackClient(FakeClient):
+    """A catalog that still lists the news column (read before detect's older code re-created the view without
+    it), then a view that no longer has it: the first read of item_states fails the way BigQuery does."""
+
+    def __init__(self, stale, fresh, rows):
+        super().__init__(stale, rows)
+        self.stale, self.fresh, self.failures = stale, fresh, 0
+
+    def query(self, sql, job_config=None):
+        if "INFORMATION_SCHEMA" in sql:
+            self.catalog = self.stale if not self.calls else self.fresh
+        elif "t.market_news_posts7" in sql:
+            self.calls.append((sql, job_config))
+            self.failures += 1
+            raise RuntimeError("400 Unrecognized name: market_news_posts7 at [1:300]")
+        return super().query(sql, job_config)
+
+
+def test_item_states_drops_the_catalog_and_retries_once_when_the_news_column_is_gone():
+    view = {"ds": "intelligence_42_core", "n": "v_item_market_scope", "what": "table"}
+    stale = CATALOG_FULL + [view, {"ds": "intelligence_42_core", "n": "market_news_posts7", "what": "scope_column"}]
+    client = RollbackClient(stale, CATALOG_FULL + [view], rows=[news_scope_row(7, None)])
+
+    (row,) = BigQueryStore(client=client).item_states({"run_id": RUN, "run_date": D30}, "ZA")
+
+    reads = [s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s]
+    assert client.failures == 1 and len(reads) == 2
+    assert "t.market_news_posts7" in reads[0] and "t.market_news_posts7" not in reads[1]
+    assert "CAST(NULL AS INT64) AS market_news_posts7" in reads[1]
+    assert row["market_news_posts7"] is None
+
+
+def test_item_states_does_not_retry_an_unrelated_error():
+    class Broken(FakeClient):
+        def query(self, sql, job_config=None):
+            if "INFORMATION_SCHEMA" not in sql:
+                self.calls.append((sql, job_config))
+                raise RuntimeError("403 Access Denied")
+            return super().query(sql, job_config)
+
+    client = Broken(CATALOG_FULL + [{"ds": "intelligence_42_core", "n": "v_item_market_scope", "what": "table"}])
+    with pytest.raises(RuntimeError, match="Access Denied"):
+        BigQueryStore(client=client).item_states({"run_id": RUN, "run_date": D30}, "ZA")
+    assert len([s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s]) == 1
+
+
+def test_item_states_does_not_retry_an_unrecognised_name_that_is_not_the_news_column():
+    class Other(FakeClient):
+        def query(self, sql, job_config=None):
+            if "INFORMATION_SCHEMA" not in sql:
+                self.calls.append((sql, job_config))
+                raise RuntimeError("400 Unrecognized name: sponsored_share at [1:9]")
+            return super().query(sql, job_config)
+
+    client = Other(CATALOG_FULL + [{"ds": "intelligence_42_core", "n": "v_item_market_scope", "what": "table"}])
+    with pytest.raises(RuntimeError, match="sponsored_share"):
+        BigQueryStore(client=client).item_states({"run_id": RUN, "run_date": D30}, "ZA")
+    assert len([s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s]) == 1
+
+
+def test_item_states_does_not_retry_another_error_that_mentions_the_news_column():
+    class Quota(FakeClient):
+        def query(self, sql, job_config=None):
+            if "INFORMATION_SCHEMA" not in sql:
+                self.calls.append((sql, job_config))
+                raise RuntimeError("403 Quota exceeded while reading market_news_posts7")
+            return super().query(sql, job_config)
+
+    client = Quota(CATALOG_FULL + [{"ds": "intelligence_42_core", "n": "v_item_market_scope", "what": "table"}])
+    with pytest.raises(RuntimeError, match="Quota"):
+        BigQueryStore(client=client).item_states({"run_id": RUN, "run_date": D30}, "ZA")
+    assert len([s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s]) == 1
+
+
+def test_item_states_retries_only_once_when_the_error_persists():
+    class Still(FakeClient):
+        def query(self, sql, job_config=None):
+            if "INFORMATION_SCHEMA" not in sql:
+                self.calls.append((sql, job_config))
+                raise RuntimeError("400 Unrecognized name: market_news_posts7 at [1:9]")
+            return super().query(sql, job_config)
+
+    stale = CATALOG_FULL + [{"ds": "intelligence_42_core", "n": "v_item_market_scope", "what": "table"},
+                            {"ds": "intelligence_42_core", "n": "market_news_posts7", "what": "scope_column"}]
+    client = Still(stale)
+    with pytest.raises(RuntimeError, match="Unrecognized name"):
+        BigQueryStore(client=client).item_states({"run_id": RUN, "run_date": D30}, "ZA")
+    assert len([s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s]) == 2

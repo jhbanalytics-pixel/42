@@ -2,6 +2,7 @@
 scoped posts are all news stays Market unconfirmed, keeps feed wording, and cannot satisfy the 2-local rule."""
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -342,3 +343,45 @@ def test_the_scope_query_matches_the_news_platform_without_regard_to_case_or_pad
     con.execute("UPDATE core.posts SET platform = 'NEWS' WHERE post_id = 'news_1'")
 
     assert read(con)["geo_status"] == "market_unconfirmed"
+
+
+# DEC-12 on the candidate rank: market scope earned on news posts alone does not take the first tier of brief.sql
+
+TIER_START = "CASE WHEN ms.market_scope = 'market'"
+
+
+def tier_case():
+    """The tier CASE of brief.sql's candidates query, as written in the file."""
+    sql = (Path(job.__file__).parent / "sql" / "brief.sql").read_text(encoding="utf-8")
+    start = sql.index(TIER_START)
+    end = sql.index("END,", start) + len("END")
+    return sql[start:end]
+
+
+def tier(market_scope, market, news, total):
+    import duckdb
+    con = duckdb.connect()
+    con.execute("CREATE TABLE ms AS SELECT ? AS market_scope, ? AS market_posts7, ? AS market_news_posts7, "
+                "? AS total_posts7", [market_scope, market, news, total])
+    return con.execute(f"SELECT {tier_case()} FROM ms").fetchone()[0]
+
+
+@pytest.mark.parametrize(("scope", "market", "news", "total", "expected"), [
+    ("market", 7, 7, 12, 2),    # 7 news posts and 5 others: news alone, so not the first tier
+    ("market", 7, 6, 12, 0),    # one market post that is not news keeps it
+    ("market", 7, 0, 12, 0),    # a mixed case with no news at all
+    ("market", 3, 1, 3, 0),
+    ("market", 1, 0, 12, 1),    # market scope on one post: second tier, as before
+    ("market", 1, 1, 12, 2),
+    ("market", 2, 2, 2, 2),
+    ("global", 7, 0, 12, 2),
+    ("global", 0, 0, 0, 2),
+])
+def test_the_candidate_tier_leaves_a_news_only_market_item_out_of_the_first_tier(scope, market, news, total, expected):
+    assert tier(scope, market, news, total) == expected
+
+
+def test_the_tier_case_is_the_one_in_the_candidates_query():
+    sql = (Path(job.__file__).parent / "sql" / "brief.sql").read_text(encoding="utf-8")
+    assert sql.count(TIER_START) == 1
+    assert "ms.market_news_posts7 < ms.market_posts7" in tier_case()

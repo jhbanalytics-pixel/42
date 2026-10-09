@@ -120,6 +120,21 @@ def _flag(row):
     return None
 
 
+FLAG_ORDER = ("paid_led", "likely_coordinated", "check_pattern", "market_unconfirmed", "not_assessed")
+
+
+def _higher_flag(row_flag, card_flag):
+    """The one of two flags that _flag's own order puts first (paid-led, then the two authenticity flags, then
+    market_unconfirmed, then not_assessed). A tie, or a flag outside the order, goes to the row's."""
+    def rank(flag):
+        return FLAG_ORDER.index(flag) if flag in FLAG_ORDER else len(FLAG_ORDER)
+    if row_flag is None:
+        return card_flag
+    if card_flag is None:
+        return row_flag
+    return card_flag if rank(card_flag) < rank(row_flag) else row_flag
+
+
 def _gate_for(rows, run_date):
     """The gate's own placement per (item, market) for the run: the row of the latest brief date on or before
     run_date. v_item_gate_current keeps every brief date and the admitted rows ('today', 'moments', with no
@@ -215,7 +230,7 @@ def _build_card(row, brief_card, warmup, order):
     status = _explanation_status(brief_card)
     if status != "explained":
         card.update(explanation=None, explanation_claim_ids=[], claims=[])
-    flag = _flag(row) or card.get("flag")
+    flag = _higher_flag(_flag(row), card.get("flag"))
     step = LIFECYCLE.get(row.get("state"))
     last_wave = row.get("last_wave") if row.get("novelty") == "recurrence" else None
     card.update(

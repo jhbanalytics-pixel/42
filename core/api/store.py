@@ -960,7 +960,18 @@ or None."""
         in that market, over any run that day. tone_today and tone_before are the item's tone in that market on
         the run's date and the day before, from L2's v_item_tone_daily, read by _tones in a query of its own so a
         tone failure never fails the page: NULL under 5 enriched posts, until the view exists, or when that read
-        fails."""
+        fails. After a rollback the view can lose market_news_posts7 while this process's catalog still lists it:
+        the read then fails with "Unrecognized name", so the catalog is dropped and the read made once more."""
+        try:
+            return self._item_states(run, market)
+        except Exception as e:
+            if "Unrecognized name" not in str(e) or "market_news_posts7" not in str(e):
+                raise
+            with _CATALOG_LOCK:
+                _CATALOG.pop(self.project, None)
+            return self._item_states(run, market)
+
+    def _item_states(self, run, market):
         tests, cmap = self._find("v_series_test_current"), self._find("cultural_map")
         breakouts, tones = self._find("breakout_signals"), self._find("v_item_tone_daily")
         objects = self._catalog()["objects"]
