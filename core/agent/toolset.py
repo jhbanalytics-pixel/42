@@ -98,14 +98,16 @@ SCHEMAS = {
                                                                               "yesterday, since 2026-09-01."}},
                              ["expression"]),
     "get_comments": _schema({
-        "evidence_id": {"type": "string", "description": "A post's evidence id from this run."},
+        "evidence_id": {"type": "string", "description": "The id of a post from search_posts in this run."},
         "limit": {"type": "integer", "minimum": 1, "maximum": 50},
         "max_credits": {"type": "number", "minimum": 0, "description": "Most credits this call may spend."},
     }, ["evidence_id", "max_credits"]),
-    "get_transcript": _schema({"evidence_id": {"type": "string", "description": "A video post's evidence id."}},
+    "get_transcript": _schema({"evidence_id": {"type": "string",
+                                               "description": "The id of a video post from search_posts in this run."}},
                               ["evidence_id"]),
     "watch_video": _schema({
-        "evidence_id": {"type": "string", "description": "A TikTok, YouTube or Instagram video post's evidence id."},
+        "evidence_id": {"type": "string", "description": "The id of a TikTok, YouTube or Instagram video post from "
+                                                         "search_posts in this run."},
         "question": {"type": "string", "description": "What to look for in the clip, in one plain question."},
     }, ["evidence_id", "question"]),
     "log_forecast": _schema({

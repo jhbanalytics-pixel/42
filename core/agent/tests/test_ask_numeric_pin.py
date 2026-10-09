@@ -9,6 +9,7 @@ and the K2 check, the support check and every other rule still run on the pinned
 """
 
 import copy
+from decimal import Decimal
 
 import pytest
 
@@ -129,6 +130,9 @@ def test_the_pin_adds_one_entry_that_the_k2_numeral_check_accepts_and_changes_no
     ("6 posts came from 5 creators.", [SIX], [{"posts": 6, "creators": 5, "authors": 5}], "two columns hold the value"),
     ("6 posts came from 5 creators and 5 creators.", [SIX], COUNT_ROWS, "the figure is written twice"),
     ("6 posts came from 5 creators.", [], COUNT_ROWS, "the claim cites no query yet"),
+    ("6 posts came from 5 or so more creators.", [SIX], COUNT_ROWS, "the column word is past the two words after the figure"),
+    ("6 posts came from 1 creators.", [SIX], [{"posts": 6, "creators": True}], "a bool cell is not a count"),
+    ("6 posts came from 5 creators.", [SIX], [{"posts": 6, "creators": Decimal(5)}], "only int and float cells are read"),
     ("6 posts came from 5 creators.", [{"value": 61, "unit": "posts"}], COUNT_ROWS, "an entry already on the claim is bad"),
     ("6 posts came from 5 creators.", [SIX, {"value": 61, "unit": "posts"}], COUNT_ROWS,
      "a good entry beside a bad one: the bad one stays for the repair call"),
@@ -166,3 +170,50 @@ def test_a_pin_the_rerun_does_not_reproduce_is_not_used_and_the_repair_call_runs
     h.run()
 
     assert len([c for c in model.calls if c["schema"] is WRITER_SCHEMA]) == 2  # K2 would have cut the pin, so repair
+
+
+TAGS = [{"hashtag": "#amapiano", "posts": 6, "creators": 5}, {"hashtag": "#gqom", "posts": 9, "creators": 3}]
+NINE = {"value": 9, "unit": "posts"}
+
+
+def k2_verdicts(draft, ctx, wh):
+    from core.agent import checks
+
+    _, verdicts = checks.check_answer(copy.deepcopy(draft), ctx, wh, window=(NOW.date(), NOW.date()), markets=["ZA"])
+    return [(v["verdict"], v["reason"] or "") for v in verdicts if v["rule"] == "K2"]
+
+
+def pinned_for(rows, text, numbers):
+    ctx, qid = context_with_count(rows)
+    wh = RowsWarehouse(rows)
+    draft = draft_for(text, numbers, qid)
+    for number in draft["claims"][0]["numbers"]:
+        number["run_id"], number["result_hash"] = ctx.run_id, ctx.queries[qid]["result_hash"]
+    window, reruns = (NOW.date(), NOW.date()), {}
+    issues = writer.unpinned_claim_numerals(draft, ctx, wh, window=window, reruns=reruns)
+    pinned = writer.pin_numerals_in_code(draft, issues, ctx, wh, window=window, reruns=reruns)
+    return draft, issues, pinned, ctx, wh, window, reruns
+
+
+def test_a_figure_from_another_subjects_row_is_not_pinned_and_k2_still_cuts_it():
+    """#gqom drew 3 creators; the writer wrote 5, which is #amapiano's. The pin must not bind it to that row."""
+    draft, issues, pinned, ctx, wh, _, _ = pinned_for(TAGS, "#gqom drew 9 posts from 5 creators.", [NINE])
+
+    assert issues and pinned is None
+    assert any(v == "cut" and "numeral 5 has no pinned" in why for v, why in k2_verdicts(draft, ctx, wh))
+
+
+def test_the_true_figure_from_the_subjects_own_row_is_pinned():
+    _, _, pinned, ctx, wh, window, reruns = pinned_for(TAGS, "#gqom drew 9 posts from 3 creators.", [NINE])
+
+    assert pinned is not None and pinned["claims"][0]["numbers"][-1]["value"] == 3
+    assert writer.unpinned_claim_numerals(pinned, ctx, wh, window=window, reruns=reruns) == []
+
+
+def test_a_value_held_by_more_than_one_row_the_claim_names_is_not_pinned():
+    rows = [{"hashtag": "#amapiano", "posts": 6, "creators": 5}, {"hashtag": "#gqom", "posts": 9, "creators": 5}]
+
+    _, issues, pinned, *_ = pinned_for(rows, "#gqom and #amapiano drew 6 posts from 5 creators.",
+                                       [{"value": 6, "unit": "posts"}])
+
+    assert issues and pinned is None

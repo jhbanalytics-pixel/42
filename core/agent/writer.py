@@ -543,9 +543,10 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
                          reruns: dict | None = None) -> dict | None:
     """The draft with each listed numeral pinned in code, or None when any cannot be settled beyond doubt, so the
     repair call gets the writer's own draft and every issue. A numeral is pinned only when it is a whole number (no
-    percent, no decimals), the claim has no bad number entry, and exactly one column of one query the claim already
-    cites holds the value, where a word within two words after the figure in the claim names that column ("5 creators",
-    column creators). The entry is the one the writer writes: value, unit (the column), query_id, and run_id and
+    percent, no decimals), the claim has no bad number entry, and exactly one column of exactly one row of a query the
+    claim already cites holds the value, a row of a many-row query counting only when it names something the claim
+    names (the subject's row, as _supporting_rows reads it), and a word within two words after the figure in the claim
+    names that column ("5 creators", column creators). The entry is the one the writer writes: value, unit (the column), query_id, and run_id and
     result_hash set from the recorded query, as write_answer sets them. The caller checks the result with
     unpinned_claim_numerals; the K2 and support checks run on it as on any draft."""
     claims = draft.get("claims") or []
@@ -570,14 +571,23 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
             if text.count(numeral) != 1:
                 return None
             after = _unit_words(" ".join(re.findall(r"[A-Za-z]+", text.split(numeral, 1)[1])[:2]))
-            found = {}
+            found, holders = {}, 0
             for query_id in cited:
-                for row in ctx.queries[query_id]["rows"]:
-                    if not isinstance(row, dict):
-                        return None
+                rows = ctx.queries[query_id]["rows"]
+                if not all(isinstance(row, dict) for row in rows):
+                    return None
+                # A query of several rows is read only at the rows that name something the claim names; a lone row
+                # is the claim's subject by itself.
+                subject = rows if len(rows) == 1 else [row for row in rows if _named_cells(claim.get("text") or "", row)]
+                for row in subject:
+                    held = False
                     for column, cell in row.items():
                         if type(cell) in (int, float) and cell == value:
                             found.setdefault((query_id, column), cell)
+                            held = True
+                    holders += held
+            if holders != 1:
+                return None
             hits = [key for key in found if _unit_words(str(key[1]).replace("_", " ")) & after]
             if len(found) != len(hits) or len(hits) != 1:
                 return None

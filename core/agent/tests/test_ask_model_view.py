@@ -133,3 +133,12 @@ def test_a_flag_and_a_source_market_the_model_could_use_are_kept():
 @pytest.mark.parametrize("other", [[{"evidence_id": "tt_1"}], {"error": "x"}, {"evidence": None}, None])
 def test_anything_that_is_not_a_search_result_passes_through_as_it_is(other):
     assert warehouse_tools.search_view(other) is other
+
+
+@pytest.mark.parametrize("tool", ["get_comments", "get_transcript", "watch_video"])
+def test_the_tools_that_take_a_post_name_it_the_way_the_model_view_shows_it(tool):
+    """search_view sends a post's id as id, so the schemas say where that id comes from and not "evidence id"."""
+    description = toolset.SCHEMAS[tool]["properties"]["evidence_id"]["description"]
+
+    assert "id of a" in description and "from search_posts" in description
+    assert "evidence id" not in description

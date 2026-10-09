@@ -5,6 +5,11 @@ spans not stored once the cap was reached). t0 and t1 are monotonic seconds from
 record is a member of the fixed enums below and attrs hold numbers and those strings only, so no question, query, post
 or model text can enter it. A recorder never raises into the ask: any failure inside it marks the record failed and the
 ask goes on, with every check still running.
+
+A model_call span with reserved 1 was booked at the budget's full reserve because its usage was unknown: its input and
+output are that reserve's bounds, not tokens the provider reported, and cached and thinking are absent. Summing input
+and output over model_call spans gives what the budget ledger booked. A reader that wants provider-reported tokens
+alone must leave reserved spans out. The key is additive, so the record stays version 1 and older readers ignore it.
 """
 
 from __future__ import annotations
