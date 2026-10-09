@@ -38,7 +38,7 @@ CALLS = {
     "latest_brief_date": (), "briefs": (D,), "previous_brief": ("ZA", D), "collection_health": (D,),
     "latest_collection_day": (D,), "calendar": (S0, D), "runs": ("collect", D), "first_ok_collect_date": (),
     "ask_record": ("a_1",), "health": (), "latest_detect_run": (D,), "item_states": (RUN, "ZA"),
-    "watch_matches": (RUN,), "item_gate": ("ZA",), "item_history": ("i1", "ZA", S0, D),
+    "watch_matches": (RUN,), "item_gate": ("ZA", D), "item_history": ("i1", "ZA", S0, D),
     "item_series": ("i1", "ZA", 7), "item_waves": ("i1", "ZA"), "coord_signals": ("i1", "ZA", D),
     "item_spread": (D, "ZA", "i1"), "item_reach": (D, "ZA", ["i1"]), "health_days": ("ZA", S0, D),
     "creator_names": (["tiktok:c1"],), "item_origin": ("i1", "ZA"), "news_followthrough": ("i1", "ZA", D),
@@ -55,6 +55,7 @@ CALLS = {
     "search_items": ("amapiano", 10), "lexicon_terms": ("ZA", ["hashtag"], S0, D, S0, P0, 10),
     "ask_history": (10, D, "ZA"), "brief_history": (10, D, "ZA"), "findings": ("i1",),
     "finding_rows": ("f1",), "insert_finding": (FINDING,),
+    "hidden_people_rows": (), "post_creators": (["p1"], S0, D),
 }
 # Methods whose only call is a streaming insert, not a query.
 NO_QUERY = {"insert_finding"}
