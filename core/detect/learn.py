@@ -36,7 +36,8 @@ The same run then measures how published cards and held items fared (score_outco
 information only: it reads through the card outcome runner's queries and byte caps, writes no table, feeds no gate,
 threshold, card or hold, and a failure of it is recorded in the runs row's counts under card_outcome without changing
 the run's status. Like the scoring it is skipped when every market is already written. The step runs under one
-deadline for all its reads, OUTCOME_DEADLINE_SECONDS (480; LEARN_OUTCOME_DEADLINE_SECONDS sets another), well inside
+deadline for all its reads, OUTCOME_DEADLINE_SECONDS (480; LEARN_OUTCOME_DEADLINE_SECONDS sets a shorter one, and a
+longer value is clamped to 480 and recorded under card_outcome as deadline_clamped), well inside
 the job's 30 minute task: when it passes the step is recorded as {"status": "timeout"} and the runs row is written at
 once, so a slow warehouse cannot cost the run its row. It reads the core and agent datasets the run was given.
 """
@@ -144,14 +145,24 @@ def score_week(client, week_start, now, agent=AGENT, scorecard_run_id=None):
     return counts, {"forecast_score": fs, "quality": q}
 
 
-def outcome_deadline():
-    """Seconds the outcome step may take in all: the environment's LEARN_OUTCOME_DEADLINE_SECONDS when it is a
-    positive number, else OUTCOME_DEADLINE_SECONDS."""
+def outcome_deadline_setting():
+    """(seconds, requested): the seconds the outcome step may take in all, and the environment's value when that
+    was over the limit and so was clamped, else None. LEARN_OUTCOME_DEADLINE_SECONDS sets the deadline when it is a
+    positive number, but never above OUTCOME_DEADLINE_SECONDS: a longer wait would cost the run its row (O3)."""
     try:
         seconds = float(os.environ.get("LEARN_OUTCOME_DEADLINE_SECONDS", ""))
     except ValueError:
-        return OUTCOME_DEADLINE_SECONDS
-    return seconds if 0 < seconds < float("inf") else OUTCOME_DEADLINE_SECONDS
+        return OUTCOME_DEADLINE_SECONDS, None
+    if not 0 < seconds < float("inf"):
+        return OUTCOME_DEADLINE_SECONDS, None
+    if seconds > OUTCOME_DEADLINE_SECONDS:
+        return float(OUTCOME_DEADLINE_SECONDS), seconds
+    return seconds, None
+
+
+def outcome_deadline():
+    """Seconds the outcome step may take in all: see outcome_deadline_setting."""
+    return outcome_deadline_setting()[0]
 
 
 def score_outcomes(client, week_start, core=CORE, agent=AGENT):
@@ -166,10 +177,12 @@ def score_outcomes(client, week_start, core=CORE, agent=AGENT):
     rates, never an item, title or row."""
     end = week_start - timedelta(days=1)
     start = end - timedelta(days=7 * card_outcome.WEEKS - 1)
-    seconds = outcome_deadline()
+    seconds, requested = outcome_deadline_setting()
     deadline = time.monotonic() + seconds
     out = {"definition": card_outcome.DEFINITION, "horizon": card_outcome.HEADLINE,
            "window": [start.isoformat(), end.isoformat()], "status": "ok", "error": None}
+    if requested is not None:
+        out["deadline_clamped"] = {"requested": requested, "used": seconds}
     done = {}
 
     def work():

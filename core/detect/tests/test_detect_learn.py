@@ -682,6 +682,44 @@ def test_the_deadline_is_configurable_from_the_environment(con, monkeypatch, out
     assert before + 85 < call["kw"]["deadline"] <= time.monotonic() + 90
 
 
+@pytest.mark.parametrize("value", ["481", "3600", "1e9"])
+def test_a_deadline_in_the_environment_never_exceeds_the_default(monkeypatch, value):
+    monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", value)
+    assert learn.outcome_deadline() == learn.OUTCOME_DEADLINE_SECONDS == 480
+
+
+@pytest.mark.parametrize("value, expected", [("480", 480.0), ("479.5", 479.5), ("90", 90.0), ("0.5", 0.5)])
+def test_a_deadline_at_or_under_the_default_is_used_as_set(monkeypatch, value, expected):
+    monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", value)
+    assert learn.outcome_deadline() == expected
+
+
+def test_a_deadline_over_the_default_reaches_the_reads_clamped_and_the_runs_row_says_so(con, monkeypatch, outcome_reads):
+    import time
+
+    monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", "3600")
+    before = time.monotonic()
+    assert main(con) == 0
+    [call] = outcome_reads
+    assert before + 470 < call["kw"]["deadline"] <= time.monotonic() + 480
+    assert outcome_counts(con)["deadline_clamped"] == {"requested": 3600.0, "used": 480.0}
+
+
+def test_the_clamp_follows_the_default_in_force_and_is_recorded_with_it(con, monkeypatch, outcome_reads):
+    monkeypatch.setattr(learn, "OUTCOME_DEADLINE_SECONDS", 60)
+    monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", "90")
+    assert main(con) == 0
+    assert outcome_counts(con)["deadline_clamped"] == {"requested": 90.0, "used": 60.0}
+
+
+@pytest.mark.parametrize("value", [None, "", "abc", "0", "-5", "nan", "inf", "90", "480"])
+def test_nothing_is_recorded_as_clamped_when_the_deadline_was_not_over_the_default(con, monkeypatch, outcome_reads, value):
+    if value is not None:
+        monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", value)
+    assert main(con) == 0
+    assert "deadline_clamped" not in outcome_counts(con)
+
+
 def test_the_deadline_the_reads_get_is_the_one_for_the_whole_step(con, outcome_reads):
     import time
 
