@@ -2250,9 +2250,10 @@ def _understand(counts, run_id="r_understand_20260930_09", started="2026-09-30T0
             "error": None, "model_usd": 0.0}
 
 
-def _topics_store(*rows):
+def _topics_store(*rows, detect=()):
     base = FixtureStore()
-    return Patched(runs=lambda stage, d: list(rows) if stage == "understand" else base.runs(stage, d))
+    other = {"understand": list(rows), "detect": list(detect)}
+    return Patched(runs=lambda stage, d: other[stage] if stage in other else base.runs(stage, d))
 
 
 PARTIAL = {"partial": True, "partial_reason": "cluster_stack_failed", "partial_error": "ImportError: no module",
@@ -2317,6 +2318,11 @@ def _banner(*rows):
     return [any(b["text"] == TOPICS_FAILED for b in m["banners"]) for m in out["markets"]]
 
 
+def _topics_banner(understand, detect):
+    out = today.build_today(_topics_store(*understand, detect=detect), D30)
+    return [any(b["text"] == TOPICS_FAILED for b in m["banners"]) for m in out["markets"]]
+
+
 def test_a_failed_rerun_after_a_partial_ok_run_keeps_the_banner():
     partial = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
     for rows in ((partial, _failed_rerun()), (_failed_rerun(), partial)):
@@ -2340,3 +2346,98 @@ def test_the_newest_ok_run_is_taken_by_finished_at_not_started_at():
 
 def test_a_day_with_only_a_failed_understand_run_adds_no_topics_banner():
     assert not any(_banner(_failed_rerun()))
+
+
+# The banner reads detect's own record (counts.topics_failed of the day's good detect run), and the understand rule
+# only while no ok detect run exists. Scenarios A to F of the detect re-review: the same rows go to both readers.
+TOPICS_FAILED_COUNTS = {"topics_failed": {"reason": "cluster_stack_failed", "data_issue": TOPICS_FAILED,
+                                          "topic_items_judged": 0}}
+
+
+def _detect(counts, run_id="r_detect_20260930_10", status="ok", started="2026-09-30T06:30:00+02:00", finished=True):
+    return {"run_id": run_id, "stage": "detect", "run_date": D30, "status": status, "started_at": started,
+            "finished_at": started.replace(":00+", ":40+", 1) if finished else None, "counts": counts, "error": None,
+            "model_usd": 0.0}
+
+
+def detect_reads(understand_rows):
+    """What core/detect/job.py topics_failed_today decides from these understand rows: the newest ok row by
+    finished_at, and a partial_reason of cluster_stack_failed on it."""
+    ok = [r for r in understand_rows if r["status"] == "ok" and r["finished_at"] is not None]
+    newest = max(ok, key=lambda r: r["finished_at"], default=None)
+    return bool(newest and (newest["counts"] or {}).get("partial_reason") == "cluster_stack_failed")
+
+
+def _scenario(name):
+    partial = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
+    later = "2026-09-30T07:00:00+02:00"
+    if name == "A":
+        return [partial]
+    if name == "B":  # an operator re-triggers f42-understand without FORCE_RERUN
+        return [partial, {**_understand({}, run_id="r_understand_20260930_09", started=later), "status": "skipped_duplicate"}]
+    if name == "C":
+        return [partial, _failed_rerun()]
+    if name == "D":
+        return [partial, {**_understand({}, run_id="r_understand_20260930_09", started=later), "status": "running",
+                          "finished_at": None, "counts": None}]
+    if name == "E":  # overlapping runs: the partial one starts first and finishes last
+        clean = _understand({"embedded": 40}, run_id="r_understand_20260930_09", started="2026-09-30T04:10:00+02:00")
+        return [{**partial, "finished_at": "2026-09-30T05:00:00+02:00"}, {**clean, "finished_at": "2026-09-30T04:20:00+02:00"}]
+    repaired = _understand({"embedded": 40}, run_id="r_understand_20260930_09", started=later)  # F
+    return [partial, repaired]
+
+
+@pytest.mark.parametrize("name", ["A", "B", "C", "D", "E"])
+def test_scenarios_a_to_e_with_no_detect_run_yet_read_the_understand_rows_as_detect_would(name):
+    rows = _scenario(name)
+    assert detect_reads(rows) is True
+    assert all(_banner(*rows))
+
+
+@pytest.mark.parametrize("name", ["A", "B", "C", "D", "E", "F"])
+def test_scenarios_a_to_f_with_detect_having_left_topics_out_show_the_banner(name):
+    rows = _scenario(name)
+    assert all(_topics_banner(rows, [_detect(TOPICS_FAILED_COUNTS)]))
+
+
+def test_scenario_f_detect_ran_on_the_partial_day_and_a_later_repair_does_not_lift_the_banner():
+    rows = _scenario("F")
+    assert detect_reads(rows) is False  # detect asked now would judge topics, but that day's item_state has none
+    assert all(_topics_banner(rows, [_detect(TOPICS_FAILED_COUNTS)]))
+    assert not any(_topics_banner(rows, []))  # no detect run yet: the repaired understand run decides
+
+
+def test_a_good_detect_run_without_topics_failed_shows_no_banner_whatever_understand_says_later():
+    clean_detect = _detect({"item_state": 120})
+    assert not any(_topics_banner(_scenario("A"), [clean_detect]))
+    assert not any(_topics_banner(_scenario("C"), [clean_detect]))
+
+
+def test_the_newest_ok_detect_run_by_finished_at_decides_and_a_failed_or_running_one_does_not():
+    bad = _detect(TOPICS_FAILED_COUNTS, run_id="r_detect_20260930_10", started="2026-09-30T06:30:00+02:00")
+    clean = _detect({"item_state": 9}, run_id="r_detect_20260930_11", started="2026-09-30T07:30:00+02:00")
+    failed = _detect({}, run_id="r_detect_20260930_12", status="failed", started="2026-09-30T08:30:00+02:00")
+    running = _detect({}, run_id="r_detect_20260930_13", status="running", started="2026-09-30T09:30:00+02:00", finished=False)
+    partial = _scenario("A")
+    assert all(_topics_banner(partial, [bad, failed, running]))
+    assert not any(_topics_banner(partial, [bad, clean, failed, running]))
+    assert not any(_topics_banner(partial, [clean, bad, failed]))
+
+
+def test_with_only_a_failed_detect_run_the_understand_rule_still_applies():
+    failed = _detect({}, status="failed")
+    assert all(_topics_banner(_scenario("A"), [failed]))
+    assert not any(_topics_banner([_understand({"embedded": 40})], [failed]))
+
+
+@pytest.mark.parametrize("counts", [{"topics_failed": None}, {"topics_failed": {}}, {"topics_failed": "yes"},
+                                    {"topics_failed": {"reason": "something_else"}}])
+def test_a_detect_record_that_does_not_name_the_clusterer_failure_adds_no_banner(counts):
+    assert not any(_topics_banner(_scenario("A"), [_detect(counts)]))
+
+
+def test_detect_counts_stored_as_text_are_read():
+    import json as _json
+    assert all(_topics_banner([], [_detect(_json.dumps(TOPICS_FAILED_COUNTS))]))
+    assert all(_topics_banner(_scenario("A"), [_detect("not json")]))  # an unreadable record falls back
+    assert not any(_topics_banner([_understand({"embedded": 40})], [_detect("not json")]))

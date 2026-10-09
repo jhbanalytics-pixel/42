@@ -1172,18 +1172,30 @@ def _newest_ok_run(runs):
     return max((r for r in runs if r.get("status") == "ok" and r.get("finished_at") is not None), key=key, default=None)
 
 
-def _topics_failed(runs):
-    """True when the day's newest ok understand run says the topic grouping failed (partial_reason
-    cluster_stack_failed), the same run detect reads before it stops topics."""
-    latest = _newest_ok_run(runs)
-    counts = latest.get("counts") if latest else None
+def _run_counts(row):
+    """The counts of a runs row as a dict, whether the store hands them over parsed or as JSON text; None when the row
+    has none or they do not read."""
+    counts = row.get("counts") if row else None
     if isinstance(counts, str):
         try:
             counts = json.loads(counts)
         except ValueError:
-            return False
-    return (isinstance(counts, dict) and counts.get("partial") is True
-            and counts.get("partial_reason") == TOPICS_PARTIAL_REASON)
+            return None
+    return counts if isinstance(counts, dict) else None
+
+
+def _topics_failed(detect_runs, understand_runs):
+    """True when the topic grouping failed for the day. The day's good detect run says so itself: the newest ok detect
+    run by finished_at (the v_good_runs rule) carries counts.topics_failed when it left topic items out, and it is
+    the record of what was judged, so a later repair of understand does not lift it. Only while no ok detect run
+    has a readable record does the day's newest ok understand run decide (partial_reason cluster_stack_failed), the
+    run detect reads before it stops topics."""
+    counts = _run_counts(_newest_ok_run(detect_runs))
+    if counts is not None:
+        failed = counts.get("topics_failed")
+        return isinstance(failed, dict) and failed.get("reason") == TOPICS_PARTIAL_REASON
+    counts = _run_counts(_newest_ok_run(understand_runs))
+    return counts is not None and counts.get("partial") is True and counts.get("partial_reason") == TOPICS_PARTIAL_REASON
 
 
 def _stage_failed(runs):
@@ -1580,7 +1592,7 @@ def build_today(store, date=None, now=None):
     stage_failed = _stage_failed(collect_runs) or _stage_failed(detect_runs)
     creator_labels = _today_creator_labels(store, rows)
     day = "today" if current else f"on {_long_date(date)}"
-    topics_failed = _topics_failed(store.runs("understand", date))
+    topics_failed = _topics_failed(detect_runs, store.runs("understand", date))
     markets = [_market(store, m, date, rows.get(m), health_rows, calendar_rows, warmup, collect_ok, stage_failed,
                        creator_labels, day, topics_failed)
                for m in MARKETS]
