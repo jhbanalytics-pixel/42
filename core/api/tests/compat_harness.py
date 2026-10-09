@@ -317,14 +317,18 @@ def archive(commit, dest):
 def _guard_directories():
     """The directories on this interpreter's PYTHONPATH that hold a sitecustomize.py: the offline guard it loaded, if any."""
     entries = [entry for entry in os.environ.get("PYTHONPATH", "").split(os.pathsep) if entry]
-    return [entry for entry in entries if (Path(entry) / "sitecustomize.py").is_file()]
+    return [os.path.abspath(entry) for entry in entries if (Path(entry) / "sitecustomize.py").is_file()]
 
 
 # A child is started with -s (no user site) and never with -I, -E or -S: those would keep the offline guard from loading. Its
 # environment is built from a short list, so no other PYTHON setting reaches it, and the guard directory is the one entry of
-# PYTHONPATH it keeps.
+# PYTHONPATH it keeps, made absolute against this process's working directory because the child runs somewhere else. The guard's
+# log and the name of the running test are kept when set, so a refusal inside a child reaches the same log as one in this process.
 def _environment(extra):
-    keep = {key: os.environ[key] for key in ("SYSTEMROOT", "PATH", "TEMP", "TMP", "HOME", "USERPROFILE") if key in os.environ}
+    keep = {key: os.environ[key] for key in ("SYSTEMROOT", "PATH", "TEMP", "TMP", "HOME", "USERPROFILE", "CORE_OFFLINE_GUARD_LOG", "PYTEST_CURRENT_TEST")
+            if key in os.environ}
+    if "CORE_OFFLINE_GUARD_LOG" in keep:
+        keep["CORE_OFFLINE_GUARD_LOG"] = os.path.abspath(keep["CORE_OFFLINE_GUARD_LOG"])
     guard = _guard_directories()
     return {**keep, **({"PYTHONPATH": os.pathsep.join(guard)} if guard else {}), "PYTHONUTF8": "1", "PYTHONDONTWRITEBYTECODE": "1", **extra}
 

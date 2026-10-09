@@ -4,6 +4,7 @@ candidate writers store, and the candidate readers must not turn a record withou
 Real processes on localhost, so the deploy partition's rules apply: nothing here needs a network beyond the loopback."""
 import copy
 import os
+from pathlib import Path
 
 import pytest
 
@@ -317,3 +318,54 @@ def test_cc9_the_child_environment_keeps_the_guard_directory_and_nothing_else_fr
     assert not [k for k in env if k.startswith("PYTHON") and k not in ("PYTHONPATH", "PYTHONUTF8", "PYTHONDONTWRITEBYTECODE")]
     monkeypatch.delenv("PYTHONPATH")
     assert "PYTHONPATH" not in ch._environment({})
+
+
+def options_before_the_program(argv):
+    """Every interpreter option before -m or -c: what decides how the child starts."""
+    options = []
+    for argument in argv[1:]:
+        if argument in ("-m", "-c"):
+            break
+        options.append(argument)
+    return options
+
+
+@pytest.mark.parametrize("start", [start_server, lambda tmp_path: h.written_rows(tmp_path)], ids=["compat server", "corpus driver"])
+def test_rv3_no_interpreter_option_before_the_program_isolates_the_child_from_the_guard(monkeypatch, tmp_path, start):
+    seen = captured_child(monkeypatch, tmp_path, lambda: start(tmp_path))
+    options = options_before_the_program(seen["argv"])
+    assert options and options[0] == "-s", seen["argv"][:5]
+    assert not set("IES") & set("".join(option.lstrip("-") for option in options if not option.startswith("--"))), seen["argv"][:5]
+
+
+@pytest.mark.parametrize("extra", [["-I"], ["-E"], ["-S"], ["-sI"], ["-IE"]])
+def test_rv3_the_option_check_sees_an_isolating_flag_after_the_first_option(extra):
+    options = options_before_the_program(["python", "-s", *extra, "-m", "uvicorn"])
+    assert set("IES") & set("".join(option.lstrip("-") for option in options[1:]))
+
+
+def test_rv2_the_child_environment_keeps_the_guard_log_and_the_current_test_when_they_are_set(monkeypatch, tmp_path):
+    log = str(tmp_path / "guard.jsonl")
+    monkeypatch.setenv("CORE_OFFLINE_GUARD_LOG", log)
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "core/api/tests/test_x.py::test_y (call)")
+    env = ch._environment({})
+    assert env["CORE_OFFLINE_GUARD_LOG"] == log and env["PYTEST_CURRENT_TEST"] == "core/api/tests/test_x.py::test_y (call)"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CORE_OFFLINE_GUARD_LOG", "relative.jsonl")
+    assert Path(ch._environment({})["CORE_OFFLINE_GUARD_LOG"]) == tmp_path / "relative.jsonl"
+    monkeypatch.delenv("CORE_OFFLINE_GUARD_LOG")
+    monkeypatch.delenv("PYTEST_CURRENT_TEST")
+    env = ch._environment({})
+    assert "CORE_OFFLINE_GUARD_LOG" not in env and "PYTEST_CURRENT_TEST" not in env
+
+
+def test_rv4_a_relative_guard_directory_is_made_absolute_against_the_parents_working_directory(monkeypatch, tmp_path):
+    guard = tmp_path / "rel_guard"
+    guard.mkdir()
+    (guard / "sitecustomize.py").write_text("", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PYTHONPATH", "rel_guard")
+    env = ch._environment({})
+    assert os.path.isabs(env["PYTHONPATH"]) and Path(env["PYTHONPATH"]) == guard
+    monkeypatch.chdir(tmp_path.parent)
+    assert (Path(env["PYTHONPATH"]) / "sitecustomize.py").is_file()  # still found from a child that runs somewhere else

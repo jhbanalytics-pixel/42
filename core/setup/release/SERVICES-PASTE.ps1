@@ -23,6 +23,71 @@ $Script:Retries = 3
 $Script:SmokeSecret = $null
 $Script:Tar = if ($env:SystemRoot) { Join-Path $env:SystemRoot 'System32\tar.exe' } else { 'tar' }
 $Script:RetrySeconds = 10
+$Script:TestDoubles = @()
+$Script:AllowTestDoubles = $DefinitionsOnly.IsPresent
+$Script:NativeNames = @('gcloud', 'git', 'py', 'bash')
+$Script:CheckedNames = $null
+
+# The typed words are Albert's and nothing in the session that started this paste may stand in for them. Every command name the
+# paste invokes is taken from its own syntax tree (the commands it calls and the functions it defines, plus Read-Host and
+# Get-Alias) and resolved the way the engine would resolve it. A name must resolve to a function of this paste, or to a cmdlet
+# of a Microsoft.PowerShell module that lives in the PowerShell install folder. It must never resolve to an alias, to a function
+# of the caller, to a cmdlet from anywhere else, or be written with a module prefix. The programs it runs (gcloud, git, py,
+# bash) must not resolve to anything but a program or script file. A command lookup hook, or a function or alias named with a
+# module prefix over a checked name, refuses the run too.
+# Only a definitions-only load, which is how the test driver reaches the functions, may name functions of its own in
+# $Script:TestDoubles. A real run is never a definitions-only load, so the list is empty and unused there.
+# The check is a script block called with the call operator and calls no PowerShell command, so no alias, function or lookup
+# hook can replace any part of it. A caller can still make an alias after a check has run, so the check runs again at the top
+# of Invoke-Release, inside Confirm-Action just before the console gate, before each prompt, and before each step that runs.
+$Script:ResolutionCheck = {
+    $invoker = $ExecutionContext.InvokeCommand
+    if ($null -ne $invoker.PreCommandLookupAction) { throw 'NOT EXECUTABLE: a command lookup hook is set in this session (PreCommandLookupAction). Start the paste from a freshly opened console with pwsh -NoProfile -File.' }
+    if ($null -ne $invoker.PostCommandLookupAction) { throw 'NOT EXECUTABLE: a command lookup hook is set in this session (PostCommandLookupAction). Start the paste from a freshly opened console with pwsh -NoProfile -File.' }
+    if ($null -ne $invoker.CommandNotFoundAction) { throw 'NOT EXECUTABLE: a command lookup hook is set in this session (CommandNotFoundAction). Start the paste from a freshly opened console with pwsh -NoProfile -File.' }
+    $tree = $Script:ResolutionCheck.Ast
+    while ($null -ne $tree.Parent) { $tree = $tree.Parent }
+    $pasteFile = $tree.Extent.File
+    if ($null -eq $Script:CheckedNames) {
+        $names = [System.Collections.Generic.List[string]]::new()
+        $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        $nodes = $tree.FindAll({ param($node) $node -is [System.Management.Automation.Language.CommandAst] -or $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+        foreach ($node in $nodes) {
+            $name = if ($node -is [System.Management.Automation.Language.FunctionDefinitionAst]) { $node.Name } else { $node.GetCommandName() }
+            if ($null -ne $name -and $seen.Add($name)) { $names.Add($name) }
+        }
+        foreach ($name in @('Read-Host', 'Get-Alias')) { if ($seen.Add($name)) { $names.Add($name) } }
+        $Script:CheckedNames = $names.ToArray()
+    }
+    $psFolder = [System.IO.Path]::GetDirectoryName([System.Management.Automation.PSObject].Assembly.Location)
+    foreach ($name in $Script:CheckedNames) {
+        $found = if ($name.Contains('\')) { $null } else { $invoker.GetCommand($name, [System.Management.Automation.CommandTypes]::All) }
+        $ok = $false
+        if ($found -is [System.Management.Automation.FunctionInfo]) {
+            $file = $found.ScriptBlock.File
+            $ok = ($null -ne $file -and [string]::Equals($file, $pasteFile, [System.StringComparison]::OrdinalIgnoreCase)) -or ($Script:AllowTestDoubles -and $Script:TestDoubles -contains $name)
+        } elseif ($found -is [System.Management.Automation.CmdletInfo]) {
+            $assembly = $found.ImplementingType.Assembly
+            $ok = $found.ModuleName.StartsWith('Microsoft.PowerShell.', [System.StringComparison]::OrdinalIgnoreCase) -and ($assembly.GlobalAssemblyCache -or ($assembly.Location.Length -gt 0 -and [System.IO.Path]::GetDirectoryName($assembly.Location) -eq $psFolder))
+        }
+        if (-not $ok) {
+            $kind = if ($null -eq $found) { 'nothing' } elseif ($name.Contains('\')) { 'a qualified name' } else { [string]$found.CommandType }
+            throw "NOT EXECUTABLE: the command '$name' does not resolve to a function of this paste or to the expected cmdlet ($kind). Start the paste from a freshly opened console with pwsh -NoProfile -File."
+        }
+    }
+    foreach ($name in $Script:NativeNames) {
+        $found = $invoker.GetCommand($name, [System.Management.Automation.CommandTypes]::All)
+        if ($null -ne $found -and $found -isnot [System.Management.Automation.ApplicationInfo] -and $found -isnot [System.Management.Automation.ExternalScriptInfo]) {
+            throw "NOT EXECUTABLE: the command '$name' does not resolve to a function of this paste or to the expected program ($($found.CommandType)). Start the paste from a freshly opened console with pwsh -NoProfile -File."
+        }
+    }
+    foreach ($qualified in $invoker.GetCommands('*\*', [System.Management.Automation.CommandTypes]'Alias,Function', $true)) {
+        $tail = $qualified.Name.Substring($qualified.Name.LastIndexOf('\') + 1)
+        if ($tail.Length -gt 0 -and ($Script:CheckedNames -contains $tail -or $Script:NativeNames -contains $tail)) {
+            throw "NOT EXECUTABLE: the command '$($qualified.Name)' is an alias or a function named with a module prefix over a command this paste invokes. Start the paste from a freshly opened console with pwsh -NoProfile -File."
+        }
+    }
+}
 
 # Text files of the repository are hashed with a CRLF read as LF, as lock.py does, so a Windows checkout and a Linux one agree.
 function Get-Sha([string]$Path, [switch]$Text) {
@@ -172,6 +237,7 @@ function Assert-Identity {
 # Candidate and Promote assert the checkout before every command; Rollback and Retire record it as an observation, because a
 # moved or dirty checkout must not stop a rollback (3.5).
 function Step([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
+    & $Script:ResolutionCheck
     if ($Action -in @('Candidate', 'Promote')) { Assert-Source }
     return (Run-Logged -Name $Name -Argv $Argv -Accept $Accept -WorkDir $WorkDir)
 }
@@ -238,6 +304,7 @@ function Remove-Tag([string]$Service) {
 function Invoke-Smoke([string]$ApiTagUrl) {
     if ($Script:ReceiptValue.single_T1_smoke_authorized -ne $true -or $Script:ReceiptValue.max_live_asks -ne 1) { throw 'The smoke is not authorised by the receipt.' }
     if ($null -eq $Script:SmokeSecret) { throw 'The smoke passcode was not typed at the start of the run.' }
+    & $Script:ResolutionCheck
     Assert-Source
     $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Script:SmokeSecret)
     try { $env:F42_SMOKE_PASSCODE = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
@@ -352,32 +419,38 @@ function Invoke-Retire {
     Invoke-Helper 'AfterRetire' -Tag | Out-Null
 }
 
-# 3a. What only Albert can give, asked at the very start of Candidate and Promote, before any command and before the first file
-# is written. DEPLOY (both), IDLE (Promote) and the smoke passcode (Candidate) are typed at a console that is really there: a
-# redirected stdin or a non-interactive host is refused with no fallback, because Read-Host would otherwise take the answer
-# from a pipe. The receipt has already been validated, so a receipt alone never starts a release. The passcode is read as a
-# SecureString and is not echoed. Rollback and Retire ask for nothing, because a rollback never waits.
+# 3a. What only Albert can give, asked by Candidate and Promote before any step that changes anything and before the run folder
+# exists. Until then the paste has only read: the lock, the receipt, the checkout, the caller, and for Candidate the live names
+# the deploy removes, for Promote the number of Asks still running (that count writes a scratch folder in the temp directory,
+# which it removes). DEPLOY (both), IDLE (Promote) and the smoke passcode (Candidate) are typed at a console that is really
+# there: a redirected stdin or a non-interactive host is refused with no fallback, because Read-Host would otherwise take the
+# answer from a pipe. The receipt has already been validated, so a receipt alone never starts a release. The passcode is read as
+# a SecureString and is not echoed. Rollback and Retire ask for nothing, because a rollback never waits.
 function Test-Interactive { return ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) }
 
 function Assert-Interactive {
     if (-not (Test-Interactive)) { throw 'NOT INTERACTIVE: DEPLOY, IDLE and the passcode are typed at a console. This run is not at one, and there is no fallback.' }
 }
 
-# Read-Host is called by its module-qualified name, so a function of that name defined by whoever invoked the paste is never run
-# in its place. Read-Typed is the one place either prompt is made.
+# Read-Host is called by its plain name. A function or an alias of that name made by whoever started the paste would be run in
+# its place, so the resolution check runs here first and refuses a session in which Read-Host is anything but the cmdlet.
+# Read-Typed is the one place either prompt is made.
 function Read-Typed([string]$Prompt, [switch]$Secure) {
-    if ($Secure) { return (Microsoft.PowerShell.Utility\Read-Host -AsSecureString -Prompt $Prompt) }
-    return (Microsoft.PowerShell.Utility\Read-Host -Prompt $Prompt)
+    & $Script:ResolutionCheck
+    if ($Secure) { return (Read-Host -AsSecureString -Prompt $Prompt) }
+    return (Read-Host -Prompt $Prompt)
 }
 
 function Get-UtcNow { return [DateTimeOffset]::UtcNow }
 
 function Read-Word([string]$Word) {
+    & $Script:ResolutionCheck
     try { $typed = Read-Typed "Type $Word to continue" } catch { throw "NOT INTERACTIVE: the prompt for $Word could not be shown." }
     if ($typed -cne $Word) { throw "NOT CONFIRMED: $Word was not typed exactly. Nothing was written." }
 }
 
 function Read-Passcode {
+    & $Script:ResolutionCheck
     try { $secret = Read-Typed 'Smoke passcode' -Secure } catch { throw 'NOT INTERACTIVE: the passcode prompt could not be shown.' }
     if ($null -eq $secret -or $secret.Length -eq 0) { throw 'NOT CONFIRMED: no smoke passcode was typed. Nothing was written.' }
     return $secret
@@ -417,6 +490,7 @@ function Get-InflightCount {
 
 function Confirm-Action {
     if ($Action -notin @('Candidate', 'Promote')) { return }
+    & $Script:ResolutionCheck
     Assert-Interactive
     if ($Action -eq 'Candidate') {
         Assert-Source
@@ -448,20 +522,8 @@ function Confirm-Action {
     }
 }
 
-# An alias is resolved before any function, in every scope, so one named like a function of this paste, or like the prompt
-# cmdlet, could supply a typed word or the clock with no console. The refusal is the first thing Invoke-Release does, and Get-Alias
-# is called by its module-qualified name so that a function or an alias of that name cannot blind it. The prompt cmdlet's name is
-# written in two parts so that the text scan for a bare call of it stays exact.
-$Script:Shadowable = @('Read-Typed', 'Read-Word', 'Read-Passcode', 'Test-Interactive', 'Assert-Interactive', 'Get-UtcNow', 'Test-QuietWindow',
-                       'Get-InflightCount', 'Read-Native', 'Run-Logged', 'Step', ('Read-' + 'Host'))
-
-function Assert-NoShadowAlias {
-    $found = @(Microsoft.PowerShell.Utility\Get-Alias -Name $Script:Shadowable -ErrorAction SilentlyContinue)
-    if ($found.Count -gt 0) { throw "NOT EXECUTABLE: an alias shadows a paste function or the prompt cmdlet: $($found.Name -join ', ')." }
-}
-
 function Invoke-Release {
-    Assert-NoShadowAlias
+    & $Script:ResolutionCheck
     Test-Packet
     Test-Receipt
     $inheritedPresent = Test-Path Env:F42_SMOKE_PASSCODE
@@ -492,4 +554,4 @@ function Invoke-Release {
     }
 }
 
-if (-not $DefinitionsOnly) { Invoke-Release }
+if (-not $DefinitionsOnly) { & $Script:ResolutionCheck; Invoke-Release }
