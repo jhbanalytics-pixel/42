@@ -58,3 +58,44 @@ def test_a_link_through_an_uncited_post_of_the_same_answer_counts():
     edit = {"tt_3": {"thumbnail_url": "https://cdn.example/v/q/cover.jpg", "handle": "@mpho.cooks.za"},
             "x_1": {"thumbnail_url": "https://cdn.example/v/q/cover.jpg"}}
     assert labelled([], ["tt_1", "x_1"], edit=edit) == ("observed", "downgrade")
+
+
+# The reason beside the label counts the groups the label is judged on, not raw handles.
+
+def rec(i, handle, platform, text):
+    return {"id": i, "handle": handle, "platform": platform, "text": text, "flags": []}
+
+
+def test_a_pair_linked_by_a_shared_page_is_worded_as_one_group_and_stays_observed():
+    from core.agent import checks
+
+    a = rec("p1", "alice", "tiktok", "read this https://news.example.com/story/123 now")
+    b = rec("p2", "bob", "instagram", "see https://news.example.com/story/123 today")
+    top, why = checks._evidence_label({"numbers": []}, [a, b])
+    assert top == "observed"
+    assert why == "1 unrelated author group on 2 platforms"
+    assert "independent" not in why
+
+
+def test_an_unrelated_pair_is_worded_as_two_groups_and_corroborates():
+    from core.agent import checks
+
+    a = rec("p1", "alice", "tiktok", "Dancing to this in Soweto all weekend long")
+    b = rec("p2", "bob", "instagram", "My gran tried the step at the braai and nailed it")
+    assert checks._evidence_label({"numbers": []}, [a, b]) == ("corroborated", "2 unrelated author groups on 2 platforms")
+
+
+def test_the_reason_counts_x_and_twitter_as_one_platform_and_ignores_a_missing_platform():
+    from core.agent import checks
+
+    a = rec("p1", "alice", "x", "Dancing to this in Soweto all weekend long")
+    b = rec("p2", "bob", "twitter", "My gran tried the step at the braai and nailed it")
+    c = rec("p3", "cleo", None, "Nobody told me the step was this hard on the knees")
+    assert checks._evidence_label({"numbers": []}, [a, b, c])[1] == "3 unrelated author groups on 1 platform"
+
+
+def test_the_reason_is_worded_from_groups_for_a_single_author_too():
+    from core.agent import checks
+
+    a = rec("p1", "alice", "tiktok", "Dancing to this in Soweto all weekend long")
+    assert checks._evidence_label({"numbers": []}, [a]) == ("single_source", "1 unrelated author group on 1 platform")

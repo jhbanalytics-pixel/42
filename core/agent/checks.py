@@ -16,7 +16,7 @@ from core.agent.context import result_hash
 from core.agent.forecast_promotion import promoted_forecasts, publishable_line
 from core.agent.native_review import tone_cap_ids
 from core.agent.tools.dates import SAST
-from core.agent.tools.socialcrawl import ALLOWED_ROUTES, PLATFORM_NAMES
+from core.agent.tools.socialcrawl import ALLOWED_ROUTES
 from core.trust.independence import independent_groups, is_corroborated
 from core.agent.tools.sql_query import MAX_BYTES_BILLED, _dispatch_query
 
@@ -1780,16 +1780,15 @@ def _max_label(claim, records, leaned=(), ctx=None):
 
 def _evidence_label(claim, records, pool=None):
     independent = [r for r in records if not NOT_INDEPENDENT & {str(f).lower() for f in r.get("flags") or []}]
-    pairs = {(str(r.get("handle") or "").lower().lstrip("@"),
-              PLATFORM_NAMES.get(str(r.get("platform") or "").lower(), str(r.get("platform") or "").lower()))
-             for r in independent}  # x and twitter are one platform
-    authors = {h for h, _ in pairs}
-    platforms = {p for _, p in pairs}
-    why = f"{len(authors)} independent author(s) on {len(platforms)} platform(s)"
+    authors = {str(r.get("handle") or "").lower().lstrip("@") for r in independent}
     # W8-DEC-16: Corroborated needs unrelated authors, judged over every stored record of the answer.
     own = {r.get("id"): r for r in records}
     pool = [own.get(r.get("id"), r) for r in pool] if pool is not None else records
     groups = independent_groups(pool, excluded=NOT_INDEPENDENT, author_ids={r.get("id") for r in records})
+    # The reason counts what the label is judged on: unrelated author groups, and the platforms they stand on.
+    platforms = set().union(*(g["platforms"] for g in groups))
+    why = (f"{len(groups)} unrelated author group{'' if len(groups) == 1 else 's'} on "
+           f"{len(platforms)} platform{'' if len(platforms) == 1 else 's'}")
     if is_corroborated(groups, claim.get("numbers")):
         top = "corroborated"
     elif len(authors) >= 2:
