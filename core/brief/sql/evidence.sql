@@ -13,12 +13,18 @@ FROM {core}.v_suppressed_creators s
 LEFT JOIN {core}.creators c ON c.creator_id = s.creator_id;
 
 -- name: evidence
--- Posts a card may cite: published in the market's last 7 local days (@start to @end, market-local midnights),
--- sighted in the market in that span in any lane but placebo, agent_live and legacy, by a creator not on the
--- suppression list; at most 2 per creator and 12 in all; measured lanes (unbiased_rank, panel) first, then
--- engagement. A post seen only by the brief's confirm search enters only when local by the market scope rule
--- (market_scope.sql creator_ranked): located in the market or sighted in its feeds in the window. sponsored is the
--- enrich model's paid marker or the vendor's paid label; sponsor_checked is true when either gave a reading.
+-- Posts a card may cite (C4 v2 section 19, core/brief/pack_order.py): published in the market's last 7 local days
+-- (@start to @end, market-local midnights), sighted in the market in that span in any lane but placebo, agent_live
+-- and legacy, by a creator not on the suppression list. Members first: a post in a cluster of this item from the
+-- market's own run, dated in the 7 days, ranks before every other post (tier 0; a member only of the pooled run
+-- or of a cluster outside the window is context). Within a tier, measured lanes (unbiased_rank, panel) first, then
+-- engagement, then the post id, which is unique, so no tie is left to the engine. At most 2 per creator, chosen
+-- tier first, and at most @outlet_cap outlet posts (the news platform, or a platform:handle key in @outlet_keys;
+-- a post whose creator has no creators row is not an outlet). 12 posts in all. The counts after each stage ride on
+-- every row, and on one row with no post id when the caps leave nothing, so a hold can name its cause. A post seen
+-- only by the brief's confirm search enters only when local by the market scope rule (market_scope.sql
+-- creator_ranked): located in the market or sighted in its feeds in the window. sponsored is the enrich model's
+-- paid marker or the vendor's paid label; sponsor_checked is true when either gave a reading.
 WITH source_market_by_post AS (
   SELECT v.post_id,
     COALESCE(MAX(IF(sight.source_market = @market, sight.source_market, NULL)),
@@ -38,6 +44,20 @@ s AS (
     AND po.observed_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
     AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
   GROUP BY po.post_id),
+members AS (
+  SELECT mb.post_id, MAX(mb.probability) membership_probability
+  FROM {core}.cluster_members mb
+  JOIN {core}.clusters k ON k.cluster_id = mb.cluster_id
+  WHERE k.item_id = @item_id AND UPPER(k.market) = @market
+    AND k.cluster_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
+  GROUP BY mb.post_id),
+pan_members AS (
+  SELECT mb.post_id
+  FROM {core}.cluster_members mb
+  JOIN {core}.clusters k ON k.cluster_id = mb.cluster_id
+  WHERE k.item_id = @item_id AND LOWER(k.market) = 'pan'
+    AND k.cluster_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
+  GROUP BY mb.post_id),
 r AS (
   SELECT ps.post_id, ps.platform, ps.url, ps.published_at, ps.creator_tier_at_post creator_tier,
     ps.geo_market, ps.geo_confidence, ps.geo_source,
@@ -58,8 +78,22 @@ r AS (
      WHERE LOWER(label) IN ('true', 'false')) vendor_paid,
     IFNULL(pe.near_dup_size, 1) >= 3 near_dup,
     s.measured, IFNULL(ps.engagement, 0) eng,
+    mm.post_id IS NOT NULL market_member, pm.post_id IS NOT NULL pan_member, mm.membership_probability,
+    -- An outlet is the news platform or a platform:handle key in the registry, written as core/api/store.py
+    -- creator_key writes it: x for twitter, the handle trimmed, without a leading @ or u/, lower case. A handle the
+    -- creators table does not hold gives a NULL key, which reads as not an outlet (never as NULL, which the cap
+    -- would remove).
+    IFNULL(ps.platform = 'news' OR CONCAT(IF(LOWER(TRIM(ps.platform)) = 'twitter', 'x', LOWER(TRIM(ps.platform))), ':',
+        LOWER(REGEXP_REPLACE(TRIM(cr.handle), r'^@*(u/)?', ''))) IN UNNEST(@outlet_keys), FALSE) is_outlet,
+    (ps.geo_market = @market AND IFNULL(ps.geo_confidence, 0) >= 0.7
+       AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
+      OR (NOT IFNULL(NULLIF(ps.geo_market, '') != @market AND ps.geo_confidence >= 0.7
+                     AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+          AND source_market_by_post.source_market = @market) local_flag,
+    NOT IFNULL(NULLIF(ps.geo_market, '') != @market AND ps.geo_confidence >= 0.7
+               AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE) showable_flag,
     ROW_NUMBER() OVER (PARTITION BY IFNULL(ps.creator_id, ps.post_id)
-                       ORDER BY s.measured DESC, IFNULL(ps.engagement, 0) DESC, ps.post_id) creator_rank
+                       ORDER BY mm.post_id IS NULL, s.measured DESC, IFNULL(ps.engagement, 0) DESC, ps.post_id) creator_rank
   FROM s
   JOIN {core}.posts ps ON ps.post_id = s.post_id
   LEFT JOIN source_market_by_post ON source_market_by_post.post_id = s.post_id
@@ -73,6 +107,8 @@ r AS (
   LEFT JOIN (SELECT post_id, MAX(near_dup_size) near_dup_size, LOGICAL_OR(sponsored) sponsored,
                LOGICAL_OR(sponsored IS NOT NULL) sponsor_read
              FROM {core}.post_enrichment GROUP BY post_id) pe ON pe.post_id = s.post_id
+  LEFT JOIN members mm ON mm.post_id = s.post_id
+  LEFT JOIN pan_members pm ON pm.post_id = s.post_id
   WHERE ps.published_at >= @start AND ps.published_at < @end
     AND NOT EXISTS (SELECT 1 FROM {core}.v_suppressed_creators sc WHERE sc.creator_id = ps.creator_id)
     -- A post seen only by the brief's confirm search counts only when local by the market scope rule
@@ -89,13 +125,35 @@ r AS (
         WHERE v.post_id = ps.post_id
           AND sight.source_market = @market
           AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
-      ))))
-SELECT r.* EXCEPT (enrich_sponsored, enrich_read, vendor_paid),
-  r.enrich_sponsored OR IFNULL(r.vendor_paid, FALSE) sponsored,
-  r.enrich_read OR r.vendor_paid IS NOT NULL sponsor_checked
-FROM r
-WHERE r.creator_rank <= 2
-ORDER BY r.measured DESC, r.eng DESC, r.post_id
+      )))),
+c AS (
+  SELECT r.*,
+    ROW_NUMBER() OVER (PARTITION BY r.is_outlet
+                       ORDER BY r.market_member DESC, r.measured DESC, r.eng DESC, r.post_id) class_rank,
+    ROW_NUMBER() OVER (ORDER BY r.market_member DESC, r.measured DESC, r.eng DESC, r.post_id) pack_rank
+  FROM r WHERE r.creator_rank <= 2),
+f AS (
+  SELECT c.* FROM c WHERE NOT c.is_outlet OR c.class_rank <= @outlet_cap),
+-- What the outlet cap left for the stage counts: an outlet it removed from behind the 12th place was never going to
+-- be in the pack, so it still counts. A cap of 12 therefore changes neither the pack nor any stage count.
+g AS (
+  SELECT c.* FROM c WHERE NOT c.is_outlet OR c.class_rank <= @outlet_cap OR c.pack_rank > 12)
+SELECT f.* EXCEPT (enrich_sponsored, enrich_read, vendor_paid),
+  f.enrich_sponsored OR IFNULL(f.vendor_paid, FALSE) sponsored,
+  f.enrich_read OR f.vendor_paid IS NOT NULL sponsor_checked,
+  (SELECT COUNT(*) FROM r) available_posts,
+  (SELECT COUNTIF(r.market_member) FROM r) available_members,
+  (SELECT COUNTIF(r.showable_flag) FROM r) available_showable,
+  (SELECT COUNTIF(r.local_flag) FROM r) available_local,
+  (SELECT COUNT(*) FROM c) after_creator_cap,
+  (SELECT COUNTIF(c.showable_flag) FROM c) after_creator_cap_showable,
+  (SELECT COUNTIF(c.local_flag) FROM c) after_creator_cap_local,
+  (SELECT COUNT(*) FROM g) after_outlet_cap,
+  (SELECT COUNTIF(g.showable_flag) FROM g) after_outlet_cap_showable,
+  (SELECT COUNTIF(g.local_flag) FROM g) after_outlet_cap_local
+FROM (SELECT 1 one) base
+LEFT JOIN f ON TRUE
+ORDER BY f.market_member DESC, f.measured DESC, f.eng DESC, f.post_id
 LIMIT 12;
 
 -- name: creators3

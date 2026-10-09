@@ -232,6 +232,9 @@ def _held_item(c):
     # holds for them too. The key is left out when nothing was merged, so every other held item keeps its shape.
     if c.get("also"):
         held["also"] = list(c["also"])
+    # A post-floor hold says at which stage of the pack it fell below the floor (pack_order.hold_detail).
+    if c.get("held_reason_detail"):
+        held["held_reason_detail"] = c["held_reason_detail"]
     return held
 
 
@@ -245,8 +248,15 @@ HELD_SUMMARY = {
 }
 
 
+def hold_base(text):
+    """A floor hold's wording without the cap it may name (core/brief/pack_order.py hold_text): what groups holds of
+    one kind together here, in the holds report and in ops."""
+    return text.split(": the ")[0]
+
+
 def _held_group(item):
-    return item["reason_text"] if item["reason_text"] in HELD_SUMMARY else REASON_TEXT[item["reason"]].lower()
+    text = hold_base(item["reason_text"])  # a floor hold may name the cap that caused it
+    return text if text in HELD_SUMMARY else REASON_TEXT[item["reason"]].lower()
 
 
 def _held_label(group, n):
