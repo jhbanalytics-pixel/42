@@ -448,6 +448,75 @@ _K6_ONLY_TERMS = [
 ]
 _K6_TERMS = _BREACH_TERMS + _K6_ONLY_TERMS
 
+# W8-DEC-03d, not decided, so False ships and K6 answers are exactly those of _K6_TERMS. Flipping it to True makes
+# K6 stop flagging a score after a score word, a date after a month name, a poll split and the name National Youth
+# Service Corps (an audience noun straight after the range keeps the breach), for claims and answer fields alone: seeds
+# (_breach_term) never read it and the Ask rule 1 check is not changed by it.
+K6_03D_ENABLED = False
+
+
+class _Exempt(_Conditional):
+    """A K6 term that does not count where the text around the hit is one of the named exceptions."""
+
+    def __init__(self, source, exempt):
+        super().__init__(source)
+        self._exempt = exempt
+
+    def _counts(self, text, m):
+        return not self._exempt(text, m)
+
+
+# Case matters in two places: FT and HT are score words only in capitals, and only a capital May is the month.
+_SCORE_BEFORE = re.compile(
+    r"(?:(?i:\b(?:won|lost|beat|drew|scored|final\s+score|full[\s-]time|half[\s-]time))|\b(?:FT|HT))\b:?\s+$"
+)
+_MONTH_BEFORE = re.compile(
+    r"(?:(?i:\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|June?|July?|Aug(?:ust)?|Sept?(?:ember)?"
+    r"|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?))|\bMay)\b\.?\s+$"
+)
+_AUDIENCE_AFTER = re.compile(
+    r"\s+(?:voters?|fans?|users?|women|men|people|viewers?|listeners?|audiences?|customers?)\b", re.I
+)
+_POLL_WORD = re.compile(r"\b(?:polls?|polled|surveys?|surveyed|votes?|voted|ballots?|referendum|elections?)\b", re.I)
+_SPLIT_AFTER = re.compile(r"\s+split\b", re.I)
+_RANGE_PARTS = re.compile(r"(\d+)\s*(?:-|\u2013)\s*(\d+)")
+_PROPER_NOUN_YOUTH = re.compile(r"\bNational Youth Service(?: Corps)?\b")
+
+
+def _exempt_range(text, m):
+    """A range the plain age pattern flags that is a score, a date or a poll split. An audience noun straight after the
+    range keeps it a breach ("won 18-24 voters"); nothing else about the sentence is read, so an age-group word
+    anywhere else still breaches on its own pattern."""
+    before, after = text[: m.start()], text[m.end() :]
+    if _AUDIENCE_AFTER.match(after):
+        return False
+    if _SCORE_BEFORE.search(before) or _MONTH_BEFORE.search(before):
+        return True
+    if _SPLIT_AFTER.match(after):
+        low, high = (int(g) for g in _RANGE_PARTS.match(m.group(0)).groups())
+        sentence = re.split(r"[.!?]\s+", before)[-1]
+        return 99 <= low + high <= 101 and bool(_POLL_WORD.search(sentence))
+    return False
+
+
+def _exempt_youth(text, m):
+    """"Youth" inside a proper noun, written in capitals as the name is: National Youth Service Corps."""
+    return any(p.start() <= m.start() and m.end() <= p.end() for p in _PROPER_NOUN_YOUTH.finditer(text))
+
+
+def _swap_for_03d(terms):
+    out = []
+    for t in terms:
+        if t.pattern.startswith("\\byouths?"):
+            t = _Exempt(t.pattern, _exempt_youth)
+        elif t.pattern.startswith("(?<![\\d:/.\\-])\\b(?:1[3-9]"):
+            t = _Exempt(t.pattern, _exempt_range)
+        out.append(t)
+    return out
+
+
+_K6_TERMS_03D = _swap_for_03d(_K6_TERMS)
+
 
 def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
     """Run K1, K2, K3, K5, K6, K8 and K10 on one answer. See the module docstring."""
@@ -864,7 +933,7 @@ def _breach_term(text, exempt):
 
 def _k6_term(text, exempt):
     """What the brief's K6 check reads: the a80be1d list and the terms added since."""
-    return _first_term(text, exempt, _K6_TERMS)
+    return _first_term(text, exempt, _K6_TERMS_03D if K6_03D_ENABLED else _K6_TERMS)
 
 
 def _k6(claim, records, verified):
