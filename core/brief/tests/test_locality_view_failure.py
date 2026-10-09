@@ -22,6 +22,9 @@ def test_the_second_read_is_the_first_statement_with_the_view_replaced_by_an_emp
 
 
 def test_a_row_on_the_v2_basis_is_held_as_a_data_issue_when_the_view_cannot_be_read(monkeypatch, capsys):
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, "v1")           # the second read is the shadow authority's; v2 holds the market
     con = v2_world(status="local")
     add_locality(con, 20, 20)
     monkeypatch.setattr(job, "read_market_scope", brief_market_scope.read_market_scope, raising=False)
@@ -45,3 +48,58 @@ def test_a_row_on_the_v1_basis_is_unchanged_when_the_view_cannot_be_read(monkeyp
     monkeypatch.setattr("core.brief.tests.test_brief_golden_path.Client", RefusingClient)
     assert brief(con, HonestModel(True), monkeypatch)[1] == baseline
 
+
+
+class RecordingRefusingClient(RefusingClient):
+    def __init__(self, con):
+        super().__init__(con)
+        self.executed = []
+
+    def query(self, sql, job_config=None):
+        self.executed.append(sql)
+        return super().query(sql, job_config)
+
+
+def run_with_failing_view(con, monkeypatch, authority):
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, authority)
+    monkeypatch.setattr(job, "read_market_scope", brief_market_scope.read_market_scope, raising=False)
+    pin_brief_model_cap(monkeypatch, EARLY)
+    client, model = RecordingRefusingClient(con), HonestModel(True)
+    counts = job.run(client, D, chain=FakeChain(), model=model, make_sc=lambda run_id: object(), clock=lambda: EARLY,
+                     build_ctx=gatectx.build_ctx, confirm=FakeConfirm(), core="core", agent="agent")
+    payloads = {r["market"]: json.loads(r["payload"]) for r in client.inserted["agent.briefs"]}
+    return counts, payloads, client, model
+
+
+def test_under_v2_a_failed_locality_read_is_not_read_again_without_the_view(monkeypatch, capsys):
+    """F1: the second read turned every v2 row of the market unreadable. Under v2 the market is held and the failure is
+    recorded in the counts."""
+    con = v2_world(status="local")
+    add_locality(con, 20, 20)
+    counts, payloads, client, model = run_with_failing_view(con, monkeypatch, "v2")
+    assert not any(job._NO_LOCALITY in sql for sql in client.executed)
+    assert counts["locality_view_failed"] == {"markets": list(job.MARKETS), "action": "held"}
+    for market, payload in payloads.items():
+        assert payload["cards"] == [] and payload["status"] == "data_issue", market
+        assert any(b["kind"] == "data_issue" for b in payload["banners"]), market
+    assert not (model.writer or model.support or model.critic)
+    assert "locality_view_read_failed" in capsys.readouterr().err
+
+
+def test_under_v1_a_failed_locality_read_is_read_again_and_recorded(monkeypatch):
+    con = world(located=True)
+    add_locality(con)
+    counts, payloads, client, _ = run_with_failing_view(con, monkeypatch, "v1")
+    assert any(job._NO_LOCALITY in sql for sql in client.executed)
+    assert counts["locality_view_failed"] == {"markets": list(job.MARKETS), "action": "read_without_view"}
+    assert [c["item_id"] for c in payloads["ZA"]["cards"]] == [ITEM]
+
+
+def test_a_run_whose_locality_read_works_records_no_failure(monkeypatch):
+    from core.brief.tests.test_brief_golden_path import brief
+
+    con = world(located=True)
+    add_locality(con)
+    assert "locality_view_failed" not in brief(con, HonestModel(True), monkeypatch)[0]

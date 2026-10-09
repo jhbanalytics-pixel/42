@@ -71,6 +71,7 @@ from core.detect import sqlrun
 from core.detect.job import PROJECT, RULE_VERSION
 from core.detect.sqlrun import AGENT, CORE
 from core.llm.gemini import GeminiModel
+from core.trust import locality
 from core.trust.gate import Decision, gate_card, market_banner
 from core.trust.locality import V2_BASIS, locality_block, read_locality, row_from_prefixed, scope_basis
 
@@ -129,7 +130,8 @@ QUERIES = {_NAME.search(s).group(1): s for s in sqlrun.split(SQL.read_text(encod
 # The candidate statement reads the retained locality row through v_item_locality_current. If that read fails, the
 # statement runs again with the view replaced by an empty one of the same columns: a row on the v1 basis then orders,
 # scopes and gates exactly as before (it never reads the view), and a row on the v2 basis has no locality row, which
-# is unreadable and held as a data issue (C4 v3 sections 8.4 and 10). The failure is printed, never swallowed.
+# is unreadable and held as a data issue (C4 v3 sections 8.4 and 10). That second read is for the shadow authority
+# only (_candidate_rows). The failure is printed and recorded, never swallowed.
 _LOCALITY_COLUMNS = (
     ("run_date", "DATE"), ("item_id", "STRING"), ("market", "STRING"), ("detect_run_id", "STRING"),
     ("metric_version", "STRING"), ("schema_version", "INT64"), ("population_posts", "INT64"),
@@ -386,7 +388,10 @@ def _gate(cand, passed):
     card = {**cand["row"], "sponsored_share": max(cand["row"].get("sponsored_share") or 0,
                                                   ctx.get("sponsored_share") or 0)}
     decision = gate_card(card, {**ctx, "explanation_passed": passed})
-    if decision.rule == "G1":
+    # G1 is an invalid day. The gate also answers G1 for a row whose locality row cannot be read; that one is held
+    # below with the scope read failures, so that it takes a judged slot and no replacement is prepared for it.
+    invalid_day = any(ok is False for ok in ctx["valid_days"])
+    if decision.rule == "G1" and (invalid_day or not cand.get("scope_error")):
         return decision
     if cand.get("scope_error"):
         cand["held_reason"] = "data_issue"
@@ -447,8 +452,10 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
         row["pack_scope_v1"] = {k: scope.get(k) for k in ("market_scope", "market_posts7", "total_posts7",
                                                           "market_share7")}
         row.update({k: scope.get(k) for k in ("market_posts7", "total_posts7", "market_share7")})
-        row["market_scope"], row["market_scope_basis"] = derived or "global", V2_BASIS
-        scope_error = False          # a pack read that failed is an observation lost; an unreadable row is held by G1
+        row["market_scope"], row["market_scope_basis"] = derived, V2_BASIS
+        # A pack read that failed is an observation lost. A row that cannot be read has no scope and is held as
+        # unreadable evidence, never as global (C4 v3 section 11.2): scope_error says so to _gate and the banner.
+        scope_error = derived is None
     else:
         row.update(scope)
         if scope_basis(row.get("locality_basis")):
@@ -559,15 +566,23 @@ def _selection_result(snapshot, receipt, ranked, prepared, taken, cutoff, observ
         "judged_limit": CANDIDATES, "count": len(items), "items": items}, "selection_receipt": receipt}
 
 
-def _candidate_rows(client, d, market, core, agent, receipt):
-    """The market's candidate rows. If the read fails, one more read without the locality view (see QUERIES), so a
-    missing or failing view never changes a row on the v1 basis."""
+def _candidate_rows(client, d, market, core, agent, receipt, failed=None):
+    """The market's candidate rows. If the read fails the failure is printed and recorded in failed, {market: action}.
+    In shadow the statement runs once more without the locality view (see QUERIES), so a missing or failing view never
+    changes a row on the v1 basis. Under v2 it does not: every row on the v2 basis would then have no locality row and
+    be unreadable, which turns one transient error into a whole market held for evidence it never failed to read. The
+    market is held instead, with no candidates, and the brief shows the data issue."""
     params = {"d": d, "market": market}
     try:
         return _query(client, "candidates", params, core, agent, receipt=receipt)
     except Exception:
         print(f"brief {d.isoformat()}: locality_view_read_failed", file=sys.stderr)
         receipt.clear()
+        held = locality.LOCALITY_AUTHORITY == "v2"
+        if failed is not None:
+            failed[market] = "held" if held else "read_without_view"
+        if held:
+            return []
         return _query(client, "candidates_without_locality", params, core, agent, receipt=receipt)
 
 
@@ -605,10 +620,10 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
     read. calendar: {market: moments()} for the packs' day lines, none when not given."""
     calendar = calendar or {}
     hidden = read_hidden(client, core=core, agent=agent) if hidden is None else hidden
-    pools, snapshots, receipts = {}, {}, {}
+    pools, snapshots, receipts, unread = {}, {}, {}, {}
     for m in MARKETS:
         receipts[m] = {}
-        rows = _candidate_rows(client, d, m, core, agent, receipts[m])
+        rows = _candidate_rows(client, d, m, core, agent, receipts[m], unread)
         snapshots[m] = _selection_snapshot(rows, receipts[m])
         pools[m] = [{k: v for k, v in row.items() if k not in (
             "_selection_sql_rank", "_selection_market_scope", "_selection_snapshot")} for row in rows]
@@ -649,6 +664,7 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
             selection_audits[m] = _selection_result(snapshots[m], receipts[m], ranked[m], by_market[m],
                                                     taken[m], cutoff, observed)
             selection_audits[m]["locality_audit_inputs"] = _locality_audit_inputs(client, d, m, pools[m], core, agent)
+            selection_audits[m]["candidate_read"] = unread.get(m)
     return by_market
 
 
@@ -1359,6 +1375,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                                    "checker": chk["checker"], "run_id": run.run_id,
                                    "reason": check_reason(chk)})
         banners = [b for b in (warm, None if m in confirmed else NO_CONFIRM, late_banner) if b]
+        if selection_audits.get(m, {}).get("candidate_read") == "held":
+            banners.append({"kind": "data_issue", "text": "Data issue: today's candidates could not be read"})
         boards_, unnamed = boards(client, d, m, core, agent, hidden=hidden)
         payload = _market_payload(m, d, cands, results, banners=banners, moments_=calendar[m],
                                   boards_=boards_, issues=_unnamed_issue(unnamed), selection_audit=selection_audits.get(m))
@@ -1382,6 +1400,10 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
               for m in MARKETS for c in by_market[m] if c.get("decision") is not None and c["row"].get("locality_v2")]
     if shadow:
         counts["locality_shadow"] = shadow
+    unread = {m: a["candidate_read"] for m, a in selection_audits.items() if a.get("candidate_read")}
+    if unread:
+        counts["locality_view_failed"] = {"markets": list(unread), "action": "held" if "held" in unread.values()
+                                          else "read_without_view"}
     if explanation_stop is not None:
         counts["explanation_stop"] = explanation_stop
     if busy:
