@@ -3,56 +3,47 @@
   "AU-01": {
    "owner": "lane 2",
    "partition": "core",
-   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
-   "status": "pending"
+   "status": "built"
   },
   "AU-02": {
    "owner": "lane 2",
    "partition": "core",
-   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
-   "status": "pending"
+   "status": "built"
   },
   "AU-03": {
    "owner": "lane 2",
    "partition": "core",
-   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
-   "status": "pending"
+   "status": "built"
   },
   "AU-04": {
    "owner": "lane 2",
    "partition": "core",
-   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
-   "status": "pending"
+   "status": "built"
   },
   "AU-05": {
    "owner": "lane 2",
    "partition": "core",
-   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
-   "status": "pending"
+   "status": "built"
   },
   "AU-06": {
    "owner": "lane 2",
    "partition": "core",
-   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
-   "status": "pending"
+   "status": "built"
   },
   "AU-07": {
    "owner": "lane 2",
    "partition": "core",
-   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
-   "status": "pending"
+   "status": "built"
   },
   "AU-08": {
    "owner": "lane 2",
    "partition": "core",
-   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
-   "status": "pending"
+   "status": "built"
   },
   "AU-09": {
    "owner": "lane 2",
    "partition": "core",
-   "reason": "lane 2 owns the audience split tests; the split is not in this branch",
-   "status": "pending"
+   "status": "built"
   },
   "CT-01": {
    "owner": "lane 3",
@@ -727,7 +718,8 @@
    "core/setup/tests/test_declared_env_removals.py",
    "core/setup/tests/test_release_map.py",
    "core/setup/tests/test_release_plan.py",
-   "core/api/tests/test_old_readers.py"
+   "core/api/tests/test_old_readers.py",
+   "core/api/tests/test_app.py"
   ],
   "deploy": [
    "core/api/tests/test_deploy_candidate.py",

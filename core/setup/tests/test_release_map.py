@@ -74,7 +74,8 @@ def test_tm01_the_pending_and_not_applicable_ids_are_exactly_the_ones_this_branc
     data = load_map()
     states = {ident: e["status"] for ident, e in data["ids"].items() if e["status"] != "built"}
     assert {i for i, s in states.items() if s == "not_applicable"} == {"HR-03", "HR-48"}
-    assert {i for i, s in states.items() if s == "pending"} == {f"AU-0{n}" for n in range(1, 10)}
+    # AU-01 to AU-09 were pending on wave8/release, which had no audience split; wave8/api builds them in test_app.py
+    assert {i for i, s in states.items() if s == "pending"} == set()
 
 
 # TM-02: the lock
