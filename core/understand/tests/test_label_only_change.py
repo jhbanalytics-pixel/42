@@ -11,11 +11,18 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
+from core.conftest import set_locality_authority
 from core.trust.locality import MIN_SHARED_MEMBERS
 from core.understand import cluster
 
 DAY = date(2026, 10, 7)
 YESTERDAY = DAY - timedelta(days=1)
+
+
+@pytest.fixture(autouse=True)
+def rule_b_is_on(monkeypatch):
+    """Rule (b) acts only under the v2 authority (test_label_scope.py pins that it does nothing under v1)."""
+    set_locality_authority(monkeypatch, "v2")
 
 
 def at(cos, dim=6, towards=1):
@@ -146,18 +153,20 @@ def test_a_recurrence_that_drifted_is_also_governed_by_the_rule():
     assert decisions[0]["kind"] == "recurrence" and got["map_rows"][0]["label"] == OLD_LABEL
 
 
-# The item profile the rule reads: cluster_items.sql carries the item's member posts of the previous 3 days.
+# The item profile the rule reads: cluster_items.sql carries the item's member posts of the same market the day before.
 
 from core.understand.tests.test_cluster import CORE, DAY as WORLD_DAY, clean_net, duck_execute, world  # noqa: E402,F401
 
 
-def test_cluster_items_carries_the_members_of_the_previous_three_days(world):  # noqa: F811
+def test_cluster_items_carries_the_members_of_the_same_market_on_the_previous_day_only(world):  # noqa: F811
     execute = duck_execute(world["con"])
-    on = lambda run_date: {r["item_id"]: r for r in execute(cluster.load("cluster_items"), {"run_date": run_date})}
-    assert list(on(WORLD_DAY)["item_a"]["recent_members"]) == ["hist_a"]                # hist-a is 3 days back
-    assert list(on(WORLD_DAY - timedelta(days=1))["item_a"]["recent_members"]) == ["hist_a"]
+    on = lambda run_date, market="za": {r["item_id"]: r for r in execute(
+        cluster.load("cluster_items"), cluster.item_params(run_date, market))}
+    assert list(on(WORLD_DAY)["item_a"]["recent_members"] or []) == []                     # hist-a is 3 days back
+    assert list(on(WORLD_DAY - timedelta(days=2))["item_a"]["recent_members"]) == ["hist_a"]   # the day before it
+    assert list(on(WORLD_DAY - timedelta(days=2), "ng")["item_a"]["recent_members"] or []) == []   # another market
     assert "amapiano_00" in on(WORLD_DAY + timedelta(days=1))["item_a"]["recent_members"]   # the run's own day is now prior
-    assert list(on(WORLD_DAY + timedelta(days=4))["item_a"]["recent_members"] or []) == []  # all more than 3 days back
+    assert list(on(WORLD_DAY + timedelta(days=2))["item_a"]["recent_members"] or []) == []  # two days back
     assert list(on(WORLD_DAY)["item_b"]["recent_members"] or []) == []
 
 
@@ -178,7 +187,8 @@ def test_run_cluster_writes_the_new_label_and_counts_the_rename(monkeypatch):
     import json
     [row] = json.loads(writes[0]["map_rows"])
     assert (row["item_id"], row["label"], row["aliases"]) == ("topic_a", NEW_LABEL, [OLD_LABEL])
-    assert counts["label_changes"] == 1 and "label_drift_candidates" not in counts
+    assert counts["label_changes"] == [{"item_id": "topic_a", "from": OLD_LABEL, "to": NEW_LABEL, "shared_members": 2}]
+    assert "label_drift_candidates" not in counts
 
 
 def test_run_cluster_keeps_the_label_and_counts_the_drift_candidate_when_nothing_is_shared(monkeypatch):
@@ -186,7 +196,7 @@ def test_run_cluster_keeps_the_label_and_counts_the_drift_candidate_when_nothing
     import json
     [row] = json.loads(writes[0]["map_rows"])
     assert (row["label"], row["aliases"]) == (OLD_LABEL, [])
-    assert counts["label_drift_candidates"] == 1 and "label_changes" not in counts
+    assert [e["shared_members"] for e in counts["label_drift_candidates"]] == [0] and "label_changes" not in counts
 
 
 def test_a_match_carried_by_votes_below_the_match_cosine_keeps_its_label():
@@ -196,3 +206,30 @@ def test_a_match_carried_by_votes_below_the_match_cosine_keeps_its_label():
     assert decisions[0]["kind"] == "match" and decisions[0]["cosine"] < cluster.MATCH_COSINE
     assert got["map_rows"][0]["label"] == OLD_LABEL and got["label_changes"] == []
     assert got["label_drift_candidates"] == []
+
+
+def test_a_keyword_jaccard_of_exactly_the_threshold_is_not_a_drift():
+    """One shared word in a union of ten is 0.10, the boundary: the words have not left the topic, so nothing is
+    renamed or listed (Q02)."""
+    assert cluster.KEYWORD_JACCARD == 0.1
+    old = ["a1", "a2", "a3", "a4", "shared"]
+    new = ["b1", "b2", "b3", "b4", "b5", "shared"]
+    item = an_item("topic_a", at(0.9), old, ["football"], label=OLD_LABEL, recent_members=["p1", "p2"])
+    c = a_cluster("c9", at(1.0), new, ["football"], label="b1, b2, b3", members=["p1", "p2"])
+    out, _ = planned(item, c)
+    assert out["map_rows"][0]["label"] == OLD_LABEL and out["label_changes"] == []
+    assert out["label_drift_candidates"] == []
+    just_under = ["b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9"]      # no shared word: 0.0
+    c2 = a_cluster("c9", at(1.0), just_under, ["football"], label="b1, b2, b3", members=["p1", "p2"])
+    out2, _ = planned(item, c2)
+    assert out2["map_rows"][0]["label"] == "b1, b2, b3"
+
+
+def test_an_item_with_no_keywords_is_never_renamed():
+    """A missing keyword set says nothing about the words having left, so the Jaccard of nothing is not under the
+    threshold (Q03)."""
+    item = an_item("topic_a", at(0.9), [], ["football"], label=OLD_LABEL, recent_members=["p1", "p2"])
+    c = a_cluster("c9", at(1.0), NEW_WORDS, ["football"], label=NEW_LABEL, members=["p1", "p2"])
+    out, _ = planned(item, c)
+    assert out["map_rows"][0]["label"] == OLD_LABEL and out["label_changes"] == []
+    assert out["label_drift_candidates"] == []

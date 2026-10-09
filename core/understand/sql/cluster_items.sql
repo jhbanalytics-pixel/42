@@ -7,10 +7,12 @@
 -- its ten commonest hashtags (lower case, no #), ten commonest sounds and fifty commonest creators across those
 -- clusters' member posts. An item with no cluster in that window has NULL lists (BigQuery returns them to the
 -- client as empty arrays) and is matched on its centroid, its last_seen and nothing else.
--- recent_members: the member posts of the item's clusters of the 3 days before @run_date, the posts a new cluster
--- must share at least MIN_SHARED_MEMBERS of before it may rename the item (cluster.py label_drift, Q14). The
--- 1000 highest membership probabilities per item are kept; a longer list could only hide a share, and a hidden
--- share keeps the earlier label.
+-- recent_members: the member posts of the item's clusters of @market on the day before @run_date (Q14: the two
+-- clusters of consecutive days, same market), the posts a new cluster must share at least MIN_SHARED_MEMBERS of
+-- before it may rename the item (cluster.py label_drift). The @member_cap highest membership probabilities per
+-- item are kept, ties by post id; a longer list could only hide a share, and a hidden share keeps the earlier label.
+-- renamed_today: another market's run of @run_date has already planned a rename of the item (the label_changes of its
+-- saved plan), and an item is renamed at most once a day.
 WITH cur AS (
   SELECT
     cm.item_id, cm.kind, cm.canonical_key, cm.label, cm.aliases, cm.parent_item_id, cm.centroid, cm.first_seen,
@@ -21,7 +23,7 @@ WITH cur AS (
   QUALIFY ROW_NUMBER() OVER (PARTITION BY cm.item_id ORDER BY cm.valid_from DESC) = 1
 ),
 recent AS (
-  SELECT k.item_id, k.cluster_id, k.cluster_date, k.keywords
+  SELECT k.item_id, k.cluster_id, k.cluster_date, k.keywords, k.market
   FROM `ogilvy-trends-v2.intelligence_42_core.clusters` AS k
   WHERE k.cluster_date BETWEEN DATE_SUB(@run_date, INTERVAL 90 DAY) AND @run_date
     AND k.item_id IN (SELECT c.item_id FROM cur AS c)
@@ -72,7 +74,7 @@ prior_members AS (
   FROM recent AS r
   JOIN `ogilvy-trends-v2.intelligence_42_core.cluster_members` AS m
     ON m.cluster_id = r.cluster_id
-  WHERE r.cluster_date BETWEEN DATE_SUB(@run_date, INTERVAL 3 DAY) AND DATE_SUB(@run_date, INTERVAL 1 DAY)
+  WHERE r.cluster_date = DATE_SUB(@run_date, INTERVAL 1 DAY) AND LOWER(r.market) = LOWER(@market)
   GROUP BY r.item_id, m.post_id
 ),
 prior_ranked AS (
@@ -83,8 +85,14 @@ prior_ranked AS (
 prior_lists AS (
   SELECT q.item_id, ARRAY_AGG(q.post_id ORDER BY q.rn) AS vals
   FROM prior_ranked AS q
-  WHERE q.rn <= 1000
+  WHERE q.rn <= @member_cap
   GROUP BY q.item_id
+),
+renamed AS (
+  SELECT DISTINCT JSON_VALUE(c, '$.item_id') AS item_id
+  FROM `ogilvy-trends-v2.intelligence_42_agent.runs` AS r, UNNEST(JSON_QUERY_ARRAY(r.counts, '$.summary.label_changes')) AS c
+  WHERE r.stage = 'understand_cluster_plan' AND r.status = 'ready' AND r.run_date = @run_date
+    AND JSON_VALUE(r.counts, '$.market') != @market
 )
 SELECT
   c.item_id, c.kind, c.canonical_key, c.label, c.aliases, c.parent_item_id, c.centroid, c.first_seen,
@@ -94,7 +102,8 @@ SELECT
   ht.vals AS hashtags,
   sd.vals AS sounds,
   cr.vals AS creators,
-  pl.vals AS recent_members
+  pl.vals AS recent_members,
+  rn.item_id IS NOT NULL AS renamed_today
 FROM cur AS c
 LEFT JOIN latest AS l
   ON l.item_id = c.item_id
@@ -106,4 +115,6 @@ LEFT JOIN lists AS cr
   ON cr.item_id = c.item_id AND cr.facet = 'creator'
 LEFT JOIN prior_lists AS pl
   ON pl.item_id = c.item_id
+LEFT JOIN renamed AS rn
+  ON rn.item_id = c.item_id
 ORDER BY c.item_id
