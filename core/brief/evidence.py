@@ -114,7 +114,7 @@ def _record(row, tz):
     located = _located(row)
     flags = [name for name, on in (("flagged", row["flagged"]), ("sponsored", row["sponsored"]),
                                    ("near_duplicate", row["near_dup"]), ("market_assumed", located is None)) if on]
-    return {
+    record = {
         "id": row["post_id"], "platform": row["platform"], "handle": row["handle"], "url": row["url"],
         "posted_at": row["published_at"].astimezone(tz).isoformat(), "market": located,
         "source_market": row["source_market"],
@@ -123,6 +123,11 @@ def _record(row, tz):
         "flags": flags, "thumbnail_url": row["thumbnail_url"], "duration_s": row["duration_s"],
         "creator_tier": row["creator_tier"], "sponsor_checked": row["sponsor_checked"] is True,
     }
+    # The pack statement (C4 v3 appendix G) emits is_outlet. A row without the column gets no class, so the record
+    # shape does not change until the pack carries it, and a post of unknown class never counts as a creator's reaction.
+    if "is_outlet" in row:
+        record["outlet_class"] = "outlet" if row["is_outlet"] else "creator"
+    return record
 
 
 def _sparkline(rows, d):
