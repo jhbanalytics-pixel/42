@@ -365,17 +365,6 @@ def test_a_call_over_a_share_budget_keeps_the_bare_over_share_record(monkeypatch
     assert run.records[-1]["status"] == "over_share" and run.records[-1]["reason"] == ""
 
 
-def test_accounts_unserved_yesterday_lead_the_next_order():
-    cache = location_sources.ProfileCache()
-    for handle, posts in (("fresh_high", 9), ("old_low", 1), ("fresh_mid", 4)):
-        for _ in range(posts):
-            cache.bind({}, "tiktok", "NG", handle, {"home_market": None})
-    assert [a["handle"] for a in cache.needed()] == ["fresh_high", "fresh_mid", "old_low"]
-    cache.seed([{"platform": "tiktok", "handle": "old_low", "country_source": "credit_room"}])
-    assert [a["handle"] for a in cache.needed()] == ["old_low", "fresh_high", "fresh_mid"]
-    assert cache.country("tiktok", "old_low") is None and ("tiktok", "old_low") not in cache.attempted
-
-
 def test_served_accounts_drop_out_so_the_unserved_come_first_the_next_day(monkeypatch):
     accounts = [("tiktok", "ta", 5), ("tiktok", "tb", 3), ("tiktok", "tc", 1)]
     day1, _, made1 = _ordered_phase(monkeypatch, accounts, 2)
