@@ -392,10 +392,14 @@ def test_a12_answer_state_imports_only_the_standard_library_and_reads_nothing_at
 
     monkeypatch.setattr(builtins, "open", no_open)
     saved = sys.modules.pop("core.agent.answer_state")
+    package = sys.modules["core.agent"]
     try:
         importlib.import_module("core.agent.answer_state")
     finally:
+        # The import binds the fresh module to the package attribute as well as to sys.modules. Put both back, or a
+        # later test that reads core.agent.answer_state through the package patches a module the code does not call.
         sys.modules["core.agent.answer_state"] = saved
+        package.answer_state = saved
 
 
 # A-13. The digest binds blankness, status and claim count, not text.
