@@ -477,17 +477,18 @@ _MONTH_BEFORE = re.compile(
 )
 # A person word anywhere in the clause keeps the pair a breach: the file's _PERSON set, customers, the nouns below that
 # _PERSON does not hold, the group words, and the 60 further person words the closure re-review found outside the list
-# (CR-3). "age bracket" is held by brackets?. Not single or singles: a music single is the common sense in this data.
+# (CR-3), each in the singular too, and focus groups (CR-3b). "age bracket" is held by brackets?. Not single or
+# singles: a music single is the common sense in this data.
 _PERSON_IN_CLAUSE = re.compile(
     rf"\b(?:{_PERSON}|customers?|m[ae]n|wom[ae]n|girls?|boys?|students?|parents?|mums?|moms?|dads?|gamers?"
     r"|graduates?|residents?|workers?|tiktokers?|subscribers?|cohorts?|brackets?|demographics?"
-    r"|age[\s-]*(?:groups?|ranges?|bands?|categor(?:y|ies))"
-    r"|pupils|ladies|guys|lads|folks|mothers|fathers|sisters|brothers|daughters|sons|couples|families|africans"
-    r"|ghanaians|zimbabweans|ugandans|tanzanians|nairobians|lagosians|citizens|respondents|participants|attendees"
-    r"|members|supporters|stans|players|athletes|drivers|commuters|employees|staff|buyers|readers|influencers"
-    r"|streamers|artists|musicians|instagrammers|youtubers|netizens|tweeps|individuals|clients|patients|husbands"
-    r"|wives|girlfriends|boyfriends|grads|freshers|punters|bettors|gamblers|ravers|clubgoers|partygoers"
-    r"|festivalgoers|churchgoers)\b",
+    r"|age[\s-]*(?:groups?|ranges?|bands?|categor(?:y|ies))|focus[\s-]*groups?"
+    r"|pupils?|lad(?:y|ies)|guys?|lads?|folks?|mothers?|fathers?|sisters?|brothers?|daughters?|sons?|couples?"
+    r"|famil(?:y|ies)|africans?|ghanaians?|zimbabweans?|ugandans?|tanzanians?|nairobians?|lagosians?|citizens?"
+    r"|respondents?|participants?|attendees?|members?|supporters?|stans?|players?|athletes?|drivers?|commuters?"
+    r"|employees?|staff|buyers?|readers?|influencers?|streamers?|artists?|musicians?|instagrammers?|youtubers?"
+    r"|netizens?|tweeps?|individuals?|clients?|patients?|husbands?|wi(?:fe|ves)|girlfriends?|boyfriends?|grads?"
+    r"|freshers?|punters?|bettors?|gamblers?|ravers?|clubgoers?|partygoers?|festivalgoers?|churchgoers?)\b",
     re.I,
 )
 # "group" alone counts only as the word straight after the range ("the Sept 18-24 group"): "won 24-17 in the group
