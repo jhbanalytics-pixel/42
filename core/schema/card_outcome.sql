@@ -2,8 +2,9 @@
    kind (published card or held item), with the state at t and at t + 3, t + 7 and t + 14 and the class of each
    later day. A future additive table: this file is not applied anywhere yet. Append only; the newest scored_at per
    run_date, market, item_id, kind, hold_reason and definition is current, because t + 7 and t + 14 are pending
-   until their days have a good detect run. definition names what held means (active28_by_base_v2: the product's
-   active28 set with Recurring and Seasonal classed by base_state), so a change of meaning never rewrites old rows.
+   until their days have a good detect run. definition names what held means (active28_by_base_v3: the product's
+   active28 set with Recurring and Seasonal classed by base_state, on a day when every significant or jumping
+   series is on a measured lane), so a change of meaning never rewrites old rows.
    held_any is the earlier definition, held plus On the boards and New to 42. Observation only: no gate,
    threshold, card or hold reads it. */
 CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_agent.card_outcome` (

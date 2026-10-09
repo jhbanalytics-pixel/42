@@ -34,9 +34,10 @@ def brief(market="ZA", day=T, cards=(), more=(), held_items=(), status="publishe
             "payload": {"cards": list(cards), "more": list(more), "held_back": {"items": list(held_items)}}}
 
 
-def st(item_id, offset, state, lane="panel", market="ZA", untested=False, base=None):
+def st(item_id, offset, state, lane="panel", market="ZA", untested=False, base=None, signals=None):
     return {"metric_date": T + dt.timedelta(days=offset), "market": market, "item_id": item_id, "state": state,
-            "main_lane_class": lane, "untested": untested, "base_state": base}
+            "main_lane_class": lane, "untested": untested, "base_state": base,
+            "signal_lanes": [lane] if signals is None else signals}
 
 
 def by_item(rows):
@@ -529,7 +530,8 @@ def test_states_query_reads_base_state_and_every_table_is_partition_and_stage_pi
 
 def test_schema_carries_the_definition_and_the_columns_the_module_emits():
     text = SCHEMA.read_text(encoding="utf-8")
-    assert co.DEFINITION == "active28_by_base_v2"
+    assert co.DEFINITION == "active28_by_base_v3"
+    assert co.DEFINITION in text
     for col in ("definition STRING NOT NULL", "class_t3", "class_t14", "held_trust", "held_backtest", "held_any"):
         assert col in text, col
     rows = co.build_outcomes([brief(cards=[card("A", 1)])], [st("A", 7, "rising")], ALL_DAYS)
@@ -548,3 +550,72 @@ def test_markdown_prints_the_run_dates_actually_present():
 def test_an_overlay_whose_base_is_not_one_of_the_four_state_sql_keeps_is_other(base):
     r = one_card_outcome("seasonal", base=base)
     assert (r["class_t7"], r["held"], r["held_trust"], r["held_backtest"]) == ("other", False, False, False)
+
+
+# Measured over every series of the item that day (review finding 3), not the main series alone
+
+
+def one_card_with_signals(state, lane="panel", signals=None, **kw):
+    return co.build_outcomes([brief(cards=[card("X", 1)])], [st("X", 7, state, lane=lane, signals=signals, **kw)],
+                             ALL_DAYS)[0]
+
+
+@pytest.mark.parametrize("signals", [
+    ["panel", "search_presence"], ["unbiased_rank", "watchlist"], ["panel", "legacy"], ["unbiased_counter", "seed"],
+    ["panel", None], ["panel", "no_such_lane"], ["search_presence"]])
+def test_a_significant_or_jumping_series_on_an_unmeasured_lane_makes_the_day_unmeasured_even_with_a_panel_main(signals):
+    r = one_card_with_signals("rising", lane="panel", signals=signals)
+    assert r["class_t7"] == "unmeasured" and r["measured"] is False and r["held"] is False
+    assert r["held_trust"] is False and r["held_backtest"] is False and r["held_any"] is False
+
+
+@pytest.mark.parametrize("signals", [
+    [], ["panel"], ["unbiased_rank"], ["unbiased_counter"], ["unbiased_rank", "unbiased_counter", "panel"]])
+def test_signals_only_on_measured_lanes_or_none_leave_a_measured_main_series_measured(signals):
+    r = one_card_with_signals("on_the_boards", lane="panel", signals=signals)
+    assert r["class_t7"] == "listed" and r["measured"] is True
+
+
+def test_a_main_series_on_a_search_lane_stays_unmeasured_whatever_the_signals_say():
+    r = one_card_with_signals("rising", lane="search_presence", signals=["panel"])
+    assert r["class_t7"] == "unmeasured"
+
+
+def test_a_row_that_does_not_say_which_lanes_carried_the_signal_is_unmeasured_not_measured():
+    row = st("X", 7, "rising")
+    del row["signal_lanes"]
+    r = co.build_outcomes([brief(cards=[card("X", 1)])], [row], ALL_DAYS)[0]
+    assert r["class_t7"] == "unmeasured" and r["held"] is False
+    row["signal_lanes"] = None
+    r = co.build_outcomes([brief(cards=[card("X", 1)])], [row], ALL_DAYS)[0]
+    assert r["class_t7"] == "unmeasured"
+
+
+def test_a_search_lane_signal_on_one_day_does_not_unmeasure_another_day():
+    states = [st("X", 3, "rising", signals=["panel", "search_presence"]), st("X", 7, "peaking")]
+    r = co.build_outcomes([brief(cards=[card("X", 1)])], states, ALL_DAYS)[0]
+    assert (r["class_t3"], r["class_t7"]) == ("unmeasured", "confirmed")
+
+
+def test_states_query_returns_the_lanes_of_every_significant_or_jumping_series_for_the_item_and_day():
+    states = co.split_queries(SQL.read_text(encoding="utf-8"))["states"]
+    sig = re.search(r"sig AS \((.*?)\),\s*lane AS", states, flags=re.S).group(1)
+    assert "v_series_test_current" in sig and "st.metric_date BETWEEN @start AND @last" in sig
+    assert "ARRAY_AGG(DISTINCT IFNULL(st.lane_class, 'unknown')) signal_lanes" in sig
+    assert "st.significant OR (" in sig and "IGNORE NULLS" not in sig
+    assert "GROUP BY st.market, st.item_id, st.metric_date" in sig
+    final = states[states.rindex("SELECT s.metric_date"):]
+    assert "IFNULL(sg.signal_lanes, []) signal_lanes" in final
+    assert "LEFT JOIN sig sg ON sg.market = s.market AND sg.item_id = s.item_id AND sg.metric_date = s.metric_date" in final
+
+
+def state_jump_predicate():
+    m = re.search(r"LOGICAL_OR\((t\.lane_class != 'unbiased_rank' AND [^)]*?)\) jump_today", STATE_SQL_TEXT)
+    return re.sub(r"\bt\.", "st.", m.group(1))
+
+
+def test_the_jump_predicate_in_the_states_query_is_the_one_state_sql_uses_for_jump_today():
+    states = co.split_queries(SQL.read_text(encoding="utf-8"))["states"]
+    assert state_jump_predicate() == ("st.lane_class != 'unbiased_rank' AND st.obs_prior >= 5 AND st.y >= 8 "
+                                      "AND st.y >= 3 * st.med")
+    assert f"({state_jump_predicate()})" in states

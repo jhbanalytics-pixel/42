@@ -44,9 +44,9 @@ class Client:
                             "held_json": json.dumps([{"item_id": "H", "reason": "not_confirmed", "rule": "G3"}])}],
             "main_lane_class": [
                 {"metric_date": dt.date(2026, 10, 1), "market": "ZA", "item_id": "A", "state": self.states[1],
-                 "untested": False, "main_lane_class": "panel"},
+                 "untested": False, "main_lane_class": "panel", "signal_lanes": ["panel"]},
                 {"metric_date": dt.date(2026, 10, 1), "market": "ZA", "item_id": "H", "state": self.states[2],
-                 "untested": False, "main_lane_class": "search_presence"}],
+                 "untested": False, "main_lane_class": "search_presence", "signal_lanes": ["search_presence"]}],
             "SELECT DISTINCT g.run_date": [{"run_date": dt.date(2026, 10, 1) + dt.timedelta(days=i - 7)} for i in range(0, 20)],
         }[name]
         return Job(rows, estimate, 10 * 1024 * 1024)

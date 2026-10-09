@@ -9,14 +9,17 @@ threshold, a card or a hold.
 briefs are rows of agent.briefs (brief_date, market, run_id, published_at, status, payload). Only payload.cards,
 payload.more and payload.held_back.items are read, and of those only item_id, rank, state, reason and rule. states
 are item_state rows read through v_item_state_current (metric_date, market, item_id, state, base_state,
-main_lane_class), where main_lane_class is the lane class of the row's main series in v_series_test_current.
+main_lane_class, signal_lanes), where main_lane_class is the lane class of the row's main series in
+v_series_test_current and signal_lanes lists the lane class of every series of the item that day that is significant
+or jumping.
 detect_days is every date with a good detect run: a day outside it has no item_state at all, so nothing on it is
 an absence.
 
 A published card or held item is followed to t + 3, t + 7 and t + 14. On each later day it falls in one class:
 
     pending      the day has no good detect run yet (or never will)
-    unmeasured   an item_state row exists but its main series is not on a measured lane, so it labels nothing
+    unmeasured   an item_state row exists but its main series, or any significant or jumping series of the item
+                 that day, is not on a measured lane, so it labels nothing
     confirmed    measured, and Emerging, Rising, Peaking or Mainstream
     unconfirmed  measured, and Spike
     listed       measured, and On the boards or New to 42
@@ -38,7 +41,7 @@ of this module called held.
 Only unbiased_rank, unbiased_counter and panel lanes measure (DATA.md 3.2). Posts found by the seed loop or by
 search (search_presence, watchlist, legacy) never label an outcome. The lane class comes from the series_test row
 the later item_state row points at, a table other than the one being labelled, and is checked here against the
-pinned MEASURED_LANES; nothing in the input can declare a row measured.
+pinned MEASURED_LANES; nothing in the input can declare a row measured. A row without signal_lanes is unmeasured.
 
 The headline is t + 7. A rate is over the rows with a decided class (held, listed, collapsed or other); unmeasured
 and pending rows are counted beside it and never in its denominator. A rate is printed only from 30 decided rows.
@@ -51,7 +54,7 @@ from statistics import NormalDist
 
 from core.detect.backtest import PERSISTING
 
-DEFINITION = "active28_by_base_v2"
+DEFINITION = "active28_by_base_v3"
 MEASURED_LANES = frozenset({"unbiased_rank", "unbiased_counter", "panel"})
 CONFIRMED_STATES = (*PERSISTING, "mainstream")
 UNCONFIRMED_STATES = ("spike",)
@@ -112,6 +115,14 @@ def _index_states(states):
     return idx
 
 
+def _measured(row):
+    """The main series and every significant or jumping series of the item that day are on measured lanes. A row
+    that does not carry signal_lanes cannot show that, so it never measures."""
+    signals = row.get("signal_lanes")
+    return (row.get("main_lane_class") in MEASURED_LANES and isinstance(signals, (list, tuple))
+            and all(lane in MEASURED_LANES for lane in signals))
+
+
 def _classify(idx, detect_days, day, market, item_id):
     """(class, state shown, state underneath any overlay) for the item on a later day."""
     if day not in detect_days:
@@ -122,7 +133,7 @@ def _classify(idx, detect_days, day, market, item_id):
     state = _state(row.get("state"))
     base = _state(row.get("base_state"))
     eff = (base if base in BASE_STATES else None) if state in OVERLAY_STATES else state
-    if row.get("main_lane_class") not in MEASURED_LANES:
+    if not _measured(row):
         return "unmeasured", state, eff
     if eff in CONFIRMED_STATES:
         return "confirmed", state, eff
