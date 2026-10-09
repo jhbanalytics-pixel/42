@@ -55,14 +55,14 @@ def test_state_reads_the_rows_the_step_wrote_in_the_same_run(con, monkeypatch): 
     assert rows and {(r["locality_basis"], r["locality_status"]) for r in rows} == {("locality_v2.1", "market_unconfirmed")}
 
 
-def test_a_failed_step_leaves_every_row_unreadable_and_the_run_going(con, monkeypatch):  # noqa: F811
+def test_a_failed_step_leaves_every_row_missing_and_the_run_going(con, monkeypatch):  # noqa: F811
     world(con)
     order(monkeypatch, "v2")
     monkeypatch.setattr(locality, "run_locality_step", lambda *a, **k: 1 / 0)
     counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
     assert counts["locality"]["status"] == "failed"
     rows = duck.query(con, "SELECT s.eligible, s.locality_status FROM {core}.item_state s WHERE s.metric_date = @d", {"d": D})
-    assert rows and {(r["eligible"], r["locality_status"]) for r in rows} == {(True, "unreadable")}
+    assert rows and {(r["eligible"], r["locality_status"]) for r in rows} == {(True, "missing")}
 
 
 @pytest.mark.parametrize(("authority", "version"), [("v1", "warmup-1"), ("v2", "warmup-2")])

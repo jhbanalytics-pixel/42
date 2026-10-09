@@ -82,7 +82,7 @@ def test_state_reads_this_runs_locality_row_while_the_detect_run_is_running(con)
             if k in ("d1", "d3", "none")} == {
         "d1": (True, False, V2, "market_unconfirmed"),     # v1 rejects, v2 admits
         "d3": (False, True, V2, "not_local"),              # v1 admits, v2 rejects
-        "none": (True, True, V2, "unreadable")}            # no row: carried, not dropped, not not_local
+        "none": (True, True, V2, "missing")}               # no visible row: carried, not dropped, not not_local
 
 
 def test_in_v1_mode_eligible_is_the_v1_expression_even_when_a_v2_row_disagrees(con):
@@ -98,7 +98,7 @@ def test_a_row_without_a_verification_row_reads_as_missing_in_v2_mode(con):
     put(con, "d3", 8, 0, "not_local")
     con.execute("DELETE FROM core.item_locality_verified")
     v2 = state(con, "v2")["d3"]
-    assert (v2["eligible"], v2["locality_status"]) == (True, "unreadable")
+    assert (v2["eligible"], v2["locality_status"]) == (True, "missing")
 
 
 def test_the_v1_columns_keep_their_names_and_values_when_v2_is_authoritative(con):
@@ -115,3 +115,15 @@ def test_the_insert_names_its_columns_so_the_widened_table_does_not_break_the_po
     assert len(table) == 39 and table[-3:] == ["eligible_v1", "locality_basis", "locality_status"]
     values, named = insert_shape((SQL / "state.sql").read_text(encoding="utf-8"))
     assert values == len(table) and named == table
+
+
+def test_a_key_with_no_visible_row_is_missing_and_a_visible_row_that_contradicts_itself_is_unreadable(con):
+    """C4 v3 7.2, 8.4 and review M9 keep the two apart: missing is no visible row (never written, or not verified),
+    unreadable is a visible row the checked view cannot trust. Both are carried as eligible so the brief can hold them,
+    neither is not_local, and the side consumers skip both."""
+    world(con)
+    put(con, "d1", 9, 0, "local")                      # stored status local, counts say not_local: unreadable
+    put(con, "d3", 8, 0, "not_local")
+    con.execute("DELETE FROM core.item_locality_verified WHERE item_id = 'd3'")      # written but never verified
+    got = {k: (v["eligible"], v["locality_status"]) for k, v in state(con, "v2").items() if k in ("d1", "d3", "none")}
+    assert got == {"d1": (True, "unreadable"), "d3": (True, "missing"), "none": (True, "missing")}

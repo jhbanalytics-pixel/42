@@ -704,11 +704,11 @@ sc AS (
     IF(state_level(s.state_raw) < state_level(s.state_yesterday)
        AND state_level(s.raw_yesterday) >= state_level(s.state_yesterday), s.state_yesterday, s.state_raw) state,
     s.state_raw IS NOT NULL AND s.authenticity != 'likely_coordinated'
-      AND IF(@authority = 'v2', IFNULL(s.locality_checked, 'unreadable') != 'not_local', s.geo_status != 'not_local')
+      AND IF(@authority = 'v2', IFNULL(s.locality_checked, 'missing') != 'not_local', s.geo_status != 'not_local')
       AND s.map_status = 'active' eligible,
     s.state_raw IS NOT NULL AND s.authenticity != 'likely_coordinated' AND s.geo_status != 'not_local'
       AND s.map_status = 'active' eligible_v1,
-    IF(@authority = 'v2', IFNULL(s.locality_checked, 'unreadable'), NULL) locality_status,
+    IF(@authority = 'v2', IFNULL(s.locality_checked, 'missing'), NULL) locality_status,
     PERCENT_RANK() OVER (PARTITION BY s.market, s.kind
       ORDER BY IFNULL(-LOG10(GREATEST(s.p_min, 1e-12)), 0), (s.main.y + 1) / (IFNULL(s.main.mu, s.main.med) + 1)) surge,
     PERCENT_RANK() OVER (PARTITION BY s.market, s.kind ORDER BY IFNULL(s.main.vel, 0) + .5 * IFNULL(s.main.accel, 0)) momentum,
