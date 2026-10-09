@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from core.api import dossiers, finding_save, investigations, privacy, skins, summary_state
+from core.api import dossiers, finding_save, fixture_states, investigations, privacy, skins, summary_state
 from core.api.store import SUPPRESSIONS, viewer_record
 # The watch list read and its table live in core/api/watchlist.py so the f42-digest job can read watches
 # without fastapi; WATCHES and _lock are the same objects there and here.
@@ -242,7 +242,8 @@ def fixture_state(request, answer, run):
 
 def fixture_agent(request, emit, should_stop):
     question = request["question"].lower()
-    failing = re.search(r"\bfail", question) is not None
+    fixture = os.environ.get("F42_FIXTURE_STATE")  # one fixture of C1 v2 section 7 (P-19), by its id
+    failing = re.search(r"\bfail", question) is not None or fixture == fixture_states.FAILS
     name = "ask_partial.json" if re.search(r"\bthin\b", question) else "ask_complete.json"
     record = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
     answer, run = record["answer"], record["run"]
@@ -274,6 +275,9 @@ def fixture_agent(request, emit, should_stop):
         time.sleep(delay)
     if failing:
         raise RuntimeError("fixture agent failed on purpose")
+    if fixture:
+        answer, meta = fixture_states.build(fixture, request, answer, run)
+        return {"answer": answer, "run": run, **({"answer_meta": meta} if meta else {})}
     return {"answer": answer, "run": run, "answer_meta": fixture_state(request, answer, run)}
 
 
@@ -363,14 +367,18 @@ def execute(ask, run_ask, after=None):
         ask.receipts = result.get("query_receipts")
         update = {"status": "stopped" if ask.stop else "complete",
                   "answer": result.get("answer"), "run": result.get("run")}
-        keep_state(ask, update, result.get("answer_meta"))
+        meta = result.get("answer_meta")
     except Exception as exc:
         log.exception("ask %s failed", ask.request["ask_id"])
         failure = model_failure(exc)
         error = ({"error": "model_unavailable", "message": MODEL_UNAVAILABLE, **failure} if failure else
                  {"error": "internal", "message": f"The agent hit an error and could not finish ({type(exc).__name__})."})
         update = {"status": "failed", "answer": None, "run": failed_run(_run_of(exc)), "error": error}
-        keep_state(ask, update, failed_state(ask, update))
+        meta = failed_state(ask, update)
+    try:  # the metadata code has its own try block: a fault in it never fails a paid answer or a failed record
+        keep_state(ask, update, meta)
+    except Exception as exc:
+        log.error("ask %s: answer_meta not stored: %s", ask.request["ask_id"], type(exc).__name__)
     with ask.cond:
         ask.record.update(update)
         ask.record["finished_at"] = now(ask.request.get("market")).isoformat()

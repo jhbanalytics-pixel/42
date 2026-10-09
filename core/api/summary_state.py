@@ -11,7 +11,8 @@ log = logging.getLogger("f42.api.summary_state")
 NEUTRAL = "The one-line summary is not available for this answer."
 OMITTED = "The one-line summary is left out because not every finding is kept."
 WIRE_CHECKS = ("verified", "legacy_unknown", "unverified")
-UNAVAILABLE = {"check": "unverified", "problem": "answer_state_unavailable"}
+# A fault in the state code reads as a value that could not be read, a code C1 5.1 already lists.
+UNAVAILABLE = {"check": "unverified", "problem": "shape"}
 
 
 def module():

@@ -4,6 +4,7 @@ Lane 1's core/agent/answer_state.py is the producer and the verifier; these test
 through the real execute, the real agent routes and f42-api's own routes. Only code sets the state: the model's
 metadata is rejected, a forged value reads as unverified, and a record without one reads as legacy."""
 import copy
+import html
 import json
 import logging
 import time
@@ -170,6 +171,7 @@ def test_a_run_that_raised_stores_the_failed_state_p03(agent, with_run):
     assert held["status"] == "failed" and held["answer"] is None
     meta = held["answer_meta"]
     assert meta["execution"]["state"] == "failed" and meta["summary"]["state"] == "no_answer"
+    assert meta["check_run_id"] == ("r_20261007_failed1" if with_run else None)  # the partial run's id, else none
     assert answer_state.verify_stored(held) is None
     assert json.loads(agent_app.SINK[-1]["record"])["answer_meta"] == meta
 
@@ -212,6 +214,7 @@ def test_the_fixture_agent_returns_a_state_the_verifier_accepts_p19(agent):
     assert record["answer_meta"]["check"] == "verified" and answer_state.check_wire(record) is None
     stored = json.loads(agent_app.SINK[-1]["record"])
     assert answer_state.verify_stored(stored) is None
+    assert stored["answer_meta"]["check_run_id"] == record["run"]["run_id"]
 
 
 # What the agent route and f42-api send the browser: the wire value, never the stored one (P-06, P-10).
@@ -279,7 +282,6 @@ def test_a_real_ask_through_the_real_agent_and_the_api_passes_the_wire_check_p07
 
 
 def test_a_running_record_has_no_state_and_a_finished_one_has_the_same_state_on_every_poll_p10(api):
-    release = {}
     ask = agent_app.Ask({"ask_id": ASK, "question": "q", "market": "ZA"})
     agent_app.ASKS[ASK] = ask
     first = api.client.get(f"/api/ask/{ASK}", headers=GOOD).json()
@@ -289,7 +291,9 @@ def test_a_running_record_has_no_state_and_a_finished_one_has_the_same_state_on_
                                                     "answer_meta": meta_for(record, kw)})
     polls = [api.client.get(f"/api/ask/{ASK}", headers=GOOD).json()["answer_meta"] for _ in range(3)]
     assert polls[0] == polls[1] == polls[2] and polls[0]["check"] == "verified"
-    del release
+    agent_app.ASKS.clear()  # past the hour: the runs row the sink wrote is what a reader gets
+    api.store.records[ASK] = json.loads(agent_app.SINK[-1]["record"])
+    assert api.client.get(f"/api/ask/{ASK}", headers=GOOD).json()["answer_meta"] == polls[0]
 
 
 # Forged, missing and legacy values (P-11, N series).
@@ -301,22 +305,31 @@ def test_a_record_with_no_state_reads_as_legacy_p11(api):
     assert body["answer_meta"] == {"check": "legacy_unknown"} and "answer" in body
 
 
-@pytest.mark.parametrize("edit, problem", [
-    (lambda m: m["summary"].update(state="removed"), "digest"),
-    (lambda m: m.update(digest="sha256:" + "0" * 64), "digest"),
-    (lambda m: m.update(v=2), "version"),
-    (lambda m: m.update(extra=1), "shape"),
-    (lambda m: m.update(check="verified"), "forbidden_key"),
-    (lambda m: m.update(ask_id="a_other"), "ids"),
+def recomputed(meta):
+    meta["digest"] = answer_state.digest_of(meta)
+
+
+@pytest.mark.parametrize("edit, problem, redo", [
+    (lambda m: m["summary"].update(state="removed"), "digest", False),
+    (lambda m: m.update(digest="sha256:" + "0" * 64), "digest", False),
+    (lambda m: m.update(v=2), "version", False),
+    (lambda m: m.update(extra=1), "shape", False),
+    (lambda m: m.update(check="verified"), "forbidden_key", False),
+    (lambda m: m.update(ask_id="a_other"), "digest", False),
+    (lambda m: m.update(ask_id="a_other"), "ids", True),
+    (lambda m: m.update(check_run_id="r_other"), "ids", True),
+    (lambda m: m["bound"].update(claims=9), "bound", True),
+    (lambda m: m["summary"].update(state="blank_unexplained"), "pairing", True),
+    (lambda m: m["summary"].update(rewrite="kept"), "reasons", True),
 ])
-def test_a_forged_stored_state_reads_as_unverified_and_passes_on_no_claim_p06(api, edit, problem):
+def test_a_forged_stored_state_reads_as_unverified_with_the_step_that_caught_it_p06(api, edit, problem, redo):
     record = with_meta("shown")
     edit(record["answer_meta"])
+    if redo:
+        recomputed(record["answer_meta"])  # a competent forgery: the digest is right, a later step must still refuse it
     api.store.records[ASK] = record
     wire = api.client.get(f"/api/ask/{ASK}", headers=GOOD).json()["answer_meta"]
-    assert wire["check"] == "unverified" and set(wire) == {"check", "problem"}
-    if problem in ("version", "shape", "forbidden_key", "ids"):
-        assert wire["problem"] == problem or wire["problem"] in ("digest", "shape", "version", "forbidden_key", "ids")
+    assert wire == {"check": "unverified", "problem": problem}
 
 
 def test_a_state_that_a_recomputed_digest_cannot_save_is_unverified_by_what_it_is_bound_to_p06(api):
@@ -675,3 +688,238 @@ def test_a_scheduled_ask_keeps_its_state_and_the_schedule_run_id_p18(agent, monk
     assert held["answer_meta"]["check_run_id"] == rid and answer_state.verify_stored(held) is None
     assert answer_state.meta_view(held)["check"] == "verified"
     assert json.loads(agent_app.SINK[-1]["record"])["answer_meta"]["check_run_id"] == rid
+
+
+# P-19: F42_FIXTURE_STATE makes the fixture agent return a fixture of C1 v2 section 7. The expected states are typed
+# here from the catalogue, never read back from the module that builds them.
+CATALOGUE = {  # id: (execution, stop_reason, summary state, removals, rewrite, record status, answer status)
+    "F01": ("completed", None, "shown", [], "not_attempted", "complete", "complete"),
+    "F02": ("completed", None, "shown_rewritten", [("support_check", "claim_cut")], "kept", "complete", "partial"),
+    "F03": ("completed", None, "shown_rewritten", [("support_check", "claim_narrowed")], "kept", "complete", "complete"),
+    "F04": ("completed", None, "fixed_text", [], "not_attempted", "complete", "insufficient_evidence"),
+    "F06": ("stopped_on_budget", "budget_full", "fixed_text", [], "not_attempted", "complete", "insufficient_evidence"),
+    "F07": ("stopped_on_budget", "model_call_unverified", "fixed_text", [], "not_attempted", "complete",
+            "insufficient_evidence"),
+    "F08": ("refused_budget_spent", None, "fixed_text", [], "not_attempted", "complete", "insufficient_evidence"),
+    "F10": ("completed", None, "removed", [("first_check", "K6")], "not_attempted", "complete", "partial"),
+    "F11": ("completed", None, "removed", [("first_check", "K2")], "not_attempted", "complete", "partial"),
+    "F12a": ("completed", None, "removed", [("support_check", "claim_cut")], "empty", "complete", "partial"),
+    "F12b": ("completed", None, "removed", [("support_check", "claim_cut")], "call_failed", "complete", "partial"),
+    "F12c": ("completed", None, "removed", [("support_check", "claim_cut")], "no_budget", "complete", "partial"),
+    "F13": ("completed", None, "removed", [("support_check", "claim_cut"), ("support_check", "claim_narrowed")],
+            "repeated_removed_claim", "complete", "partial"),
+    "F14": ("completed", None, "removed", [("support_check", "claim_cut"), ("recheck", "K6")], "removed_after_check",
+            "complete", "partial"),
+    "F15a": ("completed", None, "removed", [("support_check", "claim_cut"), ("field_check", "K9")],
+             "removed_after_check", "complete", "partial"),
+    "F15b": ("completed", None, "removed", [("field_check", "K6")], "not_attempted", "complete", "partial"),
+    "F16": ("completed", None, "removed", [("field_check", "field_unchecked")], "not_attempted", "complete", "partial"),
+    "F17": ("completed", None, "removed", [("support_check", "claim_cut"), ("critic", "claim_cut")],
+            "removed_after_check", "complete", "partial"),
+    "F18": ("completed", None, "blank_unexplained", [], "not_attempted", "complete", "complete"),
+}
+
+
+def ask_with_fixture(api, monkeypatch, fixture_id):
+    monkeypatch.setenv("F42_FIXTURE_STATE", fixture_id)
+    r = api.client.post("/api/ask", headers=GOOD, json={"question": "What is behind #fixture in South Africa this week?",
+                                                        "market": "ZA", "wait": True})
+    return r.json()
+
+
+@pytest.mark.parametrize("fixture_id", sorted(CATALOGUE))
+def test_the_fixture_agent_returns_the_state_the_catalogue_names_p19(api, monkeypatch, fixture_id):
+    from core.agent.answer import validate_answer
+    execution, stop_reason, summary, removals, rewrite, status, answer_status = CATALOGUE[fixture_id]
+    got = ask_with_fixture(api, monkeypatch, fixture_id)
+    meta = got["answer_meta"]
+    assert meta["check"] == "verified" and answer_state.check_wire(got) is None
+    assert (meta["execution"]["state"], meta["execution"]["stop_reason"]) == (execution, stop_reason)
+    assert meta["summary"] == {"state": summary, "removals": [{"stage": s, "cause": c} for s, c in removals],
+                               "rewrite": rewrite}
+    assert got["status"] == status and got["answer"]["status"] == answer_status
+    assert validate_answer(got["answer"]) == []
+    stored = json.loads(agent_app.SINK[-1]["record"])
+    assert answer_state.verify_stored(stored) is None and stored["answer_meta"]["check_run_id"] == got["run"]["run_id"]
+
+
+@pytest.mark.parametrize("fixture_id", sorted(CATALOGUE))
+def test_the_release_smoke_reads_each_fixture_as_the_catalogue_says_p19(api, monkeypatch, fixture_id):
+    smoke = release_smoke()
+    got = ask_with_fixture(api, monkeypatch, fixture_id)
+    ok, why = smoke.check_ask_record(api.client.get(f"/api/ask/{got['ask_id']}", headers=GOOD).json())
+    assert ok is (fixture_id != "F18"), why  # a blank summary nobody explained is the one the smoke refuses
+
+
+@pytest.mark.parametrize("fixture_id", ["F19", "F20"])
+def test_the_legacy_fixtures_carry_no_state_and_read_as_legacy_p19(api, monkeypatch, fixture_id):
+    smoke = release_smoke()
+    got = ask_with_fixture(api, monkeypatch, fixture_id)
+    assert got["answer_meta"] == {"check": "legacy_unknown"} and got["answer"]["short_answer"] == ""
+    assert "answer_meta" not in json.loads(agent_app.SINK[-1]["record"])
+    ok, why = smoke.check_ask_record(got)
+    assert ok is False and "no verified answer state" in why
+
+
+def test_f09_fails_the_run_and_stores_the_failed_state_and_an_unknown_id_fails_it_too_p19(api, monkeypatch):
+    got = ask_with_fixture(api, monkeypatch, "F09")
+    assert got["status"] == "failed" and got["answer_meta"]["execution"]["state"] == "failed"
+    for fixture_id in ("F05", "F99"):
+        got = ask_with_fixture(api, monkeypatch, fixture_id)
+        assert got["status"] == "failed", fixture_id
+
+
+def test_without_the_variable_the_fixture_agent_is_what_it_was_p19(api, monkeypatch):
+    monkeypatch.delenv("F42_FIXTURE_STATE", raising=False)
+    got = api.client.post("/api/ask", headers=GOOD, json={"question": "What is behind #fixture in South Africa this week?",
+                                                          "market": "ZA", "wait": True}).json()
+    assert got["answer_meta"]["summary"]["state"] == "shown" and got["answer"]["status"] == "complete"
+
+
+# C1 3 item 8: the metadata code runs in its own try block, so a fault in it can fail neither a paid answer nor the
+# record of a failed run.
+def test_a_fault_in_keeping_the_state_never_fails_the_answer_or_the_failed_record_p02b(agent, monkeypatch, caplog):
+    record, kw = make("shown")
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("keep broke")
+
+    monkeypatch.setattr(agent_app, "keep_state", boom)
+    with caplog.at_level(logging.ERROR, logger="f42-agent"):
+        ask = run_execute({"answer": record["answer"], "run": record["run"], "answer_meta": meta_for(record, kw)})
+    held = ask.snapshot()
+    assert held["status"] == "complete" and held["answer"] == record["answer"] and "answer_meta" not in held
+    assert ask.finished.is_set() and agent_app.SINK and "answer_meta" in caplog.text
+    failed = run_execute(raises=RuntimeError("the agent broke")).snapshot()
+    assert failed["status"] == "failed" and failed["error"]["error"] == "internal"
+
+
+def test_a_run_that_returns_no_state_logs_no_error_p02(agent, caplog):
+    record, _ = make("shown")
+    with caplog.at_level(logging.DEBUG, logger="f42-agent"):
+        run_execute({"answer": record["answer"], "run": record["run"]})
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+
+
+# An a80 agent knows nothing of the state: its records read as legacy on every live read (the live half of P-11).
+def test_an_older_agents_live_read_wait_post_and_investigation_read_as_legacy_p11(api, monkeypatch):
+    from core.api.tests.test_privacy_ask_routes import older_agent
+    record = ask_record()
+    record["run"] = {"run_id": "r_x"}
+    inv = {"investigation_id": "i_0123456789ab", "status": "complete", "question": "q", "plan": {}, "record": record}
+    payloads = {f"/api/ask/{ASK}": (200, record), "/api/ask": (200, record),
+                "/api/investigations/i_0123456789ab": (200, inv)}
+    monkeypatch.setattr(core.api, "agent_app", types.SimpleNamespace(app=older_agent(payloads)), raising=False)
+    live = api.client.get(f"/api/ask/{ASK}", headers=GOOD).json()
+    posted = api.client.post("/api/ask", headers=GOOD, json={"question": "q", "wait": True}).json()
+    investigated = api.client.get("/api/investigations/i_0123456789ab", headers=GOOD).json()["record"]
+    for got in (live, posted, investigated):
+        assert got["answer_meta"] == {"check": "legacy_unknown"}
+
+
+# The hop from f42-agent: only a well formed wire value that fits its record is passed on (C1 5.2).
+def test_the_agent_hop_keeps_a_well_formed_value_and_refuses_the_rest():
+    from core.api import summary_state
+    record = with_meta("shown")
+
+    def hop(meta):
+        return summary_state.with_wire({**record, "answer_meta": meta}, from_agent=True)["answer_meta"]
+
+    assert hop({"check": "legacy_unknown"}) == {"check": "legacy_unknown"}
+    assert hop({"check": "legacy_unknown", "extra": 1}) == {"check": "unverified", "problem": "shape"}
+    assert hop({"check": "unverified", "problem": "digest"}) == {"check": "unverified", "problem": "digest"}
+    for bad in ({"check": "unverified"}, {"check": "unverified", "problem": 7},
+                {"check": "unverified", "problem": "digest", "extra": 1}):
+        assert hop(bad) == {"check": "unverified", "problem": "shape"}, bad
+    assert hop(wire_of(record)) == wire_of(record)
+
+
+def test_a_fault_in_the_state_code_reads_as_unverified_with_a_listed_problem_code(monkeypatch):
+    from core.api import summary_state
+    listed = {"while_running", "shape", "forbidden_key", "version", "enum", "digest", "ids", "bound", "pairing",
+              "reasons"}  # the codes of C1 5.1
+    assert summary_state.UNAVAILABLE == {"check": "unverified", "problem": "shape"}
+    assert summary_state.UNAVAILABLE["problem"] in listed
+    record = with_meta("shown")
+
+    def boom(_record):
+        raise RuntimeError("broke")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(answer_state, "meta_view", boom)
+        assert summary_state.wire(record) == summary_state.UNAVAILABLE
+        assert summary_state.with_wire(record)["answer_meta"] == summary_state.UNAVAILABLE
+    monkeypatch.setattr(answer_state, "check_wire", boom)
+    sent = {**record, "answer_meta": wire_of(record)}
+    assert summary_state.with_wire(sent, from_agent=True)["answer_meta"] == summary_state.UNAVAILABLE
+    assert summary_state.with_wire("not a record") == "not a record"
+    assert summary_state.with_wire({"x": 1}) == {"x": 1}
+
+
+# The sentence a reader gets for each removal, written here from C1 2.6 (never read back from the module).
+CUT = "The one-line summary was removed after a claim it may have rested on did not pass its checks."
+PLACE = ("The one-line summary was removed because it named a place no cited post is located in, or relied on a post "
+         "outside the question's window or market.")
+TERM = "The one-line summary was removed because it used a term or source the trust rules do not allow."
+REMOVAL_SENTENCES = {
+    ("first_check", "K2"): "The one-line summary was removed because it used a figure that no checked finding holds.",
+    ("first_check", "K3"): PLACE,
+    ("first_check", "K6"): TERM,
+    ("recheck", "K6"): TERM,
+    ("first_check", "K8"): "The one-line summary was removed because it quoted words that are not in the posts it cites.",
+    ("recheck", "K9"): ("The one-line summary was removed because it made a forecast, and forecasts stay held until "
+                        "they beat a simple no-change forecast."),
+    ("support_check", "claim_cut"): CUT,
+    ("critic", "claim_cut"): CUT,
+    ("support_check", "claim_narrowed"): ("The one-line summary was removed after a claim it may have rested on was "
+                                          "narrowed."),
+    ("field_check", "K6"): ("The one-line summary was removed because the text check found it describes people in a "
+                            "way the trust rules do not allow."),
+    ("field_check", "K3"): PLACE,
+    ("field_check", "field_unchecked"): ("The one-line summary was too long to check with the posts it rests on, so it "
+                                         "was left out."),
+    ("first_check", "unattributed"): "The one-line summary was removed by the checks.",
+}
+AFTER_CHECK = " A rewritten summary did not pass the checks either."
+
+
+def removed_record(removals, rewrite="not_attempted"):
+    record, kw = make("removed")
+    record["answer_meta"] = meta_for(record, kw, removals=removals, rewrite=rewrite)
+    return record
+
+
+@pytest.mark.parametrize("removal", sorted(REMOVAL_SENTENCES))
+def test_each_removal_is_explained_in_its_own_words_in_the_export_and_the_dossier_p13(removal):
+    from core.api import summary_state
+    record = removed_record([removal])
+    assert summary_state.summary_sentence(wire_of(record)) == REMOVAL_SENTENCES[removal]
+    assert REMOVAL_SENTENCES[removal] in html.unescape(short_answer_section(export.render_answer_html(record)))
+    body = build_body(record, ["c1", "c2", "c3", "c4"])
+    frozen = dossiers.freeze(body, version=2, created_at="2026-10-07T11:00:00+02:00", ticks={})
+    assert REMOVAL_SENTENCES[removal] in html.unescape(dossiers.render_html(frozen))
+
+
+def test_a_rewrite_that_failed_its_checks_adds_its_sentence_and_only_then_p13():
+    from core.api import summary_state
+    for removals in ([("recheck", "K6")], [("support_check", "claim_cut"), ("field_check", "K9")],
+                     [("support_check", "claim_cut"), ("critic", "claim_cut")]):
+        record = removed_record(removals, "removed_after_check")
+        first = REMOVAL_SENTENCES[removals[0]]
+        assert summary_state.summary_sentence(wire_of(record)) == first + AFTER_CHECK
+        assert first + AFTER_CHECK in html.unescape(short_answer_section(export.render_answer_html(record)))
+    plain = removed_record([("support_check", "claim_cut")], "empty")
+    assert AFTER_CHECK not in summary_state.summary_sentence(wire_of(plain))
+
+
+# summary_state and source_answer_meta are structure: no handle can rewrite an enum word in them.
+def test_a_dossier_view_keeps_its_summary_state_words_under_a_skin_mask_p12():
+    from core.api import skins
+    assert {"summary_state", "source_answer_meta", "answer_meta"} <= skins.STRUCTURAL
+    body = build_body(with_meta("removed"), ["c1", "c2", "c3", "c4"])
+    view = dossiers.shown(body)
+    assert view["summary_state"] == "removed" and view["source_answer_meta"]["summary"]["state"] == "removed"
+    view["evidence"].append({"id": "tiktok_1", "platform": "tiktok", "handle": "removed", "url": "u",
+                             "posted_at": "2026-10-05T09:00:00+02:00", "market": "ZA", "text": "x"})
+    masked = skins.mask_people(view, [], [])
+    assert masked["summary_state"] == "removed" and masked["source_answer_meta"] == view["source_answer_meta"]
