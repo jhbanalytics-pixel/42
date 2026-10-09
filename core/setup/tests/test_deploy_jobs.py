@@ -420,7 +420,8 @@ def test_dockerfile_builds_one_non_root_image_with_the_routes_file_and_no_secret
     assert any(ln.startswith("RUN pip install") and "requirements-jobs.txt" in ln for ln in lines)
     users = [ln for ln in lines if ln.startswith("USER ")]
     assert users and users[-1] not in ("USER root", "USER 0")
-    assert not re.search(r"SOCIALCRAWL|API_KEY|TOKEN|PASSWORD|SECRET|^ARG ", "\n".join(lines), re.I | re.M)
+    assert not re.search(r"SOCIALCRAWL|API_KEY|TOKEN|PASSWORD|SECRET", "\n".join(lines), re.I | re.M)
+    assert [ln for ln in lines if ln.startswith("ARG ")] == ["ARG GIT_SHA=unknown"]  # the commit sha is the one build argument
 
 
 def test_dockerfile_installs_the_understand_cluster_requirements_and_bertopic_with_no_dependencies():
@@ -1357,3 +1358,11 @@ def test_apply_when_the_digest_is_ready_deploys_it_as_it_is_and_starts_nothing(m
     assert (f"{DIGEST_JOB}: python -m core.api.digest --send as f42-agent, timeout 0:10:00, 1 task, max retries 1, "
             "GMAIL_APP_PASSWORD mounted, env F42_DATA=bigquery,F42_PROJECT=ogilvy-trends-v2,"
             "GMAIL_USER=jhb.analytics@gmail.com\n") in out
+
+
+def test_cloudbuild_config_passes_the_commit_sha_to_the_image_as_the_git_sha_build_argument():
+    cfg = yaml.safe_load((SETUP / "cloudbuild.jobs.yaml").read_text(encoding="utf-8"))
+    args = cfg["steps"][0]["args"]
+    assert args[args.index("--build-arg") + 1] == "GIT_SHA=${_TAG}"
+    built = dj.build_request(SHA)["steps"][0]["args"]
+    assert built[built.index("--build-arg") + 1] == f"GIT_SHA={SHA}"

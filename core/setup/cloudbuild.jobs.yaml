@@ -4,7 +4,7 @@
 # _TAG has no default, so a build without it fails instead of pushing an untraceable image.
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: ["build", "-f", "core/setup/jobs.Dockerfile", "-t", "${_IMAGE}:${_TAG}", "."]
+    args: ["build", "-f", "core/setup/jobs.Dockerfile", "--build-arg", "GIT_SHA=${_TAG}", "-t", "${_IMAGE}:${_TAG}", "."]
 images:
   - "${_IMAGE}:${_TAG}"
 substitutions:

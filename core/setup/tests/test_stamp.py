@@ -272,3 +272,11 @@ def test_the_stamp_reads_no_secret_and_makes_no_network_call():
     text = Path(stamp.__file__).read_text(encoding="utf-8").lower()
     for word in ("secret", "token", "credential", "requests", "urllib", "socket", "subprocess", "google"):
         assert word not in text, word
+
+
+def test_data_md_documents_the_runs_stamp_column_the_schema_adds():
+    root = Path(__file__).resolve().parents[3]
+    data = (root / "docs" / "full-42" / "DATA.md").read_text(encoding="utf-8")
+    runs = next(line for line in data.splitlines() if line.startswith("- In intelligence_42_agent: runs ("))
+    assert "stamp: JSON" in runs.split("findings (")[0], "DATA.md does not document runs.stamp"
+    assert "ADD COLUMN IF NOT EXISTS stamp JSON" in (root / "core" / "schema" / "agent.sql").read_text(encoding="utf-8")
