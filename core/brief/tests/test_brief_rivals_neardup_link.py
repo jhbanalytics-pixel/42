@@ -10,6 +10,7 @@ the rival_window query. The near duplicate step lives on the detect branch, so t
 
 import importlib
 import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -41,7 +42,7 @@ class Chain:
         self.con = con
 
     def begin(self, stage, d):
-        return SimpleNamespace(run_id=DETECT)
+        return SimpleNamespace(run_id=DETECT, started_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
 
     def finish(self, run, status, counts, error=None):
         self.con.execute("UPDATE agent.runs SET counts = ? WHERE run_id = ?", [json.dumps(counts), run.run_id])
@@ -61,6 +62,7 @@ def stub_every_step_but_neardup(monkeypatch):
     monkeypatch.setattr(detect_job, "_step", lambda *a, **k: {"series_test": 0})
     monkeypatch.setattr(detect_job.sqlrun, "query", lambda *a, **k: [])
     monkeypatch.setattr(detect_job, "topics_failed_today", lambda *a, **k: None)
+    monkeypatch.setattr(detect_job.runs, "append", lambda *a, **k: {})
 
 
 def captioned_world():
@@ -83,7 +85,10 @@ def test_the_counts_detects_job_stores_make_the_rival_window_measure_near_dup_sh
     assert near_dup(build(con)[0]) is None            # no counts yet: the step has not run for the window
     stub_every_step_but_neardup(monkeypatch)
     counts = detect_job.run(duck.Client(con), D, chain=Chain(con), core="core", agent="agent")
-    assert counts["near_dup"] == {"posts": 14, "near_dup_posts": 5, "written": 5}
+    stored = dict(counts["near_dup"])
+    seconds = stored.pop("seconds", 0.0)    # recorded on trees that carry the step timing, absent on older ones
+    assert isinstance(seconds, (int, float)) and seconds >= 0
+    assert stored == {"posts": 14, "near_dup_posts": 5, "written": 5}
     share = near_dup(build(con)[0])
     assert share is not None, "the stored detect counts do not hold what the rival window reads"
     assert share["value"] == 5 / 14 == window_row(con)["near_dup_share"]
