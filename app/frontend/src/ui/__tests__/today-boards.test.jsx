@@ -672,9 +672,11 @@ test('every card caption in All reads the brief day, with nothing missing after 
 });
 
 test('the Also on line is shown by the stylesheet, not hidden or clipped away', () => {
-  const sheet = css('today-boards.css');
-  const rule = sheet.match(/\.tb-also\s*\{([^}]*)\}/);
-  expect(rule).not.toBeNull();
-  expect(rule[1]).not.toMatch(/display\s*:\s*none|visibility\s*:\s*hidden|clip|position\s*:\s*absolute|opacity\s*:\s*0|font-size\s*:\s*0|height\s*:\s*0|overflow\s*:\s*hidden/);
-  expect(sheet).not.toMatch(/\.tb-also[^{]*\{[^}]*display\s*:\s*none/);
+  const sheet = css('today-boards.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  // Every rule whose selector names .tb-also, wherever it sits and whatever else the selector holds.
+  const rules = [...sheet.matchAll(/([^{}]*\.tb-also[^{}]*)\{([^}]*)\}/g)];
+  expect(rules.length).toBeGreaterThan(0);
+  for (const [, selector, body] of rules) {
+    expect(body, selector.trim()).not.toMatch(/display\s*:\s*none|visibility\s*:\s*hidden|clip|position\s*:\s*absolute|opacity\s*:\s*0|font-size\s*:\s*0|height\s*:\s*0|overflow\s*:\s*hidden/);
+  }
 });
