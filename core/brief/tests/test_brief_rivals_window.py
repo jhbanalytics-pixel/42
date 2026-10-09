@@ -12,7 +12,7 @@ import pytest
 
 from core.brief import evidence
 from core.brief.tests.test_brief_evidence import add_post, build, utc, world
-from core.brief.tests.test_brief_rivals_evidence import window_row
+from core.brief.tests.test_brief_rivals_evidence import n21_counts, set_detect_counts, window_row
 from core.detect.tests import duck
 from core.detect.tests.fixtures import D, day
 
@@ -41,6 +41,7 @@ def edge_world():
     for pid, creator, published, tier, sightings, seen, size in POSTS:
         add_post(con, pid, creator, published, 10, sightings=sightings, seen=seen, creator_tier_at_post=tier)
         duck.load(con, "core.post_enrichment", [{"post_id": pid, "near_dup_size": size, "sponsored": False}])
+    set_detect_counts(con, n21_counts())
     duck.load(con, "core.post_observations", [{
         "post_id": "m7", "observed_at": utc(day(8), 10), "observed_date": day(8), "market": "ZA", "platform": "tiktok",
         "lane": "placebo", "lane_class": "unbiased_rank", "run_id": "collect-old"}])

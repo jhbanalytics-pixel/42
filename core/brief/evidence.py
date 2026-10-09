@@ -27,7 +27,10 @@ pack is the shape core/brief/explain.py reads:
         digest of the ids of the posts linked to the item when the pack was built: they read observations up to the
         cutoff over exactly those ids, both are part of their query id, and a re-run uses both, so a post observed
         after the run, or linked by the brief's own confirm step, cannot change them. The rival queries run under the
-        brief's byte cap (MAX_BYTES).
+        brief's byte cap (MAX_BYTES). near_dup_share is the share of all the 7 day posts whose near_dup_size is 3 or
+        more, a missing size read as 1, as detect's tvf_item_window computes it; it is absent until the detect run's
+        stored counts show the near duplicate step ran (near_dup.near_dup_posts), because that step writes sizes of 2
+        or more only and an unwritten column must not read as a measured 0.
     pinned: present only when detect gave one: rows {value, unit, query_id, run_id, result_hash, rival_field} for
         the values that are not numbers (share_flags, diffusion, small_at, large_at, lead_market, novelty, moment),
         pinned with a query id, the detect run id and a result hash like the numbers, and rerun(entry) reproduces each.
@@ -319,9 +322,9 @@ def _rival_pins(run, params, run_id, registry):
             if ids:
                 snapshot = _snapshot(ids)
                 query_params["rival_window"] = {"market": key["market"], "d": key["d"], "cutoff": cutoff,
-                                                "post_ids": ids}
+                                                "run_id": key["run_id"], "post_ids": ids}
                 id_params["rival_window"] = {"item_id": key["item_id"], "market": key["market"], "d": key["d"],
-                                             "cutoff": cutoff, "post_snapshot": snapshot}
+                                             "cutoff": cutoff, "run_id": key["run_id"], "post_snapshot": snapshot}
                 rows["rival_window"] = run("rival_window", query_params["rival_window"])
     except Exception as e:
         print(f"brief {params['d'].isoformat()}: rival_evidence_read_failed {type(e).__name__}", file=sys.stderr)

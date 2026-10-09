@@ -6,6 +6,7 @@ rows, each with a query_id, the detect run_id and a result_hash, so K2 re-runs t
 at most two why-now sentences in code from those values.
 """
 
+import json
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -44,7 +45,20 @@ def rival_world(**state):
         add_post(con, f"p{n}", creator, when, 100 - n, creator_tier_at_post=tier)
         duck.load(con, "core.post_enrichment", [{"post_id": f"p{n}", "near_dup_size": 3 if n < 5 else 1,
                                                  "sponsored": False}])
+    set_detect_counts(con, n21_counts())     # the near duplicate step ran for this window
     return con
+
+
+N21_RAN = {"posts": 14, "near_dup_posts": 5, "written": 5}   # what neardup.run_neardup returns
+
+
+def n21_counts(step=N21_RAN):
+    """The detect run's stored counts, with the N21 step's own counts under near_dup (detect job.py)."""
+    return json.dumps({"model_usd": 0.0, **({} if step is None else {"near_dup": step})})
+
+
+def set_detect_counts(con, counts):
+    con.execute("UPDATE agent.runs SET counts = ? WHERE run_id = ?", [counts, DETECT])
 
 
 def by_unit(pack):

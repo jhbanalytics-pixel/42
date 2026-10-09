@@ -7,12 +7,14 @@ a number K2 re-runs, and the cutoff is stored with every window number and part 
 import re
 from datetime import timedelta
 
+import pytest
+
 from core.brief import evidence
 from core.brief.holds_report import MAX_BYTES
 from core.brief.tests.test_brief_evidence import DETECT, add_post, build, canonical_hash, current, utc, world
-from core.brief.tests.test_brief_rivals_evidence import rival_world, window_row
+from core.brief.tests.test_brief_rivals_evidence import n21_counts, rival_world, set_detect_counts, window_row
 from core.detect.tests import duck
-from core.detect.tests.fixtures import D, at, day
+from core.detect.tests.fixtures import D, at, day, run
 
 CUTOFF = at(D, 11)          # run("detect", D) starts at 11:00 UTC on D
 WINDOW_NUMBERS = ["posts7", "burst_share", "top3_share", "near_dup_share"]
@@ -148,20 +150,75 @@ def test_each_new_query_filters_its_partitioned_tables():
     assert re.search(r"r\.run_date BETWEEN DATE_SUB\(@d, INTERVAL 1 DAY\) AND DATE_ADD\(@d, INTERVAL 2 DAY\)", cutoff)
 
 
-def test_a_post_with_no_near_duplicate_size_is_not_measured_as_zero_near_duplicates():
+def n21_leaves(con, counts=None):
+    """The 14-post world with sizes as N21 leaves them: it writes only sizes of 2 or more, so 3 for p0 to p4 and no
+    row, which reads as NULL here, for the other nine (core/detect/neardup.py)."""
+    con.execute("UPDATE core.post_enrichment SET near_dup_size = NULL WHERE near_dup_size < 2")
+    set_detect_counts(con, n21_counts() if counts is None else counts)
+    return con
+
+
+def near_dup(pack):
+    return next((e for e in pack["numbers"] if e.get("rival_field") == "near_dup_share"), None)
+
+
+def test_near_dup_share_keeps_detects_denominator_when_n21_writes_only_sizes_of_two_or_more():
+    con = n21_leaves(rival_world())
+    share = near_dup(build(con)[0])
+    assert share["value"] == 5 / 14 and share["value"] == window_row(con)["near_dup_share"]   # not 1.0
+    assert round(share["value"], 3) == 0.357
+
+
+def test_a_post_with_a_size_of_one_and_a_post_with_no_size_both_count_as_not_near_duplicate():
+    con = n21_leaves(rival_world())
+    con.execute("UPDATE core.post_enrichment SET near_dup_size = 1 WHERE post_id IN ('p5', 'p6')")
+    assert near_dup(build(con)[0])["value"] == window_row(con)["near_dup_share"] == 5 / 14
+
+
+def test_a_week_with_no_near_duplicates_is_measured_as_zero_when_the_n21_step_ran():
     con = rival_world()
     con.execute("UPDATE core.post_enrichment SET near_dup_size = NULL")
-    pack, *_ = build(con)
-    assert not any(e.get("rival_field") == "near_dup_share" for e in pack["numbers"])
-    assert window_row(con)["near_dup_share"] == 0.0              # the table function reads a missing size as 1
+    set_detect_counts(con, n21_counts({"posts": 14, "near_dup_posts": 0, "written": 0}))
+    assert near_dup(build(con)[0])["value"] == 0.0 == window_row(con)["near_dup_share"]
 
 
-def test_near_duplicates_are_measured_over_the_posts_that_have_a_size():
+@pytest.mark.parametrize("counts", [
+    n21_counts(None),
+    n21_counts({"status": "skipped", "error": "ImportError: no module named datasketch"}),
+    n21_counts({"status": "failed", "error": "RuntimeError: boom"}),
+    None], ids=["no_step", "skipped", "failed", "null"])
+def test_near_dup_share_is_not_pinned_when_the_n21_step_has_not_run_for_the_window(counts):
     con = rival_world()
-    con.execute("UPDATE core.post_enrichment SET near_dup_size = NULL WHERE post_id NOT IN ('p0', 'p5')")
+    con.execute("UPDATE core.post_enrichment SET near_dup_size = NULL WHERE near_dup_size < 2")
+    set_detect_counts(con, counts)
     pack, *_ = build(con)
-    share = next(e for e in pack["numbers"] if e.get("rival_field") == "near_dup_share")
-    assert share["value"] == 0.5                                 # p0 has size 3 and p5 has size 1
+    assert near_dup(pack) is None                         # sizes exist, but only for the posts that have a twin
+    assert window_row(con)["near_dup_share"] == 5 / 14    # the table function would give a number all the same
+    assert pack["rival_read"] == "ok" and any(e.get("rival_field") == "posts7" for e in pack["numbers"])
+
+
+def test_the_step_counts_are_read_from_the_detect_run_the_pack_is_pinned_to_and_no_other():
+    con = n21_leaves(rival_world(), n21_counts(None))              # the pinned run has no near duplicate step
+    other = run("detect", D, run_id="detect-other", hour=3)
+    duck.load(con, "agent.runs", [{**other, "counts": n21_counts()}])      # an older run of the day that has one
+    assert near_dup(build(con)[0]) is None
+
+
+def test_the_window_query_reads_the_runs_table_inside_its_partition_filter_and_keys_its_id_to_the_run():
+    sql = evidence.QUERIES["rival_window"]
+    assert re.search(r"r\.run_id = @run_id AND r\.run_date BETWEEN DATE_SUB\(@d, INTERVAL 1 DAY\) AND "
+                     r"DATE_ADD\(@d, INTERVAL 2 DAY\)", sql)
+    pack, *_ = build(n21_leaves(rival_world()))
+    share = near_dup(pack)
+    window = {"item_id": "i1", "market": "ZA", "d": D, "cutoff": CUTOFF, "run_id": DETECT,
+              "post_snapshot": share["post_snapshot"]}
+    assert share["query_id"] == evidence._query_id("rival_window", window, "near_dup_share")
+
+
+def test_a_pinned_near_dup_share_re_runs_to_the_same_value():
+    pack, _, rerun, _ = build(n21_leaves(rival_world()))
+    share = near_dup(pack)
+    assert rerun(share) == share["value"] == 5 / 14
 
 
 def test_the_pack_says_how_the_rival_read_went():

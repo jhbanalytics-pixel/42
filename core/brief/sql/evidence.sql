@@ -151,8 +151,11 @@ ORDER BY po.post_id;
 -- market, but only over the snapshot post ids (@post_ids, one id a line, from rival_posts) and only from observations made by
 -- @cutoff, the detect run's start (rival_cutoff), so the numbers re-run to the same value for that run whatever links
 -- the brief writes afterwards. A post observed before the cutoff but written late still counts. near_dup_share is
--- measured over the 7 day posts that have a near_dup_size and is NULL when none has: the table function reads a
--- missing size as 1, which would pin a measured 0 from a column nothing writes yet. Partition filter:
+-- the table function's: the 7 day posts whose near_dup_size is 3 or more, a missing size read as 1, over all the 7 day
+-- posts. The near duplicate step (core/detect/neardup.py) writes sizes of 2 or more only, so a post with no row is
+-- one with no twin and must stay in the denominator. It is NULL, not a measured 0, when that step has not run for the
+-- window: the detect run's stored counts (@run_id) then hold no near_dup.near_dup_posts, because the step was
+-- skipped, failed or is not in that run. Partition filter:
 -- post_observations by observed_date, the 28 days to @d. posts and post_enrichment have no date filter (posts is
 -- partitioned by publish date, and a post seen this week can be older); both are read only for the snapshot ids.
 WITH o AS (
@@ -163,6 +166,11 @@ WITH o AS (
     AND po.observed_at <= @cutoff
     AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
   GROUP BY po.post_id, measured),
+nd AS (
+  SELECT COUNT(*) > 0 ran
+  FROM {agent}.runs r
+  WHERE r.run_id = @run_id AND r.run_date BETWEEN DATE_SUB(@d, INTERVAL 1 DAY) AND DATE_ADD(@d, INTERVAL 2 DAY)
+    AND JSON_VALUE(r.counts, '$.near_dup.near_dup_posts') IS NOT NULL),
 p AS (
   SELECT o.post_id, o.measured, o.first_day > DATE_SUB(@d, INTERVAL 7 DAY) in7,
     ps.creator_id, ps.creator_tier_at_post tier, ps.published_at, pe.near_dup_size nds
@@ -172,8 +180,9 @@ p AS (
              FROM {core}.post_enrichment pe0 GROUP BY pe0.post_id) pe ON pe.post_id = o.post_id),
 a7 AS (
   SELECT COUNT(DISTINCT IF(p.in7, p.post_id, NULL)) posts7,
-    SAFE_DIVIDE(COUNT(DISTINCT IF(p.in7 AND p.nds >= 3, p.post_id, NULL)),
-                COUNT(DISTINCT IF(p.in7 AND p.nds IS NOT NULL, p.post_id, NULL))) near_dup_share,
+    IF((SELECT nd.ran FROM nd),
+       SAFE_DIVIDE(COUNT(DISTINCT IF(p.in7 AND IFNULL(p.nds, 1) >= 3, p.post_id, NULL)),
+                   COUNT(DISTINCT IF(p.in7, p.post_id, NULL))), NULL) near_dup_share,
     MIN(IF(p.measured AND p.tier IN ('nano', 'micro'), p.published_at, NULL)) small_at,
     MIN(IF(p.measured AND p.tier IN ('macro', 'mega'), p.published_at, NULL)) large_at
   FROM p),
