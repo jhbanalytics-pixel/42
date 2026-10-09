@@ -1985,16 +1985,20 @@ def rate_limit_errors():
 
 
 # A refused call is made again BUSY_RETRIES times; BUSY_TRIP_ITEMS explanations in a row that run out of tries trip
-# the breaker (6 Oct 2026: the first refusal used to trip it, and 25 of 30 topics were never tried).
+# the breaker (6 Oct 2026: the first refusal used to trip it, and 25 of 30 topics were never tried). A run stopped
+# that way before 06:15 resumes once after RESUME_WAIT_S and is stopped the same way again (W8-DEC-18), so a model that
+# refuses every call is asked SUSTAINED_CALLS times in each of two passes and never a third.
 SUSTAINED_CALLS = (job.BUSY_RETRIES + 1) * job.BUSY_TRIP_ITEMS
+TWO_PASSES = 2 * SUSTAINED_CALLS
 
 
 @pytest.mark.parametrize("error", rate_limit_errors(), ids=["ClientError429", "RESOURCE_EXHAUSTED"])
 def test_a_sustained_rate_limit_stops_every_model_call_for_the_run(error, busy_waits):
     model = RateLimited(error)
     r = brief(world(n=4), model=model)
-    assert len(model.calls) == SUSTAINED_CALLS
-    assert len(busy_waits) == job.BUSY_RETRIES * job.BUSY_TRIP_ITEMS
+    assert len(model.calls) == TWO_PASSES
+    assert len(busy_waits) == 2 * job.BUSY_RETRIES * job.BUSY_TRIP_ITEMS + 1
+    assert busy_waits.count(job.RESUME_WAIT_S) == 1
     for m in MARKETS:
         assert payload(r, m)["cards"] == [] and payload(r, m)["held_back"]["count"] == 4
         assert rows(r)[m]["status"] == "partial"
@@ -2027,7 +2031,7 @@ class RateLimitError(Exception):
 def test_a_429_status_or_a_rate_limit_class_trips_the_breaker(error):
     model = RateLimited(error)
     r = brief(world(n=2), model=model)
-    assert len(model.calls) == SUSTAINED_CALLS
+    assert len(model.calls) == TWO_PASSES
     assert r.counts["model"]["reason"] == "model_unavailable"
 
 

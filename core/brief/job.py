@@ -19,7 +19,8 @@ chain.past_deadline is true, once the run is FINISH_MARGIN short of its task tim
 the day's model spend reaches the current cap; whatever is unexplained then publishes as numbers and posts only
 (G10). A model that refuses for capacity (429) is waited out call by call, with backoff, never past the deadline,
 that time limit or the SAST day, and the breaker stops the run's calls only once it keeps refusing; an item the busy
-model left unexplained says so in its failed_reason. No G1 backfill round, and no market's confirm or regrow, starts
+model left unexplained says so in its failed_reason. A run the breaker stopped on 429 before 06:15 waits 10 minutes and
+explains what is left once more (RESUME_WAIT_S, recorded as model_resume in the counts); a second stop is final. No G1 backfill round, and no market's confirm or regrow, starts
 past the deadline or that time limit either. The gate runs again with each explanation's result, and one briefs row
 per market (payload: the Market object of core/api/contract.md section 4) plus the claim_checks rows are appended.
 Brief is the last stage of lane L1's chain, so nothing is started after it.
@@ -110,6 +111,10 @@ BUSY_WAIT_MAX_S = 80.0
 BUSY_JITTER = 0.25
 BUSY_TRIP_ITEMS = 3
 PACE_S = 0.0
+# A run the breaker stopped on 429 before 06:15 SAST waits RESUME_WAIT_S and explains what is left once more, with a new
+# breaker, inside the model cap and the same deadline and time limit (W8-DEC-18, Albert, 9 Oct 2026). A second stop is
+# final: there is no third attempt.
+RESUME_WAIT_S = 600
 UPSTREAM = {"kind": "data_issue",
             "text": "Data issue: the steps before the brief did not finish by 06:15, so no trends were checked today"}
 
@@ -1219,6 +1224,43 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
     return grown, merged
 
 
+def _resume_after_429(tasks, results, busy, *, model, base_usd, spend, clock, chain, d, workers, started, sleep):
+    """DEC-18: when the breaker stopped the run on 429 before 06:15 SAST, wait RESUME_WAIT_S and explain once more
+    what the 429s left, once. Only explanations the busy model left (no result, or a model_error that carries its
+    busy_reason) are asked for again; a card already explained, or one that failed for another reason, is kept as it
+    is. Nothing is resumed at or after 06:15, when the wait would end at or past the deadline or the time limit, or
+    when the day's spend has reached the cap. Returns (results, unavailable, explanation_stop, resume): the pass's own
+    results and stops, and the record for the run counts, or None when no resume happened. results is changed in
+    place."""
+    stopped = busy.get("tripped")
+    now = clock()
+    if (stopped is None or now.astimezone(SAST) >= datetime.combine(d, collect_chain.DEADLINE, SAST)
+            or base_usd + spend["usd"] >= model_daily_usd()):
+        return None
+    then = now + timedelta(seconds=RESUME_WAIT_S)
+    if _brief_deadline(then, d, chain)[0] or _out_of_time(then, started):
+        return None
+    pending = [c for c in tasks if id(c) not in results
+               or (results[id(c)]["reason"] == "model_error" and c.get("busy_reason"))]
+    if not pending:
+        return None
+    before = {id(c): c.pop("busy_reason", None) for c in pending}
+    (sleep or _sleep)(RESUME_WAIT_S)
+    again = {}
+    got, unavailable, stop = _explain_all(pending, model=model, base_usd=base_usd, spend=spend, clock=clock,
+                                          chain=chain, d=d, workers=workers, started=started, sleep=sleep, busy=again)
+    results.update(got)
+    for c in pending:
+        if id(c) not in got and not c.get("busy_reason") and before[id(c)]:
+            c["busy_reason"] = before[id(c)]
+    busy.update({"refusals": busy["refusals"] + again.get("refusals", 0),
+                 "gave_up": busy["gave_up"] + again.get("gave_up", 0),
+                 "waited_s": round(busy["waited_s"] + again.get("waited_s", 0.0), 1),
+                 "tripped": again.get("tripped")})
+    return got, unavailable, stop, {"wait_s": RESUME_WAIT_S, "stopped_by": stopped, "retried": len(pending),
+                                    "tripped_again": bool(unavailable)}
+
+
 def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, confirm, campaign_hashtags,
            political_terms, workers, spend, core, agent, started=None, sleep=None):
     hidden = read_hidden(client, core=core, agent=agent)  # raises SuppressionUnreadable before anything is spent
@@ -1254,6 +1296,10 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     results, unavailable, explanation_stop = _explain_all(tasks, model=model, base_usd=base_usd, spend=spend,
                                                            clock=clock, chain=chain, d=d, workers=workers,
                                                            started=started, sleep=sleep, busy=busy)
+    resume = _resume_after_429(tasks, results, busy, model=model, base_usd=base_usd, spend=spend, clock=clock,
+                               chain=chain, d=d, workers=workers, started=started, sleep=sleep)
+    if resume is not None:
+        _, unavailable, explanation_stop, resume = resume
 
     brief_rows, check_rows, cards, held = [], [], 0, 0
     published_at = clock()
@@ -1296,6 +1342,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
         counts["explanation_stop"] = explanation_stop
     if busy:
         counts["model_busy"] = busy
+    if resume is not None:
+        counts["model_resume"] = resume
     pack_errors = {f"{c['market']}:{c['row']['item_id']}": c["error"] for m in MARKETS for c in by_market[m]
                    if c.get("error")}
     if pack_errors:

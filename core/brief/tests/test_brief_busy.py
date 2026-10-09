@@ -116,11 +116,12 @@ def test_sustained_refusal_trips_the_breaker_and_every_held_item_says_the_model_
     model = Refusing(lambda n: True)
     r = run(world(n=2), model=model, sleep=waits.append)
     tries = job.BUSY_RETRIES + 1
-    assert len(model.calls) == tries * job.BUSY_TRIP_ITEMS
-    assert len(waits) == job.BUSY_RETRIES * job.BUSY_TRIP_ITEMS
+    # Stopped at 05:30, before 06:15, the run waits RESUME_WAIT_S and is stopped the same way once more (W8-DEC-18).
+    assert len(model.calls) == 2 * tries * job.BUSY_TRIP_ITEMS
+    assert len(waits) == 2 * job.BUSY_RETRIES * job.BUSY_TRIP_ITEMS + 1 and waits.count(job.RESUME_WAIT_S) == 1
     assert r.counts["model"]["reason"] == "model_unavailable"
     assert r.counts["model_busy"]["tripped"] == "refused"
-    assert r.counts["model_busy"]["gave_up"] == job.BUSY_TRIP_ITEMS
+    assert r.counts["model_busy"]["gave_up"] == 2 * job.BUSY_TRIP_ITEMS
     assert r.counts["model_usd"] == 0
     for m in MARKETS:
         p = payload(r, m)
@@ -237,7 +238,7 @@ def test_settings_come_from_the_environment_and_bad_values_keep_the_defaults(mon
     monkeypatch.setenv("BRIEF_BUSY_TRIP_ITEMS", "1")
     model = Refusing(lambda n: True)
     r = run(world(n=1), model=model, sleep=lambda s: None)
-    assert len(model.calls) == 2 and r.counts["model_busy"]["tripped"] == "refused"
+    assert len(model.calls) == 4 and r.counts["model_busy"]["tripped"] == "refused"  # two passes of two
     for name, value in (("BUSY_RETRIES", "-1"), ("BUSY_RETRIES", "many"), ("BUSY_WAIT_S", "nan"),
                         ("BUSY_TRIP_ITEMS", "0"), ("PACE_S", "-2")):
         monkeypatch.setenv(f"BRIEF_{name}", value)
