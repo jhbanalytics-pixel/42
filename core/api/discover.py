@@ -100,12 +100,20 @@ def _brief_cards(store, date):
     return out
 
 
+def _market_posts_all_news(row):
+    """W8-DEC-12 as the brief reads it (core/brief/market_scope.py): the posts that make the market share are all
+    news feed posts, so the item is Market unconfirmed unless detect already called it not local."""
+    market, news = row.get("market_posts7"), row.get("market_news_posts7")
+    return (type(market) is int and type(news) is int and market > 0 and news == market
+            and row.get("geo_status") != "not_local")
+
+
 def _flag(row):
     if (row.get("sponsored_share") or 0) >= PAID_LED_SHARE:
         return "paid_led"
     if row.get("authenticity") in ("likely_coordinated", "check_pattern"):
         return row["authenticity"]
-    if row.get("geo_status") == "market_unconfirmed":
+    if row.get("geo_status") == "market_unconfirmed" or _market_posts_all_news(row):
         return "market_unconfirmed"
     if row.get("authenticity") == "not_assessed":
         return "not_assessed"
