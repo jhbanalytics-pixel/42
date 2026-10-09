@@ -9,6 +9,8 @@ Two rows differ from the plan's "current result" column on purpose. "polls show 
 Corps" stay breaches: the poll split and the proper noun exceptions are not part of the candidate and were dropped.
 """
 
+import re
+
 import pytest
 
 from core.trust import claims
@@ -183,10 +185,115 @@ def test_the_held_texts_breach_when_off_too(off, text):
 
 
 def test_a_residual_the_candidate_accepts_is_pinned(on):
-    # A rising day range after a month with no person noun clears. This is the stated cost of the date exception.
-    assert not _k6_term("the April 18-24 cohort", set())
-    assert not _k6_term("By Aug 18-24 students joined", set())
+    # A rising day range after a month with no person or group word anywhere in the clause clears. This is the stated
+    # cost of the date exception. The cohort and student sentences used to sit here and pinned a defect: W8-DEC-03d
+    # says a person word anywhere in the clause blocks, so they breach (CB-1) and are pinned below.
     assert not _k6_term("Feb 18-24 engagement doubled", set())
+    assert not _k6_term("In July 21-29 singles posted", set())
+
+
+# CB-1: the 16 sentences the closure review constructed, each a breach with the flag off and, until CB-1, a pass with it
+# on. "In July 21-29 singles posted" is the seventeenth and stays clear: a single is a music single in this data.
+CB1_SENTENCES = [
+    "TikTok users in the June 18-24 bracket", "Voters in the May 18-24 bracket", "Women led it in May 18-24",
+    "Fans streamed it most in June 18-24", "Users posted it in Sept 18-24", "Kenyans shared it from Aug 18-24",
+    "Students drove it over May 18-25", "In May 18-24 students led the trend",
+    "Since June 18-24 girls have flocked to the sound", "By Aug 18-24 graduates joined", "In Sept 18-24 moms posted most",
+    "In May 18-25 gamers shared clips", "In June 18-24 TikTokers drove it", "In Oct 18-24 residents of Lagos posted",
+    "In May 18-24 parents shared it", "In June 18-24 workers posted it",
+]
+CB1_GROUP_SENTENCES = ["the April 18-24 cohort", "The May 18-24 age group", "the Sept 18-24 group",
+                       "By Aug 18-24 students joined"]
+
+# The clause list CB-1 adds to, by word. _PERSON is not touched, so the ones it already holds are not repeated here.
+CB1_WORDS = ["man", "men", "woman", "women", "girl", "girls", "boy", "boys", "student", "students", "parent", "parents",
+             "mum", "mums", "mom", "moms", "dad", "dads", "gamer", "gamers", "graduate", "graduates", "resident",
+             "residents", "worker", "workers", "tiktoker", "tiktokers", "subscriber", "subscribers", "cohort",
+             "cohorts", "bracket", "brackets", "demographic", "demographics", "age group", "age groups",
+             "Students", "WORKERS", "TikTokers"]
+
+
+@pytest.mark.parametrize("text", CB1_SENTENCES + CB1_GROUP_SENTENCES)
+def test_a_person_or_group_word_anywhere_in_the_clause_blocks_a_date(on, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", CB1_SENTENCES + CB1_GROUP_SENTENCES)
+def test_the_cb1_sentences_breached_when_off_too(off, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("word", CB1_WORDS)
+def test_each_cb1_word_blocks_a_date_before_or_after_the_range(on, word):
+    assert _k6_term(f"The {word} led it in May 18-24", set())
+    assert _k6_term(f"In May 18-24 the {word} posted most", set())
+    assert _k6_term(f"Event runs Sept 20-26 for the {word}", set())
+
+
+@pytest.mark.parametrize("word", CB1_WORDS)
+def test_each_cb1_word_blocks_a_score_before_or_after_the_pair(on, word):
+    assert _k6_term(f"The {word} saw the Chiefs won 24-17", set())
+    assert _k6_term(f"Chiefs won 24-17 in front of the {word}", set())
+
+
+def test_a_music_single_does_not_block(on):
+    assert not _k6_term("In July 21-29 singles posted", set())
+    assert not _k6_term("The single won 24-17 on streams", set())
+
+
+def test_the_word_must_be_in_the_clause_not_the_text(on):
+    # A clause ends at ; ! ? : , and a full stop that is not a decimal point. Each pair is a clear text with a person
+    # word one clause away on the far side of the stop, so dropping any stop from the clause end turns it into a breach.
+    for stop in (";", "!", "?", ":", ",", "."):
+        assert not _k6_term(f"Women posted{stop} the Chiefs won 24-17 on Saturday", set()), stop
+        assert not _k6_term(f"Chiefs won 24-17 on Saturday{stop} women cheered", set()), stop
+        assert not _k6_term(f"Students were polled{stop} the event runs Sept 20-26 in Joburg", set()), stop
+        assert not _k6_term(f"The event runs Sept 20-26 in Joburg{stop} students are welcome", set()), stop
+
+
+def test_a_month_full_stop_does_not_end_the_clause(on):
+    assert _k6_term("Women led it in Sept. 18-24", set())
+    assert _k6_term("Students joined in Aug. 18-24", set())
+    assert not _k6_term("Women posted. Event runs Sept. 20-26 in Joburg", set())
+
+
+# Whole-list pins. The word lists are what decide that a pair is a score or a date, so a widened list is a loosened K6.
+SCORE_ALTERNATIVES = ["won", "lost", "beat", "drew", "scored", r"final\s+score", r"full[\s-]time", r"half[\s-]time"]
+MONTH_ALTERNATIVES = ["Jan(?:uary)?", "Feb(?:ruary)?", "Mar(?:ch)?", "Apr(?:il)?", "June?", "July?", "Aug(?:ust)?",
+                      "Sept?(?:ember)?", "Oct(?:ober)?", "Nov(?:ember)?", "Dec(?:ember)?"]
+NEAR_MISS_SCORE_WORDS = ["win", "wins", "winning", "lose", "loses", "beats", "beaten", "draw", "drawn", "score",
+                         "scores", "final", "finals", "full", "half", "tied", "edged", "Mon", "result", "ft", "ht"]
+NEAR_MISS_MONTH_WORDS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Monday", "Sunday", "Smarch", "Mars", "Junk",
+                         "Augusta", "Marc", "may", "week", "Q3"]
+
+
+def _alternatives(pattern, head):
+    return re.search(re.escape(head) + r"(.*?)\)\)", pattern).group(1)
+
+
+def test_the_score_word_list_is_pinned_whole():
+    ci = _alternatives(claims._SCORE_BEFORE.pattern, r"(?i:\b(?:").split("|")
+    assert ci == ["won", "lost", "beat", "drew", "scored", r"final\s+score", r"full[\s-]time", r"half[\s-]time"]
+    assert ci == SCORE_ALTERNATIVES
+    assert re.search(r"\|\\b\(\?:(FT\|HT)\)\)", claims._SCORE_BEFORE.pattern).group(1) == "FT|HT"
+
+
+def test_the_month_list_is_pinned_whole():
+    months = _alternatives(claims._MONTH_BEFORE.pattern, r"(?i:\b(?:").split("|")
+    assert months == MONTH_ALTERNATIVES
+    assert claims._MONTH_BEFORE.pattern.endswith(r"|\bMay)\b\.?\s+$")
+
+
+@pytest.mark.parametrize("word", NEAR_MISS_SCORE_WORDS)
+def test_a_word_outside_the_score_list_does_not_clear_a_score(on, word):
+    assert _k6_term(f"{word} 24-17", set()), word
+    assert _k6_term(f"Chiefs {word} 24-17 on Saturday", set()), word
+
+
+@pytest.mark.parametrize("word", NEAR_MISS_MONTH_WORDS)
+def test_a_word_outside_the_month_list_does_not_clear_a_date(on, word):
+    assert _k6_term(f"{word} 20-26", set()), word
+    assert _k6_term(f"Event runs {word} 20-26 in Joburg", set()), word
 
 
 def test_seeds_list_is_not_touched_when_on(on):
