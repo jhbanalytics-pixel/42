@@ -284,3 +284,39 @@ def test_a_row_the_claim_does_not_name_is_not_read_even_when_it_is_the_anchor():
     _, issues, pinned, *_ = pinned_for(TAGS, "9 posts came from 3 creators.", [NINE])
 
     assert issues and pinned is None
+
+
+ONE = {"value": 1, "unit": "posts"}
+
+
+def test_a_bool_cell_is_not_a_holder_so_it_cannot_make_a_second_anchor_row():
+    """True == 1 in Python. #amapiano's flag must not count as a row holding the good number 1, or #gqom's row would
+    stop being the one anchor row."""
+    rows = [{"hashtag": "#gqom", "posts": 1, "creators": 3}, {"hashtag": "#amapiano", "posts": 6, "creators": 5, "live": True}]
+
+    _, issues, pinned, ctx, wh, window, reruns = pinned_for(rows, "#gqom drew 1 posts from 3 creators.", [ONE])
+
+    assert issues and pinned is not None and pinned["claims"][0]["numbers"][-1]["value"] == 3
+    assert writer.unpinned_claim_numerals(pinned, ctx, wh, window=window, reruns=reruns) == []
+
+
+def test_a_bool_cell_alone_is_never_the_anchor_row_and_nothing_is_pinned():
+    rows = [{"hashtag": "#gqom", "live": True, "creators": 3}]
+    ctx, qid = context_with_count(rows)
+
+    assert writer._anchor_row([{**ONE, "query_id": qid}], ctx) is None
+
+
+def test_a_row_that_is_not_a_dict_has_no_anchor_row_and_is_refused_without_an_error():
+    rows = [{"hashtag": "#gqom", "posts": 6, "creators": 3}, 6]
+    ctx, qid = context_with_count(rows)
+
+    assert writer._anchor_row([{"value": 6, "unit": "posts", "query_id": qid}], ctx) is None
+
+
+def test_a_query_with_a_row_that_is_not_a_dict_is_left_to_the_repair_call():
+    rows = [{"hashtag": "#gqom", "posts": 6, "creators": 3}, 6]
+
+    _, issues, pinned, *_ = pinned_for(rows, "#gqom drew 6 posts from 3 creators.", [SIX])
+
+    assert pinned is None
