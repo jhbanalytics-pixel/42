@@ -191,7 +191,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY c.obs_date, c.market, c.item_id, c.serie
 
 ### 3.2 Measurement series
 
-A series is one item on one source in one market, measured in the unit that source supports, under one protocol (route, fixed parameters, list length, pulls a day, panel membership, planned search calls a market). A protocol change starts a new series. The culture desk, the curated panels and the gossip panel read as panel:<12 hex>:v2, and tiktok/song reads as tiktok/song?proto=v2; those version tokens start a fresh health reference for their series. Markets: ZA, NG, KE; GLOBAL for platform-wide counters. Row numbers are SOURCES.md's costed table.
+A series is one item on one source in one market, measured in the unit that source supports, under one protocol (route, fixed parameters, list length, pulls a day, panel membership, planned search calls a market). A protocol change starts a new series. From the parser-fix release, the culture desk, the curated panels and the gossip panel read as panel:<12 hex>:v2, and tiktok/song reads as tiktok/song?proto=v2; those version tokens start a fresh health reference for their series. The X panel, the facebook pages panel, the hashtag routes (tiktok/hashtags/popular and tiktok/hashtag) and tiktok/song/videos keep their protocols unchanged, with no version token. Markets: ZA, NG, KE; GLOBAL for platform-wide counters. Row numbers are SOURCES.md's costed table.
 
 | Series | Source route | Markets | Lane class | Unit | Test from task 1.19 |
 |---|---|---|---|---|---|
