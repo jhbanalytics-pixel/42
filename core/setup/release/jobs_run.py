@@ -102,6 +102,7 @@ class GcloudJobs(JobsAdapter):
 def runner_for(bound, client):
     from core.setup.release.chain_evidence import BqRunner
 
+    jo.check_quiet_templates(bound)
     return BqRunner(client, bound["chainEvidenceBytesCap"], jo.QUIET_TEMPLATES)
 
 

@@ -43,7 +43,8 @@ PRODUCER_BINDINGS = ("release_id", "target", "tree", "releaseDir", "baselinePath
                      "callerAccount", "readTimeoutSeconds", "chainEvidenceBytesCap", "templateHashes",
                      "collectStartToleranceMinutes")
 RELEASE_BINDINGS = (*PRODUCER_BINDINGS, "baselineChainPath", "baselineChainSha256", "buildServiceAccount", "buildConfigSha256",
-                    "dockerfileSha256", "durableManifestSha256", "dryRunReceiptSha256", "window", "maxBaselineAgeDays",
+                    "dockerfileSha256", "durableManifestSha256", "durableManifestPath", "dryRunReceiptSha256", "dryRunReceiptPath",
+                    "quietTemplateHashes", "window", "maxBaselineAgeDays",
                     "maxCandidateAgeHours", "priorAttempts", "priorLedgers")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 HASH_KEYS = ("baselineSha256", "baselineChainSha256", "buildConfigSha256", "dockerfileSha256", "durableManifestSha256",
@@ -80,6 +81,8 @@ def validate_jobs_bindings(bound, *, producer=False):
         window = bound["window"]
         require(isinstance(window, dict) and set(window) == {"startSast", "endSast", "rollbackDeadlineSast"}
                 and all(HHMM.match(str(v)) for v in window.values()), "BINDINGS", "window must give startSast, endSast and rollbackDeadlineSast as HH:MM")
+        for key in ("durableManifestPath", "dryRunReceiptPath", "baselineChainPath"):
+            require(isinstance(bound[key], str) and bool(bound[key]), "BINDINGS", f"{key} is not a path")
         for key in ("maxBaselineAgeDays", "maxCandidateAgeHours"):
             require(so._positive(bound[key]), "BINDINGS", f"{key} is not usable")
         require(isinstance(bound["priorAttempts"], list) and isinstance(bound["priorLedgers"], list), "BINDINGS",
@@ -236,6 +239,14 @@ def quiet_template_hashes():
     return {name: so.sha_text(text) for name, text in QUIET_TEMPLATES.items()}
 
 
+def check_quiet_templates(bound):
+    """The quiet snapshot reads BigQuery through fixed templates. The hashes the bindings bind are the expectation, and the
+    templates this code holds are recomputed against them before a query is made."""
+    pinned = bound.get("quietTemplateHashes")
+    require(isinstance(pinned, dict) and pinned == quiet_template_hashes(), "BINDINGS",
+            "The quiet snapshot template hashes the bindings bind differ from the templates this code holds")
+
+
 def row_order(row):
     return (aware(row["finished_at"] or row["started_at"]), row["finished_at"] is not None)
 
@@ -331,6 +342,7 @@ class JobsRelease:
         from core.setup.release.chain_evidence import BqRunner
 
         require(self.bq is not None, "BINDINGS", "This phase reads BigQuery and was given no client")
+        check_quiet_templates(self.bound)
         return BqRunner(self.bq, self.bound["chainEvidenceBytesCap"], QUIET_TEMPLATES)
 
     def manifest(self):

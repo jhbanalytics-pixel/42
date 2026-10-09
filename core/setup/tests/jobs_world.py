@@ -335,6 +335,8 @@ class ReleaseWorld(ChainFixture):
         bound.update({"baselineChainPath": str(path), "baselineChainSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                       "buildServiceAccount": rw.BUILD_SA, "buildConfigSha256": "c1" * 32, "dockerfileSha256": "d1" * 32,
                       "durableManifestSha256": "d2" * 32, "dryRunReceiptSha256": "d3" * 32,
+                      "durableManifestPath": str(self.release_dir / "durable-effects.json"),
+                      "dryRunReceiptPath": str(self.release_dir / "apply-dry-run-receipt.json"),
                       "window": {"startSast": "08:05", "endSast": "21:00", "rollbackDeadlineSast": "23:30"},
                       "maxBaselineAgeDays": 2, "maxCandidateAgeHours": 12, "priorAttempts": [], "priorLedgers": [],
                       QUIET_HASH_FIELD: jo.quiet_template_hashes()})

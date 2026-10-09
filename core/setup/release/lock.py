@@ -22,6 +22,13 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 REPO_FILES = (
     "core/setup/release/SERVICES-PASTE.ps1",
+    "core/setup/release/JOBS-PASTE.ps1",
+    "core/setup/release/chain_evidence.py",
+    "core/setup/release/jobs_only.py",
+    "core/setup/release/jobs_run.py",
+    "core/setup/cloudbuild.jobs.yaml",
+    "core/setup/jobs.Dockerfile",
+    "core/setup/deploy_jobs.py",
     "core/setup/release/bound_readback.py",
     "core/setup/release/services_only.py",
     "core/setup/release/declared_env_removals.py",
@@ -35,6 +42,18 @@ REPO_FILES = (
     "core/api/smoke.py",
 )
 TEST_FILES = (
+    "core/setup/tests/cloud_world.py",
+    "core/setup/tests/jobs_paste_world.py",
+    "core/setup/tests/jobs_world.py",
+    "core/setup/tests/test_chain_evidence.py",
+    "core/setup/tests/test_jobs_checks.py",
+    "core/setup/tests/test_jobs_hygiene.py",
+    "core/setup/tests/test_jobs_paste.py",
+    "core/setup/tests/test_jobs_plan.py",
+    "core/setup/tests/test_jobs_prefix.py",
+    "core/setup/tests/test_jobs_readback.py",
+    "core/setup/tests/test_jobs_update.py",
+    "core/setup/tests/update_support.py",
     "core/api/tests/compat_harness.py",
     "core/api/tests/old_reader_harness.py",
     "core/api/tests/smoke_support.py",
@@ -58,6 +77,8 @@ TEST_FILES = (
     "core/setup/tests/test_services_paste.py",
 )
 BOUND_NAMES = ("bindings", "baseline", "durable_manifest", "compat_receipt", "old_reader_receipt")
+# The jobs release binds other durable inputs: baseline-J, the baseline chain manifest and the apply.py dry run receipt (JS-09).
+JOBS_BOUND_NAMES = ("bindings", "baseline", "durable_manifest", "baseline_chain", "dry_run_receipt")
 
 
 def sha_file(path, *, text=True):
@@ -81,9 +102,9 @@ def smoke_check_count(smoke_py):
                and isinstance(c.args[0], ast.Constant) and isinstance(c.args[0].value, str))
 
 
-def build_lock(repo, release_id, bound_files):
+def build_lock(repo, release_id, bound_files, names=BOUND_NAMES):
     repo = Path(repo)
-    missing = [name for name in BOUND_NAMES if name not in bound_files]
+    missing = [name for name in names if name not in bound_files]
     if missing:
         raise ValueError("the lock needs bound files: " + ", ".join(missing))
     return {
