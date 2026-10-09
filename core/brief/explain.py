@@ -301,7 +301,9 @@ def _fence(text):
 def _estimate_usd(system, user, max_tokens, model_id):
     """Conservative estimate: UTF-8 input bytes, maximum schema and protocol overhead in, full output out."""
     price = price_for(model_id)
-    schemas = (WRITER_SCHEMA, SUPPORT_SCHEMA, CRITIC_SCHEMA)
+    from core.brief.title_purity import SCHEMA as title_schema
+
+    schemas = (WRITER_SCHEMA, SUPPORT_SCHEMA, CRITIC_SCHEMA, title_schema)
     schema_bytes = max(len(json.dumps(schema, ensure_ascii=False).encode("utf-8")) for schema in schemas)
     input_tokens = len(system.encode("utf-8")) + len(user.encode("utf-8")) + schema_bytes + 2048
     output_tokens = reserve_output(model_id, max_tokens)
@@ -1006,6 +1008,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
     model_id = model_id or default_model()
     spent = {"usd": 0.0}
     checks = []
+    title_audit = {}
     evidence = _source_evidence(pack)
     records = {r.get("id"): r for r in evidence}
     terms = _title_terms(candidate.get("title"))
@@ -1048,12 +1051,15 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
                specificity=None, news_driven=False, critic=None, title_written=None):
         if specificity is None:
             specificity = assess(explanation, claims, rests_on, local_why_now_checked)
-        return format_generated_dates({
+        formatted = format_generated_dates({
             "explanation": explanation, "explanation_claim_ids": list(rests_on), "claims": list(claims),
             "numbers_only": reason is not None, "reason": reason, "usage_usd": spent["usd"], "checks": checks,
             "error": error, "local_why_now_checked": local_why_now_checked, "specificity": specificity,
             "news_driven": news_driven, "critic": critic, "title_written": title_written,
         }, reference=window_end)
+        if title_audit:
+            formatted["title_majority"] = copy.deepcopy(title_audit)
+        return formatted
 
     def reject_overflow(draft):
         count = len(draft.get("claims") or [])
@@ -1099,19 +1105,72 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         if fault is not None:
             checks.append(_title_row("cut", "code", fault))
             return None
+        schema = SUPPORT_SCHEMA
+        user = _sentence_user(title, rechecked["claims"], rests_on, records, pack, market, terms, label=TITLE_LABEL)
+        snapshot = None
+
+        def assess_title(response, request_hash):
+            try:
+                return title_purity.assess(snapshot, title, response, request_hash=request_hash, model_id=model_id)
+            except Exception as exc:
+                return title_purity.bounded_receipt({"decision": "unknown", "reason": f"optional title validation failed: {type(exc).__name__}",
+                        "title_hash": title_audit.get("title_hash"), "request_hash": request_hash,
+                        "response_hash": None,
+                        "producer_plan_id": snapshot.get("producer_plan_id"), "cluster_ref": snapshot.get("cluster_ref"),
+                        "membership_hash": snapshot.get("membership_hash"), "N": snapshot.get("N"), "S": 0, "R": 0,
+                        "U": snapshot.get("N"), "member_receipts": []})
+
+        if candidate.get("kind") == "topic":
+            from core.brief import title_purity
+
+            snapshot = pack.get("title_snapshot") or title_purity.unknown("producer snapshot missing")
+            snapshot = title_purity.validate_final_pack(snapshot, pack)
+            title_audit.update(assess_title(None, None))
+            if snapshot.get("status") != "complete":
+                checks.append(_title_row("cut", "code", "strict producer majority unknown: " +
+                                         snapshot.get("reason", "snapshot invalid")))
+                return None
+            schema = title_purity.SCHEMA
+            user += ("\n\nKeep the original verdict and reason for the cited-post title check above. Also judge each "
+                     "member below separately: supported only when its own full text shows the title's subject or "
+                     "event, not merely a shared word. Return member_checks with its post_id, verdict and a short "
+                     "exact quote that supplies that semantic basis. Unclear or unseen content is partial. "
+                     "These members never change the original claim checks or place rules.\n" +
+                     f"Full producer membership N: {snapshot['N']}; membership hash: {snapshot['membership_hash']}. "
+                     f"Final pack hash: {snapshot['final_pack_hash']}. "
+                     "The listed posts are only a bounded subset; all remaining members stay unknown.\n"
+                     "Cluster members for individual title support:\n" +
+                     _fence(json.dumps(title_purity.context(snapshot), ensure_ascii=False)))
+            try:
+                request_hash = title_purity.digest({"system": SUPPORT_SYSTEM, "user": user, "schema": schema,
+                                                    "model": model_id, "max_tokens": SUPPORT_MAX_TOKENS})
+            except Exception as exc:
+                title_audit["reason"] = f"optional title validation failed: {type(exc).__name__}"
+                checks.append(_title_row("cut", "code", "strict producer majority unknown: " + title_audit["reason"]))
+                return None
+            title_audit["request_hash"] = request_hash
         try:
-            out = call(SUPPORT_SYSTEM, _sentence_user(title, rechecked["claims"], rests_on, records, pack, market,
-                                                      terms, label=TITLE_LABEL),
-                       SUPPORT_SCHEMA, SUPPORT_MAX_TOKENS)
+            out = call(SUPPORT_SYSTEM, user, schema, SUPPORT_MAX_TOKENS)
         except _Cap:
+            if snapshot is not None:
+                title_audit["reason"] = "title support check refused by model cap"
             checks.append(_title_row("cut", "code", "support check not run: model cap"))
             return None
         except _ModelError as exc:
+            if snapshot is not None:
+                title_audit["reason"] = "title support check failed"
             checks.append(_title_row("cut", "code", f"support check not run: {exc}"))
             return None
         verdict = out.get("verdict") if isinstance(out, dict) else None
         checks.append(_title_row("pass" if verdict == "supported" else "cut", "model",
                                  f"support check {verdict}: {(out or {}).get('reason', '')}"))
+        if snapshot is not None:
+            checked_title_audit = assess_title(out, request_hash)
+            title_audit.clear()
+            title_audit.update(checked_title_audit)
+            if title_audit["decision"] != "pass":
+                checks.append(_title_row("cut", "code", title_audit.get("reason", "strict producer majority unknown")))
+                return None
         return title if verdict == "supported" else None
 
     def judge(draft, user, *, repair):
