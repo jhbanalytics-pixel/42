@@ -7,6 +7,11 @@ are dry-run after the tables are created and run after that; without --apply the
 do not exist yet are skipped and named. Finally INFORMATION_SCHEMA.TABLES is listed for both
 datasets, tables and views counted apart.
 
+CREATE VIEW IF NOT EXISTS leaves a view that already exists exactly as it is, and BigQuery accepts the statement
+without a word. So a view that already exists is never reported as run ok; its live SQL is read back, compared with
+the file with whitespace collapsed, and a difference is named and makes the exit code 1, in a dry run too. Nothing
+here replaces a view: an edited view needs a reviewed CREATE OR REPLACE VIEW.
+
 Run from the repo root: py -3.13 -m core.schema.apply [--apply]
 """
 import argparse
@@ -27,6 +32,7 @@ NAME = re.compile(
     r"|ALTER\s+TABLE\s+`([^`]+)`\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s)", re.I
 )
 KINDS = ("schema", "table", "view", "alter")
+VIEW = re.compile(r"^CREATE\s+VIEW\s+IF\s+NOT\s+EXISTS\s+`[^`]+`\s+AS\s+(.*)$", re.I | re.S)
 
 
 def split_statements(text):
@@ -54,6 +60,12 @@ def statement_name(statement):
     return (m.group(2) or m.group(3)) if m else statement.splitlines()[0]
 
 
+def view_body(statement):
+    """The SELECT of a CREATE VIEW statement with its whitespace collapsed, or None for any other statement."""
+    m = VIEW.match(statement)
+    return " ".join(m.group(1).split()) if m else None
+
+
 def is_schema(statement):
     return kind(statement) == "schema"
 
@@ -71,7 +83,8 @@ def dataset_of(statement):
     return statement_name(statement).split(".")[1]
 
 
-def execute(client, statements, dry):
+def execute(client, statements, dry, kept=frozenset()):
+    """Dry-run or run each statement. kept names the views that already existed, which BigQuery leaves alone."""
     word = "dry run" if dry else "run"
     for statement in statements:
         config = bigquery.QueryJobConfig(dry_run=True, use_query_cache=False) if dry else None
@@ -82,7 +95,11 @@ def execute(client, statements, dry):
         except Exception as error:
             print(f"{word} failed on {statement_name(statement)}: {error}")
             return False
-        print(f"{word} ok: {statement_name(statement)}")
+        if not dry and statement_name(statement) in kept:
+            print(f"{word} left unchanged: {statement_name(statement)} already existed, "
+                  "and CREATE VIEW IF NOT EXISTS does not replace it")
+        else:
+            print(f"{word} ok: {statement_name(statement)}")
     return True
 
 
@@ -102,6 +119,34 @@ def exists(client, name):
     except NotFound:
         return False
     return True
+
+
+def live_view_sql(client, name):
+    """The SQL of the view as BigQuery holds it, whitespace collapsed, or None when there is no such view."""
+    try:
+        table = client.get_table(name)
+    except NotFound:
+        return None
+    query = getattr(table, "view_query", None)
+    return " ".join(query.split()) if query else None
+
+
+def existing_views(client, statements):
+    return {statement_name(s) for s in statements if kind(s) == "view" and live_view_sql(client, statement_name(s))}
+
+
+def report_drift(client, statements):
+    """Name every existing view whose live SQL is not the file's. True when there is none."""
+    clean = True
+    for s in statements:
+        if kind(s) != "view":
+            continue
+        live = live_view_sql(client, statement_name(s))
+        if live is not None and live != view_body(s):
+            print(f"view differs from the file: {statement_name(s)}. The live view is the older SQL; "
+                  "CREATE VIEW IF NOT EXISTS does not change it. Replace it with a reviewed CREATE OR REPLACE VIEW.")
+            clean = False
+    return clean
 
 
 def list_tables(client, statements):
@@ -155,15 +200,18 @@ def run(client, statements, apply=False):
                   "yet; --apply creates the tables first, then dry-runs these")
         if not execute(client, ready, dry=True):
             return 1
+        unchanged = report_drift(client, ready)
         print("dry run only; nothing created")
-        return 0
+        return 0 if unchanged else 1
     if not execute(client, tables, dry=False):
         return 1
     if not execute(client, later, dry=True):
         return 1
-    if not execute(client, later, dry=False):
+    kept = existing_views(client, later)
+    if not execute(client, later, dry=False, kept=kept):
         return 1
-    return 0 if list_tables(client, tables + later) else 1
+    unchanged = report_drift(client, later)
+    return 0 if list_tables(client, tables + later) and unchanged else 1
 
 
 def main(argv=None):

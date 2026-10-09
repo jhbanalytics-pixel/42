@@ -111,12 +111,21 @@ def replay_key(scores, week_start):
             "question_set_hash": result_hash(sorted(ids)) if isinstance(ids, dict) else None}
 
 
+def no_score_reason(scores):
+    """Why no replay score was found: the folder is absent (core/eval/results is not tracked, so it is not in the
+    job image f42-learn runs) or it holds no valid file dated in the week."""
+    if not Path(scores).is_dir():
+        return (f"the score_run folder {Path(scores).name} does not exist here (core/eval/results is not in the "
+                "job image), so no replay score can be read")
+    return "no valid score_run file dated in the week"
+
+
 def eval_pass_rate(scores, week_start):
     unit = "share of replay questions passing every rubric check, latest valid score_run file in the week"
     found = latest_run(scores, week_start)
     if not found:
         return figure(None, unit, f"file:{Path(scores).as_posix()}/score-*.json", 0, MIN_EVAL_QUESTIONS,
-                      points=None, reason="no valid score_run file dated in the week")
+                      points=None, reason=no_score_reason(scores))
     path, body = found
     questions = body["run"]["questions"]
     passed = questions - len(body["failed_questions"])
@@ -129,7 +138,7 @@ def honest_gaps(scores, week_start):
     found = latest_run(scores, week_start)
     if not found:
         return figure(None, unit, f"file:{Path(scores).as_posix()}/score-*.json", 0, MIN_HONEST,
-                      points=None, reason="no valid score_run file dated in the week")
+                      points=None, reason=no_score_reason(scores))
     path, body = found
     n = body["thin"]["count"] + body["gates"]["false_full_refusals"]["count"]
     return figure(body["thin"]["honest_boundaries"] / n if n else None, unit,

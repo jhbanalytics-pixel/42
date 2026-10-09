@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_agent.runs` (
   run_id STRING NOT NULL, stage STRING, run_date DATE, status STRING,
   started_at TIMESTAMP, finished_at TIMESTAMP, counts JSON, error STRING,
   question STRING, tier STRING, plan JSON, calls INT64, credits FLOAT64, tokens INT64,
-  seconds FLOAT64, outcome STRING, answer JSON, record JSON, model_usd FLOAT64)
+  seconds FLOAT64, outcome STRING, answer JSON, record JSON, model_usd FLOAT64, stamp JSON)
 PARTITION BY run_date;
 
 CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_agent.findings` (
@@ -103,6 +103,9 @@ CLUSTER BY skin_id;
    CREATE TABLE text above and these statements change nothing. */
 ALTER TABLE `ogilvy-trends-v2.intelligence_42_agent.runs`
 ADD COLUMN IF NOT EXISTS model_usd FLOAT64;
+
+ALTER TABLE `ogilvy-trends-v2.intelligence_42_agent.runs`
+ADD COLUMN IF NOT EXISTS stamp JSON;
 
 ALTER TABLE `ogilvy-trends-v2.intelligence_42_agent.feedback`
 ADD COLUMN IF NOT EXISTS `at` TIMESTAMP;

@@ -363,7 +363,7 @@ def test_agent_keeps_one_instance_warm():
     assert words.count("--min-instances") == 1
 
 
-def test_deploy_sh_moves_traffic_to_the_new_revisions_only_after_the_health_check():
+def test_deploy_sh_issues_its_to_latest_step_after_the_health_check_and_both_deploys():
     body = text(DEPLOY_SH)
     health = body.index("core/api/smoke.py")
     skip = body.index('if [ "$TRAFFIC" = no ]')
@@ -379,7 +379,7 @@ def test_deploy_sh_moves_traffic_to_the_new_revisions_only_after_the_health_chec
     assert "set -euo pipefail" in body
 
 
-def test_deploy_sh_no_traffic_flag_skips_the_move():
+def test_deploy_sh_no_traffic_flag_skips_only_its_own_to_latest_step():
     body = text(DEPLOY_SH)
     assert re.search(r"--no-traffic\) TRAFFIC=no ;;", body)
     assert re.search(r'if \[ "\$TRAFFIC" = no \]; then\n(.*\n)*?\s+exit 0\nfi', body)
