@@ -633,6 +633,26 @@ def test_view_build_failures_are_named_together_in_the_detect_runs_row_and_the_c
     assert f"detect {D.isoformat()}: view builds failed: agent_views, news, item_centroids" in err
 
 
+def test_a_failed_locality_view_build_is_named_in_view_failures_and_on_stderr(con, monkeypatch, capsys):
+    world(con)
+
+    def boom(*a, **k):
+        raise ValueError("v_item_locality_checked create failed")
+
+    monkeypatch.setattr(sqlrun, "apply_locality_views", boom)
+    chain = FakeChain(con)
+    counts = job.run(JobClient(con), D, chain=chain, core="core", agent="agent")
+    expected = {"locality_views": "ValueError: v_item_locality_checked create failed"}
+    assert counts["locality_views"] == {"status": "failed", "error": expected["locality_views"]}
+    assert counts["view_failures"] == expected
+    _, detect_id, status, finish_counts, _ = chain.of("finish")[0]
+    assert status == "ok" and finish_counts["view_failures"] == expected
+    row = con.execute("SELECT counts FROM agent.runs WHERE run_id = ? AND finished_at IS NOT NULL",
+                      [detect_id]).fetchall()
+    assert len(row) == 1 and json.loads(row[0][0])["view_failures"] == expected
+    assert f"detect {D.isoformat()}: view builds failed: locality_views" in capsys.readouterr().err
+
+
 def test_a_later_failure_still_records_the_view_failures_before_it(con, monkeypatch):
     world(con)
 
