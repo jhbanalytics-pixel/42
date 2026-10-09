@@ -54,6 +54,7 @@ TOPIC_ITEM_STATE_COUNT_SQL = (
     "SELECT COUNT(*) n FROM {core}.item_state s WHERE s.metric_date = @d AND s.run_id = @run_id AND s.kind = @kind")
 
 CATCH_UP_DAYS = 3
+_clock = time.monotonic
 
 # Understand records a day whose clusterer produced nothing as ok but partial (counts.partial_reason). Detect then
 # judges no topic items for that day and still runs for the rest.
@@ -281,13 +282,17 @@ def apply_agent_views_step(client, core=sqlrun.CORE, agent=sqlrun.AGENT):
 
 def run_neardup_step(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
     """Write near_dup_size for the posts of the 7 days to d (neardup.py, N21). It has no runs row of its own and never
-    stops detect or brief: a missing library returns 'skipped' and any other error 'failed', with the error."""
+    stops detect or brief: a missing library returns 'skipped' and any other error 'failed', with the error. Every
+    result carries the step's wall time in seconds, as the grouping costs the square of a cluster of distinct near
+    captions and the run should show it."""
+    start = _clock()
     try:
-        return neardup.run_neardup(client, d, core, agent)
+        return {**neardup.run_neardup(client, d, core, agent), "seconds": round(_clock() - start, 3)}
     except Exception as e:
         error = f"{type(e).__name__}: {e}"
         print(f"near duplicate sizes not written: {error}", file=sys.stderr)
-        return {"status": "skipped" if isinstance(e, ImportError) else "failed", "error": error}
+        return {"status": "skipped" if isinstance(e, ImportError) else "failed", "error": error,
+                "seconds": round(_clock() - start, 3)}
 
 
 def run_centroids_step(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
