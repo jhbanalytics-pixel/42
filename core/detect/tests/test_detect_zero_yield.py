@@ -155,6 +155,38 @@ def test_a_repair_run_that_reads_the_key_valid_clears_the_mark():
     assert got[(D, "ZA", "p")] == (True, None) and got[(day(1), "ZA", "p")] == (True, None)
 
 
+def desk(d, **kw):
+    return dict(health("panel_culture_desk", d, platform=None, lane_class="panel", k=5.0), route="prism/profiles", **kw)
+
+
+def gossip(d, **kw):
+    return dict(health("panel_ig_gossip", d, platform="instagram", protocol="g1", lane_class="panel", k=5.0),
+                route="prism/profiles", **kw)
+
+
+def test_probe_g1_a_gossip_zero_yield_row_does_not_flip_the_desks_single_zero_day():
+    """G-1: the desk landed nothing on day 1 only; the gossip panel of the same route and lane has a zero_yield row
+    on D. Their series differ, so the desk's day 1 stays as written. The main platform shows one invalid day, the
+    gossip row's own, and G1's reason counts one of the last 3, not two."""
+    rows = [desk(day(2)), gossip(day(2)),
+            desk(day(1), items=0), gossip(day(1)),
+            desk(D), gossip(D, items=0, valid=False, invalid_reason="zero_yield")]
+    con = loaded(rows, "instagram")
+    got = view(con)
+    assert got[(day(1), "ZA", "panel_culture_desk")] == (True, None)
+    c = ctx(con, item(main_series_id=SERIES))
+    assert c["valid_days"] == [False, True, True]
+    assert "1 of the last 3 market-days invalid" in gate_card({"item_id": "i1"}, c).reason
+
+
+def test_a_zero_yield_row_of_one_series_flips_the_day_before_of_that_series_only():
+    rows = [desk(day(1), items=0), gossip(day(1), items=0),
+            desk(D, items=0, valid=False, invalid_reason="zero_yield"), gossip(D)]
+    got = view(loaded(rows, "instagram"))
+    assert got[(day(1), "ZA", "panel_culture_desk")] == (False, "zero_yield")
+    assert got[(day(1), "ZA", "panel_ig_gossip")] == (True, None)
+
+
 # G1 reads the new rows
 
 SERIES = "i1|ZA|panel_culture_desk|p1"
