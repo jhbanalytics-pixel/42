@@ -94,6 +94,8 @@ Try this (Stage 3): build a dossier on one rising topic, review it, export the P
 
 Albert creates the production project and links billing; runs bootstrap for production; starts the production workflow with the image digest that passed staging. The release gate is a paired replay of a frozen snapshot with cached SocialCrawl responses (no live credits): the candidate must have no new hard fail and no question scoring lower than the last release on the same snapshot, and citation integrity and number reproducibility must be 100%.
 
+Release note for wave 8: before the f42-brief job image is deployed, run `py -3.13 -m core.schema.apply --apply` so the claim_checks ALTERs in core/schema/agent.sql (span_sha256 and reason_code, W8-DEC-14) exist. Without `--apply` the command only dry-runs and creates nothing. If the columns are missing, the brief still writes every market's brief, because the claim_checks insert is caught, but that run's claim_checks rows are not stored and the run counts record claim_checks as failed (core/brief/job.py).
+
 ## Stage 4 and 5
 
 Stage 4: forecast scoring against persistence, cross-market lead-lag memory (hidden until it beats persistence), a sentinel creator panel per market, the optional intraday pulse (ENGINE.md section 3), local-language tone model, spike explanation, scheduled questions, Slack or Teams delivery. Stage 5: brand lens, creator brand-fit and safety, GenAI visibility, client skins (ENGINE.md section 8; BSA first), creative context pack. Each gets its own task table in this file when Stage 3 is done.
