@@ -8,6 +8,7 @@ import pytest
 from core.api.held_words import plain_reason
 from core.brief.payload import NOT_RUN_REASONS
 from core.trust import gate
+from core.trust.tests.test_locality_gate import card as locality_card
 
 GATE_SOURCE = Path(gate.__file__).read_text(encoding="utf-8")
 CLEAN_CARD = {"market_scope": "market", "market_posts7": 6, "total_posts7": 8, "market_share7": 0.75,
@@ -22,6 +23,9 @@ HELD = {
     "G6 missing": ({"market_share7": None}, {}),
     "G6 inconsistent": ({"market_share7": 0.5}, {}),
     "G6 global": ({"market_scope": "global", "market_posts7": 3, "market_share7": 0.375}, {}),
+    # A card admitted under locality_v2.1 is held by the retained row: G6 for not_local, G1 for a row that cannot be read.
+    "G6 not local": (locality_card(10, 2), {}),
+    "G1 unreadable": (locality_card(8, 0, lrow_known_posts=None), {}),
     "G5": ({"sponsored_share": 0.62}, {}),
     "G5b": ({}, {"campaign_hashtags": ["#Dance"]}),
     "G4b": ({}, {"political": True}),
@@ -36,7 +40,7 @@ def held_reason(card, ctx):
 
 def test_every_held_branch_of_the_gate_is_covered_here():
     assert len(re.findall(r"\breturn _held\(", GATE_SOURCE)) == len(HELD)
-    assert [held_reason(*HELD[k]).rule for k in HELD] == ["G1", "G3", "G6", "G6", "G6", "G5", "G5b", "G4b"]
+    assert [held_reason(*HELD[k]).rule for k in HELD] == ["G1", "G3", "G6", "G6", "G6", "G6", "G1", "G5", "G5b", "G4b"]
 
 
 @pytest.mark.parametrize("name", list(HELD))
