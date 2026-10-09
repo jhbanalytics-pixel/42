@@ -128,7 +128,7 @@ class FakeBQ:
     """Records queries and load jobs; plays MERGE into posts on a dict keyed by post_id, the creators MERGE
     on (platform, creator_id), and serves raw_responses rows to the backfill."""
 
-    def __init__(self, previous=(), reference=(), pulls=(), seeds=(), watches=(), raw=()):
+    def __init__(self, previous=(), reference=(), pulls=(), seeds=(), watches=(), raw=(), prior_zero=()):
         self.raw = list(raw)
         self.raw_bytes = 1_000_000
         self.dry_runs = []
@@ -139,6 +139,7 @@ class FakeBQ:
         self.previous = list(previous)
         self.pulls = list(pulls)
         self.reference = list(reference)
+        self.prior_zero = list(prior_zero)
         self.watches = list(watches)
         self.queries = []
         self.loads = []
@@ -211,6 +212,8 @@ class FakeBQ:
             return FakeJob(self.pulls)
         if "item_counter_daily" in sql:
             return FakeJob(self.previous)
+        if "l.calls_ok = l.calls" in sql:
+            return FakeJob(self.prior_zero)
         if "collection_health" in sql:
             return FakeJob(self.reference)
         raise AssertionError("unexpected query")
