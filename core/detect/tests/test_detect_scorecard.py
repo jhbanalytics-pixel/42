@@ -225,7 +225,14 @@ def world(tmp_path_factory):
     ref = tmp_path_factory.mktemp("ref") / "ground_truth.yaml"
     ref.write_text(REFERENCE, encoding="utf-8")
     client = duck.Client(con)
-    rows = scorecard.run_scorecard(client, WEEK, run_id=RUN_ID, reference=ref, core="core", agent="agent")
+    with pytest.MonkeyPatch.context() as patch:
+        # A module fixture is built before the per-test authority fixture runs, and the statements differ by authority
+        # (sqlrun.for_authority), so it is built under the one the suite run asks for.
+        if os.environ.get("F42_TEST_LOCALITY_AUTHORITY"):
+            from core.conftest import set_locality_authority
+
+            set_locality_authority(patch, os.environ["F42_TEST_LOCALITY_AUTHORITY"])
+        rows = scorecard.run_scorecard(client, WEEK, run_id=RUN_ID, reference=ref, core="core", agent="agent")
     return {"rows": {r["market"]: r for r in rows}, "client": client, "con": con, "ref": ref}
 
 
