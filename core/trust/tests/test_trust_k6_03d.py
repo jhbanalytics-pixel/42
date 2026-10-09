@@ -44,9 +44,12 @@ MONTHS = ["Jan", "January", "Feb", "February", "Mar", "April", "May", "June", "J
           "Oct", "Nov", "Dec"]
 
 # Clear when on: a falling pair after a score word, a rising day range after a month, a score with no person after it.
+# Two rows left this list in the CR round. "Pirates won 24-17, fans cheered" breaches because a comma no longer ends the
+# clause for this guard (CR-3, fail safe, accepted by the lead). "lost 30-30 in the end" breaches because a tie is not a
+# falling pair, and W8-DEC-03d says falling pair only (CR-4). Both sit in STILL_BREACH_WHEN_ON now.
 CLEAR_WHEN_ON = [
     "Chiefs won 24-17 on Saturday", "Won 24-17", "FT: 24-17", "HT 20-15", "Final Score: 31-24", "Half-Time 21-14",
-    f"won 24{EN}17", "Pirates won 24-17, fans cheered", "lost 30-30 in the end", "Event runs May 20-26 in Joburg",
+    f"won 24{EN}17", "Event runs May 20-26 in Joburg",
     "Sept. 20-26", f"Sept 20{EN}26", "Sept 20-31",
 ]
 
@@ -66,6 +69,7 @@ STILL_BREACH_WHEN_ON = [
     "voters may 18-24 online", "Smarch 18-24 viewers", "Sept 20-26 fans", "Sept 20-26 Voters",
     "polls show 45-55 split", "In the poll, 45-54 split evenly between the ANC and the DA", "Poll: 35-64 split down the middle",
     "National Youth Service Corps", "national youth service corps", "the Youth Service", "National Youth Service",
+    "Pirates won 24-17, fans cheered", "lost 30-30 in the end",
 ]
 
 # The N-Ns group noun band (plan line 197): a breach only as a group noun, never a duration or a decade.
@@ -242,9 +246,11 @@ def test_a_music_single_does_not_block(on):
 
 
 def test_the_word_must_be_in_the_clause_not_the_text(on):
-    # A clause ends at ; ! ? : , and a full stop that is not a decimal point. Each pair is a clear text with a person
-    # word one clause away on the far side of the stop, so dropping any stop from the clause end turns it into a breach.
-    for stop in (";", "!", "?", ":", ",", "."):
+    # A clause ends at ; ! ? : and a full stop that is not a decimal point, a month abbreviation, "e.g." or "i.e.". A
+    # comma does not end it (CR-3: this loop used to list the comma, and the pin flipped). Each pair is a clear text
+    # with a person word one clause away on the far side of the stop, so dropping any stop from the clause end turns it
+    # into a breach.
+    for stop in (";", "!", "?", ":", "."):
         assert not _k6_term(f"Women posted{stop} the Chiefs won 24-17 on Saturday", set()), stop
         assert not _k6_term(f"Chiefs won 24-17 on Saturday{stop} women cheered", set()), stop
         assert not _k6_term(f"Students were polled{stop} the event runs Sept 20-26 in Joburg", set()), stop
@@ -346,3 +352,153 @@ def test_a_claim_breaches_the_same_text_when_off(off):
 
 def test_a_quoted_verified_span_is_still_exempt_when_on(on):
     assert not _k6_term('He said "the 18-24 group was loud today" at the show', {"the 18-24 group was loud today"})
+
+
+# CR-3: the 60 person words the closure re-review found outside the clause list, written here and not read from the code.
+CR3_WORDS = [
+    "pupils", "ladies", "guys", "lads", "folks", "mothers", "fathers", "sisters", "brothers", "daughters", "sons",
+    "couples", "families", "Africans", "Ghanaians", "Zimbabweans", "Ugandans", "Tanzanians", "Nairobians", "Lagosians",
+    "citizens", "respondents", "participants", "attendees", "members", "supporters", "stans", "players", "athletes",
+    "drivers", "commuters", "employees", "staff", "buyers", "readers", "influencers", "streamers", "artists",
+    "musicians", "Instagrammers", "YouTubers", "netizens", "tweeps", "individuals", "clients", "patients", "husbands",
+    "wives", "girlfriends", "boyfriends", "grads", "freshers", "punters", "bettors", "gamblers", "ravers", "clubgoers",
+    "partygoers", "festivalgoers", "churchgoers",
+]
+
+
+def test_the_cr3_list_is_sixty_distinct_words():
+    assert len(CR3_WORDS) == 60 and len({w.lower() for w in CR3_WORDS}) == 60
+
+
+@pytest.mark.parametrize("word", CR3_WORDS)
+def test_each_cr3_word_blocks_a_date_before_or_after_the_range(on, word):
+    assert _k6_term(f"In May 18-24 {word} led the trend", set())
+    assert _k6_term(f"{word} drove it in June 18-24", set())
+    assert _k6_term(f"The {word} led it in May 18-24", set())
+    assert _k6_term(f"Event runs Sept 20-26 for the {word}", set())
+
+
+@pytest.mark.parametrize("word", CR3_WORDS)
+def test_each_cr3_word_blocks_a_score_before_or_after_the_pair(on, word):
+    assert _k6_term(f"The {word} saw the Chiefs won 24-17", set())
+    assert _k6_term(f"Chiefs won 24-17 in front of the {word}", set())
+
+
+@pytest.mark.parametrize("word", CR3_WORDS[:3] + CR3_WORDS[-3:])
+def test_each_cr3_word_blocks_in_any_case(on, word):
+    assert _k6_term(f"In May 18-24 {word.upper()} led the trend", set())
+    assert _k6_term(f"In May 18-24 {word.lower()} led the trend", set())
+
+
+# CR-3: a comma does not end the clause for this guard. The clause ends at ; : ! ? and a full stop that is not part of a
+# month abbreviation, "e.g." or "i.e.".
+COMMA_SENTENCES = [
+    "Women, in May 18-24, led the trend", "In May 18-24, women led the trend", "Students, Sept 18-24, drove it",
+    "Among women, May 18-24 was the peak", "In May 18-24 e.g. students posted", "In June 18-24 i.e. women posted",
+    "Women, e.g. in May 18-24, led it", "In May 18-24, e.g. women, posted", "Women, i.e. the 18-24 group, led it",
+    "Pirates won 24-17, fans cheered", "Women posted, the Chiefs won 24-17 on Saturday",
+    "Chiefs won 24-17 on Saturday, women cheered", "Students were polled, the event runs Sept 20-26 in Joburg",
+    "The event runs Sept 20-26 in Joburg, students are welcome", "Women, Sept. 18-24, led it", "In Sept. 18-24 women led it",
+    "Women posted it in Sept. 18-24", "Event runs Sept. 20-26 in Joburg, e.g. for students",
+    "Event runs Sept 20-26 in Joburg, i.e. for women",
+]
+
+
+@pytest.mark.parametrize("text", COMMA_SENTENCES)
+def test_a_comma_does_not_end_the_clause(on, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", COMMA_SENTENCES)
+def test_the_comma_sentences_breached_when_off_too(off, text):
+    assert _k6_term(text, set()), text
+
+
+def test_a_decimal_point_and_a_month_stop_still_behave(on):
+    assert not _k6_term("Women posted. Event runs Sept 20-26 in Joburg", set())
+    assert not _k6_term("Women posted in Dec to cheers. Event runs Sept 20-26 in Joburg", set())
+    assert not _k6_term("Event runs Sept 20-26 in Joburg. Women posted in Dec to cheers", set())
+    assert not _k6_term("Women rated it 4.5. Chiefs won 24-17 on Saturday", set())
+    assert not _k6_term("Chiefs won 24-17 on Saturday. Women rated it 4.5", set())
+
+
+# A person word that is only the tail of a longer word is not a person word.
+@pytest.mark.parametrize("word", ["Carmen", "Roman", "Norman", "Ramen", "Bowman"])
+def test_a_clause_word_must_be_a_whole_word(on, word):
+    assert not _k6_term(f"{word} won 24-17 on Saturday", set()), word
+    assert not _k6_term(f"Event runs Sept 20-26 with {word}", set()), word
+
+
+# CR-4: age group, hyphenated or fused, and the other age words that name a group.
+AGE_GROUP_SENTENCES = [
+    "The May 18-24 age-group", "the May 18-24 agegroup", "The May 18-24 age group", "the May 18-24 age-groups",
+    "the May 18-24 agegroups", "The May 18-24 age range", "the June 18-24 age band", "the June 18-24 age bracket",
+    "the June 18-24 age category", "the June 18-24 age categories", "the June 18-24 age ranges",
+    "the June 18-24 age bands", "The AGE-GROUP was Sept 20-26", "The age  range was Sept 20-26",
+    "the Sept 18-24 groups", "the Sept 18-24 group",
+]
+
+
+@pytest.mark.parametrize("text", AGE_GROUP_SENTENCES)
+def test_an_age_group_word_blocks_a_date(on, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", AGE_GROUP_SENTENCES)
+def test_the_age_group_sentences_breached_when_off_too(off, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", ["The age of the Chiefs won 24-17", "Event runs Sept 20-26 for the group stage",
+                                  "Chiefs won 24-17 in the group stage", "Chiefs won 24-17 in a group match",
+                                  "The group stage: Chiefs won 24-17", "Event runs Sept 20-26 in the focus group room"])
+def test_a_group_that_is_not_straight_after_the_range_stays_clear(on, text):
+    assert not _k6_term(text, set()), text
+
+
+# CR-4: a tie is not a falling pair.
+@pytest.mark.parametrize("text", ["lost 30-30 in the end", "drew 20-20", "Final Score: 25-25", "FT 30-30",
+                                  "Chiefs and Pirates drew 30-30 on Saturday", f"won 30{EN}30", "HT 20-20"])
+def test_a_tie_score_breaches_when_on(on, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", ["lost 30-30 in the end", "drew 20-20", "Final Score: 25-25"])
+def test_a_tie_score_breached_when_off_too(off, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", ["won 24-17", "lost 30-29 in the end", "Final Score: 31-24", "drew 25-24", "Sept 20-26",
+                                  "Event runs Sept 20-21 in Joburg", "Chiefs won 24-17 on Saturday. Women cheered"])
+def test_a_falling_pair_or_a_rising_day_range_with_no_person_word_still_passes(on, text):
+    assert not _k6_term(text, set()), text
+
+
+def test_a_decimal_point_does_not_end_the_clause(on):
+    assert _k6_term("Women rated it 4.5 and Chiefs won 24-17 on Saturday", set())
+    assert _k6_term("Chiefs won 24-17 on a 4.5 star day for women", set())
+    assert _k6_term("Event runs Sept 20-26 and women rated it 4.5", set())
+
+
+@pytest.mark.parametrize("stop", [".", ";", ":", "!", "?"])
+def test_a_stop_straight_after_the_range_ends_the_clause(on, stop):
+    assert not _k6_term(f"Chiefs won 24-17{stop} Women cheered", set()), stop
+    assert not _k6_term(f"Event runs Sept 20-26{stop} Students are welcome", set()), stop
+
+
+@pytest.mark.parametrize("word", ["Staffordshire", "Membership", "Readership", "Driversfield", "Playersburg"])
+def test_a_clause_word_must_not_be_the_front_of_a_longer_word(on, word):
+    assert not _k6_term(f"{word} won 24-17 on Saturday", set()), word
+    assert not _k6_term(f"Event runs Sept 20-26 at {word}", set()), word
+
+
+def test_a_dash_with_spaces_between_age_and_group_still_blocks(on):
+    assert _k6_term("The age - range was Sept 20-26", set())
+    assert _k6_term("the May 18-24 age -group", set())
+    assert _k6_term("the May 18-24 age- band", set())
+
+
+def test_e_g_must_start_at_a_word(on):
+    # "Pre.g." is a word that ends in e, then .g., and not the abbreviation: its full stops end the clause.
+    assert not _k6_term("Women cheered Pre.g. Chiefs won 24-17", set())
+    assert not _k6_term("Women cheered Chi.e. Chiefs won 24-17", set())
