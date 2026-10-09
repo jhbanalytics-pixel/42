@@ -200,6 +200,21 @@ def test_a_malformed_birth_centroid_costs_only_its_own_pair():
     assert by["bad"]["drift_cosine"] is None and by["good"]["shadow_accept"] is True
 
 
+@pytest.mark.parametrize("birth", [[float("nan")] + [1.0] * 7, [float("inf")] + [1.0] * 7, [None] + [1.0] * 7,
+                                   "abc", {"a": 1}, [[1.0], [1.0, 2.0]], 5, [1.0, 2.0]])
+def test_any_malformed_birth_centroid_leaves_the_other_pairs_scored_and_the_rows_clean(birth):
+    c = a_cluster("c1", at(1.0), keywords=["kota"], hashtags=["bgtag1"])
+    bad = an_item("bad", at(0.95), DAY - timedelta(days=2), keywords=["kota"], hashtags=["bgtag1"])
+    bad["birth_centroid"] = birth
+    good = an_item("good", at(0.95, towards=2), DAY - timedelta(days=2), keywords=["kota"], hashtags=["bgtag1"])
+    _, rows = shadow_of([c], [bad, good] + background())
+    assert not any("shadow_error" in r for r in rows)
+    by = {r["item_id"]: r for r in rows}
+    assert by["bad"]["drift_cosine"] is None and by["bad"]["shadow_reason"] == "accept"
+    assert by["good"]["shadow_accept"] is True
+    json.dumps(rows, allow_nan=False)  # a nan would not survive the sink's JSON
+
+
 # The shadow decision among candidates
 
 def test_among_several_accepted_candidates_the_highest_score_wins_and_a_tie_goes_to_the_smaller_item_id():
@@ -213,6 +228,17 @@ def test_among_several_accepted_candidates_the_highest_score_wins_and_a_tie_goes
     for order in ([first, second], [second, first]):  # the smaller id wins whichever is listed first
         _, rows = shadow_of([c], order + background())
         assert {r["shadow_item_id"] for r in rows} == {"a_twin"}
+
+
+def test_a_higher_score_beats_a_higher_cosine_among_accepted_candidates():
+    c = a_cluster("c1", at(1.0), keywords=["bgword1"], hashtags=["bgtag1"])
+    near = an_item("a_near", at(0.90), OLD)
+    shared = an_item("z_shared", at(0.88, towards=2), OLD, keywords=["bgword1"], hashtags=["bgtag1"])
+    decisions, rows = shadow_of([c], [near, shared] + background())
+    by = {r["item_id"]: r for r in rows}
+    assert by["a_near"]["shadow_accept"] and by["z_shared"]["shadow_accept"]
+    assert by["z_shared"]["shadow_score"] > by["a_near"]["shadow_score"] and by["a_near"]["cosine"] > by["z_shared"]["cosine"]
+    assert {r["shadow_item_id"] for r in rows} == {"z_shared"}
 
 
 def test_a_recurrence_needs_28_days_in_the_shadow_as_in_the_vote_rule():

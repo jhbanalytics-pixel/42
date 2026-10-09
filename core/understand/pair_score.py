@@ -95,9 +95,12 @@ def score_pair(cluster, item, cos, idf):
     score = 1.0 / (1.0 + math.exp(-logit))
     birth = item.get("birth_centroid")
     try:
-        drift = _cosine(cluster["centroid"], birth) if birth is not None else None
+        with np.errstate(invalid="ignore"):
+            drift = _cosine(cluster["centroid"], birth) if birth is not None else None
     except (TypeError, ValueError):
         drift = None  # one malformed birth centroid costs its own pair the guard, not the run its shadow
+    if drift is not None and not math.isfinite(drift):
+        drift = None  # a nan or inf component would pass the floor and write a nan the sink cannot encode
     if cos < COSINE_FLOOR:
         reason = "cosine_floor"
     elif drift is not None and drift < DRIFT_FLOOR:
