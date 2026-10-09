@@ -357,3 +357,39 @@ def test_plan_cc3_the_eight_refusal_rows_of_the_positive_list(label, call):
     assert plan.deploy_call_allowed(AGENT_REAL)  # the base row is allowed, so each row below differs from it in the one thing named
     assert call != AGENT_REAL
     assert not plan.deploy_call_allowed(call), label
+
+
+def without_valued(call, flag):
+    """The call with `flag` and its value taken out, so a replacement form can be added in its place."""
+    out, i = [], 0
+    while i < len(call):
+        if call[i] == flag:
+            i += 2
+        else:
+            out.append(call[i])
+            i += 1
+    return out
+
+
+@pytest.mark.parametrize("label, call", [
+    ("image digest of 63 hex characters", swapped(AGENT_REAL, IMAGE_AGENT, "r/f42-web@sha256:" + "ab" * 31 + "a")),
+    ("image digest of 65 hex characters", swapped(AGENT_REAL, IMAGE_AGENT, "r/f42-web@sha256:" + "ab" * 32 + "a")),
+    ("image digest of 1 hex character", swapped(AGENT_REAL, IMAGE_AGENT, "r/f42-web@sha256:a")),
+    ("--min-instances= with no number", without_valued(AGENT_REAL, "--min-instances") + ["--min-instances="]),
+    ("--min-instances=x", without_valued(AGENT_REAL, "--min-instances") + ["--min-instances=x"]),
+    ("--timeout=x", without_valued(AGENT_REAL, "--timeout") + ["--timeout=x"]),
+    ("--max-instances=x", without_valued(AGENT_REAL, "--max-instances") + ["--max-instances=x"]),
+    ("--timeout x", swapped(AGENT_REAL, "3600", "x")),
+    ("--max-instances x", without_valued(AGENT_REAL, "--max-instances") + ["--max-instances", "x"]),
+    ("--timeout= with no number", without_valued(AGENT_REAL, "--timeout") + ["--timeout="]),
+])
+def test_plan_rv5_a_wrong_digest_or_a_number_that_is_not_a_number_is_refused(label, call):
+    assert plan.deploy_call_allowed(AGENT_REAL)
+    assert call != AGENT_REAL
+    assert not plan.deploy_call_allowed(call), label
+
+
+@pytest.mark.parametrize("digest", ["ab" * 31 + "a", "ab" * 32 + "a", "a", "", "AB" * 32])
+def test_plan_rv5_the_deploy_script_step_refuses_a_hash_that_is_not_64_lowercase_hex_characters(digest):
+    assert plan.matching_entries(["bash", "core/api/deploy_candidate.sh", CTX.manifest, digest]) == []
+    assert plan.matching_entries(["bash", "core/api/deploy_candidate.sh", CTX.manifest, "ab" * 32]) == ["deploy"]
