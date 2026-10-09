@@ -385,3 +385,30 @@ def test_a_title_a_cp1252_console_cannot_show_does_not_stop_the_report(monkeypat
     assert cr.main([D.isoformat()], client=object()) == 0
     sys.stdout.flush()
     assert raw.getvalue().decode("cp1252").splitlines() == ["ZA | ?? | held G10", "== END"]
+
+
+@pytest.mark.parametrize("order", ["forward", "reversed"])
+def test_brief_run_status_is_the_terminal_state_whatever_order_the_rows_arrive_in(order):
+    con = duck.connect(views=False)
+    t0 = dt.datetime(2026, 10, 3, 6, 0, tzinfo=dt.timezone.utc)
+    duck.load(con, "agent.briefs", [
+        {"brief_date": D, "market": "ZA", "run_id": "brief-a", "published_at": t0, "status": "published",
+         "payload": json.dumps({})}])
+    runs = [{"run_id": "brief-a", "stage": "brief", "run_date": D, "status": "running", "started_at": t0},
+            {"run_id": "brief-a", "stage": "brief", "run_date": D, "status": "ok", "started_at": t0,
+             "finished_at": t0 + dt.timedelta(minutes=4)}]
+    duck.load(con, "agent.runs", runs[::-1] if order == "reversed" else runs)
+    sql = cr.SQL["brief runs"].replace(cr.AGENT, "{agent}")
+    [row] = duck.query(con, sql, {"d": D})
+    assert row["run_status"] == "ok"
+
+
+def test_two_runs_published_at_the_same_instant_resolve_to_the_higher_run_id():
+    con = duck.connect(views=False)
+    t0 = dt.datetime(2026, 10, 3, 6, 0, tzinfo=dt.timezone.utc)
+    for rid in ("brief-b", "brief-a"):
+        duck.load(con, "agent.briefs", [{"brief_date": D, "market": "ZA", "run_id": rid, "published_at": t0,
+                                         "status": "published", "payload": json.dumps({})}])
+    sql = cr.SQL["brief runs"].replace(cr.AGENT, "{agent}")
+    rows = duck.query(con, sql, {"d": D})
+    assert [r["run_id"] for r in rows] == ["brief-a", "brief-b"]
