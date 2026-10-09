@@ -18,11 +18,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from core.api import dossiers, finding_save, investigations, skins
+from core.api import dossiers, finding_save, fixture_states, investigations, privacy, skins, summary_state
 from core.api.store import SUPPRESSIONS, viewer_record
 # The watch list read and its table live in core/api/watchlist.py so the f42-digest job can read watches
 # without fastapi; WATCHES and _lock are the same objects there and here.
-from core.api.watchlist import WATCHES, _lock, watch_of
+from core.api.watchlist import WATCHES, _lock
 from core.api.watchlist import current_watches as _current_watches
 
 log = logging.getLogger("f42-agent")
@@ -228,9 +228,23 @@ def resolve_run_ask():
         return None
 
 
+def fixture_state(request, answer, run):
+    """The state the real producer would build for the fixture's complete and partial answers, so the pages and the
+    journeys over the fixture agent see a verified state (C1 P-19). None if answer_state is not there."""
+    try:
+        blank = not str(answer.get("short_answer") or "").strip()
+        return summary_state.module().build(
+            ask_id=request["ask_id"], check_run_id=run.get("run_id"), execution_state="completed", stop_reason=None,
+            summary_state="blank_unexplained" if blank else "shown", removals=[], rewrite="not_attempted", answer=answer)
+    except Exception as exc:
+        log.error("ask %s: answer_meta not built: %s", request["ask_id"], type(exc).__name__)
+        return None
+
+
 def fixture_agent(request, emit, should_stop):
     question = request["question"].lower()
-    failing = re.search(r"\bfail", question) is not None
+    fixture = os.environ.get("F42_FIXTURE_STATE")  # one fixture of C1 v2 section 7 (P-19), by its id
+    failing = re.search(r"\bfail", question) is not None or fixture == fixture_states.FAILS
     name = "ask_partial.json" if re.search(r"\bthin\b", question) else "ask_complete.json"
     record = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
     answer, run = record["answer"], record["run"]
@@ -262,7 +276,10 @@ def fixture_agent(request, emit, should_stop):
         time.sleep(delay)
     if failing:
         raise RuntimeError("fixture agent failed on purpose")
-    return {"answer": answer, "run": run}
+    if fixture:
+        answer, meta = fixture_states.build(fixture, request, answer, run)
+        return {"answer": answer, "run": run, **({"answer_meta": meta} if meta else {})}
+    return {"answer": answer, "run": run, "answer_meta": fixture_state(request, answer, run)}
 
 
 MODEL_UNAVAILABLE = "The model is not available right now (quota or access). Try again later."
@@ -315,18 +332,54 @@ def recorded(ask_id):
     release(ask_id)
 
 
+def failed_state(ask, update):
+    """The state of a run that raised: built here, from the ask id and the run id alone. None when it cannot be
+    built; the Ask is never failed for a metadata fault."""
+    try:
+        run = update.get("run") if isinstance(update.get("run"), dict) else {}
+        return summary_state.module().build_failed(ask_id=ask.request["ask_id"], check_run_id=run.get("run_id"))
+    except Exception as exc:
+        log.error("ask %s: answer_meta not built: %s", ask.request["ask_id"], type(exc).__name__)
+        return None
+
+
+def keep_state(ask, update, meta):
+    """Put the typed summary state into update, beside the answer, when it fits the record as it will be stored
+    (C1 3): judged by answer_state.verify_stored against {**record, **update}. A value that does not fit is not stored,
+    the record reads as legacy and the ask goes on: a paid answer is not failed for a metadata fault. Only the
+    producer's value is accepted, never one the model or a client could have written."""
+    if meta is None:
+        return
+    ask_id = ask.request["ask_id"]
+    try:
+        problem = summary_state.module().verify_stored({**ask.record, **update, "answer_meta": meta})
+    except Exception as exc:
+        log.error("ask %s: answer_meta not checked: %s", ask_id, type(exc).__name__)
+        return
+    if problem is not None:
+        log.error("ask %s: answer_meta rejected: %s", ask_id, problem)
+        return
+    update["answer_meta"] = meta
+
+
 def execute(ask, run_ask, after=None):
     try:
         result = run_ask(copy.deepcopy(ask.request), ask.emit, ask.should_stop)
         ask.receipts = result.get("query_receipts")
         update = {"status": "stopped" if ask.stop else "complete",
                   "answer": result.get("answer"), "run": result.get("run")}
+        meta = result.get("answer_meta")
     except Exception as exc:
         log.exception("ask %s failed", ask.request["ask_id"])
         failure = model_failure(exc)
         error = ({"error": "model_unavailable", "message": MODEL_UNAVAILABLE, **failure} if failure else
                  {"error": "internal", "message": f"The agent hit an error and could not finish ({type(exc).__name__})."})
         update = {"status": "failed", "answer": None, "run": failed_run(_run_of(exc)), "error": error}
+        meta = failed_state(ask, update)
+    try:  # the metadata code has its own try block: a fault in it never fails a paid answer or a failed record
+        keep_state(ask, update, meta)
+    except Exception as exc:
+        log.error("ask %s: answer_meta not stored: %s", ask.request["ask_id"], type(exc).__name__)
     with ask.cond:
         ask.record.update(update)
         ask.record["finished_at"] = now(ask.request.get("market")).isoformat()
@@ -498,6 +551,10 @@ async def start(request: Request):
             held = await run_in_threadpool(get_store().ask_record, req["parent_id"])
             if held is None:
                 return not_found(req["parent_id"])
+        # The earlier answer enters a new run only as a reader would see it now (C5 v2 section 7).
+        held = await run_in_threadpool(readable, held)
+        if (held.get("privacy") or {}).get("state") == "unavailable":
+            return people_unavailable()
         req["parent"] = {"question": held["question"], "answer": held["answer"],
                          "window": (held.get("run") or {}).get("window")}
     req["ask_id"] = f"a_{now(req['market']).strftime('%Y%m%d')}_{secrets.token_hex(4)}"
@@ -515,7 +572,7 @@ async def start(request: Request):
     threading.Thread(target=execute, args=(ask, run_ask), daemon=True, name=req["ask_id"]).start()
     if req["wait"]:
         await run_in_threadpool(ask.finished.wait)
-        return JSONResponse(ask.snapshot())
+        return view_response(await run_in_threadpool(readable, ask.snapshot()))
     url = f"/api/ask/{req['ask_id']}"
     return JSONResponse({"ask_id": req["ask_id"], "status": "running", "events_url": url + "/events", "url": url},
                         status_code=202)
@@ -524,7 +581,16 @@ async def start(request: Request):
 @app.get("/api/ask/{ask_id}")
 def read(ask_id: str):
     ask = get_ask(ask_id)
-    return JSONResponse(shown_record(ask.snapshot())) if ask else not_found(ask_id)
+    if not ask:
+        return not_found(ask_id)
+    record = ask.snapshot()
+    if record.get("status") != "running":
+        privacy.POLLS.done(("agent", ask_id))
+        return view_response(readable(record))
+    # A run in flight is polled every couple of seconds: its list is no older than 30 seconds (section 19).
+    from core.api.store import get_store
+    held = privacy.POLLS.of(("agent", ask_id), privacy.LazyStore(get_store))
+    return view_response(readable(record, held.get(), held.creators))
 
 
 def frame(kind, data):
@@ -534,10 +600,13 @@ def frame(kind, data):
 def follow(ask, after):
     """Every event after `after`, then live ones, then done. A skin run's events are masked before they leave
     (contract 15.1), naming approved accounts only, since the authors' page tiers are not read per event."""
+    from core.api.store import get_store
     sent = after
     skin_id = ask.record.get("skin_id")
     people = skin_people(skin_id) if skin_id else None
     hidden = set()  # handles stripped from this stream's evidence, masked wherever they appear
+    store, left_out, memo, said = privacy.LazyStore(get_store), set(), {}, False
+    fresh = privacy.FreshList(store)  # a list no older than 30 seconds while the run is in flight (R2)
     if people:
         with ask.cond:
             held = [data for kind, data in ask.events if kind == "evidence"]
@@ -550,7 +619,14 @@ def follow(ask, after):
             new = ask.events[sent:]
             done = ask.done
         for kind, data in new:
-            yield frame(kind, skins.mask_event(data, people["approved"], [], hidden) if people else data)
+            shown = skins.mask_event(data, people["approved"], [], hidden) if people else data
+            current = fresh.get()
+            shown_event = privacy.project_event(kind, shown, current, store, left_out, memo)
+            if shown_event is None and current is None and not said:
+                said = True  # one step says why no evidence or claim follows (5.5)
+                yield frame("step", {"seq": data["seq"], "text": privacy.UNAVAILABLE_NOTE})
+            elif shown_event is not None:
+                yield frame(kind, shown_event)
             sent = data["seq"]
         if done is not None:
             yield frame("done", done)
@@ -1053,6 +1129,30 @@ def shown_record(record):
     return skins.mask_people(record, people["approved"], people["allowed"])
 
 
+def readable(record, hidden=privacy.READ, creators=None):
+    """An Ask record as a reader may see it now: the skin masks first (a skin report names only who it may), then the
+    list of hidden people read on this request, which wins over an approved account (C5 v2 5.2, R2). hidden is the
+    list when the request has already read it."""
+    from core.api.store import get_store
+    # The typed summary state is read from the raw record first: privacy changes the answer it is bound to.
+    return privacy.project_record(shown_record(summary_state.with_wire(record)), privacy.LazyStore(get_store), hidden,
+                                  creators=creators)
+
+
+def people_unavailable():
+    return error(503, "people_unavailable", privacy.PEOPLE_UNAVAILABLE)
+
+
+def in_one_read(fn, *args):
+    """fn with one reading of the hidden-people list shared by its passes (core/api/privacy.py one_read)."""
+    with privacy.one_read():
+        return fn(*args)
+
+
+def view_response(view, status=200):
+    return JSONResponse(view, status_code=status, headers=privacy.NO_STORE)
+
+
 def plan_skin_id(plan):
     """The skin a report investigation is scoped to; its plan carries it, since the investigations table has no
     column for it."""
@@ -1126,9 +1226,11 @@ def current_people(body):
 
 def dossier_view(version, ticks):
     """A dossier version as a reader sees it; for a skin report the whole view is masked, the ticks' notes too."""
+    from core.api.store import get_store
     body = current_people(version["body"])
-    return dossiers.shown({**body, "content_hash": version["content_hash"], "ticks": ticks,
+    view = dossiers.shown({**body, "content_hash": version["content_hash"], "ticks": ticks,
                            "needs_tick": dossiers.needs_tick(body, ticks)})
+    return privacy.project_dossier(view, privacy.LazyStore(get_store))
 
 
 def refused(exc):
@@ -1162,6 +1264,16 @@ def save_finding_from_ask(ask_id):
         return error(503, "save_unconfirmed", "The finding could not be confirmed; try again.")
     if record is None:
         return error(404, "not_found", "No saved Ask with that ID exists.")
+    try:
+        hits, question_named = privacy.finding_blockers(record, saved)
+    except Exception:
+        return people_unavailable()
+    if hits:
+        return error(409, "not_eligible", f"{', '.join(hits)} rest on posts, or name people, 42 no longer shows, "
+                                         "so this answer cannot become a finding.")
+    if question_named:
+        return error(409, "not_eligible", "The question names a person 42 no longer shows, so this answer cannot "
+                                         "become a finding.")
 
     try:
         post_ids = finding_save.evidence_ids(ask_id, record)
@@ -1205,7 +1317,7 @@ def save_version(body, ticks, status):
            "source_ask_id": body["source_ask_id"], "content_hash": dossiers.content_hash(body)}
     if not append("dossier_versions", DOSSIER_VERSIONS, row):
         return not_saved("dossier")
-    return JSONResponse(dossier_view({"body": body, "content_hash": row["content_hash"]}, ticks), status_code=status)
+    return view_response(dossier_view({"body": body, "content_hash": row["content_hash"]}, ticks), status)
 
 
 def create_dossier_from(ask_id, change):
@@ -1216,7 +1328,79 @@ def create_dossier_from(ask_id, change):
     return first_version(record, change, {"ask_id": ask_id}, people)
 
 
+def keepable(record):
+    """{claim id: whether the list lets a dossier keep it now} for the source answer, or None when who is hidden
+    cannot be checked (C5 v2 section 7: build from what the projection leaves, refuse the rest)."""
+    from core.api.store import get_store
+    answer = record.get("answer") if isinstance(record, dict) else None
+    if not isinstance(answer, dict):
+        return {}
+    store = privacy.LazyStore(get_store)
+    hidden = privacy.read_hidden(store)
+    if hidden is None:
+        return None
+    claims, _ = dossiers.admitted(answer)
+    try:
+        return privacy.selectable_claims(claims, answer.get("evidence"), hidden, store)
+    except privacy.PeopleUnavailable:
+        return None
+
+
+def stored_words(change, latest):
+    """change with the title and notes the page sent back unchanged put back to what is stored. The page shows a
+    dossier through the list of hidden people and sends the words it was shown on every edit; a title or note equal
+    to the masked form of the stored one is the stored one, not new words. Masked text is never stored (R5, A37).
+    The list can change between the page load and the edit, so a lift leaves the page holding masked words that the
+    list now read no longer reproduces: the form with every handle masked is accepted too, and words that carry a
+    mask the stored words do not are refused, never stored."""
+    from core.api.store import get_store
+    hidden = privacy.read_hidden(privacy.LazyStore(get_store))
+
+    def same(sent, held):
+        forms = {privacy.mask({"text": held}, None)["text"]}
+        if not privacy.nothing_hidden(hidden):
+            forms.add(privacy.mask({"text": held}, hidden)["text"])
+        return sent.strip() in forms
+
+    def carries_a_mask(sent, held):
+        return any(token in sent and token not in held for token in (skins.MASK, skins.URL_MASK, skins.LINK_MASK))
+
+    def settle(sent, held, what):
+        if not isinstance(sent, str):
+            return sent
+        text = held if isinstance(held, str) else ""  # a claim with no note holds no words, so any mask is new
+        if sent.strip() == text.strip():
+            return sent
+        if isinstance(held, str) and same(sent, held):
+            return held
+        if carries_a_mask(sent, text):
+            raise dossiers.Refused(409, "not_ready", f"The {what} you sent holds words that were hidden when the page "
+                                                     "was loaded. Reload the dossier and send your edit again.")
+        return sent
+
+    change = dict(change)
+    if "title" in change:
+        change["title"] = settle(change["title"], latest["title"], "title")
+    if isinstance(change.get("notes"), dict):
+        held = {c["claim_id"]: c.get("note") for c in latest["claims"]}
+        change["notes"] = {cid: settle(note, held.get(cid), "note") for cid, note in change["notes"].items()}
+    return change
+
+
+def not_keepable(ids):
+    return error(409, "not_ready", f"{', '.join(ids)} cannot be kept: it rests on a post, or names a person, "
+                                   "42 no longer shows.")
+
+
 def first_version(record, change, source, people=None):
+    ok = keepable(record)
+    if ok is None:
+        return people_unavailable()
+    change = dict(change)
+    if "keep" not in change:
+        change["keep"] = [cid for cid, fine in ok.items() if fine]
+    elif isinstance(change["keep"], list) and [c for c in change["keep"] if ok.get(c) is False]:
+        return not_keepable([c for c in change["keep"] if ok.get(c) is False])
     try:
         sel = dossiers.selection(change, record, None)
     except dossiers.Refused as exc:
@@ -1262,8 +1446,9 @@ async def create_dossier(request: Request):
         return error(400, "bad_request", "from must hold one ask_id or one investigation_id.")
     change = {"title": body["title"]} if "title" in body else {}
     if "investigation_id" in origin:
-        return await run_in_threadpool(create_dossier_from_investigation, origin["investigation_id"].strip(), change)
-    return await run_in_threadpool(create_dossier_from, origin["ask_id"].strip(), change)
+        return await run_in_threadpool(in_one_read, create_dossier_from_investigation,
+                                       origin["investigation_id"].strip(), change)
+    return await run_in_threadpool(in_one_read, create_dossier_from, origin["ask_id"].strip(), change)
 
 
 @app.post("/api/findings")
@@ -1292,6 +1477,23 @@ def edit_dossier_to(dossier_id, change, from_version=None):
         record = source_record(latest["source_ask_id"])
         if record is None:
             return error(409, "not_ready", f"The source answer {latest['source_ask_id']} can no longer be read.")
+        ok = keepable(record)
+        if ok is None:
+            return people_unavailable()
+        try:
+            change = stored_words(change, latest)
+        except dossiers.Refused as exc:
+            return refused(exc)
+        if "keep" not in change:
+            # The edit carries the earlier choice forward. A claim the list no longer lets it keep is not dropped
+            # quietly: the reader is told which, and sends keep without them to go on.
+            stuck = [c["claim_id"] for c in latest["claims"] if c["kept"] and ok.get(c["claim_id"]) is False]
+            if stuck:
+                return error(409, "not_ready", f"{', '.join(stuck)} cannot be kept any more: it rests on a post, or "
+                                               "names a person, 42 no longer shows. Send keep without it to save a "
+                                               "new version.")
+        elif isinstance(change["keep"], list) and [c for c in change["keep"] if ok.get(c) is False]:
+            return not_keepable([c for c in change["keep"] if ok.get(c) is False])
         try:
             sel = dossiers.selection(change, record, latest)
         except dossiers.Refused as exc:
@@ -1308,7 +1510,7 @@ async def edit_dossier(dossier_id: str, request: Request):
     if problem:
         return problem
     change = {key: body[key] for key in ("keep", "order", "title", "notes") if key in body}
-    return await run_in_threadpool(edit_dossier_to, dossier_id, change, body.get("from_version"))
+    return await run_in_threadpool(in_one_read, edit_dossier_to, dossier_id, change, body.get("from_version"))
 
 
 def tick_row(dossier_id, claim_id, ticked, note):
@@ -1343,7 +1545,7 @@ async def freeze_dossier(dossier_id: str, request: Request):
     body, problem = await body_of(request) if (await request.body()).strip() else ({}, None)
     if problem:
         return problem
-    return await run_in_threadpool(freeze_dossier_to, dossier_id, body.get("from_version"))
+    return await run_in_threadpool(in_one_read, freeze_dossier_to, dossier_id, body.get("from_version"))
 
 
 def freeze_dossier_to(dossier_id, from_version=None):
@@ -1358,16 +1560,21 @@ def freeze_dossier_to(dossier_id, from_version=None):
             return refused(exc)
         body, ticks = latest["body"], dossier_ticks(dossier_id)
         if body["state"] == "frozen":
-            return JSONResponse(dossier_view(latest, ticks))
+            return view_response(dossier_view(latest, ticks))
         if not any(c["kept"] for c in body["claims"]):
             return error(409, "not_ready", "Keep at least one claim before freezing.")
         record = source_record(body["source_ask_id"])
         if record is None:
             return error(409, "not_ready", f"The source answer {body['source_ask_id']} can no longer be read.")
+        ok = keepable(record)
+        if ok is None:
+            return people_unavailable()
         try:
             found = dossiers.needs_tick(body, ticks) + dossiers.recheck(body, record)
         except dossiers.Refused as exc:
             return refused(exc)
+        found += [{"claim_id": c["claim_id"], "reason": "rests on a post, or names a person, 42 no longer shows"}
+                  for c in body["claims"] if c["kept"] and ok.get(c["claim_id"]) is False]
         if found:
             reasons = {}
             for item in found:
@@ -1424,7 +1631,12 @@ def list_dossiers(limit: str = "50", before: str | None = None):
                          if cutoff is None or datetime.fromisoformat(b["created_at"]) < cutoff),
                         key=lambda b: (datetime.fromisoformat(b["created_at"]), b["dossier_id"]), reverse=True)
         listed = [dossier_summary(b, frozen.get(b["dossier_id"])) for b in bodies[:limit]]
-    return {"dossiers": listed, "next_before": listed[-1]["created_at"] if len(listed) == limit else None}
+    from core.api.store import get_store
+    store = privacy.LazyStore(get_store)
+    hidden = privacy.read_hidden(store)
+    shown_rows = [privacy.project_summary(row, store, hidden) for row in listed]
+    return view_response({"dossiers": shown_rows,
+                          "next_before": listed[-1]["created_at"] if len(listed) == limit else None})
 
 
 @app.get("/api/dossiers/{dossier_id}")
@@ -1432,7 +1644,7 @@ def read_dossier(dossier_id: str):
     versions = dossier_versions(dossier_id)
     if not versions:
         return no_dossier(dossier_id)
-    return JSONResponse(dossier_view(versions[-1], dossier_ticks(dossier_id)))
+    return view_response(dossier_view(versions[-1], dossier_ticks(dossier_id)))
 
 
 def dossier_version(dossier_id, version):
@@ -1444,7 +1656,7 @@ def read_dossier_version(dossier_id: str, version: int):
     held = dossier_version(dossier_id, version)
     if held is None:
         return error(404, "not_found", f"Dossier {dossier_id} has no version {version}.")
-    return JSONResponse(dossier_view(held, dossier_ticks(dossier_id)))
+    return view_response(dossier_view(held, dossier_ticks(dossier_id)))
 
 
 @app.get("/api/dossiers/{dossier_id}/versions/{version}/export")
@@ -1454,8 +1666,12 @@ def export_dossier(dossier_id: str, version: int, format: str = "html"):
     held = dossier_version(dossier_id, version)
     if held is None:
         return error(404, "not_found", f"Dossier {dossier_id} has no version {version}.")
+    from core.api.store import get_store
+    projected = privacy.project_dossier(current_people(held["body"]), privacy.LazyStore(get_store))
+    if (projected.get("privacy") or {}).get("state") == "unavailable":
+        return people_unavailable()
     try:
-        page = dossiers.render_html(current_people(held["body"]))
+        page = dossiers.render_html(projected)
     except dossiers.Refused as exc:
         return refused(exc)
     headers = {"Content-Disposition": f'attachment; filename="{dossiers.export_filename(dossier_id, version, format)}"'}
@@ -1904,6 +2120,12 @@ def finish_investigation(investigation_id, ask):
         with _investigation_lock:
             rows = investigation_rows(investigation_id)
             current = rows[-1]
+            if current["status"] != "running" or current["ask_id"] != record["ask_id"]:
+                # The run was closed while this owner still worked (reconcile_investigation). A late owner does not
+                # reopen it: the finish row is not published. The runs row written before this keeps the cost.
+                log.warning("investigation %s: its owner finished after the run was closed as %s; no finish row",
+                            investigation_id, current["status"])
+                return
             row = investigations.storage_row(
                 investigation_id, current["version"] + 1, status_time(current["market"]), record["status"],
                 current["question"], current["market"], investigations.view(current)["plan"],
@@ -1998,6 +2220,27 @@ def stored_investigation_record(ask_id):
     return get_store().ask_record(ask_id)
 
 
+# f42-agent runs as a single instance (max-instances 1), so a run no thread here holds and no stored record ends,
+# once it is older than the longest it may take, belongs to a process that has died (L3).
+ORPHAN_AFTER_SECONDS = 3600
+
+
+def _utcnow():
+    return datetime.now(timezone.utc)
+
+
+def _run_is_lost(row):
+    try:
+        started = row["created_at"]
+        started = datetime.fromisoformat(started) if isinstance(started, str) else started
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        minutes = investigations.view(row)["estimate"]["minutes"]
+        return (_utcnow() - started).total_seconds() > ORPHAN_AFTER_SECONDS + minutes * 60
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+
+
 def reconcile_investigation(investigation_id):
     """Repair a lost finish append from the matching finished Ask, without starting research."""
     with _investigation_lock:
@@ -2015,6 +2258,17 @@ def reconcile_investigation(investigation_id):
                     or record.get("investigation_id") != investigation_id
                     or record.get("status") not in ("complete", "stopped", "failed")
                     or not record.get("finished_at")):
+                if not _run_is_lost(current):
+                    return rows
+                # The one process that could own the run is gone and no record of its end exists: close it.
+                row = investigations.storage_row(
+                    investigation_id, current["version"] + 1, status_time(current["market"]), "failed",
+                    current["question"], current["market"], investigations.view(current)["plan"],
+                    investigations.view(current)["estimate"], current["ask_id"], current["run_id"])
+                # The hold stays: releasing it changes a hold, which waits for the shared reservation gate (N34).
+                if append("investigations", INVESTIGATIONS, row):
+                    return [*rows, row]
+                log.error("investigation %s: its lost-run row was not written", investigation_id)
                 return rows
             row = investigations.storage_row(
                 investigation_id, current["version"] + 1, status_time(current["market"]), record["status"],
@@ -2057,6 +2311,13 @@ def recover_investigations():
         log.error("investigation startup scan failed (exception_type=%s)", type(exc).__name__)
 
 
+def shown_investigations(rows):
+    """The list as a reader may see it now: a question or plan can name a hidden person as the record can."""
+    from core.api.store import get_store
+    store = privacy.LazyStore(get_store)
+    return view_response(privacy.mask({"investigations": rows}, privacy.read_hidden(store)))
+
+
 @app.get("/api/investigations")
 def list_investigations(status: str | None = None):
     if status is not None and status not in investigations.STATUSES:
@@ -2074,9 +2335,9 @@ def list_investigations(status: str | None = None):
                        f"ORDER BY first_created_at DESC LIMIT @limit",
                        [bigquery.ScalarQueryParameter("status", "STRING", status),
                         bigquery.ScalarQueryParameter("limit", "INT64", MAX_INVESTIGATION_LIST)])
-        return {"investigations": [
+        return shown_investigations([
             investigation_out({k: v for k, v in row.items() if k != "first_created_at"}, row["first_created_at"])
-            for row in rows]}
+            for row in rows])
     with _lock:
         rows = list(INVESTIGATIONS)
     latest, first = {}, {}
@@ -2086,8 +2347,8 @@ def list_investigations(status: str | None = None):
             latest[row["investigation_id"]] = row
     chosen = sorted((row for row in latest.values() if status in (None, row["status"])),
                     key=lambda row: datetime.fromisoformat(first[row["investigation_id"]]), reverse=True)
-    return {"investigations": [investigation_out(row, first[row["investigation_id"]])
-                               for row in chosen[:MAX_INVESTIGATION_LIST]]}
+    return shown_investigations([investigation_out(row, first[row["investigation_id"]])
+                                 for row in chosen[:MAX_INVESTIGATION_LIST]])
 
 
 @app.get("/api/investigations/{investigation_id}")
@@ -2097,12 +2358,13 @@ def read_investigation(investigation_id: str):
         return no_investigation(investigation_id)
     current = rows[-1]
     record = investigation_record(current["ask_id"]) if current["ask_id"] else None
-    skin_id = plan_skin_id(investigations.view(current)["plan"])
-    if record is not None and skin_id:
-        people = skin_people(skin_id, record)
-        record = skins.mask_people(record, people["approved"], people["allowed"])
+    from core.api.store import get_store
+    hidden = privacy.read_hidden(privacy.LazyStore(get_store))  # read once for the record and the rest of the page
+    if record is not None:
+        record = readable(record, hidden)  # a skin investigation is masked by the skin, then by the list
     extra = {"budget_left": money_left()} if current["status"] == "draft" else {}  # None when spend is unknown
-    return JSONResponse(investigation_out(current, rows[0]["created_at"], record=record, **extra))
+    return view_response(privacy.mask(investigation_out(current, rows[0]["created_at"], record=record, **extra),
+                                      hidden))
 
 
 def replay(record, after, url):
@@ -2139,7 +2401,7 @@ def investigation_events(investigation_id: str, request: Request):
     if record is None or record.get("status") == "running":
         return error(409, "not_ready", f"The run of investigation {investigation_id} is not held here and has no "
                                        "stored record yet.")
-    return StreamingResponse(replay(shown_record(record), after, f"/api/investigations/{investigation_id}"),
+    return StreamingResponse(replay(readable(record), after, f"/api/investigations/{investigation_id}"),
                              media_type="text/event-stream", headers=headers)
 
 
@@ -2153,6 +2415,9 @@ def stop_investigation(investigation_id: str):
     rows = investigation_rows(investigation_id)
     if not rows:
         return no_investigation(investigation_id)
+    if rows[-1]["status"] == "running":
+        return error(409, "not_ready", f"Investigation {investigation_id} is not running on this server; it may "
+                                       "have been lost in a restart, and it is closed once it is past its longest time.")
     return error(409, "not_ready", f"Investigation {investigation_id} is {rows[-1]['status']}, not running.")
 
 

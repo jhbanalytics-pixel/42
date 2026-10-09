@@ -519,3 +519,21 @@ def test_a_card_is_held_when_the_suppressed_post_leaves_fewer_than_3_posts_it_ca
     assert za["cards"] == []
     held = next(i for i in za["held_back"]["items"] if i["item_id"] == ZA_A)
     assert held["failed_reason"] == today.HIDDEN_TOO_FEW_POSTS
+
+
+def test_trend_readers_do_not_return_an_explained_card_whose_claim_lost_every_post():
+    """N42 (RC044): Today holds a card whose claim rested only on a suppressed creator's post. Trends and the topic
+    reader must not return it as explained with a claim citing nothing they return."""
+    card = _mixed_claim_card(rested=True)
+    next(c for c in card["claims"] if c["id"] == "c3")["evidence_ids"] = [HIDDEN_POST]
+    store = Patched(briefs=_briefs_with(card))
+    za = _za(today.build_today(store, D30))
+    assert ZA_A in {i["item_id"] for i in za["held_back"]["items"]}
+
+    def check(listed):
+        returned = {e["id"] for e in listed["evidence"]}
+        assert listed["explained"] is False and listed["explanation"] is None and listed["claims"] == []
+        assert all(set(c["evidence_ids"]) & returned for c in listed["claims"])
+
+    check(next(c for c in today.build_trends(store, "ZA", D30)["cards"] if c["item_id"] == ZA_A))
+    check(today.build_trend(store, ZA_A, "ZA", D30))
