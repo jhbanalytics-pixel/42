@@ -457,6 +457,93 @@ _K6_ONLY_TERMS = [
 ]
 _K6_TERMS = _BREACH_TERMS + _K6_ONLY_TERMS
 
+# W8-DEC-03d, decided YES on 9 Oct 2026, so True ships. Set False, K6 answers are exactly those of _K6_TERMS. True
+# makes K6, for claims, quote translations, basis, falsifier and answer fields only, (1) stop holding a falling pair
+# after a score word, (2) stop holding a rising day range of 31 or less after a month name, both unless a person noun
+# follows in the same clause, and (3) hold "the 18-24s" as a group noun. Seeds (_breach_term) and the Ask rule 1 check
+# never read it. test_trust_k6_03d.py keeps the off path pinned through its off fixture.
+K6_03D_ENABLED = True
+
+
+class _Exempt(_Conditional):
+    """A K6 term that does not count where the text around the hit is one of the named exceptions."""
+
+    def __init__(self, source, exempt):
+        super().__init__(source)
+        self._exempt = exempt
+
+    def _counts(self, text, m):
+        return not self._exempt(text, m)
+
+
+# Case matters in two places: FT and HT are score words only in capitals, and only a capital May is the month.
+_SCORE_BEFORE = re.compile(
+    r"(?:(?i:\b(?:won|lost|beat|drew|scored|final\s+score|full[\s-]time|half[\s-]time))|\b(?:FT|HT))\b:?\s+$"
+)
+_MONTH_BEFORE = re.compile(
+    r"(?:(?i:\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|June?|July?|Aug(?:ust)?|Sept?(?:ember)?"
+    r"|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?))|\bMay)\b\.?\s+$"
+)
+# A person noun anywhere in the rest of the clause keeps the pair a breach: the file's _PERSON set and customers.
+_PERSON_IN_CLAUSE = re.compile(rf"\b(?:{_PERSON}|customers?)\b", re.I)
+_CLAUSE_END = re.compile(r"[;!?:]|[.,](?!\d)")
+_RANGE_PARTS = re.compile(r"(\d+)\s*(?:-|\u2013)\s*(\d+)")
+_PLUS_AFTER = re.compile(r"\s*(?:\+|plus\b)", re.I)
+
+
+def _exempt_range(text, m):
+    """A range the plain age pattern flags that is a score or a date. A score is a falling pair after a score word
+    ("won 24-17"; a cohort rises, as core/collect/gdelt.py reads it). A date is a rising pair of day numbers after a
+    month name, not followed by + or plus. A person noun anywhere in the rest of the clause keeps either a breach."""
+    low, high = (int(g) for g in _RANGE_PARTS.match(m.group(0)).groups())
+    before, after = text[: m.start()], text[m.end() :]
+    clause_end = _CLAUSE_END.search(after)
+    if _PERSON_IN_CLAUSE.search(after[: clause_end.start()] if clause_end else after):
+        return False
+    if _SCORE_BEFORE.search(before):
+        return low >= high
+    if _MONTH_BEFORE.search(before):
+        return low < high <= 31 and not _PLUS_AFTER.match(after)
+    return False
+
+
+# The N-Ns band as a group noun: "the 18-24s are watching", "among 18-24s", "popular with the 25-34s."
+_BAND = r"(?<![\d:/.\-])\b(1[3-9]|[2-9]\d)\s*(?:-|\u2013)\s*(1[4-9]|[2-9]\d)s\b"
+_BAND_MARKER = re.compile(r"(?:^|\b(?:the|among|amongst)\s+)$", re.I)
+_BAND_FOLLOW = re.compile(
+    r"\s*(?:$|[.,;:!?)]|(?:and|or|are|were|is|was|have|had|has|will|would|who|that|which|but|than|to|in|on|at|from"
+    r"|like|love|loves|prefer|use|watch|watching|engage|lead|spend|show|skew|tend|drive|make|do|did|can|could|should"
+    r"|may|might|also|too|only|mostly|really|just)\b)",
+    re.I,
+)
+
+
+def _band_counts(text, m):
+    """An age band written with an s counts only as a group noun: after the, among, amongst or at the start of the
+    text, and followed by the end of the clause or a verb or connective, not a noun ("18-24s response time"). A band
+    whose two numbers are both multiples of ten is a decade or a temperature ("the 70-80s"), not an age band."""
+    low, high = int(m.group(1)), int(m.group(2))
+    if low >= high or (low % 10 == 0 and high % 10 == 0):
+        return False
+    return bool(_BAND_MARKER.search(text[: m.start()])) and bool(_BAND_FOLLOW.match(text, m.end()))
+
+
+class _Band(_Conditional):
+    def _counts(self, text, m):
+        return _band_counts(text, m)
+
+
+def _swap_for_03d(terms):
+    out = []
+    for t in terms:
+        if t.pattern.startswith("(?<![\\d:/.\\-])\\b(?:1[3-9]"):
+            t = _Exempt(t.pattern, _exempt_range)
+        out.append(t)
+    return out + [_Band(_BAND)]
+
+
+_K6_TERMS_03D = _swap_for_03d(_K6_TERMS)
+
 
 def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
     """Run K1, K2, K3, K5, K6, K8 and K10 on one answer. See the module docstring."""
@@ -873,7 +960,7 @@ def _breach_term(text, exempt):
 
 def _k6_term(text, exempt):
     """What the brief's K6 check reads: the a80be1d list and the terms added since."""
-    return _first_term(text, exempt, _K6_TERMS)
+    return _first_term(text, exempt, _K6_TERMS_03D if K6_03D_ENABLED else _K6_TERMS)
 
 
 def _k6(claim, records, verified):
