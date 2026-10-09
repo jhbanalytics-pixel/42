@@ -131,6 +131,14 @@ def core_workflow():
     return load(LIVE / "tests.yml")[0]
 
 
+def core_pytest_steps(data):
+    return [(j, s) for j, s in steps(data) if "-m pytest core" in s.get("run", "")]
+
+
+def ops_pytest_steps(data):
+    return [(j, s) for j, s in steps(data) if "-m pytest ops/" in s.get("run", "")]
+
+
 def test_native_opt_in_tests_are_switched_off_and_the_run_refuses_to_start_if_they_are_on():
     data = core_workflow()
     assert str(data["env"]["F42_BQ"]) == "0"
@@ -148,7 +156,7 @@ def test_native_opt_in_tests_are_switched_off_and_the_run_refuses_to_start_if_th
 
 def test_the_core_run_has_the_offline_guard_on_pythonpath_and_requires_it():
     data = core_workflow()
-    core_steps = [(j, s) for j, s in steps(data) if "-m pytest" in s.get("run", "")]
+    core_steps = core_pytest_steps(data)
     assert len(core_steps) == 1
     job_name, step = core_steps[0]
     env = effective_env(data, job_name, step)
@@ -160,7 +168,7 @@ def test_the_core_run_has_the_offline_guard_on_pythonpath_and_requires_it():
 
 def test_the_core_run_collects_the_whole_core_tree_from_the_repository_root():
     data = core_workflow()
-    [(job_name, step)] = [(j, s) for j, s in steps(data) if "-m pytest" in s.get("run", "")]
+    [(job_name, step)] = core_pytest_steps(data)
     command = " ".join(step["run"].split())
     assert re.search(r"-m pytest core( |$)", command), command
     assert "working-directory" not in step
@@ -308,6 +316,10 @@ def test_the_core_job_pins_a_floor_on_tests_that_passed_and_a_ratchet_that_makes
 
 ALLOWED_EXPRESSIONS = {"github.ref", "github.workspace", "runner.temp"}
 PINNED_PYTEST_COMMAND = 'python -m pytest core -q -p no:cacheprovider -ra --junitxml="${RUNNER_TEMP}/core-junit.xml"'
+# The ops partition: the two evidence tools whose tests nothing else ran (the a80 replay and the funnel scoreboard).
+OPS_PARTITION_FILES = ("ops/tests/test_replay_a80.py", "ops/tests/test_funnel_scoreboard.py")
+PINNED_OPS_COMMAND = ('python -m pytest ' + " ".join(OPS_PARTITION_FILES)
+                      + ' -q -p no:cacheprovider -ra --junitxml="${RUNNER_TEMP}/ops-junit.xml"')
 ALLOWED_REDIRECT_TARGETS = {'"${GITHUB_STEP_SUMMARY}"', '"${GITHUB_PATH}"'}
 
 
@@ -327,8 +339,36 @@ def test_the_pytest_step_is_exactly_the_pinned_command():
     """Attached options (-k"not api", -pplugin), a split PYTEST_ADDOPTS, an export or any other word on the line
     change what the run collects or loads, so the command is pinned whole."""
     data = core_workflow()
-    [step] = [s for _, s in steps(data) if "-m pytest" in s.get("run", "")]
+    [(_, step)] = core_pytest_steps(data)
     assert " ".join(step["run"].split()) == PINNED_PYTEST_COMMAND
+    pytest_runs = [" ".join(s["run"].split()) for _, s in steps(data) if "-m pytest" in s.get("run", "")]
+    assert sorted(pytest_runs) == sorted([PINNED_PYTEST_COMMAND, PINNED_OPS_COMMAND]), pytest_runs
+
+
+def test_the_ops_partition_runs_the_replay_and_funnel_scoreboard_tests_under_the_offline_guard_and_fails_the_job():
+    data = core_workflow()
+    [(job_name, step)] = ops_pytest_steps(data)
+    assert job_name == "core"
+    assert " ".join(step["run"].split()) == PINNED_OPS_COMMAND
+    env = effective_env(data, job_name, step)
+    assert env["PYTHONPATH"].split(":")[0].endswith("tests_support/offline_guard")
+    assert str(env["F42_REQUIRE_OFFLINE_GUARD"]) == "1"
+    assert step.get("if") == "always()", "an ops failure must show even when the core run failed"
+    assert not step.get("continue-on-error")
+    order = [s.get("run", "") for _, s in steps(data)]
+    core_at = next(i for i, r in enumerate(order) if "-m pytest core" in r)
+    ops_at = next(i for i, r in enumerate(order) if "-m pytest ops/" in r)
+    refusals_at = next(i for i, r in enumerate(order) if "ci_guard_refusals.py" in r)
+    assert core_at < ops_at < refusals_at, "the offline guard log is checked after both pytest runs"
+
+
+def test_the_ops_partition_adds_no_trigger():
+    """The ops step lives in the existing job, so the triggers stay the ones test_the_pull_request_trigger pins."""
+    _, triggers = load(LIVE / "tests.yml")
+    assert triggers["push"] == {"branches": ["full-42", "release/**"]}
+    assert triggers["pull_request"] == {"branches": ["full-42", "release/**"]}
+    assert sorted(triggers) == ["pull_request", "push", "workflow_dispatch"]
+    assert sorted(core_workflow()["jobs"]) == ["core", "frontend"]
 
 
 @pytest.mark.parametrize("path", workflow_files(), ids=lambda p: p.name)

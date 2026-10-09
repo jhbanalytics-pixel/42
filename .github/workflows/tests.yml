@@ -72,6 +72,17 @@ jobs:
           F42_REQUIRE_OFFLINE_GUARD: "1"
         run: python -m pytest core -q -p no:cacheprovider -ra --junitxml="${RUNNER_TEMP}/core-junit.xml"
 
+      # The ops partition: the tests of the two evidence tools that read core's SQL and views (the a80 replay and the
+      # funnel scoreboard). Nothing else ran ops/tests, so a change in core that broke either tool went unseen. It runs
+      # whether or not the core run passed, under the same guard and into the same guard log, which is checked below.
+      # The replay's pin test reads a80be1d with git show, so it needs the full history fetched above.
+      - name: Run the ops partition under the offline guard
+        if: always()
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tests_support/offline_guard
+          F42_REQUIRE_OFFLINE_GUARD: "1"
+        run: python -m pytest ops/tests/test_replay_a80.py ops/tests/test_funnel_scoreboard.py -q -p no:cacheprovider -ra --junitxml="${RUNNER_TEMP}/ops-junit.xml"
+
       # Two floors, a little under the 17446 tests the core tree collected when they were pinned. A run that collects
       # fewer than the total floor has lost a part of the tree. The passed floor counts only tests that passed, so a
       # run that skipped most of the tree cannot meet it. The ratchet fails the job when the passed count has grown
