@@ -328,6 +328,25 @@ def test_ballot_or_voter_counts_only_beside_a_party_leader_or_election_term_in_t
                               ev("p2", "tiktok", "b", text="Hall of Fame ballot")])["political"] is False
 
 
+def test_a_party_or_election_acronym_fused_into_a_ballot_or_voter_hashtag_is_political():
+    con = world()
+    for market, tag in [("ZA", "#ANCvoterdrive"), ("ZA", "#EFFvoters"), ("ZA", "#DAballot"), ("ZA", "#IECvoterroll"),
+                        ("KE", "#IEBCvoter"), ("NG", "#INECvoter")]:
+        terms = gatectx.load_political_terms(market)
+        row = item(market=market, hashtags=[tag])
+        assert ctx(con, row, market=market, terms=terms)["political"] is True, tag
+    # Without a party or election term in the tag the word is still only a ballot or a voter.
+    assert ctx(con, item(hashtags=["#ballot"]))["political"] is False
+    assert ctx(con, item(hashtags=["#voter"]))["political"] is False
+    assert ctx(con, item(canonical_key="ballondorballot"))["political"] is False
+    # An acronym that runs on into more capitals is another word, not the party.
+    assert ctx(con, item(hashtags=["#DAILYballot"]))["political"] is False
+    assert ctx(con, item(hashtags=["#PDAballot"]))["political"] is False
+    # Only an all capitals term counts fused: not a lower case term inside a longer word, nor a party in lower case.
+    assert ctx(con, item(hashtags=["#revoteballot"]))["political"] is False
+    assert ctx(con, item(hashtags=["#daballot"]))["political"] is False
+
+
 # corroborated_unbiased
 
 

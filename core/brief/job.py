@@ -68,11 +68,14 @@ from core.brief.specificity import MIN_EVIDENCE, assess_specificity, local_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
 from core.detect import sqlrun
-from core.detect.job import PROJECT, RULE_VERSION
+from core.detect.job import PROJECT, RULE_VERSION as DETECT_RULE_VERSION
 from core.detect.sqlrun import AGENT, CORE
 from core.llm.gemini import GeminiModel
 from core.trust.gate import Decision, gate_card, market_banner
 
+# Every decision in the tree that changes what a brief row says for the same inputs adds one token, so a reader can
+# split on "+": W8-DEC-06b is ballot and voter political only beside a party, leader or election term.
+RULE_VERSION = DETECT_RULE_VERSION + "+w8-dec-06b"
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
