@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from core.detect import sqlrun
+from core.detect import job, sqlrun
 from core.detect.tests import duck
 from core.detect.tests.duck import run_duck, temp_macro
 from core.detect.tests.duck import strip_leading_comments as _strip
@@ -41,7 +41,7 @@ def world(con):
 
 
 def state(con, authority):
-    temp, insert = [_strip(s) for s in sqlrun.split(sqlrun.render((SQL / "state.sql").read_text(encoding="utf-8"), "core", "agent"))]
+    temp, insert = [_strip(s) for s in sqlrun.split(job.state_script(authority, "core", "agent"))]
     con.execute(temp_macro(temp))
     run_duck(con, insert, {"d": D, "run_id": RUN, "rule_version": RULE, "authority": authority})
     rows = duck.query(con, "SELECT * FROM {core}.item_state s WHERE s.run_id = @r", {"r": RUN})
@@ -127,3 +127,42 @@ def test_a_key_with_no_visible_row_is_missing_and_a_visible_row_that_contradicts
     con.execute("DELETE FROM core.item_locality_verified WHERE item_id = 'd3'")      # written but never verified
     got = {k: (v["eligible"], v["locality_status"]) for k, v in state(con, "v2").items() if k in ("d1", "d3", "none")}
     assert got == {"d1": (True, "unreadable"), "d3": (True, "missing"), "none": (True, "missing")}
+
+
+def test_a_missing_row_does_not_fall_back_to_the_v1_status_under_v2(con):
+    """Q16: a key with no visible locality row is carried as eligible and missing, even where v1 detect says
+    not_local. d1 is not_local to v1 (12 known posts, 3 local) and has no v2 row at all."""
+    world(con)
+    v1 = state(con, "v1")["d1"]
+    assert (v1["geo_status"], v1["eligible"]) == ("not_local", False)
+    con.execute("DELETE FROM core.item_state")
+    v2 = state(con, "v2")["d1"]
+    assert (v2["geo_status"], v2["eligible"], v2["eligible_v1"], v2["locality_status"]) == (
+        "not_local", True, False, "missing")
+
+
+def test_a_row_that_was_written_but_never_verified_does_not_fall_back_to_the_v1_status_under_v2(con):
+    world(con)
+    put(con, "d1", 3, 3, "market_unconfirmed")
+    con.execute("DELETE FROM core.item_locality_verified")
+    v2 = state(con, "v2")["d1"]
+    assert (v2["geo_status"], v2["eligible"], v2["locality_status"]) == ("not_local", True, "missing")
+
+
+def test_state_does_not_read_the_locality_view_under_v1(con):
+    """C4 v3 section 10: in shadow a failed or absent locality view never changes an outcome, so state does not read it."""
+    world(con)
+    expected = {k: (v["eligible"], v["locality_basis"]) for k, v in state(con, "v1").items()}
+    con.execute("DELETE FROM core.item_state")
+    con.execute("DROP VIEW core.v_item_locality_current")
+    con.execute("DROP VIEW core.v_item_locality_checked")
+    got = {k: (v["eligible"], v["locality_basis"]) for k, v in state(con, "v1").items()}
+    assert got == expected and got["d1"] == (False, "v1")
+
+
+def test_state_under_v2_still_reads_the_view(con):
+    world(con)
+    con.execute("DROP VIEW core.v_item_locality_current")
+    con.execute("DROP VIEW core.v_item_locality_checked")
+    with pytest.raises(Exception):
+        state(con, "v2")

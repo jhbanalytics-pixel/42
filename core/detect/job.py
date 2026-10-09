@@ -272,6 +272,24 @@ def run_centroids_step(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
         return {"status": "failed", "error": error}
 
 
+# state.sql reads this run's rows from v_item_locality_checked. In shadow nothing in state decides from them, so the
+# script that runs under the v1 authority reads an empty relation of the same columns instead (C4 v3 section 10): a
+# failed or missing locality view, or locality DDL that has not landed, never fails detect before the switch.
+_CHECKED_VIEW = "{core}.v_item_locality_checked k"
+_NO_CHECKED_ROWS = ("(SELECT CAST(NULL AS DATE) run_date, CAST(NULL AS STRING) item_id, CAST(NULL AS STRING) market, "
+                    "CAST(NULL AS STRING) detect_run_id, CAST(NULL AS STRING) checked_status LIMIT 0) k")
+
+
+def state_script(authority, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """The text of state.sql to run for a locality authority: the file as it is under v2, and with the checked view
+    replaced by the empty relation under v1."""
+    sql = (SQL / "state.sql").read_text(encoding="utf-8")
+    if authority != "v2":
+        assert sql.count(_CHECKED_VIEW) == 1
+        sql = sql.replace(_CHECKED_VIEW, _NO_CHECKED_ROWS)
+    return sqlrun.render(sql, core, agent)
+
+
 def run_state(client, d, run_id, rule_version, core=sqlrun.CORE, agent=sqlrun.AGENT):
     """Run the state.sql script (a temp function and the item_state INSERT) and return the rows it wrote."""
     config = bigquery.QueryJobConfig(query_parameters=[
@@ -279,7 +297,7 @@ def run_state(client, d, run_id, rule_version, core=sqlrun.CORE, agent=sqlrun.AG
         bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
         bigquery.ScalarQueryParameter("rule_version", "STRING", rule_version),
         bigquery.ScalarQueryParameter("authority", "STRING", LOCALITY_AUTHORITY)])
-    script = sqlrun.render((SQL / "state.sql").read_text(encoding="utf-8"), core, agent)
+    script = state_script(LOCALITY_AUTHORITY, core, agent)
     client.query(script, job_config=config).result()
     rows = sqlrun.query(client, ITEM_STATE_COUNT_SQL, {"d": d, "run_id": run_id}, core=core, agent=agent)
     return rows[0]["n"]

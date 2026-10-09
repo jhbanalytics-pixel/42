@@ -91,3 +91,37 @@ def test_the_suite_fixture_moves_the_authority_everywhere_it_was_read(monkeypatc
     assert trust.LOCALITY_AUTHORITY == job.LOCALITY_AUTHORITY == value
     assert job.RULE_VERSION == brief_job.RULE_VERSION == job.rule_version_for(value)
     assert job.run.__kwdefaults__["rule_version"] == job.rule_version_for(value)
+
+
+def remove_locality_views(con, monkeypatch):
+    """The views step failed and the views are not there: a release that landed the image before the views."""
+    con.execute("DROP VIEW core.v_item_locality_current")
+    con.execute("DROP VIEW core.v_item_locality_checked")
+
+    def refused(*a, **k):
+        raise RuntimeError("Not found: Table item_locality_verified")
+
+    monkeypatch.setattr(job.sqlrun, "apply_locality_views", refused)
+
+
+def test_in_shadow_detect_runs_when_the_locality_views_are_absent(con, monkeypatch):  # noqa: F811
+    """C4 v3 section 10: a failed view never changes an outcome in shadow. State no longer reads the checked view there."""
+    world(con)
+    baseline = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    expected = duck.query(con, "SELECT item_id, eligible, locality_basis FROM {core}.item_state ORDER BY item_id", {})
+    con.execute("DELETE FROM core.item_state")
+    order(monkeypatch, "v1")
+    remove_locality_views(con, monkeypatch)
+    counts = job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    got = duck.query(con, "SELECT item_id, eligible, locality_basis FROM {core}.item_state ORDER BY item_id", {})
+    assert counts["locality_views"]["status"] == "failed" and counts["locality_shadow"]["status"] == "failed"
+    assert counts["item_state"] == baseline["item_state"] and got == expected and got
+    assert {r["locality_basis"] for r in got} == {"v1"}
+
+
+def test_when_authoritative_a_missing_locality_view_still_fails_state(con, monkeypatch):  # noqa: F811
+    world(con)
+    order(monkeypatch, "v2")
+    remove_locality_views(con, monkeypatch)
+    with pytest.raises(Exception):
+        job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
