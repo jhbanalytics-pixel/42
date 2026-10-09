@@ -13,10 +13,9 @@ no job is started, nothing is written to the warehouse.
 
 import argparse
 import json
-import re
 import sys
 from collections import Counter
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,25 +25,15 @@ if str(ROOT) not in sys.path:
 from google.cloud import bigquery  # noqa: E402
 
 from core.eval import card_outcome as co  # noqa: E402
+from core.eval import card_outcome_read as rd  # noqa: E402
 
 PROJECT = "ogilvy-trends-v2"
 BUILDER = "f42-builder@ogilvy-trends-v2.iam.gserviceaccount.com"
-GB = 1024 ** 3
-QUERY_CAP = 5 * GB
-TOTAL_CAP = 20 * GB
-LATER_DAYS = max(co.HORIZONS)
-QUERIES = co.split_queries((ROOT / "core" / "eval" / "sql" / "card_outcome.sql").read_text(encoding="utf-8"))
-WRITES = re.compile(r"\b(INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|ALTER|TRUNCATE|EXPORT|CALL|EXECUTE|LOAD|GRANT|BEGIN|DECLARE|SET)\b", re.I)
-
-
-class Refused(Exception):
-    pass
-
-
-def _check_select(name, sql):
-    body = re.sub(r"--[^\n]*", "", sql).strip()
-    if not re.match(r"(SELECT|WITH)\b", body, re.I) or WRITES.search(body):
-        raise Refused(f"query {name} is not a plain SELECT")
+GB = rd.GB
+QUERY_CAP = rd.QUERY_CAP
+TOTAL_CAP = rd.TOTAL_CAP
+QUERIES = rd.QUERIES
+Refused = rd.Refused
 
 
 def make_client():
@@ -58,57 +47,18 @@ def make_client():
     return bigquery.Client(project=PROJECT, credentials=credentials, location="US")
 
 
-def _params(start, end):
-    last = end + timedelta(days=LATER_DAYS)
-    return [bigquery.ScalarQueryParameter(k, "DATE", v) for k, v in (("start", start), ("end", end), ("last", last))]
-
-
-def _read(client, name, sql, params, query_cap, spent_estimate, total_cap):
-    dry = client.query(sql, job_config=bigquery.QueryJobConfig(
-        query_parameters=params, dry_run=True, maximum_bytes_billed=query_cap), timeout=60)
-    estimate = dry.total_bytes_processed
-    if estimate is None or estimate > query_cap:
-        raise Refused(f"{name}: estimate {estimate} is over the {query_cap} byte cap")
-    if spent_estimate + estimate > total_cap:
-        raise Refused(f"{name}: estimates would pass the {total_cap} byte total cap")
-    job = client.query(sql, job_config=bigquery.QueryJobConfig(
-        query_parameters=params, maximum_bytes_billed=query_cap), timeout=60)
-    rows = [dict(r) for r in job.result(timeout=300)]
-    return rows, {"name": name, "job_id": job.job_id, "estimated_bytes": estimate,
-                  "bytes_processed": job.total_bytes_processed, "bytes_billed": job.total_bytes_billed,
-                  "maximum_bytes_billed": query_cap, "cache_hit": job.cache_hit, "row_count": len(rows)}
-
-
-def _briefs(rows):
-    out = []
-    for r in rows:
-        payload = {"cards": json.loads(r["cards_json"]), "more": json.loads(r["more_json"]),
-                   "held_back": {"items": json.loads(r["held_json"])}}
-        out.append({k: r[k] for k in ("brief_date", "market", "run_id", "published_at", "status")} | {"payload": payload})
-    return out
-
-
 def _jsonable(o):
     return o.isoformat() if isinstance(o, date) else str(o)
 
 
 def run(client, start, end, out_dir, *, query_cap=QUERY_CAP, total_cap=TOTAL_CAP):
-    if start > end:
-        raise Refused("start is after end")
-    for name, sql in QUERIES.items():
-        _check_select(name, sql)
-    params = _params(start, end)
-    got, queries, spent = {}, [], 0
-    for name, sql in QUERIES.items():
-        got[name], meta = _read(client, name, sql, params, query_cap, spent, total_cap)
-        spent += meta["estimated_bytes"]
-        queries.append(meta)
+    got, queries = rd.read_inputs(client, QUERIES, start, end, query_cap=query_cap, total_cap=total_cap)
     detect_days = [r["run_date"] for r in got["detect_days"]]
-    rows = co.build_outcomes(_briefs(got["briefs"]), got["states"], detect_days)
+    rows = co.build_outcomes(rd.briefs(got["briefs"]), got["states"], detect_days)
     horizons = {str(h): co.summarize(rows, end=end, horizon=h) for h in co.HORIZONS}
     seen = co.persisting_seen(rows)
     statuses = Counter(r["status"] for r in got["briefs"])
-    report = {"start": start, "end": end, "queries": queries,
+    report = {"definition": co.DEFINITION, "start": start, "end": end, "queries": queries,
               "total_bytes_billed": sum(q["bytes_billed"] or 0 for q in queries),
               "briefs": len(got["briefs"]), "brief_statuses": dict(sorted(statuses.items())),
               "briefs_skipped": sum(n for st, n in statuses.items() if st in co.SKIPPED_STATUSES),
