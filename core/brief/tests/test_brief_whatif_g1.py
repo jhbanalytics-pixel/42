@@ -90,7 +90,7 @@ class FakeBigQuery:
             return [{"day": D, "ok": False}]
         if "-- name: names" in sql:
             return []
-        if "-- name: post_lanes" in sql or "-- name: post_tags" in sql:
+        if any(f"-- name: {n}" in sql for n in ("post_lanes", "post_tags", "post_authors")):
             return []
         raise AssertionError(f"unexpected query: {sql[:80]}")
 
