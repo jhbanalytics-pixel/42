@@ -449,9 +449,13 @@ _K6_ONLY_TERMS = [
 _K6_TERMS = _BREACH_TERMS + _K6_ONLY_TERMS
 
 # W8-DEC-03d, not decided, so False ships and K6 answers are exactly those of _K6_TERMS. Flipping it to True makes
-# K6 stop flagging a score after a score word, a date after a month name, a poll split and the name National Youth
-# Service Corps (an audience noun straight after the range keeps the breach), for claims and answer fields alone: seeds
-# (_breach_term) never read it and the Ask rule 1 check is not changed by it.
+# K6, for claims, quote translations, basis, falsifier and answer fields only, (1) stop holding a falling pair after a
+# score word, (2) stop holding a rising day range of 31 or less after a month name, both unless a person noun follows
+# in the same clause, and (3) hold "the 18-24s" as a group noun. Seeds (_breach_term) and the Ask rule 1 check never
+# read it. Flipping it fails 66 tests, none in core/brief, so the commit that sets it True must edit them and say so:
+# in test_trust_k6_03d.py every test with "off" or "ships_false" in its name (56 cases), and in
+# test_trust_k6_boundary.py the UNCHANGED rows won 24-17, final score 21-14, scored 30-28 at the weekend, Sept 20-26 and
+# 18-24s, the STILL_PASS row 18-24s, and the four DEFERRED_W8_DEC_03D rows.
 K6_03D_ENABLED = False
 
 
@@ -474,45 +478,62 @@ _MONTH_BEFORE = re.compile(
     r"(?:(?i:\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|June?|July?|Aug(?:ust)?|Sept?(?:ember)?"
     r"|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?))|\bMay)\b\.?\s+$"
 )
-_AUDIENCE_AFTER = re.compile(
-    r"\s+(?:voters?|fans?|users?|women|men|people|viewers?|listeners?|audiences?|customers?)\b", re.I
-)
-_POLL_WORD = re.compile(r"\b(?:polls?|polled|surveys?|surveyed|votes?|voted|ballots?|referendum|elections?)\b", re.I)
-_SPLIT_AFTER = re.compile(r"\s+split\b", re.I)
+# A person noun anywhere in the rest of the clause keeps the pair a breach: the file's _PERSON set and customers.
+_PERSON_IN_CLAUSE = re.compile(rf"\b(?:{_PERSON}|customers?)\b", re.I)
+_CLAUSE_END = re.compile(r"[;!?:]|[.,](?!\d)")
 _RANGE_PARTS = re.compile(r"(\d+)\s*(?:-|\u2013)\s*(\d+)")
-_PROPER_NOUN_YOUTH = re.compile(r"\bNational Youth Service(?: Corps)?\b")
+_PLUS_AFTER = re.compile(r"\s*(?:\+|plus\b)", re.I)
 
 
 def _exempt_range(text, m):
-    """A range the plain age pattern flags that is a score, a date or a poll split. An audience noun straight after the
-    range keeps it a breach ("won 18-24 voters"); nothing else about the sentence is read, so an age-group word
-    anywhere else still breaches on its own pattern."""
+    """A range the plain age pattern flags that is a score or a date. A score is a falling pair after a score word
+    ("won 24-17"; a cohort rises, as core/collect/gdelt.py reads it). A date is a rising pair of day numbers after a
+    month name, not followed by + or plus. A person noun anywhere in the rest of the clause keeps either a breach."""
+    low, high = (int(g) for g in _RANGE_PARTS.match(m.group(0)).groups())
     before, after = text[: m.start()], text[m.end() :]
-    if _AUDIENCE_AFTER.match(after):
+    clause_end = _CLAUSE_END.search(after)
+    if _PERSON_IN_CLAUSE.search(after[: clause_end.start()] if clause_end else after):
         return False
-    if _SCORE_BEFORE.search(before) or _MONTH_BEFORE.search(before):
-        return True
-    if _SPLIT_AFTER.match(after):
-        low, high = (int(g) for g in _RANGE_PARTS.match(m.group(0)).groups())
-        sentence = re.split(r"[.!?]\s+", before)[-1]
-        return 99 <= low + high <= 101 and bool(_POLL_WORD.search(sentence))
+    if _SCORE_BEFORE.search(before):
+        return low >= high
+    if _MONTH_BEFORE.search(before):
+        return low < high <= 31 and not _PLUS_AFTER.match(after)
     return False
 
 
-def _exempt_youth(text, m):
-    """"Youth" inside a proper noun, written in capitals as the name is: National Youth Service Corps."""
-    return any(p.start() <= m.start() and m.end() <= p.end() for p in _PROPER_NOUN_YOUTH.finditer(text))
+# The N-Ns band as a group noun: "the 18-24s are watching", "among 18-24s", "popular with the 25-34s."
+_BAND = r"(?<![\d:/.\-])\b(1[3-9]|[2-9]\d)\s*(?:-|\u2013)\s*(1[4-9]|[2-9]\d)s\b"
+_BAND_MARKER = re.compile(r"(?:^|\b(?:the|among|amongst)\s+)$", re.I)
+_BAND_FOLLOW = re.compile(
+    r"\s*(?:$|[.,;:!?)]|(?:and|or|are|were|is|was|have|had|has|will|would|who|that|which|but|than|to|in|on|at|from"
+    r"|like|love|loves|prefer|use|watch|watching|engage|lead|spend|show|skew|tend|drive|make|do|did|can|could|should"
+    r"|may|might|also|too|only|mostly|really|just)\b)",
+    re.I,
+)
+
+
+def _band_counts(text, m):
+    """An age band written with an s counts only as a group noun: after the, among, amongst or at the start of the
+    text, and followed by the end of the clause or a verb or connective, not a noun ("18-24s response time"). A band
+    whose two numbers are both multiples of ten is a decade or a temperature ("the 70-80s"), not an age band."""
+    low, high = int(m.group(1)), int(m.group(2))
+    if low >= high or (low % 10 == 0 and high % 10 == 0):
+        return False
+    return bool(_BAND_MARKER.search(text[: m.start()])) and bool(_BAND_FOLLOW.match(text, m.end()))
+
+
+class _Band(_Conditional):
+    def _counts(self, text, m):
+        return _band_counts(text, m)
 
 
 def _swap_for_03d(terms):
     out = []
     for t in terms:
-        if t.pattern.startswith("\\byouths?"):
-            t = _Exempt(t.pattern, _exempt_youth)
-        elif t.pattern.startswith("(?<![\\d:/.\\-])\\b(?:1[3-9]"):
+        if t.pattern.startswith("(?<![\\d:/.\\-])\\b(?:1[3-9]"):
             t = _Exempt(t.pattern, _exempt_range)
         out.append(t)
-    return out
+    return out + [_Band(_BAND)]
 
 
 _K6_TERMS_03D = _swap_for_03d(_K6_TERMS)
