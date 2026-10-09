@@ -511,32 +511,101 @@ def write_answer(model: Model, *, question: str, as_of, market, window: str, ctx
     return draft, usage
 
 
-def unpinned_claim_numerals(draft: dict, ctx: RunContext, warehouse, *, window) -> list[dict]:
-    """List claim numerals without a valid numbers[] entry and invalid number entries, using the K2 checks."""
+def _open_numerals(claim: dict, ctx: RunContext, warehouse, reruns: dict, ids, allow) -> tuple[list, list, list]:
+    """(invalid number entries, good number entries, open numerals) of one claim, by the K2 checks. An open numeral is
+    (text, value, decimals, percent) with no good entry that shows it."""
+    records = [ctx.evidence[eid] for eid in claim.get("evidence_ids") or [] if eid in ctx.evidence]
+    invalid_numbers, good_numbers = [], []
+    for number in claim.get("numbers") or []:
+        reason = checks._number_problem(number, ctx, warehouse, reruns)
+        if reason is None:
+            good_numbers.append(number)
+        else:
+            invalid_numbers.append({"value": number.get("value"), "unit": number.get("unit"),
+                                    "query_id": number.get("query_id"), "reason": reason})
+    open_numerals = [
+        found for found in checks._numerals(
+            claim.get("text"), checks._in_records(records), ids=ids, allow=allow, ctx=ctx)
+        if not any(checks._shows(number.get("value"), found[1], found[2], found[3]) for number in good_numbers)
+    ]
+    return invalid_numbers, good_numbers, open_numerals
+
+
+def unpinned_claim_numerals(draft: dict, ctx: RunContext, warehouse, *, window, reruns: dict | None = None) -> list[dict]:
+    """List claim numerals without a valid numbers[] entry and invalid number entries, using the K2 checks. reruns,
+    when given, holds the re-runs already made and takes the ones made here, so a caller checking a second draft of the
+    same queries does not read the warehouse again."""
     claims = draft.get("claims") or []
     ids = checks._id_pattern(claims, ctx)
     allow = checks._allowance(window, ctx.as_of)
-    reruns = {}
+    reruns = {} if reruns is None else reruns
     checks.prefetch_reruns(claims, ctx, warehouse, reruns)
     issues = []
     for claim in claims:
-        records = [ctx.evidence[eid] for eid in claim.get("evidence_ids") or [] if eid in ctx.evidence]
-        invalid_numbers, good_numbers = [], []
-        for number in claim.get("numbers") or []:
-            reason = checks._number_problem(number, ctx, warehouse, reruns)
-            if reason is None:
-                good_numbers.append(number)
-            else:
-                invalid_numbers.append({"value": number.get("value"), "unit": number.get("unit"),
-                                        "query_id": number.get("query_id"), "reason": reason})
-        numerals = [
-            text for text, value, decimals, percent in checks._numerals(
-                claim.get("text"), checks._in_records(records), ids=ids, allow=allow, ctx=ctx)
-            if not any(checks._shows(number.get("value"), value, decimals, percent) for number in good_numbers)
-        ]
+        invalid_numbers, _, open_numerals = _open_numerals(claim, ctx, warehouse, reruns, ids, allow)
+        numerals = [text for text, *_ in open_numerals]
         if numerals or invalid_numbers:
             issues.append({"claim_id": claim.get("id"), "numerals": numerals, "invalid_numbers": invalid_numbers})
     return issues
+
+
+def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, *, window,
+                         reruns: dict | None = None) -> dict | None:
+    """The draft with each listed numeral pinned in code, or None when any cannot be settled beyond doubt, so the
+    repair call gets the writer's own draft and every issue. A numeral is pinned only when it is a whole number (no
+    percent, no decimals), the claim has no bad number entry, and exactly one column of exactly one row of a query the
+    claim already cites holds the value, a row of a many-row query counting only when it names something the claim
+    names (the subject's row, as _supporting_rows reads it), and a word within two words after the figure in the claim
+    names that column ("5 creators", column creators). The entry is the one the writer writes: value, unit (the column), query_id, and run_id and
+    result_hash set from the recorded query, as write_answer sets them. The caller checks the result with
+    unpinned_claim_numerals; the K2 and support checks run on it as on any draft."""
+    claims = draft.get("claims") or []
+    ids = checks._id_pattern(claims, ctx)
+    allow = checks._allowance(window, ctx.as_of)
+    reruns = {} if reruns is None else reruns
+    pinned = copy.deepcopy(draft)
+    by_id = {claim.get("id"): claim for claim in pinned.get("claims") or []}
+    for issue in issues:
+        claim = by_id.get(issue.get("claim_id"))
+        if claim is None:
+            return None
+        invalid_numbers, good_numbers, open_numerals = _open_numerals(claim, ctx, warehouse, reruns, ids, allow)
+        if invalid_numbers or not open_numerals:
+            return None
+        cited = list(dict.fromkeys(n.get("query_id") for n in good_numbers))
+        text = checks.normalise(claim.get("text"))
+        for numeral, value, decimals, _percent in open_numerals:
+            # A percent always has decimals, and a range (dozens of) is a tuple: only a whole figure goes on.
+            if decimals is not None or isinstance(value, tuple) or not float(value).is_integer():
+                return None
+            if text.count(numeral) != 1:
+                return None
+            after = _unit_words(" ".join(re.findall(r"[A-Za-z]+", text.split(numeral, 1)[1])[:2]))
+            found, holders = {}, 0
+            for query_id in cited:
+                rows = ctx.queries[query_id]["rows"]
+                if not all(isinstance(row, dict) for row in rows):
+                    return None
+                # A query of several rows is read only at the rows that name something the claim names; a lone row
+                # is the claim's subject by itself.
+                subject = rows if len(rows) == 1 else [row for row in rows if _named_cells(claim.get("text") or "", row)]
+                for row in subject:
+                    held = False
+                    for column, cell in row.items():
+                        if type(cell) in (int, float) and cell == value:
+                            found.setdefault((query_id, column), cell)
+                            held = True
+                    holders += held
+            if holders != 1:
+                return None
+            hits = [key for key in found if _unit_words(str(key[1]).replace("_", " ")) & after]
+            if len(found) != len(hits) or len(hits) != 1:
+                return None
+            query_id, column = hits[0]
+            claim.setdefault("numbers", []).append({
+                "value": found[hits[0]], "unit": str(column).replace("_", " "), "query_id": query_id,
+                "run_id": ctx.run_id, "result_hash": ctx.queries[query_id]["result_hash"]})
+    return pinned
 
 
 def repair_answer_numbers(model: Model, *, draft: dict, issues: list, question: str, as_of, market, window: str,

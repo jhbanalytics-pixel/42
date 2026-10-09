@@ -33,7 +33,7 @@ OFFSETS = {"ZA": 2, "NG": 1, "KE": 3}
 EVENT_TYPES = ("step", "evidence", "claim")
 # The run object's keys (contract section 6); a failed ask keeps only these, and only as plain JSON.
 RUN_KEYS = ("run_id", "tier", "mode", "credits", "tokens", "seconds", "model_usd", "window",
-            "posts", "platforms", "source_status", "followups", "notices", "notice")
+            "posts", "platforms", "source_status", "followups", "notices", "notice", "timings")
 MAX_RUN_BYTES = 64_000
 
 
@@ -55,12 +55,13 @@ def failed_run(partial):
     if not isinstance(partial, dict):
         return None
     kept = {key: partial[key] for key in RUN_KEYS if key in partial}
-    try:
-        text = json.dumps(kept)
-        if len(text) <= MAX_RUN_BYTES:
-            return json.loads(text)
-    except Exception:  # TypeError, ValueError, RecursionError: anything not plain JSON
-        pass
+    for candidate in (kept, {key: value for key, value in kept.items() if key != "timings"}):  # timings go first
+        try:
+            text = json.dumps(candidate)
+            if len(text) <= MAX_RUN_BYTES:
+                return json.loads(text)
+        except Exception:  # TypeError, ValueError, RecursionError: anything not plain JSON
+            pass
     spend = {key: partial[key] for key in ("model_usd", "credits") if _number(partial.get(key))}
     tokens = partial.get("tokens")
     if isinstance(tokens, dict) and len(tokens) <= 10 and all(

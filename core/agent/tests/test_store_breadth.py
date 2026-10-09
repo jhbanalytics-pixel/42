@@ -174,11 +174,16 @@ def test_the_gate_counts_the_whole_store_once_and_the_meta_line_carries_its_tota
     h = Harness()
     h.deps.store_counts = fake_store_counts(calls)
     out = h.run(question="Which sounds are rising on TikTok in South Africa this week?")
-    assert len(calls) == 1 and calls[0]["platforms"] == ["tiktok"]
-    assert calls[0]["queries_before"]  # after research, so research queries keep their ids
+    assert len(calls) == 1 and calls[0]["platforms"] == ["tiktok"]  # exactly once per run
     store = out["run"]["store"]
     assert store == {"posts": 1108, "creators": 852, "located_posts": 477, "located_creators": 332, "platforms": 1,
                      "query_id": store["query_id"]}
+    # the count's queries are recorded after research's, so research keeps its ids
+    receipts = out["query_receipts"]
+    store_ids = [int(q[2:]) for q, r in receipts.items() if r["purpose"].startswith("Whole-store")]
+    research_ids = [int(q[2:]) for q, r in receipts.items() if not r["purpose"].startswith(("Whole-store", "fetch_posts"))]
+    assert len(store_ids) == 2 and store["query_id"] in receipts
+    assert research_ids and max(research_ids) < min(store_ids)
     user = next(c["user"] for c in h.model.calls if c["schema"] is WRITER_SCHEMA)
     assert user.index("Whole-store totals") < user.index("\npost {")  # the store counts lead the pack
     assert any(e["event"] == "step" and e["text"].startswith("Counting every stored post") for e in h.events)
