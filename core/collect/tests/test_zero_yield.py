@@ -10,7 +10,7 @@ from core.detect.tests import duck
 from core.detect.tests.fixtures import run
 
 DAY = "2026-10-05"
-PRIOR_KEY = ("ZA", "panel_culture_desk", "panel:abc")
+PRIOR_KEY = ("ZA", "prism/profiles", "panel")
 
 
 def rec(day=DAY, *, route="prism/profiles", lane="panel", series="panel_culture_desk", protocol="panel:abc",
@@ -48,11 +48,48 @@ def test_two_zero_days_in_one_run_mark_the_second_only():
     assert (second["valid"], second["invalid_reason"]) == (False, "zero_yield")
 
 
-def test_a_prior_zero_of_another_market_series_or_protocol_does_not_count():
-    for other in (("NG", "panel_culture_desk", "panel:abc"), ("ZA", "panel_ig_gossip", "panel:abc"),
-                  ("ZA", "panel_culture_desk", "panel:other")):
+def test_a_prior_zero_of_another_market_route_or_lane_does_not_count():
+    for other in (("NG", "prism/profiles", "panel"), ("ZA", "tiktok/feed", "panel"),
+                  ("ZA", "prism/profiles", "watchlist")):
         [row] = health([rec()], prior_zero(other)).values()
         assert row["valid"] is True, other
+
+
+def test_a_prior_zero_of_the_same_route_counts_whatever_the_protocol_or_series():
+    for protocol in ("panel:abc", "panel:other", "panel:abc:v2"):
+        [row] = health([rec(protocol=protocol)], prior_zero(PRIOR_KEY)).values()
+        assert (row["valid"], row["invalid_reason"]) == (False, "zero_yield"), protocol
+    [row] = health([rec(series="panel_ig_gossip")], prior_zero(PRIOR_KEY)).values()
+    assert (row["valid"], row["invalid_reason"]) == (False, "zero_yield")
+
+
+def test_three_days_of_rotating_curated_protocols_mark_the_second_and_third_day():
+    days = ["2026-10-03", "2026-10-04", "2026-10-05"]
+    records = [rec(d, protocol=f"panel:rot{n}") for n, d in enumerate(days)]
+    rows = health(records)
+    got = [rows[(d, "ZA", "panel_culture_desk", f"panel:rot{n}")] for n, d in enumerate(days)]
+    assert [(r["valid"], r["invalid_reason"]) for r in got] == [
+        (True, None), (False, "zero_yield"), (False, "zero_yield")]
+
+
+def test_a_live_desk_protocol_does_not_hide_a_dead_rotating_curated_protocol_on_the_same_route():
+    days = ["2026-10-03", "2026-10-04", "2026-10-05"]
+    records = []
+    for n, d in enumerate(days):
+        records.append(rec(d, protocol="panel:desk", items=4, post_ids=[f"d{n}"]))
+        records.append(rec(d, protocol=f"panel:rot{n}"))
+    rows = health(records)
+    assert all(rows[(d, "ZA", "panel_culture_desk", "panel:desk")]["valid"] for d in days)
+    assert [rows[(d, "ZA", "panel_culture_desk", f"panel:rot{n}")]["invalid_reason"]
+            for n, d in enumerate(days)] == [None, "zero_yield", "zero_yield"]
+
+
+def test_the_token_switch_day_is_still_marked_when_the_protocol_changes():
+    records = [rec("2026-10-04", protocol="panel:abc"), rec("2026-10-05", protocol="panel:abc:v2")]
+    rows = health(records)
+    assert rows[("2026-10-05", "ZA", "panel_culture_desk", "panel:abc:v2")]["invalid_reason"] == "zero_yield"
+    switch = health([rec("2026-10-05", protocol="panel:abc:v2")], prior_zero(PRIOR_KEY))
+    assert switch[("2026-10-05", "ZA", "panel_culture_desk", "panel:abc:v2")]["invalid_reason"] == "zero_yield"
 
 
 def test_a_prior_zero_two_days_back_does_not_count():
@@ -63,7 +100,7 @@ def test_a_prior_zero_two_days_back_does_not_count():
 def test_a_day_with_one_counter_stays_valid():
     [row] = health([rec(route="tiktok/song", lane="watchlist", series="counter_tiktok_sound", protocol="p",
                         market="GLOBAL", items=1)],
-                   prior_zero(("GLOBAL", "counter_tiktok_sound", "p"))).values()
+                   prior_zero(("GLOBAL", "tiktok/song", "watchlist"))).values()
     assert (row["valid"], row["invalid_reason"]) == (True, None)
 
 
@@ -85,7 +122,7 @@ def test_a_free_route_is_never_marked(route):
 
 def test_a_search_lane_is_never_marked():
     [row] = health([rec(route="search/multi", lane="search_presence", series="search", protocol="p")],
-                   prior_zero(("ZA", "search", "p"))).values()
+                   prior_zero(("ZA", "search/multi", "search_presence"))).values()
     assert row["valid"] is True
 
 
@@ -115,7 +152,7 @@ def test_a_day_with_no_calls_made_is_not_a_zero_yield_day_and_starts_no_run_of_t
 
 
 def test_a_day_already_invalid_for_a_drop_keeps_its_reason():
-    refs = {DAY: {PRIOR_KEY: (50.0, 5)}}
+    refs = {DAY: {("ZA", "panel_culture_desk", "panel:abc"): (50.0, 5)}}
     [row] = health([rec()], prior_zero(PRIOR_KEY), refs).values()
     assert (row["valid"], row["invalid_reason"]) == (False, "items")
 
@@ -159,7 +196,7 @@ def test_the_prior_day_query_returns_only_ok_run_zero_rows_of_the_day_before():
                   + [rec("2026-10-04", series="fiveth", protocol="v", ok=False, failure="http_5xx")], "c4"))
     runs = {"c4": (d4, 8, "ok"), "c3": (d3, 8, "ok"), "c4a": (d4, 9, "ok"), "c4b": (d4, 10, "ok"),
             "c4x": (d4, 11, "failed")}
-    keys = {(r["market"], r["series"], r["protocol"]) for r in prior_query(runs, rows)}
+    keys = {(r["market"], r["route"], r["lane_class"]) for r in prior_query(runs, rows)}
     assert keys == {PRIOR_KEY}
 
 
@@ -167,13 +204,37 @@ def test_a_zero_route_written_day_after_day_is_invalid_from_the_second_day():
     runs, rows = {}, []
     for n in range(1, 5):
         d = date(2026, 10, n)
-        prior = {d.isoformat(): {(r["market"], r["series"], r["protocol"])
+        prior = {d.isoformat(): {(r["market"], r["route"], r["lane_class"])
                                  for r in prior_query(runs, rows, d)
                                  if writers.zero_yield_route(r["route"], r["lane_class"])}}
         runs[f"c{n}"] = (d, 8, "ok")
         rows += written([rec(d.isoformat())], f"c{n}", prior)
     assert [(r["day"].day, r["valid"], r["invalid_reason"]) for r in rows] == [
         (1, True, None), (2, False, "zero_yield"), (3, False, "zero_yield"), (4, False, "zero_yield")]
+
+
+def test_a_dead_curated_route_is_marked_through_the_query_over_three_rotating_protocols():
+    runs, rows = {}, []
+    for n in range(1, 4):
+        d = date(2026, 10, n)
+        prior = {d.isoformat(): {(r["market"], r["route"], r["lane_class"])
+                                 for r in prior_query(runs, rows, d)
+                                 if writers.zero_yield_route(r["route"], r["lane_class"])}}
+        runs[f"c{n}"] = (d, 8, "ok")
+        rows += written([rec(d.isoformat(), protocol="panel:desk", items=4, post_ids=[f"d{n}"]),
+                         rec(d.isoformat(), protocol=f"panel:rot{n}")], f"c{n}", prior)
+    dead = [(r["day"].day, r["protocol"], r["valid"], r["invalid_reason"]) for r in rows
+            if r["protocol"].startswith("panel:rot")]
+    assert dead == [(1, "panel:rot1", True, None), (2, "panel:rot2", False, "zero_yield"),
+                    (3, "panel:rot3", False, "zero_yield")]
+    assert all(r["valid"] for r in rows if r["protocol"] == "panel:desk")
+
+
+def test_the_prior_day_query_gives_one_key_for_a_route_whatever_its_protocols():
+    d4 = D5 - timedelta(days=1)
+    rows = written([rec("2026-10-04", protocol="panel:rotA"), rec("2026-10-04", protocol="panel:rotB")], "c4")
+    got = prior_query({"c4": (d4, 8, "ok")}, rows)
+    assert {(r["market"], r["route"], r["lane_class"]) for r in got} == {PRIOR_KEY}
 
 
 def test_the_prior_day_set_leaves_out_free_and_search_routes():
@@ -193,7 +254,7 @@ def test_zero_yield_prior_reads_the_day_before_and_filters_by_route(monkeypatch)
                 {"market": "ZA", "series": "f", "protocol": "p", "route": "public_feed", "lane_class": "panel"}]
 
     monkeypatch.setattr(writers, "_query", fake_query)
-    assert writers.zero_yield_prior(object(), D5) == {("ZA", "a", "p")}
+    assert writers.zero_yield_prior(object(), D5) == {("ZA", "prism/profiles", "panel")}
     assert seen[0][1] == [("d", D5)]
 
 
@@ -228,7 +289,7 @@ def test_a_route_with_retired_series_output_is_never_marked_but_a_real_dead_rout
                 market="GLOBAL")
     dead = rec(route="tiktok/song", lane="watchlist", series="counter_tiktok_sound", protocol="p",
                market="GLOBAL")
-    prior = prior_zero(("GLOBAL", "curve_tiktok_sound", "p"), ("GLOBAL", "counter_tiktok_sound", "p"))
+    prior = prior_zero(("GLOBAL", "tiktok/song/videos", "watchlist"), ("GLOBAL", "tiktok/song", "watchlist"))
     rows = health([curve, dead], prior)
     assert rows[(DAY, "GLOBAL", "curve_tiktok_sound", "p")]["valid"] is True
     assert rows[(DAY, "GLOBAL", "counter_tiktok_sound", "p")]["invalid_reason"] == "zero_yield"
@@ -242,4 +303,4 @@ def test_the_retired_route_does_not_count_as_a_prior_zero_day(monkeypatch):
          "lane_class": "watchlist"},
         {"market": "GLOBAL", "series": "counter_tiktok_sound", "protocol": "p", "route": "tiktok/song",
          "lane_class": "watchlist"}])
-    assert writers.zero_yield_prior(object(), D5) == {("GLOBAL", "counter_tiktok_sound", "p")}
+    assert writers.zero_yield_prior(object(), D5) == {("GLOBAL", "tiktok/song", "watchlist")}

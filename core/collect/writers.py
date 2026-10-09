@@ -515,6 +515,10 @@ def reference(bq, day):
 # (PRICED) outside the search lanes, which are sparse by design and never decide G1. The first zero day stays
 # valid as written; v_collection_health_current (core/detect/sql/views.sql) reads it as invalid once the next
 # day's row names zero_yield. The judge's own reasons come first: a day already invalid keeps its reason.
+# The day before is found by route, (market, route, lane_class), and not by protocol: the curated panel's
+# protocol is a hash of the day's rotation and changes every day, and every route that versions its token
+# changes protocol on the switch day, so a protocol key would never see a dead route twice. The rows marked are
+# still the series rows, one per (market, series, protocol).
 ZERO_YIELD = "zero_yield"
 # Search lanes are sparse by design, and W8-DEC-11 governs G1's input, which never reads them (the health query in
 # core/brief/sql/gatectx.sql takes unbiased_rank, panel and unbiased_counter rows only), so they are never marked.
@@ -533,7 +537,7 @@ ZERO_YIELD_PRIOR_SQL = (
     "  FROM `{health}` x JOIN good g ON g.run_id = x.run_id\n"
     "  WHERE x.day = DATE_SUB(@d, INTERVAL 1 DAY)\n"
     "  QUALIFY ROW_NUMBER() OVER (PARTITION BY x.market, x.series, x.protocol ORDER BY g.finished_at DESC) = 1)\n"
-    "SELECT l.market, l.series, l.protocol, l.route, l.lane_class FROM latest l\n"
+    "SELECT DISTINCT l.market, l.route, l.lane_class FROM latest l\n"
     "WHERE l.calls > 0 AND l.calls_ok = l.calls AND l.items = 0"
 )
 
@@ -544,13 +548,13 @@ def zero_yield_route(route, lane_class):
 
 
 def zero_yield_prior(bq, day):
-    """The (market, series, protocol) keys whose stored row of the day before day is a zero-yield day: every call
+    """The (market, route, lane_class) keys with a stored zero-yield row on the day before day: every call
     answered and nothing landed, on a route zero_yield_route names."""
     from google.cloud import bigquery
 
     rows = _query(bq, ZERO_YIELD_PRIOR_SQL.format(runs=table("runs", AGENT), health=table("collection_health")),
                   [bigquery.ScalarQueryParameter("d", "DATE", day)])
-    return {(r["market"], r["series"], r["protocol"]) for r in rows
+    return {(r["market"], r["route"], r["lane_class"]) for r in rows
             if zero_yield_route(r["route"], r["lane_class"])}
 
 
@@ -621,8 +625,8 @@ def _located(post):
 def health_rows(records, posts, refs, run_id, prior=None):
     """One collection_health row per day, market, series and protocol from the job's call records.
     refs maps each day (YYYY-MM-DD) to reference() for that day. prior maps each day to zero_yield_prior() for that
-    day, the keys that were zero-yield days on the day before; a key the run holds a zero-yield row for on the
-    day before counts as well."""
+    day, the (market, route, lane_class) keys that were zero-yield days on the day before; a route the run holds
+    a zero-yield row for on the day before counts as well."""
     located = {}
     for post in posts:
         located.setdefault(post["post_id"], _located(post))
@@ -638,7 +642,8 @@ def health_rows(records, posts, refs, run_id, prior=None):
         group["items"] += r["items"]
         group["posts"].update(r["post_ids"])
         group["failures"].append(call_failure(r))
-    zero = {key for key, g in groups.items() if _zero_yield_day(g)}
+    zero = {(key[0], key[1], g["first"]["route"], g["first"]["lane_class"])
+            for key, g in groups.items() if _zero_yield_day(g)}
     out = []
     for (day, market, series, protocol), g in groups.items():
         first = g["first"]
@@ -648,9 +653,10 @@ def health_rows(records, posts, refs, run_id, prior=None):
                                  units_planned=g["units_planned"], units_ok=g["units_ok"])
         if reason == "calls":
             reason = _calls_reason(g["failures"])
-        if valid and (day, market, series, protocol) in zero:
+        route = (market, first["route"], first["lane_class"])
+        if valid and _zero_yield_day(g):
             yesterday = (date.fromisoformat(day) - timedelta(days=1)).isoformat()
-            if (market, series, protocol) in (prior or {}).get(day, ()) or (yesterday, market, series, protocol) in zero:
+            if route in (prior or {}).get(day, ()) or (yesterday, *route) in zero:
                 valid, reason = False, ZERO_YIELD
         share = sum(located.get(p, False) for p in g["posts"]) / len(g["posts"]) if g["posts"] else None
         out.append({
