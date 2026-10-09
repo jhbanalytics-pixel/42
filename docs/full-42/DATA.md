@@ -532,7 +532,7 @@ INSERT INTO intelligence_42_core.item_state (
   metric_date, market, item_id, kind, state_raw, state, untested, main_series_id, main_y, main_mu, main_ratio,
   q_min, sig_days3, creators3, posts3, top_creator_share3, authenticity, share_flags, sponsored_share,
   geo_status, local_share, geo_known_posts7, spread_platforms, found_platforms, markets_hot, lead_market,
-  diffusion, novelty, last_wave, moment, eligible, worth_raw, worth_pct, run_id, rule_version, base_state)
+  diffusion, novelty, last_wave, moment, eligible, worth_raw, worth_pct, run_id, rule_version, base_state, eligible_v1, locality_basis, locality_status)
 WITH t AS (SELECT st.* FROM intelligence_42_core.v_series_test_current st WHERE st.metric_date = @d),
 agg AS (                    -- the item's series in this market today
   SELECT t.item_id, t.market,
@@ -615,6 +615,8 @@ co AS (
 cl AS (
   SELECT k.item_id, UPPER(k.market) market, ANY_VALUE(k.match_kind) match_kind
   FROM intelligence_42_core.clusters k WHERE k.cluster_date = @d GROUP BY k.item_id, UPPER(k.market)),
+lo AS (SELECT k.item_id, k.market, k.checked_status FROM intelligence_42_core.v_item_locality_checked k
+  WHERE k.run_date = @d AND k.detect_run_id = @run_id),
 f AS (
   SELECT a.*, cm.kind, cm.status map_status, w.* EXCEPT (item_id, market),
     IFNULL(t3.sig_days3, 0) sig_days3,
@@ -628,7 +630,7 @@ f AS (
     hs.state_yesterday, hs.raw_yesterday, IFNULL(fd.low_days, 0) = 3 low3,
     wv.item_id IS NOT NULL had_earlier_wave, IFNULL(cur.cur_start > DATE_SUB(@d, INTERVAL 28 DAY), FALSE) new_wave,
     IFNULL(wv.peak_365, FALSE) peak_365, IFNULL(wv.last_year, FALSE) last_year, wv.last_wave,
-    cal.moment, cl.match_kind, co.network_share, co.network_signals,
+    cal.moment, cl.match_kind, co.network_share, co.network_signals, lo.checked_status locality_checked,
     (SELECT COUNT(*) > 0 FROM intelligence_42_core.v_good_runs g WHERE g.stage = 'coaction' AND g.run_date = @d) coaction_ran
   FROM agg a
   JOIN intelligence_42_core.cultural_map cm ON cm.item_id = a.item_id AND cm.valid_to IS NULL
@@ -644,7 +646,8 @@ f AS (
   LEFT JOIN wv ON wv.item_id = a.item_id AND wv.market = a.market
   LEFT JOIN cal ON cal.item_id = a.item_id AND cal.market = a.market
   LEFT JOIN cl ON cl.item_id = a.item_id AND cl.market = a.market
-  LEFT JOIN co ON co.item_id = a.item_id AND co.market = a.market),
+  LEFT JOIN co ON co.item_id = a.item_id AND co.market = a.market
+  LEFT JOIN lo ON lo.item_id = a.item_id AND lo.market = a.market),
 b AS (
   SELECT f.*,
     IFNULL(f.creators3, 0) >= 5 AND IFNULL(f.posts3, 0) >= 8 AND IFNULL(f.top_creator_share3, 1) <= .4 floors,
@@ -700,8 +703,12 @@ sc AS (
   SELECT s.*,
     IF(state_level(s.state_raw) < state_level(s.state_yesterday)
        AND state_level(s.raw_yesterday) >= state_level(s.state_yesterday), s.state_yesterday, s.state_raw) state,
-    s.state_raw IS NOT NULL AND s.authenticity != 'likely_coordinated' AND s.geo_status != 'not_local'
+    s.state_raw IS NOT NULL AND s.authenticity != 'likely_coordinated'
+      AND IF(@authority = 'v2', IFNULL(s.locality_checked, 'unreadable') != 'not_local', s.geo_status != 'not_local')
       AND s.map_status = 'active' eligible,
+    s.state_raw IS NOT NULL AND s.authenticity != 'likely_coordinated' AND s.geo_status != 'not_local'
+      AND s.map_status = 'active' eligible_v1,
+    IF(@authority = 'v2', IFNULL(s.locality_checked, 'unreadable'), NULL) locality_status,
     PERCENT_RANK() OVER (PARTITION BY s.market, s.kind
       ORDER BY IFNULL(-LOG10(GREATEST(s.p_min, 1e-12)), 0), (s.main.y + 1) / (IFNULL(s.main.mu, s.main.med) + 1)) surge,
     PERCENT_RANK() OVER (PARTITION BY s.market, s.kind ORDER BY IFNULL(s.main.vel, 0) + .5 * IFNULL(s.main.accel, 0)) momentum,
@@ -724,7 +731,8 @@ SELECT @d metric_date, wr.market, wr.item_id, wr.kind, wr.state_raw, wr.state, w
   IF(wr.eligible AND COUNT(*) OVER co_n >= 20,
      (PERCENT_RANK() OVER co * (COUNT(*) OVER co_n - 1) + CUME_DIST() OVER co * COUNT(*) OVER co_n - 1)
        / 2 / (COUNT(*) OVER co_n - 1), NULL) worth_pct,              -- midrank percentile in the cohort
-  @run_id run_id, @rule_version rule_version, wr.base_state
+  @run_id run_id, @rule_version rule_version, wr.base_state,
+  wr.eligible_v1, IF(@authority = 'v2', 'locality_v2.1', 'v1') locality_basis, wr.locality_status
 FROM wr
 WHERE wr.state IS NOT NULL
 WINDOW co AS (PARTITION BY wr.market, wr.eligible ORDER BY wr.worth_raw),

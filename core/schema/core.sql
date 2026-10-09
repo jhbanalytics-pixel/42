@@ -167,7 +167,8 @@ CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.item_state` (
   diffusion STRING, novelty STRING,
   last_wave STRUCT<peak_date DATE, peak_posts INT64>, moment STRING, eligible BOOL, worth_raw FLOAT64,
   worth_pct FLOAT64,
-  run_id STRING NOT NULL, rule_version STRING, base_state STRING)
+  run_id STRING NOT NULL, rule_version STRING, base_state STRING,
+  eligible_v1 BOOL, locality_basis STRING, locality_status STRING)
 PARTITION BY metric_date;
 
 CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.coord_signals` (
@@ -345,3 +346,13 @@ CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.post_item_end`
   post_id STRING NOT NULL, item_id STRING NOT NULL, ended_on DATE NOT NULL, reason STRING NOT NULL,
   lineage_id STRING NOT NULL, recorded_at TIMESTAMP NOT NULL)
 PARTITION BY ended_on CLUSTER BY item_id;
+
+/* The three columns the locality switch adds to item_state (C4 v3 section 7.2): the v1 eligibility kept as an
+   observation, the rule that wrote eligible (v1 or locality_v2.1), and the checked v2 status carried to the brief
+   (null on the v1 basis). Rows written before them keep NULL. */
+ALTER TABLE `ogilvy-trends-v2.intelligence_42_core.item_state`
+ADD COLUMN IF NOT EXISTS eligible_v1 BOOL;
+ALTER TABLE `ogilvy-trends-v2.intelligence_42_core.item_state`
+ADD COLUMN IF NOT EXISTS locality_basis STRING;
+ALTER TABLE `ogilvy-trends-v2.intelligence_42_core.item_state`
+ADD COLUMN IF NOT EXISTS locality_status STRING;

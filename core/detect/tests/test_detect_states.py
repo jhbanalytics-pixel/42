@@ -106,7 +106,7 @@ class World:
 def detect(con, d=D):
     temp, insert = sql_statements("state.sql")
     con.execute(temp_macro(temp))
-    run_duck(con, insert, {"d": d, "run_id": RUN, "rule_version": RULE})
+    run_duck(con, insert, {"d": d, "run_id": RUN, "rule_version": RULE, "authority": "v1"})
     rows = duck.query(con, "SELECT * FROM {core}.item_state s WHERE s.run_id = @r AND s.metric_date = @d",
                       {"r": RUN, "d": d})
     return by(rows, "item_id")
@@ -459,7 +459,7 @@ def test_recurring_from_a_legacy_wave_and_a_new_wave(con):
 
 def test_base_state_keeps_what_the_seasonal_or_recurring_override_replaced(con):
     """base_state is the state before the Seasonal or Recurring override when that is Rising, Emerging, Spike or
-    New to 42, else NULL; it is the last column, after rule_version, where L1's ADD COLUMN puts it."""
+    New to 42, else NULL; it follows rule_version, where L1's ADD COLUMN puts it, ahead of the locality columns."""
     w = World()
     for item in ("cal", "plain", "rec"):
         fresh(w, item)
@@ -474,7 +474,8 @@ def test_base_state_keeps_what_the_seasonal_or_recurring_override_replaced(con):
     assert got == {"cal": ("seasonal", "new_to_42", RULE), "plain": ("new_to_42", "new_to_42", RULE),
                    "rec": ("recurring", None, RULE)}   # New to 42 needs no earlier wave, so nothing underneath
     cols = [r[0] for r in con.execute("DESCRIBE core.item_state").fetchall()]
-    assert cols[-2:] == ["rule_version", "base_state"]
+    # base_state follows rule_version; the three locality columns of the switch (C4 v3 7.2) are appended after it
+    assert cols[-5:] == ["rule_version", "base_state", "eligible_v1", "locality_basis", "locality_status"]
 
 
 def test_newly_watched_counter_with_one_big_first_read_is_not_a_spike(con):

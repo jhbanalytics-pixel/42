@@ -29,6 +29,8 @@ from pathlib import Path
 
 from google.cloud import bigquery
 
+from core.trust.locality import LOCALITY_AUTHORITY
+
 from . import aggregate, breakout, centroids, coaction, forecasts, locality, runs, seeds, sqlrun, stats, watches
 
 PROJECT = "ogilvy-trends-v2"
@@ -256,7 +258,8 @@ def run_state(client, d, run_id, rule_version, core=sqlrun.CORE, agent=sqlrun.AG
     config = bigquery.QueryJobConfig(query_parameters=[
         bigquery.ScalarQueryParameter("d", "DATE", d),
         bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
-        bigquery.ScalarQueryParameter("rule_version", "STRING", rule_version)])
+        bigquery.ScalarQueryParameter("rule_version", "STRING", rule_version),
+        bigquery.ScalarQueryParameter("authority", "STRING", LOCALITY_AUTHORITY)])
     script = sqlrun.render((SQL / "state.sql").read_text(encoding="utf-8"), core, agent)
     client.query(script, job_config=config).result()
     rows = sqlrun.query(client, ITEM_STATE_COUNT_SQL, {"d": d, "run_id": run_id}, core=core, agent=agent)

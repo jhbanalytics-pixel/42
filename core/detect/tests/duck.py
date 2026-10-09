@@ -145,7 +145,8 @@ CREATE TABLE core.item_state (
   local_share DOUBLE, geo_known_posts7 BIGINT, spread_platforms BIGINT, found_platforms BIGINT,
   markets_hot BIGINT, lead_market VARCHAR, diffusion VARCHAR, novelty VARCHAR,
   last_wave STRUCT(peak_date DATE, peak_posts BIGINT), moment VARCHAR, eligible BOOLEAN,
-  worth_raw DOUBLE, worth_pct DOUBLE, run_id VARCHAR, rule_version VARCHAR, base_state VARCHAR);
+  worth_raw DOUBLE, worth_pct DOUBLE, run_id VARCHAR, rule_version VARCHAR, base_state VARCHAR,
+  eligible_v1 BOOLEAN, locality_basis VARCHAR, locality_status VARCHAR);
 
 CREATE TABLE core.coord_signals (
   metric_date DATE, item_id VARCHAR, market VARCHAR, run_id VARCHAR,

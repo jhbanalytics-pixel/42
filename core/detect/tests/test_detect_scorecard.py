@@ -525,7 +525,7 @@ def overcount_world(ratio_today):
     temp, insert = ts.sql_statements("state.sql")
     con.execute(duck.temp_macro(temp))
     for when in (day(1), D):
-        duck.run_duck(con, insert, {"d": when, "run_id": ts.RUN, "rule_version": ts.RULE})
+        duck.run_duck(con, insert, {"d": when, "run_id": ts.RUN, "rule_version": ts.RULE, "authority": "v1"})
         duck.load(con, "agent.runs", [run("detect", when, run_id=ts.RUN)])
     got = duck.query(con, "SELECT * FROM {core}.item_state s WHERE s.metric_date = @d", {"d": D})
     return con, D, {r["item_id"]: r for r in got}["overcountx"]
