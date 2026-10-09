@@ -1077,9 +1077,13 @@ class _Runner:
                 hold = call.hold()
             except Refused:
                 hold = 0  # the client refuses it and says why
-            if not self.budget.fits(call, hold) or ((call.route in (REELS_ROUTE,) + location_sources.ROUTES or call.family == "profile") and self.reels_room is not None
-                                                    and self.run.credits + hold > self.reels_room):
+            if not self.budget.fits(call, hold):
                 self._record(call, "over_share", self.clock())
+                continue
+            if ((call.route in (REELS_ROUTE,) + location_sources.ROUTES or call.family == "profile") and self.reels_room is not None
+                    and self.run.credits + hold > self.reels_room):
+                unserved = Result("over_share", call.route, reason=location_sources.UNSERVED) if call.family == "profile" else None
+                self._record(call, "over_share", self.clock(), unserved)
                 continue
             if self.only is not None:
                 # A repair reads the vendor again: a same-day stored response is the one being repaired.
