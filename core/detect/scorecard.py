@@ -158,6 +158,19 @@ def queries(entries):
     return out
 
 
+def figure_windows(week_start):
+    """{figure: (since, until)}: the days of item_state each Figure reads, the windows scorecard.sql fills in. The regime
+    marker of a Figure (C4 v3 section 11.4) is read over its own window and over the same window a week earlier. The
+    Figures that read credits or reviews only (precision, expansion, cost) are the week itself."""
+    start, end = week_start, week_start + timedelta(days=6)
+    week = (start, end)
+    windows = dict.fromkeys(FIGURE_NAMES, week)
+    windows["time_to_detect"] = (DATA_START, end)
+    windows["lead_time"] = (start - timedelta(days=LEAD_WINDOW), end)
+    windows["recall"] = (start, end + timedelta(days=RECALL_DAYS))
+    return windows
+
+
 def params(market, week_start):
     year, week, _ = week_start.isocalendar()
     return {"market": market, "week_start": week_start, "week_end": week_start + timedelta(days=6),
@@ -294,14 +307,20 @@ def run_scorecard(client, week_start, *, run_id=None, reference=REFERENCE, core=
     for market in MARKETS:
         p = params(market, week_start)
 
-        def run(name):
-            result = sqlrun.query(client, sql[name], p, core=core, agent=agent)
-            trace = {"query_id": _query_id(name, sql[name], p), "run_id": run_id, "result_hash": result_hash(result)}
+        def run(name, extra=None):
+            query_params = {**p, **(extra or {})}
+            result = sqlrun.query(client, sql[name], query_params, core=core, agent=agent)
+            trace = {"query_id": _query_id(name, sql[name], query_params), "run_id": run_id,
+                     "result_hash": result_hash(result)}
             return result, trace
 
         expansion, exp_trace = run("expansion_share")
-        regime_rows, regime_trace = run("locality_regime")
-        marker = {**locality_regime(regime_rows), **regime_trace}
+        windows, markers = figure_windows(week_start), {}
+        for window in sorted(set(windows.values())):
+            regime_rows, regime_trace = run("locality_regime", {"since": window[0], "until": window[1]})
+            markers[window] = {**locality_regime(regime_rows),
+                               "window": {"since": window[0].isoformat(), "until": window[1].isoformat()},
+                               **regime_trace}
         row = {
             "week_start": week_start, "week_end": p["week_end"], "market": market, "run_id": run_id,
             "rule_version": RULE_VERSION,
@@ -316,6 +335,6 @@ def run_scorecard(client, week_start, *, run_id=None, reference=REFERENCE, core=
             "cost_per_confirmed": cost_per_confirmed(*run("cost_per_confirmed")),
         }
         for name in FIGURE_NAMES:
-            row[name] = {**row[name], "regime": marker}
+            row[name] = {**row[name], "regime": markers[windows[name]]}
         rows.append(row)
     return rows
