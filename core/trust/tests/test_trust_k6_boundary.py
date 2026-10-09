@@ -68,16 +68,18 @@ GENERATION_BREACHES = [
     "a generation talent", "the new generation",
 ]
 
-# "mid 20s" and its kin are a temperature or a score as often as an age. A breach only with age context in the same
-# sentence (aged, in their, people, fans, women, men, users); with neither, or with weather or score context, it passes.
+# "mid 20s" and its kin are a temperature or a score as often as an age. After the B7 ruling a decade is an age unless
+# a weather, score or money word sits beside it in the same sentence. Two rows moved from passes to breaches: "the mid
+# 20s" and "Joburg sat in the mid 20s all week" carry no measure word, so they are read as ages (fail safe).
 DECADE_PASSES = [
     "temperatures in the mid 20s", "highs in the mid-20s C", "26 degrees, in the mid 20s", "the weather hit the mid 20s",
-    "he scored in the early 30s", "scores in the late 60s", "Joburg sat in the mid 20s all week", "the mid 20s",
+    "he scored in the early 30s", "scores in the late 60s",
     "Fans cheered. Highs hit the mid 20s.", "Highs hit the mid 20s. Women cheered",
 ]
 DECADE_BREACHES = [
     "women in the mid 20s", "people in the early 30s", "fans in their mid 20s", "men aged mid 20s",
     "users in the late 20s", "aged mid 20s", "fans love it. Women in the mid 20s lead", "mid 20s fans",
+    "Joburg sat in the mid 20s all week", "the mid 20s",
 ]
 # The word forms stay a breach without any context.
 DECADE_WORDS = ["early thirties", "mid twenties", "late forties", "in the mid-twenties"]

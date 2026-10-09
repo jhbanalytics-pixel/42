@@ -13,14 +13,15 @@ W = ("2026-10-01", "2026-10-07")
 NG = timezone(timedelta(hours=1))
 
 
-def row(pid, handle, text, platform="tiktok", *, outlet=False, sponsored=False, flagged=False, geo="NG"):
+def row(pid, handle, text, platform="tiktok", *, outlet=False, sponsored=False, flagged=False, near_dup=False,
+        geo="NG"):
     """A row as the pack statement of appendix G returns it."""
     return {"post_id": pid, "platform": platform, "url": f"https://example.invalid/{pid}",
             "published_at": datetime(2026, 10, 6, 9, tzinfo=timezone.utc), "creator_tier": "micro",
             "geo_market": geo, "geo_confidence": 0.9 if geo else None, "geo_source": "ext_region" if geo else None,
             "source_market": None, "quote_text": text, "views": 10, "likes": 1, "comments": 0, "shares": 0,
             "thumbnail_url": None, "duration_s": None, "handle": handle, "flagged": flagged, "sponsored": sponsored,
-            "near_dup": False, "sponsor_checked": True, "is_outlet": outlet}
+            "near_dup": near_dup, "sponsor_checked": True, "is_outlet": outlet}
 
 
 ROWS = [
@@ -144,3 +145,66 @@ def test_a_quote_on_a_post_the_claim_does_not_cite_adds_nothing():
 def test_span_hash_folds_width_variants_to_the_plain_form():
     assert span_hash("\uff53\uff48\uff4f\uff55\uff54\uff49\uff4e\uff47") == span_hash("shouting")
     assert span_hash("\ufb01nale") == span_hash("finale")
+
+
+# B8. A flagged post, a near duplicate and a repeated (post, span) each add nothing. Each fixture changes one thing
+# about an otherwise countable post, so removing the exclusion changes the result.
+EXTRA = [
+    row("f1", "gina", "flagged but otherwise a perfectly ordinary reaction", flagged=True),
+    row("n1", "hugo", "near duplicate of something else but a reaction", near_dup=True),
+    row("k1", "ife", "clean reaction from a located creator"),
+]
+
+
+def extra_claim(*pairs):
+    return [{"id": "c1", "evidence_ids": sorted({p for p, _ in pairs}),
+             "quotes": [{"evidence_id": p, "text": t} for p, t in pairs]}]
+
+
+def build_extra(pairs, **over):
+    ev = [evidence._record(r, NG) for r in EXTRA]
+    args = dict(claims=extra_claim(*pairs), rests_on={"c1"}, supported_claim_ids={"c1"}, evidence=ev, market="NG",
+                window=W, event_kind="scheduled", local_ids={r["id"] for r in local_posts(ev, "NG")})
+    args.update(over)
+    return reaction_records(**args)
+
+
+def test_the_fixture_posts_are_flagged_near_duplicate_and_clean_as_named():
+    recs = {r["id"]: r for r in (evidence._record(x, NG) for x in EXTRA)}
+    assert "flagged" in recs["f1"]["flags"] and "near_duplicate" in recs["n1"]["flags"]
+    assert not {"flagged", "near_duplicate", "sponsored"} & set(recs["k1"]["flags"])
+    assert {"f1", "n1", "k1"} <= {r["id"] for r in local_posts(list(recs.values()), "NG")}
+
+
+def test_a_flagged_post_adds_nothing():
+    assert build_extra([("f1", "otherwise a perfectly ordinary reaction")]) == []
+
+
+def test_a_near_duplicate_post_adds_nothing():
+    assert build_extra([("n1", "near duplicate of something else")]) == []
+
+
+def test_the_clean_post_beside_them_is_counted():
+    out = build_extra([("f1", "otherwise a perfectly ordinary reaction"), ("n1", "near duplicate of something else"),
+                       ("k1", "clean reaction from a located creator")])
+    assert [r["post_id"] for r in out] == ["k1"]
+
+
+def test_a_span_quoted_twice_on_one_post_gives_one_record():
+    twice = [("k1", "clean reaction from a located creator"), ("k1", "clean   reaction from a located creator")]
+    assert len(build_extra(twice)) == 1
+
+
+def test_a_span_quoted_by_two_claims_on_one_post_gives_one_record_for_the_first_claim():
+    ev = [evidence._record(r, NG) for r in EXTRA]
+    claims = [{"id": "c1", "evidence_ids": ["k1"], "quotes": [{"evidence_id": "k1", "text": "clean reaction from"}]},
+              {"id": "c2", "evidence_ids": ["k1"], "quotes": [{"evidence_id": "k1", "text": "clean reaction from"}]}]
+    out = reaction_records(claims=claims, rests_on={"c1", "c2"}, supported_claim_ids={"c1", "c2"}, evidence=ev,
+                           market="NG", window=W, event_kind="scheduled",
+                           local_ids={r["id"] for r in local_posts(ev, "NG")})
+    assert [(r["post_id"], r["claim_id"]) for r in out] == [("k1", "c1")]
+
+
+def test_two_different_spans_of_one_post_are_two_records():
+    two = [("k1", "clean reaction"), ("k1", "located creator")]
+    assert len(build_extra(two)) == 2

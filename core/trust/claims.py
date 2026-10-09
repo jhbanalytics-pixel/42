@@ -337,21 +337,30 @@ class _KinName(_Conditional):
 
 
 class _AgeContext(_Conditional):
-    """A K6 term that is an age only beside age context: "mid 20s" is a temperature or a score as often as an age.
-    It counts only when the sentence holds aged, ages, in their, or a word for a group of people: people, fans, women,
-    men, users, audience, viewers, creators, followers, students, youth, adults, girls, boys, parents or listeners.
-    With none of those, or with weather or score words only, it does not count. Age context wins when both are
-    present."""
+    """A K6 term that is an age unless it is a measure: "mid 20s" is a temperature, a score or a price as often as an
+    age. It does not count only when a weather, score or money word sits within six words of it in the same sentence
+    (temperatures, highs, degrees, score, won, rand, KSh, naira, dollars, price, costs, fees). With none of those it
+    counts, whoever the sentence is about, so a new way to name a group of people cannot slip past a word list. An
+    age marker (aged, ages, in their, in her, in his) counts whatever else the sentence holds."""
 
-    _CONTEXT = re.compile(
-        r"\b(?:aged?|ages|in\s+their|people|fans?|women|men|users?|audiences?|viewers?|creators?|followers?|students?"
-        r"|youth|adults?|girls|boys|parents|listeners?)\b", re.I)
+    _MEASURE = re.compile(
+        r"\b(?:temperatures?|temps?|degrees?|celsius|fahrenheit|weather|forecasts?|highs?|lows?|heat|hot|cold|warm"
+        r"|humid|rain(?:fall)?|scores?|scored|scoring|won|wins?|goals?|points|wickets|overs|runs"
+        r"|bowled|all\s+out|dismissed|innings"
+        r"|(?:a|the)\s+lead|leads?\s+by|led\s+by|rand|naira|dollars?|usd|pounds?|euros?|shillings?|ksh|price[sd]?"
+        r"|costs?|costing|fees?|revenue|salary|salaries|wages?|worth)\b|\u00b0|[$\u00a3\u20ac]|(?-i:\bR\s?\d|\bR\b)", re.I)
+    _AGE_MARKER = re.compile(r"\b(?:aged?|ages|in\s+(?:their|her|his))\b", re.I)
     _SENTENCE_END = re.compile(r"[.!?]\s+")
+    _WORDS_BESIDE = 6
 
     def _counts(self, text, m):
         start = max([0] + [s.end() for s in self._SENTENCE_END.finditer(text, 0, m.start())])
         stop = next((s.start() for s in self._SENTENCE_END.finditer(text, m.end())), len(text))
-        return bool(self._CONTEXT.search(text[start:stop]))
+        if self._AGE_MARKER.search(text[start:stop]):
+            return True
+        before = " ".join(text[start : m.start()].split()[-self._WORDS_BESIDE :])
+        after = " ".join(text[m.end() : stop].split()[: self._WORDS_BESIDE])
+        return not (self._MEASURE.search(before) or self._MEASURE.search(after))
 
 
 _BREACH_TERMS = [
@@ -432,7 +441,7 @@ _K6_ONLY_TERMS = [
         r"(?:\d0s|nineties|noughties)[\s-](?:born|generation|babies)\b",
         r"\bgrew\s+up\s+in\s+the\s+(?:early|mid|late)?[\s-]*['\u2019]?(?:(?:19|20)\d0s|\d0s|nineties|noughties)",
         r"\b(?:early|mid|late)[\s-]?['\u2019]?(?:teens|twenties|thirties|forties|fifties|sixties|seventies)\b",
-        # "mid 20s" is a temperature or a score as often as an age, so it counts only beside age context.
+        # "mid 20s" is a temperature, a score or a price as often as an age, so it is an age unless a measure sits beside it.
         _AgeContext(r"\b(?:early|mid|late)[\s-]?['\u2019]?[2-7]0s\b"),
         # "once in a generation" and "for a generation" are lengths of time, not an audience.
         r"\b(?:next|this|(?:the|a)\s+new)[\s-]+generation\b(?!\s+(?:of|ago)\b)",
