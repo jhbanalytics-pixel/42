@@ -727,14 +727,16 @@
    "core/setup/tests/test_declared_env_removals.py",
    "core/setup/tests/test_release_map.py",
    "core/setup/tests/test_release_plan.py",
-   "core/api/tests/test_old_readers.py"
+   "core/api/tests/test_old_readers.py",
+   "core/setup/tests/test_release_packet.py"
   ],
   "deploy": [
    "core/api/tests/test_deploy_candidate.py",
    "core/api/tests/test_deploy_script.py",
    "core/api/tests/test_agent_compat.py",
    "core/setup/tests/test_release_retry.py",
-   "core/setup/tests/test_services_paste.py"
+   "core/setup/tests/test_services_paste.py",
+   "core/setup/tests/test_release_packet_paste.py"
   ]
  },
  "schema_version": 1
