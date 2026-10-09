@@ -103,6 +103,10 @@ def classify(statement):
 
 # the jobs-owned DDL
 
+# The order the detect job creates its views: views.sql first, then locality_views.sql, which reads v_good_runs from the first
+# (core/detect/job.py run: apply_views, then apply_locality_views_step). Objects in other files follow, in path order.
+DETECT_VIEW_FILES = ("core/detect/sql/views.sql", "core/detect/sql/locality_views.sql")
+
 def ddl_statements(files):
     """{object name: the CREATE OR REPLACE statement text, whitespace collapsed} for the non-test files under core/ outside
     core/schema. The text runs from the CREATE to the first semicolon or closing triple quote."""
@@ -116,6 +120,19 @@ def ddl_statements(files):
             body = re.sub(r"--[^\n]*", "", text[m.start():min(ends) if ends else len(text)])
             out.setdefault(name, []).append(" ".join(body.split()))
     return {name: "\n".join(sorted(bodies)) for name, bodies in out.items()}
+
+
+def ddl_apply_order(files, names):
+    """names in the order detect creates them: by file (DETECT_VIEW_FILES first), then by position in the file."""
+    place = {}
+    for path, text in files:
+        if de.is_test_path(path) or path.startswith("core/schema/") or not path.endswith((".py", ".sql")):
+            continue
+        rank = DETECT_VIEW_FILES.index(path) if path in DETECT_VIEW_FILES else len(DETECT_VIEW_FILES)
+        for m in de.DDL_REPLACE.finditer(text):
+            name = m.group(1).rstrip(";").rsplit(".", 1)[-1].strip("`{}")
+            place.setdefault(name, (rank, path, m.start()))
+    return sorted(names, key=lambda n: place[n])
 
 
 def changed_ddl_objects(a80_files, head_files):
@@ -169,7 +186,7 @@ def build_jobs_manifest(head_files, a80_files, *, release_id, commit, tree, owne
                                    [consumer(file, access, head_files, table)], readback, note))
     if len(effects) != len(new) or len({e["effect_id"] for e in effects}) != len(effects):
         raise ValueError("the schema effects are not one for one with the new statements")
-    changed = changed_ddl_objects(a80_files, head_files)
+    changed = ddl_apply_order(head_files, changed_ddl_objects(a80_files, head_files))
     listing = "\n".join(f"{name} {de.sha_text(ddl_statements(head_files)[name])}" for name in changed)
     writers = de.derive_ddl_writers(head_files)
     view_files = sorted({path for name in changed for path in writers.get(name, [])})
@@ -181,7 +198,8 @@ def build_jobs_manifest(head_files, a80_files, *, release_id, commit, tree, owne
     effects.append(base_effect("E-JOB-VIEWS", "view", ",".join(changed), "replace_view", order + 2, "with_candidate", owner, listing, "code",
                                [{"component": "jobs image", "image": "jobs", "file": f, "line": 0, "access": "write"} for f in view_files],
                                {"kind": "chain_manifest", "target": "first_b_chain", "expected_result_sha256": ""},
-                               "applied by the detect job on its first run; read back from the first B chain manifest, a deferred readback"))
+                               "applied by the detect job on its first run, views.sql objects then locality_views.sql objects and before the brief's first run, "
+                               "after the core.sql tables; read back from the first B chain manifest, a deferred readback"))
     manifest = {"schema_version": de.SCHEMA_VERSION, "release_id": release_id, "source": {"commit": commit, "tree": tree}, "effects": effects,
                 "no_storage_change": {"claimed": False}, "rollback_blockers": [], "a80_ddl_writers": sorted(de.derive_ddl_writers(a80_files)),
                 "generated_from": {"base": A80, "head": commit}, "reviewed_by": ""}

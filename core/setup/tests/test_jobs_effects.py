@@ -45,6 +45,8 @@ SCHEMA_IDS = [
     ("E-CLAIM-SPAN", "intelligence_42_agent.claim_checks"), ("E-CLAIM-CODE", "intelligence_42_agent.claim_checks"),
     ("E-POSTITEMS-LINKED", "intelligence_42_core.post_items"), ("E-POSTITEMS-MARKET", "intelligence_42_core.post_items"),
 ]
+# the same five, in the order detect creates them: views.sql in file order, then locality_views.sql in file order
+DDL_APPLY_ORDER = ["v_collection_health_current", "v_item_market_scope", "tvf_post_items", "v_item_locality_checked", "v_item_locality_current"]
 CHANGED_DDL = ["tvf_post_items", "v_collection_health_current", "v_item_locality_checked", "v_item_locality_current", "v_item_market_scope"]
 
 
@@ -255,9 +257,9 @@ def test_js02_the_changed_objects_between_a80_and_this_tree_are_the_five_found_b
 def test_js02_e_job_views_lists_every_changed_object_with_the_hash_of_its_statement_text(manifest):
     view = effect(manifest, "E-JOB-VIEWS")
     assert view["kind"] == "view" and view["change"] == "replace_view" and view["apply_kind"] == "code" and view["apply_phase"] == "with_candidate"
-    assert view["target"] == ",".join(CHANGED_DDL)
+    assert view["target"] == ",".join(DDL_APPLY_ORDER)
     lines = view["statement_ref"].splitlines()
-    assert [ln.split(" ")[0] for ln in lines] == CHANGED_DDL
+    assert [ln.split(" ")[0] for ln in lines] == DDL_APPLY_ORDER and sorted(DDL_APPLY_ORDER) == CHANGED_DDL
     assert all(len(ln.split(" ")[1]) == 64 for ln in lines)
     assert sha(view["statement_ref"]) == view["statement_sha256"]
     assert view["native_readback"] == {"kind": "chain_manifest", "target": "first_b_chain", "expected_result_sha256": ""}
@@ -422,3 +424,34 @@ def test_the_manifest_binds_its_release_and_source_and_seals_its_hash(manifest):
     assert manifest["generated_from"] == {"base": A80, "head": COMMIT}
     assert manifest["no_storage_change"] == {"claimed": False} and manifest["rollback_blockers"] == []
     assert manifest["manifest_sha256"] == de.manifest_hash(manifest)
+
+
+# RB-C9: the core.sql tables, then views.sql, then locality_views.sql, before the brief's first run
+
+def test_rbc9_the_views_effect_follows_every_core_table_effect_and_lists_views_sql_then_locality_views_sql(manifest):
+    views = effect(manifest, "E-JOB-VIEWS")
+    core_tables = [e for e in schema_effects(manifest) if e["target"].startswith("intelligence_42_core.")]
+    assert core_tables and all(e["apply_order"] < views["apply_order"] for e in core_tables)
+    assert all(e["apply_phase"] == "before_candidate" for e in core_tables) and views["apply_phase"] == "with_candidate"
+    listed = [ln.split(" ")[0] for ln in views["statement_ref"].splitlines()]
+    files = {"v_collection_health_current": 0, "v_item_market_scope": 0, "tvf_post_items": 1, "v_item_locality_checked": 1,
+             "v_item_locality_current": 1}      # 0 views.sql, 1 locality_views.sql, read from the two files below
+    assert [files[n] for n in listed] == sorted(files[n] for n in listed)
+    views_sql = (ROOT / "core/detect/sql/views.sql").read_text(encoding="utf-8")
+    locality_sql = (ROOT / "core/detect/sql/locality_views.sql").read_text(encoding="utf-8")
+    for name, which in files.items():
+        assert (name in (views_sql, locality_sql)[which]) and (name not in (views_sql, locality_sql)[1 - which] or which == 0)
+
+
+def test_rbc9_detect_creates_views_sql_before_locality_views_and_the_chain_runs_detect_before_brief():
+    import ast
+
+    from core.collect import chain
+
+    tree = ast.parse((ROOT / "core/detect/job.py").read_text(encoding="utf-8"))
+    [run] = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "run"]
+    calls = [(n.lineno, ast.unparse(n.func)) for n in ast.walk(run) if isinstance(n, ast.Call)]
+    first = min(line for line, name in calls if name.endswith("sqlrun.apply_views"))
+    second = min(line for line, name in calls if name.endswith("apply_locality_views_step"))
+    assert first < second
+    assert chain.STAGES.index("detect") < chain.STAGES.index("brief")
