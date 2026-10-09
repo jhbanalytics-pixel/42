@@ -71,6 +71,7 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from core.understand import pair_score
 from core.understand.age_scan import passes_age_scan
 from core.understand.discovery_review import REVIEW_COLUMNS, review_sample, review_score, review_sheet  # noqa: F401
 from core.understand.embed import book_spend, spend_today
@@ -91,6 +92,7 @@ MIN_VOTES = 2
 RECENT_DAYS = 7
 DORMANT_DAYS = 28
 EMA_OLD = 0.8
+SHADOW_SINK = None  # a callable (market, run_date, records), or None to compute no shadow
 REVIEW_COSINE = 0.9
 MERGE_REVIEW_LISTED = 50
 REVIEW_BLOCK = 1024  # rows of the cosine matrix merge_review_pairs holds at once
@@ -447,9 +449,10 @@ def _votes(cluster, item, cos, run_date):
     return got
 
 
-def assign(clusters, items, run_date):
+def assign(clusters, items, run_date, shadow=None):
     """One decision per cluster, in order: kind match, recurrence, variant or new, the matched or parent item_id
-    (None when new), the cosine to it, its votes, and the cluster's candidates as (item_id, cosine)."""
+    (None when new), the cosine to it, its votes, and the cluster's candidates as (item_id, cosine). A list given as
+    shadow is filled with pair_score's records beside these decisions, which it never changes."""
     if not clusters:
         return []
     judged = [[] for _ in clusters]
@@ -489,6 +492,12 @@ def assign(clusters, items, run_date):
             decisions.append({"cluster_id": c["cluster_id"], "kind": "new", "item_id": None,
                               "cosine": best[1] if best else None, "votes": best[2] if best else [],
                               "candidates": candidates})
+    if shadow is not None:
+        try:
+            shadow.extend(pair_score.shadow_records(clusters, items, judged, eligible, decisions, run_date,
+                                                    variant_cosine=VARIANT_COSINE, is_dormant=is_dormant))
+        except Exception as err:
+            shadow.append({"shadow_error": type(err).__name__})
     return decisions
 
 
@@ -659,7 +668,17 @@ def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None,
         return counts
     try:
         items = _rows(execute(load("cluster_items"), {"run_date": run_date}))
-        decisions = assign(clusters, items, run_date)
+        shadow = [] if SHADOW_SINK is not None else None
+        decisions = assign(clusters, items, run_date, shadow=shadow)
+        if shadow is not None:
+            try:
+                SHADOW_SINK(market, run_date, shadow)
+            except Exception as err:
+                counts["shadow_error"] = type(err).__name__  # the shadow never fails a run, but it never fails unseen
+            else:
+                failed = next((r["shadow_error"] for r in shadow if "shadow_error" in r), None)
+                if failed:
+                    counts["shadow_error"] = failed
         planned = plan(clusters, decisions, items, run_date, market)
         batches = write_batches(planned)
         counts.update(merge_review=planned["merge_review"][:MERGE_REVIEW_LISTED],
