@@ -5,6 +5,10 @@ Pure Python: no cloud or model calls. f42-api adds tag, dropped and coverage its
 critic lists, for each item whose explanation reached the critic, the critic's own answer as it returned it
 (core/brief/explain.py CRITIC_FIELDS) with the item_id. It is kept for audit beside the cards and held items, never
 on them, so no reader shows it: f42-api builds Today from the named fields and creator pages read cards.
+
+hold_audit does the same for a post floor hold the suppression mask changed: the stage counts of such a hold would
+show a reader that posts were hidden, so the hold is served with counts over the posts a reader can see and the
+counts as the query left them are kept here, with the item_id.
 """
 
 from collections import Counter
@@ -247,6 +251,9 @@ def _held_item(c):
     # holds for them too. The key is left out when nothing was merged, so every other held item keeps its shape.
     if c.get("also"):
         held["also"] = list(c["also"])
+    # A post-floor hold says at which stage of the pack it fell below the floor (pack_order.hold_detail).
+    if c.get("held_reason_detail"):
+        held["held_reason_detail"] = c["held_reason_detail"]
     return held
 
 
@@ -260,8 +267,15 @@ HELD_SUMMARY = {
 }
 
 
+def hold_base(text):
+    """A floor hold's wording without the cap it may name (core/brief/pack_order.py hold_text): what groups holds of
+    one kind together here, in the holds report and in ops."""
+    return text.split(": the ")[0]
+
+
 def _held_group(item):
-    return item["reason_text"] if item["reason_text"] in HELD_SUMMARY else REASON_TEXT[item["reason"]].lower()
+    text = hold_base(item["reason_text"])  # a floor hold may name the cap that caused it
+    return text if text in HELD_SUMMARY else REASON_TEXT[item["reason"]].lower()
 
 
 def _held_label(group, n):
@@ -326,6 +340,8 @@ def build_market_payload(market, brief_date, candidates, *, moments, boards, ban
         "coverage": {"issues": list(issues)},
         "critic": [{"item_id": c["item_id"], **c["critic"]} for c in candidates
                    if isinstance(c.get("critic"), dict)],
+        "hold_audit": [{"item_id": c["item_id"], **c["held_reason_audit"]} for c in candidates
+                       if isinstance(c.get("held_reason_audit"), dict)],
     }
 
 

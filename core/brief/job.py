@@ -60,6 +60,7 @@ from core.brief import confirm as confirm_lane
 from core.brief import gatectx
 from core.api.store import creator_key
 from core.api.today import without_hidden
+from core.brief import pack_order
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
@@ -386,12 +387,31 @@ def _held(reason_text, rule=None):
     return Decision(publish=False, where="held_back", flag=None, reason=reason_text, rule=rule, numbers_only=False)
 
 
+def _floor_held_decision(cand, floor, text, evidence):
+    """A hold on a post floor, with the stage at which the pack fell below it (pack_order.hold_detail) kept in
+    held_reason_detail, and the cap that did it named in the text. The reason code stays not_confirmed.
+
+    When the suppression mask took posts out of the pack after the query, the stage counts include posts a reader
+    must not learn of, and a cap named in the text would place a loss the mask caused. The wording stays plain, the
+    detail served is counted over the posts a reader can see (no stage counts, so the same as a hold that lost nothing
+    to the mask and had that many posts), and the counts as the query left them are kept in held_reason_audit, which
+    the payload stores apart from cards and held items (payload.py hold_audit) and no reader shows."""
+    detail = pack_order.hold_detail(cand.get("stages"), floor, evidence, cand["market"])
+    if pack_order.masked_after_ranking(cand.get("stages"), floor, evidence, cand["market"]):
+        cand["held_reason_audit"] = detail
+        cand["held_reason_detail"] = pack_order.hold_detail(None, floor, evidence, cand["market"])
+        return _held(text)
+    cand["held_reason_detail"] = detail
+    return _held(pack_order.hold_text(text, detail))
+
+
 def _gate(cand, passed):
     """gate_card plus the brief's own holds, each with its contract reason code in cand["held_reason"]: a
     platform-generic tag is not a trend (G2), and a card needs at least 3 posts 42 can show. Invalid data days
     (G1) are checked before the brief's own holds, so the data-issue count is never undercounted. A market scope
     that could not be read is held as unreadable evidence, not as global."""
     cand["held_reason"], cand["floor_held"] = None, False
+    cand["held_reason_detail"], cand["held_reason_audit"] = None, None
     if cand.get("error"):
         cand["held_reason"] = "data_issue"
         return _held("Evidence could not be read")
@@ -422,10 +442,10 @@ def _gate(cand, passed):
     showable = showable_posts(evidence, cand["market"])
     if decision.where == "today" and len(showable) < MIN_EVIDENCE:
         cand["held_reason"], cand["floor_held"] = "not_confirmed", True
-        return _held("Fewer than 3 posts 42 can show")
+        return _floor_held_decision(cand, "showable", "Fewer than 3 posts 42 can show", evidence)
     if decision.where == "today" and len(local) < 2:
         cand["held_reason"], cand["floor_held"] = "not_confirmed", True
-        return _held("Fewer than 2 supported local posts")
+        return _floor_held_decision(cand, "local", "Fewer than 2 supported local posts", evidence)
     return decision
 
 
@@ -473,11 +493,12 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
             row["market_scope_basis"] = scope_basis(row.get("locality_basis"))
     if record is not None or row.get("locality_basis") == V2_BASIS:
         row["locality_v2"] = locality_block(record)
-    cand = {"row": row, "market": market, "sparkline": None, "rerun": None, "ctx": {},
+    cand = {"row": row, "market": market, "sparkline": None, "rerun": None, "ctx": {}, "stages": {},
             "pack": {"evidence": [], "numbers": [], "facts": []}, "scope_error": scope_error}
     try:
         cand["pack"], cand["sparkline"], cand["rerun"] = build_pack(client, row, d, market, core=core, agent=agent,
-                                                                    hidden=hidden, moments=calendar)
+                                                                    hidden=hidden, moments=calendar,
+                                                                    stages=cand["stages"])
         cand["posts"] = (post_set(client, d, market, row["item_id"], core, agent)
                          | {e["id"] for e in cand["pack"]["evidence"]})
     except Exception as e:
@@ -1167,6 +1188,7 @@ def _payload_candidate(cand, result, specificity=None):
     return {
         **row, "decision": cand["decision"], "explanation_status": status, "numbers": pack["numbers"],
         "evidence": pack["evidence"], "sparkline": cand["sparkline"], "held_reason": cand.get("held_reason"),
+        "held_reason_detail": cand.get("held_reason_detail"), "held_reason_audit": cand.get("held_reason_audit"),
         "failed_reason": failed_reason(result) if status == "failed_checks" else (
             cand.get("busy_reason") if status == "not_run" else None),
         "explanation": result.get("explanation") if explained else None,
