@@ -36,16 +36,30 @@ pan, the three pooled, which is the order and the set cluster.MARKETS takes. Eac
 under cluster, keyed by market. Clustering fails soft per market: an error goes in as that market's counts, the
 error class and its first line with URLs removed, plus failed_batch and unwritten_cluster_ids when the write
 reports them, and the next market still runs. run_cluster is imported only when clustering starts, so a failed
-import of the BERTopic stack fails every market the same soft way and never the job. Each market's run sends its
+import of the BERTopic stack fails every market the same way. Each market's run sends its
 new labels and keywords through the label net (cluster.label_net, one fast-model call) and books that spend on the
 job's day under its run_id, as enrichment does; the spend joins the understand row's booked_model_usd, and any part
 a booking missed its model_usd, also when the market's write raised after the net. A market clustered already that
 day is skipped, so a rerun changes nothing. Memory is collected after each market, so the job's peak is one
 market's fit, and each understand_phase line carries peak_rss_mb, the process's peak RSS so far, where it can be read.
 
-An ok run with enrich_error, or with an error under a market in cluster, is a degraded run: Coverage reads those
+One outcome of clustering is not a plain ok: the stack being unusable (a module that will not import, numba unable to
+cache UMAP's compiled functions, a numpy or llvmlite mismatch, anything). It is read from the outcome, not from the
+error text: no market wrote a cluster, at least one market raised, and none was clustered already that day
+(cluster_stack_failed). As 1 to 4 Oct 2026 showed, an unusable stack otherwise ends every run ok with zero clusters.
+The run is then recorded ok but partial: counts carry partial true, partial_reason "cluster_stack_failed", the first
+error under partial_error and, in plain words, data_issue "Data issue: topic grouping failed today"; video is
+skipped, one "understand partial:" line goes to stderr and detect still starts. Detect reads the partial and judges
+no topic (cluster) items that day, because blocking it would drop about 1,000 non-cluster candidates per market per
+day. The row status stays "ok" because chain.begin lets a stage start only after an upstream row that is ok.
+
+An ok run with enrich_error, or with any other error under a market in cluster, is a degraded run: Coverage reads those
 counts and shows the understand stage as degraded with what failed (core/api/store.py, runs_of_day), while the
-status stays ok and detect still starts, so the morning brief is never held for it.
+status stays ok and detect still starts, so the morning brief is never held for it. A run whose embed step sent
+no window (retry_capped or spend_unknown, with nothing embedded) says so in embed_error, so the day with no
+embeddings is not a bare ok. The job reads those counts back itself (degraded_reasons): a run with any soft failure,
+embed_error included, prints one "understand degraded:" line on stderr naming each failed step ("embed", "enrich",
+"cluster:<market>") with its error. The counts are left as they were, since Coverage and the run tests read them whole.
 
 After clustering, run_video reads the clips that matter in today's clusters (video.py, BUILD.md 2.6), skipped on a
 backfill and once the day has changed. A day change while it runs ends the video step only, never the run: the step
@@ -173,6 +187,53 @@ def bigquery_execute():
     return execute
 
 
+def embed_not_run(counts) -> str | None:
+    """Why the day has no embeddings when run_embed sent no window and said so (retry_capped, or spend_unknown),
+    else None. The run still ends ok and detect still starts, so this is the only trace of it in the row."""
+    if counts.get("embedded"):
+        return None
+    if counts.get("retry_capped"):
+        return f"NoWindowSent: retry_capped, {counts.get('uncorrected_usd')} USD of embed ceilings no correction followed"
+    if counts.get("spend_unknown"):
+        return f"NoWindowSent: spend_unknown, {counts.get('spend_error') or 'spend could not be read or booked'}"
+    return None
+
+
+def degraded_reasons(counts) -> dict:
+    """The steps a run failed soft on, each with its error text, read back from the run's own counts: "embed" when it
+    has embed_error, "enrich" when it has enrich_error, then "cluster:<market>" for each market whose counts carry an
+    error. The names are the ones core/api/store.py degraded_writes uses for enrich and cluster."""
+    out = {}
+    if counts.get("embed_error"):
+        out["embed"] = counts["embed_error"]
+    if counts.get("enrich_error"):
+        out["enrich"] = counts["enrich_error"]
+    cluster = counts.get("cluster") if isinstance(counts.get("cluster"), dict) else {}
+    for market in CLUSTER_MARKETS:
+        if isinstance(cluster.get(market), dict) and cluster[market].get("error"):
+            out[f"cluster:{market}"] = cluster[market]["error"]
+    return out
+
+
+def degraded_steps(counts) -> list:
+    return list(degraded_reasons(counts))
+
+
+PARTIAL_REASON = "cluster_stack_failed"
+TOPICS_FAILED_TEXT = "Data issue: topic grouping failed today"
+
+
+def cluster_stack_failed(cluster) -> str | None:
+    """The first market error when the clustering outcome says the stack is unusable, else None: some market raised,
+    no market wrote a cluster, and no market was clustered already that day (whose clusters then exist). Read from the
+    per-market counts alone, so it holds for any exception type."""
+    markets = [c for c in (cluster or {}).values() if isinstance(c, dict)]
+    errors = [c["error"] for c in markets if c.get("error")]
+    wrote = any((c.get("clusters") or 0) > 0 for c in markets)
+    again = any(c.get("skipped") == "already_clustered" for c in markets)
+    return errors[0] if errors and not wrote and not again else None
+
+
 def enrich_error(err) -> str:
     """The exception class and its first line, every URL removed, for runs.counts (enrichment's and clustering's)."""
     line = (str(err).splitlines() or [""])[0]
@@ -223,6 +284,8 @@ def main(execute=None):
                            uncorrected=lambda: uncorrected_today(execute, today), spend_day=today, clock=now)
         booked = counts.pop("booked_usd", 0.0)
         booked += book(counts.get("model_usd", 0) - booked)  # anything run_embed left unbooked; none when it booked all
+        if no_window := embed_not_run(counts):
+            counts["embed_error"] = no_window
     except Exception as err:
         elapsed = round(max(0.0, (now() - started).total_seconds()), 3)
         print(phase_line(run.run_id, "embed", "end", elapsed), flush=True)
@@ -292,9 +355,16 @@ def main(execute=None):
         elapsed = round(max(0.0, (now() - cluster_started).total_seconds()), 3)
         print(phase_line(run.run_id, "clustering", "end", elapsed), flush=True)
         step_seconds["clustering"] = elapsed
+    stack_error = cluster_stack_failed(counts["cluster"])
+    if stack_error:
+        counts.update(partial=True, partial_reason=PARTIAL_REASON, partial_error=stack_error,
+                      data_issue=TOPICS_FAILED_TEXT)
+        print(f"understand partial: {PARTIAL_REASON}: {stack_error}", file=sys.stderr)
     caps, why = video_plan()
     if backfill:
         counts["video"] = {"skipped": "backfill"}
+    elif stack_error:
+        counts["video"] = {"skipped": PARTIAL_REASON}
     elif day_changed:
         counts["video"] = {"skipped": "day_changed"}
     elif caps is None:
@@ -316,6 +386,8 @@ def main(execute=None):
         counts["video"] = video
     counts.update(model_usd=round(spent - booked, 6), booked_model_usd=round(booked, 6))
     counts["step_seconds"] = dict(step_seconds)
+    if reasons := degraded_reasons(counts):
+        print("understand degraded: " + "; ".join(f"{step} ({why})" for step, why in reasons.items()), file=sys.stderr)
     chain.finish(run, "failed" if day_changed else "ok", counts, error="day_changed" if day_changed else None)
     if day_changed:
         return 1

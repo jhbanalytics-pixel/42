@@ -81,16 +81,21 @@ PROJECT_DB = '"ogilvy-trends-v2"'
 CORE = f"{PROJECT_DB}.intelligence_42_core"
 
 
-def fixture_warehouse(posts, observations, embedded=()):
+def fixture_warehouse(posts, observations, embedded=(), creators=None, suppressed=()):
     import duckdb  # test-only: runs embed.sql, transpiled from BigQuery, on fixture tables
 
     con = duckdb.connect()
     con.execute(f"ATTACH ':memory:' AS {PROJECT_DB}")
     con.execute(f"CREATE SCHEMA {CORE}")
-    con.execute(f"CREATE TABLE {CORE}.posts (post_id VARCHAR, text VARCHAR, transcript VARCHAR, post_date DATE)")
+    con.execute(f"CREATE TABLE {CORE}.posts (post_id VARCHAR, text VARCHAR, transcript VARCHAR, post_date DATE, "
+                "creator_id VARCHAR)")
+    con.execute(f"CREATE TABLE {CORE}.v_suppressed_creators (creator_id VARCHAR)")
     con.execute(f"CREATE TABLE {CORE}.post_observations (post_id VARCHAR, observed_date DATE)")
     con.execute(f"CREATE TABLE {CORE}.post_enrichment (post_id VARCHAR, embedding DOUBLE[])")
-    con.executemany(f"INSERT INTO {CORE}.posts VALUES (?, ?, ?, ?)", posts)
+    con.executemany(f"INSERT INTO {CORE}.posts VALUES (?, ?, ?, ?, ?)",
+                    [(*post, (creators or {}).get(post[0])) for post in posts])
+    if suppressed:
+        con.executemany(f"INSERT INTO {CORE}.v_suppressed_creators VALUES (?)", [(c,) for c in suppressed])
     con.executemany(f"INSERT INTO {CORE}.post_observations VALUES (?, ?)", observations)
     if embedded:
         con.executemany(f"INSERT INTO {CORE}.post_enrichment VALUES (?, ?)", [(pid, [0.5] * 768) for pid in embedded])
@@ -179,6 +184,29 @@ def test_window_posts_bounds_the_posts_scan_to_400_days_before_the_window():
     assert stored_ids(con) == ["at_bound", "seen_today"]
     assert counts == {"embedded": 2, "failed": 0, "skipped": 0,
                       "chars_sent": len("Amapiano at the braai") + len("Throwback"), "tokens": 7 + 3}
+
+
+def test_embed_sql_never_sends_a_suppressed_creators_post_to_the_model_and_keeps_posts_without_a_creator():
+    # A hidden person's text and transcript do not go to Vertex, so no embedding of it feeds Ask retrieval. A post
+    # with no creator_id names nobody and is still sent (a NOT IN would have dropped it).
+    con = fixture_warehouse(
+        posts=[("hidden_post", "Their words", "their transcript", DAY), ("open_post", "Fine words", None, DAY),
+               ("anon_post", "No creator", None, DAY)],
+        observations=[("hidden_post", DAY), ("open_post", DAY), ("anon_post", DAY)],
+        creators={"hidden_post": "c_hidden", "open_post": "c_open"}, suppressed=["c_hidden"])
+    sent = []
+
+    def model(post_id):
+        sent.append(post_id)
+        return good_vector(post_id)
+
+    counts = run_embed_sql(con, DAY, DAY, model=model)
+    assert sorted(sent) == ["anon_post", "open_post"] and stored_ids(con) == ["anon_post", "open_post"]
+    assert counts["embedded"] == 2 and counts["chars_sent"] == len("Fine words") + len("No creator")
+
+
+def test_embed_sql_reads_the_suppression_view():
+    assert "intelligence_42_core.v_suppressed_creators`" in sql("embed")
 
 
 @pytest.mark.parametrize("chars_sent", [0, 700, 4_000_000, 40_000_000])
@@ -1257,17 +1285,177 @@ def test_a_market_whose_clustering_raises_is_recorded_and_the_rest_still_cluster
     assert log[-1] == ("start_next", "understand", DAY)
 
 
-def test_a_failed_import_of_the_cluster_stack_fails_clustering_soft_not_the_job(monkeypatch):
+# The clusterer being unusable is not a plain ok night. On 1 to 4 Oct 2026 it ended every understand run ok with zero
+# clusters. The rule is on the outcome (no market wrote a cluster while a market raised), not on the error text, so any
+# exception type counts. Lead ruling: the run is recorded ok but partial with partial_reason cluster_stack_failed, and
+# detect still starts (it judges no topic items that day), because blocking it drops about 1,000 non-cluster
+# candidates per market per day. The row status stays "ok" because core/collect/chain.py begin() only lets a stage
+# start after an upstream row whose status is "ok".
+
+NUMBA_CACHE_FAILURE = ("cannot cache function 'rdist': no locator available for file "
+                       "'/usr/local/lib/python3.13/site-packages/umap/layouts.py'")
+
+
+def finished_run(log):
+    return next(e for e in log if e[0] == "finish")
+
+
+def test_a_failed_import_of_the_cluster_stack_marks_the_run_partial_and_detect_still_starts(monkeypatch, capsys):
     monkeypatch.delenv("EMBED_DAYS", raising=False)
     log = fake_chain(monkeypatch)
     monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
     monkeypatch.setitem(sys.modules, "core.understand.cluster", None)  # the BERTopic stack will not import
     assert job.main(execute=FakeWarehouse()) == 0
-    finished = next(e for e in log if e[0] == "finish")
-    assert finished[2] == "ok" and set(finished[3]["cluster"]) == {"za", "ng", "ke", "pan"}
-    assert all(c["error"].startswith(("ImportError", "ModuleNotFoundError")) for c in finished[3]["cluster"].values())
-    assert finished[3]["embedded"] == 5
+    finished = finished_run(log)
+    assert finished[2] == "ok" and finished[4] is None
+    assert finished[3]["partial"] is True and finished[3]["partial_reason"] == "cluster_stack_failed"
+    assert "ModuleNotFoundError" in finished[3]["partial_error"]
+    assert finished[3]["data_issue"] == job.TOPICS_FAILED_TEXT == "Data issue: topic grouping failed today"
+    assert log[-1] == ("start_next", "understand", DAY), "detect must start: it judges the non-cluster items"
+    assert set(finished[3]["cluster"]) == {"za", "ng", "ke", "pan"}, "the per-market errors stay on the row"
+    assert finished[3]["embedded"] == 5 and "step_seconds" in finished[3]
+    assert finished[3]["video"] == {"skipped": "cluster_stack_failed"}
+    err = capsys.readouterr().err
+    assert "understand partial: cluster_stack_failed" in err and "ModuleNotFoundError" in err
+
+
+@pytest.mark.parametrize("error", [
+    ModuleNotFoundError("No module named 'bertopic'"),
+    ImportError("cannot import name 'UMAP' from 'umap'"),
+    RuntimeError(NUMBA_CACHE_FAILURE),
+    ValueError("numpy.dtype size changed, may indicate binary incompatibility. Expected 96 from C header, got 88"),
+    OSError("libllvmlite.so: cannot open shared object file: No such file or directory"),
+    TypeError("an unforeseen failure"),
+    MemoryError(),
+], ids=lambda e: type(e).__name__)
+def test_every_market_raising_any_exception_type_is_a_partial_run_not_a_plain_ok(monkeypatch, error):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+
+    def run(execute, *, market, **kw):
+        raise error
+
+    monkeypatch.setattr(job, "run_cluster", run)
+    assert job.main(execute=FakeWarehouse()) == 0
+    finished = finished_run(log)
+    assert finished[2] == "ok" and finished[3]["partial"] is True
+    assert finished[3]["partial_reason"] == "cluster_stack_failed"
+    assert type(error).__name__ in finished[3]["partial_error"]
     assert log[-1] == ("start_next", "understand", DAY)
+
+
+def test_the_partial_reason_reaches_coverage_through_the_cluster_errors_it_already_reads(monkeypatch):
+    from core.api.store import degraded_writes
+
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+    monkeypatch.setattr(job, "run_cluster", lambda execute, *, market, **kw: (_ for _ in ()).throw(OSError("llvmlite")))
+    assert job.main(execute=FakeWarehouse()) == 0
+    assert degraded_writes(finished_run(log)[3]) == ["cluster:za", "cluster:ng", "cluster:ke", "cluster:pan"]
+
+
+@pytest.mark.parametrize("results, partial", [
+    ({"za": "ok", "ng": "raise", "ke": "raise", "pan": "raise"}, False),          # one market wrote clusters
+    ({"za": "quiet", "ng": "quiet", "ke": "quiet", "pan": "quiet"}, False),       # nothing raised, nothing to cluster
+    ({"za": "again", "ng": "raise", "ke": "quiet", "pan": "raise"}, False),       # clustered earlier today
+    ({"za": "quiet", "ng": "quiet", "ke": "quiet", "pan": "raise"}, True),        # the 1 and 2 Oct record
+    ({"za": "raise", "ng": "quiet", "ke": "quiet", "pan": "quiet"}, True),
+    ({"za": "empty", "ng": "raise", "ke": "quiet", "pan": "quiet"}, True),       # a fit that found no topic wrote none
+])
+def test_only_zero_clusters_with_a_raising_market_is_partial(monkeypatch, results, partial):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+    shapes = {"ok": {"posts": 40, "today_posts": 12, "clusters": 2, "members": 12, "new": 2},
+              "quiet": {"posts": 0, "today_posts": 0, "skipped": "too_few_posts"},
+              "empty": {"posts": 40, "today_posts": 12, "clusters": 0, "members": 0, "new": 0},
+              "again": {"skipped": "already_clustered"}}
+
+    def run(execute, *, market, **kw):
+        if results[market] == "raise":
+            raise RuntimeError("cluster_write refused")
+        return {"market": market, **shapes[results[market]]}
+
+    monkeypatch.setattr(job, "run_cluster", run)
+    assert job.main(execute=FakeWarehouse()) == 0
+    counts = finished_run(log)[3]
+    assert bool(counts.get("partial")) is partial
+    assert ("partial_reason" in counts) is partial and ("data_issue" in counts) is partial
+    assert finished_run(log)[2] == "ok" and log[-1] == ("start_next", "understand", DAY)
+
+
+def test_a_backfill_run_is_never_partial(monkeypatch):
+    monkeypatch.setenv("EMBED_DAYS", "14")
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 7, 8, 0, tzinfo=timezone.utc))
+    assert job.main(execute=FakeWarehouse()) == 0
+    assert "partial" not in finished_run(log)[3]
+
+
+def test_a_numba_cache_failure_is_a_partial_run_with_the_error_kept(monkeypatch):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+
+    def run(execute, *, market, **kw):
+        raise RuntimeError(NUMBA_CACHE_FAILURE)
+
+    monkeypatch.setattr(job, "run_cluster", run)
+    assert job.main(execute=FakeWarehouse()) == 0
+    finished = finished_run(log)
+    assert finished[2] == "ok" and finished[3]["partial"] is True
+    assert "no locator available" in finished[3]["partial_error"]
+    assert log[-1] == ("start_next", "understand", DAY)
+
+
+def test_the_pooled_run_alone_failing_to_import_still_marks_the_run_partial(monkeypatch):
+    # The 1 and 2 Oct record: za, ng and ke returned too_few_posts before they ever imported the stack, and only pan
+    # reached the import and raised. Three quiet markets must not hide the one that shows the stack is gone.
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+
+    def run(execute, *, market, **kw):
+        if market == "pan":
+            raise ModuleNotFoundError("No module named 'bertopic'")
+        return {"market": market, "posts": 0, "today_posts": 0, "skipped": "too_few_posts"}
+
+    monkeypatch.setattr(job, "run_cluster", run)
+    assert job.main(execute=FakeWarehouse()) == 0
+    finished = finished_run(log)
+    assert finished[2] == "ok" and "No module named 'bertopic'" in finished[3]["partial_error"]
+    assert finished[3]["cluster"]["za"] == {"posts": 0, "today_posts": 0, "skipped": "too_few_posts"}
+    assert log[-1] == ("start_next", "understand", DAY)
+
+
+def test_a_partial_clustering_run_still_books_the_spend_it_made(monkeypatch):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+
+    def run(execute, *, market, **kw):
+        err = RuntimeError(NUMBA_CACHE_FAILURE)
+        err.model_usd, err.booked_usd = 0.002, 0.0015
+        raise err
+
+    monkeypatch.setattr(job, "run_cluster", run)
+    assert job.main(execute=FakeWarehouse()) == 0
+    counts = finished_run(log)[3]
+    assert counts["booked_model_usd"] == round(0.000026 + 4 * 0.0015, 6)
+    assert counts["model_usd"] == round(4 * 0.0005, 6)
+
+
+def test_a_write_failure_in_one_market_is_still_a_degraded_run_not_a_partial_one(monkeypatch):
+    # The control: the other markets wrote clusters, so the stack works. A refused write keeps the fail-soft contract.
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
+    monkeypatch.setattr(job, "run_cluster", clustered(log, fail="pan"))
+    assert job.main(execute=FakeWarehouse()) == 0
+    assert finished_run(log)[2] == "ok" and log[-1] == ("start_next", "understand", DAY)
+    assert "partial" not in finished_run(log)[3]
 
 
 def test_the_job_clusters_the_markets_cluster_py_takes_in_its_order():
@@ -1450,6 +1638,59 @@ def test_a_retry_after_a_window_raised_today_books_no_ceiling_and_the_job_goes_o
     counts = log[1][3]
     assert log[1][2] == "ok" and counts["retry_capped"] is True and counts["uncorrected_usd"] == 15.36
     assert log[2] == ("start_next", "understand", DAY)
+
+
+def test_a_capped_retry_that_sent_no_window_says_so_in_the_row_instead_of_a_bare_ok(monkeypatch):
+    # N55: the capped retry still ends ok and starts detect (pinned above), but the day holds no embeddings and the
+    # row must say why in embed_error, the way enrich_error says an enrichment failure, so Coverage can show it.
+    monkeypatch.setenv("EMBED_DAYS", "14")
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
+
+    class RaisedEarlier(FakeWarehouse):
+        def __call__(self, text, params, max_bytes=None):
+            if text == sql("embed_uncorrected"):
+                self.calls.append((text, params))
+                return [{"usd": 15.36}]
+            return super().__call__(text, params, max_bytes)
+
+    assert job.main(execute=RaisedEarlier()) == 0
+    counts = log[1][3]
+    assert log[1][2] == "ok" and counts["retry_capped"] is True
+    assert counts["embed_error"].startswith("NoWindowSent: retry_capped")
+    assert "15.36" in counts["embed_error"]
+
+
+def test_a_job_that_could_not_read_its_spend_and_sent_no_window_says_so_in_embed_error(monkeypatch):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
+    monkeypatch.setattr(job, "spend_today", lambda execute, at: (_ for _ in ()).throw(RuntimeError("spend read refused")))
+    assert job.main(execute=FakeWarehouse()) == 0
+    counts = log[1][3]
+    assert counts["spend_unknown"] is True and counts["embedded"] == 0
+    assert counts["embed_error"].startswith("NoWindowSent: spend_unknown")
+
+
+@pytest.mark.parametrize("counts, expected", [
+    ({"retry_capped": True, "uncorrected_usd": 15.36, "embedded": 0}, "NoWindowSent: retry_capped"),
+    ({"spend_unknown": True, "spend_error": "RuntimeError", "embedded": 0}, "NoWindowSent: spend_unknown"),
+    ({"retry_capped": True, "uncorrected_usd": 15.36, "embedded": 5}, None),     # an earlier window did embed
+    ({"spend_unknown": True, "spend_error": "RuntimeError", "embedded": 3}, None),
+    ({"embedded": 0}, None),                                                     # nothing to embed is not an error
+    ({"cap_limited": True, "embedded": 0}, None),
+])
+def test_embed_not_run_reports_only_a_run_that_was_stopped_and_embedded_nothing(counts, expected):
+    got = job.embed_not_run(counts)
+    assert (got.startswith(expected) if expected else got is None), got
+
+
+def test_an_ordinary_embed_run_has_no_embed_error(monkeypatch):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
+    assert job.main(execute=FakeWarehouse()) == 0
+    assert log[1][2] == "ok" and "embed_error" not in log[1][3]
 
 
 # A job's clock can pass midnight: every spend read and booking stays on the day the job started
@@ -1641,3 +1882,49 @@ def test_memory_is_collected_after_each_market_is_clustered(monkeypatch):
     assert job.main(execute=FakeWarehouse()) == 0
     assert [e[:2] for e in log if e[0] in ("cluster", "gc")] == [
         ("cluster", "za"), ("gc",), ("cluster", "ng"), ("gc",), ("cluster", "ke"), ("gc",), ("cluster", "pan"), ("gc",)]
+
+
+# N55: embed_error was written and nothing read it. The job now reads its own counts back into a line on stderr, so an
+# embedding day that sent no window is not a bare ok in the log. The counts themselves are not changed by the reader.
+
+
+@pytest.mark.parametrize("counts, expected", [
+    ({}, []),
+    ({"embed_error": "NoWindowSent: retry_capped, 15.36 USD"}, ["embed"]),
+    ({"embed_error": ""}, []),
+    ({"enrich_error": "RuntimeError: lost"}, ["enrich"]),
+    ({"cluster": {"za": {"error": "RuntimeError: x"}, "ng": {"clusters": 3}, "pan": {"error": "y"}}},
+     ["cluster:za", "cluster:pan"]),
+    ({"cluster": {"skipped": "backfill"}}, []),
+    ({"embed_error": "e", "enrich_error": "f", "cluster": {"ke": {"error": "g"}}}, ["embed", "enrich", "cluster:ke"]),
+])
+def test_degraded_steps_reads_embed_enrich_and_cluster_errors_from_the_counts(counts, expected):
+    assert job.degraded_steps(counts) == expected
+
+
+def test_a_capped_retry_that_sent_no_window_prints_a_degraded_line_on_stderr_and_leaves_the_counts_alone(monkeypatch, capsys):
+    monkeypatch.setenv("EMBED_DAYS", "14")
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
+
+    class RaisedEarlier(FakeWarehouse):
+        def __call__(self, text, params, max_bytes=None):
+            if text == sql("embed_uncorrected"):
+                self.calls.append((text, params))
+                return [{"usd": 15.36}]
+            return super().__call__(text, params, max_bytes)
+
+    assert job.main(execute=RaisedEarlier()) == 0
+    counts = log[1][3]
+    assert log[1][2] == "ok" and job.degraded_steps(counts) == ["embed"] and "degraded" not in counts
+    err = capsys.readouterr().err
+    assert "understand degraded: embed" in err and "NoWindowSent: retry_capped" in err
+    assert log[2] == ("start_next", "understand", DAY)
+
+
+def test_a_clean_run_prints_no_degraded_line(monkeypatch, capsys):
+    monkeypatch.delenv("EMBED_DAYS", raising=False)
+    log = fake_chain(monkeypatch)
+    monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
+    assert job.main(execute=FakeWarehouse()) == 0
+    assert "degraded" not in capsys.readouterr().err

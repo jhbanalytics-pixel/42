@@ -337,9 +337,10 @@ PROJECT_DB = '"ogilvy-trends-v2"'
 DUCK_CORE = f"{PROJECT_DB}.intelligence_42_core"
 
 
-def fixture_warehouse(posts, observations, enrichment=(), creators=(), post_items=(), states=()):
+def fixture_warehouse(posts, observations, enrichment=(), creators=(), post_items=(), states=(), suppressed=()):
     """observations are (post_id, observed_date) sighted in ZA or (post_id, observed_date, market); states are
-    (metric_date, market, item_id, eligible) rows of v_item_state_current, a table here."""
+    (metric_date, market, item_id, eligible) rows of v_item_state_current, a table here. suppressed are the
+    creator_ids of v_suppressed_creators, also a table here."""
     import duckdb
 
     con = duckdb.connect()
@@ -353,6 +354,9 @@ def fixture_warehouse(posts, observations, enrichment=(), creators=(), post_item
     con.execute(f"CREATE TABLE {DUCK_CORE}.post_items (post_id VARCHAR, item_id VARCHAR, via VARCHAR)")
     con.execute(f"CREATE TABLE {DUCK_CORE}.v_item_state_current (metric_date DATE, market VARCHAR, item_id VARCHAR, "
                 "eligible BOOLEAN)")
+    con.execute(f"CREATE TABLE {DUCK_CORE}.v_suppressed_creators (creator_id VARCHAR)")
+    if suppressed:
+        con.executemany(f"INSERT INTO {DUCK_CORE}.v_suppressed_creators VALUES (?)", [(c,) for c in suppressed])
     observations = [tuple(o) + ("ZA",) * (3 - len(o)) for o in observations]
     post_items = [(post_id, item_id, "hashtag") for post_id, item_id in post_items]
     con.execute(f"CREATE TABLE {DUCK_CORE}.post_enrichment (post_id VARCHAR, embedding DOUBLE[], langs VARCHAR[], "
@@ -402,6 +406,23 @@ def test_select_sql_on_fixtures_returns_the_days_sightings_and_marks_enriched_on
     assert by_id["embedded_only"]["enriched"] is False and by_id["embedded_only"]["content"] == "Jollof wars"
     assert by_id["seen_today"]["handle"] == "@mzansi" and by_id["seen_today"]["market"] == "ZA"
     assert by_id["no_text"]["content"] == ""
+
+
+def test_select_sql_leaves_out_the_posts_of_a_suppressed_creator_and_keeps_those_without_a_creator():
+    # N1, enrich part: a hidden person's post is never sent to the model. A post with no creator_id stays, since
+    # it names nobody, and a creator on the list is matched by creator_id the way video_clips.sql matches it.
+    con = fixture_warehouse(
+        posts=[("hidden_post", "c_hidden", "Their text", DAY), ("open_post", "c_open", "Fine", DAY),
+               ("anon_post", None, "No creator", DAY)],
+        observations=[("hidden_post", DAY), ("open_post", DAY), ("anon_post", DAY)],
+        creators=[("c_hidden", "@gone"), ("c_open", "@here")], suppressed=["c_hidden"])
+    rows = run_sql(con, "enrich_select", {"run_date": DAY})
+    assert [r["post_id"] for r in rows] == ["anon_post", "open_post"]
+    assert "@gone" not in {r["handle"] for r in rows}
+
+
+def test_select_sql_reads_the_suppression_view():
+    assert f"{CORE}.v_suppressed_creators`" in sql("enrich_select")
 
 
 def test_select_sql_sends_posts_of_items_eligible_in_the_markets_newest_state_first():

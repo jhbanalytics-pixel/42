@@ -60,7 +60,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import tempfile
 import uuid
 from collections import Counter
 from datetime import datetime, time, timedelta, timezone
@@ -141,10 +143,19 @@ def _rows(result):
 
 # Topics
 
+def ensure_numba_cache_dir():
+    """UMAP's numba functions cache their compiled code beside their source, in site-packages, which the job's user
+    cannot write; without a cache folder numba raises "cannot cache function ... no locator available" (3 and 4 Oct
+    2026). The image sets NUMBA_CACHE_DIR; this points numba at the temp folder when it did not. numba reads the
+    variable when it is first imported, so this runs before the first import of the stack."""
+    os.environ.setdefault("NUMBA_CACHE_DIR", str(Path(tempfile.gettempdir()) / "numba-cache"))
+
+
 def fit_topics(docs, embeddings):
     """BERTopic on stored embeddings. Returns (topic per doc, HDBSCAN membership probability per doc, top keywords
     per topic). Original density assignments and probabilities are retained; topic -1 stays unassigned and keywords
     come from the original fit."""
+    ensure_numba_cache_dir()
     from bertopic import BERTopic
     from bertopic.vectorizers import ClassTfidfTransformer
     from hdbscan import HDBSCAN

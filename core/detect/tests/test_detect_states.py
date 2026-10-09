@@ -552,3 +552,15 @@ def test_item_seen_only_in_search_lanes_gets_no_state(con):
     assert rows["seen"]["state"] == "new_to_42"
     assert "srch" not in rows
     assert duck.query(con, "SELECT st.series_id FROM {core}.series_test st WHERE st.item_id = 'srch'") == []
+
+
+def test_with_no_state_row_for_yesterday_nothing_is_held_so_the_day_after_a_partial_day_shows_the_raw_state(con):
+    # The day after a partial understand day, topic items have no item_state row for D-1 (they were left out), so
+    # state_yesterday is NULL and the two-day hold does not apply: a topic item may step down a day early. state.sql
+    # is DATA.md 3.7 verbatim, and this pins that behaviour as it stands (lead ruling: keep it). It heals itself
+    # the next day.
+    w = World()
+    fresh(w, "hy")
+    w.build(con)
+    r = detect(con)["hy"]
+    assert (r["state"], r["state_raw"]) == ("new_to_42", "new_to_42")

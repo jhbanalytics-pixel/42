@@ -1907,3 +1907,52 @@ def test_preoptimization_fitter_source_is_immutable(monkeypatch, tmp_path):
     monkeypatch.setattr(reference, "__file__", str(changed))
     with pytest.raises(AssertionError, match="Frozen fitter file hash mismatch"):
         _load_preoptimization_fitter()
+
+
+# UMAP's numba functions cache compiled code beside their source, in site-packages, which the job's user cannot write.
+# On 3 and 4 Oct 2026 that ended every market with "cannot cache function ... no locator available". The image now
+# sets NUMBA_CACHE_DIR; the code points numba at the temp folder too when the image did not.
+
+def _in_fresh_interpreter(body, preset=None):
+    import os
+    import subprocess
+    import sys
+
+    env = {k: v for k, v in os.environ.items() if k != "NUMBA_CACHE_DIR"}
+    env.update(preset or {})
+    root = str(Path(__file__).resolve().parents[3])
+    done = subprocess.run([sys.executable, "-c", f"import sys; sys.path.insert(0, {root!r})\n{body}"],
+                          capture_output=True, env=env, cwd=root, timeout=240)
+    assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
+    return done.stdout.decode("utf-8").strip()
+
+
+def test_numba_is_pointed_at_the_temp_folder_when_the_image_chose_none():
+    out = _in_fresh_interpreter(
+        "import os, tempfile\n"
+        "from core.understand import cluster\n"
+        "cluster.ensure_numba_cache_dir()\n"
+        "import numba\n"
+        "print(os.path.normcase(numba.config.CACHE_DIR) == os.path.normcase(os.path.join(tempfile.gettempdir(), 'numba-cache')))")
+    assert out == "True"
+
+
+def test_numba_keeps_the_folder_the_image_chose():
+    out = _in_fresh_interpreter(
+        "import os\n"
+        "from core.understand import cluster\n"
+        "cluster.ensure_numba_cache_dir()\n"
+        "print(os.environ['NUMBA_CACHE_DIR'])", preset={"NUMBA_CACHE_DIR": "/opt/chosen-by-the-image"})
+    assert out == "/opt/chosen-by-the-image"
+
+
+def test_fit_topics_chooses_the_numba_folder_before_its_first_import():
+    out = _in_fresh_interpreter(
+        "import os, sys, types\n"
+        "sys.modules['bertopic'] = types.ModuleType('bertopic')  # no BERTopic attribute, so fit_topics stops at its first import\n"
+        "from core.understand import cluster\n"
+        "try:\n"
+        "    cluster.fit_topics(['a'], [[0.0]])\n"
+        "except ImportError:\n"
+        "    print('NUMBA_CACHE_DIR' in os.environ)")
+    assert out == "True"
