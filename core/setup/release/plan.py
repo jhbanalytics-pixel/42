@@ -12,6 +12,7 @@ Rollback targets, canonical URLs and the tag come from the bound baseline and th
 from __future__ import annotations
 
 import dataclasses
+import os
 import re
 from dataclasses import dataclass
 
@@ -23,6 +24,10 @@ SERVICES = ("f42-agent", "f42-api")
 GCS_STAGING = "gs://ogilvy-trends-v2-f42-media-staging/build-source"
 BUILD_ACCOUNT = f"projects/{PROJECT}/serviceAccounts/f42-deployer@{PROJECT}.iam.gserviceaccount.com"
 IDENTITY_FIELDS = "json(core.account,core.project,auth.impersonate_service_account)"
+# The extract runs the Windows system tar by its full path, so the first tar on PATH (Git's GNU tar reads C: as a host) is never used.
+# A host with no System32 has only the PATH one.
+SYSTEM_TAR = r"C:\Windows\System32\tar.exe" if os.name == "nt" else "tar"
+SYSTEM_TAR_PATH = re.compile(r"[A-Za-z]:\\[^\\]+\\System32\\tar\.exe", re.I)
 CHECKER_KINDS = ("validate", "readbacks", "rollback-blockers", "inflight-asks")
 FORBIDDEN_TRAFFIC_FLAGS = ("--to-latest", "--to-tags", "--update-tags", "--set-tags", "--clear-tags")
 RELEASE_ID = re.compile(r"rel-[0-9a-f]{7}-[0-9]{2}")
@@ -88,7 +93,7 @@ def declared_env_reads():
     f42-agent removes: the live service description, then the digest match of its names by the module the deploy script uses."""
     return [step("declared_env:describe", ["gcloud", "run", "services", "describe", "f42-agent", "--project", PROJECT, "--region", REGION,
                                            "--format=json"]),
-            step("declared_env:match", ["py", "-3.13", "-m", "core.setup.release.declared_env_removals", "--service", "f42-agent"])]
+            step("declared_env:match", ["py", "-3.13", "-B", "-m", "core.setup.release.declared_env_removals", "--service", "f42-agent"])]
 
 
 def pin(ctx):
@@ -116,7 +121,7 @@ def candidate(ctx):
         *declared_env_reads(),
         helper(ctx, "BeforeAnyWrite"),
         step("archive", ["git", "archive", "--format=tar", f"--output={ctx.archive}", ctx.commit]),
-        step("extract", ["tar", "-xf", ctx.archive, "-C", ctx.extract_dir]),
+        step("extract", [SYSTEM_TAR, "-xf", ctx.archive, "-C", ctx.extract_dir]),
         step("build", ["gcloud", "builds", "submit", "--project", PROJECT, "--region", REGION, "--config", "core/api/cloudbuild.yaml",
                        "--substitutions", f"_IMAGE={ctx.image_tag}", "--gcs-source-staging-dir", GCS_STAGING,
                        "--service-account", BUILD_ACCOUNT, "."]),
@@ -206,7 +211,8 @@ def _git_archive(a):
 
 
 def _tar(a):
-    return len(a) == 5 and a[:2] == ["tar", "-xf"] and a[3] == "-C"
+    program = bool(SYSTEM_TAR_PATH.fullmatch(a[0])) if os.name == "nt" else a[0] == "tar"
+    return len(a) == 5 and program and a[1] == "-xf" and a[3] == "-C"
 
 
 def _build(a):
@@ -236,7 +242,7 @@ def _checker(a):
 
 def _declared_env_read(a):
     return a in (["gcloud", "run", "services", "describe", "f42-agent", "--project", PROJECT, "--region", REGION, "--format=json"],
-                 ["py", "-3.13", "-m", "core.setup.release.declared_env_removals", "--service", "f42-agent"])
+                 ["py", "-3.13", "-B", "-m", "core.setup.release.declared_env_removals", "--service", "f42-agent"])
 
 
 ALLOWED = {
@@ -272,26 +278,55 @@ def check_allowlist(steps):
 # issues them itself. They are the one deploy of each service, and the one flag that removes environment variables is
 # allowed on f42-agent only, with a list of plain names (finding 3). The names themselves never appear in the repository:
 # the script derives them from the live service and the digest table.
-FORBIDDEN_DEPLOY_FLAGS = ("--allow-unauthenticated", "--set-env-vars", "--clear-env-vars", "--to-latest")
 PLAIN_NAME_LIST = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(,[A-Za-z_][A-Za-z0-9_]*)*")
+IMAGE_BY_DIGEST = re.compile(r"[^@\s]+@sha256:[0-9a-f]{64}")
+# Every flag the two deploys carry, from the script and from core/api/deploy_flags.env, and nothing else. A flag takes its value
+# as the next argument or after an equals sign; a switch takes none and refuses an equals sign. Each may appear once.
+DEPLOY_VALUED = {"--project", "--region", "--image", "--revision-suffix", "--tag", "--service-account", "--update-env-vars", "--remove-env-vars",
+                 "--set-secrets", "--min-instances", "--max-instances", "--timeout", "--memory"}
+DEPLOY_SWITCHES = {"--no-traffic", "--no-cpu-throttling", "--no-invoker-iam-check"}
+DEPLOY_ONLY_ON = {"--remove-env-vars": "f42-agent", "--no-cpu-throttling": "f42-agent", "--memory": "f42-agent", "--no-invoker-iam-check": "f42-api"}
+DEPLOY_NUMBERS = ("--min-instances", "--max-instances", "--timeout")
 
 
-def _after(flags, name):
-    return flags[flags.index(name) + 1] if name in flags and flags.index(name) + 1 < len(flags) else ""
+def _deploy_flags(tokens):
+    """{flag: value} for a list of arguments made only of allowed flags used once, else None."""
+    found, i = {}, 0
+    while i < len(tokens):
+        name, equals, value = tokens[i].partition("=")
+        if not name.startswith("--") or name in found:
+            return None
+        if name in DEPLOY_SWITCHES and not equals:
+            found[name], i = True, i + 1
+        elif name in DEPLOY_VALUED and equals:
+            found[name], i = value, i + 1
+        elif name in DEPLOY_VALUED:
+            if i + 1 >= len(tokens) or tokens[i + 1].startswith("--"):
+                return None
+            found[name], i = tokens[i + 1], i + 2
+        else:
+            return None
+    return found
 
 
 def deploy_call_allowed(argv):
-    """True when a gcloud call recorded from deploy_candidate.sh (without the leading gcloud) is a no-traffic deploy of one of
-    the two services with the project and region pinned, the release tag as tag and revision suffix, and no forbidden flag."""
+    """True when a gcloud call recorded from deploy_candidate.sh (without the leading gcloud) is a no-traffic deploy of one of the
+    two services made only of the flags in the positive list above, with the project and region pinned, the release tag as tag and
+    revision suffix, an image by digest, and each service-specific flag on its own service. The one flag that removes environment
+    variables is allowed on f42-agent only, with a list of plain names (finding 3)."""
     a = list(argv)
-    if len(a) < 7 or a[:2] != ["run", "deploy"] or a[2] not in SERVICES or a[3:7] != ["--project", PROJECT, "--region", REGION]:
+    if len(a) < 3 or a[:2] != ["run", "deploy"] or a[2] not in SERVICES:
         return False
-    flags = a[7:]
-    if "--no-traffic" not in flags or any(f in flags for f in FORBIDDEN_DEPLOY_FLAGS):
+    flags = _deploy_flags(a[3:])
+    if flags is None or flags.get("--project") != PROJECT or flags.get("--region") != REGION or "--no-traffic" not in flags:
         return False
-    if not (RELEASE_ID.fullmatch(_after(flags, "--tag")) and _after(flags, "--tag") == _after(flags, "--revision-suffix")):
+    tag = flags.get("--tag", "")
+    if not (RELEASE_ID.fullmatch(tag) and tag == flags.get("--revision-suffix")) or not IMAGE_BY_DIGEST.fullmatch(flags.get("--image", "")):
         return False
-    removes = [i for i, f in enumerate(flags) if f == "--remove-env-vars"]
-    if not removes:
-        return True
-    return a[2] == "f42-agent" and len(removes) == 1 and bool(PLAIN_NAME_LIST.fullmatch(_after(flags, "--remove-env-vars")))
+    if not flags.get("--service-account") or "--update-env-vars" not in flags:
+        return False
+    if any(DEPLOY_ONLY_ON[f] != a[2] for f in flags if f in DEPLOY_ONLY_ON):
+        return False
+    if any(not re.fullmatch(r"[0-9]+", flags[f]) for f in DEPLOY_NUMBERS if f in flags):
+        return False
+    return "--remove-env-vars" not in flags or bool(PLAIN_NAME_LIST.fullmatch(flags["--remove-env-vars"]))

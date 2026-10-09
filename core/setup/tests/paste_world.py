@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -35,6 +36,9 @@ param([string]$Config)
 $ErrorActionPreference = 'Stop'
 $cfg = Get-Content -LiteralPath $Config -Raw | ConvertFrom-Json
 $Script:Cfg = $cfg
+function Env-Snap { return @{ file_logging = [string]$env:CLOUDSDK_CORE_DISABLE_FILE_LOGGING; bytecode = [string]$env:PYTHONDONTWRITEBYTECODE; locks = [string]$env:GIT_OPTIONAL_LOCKS } }
+$Script:ClockMinutes = 0
+$Script:WordCalls = @{}
 function Log-Call($entry) { ($entry | ConvertTo-Json -Compress -Depth 6) | Add-Content -LiteralPath $Script:Cfg.calls -Encoding utf8 }
 function Env-Sha {
     if (Test-Path Env:F42_SMOKE_PASSCODE) {
@@ -47,10 +51,11 @@ if ($cfg.inherited) { $env:F42_SMOKE_PASSCODE = $cfg.inherited }
 $splat = @{ Action = $cfg.action; Lock = $cfg.lock; Review = $cfg.review; Bindings = $cfg.bindings; Receipt = $cfg.receipt; Repo = $cfg.repo; DefinitionsOnly = $true }
 if ($cfg.quiet) { $splat.QuietWindowVerifiedAtUtc = $cfg.quiet }
 . $cfg.paste @splat
+function Get-UtcNow { return [DateTimeOffset]::UtcNow.AddMinutes($Script:ClockMinutes) }
 
 function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
     $key = ((@($Exe) + $Arguments) -join ' ')
-    Log-Call @{ kind = 'read'; argv = (@($Exe) + $Arguments); input = $InputText; passcode_sha = (Env-Sha) }
+    Log-Call @{ kind = 'read'; argv = (@($Exe) + $Arguments); input = $InputText; passcode_sha = (Env-Sha); env = (Env-Snap) }
     $later = $Script:Cfg.reads_after.PSObject.Properties[$key]
     if ($null -ne $later -and $Script:RunCount -ge [int]$later.Value.after_runs) { return $later.Value.value }
     $override = $Script:Cfg.reads.PSObject.Properties[$key]
@@ -62,7 +67,14 @@ function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
         '^git status --porcelain=v1$' { return '' }
         '^gcloud config list' { return $Script:Cfg.config_json }
         '^gcloud run services describe f42-agent --project ogilvy-trends-v2 --region us-central1 --format=json$' { return $Script:Cfg.describe_json }
-        '^py -3.13 -m core.setup.release.declared_env_removals --service f42-agent$' { return $Script:Cfg.declared_matches }
+        '^py -3.13 -B -m core.setup.release.declared_env_removals --service f42-agent$' { return $Script:Cfg.declared_matches }
+        '^py -3.13 core/setup/durable_effects_check.py --check inflight-asks ' {
+            if ($Script:Cfg.inflight_refused) { throw 'Native command failed' }
+            $evidence = $Arguments[[array]::IndexOf($Arguments, '--evidence') + 1]
+            New-Item -ItemType Directory -Path $evidence -Force | Out-Null
+            (@{ schema_version = 1; check = 'inflight-asks'; running = [int]$Script:Cfg.inflight_running } | ConvertTo-Json -Compress) | Set-Content -LiteralPath (Join-Path $evidence 'inflight-asks.json') -Encoding utf8
+            return ''
+        }
         default { throw "unexpected read: $key" }
     }
 }
@@ -70,9 +82,9 @@ function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
 $Script:RunCount = 0
 function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
     $Script:RunCount++
-    Log-Call @{ kind = 'run'; name = $Name; argv = $Argv; passcode_sha = (Env-Sha); workdir = $WorkDir; run_dir_existed = (Test-Path -LiteralPath $Script:RunDir -PathType Container) }
+    Log-Call @{ kind = 'run'; name = $Name; argv = $Argv; passcode_sha = (Env-Sha); workdir = $WorkDir; run_dir_existed = (Test-Path -LiteralPath $Script:RunDir -PathType Container); env = (Env-Snap) }
     $code = 0
-    if ($Argv[0] -eq 'tar') {
+    if ($Argv[0] -match '(^|[\\/])tar(\.exe)?$') {
         $target = $Argv[[array]::IndexOf($Argv, '-C') + 1]
         if (-not (Test-Path -LiteralPath $target -PathType Container)) { $code = 2 }
     }
@@ -108,8 +120,10 @@ function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [strin
 
 function Test-Interactive { return (-not $Script:Cfg.no_interactive) }
 
-function Read-Host {
-    param([switch]$AsSecureString, [string]$Prompt)
+function Read-Typed {
+    param([string]$Prompt, [switch]$Secure)
+    $AsSecureString = $Secure
+    $Script:ClockMinutes += [double]$Script:Cfg.minutes_per_prompt
     Log-Call @{ kind = 'prompt'; secure = [bool]$AsSecureString; prompt = $Prompt; run_dir_existed = ($null -ne (Get-Variable -Scope Script -Name RunDir -ErrorAction SilentlyContinue)) -and (Test-Path -LiteralPath $Script:RunDir -PathType Container); runs_so_far = $Script:RunCount }
     if ($Script:Cfg.no_interactive) { throw 'no interactive host' }
     if ($AsSecureString) {
@@ -118,13 +132,15 @@ function Read-Host {
     }
     $word = [regex]::Match($Prompt, 'Type (\w+) to continue').Groups[1].Value
     $answer = $Script:Cfg.words.PSObject.Properties[$word]
+    $Script:WordCalls[$word] = 1 + [int]$Script:WordCalls[$word]
+    if ($null -ne $answer -and $answer.Value -is [array]) { return [string]$answer.Value[[Math]::Min($Script:WordCalls[$word], $answer.Value.Count) - 1] }
     if ($null -ne $answer) { return [string]$answer.Value }
     return $word
 }
 
 function Start-Sleep { param($Seconds) Log-Call @{ kind = 'sleep'; seconds = $Seconds } }
 
-try { Invoke-Release } finally { Log-Call @{ kind = 'end'; passcode_sha = (Env-Sha) } }
+try { Invoke-Release } finally { Log-Call @{ kind = 'env_at_end'; env = (Env-Snap) }; Log-Call @{ kind = 'end'; passcode_sha = (Env-Sha) } }
 '''
 
 
@@ -235,12 +251,14 @@ class PasteWorld:
             "smoke_lines": smoke_lines if smoke_lines is not None else ["PASS health: ok", "6 of 6 checks passed", "SMOKE-RESULT base={url} checks=6 passed=6"],
             "typed": typed, "no_interactive": not interactive, "inherited": inherited, "freeze_hash": FREEZE_HASH, "api_tag_url": API_TAG_URL,
             "no_readback": list(no_readback), "no_manifest_on_freeze": no_manifest_on_freeze, "manifest_hash_on_freeze": None, "reads_after": {},
-            "words": {}, "describe_json": json.dumps(DESCRIBE), "declared_matches": "",
+            "words": {}, "describe_json": json.dumps(DESCRIBE), "declared_matches": "", "inflight_running": 0, "inflight_refused": False,
+            "minutes_per_prompt": 0,
             **(extra or {})}
         self.write(self.tmp / "config.json", config)
         driver = self.tmp / "driver.ps1"
         driver.write_text(DRIVER, encoding="utf-8", newline="\n")
+        clean = {k: v for k, v in os.environ.items() if k not in ("CLOUDSDK_CORE_DISABLE_FILE_LOGGING", "PYTHONDONTWRITEBYTECODE", "GIT_OPTIONAL_LOCKS")}
         proc = subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(driver), "-Config", str(self.tmp / "config.json")],
-                              capture_output=True, encoding="utf-8", timeout=120)
+                              capture_output=True, encoding="utf-8", timeout=120, env=clean)
         entries = [json.loads(line) for line in calls.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
         return Result(proc.returncode, proc.stdout, proc.stderr, entries)

@@ -7,7 +7,7 @@ hands the body to the smoke exactly as the live smoke would. Nothing between the
 
 Until wave8/api C1 lane 2 (persistence in execute, meta_view on the read routes) is in this tree, nothing produces the
 value, the body carries no answer_meta and the smoke refuses it, so the test is an expected failure. The marker is
-conditional on the producer module being absent, so the day the readers arrive the test runs for real and must pass:
+conditional on the C1 producer and reader modules being absent, so the day the readers arrive the test runs for real and must pass:
 there is no marker left to remember to remove."""
 import importlib.util
 import types
@@ -21,7 +21,9 @@ from core.api import app as api_mod
 from core.api import store as store_mod
 
 GOOD = {"X-Passcode": "s3cret-passcode"}
-READERS_ARE_HERE = importlib.util.find_spec("core.agent.answer_state") is not None and hasattr(agent_app, "keep_state")
+# Keyed on the two C1 modules existing, not on the name of any function in them: a renamed function cannot flip the test back to an
+# expected failure without notice, and the strict marker fails the run if the modules are missing yet the pipeline works.
+READERS_ARE_HERE = all(importlib.util.find_spec(name) is not None for name in ("core.agent.answer_state", "core.api.summary_state"))
 
 
 @pytest.fixture

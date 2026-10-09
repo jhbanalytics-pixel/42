@@ -6,6 +6,9 @@
 # serving revisions by name, and the helper phases (BeforeCandidate before, BeforeSmoke after) judge the result.
 # The ordinary deploy.sh is for services that follow LATEST and refuses these.
 set -euo pipefail
+# gcloud logs every argument it is given to its own file at DEBUG unless told not to, and the remove flag below carries the names
+# of the variables it removes. No gcloud call of this script may leave them there.
+export CLOUDSDK_CORE_DISABLE_FILE_LOGGING=1
 
 PROJECT=ogilvy-trends-v2
 REGION=us-central1
