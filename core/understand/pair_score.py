@@ -89,6 +89,9 @@ def _cosine(a, b):
 def score_pair(cluster, item, cos, idf):
     """The shadow verdict on one candidate pair: logit, score, the two evidence terms, drift_cosine (None when the
     item carries no birth centroid), accept and the first rule that refused it."""
+    finite = math.isfinite(cos)
+    if not finite:
+        cos = COSINE_FLOOR  # a nan or inf cosine is refused at the floor below; the floor keeps the numbers finite
     facets = _evidence(_facets(cluster) & _facets(item), idf["facets"], SAT_FACETS)
     words = _evidence(_words(cluster) & _words(item), idf["keywords"], SAT_KEYWORDS)
     logit = W_COSINE * (cos - COSINE_MID) + W_FACETS * facets + W_KEYWORDS * words
@@ -101,7 +104,7 @@ def score_pair(cluster, item, cos, idf):
         drift = None  # one malformed birth centroid costs its own pair the guard, not the run its shadow
     if drift is not None and not math.isfinite(drift):
         drift = None  # a nan or inf component would pass the floor and write a nan the sink cannot encode
-    if cos < COSINE_FLOOR:
+    if not finite or cos < COSINE_FLOOR:
         reason = "cosine_floor"
     elif drift is not None and drift < DRIFT_FLOOR:
         reason = "drift"
@@ -127,7 +130,7 @@ def shadow_records(clusters, items, judged, eligible, decisions, run_date, *, va
         if ok:
             j = min(ok)[2]
             chosen.append(("recurrence" if is_dormant(items[j].get("last_seen"), run_date) else "match", j))
-        elif per and per[0][1] >= variant_cosine:
+        elif per and math.isfinite(per[0][1]) and per[0][1] >= variant_cosine:
             chosen.append(("variant", per[0][0]))
         else:
             chosen.append(("new", None))
@@ -141,7 +144,8 @@ def shadow_records(clusters, items, judged, eligible, decisions, run_date, *, va
         group = sorted(groups[j]) if kind in ("match", "recurrence") and len(groups[j]) > 1 else None
         for (k, cos, got), s in zip(judged[r], scored[r]):
             records.append({
-                "cluster_id": c["cluster_id"], "item_id": items[k]["item_id"], "cosine": cos, "today_votes": got,
+                "cluster_id": c["cluster_id"], "item_id": items[k]["item_id"],
+                "cosine": cos if math.isfinite(cos) else None, "today_votes": got,
                 "today_eligible": (r, k) in eligible, "today_kind": decisions[r]["kind"],
                 "today_item_id": decisions[r]["item_id"], "shadow_logit": s["logit"], "shadow_score": s["score"],
                 "shadow_accept": s["accept"], "shadow_reason": s["reason"], "facet_evidence": s["facet_evidence"],

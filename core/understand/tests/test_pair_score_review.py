@@ -264,3 +264,38 @@ def test_the_variant_parent_is_the_nearest_candidate_and_a_drift_refusal_still_g
     drifted = an_item("d", at(0.92), OLD, birth=at(0.1, towards=3))
     _, [row] = shadow_of([c], [drifted], "c1", "d")
     assert (row["shadow_reason"], row["shadow_kind"], row["shadow_item_id"]) == ("drift", "variant", "d")
+
+
+@pytest.mark.parametrize("component", [float("nan"), float("inf"), float("-inf")])
+def test_a_non_finite_current_centroid_costs_only_its_own_pair_and_the_rows_stay_clean(component):
+    c = a_cluster("c1", at(1.0), keywords=["kota"], hashtags=["bgtag1"])
+    bad = an_item("bad", at(0.95), OLD)  # no shared terms and old: not eligible in the vote rule
+    bad["centroid"] = [component] + list(bad["centroid"])[1:]
+    good = an_item("good", at(0.95, towards=2), DAY - timedelta(days=2), keywords=["kota"], hashtags=["bgtag1"])
+    decisions, rows = shadow_of([c], [bad, good] + background())
+    assert [(d["kind"], d["item_id"]) for d in decisions] == [("match", "good")]
+    assert not any("shadow_error" in r for r in rows)
+    by = {r["item_id"]: r for r in rows}
+    assert by["bad"]["cosine"] is None and by["bad"]["shadow_reason"] == "cosine_floor"
+    assert by["bad"]["shadow_accept"] is False and by["bad"]["drift_cosine"] is None
+    assert by["good"]["shadow_accept"] is True and by["good"]["cosine"] is not None
+    assert {r["shadow_item_id"] for r in rows} == {"good"} and {r["shadow_kind"] for r in rows} == {"match"}
+    json.dumps(rows, allow_nan=False)  # neither a nan nor an infinity would survive the sink's JSON
+
+
+def test_a_pair_scored_with_a_non_finite_cosine_is_refused_at_the_floor_with_finite_numbers():
+    idf = pair_score.build_idf([a_cluster("c1", at(1.0))], [an_item("i1", at(0.9), OLD)])
+    for cos in (float("nan"), float("inf"), float("-inf")):
+        s = pair_score.score_pair(a_cluster("c1", at(1.0)), an_item("i1", at(0.9), OLD), cos, idf)
+        assert s["accept"] is False and s["reason"] == "cosine_floor"
+        assert all(np.isfinite(s[k]) for k in ("logit", "score", "facet_evidence", "keyword_evidence"))
+
+
+@pytest.mark.parametrize("cos", [float("nan"), float("inf"), float("-inf")])
+def test_a_record_for_a_pair_with_a_non_finite_cosine_writes_none_and_refuses_it(cos):
+    c, item = a_cluster("c1", at(1.0)), an_item("i1", at(0.9), OLD)
+    [row] = pair_score.shadow_records([c], [item], [[(0, cos, [])]], set(), [{"kind": "new", "item_id": None}], DAY,
+                                      variant_cosine=0.8, is_dormant=lambda *_: False)
+    assert row["cosine"] is None and row["shadow_reason"] == "cosine_floor" and row["shadow_accept"] is False
+    assert row["shadow_kind"] == "new"
+    json.dumps(row, allow_nan=False)
