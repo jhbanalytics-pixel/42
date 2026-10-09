@@ -13,6 +13,7 @@ from pathlib import Path
 import duckdb
 import pytest
 
+from core.brief import job
 from core.detect import sqlrun
 from ops.evaluation import replay_a80 as ra
 
@@ -190,6 +191,41 @@ def test_the_a80_arm_does_not_read_the_checkouts_scope_view(monkeypatch):
     monkeypatch.setattr(sqlrun, "statements", lambda **_: [other])
     assert ra.scope_view_sql("a80") == pinned != other
     assert "market_news_posts7" not in pinned, "the a80 view predates the news scope column"
+
+
+def a80_candidates_sql():
+    """The candidates statement of core/brief/sql/brief.sql at the live staging commit, read from git."""
+    done = subprocess.run(["git", "-C", str(REPO), "show", f"{A80_COMMIT}:core/brief/sql/brief.sql"],
+                          capture_output=True, check=True)
+    text = done.stdout.decode("utf-8").replace("\r\n", "\n")
+    found = [s[s.index("-- name: candidates"):] for s in sqlrun.split(text) if "-- name: candidates" in s]
+    assert len(found) == 1
+    return found[0].strip()
+
+
+def test_the_candidates_statement_the_replay_runs_is_the_pinned_copy_of_the_one_at_the_live_staging_commit():
+    pinned = ra.CANDIDATES_A80.read_text(encoding="utf-8").strip()
+    assert pinned == a80_candidates_sql(), f"candidates_a80.sql is not the statement in {A80_COMMIT}:core/brief/sql/brief.sql"
+    assert "market_news_posts7" not in pinned and "v_item_locality_current" not in pinned
+
+
+def test_judged_ten_and_the_pool_run_the_pinned_candidates_statement_not_the_checkouts(world, monkeypatch):
+    ra.add_pinned_states(world, DAY, "NG", [
+        {"item_id": "veto", "eligible": True, "creators3": 4, "posts3": 4, "worth_raw": 0.9},
+        {"item_id": "home", "eligible": True, "creators3": 4, "posts3": 4, "worth_raw": 0.5},
+        {"item_id": "open", "eligible": True, "creators3": 4, "posts3": 4, "worth_raw": 0.1}])
+    ra.use_scope(world, ra.scope_frame(world, "a80"))
+    ten, pool = ra.judged_ten(world, DAY, "NG"), ra._pool(world, DAY, "NG")
+    assert ten == ["home", "open", "veto"] == pool
+    monkeypatch.setitem(job.QUERIES, "candidates", "SELECT 'other' AS item_id")
+    assert ra.judged_ten(world, DAY, "NG") == ten and ra._pool(world, DAY, "NG") == pool
+
+
+def test_the_judged_ten_is_the_first_ten_of_the_pool(monkeypatch):
+    rows = [{"item_id": f"i{n}", "label": f"Label {n}", "canonical_key": f"key {n}"} for n in range(12)]
+    monkeypatch.setattr(ra.duck, "query", lambda con, sql, params=None: rows)
+    assert ra.judged_ten(None, DAY, "NG") == [f"i{n}" for n in range(10)]
+    assert ra._pool(None, DAY, "NG") == [f"i{n}" for n in range(12)]
 
 
 def test_every_insert_in_the_replay_names_its_columns():

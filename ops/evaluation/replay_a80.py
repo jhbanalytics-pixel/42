@@ -4,9 +4,10 @@ Release B will run a80 understand and scope code live for the first time. This h
 snapshots of 5 to 8 October, what that code does to a day the earlier code already ran. Nothing here touches a network
 or a warehouse: the inputs are seven parquet files per day and, for the control, the pinned detect states.
 
-What it can and cannot replay. The scope rule is replayed exactly: the repo's own candidates statement
-(core/brief/sql/brief.sql) runs on DuckDB through core/detect/tests/duck.py over a v_item_market_scope view that is a
-pinned copy, never the checkout's view. The v1 copy is the view as it stood before a80 (scope_view_v1.sql, the text of
+What it can and cannot replay. The scope rule is replayed exactly: a80's own candidates statement
+(candidates_a80.sql, a pinned copy of core/brief/sql/brief.sql at a80be1d) runs on DuckDB through
+core/detect/tests/duck.py over a v_item_market_scope view that is a pinned copy, never the checkout's view or its
+statement. The v1 copy is the view as it stood before a80 (scope_view_v1.sql, the text of
 34725f1, equal to the definition read from the warehouse on 7 October). The a80 copy is the view at a80be1d
 (scope_view_a80.sql), which the checkout's view has since moved on from. The clustering is not refitted, because the
 snapshots hold no text and no embeddings. What a80 changes there is known, though: the earlier code reassigned every
@@ -43,6 +44,10 @@ SCOPE_V1 = Path(__file__).with_name("scope_view_v1.sql")
 # The checkout's own view has moved on (it adds the news scope column and the locality members), so the "a80" arm
 # reads this copy and not the checkout. A test compares the copy with that commit.
 SCOPE_A80 = Path(__file__).with_name("scope_view_a80.sql")
+# The candidates statement of core/brief/sql/brief.sql at a80be1d, copied verbatim. Every arm and the control rank with
+# it, so the order is what a80 itself would have judged. The checkout's statement has moved on (it reads the news
+# scope column and the locality rows, which the pinned views and the retained scope rows do not carry).
+CANDIDATES_A80 = Path(__file__).with_name("candidates_a80.sql")
 # The understand run's own counts for the four days, from agent.runs (stage understand, status ok, counts.cluster):
 # kind -> (clusters, members, today_posts, posts fitted on). The earlier code assigned every post sighted today.
 RECORDED_UNDERSTAND = {
@@ -212,10 +217,17 @@ def use_scope(con, frame):
     con.execute("CREATE OR REPLACE VIEW core.v_item_market_scope AS SELECT * FROM core.scope_fixed")
 
 
+def candidate_rows(con, day, market):
+    """The rows of a80's candidates statement (candidates_a80.sql) for the day and market, in its order. The checkout's
+    job._ranked then puts rows without a readable title after named ones and cuts the pool, as the job does. It reads
+    only label, canonical_key and the creator columns of a row, which a80's statement returns, so no column is mapped."""
+    sql = CANDIDATES_A80.read_text(encoding="utf-8")
+    return job._ranked(duck.query(con, sql, {"d": date.fromisoformat(day), "market": market}))
+
+
 def judged_ten(con, day, market):
-    """The ten items the brief would judge: brief.sql's candidates statement, then the job's own _ranked, first ten."""
-    rows = job._query(duck.Client(con), "candidates", {"d": date.fromisoformat(day), "market": market}, "core", "agent")
-    return [r["item_id"] for r in job._ranked(rows)][:10]
+    """The ten items a80 would judge: its candidates statement, then the job's own _ranked, first ten."""
+    return [r["item_id"] for r in candidate_rows(con, day, market)][:10]
 
 
 def noise_table(snap_dir, day):
@@ -365,8 +377,7 @@ def replay_day(snap_dir, day):
 
 
 def _pool(con, day, market):
-    rows = job._query(duck.Client(con), "candidates", {"d": date.fromisoformat(day), "market": market}, "core", "agent")
-    return [r["item_id"] for r in job._ranked(rows)]
+    return [r["item_id"] for r in candidate_rows(con, day, market)]
 
 
 def scope_agreement(retained, recomputed):
