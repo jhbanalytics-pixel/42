@@ -1884,3 +1884,398 @@ test('a gap why that is a sentence stays whole, and status codes read as one lis
   expect(whyAll('schema_drift')).toBe('the source changed shape');
   expect(whyAll('')).toBe('');
 });
+
+/* Ask market tests for the 6 October 2026 tester report (Bug B). Append these two
+   tests to app/frontend/src/ui/__tests__/ask42.test.jsx: they use that file's
+   imports and helpers (serve, finish, until, button, text, typeInto, render, clone,
+   completeRecord, calls, host, root, act). Written against a80be1d. They must fail
+   there and pass once the follow-up asks in the market the reader has chosen and
+   the header follows the answer being shown. */
+
+/* The tester opened a South Africa answer, changed the header market to Kenya,
+   pressed Ask a follow-up and asked about Kenya. The follow-up was posted with
+   market ZA. followUp() reads record.market before the market the reader chose,
+   and AskPage's own market state is set once from the first region and never
+   follows the header. */
+test('a follow-up asks in the market the header now shows, not the market of the answer it follows', async () => {
+  const first = {...clone(completeRecord), market: 'ZA'};
+  const second = {...clone(completeRecord), ask_id: 'a_20261006_b3b2a066', parent_id: first.ask_id,
+    question: "What's the conversation around HIV in Kenya", market: 'KE'};
+  const server = serve([first, second]);
+  const query = {follow: first.ask_id};
+  await render({region: 'ZA', query});
+  await finish(server, first);
+  await until(() => text().includes('What we do not know'), 'the reopened answer');
+  // The header chip moves to Kenya; App passes the new region down.
+  await act(async () => root.render(<AskPage region="KE" setRegion={() => {}} query={query} />));
+  await act(async () => { button('Ask a follow-up').click(); });
+  const field = host.querySelector('textarea');
+  await act(async () => { typeInto(field, second.question); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the follow-up ask');
+  const posted = calls.find((call) => call.path === '/api/ask');
+  expect(posted.body.parent_id).toBe(first.ask_id);
+  expect(posted.body.market).toBe('KE');
+});
+
+/* The header said Kenya over a South Africa answer in two of the tester's
+   screenshots. Opening a saved answer sets the page's market from the record
+   but never tells the header, so the chip and the answer disagree. */
+test('opening an answer moves the header market to the market that answer was given for', async () => {
+  const record = {...clone(completeRecord), market: 'NG'};
+  const server = serve([record]);
+  const regions = [];
+  await act(async () => root.render(<AskPage region="KE" setRegion={(value) => regions.push(value)} query={{follow: record.ask_id}} />));
+  await finish(server, record);
+  await until(() => text().includes('What we do not know'), 'the reopened answer');
+  expect(regions).toContain('NG');
+});
+
+/* The other way to change the market: open the composer and pick Kenya in the
+   page's own Market select. chooseMarket() sets the page market and the header,
+   and followUp() still posts the answer's market, so the pick is ignored. */
+test('a follow-up asks in the market picked in the composer, not the market of the answer it follows', async () => {
+  const first = {...clone(completeRecord), market: 'ZA'};
+  const second = {...clone(completeRecord), ask_id: 'a_20261006_b3b2a067', parent_id: first.ask_id,
+    question: "What's the conversation around HIV in Kenya", market: 'KE'};
+  const server = serve([first, second]);
+  await render({region: 'ZA', query: {follow: first.ask_id}});
+  await finish(server, first);
+  await until(() => text().includes('What we do not know'), 'the reopened answer');
+  await act(async () => { button('Ask a follow-up').click(); });
+  const select = host.querySelector('#ask42-market');
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(select, 'KE');
+    select.dispatchEvent(new window.Event('change', {bubbles: true}));
+  });
+  expect(select.value).toBe('KE');
+  await act(async () => { typeInto(host.querySelector('textarea'), second.question); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the follow-up ask');
+  expect(calls.find((call) => call.path === '/api/ask').body.market).toBe('KE');
+});
+
+/* The three tests above name Kenya in the follow-up question, and a question
+   that names one market is read for it whatever the select holds, so they
+   pass without the header ever reaching the page. These ask without a place
+   word, so only the market the reader chose can decide. */
+async function followUpFrom(first, props, question){
+  const server = serve([first, {...clone(completeRecord), ask_id: 'a_20261006_c4c4c4c4', parent_id: first.ask_id, question}]);
+  const query = {follow: first.ask_id};
+  await render({region: 'ZA', query});
+  await finish(server, first);
+  await until(() => text().includes('What we do not know'), 'the reopened answer');
+  if (props) await act(async () => root.render(<AskPage region={props.region} setRegion={() => {}} query={query} />));
+  await act(async () => { button('Ask a follow-up').click(); });
+  await act(async () => { typeInto(host.querySelector('textarea'), question); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the follow-up ask');
+  return calls.find((call) => call.path === '/api/ask').body;
+}
+
+test('a follow-up with no place word asks in the market the header now shows', async () => {
+  const first = {...clone(completeRecord), market: 'ZA'};
+  const body = await followUpFrom(first, {region: 'KE'}, 'What is the conversation around HIV this week');
+  expect(body.parent_id).toBe(first.ask_id);
+  expect(body.market).toBe('KE');
+});
+
+test('a market chosen in the header is held against a country the follow-up question names', async () => {
+  const first = {...clone(completeRecord), market: 'ZA'};
+  const body = await followUpFrom(first, {region: 'KE'}, 'How does this compare with South Africa');
+  expect(body.market).toBe('KE');
+});
+
+test('with no change in the header a follow-up keeps the market of the answer it follows', async () => {
+  const first = {...clone(completeRecord), market: 'NG'};
+  const body = await followUpFrom(first, null, 'What is the conversation around HIV this week');
+  expect(body.market).toBe('NG');
+});
+
+test('a new question asks in the market the header was changed to before any answer is open', async () => {
+  serve([{...clone(completeRecord), ask_id: 'a_20261006_d5d5d5d5'}]);
+  await render({region: 'ZA', query: {}});
+  await act(async () => root.render(<AskPage region="NG" setRegion={() => {}} query={{}} />));
+  await act(async () => { typeInto(host.querySelector('textarea'), 'What is the conversation around HIV this week'); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the ask');
+  expect(calls.find((call) => call.path === '/api/ask').body.market).toBe('NG');
+});
+
+test('a market carried in by the link is not overwritten by the header at mount', async () => {
+  serve([{...clone(completeRecord), ask_id: 'a_20261006_e6e6e6e6'}]);
+  await render({region: 'ZA', query: {q: 'What is the conversation around HIV this week', market: 'KE'}});
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the ask');
+  expect(calls.find((call) => call.path === '/api/ask').body.market).toBe('KE');
+});
+
+/* Tester report, 6 October 2026: a wait of two to five minutes showed no sign
+   of progress. The running page now says which phase the latest step belongs
+   to and how long the question has been running, from the step kinds and the
+   clock the page already holds. It shows no claim and no count of its own. */
+test('the phase is read from the latest step kind, ignores notes and kinds it does not know, and is empty before any step', async () => {
+  const {phaseOf} = await import('../../ask42.jsx');
+  expect(phaseOf([])).toBe('');
+  expect(phaseOf([{kind: 'plan'}])).toBe('Planning');
+  expect(phaseOf([{kind: 'plan'}, {kind: 'search'}])).toBe('Reading posts');
+  expect(phaseOf([{kind: 'search'}, {kind: 'found'}, {kind: 'note'}])).toBe('Reading posts');
+  expect(phaseOf([{kind: 'search'}, {kind: 'read'}])).toBe('Reading posts');
+  expect(phaseOf([{kind: 'search'}, {kind: 'check'}])).toBe('Checking claims');
+  expect(phaseOf([{kind: 'check'}, {kind: 'critic'}])).toBe('Reviewing claims');
+  expect(phaseOf([{kind: 'check'}, {kind: 'write'}])).toBe('Writing the answer');
+  expect(phaseOf([{kind: 'write'}, {kind: 'something_new'}])).toBe('Writing the answer');
+  expect(phaseOf([{kind: 'something_new'}])).toBe('');
+  expect(phaseOf(null)).toBe('');
+});
+
+test('elapsed time is said in seconds, then minutes and seconds', async () => {
+  const {elapsedWords} = await import('../../ask42.jsx');
+  expect(elapsedWords(0)).toBe('0 s');
+  expect(elapsedWords(45)).toBe('45 s');
+  expect(elapsedWords(60)).toBe('1 min 0 s');
+  expect(elapsedWords(83)).toBe('1 min 23 s');
+  expect(elapsedWords(754)).toBe('12 min 34 s');
+  expect(elapsedWords(-3)).toBe('0 s');
+});
+
+test('a running Ask shows its phase and how long it has been running', async () => {
+  const record = clone(completeRecord);
+  const server = serve([record]);
+  const realNow = Date.now;
+  try {
+    await render();
+    await askByTyping(record.question);
+    const stream = server.stream(record.ask_id);
+    const line = () => host.querySelector('[data-ask-progress]');
+    await until(() => line(), 'the progress line');
+    expect(plain(line().textContent)).toContain('Starting');
+    expect(plain(line().textContent)).toContain('0 s');
+    stream.push(frame(1, 'step', record.steps[0]));
+    await until(() => plain(line().textContent).includes('Planning'), 'the planning phase');
+    stream.push(frame(2, 'step', record.steps[1]));
+    await until(() => plain(line().textContent).includes('Reading posts'), 'the reading phase');
+    Date.now = () => realNow() + 83000;
+    await until(() => plain(line().textContent).includes('1 min 2'), 'the elapsed minute');
+    stream.push(frame(10, 'step', record.steps[5]));
+    await until(() => plain(line().textContent).includes('Writing the answer'), 'the writing phase');
+    expect(plain(line().textContent)).not.toContain('Verified');
+    stream.push(frame(12, 'done', {seq: 12, status: 'complete', url: `/api/ask/${record.ask_id}`}));
+    stream.close();
+    await until(() => text().includes('What we do not know'), 'the finished answer');
+    expect(line()).toBeNull();
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test('a saved answer being opened shows no progress line', async () => {
+  const record = clone(completeRecord);
+  serve([record]);
+  await render({query: {follow: record.ask_id}});
+  await until(() => text().includes('What we do not know'), 'the finished answer');
+  expect(host.querySelector('[data-ask-progress]')).toBeNull();
+});
+
+/* Follow-up to the tester report: while a single-market question runs, posts
+   located in another market stay visible under their own label and are left
+   out of the counts, the way the finished answer's posts read leaves them out
+   (core/agent/ask.py _posts_read). A question with no single market counts
+   every post. */
+const evidenceIn = (id, market) => ({...clone(completeRecord.answer.evidence[0]), id, market, thumbnail_url: null, handle: '@' + id});
+const tile = (label) => [...host.querySelectorAll('.ask42-scan-counts div')].find((node) => plain(node.querySelector('dt').textContent) === label);
+
+async function runningWith(markets, mkt){
+  const record = clone(completeRecord);
+  const server = serve([record]);
+  await render();
+  if (mkt !== 'ZA'){
+    const select = host.querySelector('#ask42-market');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(select, mkt);
+      select.dispatchEvent(new window.Event('change', {bubbles: true}));
+    });
+  }
+  await askByTyping('What is the conversation around HIV this week');
+  const stream = server.stream(record.ask_id);
+  markets.forEach((market, index) => stream.push(frame(index + 1, 'evidence', {seq: index + 1, evidence: evidenceIn('p' + index, market)})));
+  if (markets.length) await until(() => text().includes('Posts gathered so far'), 'the gathered posts');
+  else await until(() => host.querySelector('[data-ask-progress]'), 'the running view');
+  return {stream, record};
+}
+
+test('while a South Africa question runs, posts located elsewhere are labelled and left out of the counts', async () => {
+  await runningWith(['ZA', 'ZA', 'KE', 'NG'], 'ZA');
+  expect(text()).toContain('Posts gathered so far · 2');
+  expect(plain(tile('Posts found').querySelector('dd').textContent)).toBe('2');
+  const others = host.querySelector('[data-gathered-other-markets]');
+  expect(others).not.toBeNull();
+  expect(plain(others.textContent)).toContain('Located in other markets, not counted · 2');
+  expect(others.querySelectorAll('li').length).toBe(2);
+  expect(host.querySelector('.ask42-gathered').querySelectorAll('li').length).toBe(2);
+});
+
+test('with only other-market posts so far the count is zero and they still show under their label', async () => {
+  await runningWith(['KE'], 'ZA');
+  expect(text()).toContain('Posts gathered so far · 0');
+  expect(plain(tile('Posts found').querySelector('dd').textContent)).toBe('0');
+  expect(plain(host.querySelector('[data-gathered-other-markets]').textContent)).toContain('· 1');
+});
+
+test('a question with no single market counts every post and shows no other-market list', async () => {
+  await runningWith(['ZA', 'KE', 'NG'], '');
+  expect(text()).toContain('Posts gathered so far · 3');
+  expect(plain(tile('Posts found').querySelector('dd').textContent)).toBe('3');
+  expect(host.querySelector('[data-gathered-other-markets]')).toBeNull();
+});
+
+test('platforms read are counted from the same posts as the posts found', async () => {
+  const record = clone(completeRecord);
+  const server = serve([record]);
+  await render();
+  await askByTyping('What is the conversation around HIV this week');
+  const stream = server.stream(record.ask_id);
+  stream.push(frame(1, 'evidence', {seq: 1, evidence: evidenceIn('own', 'ZA')}));
+  stream.push(frame(2, 'evidence', {seq: 2, evidence: {...evidenceIn('away', 'KE'), platform: 'youtube'}}));
+  await until(() => text().includes('Posts gathered so far'), 'the gathered posts');
+  expect(plain(tile('Platforms read').querySelector('dd').textContent)).toBe('1');
+});
+
+/* The header can change while a question is still running. The running ask
+   keeps the market it was sent with; the next follow-up asks in the new one. */
+test('a header change while a question runs is used by the next follow-up, not the running ask', async () => {
+  const first = {...clone(completeRecord), market: 'ZA'};
+  const second = {...clone(completeRecord), ask_id: 'a_20261006_f7f7f7f7', parent_id: first.ask_id, market: 'KE'};
+  const server = serve([first, second]);
+  window.history.replaceState(null, '', '#/ask');
+  await render({region: 'ZA', query: {}});
+  await askByTyping('What is the conversation around HIV this week');
+  const stream = server.stream(first.ask_id);
+  stream.push(frame(1, 'step', first.steps[0]));
+  await until(() => text().includes('Planning'), 'the running ask');
+  await act(async () => root.render(<AskPage region="KE" setRegion={() => {}} query={{}} />));
+  for (const step of first.steps.slice(1)) stream.push(frame(step.seq, 'step', step));
+  stream.push(frame(99, 'done', {seq: 99, status: first.status, url: `/api/ask/${first.ask_id}`}));
+  stream.close();
+  await until(() => text().includes('What we do not know'), 'the finished answer');
+  expect(calls.filter((call) => call.path === '/api/ask')[0].body.market).toBe('ZA');
+  await act(async () => root.render(<AskPage region="KE" setRegion={() => {}} query={{follow: first.ask_id}} />));
+  await act(async () => { button('Ask a follow-up').click(); });
+  await act(async () => { typeInto(host.querySelector('textarea'), 'What is the conversation around HIV this week'); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.filter((call) => call.path === '/api/ask').length === 2, 'the follow-up ask');
+  const posted = calls.filter((call) => call.path === '/api/ask')[1].body;
+  expect(posted.parent_id).toBe(first.ask_id);
+  expect(posted.market).toBe('KE');
+});
+
+/* Review of wave8/ask-market, M1: the page counts posts by the market the
+   server resolved, which it sends on the first plan step, and by the market it
+   sent only until that step arrives. */
+const planStep = (seq, market) => ({seq, kind: 'plan', text: 'Reading the question: somewhere, 1 to 7 October, tier T1', platform: null, count: null, market});
+
+test('a question the server resolved to Kenya counts Kenya posts although the page sent no market', async () => {
+  const {stream} = await runningWith([], '');
+  stream.push(frame(1, 'step', planStep(1, 'KE')));
+  ['KE', 'NG', 'NG', 'ZA'].forEach((market, index) => stream.push(frame(index + 2, 'evidence', {seq: index + 2, evidence: evidenceIn('r' + index, market)})));
+  await until(() => text().includes('Posts gathered so far'), 'the gathered posts');
+  expect(text()).toContain('Posts gathered so far · 1');
+  expect(plain(tile('Posts found').querySelector('dd').textContent)).toBe('1');
+  expect(plain(host.querySelector('[data-gathered-other-markets]').textContent)).toContain('· 3');
+});
+
+test('a plan step that names no single market counts every post, whatever the page sent', async () => {
+  const {stream} = await runningWith([], 'ZA');
+  stream.push(frame(1, 'step', planStep(1, null)));
+  ['KE', 'NG', 'ZA'].forEach((market, index) => stream.push(frame(index + 2, 'evidence', {seq: index + 2, evidence: evidenceIn('s' + index, market)})));
+  await until(() => text().includes('Posts gathered so far · 3'), 'every post counted');
+  expect(host.querySelector('[data-gathered-other-markets]')).toBeNull();
+});
+
+test('before the plan step arrives the page counts by the market it sent', async () => {
+  await runningWith(['ZA', 'KE'], 'ZA');
+  expect(text()).toContain('Posts gathered so far · 1');
+  expect(host.querySelector('[data-gathered-other-markets]')).not.toBeNull();
+});
+
+test('the server market wins over the one the page sent, as for an ask opened from a spike card', async () => {
+  const record = clone(completeRecord);
+  const server = serve([record]);
+  await render({query: {q: 'Why did this jump?', item: 'item_amapiano_braai', date: '2026-09-24', market: 'ZA'}});
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the card ask');
+  const stream = server.stream(record.ask_id);
+  stream.push(frame(1, 'step', planStep(1, 'NG')));
+  ['NG', 'NG', 'ZA'].forEach((market, index) => stream.push(frame(index + 2, 'evidence', {seq: index + 2, evidence: evidenceIn('c' + index, market)})));
+  await until(() => text().includes('Posts gathered so far'), 'the gathered posts');
+  expect(text()).toContain('Posts gathered so far · 2');
+  expect(plain(host.querySelector('[data-gathered-other-markets]').textContent)).toContain('· 1');
+});
+
+test('a watched ask whose record has no market counts by the market in its stored plan step', async () => {
+  const record = clone(completeRecord);
+  const server = serve([record]);
+  const served = globalThis.fetch;
+  let reads = 0;
+  const running = {...clone(completeRecord), market: null, status: 'running', answer: null, finished_at: null, steps: [planStep(1, 'NG')]};
+  const firstRunning = async (url, init = {}) => {
+    const method = String(init.method || 'GET').toUpperCase();
+    if (method === 'GET' && String(url) === `/api/ask/${record.ask_id}` && reads++ === 0){
+      calls.push({path: String(url), method, headers: init.headers || {}, body: null});
+      return json(200, running);
+    }
+    return served(url, init);
+  };
+  globalThis.fetch = firstRunning;
+  window.fetch = firstRunning;
+  await render({query: {follow: record.ask_id}});
+  await until(() => calls.some((call) => call.path === `/api/ask/${record.ask_id}/events`), 'the stream to open');
+  const stream = server.stream(record.ask_id);
+  ['NG', 'KE', 'NG'].forEach((market, index) => stream.push(frame(index + 2, 'evidence', {seq: index + 2, evidence: evidenceIn('w' + index, market)})));
+  await until(() => text().includes('Posts gathered so far'), 'the gathered posts');
+  expect(text()).toContain('Posts gathered so far · 2');
+  expect(plain(host.querySelector('[data-gathered-other-markets]').textContent)).toContain('· 1');
+  expect(plain(host.querySelector('[data-ask-progress]').textContent)).toContain('watching for');
+});
+
+test('a post with no market counts for the asked market', async () => {
+  await runningWith(['ZA', null], 'ZA');
+  expect(text()).toContain('Posts gathered so far · 2');
+  expect(host.querySelector('[data-gathered-other-markets]')).toBeNull();
+});
+
+/* M5: a platform whose search found nothing for this market is not read. */
+test('a platform searched without finding any post for the market is not counted as read', async () => {
+  const {stream} = await runningWith(['ZA'], 'ZA');
+  stream.push(frame(10, 'step', {seq: 10, kind: 'search', text: 'Reading YouTube posts, 0 found', platform: 'youtube', count: 0}));
+  stream.push(frame(11, 'step', {seq: 11, kind: 'search', text: 'Reading X posts, 7 found', platform: 'x', count: 7}));
+  await until(() => text().includes('Reading X posts'), 'the steps');
+  expect(plain(tile('Platforms read').querySelector('dd').textContent)).toBe('2');
+});
+
+/* M8: one clock while a question runs. */
+test('a running Ask shows one clock, in words with its phase', async () => {
+  await runningWith([], 'ZA');
+  expect(host.querySelector('.ask42-scan-clock')).toBeNull();
+  expect(host.querySelectorAll('[data-ask-progress]').length).toBe(1);
+});
+
+/* M3: the header round trip. App sends the region back down after setRegion,
+   which the other tests stub out. */
+test('opening an answer passes its market up and back down without holding it against a country the next question names', async () => {
+  const first = {...clone(completeRecord), market: 'NG'};
+  const second = {...clone(completeRecord), ask_id: 'a_20261006_a8a8a8a8', parent_id: first.ask_id, question: 'x', market: 'KE'};
+  const server = serve([first, second]);
+  const regions = [];
+  function App(){
+    const [region, setRegion] = React.useState('ZA');
+    return <AskPage region={region} setRegion={(value) => { regions.push(value); setRegion(value); }} query={{follow: first.ask_id}} />;
+  }
+  await act(async () => root.render(<App />));
+  await finish(server, first);
+  await until(() => text().includes('What we do not know'), 'the reopened answer');
+  expect(regions).toContain('NG');
+  await act(async () => { button('Ask a follow-up').click(); });
+  await act(async () => { typeInto(host.querySelector('textarea'), 'What is the conversation around HIV in Kenya'); });
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the follow-up ask');
+  expect(calls.find((call) => call.path === '/api/ask').body.market).toBe('KE');
+});

@@ -17,7 +17,7 @@ import {EvidenceChip, monthName} from './ui/EvidenceChip.jsx';
 import {PostStrip} from './ui/PostStrip.jsx';
 import {RankedAnswer} from './RankedAnswer.jsx';
 import {EntityLists} from './EntityLists.jsx';
-import {ResearchLog} from './ui/ResearchLog.jsx';
+import {ResearchLog, inMarket} from './ui/ResearchLog.jsx';
 import {SourcePanel} from './ui/SourcePanel.jsx';
 import {CostConfirm} from './ui/SpikeConfirm.jsx';
 import {SkillForms, t2ReadyFrom} from './skills42.jsx';
@@ -301,6 +301,34 @@ function metaLine(record){
 }
 
 const EMPTY_RUN = {phase: 'idle', request: null, askId: null, steps: [], evidence: [], claims: [], record: null, error: null, stopping: false};
+
+/* The phase of a running ask, read only from the kind of the latest step the
+   stream has sent. A note is a side remark and a kind this map does not know
+   is left out, so the phase is never guessed. */
+const PHASE_OF_KIND = {
+  plan: 'Planning',
+  search: 'Reading posts',
+  found: 'Reading posts',
+  read: 'Reading posts',
+  transcribe: 'Reading posts',
+  write: 'Writing the answer',
+  check: 'Checking claims',
+  critic: 'Reviewing claims',
+};
+
+export function phaseOf(steps){
+  const list = Array.isArray(steps) ? steps : [];
+  for (let index = list.length - 1; index >= 0; index -= 1){
+    const phase = list[index] && PHASE_OF_KIND[list[index].kind];
+    if (phase) return phase;
+  }
+  return '';
+}
+
+export function elapsedWords(seconds){
+  const whole = Math.max(0, Math.floor(Number(seconds) || 0));
+  return whole < 60 ? whole + ' s' : Math.floor(whole / 60) + ' min ' + (whole % 60) + ' s';
+}
 
 function applyEvent(run, event){
   const data = event.data || {};
@@ -631,18 +659,49 @@ export function gatheredFirst(evidence, market){
   return own.length ? [...own, ...evidence.filter((record) => record.market !== market)] : evidence;
 }
 
+/* How long this question has been running and which phase it is in. The time
+   counts from when the page sent the question, or from when it began watching
+   an ask started elsewhere, and says so. */
+function ProgressLine({steps, startedAt, watching}){
+  const [began] = useState(() => startedAt || Date.now());
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <p className="ask42-progress" data-ask-progress="">
+      <span className="ask42-progress-phase">{phaseOf(steps) || 'Starting'}</span>
+      <span className="ask42-muted">{' · ' + (watching ? 'watching for ' : 'running for ') + elapsedWords((now - began) / 1000)}</span>
+    </p>
+  );
+}
+
+/* The market the posts are counted by: the one the server resolved, sent on
+   its first plan step (null there means no single market), and the one the page
+   sent only until that step arrives. */
+export function countedMarket(run){
+  const planned = (run.steps || []).find((step) => step && Object.hasOwn(step, 'market'));
+  return planned ? marketCode(planned.market) : marketCode(run.request && run.request.mkt);
+}
+
 function Running({run, onStop}){
   const question = run.request ? run.request.text : '';
-  const gathered = gatheredFirst(run.evidence, run.request && run.request.mkt).slice(0, GATHERED_LIMIT);
-  const moreGathered = run.evidence.length - gathered.length;
+  const market = countedMarket(run);
+  const counted = run.evidence.filter((record) => inMarket(record, market));
+  const elsewhere = run.evidence.filter((record) => !inMarket(record, market));
+  const gathered = counted.slice(0, GATHERED_LIMIT);
+  const moreGathered = counted.length - gathered.length;
   const stopButton = <button type="button" className="ask42-quiet ask42-stop" onClick={onStop} disabled={run.stopping || !run.askId}>{run.stopping ? 'Stopping' : 'Stop'}</button>;
   return (
     <div className="ask42-running">
       <h2 className="ask42-question">{question}</h2>
-      <ResearchLog steps={run.steps} running evidence={run.evidence} claims={run.claims} action={stopButton}>
+      <ProgressLine key={run.startedAt || 0} steps={run.steps} startedAt={run.startedAt} watching={Boolean(run.request && run.request.extra && run.request.extra.follow)} />
+      <ResearchLog steps={run.steps} running evidence={run.evidence} claims={run.claims} market={market} clock={false} action={stopButton}>
         {run.evidence.length > 0 && (
           <div className="ask42-scan-block">
-            <h4 className="ask42-scan-log-title">{'Posts gathered so far · ' + run.evidence.length}</h4>
+            <h4 className="ask42-scan-log-title">{'Posts gathered so far · ' + counted.length}</h4>
             <ul className="ask42-gathered" aria-label="Sources gathered">
               {gathered.map((record) => {
                 const thumbnail = safeUrl(record.thumbnail_url);
@@ -655,6 +714,19 @@ function Running({run, onStop}){
                 );
               })}
               {moreGathered > 0 && <li className="ask42-gathered-more">{'and ' + moreGathered + ' more'}</li>}
+            </ul>
+          </div>
+        )}
+        {elsewhere.length > 0 && (
+          /* Found, but located in another market: kept in view under their own
+             label and left out of the counts above. */
+          <div className="ask42-scan-block" data-gathered-other-markets="">
+            <h4 className="ask42-scan-log-title">{'Located in other markets, not counted · ' + elsewhere.length}</h4>
+            <ul className="ask42-gathered" aria-label="Posts located in other markets">
+              {elsewhere.slice(0, GATHERED_LIMIT).map((record) => (
+                <li key={record.id}><span className="ask42-gathered-handle">{gatheredName(record) + ' · ' + (MARKET_NAME[record.market] || record.market)}</span></li>
+              ))}
+              {elsewhere.length > GATHERED_LIMIT && <li className="ask42-gathered-more">{'and ' + (elsewhere.length - GATHERED_LIMIT) + ' more'}</li>}
             </ul>
           </div>
         )}
@@ -687,6 +759,18 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   /* A draft opened from a card keeps the card, so the ask the reader presses still reads from it. */
   const draftCard = useRef(null);
   const marketPicked = useRef(Boolean(marketCode(q.market)));
+  /* The header market is a choice the reader makes: when it changes after the
+     page mounts, a question asks in it and no country named in the question
+     overrides it. A change this page made itself already matches. */
+  const lastRegion = useRef(marketCode(region));
+  useEffect(() => {
+    const next = marketCode(region);
+    if (next === lastRegion.current) return;
+    lastRegion.current = next;
+    if (!next || next === market) return;
+    marketPicked.current = true;
+    setMarket(next);
+  }, [region]);
   const [run, setRun] = useState(EMPTY_RUN);
   const [retry, setRetry] = useState(null);
   /* A reopened answer (follow) leads with the answer: the composer folds to
@@ -738,7 +822,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
     control.current = ctrl;
     const requestHash = typeof window === 'undefined' ? '' : window.location.hash;
     const request = {text: words, mkt, extra};
-    setRun({...EMPTY_RUN, phase: 'running', request});
+    setRun({...EMPTY_RUN, phase: 'running', startedAt: Date.now(), request});
     const body = {question: words, market: mkt || null, parent_id: extra.parent_id || null};
     if (extra.from_card) body.from_card = extra.from_card;
     if (extra.tier) body.tier = extra.tier;
@@ -781,13 +865,15 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
     const ctrl = new AbortController();
     control.current = ctrl;
     /* Opening reads; it never shows the live timer or Stop until the record says the ask is still running. */
-    setRun({...EMPTY_RUN, phase: 'running', opening: true, askId, request: {text: '', mkt: '', extra: {follow: askId}}});
+    setRun({...EMPTY_RUN, phase: 'running', opening: true, startedAt: Date.now(), askId, request: {text: '', mkt: '', extra: {follow: askId}}});
     try {
       let record = await getAsk(askId, ctrl.signal);
       if (ctrl.signal.aborted) return;
       setQuestion(record.question || '');
-      setMarket(marketCode(record.market));
       const mkt = marketCode(record.market);
+      setMarket(mkt);
+      /* The header shows the market of the answer on the page. */
+      if (mkt && setRegion) setRegion(mkt);
       setRun((current) => ({...current, opening: record.status !== 'running', request: {text: record.question || '', mkt, extra: {follow: askId}}, steps: Array.isArray(record.steps) ? record.steps : []}));
       if (record.status === 'running'){
         await streamAsk(askId, (event) => {

@@ -688,3 +688,38 @@ test('the page copy names no age group, no Google Trends and no retired product'
   await openDraft();
   expect(text()).not.toMatch(/gen ?z|millennial|youth|generation|google trends|prompt pulse|nano banana/i);
 });
+
+/* Tester report, 6 October 2026: nobody knew what Freeze does. The words sit
+   beside the button, stay on screen whatever the claims need, and are tied to
+   the button for a screen reader. They say only what the server does: a frozen
+   version never changes, is the one that exports and shares, cannot be taken
+   back, and Edit again starts a new draft from it. */
+test('Freeze is explained in plain words beside the button and described to a screen reader', async () => {
+  await openDraft();
+  const freeze = button('Freeze');
+  const described = freeze.getAttribute('aria-describedby');
+  expect(described).toBeTruthy();
+  const note = host.querySelector('#' + described);
+  expect(note).toBeTruthy();
+  expect(host.querySelector('.dossiers42-actions').contains(note)).toBe(true);
+  const words = plain(note.textContent);
+  expect(words).toContain('Freezing saves this version as final');
+  expect(words).toContain('no longer be edited');
+  expect(words).toContain('the saved version never changes');
+  expect(words).toContain('only a frozen version can be exported');
+  expect(words).not.toContain('reads the same thing');
+  expect(words).toContain('exported as HTML or PDF');
+  expect(words).toContain('cannot be undone');
+  expect(words).toContain('Edit again');
+  expect(words).toContain('new draft');
+});
+
+test('the Freeze explanation stays when a claim still needs a tick or an edit is unsaved', async () => {
+  await openDraft();
+  const described = () => plain(host.querySelector('#' + button('Freeze').getAttribute('aria-describedby')).textContent);
+  expect(plain(host.querySelector('.dossiers42-actions').textContent)).toContain('still need a tick before this version can freeze');
+  expect(described()).toContain('cannot be undone');
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'A different title'));
+  expect(plain(host.querySelector('.dossiers42-actions').textContent)).toContain('Save your edits first');
+  expect(described()).toContain('cannot be undone');
+});
