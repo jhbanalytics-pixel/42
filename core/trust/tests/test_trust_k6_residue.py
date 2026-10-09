@@ -177,11 +177,22 @@ def test_a_decade_with_no_measure_word_beside_it_breaches(text):
     assert claims._k6(c, {}, set())[0] == "breach", text
 
 
-DECADE_MEASURES = [
+# These eight sentences carry an audience word, so they held at 3d5dd63. They were listed here as passing, which pinned
+# a loosening against 3d5dd63, and the closure ruling CB-2 moved them to breaches. Their measure-only twins stay below.
+DECADE_AUDIENCE_AND_MEASURE = [
     "Viewers watched temperatures climb into the mid 30s", "Creators filmed outdoors with highs in the mid 30s",
     "Adults pay entry fees in the mid 20s rand", "Followers saw the score reach the late 20s",
     "Users reported highs in the mid 30s in Nairobi", "Fans sweated through temperatures in the mid 30s at the match",
     "Listeners heard the rand trade in the mid 20s", "The audience watched the score settle in the early 20s",
+]
+
+
+@pytest.mark.parametrize("text", DECADE_AUDIENCE_AND_MEASURE)
+def test_a_decade_beside_an_audience_word_breaches_whatever_measure_word_sits_beside_it(text):
+    assert claims._k6_term(text, set()), text
+
+
+DECADE_MEASURES = [
     "Temperatures in the mid 20s all week", "Highs in the early 30s across Lagos", "Scores in the mid 20s",
     "The price stayed in the mid 20s", "The Proteas were bowled out in the late 20s for a low score",
     "Kenyans paid costs in the mid 20s KSh", "Naira traded in the mid 30s", "Tickets cost in the early 30s dollars",
@@ -219,8 +230,10 @@ def test_aged_18_still_breaches():
 
 
 def test_a_measure_word_after_the_decade_passes_it_and_a_measure_word_before_passes_it():
-    assert not claims._k6_term("Viewers saw it stay in the mid 20s degrees", set())
-    assert not claims._k6_term("Viewers saw degrees stay in the mid 20s", set())
+    assert not claims._k6_term("Nairobi saw it stay in the mid 20s degrees", set())
+    assert not claims._k6_term("Nairobi saw degrees stay in the mid 20s", set())
+    assert claims._k6_term("Viewers saw it stay in the mid 20s degrees", set())
+    assert claims._k6_term("Viewers saw degrees stay in the mid 20s", set())
 
 
 def test_a_measure_word_in_the_next_sentence_does_not_shield_it():
