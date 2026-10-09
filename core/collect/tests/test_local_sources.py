@@ -65,8 +65,9 @@ class FakeClient:
         self.calls = []
 
     def call(self, route, params=None, *, method=None, market=None, item_id=None, seed_key=None, agent=None,
-             lane=None, use_cache=True):
-        self.calls.append({"route": route, "params": params, "market": market, "lane": lane})
+             lane=None, use_cache=True, server_retry_room=None):
+        self.calls.append({"route": route, "params": params, "market": market, "lane": lane,
+                           "room": server_retry_room})
         status = self.status(len(self.calls), route)
         if status != "ok":
             return Result(status, route, reason="scripted")

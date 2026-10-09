@@ -95,12 +95,13 @@ class FakeClient:
         return self.call(route, {"handle": handle}, **kwargs)
 
     def call(self, route, params=None, *, method=None, market=None, item_id=None, seed_key=None, agent=None,
-             lane=None, use_cache=True):
+             lane=None, use_cache=True, server_retry_room=None):
         params = dict(params or {})
         method = method or PRICED[route].method
         quote = quote_for(route, method, params)  # a refused parameter fails the test here
         self.calls.append({"route": route, "params": params, "market": market, "lane": lane,
-                           "seed_key": seed_key, "item_id": item_id, "use_cache": use_cache})
+                           "seed_key": seed_key, "item_id": item_id, "use_cache": use_cache,
+                           "room": server_retry_room})
         self.charged = getattr(self, "charged", [])
         status = self.script(len(self.calls), route, market)
         if status:
