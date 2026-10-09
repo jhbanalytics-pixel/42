@@ -2303,3 +2303,40 @@ def test_the_banner_is_shown_once_and_the_fixture_day_is_otherwise_unchanged():
     for a, b in zip(plain["markets"], marked["markets"]):
         assert [x for x in b["banners"] if x["text"] != TOPICS_FAILED] == a["banners"]
         assert sum(x["text"] == TOPICS_FAILED for x in b["banners"]) == 1
+
+
+# The banner reads the run detect reads: the newest ok understand run by finished_at, whatever came after it.
+def _failed_rerun(run_id="r_understand_20260930_10", started="2026-09-30T07:00:00+02:00"):
+    row = _understand({}, run_id=run_id, started=started)
+    return {**row, "status": "failed", "finished_at": started.replace("07:00", "07:05"), "counts": None,
+            "error": "the run raised"}
+
+
+def _banner(*rows):
+    out = today.build_today(_topics_store(*rows), D30)
+    return [any(b["text"] == TOPICS_FAILED for b in m["banners"]) for m in out["markets"]]
+
+
+def test_a_failed_rerun_after_a_partial_ok_run_keeps_the_banner():
+    partial = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
+    for rows in ((partial, _failed_rerun()), (_failed_rerun(), partial)):
+        assert all(_banner(*rows))
+
+
+def test_a_clean_ok_run_after_a_partial_ok_run_shows_no_banner_even_with_a_failed_rerun_after_it():
+    partial = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
+    clean = _understand({"embedded": 40}, run_id="r_understand_20260930_09", started="2026-09-30T06:00:00+02:00")
+    assert not any(_banner(partial, clean))
+    assert not any(_banner(partial, clean, _failed_rerun()))
+
+
+def test_the_newest_ok_run_is_taken_by_finished_at_not_started_at():
+    slow_partial = _understand(PARTIAL, run_id="r_understand_20260930_08", started="2026-09-30T04:00:00+02:00")
+    slow_partial["finished_at"] = "2026-09-30T08:00:00+02:00"  # started first, finished last
+    quick_clean = _understand({"embedded": 40}, run_id="r_understand_20260930_09", started="2026-09-30T06:00:00+02:00")
+    assert all(_banner(slow_partial, quick_clean))
+    assert all(_banner(quick_clean, slow_partial))
+
+
+def test_a_day_with_only_a_failed_understand_run_adds_no_topics_banner():
+    assert not any(_banner(_failed_rerun()))

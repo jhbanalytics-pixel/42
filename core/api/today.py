@@ -1162,9 +1162,20 @@ TOPICS_PARTIAL_REASON = "cluster_stack_failed"
 TOPICS_FAILED_TEXT = "Data issue: topic grouping failed today"
 
 
+def _newest_ok_run(runs):
+    """The newest run with status ok by finished_at, the run core/detect/job.py topics_failed_today reads, so a failed
+    rerun after an ok run does not hide what that run said."""
+    def key(row):
+        finished = row.get("finished_at")
+        return (finished.isoformat() if hasattr(finished, "isoformat") else str(finished or "")), str(row.get("run_id") or "")
+
+    return max((r for r in runs if r.get("status") == "ok" and r.get("finished_at") is not None), key=key, default=None)
+
+
 def _topics_failed(runs):
-    """True when the day's latest understand row says the topic grouping failed (partial_reason cluster_stack_failed)."""
-    latest = _latest_run(runs)
+    """True when the day's newest ok understand run says the topic grouping failed (partial_reason
+    cluster_stack_failed), the same run detect reads before it stops topics."""
+    latest = _newest_ok_run(runs)
     counts = latest.get("counts") if latest else None
     if isinstance(counts, str):
         try:
