@@ -27,17 +27,22 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = "ogilvy-trends-v2"
-EFFECT_KINDS = ("schema", "view", "receipt", "reservation", "stored_answer", "config", "env", "secret", "cloud_run_tag", "cloud_run_traffic")
+EFFECT_KINDS = ("schema", "view", "receipt", "reservation", "stored_answer", "config", "env", "secret", "cloud_run_tag", "cloud_run_traffic",
+                "job_image")
 CHANGES = ("create_table", "add_column", "create_view", "replace_view", "write_shape", "config_key", "env_set", "tag_add", "traffic_pin")
 APPLY_PHASES = ("before_candidate", "with_candidate", "after_promotion")
 # The fixed allowlist of how an effect reaches the world. `schema` runs core.schema.apply; the three Cloud Run kinds are
-# steps the candidate deploy and the Pin already perform; `code` is a shape the shipped image writes, with nothing to run.
-APPLY_KINDS = ("schema", "tag_add", "traffic_pin", "env_set", "code")
+# steps the candidate deploy and the Pin already perform; `code` is a shape the shipped image writes, with nothing to run;
+# `job_image` is the move of the 14 job definitions to the frozen jobs digest, which JobsUpdate performs (W8-REL-B 3.3).
+APPLY_KINDS = ("schema", "tag_add", "traffic_pin", "env_set", "code", "job_image")
 RECOVERY_KINDS = ("none_needed", "compensating_statement", "flag_off")
 HELPER_PHASES = ("BeforeAnyWrite", "Freeze", "BeforeCandidate", "BeforeSmoke", "AfterSmoke", "BeforePromotion", "AfterAgentPromotion",
-                 "AfterPromotion", "BeforeRollback", "AfterRollback", "BeforeRetire", "AfterRetire")
-# helper_phase: a Cloud Run effect is read back by a phase of the services-only helper, not by BigQuery.
-READBACK_KINDS = ("information_schema_columns", "row_count_since_marker", "helper_phase")
+                 "AfterPromotion", "BeforeRollback", "AfterRollback", "BeforeRetire", "AfterRetire",
+                 "FreezeJobs", "BeforeJobsUpdate", "AfterJobsUpdate", "BeforeJobsRollback", "AfterJobsRollback")
+# helper_phase: a Cloud Run effect is read back by a phase of the release helper (services-only, or mode jobs), not by BigQuery.
+# chain_manifest: an effect only the first chain on the new image can show, read back later from that chain's evidence manifest;
+# run_readbacks lists it as deferred and neither passes nor fails it.
+READBACK_KINDS = ("information_schema_columns", "row_count_since_marker", "helper_phase", "chain_manifest")
 READBACK_KEYS = {"kind", "target", "expected_result_sha256"}
 COMPAT_KEYS = ("a80_readers", "a80_writers", "a80_ddl_writers", "candidate_readers_old_records", "candidate_writers_old_readers")
 EFFECT_FIELDS = ("effect_id", "kind", "target", "change", "apply_order", "apply_phase", "owner", "statement_ref", "statement_sha256", "apply_kind",
@@ -402,12 +407,15 @@ def run_readbacks(manifest, bq, bytes_cap=10 * 1024 * 1024):
         if effect["native_readback"]["kind"] == "helper_phase":
             results.append({"effect_id": effect["effect_id"], "helper_phase": effect["native_readback"]["target"], "matches": True})
             continue
+        if effect["native_readback"]["kind"] == "chain_manifest":
+            results.append({"effect_id": effect["effect_id"], "chain_manifest": effect["native_readback"]["target"], "deferred": True, "matches": None})
+            continue
         sql, params = readback_sql(effect["native_readback"])
         require(bq.dry_run(sql, params) <= bytes_cap, f"effect {effect['effect_id']}: the readback exceeds its bytes cap")
         rows = bq.query(sql, params, bytes_cap)
         got = sha_text(canonical(rows))
         results.append({"effect_id": effect["effect_id"], "result_sha256": got, "matches": got == effect["native_readback"]["expected_result_sha256"]})
-    return {"schema_version": SCHEMA_VERSION, "check": "readbacks", "ok": all(r["matches"] for r in results), "results": results}
+    return {"schema_version": SCHEMA_VERSION, "check": "readbacks", "ok": all(r["matches"] for r in results if not r.get("deferred")), "results": results}
 
 
 def run_rollback_blockers(manifest, bq):
