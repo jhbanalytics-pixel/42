@@ -97,6 +97,38 @@ def test_rows_fit_google_search_signals_without_a_schema_change():
     assert {r["market"] for r in bq.loaded("google_search_signals")} == {"ZA", "NG", "KE"}
 
 
+def test_a_rule_one_term_is_never_written_to_google_search_signals():
+    rows = read(Transport()).load_rows()[:3]
+    for row, term in zip(rows, ("millennial memes", "school holidays", "amapiano charts")):
+        row["term"] = term
+    bq = FakeBQ()
+    assert writers.write_search_signals(bq, rows) == (1, None)
+    assert [r["term"] for r in bq.loaded("google_search_signals")] == ["amapiano charts"]
+
+
+def test_a_run_of_only_rule_one_terms_appends_nothing():
+    rows = read(Transport()).load_rows()[:2]
+    for row, term in zip(rows, ("millennial memes", "boomer memes")):
+        row["term"] = term
+    bq = FakeBQ()
+    assert writers.write_search_signals(bq, rows) == (0, None)
+    assert bq.loaded("google_search_signals") == []
+
+
+def test_write_run_counts_the_rule_one_terms_it_held_back():
+    from core.collect.tests.test_job import FakeClient, collect
+
+    run = collect(FakeClient())
+    rows = read(Transport()).load_rows()[:3]
+    for row, term in zip(rows, ("millennial memes", "amapiano charts", "boomer memes")):
+        row["term"] = term
+    run.search_rows = rows
+    bq = FakeBQ()
+    written = writers.write_run(bq, run, "collect-1")
+    assert written["google_search_signals"] == 1 and written["google_search_signals_blocked"] == 2
+    assert [r["term"] for r in bq.loaded("google_search_signals")] == ["amapiano charts"]
+
+
 def test_a_failed_market_is_recorded_and_never_stops_the_others():
     transport = Transport(bodies={"ZA": (302, b""), "NG": (200, b"<rss><channel>"), "KE": (200, SAMPLE)})
     batch = read(transport)

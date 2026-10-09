@@ -258,7 +258,9 @@ def reconcile(day, client, ledger, caps):
     paired = match(ledger_rows, vendor_rows)
     difference = ledger_total - vendor_total
     spend_30d = float(ledger.spent(day - timedelta(days=TRAILING_DAYS - 1), day))
-    mean = spend_30d / TRAILING_DAYS
+    first = ledger.first_day()
+    spend_days = 1 if first is None else min(TRAILING_DAYS, max(1, (day - first).days + 1))
+    mean = spend_30d / spend_days
     days_left = None if balance is None else runway(balance, floor, mean)
 
     counts.update({
@@ -276,7 +278,7 @@ def reconcile(day, client, ledger, caps):
         "vendor_pages": vendor["pages"], "vendor_covered": vendor["covered"], "vendor_error": vendor["error"],
         **vendor_notes,
         "balance": None if balance is None else _whole(balance), "balance_error": balance_error,
-        "spend_30d": round(spend_30d, 4), "mean_daily_spend": round(mean, 4), "runway_days": days_left,
+        "spend_30d": round(spend_30d, 4), "spend_days": spend_days, "mean_daily_spend": round(mean, 4), "runway_days": days_left,
     })
 
     reasons = []
@@ -295,7 +297,7 @@ def reconcile(day, client, ledger, caps):
     if days_left is not None and days_left < RUNWAY_DAYS:
         shown = counts["balance"] if balance is not None else balance_error
         lines.append(("credits_low", f"42 ALERT credits_low: {day.isoformat()} balance {shown}, floor {floor}, "
-                      f"mean daily spend {counts['mean_daily_spend']:g} over {TRAILING_DAYS} days, "
+                      f"mean daily spend {counts['mean_daily_spend']:g} over {spend_days} days, "
                       f"runway {days_left:g} days"))
     counts["alerts"] = [name for name, _ in lines]
     return counts, [line for _, line in lines]

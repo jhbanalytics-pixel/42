@@ -105,6 +105,7 @@ RETRY_WAIT = 2  # seconds before the one retry of a refunded 502 or 503
 # Retries of a transient failure on a client's retry_routes: at most TRANSIENT_RETRIES more attempts, the
 # n-th after RETRY_WAIT * RETRY_BACKOFF ** (n - 1) seconds, with their holds within RETRY_CREDITS a run.
 TRANSIENT_RETRIES = 2
+BALANCE_READS = 3  # reads of the free credits/balance endpoint before the balance stays unknown for the client
 RETRY_BACKOFF = 4
 RETRY_CREDITS = 30
 TRANSIENT = frozenset({"timeout", "connection", "http_429", "http_5xx"})
@@ -743,7 +744,7 @@ class SocialCrawlClient:
         self._retry_held = 0   # holds of the transient retries made so far
         self._exhausted = set()  # retry routes whose retries all failed in this client
         self._balance = None
-        self._balance_read = False
+        self._balance_reads = 0
         self._halt = None  # (status, reason) once the client has stopped
 
     def __repr__(self):
@@ -846,7 +847,8 @@ class SocialCrawlClient:
             return Result("error", route, phash, reason=f"{KEY_ENV} is not set")
         why = "" if route in FREE_ROUTES else self._below_floor(key)
         if why:
-            return Result("balance_floor", route, phash, credits_quoted=quote, reason=why)
+            return Result("balance_floor", route, phash, credits_quoted=quote, reason=why,
+                          failure="balance_unread" if self._balance is None else "")
         return self._live(call, params, quote, floor, key)
 
     def _today(self):
@@ -878,19 +880,27 @@ class SocialCrawlClient:
         return ""
 
     def _below_floor(self, key):
-        if not self._balance_read:
-            self._balance_read = True
-            try:
-                status, body, _ = self.http("GET", f"{BASE_URL}/credits/balance", params=None, json=None,
-                                            headers={"x-api-key": key}, timeout=self.timeout)
-                self._balance = _credits(body["data"]["balance"]) if status == 200 else None
-            except Exception as exc:
-                log.warning("socialcrawl balance read failed: %s", type(exc).__name__)
-            finally:
-                # Every HTTP call is ledgered; the balance read is free.
+        reads = 0
+        try:
+            # The balance read is free, so a failed one is read again (a few times, then it stays unknown and the
+            # client fails closed): one transient failure must not refuse every paid call for the whole run.
+            while self._balance is None and self._balance_reads < BALANCE_READS:
+                if reads:
+                    self.sleep(self.retry_wait)
+                self._balance_reads += 1
+                reads += 1
+                try:
+                    status, body, _ = self.http("GET", f"{BASE_URL}/credits/balance", params=None, json=None,
+                                                headers={"x-api-key": key}, timeout=self.timeout)
+                    self._balance = _credits(body["data"]["balance"]) if status == 200 else None
+                except Exception as exc:
+                    log.warning("socialcrawl balance read failed: %s", type(exc).__name__)
+        finally:
+            if reads:
+                # Every HTTP call is ledgered; the balance read is free. One row counts the reads of this check.
                 balance_call = {"route": "credits/balance", "phash": params_hash("GET", {}), "market": None,
                                 "item_id": None, "agent": self.agent, "lane": None}
-                self._write_ledger(balance_call, calls=1, quoted=0, charged=0, cache_hit=False, posts_new=0)
+                self._write_ledger(balance_call, calls=reads, quoted=0, charged=0, cache_hit=False, posts_new=0)
         if self._balance is None:
             return "balance could not be read"
         if self._balance < self.floor:

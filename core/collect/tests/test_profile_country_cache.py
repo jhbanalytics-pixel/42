@@ -145,6 +145,92 @@ def test_persistent_country_avoids_another_profile_call(monkeypatch):
     assert "tiktok/profile" not in http.routes() and run.posts[0]["geo_market"] == "US"
 
 
+def _null_receipt(age_days, **extra):
+    return {"platform": "tiktok", "handle": "charlidamelio", "country": None, "country_type": "null",
+            "country_source": "tiktok/profile", "fetched_at": NOW - timedelta(days=age_days), **extra}
+
+
+def _country_run(monkeypatch, receipts):
+    monkeypatch.setenv("SOCIALCRAWL_OGILVY_API_KEY", "fake")
+    http = FakeHTTP({"tiktok/profile/videos": (200, {"success": True, "data": {"items": [{"post": {
+        "id": "1", "url": "https://www.tiktok.com/@charlidamelio/video/1", "author": {"username": "charlidamelio"},
+        "content": {"text": "Lagos"}}}]}}), "tiktok/profile": (200, FIXTURE["tiktok_profile"])})
+    c = make(http=http)
+    c.clock = lambda: NOW
+    monkeypatch.setattr(job, "drive", lambda execute, *a, **kw: execute({"NG": [
+        job.Call("10", "tiktok/profile/videos", {"handle": "charlidamelio"}, "NG", "watchlist")]}))
+    monkeypatch.setattr(job, "_curated_limit", lambda *a, **kw: 0)
+    run = job.collect(c, NOW.date(), "country-null", item_id_fn=fake_item_id, geo_fn=geo_for_post,
+        clock=lambda: NOW, country_profiles=lambda keys, **kw: receipts)
+    return http, run
+
+
+def test_a_recent_lookup_that_found_no_country_is_not_bought_again(monkeypatch):
+    http, run = _country_run(monkeypatch, [_null_receipt(1)])
+    assert http.routes().count("tiktok/profile") == 0
+
+
+def test_a_no_country_lookup_older_than_the_window_is_bought_once_more(monkeypatch):
+    http, run = _country_run(monkeypatch, [_null_receipt(location_sources.NO_COUNTRY_RETRY_DAYS + 1)])
+    assert http.routes().count("tiktok/profile") == 1
+
+
+def test_a_no_country_lookup_exactly_at_the_window_edge_is_still_remembered(monkeypatch):
+    http, run = _country_run(monkeypatch, [_null_receipt(location_sources.NO_COUNTRY_RETRY_DAYS)])
+    assert http.routes().count("tiktok/profile") == 0
+
+
+def test_a_recognised_country_stays_cached_when_a_later_lookup_came_back_empty(monkeypatch):
+    older = _null_receipt(40, country="US", country_type="string")
+    http, run = _country_run(monkeypatch, [_null_receipt(1), older])
+    assert http.routes().count("tiktok/profile") == 0 and run.posts[0]["geo_market"] == "US"
+
+
+def test_a_receipt_with_no_fetch_time_never_counts_as_a_finished_lookup():
+    cache = location_sources.ProfileCache()
+    cache.bind({}, "tiktok", "NG", "creator", {"home_market": None})
+    row = _null_receipt(1, handle="creator")
+    row.pop("fetched_at")
+    cache.seed([row], today=NOW.date())
+    assert len(cache.needed()) == 1
+
+
+def test_a_reels_search_receipt_with_no_country_does_not_stand_in_for_the_profile_lookup():
+    cache = location_sources.ProfileCache()
+    cache.bind({}, "instagram", "NG", "creator", {"home_market": None})
+    cache.seed([_null_receipt(1, platform="instagram", handle="creator", country_source="instagram/search/reels")],
+               today=NOW.date())
+    assert len(cache.needed()) == 1
+
+
+def test_a_receipt_fetched_after_today_never_counts_as_a_finished_lookup():
+    cache = location_sources.ProfileCache()
+    cache.bind({}, "tiktok", "NG", "creator", {"home_market": None})
+    cache.seed([_null_receipt(-2, handle="creator")], today=NOW.date())
+    assert len(cache.needed()) == 1
+
+
+def test_country_capture_stops_with_a_tail_reserve_left_for_the_writes_that_follow(monkeypatch):
+    from core.collect import chain
+
+    seen = {}
+    real = job.country_phase
+
+    def spy(run, runner, reader, cap):
+        seen["deadline"] = runner.country_deadline
+        return real(run, runner, reader, cap)
+
+    monkeypatch.setattr(job, "country_phase", spy)
+    monkeypatch.setattr(job, "drive", lambda execute, *a, **kw: [])
+    monkeypatch.setattr(job, "_curated_limit", lambda *a, **kw: 0)
+    c = make(http=FakeHTTP({}))
+    c.clock = lambda: NOW
+    job.collect(c, NOW.date(), "country-tail", item_id_fn=fake_item_id, geo_fn=geo_for_post, clock=lambda: NOW,
+                country_profiles=lambda keys, **kw: [])
+    left = NOW + chain.TIMEOUTS["collect"] - seen["deadline"]
+    assert left >= timedelta(minutes=40)
+
+
 def test_reel_creator_country_avoids_duplicate_about_call(monkeypatch):
     monkeypatch.setenv("SOCIALCRAWL_OGILVY_API_KEY", "fake")
     http = FakeHTTP({"instagram/search/reels": (200, {"success": True, "data": {"items": [{"post": {

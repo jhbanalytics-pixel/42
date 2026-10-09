@@ -1,0 +1,1729 @@
+{
+ "song_videos_1": {
+  "market": "ZA",
+  "fetched_at": "2026-10-07T00:10:18.576603+00:00",
+  "lane": "watchlist",
+  "body": {
+   "cached": false,
+   "credits_remaining": 241592,
+   "credits_used": 1,
+   "data": {
+    "adoption": {
+     "by_day": [
+      {
+       "date": "2023-05-29",
+       "videos": 1
+      },
+      {
+       "date": "2023-07-29",
+       "videos": 1
+      },
+      {
+       "date": "2025-06-04",
+       "videos": 1
+      },
+      {
+       "date": "2026-01-06",
+       "videos": 1
+      },
+      {
+       "date": "2026-01-23",
+       "videos": 1
+      },
+      {
+       "date": "2026-02-21",
+       "videos": 1
+      },
+      {
+       "date": "2026-02-24",
+       "videos": 1
+      },
+      {
+       "date": "2026-03-31",
+       "videos": 1
+      },
+      {
+       "date": "2026-04-01",
+       "videos": 1
+      },
+      {
+       "date": "2026-04-02",
+       "videos": 1
+      },
+      {
+       "date": "2026-04-20",
+       "videos": 1
+      },
+      {
+       "date": "2026-04-24",
+       "videos": 1
+      },
+      {
+       "date": "2026-05-06",
+       "videos": 1
+      },
+      {
+       "date": "2026-07-27",
+       "videos": 1
+      }
+     ],
+     "dated": 14,
+     "policy_version": "d10-2026-09-23",
+     "region": "global",
+     "returning": false,
+     "undated": 0,
+     "use_count_leaf": "engagement.views",
+     "uses": {
+      "abstained": 14,
+      "by_use": {
+       "before_and_after": 0,
+       "greeting_card_reveal": 0,
+       "lip_sync": 0,
+       "tutorial": 0
+      }
+     },
+     "window": {
+      "days": 1156
+     }
+    },
+    "dropped": 0,
+    "items": [
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.089238,
+       "estimated_reach": 1828367,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-307",
+        "display_name": "name-055",
+        "username": "handle-067",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 29.371,
+        "media_urls": "https://example.invalid/u-308",
+        "text": "text-148",
+        "thumbnail_url": "https://example.invalid/u-309"
+       },
+       "engagement": {
+        "comments": 1542,
+        "likes": 126757,
+        "saves": 54699,
+        "shares": 7667,
+        "views": 1523639
+       },
+       "ext": {
+        "author_id": "id-141",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-149"
+        ],
+        "published_at_epoch": 1685322454
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-143",
+       "published_at": "2023-05-29T01:07:34.000Z",
+       "url": "https://example.invalid/u-310"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.021451,
+       "estimated_reach": 235350,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-311",
+        "display_name": "name-056",
+        "username": "handle-068",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 13.794,
+        "media_urls": "https://example.invalid/u-312",
+        "text": "text-150",
+        "thumbnail_url": "https://example.invalid/u-313"
+       },
+       "engagement": {
+        "comments": 27,
+        "likes": 3975,
+        "saves": 791,
+        "shares": 205,
+        "views": 196125
+       },
+       "ext": {
+        "author_id": "id-144",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-151"
+        ],
+        "published_at_epoch": 1690640180
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-145",
+       "published_at": "2023-07-29T14:16:20.000Z",
+       "url": "https://example.invalid/u-314"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.109202,
+       "estimated_reach": 91554214,
+       "language": "ja"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-315",
+        "display_name": "name-057",
+        "username": "handle-069",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 20.3,
+        "media_urls": "https://example.invalid/u-316",
+        "text": "text-152",
+        "thumbnail_url": "https://example.invalid/u-317"
+       },
+       "engagement": {
+        "comments": 37701,
+        "likes": 7135562,
+        "saves": 338873,
+        "shares": 1158360,
+        "views": 76295178
+       },
+       "ext": {
+        "author_id": "id-146",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-153"
+        ],
+        "published_at_epoch": 1775051117
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-147",
+       "published_at": "2026-04-01T13:45:17.000Z",
+       "url": "https://example.invalid/u-318"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.248507,
+       "estimated_reach": 27937634,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-319",
+        "display_name": "name-058",
+        "username": "handle-070",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 8.467,
+        "media_urls": "https://example.invalid/u-320",
+        "text": "text-154",
+        "thumbnail_url": "https://example.invalid/u-321"
+       },
+       "engagement": {
+        "comments": 30427,
+        "likes": 4770037,
+        "saves": 289218,
+        "shares": 985108,
+        "views": 23281362
+       },
+       "ext": {
+        "author_id": "id-148",
+        "music_id": "id-142",
+        "published_at_epoch": 1785161568
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-149",
+       "published_at": "2026-07-27T14:12:48.000Z",
+       "url": "https://example.invalid/u-322"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.137537,
+       "estimated_reach": 30299588,
+       "language": "nl"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-323",
+        "display_name": "name-059",
+        "username": "handle-071",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 7.5,
+        "media_urls": "https://example.invalid/u-324",
+        "text": "text-155",
+        "thumbnail_url": "https://example.invalid/u-325"
+       },
+       "engagement": {
+        "comments": 14182,
+        "likes": 3148116,
+        "saves": 130234,
+        "shares": 310453,
+        "views": 25249657
+       },
+       "ext": {
+        "author_id": "id-150",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-156"
+        ],
+        "published_at_epoch": 1771639662
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-151",
+       "published_at": "2026-02-21T02:07:42.000Z",
+       "url": "https://example.invalid/u-326"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.241625,
+       "estimated_reach": 16730938,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-327",
+        "display_name": "name-060",
+        "username": "handle-072",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 9.7,
+        "media_urls": "https://example.invalid/u-328",
+        "text": "text-157",
+        "thumbnail_url": "https://example.invalid/u-329"
+       },
+       "engagement": {
+        "comments": 5486,
+        "likes": 3130344,
+        "saves": 159604,
+        "shares": 233015,
+        "views": 13942448
+       },
+       "ext": {
+        "author_id": "id-152",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-158"
+        ],
+        "published_at_epoch": 1749057040
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-153",
+       "published_at": "2025-06-04T17:10:40.000Z",
+       "url": "https://example.invalid/u-330"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": null,
+       "engagement_rate": 0.169289,
+       "estimated_reach": 22523056,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-331",
+        "display_name": "name-061",
+        "username": "handle-073",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 13.534,
+        "media_urls": "https://example.invalid/u-332",
+        "text": null,
+        "thumbnail_url": "https://example.invalid/u-333"
+       },
+       "engagement": {
+        "comments": 7205,
+        "likes": 3025037,
+        "saves": 137356,
+        "shares": 145172,
+        "views": 18769213
+       },
+       "ext": {
+        "author_id": "id-154",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-159"
+        ],
+        "published_at_epoch": 1767677917
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-155",
+       "published_at": "2026-01-06T05:38:37.000Z",
+       "url": "https://example.invalid/u-334"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.301693,
+       "estimated_reach": 12532783,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-335",
+        "display_name": "name-062",
+        "username": "handle-074",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 8.034,
+        "media_urls": "https://example.invalid/u-336",
+        "text": "text-160",
+        "thumbnail_url": "https://example.invalid/u-337"
+       },
+       "engagement": {
+        "comments": 8174,
+        "likes": 2961703,
+        "saves": 138456,
+        "shares": 180997,
+        "views": 10443986
+       },
+       "ext": {
+        "author_id": "id-156",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-161"
+        ],
+        "published_at_epoch": 1774976139
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-157",
+       "published_at": "2026-03-31T16:55:39.000Z",
+       "url": "https://example.invalid/u-338"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.207755,
+       "estimated_reach": 13636866,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-339",
+        "display_name": "name-063",
+        "username": "handle-075",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 6.942,
+        "media_urls": "https://example.invalid/u-340",
+        "text": "text-162",
+        "thumbnail_url": "https://example.invalid/u-341"
+       },
+       "engagement": {
+        "comments": 4026,
+        "likes": 2142541,
+        "saves": 114300,
+        "shares": 214374,
+        "views": 11364055
+       },
+       "ext": {
+        "author_id": "id-158",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-163"
+        ],
+        "published_at_epoch": 1777073084
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-159",
+       "published_at": "2026-04-24T23:24:44.000Z",
+       "url": "https://example.invalid/u-342"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.114344,
+       "estimated_reach": 20817360,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-343",
+        "display_name": "name-064",
+        "username": "handle-076",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 10.834,
+        "media_urls": "https://example.invalid/u-344",
+        "text": "text-164",
+        "thumbnail_url": "https://example.invalid/u-345"
+       },
+       "engagement": {
+        "comments": 1307,
+        "likes": 1965665,
+        "saves": 38503,
+        "shares": 16640,
+        "views": 17347800
+       },
+       "ext": {
+        "author_id": "id-160",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-165"
+        ],
+        "published_at_epoch": 1778098764
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-161",
+       "published_at": "2026-05-06T20:19:24.000Z",
+       "url": "https://example.invalid/u-346"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.163948,
+       "estimated_reach": 14729897,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-347",
+        "display_name": "name-065",
+        "username": "handle-077",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 8.5,
+        "media_urls": "https://example.invalid/u-348",
+        "text": "text-166",
+        "thumbnail_url": "https://example.invalid/u-349"
+       },
+       "engagement": {
+        "comments": 2577,
+        "likes": 1951109,
+        "saves": 69543,
+        "shares": 58757,
+        "views": 12274914
+       },
+       "ext": {
+        "author_id": "id-162",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-167"
+        ],
+        "published_at_epoch": 1776703738
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-163",
+       "published_at": "2026-04-20T16:48:58.000Z",
+       "url": "https://example.invalid/u-350"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.196846,
+       "estimated_reach": 13347996,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-351",
+        "display_name": "name-066",
+        "username": "handle-078",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 18.167,
+        "media_urls": "https://example.invalid/u-352",
+        "text": "text-168",
+        "thumbnail_url": "https://example.invalid/u-353"
+       },
+       "engagement": {
+        "comments": 6451,
+        "likes": 1925989,
+        "saves": 130681,
+        "shares": 257142,
+        "views": 11123330
+       },
+       "ext": {
+        "author_id": "id-164",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-169",
+         "text-170"
+        ],
+        "published_at_epoch": 1769185759
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-165",
+       "published_at": "2026-01-23T16:29:19.000Z",
+       "url": "https://example.invalid/u-354"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.162118,
+       "estimated_reach": 17235301,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-355",
+        "display_name": "name-067",
+        "username": "handle-079",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 20.317,
+        "media_urls": "https://example.invalid/u-356",
+        "text": "text-171",
+        "thumbnail_url": "https://example.invalid/u-357"
+       },
+       "engagement": {
+        "comments": 22546,
+        "likes": 1772002,
+        "saves": 148736,
+        "shares": 533911,
+        "views": 14362751
+       },
+       "ext": {
+        "author_id": "id-166",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-172"
+        ],
+        "published_at_epoch": 1775092308
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-167",
+       "published_at": "2026-04-02T01:11:48.000Z",
+       "url": "https://example.invalid/u-358"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.158719,
+       "estimated_reach": 13101655,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-359",
+        "display_name": "name-068",
+        "username": "handle-080",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 15.034,
+        "media_urls": "https://example.invalid/u-360",
+        "text": "text-173",
+        "thumbnail_url": "https://example.invalid/u-361"
+       },
+       "engagement": {
+        "comments": 3753,
+        "likes": 1657429,
+        "saves": 70700,
+        "shares": 71722,
+        "views": 10918046
+       },
+       "ext": {
+        "author_id": "id-168",
+        "music_id": "id-142",
+        "on_screen_texts": [
+         "text-174"
+        ],
+        "published_at_epoch": 1771902573
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-169",
+       "published_at": "2026-02-24T03:09:33.000Z",
+       "url": "https://example.invalid/u-362"
+      },
+      "vendor_labels": {}
+     }
+    ],
+    "next_cursor": "id-170",
+    "total": null
+   },
+   "endpoint": "/v1/tiktok/song/videos",
+   "pagination": {
+    "has_more": true,
+    "next_cursor": "id-171",
+    "page_size": 14
+   },
+   "platform": "tiktok",
+   "request_id": "id-172",
+   "success": true
+  }
+ },
+ "song_videos_2": {
+  "market": "NG",
+  "fetched_at": "2026-09-30T00:11:21.942032+00:00",
+  "lane": "watchlist",
+  "body": {
+   "cached": false,
+   "credits_remaining": 249129,
+   "credits_used": 1,
+   "data": {
+    "adoption": {
+     "by_day": [
+      {
+       "date": "2021-01-06",
+       "videos": 1
+      },
+      {
+       "date": "2024-12-01",
+       "videos": 1
+      },
+      {
+       "date": "2024-12-02",
+       "videos": 1
+      },
+      {
+       "date": "2025-03-23",
+       "videos": 1
+      },
+      {
+       "date": "2025-04-06",
+       "videos": 1
+      },
+      {
+       "date": "2025-04-10",
+       "videos": 1
+      },
+      {
+       "date": "2025-04-29",
+       "videos": 1
+      },
+      {
+       "date": "2026-06-25",
+       "videos": 1
+      },
+      {
+       "date": "2026-06-26",
+       "videos": 2
+      },
+      {
+       "date": "2026-06-30",
+       "videos": 1
+      },
+      {
+       "date": "2026-07-02",
+       "videos": 1
+      },
+      {
+       "date": "2026-07-04",
+       "videos": 2
+      },
+      {
+       "date": "2026-07-09",
+       "videos": 1
+      },
+      {
+       "date": "2026-07-25",
+       "videos": 1
+      },
+      {
+       "date": "2026-07-28",
+       "videos": 1
+      },
+      {
+       "date": "2026-09-05",
+       "videos": 1
+      }
+     ],
+     "dated": 18,
+     "policy_version": "d10-2026-09-23",
+     "region": "global",
+     "returning": false,
+     "undated": 0,
+     "use_count_leaf": "engagement.views",
+     "uses": {
+      "abstained": 17,
+      "by_use": {
+       "before_and_after": 0,
+       "greeting_card_reveal": 0,
+       "lip_sync": 1,
+       "tutorial": 0
+      }
+     },
+     "window": {
+      "days": 2069
+     }
+    },
+    "dropped": 0,
+    "items": [
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.068028,
+       "estimated_reach": 1437449,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-363",
+        "display_name": "name-069",
+        "username": "handle-081",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 59.117,
+        "media_urls": "https://example.invalid/u-364",
+        "text": "text-175",
+        "thumbnail_url": "https://example.invalid/u-365"
+       },
+       "engagement": {
+        "comments": 444,
+        "likes": 79562,
+        "saves": 16269,
+        "shares": 1483,
+        "views": 1197874
+       },
+       "ext": {
+        "author_id": "id-173",
+        "music_id": "id-174",
+        "published_at_epoch": 1609911884
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-175",
+       "published_at": "2021-01-06T05:44:44.000Z",
+       "url": "https://example.invalid/u-366"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.144709,
+       "estimated_reach": 92015813,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-367",
+        "display_name": "name-070",
+        "username": "handle-082",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 58.235,
+        "media_urls": "https://example.invalid/u-368",
+        "text": "text-176",
+        "thumbnail_url": "https://example.invalid/u-369"
+       },
+       "engagement": {
+        "comments": 38931,
+        "likes": 9266861,
+        "saves": 475540,
+        "shares": 1790478,
+        "views": 76679844
+       },
+       "ext": {
+        "author_id": "id-176",
+        "music_id": "id-174",
+        "published_at_epoch": 1782448393
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-177",
+       "published_at": "2026-06-26T04:33:13.000Z",
+       "url": "https://example.invalid/u-370"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.174595,
+       "estimated_reach": 11343007,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-371",
+        "display_name": "name-071",
+        "username": "handle-083",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 0,
+        "media_urls": [
+         "https://example.invalid/u-372"
+        ],
+        "text": "text-177",
+        "thumbnail_url": "https://example.invalid/u-373"
+       },
+       "engagement": {
+        "comments": 14861,
+        "likes": 1254213,
+        "saves": 48480,
+        "shares": 381283,
+        "views": 9452506
+       },
+       "ext": {
+        "author_id": "id-178",
+        "music_id": "id-174",
+        "published_at_epoch": 1783177068
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-179",
+       "published_at": "2026-07-04T14:57:48.000Z",
+       "url": "https://example.invalid/u-374"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "entertainment",
+       "engagement_rate": 0.190411,
+       "estimated_reach": 7601359,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-375",
+        "display_name": "name-072",
+        "username": "handle-084",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 0,
+        "media_urls": [
+         "https://example.invalid/u-376"
+        ],
+        "text": "text-178",
+        "thumbnail_url": "https://example.invalid/u-377"
+       },
+       "engagement": {
+        "comments": 2743,
+        "likes": 1144346,
+        "saves": 93884,
+        "shares": 59066,
+        "views": 6334466
+       },
+       "ext": {
+        "author_id": "id-180",
+        "music_id": "id-174",
+        "published_at_epoch": 1745910552
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-181",
+       "published_at": "2025-04-29T07:09:12.000Z",
+       "url": "https://example.invalid/u-378"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.139608,
+       "estimated_reach": 10948940,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-379",
+        "display_name": "name-073",
+        "username": "handle-085",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 0,
+        "media_urls": [
+         "https://example.invalid/u-380"
+        ],
+        "text": "text-179",
+        "thumbnail_url": "https://example.invalid/u-381"
+       },
+       "engagement": {
+        "comments": 11999,
+        "likes": 1142951,
+        "saves": 34081,
+        "shares": 118848,
+        "views": 9124117
+       },
+       "ext": {
+        "author_id": "id-182",
+        "music_id": "id-174",
+        "published_at_epoch": 1782444645
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-183",
+       "published_at": "2026-06-26T03:30:45.000Z",
+       "url": "https://example.invalid/u-382"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.157986,
+       "estimated_reach": 8226190,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-383",
+        "display_name": "name-074",
+        "username": "handle-086",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 15.046,
+        "media_urls": "https://example.invalid/u-384",
+        "text": "text-180",
+        "thumbnail_url": "https://example.invalid/u-385"
+       },
+       "engagement": {
+        "comments": 4654,
+        "likes": 1068451,
+        "saves": 63604,
+        "shares": 9913,
+        "views": 6855158
+       },
+       "ext": {
+        "author_id": "id-184",
+        "music_id": "id-174",
+        "published_at_epoch": 1783144443
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-185",
+       "published_at": "2026-07-04T05:54:03.000Z",
+       "url": "https://example.invalid/u-386"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.094308,
+       "estimated_reach": 13836600,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-387",
+        "display_name": "name-075",
+        "username": "handle-087",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 52.334,
+        "media_urls": "https://example.invalid/u-388",
+        "text": "text-181",
+        "thumbnail_url": "https://example.invalid/u-389"
+       },
+       "engagement": {
+        "comments": 1902,
+        "likes": 1067367,
+        "saves": 55949,
+        "shares": 18149,
+        "views": 11530500
+       },
+       "ext": {
+        "author_id": "id-186",
+        "music_id": "id-174",
+        "published_at_epoch": 1733084921
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-187",
+       "published_at": "2024-12-01T20:28:41.000Z",
+       "url": "https://example.invalid/u-390"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.142333,
+       "estimated_reach": 10387302,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-391",
+        "display_name": "name-076",
+        "username": "handle-088",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 0,
+        "media_urls": [
+         "https://example.invalid/u-392",
+         "https://example.invalid/u-393"
+        ],
+        "text": "text-182",
+        "thumbnail_url": "https://example.invalid/u-394"
+       },
+       "engagement": {
+        "comments": 8331,
+        "likes": 1057215,
+        "saves": 46594,
+        "shares": 166499,
+        "views": 8656085
+       },
+       "ext": {
+        "author_id": "id-188",
+        "music_id": "id-174",
+        "published_at_epoch": 1782845684
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-189",
+       "published_at": "2026-06-30T18:54:44.000Z",
+       "url": "https://example.invalid/u-395"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.236426,
+       "estimated_reach": 5070694,
+       "language": "ja"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-396",
+        "display_name": "name-077",
+        "username": "handle-089",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 15.067,
+        "media_urls": "https://example.invalid/u-397",
+        "text": "text-183",
+        "thumbnail_url": "https://example.invalid/u-398"
+       },
+       "engagement": {
+        "comments": 1844,
+        "likes": 943652,
+        "saves": 48536,
+        "shares": 53539,
+        "views": 4225578
+       },
+       "ext": {
+        "author_id": "id-190",
+        "music_id": "id-174",
+        "on_screen_texts": [
+         "text-184"
+        ],
+        "published_at_epoch": 1742750728
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-191",
+       "published_at": "2025-03-23T17:25:28.000Z",
+       "url": "https://example.invalid/u-399"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.178814,
+       "estimated_reach": 5964658,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-400",
+        "display_name": "name-078",
+        "username": "handle-090",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 43.467,
+        "media_urls": "https://example.invalid/u-401",
+        "text": "text-185",
+        "thumbnail_url": "https://example.invalid/u-402"
+       },
+       "engagement": {
+        "comments": 2199,
+        "likes": 876932,
+        "saves": 60499,
+        "shares": 9674,
+        "views": 4970548
+       },
+       "ext": {
+        "author_id": "id-192",
+        "music_id": "id-174",
+        "on_screen_texts": [
+         "text-186"
+        ],
+        "published_at_epoch": 1783633513
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-193",
+       "published_at": "2026-07-09T21:45:13.000Z",
+       "url": "https://example.invalid/u-403"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.217854,
+       "estimated_reach": 4927424,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-404",
+        "display_name": "name-079",
+        "username": "handle-091",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 15,
+        "media_urls": "https://example.invalid/u-405",
+        "text": "text-187",
+        "thumbnail_url": "https://example.invalid/u-406"
+       },
+       "engagement": {
+        "comments": 2224,
+        "likes": 875972,
+        "saves": 61611,
+        "shares": 16353,
+        "views": 4106187
+       },
+       "ext": {
+        "author_id": "id-194",
+        "music_id": "id-174",
+        "on_screen_texts": [
+         "text-188"
+        ],
+        "published_at_epoch": 1743915716
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-195",
+       "published_at": "2025-04-06T05:01:56.000Z",
+       "url": "https://example.invalid/u-407"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": null,
+       "engagement_rate": 0.200069,
+       "estimated_reach": 5510074,
+       "language": null
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-408",
+        "display_name": "name-080",
+        "username": "handle-092",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 9.868,
+        "media_urls": "https://example.invalid/u-409",
+        "text": null,
+        "thumbnail_url": "https://example.invalid/u-410"
+       },
+       "engagement": {
+        "comments": 1751,
+        "likes": 858203,
+        "saves": 45781,
+        "shares": 58707,
+        "views": 4591728
+       },
+       "ext": {
+        "author_id": "id-196",
+        "music_id": "id-174",
+        "on_screen_texts": [
+         "text-189"
+        ],
+        "published_at_epoch": 1733166816
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-197",
+       "published_at": "2024-12-02T19:13:36.000Z",
+       "url": "https://example.invalid/u-411"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.204302,
+       "estimated_reach": 4873082,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-412",
+        "display_name": "name-081",
+        "username": "handle-093",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 15,
+        "media_urls": "https://example.invalid/u-413",
+        "text": "text-190",
+        "thumbnail_url": "https://example.invalid/u-414"
+       },
+       "engagement": {
+        "comments": 1999,
+        "likes": 793452,
+        "saves": 46572,
+        "shares": 34201,
+        "views": 4060902
+       },
+       "ext": {
+        "author_id": "id-198",
+        "music_id": "id-174",
+        "on_screen_texts": [
+         "text-191"
+        ],
+        "published_at_epoch": 1744300626
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-199",
+       "published_at": "2025-04-10T15:57:06.000Z",
+       "url": "https://example.invalid/u-415"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "fashion",
+       "engagement_rate": 0.266559,
+       "estimated_reach": 3394916,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-416",
+        "display_name": "name-082",
+        "username": "handle-094",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 17.8,
+        "media_urls": "https://example.invalid/u-417",
+        "text": "text-192",
+        "thumbnail_url": "https://example.invalid/u-418"
+       },
+       "engagement": {
+        "comments": 1737,
+        "likes": 723789,
+        "saves": 66806,
+        "shares": 28596,
+        "views": 2829097
+       },
+       "ext": {
+        "author_id": "id-200",
+        "music_id": "id-174",
+        "on_screen_texts": [
+         "text-193"
+        ],
+        "published_at_epoch": 1784946999
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-201",
+       "published_at": "2026-07-25T02:36:39.000Z",
+       "url": "https://example.invalid/u-419"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.224621,
+       "estimated_reach": 4463329,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-420",
+        "display_name": "name-083",
+        "username": "handle-095",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 0,
+        "media_urls": [
+         "https://example.invalid/u-421",
+         "https://example.invalid/u-422"
+        ],
+        "text": "text-194",
+        "thumbnail_url": "https://example.invalid/u-423"
+       },
+       "engagement": {
+        "comments": 1026,
+        "likes": 716052,
+        "saves": 29743,
+        "shares": 118387,
+        "views": 3719441
+       },
+       "ext": {
+        "author_id": "id-202",
+        "music_id": "id-174",
+        "published_at_epoch": 1783021707
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-203",
+       "published_at": "2026-07-02T19:48:27.000Z",
+       "url": "https://example.invalid/u-424"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.243689,
+       "estimated_reach": 3418878,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-416",
+        "display_name": "name-082",
+        "username": "handle-094",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 14.1,
+        "media_urls": "https://example.invalid/u-425",
+        "text": "text-195",
+        "thumbnail_url": "https://example.invalid/u-426"
+       },
+       "engagement": {
+        "comments": 1547,
+        "likes": 669421,
+        "saves": 38628,
+        "shares": 23318,
+        "views": 2849065
+       },
+       "ext": {
+        "author_id": "id-200",
+        "music_id": "id-174",
+        "on_screen_texts": [
+         "text-193"
+        ],
+        "published_at_epoch": 1785246153
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-204",
+       "published_at": "2026-07-28T13:42:33.000Z",
+       "url": "https://example.invalid/u-427"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.216316,
+       "estimated_reach": 3879965,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-428",
+        "display_name": "name-084",
+        "username": "handle-096",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 0,
+        "media_urls": [
+         "https://example.invalid/u-429",
+         "https://example.invalid/u-430"
+        ],
+        "text": "text-196",
+        "thumbnail_url": "https://example.invalid/u-431"
+       },
+       "engagement": {
+        "comments": 632,
+        "likes": 662699,
+        "saves": 17064,
+        "shares": 36086,
+        "views": 3233304
+       },
+       "ext": {
+        "author_id": "id-205",
+        "music_id": "id-174",
+        "published_at_epoch": 1782419288
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-206",
+       "published_at": "2026-06-25T20:28:08.000Z",
+       "url": "https://example.invalid/u-432"
+      },
+      "vendor_labels": {}
+     },
+     {
+      "computed": {
+       "content_category": "other",
+       "engagement_rate": 0.263537,
+       "estimated_reach": 3018265,
+       "language": "en"
+      },
+      "post": {
+       "author": {
+        "avatar_url": "https://example.invalid/u-416",
+        "display_name": "name-082",
+        "username": "handle-094",
+        "verified": false
+       },
+       "content": {
+        "duration_seconds": 21.315,
+        "media_urls": "https://example.invalid/u-433",
+        "text": "text-197",
+        "thumbnail_url": "https://example.invalid/u-434"
+       },
+       "engagement": {
+        "comments": 806,
+        "likes": 641219,
+        "saves": 44558,
+        "shares": 20830,
+        "views": 2515221
+       },
+       "ext": {
+        "author_id": "id-200",
+        "music_id": "id-174",
+        "on_screen_texts": [
+         "text-198"
+        ],
+        "published_at_epoch": 1788589784
+       },
+       "flags": {
+        "deleted": false,
+        "nsfw": null,
+        "pinned": false,
+        "spoiler": null
+       },
+       "id": "id-207",
+       "published_at": "2026-09-05T06:29:44.000Z",
+       "url": "https://example.invalid/u-435"
+      },
+      "vendor_labels": {}
+     }
+    ],
+    "next_cursor": "id-208",
+    "total": null
+   },
+   "endpoint": "/v1/tiktok/song/videos",
+   "pagination": {
+    "has_more": true,
+    "next_cursor": "id-209",
+    "page_size": 18
+   },
+   "platform": "tiktok",
+   "request_id": "id-210",
+   "success": true
+  }
+ },
+ "song_videos_3": {
+  "market": "ZA",
+  "fetched_at": "2026-10-06T00:13:59.595592+00:00",
+  "lane": "watchlist",
+  "body": {
+   "cached": false,
+   "credits_remaining": 243405,
+   "credits_used": 0,
+   "data": {
+    "dropped": 0,
+    "items": [],
+    "total": 0
+   },
+   "endpoint": "/v1/tiktok/song/videos",
+   "pagination": {
+    "has_more": false,
+    "next_cursor": null,
+    "page_size": 0
+   },
+   "platform": "tiktok",
+   "request_id": "id-211",
+   "success": true
+  }
+ }
+}
