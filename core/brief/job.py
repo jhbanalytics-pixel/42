@@ -448,7 +448,7 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
                                                           "market_share7")}
         row.update({k: scope.get(k) for k in ("market_posts7", "total_posts7", "market_share7")})
         row["market_scope"], row["market_scope_basis"] = derived or "global", V2_BASIS
-        scope_error = derived is None
+        scope_error = False          # a pack read that failed is an observation lost; an unreadable row is held by G1
     else:
         row.update(scope)
     if record is not None or row.get("locality_basis") == V2_BASIS:
