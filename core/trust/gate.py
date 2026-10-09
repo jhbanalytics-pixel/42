@@ -24,7 +24,10 @@ Rules, in the order they are applied (the first hold wins):
     G1  any invalid day: held, flag "Data issue"
     G3  seen in no measured lane (unbiased_rank, unbiased_counter, panel): held, "Found by search"
     G6  source market share at or under 0.5: held as global; missing or inconsistent evidence is held,
-        flag "Market unconfirmed"
+        flag "Market unconfirmed". A card whose locality_basis is locality_v2.1 is read by the retained locality
+        row instead (C4 v3 section 11.2): not_local is held as global with its counts, local and market_unconfirmed
+        pass (flag "Market unconfirmed" unless the W8-DEC-17 label is local), and a row that cannot be read is held
+        by G1 as a data issue, never as global
     G5  sponsored or brand-owned share 0.5 or more: held, flag "Paid-led"
     G5b tag on the campaign hashtag list: held, flag "Paid-led"
     G4b political without Corroborated in an unbiased lane: held, flag "Not assessed"
@@ -39,6 +42,8 @@ more than 30% of them were held by G1, else None.
 import math
 import unicodedata
 from dataclasses import dataclass
+
+from core.trust.locality import V2_BASIS, label, read_locality, row_from_prefixed
 
 MEASURED_LANES = {"unbiased_rank", "unbiased_counter", "panel"}
 
@@ -77,6 +82,72 @@ def gate_card(card, ctx):
     if not lanes & MEASURED_LANES:
         return _held("G3", "Found by search only: not yet in the feeds 42 measures every day")
 
+    locality_flag = None
+    if card.get("locality_basis") == V2_BASIS:
+        verdict = _locality(card)
+        if isinstance(verdict, Decision):
+            return verdict
+        locality_flag = verdict
+    else:
+        scope_hold = _pack_scope(card)
+        if scope_hold is not None:
+            return scope_hold
+
+    sponsored = card.get("sponsored_share") or 0
+    if sponsored >= 0.5:
+        return _held("G5", f"Paid-led: sponsored or brand-owned share {sponsored:.2f}", "Paid-led")
+
+    campaign = {_tag(t) for t in ctx["campaign_hashtags"]}
+    tags = {_tag(t) for t in card.get("hashtags") or []}
+    if card.get("canonical_key"):
+        tags.add(_tag(card["canonical_key"]))
+    on_list = sorted(tags & campaign)
+    if on_list:
+        return _held("G5b", f"Paid-led: #{on_list[0]} is on the campaign hashtag list", "Paid-led")
+
+    if ctx.get("political") is not False and ctx.get("corroborated_unbiased") is not True:
+        return _held(
+            "G4b",
+            "Not assessed: political topic that no neutral source has confirmed yet",
+            "Not assessed",
+        )
+
+    rules, notes, flag, where = [], [], locality_flag, "today"
+    if card.get("state") == "seasonal":
+        rules.append("G8")
+        where = "moments"
+        notes.append(f"Seasonal: {card.get('moment') or 'last-year match'}")
+    numbers_only = ctx["explanation_passed"] is not True
+    if numbers_only:
+        rules.append("G10")
+        notes.append("Explanation failed claim checks: numbers and posts only")
+    return Decision(
+        publish=True,
+        where=where,
+        flag=flag,
+        reason="; ".join(notes) or None,
+        rule=rules[0] if rules else None,
+        numbers_only=numbers_only,
+    )
+
+
+def _locality(card):
+    """G6 for a card admitted under locality_v2.1: a Decision that holds it, or the flag it carries (None, or
+    "Market unconfirmed" when the W8-DEC-17 label is not local). The retained row is read by the one reader from its
+    counts; nothing it says about itself is taken, and the pack fields of the card decide nothing here."""
+    got = read_locality(row_from_prefixed(card))
+    if got.status == "unreadable":
+        return _held("G1", "Evidence could not be read", "Data issue")
+    if got.status == "not_local":
+        return _held(
+            "G6",
+            f"Not local: {got.local} of {got.known} located posts in the last 7 days were in this market",
+        )
+    return None if label(got.status, got.known, got.local) == "local" else "Market unconfirmed"
+
+
+def _pack_scope(card):
+    """G6 as written for v1: the pack scope of the card's own source posts. A Decision that holds the card, or None."""
     market_scope = card.get("market_scope")
     market_posts7 = card.get("market_posts7")
     total_posts7 = card.get("total_posts7")
@@ -113,43 +184,7 @@ def gate_card(card, ctx):
             "G6",
             f"Global: {market_posts7} of {total_posts7} card source posts in the last 7 days were located in this market or came from its feeds",
         )
-
-    sponsored = card.get("sponsored_share") or 0
-    if sponsored >= 0.5:
-        return _held("G5", f"Paid-led: sponsored or brand-owned share {sponsored:.2f}", "Paid-led")
-
-    campaign = {_tag(t) for t in ctx["campaign_hashtags"]}
-    tags = {_tag(t) for t in card.get("hashtags") or []}
-    if card.get("canonical_key"):
-        tags.add(_tag(card["canonical_key"]))
-    on_list = sorted(tags & campaign)
-    if on_list:
-        return _held("G5b", f"Paid-led: #{on_list[0]} is on the campaign hashtag list", "Paid-led")
-
-    if ctx.get("political") is not False and ctx.get("corroborated_unbiased") is not True:
-        return _held(
-            "G4b",
-            "Not assessed: political topic that no neutral source has confirmed yet",
-            "Not assessed",
-        )
-
-    rules, notes, flag, where = [], [], None, "today"
-    if card.get("state") == "seasonal":
-        rules.append("G8")
-        where = "moments"
-        notes.append(f"Seasonal: {card.get('moment') or 'last-year match'}")
-    numbers_only = ctx["explanation_passed"] is not True
-    if numbers_only:
-        rules.append("G10")
-        notes.append("Explanation failed claim checks: numbers and posts only")
-    return Decision(
-        publish=True,
-        where=where,
-        flag=flag,
-        reason="; ".join(notes) or None,
-        rule=rules[0] if rules else None,
-        numbers_only=numbers_only,
-    )
+    return None
 
 
 def market_banner(decisions):

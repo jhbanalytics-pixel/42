@@ -16,6 +16,7 @@ SQL_FILES = {
 RUNNER_FILES = tuple(apply.SQL_FILES)
 PROJECT = "ogilvy-trends-v2"
 IDENT = re.compile(r"^[a-z_][a-z0-9_]*$")
+SWITCH_COLUMNS = ["eligible_v1", "locality_basis", "locality_status"]
 
 
 # DATA.md parsing
@@ -295,9 +296,11 @@ def test_bullet_tables_carry_the_doc_columns():
     for table, (_, key, columns) in doc_bullets().items():
         ours = [name for name, _, _ in our_tables()[table][0][3]]
         for name in key + columns:
-            assert name in ours, f"{table} lacks {name}"
+            assert name in ours + (SWITCH_COLUMNS if table == "item_state" else []), f"{table} lacks {name}"
         if table == "item_state":
-            assert ours == columns
+            # DATA.md shows the INSERT the switch release runs: the 36 columns of the table plus the three of
+            # core/schema/locality_switch.sql, which the default apply does not create (test_switch_columns.py).
+            assert ours + SWITCH_COLUMNS == columns
 
 
 def test_bullet_tables_keys_not_null_and_partitioned_on_their_date():
@@ -474,6 +477,8 @@ ALTERS = [
     ("gdelt_daily", "market_rule", "STRING"),
     ("post_observations", "source_market", "STRING"),
     ("post_observations", "source_region", "STRING"),
+    ("post_items", "linked_on", "DATE"),
+    ("post_items", "link_market", "STRING"),
     ("creators", "display_name", "STRING"),
     ("creators", "verified", "BOOL"),
     ("creators", "profile_location", "STRING"),
@@ -1048,7 +1053,7 @@ def test_list_tables_flags_a_missing_view(capsys):
     out = capsys.readouterr().out
     assert "intelligence_42_agent: 16 tables (expected 16), 0 views (expected 1)" in out
     assert "missing: v_watches_current" in out
-    assert "intelligence_42_core: 28 tables (expected 28), 0 views (expected 3)" in out
+    assert "intelligence_42_core: 33 tables (expected 33), 0 views (expected 3)" in out
     assert "missing: v_breaking_signals_current, v_post_source_markets, v_suppressed_creators" in out
 
 

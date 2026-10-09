@@ -26,16 +26,27 @@ Entry point: python -m core.detect.job. The run date is RUN_DATE when set, else 
 
 import json
 import sys
+import time
 import traceback
 from pathlib import Path
 
 from google.cloud import bigquery
 
-from . import aggregate, breakout, centroids, coaction, forecasts, runs, seeds, sqlrun, stats, watches
+from core.trust.locality import LOCALITY_AUTHORITY
+
+from . import aggregate, breakout, centroids, coaction, forecasts, locality, runs, seeds, sqlrun, stats, watches
 from .items import TOPIC_KIND
 
 PROJECT = "ogilvy-trends-v2"
-RULE_VERSION = "warmup-1"
+
+
+def rule_version_for(authority):
+    """The version of the rule that writes item_state.eligible: warmup-1 while detect's own geo_status does, warmup-2
+    once the retained locality_v2 row does (C4 v3 section 7.2), so a reader that groups by it sees the break."""
+    return "warmup-1" if authority == "v1" else "warmup-2"
+
+
+RULE_VERSION = rule_version_for(LOCALITY_AUTHORITY)
 SQL = Path(__file__).parent / "sql"
 
 ITEM_STATE_COUNT_SQL = "SELECT COUNT(*) n FROM {core}.item_state s WHERE s.metric_date = @d AND s.run_id = @run_id"
@@ -57,7 +68,7 @@ ORDER BY r.finished_at DESC LIMIT 1
 STATE_MAP_JOIN = "JOIN {core}.cultural_map cm ON cm.item_id = a.item_id AND cm.valid_to IS NULL"
 
 # The detect counts keys of the steps that build views or centroids with no runs row of their own.
-VIEW_STEPS = ("spread", "agent_views", "news", "item_centroids")
+VIEW_STEPS = ("spread", "agent_views", "news", "item_centroids", "locality_views")
 
 # Whether detect builds v_sensitive_items_complete (sqlrun.agent_statements). The API turns creator item lists,
 # recent posts and named communities on as soon as that view exists, so it stays False until Albert says go on
@@ -152,6 +163,43 @@ def run_breakout_step(client, d, rule_version, core=sqlrun.CORE, agent=sqlrun.AG
     return counts
 
 
+def run_locality_shadow(client, d, detect_run_id, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """The read-only cross-tabulation of detect's geo_status against the checked v2 status for the run (section 10).
+    A failed read is returned as a status and an error, and changes nothing."""
+    try:
+        return locality.shadow_comparison(client, d, detect_run_id, core, agent)
+    except Exception as e:
+        return {"status": "failed", "error": f"{type(e).__name__}: {e}"}
+
+
+def run_locality_step(client, d, detect, core=sqlrun.CORE, agent=sqlrun.AGENT, *, max_bytes=locality.MAX_BYTES_BILLED,
+                      compare=True):
+    """Write and verify the locality_v2 rows of the detect run under their own run_id (C4 v3 section 8). It never
+    stops state, brief or the chain: in shadow the rows are only evidence, and when authoritative a step that failed
+    leaves its keys unread, which state carries as unreadable and the brief holds as a data issue. Any error, a key
+    that fails write-time verification, a bytes refusal or a timeout appends a 'failed' runs row and returns the
+    status and error in place of the counts. The runs row carries the step's duration and the bytes it billed
+    (review Q15). compare: take the shadow cross-tabulation here, which needs the item_state rows of the run; the
+    authoritative placement runs before state and takes it afterwards."""
+    run_id = runs.new_run_id("locality", d)
+    started = runs.now()
+    began = time.monotonic()
+    try:
+        counts = locality.run_locality_step(client, d, detect, core, agent, max_bytes=max_bytes)
+    except locality.LocalityFailed as e:
+        runs.append(client, run_id, "locality", d, "failed", started, runs.now(), e.counts, error=str(e), agent=agent)
+        return {"status": "failed", "error": str(e), **e.counts}
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        runs.append(client, run_id, "locality", d, "failed", started, runs.now(),
+                    {"duration_s": round(time.monotonic() - began, 3)}, error=error, agent=agent)
+        return {"status": "failed", "error": error}
+    if compare:
+        counts["locality_shadow"] = run_locality_shadow(client, d, detect.run_id, core, agent)
+    runs.append(client, run_id, "locality", d, "ok", started, runs.now(), counts, agent=agent)
+    return counts
+
+
 def run_watch_step(client, d, detect_run_id, core=sqlrun.CORE, agent=sqlrun.AGENT):
     """Append today's watch_matches rows for the detect run under their own run_id. It never stops detect or
     brief: any error appends a 'failed' runs row and returns the status and error in place of the counts."""
@@ -203,6 +251,18 @@ def apply_news_step(client, core=sqlrun.CORE, agent=sqlrun.AGENT):
     except Exception as e:
         error = f"{type(e).__name__}: {e}"
         print(f"news views failed: {error}", file=sys.stderr)
+        return {"status": "failed", "error": error}
+    return {"status": "ok"}
+
+
+def apply_locality_views_step(client, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """Apply v_item_locality_checked and v_item_locality_current (sql/locality_views.sql, C4 v3 section 7.1). The
+    locality step's readers use them, so a failure is logged and returned as the status and error."""
+    try:
+        sqlrun.apply_locality_views(client, core, agent)
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        print(f"locality views failed: {error}", file=sys.stderr)
         return {"status": "failed", "error": error}
     return {"status": "ok"}
 
@@ -267,15 +327,44 @@ def run_topic_count_step(client, d, run_id, core=sqlrun.CORE, agent=sqlrun.AGENT
         return {"status": "failed", "error": error}
 
 
+# state.sql reads this run's rows from v_item_locality_checked. In shadow nothing in state decides from them, so the
+# script that runs under the v1 authority reads an empty relation of the same columns instead (C4 v3 section 10): a
+# failed or missing locality view, or locality DDL that has not landed, never fails detect before the switch.
+_CHECKED_VIEW = "{core}.v_item_locality_checked k"
+_NO_CHECKED_ROWS = ("(SELECT CAST(NULL AS DATE) run_date, CAST(NULL AS STRING) item_id, CAST(NULL AS STRING) market, "
+                    "CAST(NULL AS STRING) detect_run_id, CAST(NULL AS STRING) checked_status LIMIT 0) k")
+
+
+# Under v1 the INSERT also names exactly the 36 columns of the table a80 left and writes none of the three switch
+# columns (core/schema/locality_switch.sql): a80's own INSERT is positional, so a table widened before the switch
+# release would fail every a80 run, and a rollback to it with it.
+_SWITCH_NAMES = ", eligible_v1, locality_basis, locality_status)"
+_SWITCH_VALUES = (",\n  wr.eligible_v1, IF(@authority = 'v2', 'locality_v2.1', 'v1') locality_basis, "
+                  "wr.locality_status")
+
+
+def state_script(authority, core=sqlrun.CORE, agent=sqlrun.AGENT, topics_failed=False):
+    """The text of state.sql to run for a locality authority: the file as it is under v2, and with the checked view
+    replaced by the empty relation under v1. With topics_failed, topic items are not judged."""
+    sql = (SQL / "state.sql").read_text(encoding="utf-8")
+    if topics_failed:
+        sql = without_topics(sql)
+    if authority != "v2":
+        for old, new in ((_CHECKED_VIEW, _NO_CHECKED_ROWS), (_SWITCH_NAMES, ")"), (_SWITCH_VALUES, "")):
+            assert sql.count(old) == 1, old
+            sql = sql.replace(old, new)
+    return sqlrun.render(sql, core, agent)
+
+
 def run_state(client, d, run_id, rule_version, core=sqlrun.CORE, agent=sqlrun.AGENT, topics_failed=False):
     """Run the state.sql script (a temp function and the item_state INSERT) and return the rows it wrote. With
     topics_failed, topic items are not judged."""
     config = bigquery.QueryJobConfig(query_parameters=[
         bigquery.ScalarQueryParameter("d", "DATE", d),
         bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
-        bigquery.ScalarQueryParameter("rule_version", "STRING", rule_version)])
-    text = (SQL / "state.sql").read_text(encoding="utf-8")
-    script = sqlrun.render(without_topics(text) if topics_failed else text, core, agent)
+        bigquery.ScalarQueryParameter("rule_version", "STRING", rule_version),
+        bigquery.ScalarQueryParameter("authority", "STRING", LOCALITY_AUTHORITY)])
+    script = state_script(LOCALITY_AUTHORITY, core, agent, topics_failed=topics_failed)
     client.query(script, job_config=config).result()
     rows = sqlrun.query(client, ITEM_STATE_COUNT_SQL, {"d": d, "run_id": run_id}, core=core, agent=agent)
     return rows[0]["n"]
@@ -300,6 +389,7 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
     try:
         sqlrun.apply_views(client, core, agent)
         apply_waves(client, core, agent)
+        counts["locality_views"] = apply_locality_views_step(client, core, agent)
         counts["spread"] = apply_spread_step(client, core, agent)
         counts["agent_views"] = apply_agent_views_step(client, core, agent)
         counts["news"] = apply_news_step(client, core, agent)
@@ -320,8 +410,17 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
         topics = topics_failed_today(client, d, core, agent)
         if topics:
             counts["topics_failed"] = topics
-        counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent,
-                                         topics_failed=bool(topics))
+        if LOCALITY_AUTHORITY == "v2":
+            # State reads the checked view for its own run, so the rows must exist first (section 8.1).
+            counts["locality"] = run_locality_step(client, d, detect, core, agent, compare=False)
+            counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent,
+                                             topics_failed=bool(topics))
+            counts["locality_shadow"] = run_locality_shadow(client, d, detect.run_id, core, agent)
+        else:
+            counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent,
+                                             topics_failed=bool(topics))
+            counts["locality"] = run_locality_step(client, d, detect, core, agent)
+            counts["locality_shadow"] = counts["locality"].pop("locality_shadow", None)
         if topics:
             topics["topic_items_judged"] = run_topic_count_step(client, d, detect.run_id, core, agent)
             if isinstance(topics["topic_items_judged"], int):

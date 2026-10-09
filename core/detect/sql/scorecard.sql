@@ -35,7 +35,8 @@
 s0 AS (
   SELECT s.* FROM {core}.v_item_state_current s
   WHERE s.market = @market AND s.metric_date BETWEEN {since}
-    AND DATE_ADD(@week_end, INTERVAL {recall_days} DAY) AND s.eligible),
+    AND DATE_ADD(@week_end, INTERVAL {recall_days} DAY) AND s.eligible
+    AND IFNULL(s.locality_status, '') NOT IN ('unreadable', 'missing')),
 gr AS (                     -- ok detect and stats runs with their start and finish times
   SELECT r.stage, r.run_date, r.started_at, r.finished_at FROM {agent}.runs r
   WHERE r.status = 'ok' AND r.stage IN ('detect', 'stats')
@@ -286,3 +287,21 @@ conf AS (
   SELECT COUNT(DISTINCT shown.item_id) trends
   FROM shown WHERE shown.brief_date NOT IN (SELECT thin.brief_date FROM thin))
 SELECT cr.credits, conf.trends FROM cr CROSS JOIN conf;
+
+-- name: locality_regime
+-- The rule that wrote item_state.eligible on each day of a window and of the same window a week earlier (C4 v3
+-- section 11.4): locality_basis is v1 or locality_v2.1, NULL (a row written before the column existed) reads as v1. The
+-- window is the one a Figure reads (scorecard.py figure_windows, @since to @until), so a Figure that reads months of
+-- history is marked over those months and not over the week it is filed under. One row per window and basis with the
+-- number of days, so scorecard.py can mark a window that straddles the switch and one that follows a different rule from
+-- the window before it. Only days with a good detect run are in v_item_state_current.
+SELECT TRUE this_week, IFNULL(s.locality_basis, 'v1') locality_basis, COUNT(DISTINCT s.metric_date) days
+FROM {core}.v_item_state_current s
+WHERE s.market = @market AND s.metric_date BETWEEN @since AND @until
+GROUP BY 1, 2
+UNION ALL
+SELECT FALSE this_week, IFNULL(s.locality_basis, 'v1') locality_basis, COUNT(DISTINCT s.metric_date) days
+FROM {core}.v_item_state_current s
+WHERE s.market = @market AND s.metric_date BETWEEN DATE_SUB(@since, INTERVAL 7 DAY) AND DATE_SUB(@until, INTERVAL 7 DAY)
+GROUP BY 1, 2
+ORDER BY 1, 2;

@@ -114,7 +114,8 @@ ALTER TABLE `ogilvy-trends-v2.intelligence_42_core.post_enrichment`
 ADD COLUMN IF NOT EXISTS sensitive ARRAY<STRING>;
 
 CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.post_items` (
-  post_id STRING NOT NULL, item_id STRING NOT NULL, via STRING);
+  post_id STRING NOT NULL, item_id STRING NOT NULL, via STRING, linked_on DATE, link_market STRING)
+PARTITION BY linked_on;
 
 CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.creators` (
   creator_id STRING NOT NULL,
@@ -296,3 +297,51 @@ GROUP BY post_id;
 CREATE VIEW IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.v_breaking_signals_current` AS
 SELECT s.* FROM `ogilvy-trends-v2.intelligence_42_core.breaking_signals` s
 JOIN `ogilvy-trends-v2.intelligence_42_agent.runs` r ON r.run_id = s.run_id AND r.stage = 'breaking' AND r.status = 'ok';
+
+/* locality_v2 (C4 v3 section 7.1). item_locality is the retained row of one item and market for one detect run,
+   item_locality_post its member posts, item_locality_verified the row the detect step writes for a key only after
+   Python recounted the members and agreed (core/detect/locality.py). Nothing here is ever updated or deleted: a
+   change of rule appends rows under a new metric_version. The views that read them are
+   core/detect/sql/locality_views.sql. */
+CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.item_locality` (
+  run_date DATE NOT NULL, market STRING NOT NULL, item_id STRING NOT NULL,
+  detect_run_id STRING NOT NULL, population_cutoff TIMESTAMP NOT NULL, metric_version STRING NOT NULL,
+  schema_version INT64 NOT NULL, computed_at TIMESTAMP NOT NULL,
+  population_posts INT64 NOT NULL, known_posts INT64 NOT NULL, local_posts INT64 NOT NULL,
+  foreign_posts INT64 NOT NULL, unknown_posts INT64 NOT NULL,
+  feed_only_posts INT64 NOT NULL, vetoed_feed_posts INT64 NOT NULL,
+  local_creators INT64 NOT NULL, known_creators INT64 NOT NULL, feed_only_creators INT64 NOT NULL,
+  breadth_creators INT64 NOT NULL,
+  status STRING NOT NULL, local_share FLOAT64, population_digest STRING NOT NULL)
+PARTITION BY run_date CLUSTER BY market, item_id;
+
+CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.item_locality_post` (
+  run_date DATE NOT NULL, market STRING NOT NULL, item_id STRING NOT NULL,
+  detect_run_id STRING NOT NULL, population_cutoff TIMESTAMP NOT NULL, metric_version STRING NOT NULL,
+  post_id STRING NOT NULL, creator_key STRING, platform STRING,
+  locality_class STRING NOT NULL, geo_market STRING, geo_confidence FLOAT64, geo_source STRING,
+  feed_sighted BOOL NOT NULL, feed_obs_date DATE)
+PARTITION BY run_date CLUSTER BY market, item_id;
+
+CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.item_locality_verified` (
+  run_date DATE NOT NULL, market STRING NOT NULL, item_id STRING NOT NULL,
+  detect_run_id STRING NOT NULL, metric_version STRING NOT NULL, verified_at TIMESTAMP NOT NULL,
+  member_rows INT64 NOT NULL, population_digest STRING NOT NULL)
+PARTITION BY run_date CLUSTER BY market, item_id;
+
+/* The dated, market-aware links of C4 v3 sections 7.2 and 16 that tvf_post_items (locality_views.sql) reads. A row of
+   post_items written before these columns existed keeps NULL in both and is read as always, in any market. */
+ALTER TABLE `ogilvy-trends-v2.intelligence_42_core.post_items`
+ADD COLUMN IF NOT EXISTS linked_on DATE;
+ALTER TABLE `ogilvy-trends-v2.intelligence_42_core.post_items`
+ADD COLUMN IF NOT EXISTS link_market STRING;
+
+CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.post_item_lineage` (
+  post_id STRING NOT NULL, item_id STRING NOT NULL, linked_on DATE NOT NULL, link_market STRING,
+  lineage_id STRING NOT NULL)
+PARTITION BY linked_on CLUSTER BY item_id;
+
+CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_core.post_item_end` (
+  post_id STRING NOT NULL, item_id STRING NOT NULL, ended_on DATE NOT NULL, reason STRING NOT NULL,
+  lineage_id STRING NOT NULL, recorded_at TIMESTAMP NOT NULL)
+PARTITION BY ended_on CLUSTER BY item_id;

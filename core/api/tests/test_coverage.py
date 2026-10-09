@@ -339,6 +339,19 @@ def test_coverage_scorecard_reads_json_strings_and_objects_alike():
     assert card["markets"][0]["lead_time"] is None
 
 
+def test_coverage_scorecard_passes_the_regime_marker_of_each_figure_through():
+    """C4 v3 section 11.4: a reader comparing two weeks needs the rule each Figure was read under."""
+    marker = {"locality_basis": "mixed", "previous_week_basis": "v1", "comparable_with_previous_week": False,
+              "days_by_basis": {"v1": 2, "locality_v2.1": 2}, "window": {"since": "2026-09-14", "until": "2026-09-27"}}
+    row = {"week_start": "2026-09-21", "week_end": "2026-09-27", "market": "ZA", "run_id": "r1", "rule_version": "v",
+           "precision": {"value": 0.5, "unit": "u", "query_id": "q", "run_id": "r1", "result_hash": "h", "n": 4,
+                         "reason": None, "regime": marker},
+           "recall": {"value": 0.25, "unit": "u", "query_id": "q", "run_id": "r1", "result_hash": "h", "n": 4,
+                      "reason": None}}
+    entry = coverage._scorecard([row])["markets"][0]
+    assert entry["precision"]["regime"] == marker and "regime" not in entry["recall"]
+
+
 def test_coverage_scorecard_null_with_words_before_four_weeks(fx):
     out = coverage.build_coverage(Patched(scorecard=lambda: None), D30)
     assert out["scorecard"] is None

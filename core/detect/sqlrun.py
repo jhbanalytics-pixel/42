@@ -42,6 +42,22 @@ def render(sql, core=CORE, agent=AGENT):
     return sql.replace("{core}", core).replace("{agent}", agent)
 
 
+# The three item_state columns of the locality switch (eligible_v1, locality_basis, locality_status) are not in the
+# table the shadow release meets (core/schema/locality_switch.sql, applied by the switch release only). Under the v1
+# authority a statement that reads one reads a typed NULL in its place, which is what a row written without it holds.
+_SWITCH_READS = re.compile(r"\b[sx]\.locality_(?:basis|status)\b")
+
+
+def for_authority(sql, authority=None):
+    """sql as the locality authority runs it: unchanged under v2, with the reads of the switch columns replaced by
+    NULL of their type otherwise. authority defaults to the LOCALITY_AUTHORITY constant at the time of the call."""
+    if authority is None:
+        from core.trust import locality
+
+        authority = locality.LOCALITY_AUTHORITY
+    return sql if authority == "v2" else _SWITCH_READS.sub("CAST(NULL AS STRING)", sql)
+
+
 def split(sql):
     """Split a script on semicolons outside quotes and comments; drop pieces that hold only comments."""
     out, buf, i, n = [], [], 0, len(sql)
@@ -138,6 +154,25 @@ def apply_views(client, core=CORE, agent=AGENT):
     """Create or replace every view and table function, in dependency order. Returns the object names."""
     names = []
     for stmt in statements(core, agent):
+        client.query(stmt).result()
+        names.append(object_name(stmt))
+    return names
+
+
+LOCALITY_VIEWS_SQL = Path(__file__).parent / "sql" / "locality_views.sql"
+
+
+def locality_view_statements(core=CORE, agent=AGENT):
+    """The CREATE statements of locality_views.sql (v_item_locality_checked, v_item_locality_current) with dataset
+    names filled in, in file order."""
+    return [_strip_leading_comments(s) for s in split(render(LOCALITY_VIEWS_SQL.read_text(encoding="utf-8"), core, agent))]
+
+
+def apply_locality_views(client, core=CORE, agent=AGENT):
+    """Create or replace the locality_v2 views. They read views.sql's v_good_runs, so apply_views must have run first.
+    Returns the object names."""
+    names = []
+    for stmt in locality_view_statements(core, agent):
         client.query(stmt).result()
         names.append(object_name(stmt))
     return names

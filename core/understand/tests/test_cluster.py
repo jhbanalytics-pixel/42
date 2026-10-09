@@ -903,7 +903,7 @@ def test_pan_run_reads_every_market_and_a_market_run_only_its_own(world):
 def test_item_profile_carries_history_for_the_votes(world):
     execute = duck_execute(world["con"])
     # The day before the run, so today's clusters stay out of the profile; today's new items are current rows too.
-    items = {r["item_id"]: r for r in execute(cluster.load("cluster_items"), {"run_date": DAY - timedelta(days=1)})}
+    items = {r["item_id"]: r for r in execute(cluster.load("cluster_items"), cluster.item_params(DAY - timedelta(days=1), "za"))}
     assert {"item_a", "item_b", "item_z"} <= set(items) and "tag_x" not in items
     assert items["item_a"]["hashtags"] == ["amapiano"]
     assert items["item_a"]["creators"] == ["cr_old"]

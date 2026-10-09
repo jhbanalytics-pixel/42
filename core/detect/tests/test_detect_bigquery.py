@@ -89,7 +89,7 @@ def test_legacy_merge(client):
 
 def test_state_script(client):
     # BigQuery accepts a dry run of the whole script, temp function included
-    dry_run(client, sqlrun.render((SQL / "state.sql").read_text(encoding="utf-8")), PARAMS)
+    dry_run(client, sqlrun.render((SQL / "state.sql").read_text(encoding="utf-8")), {**PARAMS, "authority": "v1"})
 
 
 def test_sqlrun_query_bodies(client):
