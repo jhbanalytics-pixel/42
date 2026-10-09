@@ -307,3 +307,36 @@ def test_a_topic_link_of_one_market_does_not_put_the_post_in_another_markets_pop
     got = {r["market"]: r["population_posts"] for r in duck.query(
         con, "SELECT market, population_posts FROM {core}.item_locality WHERE item_id = 't20'", {})}
     assert got == {"NG": 0, "KE": 1}
+
+
+def test_a_post_published_just_before_the_window_but_sighted_inside_it_is_out(con):
+    """The publication window is its own edge: a post published 7 local days back and sighted yesterday is inside the
+    sighting window, so only the publication window leaves it out."""
+    key(con, "t12b")
+    add(con, "t12b", geo="NG", conf=0.9, src="ext_region", days_ago=7,
+        observed_at=datetime(2026, 10, 6, 10, tzinfo=UTC))
+    add(con, "t12b", geo="NG", conf=0.9, src="ext_region", days_ago=6)
+    assert compute(con)["t12b"]["population_posts"] == 1
+
+
+def test_the_publication_day_is_the_day_in_the_markets_own_zone(con):
+    """23:30 UTC on d-7 is 02:30 on d-6 in Nairobi, so a Kenyan post published then is the first day of the window;
+    the same instant in Johannesburg (01:30 on d-6) is inside it too, and 21:30 UTC on d-7 is still d-7 there."""
+    key(con, "t12c", "KE")
+    key(con, "t12d", "ZA")
+    late = datetime(2026, 9, 30, 23, 30, tzinfo=UTC)
+    sighted = datetime(2026, 10, 6, 10, tzinfo=UTC)
+    for item, market, published in (("t12c", "KE", late), ("t12d", "ZA", late),
+                                    ("t12d", "ZA", datetime(2026, 9, 30, 21, 30, tzinfo=UTC))):
+        n = next(SERIAL)
+        pid = f"{item}-p{n}"
+        duck.load(con, "core.posts", [{"post_id": pid, "platform": "tiktok", "creator_id": f"c{n}",
+                                        "published_at": published, "post_date": published.date(), "engagement": 10,
+                                        "geo_market": market, "geo_confidence": 0.9, "geo_source": "ext_region"}])
+        duck.load(con, "core.post_items", [{"post_id": pid, "item_id": item, "via": "hashtag"}])
+        duck.load(con, "core.post_observations", [{
+            "post_id": pid, "observed_at": sighted, "observed_date": sighted.date(), "market": market,
+            "platform": "tiktok", "route": "tiktok/trending", "lane": "sweep", "lane_class": "unbiased_rank"}])
+    rows = compute(con)
+    assert rows["t12c"]["population_posts"] == 1          # Nairobi: 02:30 on d-6, inside
+    assert rows["t12d"]["population_posts"] == 1          # Johannesburg: 01:30 on d-6 inside, 23:30 on d-7 out
