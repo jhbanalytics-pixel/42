@@ -26,6 +26,7 @@ from core.agent.tools.socialcrawl import (
 )
 from core.agent.tools.sql_query import (QUERY_PAGE_ROWS, check_sql, model_sql_query, query_preview, query_rows,
                                         warehouse_map_text)
+from core.agent.tools.warehouse import search_view
 
 TOOL_NAMES = ["sql_query", "search_posts", "socialcrawl_call", "rising_topics", "recall_findings", "save_finding",
               "budget_status", "resolve_dates", "get_comments", "get_transcript", "watch_video", "log_forecast",
@@ -99,14 +100,16 @@ SCHEMAS = {
                                                                               "yesterday, since 2026-09-01."}},
                              ["expression"]),
     "get_comments": _schema({
-        "evidence_id": {"type": "string", "description": "A post's evidence id from this run."},
+        "evidence_id": {"type": "string", "description": "The id of a post from search_posts in this run."},
         "limit": {"type": "integer", "minimum": 1, "maximum": 50},
         "max_credits": {"type": "number", "minimum": 0, "description": "Most credits this call may spend."},
     }, ["evidence_id", "max_credits"]),
-    "get_transcript": _schema({"evidence_id": {"type": "string", "description": "A video post's evidence id."}},
+    "get_transcript": _schema({"evidence_id": {"type": "string",
+                                               "description": "The id of a video post from search_posts in this run."}},
                               ["evidence_id"]),
     "watch_video": _schema({
-        "evidence_id": {"type": "string", "description": "A TikTok, YouTube or Instagram video post's evidence id."},
+        "evidence_id": {"type": "string", "description": "The id of a TikTok, YouTube or Instagram video post from "
+                                                         "search_posts in this run."},
         "question": {"type": "string", "description": "What to look for in the clip, in one plain question."},
     }, ["evidence_id", "question"]),
     "log_forecast": _schema({
@@ -143,7 +146,9 @@ DESCRIPTIONS = {
                  "may exist. preview gives offset, limit, returned, has_more and next_offset. Use query_rows "
                  "to inspect any omitted visible row before reasoning from it; do not treat a preview as the "
                  "whole result. The writer and checks keep the original stored rows. "
-                 "Cite the query_id for every number. Use only these names; any other table fails. "
+                 "Cite the query_id for every number. Several independent counts go out as separate sql_query "
+                 "calls in the same turn: up to four run at the same time, and each is checked and capped as if it "
+                 "ran alone. Do not send them one per turn. Use only these names; any other table fails. "
                  + warehouse_map_text(),
     "search_posts": "Search stored posts by full text and meaning. Free. Returns evidence. Words in the query must all "
                     "appear in a post; put OR between alternatives, as in 'amapiano OR gqom'.",
@@ -193,7 +198,7 @@ def build_functions(ctx: RunContext, warehouse, client, writer) -> dict:
 
     functions = {
         "sql_query": lambda **a: query_preview(ctx, model_sql_query(ctx, warehouse, **a)),
-        "search_posts": lambda **a: wh.search_posts(ctx, warehouse, **a),
+        "search_posts": lambda **a: search_view(wh.search_posts(ctx, warehouse, **a)),
         "socialcrawl_call": lambda **a: socialcrawl_call(ctx, client, **{"params": {}, **a}, warehouse=warehouse),
         "rising_topics": lambda **a: wh.rising_topics(ctx, warehouse, **a),
         "recall_findings": lambda **a: wh.recall_findings(ctx, warehouse, **a),

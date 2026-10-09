@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from datetime import date, datetime
 from fnmatch import fnmatchcase
 from typing import Protocol
@@ -391,12 +392,15 @@ class BigQueryWarehouse:
     def __init__(self, project: str = PROJECT):
         self.project = project
         self._client = None
+        self._client_lock = threading.Lock()
 
     def _bq(self):
         from google.cloud import bigquery
 
         if self._client is None:
-            self._client = bigquery.Client(project=self.project)
+            with self._client_lock:  # research and the store count both ask in the first seconds
+                if self._client is None:
+                    self._client = bigquery.Client(project=self.project)
         return bigquery
 
     def _params(self, params: dict | None) -> list:

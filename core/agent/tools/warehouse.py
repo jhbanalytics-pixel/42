@@ -463,6 +463,26 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
     return {"evidence": evidence, "query_id": result["query_id"], "query_ids": query_ids, **note}
 
 
+# Fields of a stored post the research model is not sent: the url (the model reads a post by its id, text and
+# engagement; the answer's evidence keeps the url) and evidence_id (the same string as id).
+MODEL_VIEW_DROPPED = ("url", "evidence_id")
+# Fields sent only when they say something, so an empty flag list or an unknown source market costs no tokens.
+MODEL_VIEW_WHEN_SET = ("flags", "source_market")
+
+
+def search_view(result: dict) -> dict:
+    """search_posts' result as the research model receives it. The records keep every field the model reads a post by;
+    the full records stay in ctx.evidence and the queries in ctx.queries, so receipts, result hashes and cited evidence
+    ids are those of the full result. Returns a new dict and leaves result alone; anything that is not a search result
+    with a list of records passes through as it is."""
+    if not isinstance(result, dict) or not isinstance(result.get("evidence"), list):
+        return result
+    records = [{k: v for k, v in record.items()
+                if k not in MODEL_VIEW_DROPPED and not (k in MODEL_VIEW_WHEN_SET and not v)}
+               for record in result.get("evidence") or []]
+    return {**result, "evidence": records}
+
+
 def _store(ctx: RunContext, row: dict, allow_context_market=True) -> dict:
     """Store one posts row as an evidence record; return it as the model sees it, text fenced."""
     eid = str(row["post_id"])
