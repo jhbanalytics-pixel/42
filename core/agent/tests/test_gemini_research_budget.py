@@ -275,3 +275,60 @@ def test_unmetered_path_keeps_its_existing_429_retry(monkeypatch):
 
     assert result["note"] == "Reading."
     assert len(client.calls) == 2
+
+
+# A5. A tool can stop the shared question budget between two research turns (watch_video's model failure with no usage
+# books its reserve and stops it). The next turn's reserve then raises the budget's own stop reason, and only two
+# reasons were handled, so the others (usage_unknown, bound_exceeded, ceiling_exceeded) failed the whole ask instead
+# of ending research as a budget stop. Ending research makes no further call: it can only spend less.
+def _stopping_tool(usage_arg, booked):
+    def build(ctx, warehouse, client, tables):
+        def stop_budget():
+            budget = ctx.model_budget
+            budget.settle(budget.reserve("gemini-test", 1000, 100, research=True), usage_arg)
+            booked.append(budget.booked_usd)
+            return {"ok": True}
+        return {"budget_status": stop_budget}
+    return build
+
+
+@pytest.mark.parametrize(("usage_arg", "reason"), [
+    (None, "usage_unknown"),
+    ({"input_tokens": 5_000_000, "output_tokens": 5, "usd": 0.000001}, "bound_exceeded"),
+    ({"input_tokens": 10, "output_tokens": 5, "usd": 0.5}, "ceiling_exceeded"),
+])
+def test_a_budget_stopped_by_a_tool_ends_research_as_a_stop_not_a_failure(monkeypatch, usage_arg, reason):
+    budget, _ = make_budget()
+    booked = []
+    monkeypatch.setattr(gemini_research, "build_functions", _stopping_tool(usage_arg, booked))
+    client = FakeClient(reply(fcall("budget_status")), reply(ftext("must not run")))
+
+    result, _ = run(monkeypatch, client, budget)
+
+    assert budget.stopped and budget.stop_reason == reason
+    assert result["stopped"] is True and "stopped" in result["note"].lower()
+    assert len(client.calls) == 1  # no model call went out after the stop
+    assert booked and budget.booked_usd == booked[0]  # nothing was booked after the stop
+    assert budget.booked_usd <= budget.cap_micros / 1_000_000  # inside the hold
+
+
+def test_a_busy_retry_refused_by_a_stopped_budget_still_raises_the_earlier_failure(monkeypatch):
+    # The retry branch keeps its contract: when the first attempt failed and the retry is refused, the failure stands.
+    from google.genai import errors
+
+    budget, _ = make_budget()
+    busy = errors.ClientError(429, {"error": {"code": 429, "message": "Resource exhausted.",
+                                              "status": "RESOURCE_EXHAUSTED"}})
+    monkeypatch.setattr(gemini_research.time, "sleep", lambda s: None)
+    calls = []
+
+    def generate_content(**kwargs):
+        calls.append(kwargs)
+        other = budget.reserve("gemini-test", 1000, 1)
+        budget.settle(other, None)
+        raise busy
+
+    client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
+    with pytest.raises(errors.ClientError):
+        run(monkeypatch, client, budget)
+    assert len(calls) == 1

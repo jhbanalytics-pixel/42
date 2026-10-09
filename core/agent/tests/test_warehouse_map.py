@@ -15,11 +15,12 @@ from core.agent import ask, toolset
 from core.agent import plain
 from core.agent.context import RunContext
 from core.agent.tests.test_sql_tool import FakeWarehouse
+from core.agent.tools import sql_query as sql_query_module
 from core.agent.tools.sql_query import ALLOWED_TVFS, HIDDEN_TABLES, WAREHOUSE_MAP, check_sql, sql_query
 
 ROOT = Path(__file__).resolve().parents[3]
 DDL_FILES = [ROOT / "core/schema/core.sql", ROOT / "core/schema/agent.sql", ROOT / "core/detect/sql/agent_views.sql",
-             ROOT / "core/schema/google_search_signals.sql"]
+             ROOT / "core/schema/google_search_signals.sql", ROOT / "core/detect/sql/views.sql"]
 
 
 def ddl_columns() -> dict[str, set[str]]:
@@ -39,6 +40,10 @@ def ddl_columns() -> dict[str, set[str]]:
         out[m.group(1)] = {c.strip().split()[0] for c in body.split(",") if c.strip()}
     for m in re.finditer(r"ALTER TABLE `ogilvy-trends-v2\.(\w+\.\w+)`\s*ADD COLUMN IF NOT EXISTS (\w+)", text):
         out.setdefault(m.group(1), set()).add(m.group(2))
+    # A current view is its base table's columns: SELECT s.* FROM base s JOIN v_good_runs g ... (views.sql 3.1).
+    for m in re.finditer(r"CREATE OR REPLACE VIEW (\w+\.v_\w+_current) AS\s+SELECT s\.\* FROM (\w+\.\w+) s\s", text):
+        if m.group(2) in out:
+            out[m.group(1)] = set(out[m.group(2)])
     return out
 
 
@@ -210,3 +215,57 @@ def test_a_write_tool_is_never_closed_however_often_it_is_refused(monkeypatch):
     run(monkeypatch, client)
     last = client.calls[-1]["contents"][-1].parts[0].function_response.response
     assert "closed" not in str(last)
+
+
+# N39. The map pointed the model at the raw, append-only item_daily and item_state tables and called their grain "one
+# row per item, market and day". item_daily holds a row per platform, lane class and panel series plus one '_any' row
+# that counts each post again, and every aggregate run appends its own rows, so a plain SUM(posts) was at least twice
+# the truth. Pipeline readers use the v_*_current views, which keep the one good run per day.
+RAW_DERIVED = re.compile(r"intelligence_42_core\.item_(daily|state)\b")
+POSTS = "intelligence_42_core.posts"
+
+
+def test_the_map_points_item_counts_at_the_current_views_never_the_raw_append_only_tables():
+    described = toolset.DESCRIPTIONS["sql_query"]
+    assert not RAW_DERIVED.search(described)
+    assert not [name for name in WAREHOUSE_MAP if RAW_DERIVED.fullmatch(name)]
+    assert "intelligence_42_core.v_item_daily_current" in WAREHOUSE_MAP
+    assert "intelligence_42_core.v_item_state_current" in WAREHOUSE_MAP
+
+
+def test_the_notes_do_not_state_the_false_grain():
+    described = toolset.DESCRIPTIONS["sql_query"]
+    assert "hold one row per item, market and day" not in described
+    for sentence in described.split(". "):  # the grain holds for the state view, never for the daily one
+        if "item_daily" in sentence:
+            assert "one row per item, market and day" not in sentence
+
+
+def test_the_notes_name_the_any_row_as_the_per_item_total_and_warn_against_summing_lanes():
+    notes = " ".join(sql_query_module.WAREHOUSE_NOTES.split())
+    assert "lane_class = '_any'" in notes and "platform = '_all'" in notes
+    assert "never sum posts across" in notes
+
+
+def test_the_posts_map_lists_geo_source_and_the_notes_carry_the_located_test_the_ask_layer_uses():
+    from core.agent.tools import warehouse
+
+    assert "geo_source" in WAREHOUSE_MAP[POSTS]
+    notes = " ".join(sql_query_module.WAREHOUSE_NOTES.split())
+    assert f"IFNULL(p.geo_source, '') != '{warehouse.PROFILE_SOURCE}'" in notes
+    # The test the notes teach is the one the Ask layer's own store counts use.
+    ctx = RunContext(run_id="run_test", tier="T0", as_of=datetime(2026, 10, 4, 6, 0), market="ZA")
+    located = warehouse._store_scope(ctx, ["tiktok"])[3]
+    assert "IFNULL(p.geo_source, '') != @profile_source" in located
+
+
+def test_the_notes_no_longer_call_a_post_located_on_geo_market_alone():
+    notes = " ".join(sql_query_module.WAREHOUSE_NOTES.split())
+    assert "geo_market is ZA, NG or KE when a post is located" not in notes
+    assert "home_market" in notes  # a creator-profile market is named as not located
+
+
+def test_the_example_filters_on_the_located_test_not_geo_market_alone():
+    example = sql_query_module.WAREHOUSE_EXAMPLE
+    assert "p.geo_market = @market" in example
+    assert "IFNULL(p.geo_source, '') != 'home_market'" in example

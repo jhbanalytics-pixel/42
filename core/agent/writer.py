@@ -20,6 +20,9 @@ from core.agent.native_review import tone_cap_ids
 from core.llm.provider import GEMINI_DEFAULT_MODEL, price_for, reserve_output
 
 ROWS_SHOWN = 50  # enough rows for a top-hashtags or per-platform count to reach the writer whole
+# The whole-store counts reach the writer whole (sql_query.MAX_ROWS is their ceiling): a row missing from the before
+# query reads as "no stored posts then", so a cut there would turn a hidden sound into a false absence.
+STORE_ROWS_SHOWN = 500
 # The writer's evidence pack is bounded (review, 4 October: "writer pack uncapped"): at most MAX_PACK_POSTS post blocks
 # and WRITER_PACK_BYTES of blocks in all, inside the input ask.py holds for a writer call (WRITER_INPUT_TOKENS, read as
 # one token per byte). The whole-store counts go first, then posts in the order they were found, then other queries.
@@ -264,7 +267,7 @@ You are 42's writer. Answer the question from the evidence pack only, as JSON in
 - Write each claim as one plain sentence a reader follows without the question: say what the posts were about, then the figure, as in 'South African football, including the Premier Soccer League, appeared in 17 posts across 4 platforms'. Do not prefix a finding with a count list and a colon. Never write 'topics accounted for', 'generated N posts', 'in monitored feeds' or 'recorded' for posts.
 - Give each claim the totals the queries give (posts and distinct creators, per platform), after first naming what the claim is about, as in 'Run away was used by 41 creators across TikTok and Instagram in 63 posts', and cite posts as examples of those totals. Never open a claim with its figures.
 - Take a post count and its creator count from the same row and the same pair of columns: posts with creators, or located_posts with located_creators. Never write a count of zero; leave a zero figure out.
-- When the question asks which or what items lead (sounds, hashtags, creators or topics), answer as a ranked list: one claim per item, in the order of the whole-store rows (most creators first), each naming the item, then its creators and posts. When the pack holds the whole-store query for the days before the window, add each item's posts there, as in 'Run away was used by 11 creators in 13 posts, against 4 posts in the {days}-day period before'; an item with no row in that query had no stored posts then, so say 'with no stored posts in the {days}-day period before'. Without that query, say nothing about the period before. The short answer names the leading items in that order, with no figures.
+- When the question asks which or what items lead (sounds, hashtags, creators or topics), answer as a ranked list: one claim per item, in the order of the whole-store rows (most creators first), each naming the item, then its creators and posts. When the pack holds the whole-store query for the days before the window, add each item's posts there, as in 'Run away was used by 11 creators in 13 posts, against 4 posts in the {days}-day period before'; an item with no row in that query had no stored posts then, so say 'with no stored posts in the {days}-day period before', but only when that query's header reads 'rows shown: N of N' with both numbers equal; otherwise say nothing about the period before for an item with no row. Without that query, say nothing about the period before. The short answer names the leading items in that order, with no figures.
 - Say week on week only when both query windows cover seven consecutive days, the earlier one ends immediately before the later one, and both use the same item, platform, market and count definition. Cite the query behind each period's count. For other window lengths, name the actual periods. Do not calculate a difference or percentage unless a recorded query returns it. Without the matching earlier query, give no week-on-week comparison.
 - Queries whose purpose starts 'Whole-store' count every stored post in the market and window, per platform, per sound and per hashtag; the one whose purpose says 'before the window' counts the same sounds and hashtags in the same number of days just before it. Take a sound's, hashtag's or platform's posts and creators from them, never from the post blocks: the post blocks are a sample, and how many there are is never a count.
 - In whole-store rows, located_posts and located_creators count posts located in the market; posts and creators also count posts only seen in the market's feeds, so give the located figures when the claim names the market as where the posts are.
@@ -304,9 +307,15 @@ if every use is supported. Set so_what_supported true for an item with no so_wha
 """ + COUNTRY_PEOPLE_RULE
 
 
+# The fence tag in any spelling: any case, space, tab, newline or zero-width character inside the angle brackets, a
+# slash before or after the name, and attributes after it. The same rule closes socialcrawl's fence.
+_FENCE_TAG = re.compile(r"<[\s\u200b-\u200f\u2060\ufeff]*(/?)[\s\u200b-\u200f\u2060\ufeff]*untrusted_content[^<>]*>",
+                        re.IGNORECASE)
+
+
 def _fence(text) -> str:
-    # Scraped text cannot close its own fence early.
-    safe = str(text or "").replace(FENCE_CLOSE, "</untrusted-content>").replace(FENCE_OPEN, "<untrusted-content>")
+    # Scraped text cannot close its own fence early, however it spells the tag.
+    safe = _FENCE_TAG.sub(lambda m: f"<{m.group(1)}untrusted-content>", str(text or ""))
     return f"{FENCE_OPEN}\n{safe}\n{FENCE_CLOSE}"
 
 
@@ -336,9 +345,10 @@ def _writer_evidence(ctx: RunContext) -> tuple[list[dict], dict]:
 
 def _query_block(query_id: str, query: dict) -> str:
     rows = query.get("rows") or []
-    shown = json.dumps(rows[:ROWS_SHOWN], default=str, ensure_ascii=False)
+    limit = STORE_ROWS_SHOWN if query.get("tool") == STORE_TOOL else ROWS_SHOWN
+    shown = json.dumps(rows[:limit], default=str, ensure_ascii=False)
     return (f"query {json.dumps({'query_id': query_id, 'purpose': query.get('purpose')}, ensure_ascii=False)}\n"
-            f"rows shown: {min(len(rows), ROWS_SHOWN)} of {len(rows)}\n{_fence(shown)}")
+            f"rows shown: {min(len(rows), limit)} of {len(rows)}\n{_fence(shown)}")
 
 
 def _pack(ctx: RunContext, records: list[dict]) -> tuple[list[str], dict]:

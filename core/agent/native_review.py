@@ -151,4 +151,13 @@ def tone_cap_ids(records, post_languages, native_statuses, is_non_english, *, na
                 for language in non_english)):
             if post_id:
                 capped.append(post_id)
+        elif (any(statuses.get(language) != "cleared" for language in non_english)
+              or (not non_english and non_english_text)):
+            # No standing cap here (ZA), but TRUST C5 holds tone at single_source until the language passes native
+            # checks: a language with no score at all (no labels yet, or outside the rotation) has not passed, a
+            # language with fewer than review.NATIVE_MIN checked quotes ("insufficient") has not passed either (Albert,
+            # 8 October 2026: capped the same as no review), and an English tag cannot clear text that reads as
+            # non-English. Five or more checked quotes with a passing score ("cleared") lift the cap.
+            if post_id:
+                capped.append(post_id)
     return capped
