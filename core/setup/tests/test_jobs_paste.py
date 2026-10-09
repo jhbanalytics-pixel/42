@@ -1,6 +1,7 @@
 """The jobs release paste (W8-REL-B v2.1 3.10, JU-02 over the paste world, JU-08, JU-09, JR-01's retry rule), run as a pwsh process with
 the real paste text and doubled commands. No external command runs. A missing pwsh fails the tests: it is never a reason to skip them."""
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -287,3 +288,246 @@ def test_ju08_the_checkout_is_asserted_before_every_command_of_candidate_and_upd
         assert result.returncode != 0 and result.names == [first], (action, result.names)
     rollback = JobsPasteWorld(tmp_path / "rollback", "JobsRollback").run(dirty_after_runs=1)
     assert rollback.returncode == 0 and rollback.names == ["helper-BeforeJobsRollback-0", "jobs-run-rollback", "helper-AfterJobsRollback-0"]
+
+
+# RB-T1 (F1): the typed words are Albert's. The paste resolves every command name it invokes, taken from its own syntax tree, and
+# refuses a session in which one is an alias, a function of the caller, a lookup hook's answer or a cmdlet from elsewhere. The
+# attacks are the reviewer's B1 to B7j and R2, run against a valid packet.
+
+ROOT = Path(__file__).resolve().parents[3]
+PASTE = ROOT / "core/setup/release/JOBS-PASTE.ps1"
+SERVICES_PASTE = ROOT / "core/setup/release/SERVICES-PASTE.ps1"
+GUARD_REFUSED = "RESULT:NOT EXECUTABLE: the command '"
+GUARD_TEXT = "does not resolve to a function of this paste"
+
+FAKES = r"""
+function global:FakeTyped { param([string]$Prompt, [switch]$Secure) if ($Secure) { return (ConvertTo-SecureString 'x' -AsPlainText -Force) }; return [regex]::Match($Prompt, 'Type (\w+)').Groups[1].Value }
+function global:FakeTrue { $true }
+function global:Nothing { }
+"""
+TWO = "Set-Alias -Scope Global -Name Read-Typed -Value FakeTyped; Set-Alias -Scope Global -Name Test-Interactive -Value FakeTrue\n"
+HOOK = ("$ExecutionContext.InvokeCommand.PreCommandLookupAction = { param($n, $e) if ($n -eq 'Read-Typed') { $e.Command = Get-Command FakeTyped; $e.StopSearch = $true }; "
+        "if ($n -eq 'Test-Interactive') { $e.Command = Get-Command FakeTrue; $e.StopSearch = $true } }\n")
+POST_HOOK = ("$ExecutionContext.InvokeCommand.PostCommandLookupAction = { param($n, $e) if ($n -eq 'Read-Typed') { $e.Command = Get-Command FakeTyped }; "
+             "if ($n -eq 'Test-Interactive') { $e.Command = Get-Command FakeTrue } }\n")
+# label -> (attack, real console gate?, expected text)
+ATTACKS = {
+    "B1 alias over a guard function, plus the two": ("Set-Alias -Scope Global -Name Assert-NoShadowAlias -Value Nothing\n" + TWO, True, GUARD_TEXT),
+    "B2 alias over Confirm-Action": ("Set-Alias -Scope Global -Name Confirm-Action -Value Nothing\n", True, GUARD_TEXT),
+    "B3 function named with the module prefix over Get-Alias": ("Set-Item -Path 'function:global:Microsoft.PowerShell.Utility\\Get-Alias' -Value { }\n" + TWO, True, GUARD_TEXT),
+    "B4 alias named with the module prefix over Get-Alias": ("Set-Alias -Scope Global -Name 'Microsoft.PowerShell.Utility\\Get-Alias' -Value Nothing\n" + TWO, True, GUARD_TEXT),
+    "B5 a command lookup hook and no alias": (HOOK, True, "command lookup hook"),
+    "B5post a post lookup hook": (POST_HOOK, True, "command lookup hook"),
+    "B6 a function over Test-Path that makes the aliases later": (
+        "$global:Armed = $false\nfunction global:Test-Path { if (-not $global:Armed) { $global:Armed = $true; "
+        "Set-Alias -Scope Global -Name Read-Typed -Value FakeTyped; Set-Alias -Scope Global -Name Test-Interactive -Value FakeTrue }; "
+        "Microsoft.PowerShell.Management\\Test-Path @args }\n", True, GUARD_TEXT),
+    "B7j an alias over Test-Receipt with the words present": ("Set-Alias -Scope Global -Name Test-Receipt -Value Nothing\n", False, GUARD_TEXT),
+    "B7j an alias over Assert-Identity and Assert-Source with the words present": (
+        "Set-Alias -Scope Global -Name Assert-Identity -Value Nothing; Set-Alias -Scope Global -Name Assert-Source -Value Nothing\n", False, GUARD_TEXT),
+    "R2 a module-prefixed function over Read-Host plus a hook": (
+        "function global:FakeRH { param($Prompt, [switch]$AsSecureString) [regex]::Match($Prompt, 'Type (\\w+)').Groups[1].Value }\n"
+        "Set-Item -Path 'function:global:Microsoft.PowerShell.Utility\\Read-Host' -Value ${function:FakeRH}\n"
+        "$ExecutionContext.InvokeCommand.PreCommandLookupAction = { param($n, $e) if ($n -eq 'Test-Interactive') { $e.Command = Get-Command FakeTrue; $e.StopSearch = $true } }\n",
+        True, "command lookup hook"),
+    "C1 the two aliases alone": (TWO, True, GUARD_TEXT),
+    "C2 the two aliases with AllScope": (
+        "Set-Alias -Scope Global -Name Read-Typed -Value FakeTyped -Option AllScope\nSet-Alias -Scope Global -Name Test-Interactive -Value FakeTrue -Option AllScope\n",
+        True, GUARD_TEXT),
+}
+
+
+def prompts_of(result):
+    return [c for c in result.calls if c["kind"] == "prompt"]
+
+
+@pytest.mark.parametrize("action", ["JobsCandidate", "JobsUpdate"])
+@pytest.mark.parametrize("label", sorted(ATTACKS))
+def test_rb_t1_an_attack_on_the_console_gate_or_a_check_is_refused_before_any_call_prompt_or_file(tmp_path, label, action):
+    attack, real_console, expected = ATTACKS[label]
+    world = JobsPasteWorld(tmp_path, action)
+    result = world.run(extra={"real_console": real_console, "attack": FAKES + attack})
+    assert result.returncode != 0 and expected in result.stderr, (label, result.stdout, result.stderr)
+    assert result.external == [] and prompts_of(result) == [], label
+    assert not (world.release_dir / "runs").exists()
+
+
+@pytest.mark.parametrize("action", ["JobsCandidate", "JobsUpdate"])
+def test_rb_t1_the_control_without_an_attack_is_refused_at_the_console_gate_not_by_the_resolution_check(tmp_path, action):
+    result = JobsPasteWorld(tmp_path, action).run(extra={"real_console": True})
+    assert result.returncode != 0 and "NOT INTERACTIVE" in result.stderr and GUARD_TEXT not in result.stderr, (result.stdout, result.stderr)
+    assert all(c["kind"] == "read" for c in result.external)
+
+
+@pytest.mark.parametrize("hook", ["PreCommandLookupAction", "PostCommandLookupAction", "CommandNotFoundAction"])
+@pytest.mark.parametrize("action", ACTIONS)
+def test_rb_t1_a_command_lookup_hook_of_any_kind_refuses_every_action(tmp_path, hook, action):
+    result = JobsPasteWorld(tmp_path, action).run(extra={"attack": f"$ExecutionContext.InvokeCommand.{hook} = {{ param($n, $e) }}\n"})
+    assert result.returncode != 0 and "lookup hook" in result.stderr and hook in result.stderr, (result.stdout, result.stderr)
+    assert result.external == [] and prompts_of(result) == []
+
+
+@pytest.mark.parametrize("action", ACTIONS)
+def test_rb_t1_an_alias_over_a_function_of_the_paste_refuses_every_action_including_rollback(tmp_path, action):
+    result = JobsPasteWorld(tmp_path, action).run(extra={"attack": FAKES + "Set-Alias -Scope Global -Name Invoke-Runner -Value Nothing\n"})
+    assert result.returncode != 0 and GUARD_TEXT in result.stderr and result.external == [], (result.stdout, result.stderr)
+
+
+# the check runs again before each step, before each prompt, and inside Confirm-Action and Confirm-Update
+
+STEP_ATTACK = {"JobsCandidate": (1, "Assert-Source", "archive"), "JobsUpdate": (1, "Invoke-Runner", "jobs-run-update")}
+
+
+@pytest.mark.parametrize("action", sorted(STEP_ATTACK))
+def test_rb_t1_an_alias_made_during_the_run_stops_the_next_step(tmp_path, action):
+    at, alias, step = STEP_ATTACK[action]
+    result = JobsPasteWorld(tmp_path, action).run(extra={"inject_at_run": at, "inject": FAKES + f"Set-Alias -Scope Global -Name {alias} -Value Nothing\n"})
+    assert result.returncode != 0 and GUARD_TEXT in result.stderr, (result.stdout, result.stderr)
+    assert step not in result.names and len(result.runs) == at, result.names
+
+
+def test_rb_t1_the_check_runs_inside_confirm_update_before_the_first_word_is_asked(tmp_path):
+    # The alias is made while the BeforeJobsUpdate readback runs, after the last step check and before IDLE.
+    result = JobsPasteWorld(tmp_path, "JobsUpdate").run(extra={"inject_at_run": 1, "inject": FAKES + TWO})
+    assert result.returncode != 0 and GUARD_TEXT in result.stderr, (result.stdout, result.stderr)
+    assert prompts_of(result) == [] and result.names == ["helper-BeforeJobsUpdate-0"]
+
+
+@pytest.mark.parametrize("action", ["JobsCandidate", "JobsUpdate"])
+def test_rb_t1_the_check_runs_inside_confirm_action_just_before_the_console_gate(tmp_path, action):
+    # Moving to the repository raises LocationChangedAction, which here makes the two aliases after the first check has passed.
+    attack = FAKES + "$ExecutionContext.InvokeCommand.LocationChangedAction = { " + TWO.strip() + " }\n"
+    result = JobsPasteWorld(tmp_path, action).run(extra={"real_console": True, "attack": attack})
+    assert result.returncode != 0 and GUARD_TEXT in result.stderr, (result.stdout, result.stderr)
+    assert result.external == [] and prompts_of(result) == []
+
+
+# the check itself
+
+def jobs_function(call, tmp_path):
+    """The real functions of the jobs paste in a real pwsh with no double: a definitions-only load, then the call."""
+    import subprocess
+
+    frame = Path(tmp_path) / "frame.ps1"
+    frame.write_text(f"$ErrorActionPreference = 'Stop'; . '{PASTE}' -Action JobsRollback -Lock x -Review x -Bindings x -Receipt x -DefinitionsOnly; "
+                     f"try {{ {call}; 'RESULT:ok' }} catch {{ 'RESULT:' + $_.Exception.Message }}", encoding="utf-8", newline="\n")
+    return subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(frame)], stdin=subprocess.DEVNULL, capture_output=True,
+                          encoding="utf-8", timeout=120)
+
+
+def checked_names(tmp_path):
+    done = jobs_function("& $Script:ResolutionCheck; 'NAMES:' + (@($Script:CheckedNames) + @($Script:NativeNames) -join ',')", tmp_path)
+    assert "RESULT:ok" in done.stdout, (done.stdout, done.stderr)
+    return next(line for line in done.stdout.splitlines() if line.startswith("NAMES:"))[6:].split(",")
+
+
+def test_rb_t1_the_names_come_from_the_paste_syntax_tree_and_cover_what_it_calls(tmp_path):
+    names = checked_names(tmp_path)
+    for expected in ("Test-Path", "Get-Content", "Read-Host", "Get-Alias", "Confirm-Action", "Confirm-Update", "Invoke-Release", "Read-Typed",
+                     "Test-Receipt", "Assert-Identity", "Assert-Source", "Test-SnapshotAge", "Invoke-Runner", "Invoke-JobsBuild", "Start-Sleep",
+                     "Tee-Object", "gcloud", "git", "py", "bash"):
+        assert expected in names, expected
+    assert len(set(names)) == len(names) and not [n for n in names if "\\" in n]
+
+
+@pytest.mark.parametrize("kind", ["alias", "function"])
+def test_rb_t1_every_name_the_paste_invokes_is_refused_when_an_alias_or_a_caller_function_takes_it(tmp_path, kind):
+    names = checked_names(tmp_path)
+    make = "Set-Alias -Name $n -Value Get-Command" if kind == "alias" else "Set-Item -Path ('function:' + $n) -Value { }"
+    body = "& { param($n) " + make + "; try { & $Script:ResolutionCheck; $script:missed += $n } catch { } } $n"
+    call = "$script:missed = @(); foreach ($n in @(" + ",".join("'" + n + "'" for n in names) + ")) { " + body + " }; if ($script:missed.Count) { throw ('NOT REFUSED: ' + ($script:missed -join ',')) }"
+    done = jobs_function(call, tmp_path)
+    assert "RESULT:ok" in done.stdout, (kind, done.stdout, done.stderr)
+
+
+def test_rb_t1_a_function_named_with_the_module_prefix_over_a_checked_name_is_refused(tmp_path):
+    done = jobs_function("Set-Item -Path 'function:global:Microsoft.PowerShell.Utility\\Read-Host' -Value { 'DEPLOY' }; Read-Word 'DEPLOY'", tmp_path)
+    assert "RESULT:ok" not in done.stdout and GUARD_REFUSED in done.stdout, (done.stdout, done.stderr)
+
+
+def test_rb_t1_the_default_backslash_function_of_a_clean_console_is_not_refused(tmp_path):
+    done = jobs_function("& $Script:ResolutionCheck", tmp_path)
+    assert "RESULT:ok" in done.stdout, (done.stdout, done.stderr)
+
+
+def test_rb_t1_a_function_of_the_caller_is_refused_unless_it_is_a_declared_test_double_of_a_definitions_only_load(tmp_path):
+    refused = jobs_function("function Test-Interactive { $true }; & $Script:ResolutionCheck", tmp_path)
+    assert GUARD_REFUSED + "Test-Interactive'" in refused.stdout, (refused.stdout, refused.stderr)
+    declared = jobs_function("function Test-Interactive { $true }; $Script:TestDoubles = @('Test-Interactive'); & $Script:ResolutionCheck", tmp_path)
+    assert "RESULT:ok" in declared.stdout, (declared.stdout, declared.stderr)
+
+
+def test_rb_t1_declared_test_doubles_count_only_in_a_definitions_only_load(tmp_path):
+    import subprocess
+
+    frame = Path(tmp_path) / "real_load.ps1"
+    frame.write_text(f"$ErrorActionPreference = 'Stop'; try {{ . '{PASTE}' -Action JobsRollback -Lock x -Review x -Bindings x -Receipt x }} catch {{ }}; "
+                     "function Test-Interactive { $true }; $Script:TestDoubles = @('Test-Interactive'); "
+                     "try { & $Script:ResolutionCheck; 'RESULT:ok' } catch { 'RESULT:' + $_.Exception.Message }", encoding="utf-8", newline="\n")
+    done = subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(frame)], stdin=subprocess.DEVNULL, capture_output=True, encoding="utf-8", timeout=120)
+    assert GUARD_REFUSED + "Test-Interactive'" in done.stdout, (done.stdout, done.stderr)
+
+
+@pytest.mark.parametrize("native", ["gcloud", "git", "py", "bash"])
+def test_rb_t1_a_function_or_an_alias_over_a_program_the_paste_runs_is_refused(tmp_path, native):
+    as_function = JobsPasteWorld(tmp_path / "f", "JobsRollback").run(extra={"attack": f"function global:{native} {{ }}\n"})
+    assert as_function.returncode != 0 and f"'{native}'" in as_function.stderr and as_function.external == [], (as_function.stdout, as_function.stderr)
+    as_alias = JobsPasteWorld(tmp_path / "a", "JobsRollback").run(extra={"attack": FAKES + f"Set-Alias -Scope Global -Name {native} -Value Nothing\n"})
+    assert as_alias.returncode != 0 and f"'{native}'" in as_alias.stderr and as_alias.external == [], (as_alias.stdout, as_alias.stderr)
+
+
+def test_rb_t1_a_prompt_is_never_made_in_a_session_where_read_host_is_not_the_cmdlet(tmp_path):
+    prompt = jobs_function("function global:Read-Host { 'DEPLOY' }; Read-Typed 'Type DEPLOY to continue'", tmp_path)
+    assert "RESULT:ok" not in prompt.stdout and GUARD_REFUSED + "Read-Host'" in prompt.stdout, (prompt.stdout, prompt.stderr)
+
+
+def test_rb_t1_the_resolution_check_calls_no_powershell_command_so_none_can_be_replaced(tmp_path):
+    done = jobs_function("$found = $Script:ResolutionCheck.Ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true); 'COMMANDS:' + $found.Count", tmp_path)
+    assert "COMMANDS:0" in done.stdout, (done.stdout, done.stderr)
+
+
+def check_block(path):
+    text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    start = text.index("$Script:ResolutionCheck = {")
+    end = text.index("\n}\n", start) + 3
+    return text[start:end]
+
+
+def test_rb_t1_the_resolution_check_is_a_copy_pinned_equal_to_the_services_paste():
+    mine, theirs = check_block(PASTE), check_block(SERVICES_PASTE)
+    assert len(mine) > 1500 and mine == theirs
+
+
+def test_rb_t1_the_paste_calls_the_prompt_cmdlet_by_its_plain_name_and_no_command_by_a_qualified_name():
+    text = PASTE.read_text(encoding="utf-8")
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    assert len(re.findall(r"(?<![\\\w'-])Read-Host -", code)) == 1
+    assert not re.findall(r"[A-Za-z]\\[A-Za-z]+-[A-Za-z]+", code.replace("System32\\tar.exe", ""))
+    assert "Assert-NoShadowAlias" not in text and "Shadowable" not in text
+
+
+def test_rb_t1_the_paste_states_that_a_fresh_console_and_pwsh_noprofile_file_are_required():
+    header = "\n".join(line for line in PASTE.read_text(encoding="utf-8").splitlines()[:30] if line.startswith("#"))
+    assert "pwsh -NoProfile -File" in header and "freshly opened console" in header
+
+
+def paste_run(prelude, tmp_path):
+    """The paste run for real (not a definitions-only load) from a frame script, after a prelude of the caller's own making."""
+    import subprocess
+
+    frame = Path(tmp_path) / "real_frame.ps1"
+    frame.write_text(f"$ErrorActionPreference = 'Stop'; {prelude}; try {{ & '{PASTE}' -Action JobsRollback -Lock x -Review x -Bindings x -Receipt x; 'RESULT:ok' }} "
+                     f"catch {{ 'RESULT:' + $_.Exception.Message }}", encoding="utf-8", newline="\n")
+    return subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(frame)], stdin=subprocess.DEVNULL, capture_output=True, encoding="utf-8", timeout=120)
+
+
+def test_rb_t1_a_real_run_from_a_clean_console_passes_the_check_and_stops_only_at_the_missing_lock(tmp_path):
+    done = paste_run("$null = 1", tmp_path)
+    assert "RESULT:NOT EXECUTABLE: the packet lock is missing" in done.stdout and "does not resolve" not in done.stdout, (done.stdout, done.stderr)
+
+
+@pytest.mark.parametrize("name", ["Invoke-Release", "Read-Host", "Confirm-Action", "Test-Path", "Step", "Test-Receipt"])
+def test_rb_t1_a_real_run_refuses_an_alias_over_a_name_it_invokes_before_it_reads_the_lock(tmp_path, name):
+    done = paste_run(f"Set-Alias -Scope Global -Name {name} -Value Get-Date", tmp_path)
+    assert GUARD_REFUSED + name + "'" in done.stdout and "packet lock" not in done.stdout, (done.stdout, done.stderr)
+

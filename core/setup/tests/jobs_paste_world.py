@@ -49,6 +49,7 @@ function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
 
 function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
     $Script:RunCount++
+    if ($Script:Cfg.inject -and $Script:RunCount -eq [int]$Script:Cfg.inject_at_run) { . ([scriptblock]::Create($Script:Cfg.inject)) }
     Log-Call @{ kind = 'run'; name = $Name; argv = $Argv; workdir = $WorkDir; run_dir_existed = (Test-Path -LiteralPath $Script:RunDir -PathType Container); env = (Env-Snap) }
     $code = 0
     if ($Argv[0] -match '(^|[\\/])tar(\.exe)?$') {
@@ -76,6 +77,7 @@ function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [strin
     return $code
 }
 
+if (-not $Script:Cfg.real_console) {
 function Test-Interactive { return (-not $Script:Cfg.no_interactive) }
 
 function Read-Typed {
@@ -90,11 +92,16 @@ function Read-Typed {
     if ($null -ne $answer) { return [string]$answer.Value }
     return $word
 }
+}
 
 function Start-Sleep { param($Seconds) Log-Call @{ kind = 'sleep'; seconds = $Seconds } }
 if ($cfg.build_double) { function Invoke-JobsBuild { Log-Call @{ kind = 'build' } } }
 
+$Script:TestDoubles = @('Read-Native', 'Run-Logged', 'Get-UtcNow', 'Start-Sleep')
+if ($cfg.build_double) { $Script:TestDoubles += 'Invoke-JobsBuild' }
+if (-not $cfg.real_console) { $Script:TestDoubles += @('Read-Typed', 'Test-Interactive') }
 foreach ($alias in @($cfg.aliases)) { Set-Alias -Scope Global -Name $alias.name -Value $alias.value }
+if ($cfg.attack) { . ([scriptblock]::Create($cfg.attack)) }
 try { Invoke-Release } finally { Log-Call @{ kind = 'env_at_end'; env = (Env-Snap) }; Log-Call @{ kind = 'end' } }
 '''
 
@@ -182,12 +189,13 @@ class JobsPasteWorld:
             "receipt": str(self.receipt), "repo": str(self.repo), "calls": str(calls), "commit": COMMIT, "tree": TREE, "status": status,
             "config_json": json.dumps({"core": {"account": CALLER, "project": "ogilvy-trends-v2"}}), "exits": exits or {},
             "no_interactive": not interactive, "words": words or {}, "snapshot_age_minutes": snapshot_age, "build_double": build_double,
-            "no_readback": list(no_readback), "minutes_per_prompt": minutes_per_prompt, "aliases": list(aliases), **(extra or {})}
+            "no_readback": list(no_readback), "minutes_per_prompt": minutes_per_prompt, "aliases": list(aliases), "real_console": False, "attack": "",
+            "inject": "", "inject_at_run": 0, **(extra or {})}
         self.write(self.tmp / "config.json", config)
         driver = self.tmp / "driver.ps1"
         driver.write_text(DRIVER, encoding="utf-8", newline="\n")
         clean = {k: v for k, v in os.environ.items() if k not in ("CLOUDSDK_CORE_DISABLE_FILE_LOGGING", "PYTHONDONTWRITEBYTECODE", "GIT_OPTIONAL_LOCKS")}
         proc = subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(driver), "-Config", str(self.tmp / "config.json")],
-                              capture_output=True, encoding="utf-8", timeout=120, env=clean)
+                              capture_output=True, stdin=subprocess.DEVNULL, encoding="utf-8", timeout=120, env=clean)
         entries = [json.loads(line) for line in calls.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
         return Result(proc.returncode, proc.stdout, proc.stderr, entries)
