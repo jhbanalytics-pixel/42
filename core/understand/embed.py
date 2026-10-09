@@ -234,7 +234,7 @@ def run_embed(execute, *, run_date, days=1, slice_limit=SLICE_LIMIT, book=None, 
         except Exception as err:
             first = (str(err).splitlines() or [""])[0][:300]
             totals["index"], totals["index_error"] = "failed", f"{type(err).__name__}: {first}"
-        if unindexable := int(row.get("unindexable") or 0):
-            totals["index_unindexable_rows"] = unindexable
+    if unindexable := int(row.get("unindexable") or 0):
+        totals["index_unindexable_rows"] = unindexable
     execute(load("tvf_search_posts"), {})
     return totals

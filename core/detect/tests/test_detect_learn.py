@@ -7,6 +7,7 @@ week is Monday 28 September to Sunday 4 October 2026, across a month end.
 
 import json
 import os
+import re
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -14,7 +15,9 @@ import pytest
 from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
 
-from .. import learn, runs, scorecard, sqlrun
+from .. import aggregate, learn, runs, scorecard, sqlrun
+from core.understand.tests.test_live_failures_20261009 import ROUND_TRIP, BadRequest, bq_number_refused
+
 from . import duck
 from .test_detect_scorecard import EXTRA_TABLES, FIGURES, ledger
 
@@ -408,6 +411,64 @@ def test_a_rerun_after_an_ok_run_scores_nothing_again(con):
 def test_learn_scores_through_the_packaged_eval_modules_not_ops():
     text = Path(learn.__file__).read_text(encoding="utf-8")
     assert "from core.eval import forecast_score, quality_score" in text and "ops." not in text
+
+
+# The append asks for rounding: a ratio such as 2/3 does not round-trip through BigQuery's default number mode
+
+
+class ExactModeClient(LearnClient):
+    """LearnClient that refuses, as the repo's model of BigQuery's exact mode, every PARSE_JSON(n.<figure>) written
+    without wide_number_mode => 'round' over a number the model refuses (bq_number_refused). Refusals are kept."""
+
+    def __init__(self, con):
+        super().__init__(con)
+        self.refused = []
+
+    def query(self, sql, job_config=None):
+        unrounded = re.findall(r"PARSE_JSON\(n\.(\w+)\)", sql)
+        for param in (job_config.query_parameters if job_config else []):
+            for row in duck._value(param):
+                for figure in unrounded:
+                    def refuse(token, figure=figure):
+                        if bq_number_refused(token):
+                            self.refused.append((figure, token))
+                            raise BadRequest(ROUND_TRIP.format(f"{float(token):.6g}"))
+                        return float(token)
+
+                    json.loads(row[figure], parse_float=refuse)
+        return super().query(sql, job_config)
+
+
+def ratio_row(**figures):
+    return {"week_start": WEEK, "week_end": WEEK_END, "market": "ZA", "run_id": runs.new_run_id("learn", WEEK),
+            "rule_version": scorecard.RULE_VERSION, **{f: {"value": None} for f in FIGURES}, **figures}
+
+
+def test_a_ratio_that_does_not_round_trip_is_appended_once_the_append_rounds(con):
+    row = ratio_row(precision={"value": 2 / 3, "unit": "share"}, expansion_cluster_share={"value": 1 / 3})
+    assert bq_number_refused(json.dumps(2 / 3)) == "more than 15 significant digits"
+    client = ExactModeClient(con)
+    aggregate._run(client, learn.APPEND_SQL, [learn.rows_param([row])], "core", "agent")
+    assert client.refused == []
+    assert len(scorecard_rows(con)) == 1
+
+
+def test_the_append_as_it_was_is_refused_by_the_default_number_mode(con):
+    """The statement before this change, its PARSE_JSON calls in the default mode, on the same row."""
+    before = learn.APPEND_SQL
+    for figure in FIGURES:
+        before = before.replace(f"PARSE_JSON(n.{figure}, wide_number_mode => 'round')", f"PARSE_JSON(n.{figure})")
+    assert before != learn.APPEND_SQL and "wide_number_mode" not in before
+    client = ExactModeClient(con)
+    row = ratio_row(precision={"value": 2 / 3})
+    with pytest.raises(BadRequest, match=r"cannot round-trip through string representation; error in PARSE_JSON"):
+        aggregate._run(client, before, [learn.rows_param([row])], "core", "agent")
+    assert client.refused == [("precision", "0.6666666666666666")]
+
+
+def test_every_figure_of_the_append_is_parsed_in_the_rounding_mode():
+    calls = re.findall(r"PARSE_JSON\([^)]*\)", learn.APPEND_SQL)
+    assert sorted(calls) == sorted(f"PARSE_JSON(n.{f}, wide_number_mode => 'round')" for f in FIGURES)
 
 
 # Dry run of the append on staging, skipped until L1 creates the table

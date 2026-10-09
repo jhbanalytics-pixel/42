@@ -117,6 +117,24 @@ def test_unindexable_rows_are_recorded_when_the_index_already_exists():
     assert counts["index_unindexable_rows"] == 412
 
 
+def test_unindexable_rows_are_recorded_below_the_row_count_that_builds_an_index():
+    """The count is recorded whenever it is above zero, as the module docstring says, not only at 5,000 stored rows."""
+    counts = embed.run_embed(StoredEmbeddings([768] * 93 + [0] * 7), run_date=DAY)
+    assert counts["index"] == "deferred_below_5000" and counts["embedded_total"] == 93
+    assert counts["index_unindexable_rows"] == 7
+
+
+def test_unindexable_rows_are_recorded_when_no_row_holds_an_embedding():
+    counts = embed.run_embed(StoredEmbeddings([0] * 7), run_date=DAY)
+    assert counts["index"] == "deferred_no_embeddings" and counts["embedded_total"] == 0
+    assert counts["index_unindexable_rows"] == 7
+
+
+def test_a_store_with_nothing_unindexable_records_no_count_below_the_index_threshold():
+    counts = embed.run_embed(StoredEmbeddings([768] * 100), run_date=DAY)
+    assert counts["index"] == "deferred_below_5000" and "index_unindexable_rows" not in counts
+
+
 def test_an_index_that_builds_adds_no_unindexable_key():
     counts = embed.run_embed(StoredEmbeddings([768] * 5_000), run_date=DAY)
     assert counts["index"] == "created_or_exists" and "index_unindexable_rows" not in counts
@@ -259,24 +277,91 @@ def test_every_parse_json_of_the_checkpoint_asks_for_rounding():
     assert all(re.fullmatch(r"PARSE_JSON\(@\w+, wide_number_mode => 'round'\)", c) for c in calls)
 
 
+def _parse_json_calls(text):
+    """(whole call, its arguments) of every PARSE_JSON( in text, any letter case, with the parentheses balanced so a
+    CAST(...) inside the first argument does not end the call early. SAFE.PARSE_JSON returns NULL on a number it
+    cannot take, so it is not a call that fails and is left out."""
+    calls = []
+    for found in re.finditer(r"(?<![\w.])PARSE_JSON\s*\(", text, re.IGNORECASE):
+        depth, args, i = 1, [], found.end()
+        start = i
+        while i < len(text) and depth:
+            c = text[i]
+            depth += (c == "(") - (c == ")")
+            if c == "," and depth == 1:
+                args.append(text[start:i])
+                start = i + 1
+            i += 1
+        args.append(text[start:i - 1])
+        calls.append((text[found.start():i], [a.strip() for a in args]))
+    return calls
+
+
+def _bound_parse_json(text):
+    """(call, rounded) of every PARSE_JSON call in text whose first argument holds a bound parameter (@name, also
+    inside a CAST), or is a field of the alias of an UNNEST(@name); rounded when it says wide_number_mode => 'round'."""
+    aliases = {m.group(1) for m in re.finditer(r"UNNEST\s*\(\s*@\w+\s*\)\s+(?:AS\s+)?(?!WITH\b|ON\b|WHERE\b|JOIN\b|"
+                                              r"CROSS\b|LEFT\b|GROUP\b|ORDER\b|LIMIT\b)(\w+)", text, re.IGNORECASE)}
+    found = []
+    for call, args in _parse_json_calls(text):
+        bound = re.search(r"@\w+", args[0]) or any(re.search(rf"\b{re.escape(a)}\s*\.\s*\w+", args[0], re.IGNORECASE)
+                                                  for a in aliases)
+        rounded = any(re.fullmatch(r"wide_number_mode\s*=>\s*'round'", a, re.IGNORECASE) for a in args[1:])
+        if bound:
+            found.append((" ".join(call.split()), bool(rounded)))
+    return found
+
+
+def _unrounded_bound_parse_json(text):
+    return [call for call, rounded in _bound_parse_json(text) if not rounded]
+
+
+@pytest.mark.parametrize("text", [
+    "PARSE_JSON(@parts)",
+    "parse_json(@parts)",
+    "Parse_Json( @parts )",
+    "PARSE_JSON(CAST(@parts AS STRING))",
+    "PARSE_JSON(CAST(@parts AS STRING), wide_number_mode => 'exact')",
+    "PARSE_JSON(@parts, wide_number_mode => 'exact')",
+    "SELECT PARSE_JSON(n.precision) FROM UNNEST(@rows) n",
+    "SELECT parse_json(n.precision) FROM UNNEST( @rows ) AS n",
+    "SELECT PARSE_JSON(CAST(n.precision AS STRING)) FROM UNNEST(@rows) n",
+])
+def test_the_bound_json_scan_finds_a_call_in_the_default_mode(text):
+    assert len(_unrounded_bound_parse_json(text)) == 1
+
+
+@pytest.mark.parametrize("text", [
+    "PARSE_JSON(@parts, wide_number_mode => 'round')",
+    "parse_json(CAST(@parts AS STRING), WIDE_NUMBER_MODE=>'ROUND')",
+    "SELECT PARSE_JSON(n.precision, wide_number_mode => 'round') FROM UNNEST(@rows) n",
+    "SELECT PARSE_JSON(NULLIF(JSON_QUERY(row_json, '$.counts'), 'null')) FROM t",
+    "SELECT SAFE.PARSE_JSON(S.name) FROM t S",
+    "SELECT PARSE_JSON(m.precision) FROM other m JOIN UNNEST(@rows) n ON n.k = m.k",
+    "PARSE_JSON('{\"a\": 1}')",
+])
+def test_the_bound_json_scan_leaves_a_call_that_is_rounded_or_not_bound(text):
+    assert _unrounded_bound_parse_json(text) == []
+
+
 def test_every_parse_json_of_a_bound_parameter_in_the_repo_asks_for_rounding():
     """A bound parameter that carries floats is refused by the default exact mode when a number cannot round-trip.
-    Every PARSE_JSON(@name) in any sql file or python sql string under core, tests aside, must say
+    Every PARSE_JSON in any sql file or python sql string under core, tests aside, whose argument is a bound
+    parameter, a CAST of one, or a field of the alias of an UNNEST(@name), in any letter case, must say
     wide_number_mode => 'round'."""
     root = Path(cluster.__file__).resolve().parents[1]
-    bound = []
+    bound, unrounded = [], []
     for pattern in ("*.sql", "*.py"):
         for path in sorted(root.rglob(pattern)):
             if "tests" in path.relative_to(root).parts:
                 continue
-            for call in re.findall(r"PARSE_JSON\(\s*@\w+[^)]*\)", path.read_text(encoding="utf-8")):
-                bound.append((path.relative_to(root).as_posix(), call))
-    assert {name for name, _ in bound} >= {
+            name, text = path.relative_to(root).as_posix(), path.read_text(encoding="utf-8")
+            unrounded += [(name, call) for call in _unrounded_bound_parse_json(text)]
+            bound += [name for _ in _bound_parse_json(text)]
+    assert set(bound) >= {
         "understand/sql/cluster_checkpoint.sql", "eval/sql/weekly_quality_insert.sql", "eval/blind_test.py",
-        "understand/embed.py", "understand/enrich.py"}
-    unrounded = [(name, call) for name, call in bound
-                 if not re.fullmatch(r"PARSE_JSON\(\s*@\w+,\s*wide_number_mode\s*=>\s*'round'\s*\)", call)]
-    assert unrounded == []
+        "understand/embed.py", "understand/enrich.py", "detect/learn.py"}
+    assert not unrounded, "default number mode:\n" + "\n".join(f"{name}: {call}" for name, call in unrounded)
 
 
 def test_a_run_with_small_numbers_writes_its_clusters_once_the_checkpoint_rounds(monkeypatch):
