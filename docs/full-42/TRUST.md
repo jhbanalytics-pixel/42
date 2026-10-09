@@ -46,7 +46,7 @@ Item rules (trend cards):
 | G7 | Route regime break in the last 14 days | No growth figure |
 | G8 | Calendar or last-year match | Seasonal, not Rising |
 | G9 | Cluster label not supported by 3 of 12 representative posts | Named by top hashtag or sound |
-| G10 | Explanation fails claim checks after one repair (and, when the critic held only its why-now, after one critic-informed second draft) | Numbers and posts only |
+| G10 | Explanation fails claim checks after one repair (and, when the critic held only its why-now, after one critic-informed second draft) | Held, reason shown |
 
 Claim rules (answers and explanations):
 
@@ -77,7 +77,7 @@ Every Ask answer and every morning explanation. Steps 3 to 5 are code on 100% of
 2. Decompose sentences into atomic claims, only where the reading is unambiguous (Claimify) [11].
 3. Resolve ids, handles, URLs, dates, markets, window; verbatim quotes.
 4. Numbers: every numeral matched to numbers[]; derived tables are append-only with a run_id and read through views of the latest good run, so every numeral is pinned to its run_id and a hash of its query result and re-run exactly (BigQuery time travel covers only 7 days and not views); post counts recounted.
-5. Labels and gaps: code computes the maximum label (Corroborated: independent non-brand authors on 2 platforms, or 3 unrelated authors plus a metric). Non-ok sources insert gaps; cited-post flags propagate.
+5. Labels and gaps: code computes the maximum label. Corroborated: unrelated non-brand authors on 2 platforms, or 3 unrelated authors plus a metric. Authors are unrelated when no post of one reuses media, caption text, a linked page or a reply relation with a post of the other, and a person posting under several handles counts once. Non-ok sources insert gaps; cited-post flags propagate.
 6. Support check per claim, fresh context, claim plus cited text only (FActScore and SAFE style) [12][13]. Until 300 claims are human-labelled, a claim passes only when the checker marks it supported; after that the threshold is set by conformal calibration so accepted claims are wrong at most 3% of the time [14].
 7. Critic, plus one test: name the simplest non-cultural explanation (collection change, one creator, a campaign, a scheduled event, bots) and say whether evidence rules it out.
 8. One repair round, then cut. One exception (Albert, 4 October 2026): when the critic rules out the simpler explanation, or passes a news or scheduled event on local reaction, and holds the morning explanation only because its why-now is not shown, the writer gets one second draft with the critic's reason. Every check in steps 3 to 7 runs again in full on that draft, with no further repair round; if it fails, cut. A simpler explanation left standing never gets a second draft.
@@ -91,7 +91,7 @@ Stage 1 subset (28 September): Stage 1A runs gate rules G1, G3, G4b, G5, G5b, G6
 
 Measurement units. Each series is measured in the unit its source supports, recorded in item_counter_daily and item_daily with the protocol that produced it:
 - Rank lists (TikTok local feed, hashtag board, YouTube trending, charts, the X trends archive): entry, rank, rank climb and days present. Post counts in a fixed-length list are small and zero-sum, so they are never a volume.
-- Counters (hashtag and sound totals, sound adoption curves, view counts on re-read posts): daily deltas.
+- Counters (hashtag and sound totals, view counts on re-read posts): daily deltas. Sound adoption points from tiktok/song/videos are a page sample by publish day, so they write no series; the job counts them as song_curve_sample_skipped.
 - Searches (expansion, confirmation, agent live calls): presence only, never volume, never baseline.
 - Panels (hub accounts, sentinel creators, measurement panel): posts per day by a fixed protocol, which is the market-level volume.
 Days before a series was tracked are NULL, never zero, so a newly watched item never reads as a surge. A rank list or panel tracks every item from the day the list or panel started, so an item's absence from it is a real zero; a counter is tracked from the item's first read (DATA.md section 3).
