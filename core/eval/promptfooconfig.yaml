@@ -298,6 +298,15 @@ defaultTest:
           /\b(?:matriculants?|matric[\s-]+(?:learners?|pupils?|students?)|first[\s-]?time[\s-]+voters?|school[\s-]?leavers?)\b/i,
           /\bama[_-]?(?:(?:19|20)\d{2}'?s?|[12]ks?)\b/i,
           /\b(?:kid(?:s|z|dos?|dies?)?|zillenn?ials?|juveniles?|igen(?:eration)?s?|(?:ama|i)khehla)\b/i,
+          /\bold[\s-]+(?:man|men|woman|women|lad(?:y|ies)|guys?|couples?|persons?)\b/i,
+          /\belders?\b/i,
+          /\b(?:little|small)\s+(?:girls?|boys?)\b/i,
+          /\bschool[\s-]?(?:girls?|boys?)\b/i,
+          /\bgr[ae]y[\s-]?haired\b/i,
+          /\bchild\b(?!'?s?\s+day\b)/i,
+          /\blearners?\b(?!'?s?\s+(?:licen[cs]es?|drivers?|permits?)\b)/i,
+          /\bschool[\s-]going\b/i,
+          /\bsenior\s+citizens?\b/i,
         ];
         const hits = patterns.map((p) => (text.match(p) || [])[0]).filter(Boolean);
         return {
