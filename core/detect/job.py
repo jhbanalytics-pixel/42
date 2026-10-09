@@ -39,11 +39,8 @@ RULE_VERSION = "warmup-1"
 SQL = Path(__file__).parent / "sql"
 
 ITEM_STATE_COUNT_SQL = "SELECT COUNT(*) n FROM {core}.item_state s WHERE s.metric_date = @d AND s.run_id = @run_id"
-TOPIC_ITEM_STATE_COUNT_SQL = """
-SELECT COUNT(*) n FROM {core}.item_state s
-JOIN {core}.cultural_map cm ON cm.item_id = s.item_id AND cm.valid_to IS NULL
-WHERE s.metric_date = @d AND s.run_id = @run_id AND cm.kind = @kind
-"""
+TOPIC_ITEM_STATE_COUNT_SQL = (
+    "SELECT COUNT(*) n FROM {core}.item_state s WHERE s.metric_date = @d AND s.run_id = @run_id AND s.kind = @kind")
 
 CATCH_UP_DAYS = 3
 
@@ -253,11 +250,21 @@ def topics_failed_today(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
 
 
 def topic_items_judged(client, d, run_id, core=sqlrun.CORE, agent=sqlrun.AGENT):
-    """How many topic items this run's state step wrote to item_state for d. It is read back from item_state, so it
-    says what was judged and not what the stop was meant to leave out."""
+    """How many item_state rows of kind TOPIC_KIND this run's state step wrote for d, read back from item_state."""
     rows = sqlrun.query(client, TOPIC_ITEM_STATE_COUNT_SQL, {"d": d, "run_id": run_id, "kind": TOPIC_KIND},
                         core=core, agent=agent)
     return rows[0]["n"]
+
+
+def run_topic_count_step(client, d, run_id, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """The topic count for the detect counts. It is information only, so a failure never stops detect: it is logged
+    and returned as the status and error."""
+    try:
+        return topic_items_judged(client, d, run_id, core, agent)
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        print(f"detect {d.isoformat()}: topic count failed: {error}", file=sys.stderr)
+        return {"status": "failed", "error": error}
 
 
 def run_state(client, d, run_id, rule_version, core=sqlrun.CORE, agent=sqlrun.AGENT, topics_failed=False):
@@ -313,11 +320,13 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
         topics = topics_failed_today(client, d, core, agent)
         if topics:
             counts["topics_failed"] = topics
-            print(f"detect {d.isoformat()}: {topics['data_issue']}; no topic items judged", file=sys.stderr)
         counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent,
                                          topics_failed=bool(topics))
         if topics:
-            topics["topic_items_judged"] = topic_items_judged(client, d, detect.run_id, core, agent)
+            topics["topic_items_judged"] = run_topic_count_step(client, d, detect.run_id, core, agent)
+            if isinstance(topics["topic_items_judged"], int):
+                print(f"detect {d.isoformat()}: {topics['data_issue']}; {topics['topic_items_judged']} topic items "
+                      "judged", file=sys.stderr)
         counts["breakout"] = run_breakout_step(client, d, rule_version, core, agent)
         counts["watch"] = run_watch_step(client, d, detect.run_id, core, agent)
         counts["seeds"] = run_seeds_step(client, d, detect.run_id, core, agent)
