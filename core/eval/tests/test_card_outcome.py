@@ -619,3 +619,60 @@ def test_the_jump_predicate_in_the_states_query_is_the_one_state_sql_uses_for_ju
     assert state_jump_predicate() == ("st.lane_class != 'unbiased_rank' AND st.obs_prior >= 5 AND st.y >= 8 "
                                       "AND st.y >= 3 * st.med")
     assert f"({state_jump_predicate()})" in states
+
+
+# Partition and stage pins, one per block of the queries, so a filter dropped from one block cannot hide behind the
+# same words in another (review finding 6, mutants O20 to O24)
+
+
+def blocks(query):
+    """Name to text of each CTE of a query and its final SELECT. A CTE starts at a line 'name AS (' (after WITH for the first) and the final
+    SELECT is the last 'SELECT' at the start of a line."""
+    heads = list(re.finditer(r"^(?:WITH )?(\w+) AS \(", query, flags=re.M))
+    final = [m.start() for m in re.finditer(r"^SELECT", query, flags=re.M)][-1]
+    out = {}
+    for i, m in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else final
+        out[m.group(1)] = query[m.start():end]
+    out["final"] = query[final:]
+    return out
+
+
+def test_every_block_that_reads_a_table_filters_that_tables_own_date_column_in_the_run_window():
+    queries = co.split_queries(SQL.read_text(encoding="utf-8"))
+    expected = {
+        ("briefs", "final"): ("b.brief_date BETWEEN @start AND @end",),
+        ("states", "items"): ("b.brief_date BETWEEN @start AND @end",),
+        ("states", "sig"): ("st.metric_date BETWEEN @start AND @last",),
+        ("states", "lane"): ("st.metric_date BETWEEN @start AND @last",),
+        ("states", "final"): ("s.metric_date BETWEEN @start AND @last",),
+        ("detect_days", "final"): ("g.run_date BETWEEN @start AND @last", "g.stage = 'detect'"),
+    }
+    seen = set()
+    for name, query in queries.items():
+        for block, text in (blocks(query).items() if name == "states" else [("final", query)]):
+            if "`ogilvy-trends-v2." in text:
+                seen.add((name, block))
+                for predicate in expected[(name, block)]:
+                    assert text.count(predicate) == 1, (name, block, predicate)
+    assert seen == set(expected)
+
+
+def test_each_table_is_read_from_the_view_that_keeps_one_current_row_and_the_good_run_view():
+    states = blocks(co.split_queries(SQL.read_text(encoding="utf-8"))["states"])
+    assert "intelligence_42_agent.v_briefs_current` b" in states["items"]
+    assert "intelligence_42_core.v_series_test_current` st" in states["sig"]
+    assert "intelligence_42_core.v_series_test_current` st" in states["lane"]
+    assert "intelligence_42_core.v_item_state_current` s" in states["final"]
+    days = co.split_queries(SQL.read_text(encoding="utf-8"))["detect_days"]
+    assert "intelligence_42_core.v_good_runs` g" in days
+
+
+def test_the_joins_key_on_market_and_item_and_the_lane_guard_needs_one_lane_class():
+    states = blocks(co.split_queries(SQL.read_text(encoding="utf-8"))["states"])
+    assert "JOIN items i ON i.market = st.market AND i.item_id = st.item_id" in states["sig"]
+    final = states["final"]
+    assert "JOIN items i ON i.market = s.market AND i.item_id = s.item_id" in final
+    assert "LEFT JOIN lane l ON l.series_id = s.main_series_id AND l.metric_date = s.metric_date" in final
+    assert "IF(l.lanes = 1, l.lane_class, NULL) main_lane_class" in final
+    assert "COUNT(DISTINCT st.lane_class) lanes" in states["lane"]
