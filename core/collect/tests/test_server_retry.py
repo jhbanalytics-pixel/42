@@ -471,3 +471,100 @@ def test_a_call_made_twice_by_the_quick_retry_alone_is_not_on_the_server_retry_r
     [rec] = [r for r in run.records if r["route"] == "youtube/shorts/trending"]
     assert rec["attempts"] == 2 and rec["first_status"] == 429 and rec["server_retry"] == ""
     assert run.counts()["server_retries"] == []
+
+
+# The bound on the retry (W8-DEC-19, Albert, 9 Oct 2026): one slow retry per route per run, and at most 600 seconds of
+# slow-retry wait per run. The check comes before each wait, so a refused retry sleeps for nothing.
+
+ALWAYS_500 = (500, None)
+
+
+def test_the_bound_is_one_slow_retry_per_route_and_600_seconds_a_run():
+    from core.collect.socialcrawl_client import SERVER_RETRY_MAX_WAIT
+
+    assert SERVER_RETRY_MAX_WAIT == 600
+    assert make().server_retry_max_wait == 600
+    assert make(server_retry_max_wait=7).server_retry_max_wait == 7
+
+
+def test_a_route_gets_one_slow_retry_per_run_and_the_next_call_on_it_gets_none():
+    http = FakeHTTP({ROUTE: ALWAYS_500})
+    waits = []
+    client = make(http=http, sleep=waits.append, retry_wait=2)
+    first = board(client)
+    assert first.server_retry == "made" and waits == [60] and http.routes().count(ROUTE) == 2
+    second = board(client)
+    assert second.status == "error" and second.http_status == 500 and second.attempts == 1
+    assert second.server_retry == "blocked: route" and waits == [60] and http.routes().count(ROUTE) == 3
+    third = board(client)
+    assert third.server_retry == "blocked: route" and waits == [60] and http.routes().count(ROUTE) == 4
+
+
+def test_another_route_still_gets_its_own_slow_retry():
+    http = FakeHTTP({ROUTE: ALWAYS_500, PANEL[0]: ALWAYS_500})
+    waits = []
+    client = make(http=http, sleep=waits.append, retry_wait=2)
+    assert board(client).server_retry == "made"
+    other = client.call(*PANEL, market="ZA", server_retry_room=ROOM)
+    assert other.server_retry == "made" and waits == [60, 60]
+
+
+def test_a_route_whose_slow_retry_was_blocked_before_the_wait_keeps_its_one_retry():
+    http = FakeHTTP({ROUTE: [ALWAYS_500, ALWAYS_500, board_ok()]})
+    waits = []
+    client = make(http=http, sleep=waits.append, retry_wait=2)
+    hold = quote_for(BOARD[0], "GET", BOARD[1])
+    blocked = board(client, room=hold)  # no room: nothing is waited for
+    assert blocked.server_retry == "blocked: room" and waits == []
+    again = board(client)
+    assert again.server_retry == "made" and again.status == "ok" and waits == [60]
+
+
+def test_a_slow_retry_the_cap_stopped_after_the_wait_still_uses_up_the_route_and_the_wait():
+    ledger = MemoryLedgerStore()
+    waits = []
+    http = FakeHTTP({ROUTE: ALWAYS_500, PANEL[0]: ALWAYS_500})
+    client = make(http=http, ledger=ledger, retry_wait=2,
+                  sleep=lambda s: (waits.append(s), spent(ledger, "collect", COLLECT_SHARE)))
+    first = board(client)
+    assert first.server_retry == "blocked: cap" and waits == [60]
+    assert client._slow_waited == 60 and ROUTE in client._slow_used
+
+
+@pytest.mark.parametrize("max_wait,second", [(600, "made"), (599, "blocked: wait")])
+def test_the_total_slow_wait_of_a_run_is_capped_and_the_check_comes_before_the_wait(max_wait, second):
+    http = FakeHTTP({ROUTE: ALWAYS_500, PANEL[0]: ALWAYS_500})
+    waits = []
+    client = make(http=http, sleep=waits.append, retry_wait=2, server_retry_wait=300, server_retry_max_wait=max_wait)
+    assert board(client).server_retry == "made"
+    other = client.call(*PANEL, market="ZA", server_retry_room=ROOM)
+    assert other.server_retry == second
+    assert waits == ([300, 300] if second == "made" else [300])
+    assert other.status == "error" and other.http_status == 500
+    assert http.routes().count(PANEL[0]) == (2 if second == "made" else 1)
+
+
+def test_a_full_outage_of_every_board_and_panel_route_costs_a_run_at_most_600_seconds_of_slow_retry():
+    import os
+
+    from core.collect import curated_creators
+    from core.collect.tests.test_socialcrawl_client import NOW, TODAY
+
+    cfg, man = job.load_config(), curated_creators.load_manifest()
+    for status in (500, 503, 504):
+        calls = {m: [] for m in ("ZA", "NG", "KE", "GLOBAL")}
+        for m in ("ZA", "NG", "KE"):
+            h, _ = job.harvest_calls(m, TODAY, cfg)
+            calls[m] = [c for c in h + job.panel_calls(m, TODAY, cfg, man, 10 ** 6) if c.slow_retry]
+        calls["GLOBAL"] = [c for c in job.global_calls() if c.slow_retry]
+        routes = {c.route for cs in calls.values() for c in cs}
+        http = FakeHTTP({r: (status, None) for r in routes})
+        waits = []
+        client = make(http=http, sleep=waits.append, retry_routes=job.RETRY_ROUTES, retry_wait=2)
+        run = job.Collected("probe")
+        runner = job._Runner(client, run, job._CountedIds(lambda k, r, p=None: f"{k}|{p}:{r}"),
+                             job.safe_geo(lambda *a, **k: (None, None, None)), lambda: NOW, job.Budget(), None, TODAY)
+        for m, cs in calls.items():
+            runner.calls(cs, m)
+        assert sum(len(cs) for cs in calls.values()) > 60 and waits.count(60) >= 1
+        assert waits.count(60) <= len(routes) and waits.count(60) * 60 <= 600, (status, waits.count(60))

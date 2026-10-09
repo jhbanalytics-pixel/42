@@ -35,10 +35,12 @@ outage costs that route's retries once, not on every call. The caller gets the l
 credits_charged summed over every attempt, attempts set, and the earlier failure classes in its reason.
 A caller that passes server_retry_room (the collect job does, for its boards and panels, W8-DEC-19) also gets
 one more attempt after server_retry_wait seconds (60) when the call still ends in an HTTP 5xx, after any of
-the retries above. It is made only if what the call has been charged plus one more hold fits the room, the
-share's and the month's caps and the balance floor still hold, and the wait is injectable (sleep). When it is
-not made the caller keeps the 5xx answer, not a cap status. A timeout, a 4xx (495 included), a 429 or a halt
-for credits never gets it. Result.attempts, first_http_status and server_retry ("made", or "blocked: room",
+the retries above. A route gets one such retry a run, and the run waits at most server_retry_max_wait seconds
+(600) in all for them (W8-DEC-19, Albert, 9 Oct 2026). It is made only if the route has not had its retry, the wait
+fits what is left of the 600, what the call has been charged plus one more hold fits the room, the share's and the
+month's caps and the balance floor still hold, and the wait is injectable (sleep). When it is not made the caller
+keeps the 5xx answer, not a cap status. A timeout, a 4xx (495 included), a 429 or a halt for credits never gets it.
+Result.attempts, first_http_status and server_retry ("made", or "blocked: route", "blocked: wait", "blocked: room",
 "blocked: cap", "blocked: balance") are the receipt of it.
 Result.failure names the class of a failed live attempt (timeout, connection, transport, http_429,
 http_5xx, http_4xx, vendor_error, insufficient_credits, store), never a URL, key or body.
@@ -117,6 +119,7 @@ RETRY_BACKOFF = 4
 RETRY_CREDITS = 30
 NOT_LIVE = frozenset({"cap_reached", "balance_floor"})  # a refusal before the call, not an answer
 SERVER_RETRY_WAIT = 60  # seconds before the one retry of a board or panel call answered 5xx
+SERVER_RETRY_MAX_WAIT = 600  # seconds of that wait one run may spend in all, one retry a route (W8-DEC-19)
 TRANSIENT = frozenset({"timeout", "connection", "http_429", "http_5xx"})
 _TIMEOUT_NAMES = frozenset({"Timeout", "ReadTimeout", "ConnectTimeout", "TimeoutError"})
 _CONNECTION_NAMES = frozenset({"ConnectionError", "ChunkedEncodingError", "ProtocolError", "RemoteDisconnected"})
@@ -738,7 +741,7 @@ class SocialCrawlClient:
         self, *, share, run_id, mode, ledger, raw, http, clock,
         agent=None, schedule_started=True, eval_refresh=False, caps=None, timeout=60,
         retry_wait=RETRY_WAIT, sleep=clock_time.sleep, retry_routes=(), transient_retries=TRANSIENT_RETRIES,
-        retry_credits=RETRY_CREDITS, server_retry_wait=SERVER_RETRY_WAIT,
+        retry_credits=RETRY_CREDITS, server_retry_wait=SERVER_RETRY_WAIT, server_retry_max_wait=SERVER_RETRY_MAX_WAIT,
     ):
         if mode not in ("live", "replay"):
             raise ValueError(f"mode must be live or replay, not {mode!r}")
@@ -763,6 +766,9 @@ class SocialCrawlClient:
         self.ledger, self.raw, self.http, self.clock, self.timeout = ledger, raw, http, clock, timeout
         self.retry_wait, self.sleep = retry_wait, sleep
         self.server_retry_wait = server_retry_wait
+        self.server_retry_max_wait = server_retry_max_wait
+        self._slow_used = set()  # routes that have had their one slow retry in this client
+        self._slow_waited = 0  # seconds of slow-retry wait this client has slept
         self.retry_routes = frozenset(_normalise(r) for r in retry_routes)
         self.transient_retries, self.retry_credits = transient_retries, retry_credits
         self._retry_held = 0   # holds of the transient retries made so far
@@ -842,10 +848,12 @@ class SocialCrawlClient:
         # http_5xx names only a live answer of 500 to 599: a timeout, a 4xx, a halt for credits and a store
         # failure after the call each carry a class of their own, so none of them gets this retry.
         if server_retry_room is not None and result.failure == "http_5xx":
-            slow = self._server_retry_blocked(quote, charged, server_retry_room)
+            slow = self._server_retry_blocked(route, quote, charged, server_retry_room)
             if not slow:
                 log.warning("socialcrawl %s %s; board or panel retry in %ss", route, result.failure,
                             self.server_retry_wait)
+                self._slow_used.add(route)
+                self._slow_waited += self.server_retry_wait
                 self.sleep(self.server_retry_wait)
                 again = self._checked(call, params, quote, floor)
                 if again.status in NOT_LIVE:
@@ -882,10 +890,15 @@ class SocialCrawlClient:
             return self.retry_wait, False
         return None, False
 
-    def _server_retry_blocked(self, quote, charged, room):
-        """Why the one retry of a board or panel 5xx must not be made, or "": what the call has been charged
-        plus this attempt's hold would cross the room the caller gave it, the share's or the month's cap would
-        be crossed, or the balance is under the floor. Nothing is waited for or called when one holds."""
+    def _server_retry_blocked(self, route, quote, charged, room):
+        """Why the one retry of a board or panel 5xx must not be made, or "": the route has had its one slow retry
+        in this run, the run's slow-retry wait would pass its maximum, what the call has been charged plus this
+        attempt's hold would cross the room the caller gave it, the share's or the month's cap would be crossed, or
+        the balance is under the floor. Nothing is waited for or called when one holds."""
+        if route in self._slow_used:
+            return "blocked: route"
+        if self._slow_waited + self.server_retry_wait > self.server_retry_max_wait:
+            return "blocked: wait"
         if charged + quote > room:
             return "blocked: room"
         if self._over_cap(quote):
