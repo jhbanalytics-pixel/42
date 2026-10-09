@@ -369,7 +369,7 @@ def test_run_date_in_the_environment_overrides_the_day(monkeypatch):
 
 def test_every_alert_name_is_one_of_the_rules():
     assert wd.ALERTS == ("collection_missing", "zero_rows", "brief_late", "model_spend", "schema_drift",
-                         "agent_error_rate", "seeds_failed", "agent_views_failed")
+                         "agent_error_rate", "seeds_failed", "agent_views_failed", "understand_degraded")
 
 
 def lines(out):
@@ -554,8 +554,7 @@ def severity_of(alerts, name):
 def test_log_only_signals_are_not_policy_alerts():
     from core.setup import monitoring
 
-    assert wd.LOG_ONLY == ("brief_empty", "brief_all_held", "brief_data_issue", "understand_degraded", "stage_dead",
-                           "watchdog_gap")
+    assert wd.LOG_ONLY == ("brief_empty", "brief_all_held", "brief_data_issue", "stage_dead", "watchdog_gap")
     assert set(wd.LOG_ONLY).isdisjoint(wd.ALERTS)
     assert set(wd.LOG_ONLY).isdisjoint(monitoring.ALERTS) and set(wd.LOG_ONLY).isdisjoint(monitoring.LOG_ALERTS)
 
@@ -597,20 +596,85 @@ def test_a_data_issue_brief_is_named_at_any_hour_and_is_not_also_called_empty():
     assert "brief_empty" not in names(wd.check(at(9, 0), FakeStore(briefs=briefs)))
 
 
-def understand(status="ok", degraded=(), run_id="understand-20261001-abc123"):
-    return {"run_id": run_id, "status": status, "degraded": list(degraded)}
+def understand(status="ok", degraded=(), run_id="understand-20261001-abc123", partial=False, partial_reason=None,
+               partial_error=None, embed_error=None):
+    return {"run_id": run_id, "status": status, "degraded": list(degraded), "embed_error": embed_error,
+            "partial": partial, "partial_reason": partial_reason, "partial_error": partial_error}
 
 
-def test_understand_degraded_fires_for_an_ok_run_that_could_not_write_something():
+def test_understand_degraded_fires_as_an_alert_for_an_ok_run_that_could_not_write_something():
     [alert] = wd.check(at(5, 0), FakeStore(understand=understand(degraded=["enrich", "cluster:ng"])))
-    assert alert.name == "understand_degraded" and alert.severity == "WARNING"
-    assert "understand-20261001-abc123" in alert.reason and "enrich" in alert.reason and "cluster:ng" in alert.reason
+    assert alert.name == "understand_degraded" and alert.severity == "ERROR"
+    assert "understand-20261001-abc123" in alert.reason and "finished ok" in alert.reason
+    assert "enrichment" in alert.reason and "topic clusters for NG" in alert.reason
+    assert "cluster:ng" not in alert.reason
+
+
+def test_a_run_with_no_embeddings_is_a_degraded_run_with_the_embed_error_in_the_reason():
+    [alert] = wd.check(at(5, 0), FakeStore(understand=understand(embed_error="retry_capped: no window was sent")))
+    assert alert.name == "understand_degraded" and alert.severity == "ERROR"
+    assert "embeddings" in alert.reason and "retry_capped: no window was sent" in alert.reason
+
+
+def test_a_partial_run_is_an_alert_whatever_its_status_says():
+    # wave8/detect records a failed clusterer as status ok, counts.partial true, and the job exits 0.
+    row = understand(partial=True, partial_reason="cluster_stack_failed", partial_error="ImportError: numba cache")
+    [alert] = wd.check(at(5, 0), FakeStore(understand=row))
+    assert alert.name == "understand_degraded" and alert.severity == "ERROR"
+    assert "understand-20261001-abc123" in alert.reason and "finished ok" in alert.reason
+    assert "topic grouping failed" in alert.reason and "cluster_stack_failed" in alert.reason
+    assert "ImportError: numba cache" in alert.reason
+
+
+def test_a_partial_run_with_a_reason_nobody_wrote_a_sentence_for_still_alerts_and_names_the_code():
+    [alert] = wd.check(at(5, 0), FakeStore(understand=understand(partial=True, partial_reason="video_stack_failed")))
+    assert alert.name == "understand_degraded" and "video_stack_failed" in alert.reason
+    [bare] = wd.check(at(5, 0), FakeStore(understand=understand(partial=True)))
+    assert bare.name == "understand_degraded" and "partial" in bare.reason and "None" not in bare.reason
+
+
+def test_a_partial_and_degraded_run_is_one_alert_that_names_both():
+    row = understand(degraded=["enrich"], embed_error="spend_unknown", partial=True, partial_reason="cluster_stack_failed")
+    [alert] = wd.check(at(5, 0), FakeStore(understand=row))
+    for word in ("topic grouping failed", "embeddings", "enrichment", "spend_unknown"):
+        assert word in alert.reason
+    assert "; it could not write embeddings (spend_unknown), enrichment" in alert.reason
 
 
 @pytest.mark.parametrize("latest", [None, understand(), understand("failed", ["enrich"]),
-                                    understand("running", ["enrich"])])
+                                    understand("running", ["enrich"]), understand("failed", partial=True),
+                                    understand("running", embed_error="x"), understand(partial=False, embed_error=""),
+                                    {"run_id": "understand-1", "status": "ok", "degraded": []}])
 def test_understand_degraded_stays_quiet_for_no_row_a_clean_run_or_a_run_that_is_not_ok(latest):
     assert "understand_degraded" not in names(wd.check(at(5, 0), FakeStore(understand=latest)))
+
+
+def test_a_long_or_multiline_error_is_cut_to_one_short_line_in_the_reason():
+    row = understand(embed_error="first line\n" + "x" * 500, partial=True, partial_reason="cluster_stack_failed",
+                     partial_error="a\nb " + "y" * 500)
+    [alert] = wd.check(at(5, 0), FakeStore(understand=row))
+    assert "\n" not in alert.reason and len(alert.reason) < 700
+    assert "first line" in alert.reason and "x" * 300 not in alert.reason and "y" * 300 not in alert.reason
+
+
+def test_a_partial_run_writes_one_error_line_with_the_alert_name_and_the_job_still_exits_0(capsys):
+    runs = chain.MemoryRunsStore()
+    row = understand(partial=True, partial_reason="cluster_stack_failed", partial_error="ImportError: numba cache")
+    assert wd.main(now=at(7, 0), store=FakeStore(keys=STABLE, runs=runs, understand=row), runs=runs) == 0
+    [line] = lines(capsys.readouterr().out)
+    assert line["severity"] == "ERROR" and line["alert"] == "understand_degraded"
+    assert line["message"].startswith("42 ALERT understand_degraded: the latest understand run for 2026-10-01")
+    [saved] = runs.rows
+    assert saved["status"] == "ok" and saved["counts"]["fired"] == ["understand_degraded"]
+
+
+def test_a_partial_run_alerts_once_a_day(capsys):
+    runs = chain.MemoryRunsStore()
+    store = FakeStore(keys=STABLE, runs=runs, understand=understand(partial=True, partial_reason="cluster_stack_failed"))
+    wd.main(now=at(7, 0), store=store, runs=runs)
+    capsys.readouterr()
+    wd.main(now=at(7, 15), store=store, runs=runs)
+    assert "42 ALERT understand_degraded" not in capsys.readouterr().out
 
 
 def stage_row(stage, status, started, run_id=None):
@@ -804,14 +868,17 @@ def test_bigquery_store_reads_the_log_only_questions_with_parameterised_selects(
     client = FakeClient({
         "v_briefs_current": [{"market": "ZA", "status": "published", "cards": 0, "held": 0},
                              {"market": "NG", "status": "data_issue", "cards": None, "held": None}],
-        "stage = 'understand'": [{"run_id": "understand-1", "status": "ok", "degraded": ["enrich"]}],
+        "stage = 'understand'": [{"run_id": "understand-1", "status": "ok", "degraded": ["enrich"], "embed_error": None,
+                                 "partial": False, "partial_reason": None, "partial_error": None}],
         "stage IN": [{"stage": "collect", "run_id": "collect-1", "status": "running", "started_at": at(2)}],
         "stage = 'watchdog'": [{"last_at": at(8)}],
     })
     store = wd.BigQueryStore(client)
     assert store.brief_state(DAY) == {"ZA": {"status": "published", "cards": 0, "held": 0},
                                       "NG": {"status": "data_issue", "cards": 0, "held": 0}}
-    assert store.understand_latest(DAY) == {"run_id": "understand-1", "status": "ok", "degraded": ["enrich"]}
+    assert store.understand_latest(DAY) == {"run_id": "understand-1", "status": "ok", "degraded": ["enrich"],
+                                            "embed_error": None, "partial": False, "partial_reason": None,
+                                            "partial_error": None}
     assert store.stage_latest(DAY) == [{"stage": "collect", "run_id": "collect-1", "status": "running",
                                         "started_at": at(2)}]
     assert store.watchdog_last(DAY) == at(8)
@@ -828,6 +895,41 @@ def test_the_degraded_expression_is_the_one_coverage_reads():
     from core.api import store as api_store
 
     assert api_store.DEGRADED_SQL in wd.SQL["understand_latest"]
+
+
+def understand_row(run_id, counts, status="ok", hour=3, minute=0):
+    t = datetime(2026, 10, 1, hour, minute, tzinfo=timezone.utc)
+    return {"run_id": run_id, "stage": "understand", "run_date": DAY, "status": status, "started_at": t,
+            "finished_at": t, "counts": json.dumps(counts)}
+
+
+def read_understand(rows):
+    con = duck.connect(views=False)
+    duck.load(con, "agent.runs", rows)
+    [row] = duck.query(con, duck_agent_sql("understand_latest"), {"d": DAY})
+    return row
+
+
+def test_the_understand_question_reads_partial_embed_and_cluster_errors_from_the_latest_row():
+    row = read_understand([understand_row("u1", {"partial": True, "partial_reason": "cluster_stack_failed",
+                                                 "partial_error": "ImportError: numba",
+                                                 "embed_error": "retry_capped", "enrich_error": "Boom: x",
+                                                 "cluster": {"za": {"error": "e"}, "ng": {"clusters": 3}}})])
+    assert row == {"run_id": "u1", "status": "ok", "degraded": ["enrich", "cluster:za"], "embed_error": "retry_capped",
+                   "partial": True, "partial_reason": "cluster_stack_failed", "partial_error": "ImportError: numba"}
+
+
+def test_the_understand_question_gives_false_and_nulls_for_a_clean_row_and_for_a_partial_false():
+    clean = read_understand([understand_row("u1", {"model_usd": 0.1})])
+    assert clean["partial"] is False and clean["embed_error"] is None and clean["partial_reason"] is None
+    assert clean["degraded"] == []
+    assert read_understand([understand_row("u1", {"partial": False})])["partial"] is False
+
+
+def test_the_understand_question_takes_the_newest_row_and_ignores_skipped_ones():
+    rows = [understand_row("old", {"partial": True}, hour=2), understand_row("new", {}, hour=4),
+            understand_row("skip", {"partial": True}, status=chain.SKIPPED, hour=5)]
+    assert read_understand(rows)["run_id"] == "new"
 
 
 def test_stage_latest_sql_takes_the_newest_row_per_stage_and_skips_duplicates():

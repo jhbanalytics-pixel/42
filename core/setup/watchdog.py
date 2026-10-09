@@ -17,10 +17,14 @@ Rules, all for today in SAST (RUN_DATE overrides the day):
   seeds_failed        the day's latest seeds runs row (the seed queue writer inside f42-detect) is failed
   agent_views_failed  the day's latest detect runs row has counts.agent_views.status 'failed': f42-detect could
                       not apply the views L4's API reads, and detect carried on without them
+  understand_degraded the day's latest understand run is recorded ok but is partial (counts.partial true, any
+                      partial_reason: as when the clusterer's stack is unusable and the job still exits 0) or
+                      could not write a step (counts.embed_error, counts.enrich_error, or an error under a
+                      market in counts.cluster). A failed run is job_failed's, not this rule's.
 credits_low and reconcile come from the reconcile job's own lines, and job_failed from Cloud Run's job
 failure logs.
 
-Six more rules are log only (LOG_ONLY): they write the same "42 ALERT <name>:" line at WARNING (INFO for
+Five more rules are log only (LOG_ONLY): they write the same "42 ALERT <name>:" line at WARNING (INFO for
 brief_all_held), and no Cloud Monitoring policy matches them, so they add no cloud resource until someone adds one
 to core/setup/monitoring.py:
   brief_empty         from 06:30, a market whose current brief is published or partial with no cards and nothing
@@ -28,7 +32,6 @@ to core/setup/monitoring.py:
   brief_all_held      from 06:30, a market with no cards because every candidate was held: information, not a fault
   brief_data_issue    a market whose current brief is a data_issue row, which the brief job writes from 06:15 when
                       the upstream stage is not ok, and which finishes the brief run ok for the day
-  understand_degraded the day's latest understand run is ok but could not write enrichment or a market's clusters
   stage_dead          a stage whose latest runs row for the day is still running past its chain.TIMEOUTS: the
                       run was killed and never wrote a final row
   watchdog_gap        the watchdog's own last runs row today is more than 90 minutes old, so it was not running
@@ -61,8 +64,8 @@ CORE = f"{PROJECT}.intelligence_42_core"
 AGENT = f"{PROJECT}.intelligence_42_agent"
 STAGE = "watchdog"
 ALERTS = ("collection_missing", "zero_rows", "brief_late", "model_spend", "schema_drift", "agent_error_rate",
-          "seeds_failed", "agent_views_failed")
-LOG_ONLY = ("brief_empty", "brief_all_held", "brief_data_issue", "understand_degraded", "stage_dead", "watchdog_gap")
+          "seeds_failed", "agent_views_failed", "understand_degraded")
+LOG_ONLY = ("brief_empty", "brief_all_held", "brief_data_issue", "stage_dead", "watchdog_gap")
 SEVERITY = {"brief_all_held": "INFO"}
 NEEDS_NOW = ("model_spend", "stage_dead", "watchdog_gap")
 SPEND_SHARE = 0.8
@@ -200,11 +203,40 @@ def _brief_data_issue(store, d, clock):
                 "without a full upstream, and its run is recorded ok")
 
 
+PARTIAL_WORDS = {"cluster_stack_failed": "topic grouping failed, so no topic items were judged today"}
+STEP_WORDS = {"embed": "embeddings", "enrich": "enrichment"}
+ERROR_CHARS = 160
+
+
+def _short(text):
+    one = " ".join(str(text).split())
+    return one if len(one) <= ERROR_CHARS else one[:ERROR_CHARS - 3] + "..."
+
+
+def _step_words(step):
+    if step.startswith("cluster:"):
+        return f"topic clusters for {step.split(':', 1)[1].upper()}"
+    return STEP_WORDS.get(step, step)
+
+
 def _understand_degraded(store, d, clock):
     latest = store.understand_latest(d)
-    if latest and latest["status"] == "ok" and latest["degraded"]:
-        return (f"the latest understand run for {d}, {latest['run_id']}, finished ok but could not write: "
-                f"{', '.join(latest['degraded'])}")
+    if not latest or latest["status"] != "ok":
+        return None
+    parts = []
+    if latest.get("partial"):
+        code = latest.get("partial_reason")
+        said = PARTIAL_WORDS.get(code) if code else None
+        text = f"{said} ({code})" if said else code or "no reason recorded"
+        if latest.get("partial_error"):
+            text += f": {_short(latest['partial_error'])}"
+        parts.append(f"it is partial, {text}")
+    steps = (["embed"] if latest.get("embed_error") else []) + list(latest.get("degraded") or [])
+    if steps:
+        words = [_step_words(s) + (f" ({_short(latest['embed_error'])})" if s == "embed" else "") for s in steps]
+        parts.append(f"it could not write {', '.join(words)}")
+    if parts:
+        return f"the latest understand run for {d}, {latest['run_id']}, finished ok but " + "; ".join(parts)
 
 
 def _utc(value):
@@ -377,7 +409,11 @@ ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC LI
 FROM `{AGENT}.v_briefs_current`
 WHERE brief_date = @d
 QUALIFY ROW_NUMBER() OVER (PARTITION BY market ORDER BY published_at DESC) = 1""",
-    "understand_latest": f"""SELECT run_id, status, {UNDERSTAND_DEGRADED} degraded
+    "understand_latest": f"""SELECT run_id, status, {UNDERSTAND_DEGRADED} degraded,
+  JSON_VALUE(r.counts, '$.embed_error') embed_error,
+  IFNULL(JSON_VALUE(r.counts, '$.partial') = 'true', FALSE) partial,
+  JSON_VALUE(r.counts, '$.partial_reason') partial_reason,
+  JSON_VALUE(r.counts, '$.partial_error') partial_error
 FROM `{AGENT}.runs` r
 WHERE run_date = @d AND stage = 'understand' AND status != '{chain.SKIPPED}'
 ORDER BY COALESCE(finished_at, started_at) DESC, finished_at IS NOT NULL DESC LIMIT 1""",
