@@ -641,6 +641,14 @@ def test_a_partial_and_degraded_run_is_one_alert_that_names_both():
     assert "; it could not write embeddings (spend_unknown), enrichment" in alert.reason
 
 
+def test_an_embed_step_that_the_degraded_list_already_names_is_said_once_with_its_error():
+    # core/api/store.py DEGRADED_SQL names embed first, so the question's degraded list carries it beside embed_error
+    row = understand(degraded=["embed", "enrich"], embed_error="spend_unknown")
+    [alert] = wd.check(at(5, 0), FakeStore(understand=row))
+    assert "it could not write embeddings (spend_unknown), enrichment" in alert.reason
+    assert alert.reason.count("embeddings") == 1
+
+
 @pytest.mark.parametrize("latest", [None, understand(), understand("failed", ["enrich"]),
                                     understand("running", ["enrich"]), understand("failed", partial=True),
                                     understand("running", embed_error="x"), understand(partial=False, embed_error=""),
@@ -915,7 +923,8 @@ def test_the_understand_question_reads_partial_embed_and_cluster_errors_from_the
                                                  "partial_error": "ImportError: numba",
                                                  "embed_error": "retry_capped", "enrich_error": "Boom: x",
                                                  "cluster": {"za": {"error": "e"}, "ng": {"clusters": 3}}})])
-    assert row == {"run_id": "u1", "status": "ok", "degraded": ["enrich", "cluster:za"], "embed_error": "retry_capped",
+    assert row == {"run_id": "u1", "status": "ok", "degraded": ["embed", "enrich", "cluster:za"],
+                   "embed_error": "retry_capped",
                    "partial": True, "partial_reason": "cluster_stack_failed", "partial_error": "ImportError: numba"}
 
 

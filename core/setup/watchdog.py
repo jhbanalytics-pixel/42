@@ -79,7 +79,8 @@ WATCHDOG_MAX_GAP = timedelta(minutes=90)
 # Coverage (a test holds the two together); copied here so the job image does not import the API's store.
 _CLUSTER_MARKETS = ("za", "ng", "ke", "pan")
 UNDERSTAND_DEGRADED = "ARRAY(SELECT w FROM UNNEST([{}]) AS w WITH OFFSET o WHERE w IS NOT NULL ORDER BY o)".format(
-    ", ".join(["IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
+    ", ".join(["IF(JSON_VALUE(r.counts, '$.embed_error') IS NOT NULL, 'embed', NULL)",
+               "IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
               + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.error') IS NOT NULL, 'cluster:{m}', NULL)"
                  for m in _CLUSTER_MARKETS]))
 
@@ -231,7 +232,9 @@ def _understand_degraded(store, d, clock):
         if latest.get("partial_error"):
             text += f": {_short(latest['partial_error'])}"
         parts.append(f"it is partial, {text}")
-    steps = (["embed"] if latest.get("embed_error") else []) + list(latest.get("degraded") or [])
+    steps = list(latest.get("degraded") or [])
+    if latest.get("embed_error") and "embed" not in steps:
+        steps.insert(0, "embed")
     if steps:
         words = [_step_words(s) + (f" ({_short(latest['embed_error'])})" if s == "embed" else "") for s in steps]
         parts.append(f"it could not write {', '.join(words)}")
