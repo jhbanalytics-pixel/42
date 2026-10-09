@@ -2,7 +2,7 @@
   {
     "term": "fixture query ZA",
     "market": "ZA",
-    "source": "google_bq",
+    "source": "google_trending",
     "rank": null,
     "refreshed_at": "2026-09-30"
   },
@@ -16,7 +16,7 @@
   {
     "term": "fixture query KE",
     "market": "KE",
-    "source": "google_bq",
+    "source": "google_trending",
     "rank": null,
     "refreshed_at": "2026-09-30"
   }
