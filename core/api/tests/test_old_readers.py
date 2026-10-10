@@ -456,6 +456,25 @@ def test_a_layer_that_read_nothing_does_not_pass(world, reverse):
     assert receipt["verdict"] == "fail" and any("no read of the candidate readers" in p for p in layer_of(receipt, "layer 4"))
 
 
+def test_a_route_with_no_read_for_one_ask_is_a_problem_on_each_of_the_three_routes(world, reverse):
+    data = data_of(world, reverse)
+    victim = h.ask_id_of(world["rows"][0])
+    for route in ("ask read", "ask events", "ask export"):
+        reads = copy.deepcopy(data["reads"])
+        del reads[victim][route]
+        receipt = h.build_receipt("c" * 40, {**data, "reads": reads})
+        assert receipt["verdict"] == "fail" and f"layer 2: {victim}: no read of {route}" in receipt["problems"], route
+
+
+def test_layer_1_rules_on_the_corpus_and_on_corpora_that_lack_something(world):
+    rows = world["rows"]
+    assert h.layer1_problems(rows) == [] and h.layer1_problems([]) == ["the corpus is empty"]
+    assert "no record holds answer_meta" in h.layer1_problems([r for r in rows if "answer_meta" not in r["record"]])
+    assert h.layer1_problems([r for r in rows if "answer_meta" in r["record"]]) == ["no record leaves answer_meta absent"]
+    assert "no failed record" in h.layer1_problems([r for r in rows if h.kind_of(r) != "failed"])
+    assert "no record holds summary state removed" in h.layer1_problems([r for r in rows if r["record"].get("answer_meta", {}).get("summary", {}).get("state") != "removed"])
+
+
 # The corpus hash
 
 def test_the_corpus_hash_is_stable_across_two_runs_of_the_writers_and_changes_when_one_record_changes(world):
@@ -551,6 +570,17 @@ def test_main_refuses_a_tree_that_differs_from_head_and_runs_nothing(monkeypatch
     target = tmp_path / "old-reader-receipt.json"
     assert h.main(["--receipt", str(target)]) == 1
     assert "core/api/store.py" in capsys.readouterr().err and not target.exists()
+
+
+def test_main_refuses_a_folder_that_does_not_exist_and_runs_nothing(monkeypatch, tmp_path, capsys):
+    def never(*args):
+        raise AssertionError("the layers ran although the receipt cannot be written")
+
+    monkeypatch.setattr(h, "collect", never)
+    monkeypatch.setattr(h, "changed_files", lambda root: [])
+    target = tmp_path / "missing" / "old-reader-receipt.json"
+    assert h.main(["--receipt", str(target)]) == 1
+    assert "does not exist" in capsys.readouterr().err
 
 
 def test_main_needs_the_receipt_flag(capsys):
