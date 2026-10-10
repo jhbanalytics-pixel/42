@@ -361,13 +361,15 @@ def rollback_deadline(bound, taken):
     never refused, for its hour, because it is the only way back."""
     try:
         candidate = jo.verified_readback(bound["releaseDir"], bound, "BeforeAnyWrite")
-    except Stop:
-        candidate = None
-    if candidate is None:
+        if candidate is None:
+            return None, None
+        day = jo.aware(candidate["at_utc"]).astimezone(jo.SAST).date()
+        deadline = dt.datetime.combine(day, dt.time.fromisoformat(bound["window"]["rollbackDeadlineSast"]), tzinfo=jo.SAST)
+        return deadline, jo.aware(taken) >= deadline
+    except (Stop, KeyError, ValueError, TypeError, OSError):
+        # Whatever is wrong with that readback (not this release's, no at_utc, not a time, unreadable), the hour is unknown and the
+        # rollback goes on: batch 12, "never refuse, log it".
         return None, None
-    day = jo.aware(candidate["at_utc"]).astimezone(jo.SAST).date()
-    deadline = dt.datetime.combine(day, dt.time.fromisoformat(bound["window"]["rollbackDeadlineSast"]), tzinfo=jo.SAST)
-    return deadline, jo.aware(taken) >= deadline
 
 
 def run_rollback(bound, adapter, evidence, *, now):

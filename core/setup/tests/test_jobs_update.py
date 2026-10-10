@@ -587,3 +587,40 @@ def test_f5_the_update_log_keeps_its_shape(tmp_path):
     w, cloud, clock = started(tmp_path)
     log = update(w, cloud, clock)
     assert "past_rollback_deadline" not in log and "rollback_deadline_at" not in log
+
+
+# Finding 1 of the Opus review of 6b71adb, and Albert's ruling of 10 Oct (batch 12): a rollback never refuses for its hour. A candidate
+# readback whose at_utc is missing or cannot be read as a time must not stop the rollback; the log says the hour is unknown.
+
+def damage_candidate_readback(w, how):
+    path = sorted((w.release_dir / "readbacks").glob("BeforeAnyWrite-*.json"))[-1]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if how == "missing":
+        del data["at_utc"]
+    else:
+        data["at_utc"] = {"null": None, "garbage": "not a time", "number": 12, "empty": "", "list": ["2026-10-11T08:00:00+00:00"]}[how]
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+
+@pytest.mark.parametrize("how", ["missing", "null", "garbage", "number", "empty", "list"])
+def test_f1_a_rollback_runs_and_logs_an_unknown_hour_when_the_candidate_readback_has_no_usable_at_utc(tmp_path, how):
+    w, cloud, clock = started(tmp_path)
+    update(w, cloud, clock)
+    damage_candidate_readback(w, how)
+    log = rollback(w, cloud, clock)
+    assert log["past_rollback_deadline"] is None and log["rollback_deadline_at"] is None
+    assert log["complete"] is True and log["stopped"] is None and all(v == OLD for v in digests(cloud).values())
+    written = json.loads(sorted(w.evidence.glob("jobs-rollback-*.json"))[-1].read_text(encoding="utf-8"))
+    assert written["past_rollback_deadline"] is None and written["complete"] is True
+
+
+@pytest.mark.parametrize("how", ["missing", "garbage"])
+def test_f1_the_rollback_command_exits_zero_and_restores_the_fourteen_jobs_when_the_candidate_readback_has_no_usable_at_utc(tmp_path, how):
+    w, cloud, clock = started(tmp_path)
+    update(w, cloud, clock)
+    damage_candidate_readback(w, how)
+    bindings = w.evidence / "bindings.json"
+    bindings.write_text(json.dumps(w.bound), encoding="utf-8")
+    code = jr.main(["rollback", "--bindings", str(bindings), "--evidence", str(w.evidence)], adapter_factory=lambda t: cloud, now=clock.now)
+    assert code == 0 and all(v == OLD for v in digests(cloud).values())
+    assert json.loads(sorted(w.evidence.glob("jobs-rollback-*.json"))[-1].read_text(encoding="utf-8"))["past_rollback_deadline"] is None
