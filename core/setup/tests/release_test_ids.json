@@ -729,7 +729,8 @@
    "core/api/tests/test_agent_compat.py",
    "core/setup/tests/test_release_retry.py",
    "core/setup/tests/test_services_paste.py",
-   "core/setup/tests/test_release_packet_paste.py"
+   "core/setup/tests/test_release_packet_paste.py",
+   "core/setup/tests/test_release_e2e.py"
   ]
  },
  "schema_version": 1
