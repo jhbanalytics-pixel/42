@@ -1,0 +1,38 @@
+# Names a brief title can use for one national team, read by core/brief/same_event.py. Two Today-bound items of one
+# market that name the same two or more teams here are one event (a fixture such as South Africa v Egypt), whatever
+# words each title uses, so the brief shows one card for it (core/brief/job.py _merge).
+#
+# Each key is the entity the aliases stand for. The key itself always matches. List a nickname only when it names that
+# one side everywhere, and only for the senior men's team: the women's and age group sides play other matches, so
+# Banyana Banyana, Super Falcons and the like stay out, and so do names shared with clubs or other sports (Springboks,
+# Warriors, Lions, Eagles on its own). Keys and aliases are written in lower case without accents.
+teams:
+  south africa: [bafana bafana, bafana, rsa]
+  nigeria: [super eagles]
+  kenya: [harambee stars]
+  egypt: [pharaohs, the pharaohs]
+  ghana: [black stars]
+  cameroon: [indomitable lions]
+  senegal: [lions of teranga, teranga lions]
+  morocco: [atlas lions]
+  algeria: [desert foxes]
+  tunisia: [eagles of carthage, carthage eagles]
+  ivory coast: [cote d ivoire, elephants of ivory coast]
+  zambia: [chipolopolo, copper bullets]
+  angola: [palancas negras]
+  tanzania: [taifa stars]
+  uganda: [uganda cranes]
+  mali: []
+  dr congo: [drc, democratic republic of congo]
+  england: [three lions]
+  france: [les bleus]
+  brazil: [selecao]
+  argentina: [la albiceleste]
+  germany: []
+  spain: [la roja]
+  portugal: []
+  italy: [azzurri]
+  netherlands: [oranje]
+  croatia: []
+  belgium: [red devils]
+  usa: [usmnt, united states]

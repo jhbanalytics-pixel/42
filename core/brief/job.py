@@ -65,6 +65,7 @@ from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read
 from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
+from core.brief.same_event import event_key
 from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _worth, brief_row,
                                build_market_payload)
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
@@ -85,10 +86,11 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # Local label, W8-DEC-03d the narrowed K6 score and date terms switched on, W8-DEC-06b ballot and voter political only
 # beside a party, leader or election term, k6-b7-decade the K6 decade rule of closure review B (CB-4), k6-names the K6
 # false hold exemptions for names, titles and identifiers, k6-n13-n15 the N13-T and N15 K6 age words, rule1-old-age the
-# rule 1 words old man, old woman and elders, g1-gap a missing baseline day after history began read as invalid for G1.
+# rule 1 words old man, old woman and elders, g1-gap a missing baseline day after history began read as invalid for G1,
+# today-dupes a card with no creator or post in its counted 3 days held, and items naming one fixture merged.
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
-                "+k6-n13-n15+rule1-old-age+g1-gap")
+                "+k6-n13-n15+rule1-old-age+g1-gap+today-dupes")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -107,6 +109,7 @@ BOARD_WORDS = {"board_tiktok_hashtag": "TikTok hashtag board", "board_youtube": 
                "board_apple_music": "Apple Music chart"}
 NO_CONFIRM = {"kind": "thin_coverage",
               "text": "Cross-platform confirmation did not run today: cards rest on 42's own collection only"}
+NO_COUNTED_DAYS = "No creator posted about it in the last 3 days"
 PACK_MAX, PER_CREATOR = 12, 2  # core/brief/sql/evidence.sql: at most 12 posts in a pack and 2 per creator
 # Leave this reserve for the boards, moments, claim_checks, briefs and chain.finish. Each model dispatch reads the
 # remaining allowance to this cutoff and the daily deadline. HTTP phase timeouts are clamped again after auth;
@@ -497,7 +500,19 @@ def _gate(cand, passed):
     if decision.where == "today" and len(local) < 2:
         cand["held_reason"], cand["floor_held"] = "not_confirmed", True
         return _floor_held_decision(cand, "local", "Fewer than 2 supported local posts", evidence)
+    # The floors above read the 7 day pack; the card's own counts are the last 3 days. A card whose counted days hold
+    # no creator or no post would show "0 creators and 0 posts in 3 days" over examples older than those days. Only a
+    # measured zero holds: a count detect did not give is not a zero. Not a floor hold: confirm finds posts, never
+    # detect's counts, so a search cannot change the answer.
+    if decision.where == "today" and 0 in (_pinned(cand, "creators in 3 days"), _pinned(cand, "posts in 3 days")):
+        cand["held_reason"] = "too_few_creators"
+        return _held(NO_COUNTED_DAYS)
     return decision
+
+
+def _pinned(cand, unit):
+    """The pack's pinned number with this unit, None when the pack has none."""
+    return next((n.get("value") for n in cand["pack"].get("numbers") or [] if n.get("unit") == unit), None)
 
 
 def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_terms, core, agent, hidden=None,
@@ -786,23 +801,33 @@ def _absorb(into, cand):
         per[e.get("handle")] += 1
 
 
+def _same_event(cand, kept):
+    """The highest ranked kept card that names the same event as cand (same_event.event_key), else None."""
+    event = event_key(cand["row"])
+    return None if event is None else next((k for k in kept if event_key(k["row"]) == event), None)
+
+
 def _merge(by_market):
-    """One card per set of posts. Per market, the Today-bound candidates in rank order: one with fewer than
-    MIN_EVIDENCE posts not already on a higher kept card is not a card of its own, and merges into the kept card it
-    shares most posts with (the higher one on a tie). Held candidates keep their hold and claim no posts. Merged
-    candidates leave by_market, so they are neither confirmed, explained, shown nor held. Returns
-    [{market, into, item_id}] in rank order."""
+    """One card per set of posts and per event. Per market, the Today-bound candidates in rank order. A candidate
+    merges into a kept card when it names the same event (same_event: the same two or more national teams, a
+    nickname counting for its team), whatever posts each has, or when it has fewer than MIN_EVIDENCE posts not
+    already on a higher kept card and shares posts with one, then into the kept card it shares most posts with (the
+    higher one on a tie). The higher ranked of two items for one event keeps the card. Held candidates keep their
+    hold and claim no posts. Merged candidates leave by_market, so they are neither confirmed, explained, shown nor
+    held. Returns [{market, into, item_id}] in rank order, with by "same_event" on an event merge."""
     merged = []
     for m in MARKETS:
         kept, claimed, gone = [], set(), set()
         for cand in sorted((c for c in by_market[m] if _for_today(c)), key=lambda c: _worth(c["row"])):
             posts = cand["posts"]
+            same = _same_event(cand, kept)
             best = max(((len(posts & k["posts"]), -i) for i, k in enumerate(kept)), default=(0, 0))
-            if len(posts - claimed) < MIN_EVIDENCE and best[0] > 0:
-                into = kept[-best[1]]
+            if same is not None or (len(posts - claimed) < MIN_EVIDENCE and best[0] > 0):
+                into = same if same is not None else kept[-best[1]]
                 _absorb(into, cand)
                 claimed |= posts
-                merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"]})
+                merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"],
+                               **({"by": "same_event"} if same is not None else {})})
                 gone.add(id(cand))
             else:
                 cand["also"] = []
@@ -1494,10 +1519,12 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
                            key=lambda c: _worth(c["row"])):
             posts = cand["posts"]
             best = max(((len(posts & k["posts"]), -j) for j, k in enumerate(kept)), default=(0, 0))
-            if len(posts - claimed) < MIN_EVIDENCE and best[0] > 0:
-                into = kept[-best[1]]
+            same = _same_event(cand, kept)
+            if same is not None or (len(posts - claimed) < MIN_EVIDENCE and best[0] > 0):
+                into = same if same is not None else kept[-best[1]]
                 _absorb(into, cand)
-                merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"]})
+                merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"],
+                               **({"by": "same_event"} if same is not None else {})})
                 by_market[m] = [c for c in by_market[m] if c is not cand]
             else:
                 cand["also"] = []
