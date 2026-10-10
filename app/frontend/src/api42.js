@@ -3,7 +3,7 @@
    status, a 401 is marked .auth so the page can hand over to the
    passcode screen, and the claims a refused dossier freeze names are kept
    as .claims. */
-import {PASS_KEY, storedValue} from './api.js';
+import {credential} from './api.js';
 import {createSSEParser} from './askTransport42.js';
 
 async function request(path, options){
@@ -11,14 +11,13 @@ async function request(path, options){
 }
 
 async function send(path, {method, body, signal} = {}){
-  const headers = {'X-Passcode': storedValue(PASS_KEY)};
-  const init = {headers, signal};
+  const init = {signal};
   if (method){
     init.method = method;
-    headers['Content-Type'] = 'application/json';
+    init.headers = {'Content-Type': 'application/json'};
     init.body = JSON.stringify(body === undefined ? {} : body);
   }
-  const res = await fetch(path, init);
+  const res = await credential.fetch(path, init);
   if (!res.ok) throw await failure(res);
   return res;
 }
@@ -29,7 +28,7 @@ async function failure(res){
   const error = new Error((payload && payload.message) || 'The request failed (' + res.status + ').');
   error.status = res.status;
   error.code = (payload && payload.error) || null;
-  if (res.status === 401) error.auth = true;
+  if (res.status === 401 && credential.refused(res)) error.auth = true;
   if (payload && Array.isArray(payload.claims)) error.claims = payload.claims;
   return error;
 }
@@ -404,9 +403,9 @@ export async function streamInvestigation(investigationId, onEvent, options = {}
   const aborted = () => signal && signal.aborted;
 
   try {
-    const headers = {'X-Passcode': storedValue(PASS_KEY), Accept: 'text/event-stream'};
+    const headers = {Accept: 'text/event-stream'};
     if (lastEventId != null) headers['Last-Event-ID'] = lastEventId;
-    const res = await fetch(investigationPath(investigationId) + '/events', {headers, signal});
+    const res = await credential.fetch(investigationPath(investigationId) + '/events', {headers, signal});
     if (res.status === 401) throw await failure(res);
     if (res.ok && res.body){
       const reader = res.body.getReader();

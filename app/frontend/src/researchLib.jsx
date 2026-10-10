@@ -1,6 +1,6 @@
 /* PULSE · Console Research shared: URL helpers, API, doc rendering. */
 import {useState, useRef, useEffect} from 'react';
-import {apiGet, apiGetFresh, apiPost, PASS_KEY} from './api.js';
+import {apiGet, apiGetFresh, apiPost, credential} from './api.js';
 import {Icon, useDialog} from './parts.jsx';
 import {ProgressRail} from './ui/index.js';
 import {countOf, human, readerWord, topicLabel} from './model.js';
@@ -1087,14 +1087,8 @@ function saveHtmlDownload(blob, artifactId){
 }
 
 async function fetchResearchHtmlResponse(url, init){
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      ...(init && init.headers ? init.headers : {}),
-      'X-Passcode': localStorage.getItem(PASS_KEY) || '',
-    },
-  });
-  if (res.status === 401) {
+  const res = await credential.fetch(url, init);
+  if (res.status === 401 && credential.refused(res)) {
     const e = new Error('Passcode required');
     e.auth = true;
     throw e;

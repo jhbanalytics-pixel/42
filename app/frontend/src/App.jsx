@@ -1,7 +1,7 @@
 /* PULSE · app shell: routing, region, ask flow, brief history */
 import {useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, lazy, Suspense} from 'react';
 import {InstrumentShell, StateView} from 'ogilvy-intelligence-design-system';
-import {PASS_KEY, useApi, clearCache, storedValue} from './api.js';
+import {PASS_KEY, REASON_KEY, credential, useApi, clearCache, storedValue} from './api.js';
 import {createWatch, fetchAlerts, listInvestigations, listSchedules, sendFeedback} from './api42.js';
 import {railSummaryForTopics} from './instrumentAdapters.js';
 import {routeStateView} from './instrumentRouteModels.js';
@@ -11,6 +11,12 @@ import {useHashRoute, go, buildTopicHash, buildScopedReadHash} from './router.js
 import {buildWorkbenchPath, parseWorkbenchRoute} from './workbenchRoute.js';
 import {normalizeView} from './redesignContract.js';
 import {RouteErrorBoundary} from './routeError.jsx';
+
+/* The gate's words for a key that is not accepted (C5 v2 section 13.2). */
+const STALE_WORDS = 'Your saved access key is no longer valid. Enter the current key.';
+const WRONG_WORDS = 'Access not recognised. Check the key and try again.';
+const CHECK_WORDS = 'Sign-in could not be checked just now. Try again shortly.';
+const SAVE_WORDS = 'This browser would not save the key, so you will be asked again after a reload.';
 
 const TodayPage42 = lazy(() => import('./today42.jsx').then((m) => ({default: m.TodayPage42})));
 const AskPage = lazy(() => import('./ask42.jsx').then((m) => ({default: m.AskPage})));
@@ -681,7 +687,16 @@ export default function App(){
   }, [route]);
 
   const [needPass, setNeedPass] = useState(false);
-  const [attempted, setAttempted] = useState(false);
+  /* The gate's account of the last failed attempt (C5 v2 section 13.2, item
+     11): a counter, so every failure is announced again, with the words and
+     whether the typed value was refused. notice is a saved key the server no
+     longer accepts. */
+  const [gateFailure, setGateFailure] = useState(null);
+  const [gateNotice, setGateNotice] = useState('');
+  const [retrying, setRetrying] = useState(false);
+  const [storageBlocked, setStorageBlocked] = useState(false);
+  const attempts = useRef(0);
+  const retryingNow = useRef(false);
   const [session, setSession] = useState(0);
   const [authMode, setAuthMode] = useState(null);
   const [authUnavailable, setAuthUnavailable] = useState(false);
@@ -698,8 +713,37 @@ export default function App(){
     setAuthReady(false);
   }, [authMode]);
 
+  const failWith = useCallback((kind, message, clear) => {
+    attempts.current += 1;
+    setGateNotice('');
+    setGateFailure({n: attempts.current, kind, message, clear});
+  }, []);
+  /* What a check of the stored key means for the page. A turned-down key is
+     handled by the gate's own subscriber below; a check that could not be
+     completed keeps the key and offers Try again. */
+  const applyStoredCheck = useCallback((result) => {
+    if (result.outcome === 'ok'){
+      setGateFailure(null);
+      setGateNotice('');
+      setNeedPass(false);
+      setAuthReady(true);
+      return;
+    }
+    setNeedPass(true);
+    setAuthReady(false);
+    if (result.outcome === 'wrong') credential.reject();
+    else if (result.outcome === 'rate') failWith('rate', result.message, false);
+    else failWith('check', CHECK_WORDS, false);
+  }, [failWith]);
+
   useEffect(() => {
     let live = true;
+    /* With a stored key the page waits, sends one verify, and starts no gated
+       read until it answers 200. */
+    const openWithStoredKey = () => {
+      if (!credential.key()){ setNeedPass(true); setAuthReady(false); return; }
+      credential.verifyStored().then((result) => { if (live) applyStoredCheck(result); });
+    };
     fetch('/api/health')
       .then((r) => {
         if (r && r.ok === false) throw new Error('health_unavailable');
@@ -712,6 +756,7 @@ export default function App(){
           const mode = d.auth_mode;
           const authCheck = d.checks && d.checks.auth;
           if (mode === 'iap_readonly' && d.passcode === false && authCheck === 'ok'){
+            credential.begin('iap');
             setAuthMode('iap_readonly');
             fetch('/api/auth/verify', {
               method: 'POST',
@@ -741,17 +786,8 @@ export default function App(){
           if (mode === 'passcode' && d.passcode === true && authCheck === 'ok'){
             setAuthMode('passcode');
             setAuthUnavailable(false);
-            try {
-              const has = !!storedValue(PASS_KEY);
-              if (!has){ setNeedPass(true); setAuthReady(false); }
-              else {
-                setNeedPass(false);
-                setAuthReady(true);
-              }
-            } catch (e){
-              setNeedPass(true);
-              setAuthReady(false);
-            }
+            credential.begin('passcode');
+            openWithStoredKey();
             return;
           }
           setAuthMode('unavailable');
@@ -762,21 +798,13 @@ export default function App(){
         }
         setAuthMode('legacy');
         if (!d || !d.passcode){
+          credential.begin('open');
           setNeedPass(false);
           setAuthReady(true);
           return;
         }
-        try {
-          const has = !!storedValue(PASS_KEY);
-          if (!has){ setNeedPass(true); setAuthReady(false); }
-          else {
-            setNeedPass(false);
-            setAuthReady(true);
-          }
-        } catch (e){
-          setNeedPass(true);
-          setAuthReady(false);
-        }
+        credential.begin('passcode');
+        openWithStoredKey();
       })
       .catch(() => {
         if (live) {
@@ -787,7 +815,17 @@ export default function App(){
         }
       });
     return () => { live = false; };
-  }, []);
+  }, [applyStoredCheck]);
+
+  const retryStored = useCallback(() => {
+    if (retryingNow.current) return;
+    retryingNow.current = true;
+    setRetrying(true);
+    credential.verifyStored().then(applyStoredCheck).finally(() => {
+      retryingNow.current = false;
+      setRetrying(false);
+    });
+  }, [applyStoredCheck]);
 
   const apiEnabled = authReady === true && !needPass && route !== 'method';
   /* Demo polish, 2 October 2026: core/api serves no /api/desk, so only Browse
@@ -878,22 +916,18 @@ export default function App(){
 
   const submitPasscode = async (code) => {
     if (authUnavailable || (authMode !== 'passcode' && authMode !== 'legacy')) return;
-    try {
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({passcode: code}),
-      });
-      if (!res.ok) {
-        setAttempted(true);
-        return;
-      }
-      localStorage.setItem(PASS_KEY, code);
-    } catch (e) {
-      setAttempted(true);
+    const result = await credential.verify(code);
+    if (result.outcome !== 'ok'){
+      if (result.outcome === 'wrong') failWith('wrong', WRONG_WORDS, true);
+      else if (result.outcome === 'rate') failWith('rate', result.message, false);
+      else failWith('check', CHECK_WORDS, false);
       return;
     }
-    setAttempted(false);
+    /* A browser that will not save the key still opens the desk; the key is
+       held for the life of the page and the reader is told. */
+    setStorageBlocked(!credential.store(code));
+    setGateFailure(null);
+    setGateNotice('');
     setNeedPass(false);
     setAuthReady(true);
     clearCache();
@@ -907,15 +941,20 @@ export default function App(){
      market stay, since they are preferences and not access. Only a passcode
      desk offers it: IAP access is the browser's Google sign-in, not ours. */
   const canSignOut = authMode === 'passcode' || (authMode === 'legacy' && Boolean(health && health.passcode));
-  const closeDesk = useCallback(() => {
+  const closeDesk = useCallback((options = {}) => {
     if (askCtrl.current){ askCtrl.current.abort(); askCtrl.current = null; }
+    credential.drop();
     clearCache();
     import('./dossierResource.js').then((m) => m.endReviewSession(), () => {});
     setActive(null);
     setAsking(null);
     setAskErr(false);
-    setBriefs([]);
-    setAttempted(false);
+    /* A key the server turned down is not a Log out: the saved answers and
+       chat threads stay, in this tab's memory as well as in storage. */
+    if (!options.keepSaved) setBriefs([]);
+    setGateFailure(null);
+    setGateNotice(options.notice || '');
+    setStorageBlocked(false);
     setNeedPass(true);
     setAuthReady(false);
     setSession((s) => s + 1);
@@ -925,7 +964,7 @@ export default function App(){
      pages. */
   const signedOut = useRef(false);
   const forgetStored = () => {
-    for (const key of [PASS_KEY, 'pulse-briefs', 'pulse-chat']){
+    for (const key of [PASS_KEY, REASON_KEY, 'pulse-briefs', 'pulse-chat']){
       try { localStorage.removeItem(key); } catch (e){}
     }
   };
@@ -947,6 +986,12 @@ export default function App(){
     const onStorage = (event) => {
       if (event.key !== null && event.key !== PASS_KEY) return;
       if (storedValue(PASS_KEY)) return;
+      /* Another tab found the key stale. That is not a Log out, so the saved
+         answers and chat threads stay and this tab only closes the desk. */
+      if (storedValue(REASON_KEY) === 'stale'){
+        closeDesk({keepSaved: true, notice: STALE_WORDS});
+        return;
+      }
       /* This tab's chat page saves its threads as it unmounts; mark the
          sign-out so the gate clears them again, as a click here would. */
       signedOut.current = true;
@@ -955,10 +1000,16 @@ export default function App(){
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, [canSignOut, closeDesk]);
+  useEffect(() => () => credential.end(), []);
+  /* The gate turned the key down on a request: close the desk to the gate. */
+  useEffect(() => credential.subscribe(() => closeDesk({keepSaved: true, notice: STALE_WORDS})), [closeDesk]);
 
   if (authUnavailable || (authMode === 'iap_readonly' && needPass)) return <SignInUnavailable />;
   if (authReady === null) return <SignInWait />;
-  if (needPass) return <PasscodeScreen onSubmit={submitPasscode} failed={attempted} />;
+  if (needPass){
+    const blocked = gateFailure && (gateFailure.kind === 'rate' || gateFailure.kind === 'check') && credential.key();
+    return <PasscodeScreen onSubmit={submitPasscode} failure={gateFailure} notice={gateNotice} onRetry={blocked ? retryStored : null} retrying={retrying} />;
+  }
 
   /* routes that bring their own data or render their own desk states skip the generic desk gate */
   const STANDALONE = new Set(['ask', 'topic42', 'coverage', 'alerts', 'console', 'source-lab', 'fieldwork', 'historical', 'topic', 'creator', 'lexicon', 'map', 'board', 'compare', 'network', 'seeds', 'seedpath', 'explore', 'listen', 'dossiers', 'dossier', 'dossier-share', 'creator42', 'communities', 'community', 'history', 'history-item', 'investigations', 'investigation', 'schedules', 'skins', 'skin', 'people-hidden', 'method']);
@@ -1015,6 +1066,7 @@ export default function App(){
       >
         <div className="sr-only" role="status" aria-live="polite">{routeMsg}</div>
         {authMode === 'iap_readonly' && <p className="t42-status" role="status">Read-only access</p>}
+        {storageBlocked && <p className="t42-status" role="status">{SAVE_WORDS}</p>}
         <RouteLayer key={route} route={route} research={researchMode} layerRef={mainRef}>
         {/* Task 65. The desk-loading route wait is gone. Browse and Method were
             the only routes it ever reached, and DESK_OPTIONAL says why neither

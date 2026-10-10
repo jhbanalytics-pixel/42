@@ -7,7 +7,7 @@
    The two downloads sit in the answer's one actions row; the row itself says
    what they are, so no hint line repeats it above them. */
 import {useState} from 'react';
-import {PASS_KEY, storedValue} from '../api.js';
+import {credential} from '../api.js';
 import {releaseExportUrlLater} from '../exportUrl.js';
 import {PEOPLE_UNAVAILABLE_WORDS} from '../privacyNotice.js';
 
@@ -15,10 +15,11 @@ const FORMATS = [
   {ext: 'html', label: 'Download as HTML'},
   {ext: 'pdf', label: 'Download as PDF'},
 ];
+const SIGN_IN_AGAIN = 'Sign in again to download this answer.';
 const FAILED = 'The download did not complete. Try again in a moment.';
 
 async function refusalMessage(response){
-  if (response.status === 401) return 'Sign in again to download this answer.';
+  if (response.status === 401) return SIGN_IN_AGAIN;
   try {
     const body = await response.json();
     if (body && body.error === 'people_unavailable') return PEOPLE_UNAVAILABLE_WORDS;
@@ -52,13 +53,11 @@ export function AnswerExport({requestId}){
     setBusy(ext);
     setError('');
     try {
-      const response = await globalThis.fetch('/api/chat/answer/' + encodeURIComponent(requestId) + '/export.' + ext, {
-        headers: {'X-Passcode': storedValue(PASS_KEY)},
-      });
+      const response = await credential.fetch('/api/chat/answer/' + encodeURIComponent(requestId) + '/export.' + ext);
       if (!response.ok){ setError(await refusalMessage(response)); return; }
       save(await response.blob(), '42-answer-' + requestId.slice(0, 8) + '.' + ext);
-    } catch (_error){
-      setError(FAILED);
+    } catch (error){
+      setError(error && error.auth ? SIGN_IN_AGAIN : FAILED);
     } finally {
       setBusy('');
     }
