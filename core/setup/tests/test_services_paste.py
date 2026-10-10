@@ -1344,6 +1344,25 @@ def test_w4r3_the_first_install_folder_that_holds_the_program_wins_and_a_later_o
     assert os.path.normcase(found_paths(done)["git"]) == os.path.normcase(str(first / native_file("git"))), (done.stdout, done.stderr)
 
 
+@pytest.mark.parametrize("kind", ["alias", "function"])
+def test_w4r3_an_alias_or_function_named_by_the_full_install_path_is_ignored_and_the_program_is_returned(tmp_path, kind):
+    """The lookup asks for CommandTypes Application only. Asked for All, the same name returns the alias or function and not the
+    program, so a regression to All is caught here: the path returned must be the program's, and nothing the alias or function
+    stands for may run."""
+    good, marker = tmp_path / "good", tmp_path / "ran.txt"
+    write_native(good, "gcloud")
+    full = str(good / native_file("gcloud"))
+    if kind == "alias":
+        plant = f"Set-Alias -Scope Global -Name {quoted(full)} -Value Write-Output; "
+    else:
+        plant = (f"$n = {quoted(full)}; Set-Item -Path ('function:global:' + $n) "
+                 f"-Value {{ Set-Content -LiteralPath {quoted(marker)} -Value ran }}; ")
+    done = native_frame(tmp_path, {"gcloud": [good]}, "'PATH:gcloud=' + (Get-NativePath 'gcloud')", prefix=plant)
+    assert "RESULT:ok" in done.stdout, (kind, done.stdout, done.stderr)
+    assert os.path.normcase(found_paths(done)["gcloud"]) == os.path.normcase(full), (kind, done.stdout, done.stderr)
+    assert not marker.exists()
+
+
 @pytest.mark.parametrize("label", ["a script of the name and no program", "an empty folder", "a folder that does not exist", "a script on PATH and no program"])
 def test_w4r3_a_script_is_never_taken_for_the_program_and_nothing_is_found_by_name_on_path(tmp_path, label):
     folder, planted, marker = tmp_path / "folder", tmp_path / "planted", tmp_path / "ran.txt"
