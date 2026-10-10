@@ -23,10 +23,11 @@ export function storedValue(key, fallback = ''){
    A 401 is a verdict on the key only when the body is JSON that names the
    gate: f42-api calls f42-agent with an ID token and relays the upstream
    status, so a Cloud Run refusal on that hop is also a 401 and must not wipe a
-   valid key. f42-api words it as error unauthorized. The older routes word the
-   same refusal as detail.code, or in plain words about the passcode, and keep
-   handing over to the gate as they did. A plain-text or HTML body, or another
-   error code, names nothing.
+   valid key. f42-api words it as error unauthorized, and a body that carries an
+   error code names the gate only with that one. A body with no error code is
+   the older routes: they word the refusal as detail.code, or as plain words
+   about the passcode in detail. A plain-text or HTML body, or another error
+   code, names nothing.
 
    Past a verdict the gate holds no key. Every site then throws a local auth
    error without calling fetch, until a key is stored again. */
@@ -43,9 +44,9 @@ function localAuthError(){
 const PASSCODE_WORDS = /passcode/i;
 function namesTheGate(payload){
   if (!payload || typeof payload !== 'object') return false;
-  if (payload.error === 'unauthorized') return true;
+  if (typeof payload.error === 'string') return payload.error === 'unauthorized';
   if (payload.detail && typeof payload.detail === 'object' && payload.detail.code === 'unauthorized') return true;
-  return [payload.detail, payload.message].some((words) => typeof words === 'string' && PASSCODE_WORDS.test(words));
+  return typeof payload.detail === 'string' && PASSCODE_WORDS.test(payload.detail);
 }
 
 async function readPayload(res){
@@ -99,11 +100,15 @@ export const credential = {
     gate.rejected = true;
   },
   /* The server turned the key down. The reason is written first, then the key
-     removed, so a second tab reading the removal finds the reason. */
+     removed, so a second tab reading the removal finds the reason. A browser
+     that will not take the reason keeps the key too: without the reason the
+     removal reads as Log out in every other tab. The rejection is then held
+     in memory, which stops every request from this page. */
   reject(){
     if (gate.rejected) return;
-    writeStorage(() => localStorage.setItem(REASON_KEY, 'stale'));
-    writeStorage(() => localStorage.removeItem(PASS_KEY));
+    if (writeStorage(() => localStorage.setItem(REASON_KEY, 'stale'))){
+      writeStorage(() => localStorage.removeItem(PASS_KEY));
+    }
     gate.held = '';
     gate.rejected = true;
     for (const listener of [...gate.listeners]) listener();

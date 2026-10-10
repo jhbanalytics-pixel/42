@@ -963,8 +963,10 @@ export default function App(){
      click, so the keys are removed again once the gate has replaced the
      pages. */
   const signedOut = useRef(false);
+  /* The marker goes before the key, so a tab that sees the key go finds no
+     stale mark and reads it as the Log out it is. */
   const forgetStored = () => {
-    for (const key of [PASS_KEY, REASON_KEY, 'pulse-briefs', 'pulse-chat']){
+    for (const key of [REASON_KEY, PASS_KEY, 'pulse-briefs', 'pulse-chat']){
       try { localStorage.removeItem(key); } catch (e){}
     }
   };
