@@ -426,7 +426,7 @@ def reuse_parent(ctx: RunContext, deps: "Deps", reuse: dict, window: tuple[date,
     if asked:
         progress.step("read", f"Re-reading the {len(asked)} {'post' if len(asked) == 1 else 'posts'} the earlier "
                               "answer cited")
-        fetch_posts(ctx, deps.warehouse, asked, window)
+        fetch_posts(ctx, deps.warehouse, asked, window, exclude_suppressed=True)
         for eid in asked:
             record = ctx.evidence.get(eid)
             if record is None:
