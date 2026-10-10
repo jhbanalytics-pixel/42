@@ -304,6 +304,134 @@ def test_another_markets_terms_do_not_count():
                terms=gatectx.load_political_terms("KE"))["political"] is True
 
 
+def test_ballot_or_voter_counts_only_beside_a_party_leader_or_election_term_in_the_same_post():
+    con = world()
+    sport = ev("p1", "tiktok", "a", text="Hall of Fame ballot is out")
+    assert ctx(con, evidence=[sport])["political"] is False
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="MVP voter fatigue")])["political"] is False
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="The ballot papers for the election are out")])[
+        "political"] is True
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Every voter in the ANC queue")])["political"] is True
+    # A post's text and its quote are the same post.
+    assert ctx(con, evidence=[{**ev("p1", "tiktok", "a", text="Hall of Fame ballot"),
+                               "quote_text": "the ANC march"}])["political"] is True
+    # The label is not a post: a label that is only the word is not political.
+    assert ctx(con, item(label="Hall of Fame ballot"))["political"] is False
+    assert ctx(con, item(label="ANC voter drive"))["political"] is True
+    assert ctx(con, item(hashtags=["#ballot", "#voter"]))["political"] is False
+    assert ctx(con, item(canonical_key="ballondorballot"))["political"] is False
+    # Beside one of the five leader names a ballot or a voter is political; the name alone is not.
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Kenyatta ballot")])["political"] is True
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Uhuru voter drive")])["political"] is True
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Kenyatta University open day")])["political"] is False
+    assert ctx(con, evidence=[ev("p1", "tiktok", "a", text="Kenyatta University open day"),
+                              ev("p2", "tiktok", "b", text="Hall of Fame ballot")])["political"] is False
+
+
+def test_a_party_or_election_acronym_fused_into_a_ballot_or_voter_hashtag_is_political():
+    con = world()
+    for market, tag in [("ZA", "#ANCvoterdrive"), ("ZA", "#EFFvoters"), ("ZA", "#DAballot"), ("ZA", "#IECvoterroll"),
+                        ("KE", "#IEBCvoter"), ("NG", "#INECvoter")]:
+        terms = gatectx.load_political_terms(market)
+        row = item(market=market, hashtags=[tag])
+        assert ctx(con, row, market=market, terms=terms)["political"] is True, tag
+    # Without a party or election term in the tag the word is still only a ballot or a voter.
+    assert ctx(con, item(hashtags=["#ballot"]))["political"] is False
+    assert ctx(con, item(hashtags=["#voter"]))["political"] is False
+    assert ctx(con, item(canonical_key="ballondorballot"))["political"] is False
+    # An acronym that runs on into more capitals is another word, not the party.
+    assert ctx(con, item(hashtags=["#DAILYballot"]))["political"] is False
+    assert ctx(con, item(hashtags=["#PDAballot"]))["political"] is False
+    # A lower case party stays clear as a hashtag value: the two letter DA is read only in capitals.
+    assert ctx(con, item(hashtags=["#daballot"]))["political"] is False
+
+
+PRODUCTION_FUSED = [("ZA", "#ANCvoterdrive"), ("ZA", "#EFFvoters"), ("ZA", "#DAballot"), ("ZA", "#IECvoterroll"),
+                    ("KE", "#IEBCvoter"), ("NG", "#INECvoter"), ("ZA", "#ANCVoterDrive")]
+
+
+def production_row(market, tag):
+    """A production item: the stored key is casefolded, the label keeps the capitals, no hashtags field."""
+    row = item(market=market, label=tag, canonical_key=tag.lstrip("#").casefold())
+    assert "hashtags" not in row
+    return row
+
+
+@pytest.mark.parametrize("market,tag", PRODUCTION_FUSED)
+def test_a_fused_party_tag_is_political_on_a_production_row_whose_key_is_casefolded(market, tag):
+    con = world()
+    terms = gatectx.load_political_terms(market)
+    row = production_row(market, tag)
+    assert row["canonical_key"] == tag.lstrip("#").lower()
+    assert ctx(con, row, market=market, terms=terms)["political"] is True
+
+
+@pytest.mark.parametrize("market,tag", PRODUCTION_FUSED)
+def test_a_fused_party_tag_in_a_post_caption_is_political(market, tag):
+    con = world()
+    terms = gatectx.load_political_terms(market)
+    caption = ev("p1", "tiktok", "a", text=f"Out now {tag} #fyp")
+    assert ctx(con, item(market=market), evidence=[caption], market=market, terms=terms)["political"] is True
+
+
+@pytest.mark.parametrize("tag", ["#ballot", "#voter", "#DAILYballot", "#PDAballot", "#Ballot", "#VOTER"])
+def test_a_production_row_with_no_party_in_its_tag_stays_clear(tag):
+    con = world()
+    assert ctx(con, production_row("ZA", tag))["political"] is False
+    assert ctx(con, item(), evidence=[ev("p1", "tiktok", "a", text=f"Out now {tag}")])["political"] is False
+
+
+def test_the_capitals_of_a_fused_tag_are_read_after_nfkc():
+    con = world()
+    # Full width capitals in the hashtags field reach the capitals check as a tag, so only its own NFKC folds them.
+    # DA has two letters, so only the capitals check can see it; the longer acronyms are also read by the fused check.
+    assert ctx(con, item(hashtags=["#ＤＡballot"]))["political"] is True
+    assert ctx(con, item(hashtags=["#ＡＮＣvoterdrive"]))["political"] is True
+    # A full width hash sign hides the tag from a plain word pattern until the text is normalised.
+    assert ctx(con, item(label="＃ANCvoterdrive"))["political"] is True
+    # Full width letters that are no party stay clear.
+    assert ctx(con, item(hashtags=["#ＢＡＬＬＯＴ"]))["political"] is False
+
+
+# "#revoteballot" is in this list on purpose. Its earlier pin said clear; the CR-2 ruling reads vote, a plain election
+# term that W8-DEC-06b leaves unchanged, as a term fused straight onto ballot, so the tag is political.
+FUSED_PARTY_POSITIVES = [
+    ("ZA", "#Iecvoter"), ("ZA", "#IECVOTER"), ("ZA", "#iecvoters"), ("ZA", "#Ancvoter"), ("ZA", "#effvoter"),
+    ("ZA", "#zumaballot"), ("ZA", "#ballotMalema"), ("KE", "#rutovoter"), ("KE", "#Udaballot"),
+    ("NG", "#Obiballot"), ("NG", "#wikevoter"), ("NG", "#ballotwike"), ("ZA", "#voteballot"), ("ZA", "#Voteballot"),
+    ("ZA", "#ballotvote"), ("ZA", "#votervoting"), ("ZA", "#electionballot"), ("ZA", "#ballotselection"),
+    ("ZA", "#votersparliament"), ("ZA", "#revoteballot"), ("NG", "#tinubuvoters"), ("KE", "#voterraila"),
+    ("NG", "#votersobi"), ("NG", "#ballotswike"), ("ZA", "#ballotsvote"),
+]
+
+CLEAR_FUSED = ["#ballondorballot", "#agendaballot", "#effortvoter", "#ancestorsvoter", "#dancevoter",
+               "#romancevoter", "#advanceballot", "#chiefvoter", "#stuffballot", "#cadballot", "#mediaballot",
+               "#adballot", "#ballotbox", "#voterfatigue", "#votersroll"]
+
+
+@pytest.mark.parametrize("market,tag", FUSED_PARTY_POSITIVES)
+def test_a_party_leader_or_election_term_fused_straight_onto_ballot_or_voter_is_political(market, tag):
+    con = world()
+    terms = gatectx.load_political_terms(market)
+    assert ctx(con, item(market=market, hashtags=[tag]), market=market, terms=terms)["political"] is True
+    assert ctx(con, production_row(market, tag), market=market, terms=terms)["political"] is True
+
+
+@pytest.mark.parametrize("tag", CLEAR_FUSED)
+@pytest.mark.parametrize("market", ["ZA", "NG", "KE"])
+def test_a_word_that_only_looks_like_a_term_fused_onto_ballot_or_voter_stays_clear(market, tag):
+    con = world()
+    terms = gatectx.load_political_terms(market)
+    assert ctx(con, item(market=market, hashtags=[tag]), market=market, terms=terms)["political"] is False
+    assert ctx(con, production_row(market, tag), market=market, terms=terms)["political"] is False
+
+
+def test_a_two_letter_term_fused_onto_ballot_is_not_enough_in_lower_case():
+    con = world()
+    assert ctx(con, production_row("ZA", "#daballot"))["political"] is False
+    assert ctx(con, production_row("ZA", "#DAballot"))["political"] is True
+
+
 # corroborated_unbiased
 
 

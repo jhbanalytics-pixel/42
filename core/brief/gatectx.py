@@ -55,6 +55,7 @@ POLITICAL = HERE / "political.yaml"
 CAMPAIGN = HERE / "campaign_hashtags.yaml"
 NOT_INDEPENDENT = {"brand", "paid", "sponsored", "brand_owned", "generated", "near_duplicate", "flagged"}
 LONG_TERM = 5  # letters; a term this long matches anywhere inside a hashtag
+FUSED_MIN = 3  # letters; a term this long, written straight onto ballot or voter in a tag, makes the tag political
 # Caption markers of paid posts, read until enrichment fills post_enrichment.sponsored. #collab and #partner also
 # mark ordinary music collaborations, so in a post they are not paid markers; as an item's own key they are.
 PAID_POST_TAGS = {"ad", "ads", "sponsored", "spon", "paidpartnership", "advert", "advertisement"}
@@ -67,9 +68,24 @@ QUERIES = {_NAME.search(s).group(1): s for s in sqlrun.split(SQL.read_text(encod
 _TAG_WORDS = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|[^\W\d_]+")
 
 
+class Companion(str):
+    """A term that is political only beside one of `beside` (a leader name that is no term on its own) in the same
+    text or tag. Beside a term of the list the post is political through that term, so it is not named here."""
+
+    beside = ()
+
+
 def load_political_terms(market, path=POLITICAL):
+    """The market's terms: the list's "all" and its own, then the companion-only terms (Companion strings, each
+    carrying the leader companions of the file) that count only beside a companion."""
     lists = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
-    return list(lists.get("all") or []) + list(lists.get(market) or [])
+    names = tuple(lists.get("companions") or [])
+    companion_only = []
+    for word in lists.get("companion_only") or []:
+        term = Companion(word)
+        term.beside = names
+        companion_only.append(term)
+    return list(lists.get("all") or []) + list(lists.get(market) or []) + companion_only
 
 
 def load_campaign_hashtags(path=CAMPAIGN):
@@ -102,7 +118,35 @@ def _in_tag(term, tag):
 
 
 def _political(terms, texts, tags):
-    return any(_in_text(t, x) for t in terms for x in texts) or any(_in_tag(t, g) for t in terms for g in tags)
+    plain = [t for t in terms if not isinstance(t, Companion)]
+    # A hashtag item's stored key is casefolded; its label and the posts keep the tag as written, so read those too.
+    tags = list(tags) + [w for x in texts for w in re.findall(r"#\w+", _norm(x))]
+    if any(_in_text(t, x) for t in plain for x in texts) or any(_in_tag(t, g) for t in plain for g in tags):
+        return True
+    return any(any(_in_text(t, x) and any(_in_text(n, x) for n in t.beside) for x in texts)
+               or any(_in_tag(t, g) and (any(_in_tag(n, g) for n in t.beside) or any(_caps_in_tag(n, g) for n in plain)
+                                      or _fused_in_tag(t, g, plain))
+                      for g in tags)
+               for t in terms if isinstance(t, Companion))
+
+
+def _fused_in_tag(companion, tag, plain):
+    """A plain term of three letters or more written straight before or after the companion in the tag, case folded
+    and squashed (zumaballot, voteballot, ballotwike); an s after the companion is its plural."""
+    squashed, word = _squash(tag), _squash(companion)
+    keys = {_squash(n) for n in plain if len(_squash(n)) >= FUSED_MIN}
+    for i in range(len(squashed)):
+        if squashed.startswith(word, i):
+            before, after = squashed[:i], squashed[i + len(word):]
+            tails = (after, after[1:]) if after.startswith("s") else (after,)
+            if any(before.endswith(k) for k in keys) or any(tail.startswith(k) for tail in tails for k in keys):
+                return True
+    return False
+
+
+def _caps_in_tag(term, tag):
+    """A party or electoral acronym fused into a tag (ANCvoterdrive): all capitals, bounded by non capitals."""
+    return term.isupper() and re.search(r"(?<![A-Z])" + re.escape(term) + r"(?![A-Z])", _norm(tag)) is not None
 
 
 def _tag(value):

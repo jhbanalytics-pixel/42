@@ -305,6 +305,10 @@ def all_cards(p):
     return p["cards"] + p["more"]
 
 
+def test_the_briefs_rule_version_names_the_g4b_companion_rule():
+    assert job.RULE_VERSION == "warmup-1+w8-dec-06b"
+
+
 # A normal morning
 
 

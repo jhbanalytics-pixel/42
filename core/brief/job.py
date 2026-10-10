@@ -77,8 +77,10 @@ from core.trust import locality, retained
 from core.trust.gate import Decision, gate_card, market_banner
 from core.trust.locality import V2_BASIS, locality_block, read_locality, row_from_prefixed, scope_basis
 
-# One token per decision that changes what a brief row says for the same inputs, appended in tree order.
-RULE_VERSION = DETECT_RULE_VERSION + "+k6-b7-decade"
+# Every decision in the tree that changes what a brief row says for the same inputs adds one token, so a reader can
+# split on "+": W8-DEC-06b is ballot and voter political only beside a party, leader or election term, k6-b7-decade
+# is the K6 decade rule of closure review B.
+RULE_VERSION = DETECT_RULE_VERSION + "+w8-dec-06b+k6-b7-decade"
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
