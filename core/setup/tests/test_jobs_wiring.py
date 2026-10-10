@@ -2,13 +2,11 @@
 receipt refused inside BeforeAnyWrite (JS-09) and the durable apply, readback and schema receipt order (JS-04, RB-T3). Offline: a
 fake world answers every read, nothing here starts pwsh (the paste is driven in test_jobs_paste.py and test_jobs_final.py)."""
 import json
-import re
 
 import pytest
 
 from core.setup import deploy_jobs as dj
 from core.setup.release import jobs_only as jo
-from core.setup.release import jobs_source as js
 from core.setup.release import services_only as so
 from core.setup.tests import jobs_world as jw
 from core.setup.tests import release_world as rw

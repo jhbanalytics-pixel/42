@@ -11,7 +11,6 @@ from pathlib import Path
 
 from core.setup.release import chain_evidence as ce
 from core.setup.release import jobs_effects as je
-from core.setup.release import jobs_only as jo
 from core.setup.release import lock as locklib
 from core.setup.release import packet
 from core.setup.tests import jobs_world as jw
