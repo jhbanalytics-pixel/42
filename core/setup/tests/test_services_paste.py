@@ -1527,3 +1527,196 @@ def test_w4r5_a_prompt_the_resolution_check_refuses_keeps_that_cause_and_is_not_
 def test_w4r5_a_prompt_that_fails_for_any_other_reason_is_still_reported_as_a_missing_console(tmp_path, call, said):
     done = paste_function("function Read-Typed { throw 'no console' }; $Script:TestDoubles = @('Read-Typed'); " + call, tmp_path)
     assert "RESULT:" + said in done.stdout, (done.stdout, done.stderr)
+
+
+# F11: the children of the paste start gcloud and git from the same install folders the paste uses
+
+NATIVE_ENV = {"gcloud": "F42_NATIVE_GCLOUD", "git": "F42_NATIVE_GIT", "py": "F42_NATIVE_PY"}
+
+
+def roots_args(roots):
+    return " ".join(quoted(value) for value in (roots.local, roots.program_files, roots.program_files_x86, roots.windows_folder))
+
+
+def folder_lines(done):
+    found = {name: [] for name in NATIVES}
+    for line in done.stdout.splitlines():
+        if line.startswith("FOLDER:"):
+            name, folder = line[7:].split("=", 1)
+            found[name].append(os.path.normcase(folder))
+    return found
+
+
+LIST_FOLDERS = "foreach ($n in 'gcloud','git','py','bash') { foreach ($f in $t[$n]) { 'FOLDER:' + $n + '=' + $f } }"
+
+
+@pytest.mark.parametrize("empty", [None, "program_files_x86", "local", "windows_folder"])
+def test_f11_the_resolver_lists_the_same_folders_as_the_paste_for_the_same_roots(tmp_path, empty):
+    from core.setup.release import natives
+
+    if not ON_WINDOWS:
+        return
+    roots = natives.Roots(local=str(tmp_path / "L"), program_files=str(tmp_path / "P"), program_files_x86=str(tmp_path / "X"),
+                          windows_folder=str(tmp_path / "W"))
+    if empty:
+        roots = roots._replace(**{empty: ""})
+    done = paste_function(f"$t = New-NativeFolders {roots_args(roots)}; {LIST_FOLDERS}", tmp_path)
+    assert "RESULT:ok" in done.stdout, (done.stdout, done.stderr)
+    found = folder_lines(done)
+    assert found == {name: [os.path.normcase(f) for f in natives.install_folders(name, roots)] for name in NATIVES}
+    assert all(found[name] for name in NATIVES)
+
+
+def test_f11_the_resolver_reads_the_same_machine_folders_as_the_paste(tmp_path):
+    from core.setup.release import natives
+
+    if not ON_WINDOWS:
+        return
+    done = paste_function(f"$t = $Script:NativeFolders; {LIST_FOLDERS}", tmp_path)
+    assert "RESULT:ok" in done.stdout, (done.stdout, done.stderr)
+    found = folder_lines(done)
+    assert found == {name: [os.path.normcase(f) for f in natives.install_folders(name)] for name in NATIVES}
+    assert all(found[name] for name in NATIVES)
+
+
+SCENES = {
+    "first folder": {"gcloud": [0], "git": [0], "py": [0]},
+    "later folder only": {"gcloud": [2], "git": [1], "py": [1]},
+    "first and later": {"gcloud": [0, 1, 2], "git": [0, 2], "py": [2]},
+    "script in the first folder, program in the later": {"gcloud": ["ps1", 1], "git": ["ps1", 2], "py": ["ps1", 1]},
+    "scripts only": {"gcloud": ["ps1"], "git": ["ps1"], "py": ["ps1"]},
+    "nothing": {},
+    "directory of the name": {"gcloud": ["dir"], "git": ["dir"], "py": ["dir"]},
+}
+
+
+@pytest.mark.parametrize("scene", sorted(SCENES))
+def test_f11_the_paste_and_the_resolver_find_the_same_program_in_the_same_fake_install_roots(tmp_path, scene):
+    from core.setup.release import natives
+
+    if not ON_WINDOWS:
+        return
+    roots = natives.Roots(local=str(tmp_path / "L"), program_files=str(tmp_path / "P"), program_files_x86=str(tmp_path / "X"),
+                          windows_folder=str(tmp_path / "W"))
+    for name, places in SCENES[scene].items():
+        folders = natives.install_folders(name, roots)
+        for place in places:
+            if place == "ps1":
+                Path(folders[0]).mkdir(parents=True, exist_ok=True)
+                (Path(folders[0]) / f"{name}.ps1").write_text("x", encoding="utf-8")
+            elif place == "dir":
+                (Path(folders[0]) / native_file(name)).mkdir(parents=True, exist_ok=True)
+            else:
+                write_native(folders[place], name)
+    planted = tmp_path / "planted"
+    plant_scripts_and_programs(planted, tmp_path / "ran.txt")
+    prefix = f"$env:PATH = {quoted(planted)} + [IO.Path]::PathSeparator + $env:PATH; "
+    table = f"$Script:TestNativeFolders = New-NativeFolders {roots_args(roots)}; "
+    call = "foreach ($n in 'gcloud','git','py') { try { 'PATH:' + $n + '=' + (Get-NativePath $n) } catch { 'PATH:' + $n + '=REFUSED' } }"
+    done = paste_function(prefix + table + call, tmp_path)
+    assert "RESULT:ok" in done.stdout, (done.stdout, done.stderr)
+    from_paste = {k: v if v == "REFUSED" else os.path.normcase(v) for k, v in found_paths(done).items()}
+    from_resolver = {}
+    for name in ("gcloud", "git", "py"):
+        try:
+            from_resolver[name] = os.path.normcase(natives.resolve(name, roots))
+        except natives.NativeRefused:
+            from_resolver[name] = "REFUSED"
+    assert from_paste == from_resolver, (scene, from_paste, from_resolver)
+    for name, path in found_paths(done).items():
+        if path != "REFUSED":
+            assert natives.native(name, {NATIVE_ENV[name]: path}, roots) == path
+    assert not (tmp_path / "ran.txt").exists()
+
+
+def test_f11_every_child_of_the_paste_is_given_the_program_paths_it_found_and_they_are_put_back_at_the_end(tmp_path):
+    expected = {name: f"native-test-folder\\{name}" for name in ("gcloud", "git", "py")}
+    for action in ACTIONS:
+        world = promote_world(tmp_path / action) if action == "Promote" else PasteWorld(tmp_path / action, action)
+        if action == "Retire":
+            world.readback("AfterRollback")
+        result = world.run(extra={"attack": "$env:F42_NATIVE_GCLOUD = 'hostile-from-the-console'; $env:F42_NATIVE_GIT = 'hostile-from-the-console'"})
+        assert result.returncode == 0, (action, result.stderr)
+        calls = logged_calls(result)
+        assert len(calls) > 3
+        for call in calls:
+            assert call["natives"] == expected, (action, call.get("name") or call["argv"], call["natives"])
+        assert [c["natives"] for c in result.calls if c["kind"] == "natives_at_end"] == [
+            {"gcloud": "hostile-from-the-console", "git": "hostile-from-the-console", "py": ""}]
+
+
+def test_f11_a_program_the_paste_cannot_find_stops_it_before_any_child_is_given_a_path(tmp_path):
+    result = PasteWorld(tmp_path).run(extra={"native_missing": "git"})
+    assert result.returncode != 0 and "NOT EXECUTABLE" in result.stderr and result.external == []
+
+
+def test_f11_the_paste_text_hands_over_only_the_resolved_paths():
+    text = (ROOT / "core/setup/release/SERVICES-PASTE.ps1").read_text(encoding="utf-8")
+    assert text.count("F42_NATIVE_") == 3 and "Get-Command" not in text and "where.exe" not in text
+    for name in ("GCLOUD", "GIT", "PY"):
+        assert f"F42_NATIVE_{name} = $resolved[" in text
+
+
+def real_child(snippet, tmp_path, *, roots=None, planted=None, cwd=None):
+    """A real python child, isolated so that no site hook or path variable of the test run reaches it, that runs the snippet with
+    the resolver told to use the roots (when given) and with the planted programs first on PATH."""
+    import subprocess
+    import sys
+
+    env = {k: v for k, v in os.environ.items() if not k.startswith("F42_NATIVE_") and k != "PYTHONPATH"}
+    if planted:
+        env["PATH"] = str(planted) + os.pathsep + env["PATH"]
+    if roots is not None:
+        env["F11_ROOTS"] = json.dumps(list(roots))
+    code = ("import json, os, sys\nsys.path.insert(0, " + repr(str(ROOT)) + ")\nfrom core.setup.release import natives\n"
+            "if 'F11_ROOTS' in os.environ:\n    _roots = natives.Roots(*json.loads(os.environ['F11_ROOTS']))\n    natives.known_roots = lambda: _roots\n" + snippet)
+    return subprocess.run([sys.executable, "-I", "-c", code], cwd=cwd or tmp_path, env=env, stdin=subprocess.DEVNULL, capture_output=True,
+                          encoding="utf-8", timeout=120)
+
+
+def plant_real_looking(folder, marker):
+    """A command file and a script of each name that leave the marker, and a real program (whoami) under the names gcloud.exe and
+    git.exe, which fails every call the child makes, so a child that reached it could not report success."""
+    plant_scripts_and_programs(folder, marker)
+    for name in ("gcloud", "git"):
+        shutil.copyfile(Path(os.environ["SystemRoot"]) / "System32" / "whoami.exe", Path(folder) / f"{name}.exe")
+
+
+def test_f11_a_real_readback_child_runs_the_install_gcloud_and_never_the_planted_one(tmp_path):
+    if not ON_WINDOWS:
+        return
+    root_marker, planted_marker = tmp_path / "root-ran.txt", tmp_path / "planted-ran.txt"
+    local = tmp_path / "L"
+    sdk = local / "Google" / "Cloud SDK" / "google-cloud-sdk" / "bin"
+    sdk.mkdir(parents=True)
+    (sdk / "gcloud.cmd").write_text('@echo off\r\necho ran> "' + str(root_marker) + '"\r\necho {"core": {"project": "from-the-install-folder"}}\r\n',
+                                    encoding="ascii", newline="")
+    plant_real_looking(tmp_path / "planted", planted_marker)
+    done = real_child("from core.setup.release import bound_readback as h\n"
+                      "print(json.dumps(h.GcloudReader({'gcloud': 60, 'http': 5}).config()))\n", tmp_path, roots=(str(local), "", "", ""),
+                      planted=tmp_path / "planted")
+    assert done.returncode == 0, (done.stdout, done.stderr)
+    assert json.loads(done.stdout) == {"core": {"project": "from-the-install-folder"}}
+    assert root_marker.exists() and not planted_marker.exists()
+
+
+def test_f11_real_git_children_run_the_install_git_and_never_the_planted_one(tmp_path):
+    from core.setup.release import natives
+
+    if not ON_WINDOWS:
+        return
+    planted_marker = tmp_path / "planted-ran.txt"
+    plant_real_looking(tmp_path / "planted", planted_marker)
+    expected = natives.resolve("git")
+    done = real_child(
+        "from core.setup import durable_effects_check as dec\n"
+        "from core.setup.release import bound_readback as h, packet\n"
+        "files = [path for path, text in dec.git_tree_files('HEAD', 'core/setup/release', cwd=" + repr(str(ROOT)) + ")]\n"
+        "print(json.dumps({'git': natives.native('git'), 'files': files,\n"
+        "                  'sha': h.GcloudReader({'gcloud': 60, 'http': 5}).source_file_sha256('HEAD', 'core/api/smoke.py'),\n"
+        "                  'head': packet.git(" + repr(str(ROOT)) + ", 'rev-parse', 'HEAD')}))\n", tmp_path, planted=tmp_path / "planted", cwd=ROOT)
+    assert done.returncode == 0, (done.stdout, done.stderr)
+    out = json.loads(done.stdout)
+    assert os.path.normcase(out["git"]) == os.path.normcase(expected)
+    assert "core/setup/release/lock.py" in out["files"] and len(out["sha"]) == 64 and re.fullmatch(r"[0-9a-f]{40}", out["head"])
+    assert not planted_marker.exists()

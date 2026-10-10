@@ -36,6 +36,7 @@ param([string]$Config)
 $ErrorActionPreference = 'Stop'
 $cfg = Get-Content -LiteralPath $Config -Raw | ConvertFrom-Json
 $Script:Cfg = $cfg
+function Native-Snap { return @{ gcloud = [string]$env:F42_NATIVE_GCLOUD; git = [string]$env:F42_NATIVE_GIT; py = [string]$env:F42_NATIVE_PY } }
 function Env-Snap { return @{ file_logging = [string]$env:CLOUDSDK_CORE_DISABLE_FILE_LOGGING; bytecode = [string]$env:PYTHONDONTWRITEBYTECODE; locks = [string]$env:GIT_OPTIONAL_LOCKS } }
 $Script:ClockMinutes = 0
 $Script:WordCalls = @{}
@@ -55,7 +56,7 @@ function Get-UtcNow { return [DateTimeOffset]::UtcNow.AddMinutes($Script:ClockMi
 
 function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
     $key = ((@($Exe) + $Arguments) -join ' ')
-    Log-Call @{ kind = 'read'; argv = (@($Exe) + $Arguments); input = $InputText; passcode_sha = (Env-Sha); env = (Env-Snap) }
+    Log-Call @{ kind = 'read'; argv = (@($Exe) + $Arguments); input = $InputText; passcode_sha = (Env-Sha); env = (Env-Snap); natives = (Native-Snap) }
     $later = $Script:Cfg.reads_after.PSObject.Properties[$key]
     if ($null -ne $later -and $Script:RunCount -ge [int]$later.Value.after_runs) { return $later.Value.value }
     $override = $Script:Cfg.reads.PSObject.Properties[$key]
@@ -83,7 +84,7 @@ $Script:RunCount = 0
 function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
     $Script:RunCount++
     if ($Script:Cfg.inject -and $Script:RunCount -eq [int]$Script:Cfg.inject_at_run) { . ([scriptblock]::Create($Script:Cfg.inject)) }
-    Log-Call @{ kind = 'run'; name = $Name; argv = $Argv; passcode_sha = (Env-Sha); workdir = $WorkDir; run_dir_existed = (Test-Path -LiteralPath $Script:RunDir -PathType Container); env = (Env-Snap) }
+    Log-Call @{ kind = 'run'; name = $Name; argv = $Argv; passcode_sha = (Env-Sha); workdir = $WorkDir; run_dir_existed = (Test-Path -LiteralPath $Script:RunDir -PathType Container); env = (Env-Snap); natives = (Native-Snap) }
     $code = 0
     if ($Argv[0] -match '(^|[\\/])tar(\.exe)?$') {
         $target = $Argv[[array]::IndexOf($Argv, '-C') + 1]
@@ -145,14 +146,14 @@ function Start-Sleep { param($Seconds) Log-Call @{ kind = 'sleep'; seconds = $Se
 function Get-NativePath([string]$Name) {
     Log-Call @{ kind = 'native'; name = $Name }
     if ($Script:Cfg.native_missing -eq $Name) { throw "NOT EXECUTABLE: the program '$Name' was not found as a program in its expected install folder." }
-    return $Name
+    return "native-test-folder\$Name"
 }
 
 $Script:TestDoubles = @('Read-Native', 'Run-Logged', 'Get-UtcNow', 'Start-Sleep', 'Get-NativePath')
 if (-not $cfg.real_console) { $Script:TestDoubles += @('Read-Typed', 'Test-Interactive') }
 foreach ($alias in @($cfg.aliases)) { Set-Alias -Scope Global -Name $alias.name -Value $alias.value }
 if ($cfg.attack) { . ([scriptblock]::Create($cfg.attack)) }
-try { Invoke-Release } finally { Log-Call @{ kind = 'env_at_end'; env = (Env-Snap) }; Log-Call @{ kind = 'end'; passcode_sha = (Env-Sha) } }
+try { Invoke-Release } finally { Log-Call @{ kind = 'natives_at_end'; natives = (Native-Snap) }; Log-Call @{ kind = 'env_at_end'; env = (Env-Snap) }; Log-Call @{ kind = 'end'; passcode_sha = (Env-Sha) } }
 '''
 
 
@@ -269,7 +270,8 @@ class PasteWorld:
         self.write(self.tmp / "config.json", config)
         driver = self.tmp / "driver.ps1"
         driver.write_text(DRIVER, encoding="utf-8", newline="\n")
-        clean = {k: v for k, v in os.environ.items() if k not in ("CLOUDSDK_CORE_DISABLE_FILE_LOGGING", "PYTHONDONTWRITEBYTECODE", "GIT_OPTIONAL_LOCKS")}
+        clean = {k: v for k, v in os.environ.items() if k not in ("CLOUDSDK_CORE_DISABLE_FILE_LOGGING", "PYTHONDONTWRITEBYTECODE", "GIT_OPTIONAL_LOCKS")
+             and not k.startswith("F42_NATIVE_")}
         proc = subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(driver), "-Config", str(self.tmp / "config.json")],
                               capture_output=True, stdin=subprocess.DEVNULL, encoding="utf-8", timeout=120, env=clean)
         entries = [json.loads(line) for line in calls.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
