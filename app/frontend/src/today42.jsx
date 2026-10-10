@@ -976,8 +976,8 @@ function BelowCards({market, showHeldBack, openLeftOut}){
     <div className="t42-below">
       <LeftOut market={market} showHeldBack={showHeldBack} open={openLeftOut} />
       <NotAssessed audit={market.not_assessed} />
-      <Moments moments={market.moments} />
       <TodayBoards boards={market.boards} day={day} />
+      <Moments moments={market.moments} />
     </div>
   );
 }

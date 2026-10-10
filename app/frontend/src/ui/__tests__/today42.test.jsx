@@ -1310,6 +1310,18 @@ test('moments and boards render below the cards, with no coverage strip', async 
   expect(details.textContent).toContain('TikTok hashtag board: calls failed');
 });
 
+test('Coming up in 14 days follows the boards band in the page, both inside the sections under the cards', async () => {
+  await mount();
+  const below = host.querySelector('[data-market="ZA"] .t42-below');
+  const boards = below.querySelector(':scope > [data-section="boards"]');
+  const moments = below.querySelector(':scope > [data-section="moments"]');
+  expect(boards).not.toBeNull();
+  expect(moments).not.toBeNull();
+  expect(boards.compareDocumentPosition(moments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(boards.querySelector('[data-band-scroll]')).not.toBeNull();
+  expect(moments.querySelector('[data-band-scroll]')).toBeNull();
+});
+
 test('with no source issues there is no source line and no coverage strip', async () => {
   const today = clone(todayFixture);
   today.markets.find((market) => market.market === 'ZA').coverage.issues = [];
@@ -1319,7 +1331,7 @@ test('with no source issues there is no source line and no coverage strip', asyn
   expect(host.querySelectorAll('[data-market="ZA"] details[data-section="source-details"]')).toHaveLength(0);
 });
 
-test('a board lists each entry with its own best rank, no automatic numbering, and marks a tie with =', async () => {
+test('a board lists each entry with its own best rank, no automatic numbering, and says a tie once, then tied', async () => {
   const today = clone(todayFixture);
   today.markets[0].boards[0].entries = [
     {rank: 1, title: '#shorts', item_id: 'a'},
@@ -1331,7 +1343,7 @@ test('a board lists each entry with its own best rank, no automatic numbering, a
   expect(boards.querySelector('ol')).toBeNull();
   const list = boards.querySelector('ul.tb-rows');
   expect(list).not.toBeNull();
-  expect([...list.querySelectorAll('.tb-row')].map(boardWords)).toEqual(['=1 #shorts', '=1 #ishowspeed', '2 #fixture_za_step']);
+  expect([...list.querySelectorAll('.tb-row')].map(boardWords)).toEqual(['1 #shorts', 'tied #ishowspeed', '2 #fixture_za_step']);
   const card = boards.querySelector('[data-board-card]');
   expect(card.querySelector('.tb-card-title').textContent).toContain('TikTok');
   expect(card.querySelector('.tb-card-title').textContent).toContain('Hashtag board, 7 days');
@@ -1375,8 +1387,8 @@ test('a board leaves null and missing ranks off unranked titles without changing
   flushSync(() => more.click());
   const rows = host.querySelectorAll('[data-section="boards"] .tb-row');
   expect([...rows].map(boardWords)).toEqual([
-    '=1 #shorts',
-    '=1 #ishowspeed',
+    '1 #shorts',
+    'tied #ishowspeed',
     '2 #fixture_za_step',
     '#unranked_null',
     '#unranked_missing',
@@ -1411,8 +1423,9 @@ test('a board never shows an id as a title, says how many were left out, and kee
   expect(groups).toHaveLength(2);
   for (const group of groups) expect(group.querySelector('.tb-caption').textContent).toBe('Best rank today');
   const rows = groups.map((g) => [...g.querySelectorAll('ul.tb-rows .tb-row')].map(boardWords));
-  expect(rows).toEqual([['1 #fixture_tt_one', '3 #fixture_tt_two'], ['1 #fixture_yt_one', '=2 fixture yt name', '=2 #fixture_yt_two']]);
-  const shown = rows.flat().map((row) => Number(row.replace(/^=/, '').split(' ')[0]));
+  expect(rows).toEqual([['1 #fixture_tt_one', '3 #fixture_tt_two'], ['1 #fixture_yt_one', '2 fixture yt name', 'tied #fixture_yt_two']]);
+  /* A later row of a tie says "tied" on screen, so its number is read from the words a screen reader hears. */
+  const shown = groups.flatMap((g) => [...g.querySelectorAll('ul.tb-rows .tb-row')].map((li) => Number(li.querySelector('.sr-only').textContent.match(/(\d+)/)[1])));
   expect(shown).toEqual([1, 3, 1, 2, 2]);
   expect(groups[0].textContent).not.toContain('left out');
   expect(groups[1].querySelector('.tb-left-out').textContent).toBe('5 left out: No readable name');

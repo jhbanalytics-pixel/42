@@ -24,6 +24,38 @@ const MARKS = {
 
 export const LOGO_KEYS = Object.keys(MARKS);
 
+/* Each mark's own brand colour, from the same simple-icons release, for the
+   chip behind it and the thin rule on a board card. A platform with no mark
+   has no colour here either, so it keeps the neutral card. The ink on the
+   chip is white unless white would fall under 3 to 1 on that colour. */
+const BRANDS = {
+  spotify: '#1ED760',
+  apple_music: '#FA243C',
+  shazam: '#0088FF',
+  app_store: '#0D96F6',
+  google_play: '#414141',
+  tiktok: '#000000',
+  youtube: '#FF0000',
+  google: '#4285F4',
+  reddit: '#FF4500',
+};
+
+const channel = (n) => {
+  const v = n / 255;
+  return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+};
+function inkOn(hex){
+  const n = parseInt(hex.slice(1), 16);
+  const light = 0.2126 * channel(n >> 16) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
+  return 1.05 / (light + 0.05) >= 3 ? '#FFFFFF' : '#111111';
+}
+
+export function brandOf(platform){
+  const key = logoKey(platform);
+  const hex = key && BRANDS[key] ? BRANDS[key] : null;
+  return hex ? {hex, on: inkOn(hex)} : null;
+}
+
 /* A platform as the stable id the rest of the page uses: lower case words
    joined by underscores, and the X board named for its current name. */
 export function platformId(platform){

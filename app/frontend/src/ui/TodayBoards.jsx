@@ -1,7 +1,7 @@
-import {useId, useState} from 'react';
+import {useCallback, useEffect, useId, useRef, useState} from 'react';
 import {boardTitle} from '../readerUnits.js';
 import {platformWord} from './TrendCard.jsx';
-import {PlatformLogo, platformId} from './PlatformLogo.jsx';
+import {PlatformLogo, brandOf, platformId} from './PlatformLogo.jsx';
 import '../styles/today-boards.css';
 
 /* On the boards today: one card per platform list, in three groups. The
@@ -64,7 +64,10 @@ function describe(raw, index){
     full: boardTitle(entry.title),
     itemId: itemIdOf(entry),
   }));
-  for (const row of rows) row.tied = row.rank !== null && rows.filter((other) => other.rank === row.rank).length > 1;
+  rows.forEach((row, at) => {
+    row.tied = row.rank !== null && rows.filter((other) => other.rank === row.rank).length > 1;
+    row.tiedAfter = row.tied && rows.findIndex((other) => other.rank === row.rank) < at;
+  });
   const leftOut = declared + entries.length - shown.length;
   const state = rows.length > 0 ? 'ok' : entries.length === 0 && declared === 0 ? 'empty' : 'unreadable';
   return {...base, state, rows, leftOut, reason: raw.left_out_reason || null};
@@ -126,7 +129,7 @@ const stateWords = (day) => ({
 });
 const dayWords = (day) => (typeof day === 'string' && day.trim() !== '' ? day.trim() : 'today');
 
-function Row({chart, row, where, found}){
+function Row({chart, row, where, found, hero}){
   const music = MUSIC.has(chart.id);
   const {name, artists} = splitTitle(row.full, music);
   const charts = row.itemId ? found.get(row.itemId) : null;
@@ -134,8 +137,8 @@ function Row({chart, row, where, found}){
   const others = charts ? [...charts].filter(([key]) => key !== chart.key).map(([, label]) => label) : [];
   const rankWords = row.rank === null ? 'Unranked' : (row.tied ? 'Tied rank ' : 'Rank ') + row.rank;
   return (
-    <li className="tb-row" data-board-row="" data-row-id={`${chart.id}|${chart.list}|${row.rank ?? ''}|${row.itemId || row.full}`}>
-      <span className="tb-rank" aria-hidden="true">{row.rank === null ? '-' : (row.tied ? '=' : '') + row.rank}</span>
+    <li className="tb-row" data-board-row="" data-hero={hero ? '' : undefined} data-row-id={`${chart.id}|${chart.list}|${row.rank ?? ''}|${row.itemId || row.full}`}>
+      <span className={row.tiedAfter ? 'tb-rank tb-rank-tied' : 'tb-rank'} aria-hidden="true">{row.rank === null ? '-' : row.tiedAfter ? 'tied' : row.rank}</span>
       <span className="tb-main">
         <span className="sr-only">{rankWords}. </span>
         <span className="tb-title">{name}</span>
@@ -158,15 +161,16 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
   const shown = open ? chart.rows : chart.rows.slice(0, TOP);
   const more = chart.rows.length > TOP;
   const flagged = chart.state === 'invalid';
+  const brand = chart.invalid ? null : brandOf(chart.id);
   const words = stateWords(day)[chart.state];
   /* The server words an all-ids chart's reason as "today" whatever the day, so
      that sentence is shown in the brief day's words instead. Only a chart with
      no readable row can carry it, which keeps a null reason from matching. */
   const saidByReason = chart.state !== 'ok' && chart.leftOut > 0 && [words, stateWords('today')[chart.state]].some((text) => sentence(text) === sentence(chart.reason));
   return (
-    <section className="tb-card" data-board-card="" data-chart-state={chart.state} data-platform={chart.id || undefined} aria-labelledby={headId}>
+    <section className="tb-card" style={brand ? {'--brand': brand.hex, '--brand-on': brand.on} : undefined} data-board-card="" data-chart-state={chart.state} data-platform={chart.id || undefined} aria-labelledby={headId}>
       <div className="tb-card-head">
-        <span className="tb-logo"><PlatformLogo platform={chart.id} size={22} /></span>
+        <span className="tb-logo"><PlatformLogo platform={chart.id} size={28} /></span>
         <Heading className="tb-card-title" id={headId}>
           {named
             ? <span className="tb-list tb-list-named fact-unit">{chart.list}</span>
@@ -179,14 +183,15 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
       {chart.state === 'ok'
         ? <>
             <p className="tb-caption">Best rank {day}</p>
-            <ul className="tb-rows" id={rowsId}>
-              {shown.map((row, at) => <Row key={at} chart={chart} row={row} where={where} found={found} />)}
+            <ul className={open ? 'tb-rows tb-rows-open' : 'tb-rows'} id={rowsId}>
+              {shown.map((row, at) => <Row key={at} chart={chart} row={row} where={where} found={found} hero={at === 0 && row.rank === 1} />)}
             </ul>
             {more && (
               <button type="button" className="tb-more" aria-expanded={open} aria-controls={rowsId}
                 aria-label={(open ? 'Show fewer entries on ' : `Show all ${chart.rows.length} entries on `) + where}
                 onClick={() => setOpen(!open)}>
                 {open ? 'Show fewer' : `Show all ${chart.rows.length}`}
+                <svg className="tb-more-mark" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" /></svg>
               </button>
             )}
           </>
@@ -196,9 +201,105 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
   );
 }
 
+/* The band: every card of one market in a single row that scrolls sideways.
+   The row snaps card by card, moves by swipe, trackpad or shift and wheel,
+   by the left and right keys while it has focus, and by the two edge arrows.
+   An arrow is only there while more cards are off that edge, and the soft
+   fade on that edge goes with it. The vertical wheel is left to the page, so
+   a reader scrolling down is never caught by the row. */
+const EDGE = 2;
+const still = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function Chevron({back}){
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false" className="tb-arrow-mark">
+      <path d={back ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+    </svg>
+  );
+}
+
+function Band({label, children}){
+  const scroller = useRef(null);
+  const [edges, setEdges] = useState({before: false, after: false});
+  const measure = useCallback(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const left = el.scrollLeft;
+    const before = left > EDGE;
+    const after = el.scrollWidth - el.clientWidth - left > EDGE;
+    /* A focused arrow that is about to leave hands its focus to the row, so a
+       keyboard reader is never dropped onto the page. */
+    const held = document.activeElement;
+    if (held && held.closest && ((!after && held.closest('[data-band-arrow="next"]')) || (!before && held.closest('[data-band-arrow="prev"]')))){
+      el.focus({preventScroll: true});
+    }
+    setEdges((now) => (now.before === before && now.after === after ? now : {before, after}));
+  }, []);
+  useEffect(() => {
+    measure();
+    const el = scroller.current;
+    const watch = typeof ResizeObserver === 'function' && el ? new ResizeObserver(measure) : null;
+    if (watch){
+      watch.observe(el);
+      if (el.firstElementChild) watch.observe(el.firstElementChild);
+    }
+    window.addEventListener('resize', measure);
+    return () => {
+      if (watch) watch.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [measure]);
+  const move = (sign, amount) => {
+    const el = scroller.current;
+    if (el) el.scrollBy({left: sign * amount, behavior: still() ? 'auto' : 'smooth'});
+  };
+  /* An arrow moves most of a view; a key moves one card and its gap. */
+  const view = () => Math.max(1, Math.round(scroller.current.clientWidth * 0.85));
+  const step = () => {
+    const el = scroller.current;
+    const first = el.querySelector('.tb-grid > li');
+    const width = first ? first.getBoundingClientRect().width : 0;
+    if (!(width > 0)) return Math.max(1, Math.round(el.clientWidth / 2));
+    const track = el.firstElementChild;
+    const gap = track ? parseFloat(window.getComputedStyle(track).columnGap) : 0;
+    return Math.round(width + (Number.isFinite(gap) ? gap : 0));
+  };
+  const onKeyDown = (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key === 'ArrowRight' && edges.after){
+      event.preventDefault();
+      move(1, step());
+    } else if (event.key === 'ArrowLeft' && edges.before){
+      event.preventDefault();
+      move(-1, step());
+    }
+  };
+  return (
+    <div className="tb-band" data-band="" data-scrollable={edges.before || edges.after ? '' : undefined} data-more-before={edges.before ? '' : undefined} data-more-after={edges.after ? '' : undefined}>
+      {(edges.before || edges.after) && (
+        <div className="tb-arrows">
+          {edges.before && (
+            <button type="button" className="tb-arrow tb-arrow-prev" data-band-arrow="prev" aria-label="Show earlier platform lists" onClick={() => move(-1, view())}>
+              <Chevron back />
+            </button>
+          )}
+          {edges.after && (
+            <button type="button" className="tb-arrow tb-arrow-next" data-band-arrow="next" aria-label="Show later platform lists" onClick={() => move(1, view())}>
+              <Chevron />
+            </button>
+          )}
+        </div>
+      )}
+      <div className="tb-scroll" data-band-scroll="" ref={scroller} role="region" aria-label={label} tabIndex={0} onScroll={measure} onKeyDown={onKeyDown}>
+        <div className="tb-track" data-band-track="">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 /* The cards of one market, grouped, with each chart's rows counted against the
    market's own payload. level is the heading level of the group titles. */
-function Charts({boards, uid, level, day}){
+function Charts({boards, uid, level, day, label}){
   const found = chartIndex(boards);
   const charts = (Array.isArray(boards) ? boards : []).map((raw, index) => {
     const chart = describe(raw, index);
@@ -207,7 +308,7 @@ function Charts({boards, uid, level, day}){
   });
   const GroupTitle = 'h' + level;
   const CardTitle = 'h' + (level + 1);
-  return GROUPS.map((group) => {
+  const groups = GROUPS.map((group) => {
     const members = charts.filter((chart) => groupOf(chart.id) === group.key);
     if (members.length === 0) return null;
     const titleId = `tb-${uid}-${group.key}`;
@@ -220,6 +321,7 @@ function Charts({boards, uid, level, day}){
       </div>
     );
   });
+  return <Band label={label}>{groups}</Band>;
 }
 
 const none = (day) => <p className="t42-line-text">No platform lists were read {day}.</p>;
@@ -248,11 +350,11 @@ export function TodayBoards({boards, groups, day: given}){
                   <span className="tb-market-badge">{m.market}</span>
                   <span className="tb-market-name" id={nameId}>{m.label || m.market}</span>
                 </h4>
-                {items.length > 0 ? <Charts boards={items} uid={`${uid}-m${at}`} level={5} day={day} /> : none(day)}
+                {items.length > 0 ? <Charts boards={items} uid={`${uid}-m${at}`} level={5} day={day} label={`Platform lists for ${m.label || m.market}`} /> : none(day)}
               </div>
             );
           })
-        : list.length > 0 ? <Charts boards={list} uid={uid} level={4} day={day} /> : none(day)}
+        : list.length > 0 ? <Charts boards={list} uid={uid} level={4} day={day} label="Platform lists" /> : none(day)}
     </section>
   );
 }

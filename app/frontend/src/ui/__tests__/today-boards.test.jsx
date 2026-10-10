@@ -189,8 +189,8 @@ test('ranks stay on their own chart, ties show =, and a null rank is called unra
   expand(card);
   const badge = (name) => rowFor(card, name).querySelector('.tb-rank').textContent;
   expect(badge('Opener')).toBe('1');
-  expect(badge('Tie One')).toBe('=5');
-  expect(badge('Tie Two')).toBe('=5');
+  expect(badge('Tie One')).toBe('5');
+  expect(badge('Tie Two')).toBe('tied');
   expect(badge('Six Song')).toBe('6');
   const unranked = rowFor(card, 'No Rank Song');
   expect(unranked.querySelector('.tb-rank').textContent).toBe('-');
@@ -594,7 +594,7 @@ test('the stylesheet gives the disclosure a visible focus ring, wraps long text 
   const text = css('today-boards.css');
   expect(text).toMatch(/\.tb-more:focus-visible\s*\{[^}]*outline:/);
   expect(text).toMatch(/\.tb-row[\s\S]*?overflow-wrap:\s*anywhere/);
-  expect(text).toMatch(/\.tb-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(min\(100%,/);
+  expect(text).toMatch(/\.tb-scroll\s*\{[^}]*overflow-x:\s*auto/);
   expect(text).toMatch(/\.tb-more\s*\{[^}]*min-block-size:\s*var\(--target-min\)/);
   expect(text).not.toMatch(/(?<![-\w])(?:width|min-width):\s*\d{3,}px/);
   expect(text).not.toMatch(/font-size:\s*\d+px/);

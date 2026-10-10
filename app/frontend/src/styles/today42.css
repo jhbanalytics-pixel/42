@@ -368,14 +368,9 @@
    "Moments in the next 14 days" onto extra rows and left a lone section on a
    row of its own. */
 .t42-below { display: grid; gap: var(--s-5); grid-template-columns: minmax(0, 1fr); margin-top: var(--s-5); }
-/* From 1200px Moments and the boards stand side by side under the
-   left-out line, two short ruled lists that share the width instead of two
-   lonely rows across it. The left-out line and anything else span both
-   columns. Narrower, a moment's row would wrap, so they stack. */
-@media (min-width: 1200px) {
-  .t42-below:has(> [data-section="moments"]):has(> [data-section="boards"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-6); }
-  .t42-below > :not([data-section="moments"]):not([data-section="boards"]) { grid-column: 1 / -1; }
-}
+/* The boards are one full-width band that scrolls sideways, and Coming up in
+   14 days stands under it at the same width, as a row of date chips. Side by
+   side, the narrow column left the left of the page empty. */
 .t42-section { font-size: var(--t42-small); }
 /* The page headline already says this card's Why now, so the card skips it. */
 .t42-card-headline-said .t42-specificity-why-now { display: none; }
@@ -605,6 +600,8 @@
 .t42-below .t42-rows > li,
 .t42-below .t42-chip { font-size: var(--type-3); }
 .t42-below .t42-chip { box-sizing: border-box; min-block-size: var(--target-min); padding: var(--s-2) var(--s-3); display: flex; align-items: center; }
+.t42-below [data-section="moments"] .t42-row { display: flex; flex-wrap: wrap; gap: var(--s-3); }
+.t42-below [data-section="moments"] .t42-chip { flex: 0 1 auto; border: 1px solid var(--line); background: var(--surface); }
 [data-dropped-row] > .t42-row-reason { color: var(--muted); }
 @media (min-width: 769px) {
   .t42-today-market [data-section="dropped"] .t42-rows > li {

@@ -1,8 +1,13 @@
-/* On the boards today: one card per platform list, three groups. Colour,
-   type and spacing come from the theme tokens only, so both themes work. Sizes
-   that carry text are in rem or tokens and nothing has a fixed height, so the
-   cards reflow at phone width and with enlarged text. */
+/* On the boards today: one card per platform list, three groups, all in one
+   band that scrolls sideways. Colour, type and spacing come from the theme
+   tokens only, so both themes work. Sizes that carry text are in rem or
+   tokens and no card has a fixed height, so the cards stay level with each
+   other and grow with enlarged text. The card is 17.5 to 20 rem wide, which
+   at phone width leaves the start of the next card showing. */
 .tb {
+  --tb-card-w: clamp(17.5rem, 74vw, 20rem);
+  --tb-gap: var(--s-4);
+  --tb-fade: 2.5rem;
   min-width: 0;
 }
 
@@ -14,12 +19,110 @@
   max-width: 48rem;
 }
 
-.tb-group + .tb-group,
 .tb-market + .tb-market {
   margin-top: var(--s-5);
 }
 
+/* The band. The wrapper holds the row and the two arrows; the row is the only
+   thing that scrolls, so the page never does. */
+.tb-band {
+  position: relative;
+  min-width: 0;
+  max-inline-size: 100%;
+}
+
+.tb-scroll {
+  position: relative;
+  box-sizing: border-box;
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  padding-block: var(--s-1) var(--s-3);
+}
+
+.tb-scroll:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: calc(var(--focus-width) * -1);
+}
+
+/* A soft fade on an edge that has more cards past it. */
+.tb-band[data-more-after] > .tb-scroll {
+  -webkit-mask-image: linear-gradient(to right, currentcolor calc(100% - var(--tb-fade)), transparent);
+  mask-image: linear-gradient(to right, currentcolor calc(100% - var(--tb-fade)), transparent);
+}
+
+.tb-band[data-more-before] > .tb-scroll {
+  -webkit-mask-image: linear-gradient(to left, currentcolor calc(100% - var(--tb-fade)), transparent);
+  mask-image: linear-gradient(to left, currentcolor calc(100% - var(--tb-fade)), transparent);
+}
+
+.tb-band[data-more-before][data-more-after] > .tb-scroll {
+  -webkit-mask-image: linear-gradient(to right, transparent, currentcolor var(--tb-fade), currentcolor calc(100% - var(--tb-fade)), transparent);
+  mask-image: linear-gradient(to right, transparent, currentcolor var(--tb-fade), currentcolor calc(100% - var(--tb-fade)), transparent);
+}
+
+.tb-track {
+  display: flex;
+  align-items: stretch;
+  inline-size: max-content;
+  min-inline-size: 100%;
+  gap: var(--s-5);
+}
+
+/* The arrows share one strip in the corner of the label row, so they never
+   cover a card. While the row can scroll, the label row is as tall as an
+   arrow, and the cards start below both. */
+.tb-arrows {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  z-index: 1;
+  display: flex;
+  gap: var(--s-2);
+}
+
+.tb-band[data-scrollable] .tb-group-title {
+  align-items: center;
+  min-block-size: var(--target-min);
+  margin-block-end: var(--s-2);
+}
+
+.tb-arrow {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  inline-size: var(--target-min);
+  block-size: var(--target-min);
+  padding: 0;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.tb-arrow:hover {
+  background: var(--surface-inset);
+}
+
+.tb-arrow:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.tb-group {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .tb-group-title {
+  position: sticky;
+  inset-inline-start: 0;
+  align-self: flex-start;
   display: flex;
   align-items: baseline;
   gap: var(--s-2);
@@ -56,80 +159,126 @@
   letter-spacing: 0.06em;
 }
 
-/* Cards sit in a responsive grid: as many columns as fit, one on a phone. */
+/* Cards stand in one row, all the same width, and stretch to the height of
+   the tallest, so a short list does not sit lower than a long one. */
 .tb-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
-  gap: var(--s-4);
-  align-items: start;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: stretch;
+  gap: var(--tb-gap);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .tb-grid > li {
+  display: grid;
+  flex: 0 0 var(--tb-card-w);
   min-width: 0;
+  scroll-snap-align: start;
 }
 
+/* The card follows the trend cards: square, a hairline border, the surface one
+   step above the page, the display face for the name and the rank, and the
+   orange of the lead rank. The platform's own colour is only the thin rule on
+   top and the chip behind its mark. Hover and focus brighten the border and
+   lift the card a little; nothing casts a shadow. */
 .tb-card {
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
   min-width: 0;
-  padding: var(--s-3) var(--s-4) var(--s-3);
+  padding: var(--s-4);
   border: 1px solid var(--line);
+  border-top: 2px solid var(--brand, var(--line-2));
   background: var(--surface);
   color: var(--ink);
+  transition: background-color var(--motion-row) var(--motion-standard-easing), border-color var(--motion-row) var(--motion-standard-easing);
+}
+
+.tb-card:hover,
+.tb-card:focus-within {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tb-card {
+    transition-property: background-color, border-color, transform;
+  }
+
+  .tb-card:hover,
+  .tb-card:focus-within {
+    transform: translateY(-2px);
+  }
 }
 
 .tb-card-head {
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  margin-bottom: var(--s-2);
+  margin-bottom: var(--s-3);
 }
 
+/* The mark on a chip in the platform's colour. The ink is chosen for the
+   colour, so the mark reads on it in both themes. */
 .tb-logo {
   box-sizing: border-box;
   display: grid;
   flex: none;
   place-items: center;
-  inline-size: 2.5rem;
-  block-size: 2.5rem;
-  background: var(--surface-inset);
-  color: var(--ink);
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border: 1px solid var(--line-2);
+  background: var(--brand, var(--surface-inset));
+  color: var(--brand-on, var(--ink));
 }
 
 .tb-card-title {
   min-width: 0;
   margin: 0;
-  font-size: var(--t-4);
-  font-weight: 400;
-  line-height: 1.3;
+  line-height: 1.1;
   overflow-wrap: anywhere;
 }
 
 .tb-platform {
   display: block;
   color: var(--ink);
-  font-weight: 600;
+  font-family: var(--nd-face);
+  font-size: var(--t-6);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-section);
+  letter-spacing: -0.01em;
+  line-height: 1;
 }
 
 .tb-list {
   display: block;
+  margin-top: var(--s-1);
   color: var(--muted);
   font-size: var(--t-3);
+  font-weight: 400;
+  line-height: 1.3;
 }
 
 .tb-list-named {
+  margin-top: 0;
   color: var(--ink);
-  font-size: inherit;
-  font-weight: 600;
+  font-family: var(--nd-face);
+  font-size: var(--t-6);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-section);
+  letter-spacing: -0.01em;
+  line-height: 1;
 }
 
 .tb-caption {
-  margin: 0 0 var(--s-1);
+  margin: 0 0 var(--s-2);
   color: var(--muted);
-  font-size: var(--t-2);
-  letter-spacing: 0.04em;
+  font-size: var(--t-1);
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -139,13 +288,21 @@
   list-style: none;
 }
 
+/* Show all opens the list inside the card, which scrolls past about five rows
+   so one long list does not make every card in the band taller. */
+.tb-rows-open {
+  max-block-size: 26rem;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+/* Every row has a fixed rank column, so the numerals line up down the card. */
 .tb-row {
   box-sizing: border-box;
   display: grid;
   grid-template-columns: 2.5rem minmax(0, 1fr);
-  align-items: start;
-  column-gap: var(--s-3);
-  min-block-size: var(--target-min);
+  align-items: baseline;
+  column-gap: var(--s-2);
   padding: var(--s-2) 0;
   border-top: 1px solid var(--hairline);
   overflow-wrap: anywhere;
@@ -153,15 +310,21 @@
 
 .tb-rank {
   box-sizing: border-box;
-  min-inline-size: 2.5rem;
-  padding: var(--s-1) 0;
-  background: var(--surface-inset);
-  color: var(--ink);
-  font-size: var(--t-3);
-  font-weight: 600;
+  color: var(--muted);
+  font-size: var(--t-4);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
-  text-align: center;
+  text-align: end;
+  padding-inline-end: var(--s-2);
+}
+
+/* Second and later rows of a tie: the rank is said once, above. */
+.tb-rank-tied {
+  font-size: var(--t-1);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .tb-main {
@@ -173,7 +336,8 @@
 .tb-title {
   color: var(--ink);
   font-size: var(--t-4);
-  line-height: 1.3;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .tb-artists {
@@ -182,15 +346,47 @@
   line-height: 1.3;
 }
 
-/* Seen on more than one chart in this market: a quiet mark, not a rank. */
+/* The first row, when it is rank 1: the numeral is the display face in the
+   lead orange, the name steps up, and the row gets more room. */
+.tb-row[data-hero] {
+  align-items: start;
+  padding-block: var(--s-3);
+  border-top: 0;
+}
+
+.tb-row[data-hero] .tb-rank {
+  color: var(--heat-3);
+  font-family: var(--nd-face);
+  font-size: var(--nd-t-rank-sm);
+  font-weight: 800;
+  font-stretch: 62%;
+  line-height: 0.85;
+}
+
+.tb-row[data-hero] .tb-title {
+  font-family: var(--nd-face);
+  font-size: var(--t-6);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-section);
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+
+.tb-row[data-hero] .tb-artists {
+  font-size: var(--t-4);
+}
+
+/* Seen on more than one chart in this market: an outlined chip, as the
+   trend cards draw a state that is not momentum. */
 .tb-multi {
   justify-self: start;
   margin-top: var(--s-1);
   padding: 0 var(--s-2);
   border: 1px solid var(--line-2);
-  color: var(--accent-text, var(--ink-2));
+  color: var(--ink);
   font-size: var(--t-2);
-  line-height: 1.5;
+  font-weight: 700;
+  line-height: 1.6;
 }
 
 /* The other charts that hold the same item, as text a keyboard or touch reader can reach. */
@@ -203,6 +399,10 @@
 
 .tb-more {
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-block-start: auto;
   inline-size: 100%;
   min-block-size: var(--target-min);
   padding: var(--s-2) 0;
@@ -212,11 +412,20 @@
   color: var(--ink);
   font: inherit;
   font-size: var(--t-3);
-  font-weight: 600;
+  font-weight: 700;
   text-align: start;
   text-decoration-color: transparent;
   cursor: pointer;
   transition: text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+
+.tb-more-mark {
+  flex: none;
+  transition: transform var(--motion-control) var(--motion-standard-easing);
+}
+
+.tb-more[aria-expanded="true"] .tb-more-mark {
+  transform: rotate(180deg);
 }
 
 .tb-more:hover {
@@ -245,4 +454,25 @@
   color: var(--muted);
   font-size: var(--t-2);
   line-height: 1.4;
+}
+
+/* Motion only for a reader who has not asked for less. */
+@media (prefers-reduced-motion: no-preference) {
+  .tb-scroll {
+    scroll-behavior: smooth;
+  }
+}
+
+/* On a phone the cards sit closer and the fade is shorter, so the start of
+   the next card still reads past the edge. */
+@media (max-width: 599px) {
+  .tb {
+    --tb-fade: 1.5rem;
+  }
+}
+
+/* The shell rounds every control; the Show all line is a ruled row, not a
+   button shape, so its rule keeps square ends. */
+html .oi-product .tb .tb-more {
+  border-radius: 0;
 }
