@@ -238,6 +238,21 @@ def test_a_figure_is_pinned_only_from_the_row_that_holds_the_claims_own_good_num
     assert any(v == "cut" and "numeral 5 has no pinned" in why for v, why in k2_verdicts(draft, ctx, wh))
 
 
+PLATFORM_ROWS = [{"hashtag": "#gqom", "platform": "TikTok", "posts": 9, "creators": 5},
+                 {"hashtag": "#gqom", "platform": "Instagram", "posts": 7, "creators": 6}]
+
+
+def test_a_figure_the_claim_gives_to_a_second_platform_row_of_the_same_subject_is_not_pinned():
+    """Final review of 3580ecf, finding 3 (W3-1): both rows are #gqom, so a platform cell is a scope and not a second
+    subject. The 5 is TikTok's creators, but the sentence gives it to Instagram, whose count is 6. The claim names two
+    rows, so the pin refuses and the repair call runs; the check that reads named rows is the only thing that does."""
+    draft, issues, pinned, ctx, wh, _, _ = pinned_for(
+        PLATFORM_ROWS, "#gqom drew 9 posts on TikTok and 5 creators on Instagram.", [NINE])
+
+    assert issues and pinned is None
+    assert any(v == "cut" and "numeral 5 has no pinned" in why for v, why in k2_verdicts(draft, ctx, wh))
+
+
 def test_a_figure_on_the_anchor_row_is_not_pinned_when_the_claim_names_both_subjects():
     """Flipped from a pin (lead ruling W3-1): one repair call saved is a convenience, and a claim naming a second
     subject's row may be giving the figure to that subject, so it goes to the repair call and K2."""
