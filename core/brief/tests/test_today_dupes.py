@@ -167,3 +167,10 @@ def test_a_candidate_regrown_by_confirm_into_the_same_event_merges_instead_of_re
     assert "ng_match" in ids and "ng_nickname" not in ids
     assert "ng_nickname" not in held_items(r, "NG")
     assert r.counts["merged"] == [{"market": "NG", "into": "ng_match", "item_id": "ng_nickname", "by": "same_event"}]
+
+
+def test_two_items_that_each_name_the_same_single_team_are_two_cards():
+    first = event_candidate("first", 0.97, "Egypt fans in Johannesburg", own_posts("f"))
+    second = event_candidate("second", 0.96, "Egypt visa rules", own_posts("s"))
+    merged, left = merge(first, second)
+    assert merged == [] and left == [first, second]
