@@ -454,6 +454,11 @@ def test_the_statement_names_no_dataset_other_than_the_placeholders_and_is_read_
 
 
 def test_the_briefs_rule_version_names_every_wave_8_rule_change():
+    # The brief's version is the detect version followed by the brief's own tokens, one per rule change, in tree order.
+    # The detect version is the authority's (warmup-1 or warmup-2, F42_TEST_LOCALITY_AUTHORITY), so the pin is the tail.
     from core.brief import job
-    assert job.RULE_VERSION == ("warmup-1+n21-near-dup+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12"
-                                "+w8-dec-14+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade")
+    from core.detect import job as detect_job
+
+    tail = ("+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14+w8-dec-15+w8-dec-16+w8-dec-17"
+            "+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names+k6-n13-n15+rule1-old-age+g1-gap")
+    assert job.RULE_VERSION in {detect_job.rule_version_for(authority) + tail for authority in ("v1", "v2")}
