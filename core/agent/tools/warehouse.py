@@ -13,6 +13,8 @@ import hashlib
 import json
 import logging
 import re
+import tomllib
+from pathlib import Path
 from typing import Protocol
 
 from core.agent.checks import LABEL_RANK
@@ -25,9 +27,11 @@ from core.agent.tools.sql_query import PROJECT, Warehouse, internal_read, sql_qu
 log = logging.getLogger(__name__)
 
 MAX_POSTS = 100  # breadth (Albert, 4 October): answers drew on about 20 accounts from a store of thousands
+DEFAULT_LIMIT = MAX_POSTS  # a search returns the most it may unless the model asks for fewer (Albert, 10 October)
 MAX_CREATOR_CANDIDATES = 20
 MAX_TERMS = 8
 MAX_RISING_TOPIC_ROWS = 50
+LOCAL_TERMS_PATH = Path(__file__).resolve().parents[1] / "config" / "local_terms.toml"
 RRF_K = 60
 MAX_PER_AUTHOR = 3
 SORTS = {
@@ -203,9 +207,9 @@ def _day(value, name: str) -> dt.date:
 _OR, _AND = ("OR", "|"), ("AND", "&")
 
 
-def _terms(query: str, params: dict) -> list[list[str]]:
+def _terms(query: str, params: dict, strip_hash: bool = False) -> list[list[str]]:
     """Groups of named parameters, one per term: the terms in a group are ANDed and the groups ORed. OR or | between
-    terms starts a new group; AND or & is dropped."""
+    terms starts a new group; AND or & is dropped. strip_hash drops the leading # of a term (a term of only # goes)."""
     groups, count = [[]], 0
     for word in (query or "").split():
         if word in _OR:
@@ -213,6 +217,10 @@ def _terms(query: str, params: dict) -> list[list[str]]:
             continue
         if word in _AND:
             continue
+        if strip_hash:
+            word = word.lstrip("#")
+            if not word:
+                continue
         if count >= MAX_TERMS:
             raise Refused(f"Use at most {MAX_TERMS} search terms; got more.")
         params[f"term_{count}"] = word
@@ -370,6 +378,44 @@ def discover_creators(ctx: RunContext, warehouse: Warehouse, question: str) -> d
     return result
 
 
+def load_local_terms(path=None) -> list[dict]:
+    """The curated local terms (config/local_terms.toml): topics, each with the lower case words that call for it and
+    the single words to search beside them. A missing file, a file that does not parse and an entry of the wrong shape
+    each give nothing, so a bad edit costs the extra terms and never a search."""
+    path = Path(path) if path else LOCAL_TERMS_PATH
+    try:
+        topics = tomllib.loads(path.read_text(encoding="utf-8")).get("topics", [])
+    except FileNotFoundError:
+        return []
+    except (OSError, tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
+        log.warning("local terms file unreadable: %s: %s", path.name, type(e).__name__)
+        return []
+    out = []
+    for topic in topics if isinstance(topics, list) else []:
+        when = topic.get("when") if isinstance(topic, dict) else None
+        terms = topic.get("terms") if isinstance(topic, dict) else None
+        if not isinstance(when, list) or not isinstance(terms, list):
+            continue
+        clean = [str(w).strip().lstrip("#").lower() for w in when if isinstance(w, str)]
+        words = []
+        for term in terms:
+            word = term.strip().lstrip("#") if isinstance(term, str) else ""
+            if TAG_WORD.fullmatch(word) and word not in words:
+                words.append(word)
+        if [w for w in clean if w] and words:
+            out.append({"when": [w for w in clean if w], "terms": words})
+    return out
+
+
+# A term matches the caption anywhere, or a hashtag of the post exactly, without the # and whatever the case: a tag
+# held only in the hashtags column (the parser fills it from the vendor's list) is found as well.
+TERM_TEST = ("(CONTAINS_SUBSTR(p.text, {0}) OR EXISTS (SELECT 1 FROM UNNEST(p.hashtags) AS h "
+             "WHERE LOWER(TRIM(h)) = LOWER({0})))")
+RELATED_TAG_POOL = 30  # rows the co-occurrence read returns; the term cap decides how many are used
+MIN_RELATED_CREATORS = 2  # a tag seen with the seed by one creator only is not a family
+TAG_WORD = re.compile(r"\w{1,50}")
+
+
 def _reason(exc: Exception) -> str:
     """Why a search leg failed, in one line for the model and the log: the first line of the error, links removed."""
     first = re.sub(r"https?://\S+", "", str(exc).splitlines()[0] if str(exc) else type(exc).__name__)
@@ -426,7 +472,7 @@ def _keyword_sql(ctx: RunContext, query: str, since, until, shared: dict, filter
     """The keyword leg's SQL and parameters. Raises Refused for a query with more than MAX_TERMS terms."""
     params = {"since": since, "until": until, **shared, "limit": limit}
     where = ["p.post_date BETWEEN @since AND @until"]
-    where.append(_match(_terms(query, params), "CONTAINS_SUBSTR(p.text, {})"))
+    where.append(_match(_terms(query, params, strip_hash=True), TERM_TEST))
     where += [f.format(a="p") for f in filters]
     if ctx.market:
         params["market"] = ctx.market
@@ -463,8 +509,71 @@ def _semantic_sql(ctx: RunContext, query: str, since, until, shared: dict, filte
     return sql, params
 
 
+def related_hashtags(ctx: RunContext, warehouse: Warehouse, seeds: list[str], since, until, platforms) -> list[dict]:
+    """The hashtags that sit on the same posts as any seed tag, in the ask's market and these dates (the market scope
+    of every other stored read). Strongest first: a tag ranks by its posts with the seed squared over all its posts, so a
+    tag that mostly appears beside the seed beats a tag every post carries. One recorded query. Rows are tag, co_posts,
+    co_creators and all_posts."""
+    joins, where, params, _ = _store_scope(ctx, platforms, (since, until))
+    params["seed_keys"] = "|" + "|".join(s.replace("|", "") for s in seeds) + "|"
+    params["min_creators"] = MIN_RELATED_CREATORS
+    params["pool"] = RELATED_TAG_POOL
+    sql = (
+        "WITH scoped AS (SELECT p.post_id, p.creator_id, LOWER(TRIM(tag)) AS tag "
+        f"{joins}CROSS JOIN UNNEST(p.hashtags) AS tag WHERE {where} AND IFNULL(TRIM(tag), '') != ''), "
+        "seeded AS (SELECT DISTINCT post_id FROM scoped WHERE STRPOS(@seed_keys, CONCAT('|', tag, '|')) > 0), "
+        "totals AS (SELECT tag, COUNT(DISTINCT post_id) AS all_posts FROM scoped GROUP BY tag), "
+        "co AS (SELECT s.tag, COUNT(DISTINCT s.post_id) AS co_posts, COUNT(DISTINCT s.creator_id) AS co_creators "
+        "FROM scoped s JOIN seeded d ON d.post_id = s.post_id "
+        "WHERE STRPOS(@seed_keys, CONCAT('|', s.tag, '|')) = 0 GROUP BY s.tag) "
+        "SELECT co.tag, co.co_posts, co.co_creators, totals.all_posts FROM co JOIN totals ON totals.tag = co.tag "
+        "WHERE co.co_creators >= @min_creators "
+        "ORDER BY co.co_posts * co.co_posts / totals.all_posts DESC, co.co_posts DESC, co.tag LIMIT @pool"
+    )
+    seeds_text = ", ".join(seeds)[:80]
+    return sql_query(ctx, warehouse, sql, params=params,
+                     purpose=f"search_posts related tags: hashtags posted beside {seeds_text}")["rows"]
+
+
+def _widen(ctx: RunContext, warehouse: Warehouse, query: str, since, until, platforms) -> list[str]:
+    """Words to search beside a query that is only alternatives (one word or hashtag each, joined by OR): the curated
+    local terms for its topic, then, when every alternative is a hashtag, the tags that co-occur with them, all within
+    the term cap. Any other query is searched as written. A failed co-occurrence read leaves the curated words."""
+    groups = [[]]
+    for word in (query or "").split():
+        if word in _OR:
+            groups.append([])
+        elif word not in _AND and word.lstrip("#"):
+            groups[-1].append(word)
+    groups = [g for g in groups if g]
+    if not groups or any(len(g) != 1 for g in groups):
+        return []
+    room = MAX_TERMS - len(groups)
+    seeds = [g[0].lstrip("#").lower() for g in groups]
+    extras = []
+    for topic in load_local_terms():
+        if set(topic["when"]) & set(seeds):
+            extras += [w for w in topic["terms"] if w.lower() not in seeds and w.lower() not in
+                       [e.lower() for e in extras]]
+    extras = extras[:max(room, 0)]
+    if all(g[0].startswith("#") for g in groups) and len(extras) < room:
+        try:
+            rows = related_hashtags(ctx, warehouse, seeds, since, until, platforms)
+        except Exception as e:
+            log.warning("search_posts related tags failed: run %s: %s", ctx.run_id, _reason(e))
+            rows = []
+        for row in rows:
+            tag = row.get("tag") if isinstance(row, dict) else None
+            if (isinstance(tag, str) and TAG_WORD.fullmatch(tag) and tag.lower() not in seeds
+                    and tag.lower() not in [e.lower() for e in extras]):
+                extras.append(tag)
+                if len(extras) == room:
+                    break
+    return extras
+
+
 def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=None, since=None, until=None,
-                 min_engagement=0, author=None, sort="engagement", limit=50, market=None) -> dict:
+                 min_engagement=0, author=None, sort="engagement", limit=DEFAULT_LIMIT, market=None) -> dict:
     if market not in (None, ""):
         _check_market(ctx, market)
     if sort not in SORTS:
@@ -477,10 +586,14 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
     filters, shared = _search_filters(platforms, author, min_engagement)
 
     lists, query_ids, note, failed = [], [], {}, {}
+    extras = _widen(ctx, warehouse, query, since, until, platforms)
+    if extras:
+        note["also_searched"] = extras
     # Each leg stands alone: a leg that fails (a refused argument, a byte cap, a warehouse error) leaves the other to
     # answer. Both reasons reach the model and the log, and a call where both fail raises with both.
     try:
-        sql, params = _keyword_sql(ctx, query, since, until, shared, filters, sort, limit)
+        sql, params = _keyword_sql(ctx, query + "".join(f" OR #{w}" for w in extras), since, until, shared, filters,
+                                   sort, limit)
         result = sql_query(ctx, warehouse, sql, purpose=f"search_posts: {query}", params=params)
     except Exception as e:
         _emit_retrieval_trace(ctx, "keyword", error=e)

@@ -187,25 +187,25 @@ def test_save_finding_tells_the_model_which_labels_and_item_ids_it_takes():
 
 def test_or_between_search_terms_matches_any_of_them_and_is_never_searched_for(ctx):  # noqa: F811
     from core.agent.tests.test_warehouse_tools import FakeWarehouse
-    from core.agent.tools.warehouse import search_posts
+    from core.agent.tools.warehouse import TERM_TEST, search_posts
 
     wh = FakeWarehouse([])
     search_posts(ctx, wh, "sound OR challenge | trend gqom")
     sql, params = wh.runs[0][0], wh.runs[0][1]
     terms = {k: v for k, v in params.items() if k.startswith("term_")}
     assert sorted(terms.values()) == ["challenge", "gqom", "sound", "trend"]
-    assert "((CONTAINS_SUBSTR(p.text, @term_0)) OR (CONTAINS_SUBSTR(p.text, @term_1)) OR " \
-           "(CONTAINS_SUBSTR(p.text, @term_2) AND CONTAINS_SUBSTR(p.text, @term_3)))" in sql
+    term = [TERM_TEST.format(f"@term_{n}") for n in range(4)]  # each term also matches the hashtags column
+    assert f"(({term[0]}) OR ({term[1]}) OR ({term[2]} AND {term[3]}))" in sql
     check_sql(sql)
 
 
 def test_plain_terms_are_still_all_required(ctx):  # noqa: F811
     from core.agent.tests.test_warehouse_tools import FakeWarehouse
-    from core.agent.tools.warehouse import search_posts
+    from core.agent.tools.warehouse import TERM_TEST, search_posts
 
     wh = FakeWarehouse([])
     search_posts(ctx, wh, "amapiano AND braai")
-    assert "(CONTAINS_SUBSTR(p.text, @term_0) AND CONTAINS_SUBSTR(p.text, @term_1))" in wh.runs[0][0]
+    assert f"({TERM_TEST.format('@term_0')} AND {TERM_TEST.format('@term_1')})" in wh.runs[0][0]
     assert "AND" not in [v for k, v in wh.runs[0][1].items() if k.startswith("term_")]
 
 
@@ -258,7 +258,7 @@ def test_post_reads_and_query_rows_shown_are_wider():
 
     from core.agent.tools import warehouse
     assert warehouse.MAX_POSTS == 100 and writer.ROWS_SHOWN == 50
-    assert inspect.signature(warehouse.search_posts).parameters["limit"].default == 50
+    assert inspect.signature(warehouse.search_posts).parameters["limit"].default == 100  # Albert, 10 October
 
 
 def test_the_writer_sees_at_most_rows_shown_rows_of_a_query():

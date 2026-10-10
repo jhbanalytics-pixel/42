@@ -68,7 +68,9 @@ SCHEMAS = {
     "search_posts": _schema({
         "query": _STR, "platforms": _STRS, "since": {"type": "string", "description": "YYYY-MM-DD"},
         "until": {"type": "string", "description": "YYYY-MM-DD"}, "min_engagement": {"type": "number", "minimum": 0},
-        "author": _STR, "sort": _STR, "limit": {"type": "integer", "minimum": 1},
+        "author": _STR, "sort": _STR,
+        "limit": {"type": "integer", "minimum": 1, "description": "Posts to return, at most 100. The default is "
+                                                                  "100; ask for fewer only to save reading."},
         "market": {"type": "string", "description": "Optional. The question's market is always the one searched; "
                                                     "naming a different market is refused."},
     }, ["query"]),
@@ -152,8 +154,11 @@ DESCRIPTIONS = {
                  "calls in the same turn: up to four run at the same time, and each is checked and capped as if it "
                  "ran alone. Do not send them one per turn. Use only these names; any other table fails. "
                  + warehouse_map_text(),
-    "search_posts": "Search stored posts by full text and meaning. Free. Returns evidence. Words in the query must all "
-                    "appear in a post; put OR between alternatives, as in 'amapiano OR gqom'.",
+    "search_posts": "Search stored posts by full text and meaning. Free. Returns evidence, up to 100 posts by "
+                    "default (limit asks for fewer). A word matches a post's words or its hashtags, with or without "
+                    "the #. Words in the query must all appear in a post; put OR between alternatives, as in "
+                    "'amapiano OR gqom'. A query of only hashtags joined by OR is also searched with the hashtags "
+                    "posted beside them in this market and window; also_searched lists them.",
     "socialcrawl_call": "Fetch fresh posts from SocialCrawl. Spends credits; check budget_status first. "
                         "Returns evidence ids, items, next_cursor, credits_spent and status.",
     "rising_topics": "Topics rising in the detection tables for a date and window.",
