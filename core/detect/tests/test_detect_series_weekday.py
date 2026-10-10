@@ -6,7 +6,7 @@ import pytest
 
 from core.detect import backtest, stats
 from core.detect.tests import duck
-from core.detect.tests.fixtures import D, day
+from core.detect.tests.fixtures import D, at, day, run
 from core.detect.tests.test_detect_backtest import BacktestClient
 from core.detect.tests.test_detect_states import World
 from core.detect.tests.test_detect_stats import StatsClient
@@ -53,7 +53,8 @@ def switched(version="stats-1", when=None):
 
 def live_rows(con, switches):
     duck.load(con, "core.test_switch", switches)
-    stats.run_stats(StatsClient(con), D, "fixture", "daily-v1", core="core")
+    duck.load(con, "agent.runs", [{**run("backtest", day(57), run_id="accepted-fixture"), "finished_at": at(day(57))}])
+    stats.run_stats(StatsClient(con), D, "fixture", "daily-v1", core="core", agent="agent")
     return duck.query(con, "SELECT * FROM {core}.series_test ORDER BY item_id")
 
 

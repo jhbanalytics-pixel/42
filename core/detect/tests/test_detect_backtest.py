@@ -8,7 +8,7 @@ series are drawn from a negative binomial with a fixed seed.
 
 import json
 import os
-from datetime import timedelta
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -527,19 +527,113 @@ def test_backtests_directory_is_kept_in_the_repository():
     assert (backtest.OUT_DIR / ".gitkeep").exists()
 
 
-def test_dry_run_prints_what_would_switch_on_and_writes_nothing_to_bigquery(con, tmp_path, capsys):
+def row_counts(con):
+    """The row count of every table the connection holds, by schema and name."""
+    tables = con.execute("SELECT table_schema, table_name FROM information_schema.tables "
+                         "WHERE table_type = 'BASE TABLE' ORDER BY 1, 2").fetchall()
+    return {f"{schema}.{name}": con.execute(f'SELECT COUNT(*) FROM "{schema}"."{name}"').fetchone()[0]
+            for schema, name in tables}
+
+
+def grown(before, after):
+    return {name: after[name] - before[name] for name in after if after[name] != before.get(name)}
+
+
+def test_dry_run_prints_what_would_switch_on_and_writes_one_runs_row_and_nothing_else(con, tmp_path, capsys):
     stable_panel(World(), 30).load(con)
     client = BacktestClient(con)
+    start = row_counts(con)
+    assert "agent.runs" in start and "core.test_switch" in start and len(start) > 10
     assert backtest.main(["--as-of", D.isoformat(), "--days", "7"], client=client, out_dir=tmp_path,
                          core="core", agent="agent") == 0
     out = capsys.readouterr().out
     assert "would switch on" in out and KEY in out
     assert duck.query(con, "SELECT * FROM {core}.test_switch") == []
-    assert duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'") == []
+    # a replay leaves one runs row, status replayed, which puts nothing in force and is never an accepted run
+    assert [r["status"] for r in duck.query(con, "SELECT * FROM {agent}.runs r WHERE r.stage = 'backtest'")] == [
+        "replayed"]
+    # and no other table of the warehouse gains a row: the runs row is the only write of a dry run
+    assert grown(start, row_counts(con)) == {"agent.runs": 1}
+    statements = [sqlrun._strip_leading_comments(sql).lstrip() for sql in client.sql]
+    assert statements and {sql.split(None, 1)[0].upper() for sql in statements} <= {"SELECT", "WITH"}
+    before_apply = row_counts(con)
     assert backtest.main(["--as-of", D.isoformat(), "--days", "7", "--apply"], client=client, out_dir=tmp_path,
                          core="core", agent="agent") == 0
     assert "switched on" in capsys.readouterr().out
     assert len(duck.query(con, "SELECT * FROM {core}.test_switch")) == 1
+    assert grown(before_apply, row_counts(con)) == {"agent.runs": 1, "core.test_switch": 1}
+
+
+@pytest.mark.parametrize("extra", [[], ["--apply"]], ids=["bare", "apply"])
+@pytest.mark.parametrize("ahead", [1, 40])
+def test_a_replay_as_of_a_day_after_today_is_refused_before_anything_runs(con, tmp_path, capsys, monkeypatch,
+                                                                         extra, ahead):
+    """Data ending on D, today D: --as-of D+1 would cite a backtest as of a day that has not come."""
+    stable_panel(World(), 30).load(con)
+    client = BacktestClient(con)
+    start = row_counts(con)
+
+    def no_client(*a, **k):
+        raise AssertionError("a refused day must not build a BigQuery client")
+
+    monkeypatch.setattr(backtest.bigquery, "Client", no_client)
+    as_of = (D + timedelta(days=ahead)).isoformat()
+    assert backtest.main(["--as-of", as_of, "--days", "7", *extra], out_dir=tmp_path, today=D) == 1
+    assert backtest.main(["--as-of", as_of, "--days", "7", *extra], client=client, out_dir=tmp_path,
+                         core="core", agent="agent", today=D) == 1
+    err = capsys.readouterr().err
+    assert err.count("refused:") == 2 and as_of in err and "after" in err and D.isoformat() in err
+    assert client.sql == [] and row_counts(con) == start and list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("extra", [[], ["--apply"]], ids=["bare", "apply"])
+def test_a_replay_as_of_today_is_not_refused(con, tmp_path, capsys, extra):
+    stable_panel(World(), 30).load(con)
+    assert backtest.main(["--as-of", D.isoformat(), "--days", "7", *extra], client=BacktestClient(con),
+                         out_dir=tmp_path, core="core", agent="agent", today=D) == 0
+    assert capsys.readouterr().err == "" and len(list(tmp_path.iterdir())) == 1
+
+
+def test_the_day_after_today_is_read_from_the_real_clock_when_none_is_given(con, tmp_path, capsys):
+    stable_panel(World(), 30).load(con)
+    tomorrow = (backtest.sast_today() + timedelta(days=1)).isoformat()
+    assert backtest.main(["--as-of", tomorrow, "--days", "7"], client=BacktestClient(con), out_dir=tmp_path,
+                         core="core", agent="agent") == 1
+    assert "after" in capsys.readouterr().err
+
+
+def at_clock(monkeypatch, instant):
+    """backtest's real clock, set to instant (an aware datetime): datetime.now(tz) answers it in tz."""
+    class Clock(backtest.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instant.astimezone(tz) if tz else instant.replace(tzinfo=None)
+
+    monkeypatch.setattr(backtest, "datetime", Clock)
+
+
+SAST = timezone(timedelta(hours=2))
+
+
+def test_a_replay_as_of_the_sast_day_is_not_refused_between_midnight_and_2_am_sast(con, tmp_path, capsys, monkeypatch):
+    """01:00 SAST on D + 1 is 23:00 UTC on D. Today for the backtest is the SAST date, the day the collect chain
+    and the brief run on, so --as-of D + 1 is not a day that has not come."""
+    stable_panel(World(), 30).load(con)
+    at_clock(monkeypatch, datetime.combine(D + timedelta(days=1), time(1), SAST))
+    assert backtest.datetime.now(backtest.UTC).date() == D, "the clock under test is a UTC day behind SAST"
+    assert backtest.main(["--as-of", (D + timedelta(days=1)).isoformat(), "--days", "7"], client=BacktestClient(con),
+                         out_dir=tmp_path, core="core", agent="agent") == 0
+    assert "refused" not in capsys.readouterr().err
+
+
+def test_a_replay_as_of_two_days_after_the_sast_day_is_still_refused(con, tmp_path, capsys, monkeypatch):
+    stable_panel(World(), 30).load(con)
+    at_clock(monkeypatch, datetime.combine(D + timedelta(days=1), time(1), SAST))
+    client = BacktestClient(con)
+    assert backtest.main(["--as-of", (D + timedelta(days=2)).isoformat(), "--days", "7"], client=client,
+                         out_dir=tmp_path, core="core", agent="agent") == 1
+    err = capsys.readouterr().err
+    assert "refused:" in err and (D + timedelta(days=1)).isoformat() in err and client.sql == []
 
 
 # 6b. A key with no platform (a curated creator panel's collection_health rows) is skipped, not measured

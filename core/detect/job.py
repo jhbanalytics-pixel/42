@@ -315,7 +315,7 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
                                     lambda rid: aggregate.run_aggregate(client, d, rid, rule_version, core, agent))
         counts["item_centroids"] = run_centroids_step(client, d, core, agent)
         counts["series_test"] = _step(client, "stats", d, agent, lambda rid: {
-            "series_test": stats.run_stats(client, d, rid, rule_version, core=core)})["series_test"]
+            "series_test": stats.run_stats(client, d, rid, rule_version, core=core, agent=agent)})["series_test"]
         counts["coaction"] = run_coaction_step(client, d, rule_version, core, agent)
         topics = topics_failed_today(client, d, core, agent)
         if topics:

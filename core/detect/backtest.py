@@ -32,14 +32,37 @@ multi-platform search, whose collection_health rows carry a NULL platform, count
 key still with no platform (no series names one) or no lane class is never measured: test_switch holds neither as
 NULL, so stats.py could never find its row. It is listed under skipped with its observed days instead.
 
-Entry point: python -m core.detect.backtest --as-of YYYY-MM-DD [--days N] [--apply]. The results always go
+Which rows are written (W8-DEC-13): switch_rows rebuilds every figure from the counts in a result (alarms and
+tested, detected and injected at 3 times), never from the rates, flags or false_alarms block the result states
+about itself, and a stay-off flag can only veto. A row is written for a key only where its false-alarm rate and its
+market and platform rate are at most 0.05 and its recall at 3 times is at least 0.8, on top of the floors above.
+The row cites the run id of the result, which must be well formed and of the as_of day, and a result of the
+candidate rule version earns none. write_switch_rows appends only when apply is exactly True. Every series
+without a row stays on the untested branch of state.sql.
+
+A row is in force only once the runs row of the run it cites is ok (stats.sql joins it), and a row whose run never
+got one is not counted as written, so a failed apply neither switches anything on nor blocks the next apply.
+
+Entry point: python -m core.detect.backtest --as-of YYYY-MM-DD [--days N] [--apply]; an --as-of after today (the SAST
+date) is refused before anything is read or written. The results always go
 to one JSON file in core/detect/backtests; only --apply appends the test_switch rows and then the runs row
-(stage 'backtest'). Reads BigQuery only, and nothing is ever updated or removed.
+(stage 'backtest'). A replay without --apply appends a runs row with status 'replayed' that carries the sha256 of
+the file it wrote. Reads BigQuery only, and nothing is ever updated or removed. python -m core.detect.backtest
+--report FILE prints, from a saved result file and with no client, the sha256 of its bytes, the rows that would be
+written and the keys that stay off. python -m core.detect.backtest --as-of YYYY-MM-DD --apply FILE --sha256 HEX
+writes the rows of that reviewed file instead of replaying again. HEX is the digest --report printed, typed by the
+reviewer, so an edited file is refused before any client is built; the file must also be the one a replay recorded
+(its 'replayed' runs row carries the same digest), as of the day named, no later than today and no more than
+MAX_AGE_DAYS before it, and carry the thresholds in force. The rows are recomputed from the file's counts, and its
+run id gets the runs row. A run that already has an ok runs row is refused, and so is a file whose run id is cited
+by a test_switch row it does not write.
 """
 
 import argparse
+import hashlib
 import json
 import math
+import re
 import sys
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
@@ -47,6 +70,8 @@ from pathlib import Path
 
 from google.cloud import bigquery
 from scipy import stats as st
+
+from core.collect.chain import SAST
 
 from . import runs, sqlrun, stats
 
@@ -63,7 +88,12 @@ MIN_OBSERVED_DAYS = 14
 MIN_TESTED, MIN_INJECTED = 60, 20
 NOMINAL_TOL = 0.2                   # a whole-count spike must land within 20% of its multiple
 FA_MAX, RECALL_MIN, RECALL_AT = 0.05, 0.8, "3"
+THRESHOLDS = {"false_alarm_max": FA_MAX, "recall_min": RECALL_MIN, "recall_at": RECALL_AT,
+              "min_observed_days": MIN_OBSERVED_DAYS, "min_tested": MIN_TESTED, "min_injected": MIN_INJECTED}
 TOP_N, LATER_DAYS = 10, 7
+MAX_AGE_DAYS = 3                    # --apply FILE refuses a file whose as_of is more than this many days old
+RUN_ID = re.compile(r"backtest-(\d{8})-[0-9a-f]{12}")
+SWITCH_ROW_FIELDS = ("market", "platform", "lane_class", "switched_on", "backtest_run_id", "rule_version")
 PERSISTING = ("emerging", "rising", "peaking")
 FIRST_WEEK_LANES = ("panel", "unbiased_counter")
 
@@ -78,6 +108,18 @@ WHERE r.stage = 'backtest' AND r.status = 'ok' AND DATE(r.finished_at) <= @as_of
 """
 
 
+# The backtest runs that were accepted: those with an ok runs row, whenever it landed.
+ACCEPTED_SQL = """
+SELECT r.run_id FROM {agent}.runs r WHERE r.stage = 'backtest' AND r.status = 'ok'
+"""
+
+
+# The replays that left a file: the runs row of a replay without --apply carries the sha256 of the file it wrote.
+REPLAYED_SQL = """
+SELECT r.run_id, r.counts FROM {agent}.runs r WHERE r.stage = 'backtest' AND r.status = 'replayed'
+"""
+
+
 def params(sql, as_of, days):
     """The @as_of and @start values a statement uses; @start leaves room for the history of the first day."""
     values = {"as_of": as_of, "start": as_of - timedelta(days=days - 1 + LOOKBACK_DAYS)}
@@ -87,7 +129,7 @@ def params(sql, as_of, days):
 def load(client, as_of, days=WINDOW_DAYS, core=sqlrun.CORE, agent=sqlrun.AGENT):
     """Every input as rows, read only up to what was available on as_of."""
     return {name: sqlrun.query(client, sql, params(sql, as_of, days), core=core, agent=agent)
-            for name, sql in {**QUERIES, "written": WRITTEN_SQL}.items()}
+            for name, sql in {**QUERIES, "written": WRITTEN_SQL, "accepted": ACCEPTED_SQL}.items()}
 
 
 def end_of(t):
@@ -511,6 +553,231 @@ def decide(k):
     return not reasons, reasons
 
 
+def _count(v):
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def _run_id(results):
+    """The run id of a result, which must look like one this module mints and carry the day it was run as of."""
+    run_id = results.get("run_id")
+    m = RUN_ID.fullmatch(run_id) if isinstance(run_id, str) else None
+    if m is None:
+        raise ValueError(f"no usable backtest run id: {run_id!r}")
+    if m.group(1) != str(results.get("as_of", "")).replace("-", ""):
+        raise ValueError(f"backtest run id {run_id} is not of the as_of day {results.get('as_of')!r}")
+    return run_id
+
+
+def _counted(name, k):
+    """(market, platform, lane_class) and the reason the counts of one key of a result cannot be used, if any."""
+    parts = tuple(name.split("|")) if isinstance(name, str) else ()
+    if len(parts) != 3 or any(not p.strip() or p == "-" for p in parts):
+        return None, f"{name!r} is not a market, platform and lane class that test_switch can hold"
+    rec = ((k.get("recall") or {}).get(RECALL_AT) or {}) if isinstance(k, dict) else {}
+    fields = [k.get("observed_days"), k.get("tested"), k.get("alarms"), rec.get("injected"), rec.get("detected")] \
+        if isinstance(k, dict) else [None]
+    if not all(_count(v) for v in fields) or fields[2] > fields[1] or fields[4] > fields[3]:
+        return parts, "counts are missing or inconsistent"
+    return parts, None
+
+
+def switch_rows(results, done=frozenset()):
+    """(rows, refused) a backtest result earns. Every figure the rule reads is recomputed from the counts in the
+    result: its own rates, its switch flags and its false_alarms block are never trusted, and a flag that says
+    a key stays off can only veto. The row cites the result's run id, which must be well formed and of the as_of
+    day, or the whole result is refused with ValueError. A candidate rule version earns nothing. Keys already in
+    done as (market, platform, lane_class, rule_version) are neither written nor refused."""
+    if results.get("rule_version") != RULE_VERSION:
+        raise ValueError(f"backtest rule version {results.get('rule_version')!r} cannot write {RULE_VERSION} rows")
+    run_id = _run_id(results)
+    switched_on = (date.fromisoformat(results["as_of"]) + timedelta(days=1)).isoformat()
+    keys = results.get("keys") or {}
+    counted = {name: _counted(name, k) for name, k in keys.items()}
+    pair, tainted = defaultdict(lambda: [0, 0]), set()
+    for name, (parts, problem) in counted.items():
+        if parts is None:
+            continue
+        if problem:
+            tainted.add(parts[:2])
+        else:
+            pair[parts[:2]][0] += keys[name]["tested"]
+            pair[parts[:2]][1] += keys[name]["alarms"]
+    rows, refused = [], []
+    for name, k in keys.items():
+        parts, problem = counted[name]
+        if problem is None and parts[:2] in tainted:
+            problem = "another key of its market and platform has missing or inconsistent counts"
+        if problem:
+            refused.append({"key": name, "reasons": [problem]})
+            continue
+        rec = k["recall"][RECALL_AT]
+        tested, alarms = pair[parts[:2]]
+        on, reasons = decide({
+            "observed_days": k["observed_days"], "tested": k["tested"], "alarms": k["alarms"],
+            "false_alarm_rate": _rate(k["alarms"], k["tested"]),
+            "market_platform_false_alarm_rate": _rate(alarms, tested),
+            "recall": {RECALL_AT: {"injected": rec["injected"], "detected": rec["detected"],
+                                   "recall": _rate(rec["detected"], rec["injected"])}}})
+        if on and k.get("switch") is False:
+            on, reasons = False, ["the backtest run recorded it as staying off"]
+        if not on:
+            refused.append({"key": name, "reasons": reasons})
+        elif (*parts, RULE_VERSION) not in done:
+            rows.append({"market": parts[0], "platform": parts[1], "lane_class": parts[2],
+                         "switched_on": switched_on, "backtest_run_id": run_id, "rule_version": RULE_VERSION})
+    return rows, refused
+
+
+def write_switch_rows(client, core, rows, apply):
+    """Append rows to test_switch. Refuses unless apply is exactly True and every row names every field,
+    cites a well formed backtest run id (one run for all rows) and carries the rule version in force."""
+    if apply is not True:
+        raise ValueError("test_switch rows are written only with apply set to True")
+    for row in rows:
+        for field in SWITCH_ROW_FIELDS:
+            v = row.get(field)
+            if not isinstance(v, str) or not v.strip():
+                raise ValueError(f"test_switch row has no {field}")
+        if RUN_ID.fullmatch(row["backtest_run_id"]) is None:
+            raise ValueError(f"test_switch row cites no usable backtest_run_id: {row['backtest_run_id']!r}")
+        if row["rule_version"] != RULE_VERSION:
+            raise ValueError(f"test_switch row has rule_version {row['rule_version']!r}, not {RULE_VERSION}")
+    if len({row["backtest_run_id"] for row in rows}) > 1:
+        raise ValueError("test_switch rows cite more than one backtest run")
+    if rows:
+        errors = client.insert_rows_json(f"{core}.test_switch", rows)
+        if errors:
+            raise RuntimeError(f"append to {core}.test_switch failed: {errors}")
+
+
+def accepted_keys(switched, accepted):
+    """(market, platform, lane_class, rule_version) of the test_switch rows whose backtest run has an ok runs row.
+    A row whose run never got one is not in force, so it must not stop a later apply from writing its key."""
+    ok = {r["run_id"] for r in accepted}
+    return {(s["market"], s["platform"], s["lane_class"], s["rule_version"]) for s in switched
+            if s["backtest_run_id"] in ok}
+
+
+def digest_of(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def reviewed(path, as_of, sha256, today):
+    """The result in the saved file at path, once it is shown to be the one reviewed: its bytes hash to the sha256
+    the reviewer typed from the report, named by its own run id, as of the day the caller names (not the day it
+    states about itself), no later than today and no more than MAX_AGE_DAYS before it, and judged by the thresholds
+    in force. The file is read once, so the bytes checked are the bytes parsed. Raises ValueError otherwise; returns
+    (results, digest)."""
+    path = Path(path)
+    data = path.read_bytes()
+    digest = digest_of(data)
+    if digest != str(sha256).strip().lower():
+        raise ValueError(f"{path.name} has sha256 {digest}, not the sha256 given ({sha256!r}); "
+                         "it is not the file that was reported")
+    results = json.loads(data.decode("utf-8"))
+    if not isinstance(results, dict):
+        raise ValueError(f"{path.name} is not a backtest result")
+    if path.stem != results.get("run_id"):
+        raise ValueError(f"file name {path.name} is not its backtest run id {results.get('run_id')!r}")
+    if results.get("as_of") != as_of.isoformat():
+        raise ValueError(f"{path.name} is as of {results.get('as_of')}, not {as_of.isoformat()}")
+    if as_of > today:
+        raise ValueError(f"{path.name} is as of {as_of.isoformat()}, after {today.isoformat()}")
+    if (today - as_of).days > MAX_AGE_DAYS:
+        raise ValueError(f"{path.name} is {(today - as_of).days} days old as of {as_of.isoformat()}, "
+                         f"more than {MAX_AGE_DAYS} days before {today.isoformat()}")
+    if results.get("thresholds") != THRESHOLDS:
+        raise ValueError(f"{path.name} was not judged by the thresholds in force: {results.get('thresholds')!r}")
+    _run_id(results)
+    return results, digest
+
+
+def replayed_digests(replayed, run_id):
+    """The sha256 values the 'replayed' runs rows of run_id carry in their counts."""
+    out = set()
+    for r in replayed:
+        if r["run_id"] != run_id:
+            continue
+        counts = r["counts"]
+        try:
+            counts = json.loads(counts) if isinstance(counts, str) else counts
+        except ValueError:
+            continue
+        if isinstance(counts, dict) and isinstance(counts.get("sha256"), str):
+            out.add(counts["sha256"])
+    return out
+
+
+def apply_file(path, as_of, sha256, client=None, core=sqlrun.CORE, agent=sqlrun.AGENT, out=print, today=None):
+    """Write the test_switch rows a reviewed result file earns and then its runs row, with no new replay. The rows
+    are recomputed from the counts in the file, the file's own switch_on list is ignored, and a key already
+    accepted for the rule version is not written again. The file's bytes must hash to sha256 (the digest the
+    report printed) and to the digest a 'replayed' runs row of the same run id carries. Returns 0, or 1 when the
+    file is refused; a client is built only once the digest, the age and the contents of the file are accepted."""
+    try:
+        results, digest = reviewed(path, as_of, sha256, today or sast_today())
+        if results.get("rule_version") != RULE_VERSION:
+            raise ValueError(f"backtest rule version {results.get('rule_version')!r} cannot write {RULE_VERSION} rows")
+    except (ValueError, OSError) as e:
+        print(f"refused: {e}", file=sys.stderr)
+        return 1
+    if client is None:
+        client = bigquery.Client(project=PROJECT)
+    accepted = sqlrun.query(client, ACCEPTED_SQL, core=core, agent=agent)
+    if results["run_id"] in {r["run_id"] for r in accepted}:
+        print(f"refused: backtest run {results['run_id']} already has an ok runs row", file=sys.stderr)
+        return 1
+    replayed = sqlrun.query(client, REPLAYED_SQL, core=core, agent=agent)
+    if digest not in replayed_digests(replayed, results["run_id"]):
+        print(f"refused: no replay of backtest run {results['run_id']} recorded a file with sha256 {digest}",
+              file=sys.stderr)
+        return 1
+    switched = sqlrun.query(client, QUERIES["switched"], core=core, agent=agent)
+    rows, _ = switch_rows(results, accepted_keys(switched, accepted))
+    written_keys = {(r["market"], r["platform"], r["lane_class"], r["rule_version"]) for r in rows}
+    strays = sorted("|".join(s[k] for k in KEY_FIELDS) for s in switched
+                    if s["backtest_run_id"] == results["run_id"]
+                    and (s["market"], s["platform"], s["lane_class"], s["rule_version"]) not in written_keys)
+    if strays:
+        print(f"refused: test_switch already holds rows that cite backtest run {results['run_id']} which this file "
+              f"does not write: {', '.join(strays)}", file=sys.stderr)
+        return 1
+    if rows:
+        started = runs.now()
+        write_switch_rows(client, core, rows, True)
+        runs.append(client, results["run_id"], "backtest", date.fromisoformat(results["as_of"]), "ok", started,
+                    runs.now(), {**results, "applied": True, "switch_on": rows}, agent=agent)
+    for r in rows:
+        out(f"switched on: {r['market']}|{r['platform']}|{r['lane_class']} from {r['switched_on']}")
+    if not rows:
+        out("nothing new to switch on")
+    return 0
+
+
+def report(path, out=print):
+    """Print, from a saved backtest result file, the test_switch rows that would be written and the keys that stay
+    off, reading nothing else and writing nothing. The file name must be its run id. Returns 0, or 1 when the
+    file is refused."""
+    path = Path(path)
+    try:
+        data = path.read_bytes()
+        results = json.loads(data.decode("utf-8"))
+        if path.stem != results.get("run_id"):
+            raise ValueError(f"file name {path.name} is not its backtest run id {results.get('run_id')!r}")
+        rows, refused = switch_rows(results)
+    except (ValueError, OSError, AttributeError) as e:
+        print(f"refused: {e}", file=sys.stderr)
+        return 1
+    out(f"dry run of {path.name}: nothing is written")
+    out(f"sha256 {digest_of(data)}")
+    out(f"would write {len(rows)} test_switch row{'' if len(rows) == 1 else 's'} from backtest run {results['run_id']}")
+    for r in rows:
+        out(f"  {r['market']}|{r['platform']}|{r['lane_class']} from {r['switched_on']} cites {r['backtest_run_id']}")
+    for r in refused:
+        out(f"  {r['key']} stays off: {'; '.join(r['reasons'])}")
+    return 0
+
+
 def top10_precision(store, window, as_of, markets):
     """Per market: of the top 10 eligible items by worth_raw shown on each day t with t + 7 on or before as_of,
     the share still Emerging, Rising or Peaking on t + 7; 'not yet measurable' when no such day exists."""
@@ -612,37 +879,61 @@ def run(client, as_of, *, apply=False, days=WINDOW_DAYS, out_dir=OUT_DIR, core=s
     run_id = runs.new_run_id("backtest", as_of)
     started = runs.now()
     inputs = load(client, as_of, days, core, agent)
-    results = {"run_id": run_id, "applied": apply, **replay(inputs, as_of, days)}
-    done = {(s["market"], s["platform"], s["lane_class"], s["rule_version"]) for s in inputs["switched"]}
-    switched_on = (as_of + timedelta(days=1)).isoformat()
-    rows = []
-    for name, k in results["keys"].items():
-        market, platform, lane = name.split("|")
-        if k["switch"] and (market, platform, lane, RULE_VERSION) not in done:
-            rows.append({"market": market, "platform": platform, "lane_class": lane, "switched_on": switched_on,
-                         "backtest_run_id": run_id, "rule_version": RULE_VERSION})
+    results = {"run_id": run_id, "applied": apply, "thresholds": dict(THRESHOLDS), **replay(inputs, as_of, days)}
+    rows, _ = switch_rows(results, accepted_keys(inputs["switched"], inputs["accepted"]))
     results["switch_on"] = rows
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / f"{run_id}.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
+    data = json.dumps(results, indent=2).encode("utf-8")
+    (out_dir / f"{run_id}.json").write_bytes(data)
     if apply:
-        if rows:
-            errors = client.insert_rows_json(f"{core}.test_switch", rows)
-            if errors:
-                raise RuntimeError(f"append to {core}.test_switch failed: {errors}")
+        write_switch_rows(client, core, rows, apply)
         runs.append(client, run_id, "backtest", as_of, "ok", started, runs.now(), results, agent=agent)
+    else:
+        runs.append(client, run_id, "backtest", as_of, "replayed", started, runs.now(),
+                    {"sha256": digest_of(data)}, agent=agent)
     return results
 
 
-def main(argv=None, client=None, out_dir=OUT_DIR, core=sqlrun.CORE, agent=sqlrun.AGENT):
+def sast_today():
+    """Today for the backtest: the SAST date, the day the collect chain and the brief run on. From 00:00 to 02:00 SAST
+    the UTC date is still yesterday, and an --as-of of the SAST day is not a day that has not come."""
+    return datetime.now(UTC).astimezone(SAST).date()
+
+
+def main(argv=None, client=None, out_dir=OUT_DIR, core=sqlrun.CORE, agent=sqlrun.AGENT, today=None):
     ap = argparse.ArgumentParser(prog="python -m core.detect.backtest",
                                  description="Backtest the series test and switch it on where it passes.")
-    ap.add_argument("--as-of", required=True, type=date.fromisoformat, help="last replayed day, YYYY-MM-DD")
-    ap.add_argument("--days", type=int, default=WINDOW_DAYS, help="days replayed, ending on --as-of")
-    ap.add_argument("--apply", action="store_true", help="append the test_switch rows and the runs row")
+    ap.add_argument("--as-of", type=date.fromisoformat, help="last replayed day, YYYY-MM-DD")
+    ap.add_argument("--report", help="dry run from a saved backtest result file: print the rows it would write")
+    ap.add_argument("--days", type=int, help=f"days replayed, ending on --as-of (default {WINDOW_DAYS})")
+    ap.add_argument("--apply", nargs="?", const=True, default=False, metavar="FILE",
+                    help="append the test_switch rows and the runs row; with FILE, write the rows of that reviewed "
+                         "result file (it must be as of --as-of) instead of replaying again")
+    ap.add_argument("--sha256", help="with --apply FILE: the sha256 that --report printed for FILE")
     a = ap.parse_args(argv)
+    if a.sha256 is not None and not isinstance(a.apply, str):
+        ap.error("--sha256 goes with --apply FILE")
+    if a.report:
+        if a.apply or a.as_of:
+            ap.error("--report reads a saved result file and takes neither --apply nor --as-of")
+        return report(a.report)
+    if a.as_of is None:
+        ap.error("--as-of is required")
+    if isinstance(a.apply, str):
+        if a.days is not None:
+            ap.error("--apply FILE writes a reviewed result and takes no --days")
+        if a.sha256 is None:
+            ap.error("--apply FILE needs --sha256, the digest that --report printed for the file")
+        return apply_file(a.apply, a.as_of, a.sha256, client, core, agent, today=today)
+    today = today or sast_today()
+    if a.as_of > today:
+        print(f"refused: --as-of {a.as_of.isoformat()} is after {today.isoformat()}; a backtest cannot be as of a "
+              "day that has not come", file=sys.stderr)
+        return 1
     if client is None:
         client = bigquery.Client(project=PROJECT)
-    res = run(client, a.as_of, apply=a.apply, days=a.days, out_dir=out_dir, core=core, agent=agent)
+    res = run(client, a.as_of, apply=a.apply, days=WINDOW_DAYS if a.days is None else a.days, out_dir=out_dir,
+              core=core, agent=agent)
     print(f"backtest {res['run_id']} as of {res['as_of']}: {res['series']['tested']} of "
           f"{res['series']['replayed']} series-days tested over {res['days']} days")
     print("recall: " + ", ".join(f"{m}x {r['recall'] if r['recall'] is None else round(r['recall'], 3)} "

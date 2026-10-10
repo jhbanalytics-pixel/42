@@ -53,7 +53,8 @@ def passthrough_rows(signal_rows, d, run_id, rule_version):
 
 
 def in_force(switch_rows, d):
-    """(market, platform, lane_class) pairs with a test_switch row switched on by day d."""
+    """(market, platform, lane_class) pairs with a test_switch row switched on by day d. The rows are those
+    SWITCH_SQL returns, which only holds rows whose backtest run was accepted."""
     return {(s["market"], s["platform"], s["lane_class"]) for s in switch_rows
             if s.get("switched_on") is not None and s["switched_on"] <= d}
 
@@ -384,17 +385,18 @@ def _json(value):
     return value.isoformat() if isinstance(value, (datetime.date, datetime.datetime)) else value
 
 
-def run_stats(client, d, run_id, rule_version, core=sqlrun.CORE):
+def run_stats(client, d, run_id, rule_version, core=sqlrun.CORE, agent=sqlrun.AGENT):
     """Read tvf_series_signal for day d, test the series switched on, append series_test. Returns the row count.
-    The switch, weekday totals and first weeks are read only when some series could be tested."""
-    signal = sqlrun.query(client, SIGNAL_SQL, {"d": d}, core=core)
+    The switch, weekday totals and first weeks are read only when some series could be tested. The switch rows
+    come from sql/stats.sql, which keeps only those whose backtest run has an ok runs row in agent."""
+    signal = sqlrun.query(client, SIGNAL_SQL, {"d": d}, core=core, agent=agent)
     switches, totals, first_weeks = [], [], []
     if any(r["baseline_state"] in TESTABLE for r in signal):
-        switches = sqlrun.query(client, SWITCH_SQL, {"d": d}, core=core)
+        switches = sqlrun.query(client, SWITCH_SQL, {"d": d}, core=core, agent=agent)
         on = in_force(switches, d)
         if any(_key(r) in on for r in signal):
-            totals = sqlrun.query(client, TOTALS_SQL, {"d": d}, core=core)
-            first_weeks = sqlrun.query(client, FIRST_WEEK_SQL, {"d": d}, core=core)
+            totals = sqlrun.query(client, TOTALS_SQL, {"d": d}, core=core, agent=agent)
+            first_weeks = sqlrun.query(client, FIRST_WEEK_SQL, {"d": d}, core=core, agent=agent)
     rows = series_test_rows(signal, d, run_id, rule_version, switches, totals, first_weeks)
     if rows:
         table = client.get_table(f"{core}.series_test")
