@@ -1,7 +1,7 @@
 """Create the 42 datasets and tables in BigQuery.
 
-Every statement in agent.sql and core.sql is dry-run before it runs. Without --apply nothing is
-created. With --apply the datasets are created first, then every table is dry-run, then the tables
+Every statement in agent.sql, core.sql and early_signal.sql is dry-run before it runs. Without
+--apply nothing is created. With --apply the datasets are created first, then every table is dry-run, then the tables
 are created. ALTER TABLE ADD COLUMN and CREATE VIEW statements need their tables to exist, so they
 are dry-run after the tables are created and run after that; without --apply the ones whose tables
 do not exist yet are skipped and named. Finally INFORMATION_SCHEMA.TABLES is listed for both
@@ -21,7 +21,7 @@ PROJECT = "ogilvy-trends-v2"
 LOCATION = "US"
 HERE = Path(__file__).resolve().parent
 # agent.sql first: a core view (v_breaking_signals_current) reads agent.runs.
-SQL_FILES = (HERE / "agent.sql", HERE / "core.sql")
+SQL_FILES = (HERE / "agent.sql", HERE / "core.sql", HERE / "early_signal.sql")
 NAME = re.compile(
     r"^(?:CREATE\s+(SCHEMA|TABLE|VIEW)\s+IF\s+NOT\s+EXISTS\s+`([^`]+)`"
     r"|ALTER\s+TABLE\s+`([^`]+)`\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s)", re.I
