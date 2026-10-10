@@ -575,7 +575,8 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
     claim already cites holds the value, a row of a many-row query counting only when it names something the claim
     names (the subject's row, as _supporting_rows reads it), that row being the claim's anchor row, the one row holding
     its existing good number (_anchor_row; none or more than one refuses) and the only row of a many-row query the
-    claim names (naming another row's subject refuses: the figure may be that subject's), and a word within two words after the figure in the claim
+    claim names (naming another row's subject refuses: the figure may be that subject's), the claim naming no second
+    subject anywhere, in any query's rows or by a #tag or @handle (_claim_subjects), and a word within two words after the figure in the claim
     names that column ("5 creators", column creators). The entry is the one the writer writes: value, unit (the column), query_id, and run_id and
     result_hash set from the recorded query, as write_answer sets them. The caller checks the result with
     unpinned_claim_numerals; the K2 and support checks run on it as on any draft."""
@@ -595,6 +596,10 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
         cited = list(dict.fromkeys(n.get("query_id") for n in good_numbers))
         anchor = _anchor_row(good_numbers, ctx)
         if anchor is None:
+            return None
+        # A claim that names more than one subject, in any query's rows or by a #tag or @handle, may be giving the
+        # figure to the other subject, wherever that subject sits: the repair call and K2 settle it.
+        if len(_claim_subjects(claim.get("text") or "", ctx)) > 1:
             return None
         text = checks.normalise(claim.get("text"))
         for numeral, value, decimals, _percent in open_numerals:
@@ -637,6 +642,16 @@ def pin_numerals_in_code(draft: dict, issues: list, ctx: RunContext, warehouse, 
                 "value": found[hits[0]], "unit": str(column).replace("_", " "), "query_id": query_id,
                 "run_id": ctx.run_id, "result_hash": ctx.queries[query_id]["result_hash"]})
     return pinned
+
+
+def _claim_subjects(said: str, ctx: RunContext) -> set:
+    """The subjects a claim names: the text cells of every row of every recorded query it names (a platform or market
+    column is a scope, not a subject), and every #tag or @handle written in the claim."""
+    scopes = ("platform", "platforms", "market", "geo_market", "source_market")
+    subjects = {str(cell).strip().lower() for query in ctx.queries.values() for row in query.get("rows") or []
+                if isinstance(row, dict) for column, cell in row.items()
+                if column not in scopes and _names_cell(said, cell)}
+    return subjects | {tag.lower() for tag in re.findall(r"(?<![\w#@])[#@][^\W_]\w*", said)}
 
 
 def repair_answer_numbers(model: Model, *, draft: dict, issues: list, question: str, as_of, market, window: str,
