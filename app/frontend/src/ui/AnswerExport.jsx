@@ -9,6 +9,7 @@
 import {useState} from 'react';
 import {PASS_KEY, storedValue} from '../api.js';
 import {releaseExportUrlLater} from '../exportUrl.js';
+import {PEOPLE_UNAVAILABLE_WORDS} from '../privacyNotice.js';
 
 const FORMATS = [
   {ext: 'html', label: 'Download as HTML'},
@@ -20,6 +21,7 @@ async function refusalMessage(response){
   if (response.status === 401) return 'Sign in again to download this answer.';
   try {
     const body = await response.json();
+    if (body && body.error === 'people_unavailable') return PEOPLE_UNAVAILABLE_WORDS;
     const message = body && body.detail && typeof body.detail === 'object' ? body.detail.message : null;
     if (typeof message === 'string' && message.trim()) return message;
   } catch (_error) { /* no readable reason */ }

@@ -340,13 +340,17 @@ test('a draft shows its title, summary and claims with their confidence words, c
   expect(text()).toContain('No Instagram posts in the window');
 });
 
+/* A body from before the typed summary state says the summary is not
+   available, as the export does. The page no longer reads a gap's words to
+   guess why (C1 v2 section 6.1); answer-meta.test.jsx holds the verified
+   states. */
 for (const surface of ['draft', 'frozen', 'shared']){
   for (const [label, summary, gaps, expected] of [
-    ['null', null, [], 'No summary: see the claims below'],
-    ['empty', '', [], 'No summary: see the claims below'],
-    ['whitespace', ' \n\t ', [], 'No summary: see the claims below'],
-    ['unrelated gap', '', [{what: 'No Instagram posts in the window', searched: 'Instagram', why: 'empty'}], 'No summary: see the claims below'],
-    ['summary gap', '', [{what: 'One-line summary removed: it repeated a claim that did not pass its checks', searched: 'the short answer text', why: 'partial'}], 'One-line summary removed: it repeated a claim that did not pass its checks'],
+    ['null', null, [], 'The one-line summary is not available for this answer.'],
+    ['empty', '', [], 'The one-line summary is not available for this answer.'],
+    ['whitespace', ' \n\t ', [], 'The one-line summary is not available for this answer.'],
+    ['unrelated gap', '', [{what: 'No Instagram posts in the window', searched: 'Instagram', why: 'empty'}], 'The one-line summary is not available for this answer.'],
+    ['summary gap', '', [{what: 'One-line summary removed: it repeated a claim that did not pass its checks', searched: 'the short answer text', why: 'partial'}], 'The one-line summary is not available for this answer.'],
     ['real summary', '  The checked findings stay here.  ', [{what: 'An earlier summary was removed', searched: 'the short answer text', why: 'partial'}], '  The checked findings stay here.  '],
   ]){
     test('a ' + surface + ' dossier preserves claims with an ' + label + ' summary', async () => {

@@ -4,9 +4,11 @@
    takes first focus. The link keeps its address, so the question, market,
    item and date it carries stay readable. Wave 8: that address is a draft
    (draft=1), so a new tab, a copied link or a reload fills in the question
-   and spends nothing; only the confirm goes to the live address. */
+   and spends nothing; only the confirm goes to the live address, and it grants the Ask page a
+   one-shot token in memory first (askConsent.js). */
 import {Suspense, lazy, useState} from 'react';
 import {go} from '../router.js';
+import {grantAsk} from '../askConsent.js';
 
 /* The confirm loads on first use, so the trend card does not pull the spike
    confirm into every page that shows a card. */
@@ -27,7 +29,10 @@ export function AskAboutThis({href, className, question}){
   };
   const confirm = () => {
     setOpen(false);
-    go(withoutDraft(href).replace(/^#/, ''));
+    const live = withoutDraft(href);
+    const params = new URLSearchParams(live.includes('?') ? live.slice(live.indexOf('?') + 1) : '');
+    grantAsk({q: params.get('q'), market: params.get('market'), item: params.get('item'), date: params.get('date')});
+    go(live.replace(/^#/, ''));
   };
   return (
     <>

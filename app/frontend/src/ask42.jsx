@@ -25,6 +25,9 @@ import {platformLabel} from './ui/PlatformGlyph.jsx';
 import {platformWord} from './ui/TrendCard.jsx';
 import {BarList} from './ui/Charts42.jsx';
 import {safeUrl} from './safeUrl.js';
+import {consumeAsk} from './askConsent.js';
+import {missingSummarySentence, statusWords, stoppedEarly, summaryNotice} from './answerMeta.js';
+import {peopleWords, privacyNotice} from './privacyNotice.js';
 
 const MARKETS = [
   {code: 'ZA', name: 'South Africa'},
@@ -63,7 +66,9 @@ const ANSWER_STATUS = {
    stop's own gap (core/agent/ask.py _stopped_answer) names why it stopped,
    so the heading says that instead. */
 const BUDGET_STOP = 'model cost or usage could not be verified within the per-question budget';
-export function answerStatusWords(answer){
+export function answerStatusWords(answer, record){
+  const verified = statusWords(record);
+  if (verified) return verified;
   const gaps = Array.isArray(answer && answer.gaps) ? answer.gaps : [];
   if (answer && answer.status === 'insufficient_evidence'){
     if (gaps.some((gap) => gap && gap.why === BUDGET_STOP)) return "Stopped at this question's model budget, not for lack of evidence";
@@ -72,18 +77,21 @@ export function answerStatusWords(answer){
   return ANSWER_STATUS[answer && answer.status] || null;
 }
 
-/* A partial answer can arrive with no short answer at all (the one-line
-   summary failed a check). The space says what did pass instead of standing
-   empty or only saying what did not (core/api/export.py shortAnswerFallback
-   writes the same words). */
-export function noShortAnswer(answer){
+/* A partial answer can arrive with no short answer at all. The space says
+   what did pass, then why the summary is missing as far as the typed state
+   (answerMeta.js) knows it: a verified removal says which check removed it,
+   a verified blank says none was written, and any other record says only that
+   the summary is not available, never that a check failed. The export writes
+   the same line (core/api/export.py short_answer_fallback), and
+   answer-meta.test.jsx holds the two to the same words. */
+export function noShortAnswer(answer, record){
   const claims = Array.isArray(answer && answer.claims) ? answer.claims : [];
   if (claims.length === 0) return 'Nothing passed the checks to sum up.';
   const evidence = Array.isArray(answer.evidence) ? answer.evidence : [];
   const platforms = [...new Set(evidence.map((item) => platformLabel(item && item.platform) || (item && item.platform)).filter(Boolean))];
   const found = readerFigure(claims.length) + (claims.length === 1 ? ' checked finding' : ' checked findings');
   const from = evidence.length ? ' from ' + readerFigure(evidence.length) + (evidence.length === 1 ? ' post' : ' posts') + (platforms.length ? ' on ' + listWords(platforms) : '') : '';
-  return found + from + (claims.length === 1 ? ' is' : ' are') + ' below. The one-line summary did not pass the checks.';
+  return found + from + (claims.length === 1 ? ' is' : ' are') + ' below. ' + missingSummarySentence(summaryNotice(record));
 }
 
 const WHY = {
@@ -408,6 +416,9 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   }
   const notices = Array.isArray(run.notices) ? run.notices : [];
   const followups = Array.isArray(run.followups) ? run.followups.slice(0, 3) : [];
+  const privacyWords = privacyNotice(record);
+  const summary = summaryNotice(record);
+  const hasSummary = String(answer.short_answer || '').trim() !== '';
 
   useEffect(() => {
     findingSaveRequest.current = null;
@@ -420,7 +431,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
     setExportError('');
     try { await downloadExport(record.ask_id); }
     catch (error){
-      setExportError(error && error.message ? error.message : 'The export failed.');
+      setExportError(peopleWords(error, 'The export failed.'));
       if (onFailure) onFailure(error);
     }
     finally { setExporting(false); }
@@ -435,7 +446,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
       const made = await createDossier(record.ask_id);
       go('/dossiers/' + encodeURIComponent(made.dossier_id));
     } catch (error){
-      setAddError(error && error.message ? error.message : 'The dossier could not be started.');
+      setAddError(peopleWords(error, 'The dossier could not be started.'));
       if (onFailure) onFailure(error);
     } finally { setAdding(false); }
   }
@@ -456,7 +467,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
     } catch (error){
       if (findingSaveRequest.current !== request) return;
       findingSaveRequest.current = null;
-      setFindingSave({askId, phase: 'error', error: error && error.message ? error.message : 'The Finding could not be saved.'});
+      setFindingSave({askId, phase: 'error', error: peopleWords(error, 'The Finding could not be saved.')});
       if (onFailure) onFailure(error);
     }
   }
@@ -480,18 +491,20 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
         )}
         <h2 className="ask42-question">{record.question}</h2>
         <p className="ask42-meta">{metaLine(record)}</p>
+        {privacyWords && <p className="ask42-status" role="note" data-privacy-notice="">{privacyWords}</p>}
         {/* Wide screens: the answer reads down the main column and its evidence
            (posts, figures, what each platform returned) sits beside it, so the
            page uses the whole width without stretching any line of prose. */}
         <div className="ask42-answer-body">
         <div className="ask42-answer-main">
-        {answerStatusWords(answer) && <p className="ask42-status">{answerStatusWords(answer)}</p>}
-        {record.status === 'stopped' && <p className="ask42-status">Stopped early: this answer holds only what had passed its checks</p>}
+        {answerStatusWords(answer, record) && <p className="ask42-status">{answerStatusWords(answer, record)}</p>}
+        {stoppedEarly(record) && <p className="ask42-status">Stopped early: this answer holds only what had passed its checks</p>}
         <RankedAnswer record={record} windowLabel={windowWords(run.ranked_list?.window)}
           renderSources={(claim) => <ClaimSources claim={claim} records={records} answer={answer} pinnedId={pinnedId} onPin={setPinnedId} />} />
         <EntityLists record={record} windowLabel={windowWords}
           renderSources={(claim, evidence_ids) => <ClaimSources claim={{...claim, evidence_ids}} records={records} answer={answer} pinnedId={pinnedId} onPin={setPinnedId} />} />
-        <p id={shortId} className="ask42-short">{String(answer.short_answer || '').trim() ? <ShortAnswer text={answer.short_answer} /> : noShortAnswer(answer)}</p>
+        <p id={shortId} className="ask42-short">{hasSummary ? <ShortAnswer text={answer.short_answer} /> : noShortAnswer(answer, record)}</p>
+        {hasSummary && summary.kind === 'shown_rewritten' && <p className="ask42-short-note ask42-muted">{summary.sentence}</p>}
 
         {answer.claims && answer.claims.length > 0 && (
           <ol className="ask42-claims" aria-label="Claims">
@@ -905,7 +918,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
     const mkt = marketCode(q.market) || marketToSend({question: q.q, selected: market, picked: marketPicked.current});
     setQuestion(q.q);
     setMarket(mkt);
-    if (q.draft){
+    if (q.draft && !consumeAsk(q)){
       draftParent.current = q.parent || null;
       draftCard.current = q.item ? {item_id: q.item, market: mkt || null, date: q.date || null} : null;
       return;
@@ -1035,7 +1048,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
 
         {run.phase === 'error' && (
           <div className="ask42-failed" role="alert">
-            <p>{run.error && run.error.auth ? 'Enter the passcode to ask a question.' : (run.error && run.error.message) || 'The question could not be asked.'}</p>
+            <p>{run.error && run.error.auth ? 'Enter the passcode to ask a question.' : peopleWords(run.error, 'The question could not be asked.')}</p>
             <button type="button" className="ask42-quiet" onClick={tryAgain}>Try again</button>
           </div>
         )}

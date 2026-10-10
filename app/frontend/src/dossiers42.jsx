@@ -18,7 +18,8 @@ import {Facts} from './ui/Facts.jsx';
 import {FigureLine} from './ui/FigureLine.jsx';
 import {SourcePanel} from './ui/SourcePanel.jsx';
 import {plainSearched} from './readerUnits.js';
-import {plainGapWhat} from './ask42.jsx';
+import {dossierSummaryWords} from './answerMeta.js';
+import {PEOPLE_UNAVAILABLE_WORDS, privacyNotice} from './privacyNotice.js';
 
 const MARKET_NAME = {ZA: 'South Africa', NG: 'Nigeria', KE: 'Kenya'};
 
@@ -58,6 +59,7 @@ function useAuthHandover(onAuth){
 
 function failureWords(error, fallback){
   if (error && error.auth) return 'Enter the passcode to read dossiers.';
+  if (error && error.code === 'people_unavailable') return PEOPLE_UNAVAILABLE_WORDS;
   return (error && error.message) || fallback;
 }
 
@@ -244,6 +246,14 @@ function metaLine(view){
   return parts.join(' · ');
 }
 
+/* What 42 says when it has taken people out of this version, or could not
+   check who it may show: from the server's privacy marker, in the browser's
+   own words (privacyNotice.js). */
+function PrivacyNotice({view}){
+  const words = privacyNotice(view);
+  return words ? <p className="dossiers42-muted" role="note" data-privacy-notice="">{words}</p> : null;
+}
+
 function Gaps({gaps}){
   if (!Array.isArray(gaps) || gaps.length === 0) return null;
   return (
@@ -306,12 +316,13 @@ function FrozenBody({view, onFailure, editAgain}){
     <div className="ask42-answer-layout">
       <article className="dossiers42-body">
         <p className="dossiers42-meta">{metaLine(view)}</p>
-        <p className="dossiers42-summary">{String(view.summary || '').trim() ? view.summary : plainGapWhat((view.gaps || []).find((gap) => /short[ _-]answer|summary/i.test(gap.searched))?.what) || 'No summary: see the claims below'}</p>
+        <PrivacyNotice view={view} />
+        <p className="dossiers42-summary">{String(view.summary || '').trim() ? view.summary : dossierSummaryWords(view)}</p>
         <ol className="dossiers42-claims" aria-label="Claims">
           {kept.map((claim) => {
             const review = reviews[claim.claim_id];
             return (
-              <li className="dossiers42-claim" key={claim.claim_id} data-claim={claim.claim_id}>
+              <li className="dossiers42-claim" key={claim.claim_id} data-claim={claim.claim_id} data-withheld={claim.withheld === true ? '' : undefined}>
                 <ClaimBody claim={claim} records={records} pinnedId={pinnedId} onPin={setPinnedId} />
                 {review && review.ticked && <span className="dossiers42-muted">{'Reviewed' + (review.note ? ': ' + review.note : '')}</span>}
                 {claim.note && <span className="dossiers42-note">{"Reviewer's note: " + claim.note}</span>}
@@ -503,13 +514,14 @@ export function DossierPage({dossierId, onAuth}){
       <div className="ask42-answer-layout">
         <article className="dossiers42-body">
           <p className="dossiers42-meta">{metaLine(view)}</p>
+          <PrivacyNotice view={view} />
           <form className="dossiers42-title-form" onSubmit={(event) => { event.preventDefault(); if (titleChanged) edit({title: title.trim()}); }}>
             <label className="dossiers42-label" htmlFor="dossiers42-title-input">Title</label>
             <input id="dossiers42-title-input" name="title" className="dossiers42-input" maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} />
             <button type="submit" className="dossiers42-quiet" disabled={busy || !titleChanged}>Save title</button>
           </form>
           {notice && <p className="dossiers42-muted" role="status">{notice}</p>}
-          <p className="dossiers42-summary">{String(view.summary || '').trim() ? view.summary : plainGapWhat((view.gaps || []).find((gap) => /short[ _-]answer|summary/i.test(gap.searched))?.what) || 'No summary: see the claims below'}</p>
+          <p className="dossiers42-summary">{String(view.summary || '').trim() ? view.summary : dossierSummaryWords(view)}</p>
 
           <ol className="dossiers42-claims" aria-label="Claims">
             {claims.filter((claim) => claim.kept).map((claim) => {
@@ -530,7 +542,7 @@ export function DossierPage({dossierId, onAuth}){
               const noteValue = Object.hasOwn(noteDrafts, cid) ? noteDrafts[cid] : (claim.note || '');
               const noteId = 'dossiers42-note-' + cid;
               return (
-                <li className="dossiers42-claim" key={cid} data-claim={cid}>
+                <li className="dossiers42-claim" key={cid} data-claim={cid} data-withheld={claim.withheld === true ? '' : undefined}>
                   <ClaimBody claim={claim} records={records} pinnedId={pinnedId} onPin={setPinnedId} />
                   <div className="dossiers42-review">
                     <label className="dossiers42-tick">

@@ -280,3 +280,21 @@
 .t42-market-status[data-status-tone="plain"] .t42-market-status__links:has(details[open]) {
   flex-basis: 100%;
 }
+
+/* Google's mark sits in the gutter beside the heading, out of the grid, so
+   the heading, caption and notes keep their rows and the caption stays
+   directly under the heading. */
+.searching-now__header {
+  position: relative;
+}
+
+.searching-now__logo {
+  position: absolute;
+  inset-block-start: 0.2rem;
+  inset-inline-start: 0;
+  color: var(--ink);
+}
+
+.searching-now__heading {
+  padding-inline-start: calc(24px + var(--s-3));
+}

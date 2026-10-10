@@ -1345,7 +1345,7 @@ test('Today repeated rows stay compact and wrap their full labels', async () => 
   const appCss = await Bun.file(new URL('../../app.css', import.meta.url)).text();
   expect(css).toMatch(/\.t42-today-market\s*>\s*\.t42-cards\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   expect(css).toMatch(/\.t42-today-market\s+\.t42-card\s*\{[^}]*min-block-size:\s*64px/);
-  expect(css).toMatch(/\.t42-today-market\s+\.t42-board-rows\s*>\s*li\s*\{[^}]*overflow-wrap:\s*anywhere/);
+  expect(css).not.toMatch(/t42-board/);
   /* UI polish, 2 October 2026: restated. Rows below the cards keep a full tap
      height but no longer pad to 64px, so held-back rows stay smaller than shown cards. */
   expect(css).toMatch(/\.t42-today-market\s+\.t42-rows\s*>\s*li\s*\{[^}]*min-block-size:\s*var\(--target-min\)/);
@@ -2992,4 +2992,49 @@ test('the glance says No brief for a market the brief has no row for, not 0 tren
   expect(glance.textContent).not.toContain('0 trends');
   expect(glance.querySelector('button').getAttribute('aria-label')).toContain('no brief');
   expect(host.querySelector('[data-glance-market="ZA"]').textContent).toContain('trend');
+});
+
+/* L7-3: only a market the server says has no published brief is worded "no
+   brief". A brief that was published with a data-issue status is a brief, and
+   its held count and wording stay those of a published market. */
+test('a published data-issue brief is not worded as no brief', async () => {
+  const today = clone(todayFixture);
+  const kenya = today.markets.find((entry) => entry.market === 'KE');
+  kenya.status = 'data_issue';
+  kenya.cards = [];
+  kenya.more = [];
+  kenya.held_back = {count: 0, items: [], text: 'Nothing held back'};
+  kenya.banners = [{kind: 'data_issue', text: "Data issue: today's brief is incomplete for Kenya"}];
+  await mount({region: 'KE'}, today);
+  const lead = host.querySelector('[data-empty-market-reason]');
+  expect(lead.textContent).not.toMatch(/no brief/i);
+  expect(lead.textContent).toContain('cleared our checks');
+  expect(host.querySelector('[data-held-count]')).not.toBeNull();
+  resetRoot();
+  await mount({region: 'ZA'}, today);
+  const glance = host.querySelector('[data-glance-market="KE"]');
+  expect(glance.textContent).not.toContain('No brief');
+  expect(glance.querySelector('button').getAttribute('aria-label')).not.toContain('no brief');
+});
+
+/* N4: the boards heading and every caption are read from the rendered page, not from the props. */
+test('the rendered boards heading and captions name the brief day, on a market tab and on All', async () => {
+  await withClock('2026-10-08T08:00:00Z', async () => {
+    await mount({region: 'ZA'});
+    expect(host.querySelector('[data-section="boards"] h3').textContent).toBe('On the boards on 30 September 2026');
+    const own = [...host.querySelectorAll('[data-section="boards"] .tb-caption')].map((node) => node.textContent);
+    expect(own.length).toBeGreaterThan(0);
+    expect(new Set(own)).toEqual(new Set(['Best rank on 30 September 2026']));
+    resetRoot();
+    await mount({region: 'ALL'});
+    expect(host.querySelector('[data-section="boards"] h3').textContent).toBe('On the boards on 30 September 2026');
+    const all = [...host.querySelectorAll('[data-section="boards"] .tb-caption')].map((node) => node.textContent);
+    expect(all.length).toBeGreaterThan(0);
+    expect(new Set(all)).toEqual(new Set(['Best rank on 30 September 2026']));
+  });
+  resetRoot();
+  await withClock('2026-09-30T08:00:00Z', async () => {
+    await mount({region: 'ZA'});
+    expect(host.querySelector('[data-section="boards"] h3').textContent).toBe('On the boards today');
+  });
 });

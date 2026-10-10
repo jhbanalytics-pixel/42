@@ -225,11 +225,12 @@ test(`a checked ${kind} projection appears before the short answer prose`, async
 });
 }
 
-test('only draft=1 marks an Ask query as unsubmitted', () => {
+test('every Ask query that carries a question is a draft, whatever else the address says', () => {
   expect(parseAskQuery('#/ask?q=football&draft=1').draft).toBe(true);
-  for (const value of ['true', '0', '01', '']){
-    expect(parseAskQuery('#/ask?q=football&draft=' + value).draft).toBeUndefined();
+  for (const extra of ['&draft=true', '&draft=0', '&draft=01', '&draft=', '&live=1', '&live=1&draft=0']){
+    expect(parseAskQuery('#/ask?q=football' + extra).draft).toBe(true);
   }
+  expect(parseAskQuery('#/ask').draft).toBeUndefined();
 });
 
 test('a checked platform list leads the full Ask answer and opens its original cited source', async () => {
@@ -1858,21 +1859,24 @@ test('a claim figure with a warehouse unit reads as words, singular for one', as
 
 /* Live review, 5 October 2026: the old fallback, "No short answer: too
    little passed the checks", said only what did not pass. It now says what
-   did. */
+   did. A record with no typed summary state used to end "The one-line
+   summary did not pass the checks." for every blank, including blanks whose
+   cause nobody knew; it now says the summary is not available, and only a
+   verified state says more (answer-meta.test.jsx, C1 v2 section 6.1). */
 test('a partial answer with no short answer says what passed instead of leaving the space empty', async () => {
   const record = clone(partialRecord);
   record.answer.short_answer = '';
   serve([record]);
   await render({query: {follow: record.ask_id}});
   await until(() => host.querySelector('.ask42-answer'), 'the answer');
-  expect(plain(host.querySelector('.ask42-answer .ask42-short').textContent)).toBe('1 checked finding from 2 posts on TikTok is below. The one-line summary did not pass the checks.');
+  expect(plain(host.querySelector('.ask42-answer .ask42-short').textContent)).toBe('1 checked finding from 2 posts on TikTok is below. The one-line summary is not available for this answer.');
 });
 
 test('the no-short-answer words count findings, posts and platforms, and say when nothing passed', async () => {
   const {noShortAnswer} = await import('../../ask42.jsx');
   expect(noShortAnswer({claims: [], evidence: []})).toBe('Nothing passed the checks to sum up.');
   expect(noShortAnswer({claims: [{id: 'c1'}, {id: 'c2'}], evidence: [{platform: 'tiktok'}, {platform: 'youtube'}, {platform: 'x'}]}))
-    .toBe('2 checked findings from 3 posts on TikTok, YouTube and X are below. The one-line summary did not pass the checks.');
+    .toBe('2 checked findings from 3 posts on TikTok, YouTube and X are below. The one-line summary is not available for this answer.');
 });
 
 test('a gap why that is a sentence stays whole, and status codes read as one list', async () => {

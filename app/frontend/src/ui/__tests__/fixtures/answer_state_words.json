@@ -1,0 +1,79 @@
+{
+ "reader_sentences": {
+  "removal:first_check|recheck:K2": "The one-line summary was removed because it used a figure that no checked finding holds.",
+  "removal:first_check|recheck|field_check:K3": "The one-line summary was removed because it named a place no cited post is located in, or relied on a post outside the question's window or market.",
+  "removal:first_check|recheck:K6": "The one-line summary was removed because it used a term or source the trust rules do not allow.",
+  "removal:first_check|recheck:K8": "The one-line summary was removed because it quoted words that are not in the posts it cites.",
+  "removal:first_check|recheck|field_check:K9": "The one-line summary was removed because it made a forecast, and forecasts stay held until they beat a simple no-change forecast.",
+  "removal:support_check|critic:claim_cut": "The one-line summary was removed after a claim it may have rested on did not pass its checks.",
+  "removal:support_check:claim_narrowed": "The one-line summary was removed after a claim it may have rested on was narrowed.",
+  "removal:field_check:K6": "The one-line summary was removed because the text check found it describes people in a way the trust rules do not allow.",
+  "removal:field_check:field_unchecked": "The one-line summary was too long to check with the posts it rests on, so it was left out.",
+  "removal:any:unattributed": "The one-line summary was removed by the checks.",
+  "rewrite:removed_after_check": "A rewritten summary did not pass the checks either.",
+  "shown_rewritten": "This summary was rewritten once from the findings that passed.",
+  "blank_unexplained": "No one-line summary was written for this answer.",
+  "no_answer": "There is no answer: the run did not finish.",
+  "legacy_or_unverified": "The one-line summary is not available for this answer."
+ },
+ "status_words": {
+  "stopped_on_budget|budget_full": "Stopped at this question's model budget, not for lack of evidence",
+  "stopped_on_budget|model_call_unverified": "Stopped because a model call failed or did not report what it cost, not for lack of evidence",
+  "stopped_on_budget|price_unreadable": "Stopped because the cost of a model call could not be worked out, not for lack of evidence",
+  "stopped_on_request|": "Stopped before an answer was written",
+  "refused_budget_spent|": "Not researched: the model budget for today is spent"
+ },
+ "neutral": "The one-line summary is not available for this answer.",
+ "omitted": "The one-line summary is left out because not every finding is kept.",
+ "enums": {
+  "execution": [
+   "completed",
+   "stopped_on_request",
+   "stopped_on_budget",
+   "refused_budget_spent",
+   "failed"
+  ],
+  "stopReasons": [
+   "budget_full",
+   "model_call_unverified",
+   "price_unreadable"
+  ],
+  "summary": [
+   "shown",
+   "shown_rewritten",
+   "fixed_text",
+   "removed",
+   "blank_unexplained",
+   "no_answer"
+  ],
+  "stages": [
+   "first_check",
+   "support_check",
+   "recheck",
+   "field_check",
+   "critic"
+  ],
+  "causes": [
+   "K2",
+   "K3",
+   "K6",
+   "K8",
+   "K9",
+   "claim_cut",
+   "claim_narrowed",
+   "field_unchecked",
+   "unattributed"
+  ],
+  "rewrites": [
+   "not_attempted",
+   "kept",
+   "removed_after_check",
+   "used_up",
+   "no_budget",
+   "call_failed",
+   "too_long",
+   "empty",
+   "repeated_removed_claim"
+  ]
+ }
+}

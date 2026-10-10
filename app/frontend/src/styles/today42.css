@@ -384,7 +384,6 @@
 }
 .t42-line-text { margin: 0 0 var(--s-2); }
 .t42-rows { margin: 0; padding-left: var(--s-4); display: grid; gap: var(--s-1); }
-.t42-board-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1); }
 .t42-row { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-3); }
 .t42-chip { padding: var(--s-2) 0; border-top: 1px solid var(--line); flex: 1 1 100%; }
 /* Held back is a compact name | reason list across the full width, so the
@@ -520,16 +519,6 @@
   border-top: 1px solid var(--line);
   overflow-wrap: anywhere;
 }
-.t42-today-market .t42-board-rows { gap: 0; }
-.t42-today-market .t42-board-rows > li {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  min-block-size: var(--target-min);
-  padding: var(--s-2) var(--s-3);
-  border-top: 1px solid var(--line);
-  overflow-wrap: anywhere;
-}
 .t42-today-market .t42-disclose,
 .d42-held .t42-disclose {
   display: block;
@@ -614,11 +603,8 @@
    Before, Dropped ran "name: reason" in small type, Moments sat flush left
    with no inset, and a board stood in a narrow column with taller rows. */
 .t42-below .t42-rows > li,
-.t42-below .t42-board-rows > li,
 .t42-below .t42-chip { font-size: var(--type-3); }
 .t42-below .t42-chip { box-sizing: border-box; min-block-size: var(--target-min); padding: var(--s-2) var(--s-3); display: flex; align-items: center; }
-.t42-below [data-section="boards"] .t42-board { flex: 1 1 100%; }
-.t42-below [data-section="boards"] .t42-board > .t42-line-text { color: var(--muted); }
 [data-dropped-row] > .t42-row-reason { color: var(--muted); }
 @media (min-width: 769px) {
   .t42-today-market [data-section="dropped"] .t42-rows > li {
