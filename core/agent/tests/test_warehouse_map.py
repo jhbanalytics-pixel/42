@@ -92,11 +92,15 @@ def test_the_map_names_the_stored_google_search_terms_as_context_never_evidence(
 
 
 def test_the_map_names_every_source_collect_stores_in_google_search_signals():
-    from core.api.searching import SOURCES
-    from core.collect import google_rss
+    from typing import get_args
+
+    from core.collect import google_rss, google_trends
+    # What collect stores, from collect's own type. Not the API's SOURCES, which is the narrower list Searching now
+    # shows (W8-DEC-04: google_bq is parked and google_rss is triage only) and says nothing about what is stored.
+    stored = get_args(google_trends.SignalSource)
     described = toolset.DESCRIPTIONS["sql_query"].split("google_search_signals holds", 1)[1].split("never evidence")[0]
-    assert google_rss.SOURCE == "google_rss" and set(SOURCES) == {"google_bq", "google_trending", "google_rss"}
-    for source in SOURCES:
+    assert google_rss.SOURCE == "google_rss" and set(stored) == {"google_bq", "google_trending", "google_rss"}
+    for source in stored:
         assert source in described, source
 
 
