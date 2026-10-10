@@ -264,3 +264,25 @@ def test_jb03_the_build_itself_creates_the_id_file_exclusively_so_a_file_that_ap
     with pytest.raises(FileExistsError):
         dj.build(gcloud, git, session, lambda s: None, tmp_path / "source.tar.gz", tb.tag_for(1), body, tb.COMMIT, target)
     assert target.read_text(encoding="utf-8") == "someone else" + chr(10)
+
+
+# RB-C6 / F10: what a JobsRollback leaves behind includes B's near duplicate rows, which a80 detect reads for up to 7 days
+
+def test_rb_c6_the_after_rollback_readback_records_that_near_duplicate_rows_stay_and_the_share_flag_stays_in_force(tmp_path):
+    from core.setup.release import jobs_only as jo
+
+    w = candidate_world(tmp_path)
+    w.update(jo.UPDATE_ORDER, jw.ROLLBACK_DIGEST)
+    result = w.run("AfterJobsRollback")
+    notes = result["observations"]["residue_notes"]
+    assert [n["id"] for n in notes] == ["RB-C6"]
+    text = notes[0]["text"]
+    assert "near duplicate rows stay" in text and "a80 detect reads them" in text and "up to 7 days" in text and "fail safe" in text
+    assert result["observations"]["residue"] == list(jo.RESIDUE)
+
+
+def test_rb_c6_the_residue_note_is_part_of_the_rollback_only_and_not_of_the_update_readbacks(tmp_path):
+    w = candidate_world(tmp_path)
+    w.run("BeforeAnyWrite")
+    w.built()
+    assert "residue_notes" not in w.run("BeforeJobsUpdate")["observations"]

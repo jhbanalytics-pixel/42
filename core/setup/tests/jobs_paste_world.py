@@ -154,9 +154,9 @@ class Result:
 
 
 class JobsPasteWorld:
-    def __init__(self, tmp_path, action="JobsUpdate", *, mutate_paste=None, receipt=None, bindings=None, declared_steps=None):
+    def __init__(self, tmp_path, action="JobsUpdate", *, mutate_paste=None, receipt=None, bindings=None, declared_steps=None, rid=RID):
         self.tmp = Path(tmp_path)
-        self.action, self.rid = action, RID
+        self.action, self.rid = action, rid
         self.commit, self.tree = COMMIT, TREE
         self.repo = self.tmp / "repo"
         for rel in locklib.REPO_FILES:
@@ -174,7 +174,7 @@ class JobsPasteWorld:
         self.chain = self.write(self.release_dir / "chain-evidence-2026-10-10.json", {"schema_version": 1, "kind": "chain-evidence"})
         self.dry_run = self.write(self.release_dir / "apply-dry-run-receipt.json", {"schema_version": 1, "views": "no drift"})
         self.bindings = self.write(self.tmp / "bindings.json", {
-            "schema_version": 1, "mode": "jobs", "status": "BOUND_FOR_INDEPENDENT_REVIEW", "release_id": RID, "target": COMMIT, "tree": TREE,
+            "schema_version": 1, "mode": "jobs", "status": "BOUND_FOR_INDEPENDENT_REVIEW", "release_id": rid, "target": COMMIT, "tree": TREE,
             "callerAccount": CALLER, "releaseDir": str(self.release_dir), "baselinePath": str(self.baseline), "baselineChainPath": str(self.chain),
             "durableManifestPath": str(self.durable), "dryRunReceiptPath": str(self.dry_run),
             "schemaReadbackReceiptPath": str(self.release_dir / "schema-readback-receipt.json"), "schemaReadbackReceiptSha256": "e1" * 32,
@@ -182,7 +182,7 @@ class JobsPasteWorld:
         self.lock = self.build_lock()
         self.review = self.write(self.tmp / "review.json", locklib.review_for(self.lock, COMMIT))
         self.receipt = self.write(self.tmp / "receipt.json", {
-            "schema_version": 1, "release_id": RID, "mode": "jobs", "target": COMMIT, "tree": TREE,
+            "schema_version": 1, "release_id": rid, "mode": "jobs", "target": COMMIT, "tree": TREE,
             "declared_steps": declared_steps or ["JobsCandidate", "JobsUpdate", "JobsRollback"],
             "later_explicit_user_instruction": True, "quiet_window_confirmed": True, "no_new_manual_starts_until_execution_ends": True,
             **(receipt or {})})
@@ -197,7 +197,7 @@ class JobsPasteWorld:
     def build_lock(self):
         bound = {"bindings": self.bindings, "baseline": self.baseline, "durable_manifest": self.durable, "baseline_chain": self.chain,
                  "dry_run_receipt": self.dry_run}
-        return self.write(self.tmp / "lock.json", locklib.build_lock(self.repo, RID, bound, names=locklib.JOBS_BOUND_NAMES))
+        return self.write(self.tmp / "lock.json", locklib.build_lock(self.repo, self.rid, bound, names=locklib.JOBS_BOUND_NAMES))
 
     def relock(self):
         self.lock = self.build_lock()

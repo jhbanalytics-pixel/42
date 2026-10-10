@@ -355,6 +355,9 @@ PRINCIPAL_PHASES = ("BeforeAnyWrite", "BeforeJobsUpdate", "BeforeJobsRollback")
 RESIDUE = ("tvf_post_items", "v_item_locality_checked", "v_item_locality_current", "core.early_signal", "core.item_locality",
            "core.item_locality_post", "core.item_locality_verified", "core.post_item_lineage", "core.post_item_end",
            "core.post_items.linked_on", "core.post_items.link_market")
+# Rows B writes into tables a80 also reads are not a column or a table, so the static list cannot hold them; RB-C6 asks that the readback says so.
+RESIDUE_NOTES = ({"id": "RB-C6", "text": "B's near duplicate rows stay after a JobsRollback and a80 detect reads them, so the near_duplicates share flag stays "
+                                         "in force under a80 for up to 7 days. It is fail safe: it holds, it never lets a trend through."},)
 
 
 def image_tag(bound):
@@ -680,6 +683,7 @@ def phase_after_jobs_rollback(rel, phase, result):
                 active.append({"job": job, "name": view["name"], "image_digest": view["image_digest"]})
     rel.observations["active_executions"] = active
     rel.observations["residue"] = list(RESIDUE)
+    rel.observations["residue_notes"] = [dict(note) for note in RESIDUE_NOTES]
     rel.observations["residue_probed"] = False
 
 

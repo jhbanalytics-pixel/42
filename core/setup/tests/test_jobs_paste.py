@@ -697,3 +697,11 @@ def test_ju08_a_checker_that_exits_nonzero_stops_the_rollback_before_the_helper(
 @pytest.mark.parametrize("action", ["JobsCandidate", "JobsUpdate"])
 def test_ju08_the_other_two_actions_do_not_run_the_rollback_blockers_checker(tmp_path, action):
     assert "rollback-blockers" not in JobsPasteWorld(tmp_path, action).run().names
+
+
+def test_ju08_the_attempt_of_the_build_is_the_one_in_the_release_id_and_not_a_constant(tmp_path):
+    for attempt in ("02", "07", "41"):
+        rid = f"rel-{COMMIT[:7]}-{attempt}"
+        result = JobsPasteWorld(tmp_path / attempt, "JobsCandidate", rid=rid).run()
+        assert result.returncode == 0, result.stderr
+        assert result.run("jobs-build")["argv"][6:8] == ["--attempt", attempt]
