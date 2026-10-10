@@ -377,6 +377,15 @@ def cmd_bind_jobs(args):
     # What the receipt JobsCandidate leaves must say is worked out from the durable manifest, not typed.
     bound["schemaReadbackReceiptSha256"] = so.fingerprint(jo.schema_receipt_body(bound, durable_value))
     jo.validate_jobs_bindings(bound)
+    # The baseline chain manifest says nothing about the tolerance, the cap or the caller it was produced under, so it is tied to the
+    # producer bindings written in this packet directory: every key the producer read must be what these bindings say.
+    produced = read_json(packet_dir / PRODUCER_FILE, "the producer bindings (run bind --producer-only first)")
+    differs = [key for key in (*jo.PRODUCER_BINDINGS, "schema_version", "mode") if produced.get(key) != bound.get(key)]
+    if differs:
+        raise Refused("The baseline chain manifest was produced under other bindings than these: " + ", ".join(differs))
+    chain_head = (read_json(chain_path, "the baseline chain manifest").get("generated_from") or {}).get("head")
+    if chain_head != head:
+        raise Refused("The baseline chain manifest was generated from another commit than the one being bound")
     # The baseline chain is judged by the check JobsCandidate will make, against baseline-J, the pinned digest and the clock.
     jo.check_baseline_chain(jo.JobsRelease(bound, None, packet_dir, now=utc_now))
     write_json_new(out, bound)

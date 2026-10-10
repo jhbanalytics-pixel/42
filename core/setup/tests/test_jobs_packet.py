@@ -637,10 +637,50 @@ def test_bind_says_why_a_second_attempt_is_not_supported_instead_of_failing_some
 
 
 @pytest.mark.parametrize("minutes", ["0", "30"])
-def test_bind_accepts_the_two_ends_of_the_collect_start_tolerance(bench, capsys, minutes):
-    with_producer(bench, capsys) if minutes == "0" else captured(bench, capsys)
-    argv = bench.bind_argv if minutes == "0" else bench.producer_argv
-    if minutes == "0":
-        bench.write_chain(), bench.write_durable(), bench.write_dry_run()
-    code, out, err = run(argv(**{"--collect-start-tolerance-minutes": minutes}), capsys)
+def test_the_producer_bindings_accept_the_two_ends_of_the_collect_start_tolerance(bench, capsys, minutes):
+    captured(bench, capsys)
+    code, out, err = run(bench.producer_argv(**{"--collect-start-tolerance-minutes": minutes}), capsys)
     assert code == 0, err
+    assert json.loads(bench.producer.read_text(encoding="utf-8"))["collectStartToleranceMinutes"] == int(minutes)
+
+
+def test_bind_accepts_the_upper_end_of_the_collect_start_tolerance_when_the_chain_was_produced_under_it(bench, capsys):
+    captured(bench, capsys)
+    flag = {"--collect-start-tolerance-minutes": "30"}
+    assert run(bench.producer_argv(**flag), capsys)[0] == 0
+    bench.write_chain()
+    bench.write_durable()
+    bench.write_dry_run()
+    code, out, err = run(bench.bind_argv(**flag), capsys)
+    assert code == 0, err
+    assert bench.bindings_value()["collectStartToleranceMinutes"] == 30
+
+
+# the baseline chain manifest is judged only under the bindings the producer read
+
+def test_bind_refuses_when_the_producer_bindings_are_missing_because_the_manifest_then_has_no_bindings_to_be_tied_to(bench, capsys):
+    prepared(bench, capsys)
+    bench.producer.unlink()
+    code, out, err = run(bench.bind_argv(), capsys)
+    assert code == 1 and "producer bindings" in err and not bench.bindings.exists()
+
+
+@pytest.mark.parametrize("flag,value,key", [
+    ("--collect-start-tolerance-minutes", "20", "collectStartToleranceMinutes"),
+    ("--chain-evidence-bytes-cap", "1048576", "chainEvidenceBytesCap"),
+    ("--caller-account", "someone.else@example.invalid", "callerAccount"),
+    ("--http-timeout-seconds", "31", "readTimeoutSeconds"),
+])
+def test_bind_refuses_values_that_differ_from_the_producer_bindings_the_baseline_chain_was_produced_under(bench, capsys, flag, value, key):
+    prepared(bench, capsys)
+    code, out, err = run(bench.bind_argv(**{flag: value}), capsys)
+    assert code == 1 and "produced under other bindings" in err and key in err and not bench.bindings.exists()
+
+
+def test_bind_refuses_a_baseline_chain_manifest_generated_from_another_commit(bench, capsys):
+    prepared(bench, capsys)
+    value = json.loads(bench.chain_path.read_text(encoding="utf-8"))
+    value["generated_from"]["head"] = "0" * 40
+    bench.chain_path.write_text(json.dumps(value), encoding="utf-8")
+    code, out, err = run(bench.bind_argv(), capsys)
+    assert code == 1 and "another commit" in err and not bench.bindings.exists()
