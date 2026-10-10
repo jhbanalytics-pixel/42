@@ -282,3 +282,23 @@ def test_f11_the_lock_binds_the_resolver_and_its_test():
     assert "core/setup/release/natives.py" in locklib.REPO_FILES
     assert "core/setup/tests/test_natives.py" in locklib.TEST_FILES
     assert (ROOT / "core/setup/release/natives.py").is_file() and (ROOT / "core/setup/tests/test_natives.py").is_file()
+
+
+def test_f11_a_relative_name_that_reaches_the_program_from_the_current_folder_is_still_refused(world, monkeypatch):
+    if not WINDOWS:
+        return
+    roots, base, paths, planted = world
+    monkeypatch.chdir(Path(paths["gcloud"]).parent)
+    with pytest.raises(natives.NativeRefused):
+        natives.native("gcloud", {"F42_NATIVE_GCLOUD": "gcloud.cmd"})
+
+
+def test_f11_a_script_name_that_is_the_same_file_as_the_program_is_still_refused(world):
+    if not WINDOWS:
+        return
+    roots, base, paths, planted = world
+    script = Path(paths["gcloud"]).with_suffix(".ps1")
+    os.link(paths["gcloud"], script)
+    assert os.path.samefile(script, paths["gcloud"])
+    with pytest.raises(natives.NativeRefused):
+        natives.native("gcloud", {"F42_NATIVE_GCLOUD": str(script)})
