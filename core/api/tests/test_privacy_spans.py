@@ -115,3 +115,17 @@ def test_the_live_stream_withholds_the_span_and_the_claim_that_cites_it():
     assert privacy.project_event("claim", {"seq": 4, "claim": claim}, hidden, store, gone, seen) is None
     visible = span(P_VIS1, "vis_handle", posted="2026-10-05T09:00:00+02:00")
     assert privacy.project_event("evidence", {"seq": 5, "evidence": visible}, hidden, store, gone, seen) is not None
+
+
+def test_the_stream_looks_a_post_up_once_for_the_post_and_each_of_its_spans():
+    store = PrivStore(hide={"c_ren"})
+    calls = []
+    original = store.post_creators
+    store.post_creators = lambda ids, a, b: (calls.append(list(ids)), original(ids, a, b))[1]
+    hidden, gone, seen = hidden_of(store), set(), {}
+    events = [ev(P_REN1, "hid_old_handle", "post words", "2026-10-05T01:00:00+02:00"), span(P_REN1, "hid_old_handle", 1),
+              span(P_REN1, "hid_old_handle", 2)]
+    for n, record in enumerate(events):
+        assert privacy.project_event("evidence", {"seq": n, "evidence": record}, hidden, store, gone, seen) is None
+    assert calls == [[P_REN1]] and gone == {e["id"] for e in events}
+    assert set(seen) == {P_REN1}  # the memo is keyed by the post, never by a span id

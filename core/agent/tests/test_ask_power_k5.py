@@ -114,3 +114,32 @@ def test_a_flag_set_on_the_post_after_its_span_was_written_still_excludes_the_sp
     assert ctx.evidence[ids["tt_clean"]]["flags"] == []
     label, _ = label_of(ctx, [ids["tt_clean"], "x_1"], ids["tt_clean"])
     assert label == "single_source"
+
+
+# Re-review, Critical A: the words a span carries are still compared with every other cited record's words.
+
+IG = record("ig_1", "instagram", "@other.creator", "Totally different caption about plates and sauce for Sunday")
+ECHO = record("tt_say", "tiktok", "@echo_poster", "placeholder caption replaced below with the spoken words in the test")
+
+
+def test_two_creators_spans_with_the_same_transcript_are_one_author_not_two():
+    ctx, ids = world([CLEAN, IG, X], spans_of=["tt_clean", "ig_1"])
+    assert ctx.evidence[ids["tt_clean"]]["text"] == ctx.evidence[ids["ig_1"]]["text"]
+    label, verdicts = label_of(ctx, [ids["tt_clean"], ids["ig_1"]], ids["tt_clean"], label="corroborated")
+    assert label == "single_source"
+    assert verdict(verdicts, "c1", "K5")["verdict"] == "downgrade"
+
+
+def test_a_caption_that_repeats_another_creators_spoken_words_is_not_a_second_author():
+    ctx, ids = world([CLEAN, ECHO, X], spans_of=["tt_clean"])
+    ctx.evidence["tt_say"]["text"] = ctx.evidence[ids["tt_clean"]]["text"]
+    label, _ = label_of(ctx, [ids["tt_clean"], "tt_say"], ids["tt_clean"], label="observed")
+    assert label == "single_source"
+
+
+def test_two_spans_with_different_words_from_two_creators_still_count_as_two():
+    ctx, ids = world([CLEAN, X], spans_of=["tt_clean", "x_1"])
+    ctx.evidence[ids["x_1"]]["text"] = "an entirely different spoken line about something else altogether today"
+    ctx.evidence[ids["x_1"]]["transcript_span"]["text"] = ctx.evidence[ids["x_1"]]["text"]
+    label, _ = label_of(ctx, [ids["tt_clean"], ids["x_1"]], ids["tt_clean"], label="observed")
+    assert label == "observed"

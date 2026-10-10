@@ -388,7 +388,7 @@ def parent_reuse(parent, *, market: str | None, window: tuple[date, date], as_of
     if not isinstance(parent, dict):
         return None
     parent_market = parent.get("market") if isinstance(parent.get("market"), str) else None
-    if market != parent_market:  # a child with no single market, or a parent with none recorded, reads nothing
+    if market is None or market != parent_market:  # a follow-up with no single market, or a parent of another, reads nothing
         return None
     answer = parent.get("answer")
     ids = []

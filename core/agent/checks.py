@@ -1836,8 +1836,12 @@ def _evidence_label(claim, records, pool=None):
 
     cited_posts = list({p.get("id"): p for p in (judge.get(r.get("id")) for r in records) if p is not None}.values())
     copied_posts = _copied_ids(cited_posts)
+    # A record is also a copy when its own words repeat another cited record's, as they always did: two creators saying
+    # the same spoken words, or a caption repeating another creator's spoken words, are not two authors.
+    own_copies = _copied_ids(records)
     copies = {r.get("id") for r in records
-              if judge.get(r.get("id")) is not None and judge[r.get("id")].get("id") in copied_posts}
+              if r.get("id") in own_copies
+              or (judge.get(r.get("id")) is not None and judge[r.get("id")].get("id") in copied_posts)}
     independent = [r for r in records if not NOT_INDEPENDENT & {str(f).lower() for f in r.get("flags") or []}
                    and not _disclosed_paid(r) and not span_out(r) and r.get("id") not in copies]
     authors = {str(r.get("handle") or "").lower().lstrip("@") for r in independent}

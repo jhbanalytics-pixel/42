@@ -103,7 +103,7 @@ def test_the_ids_are_capped_at_the_most_a_fetch_reads():
 
 
 @pytest.mark.parametrize("parent_market,child_market,reused", [
-    ("ZA", "ZA", True), (None, None, True), ("ZA", None, False), (None, "ZA", False), ("NG", "ZA", False),
+    ("ZA", "ZA", True), (None, None, False), ("ZA", None, False), (None, "ZA", False), ("NG", "ZA", False),
     ("ZA", "KE", False)])
 def test_a_follow_up_never_reads_a_different_market_than_its_own(parent_market, child_market, reused):
     got = ask.parent_reuse(parent("tt_1", market=parent_market), market=child_market,
@@ -187,6 +187,13 @@ def test_a_cited_post_outside_the_childs_window_is_left_out():
 def test_a_cited_post_from_another_market_is_left_out():
     out, seen, h = follow(parent("tt_1", "tt_ng"))
     assert "tt_ng" not in seen["evidence"] and "tt_1" in seen["evidence"]
+
+
+def test_a_child_and_a_parent_that_both_span_several_markets_read_nothing():
+    out, seen, h = follow(parent("tt_1", market=None, queries=[query()]), market=None,
+                          question="Which creators in Nigeria and Kenya are driving it?")
+    assert seen["fetches"] == 0 and "tt_1" not in seen["evidence"] and ask.REUSE_NOTE not in seen["prompt"]
+    assert not any(q["sql"] == COUNT for q in seen["queries"].values())
 
 
 def test_a_child_with_no_single_market_reads_nothing_of_a_single_market_parent():
