@@ -9,7 +9,7 @@ import unicodedata
 log = logging.getLogger("f42.api.searching")
 
 MARKETS = ("ZA", "NG", "KE")
-SOURCES = ("google_bq", "google_trending", "google_rss")  # google_rss: Google Trends daily RSS, from 4 October 2026
+SOURCES = ("google_trending",)  # W8-DEC-04: google_bq is parked and google_rss is triage only, so neither is shown
 SEARCH_DAYS = 3  # SAST fetch days read, ending on the day asked for
 PER_MARKET = 10
 SAST = dt.timezone(dt.timedelta(hours=2))
@@ -168,8 +168,10 @@ def searching_now(store, markets, as_of, hidden):
         rows = store.search_signals(start, end, markets) if markets else None
         if not rows:
             return []
+        from core.collect.gdelt import blocked  # rule 1: no term with an age lens leaves the API, whatever wrote it
         picked = [(r["fetch_day"], s) for r in rows
-                  if (s := _signal(r, markets, start, end)) and not _names_hidden(s["term"], hidden)]
+                  if (s := _signal(r, markets, start, end)) and not _names_hidden(s["term"], hidden)
+                  and not blocked(s["term"])]
         newest = {}
         for day, s in picked:
             key = (s["market"], s["source"])

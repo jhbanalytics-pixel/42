@@ -64,7 +64,7 @@ LINK_MASK = "[link]"
 NAME_KEYS = ("author_name", "display_name", "name")
 # Fields that hold structure, not words: never masked, whatever handle an author has.
 STRUCTURAL = {"id", "label", "kind", "platform", "market", "markets", "status", "answer_status", "seq", "tier",
-              "check", "mode", "at", "date", "as_of"}
+              "check", "mode", "at", "date", "as_of", "answer_meta", "source_answer_meta", "summary_state"}
 STRUCTURAL_ENDS = ("_id", "_ids", "_at", "_date", "_hash")
 PERSON_KEYS = ("handle", "author", "author_name", "author_id", "name", "display_name", "creator_id", "url",
                "profile_url")

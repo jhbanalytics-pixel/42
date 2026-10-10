@@ -384,7 +384,7 @@ def skin_draft(record=None):
 def test_a_dossier_without_a_skin_is_shown_as_stored():
     body = draft()
     assert "people" not in body
-    assert dossiers.shown(body) == body
+    assert {k: v for k, v in dossiers.shown(body).items() if k != "summary_state"} == body  # the view adds one key
 
 
 def test_skin_dossier_json_names_no_sub_tier_author_and_masks_their_handles():

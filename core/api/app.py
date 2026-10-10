@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import time
 from datetime import date as Date
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +23,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
 from core.api import auth
@@ -36,6 +38,11 @@ ASK_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}\Z")
 # wait=true asks and SSE streams run up to the 3,600 second Cloud Run limit.
 ASK_TIMEOUT = httpx.Timeout(3600.0)
 HEALTH_TIMEOUT = httpx.Timeout(5.0)
+# The open health route is reachable without a passcode, so its BigQuery-backed checks run at most once a window per
+# instance however often it is asked (F2a); the time, version, cap and auth parts are read fresh each time.
+HEALTH_CACHE_SECONDS = 30
+_health_clock = time.monotonic
+_health_cache = {"at": None, "checks": None}
 SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 ERROR_CODES = {400: "bad_request", 401: "unauthorized", 404: "not_found", 429: "rate_limited"}
 PLACEHOLDER = (
@@ -49,6 +56,8 @@ def _web_dist() -> Path:
 
 
 app = FastAPI(title="f42-api", docs_url=None, redoc_url=None, openapi_url=None)
+# Radar was 2.1 MB and Discover 308 KB uncompressed (F2b). Event streams are never compressed by this middleware.
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 
 
 # Errors: {"error": code, "message": plain words} everywhere (contract section 1).
@@ -98,6 +107,38 @@ def _id_token(audience: str) -> str:
     )
 
 
+# AGENT_AUDIENCE: https, a lower-case host, no path, query or trailing slash.
+_AUDIENCE = re.compile(r"^https://[a-z0-9]([a-z0-9.-]*[a-z0-9])?$")
+_TAG_SEPARATOR = "---"
+
+
+def _agent_audience(url: str) -> str:
+    """The audience an ID token is minted for. It is always the canonical agent URL, never a tag URL: requests go
+    to AGENT_URL, which may be a revision tag URL, and AGENT_AUDIENCE names the service itself. An unset audience
+    stands only for a canonical URL (a rollback or an ordinary deploy). A tag URL with no usable audience is
+    refused rather than minted for, so a tag host is never an audience. Nothing here reads the network."""
+    audience = os.environ.get("AGENT_AUDIENCE", "").strip()
+    host = url.removeprefix("https://")
+    tagged = _TAG_SEPARATOR in host.split(".", 1)[0]
+    if not audience:
+        if tagged:
+            raise ValueError("agent_audience_missing")
+        return url
+    if not _AUDIENCE.match(audience):
+        raise ValueError("agent_audience_malformed")
+    audience_host = audience.removeprefix("https://")
+    if _TAG_SEPARATOR in audience_host.split(".", 1)[0]:
+        raise ValueError("agent_audience_is_a_tag_host")  # the audience is the service itself, never a revision tag
+    if not tagged:
+        if audience != url:
+            raise ValueError("agent_audience_differs")
+        return audience
+    label, _, rest = host.partition(_TAG_SEPARATOR)
+    if not label or "/" in host or rest != audience_host:
+        raise ValueError("agent_tag_host_not_tied_to_audience")
+    return audience
+
+
 async def _agent_client(timeout: httpx.Timeout) -> httpx.AsyncClient:
     url = os.environ.get("AGENT_URL", "").strip().rstrip("/")
     try:
@@ -106,7 +147,12 @@ async def _agent_client(timeout: httpx.Timeout) -> httpx.AsyncClient:
             # Cloud Run URLs are always https and always get an ID token.
             return httpx.AsyncClient(base_url=url, timeout=timeout)
         if url:
-            token = await run_in_threadpool(_id_token, url)
+            try:
+                audience = _agent_audience(url)
+            except ValueError as exc:
+                logger.warning("agent client refused: %s", exc)
+                raise ApiError(502, "agent_unavailable", "The Ask service cannot be reached.") from exc
+            token = await run_in_threadpool(_id_token, audience)
             return httpx.AsyncClient(
                 base_url=url, headers={"Authorization": f"Bearer {token}"}, timeout=timeout
             )
@@ -117,6 +163,8 @@ async def _agent_client(timeout: httpx.Timeout) -> httpx.AsyncClient:
             base_url="http://f42-agent",
             timeout=timeout,
         )
+    except ApiError:
+        raise
     except Exception as exc:
         logger.warning("agent client not available: %s", type(exc).__name__)
         raise ApiError(502, "agent_unavailable", "The Ask service cannot be reached.") from exc
@@ -131,7 +179,51 @@ async def _forward(method: str, path: str, json_body=None, params=None) -> httpx
             raise ApiError(502, "agent_unavailable", "The Ask service cannot be reached.") from exc
 
 
+async def _again(resp: httpx.Response, kind: str) -> Response:
+    """The agent's JSON answer read through the list of hidden people a second time (C5 v2 rule R7), so an agent that
+    predates the check cannot leak through the hop. kind says what the body is: a record, an investigation, a list
+    of investigations, a dossier view or a list of dossiers. Anything but a 200 or a 201 (a write that made a dossier
+    or a draft) goes through as it is, and the status the agent sent is kept."""
+    from core.api import privacy, store, summary_state
+
+    if resp.status_code not in (200, 201):
+        return _passthrough(resp)
+    try:
+        body = resp.json()
+    except ValueError:
+        return _passthrough(resp)
+    lazy = privacy.LazyStore(store.get_store)
+
+    def project():
+        with privacy.one_read():
+            hidden = privacy.read_hidden(lazy)
+            if kind == "record" and isinstance(body, dict) and "answer" in body:
+                return privacy.project_record(summary_state.with_wire(body, from_agent=True), lazy, hidden,
+                                              body.get("privacy"))
+            if kind == "investigation" and isinstance(body, dict):
+                record = body.get("record")
+                if isinstance(record, dict):
+                    record = summary_state.with_wire(record, from_agent=True)
+                    body["record"] = privacy.project_record(record, lazy, hidden, record.get("privacy"))
+                return privacy.mask(body, hidden)
+            if kind == "investigations":
+                return privacy.mask(body, hidden)
+            if kind == "dossier" and isinstance(body, dict):
+                return privacy.project_dossier(body, lazy, hidden, body.get("privacy"))
+            if kind == "dossiers" and isinstance(body, dict) and isinstance(body.get("dossiers"), list):
+                return {**body, "dossiers": [privacy.project_summary(row, lazy, hidden) for row in body["dossiers"]]}
+            return body
+
+    shown = await run_in_threadpool(project)
+    return JSONResponse(jsonable_encoder(shown), status_code=resp.status_code, headers=privacy.NO_STORE)
+
+
 def _passthrough(resp: httpx.Response) -> Response:
+    if resp.status_code in (401, 403):
+        # A refusal from Cloud Run's own gate (a plain IAM body), not this API's: to the browser it is an outage of
+        # the Ask service, never a wrong passcode. This API's own 401 is raised before any agent call.
+        logger.warning("agent answered %s", resp.status_code)
+        raise ApiError(502, "agent_unavailable", "The Ask service cannot be reached.")
     disposition = resp.headers.get("content-disposition")
     return Response(
         content=resp.content,
@@ -148,8 +240,13 @@ def _passthrough(resp: httpx.Response) -> Response:
 async def api_health() -> dict:
     auth_state = auth.health_status()
     # The checks run together (they used to run one after another); each answers as before.
-    bigquery, agent_health, today = await asyncio.gather(
-        run_in_threadpool(_bigquery_check), _agent_check(), run_in_threadpool(_today_check))
+    now = _health_clock()
+    cached = _health_cache["checks"]
+    if cached is None or _health_cache["at"] is None or not 0 <= now - _health_cache["at"] < HEALTH_CACHE_SECONDS:
+        cached = await asyncio.gather(
+            run_in_threadpool(_bigquery_check), _agent_check(), run_in_threadpool(_today_check))
+        _health_cache["at"], _health_cache["checks"] = now, cached
+    bigquery, agent_health, today = cached
     agent, t2_ready = agent_health
     checks = {
         "auth": auth_state["check"],
@@ -178,6 +275,10 @@ async def api_health() -> dict:
         "t2_ready": checks["agent"] == "ok" and t2_ready,
         "checks": checks,
     }
+
+
+def _reset_health_cache() -> None:
+    _health_cache["at"] = _health_cache["checks"] = None
 
 
 def _bigquery_check() -> str:
@@ -732,7 +833,7 @@ async def api_skin_report(skin_id: str, request: Request) -> Response:
     _check_skin_id(skin_id)
     auth.ask_limiter.check(request)
     skin = await _skin(skin_id)
-    return _passthrough(await _forward("POST", "/api/investigations", json_body=skins.report_plan(skin)))
+    return await _again(await _forward("POST", "/api/investigations", json_body=skins.report_plan(skin)), "investigation")
 
 
 @gated.post("/api/feedback")
@@ -790,7 +891,7 @@ async def _ask(request: Request, body: dict) -> Response:
         raise
     if live and resp.status_code >= 400:
         auth.daily_questions.release(ip)
-    return _passthrough(resp)
+    return await _again(resp, "record") if resp.status_code == 200 else _passthrough(resp)
 
 
 def _spike_facts(item_id: str, market: str, day: str, series: str | None) -> tuple[str, bool]:
@@ -841,7 +942,11 @@ async def _stored_record(ask_id: str) -> dict | None:
     way f42-agent masks the records it still holds."""
     from core.api import skins, store
 
+    from core.api import summary_state
+
     record = await run_in_threadpool(lambda: store.get_store().ask_record(ask_id))
+    if record:  # the typed summary state is read from the raw stored record first, before any masking (C1 5.2)
+        record = summary_state.with_wire(record)
     if not record or not record.get("skin_id"):
         return record
     skin_key = None
@@ -853,16 +958,41 @@ async def _stored_record(ask_id: str) -> dict | None:
     return skins.mask_people(record, people["approved"], people["allowed"])
 
 
+async def _projected(record: dict, inbound=None, poll=None) -> dict:
+    """The record as a reader may see it now: the list of hidden people read on this request, applied to what the
+    agent or the runs table holds (C5 v2 rules R2 and R7). inbound is the marker the agent sent, merged not trusted."""
+    from core.api import privacy, store
+
+    lazy = privacy.LazyStore(store.get_store)
+    if poll is not None:  # a running record is polled every couple of seconds: a list no older than 30 seconds
+        held = privacy.POLLS.of(poll, lazy)
+        return await run_in_threadpool(
+            lambda: privacy.project_record(record, lazy, held.get(), inbound, held.creators))
+    return await run_in_threadpool(lambda: privacy.project_record(record, lazy, inbound=inbound))
+
+
 @gated.get("/api/ask/{ask_id}")
 async def api_ask_read(ask_id: str) -> Response:
+    from core.api import privacy
+
     _check_ask_id(ask_id)
     resp = await _forward("GET", f"/api/ask/{ask_id}")
+    if resp.status_code == 200:
+        from core.api import summary_state
+
+        held = summary_state.with_wire(resp.json(), from_agent=True)
+        running = isinstance(held, dict) and held.get("status") == "running"
+        if not running:
+            privacy.POLLS.done(("api", ask_id))
+        shown = await _projected(held, held.get("privacy") if isinstance(held, dict) else None,
+                                 ("api", ask_id) if running else None)
+        return JSONResponse(jsonable_encoder(shown), headers=privacy.NO_STORE)
     if resp.status_code != 404:
         return _passthrough(resp)
     record = await _stored_record(ask_id)
     if record is None:
         raise ApiError(404, "not_found", "No Ask with that id.")
-    return JSONResponse(jsonable_encoder(record))
+    return JSONResponse(jsonable_encoder(await _projected(record)), headers=privacy.NO_STORE)
 
 
 def _sse(seq: int, event: str, data: dict) -> str:
@@ -874,6 +1004,7 @@ async def _replay_stored_events(ask_id: str, last_event_id: str | None) -> Respo
     record = await _stored_record(ask_id)
     if record is None:
         raise ApiError(404, "not_found", "No Ask with that id.")
+    record = await _projected(record)
     after = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
     steps = record.get("steps") or []
     done_seq = max((s.get("seq", 0) for s in steps), default=0) + 1
@@ -931,20 +1062,27 @@ async def api_ask_stop(ask_id: str) -> Response:
 
 @gated.get("/api/ask/{ask_id}/export")
 async def api_ask_export(ask_id: str, format: str = "html") -> Response:
-    from core.api import export
+    from core.api import export, privacy
 
     _check_ask_id(ask_id)
     if format != "html":
         raise ApiError(400, "bad_request", "Only format=html is available until Stage 3.")
     resp = await _forward("GET", f"/api/ask/{ask_id}")
+    inbound = None
     if resp.status_code == 200:
-        record = resp.json()
+        from core.api import summary_state
+
+        record = summary_state.with_wire(resp.json(), from_agent=True)
+        inbound = record.get("privacy") if isinstance(record, dict) else None
     elif resp.status_code == 404:
         record = await _stored_record(ask_id)
         if record is None:
             raise ApiError(404, "not_found", "No Ask with that id.")
     else:
         return _passthrough(resp)
+    record = await _projected(record, inbound)
+    if (record.get("privacy") or {}).get("state") == "unavailable":
+        raise ApiError(503, "people_unavailable", privacy.PEOPLE_UNAVAILABLE)
     try:
         page = export.render_answer_html(record)
     except export.ExportRefused as exc:
@@ -970,7 +1108,7 @@ def _known(**params) -> dict:
 @gated.post("/api/dossiers")
 async def api_dossier_create(request: Request) -> Response:
     auth.ask_limiter.check(request)
-    return _passthrough(await _forward("POST", "/api/dossiers", json_body=await _body(request)))
+    return await _again(await _forward("POST", "/api/dossiers", json_body=await _body(request)), "dossier")
 
 
 @gated.post("/api/findings")
@@ -981,20 +1119,20 @@ async def api_findings_save(request: Request) -> Response:
 
 @gated.get("/api/dossiers")
 async def api_dossiers(limit: str | None = None, before: str | None = None) -> Response:
-    return _passthrough(await _forward("GET", "/api/dossiers", params=_known(limit=limit, before=before)))
+    return await _again(await _forward("GET", "/api/dossiers", params=_known(limit=limit, before=before)), "dossiers")
 
 
 @gated.get("/api/dossiers/{dossier_id}")
 async def api_dossier(dossier_id: str) -> Response:
     _check_id(dossier_id, "a dossier")
-    return _passthrough(await _forward("GET", f"/api/dossiers/{dossier_id}"))
+    return await _again(await _forward("GET", f"/api/dossiers/{dossier_id}"), "dossier")
 
 
 @gated.put("/api/dossiers/{dossier_id}")
 async def api_dossier_edit(dossier_id: str, request: Request) -> Response:
     _check_id(dossier_id, "a dossier")
     auth.ask_limiter.check(request)
-    return _passthrough(await _forward("PUT", f"/api/dossiers/{dossier_id}", json_body=await _body(request)))
+    return await _again(await _forward("PUT", f"/api/dossiers/{dossier_id}", json_body=await _body(request)), "dossier")
 
 
 @gated.post("/api/dossiers/{dossier_id}/ticks")
@@ -1009,13 +1147,13 @@ async def api_dossier_freeze(dossier_id: str, request: Request) -> Response:
     _check_id(dossier_id, "a dossier")
     auth.ask_limiter.check(request)
     body = await _body(request) if (await request.body()).strip() else None
-    return _passthrough(await _forward("POST", f"/api/dossiers/{dossier_id}/freeze", json_body=body))
+    return await _again(await _forward("POST", f"/api/dossiers/{dossier_id}/freeze", json_body=body), "dossier")
 
 
 @gated.get("/api/dossiers/{dossier_id}/versions/{version}")
 async def api_dossier_version(dossier_id: str, version: int) -> Response:
     _check_id(dossier_id, "a dossier")
-    return _passthrough(await _forward("GET", f"/api/dossiers/{dossier_id}/versions/{version}"))
+    return await _again(await _forward("GET", f"/api/dossiers/{dossier_id}/versions/{version}"), "dossier")
 
 
 @gated.get("/api/dossiers/{dossier_id}/versions/{version}/export")
@@ -1028,26 +1166,26 @@ async def api_dossier_export(dossier_id: str, version: int, format: str = "html"
 @gated.post("/api/investigations")
 async def api_investigation_draft(request: Request) -> Response:
     auth.ask_limiter.check(request)
-    return _passthrough(await _forward("POST", "/api/investigations", json_body=await _body(request)))
+    return await _again(await _forward("POST", "/api/investigations", json_body=await _body(request)), "investigation")
 
 
 @gated.get("/api/investigations")
 async def api_investigations(status: str | None = None) -> Response:
-    return _passthrough(await _forward("GET", "/api/investigations", params=_known(status=status)))
+    return await _again(await _forward("GET", "/api/investigations", params=_known(status=status)), "investigations")
 
 
 @gated.get("/api/investigations/{investigation_id}")
 async def api_investigation(investigation_id: str) -> Response:
     _check_id(investigation_id, "an investigation")
-    return _passthrough(await _forward("GET", f"/api/investigations/{investigation_id}"))
+    return await _again(await _forward("GET", f"/api/investigations/{investigation_id}"), "investigation")
 
 
 @gated.put("/api/investigations/{investigation_id}/plan")
 async def api_investigation_plan(investigation_id: str, request: Request) -> Response:
     _check_id(investigation_id, "an investigation")
     auth.ask_limiter.check(request)
-    return _passthrough(await _forward("PUT", f"/api/investigations/{investigation_id}/plan",
-                                       json_body=await _body(request)))
+    return await _again(await _forward("PUT", f"/api/investigations/{investigation_id}/plan",
+                                       json_body=await _body(request)), "investigation")
 
 
 @gated.post("/api/investigations/{investigation_id}/start")

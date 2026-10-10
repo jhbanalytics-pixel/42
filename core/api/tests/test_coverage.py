@@ -99,6 +99,7 @@ def test_coverage_series_per_market(fx):
     (1, 1, 0, "items", "post count far from usual"),
     (1, 1, 0, "effort", "too few accounts checked"),
     (1, 1, 0, "zero_yield", "answered but returned nothing for a second day"),
+    (4, 4, 0, "zero_yield", "answered but returned no posts or counts"),
 ])
 def test_coverage_invalid_words_distinguish_no_attempt_from_failure(calls, calls_ok, items, reason, words):
     row = {"market": "ZA", "platform": "x", "series": "panel_x_hub", "calls": calls, "calls_ok": calls_ok,
@@ -792,3 +793,37 @@ def test_coverage_names_a_catalog_chart_or_playlist_by_its_own_name():
     assert out["markets"][1]["series"][0]["located_words"] == "National chart"
     assert out["markets"][2]["series"][0]["series_words"] == "KBC English Service playlist via Radio.co"
     assert out["markets"][2]["series"][0]["located_words"] == "Radio station playlist"
+
+
+# N55: lane 5 writes counts.embed_error on an understand row that finished ok but embedded nothing.
+def test_degraded_writes_names_an_embed_error_before_enrich_and_clusters():
+    counts = {"embed_error": "RuntimeError: nothing embedded", "enrich_error": "RuntimeError: refused",
+              "cluster": {"za": {"error": "RuntimeError: x"}}}
+    assert store_mod.degraded_writes(counts) == ["embed", "enrich", "cluster:za"]
+    assert store_mod.degraded_writes({"embed_error": "RuntimeError: nothing embedded"}) == ["embed"]
+    assert store_mod.degraded_writes({"embed_error": None, "enrich_error": ""}) == []
+
+
+def test_coverage_shows_an_ok_understand_run_that_embedded_nothing_as_degraded(fx):
+    def runs_all():
+        rows = FixtureStore._runs_all(fx)
+        return [dict(r, counts=json.dumps({**(r.get("counts") or {}), "embed_error": "RuntimeError: nothing embedded"}))
+                if r["run_id"] == "r_understand_20260930_01" and r.get("finished_at") else r for r in rows]
+
+    runs = coverage.build_coverage(Patched(_runs_all=runs_all), D30)["runs"]
+    understand = next(r for r in runs if r["stage"] == "understand")
+    assert understand["status"] == "ok" and understand["degraded"] == ["Embedding"]
+
+
+def test_the_bigquery_degraded_read_includes_embed_error():
+    assert "JSON_VALUE(r.counts, '$.embed_error')" in store_mod.DEGRADED_SQL
+    assert store_mod.DEGRADED_SQL.index("$.embed_error") < store_mod.DEGRADED_SQL.index("$.enrich_error")
+
+
+# N55 with the partial understand run (wave8/detect): the embed soft failure and a clusterer failure both show as degraded.
+def test_degraded_shows_embed_in_python_and_sql_and_a_cluster_stack_failure_per_market():
+    counts = {"embed_error": "NoWindowSent: spend_unknown", "partial": True, "partial_reason": "cluster_stack_failed",
+              "cluster": {"za": {"error": "ImportError: stack"}, "ng": {"error": "ImportError: stack"},
+                          "ke": {"error": "ImportError: stack"}, "pan": {"error": "ImportError: stack"}}}
+    assert store_mod.degraded_writes(counts) == ["embed", "cluster:za", "cluster:ng", "cluster:ke", "cluster:pan"]
+    assert store_mod.DEGRADED_SQL.index("$.embed_error") < store_mod.DEGRADED_SQL.index("$.cluster.za.error")

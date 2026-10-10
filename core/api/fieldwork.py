@@ -58,7 +58,7 @@ SERIES = {
     "counter_post_views": ("search", "Evidence post rechecks"),
     "counter_tiktok_sound": ("search", "TikTok sound counts"),
     "counter_tiktok_hashtag": ("search", "TikTok hashtag counts"),
-    "curve_tiktok_sound": ("search", "TikTok sound curves"),
+    "curve_tiktok_sound": ("search", "TikTok sound popularity (no longer collected)"),
     "x_trends": ("platform", "X trends archive"),
 }
 # local_sources.FEEDS names its RSS feeds by key; these are the publications.
@@ -247,7 +247,8 @@ def _members(series, market, rows, plan):
     if series == "counter_tiktok_hashtag":
         return [], "Post counts for the TikTok hashtags 42 is following"
     if series == "curve_tiktok_sound":
-        return [], "Daily use of the TikTok sounds 42 is following"
+        return [], ("Not collected: a sound's videos by day are a sample of one page, not a daily total, "
+                    "so 42 no longer writes this series")
     return [], None
 
 

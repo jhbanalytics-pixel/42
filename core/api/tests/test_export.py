@@ -203,7 +203,8 @@ def test_empty_short_answer_says_what_passed(partial):
     page = render_answer_html(record)
     claims, posts = len(record["answer"]["claims"]), len(record["answer"]["evidence"])
     assert f"{claims} checked finding" in page and f"from {posts} post" in page
-    assert "The one-line summary did not pass the checks." in page
+    assert "The one-line summary is not available for this answer." in page  # no typed state: the neutral sentence
+    assert "did not pass the checks" not in page
     assert "too little passed" not in page
 
 
