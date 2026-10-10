@@ -1,0 +1,887 @@
+/* The Today hero and the story cards. Both stand on one 12 column grid: the
+   hero is the headline over seven columns beside its evidence panel over
+   five, each trend card is its story over seven beside its live panel over
+   five with the evidence strip across all twelve, and the market strip sits
+   between the same two edges. Below 1000px everything stacks. Colour, type
+   and spacing come from the theme tokens, so both themes work; every card is
+   square with a hairline border, nothing casts a shadow, and hover and focus
+   brighten the surface and the border instead of lifting. Motion is the
+   package moves only (a 140ms hover, the 360ms reveal) and runs only for a
+   reader who has not asked for less. */
+
+/* The hero */
+html .oi-product .t42 .t42-head:has(> .t42-lead) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr auto auto;
+  column-gap: var(--s-6);
+  align-items: start;
+}
+
+html .oi-product .t42 .t42-head:has(> .t42-lead) > * {
+  min-width: 0;
+}
+
+html .oi-product .t42 .t42-head > .t42-lead {
+  display: contents;
+}
+
+html .oi-product .t42 .t42-head > .t42-lead > .t42-headline {
+  max-width: 32ch;
+  margin: 0 0 var(--s-4);
+  font-size: var(--nd-poster);
+  line-height: 0.95;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-status-area {
+  margin-block: var(--s-2) 0;
+}
+
+@media (min-width: 1000px) {
+  html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-status-area {
+    grid-row: 4;
+  }
+
+  html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-guide {
+    grid-row: 5;
+  }
+}
+
+html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-guide {
+  margin-block: var(--s-3) 0;
+}
+
+html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-heading {
+  margin-block-end: var(--s-3);
+}
+
+html .oi-product .t42 .t42-lead-panel {
+  --nd-i: 1;
+  display: grid;
+  gap: var(--s-4);
+  box-sizing: border-box;
+  min-width: 0;
+  margin-block-start: var(--s-4);
+  padding: var(--s-5);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--heat-3);
+  background: var(--surface);
+}
+
+html .oi-product .t42 .t42-lead-side {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+html .oi-product .t42 .t42-lead-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-5);
+}
+
+html .oi-product .t42 .t42-lead-posts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+html .oi-product .t42 .t42-lead-posts-value {
+  font-family: var(--nd-face);
+  font-size: var(--nd-t-card);
+  font-weight: 800;
+  font-stretch: var(--nd-stretch-figure);
+  line-height: 0.9;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+html .oi-product .t42 .t42-lead-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The chart fills whatever width its panel has. Its height is fixed, so the
+   page does not move when the drawing is fitted to the width. */
+html .oi-product .t42 .t42-trend:has(> .t42-spark[data-wide]) {
+  display: grid;
+  gap: var(--s-2);
+  justify-items: stretch;
+  min-width: 0;
+}
+
+html .oi-product .t42 .t42-spark[data-wide] {
+  width: 100%;
+  max-width: none;
+  height: auto;
+}
+
+html .oi-product .t42 .t42-spark[data-wide] .t42-tick-day {
+  fill: var(--ink-2);
+}
+
+html .oi-product .t42 .t42-spark[data-wide] .t42-now-label {
+  fill: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--t-3);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+}
+
+html .oi-product .t42 .t42-spark[data-wide] .t42-dot-now {
+  fill: var(--heat-4);
+  stroke: var(--ink);
+  stroke-width: 1.5px;
+}
+
+html .oi-product .t42 .t42-trend-caption {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The platforms of the evidence: the official mark on a chip, then the name. */
+html .oi-product .t42 .sc-platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+html .oi-product .t42 .sc-platform {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+html .oi-product .t42 .sc-platform-mark {
+  box-sizing: border-box;
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border: 1px solid var(--line-2);
+  background: var(--brand, var(--surface-inset));
+  color: var(--brand-on, var(--ink));
+}
+
+html .oi-product .t42 .sc-platform-name {
+  color: var(--ink-2);
+  font-size: var(--t-3);
+  font-weight: 600;
+}
+
+/* The two real posts behind the lead story. */
+html .oi-product .t42 .t42-lead-examples {
+  display: grid;
+  gap: var(--s-3) var(--s-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+html .oi-product .t42 .t42-lead-example {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 var(--s-3);
+  min-width: 0;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--hairline);
+}
+
+html .oi-product .t42 .t42-lead-example-who {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-2);
+  margin: 0;
+  min-width: 0;
+}
+
+html .oi-product .t42 .t42-lead-example-mark {
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink);
+}
+
+html .oi-product .t42 .t42-lead-example-handle {
+  color: var(--ink);
+  font-size: var(--t-4);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+html .oi-product .t42 .t42-lead-example-meta {
+  color: var(--muted);
+  font-size: var(--t-3);
+  font-variant-numeric: tabular-nums;
+}
+
+html .oi-product .t42 .t42-lead-example-text {
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: var(--t-4);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html .oi-product .t42 .t42-lead-example-open {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  font-size: var(--t-3);
+  white-space: nowrap;
+  text-decoration-color: var(--line-2);
+  transition: color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+
+html .oi-product .t42 .t42-lead-example-open:hover,
+html .oi-product .t42 .t42-lead-example-open:focus-visible {
+  color: var(--accent-text);
+  text-decoration-color: currentcolor;
+}
+
+/* Ask about this leads in ink; Watch is the quiet one beside it. */
+html .oi-product .t42 .t42-lead-actions,
+html .oi-product .t42 .sc-foot .t42-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin: 0;
+}
+
+html .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action {
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  padding: 0 var(--s-4);
+  color: var(--ink);
+  font-size: var(--t-4);
+  text-decoration: none;
+}
+
+html .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action:hover,
+html .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action:focus-visible {
+  border-color: var(--ink);
+  background-color: var(--surface-inset);
+  text-decoration: none;
+}
+
+html .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action-primary {
+  border-color: var(--ink);
+  background-color: var(--ink);
+  color: var(--canvas);
+  font-weight: 700;
+  transition: background-color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing), color var(--motion-control) var(--motion-standard-easing);
+}
+
+html .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action-primary:hover,
+html .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action-primary:focus-visible {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+html .oi-product .t42 :is(.t42-lead-panel, .sc-card) :is(a, button) {
+  border-radius: 0;
+}
+
+@media (min-width: 1000px) {
+  html .oi-product .t42 .t42-head:has(> .t42-lead) {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-heading,
+  html .oi-product .t42 .t42-head > .t42-lead > .t42-headline,
+  html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-status-area,
+  html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-guide {
+    grid-column: 1 / span 7;
+  }
+
+  html .oi-product .t42 .t42-head > .t42-lead > .t42-lead-panel {
+    grid-column: 8 / span 5;
+    grid-row: 1 / span 5;
+    margin-block-start: 0;
+  }
+}
+
+/* The story cards */
+html .oi-product .t42 .t42-today-market > .t42-cards:has(> .sc-card) {
+  gap: var(--s-5);
+}
+
+html .oi-product .t42 .t42-today-market .t42-cards[data-ranked] > .sc-card {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: none;
+  align-items: stretch;
+  gap: 0;
+  min-block-size: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--line-2);
+  border-radius: 0;
+  background: var(--surface);
+  transition: background-color var(--motion-row) var(--motion-standard-easing), border-color var(--motion-row) var(--motion-standard-easing);
+}
+
+html .oi-product .t42 .t42-today-market .t42-cards[data-ranked] > .sc-card > * {
+  grid-column: 1 / -1;
+}
+
+html .oi-product .t42 .t42-today-market .t42-cards[data-ranked] > .sc-card::before {
+  content: none;
+}
+
+html .oi-product .t42 .t42-today-market .t42-cards[data-ranked] > .sc-card:first-child {
+  border-top-color: var(--heat-3);
+}
+
+html .oi-product .t42 .t42-today-market .t42-cards[data-ranked] > .sc-card:hover,
+html .oi-product .t42 .t42-today-market .t42-cards[data-ranked] > .sc-card:focus-within {
+  border-color: var(--muted);
+  border-top-color: var(--heat-3);
+  background-color: color-mix(in srgb, var(--ink) 4%, var(--surface));
+}
+
+html .oi-product .t42 .sc-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5);
+  padding: var(--s-5) var(--s-4);
+}
+
+html .oi-product .t42 .sc-story {
+  display: grid;
+  align-content: start;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+html .oi-product .t42 .sc-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s-4);
+}
+
+html .oi-product .t42 .sc-rank {
+  min-width: 2ch;
+  color: transparent;
+  font-family: var(--nd-face);
+  font-size: var(--nd-t-rank-sm);
+  font-weight: 800;
+  font-stretch: 62%;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.8;
+  -webkit-text-stroke: 1.25px var(--muted);
+}
+
+html .oi-product .t42 .sc-rank[data-lead] {
+  color: var(--heat-3);
+  -webkit-text-stroke: 0;
+}
+
+html .oi-product .t42 .sc-heading {
+  display: grid;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+html .oi-product .t42 .sc-card .sc-title {
+  margin: 0;
+  font-size: var(--nd-t-sub);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+html .oi-product .t42 .sc-card .sc-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-3);
+}
+
+html .oi-product .t42 .sc-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+html .oi-product .t42 .sc-badge {
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+  font-size: var(--t-2);
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+html .oi-product .t42 .sc-why {
+  max-width: 62ch;
+  margin: 0;
+  font-size: var(--t-5);
+  line-height: 1.4;
+}
+
+html .oi-product .t42 .sc-pull {
+  margin: 0;
+  padding: var(--s-1) 0 var(--s-1) var(--s-4);
+  border-inline-start: 2px solid var(--heat-3);
+}
+
+html .oi-product .t42 .sc-pull .t42-specificity-label {
+  display: block;
+  margin: 0 0 var(--s-1);
+}
+
+html .oi-product .t42 .sc-pull > .t42-post-text {
+  display: block;
+  margin: 0;
+  font-family: var(--serif);
+  font-size: var(--nd-answer);
+  line-height: 1.25;
+  text-wrap: pretty;
+}
+
+/* The live panel. */
+html .oi-product .t42 .sc-live {
+  display: grid;
+  align-content: start;
+  gap: var(--s-4);
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  background: var(--surface-inset);
+}
+
+html .oi-product .t42 .sc-live .tc-big {
+  align-items: flex-end;
+  gap: var(--s-2) var(--s-5);
+}
+
+html .oi-product .t42 .sc-live .tc-big-lead .tc-big-value {
+  font-size: var(--nd-t-rank);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+html .oi-product .t42 .sc-live .tc-big-item:not(.tc-big-lead) .tc-big-value {
+  font-size: var(--nd-t-card);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+html .oi-product .t42 .sc-live .tc-big-unit {
+  font-variant-numeric: tabular-nums;
+}
+
+html .oi-product .t42 .sc-momentum-row {
+  margin: 0;
+}
+
+html .oi-product .t42 .sc-momentum {
+  display: inline-block;
+  padding: 0 var(--s-2);
+  background: var(--heat-3);
+  color: var(--heat-ink);
+  font-size: var(--t-3);
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+html .oi-product .t42 .sc-momentum:is([data-state="emerging"], [data-state="new_to_42"]) {
+  background: var(--heat-4);
+}
+
+html .oi-product .t42 .sc-momentum:is([data-state="peaking"], [data-state="spike"]) {
+  background: var(--heat-2);
+  color: var(--accent-ink);
+}
+
+html .oi-product .t42 .sc-momentum:is([data-state="recurring"], [data-state="seasonal"], [data-state="on_the_boards"], [data-state="mainstream"], [data-state="fading"]) {
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink);
+}
+
+html .oi-product .t42 .sc-chart {
+  min-width: 0;
+}
+
+/* The evidence strip: the band's own snap row, tiles instead of cards. */
+html .oi-product .t42 .sc-evidence {
+  display: grid;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+html .oi-product .t42 .sc-strip {
+  --tb-fade: 2.5rem;
+}
+
+html .oi-product .t42 .sc-strip-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-4);
+  min-block-size: var(--target-min);
+  padding-inline-end: calc(var(--target-min) * 2 + var(--s-4));
+}
+
+html .oi-product .t42 .sc-strip-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--t-3);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+html .oi-product .t42 .sc-strip-window {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-3);
+}
+
+html .oi-product .t42 .sc-strip .tb-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 0;
+}
+
+html .oi-product .t42 .sc-tiles {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+html .oi-product .t42 .sc-tile {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 0 min(22rem, 84vw);
+  max-inline-size: 36rem;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--line-2);
+  background: var(--canvas);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 22rem auto 15rem;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  transition: background-color var(--motion-row) var(--motion-standard-easing), border-color var(--motion-row) var(--motion-standard-easing);
+}
+
+html .oi-product .t42 .sc-tile:hover,
+html .oi-product .t42 .sc-tile:focus-within {
+  border-color: var(--muted);
+  background-color: color-mix(in srgb, var(--ink) 5%, var(--canvas));
+}
+
+html .oi-product .t42 .sc-tile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+html .oi-product .t42 .sc-tile-mark {
+  box-sizing: border-box;
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+}
+
+html .oi-product .t42 .sc-tile-who {
+  min-width: 0;
+  color: var(--ink);
+  font-size: var(--t-4);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+html .oi-product .t42 .sc-tile-when {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-3);
+  font-variant-numeric: tabular-nums;
+}
+
+html .oi-product .t42 .sc-tile-text {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--serif);
+  font-size: var(--t-4);
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+html .oi-product .t42 .sc-tile-quoted {
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: var(--t-3);
+}
+
+html .oi-product .t42 .sc-tile-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-2);
+  font-style: italic;
+}
+
+html .oi-product .t42 .sc-tile-open {
+  margin-block-start: auto;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  font-size: var(--t-3);
+  font-weight: 600;
+  text-decoration-color: var(--line-2);
+  transition: color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing);
+}
+
+html .oi-product .t42 .sc-tile-open:hover,
+html .oi-product .t42 .sc-tile-open:focus-visible {
+  color: var(--accent-text);
+  text-decoration-color: currentcolor;
+}
+
+/* The foot: the actions, then the quiet segmented feedback. */
+html .oi-product .t42 .sc-foot {
+  gap: var(--s-3) var(--s-5);
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  border-top: 1px solid var(--hairline);
+}
+
+html .oi-product .t42 .sc-foot .f42-feedback {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--s-3);
+}
+
+html .oi-product .t42 .sc-foot .f42-label {
+  min-height: 0;
+  margin: 0;
+  font-size: var(--t-3);
+}
+
+html .oi-product .t42 .sc-foot .f42-tap {
+  box-sizing: border-box;
+  min-height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--muted);
+  font-size: var(--t-3);
+  text-decoration: none;
+  transition: color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing);
+}
+
+html .oi-product .t42 .sc-foot .f42-tap + .f42-tap {
+  margin-inline-start: -1px;
+}
+
+html .oi-product .t42 .sc-foot .f42-tap:hover,
+html .oi-product .t42 .sc-foot .f42-tap:focus-visible {
+  border-color: var(--line-2);
+  background-color: var(--surface-inset);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+html .oi-product .t42 .sc-foot .f42-tap[aria-pressed="true"] {
+  border-color: var(--ink);
+  background-color: var(--ink);
+  color: var(--canvas);
+  text-decoration: none;
+}
+
+html .oi-product .t42 .sc-card > .t42-posts {
+  margin: 0;
+  padding: var(--s-3) var(--s-4) var(--s-4);
+}
+
+@media (min-width: 1000px) {
+  html .oi-product .t42 .sc-body {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--s-6);
+    padding: var(--s-6);
+  }
+
+  html .oi-product .t42 .sc-story {
+    grid-column: 1 / span 7;
+  }
+
+  html .oi-product .t42 .sc-live {
+    grid-column: 8 / span 5;
+    padding: var(--s-5);
+  }
+
+  html .oi-product .t42 .sc-evidence {
+    grid-column: 1 / -1;
+  }
+
+  html .oi-product .t42 .sc-rank {
+    font-size: var(--nd-t-rank);
+  }
+
+  html .oi-product .t42 .sc-card .sc-title {
+    font-size: var(--nd-t-card);
+  }
+
+  html .oi-product .t42 .sc-foot {
+    padding: var(--s-4) var(--s-6) var(--s-5);
+  }
+
+  html .oi-product .t42 .sc-card > .t42-posts {
+    padding: var(--s-4) var(--s-6) var(--s-5);
+  }
+}
+
+@media (max-width: 599px) {
+  html .oi-product .t42 .sc-strip {
+    --tb-fade: 1.5rem;
+  }
+
+  html .oi-product .t42 .sc-foot {
+    align-items: stretch;
+  }
+
+  html .oi-product .t42 .sc-foot .t42-actions {
+    inline-size: 100%;
+  }
+}
+
+/* Held by blocks of their final size while Today loads */
+html .oi-product .t42 .sc-skeleton-hero,
+html .oi-product .t42 .sc-skeleton-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5);
+  margin-block-end: var(--s-5);
+}
+
+html .oi-product .t42 .sc-skeleton-hero-text,
+html .oi-product .t42 .sc-skeleton-panel,
+html .oi-product .t42 .sc-skeleton-story,
+html .oi-product .t42 .sc-skeleton-live {
+  display: grid;
+  align-content: start;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+html .oi-product .t42 .sc-skeleton-card {
+  padding: var(--s-5) var(--s-4);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--line-2);
+}
+
+html .oi-product .t42 .sc-skeleton-headline {
+  display: block;
+  inline-size: 100%;
+  block-size: 3rem;
+}
+
+html .oi-product .t42 .sc-skeleton-headline-short {
+  inline-size: 60%;
+}
+
+html .oi-product .t42 .sc-skeleton-number {
+  display: block;
+  inline-size: 40%;
+  block-size: 4rem;
+}
+
+html .oi-product .t42 .sc-skeleton-chart {
+  display: block;
+  inline-size: 100%;
+  block-size: 8.5rem;
+}
+
+html .oi-product .t42 .sc-skeleton-tiles {
+  display: flex;
+  gap: var(--s-3);
+  overflow: hidden;
+}
+
+html .oi-product .t42 .sc-skeleton-tile {
+  display: block;
+  flex: 0 0 min(22rem, 84vw);
+  block-size: 10rem;
+}
+
+@media (min-width: 1000px) {
+  html .oi-product .t42 .sc-skeleton-hero,
+  html .oi-product .t42 .sc-skeleton-card {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--s-6);
+  }
+
+  html .oi-product .t42 .sc-skeleton-hero-text,
+  html .oi-product .t42 .sc-skeleton-story {
+    grid-column: 1 / span 7;
+  }
+
+  html .oi-product .t42 .sc-skeleton-panel,
+  html .oi-product .t42 .sc-skeleton-live {
+    grid-column: 8 / span 5;
+  }
+
+  html .oi-product .t42 .sc-skeleton-tiles {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Motion: the panel arrives with the headline, once */
+@media (prefers-reduced-motion: no-preference) {
+  html .oi-product .t42 .t42-lead-panel {
+    animation: ndRise var(--motion-handoff) var(--motion-handoff-easing) both;
+    animation-delay: calc(min(var(--nd-i, 0), 5) * 80ms);
+  }
+}
+
+@media (max-width: 599px) {
+  html .oi-product .t42 .t42-lead-example {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html .oi-product .t42 .t42-lead-example-open {
+    justify-self: start;
+  }
+
+  html .oi-product .t42 .t42-lead-panel {
+    padding: var(--s-4);
+  }
+}

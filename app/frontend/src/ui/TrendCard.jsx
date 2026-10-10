@@ -78,7 +78,7 @@ export function topicHref(itemId, market){
   return '#/t/' + encodeURIComponent(itemId) + '?market=' + encodeURIComponent(market);
 }
 
-function askHref(card, market, date, question){
+export function askHref(card, market, date, question){
   return '#/ask?q=' + encodeURIComponent(question || '')
     + '&market=' + encodeURIComponent(market)
     + '&item=' + encodeURIComponent(card.item_id)
@@ -86,10 +86,10 @@ function askHref(card, market, date, question){
 }
 
 const has = (card, key) => Object.prototype.hasOwnProperty.call(card, key);
-const isFigure = (value) => value && typeof value === 'object' && value.value !== undefined && value.value !== null;
+export const isFigure = (value) => value && typeof value === 'object' && value.value !== undefined && value.value !== null;
 /* "31 creators, 3 days" and "31 creators in 3 days" say one fact: compare
    them with digit grouping, commas and the word "in" set aside. */
-const factWords = (value) => String(value).toLowerCase()
+export const factWords = (value) => String(value).toLowerCase()
   .replace(/(\d)[\s\u00a0\u202f,](?=\d{3}\b)/gu, '$1')
   .replace(/,/g, ' ')
   .replace(/\bin\b/g, ' ')
@@ -98,7 +98,7 @@ const factWords = (value) => String(value).toLowerCase()
 const sameWord = (a, b) => typeof a === 'string' && typeof b === 'string' && a.trim().toLowerCase() === b.trim().toLowerCase();
 const YOUTUBE_CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/i;
 const isYoutubeChannelId = (value) => typeof value === 'string' && YOUTUBE_CHANNEL_ID.test(value.trim());
-const isYoutubeChannelAuthor = (item) => item.platform === 'youtube' && typeof item.handle === 'string'
+export const isYoutubeChannelAuthor = (item) => item.platform === 'youtube' && typeof item.handle === 'string'
   && isYoutubeChannelId(item.handle.trim().replace(/^@+/, ''));
 
 /* Tester report, 6 October 2026: a card titled "northeast governors,
@@ -119,27 +119,11 @@ export function askQuestion(card, label, written){
   return base ? (base.includes(label) ? base.split(label).join(written) : base) : written;
 }
 
-/* scope: context nodes that belong in the facts row (Discover's search
-   label). extraActions: links that sit with Ask, Watch and Posts. index: the
-   card's place in its list, which the stylesheet turns into a capped entrance
-   stagger. className: a class the list adds to the card itself. saidAbove:
-   the not-yet states ('spread', 'growth') the page has already said once for
-   every card, so this card does not repeat them; a field that has a value
-   still shows. */
-export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, linkTopic = false, tapToOpen = false, posts: showPosts = true, todaySpecificity = null, scope = null, extraActions = null, index = null, className = '', sparkMinDays = MIN_CHART_DAYS, saidAbove = null}){
+/* The posts behind a card, loaded when asked for and dropped when the card goes. */
+export function useCardPosts(card, where, when, onAuth){
   const [posts, setPosts] = useState({state: 'closed'});
   const ctrl = useRef(null);
   useEffect(() => () => { if (ctrl.current) ctrl.current.abort(); }, []);
-  const where = card.market || market;
-  const when = card.date || date;
-  const panelId = 't42-posts-' + where + '-' + card.item_id;
-  const open = posts.state !== 'closed';
-  const label = isYoutubeChannelId(card.title) ? 'YouTube channel' : card.title;
-  const written = writtenTitle(card, label);
-  const unnamed = !written && isUnnamedTopic(label);
-  const title = written || (unnamed ? UNNAMED_TOPIC_WORDS : label);
-  const question = askQuestion(card, label, written);
-
   const loadPosts = () => {
     if (ctrl.current) ctrl.current.abort();
     const c = new AbortController();
@@ -154,11 +138,32 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
       });
   };
   const togglePosts = () => {
-    if (open){
+    if (posts.state !== 'closed'){
       if (ctrl.current) ctrl.current.abort();
       setPosts({state: 'closed'});
     } else loadPosts();
   };
+  return {posts, open: posts.state !== 'closed', loadPosts, togglePosts};
+}
+
+/* scope: context nodes that belong in the facts row (Discover's search
+   label). extraActions: links that sit with Ask, Watch and Posts. index: the
+   card's place in its list, which the stylesheet turns into a capped entrance
+   stagger. className: a class the list adds to the card itself. saidAbove:
+   the not-yet states ('spread', 'growth') the page has already said once for
+   every card, so this card does not repeat them; a field that has a value
+   still shows. */
+export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, linkTopic = false, tapToOpen = false, posts: showPosts = true, todaySpecificity = null, scope = null, extraActions = null, index = null, className = '', sparkMinDays = MIN_CHART_DAYS, saidAbove = null}){
+  const where = card.market || market;
+  const when = card.date || date;
+  const panelId = 't42-posts-' + where + '-' + card.item_id;
+  const {posts, open, loadPosts, togglePosts} = useCardPosts(card, where, when, onAuth);
+  const label = isYoutubeChannelId(card.title) ? 'YouTube channel' : card.title;
+  const written = writtenTitle(card, label);
+  const unnamed = !written && isUnnamedTopic(label);
+  const title = written || (unnamed ? UNNAMED_TOPIC_WORDS : label);
+  const question = askQuestion(card, label, written);
+
   const tag = TAG_WORDS[card.tag];
   const status = card.explanation_status || (card.explained ? 'explained' : 'failed_checks');
   const watching = Boolean(card.watch_id);
@@ -324,7 +329,7 @@ const TAPS = [['real', 'Real'], ['not_real', 'Not real'], ['useful', 'Useful']];
 /* One-tap feedback (contract.md section 10.6). It tells reviewers where to
    look and never feeds the trust numbers. A tap never waits on the one
    before it; the latest tap's answer is the one shown. */
-function Feedback({card, title, market, date, onFeedback, onAuth}){
+export function Feedback({card, title, market, date, onFeedback, onAuth}){
   const [note, setNote] = useState({value: null, status: 'idle'});
   const latest = useRef(0);
   useEffect(() => () => { latest.current = -1; }, []);
@@ -356,7 +361,7 @@ function Feedback({card, title, market, date, onFeedback, onAuth}){
 
 /* The five-step neutral marker: Emerging, Rising, Peaking, Mainstream,
    Fading. Its rule shows on focus and hover and is its description. */
-function Lifecycle({lifecycle, id}){
+export function Lifecycle({lifecycle, id}){
   const step = Math.max(1, Math.min(5, Number(lifecycle.step) || 1));
   const rule = lifecycleRuleWords(lifecycle.rule);
   return (
@@ -378,7 +383,7 @@ function Lifecycle({lifecycle, id}){
   );
 }
 
-function Novelty({card}){
+export function Novelty({card}){
   const word = NOVELTY_WORDS[card.novelty];
   if (!word) return null;
   const wave = card.novelty === 'recurrence' && card.last_wave && card.last_wave.peak_date ? card.last_wave : null;
@@ -414,7 +419,7 @@ export function bigFigures(card){
 export const REACH_MEASURED_NOTE = 'Counts only trending boards and followed accounts, which is what the quality checks use.';
 export const REACH_EVERY_NOTE = 'Every collection lane 42 reads, over 7 days, with flagged accounts left out. The 3-day reach counts only trending boards and followed accounts, which is what the quality checks use.';
 
-function BigFigures({figures, reach, reach7 = null}){
+export function BigFigures({figures, reach, reach7 = null}){
   if (figures.length === 0 && !reach7) return null;
   const sevenValue = reach7 ? readerFigure(reach7.value) : '';
   return (
@@ -447,7 +452,7 @@ function BigFigures({figures, reach, reach7 = null}){
   );
 }
 
-function Figure({name, label, figure, missing}){
+export function Figure({name, label, figure, missing}){
   const present = isFigure(figure);
   return (
     <span className="tc-figure" data-figure={name} data-query-id={present ? figure.query_id : undefined}>
@@ -485,11 +490,38 @@ function spanWords(first, last){
    A drawn series always carries its own caption (unit, days, latest value
    and missing days), a zero baseline and a mark on each measured day, so a
    gap reads as a day not collected rather than a broken line. */
-export function Sparkline({sparkline, minDays = MIN_CHART_DAYS}){
+/* wide: the line fills the width of the panel it sits in. The drawing is laid
+   out in that width's own pixels, so its dates and figures stay the size of the
+   page's small type at any width, and its height is fixed, so the page does not
+   move when the width is measured. Until it is measured the drawing is laid out
+   at WIDE_WIDTH. */
+const WIDE_WIDTH = 480;
+const WIDE_HEIGHT = 112;
+const WIDE_FOOT = 24;
+function useMeasuredWidth(active){
+  const holder = useRef(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = holder.current;
+    if (!active || !el || typeof ResizeObserver !== 'function') return undefined;
+    const read = () => {
+      const next = Math.round(el.getBoundingClientRect().width);
+      setWidth((now) => (next >= 200 && Math.abs(next - now) >= 2 ? next : now));
+    };
+    read();
+    const watch = new ResizeObserver(read);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [active]);
+  return [holder, width];
+}
+
+export function Sparkline({sparkline, minDays = MIN_CHART_DAYS, wide = false}){
   /* Night Desk, 4 October 2026: the line answers a pointer with the nearest
      measured day's figure (styles/nightdesk.css). The caption still carries
      the latest figure for readers who never point. */
   const [probe, setProbe] = useState(null);
+  const [holder, fitted] = useMeasuredWidth(wide);
   /* A missing entry reads as a day with no value, never as a crash. */
   const points = sparkline && Array.isArray(sparkline.points) ? sparkline.points.map((p) => p || {}) : [];
   if (points.length === 0) return null;
@@ -500,7 +532,7 @@ export function Sparkline({sparkline, minDays = MIN_CHART_DAYS}){
   if (measuredDays < MIN_CHART_DAYS) return <p className="t42-status t42-spark-empty">Not enough measured days yet</p>;
   /* Visual pass, 3 October 2026: the first and last day sit under the
      baseline, so the line has a time scale as well as a value scale. */
-  const W = 264, H = 64, pad = 4, gutter = 28, foot = 16;
+  const W = wide ? (fitted || WIDE_WIDTH) : 264, H = wide ? WIDE_HEIGHT : 64, pad = wide ? 8 : 4, gutter = wide ? 32 : 28, foot = wide ? WIDE_FOOT : 16;
   const peak = Math.max(1, ...points.flatMap((p) => [p.value, p.expected_high].filter(num)));
   const x = (i) => (points.length === 1 ? (gutter + W) / 2 : gutter + pad + (i * (W - gutter - 2 * pad)) / (points.length - 1));
   const y = (v) => H - pad - (Math.max(0, v) / peak) * (H - 2 * pad);
@@ -569,9 +601,9 @@ export function Sparkline({sparkline, minDays = MIN_CHART_DAYS}){
   const probeWords = probe === null ? '' : dayWord(points[probe].date) + ': ' + seriesFigure(points[probe].value);
   const probeX = probe === null ? 0 : Math.min(W - 2, Math.max(gutter + 2, x(probe)));
   return (
-    <figure className="t42-trend">
+    <figure className="t42-trend" ref={holder}>
       <figcaption className="t42-trend-caption"><Facts parts={caption} /></figcaption>
-      <svg className="t42-spark" viewBox={'0 0 ' + W + ' ' + (H + foot)} width={W} height={H + foot} aria-hidden="true"
+      <svg className="t42-spark" viewBox={'0 0 ' + W + ' ' + (H + foot)} width={wide ? '100%' : W} height={H + foot} aria-hidden="true" data-wide={wide ? '' : undefined} preserveAspectRatio={wide ? "xMinYMid meet" : undefined}
         onPointerMove={onProbe} onPointerDown={onProbe} onPointerLeave={() => setProbe(null)}>
         {/* The caption above says what the line shows, so the drawing is not read twice. */}
         {/* The scale: zero on the baseline and the top of the range above it. */}
@@ -585,6 +617,7 @@ export function Sparkline({sparkline, minDays = MIN_CHART_DAYS}){
         {bridge && <path className="t42-gap" d={bridge} fill="none" />}
         {line && <path className="t42-line" d={line} fill="none" strokeLinecap="round" strokeLinejoin="round" pathLength="1" />}
         {measured.map((i, k) => <circle key={i} className={k === measured.length - 1 ? 't42-dot t42-dot-now' : 't42-dot'} cx={fix(x(i))} cy={fix(y(points[i].value))} r={k === measured.length - 1 ? '3.5' : '2'} />)}
+        {wide && measured.length > 0 && <text className="t42-now-label" x={fix(Math.min(W - 2, x(measured[measured.length - 1])))} y={fix(Math.max(pad + 10, y(points[measured[measured.length - 1]].value) - 10))} textAnchor="end">{seriesFigure(points[measured[measured.length - 1]].value)}</text>}
         {probe !== null && (
           <g className="t42-probe">
             <line className="t42-probe-rule" x1={fix(x(probe))} x2={fix(x(probe))} y1={pad} y2={H - pad} />
@@ -598,7 +631,7 @@ export function Sparkline({sparkline, minDays = MIN_CHART_DAYS}){
 
 /* Up to two stills. A post with no usable image, or one that fails to load,
    leaves no frame behind: an empty box says nothing a reader can use. */
-function Thumbnails({card}){
+export function Thumbnails({card}){
   const [failed, setFailed] = useState([]);
   const ids = (card.thumbnails || []).slice(0, 2);
   const evidence = card.evidence || [];

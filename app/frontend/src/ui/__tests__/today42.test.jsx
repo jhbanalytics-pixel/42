@@ -2300,13 +2300,16 @@ test('a single market tab does not repeat the market name as a heading; All name
   expect([...host.querySelectorAll('.t42-market-name')].map((h) => h.textContent)).toEqual(['South Africa', 'Nigeria', 'Kenya']);
 });
 
-test('the card puts its title and state in one head row and gives Ask the one primary action', async () => {
+/* Restated for the story card (Albert approved it, 10 October 2026): the title
+   and the tag badge lead the story zone on the left, and the state is the
+   momentum chip in the live panel on the right, instead of one head row. */
+test('the card puts its title and tag in the story zone, its state in the live panel, and gives Ask the one primary action', async () => {
   await mount();
   const card = cardTitled('#fixture_za_step');
-  const head = card.querySelector(':scope > .t42-card-head');
-  expect(head.querySelector('h3').textContent).toBe('#fixture_za_step');
-  expect(head.querySelector('.t42-tag').textContent).toBe('Moved up');
-  expect(head.querySelector('.t42-state').textContent).toBe('Emerging');
+  const story = card.querySelector('.sc-story');
+  expect(story.querySelector('h3').textContent).toBe('#fixture_za_step');
+  expect(story.querySelector('.sc-badge-tag').textContent).toBe('Moved up');
+  expect(card.querySelector('.sc-live .sc-momentum').textContent).toBe('Emerging');
   const actions = card.querySelector('.t42-card-foot .t42-actions');
   const primary = actions.querySelectorAll('.t42-action-primary');
   expect(primary).toHaveLength(1);

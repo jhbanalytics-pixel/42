@@ -14,12 +14,15 @@ import {snapshotTime} from './plainLabels.js';
 import {safeUrl} from './safeUrl.js';
 import {SearchingNow} from './ui/SearchingNow.jsx';
 import {TodayBoards} from './ui/TodayBoards.jsx';
-import {EvidenceList, PostsShownNote, Sparkline, TrendCard, bigFigures, countLineWords, figureWords, longDate, proseDates, topicHref} from './ui/TrendCard.jsx';
+import {EvidenceList, PostsShownNote, countLineWords, longDate, proseDates, topicHref} from './ui/TrendCard.jsx';
+import {StoryCard, countedCreators} from './ui/StoryCard.jsx';
+import {LeadPanel} from './ui/LeadPanel.jsx';
 import {PartsBar, StepMeter} from './ui/Charts42.jsx';
 import {FigureLine} from './ui/FigureLine.jsx';
 import {Facts} from './ui/Facts.jsx';
 import {MARKET_WORDS, heldWords, useCardWatch} from './ui/WatchDialog.jsx';
 import './styles/today42.css';
+import './styles/today-story.css';
 import './styles/alerts42.css';
 
 const MARKETS = ['ZA', 'NG', 'KE'];
@@ -215,8 +218,10 @@ function todaySpecificityView(card){
 }
 
 function prepareTodayMarket(market){
+  /* A published card whose counted creators is 0 is never drawn. */
   const cards = (Array.isArray(market.cards) ? market.cards : [])
-    .concat(Array.isArray(market.more) ? market.more : []);
+    .concat(Array.isArray(market.more) ? market.more : [])
+    .filter((card) => countedCreators(card) !== 0);
   const admitted = cards.flatMap((card) => {
     const specificity = todaySpecificityView(card);
     return specificity ? [{card, specificity}] : [];
@@ -391,7 +396,23 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
         {headline && (
           <div className="t42-lead" data-today-lead="">
             <p className="t42-headline"><HeadlineText text={headline.text} term={headlineTerm(markets, headline)} /></p>
-            <LeadSide card={headlineCard(markets, headline)} />
+            <LeadPanel {...headlineLead(markets, headline)} date={briefDate || date} watch={watch} />
+          </div>
+        )}
+        {isLoading && (
+          <div className="t42-loading-structure sc-loading-hero" aria-hidden="true">
+              <div className="sc-skeleton-hero">
+                <div className="sc-skeleton-hero-text">
+                  <span className="t42-loading-shape sc-skeleton-headline" />
+                  <span className="t42-loading-shape sc-skeleton-headline" />
+                  <span className="t42-loading-shape sc-skeleton-headline sc-skeleton-headline-short" />
+                </div>
+                <div className="sc-skeleton-panel">
+                  <span className="t42-loading-shape sc-skeleton-number" />
+                  <span className="t42-loading-shape sc-skeleton-chart" />
+                  <span className="t42-loading-shape t42-loading-card-line" />
+                </div>
+              </div>
           </div>
         )}
         {/* One status area: a warning that changes how the page is read leads
@@ -411,9 +432,9 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
           )}
           {warmup && <StepMeter value={warmup.day} of={warmup.of} data="data-today-warmup-meter" />}
         </div>
+        <FirstVisitGuide />
       </header>
       {allMarketsEmpty && <p className="t42-line-text" data-today-history-link=""><a className="t42-link" href="#/history">Choose a past brief in History</a></p>}
-      <FirstVisitGuide />
       {/* Fired alerts lead the page. A read that is still loading or failed
           shows nothing (UX pass, 3 October 2026): Alerts is in the menu, and a
           side module's state should not take the place of the brief. */}
@@ -447,11 +468,21 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
       <div id="t42-panel" role="tabpanel" aria-labelledby={'t42-tab-' + tab} aria-busy={isLoading ? 'true' : undefined}>
         {isLoading && (
           <div className="t42-loading-structure" aria-hidden="true">
-            <div className="t42-loading-card">
-              <span className="t42-loading-shape t42-loading-card-meta" />
-              <span className="t42-loading-shape t42-loading-card-title" />
-              <span className="t42-loading-shape t42-loading-card-line" />
-              <span className="t42-loading-shape t42-loading-card-line-short" />
+            <div className="sc-skeleton-card">
+              <div className="sc-skeleton-story">
+                <span className="t42-loading-shape t42-loading-card-meta" />
+                <span className="t42-loading-shape t42-loading-card-title" />
+                <span className="t42-loading-shape t42-loading-card-line" />
+                <span className="t42-loading-shape t42-loading-card-line-short" />
+              </div>
+              <div className="sc-skeleton-live">
+                <span className="t42-loading-shape sc-skeleton-number" />
+                <span className="t42-loading-shape sc-skeleton-chart" />
+              </div>
+              <div className="sc-skeleton-tiles">
+                <span className="t42-loading-shape sc-skeleton-tile" />
+                <span className="t42-loading-shape sc-skeleton-tile" />
+              </div>
             </div>
           </div>
         )}
@@ -731,39 +762,13 @@ function headlineTerm(markets, headline){
   return '';
 }
 
-function headlineCard(markets, headline){
+function headlineLead(markets, headline){
   for (const entry of markets){
     if (entry.market.market !== headline.market) continue;
     const hit = entry.admitted.find(({card}) => card.item_id === headline.item_id);
-    if (hit) return hit.card;
+    if (hit) return {card: hit.card, specificity: hit.specificity, market: entry.market.market};
   }
-  return null;
-}
-
-/* The poster's trend in figures: its lead number and its line, beside the
-   headline on a wide screen (styles/nightdesk.css). The card below says the
-   same facts in full for screen readers, so this panel is drawn for the eye
-   only; the number still names its query. */
-function LeadSide({card}){
-  if (!card) return null;
-  const [lead] = bigFigures(card);
-  const points = card.sparkline && Array.isArray(card.sparkline.points) ? card.sparkline.points : [];
-  /* The line comes only when it can be drawn (three measured days, as on the
-     card); the panel never carries the card's "not enough days" note. */
-  const drawn = points.filter((p) => p && typeof p.value === 'number' && Number.isFinite(p.value)).length >= 3;
-  if (!lead && !drawn) return null;
-  const value = lead ? readerFigure(lead.value) : '';
-  return (
-    <aside className="t42-lead-side" aria-hidden="true" data-today-lead-side="">
-      {lead && (
-        <p className="t42-lead-figure" data-query-id={lead.query_id} title={'From query ' + lead.query_id}>
-          <span className="t42-lead-value">{value}</span>
-          <span className="t42-lead-unit">{figureWords(lead).slice(value.length)}</span>
-        </p>
-      )}
-      {drawn && <Sparkline sparkline={card.sparkline} />}
-    </aside>
-  );
+  return {card: null, specificity: null, market: headline.market};
 }
 
 function HeadlineText({text, term}){
@@ -907,8 +912,8 @@ function MarketBlock({market, headline, rejected = 0, compact, date, skipBanner,
           <p className="t42-line-text" data-today-count-window="">Creator and post counts are in the last 3 days.</p>
           <ol className="t42-cards" data-ranked="" id={listId}>
             {cards.map((card, index) => (
-              <TrendCard key={card.item_id} index={index} card={watch.mark(card, market.market)} market={market.market} date={card.date || date}
-                onAuth={onAuth} onWatch={watch.onWatch} onFeedback={onFeedback} linkTopic tapToOpen
+              <StoryCard key={card.item_id} index={index} card={watch.mark(card, market.market)} market={market.market} date={card.date || date}
+                onAuth={onAuth} onWatch={watch.onWatch} onFeedback={onFeedback}
                 className={saysHeadline(headline, card, specificityByItemId.get(card.item_id)) ? 't42-card-headline-said' : undefined}
                 todaySpecificity={specificityByItemId.get(card.item_id)} />
             ))}

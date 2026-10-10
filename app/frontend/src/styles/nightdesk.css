@@ -164,13 +164,6 @@ html .oi-product .t42 .t42-headline .t42-headline-term { color: var(--heat-3); }
    large in the heat colour and the trend line under it, on one hot rule
    (design review, 4 October 2026). A narrow screen shows the card itself
    straight after, so the panel stays out of the way there. */
-html .oi-product .t42 .t42-lead { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: end; margin: 0 0 var(--s-5); }
-html .oi-product .t42 .t42-lead > .t42-headline { margin: 0; }
-html .oi-product .t42 .t42-lead-side { display: none; }
-@media (min-width: 1200px) {
-  html .oi-product .t42 .t42-lead { grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); }
-  html .oi-product .t42 .t42-lead-side { display: grid; gap: var(--s-3); padding: var(--s-2) 0 0 var(--s-5); border-left: 2px solid var(--heat-3); }
-}
 html .oi-product .t42 .t42-lead-figure { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); }
 html .oi-product .t42 .t42-lead-value {
   font-family: var(--nd-face);
@@ -182,9 +175,7 @@ html .oi-product .t42 .t42-lead-value {
   font-variant-numeric: tabular-nums;
 }
 html .oi-product .t42 .t42-lead-unit { font-size: var(--nd-t-label); color: var(--ink-2); }
-html .oi-product .t42 .t42-lead-side .t42-spark { width: 100%; height: auto; }
-/* The big figure says the number; the card below keeps the line's caption. */
-html .oi-product .t42 .t42-lead-side .t42-trend-caption { display: none; }
+/* The lead layout, its panel and the chart in it are in today-story.css. */
 
 /* Glance band: three markets side by side on one rule, figure first. */
 html .oi-product .t42 .t42-glance-list { gap: 1px; background: var(--line); border: 1px solid var(--line); }
