@@ -70,6 +70,19 @@ def test_tm01_every_file_of_a_partition_exists_and_no_file_is_in_both():
         assert (ROOT / rel).is_file(), rel
 
 
+def test_tm01_the_fake_gcloud_real_child_test_is_deploy_evidence_that_skips_under_a_loaded_guard_and_its_git_sibling_does_not():
+    """A loaded offline guard refuses every gcloud, so the gcloud node runs only in the unguarded deploy partition run."""
+    rel = "core/setup/tests/test_services_paste.py"
+    assert rel in load_map()["partitions"]["deploy"]
+    tree = ast.parse((ROOT / rel).read_text(encoding="utf-8"))
+    nodes = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    gcloud = nodes["test_f11_a_real_readback_child_runs_the_install_gcloud_and_never_the_planted_one"]
+    git = nodes["test_f11_real_git_children_run_the_install_git_and_never_the_planted_one"]
+    gates = [ast.unparse(d) for d in gcloud.decorator_list]
+    assert len(gates) == 1 and gates[0].startswith("pytest.mark.skipif(offline_guard_loaded(), reason=")
+    assert git.decorator_list == []
+
+
 def test_tm01_the_pending_and_not_applicable_ids_are_exactly_the_ones_this_branch_does_not_build():
     data = load_map()
     states = {ident: e["status"] for ident, e in data["ids"].items() if e["status"] != "built"}
@@ -135,7 +148,8 @@ def test_tm03_a_missing_prerequisite_is_named_not_skipped(tmp_path):
 
 
 def test_tm03_the_new_test_files_carry_no_skip_marker_but_the_one_that_names_its_reason():
-    allowed = {"core/setup/tests/test_declared_env_removals.py": "kept out of the repository"}
+    allowed = {"core/setup/tests/test_declared_env_removals.py": "kept out of the repository",
+               "core/setup/tests/test_services_paste.py": "refuses every gcloud by design"}
     for rel in list(locklib.TEST_FILES) + ["core/setup/tests/paste_world.py", "core/setup/tests/release_world.py", "core/api/tests/smoke_support.py"]:
         path = ROOT / rel
         if not path.is_file() or path.suffix != ".py":
