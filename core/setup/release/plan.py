@@ -16,6 +16,7 @@ import os
 import re
 from dataclasses import dataclass
 
+from core.setup.release import jobs_only as jo
 from core.setup.release.services_only import PHASES
 
 PROJECT = "ogilvy-trends-v2"
@@ -60,6 +61,7 @@ class Step:
     argv: tuple
     requires: str | None = None  # the step that must have passed before this one is issued
     conditional: str | None = None  # a readback fact the step depends on
+    via: str | None = None  # the orchestrator that issues the step, when the paste does not
 
 
 def step(name, argv, **kw):
@@ -330,3 +332,185 @@ def deploy_call_allowed(argv):
     if any(not re.fullmatch(r"[0-9]+", flags[f]) for f in DEPLOY_NUMBERS if f in flags):
         return False
     return "--remove-env-vars" not in flags or bool(PLAIN_NAME_LIST.fullmatch(flags["--remove-env-vars"]))
+
+
+# Release B, the jobs image release (W8-REL-B 3.4, 3.6): the same discipline for three actions. The update order is the
+# contract's (jobs_only.UPDATE_ORDER) and is not a field of the context.
+
+JOBS_REPO = jo.JOBS_REPO
+JOB_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+CHAIN_ROLES = ("baseline", "first-b")
+JOBS_RUN_ACTIONS = ("snapshot", "update", "rollback", "schema-receipt")
+BUILD_BUCKET = "gs://ogilvy-trends-v2-f42-media-staging/build-source"
+BUILDS_URL = f"https://cloudbuild.googleapis.com/v1/projects/{PROJECT}/locations/{REGION}/builds"
+
+
+@dataclass(frozen=True)
+class JobsCtx:
+    """What a jobs plan is rendered from. The digests come from the frozen manifest and the bindings, never from a live job."""
+
+    release_id: str
+    commit: str
+    helper: str
+    runner: str
+    bindings: str
+    evidence: str
+    digest: str
+    rollback_digest: str
+    image_tag: str
+    archive: str = "<archive>"
+    extract_dir: str = "<extract dir>"
+    manifest: str = "<durable manifest>"
+    schema_effects: bool = False
+
+
+def _digest(value):
+    if not isinstance(value, str) or not JOB_DIGEST.fullmatch(value):
+        raise ValueError("a jobs digest is sha256: and 64 lowercase hex characters")
+    return value
+
+
+def jobs_helper(ctx, phase):
+    return step(f"helper:{phase}", ["py", "-3.13", ctx.helper, "--mode", "jobs", "--phase", phase, "--bindings", ctx.bindings, "--evidence", ctx.evidence])
+
+
+def jobs_run(ctx, action):
+    return step(f"jobs_run:{action}", ["py", "-3.13", ctx.runner, action, "--bindings", ctx.bindings, "--evidence", ctx.evidence])
+
+
+def job_update(job, digest, name):
+    return step(name, ["gcloud", "run", "jobs", "update", job, "--image", f"{JOBS_REPO}@{_digest(digest)}", "--project", PROJECT, "--region", REGION,
+                       "--quiet"])
+
+
+def job_readback(job, name):
+    return step(name, ["gcloud", "run", "jobs", "describe", job, "--project", PROJECT, "--region", REGION, "--format=json"])
+
+
+def update_pairs(order, digest, label):
+    """The 14 updates, each followed at once by the read of that job's description."""
+    pairs = []
+    for job in order:
+        pairs += [job_update(job, digest, f"{label}:{job}"), job_readback(job, f"readback:{job}")]
+    return pairs
+
+
+def jobs_candidate(ctx):
+    """3.4 JobsCandidate. The quiet snapshot and the window come before the schema apply (JU-07)."""
+    steps = [
+        step("assert:head", ["git", "rev-parse", "HEAD"]), step("assert:tree", ["git", "rev-parse", "HEAD^{tree}"]),
+        step("assert:status", ["git", "status", "--porcelain=v1"]),
+        step("assert:identity", ["gcloud", "config", "list", f"--format={IDENTITY_FIELDS}"]),
+        jobs_helper(ctx, "BeforeAnyWrite"),
+        step("archive", ["git", "archive", "--format=tar", f"--output={ctx.archive}", ctx.commit]),
+        step("extract", [SYSTEM_TAR, "-xf", ctx.archive, "-C", ctx.extract_dir]),
+        step("build:upload", ["gcloud", "storage", "cp", ctx.archive, f"{BUILD_BUCKET}/jobs-{ctx.commit[:12]}-{ctx.release_id[-2:]}.tar.gz",
+                              "--no-clobber", f"--project={PROJECT}"]),
+        step("build:create", ["POST", BUILDS_URL]),
+        jobs_helper(ctx, "FreezeJobs"),
+        checker(_services_view(ctx), "validate"),
+        step("snapshot", ["py", "-3.13", ctx.runner, "snapshot", "--bindings", ctx.bindings, "--evidence", ctx.evidence]),
+    ]
+    if ctx.schema_effects:
+        steps.append(step("schema_apply", ["py", "-3.13", "-m", "core.schema.apply", "--apply"]))
+    steps.append(checker(_services_view(ctx), "readbacks"))
+    steps.append(jobs_run(ctx, "schema-receipt"))
+    return steps
+
+
+def _services_view(ctx):
+    return Ctx(release_id=ctx.release_id, commit=ctx.commit, helper=ctx.helper, bindings=ctx.bindings, evidence=ctx.evidence,
+               manifest=ctx.manifest, manifest_sha256="0" * 64, api_tag_url="", a80={}, image_tag=ctx.image_tag)
+
+
+def jobs_update(ctx):
+    """3.4 JobsUpdate: one snapshot read before the words, the 14 updates through the orchestrator, then the readback."""
+    wrapper = dataclasses.replace(jobs_run(ctx, "update"), name="jobs_run:update")
+    pairs = [dataclasses.replace(s, via="jobs_run") for s in update_pairs(jo.UPDATE_ORDER, ctx.digest, "update")]
+    return [jobs_helper(ctx, "BeforeJobsUpdate"), wrapper, *pairs, jobs_helper(ctx, "AfterJobsUpdate")]
+
+
+def jobs_rollback(ctx):
+    """3.9 JobsRollback: collect first, watchdog last, each with the rollback digest, and nothing typed."""
+    wrapper = jobs_run(ctx, "rollback")
+    pairs = [dataclasses.replace(s, via="jobs_run") for s in update_pairs(tuple(reversed(jo.UPDATE_ORDER)), ctx.rollback_digest, "restore")]
+    return [jobs_helper(ctx, "BeforeJobsRollback"), wrapper, *pairs, jobs_helper(ctx, "AfterJobsRollback")]
+
+
+JOBS_ACTIONS = {"JobsCandidate": jobs_candidate, "JobsUpdate": jobs_update, "JobsRollback": jobs_rollback}
+
+
+def _jobs_helper(a):
+    return (len(a) == 11 and a[:2] == ["py", "-3.13"] and a[2].endswith("bound_readback.py") and a[3:6] == ["--mode", "jobs", "--phase"]
+            and a[6] in jo.PHASES and a[7] == "--bindings" and a[9] == "--evidence")
+
+
+def _jobs_update(a):
+    return (len(a) == 12 and a[:4] == ["gcloud", "run", "jobs", "update"] and a[4] in so_jobs() and a[5] == "--image"
+            and bool(re.fullmatch(rf"{re.escape(JOBS_REPO)}@sha256:[0-9a-f]{{64}}", a[6])) and a[7:] == ["--project", PROJECT, "--region", REGION, "--quiet"])
+
+
+def so_jobs():
+    from core.setup.release.services_only import JOB_NAMES
+
+    return JOB_NAMES
+
+
+def _jobs_read(a):
+    return len(a) == 10 and a[:4] == ["gcloud", "run", "jobs", "describe"] and a[4] in so_jobs() and a[5:] == ["--project", PROJECT, "--region", REGION, "--format=json"]
+
+
+def _executions_read(a):
+    tail = ["--project", PROJECT, "--region", REGION, "--format=json"]
+    if len(a) == 12 and a[:5] == ["gcloud", "run", "jobs", "executions", "list"] and a[5] == "--job" and a[6] in so_jobs() and a[7:] == tail:
+        return True
+    return (len(a) == 11 and a[:5] == ["gcloud", "run", "jobs", "executions", "describe"] and bool(re.fullmatch(r"f42-[a-z0-9-]+", a[5]))
+            and a[6:] == tail)
+
+
+def _chain_evidence(a):
+    return (len(a) == 11 and a[:3] == ["py", "-3.13", "core/setup/release/chain_evidence.py"] and a[3] == "--date"
+            and bool(re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", a[4])) and a[5] == "--bindings" and a[7] == "--evidence" and a[9] == "--expect"
+            and a[10] in CHAIN_ROLES)
+
+
+def _jobs_run(a):
+    return (len(a) == 8 and a[:2] == ["py", "-3.13"] and a[2].endswith("jobs_run.py") and a[3] in JOBS_RUN_ACTIONS and a[4] == "--bindings"
+            and a[6] == "--evidence")
+
+
+def _jobs_build(a):
+    if len(a) == 7 and a[:3] == ["gcloud", "storage", "cp"]:
+        return (bool(re.fullmatch(rf"{re.escape(BUILD_BUCKET)}/jobs-[0-9a-f]{{12}}-[0-9]{{2}}\.tar\.gz", a[4])) and a[5:] == ["--no-clobber", f"--project={PROJECT}"])
+    return a == ["POST", BUILDS_URL]
+
+
+# The positive list of the jobs actions. It is its own table: the services allowlist above stays services only, so the services
+# paste can never pass a jobs update, and the jobs paste can never pass a traffic change or a services phase.
+JOBS_ALLOWED = {
+    "git_read": ALLOWED["git_read"], "archive": ALLOWED["archive"], "identity": ALLOWED["identity"], "checker": ALLOWED["checker"],
+    "schema_apply": ALLOWED["schema_apply"],
+    "helper": _jobs_helper, "jobs_update": _jobs_update, "jobs_read": _jobs_read, "executions_read": _executions_read,
+    "chain_evidence": _chain_evidence, "jobs_run": _jobs_run, "jobs_build": _jobs_build,
+}
+
+
+def jobs_matching_entries(argv):
+    argv = list(argv)
+    return [name for name, accepts in JOBS_ALLOWED.items() if accepts(argv)]
+
+
+def check_jobs_allowlist(steps):
+    """Every external invocation of a jobs action matches exactly one entry; the first that does not is returned, else None."""
+    for s in steps:
+        if len(jobs_matching_entries(s.argv)) != 1:
+            return s
+    return None
+
+
+def executions_list(job, name):
+    return step(name, ["gcloud", "run", "jobs", "executions", "list", "--job", job, "--project", PROJECT, "--region", REGION, "--format=json"])
+
+
+def execution_describe(execution, name):
+    return step(name, ["gcloud", "run", "jobs", "executions", "describe", execution, "--project", PROJECT, "--region", REGION, "--format=json"])

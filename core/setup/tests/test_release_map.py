@@ -14,9 +14,13 @@ from core.setup.tests import release_prereq
 
 ROOT = Path(__file__).resolve().parents[3]
 MAP = ROOT / "core/setup/tests/release_test_ids.json"
-COUNTS = {"DS": 22, "RT": 5, "PS": 23, "HR": 54, "AU": 9, "CT": 7, "DE": 15, "TM": 5, "SM": 1}
-PARTITION_OF_PREFIX = {"HR": "core", "AU": "core", "DE": "core", "TM": "core", "SM": "core", "DS": "deploy", "RT": "deploy", "PS": "deploy", "CT": "deploy"}
-NODE = re.compile(r"^test_(hr|au|ds|rt|ps|ct|de|tm|sm)(\d\d)(?:_|$)")
+COUNTS = {"DS": 22, "RT": 5, "PS": 23, "HR": 54, "AU": 9, "CT": 7, "DE": 15, "TM": 5, "SM": 1,
+          "JM": 11, "JB": 8, "JS": 11, "JU": 10, "JR": 6, "JX": 8, "JP": 6}
+PARTITION_OF_PREFIX = {"HR": "core", "AU": "core", "DE": "core", "TM": "core", "SM": "core", "DS": "deploy", "RT": "deploy", "PS": "deploy", "CT": "deploy",
+                       "JM": "core", "JB": "core", "JS": "core", "JR": "core", "JX": "core", "JU": "deploy", "JP": "deploy"}
+NODE = re.compile(r"^test_(hr|au|ds|rt|ps|ct|de|tm|sm|jm|jb|js|ju|jr|jx|jp)(\d\d)(?:_|$)")
+# The folders the nodes are collected from. core/collect/tests and core/detect/tests hold the three Release B nodes the lane 6 and lane 5 files own.
+COLLECTION_ROOTS = ("core/setup/tests", "core/api/tests", "core/schema/tests", "core/collect/tests", "core/detect/tests")
 
 
 def load_map():
@@ -30,7 +34,7 @@ def declared_ids():
 def collected():
     """{id: {file, ...}} from every test file under the three test folders, read from the source (the names pytest collects)."""
     found = {}
-    for folder in ("core/setup/tests", "core/api/tests", "core/schema/tests"):
+    for folder in COLLECTION_ROOTS:
         for path in sorted((ROOT / folder).glob("test_*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"))
             for node in ast.walk(tree):
@@ -75,7 +79,8 @@ def test_tm01_the_pending_and_not_applicable_ids_are_exactly_the_ones_this_branc
     states = {ident: e["status"] for ident, e in data["ids"].items() if e["status"] != "built"}
     assert {i for i, s in states.items() if s == "not_applicable"} == {"HR-03", "HR-48"}
     # AU-01 to AU-09 were pending on wave8/release, which had no audience split; wave8/api builds them in test_app.py
-    assert {i for i, s in states.items() if s == "pending"} == set()
+    pending = {f"JB-{n:02d}" for n in range(1, 9)} | {f"JS-{n:02d}" for n in range(1, 12)} | {"JX-06", "JX-08"}
+    assert {i for i, s in states.items() if s == "pending"} == pending
 
 
 # TM-02: the lock

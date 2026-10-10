@@ -537,6 +537,327 @@
    "partition": "core",
    "status": "built"
   },
+  "JB-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B build and digest requirements belong to the build lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JB-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B build and digest requirements belong to the build lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JB-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B build and digest requirements belong to the build lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JB-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B build and digest requirements belong to the build lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JB-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B build and digest requirements belong to the build lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JB-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B build and digest requirements belong to the build lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JB-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B build and digest requirements belong to the build lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JB-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B build and digest requirements belong to the build lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JM-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-09": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-10": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-11": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JP-01": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JP-02": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JP-03": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JP-04": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JP-05": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JP-06": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JR-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JR-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JR-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JR-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JR-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JR-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JS-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JS-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JS-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JS-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JS-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JS-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JS-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JS-09": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JS-10": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JS-11": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the Release B schema and jobs-owned DDL requirements belong to the schema lane; this tooling does not carry them yet",
+   "status": "pending"
+  },
+  "JU-01": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-02": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-03": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-04": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-05": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-06": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-07": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-08": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-09": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-10": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JX-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the data contract pairs run the B source commit's own stage code, which is not in this checkout; needs the reviewed integration head",
+   "status": "pending"
+  },
+  "JX-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the old readers over a B-written corpus need the B source commit and the corpus the JB and JS requirements produce",
+   "status": "pending"
+  },
   "PS-01": {
    "owner": "lane 3",
    "partition": "deploy",
@@ -721,6 +1042,9 @@
    "core/setup/tests/test_release_plan.py",
    "core/api/tests/test_old_readers.py",
    "core/api/tests/test_app.py",
+   "core/setup/tests/test_chain_evidence.py",
+   "core/setup/tests/test_jobs_readback.py",
+   "core/setup/tests/test_jobs_prefix.py",
    "core/setup/tests/test_release_packet.py"
   ],
   "deploy": [
@@ -729,6 +1053,11 @@
    "core/api/tests/test_agent_compat.py",
    "core/setup/tests/test_release_retry.py",
    "core/setup/tests/test_services_paste.py",
+   "core/setup/tests/test_jobs_plan.py",
+   "core/setup/tests/test_jobs_update.py",
+   "core/setup/tests/test_jobs_checks.py",
+   "core/setup/tests/test_jobs_paste.py",
+   "core/setup/tests/test_jobs_hygiene.py",
    "core/setup/tests/test_release_packet_paste.py"
   ]
  },
