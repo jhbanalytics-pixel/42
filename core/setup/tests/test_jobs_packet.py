@@ -531,9 +531,10 @@ def test_review_reject_is_recorded_as_reject(bench, capsys):
 
 # receipt
 
-def receipt_world(bench, capsys, text=None):
+def receipt_world(bench, capsys, text=None, quiet=None):
     reviewed_bench(bench, capsys)
     bench.line.write_text((bench.line_text() if text is None else text) + chr(10), encoding="utf-8")
+    bench.quiet_line_file.write_text((bench.quiet_text() if quiet is None else quiet) + chr(10), encoding="utf-8")
 
 
 def test_receipt_is_written_from_the_line_albert_typed_and_has_the_shape_the_jobs_paste_reads(bench, capsys):
@@ -595,6 +596,7 @@ def test_receipt_refuses_a_line_that_is_not_the_one_the_packet_asks_albert_to_ty
 def test_receipt_accepts_the_line_albert_approved_word_for_word(bench, capsys):
     reviewed_bench(bench, capsys)
     bench.line.write_text(jpw.APPROVED_LINE.format(release_id=bench.release_id) + chr(10), encoding="utf-8")
+    bench.quiet_line_file.write_text(jpw.QUIET_LINE.format(release_id=bench.release_id) + chr(10), encoding="utf-8")
     code, out, err = run(bench.receipt_argv(), capsys)
     assert code == 0, err
     assert json.loads(bench.receipt.read_text(encoding="utf-8"))["release_id"] == bench.release_id
@@ -606,6 +608,55 @@ def test_receipt_refuses_the_release_a_line_in_mode_jobs_and_the_jobs_line_in_mo
     assert code == 1 and "authorisation line" in err and not bench.receipt.exists()
     with pytest.raises(packet.Refused):
         packet.check_authorisation(jpw.authorisation_line(bench.release_id), bench.release_id)
+
+
+def test_the_jobs_quiet_line_is_release_a_s_own_sentence_with_the_release_b_id_in_front_and_nothing_else():
+    line = packet.JOBS_QUIET_TEMPLATE.format(release_id="rel-abcdef0-01")
+    assert line == jpw.QUIET_LINE.format(release_id="rel-abcdef0-01")
+    assert line == "RELEASE B rel-abcdef0-01 QUIET: The window is quiet and I will start no manual job until the execution ends."
+    assert packet.jobs_quiet("rel-abcdef0-01") == line
+    assert packet.AUTHORISATION_TEMPLATE.split("RELEASE A {release_id}: ")[1].split(" I will type")[0].endswith(line.split("QUIET: ")[1])
+    assert not any(ch in line for ch in (chr(0x2013), chr(0x2014))) and chr(45) * 2 not in line
+
+
+@pytest.mark.parametrize("change", [
+    lambda t, rid: t.replace(rid, "rel-0badf00-01"),
+    lambda t, rid: t.replace("RELEASE B", "RELEASE A"),
+    lambda t, rid: t.replace(" QUIET:", ":"),
+    lambda t, rid: t.replace("I will start no manual job", "I will start few manual jobs"),
+    lambda t, rid: t + " I will type DEPLOY and IDLE myself.",
+    lambda t, rid: t.replace("The window is quiet and ", ""),
+    lambda t, rid: "",
+    lambda t, rid: jpw.authorisation_line(rid),
+], ids=["other_release", "release_a", "no_marker", "weaker_promise", "extra_sentence", "missing_clause", "empty", "the_other_line"])
+def test_receipt_refuses_a_quiet_line_that_is_not_the_one_the_packet_asks_albert_to_type(bench, capsys, change):
+    receipt_world(bench, capsys, quiet=change(bench.quiet_text(), bench.release_id))
+    code, out, err = run(bench.receipt_argv(), capsys)
+    assert code == 1 and "quiet" in err.lower() and not bench.receipt.exists()
+
+
+def test_receipt_refuses_without_the_second_line_file_and_without_the_file_it_names(bench, capsys):
+    receipt_world(bench, capsys)
+    code, out, err = run(bench.receipt_argv(quiet=False), capsys)
+    assert code == 1 and "quiet" in err.lower() and not bench.receipt.exists()
+    bench.quiet_line_file.unlink()
+    code, out, err = run(bench.receipt_argv(), capsys)
+    assert code == 1 and "quiet" in err.lower() and not bench.receipt.exists()
+
+
+def test_receipt_accepts_the_quiet_line_word_for_word_and_normalises_whitespace(bench, capsys):
+    receipt_world(bench, capsys, quiet="  " + bench.quiet_text().replace(" ", "  ", 4) + "  ")
+    code, out, err = run(bench.receipt_argv(), capsys)
+    assert code == 0, err
+    value = json.loads(bench.receipt.read_text(encoding="utf-8"))
+    assert value["quiet_window_confirmed"] is True and value["no_new_manual_starts_until_execution_ends"] is True
+
+
+def test_the_services_receipt_takes_no_second_line_and_refuses_one(bench, capsys):
+    receipt_world(bench, capsys)
+    code, out, err = run(["receipt", "--repo", str(bench.repo), "--packet-dir", str(bench.packet), "--mode", "services-only",
+                          "--authorisation-line-file", str(bench.line), "--quiet-line-file", str(bench.quiet_line_file)], capsys)
+    assert code == 1 and "quiet" in err.lower() and not bench.receipt.exists()
 
 
 def test_receipt_normalises_whitespace_like_release_a_does(bench, capsys):

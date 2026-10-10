@@ -7,6 +7,7 @@ of those is listed with its writer in SEAMS-B.md (wave8/lanes/release-b):
     Release A's AfterPromotion readback    written by Release A's own helper (release_world.Scenario), copied as it is (copy_a_readback)
     the durable manifest                   built by the lead from je.build_jobs_manifest, which has no command line (write_durable)
     Albert's authorisation line            typed by Albert, pinned in jobs_packet_world.APPROVED_LINE
+    Albert's quiet window line             typed by Albert, pinned in jobs_packet_world.QUIET_LINE
     the review verdict                     a reviewer's, recorded with the review command
 
 Everything else is made by a tool: capture-baseline-j, bind, lock, review and receipt by the packet command line; the baseline chain
@@ -131,6 +132,7 @@ class EndToEnd:
         self.cli(b.lock_argv())
         self.cli(b.review_argv())
         b.line.write_text(jpw.APPROVED_LINE.format(release_id=b.release_id) + chr(10), encoding="utf-8")
+        b.quiet_line_file.write_text(jpw.QUIET_LINE.format(release_id=b.release_id) + chr(10), encoding="utf-8")
         self.cli(b.receipt_argv())
         clock = cw.Clock(b.fixture.now)
         cloud = cw.FakeCloudRun(b.world, clock)

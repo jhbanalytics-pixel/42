@@ -18,6 +18,8 @@ Release B, the jobs image release, has the same four commands in mode jobs, plus
         --chain-evidence-bytes-cap <n> --collect-start-tolerance-minutes <0 to 30> --baseline-chain <file> --durable-manifest <file>
         --dry-run-receipt <file> --max-baseline-age-days <n> --max-candidate-age-hours <n>
     py -3.13 -m core.setup.release.packet lock|review|receipt --mode jobs ...   as above, with the jobs steps JobsCandidate JobsUpdate JobsRollback
+    py -3.13 -m core.setup.release.packet receipt --mode jobs ... --authorisation-line-file <file> --quiet-line-file <file>
+        a jobs receipt needs both lines Albert types; it records the quiet window and the promise of no manual start only from the second
 
 bind --mode jobs --producer-only writes producer-bindings.json, the keys the chain evidence producer reads, before the baseline chain
 manifest exists; the full bind then names that manifest. The rollback digest is a literal of this module (the e77c3819 image of
@@ -100,6 +102,10 @@ JOBS_AUTHORISATION_TEMPLATE = (
     "RELEASE B {release_id}: I authorise the jobs only release of this release id and nothing else. Only the {n_jobs} Cloud Run jobs "
     "change, to one image built from the release commit; no service revision, traffic entry, tag, scheduler entry, secret, "
     "environment variable or paid Ask changes.")
+# The second line Albert types for Release B: Release A's own quiet-window sentence with B's release id in front. The receipt says the window is
+# quiet and that no manual job will start only when he has typed this, because the approved line above carries neither and no snapshot or
+# observation can stand in for a promise.
+JOBS_QUIET_TEMPLATE = "RELEASE B {release_id} QUIET: The window is quiet and I will start no manual job until the execution ends."
 
 
 def utc_now():
@@ -556,6 +562,15 @@ def jobs_authorisation(release_id):
     return JOBS_AUTHORISATION_TEMPLATE.format(release_id=release_id, n_jobs=len(so.JOB_NAMES))
 
 
+def jobs_quiet(release_id):
+    return JOBS_QUIET_TEMPLATE.format(release_id=release_id)
+
+
+def check_quiet(text, release_id):
+    if " ".join(text.split()) != jobs_quiet(release_id):
+        raise Refused("The quiet window line is not the one the packet asks Albert to type for this release")
+
+
 def check_authorisation(text, release_id, mode="services-only"):
     expected = jobs_authorisation(release_id) if mode == "jobs" else AUTHORISATION_TEMPLATE.format(release_id=release_id)
     if " ".join(text.split()) != expected:
@@ -568,6 +583,8 @@ def cmd_receipt(args):
     refuse_existing(out)
     jobs = args.mode == "jobs"
     allowed = JOBS_STEPS if jobs else STEPS
+    if args.quiet_line_file and not jobs:
+        raise Refused("A quiet window line file belongs to the jobs release only")
     wanted = list(args.steps) if args.steps else list(allowed)
     if [step for step in wanted if step not in allowed]:
         raise Refused(f"A step is not one of the {args.mode} steps: {', '.join(allowed)}")
@@ -580,18 +597,24 @@ def cmd_receipt(args):
         raise Refused("The independent review does not say ACCEPT")
     if review.get("lock_sha256") != sha_bytes(path) or review.get("target") != bound["target"]:
         raise Refused("The independent review does not bind this lock and target")
+    quiet_typed = False
     line_file = Path(args.authorisation_line_file)
     if not line_file.is_file():
         raise Refused("The authorisation line file is missing")
     check_authorisation(line_file.read_text(encoding="utf-8-sig"), bound["release_id"], args.mode)
+    if jobs:
+        if not args.quiet_line_file or not Path(args.quiet_line_file).is_file():
+            raise Refused("The quiet window line file is missing")
+        check_quiet(Path(args.quiet_line_file).read_text(encoding="utf-8-sig"), bound["release_id"])
+        quiet_typed = True
     steps = [step for step in allowed if step in wanted]
     receipt = {"schema_version": so.SCHEMA_VERSION, "release_id": bound["release_id"], "target": bound["target"],
                "declared_steps": steps, "later_explicit_user_instruction": True, "quiet_window_confirmed": True,
                "no_new_manual_starts_until_execution_ends": True, "single_T1_smoke_authorized": True, "max_live_asks": 1}
     if jobs:
         receipt = {"schema_version": so.SCHEMA_VERSION, "release_id": bound["release_id"], "target": bound["target"], "mode": "jobs",
-                   "declared_steps": steps, "later_explicit_user_instruction": True, "quiet_window_confirmed": True,
-                   "no_new_manual_starts_until_execution_ends": True, "jobs_only": True}
+                   "declared_steps": steps, "later_explicit_user_instruction": True, "quiet_window_confirmed": quiet_typed,
+                   "no_new_manual_starts_until_execution_ends": quiet_typed, "jobs_only": True}
     write_json_new(out, receipt)
     print(f"wrote {out}\nsteps {' '.join(steps)}\nsha256 {sha_bytes(out)}")
     return 0
@@ -697,6 +720,7 @@ def build_parser():
     receipt.add_argument("--packet-dir", type=Path, required=True)
     receipt.add_argument("--lock-dir", type=Path, help="keep the lock in this folder, outside the checkout, instead of the committed folder")
     receipt.add_argument("--authorisation-line-file", required=True)
+    receipt.add_argument("--quiet-line-file", help="mode jobs only: the file holding the second line Albert types, the quiet window line")
     receipt.add_argument("--steps", nargs="+", choices=(*STEPS, *JOBS_STEPS), help="default: every step of the mode")
     receipt.set_defaults(handler=cmd_receipt)
     return parser

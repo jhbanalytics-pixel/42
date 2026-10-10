@@ -61,6 +61,15 @@ def authorisation_line(release_id):
     return APPROVED_LINE.format(release_id=release_id)
 
 
+# The second line Albert types for Release B, pinned as written. It is Release A's own quiet-window sentence with B's release id in front.
+# The receipt records the quiet window and the promise of no manual start only when this line is typed.
+QUIET_LINE = "RELEASE B {release_id} QUIET: The window is quiet and I will start no manual job until the execution ends."
+
+
+def quiet_line(release_id):
+    return QUIET_LINE.format(release_id=release_id)
+
+
 class JobsBench:
     def __init__(self, tmp, monkeypatch, *, repo=None, fixture_class=None):
         from core.setup.release import bound_readback as helper
@@ -87,6 +96,7 @@ class JobsBench:
         self.review = self.packet / "independent-review.json"
         self.receipt = self.packet / "execution-receipt.json"
         self.line = self.tmp / "albert-line.txt"
+        self.quiet_line_file = self.tmp / "albert-quiet-line.txt"
         self.lock_dir = self.tmp / "locks"
         self.chain_path = None
 
@@ -131,9 +141,10 @@ class JobsBench:
     def review_argv(self, verdict="ACCEPT"):
         return ["review", "--repo", str(self.repo), "--packet-dir", str(self.packet), "--verdict", verdict, *self.lock_flags()]
 
-    def receipt_argv(self, *extra):
+    def receipt_argv(self, *extra, quiet=True):
+        flags = ["--quiet-line-file", str(self.quiet_line_file)] if quiet else []
         return ["receipt", "--repo", str(self.repo), "--packet-dir", str(self.packet), "--authorisation-line-file", str(self.line),
-                *self.lock_flags(), *extra]
+                *flags, *self.lock_flags(), *extra]
 
     # what the lead supplies, in the order the packet needs it
     def write_a_readback(self, **over):
@@ -168,6 +179,9 @@ class JobsBench:
 
     def line_text(self):
         return authorisation_line(self.release_id)
+
+    def quiet_text(self):
+        return quiet_line(self.release_id)
 
     def lock_file(self):
         return Path(self.lock_dir) / locklib.lock_path(self.repo, self.release_id).name
