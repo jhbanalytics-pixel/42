@@ -905,7 +905,7 @@ def test_health_rows_one_per_market_series_and_protocol():
     curated_protocols = {c.series_protocol() for cs in planned["calls"].values() for c in cs
                          if c.route == "prism/profiles" and not _desk(c)}
     desk = [r for r in rows if r["series"] == "panel_culture_desk" and r["protocol"] in desk_protocols]
-    curated = [r for r in rows if r["series"] == "panel_culture_desk" and r["protocol"] in curated_protocols]
+    curated = [r for r in rows if r["series"] == "panel_curated_creators" and r["protocol"] in curated_protocols]
     assert all(r["k"] == 12.0 and r["invalid_reason"] == "effort" for r in desk)
     # The fixture answers each batch with one profile row: the day's profiles planned over one ok a batch.
     assert len(curated) == len(job.MARKETS)

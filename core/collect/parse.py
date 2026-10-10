@@ -111,6 +111,12 @@ COUNTER_COLUMNS = (
     "obs_date", "market", "platform", "item_id", "series", "route", "protocol", "is_board", "lane_class",
     "unit", "pull_seq", "value", "source", "observed_at", "available_at", "run_id")
 
+# The curated creator panel reads prism/profiles too, in the same lane, beside the culture desk. It keeps its own
+# series so a zero day of one is never the day before of the other (RB-C3, Albert's decision of 10 Oct 2026).
+# Rows written before the split stay under panel_culture_desk as written. A caller names the curated panel with
+# curated=True on a prism/profiles read, since only the caller knows which list the items came from.
+CURATED_PANEL_SERIES = "panel_curated_creators"
+
 # family, platform, series, is_board, protocol keys, markets. None platform: read from each row.
 ROUTES = {
     "tiktok/trending": ("rank", "tiktok", "feed_tiktok", False, ("region", "feed"), MARKETS),
@@ -164,27 +170,33 @@ OFFSET_SPACE = re.compile(r"\s+(?=[+-]\d{2}:?\d{2}$)")
 
 
 def parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_fn,
-          lane=None, seed_key=None, pull_seq=None, protocol=None, profile_cache=None):
+          lane=None, seed_key=None, pull_seq=None, protocol=None, profile_cache=None, curated=False):
     return _parse(route, params, market, body, fetched_at, run_id, item_id_fn=item_id_fn, geo_fn=geo_fn,
-                  lane=lane, seed_key=seed_key, pull_seq=pull_seq, protocol=protocol, profile_cache=profile_cache)[0]
+                  lane=lane, seed_key=seed_key, pull_seq=pull_seq, protocol=protocol, profile_cache=profile_cache,
+                  curated=curated)[0]
 
 
 def parse_with_creators(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_fn,
-                        lane=None, seed_key=None, pull_seq=None, protocol=None, profile_cache=None):
+                        lane=None, seed_key=None, pull_seq=None, protocol=None, profile_cache=None, curated=False):
     """parse's rows plus "creators": one row per post that names a creator, CREATOR_COLUMNS in order."""
     out, creators = _parse(route, params, market, body, fetched_at, run_id, item_id_fn=item_id_fn, geo_fn=geo_fn,
-                           lane=lane, seed_key=seed_key, pull_seq=pull_seq, protocol=protocol, profile_cache=profile_cache)
+                           lane=lane, seed_key=seed_key, pull_seq=pull_seq, protocol=protocol, profile_cache=profile_cache,
+                           curated=curated)
     return {**out, "creators": creators}
 
 
 def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_fn,
-           lane=None, seed_key=None, pull_seq=None, protocol=None, profile_cache=None):
+           lane=None, seed_key=None, pull_seq=None, protocol=None, profile_cache=None, curated=False):
     if route not in ROUTES:
         raise ValueError(f"no parser for route {route!r}")
     family, platform, series, is_board, keys, markets = ROUTES[route]
     market = str(market).strip().upper()
     if market not in markets:
         raise ValueError(f"{route} does not take market {market!r}; it takes {markets}")
+    if curated:
+        if route != "prism/profiles":
+            raise ValueError(f"only prism/profiles reads the curated panel, not {route!r}")
+        series = CURATED_PANEL_SERIES
     params = dict(params or {})
     fixed_lane, lane_class = LANES.get(family, (None, None))
     seeded = route in SEEDED and lane in SEARCH_LANES

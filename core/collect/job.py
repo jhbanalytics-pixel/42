@@ -98,8 +98,8 @@ import yaml
 from core.collect import chain, curated_creators, google_rss, google_trends, local_sources, research_terms, writers
 from core.collect import location_sources
 from core.collect import seeds as seeding
-from core.collect.parse import (LANES, ROUTES, SEARCH_LANES, SEEDED, _dict, _first, _local_day, _protocol, _rows,
-                                parse_with_creators)
+from core.collect.parse import (CURATED_PANEL_SERIES, LANES, ROUTES, SEARCH_LANES, SEEDED, _dict, _first, _local_day,
+                                _protocol, _rows, parse_with_creators)
 from core.collect.socialcrawl_client import PRICED, TRANSIENT, Refused, Result, load_caps, quote_for
 
 log = logging.getLogger(__name__)
@@ -180,6 +180,7 @@ class Call:
     use_cache: bool = True
     seed: seeding.Pick | None = None
     source_market: str | None = None
+    curated: bool = False  # a prism/profiles read of the curated creator panel, which has a series of its own
 
     @property
     def method(self):
@@ -195,6 +196,8 @@ class Call:
     def series(self):
         if self.seed is not None:
             return "placebo" if self.lane == "placebo" else "search"
+        if self.curated:
+            return CURATED_PANEL_SERIES
         return "x_trends" if self.route == "web/scrape" else ROUTES[self.route][2]
 
     def series_protocol(self):
@@ -309,7 +312,7 @@ def panel_calls(market, day, config, curated_records=(), curated_limit=0):
             calls.append(Call("23", "prism/profiles",
                               {"items": items[start:start + PROFILES_PER_CALL], "include": "posts",
                                "since": _since(day)},
-                              market, "panel", protocol=protocol, source_market=market))
+                              market, "panel", protocol=protocol, source_market=market, curated=True))
     handles = [e["handle"] for e in hubs.get("x") or []]
     protocol = panel_protocol(handles)
     for handle in handles:
@@ -1121,7 +1124,8 @@ class _Runner:
         parsed = parse_with_creators(
             call.route, call.params, call.market, result.body, fetched, self.run.run_id, item_id_fn=self.ids,
             geo_fn=self.geo, lane=call.lane if call.family == "search" or call.seed else None, seed_key=call.seed_key,
-            pull_seq=call.pull_seq, protocol=call.protocol, profile_cache=self.profiles)
+            pull_seq=call.pull_seq, protocol=call.protocol, profile_cache=self.profiles,
+            curated=call.curated)
         if call.family == "profile" and not parsed["creators"]:
             raise ValueError("account profile owner unavailable")
         listed_key = "pageId" if call.route == "facebook/profile/posts" else \
