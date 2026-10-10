@@ -14,6 +14,7 @@ import unicodedata
 from datetime import date, datetime
 from urllib.parse import urlsplit
 
+from core.agent import answer_view
 from core.api import summary_state
 
 EXPORTABLE = ("complete", "stopped")
@@ -246,63 +247,222 @@ def _meta_line(record):
     window = run.get("window") or {}
     if window.get("from") and window.get("to"):
         parts.append(_window_text(window["from"], window["to"]))
+    return " · ".join(parts)
+
+
+_LABEL_ORDER = ("inferred", "single_source", "observed", "corroborated")
+
+
+def confidence_tag(claims) -> str | None:
+    """One tag for the whole answer from the labels of its claims: the label when every claim carries it, otherwise
+    "Mixed" (each claim keeps its own label under it). None when there is no claim."""
+    labels = {c.get("label") for c in claims if isinstance(c, dict)}
+    if not labels:
+        return None
+    if len(labels) == 1:
+        label = next(iter(labels))
+        return _LABEL.get(label, label or "Unlabelled")
+    return "Mixed confidence"
+
+
+def scope_line(record, answer) -> str:
+    """What the answer rests on, then how much was read, then the store: "Answer based on 3 posts by 3 creators and
+    4 comments · 169 posts read on 8 platforms · 3 208 posts in the store for 4 to 10 October 2026"."""
+    evidence = [e for e in answer.get("evidence") or [] if isinstance(e, dict)]
+    posts = [e for e in evidence if not answer_view.is_comment(e)]
+    comments = [e for e in evidence if answer_view.is_comment(e)]
+    creators = {(e.get("platform"), str(e.get("handle") or "").lstrip("@").lower()) for e in posts if e.get("handle")}
+    run = record.get("run") or {}
+    parts = []
+    if posts or comments:
+        based = "Answer based on "
+        if posts:
+            based += _count(len(posts), "post") + " by " + _count(len(creators) or len(posts), "creator")
+        if comments:
+            based += (" and " if posts else "") + _count(len(comments), "comment")
+        parts.append(based)
     if run.get("posts") is not None:
-        parts.append(_count(run["posts"], "post"))
-    if run.get("platforms") is not None:
-        parts.append(_count(run["platforms"], "platform"))
+        read = _count(run["posts"], "post") + " read"
+        if run.get("platforms") is not None:
+            read += " on " + _count(run["platforms"], "platform")
+        parts.append(read)
+    store = run.get("store") if isinstance(run.get("store"), dict) else {}
+    window = run.get("window") or {}
+    if store.get("posts") is not None:
+        line = _count(store["posts"], "post") + " in the store"
+        if window.get("from") and window.get("to"):
+            line += " for " + _window_text(window["from"], window["to"])
+        parts.append(line)
+    return " · ".join(parts)
+
+
+def _platform_counts(run):
+    """Posts each platform returned, once per platform, and the calls that failed (a failed call is a note, not a
+    row)."""
+    totals, failed = {}, {}
+    for source in run.get("source_status") or []:
+        if not isinstance(source, dict) or not source.get("platform"):
+            continue
+        name = _PLATFORM.get(source["platform"], source["platform"])
+        if source.get("status") in (None, "ok", "partial", "empty") and isinstance(source.get("items"), (int, float)):
+            totals[name] = totals.get(name, 0) + int(source["items"])
+        elif source.get("status") not in (None, "ok", "partial", "empty"):
+            failed[name] = failed.get(name, 0) + 1
+    return totals, failed
+
+
+def _step_text(text):
+    words = " ".join(str(text or "").split())
+    if not words:
+        return "Working on the question"
+    if re.match(r"^Counting in the warehouse\b", words, re.I):
+        return "Counting posts in the archive"
+    if re.match(r"^Checking saved findings\b", words, re.I):
+        return "Checking findings already saved on this question"
+    if re.match(r"^A warehouse count\b", words, re.I):
+        return re.sub(r"^A warehouse count", "A count in the archive", words, flags=re.I)
+    if re.match(r"^Using\s+\S+$", words):
+        return "Running a lookup"
+    words = re.sub(r"^Critic:\s*", "Reviewing the claims: ", words)
+    return re.sub(r",?\s*tier T\d\b", "", words)
+
+
+def _timeline(steps):
+    """Consecutive steps that read the same become one row with a count; the heading counts the rows."""
+    rows = []
+    for step in steps or []:
+        text = _step_text(step.get("text") if isinstance(step, dict) else step)
+        if rows and rows[-1][0] == text:
+            rows[-1][1] += 1
+        else:
+            rows.append([text, 1])
+    return rows
+
+
+def _post_line(item, quote_text):
+    text = " ".join(str(quote_text or item.get("text") or "").split())
+    return text if len(text) <= 160 else text[:157].rstrip() + "..."
+
+
+def _facts(item):
+    parts = [_date_text(item.get("posted_at"))] if item.get("posted_at") else []
+    views = (item.get("engagement") or {}).get("views")
+    if isinstance(views, (int, float)) and not isinstance(views, bool):
+        parts.append(_count(int(views), "view"))
     return " · ".join(parts)
 
 
 _STYLE = (
-    "html{background:#fff;color:#1b1b1b}"
-    "body{margin:0 auto;max-width:44rem;padding:2rem 1.5rem;"
-    "font-family:Georgia,'Times New Roman',serif;"
-    "font-size:11.5pt;line-height:1.5;font-variant-ligatures:none}"
-    "h1{font-size:20pt;margin:.2rem 0 .6rem}h2{font-size:14pt;margin:1.6rem 0 .5rem;"
-    "border-top:1px solid #cfcfcf;padding-top:.8rem}h3{font-size:12pt;margin:1rem 0 .3rem}"
-    "p{margin:.25rem 0}.brand{color:#b3122e}.meta{color:#4a4a4a}"
-    ".review{border:1px solid #b3122e;padding:.4rem .6rem;margin:.6rem 0}"
-    ".kind{color:#4a4a4a;font-size:10pt}.note{color:#4a4a4a;font-size:10pt}"
-    "article{margin:.8rem 0;break-inside:avoid}"
-    "blockquote{margin:.4rem 0;padding-left:.8rem;border-left:3px solid #cfcfcf}"
-    "a{color:#1b1b1b}"
+    ":root{color-scheme:light dark;--ink:#1b1b1b;--quiet:#555;--rule:#d4d4d4;--wash:#f5f5f2;--brand:#b3122e;--bg:#fff}"
+    "@media (prefers-color-scheme:dark){:root{--ink:#ececec;--quiet:#a9a9a9;--rule:#3a3a3a;--wash:#1d1d1d;"
+    "--brand:#ff6b81;--bg:#121212}}"
+    "html{background:var(--bg);color:var(--ink)}"
+    "body{margin:0 auto;max-width:46rem;padding:2rem 1.5rem 3rem;"
+    "font-family:system-ui,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11.5pt;line-height:1.5}"
+    "h1{font-size:21pt;line-height:1.2;margin:.3rem 0 .5rem}"
+    "h2{font-size:13pt;margin:1.8rem 0 .5rem;border-top:1px solid var(--rule);padding-top:.8rem}"
+    "h3{font-size:11.5pt;margin:.9rem 0 .2rem}h4{font-size:10pt;margin:.7rem 0 .2rem;color:var(--quiet);"
+    "text-transform:uppercase;letter-spacing:.04em}"
+    "p{margin:.25rem 0}.brand{color:var(--brand);font-weight:600}.meta,.note,.kind{color:var(--quiet)}"
+    ".note,.kind{font-size:10pt}.review{border:1px solid var(--brand);padding:.4rem .6rem;margin:.6rem 0}"
+    ".lead h2+p{font-size:13pt;line-height:1.45;margin:.6rem 0}"
+    ".tag{display:inline-block;border:1px solid var(--ink);padding:.05rem .5rem;font-size:10pt;font-weight:600}"
+    ".scope{color:var(--quiet);font-size:10pt;margin:.5rem 0}"
+    "article{margin:.9rem 0;break-inside:avoid}"
+    ".finding{border-left:3px solid var(--ink);padding-left:.9rem}"
+    ".posts,.said{list-style:none;margin:.5rem 0;padding:0}"
+    ".posts li{background:var(--wash);padding:.4rem .6rem;margin:.3rem 0}"
+    ".said li{padding:.2rem 0 .2rem .8rem;border-left:2px solid var(--rule);color:var(--quiet);font-size:10.5pt}"
+    "blockquote{margin:.4rem 0;padding-left:.8rem;border-left:3px solid var(--rule)}"
+    ".figures{display:flex;flex-wrap:wrap;gap:.6rem;list-style:none;padding:0;margin:.4rem 0}"
+    ".figures li{border:1px solid var(--rule);padding:.4rem .8rem;min-width:7rem}"
+    ".figures li{font-size:12pt}"
+    "details{margin:.8rem 0}summary{cursor:pointer;color:var(--quiet)}"
+    "a{color:inherit}@media print{details{display:block}}"
 )
 
 
+def _render_post_tile(item, number, quote_text):
+    platform = _PLATFORM.get(item.get("platform") or "", item.get("platform") or "")
+    link = _web_link(item.get("url"))
+    open_post = f' · <a href="{html.escape(link, quote=True)}">Open post</a>' if link else ""
+    facts = _facts(item)
+    return (
+        f'<li><a href="#source-{number}">[{number}]</a> <strong>{_e(platform)}</strong> {_e(item.get("handle"))}'
+        + (f' <span class="note">{_e(facts)}</span>' if facts else "")
+        + f"{open_post}<br>{_e(_post_line(item, quote_text))}</li>"
+    )
+
+
+def _render_commenters(comments, quotes, number_of, by_url):
+    """One quiet row per post the comments sit under, the comments beneath it."""
+    out = ['<div class="commenters"><h4>What commenters said</h4>']
+    groups = {}
+    for item in comments:
+        groups.setdefault(item.get("url") or "", []).append(item)
+    for url, items in groups.items():
+        parent = by_url.get(url)
+        handle = answer_view.comment_parent_handle(items[0]) or (parent or {}).get("handle")
+        whose = f"@{str(handle).lstrip('@')}'s post" if handle else "a post"
+        link = _web_link(url)
+        label = f'<a href="{html.escape(link, quote=True)}">{_e(whose)}</a>' if link else _e(whose)
+        out.append(f'<p class="note">On {label}</p><ul class="said">')
+        for item in items:
+            n = number_of[item["id"]]
+            out.append(f'<li><a href="#source-{n}">[{n}]</a> {_e(_post_line(item, quotes.get(item["id"])))}</li>')
+        out.append("</ul>")
+    out.append("</div>")
+    return "".join(out)
+
+
 def render_answer_html(record: dict) -> str:
-    """The export page for one finished Ask record, or ExportRefused."""
+    """The export page for one finished Ask record, or ExportRefused. It follows the page's order: the question, what
+    is behind it, one confidence tag and what it rests on; the findings with their posts and, apart, what commenters
+    said; the numbers and the platforms read; what could not be checked; how it was researched; technical details."""
     answer = _check(record)
+    record = answer_view.present(record)
+    answer = record["answer"]
     evidence = answer.get("evidence") or []
     number_of = {item.get("id"): index for index, item in enumerate(evidence, start=1)}
+    by_id = {item.get("id"): item for item in evidence}
+    by_url = {item.get("url"): item for item in evidence if not answer_view.is_comment(item)}
+    claims = answer.get("claims") or []
+    run = record.get("run") or {}
 
-    out = ["<header>", _p("42 Ogilvy Intelligence", "brand"), "<h1>42 answer</h1>"]
-    out.append(_p("Question: " + str(record.get("question") or "")))
+    out = ["<header>", _p("42 Ogilvy Intelligence", "brand"), "<h1>" + _e(record.get("question") or "42 answer") + "</h1>"]
     meta = _meta_line(record)
     if meta:
         out.append(_p(meta, "meta"))
-    meta = record.get("answer_meta")  # the wire value the route prepared; this renderer judges nothing
-    state = meta if summary_state.is_wire(meta) else {"check": "unverified", "problem": "shape"}
+    wire = record.get("answer_meta")  # the wire value the route prepared; this renderer judges nothing
+    state = wire if summary_state.is_wire(wire) else {"check": "unverified", "problem": "shape"}
     if _status_words(answer, state):
         out.append(_p(_status_words(answer, state), "review"))
     if summary_state.stopped_early_line(record, state):
         out.append(_p("Stopped before the end; this is what passed the checks by then.", "review"))
     if record.get("privacy"):
         out.append(_p(EXPORT_NOTICE, "review"))
+    tag = confidence_tag(claims)
+    if tag:
+        out.append(f'<p><span class="tag">{_e(tag)}</span></p>')
+    scope = scope_line(record, answer)
+    if scope:
+        out.append(_p(scope, "scope"))
     out.append("</header><main>")
 
-    out.append("<section><h2>Short answer</h2>")
+    out.append('<section class="lead"><h2>Short answer</h2>')
     short = str(answer.get("short_answer") or "").strip()
     out.append(_p(short) if short else _p(short_answer_fallback(answer, summary_state.summary_sentence(state)), "note"))
     if state.get("check") == "verified" and state["summary"]["state"] == "shown_rewritten" and short:
         out.append(_p(summary_state.module().READER_SENTENCES["shown_rewritten"], "note"))
     out.append("</section>")
 
-    claims = answer.get("claims") or []
-    queries = []
+    figures, queries = [], []
     if claims:
         out.append("<section><h2>What we found</h2>")
         for claim in claims:
-            out.append("<article>")
+            quotes = {q.get("evidence_id"): q.get("text") for q in claim.get("quotes") or []}
+            cited = [by_id[i] for i in claim.get("evidence_ids") or [] if i in by_id]
+            out.append('<article class="finding">')
             label = _LABEL.get(claim.get("label"), claim.get("label") or "Unlabelled")
             out.append(f"<p><strong>{_e(label)}</strong> {_e(claim.get('text'))}</p>")
             cites = [
@@ -311,6 +471,13 @@ def render_answer_html(record: dict) -> str:
             ]
             if cites:
                 out.append('<p class="note">Sources: ' + " ".join(cites) + "</p>")
+            posts = [item for item in cited if not answer_view.is_comment(item)]
+            comments = [item for item in cited if answer_view.is_comment(item)]
+            if posts:
+                out.append('<ul class="posts">' + "".join(
+                    _render_post_tile(item, number_of[item["id"]], quotes.get(item["id"])) for item in posts) + "</ul>")
+            if comments:
+                out.append(_render_commenters(comments, quotes, number_of, by_url))
             for quote in claim.get("quotes") or []:
                 n = number_of[quote["evidence_id"]]
                 out.append(
@@ -321,15 +488,30 @@ def render_answer_html(record: dict) -> str:
                 query = str(number.get("query_id") or "")
                 if query and query not in queries:
                     queries.append(query)
-                title = f' title="{html.escape("Query " + query, quote=True)}"' if query else ""
-                out.append(f'<p class="note"{title}>'
-                           f"{_e(_number(number.get('value')))} {_e(_unit(number.get('value'), number.get('unit')))}</p>")
+                words = f"{_number(number.get('value'))} {_unit(number.get('value'), number.get('unit'))}"
+                if not any(words == known[0] for known in figures):
+                    figures.append((words, query, _number(number.get("value")),
+                                    _unit(number.get("value"), number.get("unit"))))
             if claim.get("kind") == "proposal":
                 if claim.get("basis"):
                     out.append(_p("Basis: " + str(claim["basis"]), "note"))
                 if claim.get("falsifier"):
                     out.append(_p("What would change this: " + str(claim["falsifier"]), "note"))
             out.append("</article>")
+        out.append("</section>")
+
+    if figures or _platform_counts(run)[0]:
+        out.append("<section><h2>The numbers</h2>")
+        if figures:
+            out.append('<ul class="figures">' + "".join(
+                f'<li{(" title=" + chr(34) + html.escape("Query " + q, quote=True) + chr(34)) if q else ""}>'
+                f"{_e(value)} {_e(unit)}</li>" for _, q, value, unit in figures) + "</ul>")
+        totals, failed = _platform_counts(run)
+        if totals:
+            out.append("<h3>Posts read by platform</h3>")
+            out.append('<p class="note">' + _e(" · ".join(f"{name} {_number(count)}" for name, count in totals.items())) + "</p>")
+        for name, count in failed.items():
+            out.append(_p(f"{count} {name} search{'es' if count != 1 else ''} failed", "note"))
         out.append("</section>")
 
     if answer.get("so_what"):
@@ -344,9 +526,10 @@ def render_answer_html(record: dict) -> str:
             out.append(_p(prefix + str(item.get("text") or "")))
         out.append("</section>")
 
-    if answer.get("gaps"):
+    gaps = [g for g in answer.get("gaps") or [] if isinstance(g, dict)]
+    if gaps:
         out.append("<section><h2>What we do not know</h2>")
-        for gap in answer["gaps"]:
+        for gap in gaps[:3]:
             out.append("<article>")
             out.append(_p(gap.get("what")))
             if gap.get("searched"):
@@ -362,14 +545,24 @@ def render_answer_html(record: dict) -> str:
         out.append(_p(answer["context"]))
         out.append("</section>")
 
+    rows = _timeline(record.get("steps"))
+    if rows:
+        out.append(f"<section><details><summary>How this was researched · {_count(len(rows), 'step')}</summary><ol>")
+        out.extend(f"<li>{_e(text)}" + (f" ×{times}" if times > 1 else "") + "</li>" for text, times in rows)
+        out.append("</ol></details></section>")
+
     if evidence:
         out.append("<section><h2>Sources</h2>")
         for index, item in enumerate(evidence, start=1):
             platform = item.get("platform") or ""
             out.append(f'<article id="source-{index}">')
-            out.append(
-                f"<h3>[{index}] {_e(_PLATFORM.get(platform, platform))} · {_e(item.get('handle'))}</h3>"
-            )
+            if answer_view.is_comment(item):
+                handle = answer_view.comment_parent_handle(item)
+                whose = f"@{handle}'s post" if handle else "a post"
+                out.append(f"<h3>[{index}] Comment on {_e(whose)} ({_e(_PLATFORM.get(platform, platform))})</h3>")
+                out.append(_p("Comment by " + str(item.get("handle") or "an unnamed account"), "meta"))
+            else:
+                out.append(f"<h3>[{index}] {_e(_PLATFORM.get(platform, platform))} · {_e(item.get('handle'))}</h3>")
             out.append(_p(_date_text(item.get("posted_at")), "meta"))
             link = _web_link(item.get("url"))
             if link:
@@ -380,7 +573,25 @@ def render_answer_html(record: dict) -> str:
             out.append("</article>")
         out.append("</section>")
 
-    run = record.get("run") or {}
+    technical = []
+    for gap in (run.get("technical_gaps") or gaps[3:]):
+        if isinstance(gap, dict):
+            technical.append(gap)
+    notices = [n for n in run.get("notices") or [] if isinstance(n, str)]
+    if technical or notices:
+        out.append("<section><details><summary>Technical details</summary>")
+        for notice in notices:
+            out.append(_p(notice, "note"))
+        for gap in technical:
+            out.append("<article>")
+            out.append(_p(gap.get("what")))
+            if gap.get("searched"):
+                out.append(_p("Searched: " + _searched(gap["searched"]), "note"))
+            if gap.get("why"):
+                out.append(_p("Why: " + str(gap["why"]).replace("_", " "), "note"))
+            out.append("</article>")
+        out.append("</details></section>")
+
     out.append("</main><footer>")
     footer = []
     if run.get("credits") is not None:
@@ -398,6 +609,7 @@ def render_answer_html(record: dict) -> str:
 
     return (
         '<!doctype html><html lang="en-ZA"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>42 answer</title><style>" + _STYLE + "</style></head><body>"
         + "".join(out)
         + "</body></html>"
