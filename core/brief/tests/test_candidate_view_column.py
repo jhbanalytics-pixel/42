@@ -142,11 +142,95 @@ def test_an_unrelated_error_from_the_statement_without_the_view_is_not_swallowed
     assert calls.names == ["candidates", "candidates_without_locality"]
 
 
-def test_an_error_from_the_null_statement_itself_is_not_swallowed(monkeypatch):
-    calls = Calls({"candidates": MISSING, "candidates_without_news_column": "quota exceeded"})
+# RJ-5: the null statement serves only a missing column, and its own failure holds the market
+
+DUCKDB_MISSING = 'Binder Error: Table "ms" does not have a column named "market_news_posts7"'
+NOT_A_MISSING_COLUMN = [
+    "Resources exceeded during query execution: The query could not be executed in the allotted memory ... ms.market_news_posts7",
+    "Query exceeded the deadline reading ms.market_news_posts7",
+    "Unrecognized name: market_news_posts70",
+    "Unrecognized name: market_news_posts",
+    "Access Denied: Table core.v_item_market_scope: column market_news_posts7",
+]
+
+
+@pytest.mark.parametrize("message", [MISSING, BIGQUERY_MISSING, DUCKDB_MISSING])
+def test_rj5_each_of_the_three_missing_column_wordings_serves_the_null_statement(monkeypatch, message):
+    calls = Calls({"candidates": message})
     monkeypatch.setattr(job, "_query", calls)
-    with pytest.raises(RuntimeError, match="quota exceeded"):
-        job._candidate_rows(None, DAY, "ZA", "core", "agent", {}, {})
+    failed = {}
+    assert job._candidate_rows(None, DAY, "ZA", "core", "agent", {}, failed) == [{"statement": "candidates_without_news_column"}]
+    assert failed == {"ZA": "missing_view_column"}
+
+
+@pytest.mark.parametrize("message", NOT_A_MISSING_COLUMN)
+@pytest.mark.parametrize("authority", ["v1", "v2"])
+def test_rj5_an_error_that_only_names_the_column_does_not_serve_the_null_statement(monkeypatch, capsys, message, authority):
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, authority)
+    calls = Calls({"candidates": message})
+    monkeypatch.setattr(job, "_query", calls)
+    failed = {}
+    rows = job._candidate_rows(None, DAY, "ZA", "core", "agent", {}, failed)
+    assert "candidates_without_news_column" not in calls.names and "candidates_without_locality_or_news_column" not in calls.names
+    if authority == "v1":
+        assert rows == [{"statement": "candidates_without_locality"}] and failed == {"ZA": "read_without_view"}
+    else:
+        assert rows == [] and failed == {"ZA": "held"}
+    assert "missing_view_column" not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("authority", ["v1", "v2"])
+@pytest.mark.parametrize("message", ["quota exceeded", "Not found: Table v_item_locality_current was not found"])
+def test_rj5_the_null_statement_failing_on_its_own_is_caught_recorded_under_its_own_reason_and_holds_the_market(
+        monkeypatch, capsys, authority, message):
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, authority)
+    calls = Calls({"candidates": MISSING, "candidates_without_news_column": message})
+    monkeypatch.setattr(job, "_query", calls)
+    failed, receipt = {}, {}
+    assert job._candidate_rows(None, DAY, "ZA", "core", "agent", receipt, failed) == []
+    assert calls.names == ["candidates", "candidates_without_news_column"]
+    assert failed == {"ZA": job.NULL_COLUMN_READ_FAILED} == {"ZA": "null_column_statement_failed"}
+    assert receipt == {}
+    err = capsys.readouterr().err
+    assert "null_column_statement_failed" in err and "locality_view_read_failed" not in err
+
+
+def test_rj5_the_statement_without_both_views_failing_on_its_own_is_held_the_same_way(monkeypatch, capsys):
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, "v1")
+    calls = Calls({"candidates": "Not found: Table v_item_locality_current", "candidates_without_locality": MISSING,
+                   "candidates_without_locality_or_news_column": "quota exceeded"})
+    monkeypatch.setattr(job, "_query", calls)
+    failed = {}
+    assert job._candidate_rows(None, DAY, "ZA", "core", "agent", {}, failed) == []
+    assert failed == {"ZA": job.NULL_COLUMN_READ_FAILED}
+    assert "null_column_statement_failed" in capsys.readouterr().err
+
+
+def test_rj5_a_brief_whose_null_statement_fails_holds_every_market_with_a_data_issue_and_does_not_fail_the_run(monkeypatch, capsys):
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, "v1")
+    con = with_a80_scope_view(world(located=True))
+    real = job._query
+
+    def refuse_null(client, name, params, core, agent, receipt=None):
+        if name == "candidates_without_news_column":
+            raise RuntimeError("quota exceeded")
+        return real(client, name, params, core, agent, receipt=receipt)
+
+    monkeypatch.setattr(job, "_query", refuse_null)
+    counts, payload, _ = brief(con, HonestModel(True), monkeypatch)
+    assert payload["cards"] == [] and payload["status"] == "data_issue"
+    assert any(b["kind"] == "data_issue" for b in payload["banners"])
+    assert counts["view_column_read_failed"] == {"markets": list(job.MARKETS), "column": "market_news_posts7", "action": "held"}
+    assert "view_column_missing" not in counts and "locality_view_failed" not in counts
+    assert "null_column_statement_failed" in capsys.readouterr().err
 
 
 def test_a_brief_run_on_a80s_view_publishes_and_records_the_missing_column_not_a_locality_failure(monkeypatch, capsys):

@@ -165,7 +165,10 @@ QUERIES["candidates_without_locality"] = QUERIES["candidates"].replace(_LOCALITY
 # detect is still a80 (a mixed prefix of the jobs update or its restore) finds the column absent. The candidate statement
 # then runs again with a typed NULL in its place, as core/api/store.py does for the same view: a NULL count is not below
 # the market's posts, so the row ranks in the third tier for that run. The locality view is still read. This is its own
-# reason (missing_view_column), never a locality failure, and under v2 it holds nothing.
+# reason (missing_view_column), never a locality failure, and under v2 it holds nothing. The statement serves only an error
+# that says the column is missing; an error that merely names it (a resource or deadline fault) is a read fault like any other.
+# If the null statement itself fails, that failure is caught and recorded as its own reason and the market is held with no
+# candidates under either authority: the run goes on and the brief shows the data issue.
 _NEWS_COLUMN = "ms.market_news_posts7"
 _NULL_COLUMN = "CAST(NULL AS INT64)"
 assert QUERIES["candidates"].count(_NEWS_COLUMN) == 2
@@ -174,10 +177,29 @@ QUERIES["candidates_without_locality_or_news_column"] = QUERIES["candidates_with
 MISSING_VIEW_COLUMN = "missing_view_column"
 # Both faults at once, as live staging showed before detect re-created its views: no locality view and the old scope view.
 BOTH_VIEW_FAULTS = "read_without_view+missing_view_column"
+NULL_COLUMN_READ_FAILED = "null_column_statement_failed"
+_MISSING_COLUMN_WORDS = ("Unrecognized name", "not found inside", "does not have a column named")
+_NEWS_COLUMN_NAME = re.compile(r"(?<!\w)market_news_posts7(?!\w)")
 
 
 def _names_news_column(error):
-    return "market_news_posts7" in str(error)
+    """True when the error says market_news_posts7 is missing: it names the column and reads as one of the three missing
+    column wordings (BigQuery's two and DuckDB's), not merely mentions the column."""
+    text = str(error)
+    return bool(_NEWS_COLUMN_NAME.search(text)) and any(words in text for words in _MISSING_COLUMN_WORDS)
+
+
+def _null_column_rows(client, name, d, params, core, agent, receipt, failed, market):
+    """Read the statement that carries a typed NULL for the missing column. If it fails, the failure is printed and recorded
+    as NULL_COLUMN_READ_FAILED and the market has no candidates: held, whatever the locality authority."""
+    try:
+        return _query(client, name, params, core, agent, receipt=receipt)
+    except Exception:
+        receipt.clear()
+        print(f"brief {d.isoformat()}: {NULL_COLUMN_READ_FAILED} market_news_posts7", file=sys.stderr)
+        if failed is not None:
+            failed[market] = NULL_COLUMN_READ_FAILED
+        return []
 
 # Which market the retained locality result gives a candidate on the v2 basis (C4 v3 section 11.2): the status of
 # read_locality, never a v1 value. An unreadable result gives none, and the candidate is held as a data issue.
@@ -642,7 +664,7 @@ def _candidate_rows(client, d, market, core, agent, receipt, failed=None):
             print(f"brief {d.isoformat()}: {MISSING_VIEW_COLUMN} market_news_posts7", file=sys.stderr)
             if failed is not None:
                 failed[market] = MISSING_VIEW_COLUMN
-            return _query(client, "candidates_without_news_column", params, core, agent, receipt=receipt)
+            return _null_column_rows(client, "candidates_without_news_column", d, params, core, agent, receipt, failed, market)
         print(f"brief {d.isoformat()}: locality_view_read_failed", file=sys.stderr)
         held = locality.LOCALITY_AUTHORITY == "v2"
         if failed is not None:
@@ -658,7 +680,8 @@ def _candidate_rows(client, d, market, core, agent, receipt, failed=None):
             print(f"brief {d.isoformat()}: {MISSING_VIEW_COLUMN} market_news_posts7", file=sys.stderr)
             if failed is not None:
                 failed[market] = BOTH_VIEW_FAULTS
-            return _query(client, "candidates_without_locality_or_news_column", params, core, agent, receipt=receipt)
+            return _null_column_rows(client, "candidates_without_locality_or_news_column", d, params, core, agent, receipt, failed,
+                                     market)
 
 
 def _locality_audit_inputs(client, d, market, rows, core, agent):
@@ -1591,7 +1614,7 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                                    "checker": chk["checker"], "run_id": run.run_id,
                                    "reason": check_reason(chk), **retained_columns(chk)})
         banners = [b for b in (warm, None if m in confirmed else NO_CONFIRM, late_banner) if b]
-        if selection_audits.get(m, {}).get("candidate_read") == "held":
+        if selection_audits.get(m, {}).get("candidate_read") in ("held", NULL_COLUMN_READ_FAILED):
             banners.append({"kind": "data_issue", "text": "Data issue: today's candidates could not be read"})
         boards_, unnamed = boards(client, d, m, core, agent, hidden=hidden)
         payload = _market_payload(m, d, cands, results, banners=banners, moments_=calendar[m],
@@ -1623,7 +1646,10 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     column_missing = [m for m, v in unread.items() if MISSING_VIEW_COLUMN in v]
     if column_missing:
         counts["view_column_missing"] = {"markets": column_missing, "column": "market_news_posts7", "action": "null_column"}
-    unread = {m: v for m, v in unread.items() if v != MISSING_VIEW_COLUMN}
+    null_failed = [m for m, v in unread.items() if v == NULL_COLUMN_READ_FAILED]
+    if null_failed:
+        counts["view_column_read_failed"] = {"markets": null_failed, "column": "market_news_posts7", "action": "held"}
+    unread = {m: v for m, v in unread.items() if v not in (MISSING_VIEW_COLUMN, NULL_COLUMN_READ_FAILED)}
     if unread:
         counts["locality_view_failed"] = {"markets": list(unread), "action": "held" if "held" in unread.values()
                                           else "read_without_view"}
