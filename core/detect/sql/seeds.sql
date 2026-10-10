@@ -29,6 +29,7 @@ WITH s AS (
   SELECT x.market, x.item_id, x.state, x.worth_pct, x.novelty, x.main_series_id
   FROM {core}.item_state x
   WHERE x.metric_date = @d AND x.run_id = @run_id AND x.market IN ('ZA', 'NG', 'KE') AND x.eligible
+    AND IFNULL(x.locality_status, '') NOT IN ('unreadable', 'missing')
     AND x.worth_pct IS NOT NULL),
 pl AS (
   SELECT DISTINCT po.market, po.post_id

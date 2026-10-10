@@ -380,9 +380,14 @@ def _stored(value):
 
 
 def _stored_figure(value):
-    """A contract Figure (section 1) from L2's stored one, which also carries n and reason."""
+    """A contract Figure (section 1) from L2's stored one, which also carries n and reason. The regime marker of the
+    locality rule (C4 v3 section 11.4) rides with the Figure when the stored one has it, so a reader comparing two
+    weeks can tell which rule each was read under; a Figure without one keeps the five keys."""
     stored = _stored(value)
-    return {k: stored.get(k) for k in FIGURE_KEYS} if stored else None
+    if not stored:
+        return None
+    figure = {k: stored.get(k) for k in FIGURE_KEYS}
+    return {**figure, "regime": stored["regime"]} if stored.get("regime") else figure
 
 
 def _scorecard(rows):

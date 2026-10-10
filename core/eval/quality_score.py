@@ -162,7 +162,21 @@ def precision(card_rows, market, qid, source, note):
     figs = [f for f in figs if f.get("value") is not None and (f.get("n") or 0) > 0]
     n = sum(f["n"] for f in figs)
     value = sum(f["value"] * f["n"] for f in figs) / n if n else None
-    return figure(value, unit, qid, n, MIN_CARDS, points=lambda v: 100 * v, source=source)
+    part = figure(value, unit, qid, n, MIN_CARDS, points=lambda v: 100 * v, source=source)
+    regime = _regime([f.get("regime") for f in figs])
+    return {**part, "regime": regime} if regime else part
+
+
+def _regime(markers):
+    """The locality regime a precision part rests on (C4 v3 section 11.4), from the markers of the Figures it pools: it may
+    be compared with last week's only when every one of them says so. None when none carries a marker (rows written
+    under the first scorecard rule), which leaves the comparison as it was."""
+    markers = [m for m in markers if isinstance(m, dict)]
+    if not markers:
+        return None
+    return {"comparable_with_previous_week": all(m.get("comparable_with_previous_week") is True for m in markers),
+            "locality_basis": sorted({str(m.get("locality_basis")) for m in markers}),
+            "previous_week_basis": sorted({str(m.get("previous_week_basis")) for m in markers})}
 
 
 def time_to_detect(card_rows, market, qid, source, note):
@@ -175,12 +189,17 @@ def time_to_detect(card_rows, market, qid, source, note):
             "reason": fig.get("reason") or "shown, not scored: TRUST.md section 7 sets no target"}
 
 
-def _change(score, counted, replay, prev):
-    """(change, reason) against last week's current row: withheld unless the parts and the replay match."""
+def _change(score, counted, replay, prev, regime=None):
+    """(change, reason) against last week's current row: withheld unless the parts and the replay match, and unless the
+    precision part's locality regime says the two weeks may be compared (the rule that wrote item_state.eligible did not
+    change between them, 11.4)."""
     if score is None:
         return None, "no score this week"
     if not prev or prev["score"] is None:
         return None, "no score for last week"
+    if "precision" in counted and regime and regime.get("comparable_with_previous_week") is not True:
+        return None, ("the precision figure's locality regime is not comparable with last week's "
+                      f"(this week {regime.get('locality_basis')}, last week {regime.get('previous_week_basis')})")
     if prev["counted"] != ",".join(counted):
         return None, f"last week counted {prev['counted'] or 'nothing'}, this week counted {','.join(counted)}"
     if (prev["questions"], prev["question_set_hash"]) != (replay["questions"], replay["question_set_hash"]):
@@ -211,7 +230,7 @@ def score_market(market, *, week_start, scores, replay, labels, feedback_qid, fe
     counted = [name for name in PARTS if not parts[name]["insufficient"]]
     score = sum(parts[name]["points"] for name in counted) / len(counted) if counted else None
     prev = previous.get(market)
-    change, change_reason = _change(score, counted, replay, prev)
+    change, change_reason = _change(score, counted, replay, prev, parts["precision"].get("regime"))
     return {"market": market, "score": score, "counted": counted, "change": change, "change_reason": change_reason,
             "previous_run_id": prev["run_id"] if prev else None, **replay, "parts": parts,
             "context": {"time_to_detect": time_to_detect(cards, market, cards_qid, cards_source, cards_note)}}

@@ -638,3 +638,30 @@ def test_seeds_sql_dry_runs_on_bigquery():
         config = bigquery.QueryJobConfig(dry_run=True, use_query_cache=False,
                                          query_parameters=[sqlrun._param(k, v) for k, v in used.items()] + extra)
         assert client.query(sqlrun.render(sql), job_config=config).dry_run
+
+
+def _locality_world(statuses):
+    w = World()
+    keys = [f"tag{i}" for i in range(len(statuses))]
+    w.load("core.cultural_map", [cmap(k) for k in keys])
+    w.states([{**state_row(k), "locality_status": status} for k, status in zip(keys, statuses)])
+    return w, dict(zip(statuses, keys))
+
+
+def test_under_v2_seeds_skip_an_item_whose_locality_row_is_unreadable_or_missing(monkeypatch):
+    """Review N3: state carries these rows as eligible so the brief can hold them; nothing spends credits on them."""
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, "v2")
+    w, key = _locality_world(["local", "unreadable", "missing", "not_local", None, "market_unconfirmed"])
+    got = {r["canonical_key"] for r in seeds.read_candidates(w.client(), D, "detect-20260920", core="core", agent="agent")}
+    assert got == {key["local"], key["not_local"], key[None], key["market_unconfirmed"]}
+
+
+def test_under_v1_seeds_read_no_locality_status(monkeypatch):
+    from core.conftest import set_locality_authority
+
+    set_locality_authority(monkeypatch, "v1")
+    w, key = _locality_world(["local", "unreadable", "missing"])
+    got = {r["canonical_key"] for r in seeds.read_candidates(w.client(), D, "detect-20260920", core="core", agent="agent")}
+    assert got == set(key.values())

@@ -22,7 +22,8 @@ for matching or written, every cluster's label candidates and keywords go to the
 structured call per market run, which names those that describe people by age, generation or life stage. A flagged
 keyword is dropped; a flagged label gives way to the next candidate that passes the age scan and the net, else to
 "Topic <short_id>".
-Matched items keep their existing label, which is never sent. The call is sent only with room under MODEL_DAILY_USD
+Matched items keep their existing label, which is never sent, unless rule (b) of the label-only change renames them
+(label_drift: under the v2 locality authority only, once per item and run date). The call is sent only with room under MODEL_DAILY_USD
 and its spend is booked on the job's day (book_spend). When it cannot be sent, fails, times out or answers malformed,
 every label in the run becomes "Topic <short_id>", net_failed goes in the counts, and the write goes on.
 
@@ -71,6 +72,8 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from core.trust import locality
+from core.trust.locality import MIN_SHARED_MEMBERS
 from core.understand.age_scan import passes_age_scan
 from core.understand.discovery_review import REVIEW_COLUMNS, review_sample, review_score, review_sheet  # noqa: F401
 from core.understand.embed import book_spend, spend_today
@@ -93,6 +96,10 @@ DORMANT_DAYS = 28
 EMA_OLD = 0.8
 REVIEW_COSINE = 0.9
 MERGE_REVIEW_LISTED = 50
+RENAMED_IDS = "renamed_item_ids"
+# The member posts of an item's cluster of the previous day that cluster_items.sql returns, highest membership
+# probability first. It must stay well above MIN_SHARED_MEMBERS: a cap of 1 would silently switch rule (b) off.
+RECENT_MEMBERS_CAP = 1000
 REVIEW_BLOCK = 1024  # rows of the cosine matrix merge_review_pairs holds at once
 MAX_PAYLOAD_BYTES = 8 * 1024 * 1024
 WRITE_PARAMS = ("map_rows", "cluster_rows", "member_rows")
@@ -504,18 +511,60 @@ def _vector(values):
     return [round(float(v), DECIMALS) for v in values]
 
 
+PLACEHOLDER_LABEL = re.compile(r"Topic [0-9a-f]{8}")
+
+
+def _is_name(label):
+    """A label that names a topic: not empty, not the neutral "Topic <short id>" and not "unlabelled topic"."""
+    return bool(label) and label != UNLABELLED and not PLACEHOLDER_LABEL.fullmatch(label)
+
+
+def label_drift(cluster, decision, item):
+    """Rule (b) of the label-only change (C4 v3 section 16, Q14): None unless the v2 locality authority is in force and
+    the matched cluster has the same topic's cosine (MATCH_COSINE or more), words that have left the item's latest
+    keywords (Jaccard under KEYWORD_JACCARD, both sets non-empty) and a name different from the item's label. Then the
+    number of member posts it shares with the item's cluster of the same market on the previous day (recent_members,
+    absent reads as none) and whether that reaches MIN_SHARED_MEMBERS, the only case in which the label changes. An item
+    that another market's run renamed on this run date (renamed_today) is not renamed again: the pair is only listed."""
+    if locality.LOCALITY_AUTHORITY != "v2":
+        return None
+    if decision["cosine"] is None or decision["cosine"] < MATCH_COSINE or not _is_name(cluster["label"]):
+        return None
+    a, b = set(cluster["keywords"]), set(item.get("keywords") or [])
+    if not a or not b or len(a & b) / len(a | b) >= KEYWORD_JACCARD or cluster["label"] == item["label"]:
+        return None
+    shared = len({p for p, _ in cluster["members"]} & set(item.get("recent_members") or ()))
+    blocked = bool(item.get("renamed_today"))
+    return {"shared_members": shared, "changes": shared >= MIN_SHARED_MEMBERS and not blocked, "renamed_today": blocked}
+
+
 def plan(clusters, decisions, items, run_date, market):
-    """The rows cluster_write.sql writes (map_rows, cluster_rows, member_rows) and the merge-review pairs."""
+    """The rows cluster_write.sql writes (map_rows, cluster_rows, member_rows), the merge-review pairs, the label
+    changes the run makes (label_changes) and the drifted matches that kept their label for want of shared members
+    (label_drift_candidates, for the weekly false-match review)."""
     by_id = {i["item_id"]: i for i in items}
     map_rows, cluster_rows, member_rows, targets = [], [], [], []
+    label_changes, drift_candidates = [], []
     for c, d in zip(clusters, decisions):
         if d["kind"] in ("match", "recurrence"):
             old = by_id[d["item_id"]]
             target = old["item_id"]
+            label, aliases = old["label"], list(old.get("aliases") or [])
+            drift = label_drift(c, d, old)
+            if drift and drift["changes"]:
+                label_changes.append({"item_id": target, "from": old["label"], "to": c["label"],
+                                      "shared_members": drift["shared_members"]})
+                if _is_name(old["label"]) and old["label"] not in aliases:
+                    aliases.append(old["label"])
+                label = c["label"]
+            elif drift:
+                drift_candidates.append({"item_id": target, "cluster_id": c["cluster_id"],
+                                         "shared_members": drift["shared_members"],
+                                         **({"renamed_today": True} if drift["renamed_today"] else {})})
             map_rows.append({
                 "change": "update", "item_id": target, "kind": old["kind"], "canonical_key": old["canonical_key"],
                 "expected_valid_from": _iso(old.get("valid_from")),
-                "label": old["label"], "aliases": list(old.get("aliases") or []),
+                "label": label, "aliases": aliases,
                 "parent_item_id": old.get("parent_item_id"), "centroid": _vector(ema(old["centroid"], c["centroid"])),
                 "first_seen": _iso(old.get("first_seen")), "first_seen_market": old.get("first_seen_market"),
                 "first_seen_platform": old.get("first_seen_platform"), "last_seen": run_date.isoformat(),
@@ -553,7 +602,8 @@ def plan(clusters, decisions, items, run_date, market):
             for k in range(r + 1, len(clusters)):
                 pair(targets[r], targets[k], float(cos[r, k]))
     return {"map_rows": map_rows, "cluster_rows": cluster_rows, "member_rows": member_rows,
-            "merge_review": _review_list(pairs)}
+            "merge_review": _review_list(pairs), "label_changes": label_changes,
+            "label_drift_candidates": drift_candidates}
 
 
 def _review_list(pairs):
@@ -613,7 +663,31 @@ def _saved_plan(rows):
         batches.append({k: json.dumps(batch[k]) for k in WRITE_PARAMS})
     if len(batches) != checkpoint["batch_count"]:
         raise RuntimeError("incomplete cluster recovery plan")
-    return batches, checkpoint["summary"]
+    return batches, {k: v for k, v in checkpoint["summary"].items() if k != RENAMED_IDS}
+
+
+def item_params(run_date, market):
+    """The parameters of cluster_items.sql: the run date, the market whose clusters the previous-day members come from,
+    and the cap on them."""
+    return {"run_date": run_date, "market": market, "member_cap": RECENT_MEMBERS_CAP}
+
+
+def counts_lists(planned):
+    """The label records of a plan as the run's counts keep them, present only when the rule fired: the first
+    MERGE_REVIEW_LISTED of label_changes (item, from, to, shared_members) and label_drift_candidates (item, cluster,
+    shared_members), each with its total, so the weekly review and the L4 record can read them."""
+    out = {}
+    for key in ("label_changes", "label_drift_candidates"):
+        if planned.get(key):
+            out[key] = planned[key][:MERGE_REVIEW_LISTED]
+            out[f"{key}_total"] = len(planned[key])
+    return out
+
+
+def renamed_item_ids(planned):
+    """Every item the plan renames, for the checkpoint summary only. counts_lists lists the first MERGE_REVIEW_LISTED
+    of them for display; another market's run of the same day must see all of them (cluster_items.sql renamed)."""
+    return list(dict.fromkeys(c["item_id"] for c in planned.get("label_changes") or []))
 
 
 def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None, clock=None):
@@ -658,14 +732,17 @@ def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None,
     if net.get("net_error") == "day_changed":
         return counts
     try:
-        items = _rows(execute(load("cluster_items"), {"run_date": run_date}))
+        items = _rows(execute(load("cluster_items"), item_params(run_date, market)))
         decisions = assign(clusters, items, run_date)
         planned = plan(clusters, decisions, items, run_date, market)
         batches = write_batches(planned)
         counts.update(merge_review=planned["merge_review"][:MERGE_REVIEW_LISTED],
-                      merge_review_total=len(planned["merge_review"]))
+                      merge_review_total=len(planned["merge_review"]),
+                      # present only when the rule fired, so a run that renames nothing keeps its counts as they were
+                      **counts_lists(planned))
+        renamed = renamed_item_ids(planned)
         checkpoint = {**params, "plan_id": uuid.uuid4().hex, "batch_count": len(batches),
-                      "summary": json.dumps(counts)}
+                      "summary": json.dumps({**counts, **({RENAMED_IDS: renamed} if renamed else {})})}
         for index, batch in enumerate(batches):
             execute(load("cluster_checkpoint"), {**checkpoint, "batch_index": index, **batch})
         execute(load("cluster_checkpoint"), {**checkpoint, "batch_index": -1,

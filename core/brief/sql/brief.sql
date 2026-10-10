@@ -15,7 +15,14 @@
 -- (item_state's creators3 and posts3, NULL read as 0) rank after the rest: a single-video board tag can never reach
 -- MIN_EVIDENCE, so it should not take a judged slot from an item with breadth. This only orders the pool; nothing
 -- is dropped and no threshold changes. Then non-NULL worth_raw ranks first, followed by worth_raw descending and
--- item_id. Label, key, first seen and 28-day sighted platforms provide context only; they do not affect rank. The
+-- item_id.
+--
+-- Locality (C4 v3 appendix K). A row whose item_state.locality_basis is 'locality_v2.1' was admitted by the retained
+-- locality_v2 row of its detect run, so it orders by that row's checked status (local and market_unconfirmed tied in
+-- bucket 0, unreadable or missing in 1, not_local in 2) and by the row's breadth_creators, which an unreadable row's
+-- breadth never supplies; any other row keeps the pack scope bucket and local_first above, so a row written by a v1
+-- detect run orders exactly as it always did. The row's columns come back as lrow_<name> (item_state has its own
+-- locality_status), and _selection_market_scope is derived from the checked status for a v2 row. Label, key, first seen and 28-day sighted platforms provide context only; they do not affect rank. The
 -- top 90 come back so core/brief/job.py can rank rows without a readable title (platform ids) after named ones and
 -- keep 10, judging the next ones in the place of any held for invalid data days (G1). The LIMIT must equal job.py's
 -- POOL.
@@ -61,12 +68,21 @@ local_first AS (
   GROUP BY pi.item_id),
 ordered AS (
 SELECT s.*, cm.kind map_kind, cm.status map_status, cm.label, cm.canonical_key, fs.first_seen,
-  seen.platforms seen_platforms, ms.market_scope _selection_market_scope,
+  seen.platforms seen_platforms,
+  IF(s.locality_basis = 'locality_v2.1',
+    CASE lo.checked_status WHEN 'not_local' THEN 'global' WHEN 'local' THEN 'market'
+                           WHEN 'market_unconfirmed' THEN 'market' END, ms.market_scope) _selection_market_scope,
+  lo.metric_version lrow_metric_version, lo.schema_version lrow_schema_version, lo.population_posts lrow_population_posts, lo.known_posts lrow_known_posts, lo.local_posts lrow_local_posts, lo.foreign_posts lrow_foreign_posts, lo.unknown_posts lrow_unknown_posts, lo.feed_only_posts lrow_feed_only_posts, lo.vetoed_feed_posts lrow_vetoed_feed_posts, lo.breadth_creators lrow_breadth_creators, lo.status lrow_status, lo.local_share lrow_local_share, lo.population_digest lrow_population_digest, lo.population_cutoff lrow_population_cutoff, lo.checked_status lrow_checked_status, lo.checked_label lrow_checked_label,
   ROW_NUMBER() OVER (ORDER BY s.eligible IS NOT TRUE,
-    CASE WHEN ms.market_scope = 'market' AND ms.market_news_posts7 < ms.market_posts7
-              AND ms.total_posts7 >= 3 AND ms.market_posts7 >= 2 THEN 0
-         WHEN ms.market_scope = 'market' AND ms.market_news_posts7 < ms.market_posts7 THEN 1 ELSE 2 END,
-    IFNULL(lf.creators, 0) < 2,
+    IF(s.locality_basis = 'locality_v2.1',
+      CASE WHEN lo.checked_status IN ('local', 'market_unconfirmed') THEN 0
+           WHEN lo.checked_status = 'not_local' THEN 2 ELSE 1 END,
+      CASE WHEN ms.market_scope = 'market' AND ms.market_news_posts7 < ms.market_posts7
+                AND ms.total_posts7 >= 3 AND ms.market_posts7 >= 2 THEN 0
+           WHEN ms.market_scope = 'market' AND ms.market_news_posts7 < ms.market_posts7 THEN 1 ELSE 2 END),
+    IF(s.locality_basis = 'locality_v2.1',
+      IFNULL(IF(lo.checked_status = 'unreadable', NULL, lo.breadth_creators), 0) < 2,
+      IFNULL(lf.creators, 0) < 2),
     IFNULL(s.creators3, 0) < 2 OR IFNULL(s.posts3, 0) < 3,
     s.worth_raw IS NULL, s.worth_raw DESC, s.item_id) _selection_sql_rank
 FROM {core}.v_item_state_current s
@@ -76,6 +92,8 @@ LEFT JOIN seen ON seen.item_id = s.item_id
 LEFT JOIN local_first lf ON lf.item_id = s.item_id
 LEFT JOIN {core}.v_item_market_scope ms
   ON ms.metric_date = s.metric_date AND ms.item_id = s.item_id AND ms.market = s.market
+LEFT JOIN {core}.v_item_locality_current lo
+  ON lo.run_date = s.metric_date AND lo.item_id = s.item_id AND lo.market = s.market AND lo.detect_run_id = s.run_id
 WHERE s.metric_date = @d AND s.market = @market),
 selection_snapshot AS (
   SELECT COUNT(*) total_count, COUNTIF(eligible IS TRUE) eligible_count,
@@ -93,6 +111,29 @@ SELECT ordered.*,
 FROM ordered CROSS JOIN selection_snapshot
 ORDER BY _selection_sql_rank
 LIMIT 90;
+
+-- name: not_local_audit
+-- The not_local rows of this date and market, as the checked view shows them, up to 50 with their total: the items a
+-- 90-row pool cannot show (C4 v3 section 11.2, appendix K). Only the good detect run of the date, only this market.
+SELECT lo.item_id, lo.known_posts, lo.local_posts, lo.local_share, lo.breadth_creators,
+  cm.kind map_kind, cm.label, cm.canonical_key,
+  COUNT(*) OVER () not_local_total
+FROM {core}.v_item_locality_current lo
+JOIN {core}.item_state s
+  ON s.metric_date = lo.run_date AND s.item_id = lo.item_id AND s.market = lo.market AND s.run_id = lo.detect_run_id
+LEFT JOIN {core}.cultural_map cm ON cm.item_id = lo.item_id AND cm.valid_to IS NULL
+WHERE lo.run_date = @d AND lo.market = @market AND lo.checked_status = 'not_local'
+ORDER BY lo.known_posts DESC, lo.item_id
+LIMIT 50;
+
+-- name: unreadable_audit
+-- The eligible rows of this run and market whose locality row is missing or unreadable, which the pool may not show.
+SELECT COUNT(*) unreadable_total
+FROM {core}.item_state s
+LEFT JOIN {core}.v_item_locality_current lo
+  ON lo.run_date = s.metric_date AND lo.item_id = s.item_id AND lo.market = s.market AND lo.detect_run_id = s.run_id
+WHERE s.metric_date = @d AND s.market = @market AND s.run_id = @run_id AND s.eligible
+  AND IFNULL(lo.checked_status, 'missing') IN ('unreadable', 'missing');
 
 -- name: post_set
 -- Every post the card for one item could rest on, not only the 12 of its evidence pack: linked to the item and

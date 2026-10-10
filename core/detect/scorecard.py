@@ -80,7 +80,7 @@ from .sqlrun import AGENT, CORE
 SQL = Path(__file__).parent / "sql" / "scorecard.sql"
 REFERENCE = Path(__file__).parent / "reference" / "ground_truth.yaml"
 MARKETS = ("ZA", "NG", "KE")
-RULE_VERSION = "scorecard-1"
+RULE_VERSION = "scorecard-2"      # scorecard-2: every Figure carries the locality regime marker
 MIN_PLACEBO = 20                 # DATA.md 3.7: platform counts need at least 20 placebo items
 REQUIRED = ("id", "market", "title", "event_date", "match_terms", "added", "source")
 NOT_YET = "not yet measured: "
@@ -130,7 +130,7 @@ def reference_sql(entries):
 def queries(entries):
     """name -> SQL of scorecard.sql without its comment header, the reference list and the shared fragments
     (names starting with _) filled in, and dataset names left as placeholders."""
-    text = SQL.read_text(encoding="utf-8").replace("{reference}", reference_sql(entries))
+    text = sqlrun.for_authority(SQL.read_text(encoding="utf-8")).replace("{reference}", reference_sql(entries))
     named = {}
     for stmt in sqlrun.split(text):
         name = next(line.split(":", 1)[1].strip() for line in stmt.splitlines() if line.startswith("-- name:"))
@@ -158,6 +158,19 @@ def queries(entries):
     return out
 
 
+def figure_windows(week_start):
+    """{figure: (since, until)}: the days of item_state each Figure reads, the windows scorecard.sql fills in. The regime
+    marker of a Figure (C4 v3 section 11.4) is read over its own window and over the same window a week earlier. The
+    Figures that read credits or reviews only (precision, expansion, cost) are the week itself."""
+    start, end = week_start, week_start + timedelta(days=6)
+    week = (start, end)
+    windows = dict.fromkeys(FIGURE_NAMES, week)
+    windows["time_to_detect"] = (DATA_START, end)
+    windows["lead_time"] = (start - timedelta(days=LEAD_WINDOW), end)
+    windows["recall"] = (start, end + timedelta(days=RECALL_DAYS))
+    return windows
+
+
 def params(market, week_start):
     year, week, _ = week_start.isocalendar()
     return {"market": market, "week_start": week_start, "week_end": week_start + timedelta(days=6),
@@ -171,6 +184,24 @@ def _query_id(name, sql, query_params):
 
 def _figure(value, unit, trace, n, reason=None):
     return {"value": value, "unit": unit, **trace, "n": n, "reason": None if value is not None else reason}
+
+
+def locality_regime(rows):
+    """The regime marker of a week (C4 v3 section 11.4) from the locality_regime rows: the rule that wrote
+    item_state.eligible in the week ("v1", "locality_v2.1" or "mixed" when the week straddles the switch, None with
+    no state rows), the rule of the week before, the days under each rule, and whether the two weeks may be compared
+    as one series (the same single rule in both, never a mixed week)."""
+    def basis(this_week):
+        found = sorted({r["locality_basis"] for r in rows if bool(r["this_week"]) is this_week})
+        return None if not found else found[0] if len(found) == 1 else "mixed"
+
+    this, before = basis(True), basis(False)
+    days = {}
+    for r in rows:
+        if r["this_week"]:
+            days[r["locality_basis"]] = days.get(r["locality_basis"], 0) + r["days"]
+    return {"locality_basis": this, "previous_week_basis": before, "days_by_basis": days,
+            "comparable_with_previous_week": this is not None and this == before != "mixed"}
 
 
 def _median(values):
@@ -258,6 +289,9 @@ def cost_per_confirmed(rows, trace):
                    trends or 0, reason)
 
 
+FIGURE_NAMES = ("time_to_detect", "lead_time", "precision", "recall", "breadth_platforms", "expansion_cluster_share",
+                "expansion_platform_share", "expansion_language_share", "cost_per_confirmed")
+
 NO_LANGUAGE = {"value": None, "unit": "largest share of expansion credits held by one language",
                "query_id": None, "result_hash": None, "n": None,
                "reason": NOT_YET + "credit_ledger and seed_queue rows carry no language"}
@@ -273,13 +307,21 @@ def run_scorecard(client, week_start, *, run_id=None, reference=REFERENCE, core=
     for market in MARKETS:
         p = params(market, week_start)
 
-        def run(name):
-            result = sqlrun.query(client, sql[name], p, core=core, agent=agent)
-            trace = {"query_id": _query_id(name, sql[name], p), "run_id": run_id, "result_hash": result_hash(result)}
+        def run(name, extra=None):
+            query_params = {**p, **(extra or {})}
+            result = sqlrun.query(client, sql[name], query_params, core=core, agent=agent)
+            trace = {"query_id": _query_id(name, sql[name], query_params), "run_id": run_id,
+                     "result_hash": result_hash(result)}
             return result, trace
 
         expansion, exp_trace = run("expansion_share")
-        rows.append({
+        windows, markers = figure_windows(week_start), {}
+        for window in sorted(set(windows.values())):
+            regime_rows, regime_trace = run("locality_regime", {"since": window[0], "until": window[1]})
+            markers[window] = {**locality_regime(regime_rows),
+                               "window": {"since": window[0].isoformat(), "until": window[1].isoformat()},
+                               **regime_trace}
+        row = {
             "week_start": week_start, "week_end": p["week_end"], "market": market, "run_id": run_id,
             "rule_version": RULE_VERSION,
             "time_to_detect": time_to_detect(*run("time_to_detect")),
@@ -291,5 +333,8 @@ def run_scorecard(client, week_start, *, run_id=None, reference=REFERENCE, core=
             "expansion_platform_share": expansion_share(expansion, "platform", exp_trace),
             "expansion_language_share": {**NO_LANGUAGE, "run_id": run_id},
             "cost_per_confirmed": cost_per_confirmed(*run("cost_per_confirmed")),
-        })
+        }
+        for name in FIGURE_NAMES:
+            row[name] = {**row[name], "regime": markers[windows[name]]}
+        rows.append(row)
     return rows
