@@ -86,13 +86,23 @@ PATTERN_PINS = [
     "born in 1995", "born after 2000", "grew up in the nineties", "the 90s generation", "90s born creators",
     "the nineties babies", "noughties-born", "#generation_alpha", "genz2025", "kiddies dancing",
     "zillennials posted", "old people dancing", "old folks joined", "the old heads agree", "old timers remember",
-    "an old man spoke", "the old ladies sang", "older audiences", "the elders agreed",
+    "older audiences",
 ]
+# On the narrow list too since the rule 1 ruling of wave 8 integration (the brief's list agrees with Ask's on them).
+IN_BOTH_LISTS = ["an old man spoke", "the old ladies sang", "an old woman sat", "old men talked", "the elders agreed",
+                 "an elder spoke"]
 
 
 @pytest.mark.parametrize("text", PATTERN_PINS)
 def test_each_late_k6_pattern_is_pinned_through_the_claim_check(text):
     assert claims._breach_term(text, set()) is None, text
+    c = {"id": "c1", "text": text, "evidence_ids": [], "quotes": []}
+    assert claims._k6(c, {}, set())[0] == "breach", text
+
+
+@pytest.mark.parametrize("text", IN_BOTH_LISTS)
+def test_the_old_age_person_words_are_on_the_narrow_list_and_breach_k6(text):
+    assert claims._breach_term(text, set()), text
     c = {"id": "c1", "text": text, "evidence_ids": [], "quotes": []}
     assert claims._k6(c, {}, set())[0] == "breach", text
 

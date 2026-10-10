@@ -466,6 +466,10 @@ _BREACH_TERMS = [
         r"\bgoogle[\s_-]*trends?\b",
         r"\bsearch[\s-]volumes?\b",
         r"\bsearch\s+interest\b",
+        # Rule 1, lead ruling in wave 8 integration: the plain old-age person words Ask already flags (core/agent/checks.py
+        # AGE_PATTERNS) are on this list too, so the brief's list and Ask's agree on them. Seeds read this list.
+        r"\bold[\s-](?:man|men|woman|women|lady|ladies)\b",
+        r"\belders?\b",
     )
 ]
 
@@ -510,12 +514,14 @@ _K6_ONLY_TERMS = [
         r"(?!(?<![@#])(?-i:genz_(?:score|markers)\b))\bgen(?:eration)?[_-]?(?:z|alpha)(?=(?-i:[A-Z])|[\d_])",
         r"\b(?:kid(?:z|dos?|dies?)|zillenn?ials?|igen(?:eration)?s?|ama[_-]?(?:(?:19|20)\d{2}'?s?|[12]ks?))\b",
         r"\bold[\s-]?(?:people|folks?|heads|timers?)\b",
-        r"\bold[\s-](?:man|men|woman|women|lady|ladies)\b",
         rf"\b(?:older|elder)\s+{_PERSON}\b",
-        _KinName(r"\belders?\b", by_name=False),
     )
 ]
-_K6_TERMS = _BREACH_TERMS + _K6_ONLY_TERMS
+# Seeds keep the plain elders pattern of _BREACH_TERMS: it breaches wherever it is written. The K6 claim check reads the
+# same position with the title exemption instead ("Council of Elders", "<ACRONYM> Elders"), so the two lists differ at
+# that one place and nowhere else.
+_ELDERS = r"\belders?\b"
+_K6_TERMS = [_KinName(_ELDERS, by_name=False) if t.pattern == _ELDERS else t for t in _BREACH_TERMS] + _K6_ONLY_TERMS
 
 # W8-DEC-03d, decided YES on 9 Oct 2026, so True ships. Set False, K6 answers are exactly those of _K6_TERMS. True
 # makes K6, for claims, quote translations, basis, falsifier and answer fields only, (1) stop holding a falling pair
