@@ -65,6 +65,7 @@ ALLOWED = {
     "schema/core.sql::<file>": "column definitions",
     "schema/locality_switch.sql::<file>": "the column definitions of the switch release only",
     "detect/job.py::<module>": "state_script: the text that drops the switch columns from the INSERT under v1",
+    "detect/sqlrun.py::<module>": "the v1 substitution (for_authority): names eligible_v1 among the three switch columns to replace its reads with a typed NULL, and reads no value",
     "collect/probe_report.py::main": "a probe report, read only",
 }
 
