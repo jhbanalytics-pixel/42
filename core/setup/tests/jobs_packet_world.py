@@ -142,6 +142,11 @@ class JobsBench:
         self.a_readback.parent.mkdir(parents=True, exist_ok=True)
         self.a_readback.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
 
+    def copy_a_readback(self):
+        """Release A's AfterPromotion readback as A's own helper wrote it (jobs_world.a_promoted_scenario): the one input that comes from outside B."""
+        self.a_readback.parent.mkdir(parents=True, exist_ok=True)
+        self.a_readback.write_bytes(self.fixture.a_readback_file.read_bytes())
+
     def write_durable(self):
         head, a80 = trees()
         manifest = je.build_jobs_manifest(head, a80, release_id=self.release_id, commit=self.target, tree=self.tree, owner=OWNER)

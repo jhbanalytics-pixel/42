@@ -100,12 +100,18 @@ def set_all_jobs_image(world, digest):
         set_job_image(world, name, digest)
 
 
-def a_promoted_world(tmp_path):
-    """The services after Release A's AfterPromotion and the 14 jobs still on the rollback digest."""
+def a_promoted_scenario(tmp_path):
+    """Release A walked to AfterPromotion by its own helper (release_world.Scenario), with the 14 jobs still on the rollback digest. The
+    scenario's release directory holds the AfterPromotion readback that helper wrote."""
     scenario = rw.Scenario(tmp_path / "a-scenario")
     scenario.to("AfterPromotion")
     set_all_jobs_image(scenario.world, ROLLBACK_DIGEST)
-    return scenario.world
+    return scenario
+
+
+def a_promoted_world(tmp_path):
+    """The services after Release A's AfterPromotion and the 14 jobs still on the rollback digest."""
+    return a_promoted_scenario(tmp_path).world
 
 
 def execution_raw(name, job, start, completion, digest, *, succeeded=1, failed=0, cancelled=0, retried=None, with_digest=True):
@@ -200,7 +206,9 @@ class ChainFixture:
         self.digest, self.role, self.day = digest, role, day
         self.midnight = dt.datetime(day.year, day.month, day.day, tzinfo=UTC) - dt.timedelta(hours=2)
         self.stamp = day.strftime("%Y%m%d")
-        self.world = a_promoted_world(self.tmp)
+        scenario = a_promoted_scenario(self.tmp)
+        self.world = scenario.world
+        self.a_readback_file = sorted((scenario.release_dir / "readbacks").glob("AfterPromotion-*.json"))[-1]
         self.world.executions, self.world.described = {}, {}
         self.rows = []
         self.counts = {"collect": {"posts": 1200}, "understand": self.understand_counts(), "detect": {"items": 300}, "brief": {"cards": 12}}

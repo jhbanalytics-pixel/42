@@ -38,6 +38,7 @@ function Get-UtcNow {
     return [DateTimeOffset]::UtcNow.AddMinutes($Script:ClockMinutes)
 }
 
+if (-not $Script:Cfg.real_native) {
 function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
     $key = ((@($Exe) + $Arguments) -join ' ')
     Log-Call @{ kind = 'read'; argv = (@($Exe) + $Arguments); env = (Env-Snap) }
@@ -98,6 +99,7 @@ function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [strin
     if ($code -ne 0 -and $code -notin $Accept) { throw "$Name exited $code. Stop; the release may be partial. The declared branch is printed above." }
     return $code
 }
+}
 
 if (-not $Script:Cfg.real_console) {
 function Test-Interactive { return (-not $Script:Cfg.no_interactive) }
@@ -118,7 +120,8 @@ function Read-Typed {
 
 function Start-Sleep { param($Seconds) Log-Call @{ kind = 'sleep'; seconds = $Seconds } }
 
-$Script:TestDoubles = @('Read-Native', 'Run-Logged', 'Get-UtcNow', 'Start-Sleep')
+$Script:TestDoubles = @('Get-UtcNow', 'Start-Sleep')
+if (-not $cfg.real_native) { $Script:TestDoubles += @('Read-Native', 'Run-Logged') }
 if (-not $cfg.real_console) { $Script:TestDoubles += @('Read-Typed', 'Test-Interactive') }
 foreach ($alias in @($cfg.aliases)) { Set-Alias -Scope Global -Name $alias.name -Value $alias.value }
 if ($cfg.attack) { . ([scriptblock]::Create($cfg.attack)) }
@@ -204,7 +207,7 @@ class JobsPasteWorld:
         self.write(self.review, locklib.review_for(self.lock, COMMIT))
 
     def run(self, *, exits=None, interactive=True, action=None, status="", words=None, snapshot_age=1.0, no_readback=(),
-            minutes_per_prompt=0, aliases=(), extra=None, paste=None, dirty_after_runs=-1):
+            minutes_per_prompt=0, aliases=(), extra=None, paste=None, dirty_after_runs=-1, env=None):
         calls = self.tmp / "calls.jsonl"
         calls.write_text("", encoding="utf-8")
         config = {
@@ -213,11 +216,13 @@ class JobsPasteWorld:
             "config_json": json.dumps({"core": {"account": CALLER, "project": "ogilvy-trends-v2"}}), "exits": exits or {},
             "no_interactive": not interactive, "words": words or {}, "snapshot_age_minutes": snapshot_age,
             "no_readback": list(no_readback), "minutes_per_prompt": minutes_per_prompt, "aliases": list(aliases), "real_console": False, "attack": "",
-            "inject": "", "inject_at_run": 0, "blockers_result": "", "blockers_blocked": False, "executor": "", "state": "", "fixed_now": "", **(extra or {})}
+            "inject": "", "inject_at_run": 0, "blockers_result": "", "blockers_blocked": False, "executor": "", "state": "", "fixed_now": "",
+            "real_native": False, **(extra or {})}
         self.write(self.tmp / "config.json", config)
         driver = self.tmp / "driver.ps1"
         driver.write_text(DRIVER, encoding="utf-8", newline="\n")
         clean = {k: v for k, v in os.environ.items() if k not in ("CLOUDSDK_CORE_DISABLE_FILE_LOGGING", "PYTHONDONTWRITEBYTECODE", "GIT_OPTIONAL_LOCKS")}
+        clean.update(env or {})
         proc = subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(driver), "-Config", str(self.tmp / "config.json")],
                               capture_output=True, stdin=subprocess.DEVNULL, encoding="utf-8", timeout=120, env=clean)
         entries = [json.loads(line) for line in calls.read_text(encoding="utf-8-sig").splitlines() if line.strip()]

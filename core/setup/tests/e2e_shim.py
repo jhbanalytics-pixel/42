@@ -1,20 +1,25 @@
 """The stand-in for every command the jobs paste starts, for the end to end test (core/setup/tests/test_jobs_final.py).
 
     py -3.13 -B e2e_shim.py <state.pkl> py -3.13 <script or -m module> <its arguments>
+    py -3.13 -B e2e_shim.py <state.pkl> gcloud config list ...
 
-The paste, run as a real pwsh process with its commands doubled, hands each command it would have started to this program. The program
-loads the fake world the test pickled, runs the real main() of the named script against that world, saves the world again and exits
-with the code the real script returned, so the paste's own retry, stop and readback rules act on real exit codes. Nothing here reaches
-a cloud: the readers, the Cloud Run adapter, the BigQuery client, the Cloud Build session and git are all doubles over the pickled world.
+The real paste runs as a real pwsh process with its own Read-Native and Run-Logged. The `py` and `gcloud` it starts are two small .cmd files
+first on PATH (EndToEnd.install_programs), which hand the command line to this program. The program loads the fake world the test pickled,
+runs the real main() of the named script against that world, saves the world again and exits with the code the real script returned, so the
+paste's own retry, stop and readback rules act on real exit codes. git is the real git, over a real throwaway repository at the release
+commit. What is faked is only what reaches a cloud: the Cloud Run readers and adapter, the BigQuery clients (the durable column readbacks and
+core.schema.apply), the Cloud Build session and the gcloud configuration read.
 """
 from __future__ import annotations
 
 import contextlib
 import io
+import os
 import pickle
 import re
 import sys
 import time
+import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -50,6 +55,55 @@ class ColumnsBq:
         return [{"column_name": c} for c in columns]
 
 
+class _Job:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def result(self):
+        return self.rows
+
+
+class ApplyBq:
+    """BigQuery as core.schema.apply sees it: datasets, tables and views that exist (`live`, a plain dict the test and the shim pass around),
+    dry runs that change nothing, and statements that create what they name. `live` starts as the a80 schema, which is what is deployed
+    today (jobs_e2e_world.a80_live)."""
+
+    def __init__(self, live):
+        self.live = live
+
+    def get_dataset(self, name):
+        from google.api_core.exceptions import NotFound
+
+        if name not in self.live["datasets"]:
+            raise NotFound(name)
+        return object()
+
+    def get_table(self, name):
+        from google.api_core.exceptions import NotFound
+
+        if name not in self.live["tables"]:
+            raise NotFound(name)
+        return types.SimpleNamespace(view_query=self.live["tables"][name])
+
+    def query(self, sql, job_config=None, location=None):
+        from core.schema import apply
+
+        listing = re.search(r"`[\w-]+\.(\w+)\.INFORMATION_SCHEMA\.TABLES`", sql)
+        if listing:
+            prefix = f"ogilvy-trends-v2.{listing.group(1)}."
+            return _Job([{"table_name": name[len(prefix):], "table_type": "VIEW" if body else "BASE TABLE"}
+                         for name, body in sorted(self.live["tables"].items()) if name.startswith(prefix)])
+        if not (job_config is not None and job_config.dry_run):
+            kind, name = apply.kind(sql), apply.statement_name(sql)
+            if kind == "table":
+                self.live["tables"].setdefault(name, None)
+            elif kind == "view":
+                self.live["tables"].setdefault(name, apply.view_body(sql))
+            elif kind == "schema":
+                self.live["datasets"].add(name)
+        return _Job([])
+
+
 class BuildSession:
     """Cloud Build's REST API: a create returns the build, a get returns it finished, and the build leaves its record and the tag."""
 
@@ -80,23 +134,38 @@ class BuildSession:
 
 def run_command(state, argv):
     """argv is the command the paste would have started: py -3.13 <script> <args> or py -3.13 -m <module> <args>."""
+    fixture, cloud, clock = state["fixture"], state["cloud"], state["clock"]
+    if argv[0] == "gcloud":
+        assert argv[1:3] == ["config", "list"], argv
+        import json
+
+        print(json.dumps(cloud.config()))
+        return 0
     assert argv[:2] == ["py", "-3.13"], argv
     rest = argv[2:]
-    fixture, cloud, clock = state["fixture"], state["cloud"], state["clock"]
     if rest[0] == "-m":
+        from core.schema import apply
+
         assert rest[1] == "core.schema.apply" and rest[2:] == ["--apply"], rest
-        if not state.get("apply_noop"):
+        files = tuple(Path(os.getcwd()) / "core" / "schema" / path.name for path in apply.SQL_FILES)
+        real_load = apply.load_statements
+        apply.bigquery.Client = lambda **kw: ApplyBq(state["live"])
+        apply.load_statements = lambda paths=files: real_load(paths)
+        code = apply.main(["--apply"])
+        if code == 0 and not state.get("apply_noop"):
             state["schema_applied"] = True
         state["applied_at_call"] = state["calls"]
-        print("applied")
-        return 0
+        return code
     script, args = rest[0].replace("\\", "/"), rest[1:]
     name = script.rsplit("/", 1)[-1]
     if name == "bound_readback.py":
         from core.setup.release import bound_readback
 
+        from core.setup import durable_effects_check as de
+
+        # The files of the bound commit are read by the real git archive, from the repository the paste was started in.
         return bound_readback.main(args, reader_factory=lambda timeouts: cloud, bq_factory=lambda bound: fixture.bq_client(), now=clock.now,
-                                   head_files_factory=lambda bound: fixture.head_files())
+                                   head_files_factory=lambda bound: de.git_tree_files(bound["target"], "core", os.getcwd()))
     if name == "jobs_run.py":
         from core.setup.release import jobs_run
 

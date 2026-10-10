@@ -624,3 +624,64 @@ def test_f1_the_rollback_command_exits_zero_and_restores_the_fourteen_jobs_when_
     code = jr.main(["rollback", "--bindings", str(bindings), "--evidence", str(w.evidence)], adapter_factory=lambda t: cloud, now=clock.now)
     assert code == 0 and all(v == OLD for v in digests(cloud).values())
     assert json.loads(sorted(w.evidence.glob("jobs-rollback-*.json"))[-1].read_text(encoding="utf-8"))["past_rollback_deadline"] is None
+
+
+# M18 of the review: the except branch of the rollback (and of the update) is pinned in every part. The log is written once, says what stopped
+# the run, keeps a stop that was already recorded, carries a finish time and names the error by its type and nothing else; the error is raised.
+
+def written_log(w, prefix):
+    files = sorted(w.evidence.glob(f"{prefix}-*.json"))
+    assert len(files) == 1
+    return json.loads(files[0].read_text(encoding="utf-8"))
+
+
+def test_m18_an_unexpected_error_in_a_rollback_is_logged_with_its_type_a_finish_time_and_an_incomplete_run_and_is_raised_unchanged(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    update(w, cloud, clock)
+
+    def boom(job, digest):
+        raise RuntimeError("secret text that must not reach the log")
+
+    cloud.update_job = boom
+    with pytest.raises(RuntimeError, match="secret text"):
+        rollback(w, cloud, clock)
+    log = written_log(w, "jobs-rollback")
+    assert log["stopped"] == {"code": "UNEXPECTED", "message": "RuntimeError", "job": None, "branch_text": None}
+    assert log["codes"] == ["UNEXPECTED"] and log["complete"] is False and log["finished_at"] == clock.now().isoformat()
+    assert "secret text" not in json.dumps(log)
+
+
+def test_m18_an_error_after_a_stop_keeps_the_stop_that_was_recorded_in_a_rollback_and_in_an_update(tmp_path, monkeypatch):
+    for verb in ("rollback", "update"):
+        w, cloud, clock = started(tmp_path / verb)
+        if verb == "rollback":
+            update(w, cloud, clock)
+        if verb == "update":
+            cloud.fail["f42-watchdog"] = 1
+        else:
+            cloud.refuse_restores = True
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("late")
+
+        monkeypatch.setattr(jr, "finalize", boom)
+        with pytest.raises(RuntimeError):
+            (rollback if verb == "rollback" else update)(w, cloud, clock)
+        log = written_log(w, f"jobs-{verb}")
+        assert log["stopped"]["code"] == "UPDATE_FAILED" and log["codes"] == ["UPDATE_FAILED"], (verb, log["stopped"], log["updated"])
+        assert log["finished_at"] == clock.now().isoformat(), verb
+        monkeypatch.undo()
+
+
+def test_m18_an_unexpected_error_in_an_update_is_logged_by_its_type_only_and_raised(tmp_path):
+    w, cloud, clock = started(tmp_path)
+
+    def boom(job, digest):
+        raise RuntimeError("secret text that must not reach the log")
+
+    cloud.update_job = boom
+    with pytest.raises(RuntimeError, match="secret text"):
+        update(w, cloud, clock)
+    log = written_log(w, "jobs-update")
+    assert log["stopped"] == {"code": "UNEXPECTED", "message": "RuntimeError", "job": None, "branch_text": None}
+    assert log["complete"] is False and log["finished_at"] == clock.now().isoformat() and "secret text" not in json.dumps(log)
