@@ -301,7 +301,7 @@ WITH state_keys AS (
     AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
   GROUP BY s.metric_date, s.item_id, s.market, po.post_id
 ), creator_ranked AS (
-  SELECT seen.metric_date, seen.item_id, seen.market, ps.post_id, ps.geo_market, ps.geo_confidence,
+  SELECT seen.metric_date, seen.item_id, seen.market, ps.post_id, ps.platform, ps.geo_market, ps.geo_confidence,
     ps.geo_source, seen.measured, IFNULL(ps.engagement, 0) eng,
     ROW_NUMBER() OVER (PARTITION BY seen.metric_date, seen.item_id, seen.market,
                                     IFNULL(ps.creator_id, ps.post_id)
@@ -351,17 +351,19 @@ WITH state_keys AS (
       WHERE v.post_id = e.post_id
         AND sight.source_market = e.market
         AND sight.obs_date BETWEEN DATE_SUB(e.metric_date, INTERVAL 6 DAY) AND e.metric_date
-    ))) in_market
+    ))) in_market, LOWER(TRIM(e.platform)) = 'news' is_news
   FROM eligible_posts e
 ), post_counts AS (
   SELECT metric_date, item_id, market,
     COUNT(DISTINCT IF(in_market, post_id, NULL)) market_posts7,
+    COUNT(DISTINCT IF(in_market AND is_news, post_id, NULL)) market_news_posts7,
     COUNT(DISTINCT post_id) total_posts7
   FROM scored_posts
   GROUP BY metric_date, item_id, market
 ), scoped AS (
   SELECT s.metric_date, s.item_id, s.market,
     IFNULL(c.market_posts7, 0) market_posts7,
+    IFNULL(c.market_news_posts7, 0) market_news_posts7,
     IFNULL(c.total_posts7, 0) total_posts7,
     SAFE_DIVIDE(IFNULL(c.market_posts7, 0), IFNULL(c.total_posts7, 0)) market_share7
   FROM state_keys s
@@ -370,5 +372,5 @@ WITH state_keys AS (
   SELECT scoped.*, IF(market_share7 > 0.5, 'market', 'global') market_scope
   FROM scoped
 )
-SELECT metric_date, item_id, market, market_scope, market_posts7, total_posts7, market_share7
+SELECT metric_date, item_id, market, market_scope, market_posts7, market_news_posts7, total_posts7, market_share7
 FROM scope_values;
