@@ -1,5 +1,6 @@
 """The environment read scan (W8-REL-B v2.1 section 3.5, JB-06): B's job code reads no setting the live job definitions lack.
 Offline: the trees are lists of (path, text) as durable_effects_check.git_tree_files returns them."""
+import copy
 import re
 import subprocess
 from pathlib import Path
@@ -307,3 +308,128 @@ def test_rj1_f42_version_and_f42_image_digest_unset_empty_or_malformed_stamp_the
         monkeypatch.setenv(name, value)
     assert env_scan.OPTIONAL_UNSET_DEFAULT[("core/setup/stamp.py", name)] is None
     assert stamp.build(None, tmp_path)[field] is None
+
+
+# RJ-2: the baseline-J class reads a bound baseline-J file and takes its names from the job env keys, nowhere else
+
+def written_baseline(tmp_path, mutate=None):
+    """A baseline-J captured from the fake world and written once; (path, sha256 of its bytes, the baseline)."""
+    from core.setup.release import jobs_baseline as jb
+    from core.setup.tests import release_world as rw
+    from core.setup.tests.test_jobs_baseline import capture, promoted
+
+    _, baseline = capture(promoted())
+    if mutate:
+        mutate(baseline)
+    path = tmp_path / "baseline-J.json"
+    return path, jb.write_once(path, baseline), baseline
+
+
+def job_env_names(baseline):
+    return {name for view in baseline["jobs"].values() for name in view["env"]}
+
+
+def cli(tmp_path, source, *extra):
+    base, head = tmp_path / "base", tmp_path / "head"
+    for folder, text in ((base, "x = 1\n"), (head, source)):
+        (folder / "core").mkdir(parents=True, exist_ok=True)
+        (folder / "core" / "a.py").write_text(text, encoding="utf-8")
+    return env_scan.main(["--base-dir", str(base), "--head-dir", str(head), *extra])
+
+
+def test_rj2_the_names_are_the_env_keys_of_the_fourteen_job_views_of_the_bound_file(tmp_path):
+    path, sha, baseline = written_baseline(tmp_path)
+    names = env_scan.baseline_j_names(path, sha)
+    assert names == job_env_names(baseline) and len(names) >= 2
+
+
+def test_rj2_a_name_held_anywhere_else_in_the_baseline_is_not_a_job_env_name(tmp_path):
+    def add(baseline):
+        baseline["aRetire"] = "NOT_A_JOB_ENV_NAME"
+        baseline["extraNames"] = ["ALSO_NOT_ONE"]
+        baseline["services"]["f42-api"]["template"]["x"] = {"TEMPLATE_ONLY_NAME": "1"}
+
+    path, sha, baseline = written_baseline(tmp_path, add)
+    names = env_scan.baseline_j_names(path, sha)
+    assert names == job_env_names(baseline)
+    assert not names & {"NOT_A_JOB_ENV_NAME", "ALSO_NOT_ONE", "TEMPLATE_ONLY_NAME"}
+
+
+@pytest.mark.parametrize("how", ["wrong_hash", "one_byte_changed", "uppercase_hash", "short_hash", "empty_hash"])
+def test_rj2_a_hash_that_does_not_equal_the_recomputation_of_the_file_refuses(tmp_path, how):
+    from core.setup.release import services_only as so
+
+    path, sha, _ = written_baseline(tmp_path)
+    if how == "wrong_hash":
+        sha = "0" * 64
+    elif how == "one_byte_changed":
+        data = path.read_bytes()
+        path.write_bytes(data.replace(b'"kind": "baseline-J"', b'"kind": "baseline-J" '))
+    elif how == "uppercase_hash":
+        sha = sha.upper()
+    elif how == "short_hash":
+        sha = sha[:40]
+    else:
+        sha = ""
+    with pytest.raises(so.Stop) as stop:
+        env_scan.baseline_j_names(path, sha)
+    assert stop.value.code == "BINDINGS"
+
+
+def test_rj2_a_hand_typed_names_file_is_refused_even_with_its_own_correct_hash(tmp_path):
+    from core.setup.release import services_only as so
+
+    typed = tmp_path / "names.txt"
+    typed.write_text("NEW_SETTING\nOTHER_SETTING\n", encoding="utf-8")
+    sha = so.sha_bytes(typed.read_bytes())
+    with pytest.raises(Exception):
+        env_scan.baseline_j_names(typed, sha)
+    assert cli(tmp_path, 'import os\nx = os.environ.get("NEW_SETTING")\n', "--baseline-j", str(typed), "--baseline-j-sha256", sha) != 0
+
+
+@pytest.mark.parametrize("shape", ["wrong_kind", "three_jobs", "job_without_env", "env_not_a_mapping", "extra_job"])
+def test_rj2_a_file_that_is_not_a_baseline_j_of_the_fourteen_jobs_is_refused_even_with_its_own_correct_hash(tmp_path, shape):
+    from core.setup.release import services_only as so
+
+    def shape_it(baseline):
+        if shape == "wrong_kind":
+            baseline["kind"] = "baseline-A"
+        elif shape == "three_jobs":
+            for name in list(baseline["jobs"])[3:]:
+                del baseline["jobs"][name]
+        elif shape == "job_without_env":
+            del baseline["jobs"]["f42-collect"]["env"]
+        elif shape == "env_not_a_mapping":
+            baseline["jobs"]["f42-collect"]["env"] = ["NEW_SETTING"]
+        else:
+            baseline["jobs"]["f42-extra"] = copy.deepcopy(baseline["jobs"]["f42-collect"])
+
+    path, sha, _ = written_baseline(tmp_path, shape_it)
+    with pytest.raises(so.Stop):
+        env_scan.baseline_j_names(path, sha)
+
+
+def test_rj2_the_free_names_file_option_is_gone_and_the_two_options_come_together(tmp_path, capsys):
+    with pytest.raises(SystemExit) as gone:
+        cli(tmp_path, "x = 1\n", "--baseline-env-names", str(tmp_path / "names.txt"))
+    assert gone.value.code == 2
+    path, sha, _ = written_baseline(tmp_path)
+    for only in (["--baseline-j", str(path)], ["--baseline-j-sha256", sha]):
+        with pytest.raises(SystemExit) as stop:
+            cli(tmp_path, "x = 1\n", *only)
+        assert stop.value.code == 2
+    assert not hasattr(env_scan, "ENV_NAMES_FILE")
+    assert "baseline-env-names" not in Path(env_scan.__file__).read_text(encoding="utf-8")
+
+
+def test_rj2_the_cli_classifies_a_name_the_bound_baseline_holds_and_refuses_a_file_whose_hash_is_wrong(tmp_path, capsys):
+    path, sha, baseline = written_baseline(tmp_path)
+    held = sorted(job_env_names(baseline))[0]
+    source = f'import os\nx = os.environ.get("{held}")\n'
+    assert cli(tmp_path, source) == 1
+    assert cli(tmp_path, source, "--baseline-j", str(path), "--baseline-j-sha256", sha) == 0
+    capsys.readouterr()
+    assert cli(tmp_path, source, "--baseline-j", str(path), "--baseline-j-sha256", "1" * 64) == 2
+    assert "BINDINGS" in capsys.readouterr().out
+    other = 'import os\nx = os.environ.get("NOT_HELD_BY_ANY_JOB")\n'
+    assert cli(tmp_path, other, "--baseline-j", str(path), "--baseline-j-sha256", sha) == 1

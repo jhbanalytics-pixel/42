@@ -1,6 +1,6 @@
 """The environment read scan (W8-REL-B v2.1 section 3.5, JB-06).
 
-    py -3.13 -m core.setup.release.env_scan --base-rev a80be1d --head-rev <release commit> [--baseline-env-names FILE]
+    py -3.13 -m core.setup.release.env_scan --base-rev a80be1d --head-rev <release commit> [--baseline-j FILE --baseline-j-sha256 HEX]
     py -3.13 -m core.setup.release.env_scan --base-dir DIR --head-dir DIR   (each holds a core/ folder)
 
 The jobs image is updated with `jobs update --image` and nothing else, so B's job code must read no setting the live job
@@ -10,7 +10,8 @@ commit has and a80 did not, and fails any whose name is not in one of four class
     platform injected   CLOUD_RUN_*
     image baked         IMAGE_BAKED, each set by an ENV line of core/setup/jobs.Dockerfile
     process local       a setdefault, which only fills the process's own environment
-    baseline-J          a name in the env name list of the 14 job definitions captured in baseline-J
+    baseline-J          a key of the env of one of the 14 job views in a baseline-J file whose sha256 is bound: the file is
+                        read only when its recomputed hash equals --baseline-j-sha256, and nothing else in it names a setting
 
 and three classes the whole-diff review added (RB-C7), each pinned to a file and a name, never to a name alone:
 
@@ -38,6 +39,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from core.setup import durable_effects_check as de  # noqa: E402
+from core.setup.release import services_only as so  # noqa: E402
 
 PLATFORM = re.compile(r"CLOUD_RUN_[A-Z0-9_]+\Z")
 IMAGE_BAKED = frozenset({"F42_GIT_SHA"})
@@ -219,6 +221,22 @@ def import_closure(files, entries):
     return seen
 
 
+def baseline_j_names(path, expected_sha):
+    """The env names of the 14 job views of a baseline-J file whose bytes hash to expected_sha. The hash is recomputed from the
+    bytes read, so a hand typed file passes only if its author also bound its hash; the names come from
+    baseline["jobs"][job]["env"] and from nowhere else in the file."""
+    baseline = so.load_bound_json(path, expected_sha, "baseline-J")
+    so.require(baseline.get("kind") == "baseline-J", "BASELINE", "The file is not a baseline-J")
+    jobs = baseline.get("jobs")
+    so.require(isinstance(jobs, dict) and set(jobs) == set(so.JOB_NAMES), "BASELINE", "The baseline-J does not hold exactly the 14 jobs")
+    names = set()
+    for job in so.JOB_NAMES:
+        env = jobs[job].get("env") if isinstance(jobs[job], dict) else None
+        so.require(isinstance(env, dict), "BASELINE", f"The baseline-J job {job} has no env mapping")
+        names |= set(env)
+    return names
+
+
 def scan(a80_files, head_files, baseline_names):
     names = set(baseline_names)
     return [Finding(r.path, r.line, r.name, r.kind) for r in added_reads(a80_files, head_files) if not classified(r, names)]
@@ -242,7 +260,8 @@ def main(argv=None):
     parser.add_argument("--head-rev", help="the release commit")
     parser.add_argument("--base-dir", type=Path)
     parser.add_argument("--head-dir", type=Path)
-    parser.add_argument("--baseline-env-names", type=Path, help="a text file, one env name per line, from baseline-J")
+    parser.add_argument("--baseline-j", type=Path, help="the baseline-J file captured after Release A")
+    parser.add_argument("--baseline-j-sha256", help="the sha256 of that file's bytes, bound in the bindings")
     args = parser.parse_args(argv)
     if args.base_dir and args.head_dir:
         base, head = (tree_from_disk(d / "core", d) for d in (args.base_dir, args.head_dir))
@@ -251,8 +270,14 @@ def main(argv=None):
     else:
         parser.error("give --base-rev and --head-rev, or --base-dir and --head-dir")
     names = set()
-    if args.baseline_env_names:
-        names = {ln.strip() for ln in args.baseline_env_names.read_text(encoding="utf-8").splitlines() if ln.strip()}
+    if (args.baseline_j is None) != (args.baseline_j_sha256 is None):
+        parser.error("--baseline-j and --baseline-j-sha256 are given together or not at all")
+    if args.baseline_j is not None:
+        try:
+            names = baseline_j_names(args.baseline_j, args.baseline_j_sha256)
+        except (so.Stop, OSError, ValueError) as error:
+            print(f"STOP: {getattr(error, 'code', 'BASELINE')}: {getattr(error, 'message', error)}")
+            return 2
     findings = scan(base, head, names)
     for finding in findings:
         print(finding)
