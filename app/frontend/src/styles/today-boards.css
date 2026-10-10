@@ -45,7 +45,11 @@
 
 .tb-scroll:focus-visible {
   outline: var(--focus-width) solid var(--accent);
-  outline-offset: calc(var(--focus-width) * -1);
+  outline-offset: var(--focus-offset);
+}
+
+.tb-scroll:hover {
+  scrollbar-color: var(--line-2) transparent;
 }
 
 /* A soft fade on an edge that has more cards past it. */
@@ -101,6 +105,7 @@
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
+  transition: background-color var(--motion-control) var(--motion-standard-easing);
 }
 
 .tb-arrow:hover {
@@ -182,7 +187,7 @@
    step above the page, the display face for the name and the rank, and the
    orange of the lead rank. The platform's own colour is only the thin rule on
    top and the chip behind its mark. Hover and focus brighten the border and
-   lift the card a little; nothing casts a shadow. */
+   change its surface; nothing moves and nothing casts a shadow. */
 .tb-card {
   box-sizing: border-box;
   display: flex;
@@ -201,17 +206,6 @@
 .tb-card:focus-within {
   border-color: var(--line-2);
   background: var(--surface-2);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .tb-card {
-    transition-property: background-color, border-color, transform;
-  }
-
-  .tb-card:hover,
-  .tb-card:focus-within {
-    transform: translateY(-2px);
-  }
 }
 
 .tb-card-head {

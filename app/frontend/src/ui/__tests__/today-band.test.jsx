@@ -431,7 +431,7 @@ test('Show all is a text button with a chevron that turns when the list is open'
   expect(button.getAttribute('aria-expanded')).toBe('true');
 });
 
-test('the card is flat and square like 42 trend cards, with a brand top rule, a hover lift and no shadow', () => {
+test('the card is flat and square like 42 trend cards, with a brand top rule, a hover brighten and no shadow', () => {
   const text = css('today-boards.css');
   const card = rule(text, '.tb-card');
   expect(card).toMatch(/border-top:\s*2px solid var\(--brand,/);
@@ -439,7 +439,8 @@ test('the card is flat and square like 42 trend cards, with a brand top rule, a 
   expect(card).not.toMatch(/border-radius|box-shadow/);
   expect(text).not.toMatch(/box-shadow:\s*(?!none|inset)/);
   expect(rule(text, '.tb-card:hover')).toMatch(/border-color:\s*var\(--line-2\)/);
-  expect(text).toMatch(/\.tb-card:hover[^{]*\{[^}]*transform:\s*translateY\(-2px\)/);
+  /* The host sheets may not move geometry on hover or focus, so the card brightens and does not lift. */
+  expect(text).not.toMatch(/\.tb-card:(hover|focus-within)[^{]*\{[^}]*transform/);
   expect(rule(text, '.tb-row[data-hero] .tb-rank')).toMatch(/font-family:\s*var\(--nd-face\)/);
   expect(rule(text, '.tb-row[data-hero] .tb-rank')).toMatch(/color:\s*var\(--heat-3\)/);
   expect(rule(text, '.tb-logo')).toMatch(/background:\s*var\(--brand,/);
