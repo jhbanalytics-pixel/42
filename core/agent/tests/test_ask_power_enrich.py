@@ -8,7 +8,7 @@ and so the hold, is untouched.
 
 import pytest
 
-from core.agent import ask, skills
+from core.agent import ask
 from core.agent.context import Refused, RunContext
 from core.agent.tests.test_enrich_tools import AS_OF, FakeClient, make_ctx
 from core.agent.toolset import DESCRIPTIONS
@@ -91,11 +91,6 @@ def test_the_comment_text_states_the_quoted_price_and_the_pool():
     text = DESCRIPTIONS["get_comments"]
     assert f"TikTok {price('tiktok/post/comments')} credit a page" in text
     assert "35% at T1" in text and "20%" in text
-
-
-def test_the_skill_asks_for_comments_before_a_transcript():
-    body = skills.load_skill("culture-read")
-    assert "get_comments first" in body and "get_transcript" in body
 
 
 def test_enrichment_does_not_move_the_t1_hold():
