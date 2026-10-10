@@ -9,6 +9,7 @@ on them, so no reader shows it: f42-api builds Today from the named fields and c
 
 from collections import Counter
 
+from core.trust import locality
 from core.trust.locality import V2_BASIS
 
 LABELS = {"ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya"}
@@ -122,8 +123,9 @@ def _flag(c, dec):
     if dec.get("flag"):
         return FLAG_CODES[dec["flag"].lower()]
     # Detect's geo_status is an observation once a candidate is admitted under locality_v2.1: the flag comes from the
-    # gate's decision, which read the W8-DEC-17 label of the retained row.
-    if c.get("geo_status") == "market_unconfirmed" and c.get("market_scope_basis") != V2_BASIS:
+    # gate's decision, which read the W8-DEC-17 label of the retained row. On the v1 basis Local is earned from the
+    # row's counts (core/trust/locality.py geo_status, W8-DEC-17); G6's removal of a not_local item is item_state's.
+    if locality.geo_status(c) == "market_unconfirmed" and c.get("market_scope_basis") != V2_BASIS:
         return "market_unconfirmed"
     return c.get("authenticity") if c.get("authenticity") in ITEM_FLAGS else None
 

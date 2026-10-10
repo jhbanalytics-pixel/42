@@ -216,3 +216,45 @@ def locality_block(record):
         "known_posts": got.known, "local_posts": got.local, "local_share": got.share,
         **{k: (record.get(k) if readable else None) for k in keep},
     }
+
+
+# The v1 basis reader (W8-DEC-17, wave8/trust-tighten). On the v1 basis item_state's geo_status is the card's source, and
+# Local is earned from the counts the row holds. The interval is the wilson_lower above, the one function for both
+# bases, so the v1 and the v2 label cannot drift apart.
+
+MIN_LOCAL_LOWER = LABEL_FLOOR
+REMOVE_BELOW = 0.6  # G6's share, kept as part of Local so a label never outruns the removal rule
+
+
+def is_local(local, known):
+    """True when local of known located posts is at least G6's share and its interval's lower end is 0.5 or more."""
+    return known > 0 and local / known >= REMOVE_BELOW and wilson_lower(known, local) >= MIN_LOCAL_LOWER
+
+
+def _positive_count(value):
+    return type(value) is int and value > 0
+
+
+def local_posts(local_share, known):
+    """The number of local posts a row's share and located count give back, or None when they give no whole number
+    (a missing or non-finite share, a share outside 0 to 1, a located count that is not a positive integer)."""
+    if not _positive_count(known) or type(local_share) not in (int, float) or not math.isfinite(local_share):
+        return None
+    if not 0 <= local_share <= 1:
+        return None
+    local = local_share * known
+    nearest = round(local)
+    return nearest if abs(local - nearest) < 1e-6 else None
+
+
+def geo_status(row):
+    """The row's geo_status as the card should read it. Only a row item_state calls local can change, to
+    market_unconfirmed, when its counts do not confirm Local. A row with no counts at all is left as it is."""
+    status = row.get("geo_status")
+    if status != "local":
+        return status
+    share, known = row.get("local_share"), row.get("geo_known_posts7")
+    if share is None and known is None:
+        return status
+    local = local_posts(share, known)
+    return "local" if local is not None and is_local(local, known) else "market_unconfirmed"
