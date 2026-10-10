@@ -516,3 +516,70 @@ def test_rb_t3_the_receipt_verb_needs_neither_a_console_nor_a_token(tmp_path):
     w = world(tmp_path)
     checker_output(w)
     assert receipt_verb(w) == 0
+
+
+# RB-T7 (F7): when baseline-J says Release A was rolled back, the live revisions must still hold Release A's candidate revision
+# f42-<service>-<a_release_id>. The a80 pair with Release A never run is neither state, whatever baseline-J claims about itself.
+
+def never_ran_world(tmp_path, *, a_kind="AfterRollback", a_release_id=jw.A_RID):
+    """Both services on the a80 revisions with no candidate revision of any release, and a baseline-J captured from that world."""
+    w = jw.ReleaseWorld(tmp_path)
+    for name in so.SERVICES:
+        w.world.revisions.pop(rw.CAND_REV[name], None)
+        w.world.revision_names[name] = [r for r in w.world.revision_names[name] if r != rw.CAND_REV[name]]
+        w.world.svc[name].update(latest_created=rw.A80_REV[name], latest_ready=rw.A80_REV[name], traffic=[{"revisionName": rw.A80_REV[name], "percent": 100}])
+    baseline = w.baseline_j(a_kind=a_kind)
+    baseline["aTerminal"]["a_release_id"] = a_release_id
+    w.prepare(baseline=baseline)
+    return w
+
+
+def test_rb_t7_a_baseline_j_that_says_rolled_back_when_no_candidate_revision_of_a_ever_existed_stops_before_any_write(tmp_path):
+    w = never_ran_world(tmp_path)
+    assert w.stop("BeforeAnyWrite").code == "A_STATE"
+
+
+def test_rb_t7_the_same_world_is_refused_at_beforejobsupdate_too(tmp_path):
+    w = never_ran_world(tmp_path)
+    # BeforeAnyWrite itself stops in this world, so the candidate readback BeforeJobsUpdate looks for is written by hand, in its real shape.
+    jw.write_json(w.release_dir / "readbacks" / "BeforeAnyWrite-01.json", {"schema_version": 1, "mode": "jobs", "phase": "BeforeAnyWrite",
+                                                                          "release_id": w.bound["release_id"], "at_utc": w.now.isoformat()})
+    w.built()
+    assert w.stop("BeforeJobsUpdate").code == "A_STATE"
+
+
+def test_rb_t7_a_candidate_revision_of_another_release_does_not_stand_in_for_release_a(tmp_path):
+    w = jw.ReleaseWorld(tmp_path)
+    for name in so.SERVICES:
+        w.world.restore(name)
+        w.world.svc[name].update(latest_created=rw.A80_REV[name], latest_ready=rw.A80_REV[name])
+    baseline = w.baseline_j(a_kind="AfterRollback")
+    baseline["aTerminal"]["a_release_id"] = "rel-0badf00-02"
+    w.prepare(baseline=baseline)
+    assert w.stop("BeforeAnyWrite").code == "A_STATE"
+
+
+def test_rb_t7_a_rolled_back_baseline_that_names_no_release_id_for_a_is_refused(tmp_path):
+    w = jw.ReleaseWorld(tmp_path)
+    for name in so.SERVICES:
+        w.world.restore(name)
+        w.world.svc[name].update(latest_created=rw.A80_REV[name], latest_ready=rw.A80_REV[name])
+    baseline = w.baseline_j(a_kind="AfterRollback")
+    baseline["aTerminal"].pop("a_release_id")
+    w.prepare(baseline=baseline)
+    assert w.stop("BeforeAnyWrite").code == "A_STATE"
+
+
+def test_rb_t7_a_world_where_a_ran_and_was_rolled_back_is_still_accepted(tmp_path):
+    w = jw.ReleaseWorld(tmp_path)
+    for name in so.SERVICES:
+        w.world.restore(name)
+        w.world.svc[name].update(latest_created=rw.A80_REV[name], latest_ready=rw.A80_REV[name])
+    w.prepare(baseline=w.baseline_j(a_kind="AfterRollback"))
+    assert w.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"
+
+
+def test_rb_t7_the_promoted_branch_is_unchanged_a_serving_revision_named_for_a_and_nothing_else(tmp_path):
+    w = jw.ReleaseWorld(tmp_path)
+    w.prepare()
+    assert w.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"

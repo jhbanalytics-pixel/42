@@ -133,9 +133,9 @@ def expected_serving_names(baseline):
     """The serving revision each service must show for the terminal state baseline-J says Release A reached. After a
     promotion it is the candidate named for A's own release id; after A's rollback it is the a80 revision."""
     terminal = baseline["aTerminal"]
+    a_id = terminal.get("a_release_id")
+    require(isinstance(a_id, str) and so.RELEASE_ID.match(a_id), "A_STATE", "baseline-J names no release id for Release A")
     if terminal["kind"] == "AfterPromotion":
-        a_id = terminal.get("a_release_id")
-        require(isinstance(a_id, str) and so.RELEASE_ID.match(a_id), "A_STATE", "baseline-J names no release id for Release A")
         return {name: f"{name}-{a_id}" for name in so.SERVICES}
     a80 = baseline.get("a80Serving")
     require(isinstance(a80, dict) and set(a80) == set(so.SERVICES), "A_STATE", "baseline-J names no a80 serving revisions")
@@ -146,11 +146,16 @@ def check_a_state(baseline, live):
     """A_STATE (JU-10): the services are in the state Release A's terminal readback left, and baseline-J says so by name.
     The a80 pair with A never run is neither state."""
     expected = expected_serving_names(baseline)
+    a_id = baseline["aTerminal"]["a_release_id"]
     for name in so.SERVICES:
         require(baseline["services"][name]["serving"]["name"] == expected[name], "A_STATE",
                 f"baseline-J holds {name} on a revision that is not Release A's terminal state")
         require(live[name]["serving"]["name"] == expected[name], "A_STATE",
                 f"{name} does not serve the revision Release A's terminal state requires")
+        # After A's rollback the a80 pair serves again, which is also what a world where A never ran looks like. What tells them apart
+        # is what baseline-J cannot say about itself: Release A's own candidate revision is still among the live revisions.
+        require(f"{name}-{a_id}" in live[name]["revisions"], "A_STATE",
+                f"{name} holds no candidate revision of Release A; baseline-J says A ran, the live revisions say it did not")
 
 
 def check_services_unchanged(baseline, live):
