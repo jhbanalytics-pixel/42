@@ -37,7 +37,7 @@ CORE = "`ogilvy-trends-v2.intelligence_42_core`"
 SUBSTAGES = ("aggregate", "stats", "coaction", "breakout", "watch", "seeds", "forecast", "locality")
 BRIEF_MARKETS = ("ZA", "NG", "KE")
 SAST = jo.SAST
-DEADLINE = dt.time(6, 15)
+DEADLINE = jo.BRIEF_DEADLINE_SAST
 SCHEDULED_COLLECT = dt.time(2, 0)
 SKIPPED = "skipped_duplicate"
 CODES = ("IMAGE", "WINDOW", "NOT_ONE_RUN", "TERMINAL", "BOUND", "RETRIED", "ORDER", "UPSTREAM", "SUBSTAGES", "LINEAGE", "DEGRADED",
@@ -233,6 +233,10 @@ def build_manifest(bound, reader, bq_client, day, role, *, now=None):
     now = now or (lambda: dt.datetime.now(dt.timezone.utc))
     require(role in ROLES, "BINDINGS", "The chain role is neither baseline nor first-b")
     jo.validate_jobs_bindings(bound, producer=True)
+    # A date's manifest is written once and never overwritten, so a read made before the brief's deadline of that date would keep a half
+    # chain on record. The refusal writes nothing, so the same date can be read again after the deadline.
+    require(now() >= dt.datetime.combine(day, DEADLINE, tzinfo=SAST), "TOO_EARLY",
+            "The chain of this date is not over until the brief's 06:15 SAST deadline; a manifest is written once, so it is read after that moment")
     require(set(bound["templateHashes"]) == set(TEMPLATES) and bound["templateHashes"] == template_hashes(), "BINDINGS",
             "The template hashes the bindings bind differ from the templates this producer holds")
     baseline = jo.load_baseline_j(bound)

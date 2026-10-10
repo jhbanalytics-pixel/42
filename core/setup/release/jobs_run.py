@@ -355,6 +355,21 @@ def run_update(bound, adapter, bq_client, evidence, *, now, sleep=None):
     return log
 
 
+def rollback_deadline(bound, taken):
+    """(the moment, whether `taken` is at or past it) for Q5's "undone before 23:30 SAST", counted from the SAST day of the JobsCandidate
+    readback this release left (JobsUpdate runs the same day). Both are None when that readback cannot be read: a rollback is recorded, and
+    never refused, for its hour, because it is the only way back."""
+    try:
+        candidate = jo.verified_readback(bound["releaseDir"], bound, "BeforeAnyWrite")
+    except Stop:
+        candidate = None
+    if candidate is None:
+        return None, None
+    day = jo.aware(candidate["at_utc"]).astimezone(jo.SAST).date()
+    deadline = dt.datetime.combine(day, dt.time.fromisoformat(bound["window"]["rollbackDeadlineSast"]), tzinfo=jo.SAST)
+    return deadline, jo.aware(taken) >= deadline
+
+
 def run_rollback(bound, adapter, evidence, *, now):
     jo.validate_jobs_bindings(bound)
     baseline = jo.load_baseline_j(bound)
@@ -363,6 +378,9 @@ def run_rollback(bound, adapter, evidence, *, now):
         require(not any(jo.is_active(e) for e in adapter.executions(job)), "CHAIN_ACTIVE",
                 "A chain execution is running or queued; a rollback inside a live chain makes the reverse pairs")
     log = new_log("rollback", now, bound["window"])
+    deadline, past = rollback_deadline(bound, now())
+    log["rollback_deadline_at"] = deadline.isoformat() if deadline else None
+    log["past_rollback_deadline"] = past
     log["skipped_already_new"] = []
     touched = []
     try:

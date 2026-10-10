@@ -5,7 +5,7 @@
 
 The jobs image is updated with `jobs update --image` and nothing else, so B's job code must read no setting the live job
 definitions lack. This scan lists every environment read under core/ (tests and core/setup/release excluded) that the release
-commit has and a80 did not, and fails any whose name is not in one of four classes:
+commit has and a80 did not, and fails any whose name is not in one of seven classes, the first four of which are:
 
     platform injected   CLOUD_RUN_*
     image baked         IMAGE_BAKED, each set by an ENV line of core/setup/jobs.Dockerfile
@@ -13,7 +13,7 @@ commit has and a80 did not, and fails any whose name is not in one of four class
     baseline-J          a key of the env of one of the 14 job views in a baseline-J file whose sha256 is bound: the file is
                         read only when its recomputed hash equals --baseline-j-sha256, and nothing else in it names a setting
 
-and three classes the whole-diff review added (RB-C7), each pinned to a file and a name, never to a name alone:
+and the other three, which the whole-diff review added (RB-C7), each pinned to a file and a name, never to a name alone:
 
     optional read       OPTIONAL_UNSET_DEFAULT: a read whose unset value is the pinned default (a number, or None for no
                         value); a test calls the code with the variable unset, empty and malformed and compares with the
@@ -74,7 +74,7 @@ class Finding(Read):
     reason: str = ""
 
     def __str__(self):
-        return f"{self.path}:{self.line}: {self.name} is read and is not platform injected, image baked, a setdefault or in baseline-J"
+        return f"{self.path}:{self.line}: {self.name} is read and is in none of the seven classes (platform injected, image baked, a setdefault, in baseline-J, an optional read with a pinned default, service only, test harness)"
 
 
 def in_scope(path):
@@ -281,7 +281,7 @@ def main(argv=None):
     findings = scan(base, head, names)
     for finding in findings:
         print(finding)
-    print(f"{len(findings)} environment read(s) outside the four classes")
+    print(f"{len(findings)} environment read(s) outside the seven classes")
     return 1 if findings else 0
 
 

@@ -439,3 +439,29 @@ def test_rb_t4_only_a_split_service_is_recorded_and_every_other_refusal_or_faile
     for error in (so.Stop("IDENTITY", "x"), so.Stop("WRITE_REFUSED", "x"), so.Probe("a read did not complete"), so.NotFound("f42-api")):
         with pytest.raises(type(error)):
             jo.tolerant_services(Raising(error))
+
+
+# F20 (final assembly): AfterJobsUpdate says which chain is the first one on the new image and the earliest moment the producer may read it,
+# so the read does not depend on anyone remembering the date. The date follows the readback's own clock (the same rule as the baseline's
+# first chain after Release A): collect starts at 02:00 SAST, so a readback before 02:00 is read for that same date and any other for the next.
+
+def test_f20_after_jobs_update_names_the_first_b_chain_date_and_the_earliest_producer_read(tmp_path):
+    w = world(tmp_path)
+    candidate_ran(w)
+    w.run("BeforeJobsUpdate")
+    w.update_prefix(14)
+    result = w.run("AfterJobsUpdate", now=w.now + dt.timedelta(minutes=30))
+    assert result["observations"]["first_b_chain"] == {
+        "expect": "first-b", "run_date": "2026-10-12", "read_not_before_sast": "2026-10-12T06:15:00+02:00",
+        "read_not_before_utc": "2026-10-12T04:15:00+00:00"}
+
+
+def test_f20_a_readback_before_0200_sast_names_the_same_date_and_one_at_0200_sast_the_next(tmp_path):
+    w = world(tmp_path)
+    candidate_ran(w)
+    w.run("BeforeJobsUpdate")
+    w.update_prefix(14)
+    early = dt.datetime(2026, 10, 12, 1, 59, tzinfo=SAST)
+    assert w.run("AfterJobsUpdate", now=early)["observations"]["first_b_chain"]["run_date"] == "2026-10-12"
+    on_time = dt.datetime(2026, 10, 12, 2, 0, tzinfo=SAST)
+    assert w.run("AfterJobsUpdate", now=on_time)["observations"]["first_b_chain"]["run_date"] == "2026-10-13"

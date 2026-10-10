@@ -557,3 +557,33 @@ def test_rb_t5_an_unexpected_error_inside_a_rollback_still_leaves_its_log_and_is
         rollback(w, cloud, clock)
     written = sorted(w.evidence.glob("jobs-rollback-*.json"))
     assert len(written) == 1 and json.loads(written[0].read_text(encoding="utf-8"))["stopped"]["code"] == "UNEXPECTED"
+
+
+# F5 (final assembly): Q5 says an update that stops is undone by JobsRollback before 23:30 SAST. A rollback is the only way back, so no refusal
+# is made of that hour (a late rollback is better than a mixed set of jobs); the run log states whether it ran past the hour, counted from the
+# SAST day of the JobsCandidate readback that the same release left.
+
+@pytest.mark.parametrize("at,past", [(sast(23, 29), False), (sast(23, 30), True), (sast(12, 0, day=12), True), (sast(9, 0), False)])
+def test_f5_the_rollback_log_says_whether_it_ran_at_or_after_2330_sast_of_the_candidate_day_and_the_rollback_still_runs(tmp_path, at, past):
+    w, cloud, clock = started(tmp_path)
+    update(w, cloud, clock)
+    clock.t = at
+    log = rollback(w, cloud, clock)
+    assert log["past_rollback_deadline"] is past and log["rollback_deadline_at"] == "2026-10-11T23:30:00+02:00"
+    assert log["complete"] is True and all(v == OLD for v in digests(cloud).values())
+    assert json.loads(sorted(w.evidence.glob("jobs-rollback-*.json"))[-1].read_text(encoding="utf-8"))["past_rollback_deadline"] is past
+
+
+def test_f5_a_rollback_with_no_candidate_readback_records_the_deadline_as_unknown_and_still_runs(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    update(w, cloud, clock)
+    for path in (w.release_dir / "readbacks").glob("BeforeAnyWrite-*.json"):
+        path.unlink()
+    log = rollback(w, cloud, clock)
+    assert log["past_rollback_deadline"] is None and log["rollback_deadline_at"] is None and log["complete"] is True
+
+
+def test_f5_the_update_log_keeps_its_shape(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    log = update(w, cloud, clock)
+    assert "past_rollback_deadline" not in log and "rollback_deadline_at" not in log

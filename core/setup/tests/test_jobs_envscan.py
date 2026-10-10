@@ -451,3 +451,15 @@ def test_rj6_a_whole_mapping_is_judged_by_the_names_it_reads_with_a_subscript_an
     found = scan([("core/setup/other_stamp.py", SUBSCRIPT_LIKE)])
     assert [(f.name, f.line) for f in found] == [("SUBSCRIPTED_NAME", 7)]
     assert scan([("core/setup/other_stamp.py", SUBSCRIPT_LIKE)], names={"SUBSCRIPTED_NAME"}) == []
+
+
+# F11 (final assembly): the classes are seven since RB-C7, RJ-1 and RJ-2; the tool's own words say so.
+
+def test_f11_the_summary_line_and_the_docstring_say_seven_classes(tmp_path, capsys):
+    assert cli(tmp_path, 'import os\nx = os.environ.get("NEW_SETTING")\n') == 1
+    out = capsys.readouterr().out
+    assert "1 environment read(s) outside the seven classes" in out
+    doc = env_scan.__doc__
+    assert "not in one of seven classes" in doc and "four classes" not in doc
+    labels = ("platform injected", "image baked", "process local", "baseline-J", "optional read", "service only", "test harness")
+    assert all(label in doc for label in labels) and len(labels) == 7

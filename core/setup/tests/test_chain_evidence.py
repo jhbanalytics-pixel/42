@@ -804,3 +804,64 @@ def test_rb_t8_only_the_brief_has_a_skipped_duplicate_allowance_even_at_0615(tmp
     fix = fixture(tmp_path)
     fix.skipped(stage, "x", minutes=375)
     assert reasons(build(fix)) == ["MANUAL"]
+
+
+# F20 (final assembly): the producer writes a date's manifest once and never overwrites it, so a read before the brief's 06:15 SAST
+# deadline of that date would leave a half chain on record for good. It refuses to read before that moment, and writes nothing.
+
+def sast(day, hour, minute, second=0):
+    return dt.datetime(day.year, day.month, day.day, hour, minute, second, tzinfo=jo.SAST)
+
+
+def run_cli_at(fix, moment, **kw):
+    fix.write_bindings() if fix.bound is None else None
+    bindings = fix.tmp / "bindings.json"
+    bindings.write_text(json.dumps(fix.bound), encoding="utf-8")
+    argv = ["--date", fix.day.isoformat(), "--bindings", str(bindings), "--evidence", str(fix.evidence), "--expect", fix.role]
+    return ce.main(argv, reader_factory=lambda timeouts: fix.reader(), bq_factory=lambda bound: fix.bq(), now=lambda: moment, **kw)
+
+
+def test_f20_the_producer_stops_too_early_one_second_before_0615_sast_of_the_run_date_and_writes_nothing(tmp_path, capsys):
+    fix = fixture(tmp_path)
+    fix.write_bindings()
+    assert run_cli_at(fix, sast(fix.day, 6, 14, 59)) == 1
+    assert "TOO_EARLY" in capsys.readouterr().err
+    assert not fix.manifest_path().exists() and not list(fix.evidence.glob("chain-evidence-*"))
+
+
+def test_f20_a_refused_early_read_does_not_use_up_the_date_so_the_read_at_0615_sast_writes_the_manifest(tmp_path, capsys):
+    fix = fixture(tmp_path)
+    fix.write_bindings()
+    assert run_cli_at(fix, sast(fix.day, 5, 0)) == 1
+    assert run_cli_at(fix, sast(fix.day, 6, 15)) == 0, capsys.readouterr().err
+    assert fix.manifest_path().is_file()
+
+
+def test_f20_build_manifest_stops_too_early_on_the_same_rule_for_the_day_before_it_ran(tmp_path):
+    fix = fixture(tmp_path)
+    bound = fix.write_bindings()
+    with pytest.raises(so.Stop) as stop:
+        ce.build_manifest(bound, fix.reader(), fix.bq(), fix.day, fix.role, now=lambda: sast(fix.day - dt.timedelta(days=1), 23, 59))
+    assert stop.value.code == "TOO_EARLY"
+
+
+# F8 (final assembly), RB-C2 as ruled by RJ-6: a chain whose detect stops before its views step leaves the brief failing on the missing view
+# column. That chain fails TERMINAL (detect's own terminal row is not ok), never DEGRADED, which is understand's rule alone.
+
+def test_f8_a_chain_whose_detect_stops_before_its_views_step_and_whose_brief_then_fails_is_terminal_never_degraded(tmp_path):
+    fix = fixture(tmp_path)
+    fix.set_terminal("detect", status="failed")
+    fix.set_terminal("brief", status="failed")
+    manifest = build(fix)
+    assert "TERMINAL" in reasons(manifest) and "DEGRADED" not in reasons(manifest)
+    assert manifest["verdict"]["failed_stage"] == "detect" and manifest["verdict"]["qualifies"] is False
+    assert manifest["verdict"]["baseline_by_line"] is False
+
+
+def test_f8_the_same_chain_is_never_a_baseline_by_line_even_with_the_parse_json_degradation_in_understand(tmp_path):
+    fix = fixture(tmp_path)
+    fix.set_cluster_error("ZA")
+    fix.set_terminal("detect", status="failed")
+    fix.set_terminal("brief", status="failed")
+    manifest = build(fix)
+    assert "TERMINAL" in reasons(manifest) and manifest["verdict"]["baseline_by_line"] is False

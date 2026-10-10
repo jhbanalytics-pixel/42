@@ -43,6 +43,7 @@ PINNED_WINDOW = {"startSast": "08:05", "endSast": "21:00", "rollbackDeadlineSast
 MAX_COLLECT_TOLERANCE_MINUTES = 30
 EXECUTION_NAME = re.compile(r"f42-[a-z0-9-]+\Z")
 COLLECT_START_SAST = dt.time(2, 0)
+BRIEF_DEADLINE_SAST = dt.time(6, 15)
 
 # The bindings the chain evidence producer needs, and the rest that the release actions need. The producer runs before the
 # baseline chain manifest exists (it is the producer that writes it), so the manifest path and hash are not among its keys.
@@ -636,7 +637,18 @@ def phase_after_jobs_update(rel, phase, result):
                 view = describe_execution(rel.reader, entry["metadata"]["name"])
                 listed.append({"job": job, "name": view["name"], "start": view["start"], "image_digest": view["image_digest"]})
     rel.observations["jobs_at_digest"] = len(UPDATE_ORDER)
+    rel.observations["first_b_chain"] = first_b_chain(rel.now())
     rel.observations["executions_in_window"] = sorted(listed, key=lambda e: (e["start"], e["name"]))
+
+
+def first_b_chain(taken_at):
+    """The first chain on the new image and the earliest moment the producer may read it (F20). Collect starts at 02:00 SAST, so a readback
+    before that is read for the same date and any other for the next. The producer refuses to read before the brief's deadline of the date."""
+    local = aware(taken_at).astimezone(SAST)
+    day = local.date() if local.time() < COLLECT_START_SAST else local.date() + dt.timedelta(days=1)
+    earliest = dt.datetime.combine(day, BRIEF_DEADLINE_SAST, tzinfo=SAST)
+    return {"expect": "first-b", "run_date": day.isoformat(), "read_not_before_sast": earliest.isoformat(),
+            "read_not_before_utc": earliest.astimezone(dt.timezone.utc).isoformat()}
 
 
 def phase_before_jobs_rollback(rel, phase, result):
