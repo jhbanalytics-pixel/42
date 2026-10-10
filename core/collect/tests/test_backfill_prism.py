@@ -1183,3 +1183,29 @@ def test_every_statement_the_guard_allows_names_only_the_four_tables_and_the_raw
 
 def test_the_tables_the_command_writes_are_the_four_and_no_other():
     assert set(bf.SPECS) == WRITTEN
+
+
+# RC3-3: the backfill writes days on which the live jobs stored kept creators under panel_culture_desk, so its curated class stays under that
+# series and never takes the curated panel's own series, which would give the new series a history that stops on 7 Oct and a gap before the split.
+
+def test_rc3_3_the_curated_class_stays_under_the_series_the_history_of_those_days_uses_and_not_the_curated_panel_series():
+    from core.collect import parse
+
+    plan = plan_of(scenario())
+    curated_posts = {pid for c in plan.calls if c["class"] == "curated" for pid in c["post_ids"]}
+    assert curated_posts
+    series = {o["series"] for o in plan.observations if o["post_id"] in curated_posts}
+    assert series == {"panel_culture_desk"}
+    assert parse.CURATED_PANEL_SERIES == "panel_curated_creators" and parse.CURATED_PANEL_SERIES not in {o["series"] for o in plan.observations}
+
+
+def test_rc3_3_no_backfill_code_passes_curated_true_to_a_call():
+    import ast
+    from pathlib import Path
+
+    source = Path(bf.__file__).read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.keyword) and node.arg == "curated":
+            raise AssertionError("backfill_prism passes a curated keyword; RC3-3 says the backfill does not")
+        if isinstance(node, ast.Attribute) and node.attr == "curated" and isinstance(node.ctx, ast.Store):
+            raise AssertionError("backfill_prism sets a curated attribute; RC3-3 says the backfill does not")

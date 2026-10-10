@@ -303,7 +303,7 @@ def test_no_step_writes_to_the_runner_environment_file(path):
     assert "github_env" not in text
 
 
-CORE_FLOOR = 27_390  # exact, not a minimum: 27430 pass on the tree with Release B assembled (27583 collected, 70 skipped, 83 expected to fail), so 27390 sits under it
+CORE_FLOOR = 27_390  # exact, not a minimum: 27432 pass on the tree with Release B assembled (27585 collected, 70 skipped, 83 expected to fail), so 27390 sits under it
 CORE_RATCHET_GAP = 800  # exact: the job fails when the passed count has grown more than this past the floor
 
 

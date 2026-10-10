@@ -89,8 +89,8 @@ jobs:
       # more than 800 past the floor: raise the floor then, so a later loss of that growth is caught too.
       # Raised at the wave 8 integration, final tree. The counts measured there are in the integration gate report; the floors
       # then sat at 26200, a little under the number of tests that passed under the guard on Windows.
-      # Raised again with Release B assembled on the Release A hand-over tree: the core tree collects 27583 tests, 70 skipped and 83 expected
-      # to fail, so 27430 pass, and the floor sits a little under that count. The total and the passed floor are one number.
+      # Raised again with Release B assembled on the Release A hand-over tree: the core tree collects 27585 tests, 70 skipped and 83 expected
+      # to fail, so 27432 pass, and the floor sits a little under that count. The total and the passed floor are one number.
       - name: Report the skipped opt-in tests and the number of tests that ran
         if: always()
         run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 27390 --min-passed 27390 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
