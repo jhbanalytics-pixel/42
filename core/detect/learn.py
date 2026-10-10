@@ -31,12 +31,23 @@ retry writes the week again. When every market is already written by an ok learn
 rerun adds nothing; FORCE_RERUN=1 scores again (append only, the newest scored_at is current). The runs row's
 counts carry each score's run_id, the rows written and the promotion eligible cohorts as rule/target/horizon.
 Nothing here acts on promotion_eligible: forecasts stay hidden (TRUST.md K9) until a reader is built to check it.
+
+The same run then measures how published cards and held items fared (score_outcomes, core/eval/card_outcome.py). It is
+information only: it reads through the card outcome runner's queries and byte caps, writes no table, feeds no gate,
+threshold, card or hold, and a failure of it is recorded in the runs row's counts under card_outcome without changing
+the run's status. Like the scoring it is skipped when every market is already written. The step runs under one
+deadline for all its reads, OUTCOME_DEADLINE_SECONDS (480; LEARN_OUTCOME_DEADLINE_SECONDS sets a shorter one, and a
+longer value is clamped to 480 and recorded under card_outcome as deadline_clamped), well inside
+the job's 30 minute task: when it passes the step is recorded as {"status": "timeout"} and the runs row is written at
+once, so a slow warehouse cannot cost the run its row. It reads the core and agent datasets the run was given.
 """
 
 import argparse
 import json
 import os
 import sys
+import threading
+import time
 import traceback
 from datetime import date, datetime, timedelta, timezone
 
@@ -44,12 +55,14 @@ from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
 
 from core.collect import chain
+from core.eval import card_outcome, card_outcome_read
 from core.eval import forecast_score, quality_score
 
 from . import aggregate, runs, scorecard, sqlrun
 from .sqlrun import AGENT, CORE
 
 PROJECT = "ogilvy-trends-v2"
+OUTCOME_DEADLINE_SECONDS = 480
 TABLE = "engine_scorecard"
 KEYS = (("week_start", "DATE"), ("week_end", "DATE"), ("market", "STRING"), ("run_id", "STRING"),
         ("rule_version", "STRING"))
@@ -138,6 +151,74 @@ def score_week(client, week_start, now, agent=AGENT, scorecard_run_id=None):
     return counts, {"forecast_score": fs, "quality": q}
 
 
+def outcome_deadline_setting():
+    """(seconds, requested): the seconds the outcome step may take in all, and the environment's value when that
+    was over the limit and so was clamped, else None. LEARN_OUTCOME_DEADLINE_SECONDS sets the deadline when it is a
+    positive number, but never above OUTCOME_DEADLINE_SECONDS: a longer wait would cost the run its row (O3)."""
+    try:
+        seconds = float(os.environ.get("LEARN_OUTCOME_DEADLINE_SECONDS", ""))
+    except ValueError:
+        return OUTCOME_DEADLINE_SECONDS, None
+    if not 0 < seconds < float("inf"):
+        return OUTCOME_DEADLINE_SECONDS, None
+    if seconds > OUTCOME_DEADLINE_SECONDS:
+        return float(OUTCOME_DEADLINE_SECONDS), seconds
+    return seconds, None
+
+
+def outcome_deadline():
+    """Seconds the outcome step may take in all: see outcome_deadline_setting."""
+    return outcome_deadline_setting()[0]
+
+
+def score_outcomes(client, week_start, core=CORE, agent=AGENT):
+    """The card and hold outcome measure (core/eval/card_outcome.py, METHOD-GAPS section 7), run weekly. It reads the
+    four weeks of run dates ending a week before the week's Sunday, so the newest has its t + 7 day inside the week,
+    through the manual runner's own queries and byte caps (core/eval/card_outcome_read.py), on the core and agent
+    datasets learn was given, and returns the held rate groups of all markets for the runs row. Information only:
+    nothing is written to the warehouse, nothing reads the result, and a failure, a read over the cap or a deadline
+    passed is returned as the status and the error text so the learn run itself is unaffected. The whole step has
+    one deadline (outcome_deadline): the reads get it, and the step stops waiting for them when it passes, so it
+    returns "timeout" at the deadline and a read that finishes later changes nothing. The groups hold counts and
+    rates, never an item, title or row."""
+    end = week_start - timedelta(days=1)
+    start = end - timedelta(days=7 * card_outcome.WEEKS - 1)
+    seconds, requested = outcome_deadline_setting()
+    deadline = time.monotonic() + seconds
+    out = {"definition": card_outcome.DEFINITION, "horizon": card_outcome.HEADLINE,
+           "window": [start.isoformat(), end.isoformat()], "status": "ok", "error": None}
+    if requested is not None:
+        out["deadline_clamped"] = {"requested": requested, "used": seconds}
+    done = {}
+
+    def work():
+        result = dict(out)
+        try:
+            got, metas = card_outcome_read.read_inputs(client, card_outcome_read.QUERIES, start, end, core=core,
+                                                       agent=agent, deadline=deadline)
+            rows = card_outcome.build_outcomes(card_outcome_read.briefs(got["briefs"]), got["states"],
+                                               [r["run_date"] for r in got["detect_days"]])
+            keep = ("kind", "market", "hold_reason", "stratum", "n", "held", "listed", "collapsed", "other",
+                    "unmeasured", "pending", "text")
+            result["groups"] = [{k: g[k] for k in keep} for g in card_outcome.summarize(rows, end=end)
+                                if g["market"] == "ALL" and g["hold_reason"] is None]
+            result["queries"] = [{k: m[k] for k in ("name", "estimated_bytes", "bytes_billed", "row_count")}
+                                 for m in metas]
+            result["bytes_billed"] = sum(m["bytes_billed"] or 0 for m in metas)
+        except card_outcome_read.DeadlineExceeded as e:
+            result.update(status="timeout", error=f"{type(e).__name__}: {e}")
+        except Exception as e:
+            result.update(status="error", error=f"{type(e).__name__}: {e}")
+        done["result"] = result
+
+    worker = threading.Thread(target=work, name="learn-card-outcome", daemon=True)
+    worker.start()
+    worker.join(seconds)
+    if worker.is_alive() or "result" not in done:
+        return {**out, "status": "timeout", "error": f"the outcome step passed its {seconds:g} second deadline"}
+    return done["result"]
+
+
 def rows_param(rows):
     """The scorecard rows as the @rows struct array of APPEND_SQL, each Figure as JSON text."""
     records = [{**{k: r[k] for k, _ in KEYS}, **{f: json.dumps(r[f]) for f in FIGURES}} for r in rows]
@@ -177,6 +258,7 @@ def run(client, week_start, *, core=CORE, agent=AGENT, now=None):
             score_counts, scores = score_week(client, week_start, now or datetime.now(timezone.utc), agent,
                                               scorecard_run_id=run_id if status == "ok" else None)
             counts.update(score_counts)
+            counts["card_outcome"] = score_outcomes(client, week_start, core, agent)
     except Exception as e:
         runs.append(client, run_id, "learn", week_start, "failed", started, runs.now(), counts,
                     error=f"{type(e).__name__}: {e}", agent=agent)
