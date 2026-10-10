@@ -196,3 +196,16 @@ def test_ju02_the_services_actions_are_judged_as_before(tmp_path):
     for action in plan.ACTIONS.values():
         assert plan.check_allowlist(action(ctx_for(world))) is None
     assert plan.check_jobs_allowlist(plan.candidate(ctx_for(world))) is not None
+
+
+# RB-T3: the schema readback receipt step follows the durable readbacks in JobsCandidate and is on the positive list
+
+def test_rb_t3_the_candidate_writes_the_schema_readback_receipt_after_the_durable_readbacks():
+    steps = plan.JOBS_ACTIONS["JobsCandidate"](ctx(schema_effects=True))
+    names = [s.name for s in steps]
+    assert names[-2:] == ["checker:readbacks", "jobs_run:schema-receipt"]
+    receipt = steps[-1]
+    assert receipt.argv == ("py", "-3.13", "core/setup/release/jobs_run.py", "schema-receipt", "--bindings", "C:/release/bindings.json", "--evidence",
+                            "C:/release/run")
+    assert plan.jobs_matching_entries(list(receipt.argv)) == ["jobs_run"] and plan.matching_entries(list(receipt.argv)) == []
+    assert "schema-receipt" in plan.JOBS_RUN_ACTIONS

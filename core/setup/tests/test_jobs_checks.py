@@ -321,3 +321,198 @@ def test_ju07_a_bindings_file_without_the_quiet_template_hashes_is_refused(tmp_p
     with pytest.raises(so.Stop) as stop:
         jo.validate_jobs_bindings(broken)
     assert stop.value.code == "BINDINGS" and "quietTemplateHashes" in stop.value.message
+
+
+# RB-T3 (F3): JobsUpdate needs the schema readback receipt JobsCandidate's durable readbacks step leaves in the release directory. The
+# bindings name its path and its sha256, and BeforeJobsUpdate recomputes what the receipt must say from the pinned durable manifest
+# instead of believing what the receipt says about itself.
+
+def receipt_path(w):
+    from pathlib import Path
+
+    return Path(w.bound["schemaReadbackReceiptPath"])
+
+
+def candidate_without_receipt(w):
+    w.run("BeforeAnyWrite")
+    w.built(receipt=False)
+
+
+def test_rb_t3_before_jobs_update_passes_with_the_receipt_and_stops_without_it(tmp_path):
+    w = world(tmp_path / "with")
+    candidate_ran(w)
+    assert w.run("BeforeJobsUpdate")["phase"] == "BeforeJobsUpdate"
+    bare = world(tmp_path / "without")
+    candidate_without_receipt(bare)
+    assert bare.stop("BeforeJobsUpdate").code == "SCHEMA_RECEIPT"
+
+
+def test_rb_t3_a_candidate_that_stopped_at_its_snapshot_leaves_no_receipt_and_the_update_is_refused(tmp_path):
+    w = world(tmp_path)
+    w.run("BeforeAnyWrite")  # JobsCandidate stopped before the schema apply and its readbacks
+    w.world.registry[jo.image_tag(w.bound)] = jw.NEW_DIGEST
+    assert not receipt_path(w).exists()
+    assert w.stop("BeforeJobsUpdate").code == "SCHEMA_RECEIPT"
+
+
+@pytest.mark.parametrize("over", [
+    {"effects": []},
+    {"effects": [{"effect_id": "E-RUNS-DDL", "result_sha256": jw.sha("runs columns")}]},
+    {"effects": [{"effect_id": "E-RUNS-DDL", "result_sha256": jw.sha("runs columns")}, {"effect_id": "E-CLAIM-DDL", "result_sha256": jw.sha("other")}]},
+    {"effects": [{"effect_id": "E-RUNS-DDL", "result_sha256": jw.sha("runs columns")}, {"effect_id": "E-CLAIM-DDL", "result_sha256": jw.sha("claim_checks columns")},
+                 {"effect_id": "E-EXTRA", "result_sha256": jw.sha("x")}]},
+    {"release_id": "rel-0000000-01"},
+    {"durable_manifest_sha256": "0" * 64},
+    {"kind": "chain-evidence"},
+    {"schema_version": 2},
+], ids=["no_effects", "one_effect_missing", "wrong_readback_hash", "extra_effect", "other_release", "other_manifest", "other_kind", "other_version"])
+def test_rb_t3_a_receipt_that_is_self_consistent_but_differs_from_what_the_pinned_manifest_expects_is_refused(tmp_path, over):
+    # schema_receipt() writes the receipt_sha256 of the altered body itself, so only a recomputation from the manifest can refuse it.
+    w = world(tmp_path)
+    w.run("BeforeAnyWrite")
+    w.built(receipt=False)
+    w.schema_receipt(**over)
+    assert w.stop("BeforeJobsUpdate").code == "SCHEMA_RECEIPT"
+
+
+def test_rb_t3_a_receipt_whose_own_hash_field_is_not_the_hash_of_its_body_is_refused(tmp_path):
+    w = world(tmp_path)
+    candidate_ran(w)
+    path = receipt_path(w)
+    body = json.loads(path.read_text(encoding="utf-8"))
+    body["receipt_sha256"] = "0" * 64
+    path.write_text(json.dumps(body), encoding="utf-8")
+    assert w.stop("BeforeJobsUpdate").code == "SCHEMA_RECEIPT"
+
+
+def test_rb_t3_a_receipt_that_is_not_json_or_not_an_object_is_refused(tmp_path):
+    for index, text in enumerate(("not json", "[]", "")):
+        w = world(tmp_path / str(index))
+        candidate_ran(w)
+        receipt_path(w).write_text(text, encoding="utf-8")
+        assert w.stop("BeforeJobsUpdate").code == "SCHEMA_RECEIPT", repr(text)
+
+
+def test_rb_t3_the_bound_hash_is_what_the_receipt_must_match_and_a_different_bound_hash_refuses(tmp_path):
+    w = world(tmp_path)
+    candidate_ran(w)
+    w.bound["schemaReadbackReceiptSha256"] = "0" * 64
+    assert w.stop("BeforeJobsUpdate").code == "SCHEMA_RECEIPT"
+
+
+def test_rb_t3_a_durable_manifest_that_changed_after_it_was_bound_stops_the_check_with_bindings(tmp_path):
+    w = world(tmp_path)
+    candidate_ran(w)
+    path = w.release_dir / "durable-effects.json"
+    path.write_text(path.read_text(encoding="utf-8") + " ", encoding="utf-8")
+    assert w.stop("BeforeJobsUpdate").code == "BINDINGS"
+
+
+@pytest.mark.parametrize("key", ["schemaReadbackReceiptPath", "schemaReadbackReceiptSha256"])
+def test_rb_t3_bindings_without_the_receipt_path_or_hash_are_refused(tmp_path, key):
+    w = world(tmp_path)
+    w.bound.pop(key)
+    with pytest.raises(so.Stop) as stop:
+        jo.validate_jobs_bindings(w.bound)
+    assert stop.value.code == "BINDINGS"
+
+
+def test_rb_t3_a_receipt_path_outside_the_release_directory_or_a_malformed_hash_is_refused(tmp_path):
+    w = world(tmp_path)
+    for key, value in (("schemaReadbackReceiptPath", str(tmp_path / "elsewhere" / "schema-readback-receipt.json")),
+                       ("schemaReadbackReceiptPath", str(w.release_dir / ".." / "schema-readback-receipt.json")),
+                       ("schemaReadbackReceiptSha256", "abc"), ("schemaReadbackReceiptSha256", "G" * 64)):
+        bound = dict(w.bound, **{key: value})
+        with pytest.raises(so.Stop) as stop:
+            jo.validate_jobs_bindings(bound)
+        assert stop.value.code == "BINDINGS", (key, value)
+
+
+def test_rb_t3_the_update_orchestrator_refuses_without_the_receipt_before_any_update_call(tmp_path):
+    from core.setup.release import jobs_run as jr
+    from core.setup.tests import cloud_world as cw
+
+    w = world(tmp_path)
+    clock = cw.Clock(w.now)
+    cloud = cw.FakeCloudRun(w.world, clock)
+    w.fake_reader = cloud
+    w.run("BeforeAnyWrite", reader=cloud)
+    w.built()
+    w.run("BeforeJobsUpdate", reader=cloud)
+    receipt_path(w).unlink()
+    with pytest.raises(so.Stop) as stop:
+        jr.run_update(w.bound, cloud, w.bq_client(), w.evidence, now=clock.now)
+    assert stop.value.code == "SCHEMA_RECEIPT" and cloud.update_calls == 0
+
+
+# the verb that writes the receipt: it reads the checker's output and the pinned manifest and writes only a receipt that agrees
+
+def checker_output(w, **over):
+    results = [{"effect_id": e["effect_id"], "result_sha256": e["native_readback"]["expected_result_sha256"], "matches": True}
+               for e in jw.DURABLE_EFFECTS if e["apply_kind"] == "schema"]
+    results.append({"effect_id": "E-JOBS-IMAGE", "helper_phase": "AfterJobsUpdate", "matches": True})
+    body = {"schema_version": 1, "check": "readbacks", "ok": True, "results": results, **over}
+    jw.write_json(w.evidence / "readbacks.json", body)
+    return body
+
+
+def receipt_verb(w, clock=None):
+    from core.setup.release import jobs_run as jr
+
+    path = w.tmp / "bindings-file.json"
+    jw.write_json(path, w.bound)
+    return jr.main(["schema-receipt", "--bindings", str(path), "--evidence", str(w.evidence)], now=(clock or (lambda: w.now)))
+
+
+def test_rb_t3_the_receipt_verb_writes_the_receipt_the_bindings_name_and_beforejobsupdate_then_accepts_it(tmp_path):
+    w = world(tmp_path)
+    w.run("BeforeAnyWrite")
+    w.world.registry[jo.image_tag(w.bound)] = jw.NEW_DIGEST
+    checker_output(w)
+    assert receipt_verb(w) == 0
+    written = json.loads(receipt_path(w).read_text(encoding="utf-8"))
+    expected = w.schema_receipt_body(w.bound["release_id"], w.bound["durableManifestSha256"])
+    assert {k: v for k, v in written.items() if k not in ("receipt_sha256", "written_at")} == expected
+    assert written["receipt_sha256"] == w.bound["schemaReadbackReceiptSha256"] and written["written_at"]
+    assert w.run("BeforeJobsUpdate")["phase"] == "BeforeJobsUpdate"
+
+
+def test_rb_t3_the_receipt_verb_writes_it_again_unchanged_but_never_replaces_a_different_one(tmp_path):
+    w = world(tmp_path)
+    checker_output(w)
+    assert receipt_verb(w) == 0
+    first = receipt_path(w).read_bytes()
+    assert receipt_verb(w) == 0 and receipt_path(w).read_bytes() == first
+    receipt_path(w).write_text(json.dumps({"kind": "other"}), encoding="utf-8")
+    assert receipt_verb(w) == 1
+
+
+@pytest.mark.parametrize("make", [
+    lambda w: checker_output(w, ok=False),
+    lambda w: checker_output(w, check="rollback-blockers"),
+    lambda w: checker_output(w, results=[]),
+    lambda w: checker_output(w, results=[{"effect_id": "E-RUNS-DDL", "result_sha256": jw.sha("runs columns"), "matches": True}]),
+    lambda w: checker_output(w, results=[{"effect_id": "E-RUNS-DDL", "result_sha256": jw.sha("runs columns"), "matches": True},
+                                         {"effect_id": "E-CLAIM-DDL", "result_sha256": jw.sha("something else"), "matches": True}]),
+    lambda w: checker_output(w, results=[{"effect_id": "E-RUNS-DDL", "result_sha256": jw.sha("runs columns"), "matches": True},
+                                         {"effect_id": "E-CLAIM-DDL", "result_sha256": jw.sha("claim_checks columns"), "matches": False}]),
+    lambda w: (w.evidence / "readbacks.json").write_text("not json", encoding="utf-8"),
+    lambda w: None,
+], ids=["not_ok", "other_check", "no_results", "one_effect_missing", "a_different_hash_that_claims_a_match", "matches_false", "unreadable", "absent"])
+def test_rb_t3_the_receipt_verb_refuses_a_checker_output_that_does_not_agree_with_the_pinned_manifest(tmp_path, make):
+    w = world(tmp_path)
+    make(w)
+    assert receipt_verb(w) == 1 and not receipt_path(w).exists()
+
+
+def test_rb_t3_the_receipt_verb_refuses_when_the_bound_hash_is_not_what_this_manifest_produces(tmp_path):
+    w = world(tmp_path)
+    checker_output(w)
+    w.bound["schemaReadbackReceiptSha256"] = "0" * 64
+    assert receipt_verb(w) == 1 and not receipt_path(w).exists()
+
+
+def test_rb_t3_the_receipt_verb_needs_neither_a_console_nor_a_token(tmp_path):
+    w = world(tmp_path)
+    checker_output(w)
+    assert receipt_verb(w) == 0

@@ -340,7 +340,7 @@ def deploy_call_allowed(argv):
 JOBS_REPO = jo.JOBS_REPO
 JOB_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 CHAIN_ROLES = ("baseline", "first-b")
-JOBS_RUN_ACTIONS = ("snapshot", "update", "rollback")
+JOBS_RUN_ACTIONS = ("snapshot", "update", "rollback", "schema-receipt")
 BUILD_BUCKET = "gs://ogilvy-trends-v2-f42-media-staging/build-source"
 BUILDS_URL = f"https://cloudbuild.googleapis.com/v1/projects/{PROJECT}/locations/{REGION}/builds"
 
@@ -414,6 +414,7 @@ def jobs_candidate(ctx):
     if ctx.schema_effects:
         steps.append(step("schema_apply", ["py", "-3.13", "-m", "core.schema.apply", "--apply"]))
     steps.append(checker(_services_view(ctx), "readbacks"))
+    steps.append(jobs_run(ctx, "schema-receipt"))
     return steps
 
 

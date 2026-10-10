@@ -203,7 +203,7 @@ def test_ju08_jobs_candidate_runs_the_checks_the_build_seam_freeze_validate_snap
     result = JobsPasteWorld(tmp_path, "JobsCandidate").run()
     assert result.returncode == 0, result.stderr
     assert result.names == ["helper-BeforeAnyWrite-0", "archive", "extract", "helper-FreezeJobs-0", "durable-validate", "snapshot", "schema-apply",
-                            "durable-readbacks"]
+                            "durable-readbacks", "schema-receipt"]
     assert [c for c in result.calls if c["kind"] == "build"]
     assert result.names.index("snapshot") < result.names.index("schema-apply")
 
@@ -616,3 +616,22 @@ def test_rb_t2_the_file_name_the_paste_writes_is_the_one_the_runner_reads():
     from core.setup.release import jobs_run as jr
 
     assert jr.TOKEN_NAME in PASTE.read_text(encoding="utf-8")
+
+
+# RB-T3 (F3): the schema readback receipt is written by the step after the durable readbacks, and every durable path stays in the release directory
+
+def test_rb_t3_the_receipt_step_follows_the_durable_readbacks_and_a_failed_readback_leaves_no_receipt_step(tmp_path):
+    result = JobsPasteWorld(tmp_path / "ok", "JobsCandidate").run()
+    assert result.names[-2:] == ["durable-readbacks", "schema-receipt"]
+    argv = result.run("schema-receipt")["argv"]
+    assert argv[:2] == ["py", "-3.13"] and argv[2].endswith("jobs_run.py") and argv[3] == "schema-receipt"
+    failed = JobsPasteWorld(tmp_path / "failed", "JobsCandidate").run(exits={"durable-readbacks": 1})
+    assert failed.returncode != 0 and "schema-receipt" not in failed.names
+
+
+@pytest.mark.parametrize("key", ["baselineChainPath", "durableManifestPath", "dryRunReceiptPath", "schemaReadbackReceiptPath"])
+@pytest.mark.parametrize("action", ACTIONS)
+def test_rb_t3_a_durable_path_outside_the_release_directory_is_refused_before_any_external_call(tmp_path, key, action):
+    world = JobsPasteWorld(tmp_path, action, bindings={key: str(tmp_path / "elsewhere" / "file.json")})
+    result = world.run()
+    assert result.returncode != 0 and result.external == [] and "outside the release directory" in result.stderr, (key, result.stdout, result.stderr)

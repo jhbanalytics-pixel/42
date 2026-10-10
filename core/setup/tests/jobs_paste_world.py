@@ -157,7 +157,9 @@ class JobsPasteWorld:
         self.bindings = self.write(self.tmp / "bindings.json", {
             "schema_version": 1, "mode": "jobs", "status": "BOUND_FOR_INDEPENDENT_REVIEW", "release_id": RID, "target": COMMIT, "tree": TREE,
             "callerAccount": CALLER, "releaseDir": str(self.release_dir), "baselinePath": str(self.baseline), "baselineChainPath": str(self.chain),
-            "durableManifestPath": str(self.durable), "dryRunReceiptPath": str(self.dry_run), **(bindings or {})})
+            "durableManifestPath": str(self.durable), "dryRunReceiptPath": str(self.dry_run),
+            "schemaReadbackReceiptPath": str(self.release_dir / "schema-readback-receipt.json"), "schemaReadbackReceiptSha256": "e1" * 32,
+            **(bindings or {})})
         self.lock = self.build_lock()
         self.review = self.write(self.tmp / "review.json", locklib.review_for(self.lock, COMMIT))
         self.receipt = self.write(self.tmp / "receipt.json", {

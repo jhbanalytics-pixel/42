@@ -313,6 +313,15 @@ class ChainFixture:
 
 QUIET_HASH_FIELD = "quietTemplateHashes"
 SAST = dt.timezone(dt.timedelta(hours=2), "SAST")
+SCHEMA_RECEIPT_NAME = "schema-readback-receipt.json"
+# The durable manifest the world binds: two schema effects with the readback hash the checker must find, and the job image effect.
+DURABLE_EFFECTS = [
+    {"effect_id": "E-RUNS-DDL", "apply_kind": "schema", "native_readback": {"kind": "information_schema_columns", "target": "agent.runs",
+                                                                           "expected_result_sha256": sha("runs columns")}},
+    {"effect_id": "E-CLAIM-DDL", "apply_kind": "schema", "native_readback": {"kind": "information_schema_columns", "target": "agent.claim_checks",
+                                                                             "expected_result_sha256": sha("claim_checks columns")}},
+    {"effect_id": "E-JOBS-IMAGE", "apply_kind": "job_image", "native_readback": {"kind": "helper_phase", "target": "AfterJobsUpdate"}},
+]
 
 
 class ReleaseWorld(ChainFixture):
@@ -330,11 +339,14 @@ class ReleaseWorld(ChainFixture):
         from core.setup.release import chain_evidence as ce
 
         bound = self.write_bindings(**({"baseline": baseline} if baseline else {}))
+        durable_sha = write_json(self.release_dir / "durable-effects.json", {"schema_version": 1, "effects": DURABLE_EFFECTS})
         manifest = ce.build_manifest(bound, self.reader(), self.bq(), self.day, "baseline", now=lambda: self.now)
         path = ce.write_manifest(self.release_dir, manifest)
         bound.update({"baselineChainPath": str(path), "baselineChainSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                       "buildServiceAccount": rw.BUILD_SA, "buildConfigSha256": "c1" * 32, "dockerfileSha256": "d1" * 32,
-                      "durableManifestSha256": "d2" * 32, "dryRunReceiptSha256": "d3" * 32,
+                      "durableManifestSha256": durable_sha, "dryRunReceiptSha256": "d3" * 32,
+                      "schemaReadbackReceiptPath": str(self.release_dir / SCHEMA_RECEIPT_NAME),
+                      "schemaReadbackReceiptSha256": so.fingerprint(self.schema_receipt_body(bound["release_id"], durable_sha)),
                       "durableManifestPath": str(self.release_dir / "durable-effects.json"),
                       "dryRunReceiptPath": str(self.release_dir / "apply-dry-run-receipt.json"),
                       "window": {"startSast": "08:05", "endSast": "21:00", "rollbackDeadlineSast": "23:30"},
@@ -345,9 +357,26 @@ class ReleaseWorld(ChainFixture):
         self.fake_reader = FakeJobsReader(self.world)
         return bound
 
-    def built(self):
-        """The build ran: the registry now resolves the attempt tag to the digest FreezeJobs froze."""
+    @staticmethod
+    def schema_receipt_body(release_id, durable_sha):
+        """What JobsCandidate's schema readback receipt must say, worked out here from the pinned expectations and not from the code
+        under test: one entry per schema effect with the readback hash the manifest expects."""
+        effects = sorted(({"effect_id": e["effect_id"], "result_sha256": e["native_readback"]["expected_result_sha256"]}
+                          for e in DURABLE_EFFECTS if e["apply_kind"] == "schema"), key=lambda e: e["effect_id"])
+        return {"schema_version": 1, "kind": "schema-readback-receipt", "release_id": release_id, "durable_manifest_sha256": durable_sha,
+                "effects": effects}
+
+    def schema_receipt(self, **over):
+        """The receipt JobsCandidate's durable readbacks step leaves in the release directory."""
+        body = self.schema_receipt_body(self.bound["release_id"], self.bound["durableManifestSha256"])
+        body.update(over)
+        write_json(self.bound["schemaReadbackReceiptPath"], {**body, "receipt_sha256": so.fingerprint(body), "written_at": self.now.isoformat()})
+
+    def built(self, *, receipt=True):
+        """The build ran: the registry now resolves the attempt tag to the digest FreezeJobs froze, and the schema readbacks left their receipt."""
         self.world.registry[jo.image_tag(self.bound)] = NEW_DIGEST
+        if receipt:
+            self.schema_receipt()
 
     def bq_client(self, **kw):
         client = FakeBq(self.tables(), **kw)

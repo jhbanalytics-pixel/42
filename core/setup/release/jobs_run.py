@@ -234,9 +234,42 @@ def restore_chain_group(adapter, baseline, rollback_digest, log, touched):
             log["unrestored"].append(job)
 
 
+def run_schema_receipt(bound, evidence, *, now):
+    """Write the schema readback receipt JobsCandidate leaves for JobsUpdate (RB-T3). The durable-effects checker's own output is read,
+    and a schema effect counts only when the hash it reports is the one the pinned durable manifest expects: its `matches` flag is not
+    believed. The receipt is exactly the body the manifest produces, so the hash the bindings bind can be set before the run."""
+    jo.validate_jobs_bindings(bound)
+    expected = jo.schema_receipt_body(bound, jo.load_durable(bound))
+    digest = so.fingerprint(expected)
+    require(digest == bound["schemaReadbackReceiptSha256"], "SCHEMA_RECEIPT",
+            "The receipt hash the bindings bind is not the hash of the receipt this durable manifest requires")
+    try:
+        output = json.loads((Path(evidence) / "readbacks.json").read_bytes().decode("utf-8-sig"))
+    except (OSError, ValueError):
+        output = None
+    require(isinstance(output, dict) and output.get("check") == "readbacks" and output.get("ok") is True and isinstance(output.get("results"), list),
+            "SCHEMA_RECEIPT", "The durable readbacks left no passing output in the run folder")
+    seen = {r["effect_id"]: r.get("result_sha256") for r in output["results"]
+            if isinstance(r, dict) and r.get("matches") is True and isinstance(r.get("effect_id"), str)}
+    for effect in expected["effects"]:
+        require(seen.get(effect["effect_id"]) == effect["result_sha256"], "SCHEMA_RECEIPT",
+                f"The readback of {effect['effect_id']} does not show the hash the pinned durable manifest expects")
+    target = Path(bound["schemaReadbackReceiptPath"])
+    if target.exists():
+        try:
+            held = json.loads(target.read_bytes().decode("utf-8-sig"))
+        except ValueError:
+            held = None
+        require(isinstance(held, dict) and {k: v for k, v in held.items() if k not in ("receipt_sha256", "written_at")} == expected
+                and held.get("receipt_sha256") == digest, "SCHEMA_RECEIPT", "A different schema readback receipt is already in the release directory")
+        return target
+    return write_new(target, {**expected, "receipt_sha256": digest, "written_at": now().isoformat()})
+
+
 def run_update(bound, adapter, bq_client, evidence, *, now, sleep=None):
     jo.validate_jobs_bindings(bound)
     baseline = jo.load_baseline_j(bound)
+    jo.check_schema_receipt(bound)
     digest = jo.frozen_digest(bound["releaseDir"])
     started = now()
     require(jo.window_open(bound, started), "WINDOW", "JobsUpdate runs only inside the bound window")
@@ -347,6 +380,10 @@ def main(argv=None, adapter_factory=None, bq_factory=None, now=None, console=Non
         jo.validate_jobs_bindings(bound)
         if args.action == "update":
             consume_update_token(bound, args.evidence, wall or time.time)
+        if args.action == "schema-receipt":
+            run_schema_receipt(bound, args.evidence, now=clock)
+            print("schema-receipt: written")
+            return 0
         adapter = (adapter_factory or GcloudJobs)(bound["readTimeoutSeconds"])
         if args.action == "rollback":
             log = run_rollback(bound, adapter, args.evidence, now=clock)

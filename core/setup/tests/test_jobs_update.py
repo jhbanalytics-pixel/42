@@ -120,6 +120,7 @@ def test_ju06_the_window_check_itself_is_what_refuses_at_0804_and_2100_when_the_
         w.release_dir.joinpath("readbacks").mkdir(exist_ok=True)
         for phase in ("BeforeAnyWrite",):
             jw.write_json(w.release_dir / "readbacks" / f"{phase}-01.json", {"phase": phase, "at_utc": clock.now().isoformat()})
+        w.schema_receipt()
         jw.write_json(w.release_dir / "readbacks" / "BeforeJobsUpdate-01.json", {"phase": "BeforeJobsUpdate", "at_utc": clock.now().isoformat(),
                                                                                    "quiet_snapshot": snapshot})
         if allowed:

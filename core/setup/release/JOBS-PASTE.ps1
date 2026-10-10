@@ -121,7 +121,7 @@ function Assert-Version($Value, [string]$What) {
 function Resolve-Paths($Bound) {
     $root = [IO.Path]::GetFullPath($Bound.releaseDir)
     $paths = @{ root = $root; baseline = $Bound.baselinePath }
-    foreach ($key in @('baselineChainPath', 'durableManifestPath', 'dryRunReceiptPath')) {
+    foreach ($key in @('baselineChainPath', 'durableManifestPath', 'dryRunReceiptPath', 'schemaReadbackReceiptPath')) {
         $full = [IO.Path]::GetFullPath([string]$Bound.$key)
         if (-not $full.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
             throw "NOT EXECUTABLE: a durable path is outside the release directory: $key"
@@ -289,6 +289,8 @@ function Invoke-JobsCandidate {
         Step -Name 'schema-apply' -Argv @('py', '-3.13', '-m', 'core.schema.apply', '--apply') | Out-Null
     }
     Step -Name 'durable-readbacks' -Argv @('py', '-3.13', 'core/setup/durable_effects_check.py', '--manifest', $Script:Paths.durableManifestPath, '--check', 'readbacks', '--evidence', $Script:RunDir) | Out-Null
+    # JobsUpdate refuses without the receipt this step writes into the release directory (RB-T3); it is written only from a passing readback.
+    Invoke-Runner 'schema-receipt' 'schema-receipt' | Out-Null
 }
 
 # The update verb of jobs_run.py is a write entry point, so it refuses unless this paste has written a token for this run after DEPLOY was

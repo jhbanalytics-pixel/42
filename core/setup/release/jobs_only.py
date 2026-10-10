@@ -44,11 +44,11 @@ PRODUCER_BINDINGS = ("release_id", "target", "tree", "releaseDir", "baselinePath
                      "collectStartToleranceMinutes")
 RELEASE_BINDINGS = (*PRODUCER_BINDINGS, "baselineChainPath", "baselineChainSha256", "buildServiceAccount", "buildConfigSha256",
                     "dockerfileSha256", "durableManifestSha256", "durableManifestPath", "dryRunReceiptSha256", "dryRunReceiptPath",
-                    "quietTemplateHashes", "window", "maxBaselineAgeDays",
+                    "schemaReadbackReceiptPath", "schemaReadbackReceiptSha256", "quietTemplateHashes", "window", "maxBaselineAgeDays",
                     "maxCandidateAgeHours", "priorAttempts", "priorLedgers")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 HASH_KEYS = ("baselineSha256", "baselineChainSha256", "buildConfigSha256", "dockerfileSha256", "durableManifestSha256",
-             "dryRunReceiptSha256")
+             "dryRunReceiptSha256", "schemaReadbackReceiptSha256")
 
 
 def validate_jobs_bindings(bound, *, producer=False):
@@ -81,8 +81,11 @@ def validate_jobs_bindings(bound, *, producer=False):
         window = bound["window"]
         require(isinstance(window, dict) and set(window) == {"startSast", "endSast", "rollbackDeadlineSast"}
                 and all(HHMM.match(str(v)) for v in window.values()), "BINDINGS", "window must give startSast, endSast and rollbackDeadlineSast as HH:MM")
-        for key in ("durableManifestPath", "dryRunReceiptPath", "baselineChainPath"):
+        for key in ("durableManifestPath", "dryRunReceiptPath", "baselineChainPath", "schemaReadbackReceiptPath"):
             require(isinstance(bound[key], str) and bool(bound[key]), "BINDINGS", f"{key} is not a path")
+        root = Path(bound["releaseDir"]).resolve()
+        require(root in Path(bound["schemaReadbackReceiptPath"]).resolve().parents, "BINDINGS",
+                "schemaReadbackReceiptPath is not inside the release directory")
         for key in ("maxBaselineAgeDays", "maxCandidateAgeHours"):
             require(so._positive(bound[key]), "BINDINGS", f"{key} is not usable")
         require(isinstance(bound["priorAttempts"], list) and isinstance(bound["priorLedgers"], list), "BINDINGS",
@@ -457,6 +460,49 @@ def phase_freeze_jobs(rel, phase, result):
     raise Stop("NOT_BUILT", "FreezeJobs binds the build result to the registry digest (JB-02), which this tooling does not carry yet")
 
 
+SCHEMA_RECEIPT_KIND = "schema-readback-receipt"
+
+
+def load_durable(bound):
+    """The durable-effects manifest, recomputed against the hash the bindings pin."""
+    return so.load_bound_json(bound["durableManifestPath"], bound["durableManifestSha256"], "durable-effects manifest")
+
+
+def schema_receipt_body(bound, durable):
+    """What the schema readback receipt must say, worked out from the pinned durable manifest alone: one entry per schema effect with
+    the readback hash that manifest expects. JobsCandidate's durable readbacks step must have found exactly these hashes."""
+    effects = []
+    for effect in durable.get("effects", []):
+        if not isinstance(effect, dict) or effect.get("apply_kind") != "schema":
+            continue
+        expected = (effect.get("native_readback") or {}).get("expected_result_sha256")
+        require(isinstance(effect.get("effect_id"), str) and isinstance(expected, str) and SHA256.match(expected), "SCHEMA_RECEIPT",
+                "A schema effect of the durable manifest carries no expected readback hash")
+        effects.append({"effect_id": effect["effect_id"], "result_sha256": expected})
+    return {"schema_version": SCHEMA_VERSION, "kind": SCHEMA_RECEIPT_KIND, "release_id": bound["release_id"],
+            "durable_manifest_sha256": bound["durableManifestSha256"], "effects": sorted(effects, key=lambda e: e["effect_id"])}
+
+
+def check_schema_receipt(bound):
+    """JobsUpdate needs the receipt JobsCandidate's readbacks left (JS-04, B-C2). Nothing in the file is taken on its word: the body is
+    compared with the one the pinned durable manifest produces, and the hash the bindings bind is compared with that body's hash."""
+    expected = schema_receipt_body(bound, load_durable(bound))
+    digest = so.fingerprint(expected)
+    require(digest == bound["schemaReadbackReceiptSha256"], "SCHEMA_RECEIPT",
+            "The receipt hash the bindings bind is not the hash of the receipt this durable manifest requires")
+    path = Path(bound["schemaReadbackReceiptPath"])
+    require(path.is_file(), "SCHEMA_RECEIPT", "JobsCandidate left no schema readback receipt in the release directory")
+    try:
+        data = json.loads(path.read_bytes().decode("utf-8-sig"))
+    except ValueError:
+        data = None
+    require(isinstance(data, dict), "SCHEMA_RECEIPT", "The schema readback receipt is not readable")
+    body = {k: v for k, v in data.items() if k not in ("receipt_sha256", "written_at")}
+    require(body == expected, "SCHEMA_RECEIPT", "The schema readback receipt is not the one the pinned durable manifest requires")
+    require(data.get("receipt_sha256") == digest, "SCHEMA_RECEIPT", "The schema readback receipt does not carry the bound hash")
+    return digest
+
+
 def check_candidate(rel):
     """JobsUpdate runs on the day of JobsCandidate (Q5) and inside maxCandidateAgeHours of it."""
     candidate = rel.last_readback("BeforeAnyWrite")
@@ -470,6 +516,7 @@ def check_candidate(rel):
 def phase_before_jobs_update(rel, phase, result):
     digest = rel.manifest()
     check_candidate(rel)
+    rel.observations["schema_receipt"] = {"path": Path(rel.bound["schemaReadbackReceiptPath"]).name, "sha256": check_schema_receipt(rel.bound)}
     check_services(rel)
     check_registry_digest(rel, digest)
     states = job_states(rel, digest)
