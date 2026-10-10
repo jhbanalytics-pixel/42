@@ -15,7 +15,7 @@ ALBERT = "albert.meintjes@ogilvy.co.za"
 SECOND = "someone.else@ogilvy.co.za"
 PROJECT = "projects/ogilvy-trends-v2"
 ALL = ("collection_missing", "job_failed", "brief_late", "credits_low", "model_spend", "zero_rows", "schema_drift",
-       "agent_error_rate", "reconcile", "drift", "seeds_failed", "agent_views_failed")
+       "agent_error_rate", "reconcile", "drift", "seeds_failed", "agent_views_failed", "understand_degraded")
 # The two lines core/collect/reconcile.py writes, word for word.
 RECONCILE_LINES = {
     "credits_low": "42 ALERT credits_low: 2026-09-30 balance 61234, floor 20000, mean daily spend 1502 over 14 days, "
@@ -232,8 +232,18 @@ def test_each_alert_policy_matches_its_own_line_and_no_other(name):
             assert needle not in f"42 ALERT {other}: some reason"
 
 
+class QuietLogOnlyRules:
+    """The store answers of a healthy day for the watchdog's log-only rules, so a fake store need only set the
+    answers its own alert reads."""
+
+    brief_state = staticmethod(lambda d: {m: {"status": "published", "cards": 3, "held": 0} for m in ("ZA", "NG", "KE")})
+    understand_latest = staticmethod(lambda d: None)
+    stage_latest = staticmethod(lambda d: [])
+    watchdog_last = staticmethod(lambda d: datetime(2099, 1, 1, tzinfo=timezone.utc))
+
+
 def test_a_forced_zero_rows_run_writes_the_line_the_zero_rows_policy_matches(capsys):
-    class ZeroRows:
+    class ZeroRows(QuietLogOnlyRules):
         collect_ok = staticmethod(lambda d: True)
         observations = staticmethod(lambda d: {"ZA": 0, "NG": 3, "KE": 2})
         published_markets = staticmethod(lambda d: {"ZA", "NG", "KE"})
@@ -258,7 +268,7 @@ def test_the_seeds_failed_filter_is_the_shared_alert_shape_and_matches_only_the_
         'OR textPayload:"42 ALERT seeds_failed:")')
     assert mon.DOCS["seeds_failed"]
 
-    class SeedsFailed:
+    class SeedsFailed(QuietLogOnlyRules):
         collect_ok = staticmethod(lambda d: True)
         observations = staticmethod(lambda d: {"ZA": 3, "NG": 3, "KE": 2})
         published_markets = staticmethod(lambda d: {"ZA", "NG", "KE"})
@@ -284,7 +294,7 @@ def test_the_agent_views_failed_filter_is_the_shared_alert_shape_and_matches_onl
         'OR textPayload:"42 ALERT agent_views_failed:")')
     assert mon.DOCS["agent_views_failed"]
 
-    class ViewsFailed:
+    class ViewsFailed(QuietLogOnlyRules):
         collect_ok = staticmethod(lambda d: True)
         observations = staticmethod(lambda d: {"ZA": 3, "NG": 3, "KE": 2})
         published_markets = staticmethod(lambda d: {"ZA", "NG", "KE"})
@@ -303,6 +313,35 @@ def test_the_agent_views_failed_filter_is_the_shared_alert_shape_and_matches_onl
         entry = stdout_entry(line["message"], as_json, job="f42-watchdog")
         entry["severity"] = line["severity"]
         assert [n for n, f in filters().items() if matches(f, entry)] == ["agent_views_failed"]
+
+
+def test_the_understand_degraded_filter_is_the_shared_alert_shape_and_matches_only_the_watchdog_line(capsys):
+    assert mon.policy_body("understand_degraded", [])["conditions"][0]["conditionMatchedLog"]["filter"] == (
+        'resource.type="cloud_run_job" AND (jsonPayload.message:"42 ALERT understand_degraded:" '
+        'OR textPayload:"42 ALERT understand_degraded:")')
+    assert "partial" in mon.DOCS["understand_degraded"] and "understand" in mon.DOCS["understand_degraded"]
+
+    class Partial(QuietLogOnlyRules):
+        collect_ok = staticmethod(lambda d: True)
+        observations = staticmethod(lambda d: {"ZA": 3, "NG": 3, "KE": 2})
+        published_markets = staticmethod(lambda d: {"ZA", "NG", "KE"})
+        model_usd = staticmethod(lambda d: 0.0)
+        route_keys = staticmethod(lambda d: [])
+        ask_runs = staticmethod(lambda d: (0, 0))
+        seeds_latest = staticmethod(lambda d: None)
+        detect_latest = staticmethod(lambda d: None)
+        understand_latest = staticmethod(lambda d: {
+            "run_id": "understand-20261001-abc", "status": "ok", "degraded": [], "embed_error": None, "partial": True,
+            "partial_reason": "cluster_stack_failed", "partial_error": "ImportError: numba"})
+        fired_today = staticmethod(lambda d: set())
+
+    now = datetime(2026, 10, 1, 3, 0, tzinfo=timezone(timedelta(hours=2)))
+    assert wd.main(now=now, store=Partial(), runs=chain.MemoryRunsStore()) == 0
+    [line] = [json.loads(x) for x in capsys.readouterr().out.strip().splitlines()]
+    for as_json in (True, False):
+        entry = stdout_entry(line["message"], as_json, job="f42-watchdog")
+        entry["severity"] = line["severity"]
+        assert [n for n, f in filters().items() if matches(f, entry)] == ["understand_degraded"]
 
 
 def test_apply_on_an_empty_project_creates_both_channels_then_all_eight_policies(capsys):

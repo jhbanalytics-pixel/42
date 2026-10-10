@@ -1,0 +1,324 @@
+{
+  "a80_ddl_writers": [],
+  "effects": [
+    {
+      "additive": true,
+      "apply_kind": "traffic_pin",
+      "apply_order": 1,
+      "apply_phase": "before_candidate",
+      "authority_or_holds": false,
+      "change": "traffic_pin",
+      "compat": {
+        "a80_ddl_writers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "a80_readers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "a80_writers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "candidate_readers_old_records": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "candidate_writers_old_readers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        }
+      },
+      "consumers": [
+        {
+          "access": "write",
+          "component": "deploy_candidate.sh",
+          "file": "core/api/deploy_candidate.sh",
+          "image": "f42-web",
+          "line": 0
+        }
+      ],
+      "destructive": false,
+      "effect_id": "E-TRAFFIC",
+      "evidence": {},
+      "forward_recovery": {
+        "kind": "none_needed",
+        "note": "both services pinned by name to the a80 revisions and left pinned (W8-REL 2.8)",
+        "statement_ref": "",
+        "statement_sha256": ""
+      },
+      "kind": "cloud_run_traffic",
+      "native_readback": {
+        "expected_result_sha256": "",
+        "kind": "helper_phase",
+        "target": "BeforeCandidate"
+      },
+      "owner": {
+        "lane": 3,
+        "person": "TO BE NAMED"
+      },
+      "statement_ref": "both services pinned by name to the a80 revisions and left pinned (W8-REL 2.8)",
+      "statement_sha256": "",
+      "target": "f42-agent,f42-api"
+    },
+    {
+      "additive": true,
+      "apply_kind": "tag_add",
+      "apply_order": 2,
+      "apply_phase": "with_candidate",
+      "authority_or_holds": false,
+      "change": "tag_add",
+      "compat": {
+        "a80_ddl_writers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "a80_readers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "a80_writers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "candidate_readers_old_records": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "candidate_writers_old_readers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        }
+      },
+      "consumers": [
+        {
+          "access": "write",
+          "component": "deploy_candidate.sh",
+          "file": "core/api/deploy_candidate.sh",
+          "image": "f42-web",
+          "line": 0
+        }
+      ],
+      "destructive": false,
+      "effect_id": "E-TAG-A",
+      "evidence": {},
+      "forward_recovery": {
+        "kind": "none_needed",
+        "note": "agent tag added at 0%",
+        "statement_ref": "",
+        "statement_sha256": ""
+      },
+      "kind": "cloud_run_tag",
+      "native_readback": {
+        "expected_result_sha256": "",
+        "kind": "helper_phase",
+        "target": "BeforeSmoke"
+      },
+      "owner": {
+        "lane": 3,
+        "person": "TO BE NAMED"
+      },
+      "statement_ref": "agent tag added at 0%",
+      "statement_sha256": "",
+      "target": "f42-agent:<release id>"
+    },
+    {
+      "additive": true,
+      "apply_kind": "tag_add",
+      "apply_order": 3,
+      "apply_phase": "with_candidate",
+      "authority_or_holds": false,
+      "change": "tag_add",
+      "compat": {
+        "a80_ddl_writers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "a80_readers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "a80_writers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "candidate_readers_old_records": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "candidate_writers_old_readers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        }
+      },
+      "consumers": [
+        {
+          "access": "write",
+          "component": "deploy_candidate.sh",
+          "file": "core/api/deploy_candidate.sh",
+          "image": "f42-web",
+          "line": 0
+        }
+      ],
+      "destructive": false,
+      "effect_id": "E-TAG-W",
+      "evidence": {},
+      "forward_recovery": {
+        "kind": "none_needed",
+        "note": "API tag added at 0%",
+        "statement_ref": "",
+        "statement_sha256": ""
+      },
+      "kind": "cloud_run_tag",
+      "native_readback": {
+        "expected_result_sha256": "",
+        "kind": "helper_phase",
+        "target": "BeforeSmoke"
+      },
+      "owner": {
+        "lane": 3,
+        "person": "TO BE NAMED"
+      },
+      "statement_ref": "API tag added at 0%",
+      "statement_sha256": "",
+      "target": "f42-api:<release id>"
+    },
+    {
+      "additive": true,
+      "apply_kind": "env_set",
+      "apply_order": 4,
+      "apply_phase": "with_candidate",
+      "authority_or_holds": false,
+      "change": "env_set",
+      "compat": {
+        "a80_ddl_writers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "a80_readers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "a80_writers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "candidate_readers_old_records": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "candidate_writers_old_readers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        }
+      },
+      "consumers": [
+        {
+          "access": "write",
+          "component": "deploy_candidate.sh",
+          "file": "core/api/deploy_candidate.sh",
+          "image": "f42-web",
+          "line": 0
+        }
+      ],
+      "destructive": false,
+      "effect_id": "E-ENV-AUD",
+      "evidence": {},
+      "forward_recovery": {
+        "kind": "none_needed",
+        "note": "AGENT_AUDIENCE added to the API candidate; the a80 revision has none",
+        "statement_ref": "",
+        "statement_sha256": ""
+      },
+      "kind": "env",
+      "native_readback": {
+        "expected_result_sha256": "",
+        "kind": "helper_phase",
+        "target": "BeforeSmoke"
+      },
+      "owner": {
+        "lane": 3,
+        "person": "TO BE NAMED"
+      },
+      "statement_ref": "AGENT_AUDIENCE added to the API candidate; the a80 revision has none",
+      "statement_sha256": "",
+      "target": "f42-api:AGENT_AUDIENCE"
+    },
+    {
+      "additive": true,
+      "apply_kind": "env_set",
+      "apply_order": 5,
+      "apply_phase": "with_candidate",
+      "authority_or_holds": false,
+      "change": "env_set",
+      "compat": {
+        "a80_ddl_writers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "a80_readers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "a80_writers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "candidate_readers_old_records": {
+          "test": "HR-45",
+          "verdict": "pending"
+        },
+        "candidate_writers_old_readers": {
+          "test": "HR-45",
+          "verdict": "pending"
+        }
+      },
+      "consumers": [
+        {
+          "access": "write",
+          "component": "deploy_candidate.sh",
+          "file": "core/api/deploy_candidate.sh",
+          "image": "f42-web",
+          "line": 0
+        }
+      ],
+      "destructive": false,
+      "effect_id": "E-ENV-URL",
+      "evidence": {},
+      "forward_recovery": {
+        "kind": "none_needed",
+        "note": "the promoted API AGENT_URL changes from the canonical URL to the agent tag URL; rollback to a80 restores the canonical literal",
+        "statement_ref": "",
+        "statement_sha256": ""
+      },
+      "kind": "env",
+      "native_readback": {
+        "expected_result_sha256": "",
+        "kind": "helper_phase",
+        "target": "AfterPromotion"
+      },
+      "owner": {
+        "lane": 3,
+        "person": "TO BE NAMED"
+      },
+      "statement_ref": "the promoted API AGENT_URL changes from the canonical URL to the agent tag URL; rollback to a80 restores the canonical literal",
+      "statement_sha256": "",
+      "target": "f42-api:AGENT_URL"
+    }
+  ],
+  "generated_from": {
+    "base": "a80be1dee7f4ee2aa9775d0f353bab930809f057",
+    "head": "<commit>"
+  },
+  "manifest_sha256": "",
+  "no_storage_change": {},
+  "release_id": "<release id>",
+  "reviewed_by": "",
+  "rollback_blockers": [],
+  "schema_version": 1,
+  "source": {
+    "commit": "<commit>",
+    "tree": "<tree>"
+  }
+}

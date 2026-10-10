@@ -6,14 +6,16 @@
 The passcode comes only from the environment variable F42_SMOKE_PASSCODE. It is never
 printed, and no line this script prints carries a header value or an exception's text.
 Each check prints "PASS <name>: <evidence>" or "FAIL <name>: <reason>". Exit 0 only when
-every check passed, 1 when any failed, 2 when the passcode is not set. While the ask runs,
+every check passed, 1 when any failed, 2 when the passcode is not set. After the "N of M checks passed" line it prints
+one last line, "SMOKE-RESULT base=<url> checks=<n> passed=<k>", the script's own statement of what it checked. While the ask runs,
 a progress line goes to stderr every PROGRESS_SECONDS with its ask_id and step count.
 
 The today check always says on stderr how old the Today brief it read is: its date, its published time in SAST and
 its age in hours, or that the age cannot be read. It fails on age only when a maximum is given, by
 --today-max-age-hours or the environment variable F42_SMOKE_TODAY_MAX_AGE_HOURS (the flag wins): a brief older than
 that many hours, or one whose age cannot be read, is then a FAIL. With neither set, age never fails the check. A
-maximum that is not a number of hours above 0 exits 2 before any check runs.
+maximum that is not a number of hours above 0 exits 2 before any check runs. A market with no cards passes the check
+with a warning, in its evidence and as a WARN line on stderr: a brief can honestly hold everything back.
 """
 
 import argparse
@@ -40,6 +42,12 @@ POLL_SECONDS = 5.0
 PROGRESS_SECONDS = 30.0
 MARKETS = ("ZA", "NG", "KE")
 MAX_AGE_ENV = "F42_SMOKE_TODAY_MAX_AGE_HOURS"
+# W8-DEC-07, typed YES by Albert on 2026-10-08 19:20 SAST (wave8/decisions/DECISIONS-20261008-dec07.txt). True: a blank
+# summary passes for any verified removal whose stages the producer writes, on a partial, completed answer that carries
+# each removal's gap, without the HEADLINE_GAP and stage conjuncts. False restores the a80 rule with a verified state
+# added: the exact HEADLINE_GAP and a removal at the support check or the critic. `blank_unexplained` and
+# `unattributed` never pass, and a record with no verified state never passes.
+ACCEPT_ANY_VERIFIED_REMOVAL = True
 SAST = dt.timezone(dt.timedelta(hours=2), "SAST")
 _now = lambda: dt.datetime.now(dt.timezone.utc)  # noqa: E731 - replaced in tests
 _clock = time.monotonic
@@ -115,7 +123,13 @@ def check_today(client, base, headers, max_age_hours=None):
     if stale:
         return False, stale
     cards = ", ".join(f"{m['market']} {len(m.get('cards') or [])} ({m.get('status')})" for m in markets)
-    return True, f"date {body.get('date')}, status {body.get('status')}, cards {cards}"
+    evidence = f"date {body.get('date')}, status {body.get('status')}, cards {cards}"
+    empty = [f"{m['market']} ({m.get('status')})" for m in markets if not m.get("cards")]
+    if empty:
+        # A brief with no cards is a real outcome (everything held, or a data issue), so it warns and does not fail.
+        _progress(f"WARN today: no cards for {', '.join(empty)}")
+        evidence += f"; warning: no cards for {', '.join(empty)}"
+    return True, evidence
 
 
 def check_ask_record(record):
@@ -137,20 +151,142 @@ def check_ask_record(record):
         missing = [i for i in cited if i not in ids]
         if missing:
             return False, f"claim {claim.get('id')} cites evidence not in evidence[]: {', '.join(map(str, missing))}"
+    problem = _state_problem(record)
+    if problem:
+        return False, f"ask record carries no verified answer state ({problem})"
     short_answer = answer.get("short_answer")
-    if not isinstance(short_answer, str) or not short_answer.strip():
-        from core.agent.writer import HEADLINE_GAP
-
-        gaps = answer.get("gaps")
-        if answer.get("status") != "partial" or not isinstance(gaps, list) or HEADLINE_GAP not in gaps:
-            return False, "blank summary requires a partial answer with the checked summary gap"
+    blank = not isinstance(short_answer, str) or not short_answer.strip()
+    why = _blank_summary_problem(answer, record["answer_meta"]) if blank else _shown_summary_problem(answer, record["answer_meta"])
+    if why:
+        return False, why
     platforms = sorted({str(e.get("platform")) for e in evidence if e.get("platform")})
     run = record.get("run") or {}
     return True, (
         f"ask_id {record.get('ask_id')}, answer {answer.get('status')}, {len(claims)} claims, "
         f"{len(evidence)} evidence, platforms {', '.join(platforms) or 'none'}, "
-        f"credits {run.get('credits')}, {run.get('seconds')} s"
+        f"credits {run.get('credits')}, {run.get('seconds')} s, summary {record['answer_meta']['summary']['state']}"
     )
+
+
+BLANK_PROBLEM = "blank summary without a verified producer removal state"
+CODE_CAUSES = ("K2", "K3", "K6", "K8", "K9")
+# The reason ask.budget_stop_words keys each stop reason of the typed state on.
+STOP_REASON_WORDS = {"budget_full": None, "model_call_unverified": "usage_unknown", "price_unreadable": "model_price_invalid"}
+
+
+def _state_problem(record):
+    """The reason the record carries no verified state, or None. The smoke reads the record f42-api returns, so the
+    state is a wire value, and answer_state.check_wire is the first line; the checks below are the second."""
+    meta = record.get("answer_meta")
+    if not isinstance(meta, dict):
+        return "no answer_meta"
+    if meta.get("check") != "verified":
+        return str(meta.get("problem") or meta.get("check") or "no check")
+    try:
+        import importlib
+
+        check_wire = importlib.import_module("core.agent.answer_state").check_wire
+    except ImportError:
+        return "answer_state is not available"
+    problem = check_wire(record)
+    if problem is not None:
+        return str(problem)
+    try:
+        execution, summary = meta["execution"], meta["summary"]
+        ok = (isinstance(execution["state"], str) and isinstance(summary["state"], str)
+              and all(isinstance(r["stage"], str) and isinstance(r["cause"], str) for r in summary["removals"]))
+    except (KeyError, TypeError):
+        ok = False
+    return None if ok else "shape"
+
+
+def _expected_gaps(removals):
+    """The gap each removal leaves in the stored answer, from the producer's own constants and `plain` (C1 2.5). A
+    (stage, cause) pair the producer never writes returns None."""
+    from core.agent import checks, plain, writer
+
+    critic = any(stage == "critic" for stage, _ in removals)
+    wanted = []
+    for stage, cause in removals:
+        if stage in ("first_check", "recheck") and cause in CODE_CAUSES or stage == "field_check" and cause in ("K3", "K9"):
+            wanted.append(("text", plain.gap(checks._code_gap("Short answer removed", cause, "the short answer text"))))
+        elif stage == "field_check" and cause == "K6":
+            wanted.append(("text", plain.gap({"what": f"Short answer removed: {writer.DEMOGRAPHIC_WHAT}",
+                                              "why": f"field check: {writer.FIELD_WHY}"})))
+        elif stage == "field_check" and cause == "field_unchecked":
+            wanted.append(("text", plain.gap({"what": f"Short answer removed: {writer.FIELD_UNCHECKED_WHAT}",
+                                              "why": writer.FIELD_UNCHECKED_WHY})))
+        elif stage == "support_check" and cause == "claim_cut":
+            if not critic:
+                wanted.append(("exact", dict(writer.HEADLINE_GAP)))
+        elif stage == "support_check" and cause == "claim_narrowed":
+            if not critic:
+                wanted += [("exact", dict(writer.HEADLINE_GAP)), ("exact", dict(writer.NARROWED_HEADLINE_GAP))]
+        elif stage == "critic" and cause == "claim_cut":
+            wanted.append(("exact", dict(writer.HEADLINE_GAP)))
+        else:
+            return None
+    return wanted
+
+
+def _has_gap(gaps, kind, gap):
+    if kind == "exact":
+        return gap in gaps
+    return any(isinstance(g, dict) and g.get("what") == gap["what"] and g.get("why") == gap["why"] for g in gaps)
+
+
+def _blank_summary_problem(answer, meta):
+    """A blank summary passes only behind a verified `removed` state (C1 6.5)."""
+    summary, execution = meta["summary"], meta["execution"]
+    if summary["state"] != "removed" or answer.get("status") != "partial" or execution["state"] != "completed":
+        return BLANK_PROBLEM
+    removals = [(r["stage"], r["cause"]) for r in summary["removals"]]
+    gaps = answer.get("gaps")
+    # `unattributed` has no gap the producer writes for it, so _expected_gaps refuses it below, in either setting.
+    if not removals or not isinstance(gaps, list):
+        return BLANK_PROBLEM
+    wanted = _expected_gaps(removals)
+    if wanted is None or not all(_has_gap(gaps, kind, gap) for kind, gap in wanted):
+        return BLANK_PROBLEM + " (an expected removal gap is missing)"
+    if not ACCEPT_ANY_VERIFIED_REMOVAL:
+        from core.agent.writer import HEADLINE_GAP
+
+        if HEADLINE_GAP not in gaps or not any(stage in ("support_check", "critic") for stage, _ in removals):
+            return BLANK_PROBLEM
+    return None
+
+
+def _fixed_text(execution):
+    """The summary the producer writes for an execution state that ends without a written answer."""
+    from datetime import date
+
+    from core.agent import ask, checks
+
+    state, reason = execution["state"], execution.get("stop_reason")
+    window = (date(2026, 1, 1), date(2026, 1, 7))
+    if state == "completed":
+        return checks.INSUFFICIENT
+    if state == "stopped_on_request":
+        return ask._stopped_answer("2026-01-07", [], window)["short_answer"]
+    if state == "stopped_on_budget" and reason in STOP_REASON_WORDS:
+        return ask.budget_stop_words(STOP_REASON_WORDS[reason])[1]
+    if state == "refused_budget_spent":
+        return ask._refused_answer("2026-01-07", window)["short_answer"]
+    return None
+
+
+def _shown_summary_problem(answer, meta):
+    state = meta["summary"]["state"]
+    if state in ("shown", "shown_rewritten"):
+        if answer.get("status") in ("complete", "partial"):
+            return None
+        return f"summary state {state} with answer status {answer.get('status')}"
+    if state == "fixed_text":
+        fixed = _fixed_text(meta["execution"])
+        if fixed is not None and answer.get("short_answer") == fixed and answer.get("status") == "insufficient_evidence":
+            return None
+        return f"the summary is not the fixed text of its execution state ({meta['execution']['state']})"
+    return f"the summary is shown but its state is {state}"
 
 
 def _progress(text):
@@ -306,6 +442,8 @@ def main(argv=None, client=None):
                   ask_timeout=args.ask_timeout, today_max_age_hours=max_age)
     passed = sum(1 for _, ok, _ in results if ok)
     print(f"{passed} of {len(results)} checks passed", flush=True)
+    # The release paste reads this line, so the base and the counts are the script's own statement of what it checked.
+    print(f"SMOKE-RESULT base={args.base_url.rstrip('/')} checks={len(results)} passed={passed}", flush=True)
     return 0 if passed == len(results) else 1
 
 

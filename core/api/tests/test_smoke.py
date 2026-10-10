@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from core.api import app as api_mod
 from core.api import auth
 from core.api import smoke
+from smoke_support import ProducerState, answer_state_double, with_wire, wire  # noqa: F401
 
 PASS = "smoke-pass-7Qx9w"
 WRONG = "wrong-pass-Zk3m"
@@ -36,7 +37,7 @@ def env(monkeypatch):
 @pytest.fixture
 def client():
     with TestClient(api_mod.app, base_url=BASE) as c:
-        yield c
+        yield ProducerState(c)
 
 
 def by_name(results):
@@ -118,7 +119,7 @@ def test_uncited_claim_fails_the_ask_check():
     ok, why = smoke.check_ask_record(record)
     assert ok is False and "c1" in why
     record["answer"]["claims"] = [{"id": "c1", "evidence_ids": ["tt_1"]}]
-    ok, _ = smoke.check_ask_record(record)
+    ok, _ = smoke.check_ask_record(with_wire(record))
     assert ok is True
 
 
@@ -151,7 +152,10 @@ def test_ask_summary_requires_text_or_the_exact_partial_headline_gap(short_answe
         elif gap_kind == "different_reason":
             gap["why"] = "another reason"
         answer["gaps"].append(gap)
-    ok, reason = smoke.check_ask_record(record)
+    # A blank summary carries the producer's verified removal state (a cut claim at the support check), the case the
+    # Q1 ruling keeps passing; a summary that is shown carries a shown state.
+    state = wire() if str(short_answer).strip() else wire("removed", removals=[("support_check", "claim_cut")])
+    ok, reason = smoke.check_ask_record(with_wire(record, state))
     assert ok is expected, reason
     if not expected:
         assert "summary" in reason
@@ -164,7 +168,9 @@ def test_standalone_summary_check_reads_the_producer_gap_outside_the_repository(
 
     record = json.loads(FIXTURE_ASK.read_text(encoding="utf-8"))
     record["answer"].update(short_answer="", status="complete", gaps=[dict(HEADLINE_GAP)])
+    record = with_wire(record, wire("removed", removals=[("support_check", "claim_cut")]))
     code = ("import json, runpy, sys; module = runpy.run_path(sys.argv[1]); "
+            "import types; sys.modules['core.agent.answer_state'] = types.SimpleNamespace(check_wire=lambda record: None); "
             "record = json.loads(sys.argv[2]); "
             "assert module['check_ask_record'](record)[0] is False; "
             "record['answer']['status'] = 'partial'; "
@@ -236,6 +242,8 @@ def ask_server(statuses, posted):
             body = dict(record, status=status)
             if status == "running":
                 body.update(answer=None, run=None, finished_at=None)
+            else:
+                body = with_wire(body)
             return httpx.Response(200, json=body)
         return httpx.Response(404, json={"error": "not_found", "message": "no route"})
 
@@ -367,3 +375,112 @@ def test_today_unreadable_age_is_said_plainly_and_fails_only_with_a_max_age(monk
         ok, evidence = smoke.check_today(c, BASE, headers, max_age_hours=24)
         assert ok is False
         assert evidence == "the age of the Today brief for 2026-09-30 cannot be read, and a 24 hour maximum is set"
+
+
+# R6, tightening only: a brief with no cards is a warning the release can see, and a blank summary on a complete
+# answer is a FAIL whatever gap the answer carries.
+
+def cards_server(per_market):
+    """A fake f42-api whose /api/today gives each market the (status, card count) in per_market."""
+    def handle(request):
+        if request.url.path == "/api/today":
+            markets = [{"market": m, "status": status, "cards": [{"id": f"c{i}"} for i in range(n)]}
+                       for m, (status, n) in per_market.items()]
+            return httpx.Response(200, json={"date": "2026-09-30", "status": "published",
+                                             "published_at": PUBLISHED, "markets": markets})
+        return httpx.Response(404, json={"error": "not_found", "message": "no route"})
+
+    return handle
+
+
+def check_cards(per_market, capsys):
+    with httpx.Client(transport=httpx.MockTransport(cards_server(per_market))) as c:
+        ok, evidence = smoke.check_today(c, BASE, {"X-Passcode": PASS})
+    return ok, evidence, capsys.readouterr().err
+
+
+def test_a_market_with_no_cards_passes_today_with_a_warning_that_names_it(capsys):
+    ok, evidence, err = check_cards({"ZA": ("published", 0), "NG": ("published", 4), "KE": ("published", 2)}, capsys)
+    assert ok is True
+    assert "warning: no cards for ZA" in evidence and "NG" not in evidence.split("warning")[1]
+    [warn] = [ln for ln in err.splitlines() if "WARN" in ln]
+    assert "ZA" in warn and "no cards" in warn and "NG" not in warn and "KE" not in warn
+
+
+def test_every_market_with_no_cards_is_named_with_its_status(capsys):
+    ok, evidence, err = check_cards({"ZA": ("data_issue", 0), "NG": ("published", 0), "KE": ("partial", 0)}, capsys)
+    assert ok is True
+    assert "warning: no cards for ZA (data_issue), NG (published), KE (partial)" in evidence
+    assert len([ln for ln in err.splitlines() if "WARN" in ln]) == 1
+
+
+def test_a_brief_with_cards_in_every_market_has_no_warning(capsys):
+    ok, evidence, err = check_cards({"ZA": ("published", 1), "NG": ("published", 3), "KE": ("partial", 2)}, capsys)
+    assert ok is True and "warning" not in evidence and "WARN" not in err
+
+
+@pytest.mark.parametrize("code_gap", ["K6", "K2", "K8"])
+def test_a_blank_summary_on_a_complete_answer_fails_whatever_code_gap_it_carries(code_gap):
+    import json
+
+    from core.agent import checks, plain
+
+    record = json.loads(FIXTURE_ASK.read_text(encoding="utf-8"))
+    gap = plain.gap(checks._code_gap("Short answer removed", code_gap, "the short answer text"))
+    record["answer"].update(short_answer="", status="complete", gaps=[gap])
+    ok, reason = smoke.check_ask_record(with_wire(record, wire("removed", removals=[("first_check", code_gap)])))
+    assert ok is False and "summary" in reason
+
+
+# SM-01 (W8-REL 5.8): the release paste needs the smoke's own statement of which base it checked and how many checks
+# passed, so the final line is followed by exactly one SMOKE-RESULT line. Tightening only: no check changes.
+def result_lines(out):
+    return [line for line in out.splitlines() if line.startswith("SMOKE-RESULT")]
+
+
+def test_sm01_a_passing_run_ends_with_the_existing_line_then_one_smoke_result_line(client, monkeypatch, capsys):
+    monkeypatch.setenv("F42_SMOKE_PASSCODE", PASS)
+    assert smoke.main([BASE], client=client) == 0
+    out = capsys.readouterr().out
+    lines = out.strip().splitlines()
+    assert lines[-2] == "6 of 6 checks passed"
+    assert lines[-1] == f"SMOKE-RESULT base={BASE} checks=6 passed=6"
+    assert result_lines(out) == [lines[-1]]
+    assert PASS not in out
+
+
+def test_sm01_a_failing_run_reports_how_many_passed_and_still_exits_1(client, monkeypatch, capsys):
+    monkeypatch.setenv("F42_SMOKE_PASSCODE", WRONG)
+    assert smoke.main([BASE], client=client) == 1
+    out = capsys.readouterr().out
+    lines = out.strip().splitlines()
+    assert lines[-2] == "2 of 6 checks passed"
+    assert lines[-1] == f"SMOKE-RESULT base={BASE} checks=6 passed=2"
+    assert WRONG not in out
+
+
+def test_sm01_the_base_is_the_one_the_script_checked_without_a_trailing_slash(client, monkeypatch, capsys):
+    monkeypatch.setenv("F42_SMOKE_PASSCODE", PASS)
+    smoke.main([BASE + "/"], client=client)
+    assert result_lines(capsys.readouterr().out) == [f"SMOKE-RESULT base={BASE} checks=6 passed=6"]
+
+
+def test_sm01_no_result_line_when_no_check_ran(monkeypatch, capsys):
+    assert smoke.main([BASE]) == 2
+    out = capsys.readouterr()
+    assert result_lines(out.out) == [] and result_lines(out.err) == []
+
+
+def recorded_check_names():
+    """The check names smoke.run records, read from the source (TM-05 compares this with the packet lock)."""
+    import ast
+
+    tree = ast.parse(SMOKE.read_text(encoding="utf-8"))
+    run = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "run")
+    return [c.args[0].value for c in ast.walk(run)
+            if isinstance(c, ast.Call) and getattr(c.func, "id", None) == "record" and c.args
+            and isinstance(c.args[0], ast.Constant)]
+
+
+def test_sm01_the_check_count_by_ast_is_the_six_the_receipt_expects():
+    assert recorded_check_names() == NAMES

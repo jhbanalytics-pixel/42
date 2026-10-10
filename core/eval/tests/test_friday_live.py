@@ -95,7 +95,7 @@ def record(ask_id, status="complete", claims=None, model_usd="0.20", answer_stat
 
 
 def make_runner(tmp_path, transport, *, budget_admission=None, claim_tally=tally, total="2.00",
-                resume=False, clock=None, deadline=20):
+                resume=False, clock=None, deadline=20, **extra):
     clock = clock or Clock()
     return FridayLiveRunner(
         namespace_dir=tmp_path / "friday-20261002-fresh",
@@ -110,6 +110,7 @@ def make_runner(tmp_path, transport, *, budget_admission=None, claim_tally=tally
         monotonic=(clock.monotonic if clock else None),
         sleep=(clock.sleep if clock else None),
         resume=resume,
+        **extra,
     )
 
 
@@ -126,7 +127,7 @@ def test_posts_once_without_wait_then_gets_terminal_and_separates_usage_from_res
     assert result["status"] == "complete"
     assert len(transport.posts) == 1
     assert transport.posts[0][1] == {
-        "question": "what is trending in south africa", "market": "ZA", "mode": "live", "wait": False,
+        "question": "what is trending in south africa", "market": "ZA", "mode": "replay", "wait": False,
     }
     assert transport.posts[0][2] == 4
     assert [path for path, _ in transport.gets] == [
@@ -511,3 +512,63 @@ def test_numeric_application_total_with_conservative_booking_stays_unproven_as_p
     assert result["terminal_readback"]["run"]["model_usd"] == "0.80"
     assert result["provider_charges"] == {"status": "unproven", "measured_usd": None}
     assert result["cost_accounted"] is True
+
+
+# N61 (RULES 14, caps.yaml EVAL_DAILY live: 0): an evaluation runs in replay mode and spends no live credits.
+
+def one_ask(tmp_path, **extra):
+    transport = Transport(
+        Response(202, {"ask_id": "a_1", "status": "running", "url": "/api/ask/a_1"}),
+        Response(200, record("a_1", claims=[{"id": "c1"}])),
+    )
+    return make_runner(tmp_path, transport, total="1.00", **extra), transport
+
+
+def test_the_posted_ask_is_replay_mode_by_default(tmp_path):
+    runner, transport = one_ask(tmp_path)
+    runner.run_market("ZA")
+    [(_, posted, _)] = transport.posts
+    assert posted["mode"] == "replay"
+
+
+def test_the_live_eval_cap_in_caps_yaml_is_zero_and_the_runner_reads_it():
+    from core.eval import friday_live
+
+    assert friday_live.eval_live_cap() == 0
+
+
+@pytest.mark.parametrize("allowed", [1, 60, 300])
+def test_asking_for_live_credits_is_refused_while_the_caps_file_allows_none(tmp_path, allowed):
+    transport = Transport(Response(202, {"ask_id": "a_1"}))
+    with pytest.raises(FridayLiveRefused, match="live_credits_refused_by_caps"):
+        make_runner(tmp_path, transport, live_credits_allowed=allowed)
+    assert transport.posts == []
+    assert not (tmp_path / "friday-20261002-fresh").exists() or not list(
+        (tmp_path / "friday-20261002-fresh").glob("*.attempt.json"))
+
+
+@pytest.mark.parametrize("bad", [-1, True, 1.5, "60", None])
+def test_the_live_credit_allowance_must_be_a_plain_non_negative_whole_number(tmp_path, bad):
+    with pytest.raises(FridayLiveRefused, match="live_credits_allowed_invalid"):
+        make_runner(tmp_path, Transport(Response(202, {})), live_credits_allowed=bad)
+
+
+def test_live_mode_needs_both_an_allowance_and_a_caps_file_that_allows_it(tmp_path, monkeypatch):
+    from core.eval import friday_live
+
+    monkeypatch.setattr(friday_live, "eval_live_cap", lambda: 100)
+    runner, transport = one_ask(tmp_path, live_credits_allowed=60)
+    runner.run_market("ZA")
+    assert transport.posts[0][1]["mode"] == "live"
+    monkeypatch.setattr(friday_live, "eval_live_cap", lambda: 100)
+    replay, replay_transport = one_ask(tmp_path / "other", live_credits_allowed=0)
+    replay.run_market("ZA")
+    assert replay_transport.posts[0][1]["mode"] == "replay"
+
+
+def test_an_allowance_above_what_the_caps_file_allows_is_refused(tmp_path, monkeypatch):
+    from core.eval import friday_live
+
+    monkeypatch.setattr(friday_live, "eval_live_cap", lambda: 100)
+    with pytest.raises(FridayLiveRefused, match="live_credits_refused_by_caps"):
+        make_runner(tmp_path, Transport(Response(202, {})), live_credits_allowed=101)
