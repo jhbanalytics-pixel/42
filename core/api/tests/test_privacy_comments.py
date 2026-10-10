@@ -238,3 +238,64 @@ def test_the_json_read_of_a_record_with_such_a_comment_leaks_nothing(api):
     body = api.serve(remote_agent({})).get(f"/api/ask/{ASK}", headers=GOOD).json()
     for s in ("hid_old_handle", WORDS, C_REN, P_REN1, "A commenter reacted"):
         assert s not in body_of(body)
+
+
+# What a stream remembers of an earlier event is what decides a later comment.
+def test_a_stream_judges_a_comment_by_the_handle_of_its_post_alone():
+    store = PrivStore(hide={"c_hid"})
+    hidden = privacy.read_hidden(store)
+    gone, seen = set(), {}
+    parent = {"seq": 3, "evidence": ev("tiktok_555", "hid_handle", "a live result")}
+    assert privacy.project_event("evidence", parent, hidden, store, gone, seen) is None
+    event = comment_event(C_HID, "tiktok_555", url="https://www.tiktok.com/@vis_handle/video/1")
+    assert privacy.project_event("evidence", event, hidden, store, gone, seen) is None
+
+
+def test_a_stream_judges_a_comment_by_the_creator_id_of_its_post_alone():
+    store = PrivStore(hide={"c_hid"})
+    hidden = privacy.read_hidden(store)
+    gone, seen = set(), {}
+    parent = {"seq": 3, "evidence": {**ev("tiktok_556", "someone_else", "a live result"), "creator_id": "c_hid"}}
+    assert privacy.project_event("evidence", parent, hidden, store, gone, seen) is None
+    event = comment_event(C_HID, "tiktok_556", url="https://www.tiktok.com/@vis_handle/video/1")
+    assert privacy.project_event("evidence", event, hidden, store, gone, seen) is None
+
+
+def test_a_post_sent_while_nobody_was_hidden_still_judges_its_comment_later():
+    store = PrivStore(hide=set())
+    gone, seen = set(), {}
+    vis = {"seq": 3, "evidence": ev(P_VIS1, "vis_handle", "visible fixture words")}
+    ren = parent_event()
+    assert privacy.project_event("evidence", vis, privacy.read_hidden(store), store, gone, seen) == vis
+    assert privacy.project_event("evidence", ren, privacy.read_hidden(store), store, gone, seen) == ren
+    store.hide.add("c_ren")  # a hide arrives after both posts went out
+    hidden = privacy.read_hidden(store)
+    kept = comment_event(C_VIS, P_VIS1, url="https://www.tiktok.com/@vis_handle/video/1")
+    assert privacy.project_event("evidence", kept, hidden, store, gone, seen) == kept
+    assert privacy.project_event("evidence", comment_event(), hidden, store, gone, seen) is None
+
+
+def chain():
+    """A post by a hidden creator, a comment under it by a visible author, and a reply under that comment."""
+    post = ev(P_HID1, "hid_handle", "fixture hidden words one")
+    first = comment(C_VIS, P_HID1, url="https://www.tiktok.com/@hid_handle/video/2")
+    reply = comment(C_ORPHAN, C_VIS, handle="other_fan", url="https://www.tiktok.com/@hid_handle/video/2")
+    return post, first, reply
+
+
+def test_a_reply_under_a_comment_under_a_hidden_post_is_dropped_in_either_order():
+    post, first, reply = chain()
+    for order in ([post, first, reply], [reply, first, post]):
+        store = PrivStore(hide={"c_hid"})
+        gone = privacy.evidence_gone(order, privacy.read_hidden(store), store)
+        assert gone == {P_HID1, C_VIS, C_ORPHAN}
+
+
+def test_a_stream_drops_a_reply_whose_comment_it_sent_nothing_of():
+    post, first, reply = chain()
+    store = PrivStore(hide={"c_hid"})
+    hidden = privacy.read_hidden(store)
+    gone, seen = set(), {}
+    for n, record in enumerate((post, first, reply), 3):
+        assert privacy.project_event("evidence", {"seq": n, "evidence": record}, hidden, store, gone, seen) is None
+    assert gone == {P_HID1, C_VIS, C_ORPHAN}

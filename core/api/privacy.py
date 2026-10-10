@@ -421,12 +421,13 @@ def project_event(kind, data, hidden, store, gone, seen):
     """One event of a run in flight, or None to withhold it (5.5). gone collects the ids of the evidence left out of
     this stream so a claim citing one is left out too; seen memoises post id to creator id for the stream. hidden
     None (UNAVAILABLE) sends no evidence or claim event."""
+    if kind == "evidence" and isinstance(data.get("evidence"), dict) and isinstance(data["evidence"].get("id"), str):
+        # kept even while nobody is hidden, so a comment arriving after a hide is judged by its post (5.1)
+        seen[(_HELD, data["evidence"]["id"])] = {k: data["evidence"][k] for k in _IDENTITY if k in data["evidence"]}
     if nothing_hidden(hidden):
         return data
     if kind == "evidence":
         record = data.get("evidence") if isinstance(data.get("evidence"), dict) else {}
-        if isinstance(record.get("id"), str):  # kept so a comment arriving later is judged by its post (5.1)
-            seen[(_HELD, record["id"])] = {k: record[k] for k in _IDENTITY if k in record}
         earlier = [v for k, v in seen.items() if type(k) is tuple]
         try:
             left_out = hidden is None or bool(evidence_gone([record], hidden, store, seen, earlier))
