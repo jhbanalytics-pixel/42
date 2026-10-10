@@ -268,3 +268,20 @@ def test_the_default_deps_wire_the_sweep():
     import inspect
 
     assert "topic_sweep=topic_sweep" in inspect.getsource(ask._default_deps)
+
+
+def test_run_sweep_logs_and_swallows_a_failing_sweep_and_skips_when_there_is_nothing_to_run(ctx, caplog):
+    from types import SimpleNamespace
+
+    calls = []
+
+    def boom(c, w, topic, platforms):
+        calls.append(topic)
+        raise RuntimeError("sweep exploded")
+
+    with caplog.at_level("WARNING", logger="f42-agent"):
+        ask._run_sweep(SimpleNamespace(topic_sweep=boom), ctx, None, ["#aa"], [])
+    assert calls == [["#aa"]] and any("ask topic sweep failed" in r.getMessage() for r in caplog.records)
+    ask._run_sweep(SimpleNamespace(topic_sweep=boom), ctx, None, [], [])  # no topic: not called
+    ask._run_sweep(SimpleNamespace(topic_sweep=None), ctx, None, ["#aa"], [])  # no sweep wired: nothing happens
+    assert calls == [["#aa"]]
