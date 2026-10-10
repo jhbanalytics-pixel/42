@@ -58,10 +58,20 @@ A80_SERVING = {"f42-agent": "f42-agent-00047-677", "f42-api": "f42-api-00041-lns
 A80_JOBS_DIGEST_PREFIX = "sha256:e77c3819"
 # The sentence Albert types to authorise the one paid Ask (RELEASE-A-PACKET section 5), with the release id as the one place that varies.
 # What he types must equal it after whitespace is normalised, figures included: a line that holds every clause and adds a refusal does not.
+# The hold ceiling is not typed into this file: hold_ceiling() takes it from the code that holds it (Ask's hold_usd for T1).
 AUTHORISATION_TEMPLATE = (
     "RELEASE A {release_id}: I authorise exactly one live T1 Ask, market ZA, against the candidate API tag URL only, at most 60 search "
-    "credits and a USD 2.00 research budget, with a model hold ceiling of USD 4.32, no second Ask and no retry. The window is quiet and "
+    "credits and a USD 2.00 research budget, with a model hold ceiling of USD {hold}, no second Ask and no retry. The window is quiet and "
     "I will start no manual job until the execution ends. I will type DEPLOY, IDLE and the passcode myself.")
+
+
+def hold_ceiling():
+    """The model hold ceiling for one T1 Ask as the line shows it: the code's own hold, to the cent."""
+    from core.agent import ask
+
+    return f"{ask.hold_usd('T1', ask.MODEL):.2f}"
+
+
 # A later attempt needs the earlier attempts and their ledgers cited by hash, which bind does not carry yet.
 SUPPORTED_ATTEMPT = "01"
 
@@ -376,7 +386,7 @@ def cmd_review(args):
 # receipt
 
 def check_authorisation(text, release_id):
-    if " ".join(text.split()) != AUTHORISATION_TEMPLATE.format(release_id=release_id):
+    if " ".join(text.split()) != AUTHORISATION_TEMPLATE.format(release_id=release_id, hold=hold_ceiling()):
         raise Refused("The authorisation line is not the one the packet asks Albert to type for this release")
 
 

@@ -634,7 +634,7 @@ def test_bind_reads_each_input_once_and_hashes_the_bytes_it_validated(bench, cap
 # W4-R5: the authorisation line is the template with the release id, after whitespace is normalised, and nothing else
 
 AUTHORISATION = ("RELEASE A {rid}: I authorise exactly one live T1 Ask, market ZA, against the candidate API tag URL only, at most 60 search "
-                 "credits and a USD 2.00 research budget, with a model hold ceiling of USD 4.32, no second Ask and no retry. The window is "
+                 "credits and a USD 2.00 research budget, with a model hold ceiling of USD 4.92, no second Ask and no retry. The window is "
                  "quiet and I will start no manual job until the execution ends. I will type DEPLOY, IDLE and the passcode myself.")
 
 
@@ -648,7 +648,7 @@ def swap(old, new):
     ("a second market", swap("market ZA", "market ZA and market NG")),
     ("another credit figure", swap("60 search credits", "600 search credits")),
     ("another research budget", swap("USD 2.00", "USD 20.00")),
-    ("another hold ceiling", swap("USD 4.32", "USD 43.20")),
+    ("another hold ceiling", swap("USD 4.92", "USD 49.20")),
     ("the sentences reordered", lambda line: line.replace("The window is quiet and I will start no manual job until the execution ends. ", "").replace(
         "I will type DEPLOY, IDLE and the passcode myself.", "I will type DEPLOY, IDLE and the passcode myself. The window is quiet and I will start no manual job until the execution ends.")),
     ("a clause dropped and repeated", lambda line: line.replace("no second Ask and no retry", "no second Ask and no retry, no second Ask and no retry")),
@@ -678,7 +678,32 @@ def test_receipt_accepts_the_template_for_this_release_whatever_its_whitespace(b
 
 
 def test_the_template_in_the_packet_tool_is_the_one_this_test_file_pins():
-    assert packet.AUTHORISATION_TEMPLATE.format(release_id="rel-0000000-01") == AUTHORISATION.format(rid="rel-0000000-01")
+    line = packet.AUTHORISATION_TEMPLATE.format(release_id="rel-0000000-01", hold=packet.hold_ceiling())
+    assert line == AUTHORISATION.format(rid="rel-0000000-01")
+
+
+# Opus review, Critical: the hold in the line is the one the code holds, recomputed here from its parts, so a change to
+# the writer input moves the line and the pinned text above together
+
+def test_the_hold_in_the_line_is_the_t1_hold_the_code_computes_to_the_cent():
+    from core.agent import ask
+    from core.agent.context import TIERS
+
+    parts = TIERS["T1"]["max_budget_usd"] + ask.pass_usd(ask.MODEL) + ask.once_usd(ask.MODEL)
+    assert ask.hold_usd("T1", ask.MODEL) == pytest.approx(parts)
+    assert packet.hold_ceiling() == f"{parts:.2f}"
+    assert f"model hold ceiling of USD {packet.hold_ceiling()}," in AUTHORISATION
+
+
+def test_the_line_asks_for_the_old_figure_when_the_writer_input_is_the_old_one(monkeypatch):
+    from core.agent import ask
+
+    monkeypatch.setattr(ask, "WRITER_INPUT_TOKENS", 200_000)
+    assert packet.hold_ceiling() == "4.32"
+    with pytest.raises(packet.Refused):
+        packet.check_authorisation(AUTHORISATION.format(rid="rel-0000000-01"), "rel-0000000-01")
+    monkeypatch.undo()
+    packet.check_authorisation(AUTHORISATION.format(rid="rel-0000000-01"), "rel-0000000-01")
 
 
 # W4-R5: bindings that are not bound for independent review are refused where they are read

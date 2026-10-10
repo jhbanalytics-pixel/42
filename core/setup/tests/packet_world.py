@@ -145,7 +145,7 @@ def write_receipts(packet_dir, verdict="pass"):
 
 def authorisation_line(release_id, **replace):
     line = (f"RELEASE A {release_id}: I authorise exactly one live T1 Ask, market ZA, against the candidate API tag URL only, "
-            "at most 60 search credits and a USD 2.00 research budget, with a model hold ceiling of USD 4.32, no second Ask and "
+            "at most 60 search credits and a USD 2.00 research budget, with a model hold ceiling of USD 4.92, no second Ask and "
             "no retry. The window is quiet and I will start no manual job until the execution ends. I will type DEPLOY, IDLE "
             "and the passcode myself.")
     for old, new in replace.items():
