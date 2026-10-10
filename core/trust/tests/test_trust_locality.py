@@ -26,16 +26,16 @@ def algebraic_local(local, known):
 
 
 @pytest.mark.parametrize("local,known,lower", [
-    (5, 8, 0.305742), (6, 8, 0.409275), (7, 8, 0.529112), (8, 8, 0.675592), (4, 8, 0.215216),
-    (60, 100, 0.502003), (59, 100, 0.492014), (30, 50, 0.461814), (16, 20, 0.583983), (12, 20, 0.386582),
+    (5, 8, 0.305738), (6, 8, 0.409270), (7, 8, 0.529105), (8, 8, 0.675584), (4, 8, 0.215213),
+    (60, 100, 0.502001), (59, 100, 0.492013), (30, 50, 0.461812), (16, 20, 0.583978), (12, 20, 0.386578),
     (0, 8, 0.0),
 ])
 def test_wilson_lower_end_pinned(local, known, lower):
-    assert locality.wilson_lower(local, known) == pytest.approx(lower, abs=1e-6)
+    assert locality.wilson_lower(known, local) == pytest.approx(lower, abs=1e-6)
 
 
 def test_five_of_eight_local_has_a_lower_end_near_point_three_and_is_not_confirmed():
-    assert locality.wilson_lower(5, 8) == pytest.approx(0.306, abs=0.001)
+    assert locality.wilson_lower(8, 5) == pytest.approx(0.306, abs=0.001)
     assert locality.is_local(5, 8) is False
 
 
@@ -54,18 +54,18 @@ def test_every_count_up_to_300_matches_the_algebraic_form():
 
 
 def test_an_empty_sample_confirms_nothing():
-    assert locality.wilson_lower(0, 0) == 0.0
+    assert locality.wilson_lower(0, 0) is None
     assert locality.is_local(0, 0) is False
 
 
 def test_the_share_floor_of_the_removal_rule_stays_part_of_local():
     # 114 of 200 is 0.57: the interval's lower end passes 0.5, the removal share of 0.6 does not.
-    assert locality.wilson_lower(114, 200) >= 0.5
+    assert locality.wilson_lower(200, 114) >= 0.5
     assert locality.is_local(114, 200) is False
 
 
 def test_the_constants_are_the_decided_ones():
-    assert (locality.MIN_LOCAL_LOWER, locality.REMOVE_BELOW, locality.Z95) == (0.5, 0.6, Z)
+    assert (locality.MIN_LOCAL_LOWER, locality.REMOVE_BELOW, locality.WILSON_Z) == (0.5, 0.6, 1.96)
 
 
 # The row's own fields: a count the share cannot give back is not confirmed.
@@ -135,4 +135,4 @@ def test_the_removal_code_in_state_sql_is_byte_identical_to_the_base():
 def test_nothing_in_the_wilson_rule_is_a_nan_or_an_inf():
     for known in (8, 50, 10_000):
         for local in (0, known // 2, known):
-            assert math.isfinite(locality.wilson_lower(local, known))
+            assert math.isfinite(locality.wilson_lower(known, local))
