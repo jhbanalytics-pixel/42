@@ -65,6 +65,7 @@ from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read
 from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
+from core.brief.same_event import same_event, shares_evidence
 from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _worth, brief_row,
                                build_market_payload)
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
@@ -86,10 +87,11 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # beside a party, leader or election term, k6-b7-decade the K6 decade rule of closure review B (CB-4), k6-names the K6
 # false hold exemptions for names, titles and identifiers, k6-n13-n15 the N13-T and N15 K6 age words, rule1-old-age the
 # rule 1 words old man, old woman and elders, g1-gap a missing baseline day after history began read as invalid for G1,
-# zero-count-hold a card with a measured zero creators or posts in its counted 3 days held.
+# zero-count-hold a card with a measured zero creators or posts in its counted 3 days held, same-event-evidence two
+# published cards that share evidence and say one event collapsed into the higher ranked.
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
-                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold")
+                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+same-event-evidence")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -828,6 +830,28 @@ def _merge(by_market):
                 kept.append(cand)
                 claimed |= posts
         by_market[m] = [c for c in by_market[m] if id(c) not in gone]
+    return merged
+
+
+def _collapse_events(by_market, m):
+    """After the final gate: of the market's published Today cards, one that shares evidence with a higher ranked
+    published card (a post, or two creators, in common) and says the same event (same_event) is listed under that
+    card's also and leaves by_market[m]. It was explained on its own, so a held higher card never takes a publishable
+    card with it: only a published card absorbs another. No evidence is moved onto the kept card, which is already
+    explained. Returns [{market, into, item_id, by}] in rank order."""
+    merged, kept, gone = [], [], set()
+    live = [c for c in by_market[m] if c["decision"].publish and c["decision"].where == "today"]
+    for cand in sorted(live, key=lambda c: _worth(c["row"])):
+        into = next((k for k in kept if shares_evidence(k, cand)
+                     and same_event(k["row"]["title"], cand["row"]["title"])), None)
+        if into is None:
+            kept.append(cand)
+            continue
+        into.setdefault("also", []).append({"item_id": cand["row"]["item_id"], "title": cand["row"]["title"]})
+        merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"],
+                       "by": "same_event"})
+        gone.add(id(cand))
+    by_market[m] = [c for c in by_market[m] if id(c) not in gone]
     return merged
 
 
@@ -1634,6 +1658,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                                    "claim_id": chk["claim_id"], "rule": chk["rule"], "verdict": chk["verdict"],
                                    "checker": chk["checker"], "run_id": run.run_id,
                                    "reason": check_reason(chk), **retained_columns(chk)})
+        merged += _collapse_events(by_market, m)
+        cands = by_market[m]
         banners = [b for b in (warm, None if m in confirmed else NO_CONFIRM, late_banner) if b]
         if selection_audits.get(m, {}).get("candidate_read") in ("held", NULL_COLUMN_READ_FAILED):
             banners.append({"kind": "data_issue", "text": "Data issue: today's candidates could not be read"})
