@@ -110,9 +110,9 @@ def build(env=None):
 
 
 def test_jb06_a_whole_mapping_taken_from_the_environment_is_judged_by_the_names_the_function_reads_from_it():
-    found = scan([("core/setup/stamp.py", STAMP_LIKE)])
+    found = scan([("core/setup/other_stamp.py", STAMP_LIKE)])
     assert sorted((f.name, f.line) for f in found) == [("F42_IMAGE_DIGEST", 6), ("F42_VERSION", 6)]
-    assert scan([("core/setup/stamp.py", STAMP_LIKE)], names={"F42_VERSION", "F42_IMAGE_DIGEST"}) == []
+    assert scan([("core/setup/other_stamp.py", STAMP_LIKE)], names={"F42_VERSION", "F42_IMAGE_DIGEST"}) == []
 
 
 def test_jb06_a_whole_mapping_with_no_literal_name_to_judge_fails_as_a_mapping():
@@ -185,14 +185,14 @@ def test_rbc7_the_optional_tuning_read_passes_in_its_own_file_and_nowhere_else()
 def test_rbc7_the_pinned_default_is_what_the_code_uses_when_the_variable_is_unset_empty_or_not_a_number(monkeypatch):
     from core.detect import learn
 
-    assert env_scan.OPTIONAL_TUNING == {LEARN: 480}
+    assert env_scan.OPTIONAL_UNSET_DEFAULT[LEARN] == 480
     for value in (None, "", "soon", "-5", "0", "nan"):
         if value is None:
             monkeypatch.delenv("LEARN_OUTCOME_DEADLINE_SECONDS", raising=False)
         else:
             monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", value)
-        assert learn.outcome_deadline_setting() == (env_scan.OPTIONAL_TUNING[LEARN], None), value
-    assert learn.OUTCOME_DEADLINE_SECONDS == env_scan.OPTIONAL_TUNING[LEARN]
+        assert learn.outcome_deadline_setting() == (env_scan.OPTIONAL_UNSET_DEFAULT[LEARN], None), value
+    assert learn.OUTCOME_DEADLINE_SECONDS == env_scan.OPTIONAL_UNSET_DEFAULT[LEARN]
     monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", "60")
     assert learn.outcome_deadline_setting() == (60.0, None)
     monkeypatch.setenv("LEARN_OUTCOME_DEADLINE_SECONDS", "9999")      # never above the default: a longer wait costs the run its row
@@ -243,3 +243,67 @@ def test_rbc7_the_scan_of_this_checkout_no_longer_reports_the_three_names():
     head = env_scan.tree_from_disk(ROOT / "core", ROOT)
     names = {f.name for f in env_scan.scan(a80, head, set())}
     assert not names & {"LEARN_OUTCOME_DEADLINE_SECONDS", "AGENT_AUDIENCE", "F42_TEST_LOCALITY_AUTHORITY"}
+
+
+# RJ-1: the class of an optional read whose unset value is the pinned default, and the real tree
+
+FIXTURE = ("core/api/agent_app.py", "F42_FIXTURE_STATE")
+VERSION = ("core/setup/stamp.py", "F42_VERSION")
+DIGEST = ("core/setup/stamp.py", "F42_IMAGE_DIGEST")
+
+
+def test_rj1_the_class_names_what_it_is_and_pins_each_read_by_file_and_name_with_its_unset_value():
+    assert not hasattr(env_scan, "OPTIONAL_TUNING")
+    assert env_scan.OPTIONAL_UNSET_DEFAULT == {LEARN: 480, FIXTURE: None, VERSION: None, DIGEST: None}
+
+
+@pytest.mark.parametrize("pair", [FIXTURE, VERSION, DIGEST])
+def test_rj1_each_pinned_read_passes_in_its_own_file_and_fails_in_any_other(pair):
+    path, name = pair
+    source = f'import os\nx = os.environ.get("{name}")\n'
+    assert scan([(path, source)]) == []
+    assert one([("core/api/elsewhere.py", source)]).name == name
+    assert one([(path, source.replace(name, name + "_X"))]).name == name + "_X"
+
+
+def test_rj1_the_scan_of_this_checkout_at_the_release_commit_finds_nothing_outside_the_classes():
+    a80 = de.git_tree_files(A80, "core", ROOT)
+    head = env_scan.tree_from_disk(ROOT / "core", ROOT)
+    assert [str(f) for f in env_scan.scan(a80, head, set())] == []
+
+
+@pytest.mark.parametrize("value", [None, "", "no-such-fixture", "F05", " F09 "])
+def test_rj1_f42_fixture_state_unset_or_empty_takes_the_normal_path_and_a_malformed_id_is_refused_never_served(monkeypatch, value):
+    from core.api import agent_app, fixture_states
+
+    monkeypatch.setenv("F42_FIXTURE_DELAY", "0")
+    if value is None:
+        monkeypatch.delenv("F42_FIXTURE_STATE", raising=False)
+    else:
+        monkeypatch.setenv("F42_FIXTURE_STATE", value)
+    seen = []
+    real = fixture_states.build
+    monkeypatch.setattr(fixture_states, "build", lambda *a, **k: (seen.append(a[0]), real(*a, **k))[1])
+    request = {"ask_id": "a_0123456789ab", "question": "What is behind #fixture in South Africa this week?", "market": "ZA"}
+    if value in (None, ""):
+        got = agent_app.fixture_agent(request, lambda event: None, lambda: False)
+        assert seen == [] and got["answer"]["status"] == "complete" and set(got) == {"answer", "run", "answer_meta"}
+        assert env_scan.OPTIONAL_UNSET_DEFAULT[FIXTURE] is None
+    else:
+        with pytest.raises(ValueError):
+            agent_app.fixture_agent(request, lambda event: None, lambda: False)
+        assert seen == [value]
+
+
+@pytest.mark.parametrize("name,field", [("F42_VERSION", "git_sha"), ("F42_IMAGE_DIGEST", "image_digest")])
+@pytest.mark.parametrize("value", [None, "", "   ", "not-a-value", "sha256:zz", "A80BE1D"])
+def test_rj1_f42_version_and_f42_image_digest_unset_empty_or_malformed_stamp_the_pinned_default_from_the_process_environment(
+        monkeypatch, tmp_path, name, field, value):
+    from core.setup import stamp
+
+    for other in ("F42_GIT_SHA", "F42_VERSION", "F42_IMAGE_DIGEST"):
+        monkeypatch.delenv(other, raising=False)
+    if value is not None:
+        monkeypatch.setenv(name, value)
+    assert env_scan.OPTIONAL_UNSET_DEFAULT[("core/setup/stamp.py", name)] is None
+    assert stamp.build(None, tmp_path)[field] is None

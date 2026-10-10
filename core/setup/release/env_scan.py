@@ -14,8 +14,9 @@ commit has and a80 did not, and fails any whose name is not in one of four class
 
 and three classes the whole-diff review added (RB-C7), each pinned to a file and a name, never to a name alone:
 
-    optional tuning     OPTIONAL_TUNING: a read whose unset value is the pinned default; a test calls the code with the
-                        variable unset, empty and malformed and compares with the pinned value
+    optional read       OPTIONAL_UNSET_DEFAULT: a read whose unset value is the pinned default (a number, or None for no
+                        value); a test calls the code with the variable unset, empty and malformed and compares with the
+                        pinned default
     service only        SERVICE_ONLY: a read in a file no job imports; a test walks the import closure of every job module
     test harness        TEST_HARNESS: a read in a conftest, which the scan excludes already; listed so it is classified
 
@@ -40,8 +41,15 @@ from core.setup import durable_effects_check as de  # noqa: E402
 
 PLATFORM = re.compile(r"CLOUD_RUN_[A-Z0-9_]+\Z")
 IMAGE_BAKED = frozenset({"F42_GIT_SHA"})
-# (file, name) -> the value the code uses when the variable is unset. core/detect/learn.py OUTCOME_DEADLINE_SECONDS.
-OPTIONAL_TUNING = {("core/detect/learn.py", "LEARN_OUTCOME_DEADLINE_SECONDS"): 480}
+# (file, name) -> the value the code uses when the variable is unset: the learn deadline (core/detect/learn.py
+# OUTCOME_DEADLINE_SECONDS), the fixture id the fixture agent serves (none: the normal path), and the two stamp declarations
+# (none: the stamp field is null). No job definition sets any of them.
+OPTIONAL_UNSET_DEFAULT = {
+    ("core/detect/learn.py", "LEARN_OUTCOME_DEADLINE_SECONDS"): 480,
+    ("core/api/agent_app.py", "F42_FIXTURE_STATE"): None,
+    ("core/setup/stamp.py", "F42_VERSION"): None,
+    ("core/setup/stamp.py", "F42_IMAGE_DIGEST"): None,
+}
 SERVICE_ONLY = frozenset({("core/api/app.py", "AGENT_AUDIENCE")})
 TEST_HARNESS = frozenset({("core/conftest.py", "F42_TEST_LOCALITY_AUTHORITY")})
 ENV_NAME = re.compile(r"[A-Z][A-Z0-9_]{2,}\Z")
@@ -177,7 +185,7 @@ def added_reads(a80_files, head_files):
 def classified(read, baseline_names):
     pair = (read.path, read.name)
     return (read.kind == "setdefault" or bool(PLATFORM.match(read.name)) or read.name in IMAGE_BAKED or read.name in baseline_names
-            or pair in OPTIONAL_TUNING or pair in SERVICE_ONLY or pair in TEST_HARNESS)
+            or pair in OPTIONAL_UNSET_DEFAULT or pair in SERVICE_ONLY or pair in TEST_HARNESS)
 
 
 def import_closure(files, entries):
