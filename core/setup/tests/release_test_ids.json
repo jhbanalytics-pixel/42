@@ -725,6 +725,7 @@
    "core/setup/tests/test_bound_readback_services.py",
    "core/setup/tests/test_bound_readback_services_edges.py",
    "core/setup/tests/test_declared_env_removals.py",
+   "core/setup/tests/test_natives.py",
    "core/setup/tests/test_release_map.py",
    "core/setup/tests/test_release_plan.py",
    "core/api/tests/test_old_readers.py",

@@ -41,6 +41,7 @@ if __package__ in (None, ""):
 from core.setup import durable_effects_check as dec  # noqa: E402
 from core.setup.release import bound_readback as helper  # noqa: E402
 from core.setup.release import lock as locklib  # noqa: E402
+from core.setup.release import natives  # noqa: E402
 from core.setup.release import services_only as so  # noqa: E402
 
 STEPS = ("Candidate", "Promote", "Rollback", "Retire")
@@ -114,10 +115,19 @@ def read_json(path, what):
     return read_input(path, what)[0]
 
 
+def git_program():
+    """git as the paste found it in its install folder (core/setup/release/natives.py); never a lookup on PATH."""
+    try:
+        return natives.native("git")
+    except natives.NativeRefused as error:
+        raise Refused(str(error)) from None
+
+
 def git(repo, *args):
     env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0"}
+    program = git_program()
     try:
-        done = subprocess.run(["git", *args], cwd=repo, capture_output=True, encoding="utf-8", timeout=60, env=env,
+        done = subprocess.run([program, *args], cwd=repo, capture_output=True, encoding="utf-8", timeout=60, env=env,
                               stdin=subprocess.DEVNULL)
     except (OSError, subprocess.TimeoutExpired):
         raise Refused("git could not be run in the checkout") from None
@@ -136,8 +146,9 @@ def checkout(repo, *, clean):
 
 def blob_sha256(repo, commit, path):
     """The hash of a file at a commit with CRLF read as LF: what GcloudReader.source_file_sha256 gives the Freeze check, taken in repo."""
+    program = git_program()
     try:
-        done = subprocess.run(["git", "show", f"{commit}:{path}"], cwd=repo, stdin=subprocess.DEVNULL, capture_output=True, timeout=60)
+        done = subprocess.run([program, "show", f"{commit}:{path}"], cwd=repo, stdin=subprocess.DEVNULL, capture_output=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired):
         raise Refused("git could not be run in the checkout") from None
     if done.returncode != 0:
