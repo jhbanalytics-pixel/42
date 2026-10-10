@@ -23,6 +23,7 @@ SCHEMA_VERSION = 1
 REPO_FILES = (
     "core/setup/release/SERVICES-PASTE.ps1",
     "core/setup/release/bound_readback.py",
+    "core/setup/release/natives.py",
     "core/setup/release/services_only.py",
     "core/setup/release/declared_env_removals.py",
     "core/setup/release/plan.py",
@@ -54,6 +55,7 @@ TEST_FILES = (
     "core/setup/tests/test_bound_readback_services.py",
     "core/setup/tests/test_bound_readback_services_edges.py",
     "core/setup/tests/test_declared_env_removals.py",
+    "core/setup/tests/test_natives.py",
     "core/setup/tests/test_release_map.py",
     "core/setup/tests/test_release_packet.py",
     "core/setup/tests/test_release_packet_paste.py",

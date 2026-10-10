@@ -24,6 +24,11 @@ import sys
 import tarfile
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from core.setup.release import natives  # noqa: E402
+
 SCHEMA_VERSION = 1
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = "ogilvy-trends-v2"
@@ -114,7 +119,11 @@ def new_statements(head_texts, a80_texts):
 
 def git_tree_files(rev, prefix="core", cwd=ROOT):
     """(path, text) of every text file under prefix at rev, from `git archive`; nothing is extracted to disk."""
-    proc = subprocess.run(["git", "archive", "--format=tar", rev, prefix], cwd=cwd, capture_output=True, timeout=120)
+    try:
+        git = natives.native("git")
+    except natives.NativeRefused as error:
+        raise Refusal(str(error)) from None
+    proc = subprocess.run([git, "archive", "--format=tar", rev, prefix], cwd=cwd, capture_output=True, timeout=120)
     require(proc.returncode == 0, f"git archive of {rev} failed")
     files = []
     with tarfile.open(fileobj=io.BytesIO(proc.stdout)) as tar:
@@ -253,6 +262,8 @@ def validate_effect(effect, label):
         problems.append(f"{label}: native_readback kind {str(readback['kind'])[:40]!r} is unknown")
     elif readback["kind"] == "helper_phase" and readback["target"] not in HELPER_PHASES:
         problems.append(f"{label}: native_readback names a phase the helper does not have")
+    if effect["kind"] == "schema" and isinstance(readback, dict) and readback.get("kind") != "information_schema_columns":
+        problems.append(f"{label}: a schema effect must carry an information_schema_columns readback, not a helper phase or a deferred read")
     compat = effect["compat"]
     if not isinstance(compat, dict) or any(key not in compat for key in COMPAT_KEYS):
         problems.append(f"{label}: compat lacks one of {', '.join(COMPAT_KEYS)}")

@@ -20,7 +20,6 @@ import io
 import json
 import logging
 import os
-import shutil
 import subprocess
 import sys
 import urllib.error
@@ -30,6 +29,7 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from core.setup.release import natives  # noqa: E402
 from core.setup.release import services_only as so  # noqa: E402
 
 PROJECT, REGION = so.PROJECT, so.REGION
@@ -39,8 +39,16 @@ READ_PREFIXES = (("config", "list"), ("run", "services", "describe"), ("run", "s
                  ("artifacts", "docker", "images", "describe"), ("builds", "describe"), ("auth", "print-access-token"))
 
 
+def native_program(name):
+    """gcloud or git as the paste found it in its install folder (core/setup/release/natives.py); never a lookup on PATH."""
+    try:
+        return natives.native(name)
+    except natives.NativeRefused as error:
+        raise so.Stop("NATIVE", str(error)) from None
+
+
 def gcloud_command():
-    return [shutil.which("gcloud") or "gcloud"]
+    return [native_program("gcloud")]
 
 
 # Every gcloud child keeps no file log, as the children of the release paste do: the arguments of a read can name what the release removes.
@@ -113,7 +121,7 @@ class GcloudReader:
 
     def source_file_sha256(self, commit, path):
         try:
-            result = subprocess.run(["git", "show", f"{commit}:{path}"], stdin=subprocess.DEVNULL, capture_output=True,
+            result = subprocess.run([native_program("git"), "show", f"{commit}:{path}"], stdin=subprocess.DEVNULL, capture_output=True,
                                     timeout=self.gcloud_timeout)
         except (subprocess.TimeoutExpired, OSError):
             raise so.Probe("A read exceeded its bound timeout") from None

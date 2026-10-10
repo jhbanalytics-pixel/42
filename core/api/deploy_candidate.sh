@@ -22,10 +22,40 @@ fi
 MANIFEST=$1
 WANT_HASH=$2
 
+# The programs this script runs. The release paste finds gcloud, git and py as program files in their install folders and passes
+# each full path in F42_NATIVE_GCLOUD, F42_NATIVE_GIT and F42_NATIVE_PY. The script runs those paths and never looks a name up
+# through PATH, where a script or a program of the same name put ahead of the real one would be found first. A value that is
+# not a full path, is a .ps1 script or is not a file stops the script before anything is read or deployed (exit 66), and so
+# does a value that is missing on Windows. Off Windows nothing is passed by the paste and the plain names are kept, as before.
+case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) ON_WINDOWS=1 ;; *) ON_WINDOWS=0 ;; esac
+native_stop() {
+  echo "deploy_candidate.sh: STOP: NATIVE: $1 is not a full path to the program the release paste found." >&2
+  exit 66
+}
+native() {
+  local program=$1 variable=$2 value=${!2-}
+  if [ -z "$value" ]; then
+    if [ "$ON_WINDOWS" = 1 ]; then native_stop "$variable"; fi
+    REPLY=$program
+    return 0
+  fi
+  if [ "$ON_WINDOWS" = 1 ]; then
+    case "$value" in [A-Za-z]:[\\/]* | [\\][\\]*) ;; *) native_stop "$variable" ;; esac
+  else
+    case "$value" in /*) ;; *) native_stop "$variable" ;; esac
+  fi
+  case "$value" in *.[Pp][Ss]1) native_stop "$variable" ;; esac
+  [ -f "$value" ] || native_stop "$variable"
+  REPLY=$value
+}
+native gcloud F42_NATIVE_GCLOUD; GCLOUD=$REPLY
+native git F42_NATIVE_GIT; GIT=$REPLY
+native py F42_NATIVE_PY; PY=$REPLY
+
 # 1. The manifest is the whole input. The hash argument is the value the Freeze readback recorded; it must equal the
 # file's own recomputed hash, the schema version must be known, and the tag, image reference and tag URLs must have
 # the exact forms the helper derives. Every value printed below has passed a pattern, so it is safe to eval.
-VALUES=$(py -3.13 -c '
+VALUES=$("$PY" -3.13 -c '
 import hashlib
 import json
 import re
@@ -85,8 +115,8 @@ for key, value in (("RID", rid), ("COMMIT", commit), ("TREE", tree), ("SHORT12",
 eval "$VALUES"
 
 # HEAD must be the manifest source, and TAG (the F42_VERSION the services carry) the manifest's short form.
-if [ "$(git rev-parse HEAD)" != "$COMMIT" ] || [ "$(git rev-parse 'HEAD^{tree}')" != "$TREE" ] \
-   || [ "$(git rev-parse --short=12 HEAD)" != "$SHORT12" ]; then
+if [ "$("$GIT" rev-parse HEAD)" != "$COMMIT" ] || [ "$("$GIT" rev-parse 'HEAD^{tree}')" != "$TREE" ] \
+   || [ "$("$GIT" rev-parse --short=12 HEAD)" != "$SHORT12" ]; then
   echo "deploy_candidate.sh: STOP: SOURCE: HEAD is not the commit and tree of the manifest." >&2
   exit 65
 fi
@@ -96,7 +126,7 @@ TAG=$SHORT12
 source core/api/deploy_flags.env
 
 # 2. The private-agent preflight of deploy.sh, unchanged in logic.
-gcloud run services describe f42-agent --project "$PROJECT" --region "$REGION" --format=json | py -3.13 -c '
+"$GCLOUD" run services describe f42-agent --project "$PROJECT" --region "$REGION" --format=json | "$PY" -3.13 -c '
 import json
 import sys
 service = json.load(sys.stdin)
@@ -104,7 +134,7 @@ disabled = service.get("metadata", {}).get("annotations", {}).get("run.googleapi
 if disabled in ("true", True):
     sys.exit("f42-agent has its invoker IAM check disabled. IAM approval is required before redeploying.")
 '
-gcloud run services get-iam-policy f42-agent --project "$PROJECT" --region "$REGION" --format=json | py -3.13 -c '
+"$GCLOUD" run services get-iam-policy f42-agent --project "$PROJECT" --region "$REGION" --format=json | "$PY" -3.13 -c '
 import json
 import sys
 policy = json.load(sys.stdin)
@@ -117,9 +147,9 @@ if any(member in ("allUsers", "allAuthenticatedUsers")
 # 3. Refuse a service that already holds the tag or the candidate revision, still follows LATEST (the Pin is missing),
 # lists a revision outside the manifest's allowed set, or whose live URL is not the manifest's canonical URL.
 for service in f42-agent f42-api; do
-  DESC=$(gcloud run services describe "$service" --project "$PROJECT" --region "$REGION" --format=json)
-  REVS=$(gcloud run revisions list --service "$service" --project "$PROJECT" --region "$REGION" --format=json)
-  DESC="$DESC" REVS="$REVS" py -3.13 -c '
+  DESC=$("$GCLOUD" run services describe "$service" --project "$PROJECT" --region "$REGION" --format=json)
+  REVS=$("$GCLOUD" run revisions list --service "$service" --project "$PROJECT" --region "$REGION" --format=json)
+  DESC="$DESC" REVS="$REVS" "$PY" -3.13 -c '
 import json
 import os
 import sys
@@ -152,8 +182,8 @@ done
 
 # After a deploy, the service must show the tag once, on the candidate revision, at 0%, with the expected URL.
 check_tag() {
-  DESC=$(gcloud run services describe "$1" --project "$PROJECT" --region "$REGION" --format=json)
-  DESC="$DESC" py -3.13 -c '
+  DESC=$("$GCLOUD" run services describe "$1" --project "$PROJECT" --region "$REGION" --format=json)
+  DESC="$DESC" "$PY" -3.13 -c '
 import json
 import os
 import sys
@@ -174,8 +204,8 @@ if not ok:
 # live variable names of f42-agent are hashed and matched against core/setup/release/declared_env_removals.py, and only the
 # matches are removed. A name is never printed, only the count. A matched name that is not a plain identifier stops here,
 # before any deploy.
-AGENT_LIVE=$(gcloud run services describe f42-agent --project "$PROJECT" --region "$REGION" --format=json)
-REMOVE_ENV=$(AGENT_LIVE="$AGENT_LIVE" py -3.13 -c '
+AGENT_LIVE=$("$GCLOUD" run services describe f42-agent --project "$PROJECT" --region "$REGION" --format=json)
+REMOVE_ENV=$(AGENT_LIVE="$AGENT_LIVE" "$PY" -3.13 -c '
 import json
 import os
 import sys
@@ -194,7 +224,7 @@ REMOVE_ARGS=()
 if [ -n "$REMOVE_ENV" ]; then REMOVE_ARGS=(--remove-env-vars "$REMOVE_ENV"); fi
 
 # 4 and 5. The agent first. The API is not deployed unless the agent tag is right.
-gcloud run deploy f42-agent --project "$PROJECT" --region "$REGION" --image "$IMAGE_REF" \
+"$GCLOUD" run deploy f42-agent --project "$PROJECT" --region "$REGION" --image "$IMAGE_REF" \
   --revision-suffix "$RID" --tag "$RID" --no-traffic \
   --service-account "$(SA "$AGENT_SA")" $AGENT_FLAGS \
   --update-env-vars "$AGENT_ENV" ${REMOVE_ARGS[@]+"${REMOVE_ARGS[@]}"} \
@@ -203,7 +233,7 @@ check_tag f42-agent "$AGENT_TAG_URL"
 
 # 6 and 7. The API reaches the agent candidate through its tag URL and mints the token for the canonical URL. Both
 # values come from the manifest.
-gcloud run deploy f42-api --project "$PROJECT" --region "$REGION" --image "$IMAGE_REF" \
+"$GCLOUD" run deploy f42-api --project "$PROJECT" --region "$REGION" --image "$IMAGE_REF" \
   --revision-suffix "$RID" --tag "$RID" --no-traffic \
   --service-account "$(SA "$API_SA")" $API_FLAGS \
   --update-env-vars "${API_ENV},AGENT_URL=${AGENT_TAG_URL},AGENT_AUDIENCE=${CANON_AGENT}" \

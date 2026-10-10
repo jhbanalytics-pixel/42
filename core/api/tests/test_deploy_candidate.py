@@ -11,7 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -88,8 +88,65 @@ def declared_module(names):
     return text.replace(table.group(0), "DECLARED_ENV_REMOVAL_DIGESTS: dict = " + repr({"f42-agent": digests}) + "\n")
 
 
+def write_stub(path, body):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("#!/usr/bin/env bash\n" + body, encoding="utf-8", newline="\n")
+    return path
+
+
+STUB_GIT = r'''echo "$0" >> "$R3_STATE/ran"
+case "$*" in
+  "rev-parse HEAD") printf '%s\n' "$R3_HEAD" ;;
+  "rev-parse HEAD^{tree}") printf '%s\n' "$R3_TREE" ;;
+  "rev-parse --short=12 HEAD") printf '%s\n' "$R3_SHORT12" ;;
+  *) exit 96 ;;
+esac
+'''
+STUB_PY = r'''echo "$0" >> "$R3_STATE/ran"
+if [ "${2:-}" = -c ]; then exec "$R3_PYTHON" -c "$3" "${@:4}"; fi
+exit 98
+'''
+STUB_GCLOUD = r'''set -euo pipefail
+echo "$0" >> "$R3_STATE/ran"
+printf '%s\n' "${CLOUDSDK_CORE_DISABLE_FILE_LOGGING-unset}" >> "$R3_STATE/filelog"
+printf '%s\0' "$@" >> "$R3_CALLS"
+printf '\0' >> "$R3_CALLS"
+case "$1 $2 $3" in
+  'run services describe')
+    name=$4; key=${name//-/_}
+    if [[ "$*" == *'--format=json'* ]]; then
+      flag="$R3_STATE/deployed-$name"
+      if [ -e "$flag" ]; then var="R3_AFTER_$key"; else var="R3_BEFORE_$key"; fi
+      printf '%s\n' "${!var}"
+    else printf 'https://test.invalid\n'; fi ;;
+  'run services get-iam-policy') printf '%s\n' "$R3_POLICY"; exit "$R3_POLICY_EXIT" ;;
+  'run revisions list')
+    name=; prev=; for a in "$@"; do if [ "$prev" = --service ]; then name=$a; fi; prev=$a; done
+    var="R3_REVS_${name//-/_}"
+    "$R3_PYTHON" -c 'import json,sys; print(json.dumps([{"metadata": {"name": n}} for n in json.loads(sys.argv[1])]))' "${!var}" ;;
+  'run deploy f42-agent'|'run deploy f42-api')
+    name=$3; var="R3_DEPLOY_EXIT_${name//-/_}"; code=${!var:-0}
+    if [ "$code" = 0 ]; then : > "$R3_STATE/deployed-$name"; fi
+    exit "$code" ;;
+  *) exit 99 ;;
+esac
+'''
+
+
+def plant_programs(folder, marker):
+    """What a hostile PATH offers ahead of any install folder: a program, a command file and a script of each name, each leaving
+    the marker if it runs (the empty .exe cannot run, and a lookup that reaches it fails the script)."""
+    for name in ("gcloud", "git", "py"):
+        line = f'echo {name} >> "{marker}"'
+        write_stub(folder / name, line + "\nexit 0\n")
+        for suffix in (".cmd", ".ps1"):
+            (folder / (name + suffix)).write_text(line + "\n", encoding="utf-8", newline="\n")
+        (folder / (name + ".exe")).write_bytes(b"")
+
+
 def run_candidate(tmp_path, *, manifest=None, hash_arg=None, before=None, after=None, revisions=None, head=COMMIT,
-                  tree=TREE, short12=SHORT12, policy=POLICY, policy_exit=0, deploy_exit=None, declared=None):
+                  tree=TREE, short12=SHORT12, policy=POLICY, policy_exit=0, deploy_exit=None, declared=None, native_env=None,
+                  planted=None):
     manifest = make_manifest() if manifest is None else manifest
     # A stop that happens because the script is missing proves nothing, so a missing script fails every test.
     assert (ROOT / "core" / "api" / "deploy_candidate.sh").exists(), "core/api/deploy_candidate.sh does not exist"
@@ -117,7 +174,21 @@ def run_candidate(tmp_path, *, manifest=None, hash_arg=None, before=None, after=
         bash = resolve_bash()
     except FileNotFoundError as error:
         pytest.fail(str(error))
-    env = {**{k: v for k, v in os.environ.items() if k != "CLOUDSDK_CORE_DISABLE_FILE_LOGGING"}, "R3_CALLS": calls.as_posix(), "R3_STATE": state.as_posix(), "R3_PYTHON": Path(sys.executable).as_posix(),
+    stubs = tmp_path / "natives"
+    for name, body in (("git", STUB_GIT), ("py", STUB_PY), ("gcloud", STUB_GCLOUD)):
+        write_stub(stubs / name, body)
+    passed = {"F42_NATIVE_GCLOUD": (stubs / "gcloud").as_posix(), "F42_NATIVE_GIT": (stubs / "git").as_posix(),
+              "F42_NATIVE_PY": (stubs / "py").as_posix()}
+    for key, value in (native_env or {}).items():
+        if value is None:
+            passed.pop(key, None)
+        else:
+            passed[key] = value
+    base_env = {k: v for k, v in os.environ.items() if k != "CLOUDSDK_CORE_DISABLE_FILE_LOGGING" and not k.startswith("F42_NATIVE_")}
+    if planted is not None:
+        plant_programs(planted, (tmp_path / "state" / "planted").as_posix())
+        base_env["PATH"] = str(planted) + os.pathsep + base_env.get("PATH", "")
+    env = {**base_env, **passed, "R3_CALLS": calls.as_posix(), "R3_STATE": state.as_posix(), "R3_PYTHON": Path(sys.executable).as_posix(),
            "R3_POLICY": json.dumps(policy), "R3_POLICY_EXIT": str(policy_exit),
            "R3_HEAD": head, "R3_TREE": tree, "R3_SHORT12": short12, "MSYS_NO_PATHCONV": "1",
            **{f"R3_BEFORE_{n.replace('-', '_')}": json.dumps(v) for n, v in before.items()},
@@ -126,44 +197,7 @@ def run_candidate(tmp_path, *, manifest=None, hash_arg=None, before=None, after=
            **{f"R3_DEPLOY_EXIT_{n.replace('-', '_')}": str(c) for n, c in (deploy_exit or {}).items()}}
     shell = r'''
 set -euo pipefail
-git() {
-  case "$*" in
-    "rev-parse HEAD") printf '%s\n' "$R3_HEAD" ;;
-    "rev-parse HEAD^{tree}") printf '%s\n' "$R3_TREE" ;;
-    "rev-parse --short=12 HEAD") printf '%s\n' "$R3_SHORT12" ;;
-    *) return 96 ;;
-  esac
-}
 docker() { return 97; }
-py() {
-  if [ "${2:-}" = -c ]; then command "$R3_PYTHON" -c "$3" "${@:4}"; return; fi
-  return 98
-}
-gcloud() {
-  printf '%s\n' "${CLOUDSDK_CORE_DISABLE_FILE_LOGGING-unset}" >> "$R3_STATE/filelog"
-  printf '%s\0' "$@" >> "$R3_CALLS"
-  printf '\0' >> "$R3_CALLS"
-  case "$1 $2 $3" in
-    'run services describe')
-      name=$4; key=${name//-/_}
-      if [[ "$*" == *'--format=json'* ]]; then
-        flag="$R3_STATE/deployed-$name"
-        if [ -e "$flag" ]; then var="R3_AFTER_$key"; else var="R3_BEFORE_$key"; fi
-        printf '%s\n' "${!var}"
-      else printf 'https://test.invalid\n'; fi ;;
-    'run services get-iam-policy') printf '%s\n' "$R3_POLICY"; return "$R3_POLICY_EXIT" ;;
-    'run revisions list')
-      name=; for a in "$@"; do if [ "$prev" = --service ]; then name=$a; fi; prev=$a; done
-      var="R3_REVS_${name//-/_}"
-      "$R3_PYTHON" -c 'import json,sys; print(json.dumps([{"metadata": {"name": n}} for n in json.loads(sys.argv[1])]))' "${!var}" ;;
-    'run deploy f42-agent'|'run deploy f42-api')
-      name=$3; var="R3_DEPLOY_EXIT_${name//-/_}"; code=${!var:-0}
-      if [ "$code" = 0 ]; then : > "$R3_STATE/deployed-$name"; fi
-      return "$code" ;;
-    *) return 99 ;;
-  esac
-}
-prev=
 source core/api/deploy_candidate.sh "$@"
 '''
     result = subprocess.run([str(bash), "--noprofile", "--norc", "-c", shell, "candidate-test", path.as_posix(),
@@ -380,7 +414,7 @@ def test_ds16_every_gcloud_run_line_names_the_project_and_region_and_the_only_li
     commands = re.sub(r"\\\n\s*", " ", text)
     seen = 0
     for line in commands.splitlines():
-        if re.search(r"\bgcloud (run|builds) ", line):
+        if re.search(r'"\$GCLOUD" (run|builds) ', line):
             seen += 1
             assert '--project "$PROJECT"' in line and '--region "$REGION"' in line, line
     assert seen >= 5
@@ -534,3 +568,61 @@ def test_ds_removal_every_gcloud_the_script_runs_has_gcloud_file_logging_off_so_
     assert result.returncode == 0, result.stderr
     seen = (tmp_path / "state" / "filelog").read_text(encoding="utf-8").split()
     assert len(seen) == len(calls) and len(seen) > 5 and set(seen) == {"1"}
+
+
+# F11: the script runs gcloud, git and py by the full paths the paste found in their install folders, never by name through PATH
+
+NATIVE_VARIABLES = ["F42_NATIVE_GCLOUD", "F42_NATIVE_GIT", "F42_NATIVE_PY"]
+
+
+def programs_run(tmp_path):
+    ran = tmp_path / "state" / "ran"
+    return [PurePosixPath(line) for line in ran.read_text(encoding="utf-8").split()] if ran.exists() else []
+
+
+def test_f11_every_program_the_script_runs_is_the_path_the_paste_passed_and_a_planted_program_on_path_is_never_run(tmp_path):
+    result, calls = run_candidate(tmp_path, planted=tmp_path / "planted")
+    assert result.returncode == 0, result.stderr
+    ran = programs_run(tmp_path)
+    assert {p.name for p in ran} == {"git", "py", "gcloud"} and {p.parent.name for p in ran} == {"natives"}, ran
+    counts = {name: sum(1 for p in ran if p.name == name) for name in ("git", "py", "gcloud")}
+    assert counts["git"] == 3 and counts["gcloud"] == len(calls) and counts["py"] >= 5, counts
+    assert not (tmp_path / "state" / "planted").exists()
+
+
+@pytest.mark.parametrize("variable", NATIVE_VARIABLES)
+@pytest.mark.parametrize("case", ["missing", "bare name", "relative", "ps1", "no such file", "directory"])
+def test_f11_the_script_stops_before_it_reads_or_deploys_when_a_program_path_is_missing_or_is_not_a_program_file(tmp_path, variable, case):
+    program = variable.rsplit("_", 1)[1].lower()
+    natives = tmp_path / "natives"
+    (natives / "x.ps1").parent.mkdir(parents=True, exist_ok=True)
+    (natives / "x.ps1").write_text("x", encoding="utf-8")
+    value = {"missing": None, "bare name": program, "relative": f"natives/{program}", "ps1": (natives / "x.ps1").as_posix(),
+             "no such file": (natives / "nothing").as_posix(), "directory": tmp_path.as_posix()}[case]
+    if case == "missing" and not sys.platform.startswith("win"):
+        return  # off Windows nothing is passed and the plain names are kept, as before
+    result, calls = run_candidate(tmp_path, native_env={variable: value}, planted=tmp_path / "planted")
+    assert result.returncode == 66 and "NATIVE" in result.stderr, (result.returncode, result.stderr)
+    assert calls == [] and programs_run(tmp_path) == [] and not (tmp_path / "state" / "planted").exists()
+
+
+def test_f11_the_script_accepts_the_backslash_form_of_the_full_paths_the_paste_passes(tmp_path):
+    if not sys.platform.startswith("win"):
+        return
+    stubs = tmp_path / "natives"
+    result, calls = run_candidate(tmp_path, native_env={"F42_NATIVE_GCLOUD": str(stubs / "gcloud"), "F42_NATIVE_GIT": str(stubs / "git"),
+                                                        "F42_NATIVE_PY": str(stubs / "py")}, planted=tmp_path / "planted")
+    assert result.returncode == 0, result.stderr
+    assert len(deploys(calls)) == 2 and not (tmp_path / "state" / "planted").exists()
+
+
+def test_f11_git_bash_runs_the_command_file_the_paste_passes_for_gcloud_from_a_folder_with_a_space(tmp_path):
+    if not sys.platform.startswith("win"):
+        return
+    folder = tmp_path / "Cloud SDK" / "bin"
+    folder.mkdir(parents=True)
+    (folder / "gcloud.cmd").write_text('@echo off\r\necho %* > "%~dp0argv.txt"\r\n', encoding="ascii", newline="")
+    done = subprocess.run([str(resolve_bash()), "--noprofile", "--norc", "-c", '"$F42_NATIVE_GCLOUD" run services describe x --format=json'],
+                          env={**os.environ, "F42_NATIVE_GCLOUD": str(folder / "gcloud.cmd")}, capture_output=True, encoding="utf-8", timeout=30)
+    assert done.returncode == 0, done.stderr
+    assert (folder / "argv.txt").read_text(encoding="ascii").strip() == "run services describe x --format=json"

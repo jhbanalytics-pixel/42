@@ -35,25 +35,30 @@ $Script:TestNativeFolders = $null
 # git and bash, the Python launcher for py. The first folder that holds the program wins.
 $Script:OnWindows = [IO.Path]::DirectorySeparatorChar -eq '\'
 $Script:NativeFiles = if ($Script:OnWindows) { @{ gcloud = 'gcloud.cmd'; git = 'git.exe'; py = 'py.exe'; bash = 'bash.exe' } } else { @{ gcloud = 'gcloud'; git = 'git'; py = 'py'; bash = 'bash' } }
-$Script:NativeFolders = @{ gcloud = [Collections.Generic.List[string]]::new(); git = [Collections.Generic.List[string]]::new(); py = [Collections.Generic.List[string]]::new(); bash = [Collections.Generic.List[string]]::new() }
-function Add-NativeFolder([string]$Name, [string]$Base, [string[]]$Parts) {
-    if (-not [string]::IsNullOrEmpty($Base)) { $Script:NativeFolders[$Name].Add([IO.Path]::Combine([string[]](@($Base) + $Parts))) }
+function Add-NativeFolder([System.Collections.IDictionary]$Table, [string]$Name, [string]$Base, [string[]]$Parts) {
+    if (-not [string]::IsNullOrEmpty($Base)) { $Table[$Name].Add([IO.Path]::Combine([string[]](@($Base) + $Parts))) }
 }
-if ($Script:OnWindows) {
-    $userPrograms = [Environment]::GetFolderPath('LocalApplicationData')
-    $programFiles = [Environment]::GetFolderPath('ProgramFiles')
-    $programFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
-    $windowsFolder = [Environment]::GetFolderPath('Windows')
-    foreach ($base in @($userPrograms, $programFilesX86, $programFiles)) { Add-NativeFolder 'gcloud' $base @('Google', 'Cloud SDK', 'google-cloud-sdk', 'bin') }
-    Add-NativeFolder 'git' $userPrograms @('Programs', 'Git', 'cmd')
-    Add-NativeFolder 'git' $programFiles @('Git', 'cmd')
-    Add-NativeFolder 'git' $programFilesX86 @('Git', 'cmd')
-    Add-NativeFolder 'bash' $userPrograms @('Programs', 'Git', 'bin')
-    Add-NativeFolder 'bash' $programFiles @('Git', 'bin')
-    Add-NativeFolder 'bash' $programFilesX86 @('Git', 'bin')
-    Add-NativeFolder 'py' $windowsFolder @()
-    Add-NativeFolder 'py' $userPrograms @('Programs', 'Python', 'Launcher')
-    Add-NativeFolder 'py' $programFiles @('Python Launcher')
+# The folders for the four known folders given. A known folder the system does not have is empty and adds no folder. The children
+# the paste starts (core/setup/release/natives.py) build the same lists from the same four folders, in the same order, and a test
+# holds the two together on the same fake folders and on the real ones.
+function New-NativeFolders([string]$UserPrograms, [string]$ProgramFiles, [string]$ProgramFilesX86, [string]$WindowsFolder) {
+    $table = @{ gcloud = [Collections.Generic.List[string]]::new(); git = [Collections.Generic.List[string]]::new(); py = [Collections.Generic.List[string]]::new(); bash = [Collections.Generic.List[string]]::new() }
+    foreach ($base in @($UserPrograms, $ProgramFilesX86, $ProgramFiles)) { Add-NativeFolder $table 'gcloud' $base @('Google', 'Cloud SDK', 'google-cloud-sdk', 'bin') }
+    Add-NativeFolder $table 'git' $UserPrograms @('Programs', 'Git', 'cmd')
+    Add-NativeFolder $table 'git' $ProgramFiles @('Git', 'cmd')
+    Add-NativeFolder $table 'git' $ProgramFilesX86 @('Git', 'cmd')
+    Add-NativeFolder $table 'bash' $UserPrograms @('Programs', 'Git', 'bin')
+    Add-NativeFolder $table 'bash' $ProgramFiles @('Git', 'bin')
+    Add-NativeFolder $table 'bash' $ProgramFilesX86 @('Git', 'bin')
+    Add-NativeFolder $table 'py' $WindowsFolder @()
+    Add-NativeFolder $table 'py' $UserPrograms @('Programs', 'Python', 'Launcher')
+    Add-NativeFolder $table 'py' $ProgramFiles @('Python Launcher')
+    return $table
+}
+$Script:NativeFolders = if ($Script:OnWindows) {
+    New-NativeFolders ([Environment]::GetFolderPath('LocalApplicationData')) ([Environment]::GetFolderPath('ProgramFiles')) ([Environment]::GetFolderPath('ProgramFilesX86')) ([Environment]::GetFolderPath('Windows'))
+} else {
+    New-NativeFolders '' '' '' ''
 }
 
 # The typed words are Albert's and nothing in the session that started this paste may stand in for them. Every command name the
@@ -583,12 +588,18 @@ function Invoke-Release {
     Test-Receipt
     # Every program the action runs is found before anything is asked or run, so a missing one cannot stop a Candidate half way.
     $needed = if ($Action -eq 'Candidate') { $Script:NativeNames } else { @('gcloud', 'git', 'py') }
-    foreach ($name in $needed) { $null = Get-NativePath $name }
+    $resolved = @{}
+    foreach ($name in $needed) { $resolved[$name] = Get-NativePath $name }
     $inheritedPresent = Test-Path Env:F42_SMOKE_PASSCODE
     $inherited = $env:F42_SMOKE_PASSCODE
     # Every child inherits these: gcloud keeps no file log of its arguments (the removed names travel in one), Python writes no
-    # bytecode into the checkout, and git status takes no index lock. They are put back at the end of the run.
-    $childEnv = [ordered]@{ CLOUDSDK_CORE_DISABLE_FILE_LOGGING = '1'; PYTHONDONTWRITEBYTECODE = '1'; GIT_OPTIONAL_LOCKS = '0' }
+    # bytecode into the checkout, and git status takes no index lock. The last three hand the child the full path of gcloud, git
+    # and py that were found above, so the programs a child starts in turn (the readback helper, the durable effects checker,
+    # the packet tools and deploy_candidate.sh) run those files and never look gcloud or git up through PATH. A child takes such
+    # a path only when it is the program found in the install folders, so a value left in the console is replaced here and
+    # refused there. They are put back at the end of the run.
+    $childEnv = [ordered]@{ CLOUDSDK_CORE_DISABLE_FILE_LOGGING = '1'; PYTHONDONTWRITEBYTECODE = '1'; GIT_OPTIONAL_LOCKS = '0'
+                            F42_NATIVE_GCLOUD = $resolved['gcloud']; F42_NATIVE_GIT = $resolved['git']; F42_NATIVE_PY = $resolved['py'] }
     $savedEnv = @{}
     foreach ($name in $childEnv.Keys) { $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
