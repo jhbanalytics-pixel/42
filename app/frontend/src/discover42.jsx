@@ -9,6 +9,7 @@ import {readerFigure, sentenceCase} from './api.js';
 import {human} from './model.js';
 import {SearchingNow} from './ui/SearchingNow.jsx';
 import {TrendCard, figureWords, longDate, platformWord, topicHref} from './ui/TrendCard.jsx';
+import {PlatformLogo} from './ui/PlatformLogo.jsx';
 import {Skeleton} from './ui/Skeleton.jsx';
 import {useCardWatch} from './ui/WatchDialog.jsx';
 import './styles/today42.css';
@@ -79,6 +80,13 @@ const globalSearchLabel = (card) => {
   if (card.market_scope !== 'global') return searchMarket ? 'Not confirmed as local to ' + searchMarket : 'Not confirmed as local';
   return 'Also popular outside ' + (searchMarket || 'this market');
 };
+/* "No emerging TikTok creator trends match these filters." Several states
+   or platforms read as "or", since a trend matches any one of them. */
+const orWords = (words) => (words.length < 2 ? words.join('') : words.slice(0, -1).join(', ') + ' or ' + words[words.length - 1]);
+const noMatchWords = (kind, states, platforms) => 'No '
+  + [states.length > 0 && orWords(states.map(stateSaid)), platforms.length > 0 && orWords(platforms.map(platformWord)), kind ? kindMany(kind) : 'trends']
+    .filter(Boolean).join(' ')
+  + ' match these filters.';
 const emptyWords = (market, held) => {
   const where = SEARCH_MARKET_NAMES[market] || 'any market';
   const count = held && typeof held.count === 'number' ? held.count : list(held && held.items).length;
@@ -126,6 +134,9 @@ function tabForRegion(region){
    Back from a topic page lands on the same filtered list. The page replaces
    the hash as filters change, the way Compare does, and never pushes. */
 const SORT_IDS = new Set(SORTS.map((s) => s.id));
+/* A key repeated (platform=youtube&platform=x) or, as an older link may
+   write it, a comma list; each value once, in the order written. */
+const queryList = (query, key) => [...new Set(query.getAll(key).flatMap((v) => v.split(',')).map((v) => v.trim()).filter(Boolean))];
 export function parseDiscoverQuery(hash){
   const text = String(hash || '');
   const at = text.indexOf('?');
@@ -133,16 +144,16 @@ export function parseDiscoverQuery(hash){
   const sort = query.get('sort') || '';
   return {
     kind: query.get('kind') || '',
-    state: query.get('state') || '',
-    platform: query.get('platform') || '',
+    state: queryList(query, 'state'),
+    platform: queryList(query, 'platform'),
     sort: SORT_IDS.has(sort) ? sort : 'order',
   };
 }
 export function discoverHash({kind, state, platform, sort}){
   const query = new URLSearchParams();
   if (kind) query.set('kind', kind);
-  if (state) query.set('state', state);
-  if (platform) query.set('platform', platform);
+  for (const value of [].concat(state || [])) if (value) query.append('state', value);
+  for (const value of [].concat(platform || [])) if (value) query.append('platform', value);
   if (sort && sort !== 'order') query.set('sort', sort);
   const qs = query.toString();
   return '#/explore' + (qs ? '?' + qs : '');
@@ -152,32 +163,50 @@ const onExplore = () => /^#\/?explore(?:[?/]|$)/.test(String(window.location.has
 const apiMarket = (tab) => (tab === 'ALL' ? 'all' : tab);
 const compareHref = (itemId, market) => '#/compare?mode=items&items=' + encodeURIComponent(itemId) + '&market=' + encodeURIComponent(market);
 
+const toggled = (list, value) => (list.includes(value) ? list.filter((v) => v !== value) : list.concat(value));
+const withPicked = (all, picked) => all.concat(picked.filter((v) => !all.includes(v)));
+/* The reader's words for a choice already made, lower case, for a sentence. */
+const stateSaid = (state) => (state === 'spike' ? 'spiking' : stateWord(state).toLowerCase());
+const KIND_ONE = {hashtag: 'hashtag', hashtags: 'hashtag', sound: 'sound', sounds: 'sound', topic: 'topic', topics: 'topic',
+  format: 'format', formats: 'format', creator: 'creator', creators: 'creator', meme: 'meme', memes: 'meme'};
+const kindOne = (kind) => KIND_ONE[kind] || codeWords(kind).toLowerCase();
+const kindMany = (kind) => (KIND_ONE[kind] ? kindWord(kind).toLowerCase() : kindOne(kind) + 's');
+/* What a Radar row is, said for the kind the page is filtered to. All kinds
+   says trend and tags each row with its own kind. */
+const rowNoun = (kind) => (kind ? kindOne(kind) : 'trend');
+const accountsHelp = (kind) => 'Different accounts that '
+  + (!kind ? 'posted about this' : kind === 'hashtag' ? 'used this hashtag' : kind === 'sound' ? 'used this sound' : 'posted about this ' + kindOne(kind))
+  + ' in the last 7 days. One account counts once, however many times it posted.';
+
 export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
   const [market, setMarket] = useState(() => tabForRegion(region));
   const [initial] = useState(() => parseDiscoverQuery(onExplore() ? window.location.hash : ''));
   const [kind, setKind] = useState(initial.kind);
-  const [stateFilter, setStateFilter] = useState(initial.state);
-  const [platform, setPlatform] = useState(initial.platform);
+  const [states, setStates] = useState(initial.state);
+  const [platforms, setPlatforms] = useState(initial.platform);
   const [sort, setSort] = useState(initial.sort);
   const [feedTick, setFeedTick] = useState(0);
   const [load, setLoad] = useState({state: 'loading'});
   const [more, setMore] = useState('idle');
   const [filters, setFilters] = useState({kinds: [], states: [], platforms: []});
   const [radarNote, setRadarNote] = useState('');
+  const [sheet, setSheet] = useState(false);
   const authRef = useRef(onAuth);
   authRef.current = onAuth;
   const moreCtrl = useRef(null);
   const watch = useCardWatch(onCreateWatch, onAuth);
+  const stateKey = states.join(',');
+  const platformKey = platforms.join(',');
 
   useEffect(() => { setMarket(tabForRegion(region)); }, [region]);
 
   useEffect(() => {
     if (!onExplore()) return;
-    const hash = discoverHash({kind, state: stateFilter, platform, sort});
+    const hash = discoverHash({kind, state: states, platform: platforms, sort});
     if (window.location.hash !== hash) window.history.replaceState(window.history.state, '', hash);
-  }, [kind, stateFilter, platform, sort]);
+  }, [kind, stateKey, platformKey, sort]);
 
-  const params = {market: apiMarket(market), kind, state: stateFilter, platform, sort, limit: LIMIT};
+  const params = {market: apiMarket(market), kind, state: states, platform: platforms, sort, limit: LIMIT};
 
   const failed = (error, fallback) => {
     if (error && error.auth){
@@ -187,14 +216,17 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
     return {state: 'error', message: error && error.status ? error.message : fallback};
   };
 
+  /* Every change reads again for the newest choice only: the older read is
+     aborted, and the rows already on screen stay, dimmed, until the new ones
+     arrive. A page with nothing to keep shows the loading card instead. */
   useEffect(() => {
     const ctrl = new AbortController();
     if (moreCtrl.current) moreCtrl.current.abort();
-    setLoad({state: 'loading'});
+    setLoad((current) => (current.state === 'ready' ? {...current, refreshing: true, slow: false} : {state: 'loading'}));
     setMore('idle');
     const slowTimer = setTimeout(() => {
       if (!ctrl.signal.aborted){
-        setLoad((current) => current.state === 'loading' ? {...current, slow: true} : current);
+        setLoad((current) => (current.state === 'loading' || current.refreshing ? {...current, slow: true} : current));
       }
     }, SLOW_READ_MS);
     fetchDiscover(params, {signal: ctrl.signal})
@@ -213,12 +245,12 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
       clearTimeout(slowTimer);
       ctrl.abort();
     };
-  }, [market, kind, stateFilter, platform, sort, feedTick]);
+  }, [market, kind, stateKey, platformKey, sort, feedTick]);
 
   useEffect(() => () => { if (moreCtrl.current) moreCtrl.current.abort(); }, []);
 
   const loadMore = () => {
-    if (load.state !== 'ready' || !load.cursor) return;
+    if (load.state !== 'ready' || load.refreshing || !load.cursor) return;
     const ctrl = new AbortController();
     moreCtrl.current = ctrl;
     setMore('loading');
@@ -237,6 +269,15 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
   };
 
   const kinds = filters.kinds;
+  const active = [kind, ...states, ...platforms].filter(Boolean).length;
+  const clear = () => { setKind(''); setStates([]); setPlatforms([]); };
+  const marketName = market === 'ALL' ? 'All markets' : (TABS.find((t) => t.id === market) || {}).label;
+  const summary = [marketName, platforms.length > 0 && listWords(platforms.map(platformWord)),
+    states.length > 0 && listWords(states.map(stateWord))].filter(Boolean);
+  const countWords = load.state === 'ready'
+    ? (load.refreshing ? 'Updating results' : load.items.length + (load.cursor ? '+' : '') + ' '
+      + (kind ? (load.items.length === 1 && !load.cursor ? kindOne(kind) : kindMany(kind)) : (load.items.length === 1 && !load.cursor ? 'result' : 'results')))
+    : load.state === 'loading' ? 'Loading results' : load.state === 'error' ? 'Results did not load' : 'Results need the passcode';
 
   return (
     <section className="page t42 d42">
@@ -244,33 +285,73 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
         <h1 className="t42-heading">Discover</h1>
         <p className="t42-status">What else is 42 following, beyond today’s picks? Filter by market, kind, state and platform.</p>
       </header>
-      <div className="t42-tabs" role="tablist" aria-label="Markets">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" role="tab" id={'d42-tab-' + t.id} aria-selected={market === t.id ? 'true' : 'false'} aria-controls="d42-panel" className="t42-tab" onClick={() => {
-            setMarket(t.id);
-            if (onRegionChange) onRegionChange(t.id);
-          }}>{t.label}</button>
-        ))}
-      </div>
-      <div id="d42-panel" role="tabpanel" aria-labelledby={'d42-tab-' + market}>
-        {kinds.length > 0 && (
-          <div className="t42-tabs d42-kinds" role="tablist" aria-label="Kinds">
-            {[''].concat(kinds).map((k) => (
-              <button key={k || 'all'} type="button" role="tab" aria-selected={kind === k ? 'true' : 'false'} aria-controls="d42-feed" className="t42-tab" onClick={() => setKind(k)}>
-                {k ? kindWord(k) : 'All kinds'}
-              </button>
+      <div className="d42-controls">
+          <div className="d42-segment" role="tablist" aria-label="Markets">
+            {TABS.map((t) => (
+              <button key={t.id} type="button" role="tab" id={'d42-tab-' + t.id} aria-selected={market === t.id ? 'true' : 'false'} aria-controls="d42-panel" className="d42-segment-tab" onClick={() => {
+                setMarket(t.id);
+                if (onRegionChange) onRegionChange(t.id);
+              }}>{t.label}</button>
             ))}
           </div>
-        )}
-        <div className="d42-filters">
-          <Choice id="d42-state" name="state" label="State" value={stateFilter} onChange={setStateFilter}
-            options={[{id: '', label: 'Every state'}].concat(filters.states.map((s) => ({id: s, label: stateWord(s)})))} />
-          <Choice id="d42-platform" name="platform" label="Platform" value={platform} onChange={setPlatform}
-            options={[{id: '', label: 'Every platform'}].concat(filters.platforms.map((p) => ({id: p, label: platformWord(p)})))} />
-          <Choice id="d42-sort" name="sort" label="Sort by" value={sort} onChange={setSort} options={SORTS} />
-        </div>
-        <Radar market={market} kind={kind} onAuth={onAuth} onNote={setRadarNote} />
-        <Feed load={load} market={market} filtered={Boolean(kind || stateFilter || platform)} more={more} onMore={loadMore} onRetry={() => setFeedTick((t) => t + 1)} onAuth={onAuth} watch={watch}
+          <button type="button" className="d42-filters-open" aria-expanded={sheet ? 'true' : 'false'} aria-controls="d42-filter-groups" onClick={() => setSheet(!sheet)}>
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 4h12M4.5 8h7M7 12h2" /></svg>
+            Filters
+            {active > 0 && <span className="d42-filters-count">{active}</span>}
+          </button>
+          {sheet && <button type="button" className="d42-backdrop" aria-label="Close filters" tabIndex={-1} onClick={() => setSheet(false)} />}
+          <div className="d42-groups" id="d42-filter-groups" data-open={sheet ? 'true' : 'false'}
+            onKeyDown={(e) => { if (e.key === 'Escape') setSheet(false); }}>
+            <div className="d42-sheet-head">
+              <span className="d42-sheet-title">Filters</span>
+              <button type="button" className="d42-sheet-done" onClick={() => setSheet(false)}>Show results</button>
+            </div>
+            {kinds.length > 0 && (
+              <div className="d42-group d42-group-kind">
+                <span className="d42-label">Kind</span>
+                <div className="d42-chips" role="tablist" aria-label="Kinds">
+                  {[''].concat(withPicked(kinds, kind ? [kind] : [])).map((k) => (
+                    <button key={k || 'all'} type="button" role="tab" aria-selected={kind === k ? 'true' : 'false'} aria-controls="d42-feed" className="d42-chip" onClick={() => setKind(k)}>
+                      {k ? kindWord(k) : 'All kinds'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Choice id="d42-sort" name="sort" label="Sort by" value={sort} onChange={setSort} options={SORTS} />
+            <span className="d42-break" aria-hidden="true" />
+            <div className="d42-group d42-group-platform">
+              <span className="d42-label" id="d42-platform-label">Platform</span>
+              <div className="d42-chips" role="group" aria-labelledby="d42-platform-label">
+                <button type="button" className="d42-chip" data-filter="platform" data-value="" aria-pressed={platforms.length === 0 ? 'true' : 'false'} onClick={() => setPlatforms([])}>All platforms</button>
+                {withPicked(filters.platforms, platforms).map((p) => (
+                  <button key={p} type="button" className="d42-chip" data-filter="platform" data-value={p} aria-pressed={platforms.includes(p) ? 'true' : 'false'} onClick={() => setPlatforms(toggled(platforms, p))}>
+                    <PlatformLogo platform={p} size={14} /><span className="d42-chip-name">{platformWord(p)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="d42-group d42-group-state">
+              <span className="d42-label" id="d42-state-label">State</span>
+              <div className="d42-chips" role="group" aria-labelledby="d42-state-label">
+                <button type="button" className="d42-chip" data-filter="state" data-value="" aria-pressed={states.length === 0 ? 'true' : 'false'} onClick={() => setStates([])}>All states</button>
+                {withPicked(filters.states, states).map((s) => (
+                  <button key={s} type="button" className="d42-chip" data-filter="state" data-value={s} aria-pressed={states.includes(s) ? 'true' : 'false'} onClick={() => setStates(toggled(states, s))}>
+                    {stateWord(s)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+      </div>
+      <div id="d42-panel" role="tabpanel" aria-labelledby={'d42-tab-' + market}>
+        <p className="d42-summary" data-filter-summary="" role="status" aria-live="polite">
+          <span>{[countWords].concat(summary).join(', ')}</span>
+          {active > 0 && <button type="button" className="d42-clear" onClick={clear}>Clear filters</button>}
+        </p>
+        <Radar market={market} kind={kind} states={states} platforms={platforms} onAuth={onAuth} onNote={setRadarNote} />
+        <Feed load={load} market={market} filtered={active > 0} kind={kind} states={states} platforms={platforms} more={more} onMore={loadMore} onClear={clear}
+          onRetry={() => setFeedTick((t) => t + 1)} onAuth={onAuth} watch={watch}
           radarSaysGrowth={SAYS_GROWTH_WAIT.test(radarNote)} />
         {load.state === 'ready' && <HeldBack held={load.data.held_back} market={market} date={load.data.date} onAuth={onAuth} watch={watch} />}
       </div>
@@ -290,7 +371,7 @@ function Choice({id, name, label, value, options, onChange}){
   );
 }
 
-function Feed({load, market, filtered, more, onMore, onRetry, onAuth, watch, radarSaysGrowth = false}){
+function Feed({load, market, filtered, kind, states, platforms, more, onMore, onClear, onRetry, onAuth, watch, radarSaysGrowth = false}){
   if (load.state === 'loading'){
     return (
       <>
@@ -328,13 +409,15 @@ function Feed({load, market, filtered, more, onMore, onRetry, onAuth, watch, rad
   const notYet = sharedNotYet(items);
   const notYetLine = notYetSentence(notYet, radarSaysGrowth);
   const moreBusy = more === 'loading';
+  const refreshing = Boolean(load.refreshing);
   const moreStatus = data.date
     ? 'Loading more trends. Current results are from ' + longDate(data.date) + '.'
     : 'Loading more trends. Current results stay visible while more load.';
   return (
     <>
       {moreBusy && <p className="t42-status" role="status" aria-live="polite" data-feed-status="">{moreStatus}</p>}
-      <section className="d42-feed" id="d42-feed" aria-label="Trends" aria-busy={moreBusy ? 'true' : undefined}>
+      {refreshing && <p className="t42-status" role="status" aria-live="polite" data-feed-status="">{load.slow ? 'Updating is taking longer than usual.' : 'Updating results'}</p>}
+      <section className={'d42-feed' + (refreshing ? ' d42-dim' : '')} id="d42-feed" aria-label="Trends" aria-busy={moreBusy || refreshing ? 'true' : undefined}>
         <h2 className="d42-title">Trends</h2>
         {data.date && <p className="t42-status">Updated {longDate(data.date)}</p>}
         {notYetLine && <p className="t42-status d42-not-yet" data-feed-not-yet="">{notYetLine}</p>}
@@ -361,9 +444,14 @@ function Feed({load, market, filtered, more, onMore, onRetry, onAuth, watch, rad
                 );
               })}
             </ol>
-          : <p className="t42-status">{filtered ? 'No trends match these filters.' : emptyWords(market, data.held_back)}</p>}
+          : filtered
+            ? <div className="d42-empty">
+                <p className="t42-status">{noMatchWords(kind, states, platforms)}</p>
+                <button type="button" className="d42-clear" onClick={onClear}>Clear filters</button>
+              </div>
+            : <p className="t42-status">{emptyWords(market, data.held_back)}</p>}
         {load.cursor && (
-          <button type="button" className="t42-button" onClick={onMore} disabled={more === 'loading'}>
+          <button type="button" className="t42-button" onClick={onMore} disabled={more === 'loading' || refreshing}>
             {more === 'loading' ? 'Loading more' : 'Load more'}
           </button>
         )}
@@ -417,7 +505,7 @@ function HeldBack({held, market, date, onAuth, watch}){
 
 /* Radar reads one market at a time: the contract gives no all-market
    Radar, so All says so instead of asking for one. */
-function Radar({market, kind, onAuth, onNote}){
+function Radar({market, kind, states, platforms, onAuth, onNote}){
   const [load, setLoad] = useState({state: 'loading'});
   const authRef = useRef(onAuth);
   authRef.current = onAuth;
@@ -425,13 +513,13 @@ function Radar({market, kind, onAuth, onNote}){
   useEffect(() => {
     if (market === 'ALL') return undefined;
     const ctrl = new AbortController();
-    setLoad({state: 'loading'});
+    setLoad((current) => (current.state === 'ready' ? {...current, refreshing: true, slow: false} : {state: 'loading'}));
     const slowTimer = setTimeout(() => {
       if (!ctrl.signal.aborted){
-        setLoad((current) => current.state === 'loading' ? {...current, slow: true} : current);
+        setLoad((current) => (current.state === 'loading' || current.refreshing ? {...current, slow: true} : current));
       }
     }, SLOW_READ_MS);
-    fetchRadar(market, kind, {signal: ctrl.signal})
+    fetchRadar(market, kind, {state: states, platform: platforms, signal: ctrl.signal})
       .then((data) => {
         clearTimeout(slowTimer);
         if (!ctrl.signal.aborted) setLoad({state: 'ready', data: data || {}});
@@ -446,7 +534,7 @@ function Radar({market, kind, onAuth, onNote}){
       clearTimeout(slowTimer);
       ctrl.abort();
     };
-  }, [market, kind]);
+  }, [market, kind, states.join(','), platforms.join(',')]);
 
   /* The note Radar shows, so the feed below does not say it again. */
   const shownNote = radarNote(market, load);
@@ -458,10 +546,10 @@ function Radar({market, kind, onAuth, onNote}){
   else if (load.state === 'auth') body = null;
   else if (load.state === 'error') body = <p className="t42-status">Radar could not load.</p>;
   else if (list(load.data.points).filter((p) => isFigure(p.reach)).length === 0) return null;
-  else body = <RadarBody data={load.data} market={market} />;
+  else body = <RadarBody data={load.data} market={market} kind={kind} />;
 
   return (
-    <section className="t42-section d42-radar" data-section="radar" aria-label="Radar">
+    <section className={'t42-section d42-radar' + (load.refreshing ? ' d42-dim' : '')} data-section="radar" aria-label="Radar" aria-busy={load.refreshing ? 'true' : undefined}>
       <h2 className="d42-title">Radar</h2>
       {body}
     </section>
@@ -476,7 +564,7 @@ function radarNote(market, load){
   return plotted.length === 0 ? load.data.note || WARM_NOTE : load.data.note || '';
 }
 
-function RadarBody({data, market}){
+function RadarBody({data, market, kind}){
   const points = list(data.points).filter((p) => isFigure(p.reach));
   const plotted = points.filter((p) => isFigure(p.growth));
   const heldCount = typeof data.held_back_count === 'number' ? data.held_back_count : 0;
@@ -486,7 +574,7 @@ function RadarBody({data, market}){
   }
   if (plotted.length === 0){
     if (points.some((p) => p.measures && typeof p.measures === 'object')){
-      return <MeasuredStrip data={data} points={points} market={market} held={held} />;
+      return <MeasuredStrip data={data} points={points} market={market} held={held} kind={kind} />;
     }
     /* No measures read: the bars fall back to the gate's 3-day creator count. */
     const ranked = points.slice().sort((a, b) => b.reach.value - a.reach.value);
@@ -581,14 +669,13 @@ function rowCells(p){
   const platforms = Array.isArray(m.platforms) ? [...new Set(m.platforms.map(platformWord))] : [];
   return {
     posts: posts === null ? null : readerFigure(posts),
-    boards: measured === null ? null : readerFigure(measured),
     views: views === null ? null : {
       figure: viewFigure(views),
       full: readerFigure(views) + ' views' + (viewPosts !== null && posts !== null && viewPosts < posts ? ' on ' + readerFigure(viewPosts) + ' of ' + readerFigure(posts) + ' posts' : ''),
       note: viewPosts !== null && posts !== null && viewPosts < posts ? 'on ' + readerFigure(viewPosts) + ' of ' + readerFigure(posts) : null,
     },
     platforms: platforms.length ? platforms : null,
-    place: located && share !== null ? {figure: Math.round(share * 100) + '%', note: 'of ' + readerFigure(located), full: Math.round(share * 100) + '% of ' + readerFigure(located) + ' posts with a known place are local'} : null,
+    place: located && share !== null ? {pct: Math.max(0, Math.min(100, Math.round(share * 100))), figure: Math.round(share * 100) + '%', note: 'of ' + readerFigure(located), full: Math.round(share * 100) + '% of ' + readerFigure(located) + ' posts with a known place are local'} : null,
     /* "none known" only when the count of placed posts is a known zero. */
     placeMissing: posts && located === 0 ? 'none known' : null,
     flag: p.flag && p.flag !== 'market_unconfirmed' && FLAG_WORDS[p.flag] ? FLAG_WORDS[p.flag] : null,
@@ -600,16 +687,19 @@ function rowCells(p){
   };
 }
 
-/* Up to three platforms by name; the rest as "+2", named in its title, so a
-   row never wraps into a ragged paragraph of platform names. */
-const PLATFORMS_SHOWN = 3;
+/* Platforms as their marks, each with its name for a screen reader and as a
+   tooltip. A platform with no mark keeps its first letter in a ring. Up to
+   four show; the rest are "+2", named in its title and to a screen reader. */
+const PLATFORMS_SHOWN = 4;
 function PlatformList({names}){
   const shown = names.slice(0, PLATFORMS_SHOWN);
   const rest = names.slice(PLATFORMS_SHOWN);
   return (
     <span className="d42-platforms">
-      {shown.map((name, index) => <Fragment key={name}>{index > 0 && ', '}<span className="d42-platform">{name}</span></Fragment>)}
-      {rest.length > 0 && <>{' '}<span className="d42-platform-more" title={listWords(rest)}><span aria-hidden="true">{'+' + rest.length}</span><span className="sr-only">{'and ' + listWords(rest)}</span></span></>}
+      {shown.map((name) => (
+        <span key={name} className="d42-pmark" role="img" aria-label={name} title={name}><PlatformLogo platform={name} size={16} /></span>
+      ))}
+      {rest.length > 0 && <span className="d42-platform-more" title={listWords(rest)}><span aria-hidden="true">{'+' + rest.length}</span><span className="sr-only">{'and ' + listWords(rest)}</span></span>}
     </span>
   );
 }
@@ -622,7 +712,17 @@ function PlatformList({names}){
    once across its row. Columns no row has a value for are left out. */
 const RADAR_ROWS = 20;
 
-function MeasuredStrip({data, points, market, held}){
+/* The one creators figure on a row is creators in 7 days. How many of them
+   sit on the boards and followed accounts is the same count narrowed, so it
+   rides in the figure's tooltip and never as a second column. */
+function creatorsTitle(p, count){
+  const onBoards = val(p.measures && p.measures.measured_creators7);
+  return readerFigure(count) + (count === 1 ? ' account' : ' accounts') + ' posting in the last 7 days'
+    + (onBoards !== null ? '; ' + readerFigure(onBoards) + ' of them on the boards and followed accounts' : '');
+}
+export const ACCOUNTS_HELP = accountsHelp('');
+
+function MeasuredStrip({data, points, market, held, kind}){
   const [all, setAll] = useState(false);
   const posts = (p) => val(p.measures && p.measures.posts7);
   /* An unknown creator count stays null: it reads "not recorded" and sorts
@@ -642,12 +742,11 @@ function MeasuredStrip({data, points, market, held}){
   const shownRows = capped && !all ? rows.slice(0, RADAR_ROWS) : rows;
   const any = (key) => rows.some((r) => r.cells && r.cells[key] !== null);
   const columns = [
-    ['posts', 'Posts', 'Posts in 7 days'],
-    ['boards', 'On boards', 'Creators on boards and followed accounts'],
-    ...(any('views') ? [['views', 'Views', 'Views in 7 days']] : []),
-    ['platforms', 'Platforms', null],
-    ['place', 'Local', 'Share of posts with a known place that are local'],
-    ...(any('flag') ? [['flag', 'Flag', null]] : []),
+    ['posts', 'Posts', 'last 7 days', 'Posts in the last 7 days'],
+    ...(any('views') ? [['views', 'Views', 'last 7 days', 'Views in the last 7 days']] : []),
+    ['platforms', 'Platforms', null, null],
+    ['place', 'Local', null, 'Share of posts with a known place that are local'],
+    ...(any('flag') ? [['flag', 'Flag', null, null]] : []),
   ];
   const bars = barred.length > 0;
   const width = columns.length + (bars ? 1 : 0);
@@ -658,8 +757,9 @@ function MeasuredStrip({data, points, market, held}){
       if (key === 'views' || key === 'place'){
         return (
           <span className="d42-figure" title={value.full}>
+            {key === 'place' && <span className="d42-local-bar" aria-hidden="true"><span style={{width: value.pct + '%'}} /></span>}
             <span className="d42-figure-value">{value.figure}</span>
-            {value.note && <span className="d42-figure-note">{' ' + value.note}</span>}
+            {value.note && key !== 'views' && <span className="d42-figure-note">{' ' + value.note}</span>}
           </span>
         );
       }
@@ -674,21 +774,36 @@ function MeasuredStrip({data, points, market, held}){
   };
   return (
     <>
-      <p className="t42-line-text d42-note">{data.note || WARM_NOTE}</p>
-      <p className="d42-strip-caption" data-strip-caption="">
-        {'Creators and posts in 7 days' + (span ? ', ' + span : '') + (bars ? '; bars run from 0 to ' + readerFigure(top) : '')
-          + '. Under ' + BAR_FLOOR + ' posts a row shows its count only.'}
+      <p className="d42-info">
+        <svg className="d42-info-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.5" /><path d="M8 7.2v3.6M8 5v.01" /></svg>
+        <span>
+          {data.note || WARM_NOTE}
+          {short.length > 0 && <>{'. '}<span data-window-short="">{'Short collection days: ' + listWords(short)}</span></>}
+        </span>
       </p>
-      {short.length > 0 && <p className="t42-line-text" data-window-short="">{'Short collection days: ' + listWords(short)}</p>}
+      <p className="d42-strip-caption" data-strip-caption="">
+        {bars
+          ? 'Each row is a ' + rowNoun(kind) + ', sorted by accounts posting in the last 7 days' + (span ? ' (' + span + ')' : '') + '. Bars compare with the top row; rows under ' + BAR_FLOOR + ' posts come last, without a bar.'
+          : 'Each row is a ' + rowNoun(kind) + ', sorted by posts in the last 7 days' + (span ? ' (' + span + ')' : '') + '. Rows under ' + BAR_FLOOR + ' posts show a count only.'}
+      </p>
       {/* With no row over the floor there is no scale to draw, so the table
           drops its bar column and the facts take the width. */}
-      <div className="d42-table-wrap" id="d42-radar-table" role="region" aria-label="Radar table, scrolls sideways" tabIndex={0}>
-        <table className={'d42-table' + (bars ? '' : ' d42-strip-words')} aria-label="Trends ranked by creators in 7 days">
+      <div className="d42-table-wrap" id="d42-radar-table" data-sticky="header" role="region" aria-label="Radar table, scrolls sideways" tabIndex={0}>
+        <table className={'d42-table' + (bars ? '' : ' d42-strip-words')} aria-label="Trends ranked by accounts posting in the last 7 days">
           <thead>
             <tr>
-              <th scope="col">Trend</th>
-              {bars && <th scope="col" className="d42-creators-head">Creators in 7 days</th>}
-              {columns.map(([key, label, title]) => <th scope="col" key={key} data-col={key} title={title || undefined} aria-label={title || undefined}>{label}</th>)}
+              <th scope="col">{sentenceCase(rowNoun(kind))}</th>
+              {bars && (
+                <th scope="col" className="d42-creators-head" title={accountsHelp(kind)} aria-describedby="d42-accounts-help">
+                  Accounts posting <span className="d42-sub">last 7 days</span>
+                  {' '}<span id="d42-accounts-help" className="sr-only">{accountsHelp(kind)}</span>
+                </th>
+              )}
+              {columns.map(([key, label, sub, title]) => (
+                <th scope="col" key={key} data-col={key} title={title || undefined} aria-label={title || undefined}>
+                  {label}{sub && <>{' '}<span className="d42-sub">{sub}</span></>}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -697,12 +812,15 @@ function MeasuredStrip({data, points, market, held}){
               const count = creators(p);
               return (
                 <tr key={p.item_id} data-creators={bar && count !== null ? count : undefined} data-thin={bar ? undefined : ''}>
-                  <th scope="row"><a className="t42-link" href={topicHref(p.item_id, p.market || market)} title={p.label}>{p.label}</a></th>
+                  <th scope="row">
+                    <a className="t42-link" href={topicHref(p.item_id, p.market || market)} title={p.label}>{p.label}</a>
+                    {!kind && p.kind && <span className="d42-kind-tag">{sentenceCase(kindOne(p.kind))}</span>}
+                  </th>
                   {bars && cells && (
-                    <td className="d42-creators" data-label="Creators in 7 days"><span className="d42-creators-in">
+                    <td className="d42-creators" data-label="Accounts posting"><span className="d42-creators-in" title={bar && count !== null ? creatorsTitle(p, count) : undefined}>
                       <span className="d42-bar-value">{!bar ? <span className="d42-unknown">few posts</span>
                         : count === null ? <span className="d42-unknown">not recorded</span> : readerFigure(count)}</span>
-                      {bar && count !== null && <span className="sr-only"> creators in 7 days</span>}
+                      {bar && count !== null && <span className="sr-only"> accounts posting in the last 7 days</span>}
                       {/* A zero or unknown count draws no bar at all. */}
                       <span className="d42-bar" aria-hidden="true">{bar && count > 0 && <span style={{width: Math.max(2, (count / top) * 100) + '%'}} />}</span>
                     </span></td>

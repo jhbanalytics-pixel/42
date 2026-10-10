@@ -123,6 +123,7 @@ const cards = () => [...host.querySelectorAll('.d42-feed [data-card]')];
 const cardTitled = (title) => cards().find((card) => card.querySelector('h3').textContent === title);
 const button = (scope, label) => [...scope.querySelectorAll('button')].find((b) => b.textContent.trim() === label);
 const tab = (list, label) => [...host.querySelectorAll('[role="tablist"][aria-label="' + list + '"] [role="tab"]')].find((t) => t.textContent.trim() === label);
+const chip = (group, value) => host.querySelector('button[data-filter="' + group + '"][data-value="' + value + '"]');
 const click = (el) => flushSync(() => el.dispatchEvent(new MouseEvent('click', {bubbles: true})));
 const choose = (select, value) => flushSync(() => {
   select.value = value;
@@ -372,16 +373,15 @@ test('market tabs switch the shared region and feed, and All reads every market 
 
 test('state, platform and sort filters read the feed with their values', async () => {
   await mount();
-  const state = host.querySelector('select[name="state"]');
-  const platform = host.querySelector('select[name="platform"]');
   const sort = host.querySelector('select[name="sort"]');
-  expect([...state.options].map((o) => o.textContent)).toEqual(['Every state', 'Emerging', 'First spotted', 'Spike or high on the charts']);
-  expect([...platform.options].map((o) => o.textContent)).toEqual(['Every platform', 'TikTok', 'Instagram', 'X']);
+  const group = (name) => [...host.querySelectorAll('button[data-filter="' + name + '"]')].map((b) => (b.querySelector('.d42-chip-name') || b).textContent.trim());
+  expect(group('state')).toEqual(['All states', 'Emerging', 'First spotted', 'Spike or high on the charts']);
+  expect(group('platform')).toEqual(['All platforms', 'TikTok', 'Instagram', 'X']);
   expect([...sort.options].map((o) => o.value)).toEqual(['order', 'velocity', 'reach', 'new']);
-  expect(host.querySelector('label[for="' + state.id + '"]')).not.toBeNull();
-  choose(state, 'emerging');
+  expect(host.querySelector('label[for="' + sort.id + '"]')).not.toBeNull();
+  click(chip('state', 'emerging'));
   await settle();
-  choose(platform, 'tiktok');
+  click(chip('platform', 'tiktok'));
   await settle();
   choose(sort, 'reach');
   await settle();
@@ -655,16 +655,19 @@ test('in warm-up Radar ranks creators in 7 days, words the rest, and keeps thin 
   await mount({}, standard(measured));
   const section = host.querySelector('[data-section="radar"]');
   expect(section.querySelector('[data-strip-caption]').textContent)
-    .toBe('Creators and posts in 7 days, 14 October to 20 October 2026; bars run from 0 to 12. Under 8 posts a row shows its count only.');
+    .toBe('Each row is a trend, sorted by accounts posting in the last 7 days (14 October to 20 October 2026). Bars compare with the top row; rows under 8 posts come last, without a bar.');
   expect(section.querySelector('[data-window-short]').textContent).toBe('Short collection days: YouTube 6 of 7 days');
   /* Design review, 4 October 2026: restated. The facts were one run-on
      sentence per row; they are now labelled table columns, one per measure.
      Polish pass, 4 October 2026: restated again. Long headers wrapped and
      pushed the row onto three lines, so each header is one short word and
      its full meaning moves to the header's title. */
-  const heads = [...section.querySelectorAll('table.d42-table thead th')].map((th) => th.textContent);
-  expect(heads).toEqual(['Trend', 'Creators in 7 days', 'Posts', 'On boards', 'Views', 'Platforms', 'Local']);
-  expect(section.querySelector('thead th[data-col="boards"]').getAttribute('title')).toBe('Creators on boards and followed accounts');
+  /* Wave 8: one creators count per row. The "on boards" count moved into
+     the lead figure's tooltip, so no two columns count the same people. */
+  const heads = [...section.querySelectorAll('table.d42-table thead th')].map((th) => th.textContent.replace(/\s+/g, ' ').trim());
+  expect(heads).toEqual(['Trend', 'Accounts posting last 7 days Different accounts that posted about this in the last 7 days. One account counts once, however many times it posted.',
+    'Posts last 7 days', 'Views last 7 days', 'Platforms', 'Local']);
+  expect(section.querySelector('[data-col="boards"]')).toBeNull();
   const rows = [...section.querySelectorAll('table.d42-table tbody tr')];
   expect(rows).toHaveLength(measured.points.length);
   expect(rows[0].textContent).toContain(b.label);
@@ -674,8 +677,12 @@ test('in warm-up Radar ranks creators in 7 days, words the rest, and keeps thin 
      token with its qualifier as a muted word beside it, views of 100 000
      and more are compact with the full count in the title, and platforms
      are a short list rather than a sentence. */
-  expect([cell(rows[0], 'posts'), cell(rows[0], 'boards'), cell(rows[0], 'views'), cell(rows[0], 'platforms'), cell(rows[0], 'place')])
-    .toEqual(['40', '2', '120k on 32 of 40', 'TikTok, X', '63% of 48']);
+  expect([cell(rows[0], 'posts'), cell(rows[0], 'views'), cell(rows[0], 'place')])
+    .toEqual(['40', '120k', '63% of 48']);
+  expect(rows[0].querySelector('.d42-creators-in').getAttribute('title')).toBe('12 accounts posting in the last 7 days; 2 of them on the boards and followed accounts');
+  /* Wave 8: platforms are their marks, each named for a screen reader. */
+  expect([...rows[0].querySelectorAll('[data-col="platforms"] [role="img"]')].map((m) => m.getAttribute('aria-label'))).toEqual(['TikTok', 'X']);
+  /* Wave 8: the coverage of the view count lives in the title, not beside the figure. */
   expect(rows[0].querySelector('[data-col="views"] .d42-figure').getAttribute('title')).toBe('120\u00a0000 views on 32 of 40 posts');
   expect(rows[0].textContent).not.toContain('Market unconfirmed');
   expect(rows[1].textContent).toContain(a.label);
@@ -690,7 +697,7 @@ test('in warm-up Radar ranks creators in 7 days, words the rest, and keeps thin 
   expect(rows.at(-1).querySelector('.d42-unmeasured').textContent).toBe('Not measured');
 });
 
-test('Radar keeps views under 100 000 in full and names every platform past the first three', async () => {
+test('Radar keeps views under 100 000 in full and names every platform past the first four', async () => {
   const [a, ...rest] = warmRadar.points;
   const measured = {
     ...warmRadar,
@@ -704,11 +711,11 @@ test('Radar keeps views under 100 000 in full and names every platform past the 
   const row = host.querySelector('[data-section="radar"] table.d42-table tbody tr');
   expect(row.querySelector('[data-col="views"]').textContent).toBe('99\u00a0999');
   const platforms = row.querySelector('[data-col="platforms"]');
-  /* x and twitter are one platform; the three past the first three are said
+  /* x and twitter are one platform; the two past the first four marks are said
      to a screen reader in words, not only as a count on hover. */
-  expect(platforms.querySelector('.d42-platform-more [aria-hidden]').textContent).toBe('+3');
-  expect(platforms.querySelector('.d42-platform-more .sr-only').textContent).toBe('and X, Threads and Reddit');
-  expect(platforms.textContent.match(/X/g)).toHaveLength(1);
+  expect([...platforms.querySelectorAll('[role="img"]')].map((m) => m.getAttribute('aria-label'))).toEqual(['TikTok', 'Instagram', 'YouTube', 'X']);
+  expect(platforms.querySelector('.d42-platform-more [aria-hidden]').textContent).toBe('+2');
+  expect(platforms.querySelector('.d42-platform-more .sr-only').textContent).toBe('and Threads and Reddit');
 });
 
 test('a 401 hands the reader to the passcode flow', async () => {
@@ -745,7 +752,7 @@ test('a failed filter change clears prior scope results and offers a manual retr
   ]);
   expect(cards()).toHaveLength(5);
 
-  choose(host.querySelector('select[name="state"]'), 'emerging');
+  click(chip('state', 'emerging'));
   await settle();
   expect(text()).toContain('Discover could not load');
   expect(text()).toContain('Service timed out.');
@@ -770,7 +777,7 @@ test('slow feed and Radar reads keep the page shell, make no extra requests and 
 
   expect(host.querySelector('h1').textContent).toBe('Discover');
   expect(tab('Markets', 'South Africa').getAttribute('aria-selected')).toBe('true');
-  expect(host.querySelector('select[name="state"]')).not.toBeNull();
+  expect(chip('state', '')).not.toBeNull();
   expect(text()).toContain('Loading Discover');
   expect(text()).toContain('Loading Radar');
   expect(host.querySelector('.d42-feed[aria-busy="true"] .d42-loading-grid[aria-hidden="true"]')).not.toBeNull();
@@ -813,28 +820,31 @@ test('a filter change aborts the older Feed read and its late response cannot re
     }],
   ]);
 
-  choose(host.querySelector('select[name="state"]'), 'emerging');
+  click(chip('state', 'emerging'));
   await settle();
   const staleCall = calls.find((call) => call.url.includes('state=emerging') && !call.url.includes('platform=tiktok'));
   expect(staleCall).toBeDefined();
   expect(staleCall.init.signal.aborted).toBe(false);
+  /* Wave 8: the earlier rows stay on screen, dimmed, while the new ones load. */
   expect(host.querySelector('.d42-feed[aria-busy="true"]')).not.toBeNull();
-  expect(cards()).toHaveLength(0);
-  expect(host.querySelector('[data-feed-status]').textContent).toContain('Loading Discover');
+  expect(host.querySelector('.d42-feed').classList.contains('d42-dim')).toBe(true);
+  expect(cards()).toHaveLength(pageOne.items.length);
+  expect(host.querySelector('[data-feed-status]').textContent).toContain('Updating results');
   expect(button(host, 'Try again')).toBeUndefined();
 
-  choose(host.querySelector('select[name="platform"]'), 'tiktok');
+  click(chip('platform', 'tiktok'));
   await settle();
   expect(staleCall.init.signal.aborted).toBe(true);
   expect(cardTitled('#fresh_filter')).toBeDefined();
   expect(discoverCalls()).toHaveLength(3);
-  expect(radarCalls()).toHaveLength(1);
+  /* Radar reads again with each choice, so it follows the list. */
+  expect(radarCalls()).toHaveLength(3);
 
   resolveStale(reply(200, stalePage));
   await settle();
   expect(cardTitled('#fresh_filter')).toBeDefined();
   expect(cardTitled('#stale_filter')).toBeUndefined();
-  expect(radarCalls()).toHaveLength(1);
+  expect(radarCalls()).toHaveLength(3);
 });
 
 test('an empty answer still renders the heading and says nothing matched', async () => {
@@ -940,7 +950,7 @@ test('Searching now: Discover selected and All groups stay outside cards and sur
   const baseline = {
     cards: cards().map((card) => card.textContent),
     marketEvidence: [...host.querySelectorAll('.d42-market-evidence')].map((node) => node.textContent),
-    filters: [...host.querySelector('#d42-state').options].map((option) => [option.value, option.textContent]),
+    filters: [...host.querySelectorAll('button[data-filter="state"]')].map((option) => [option.getAttribute('data-value'), option.textContent]),
   };
 
   flushSync(() => root.unmount());
@@ -960,7 +970,7 @@ test('Searching now: Discover selected and All groups stay outside cards and sur
   expect(Boolean(group('NG'))).toBe(false);
   expect(cards().map((card) => card.textContent)).toEqual(baseline.cards);
   expect([...host.querySelectorAll('.d42-market-evidence')].map((node) => node.textContent)).toEqual(baseline.marketEvidence);
-  expect([...host.querySelector('#d42-state').options].map((option) => [option.value, option.textContent])).toEqual(baseline.filters);
+  expect([...host.querySelectorAll('button[data-filter="state"]')].map((option) => [option.getAttribute('data-value'), option.textContent])).toEqual(baseline.filters);
   expect(discoverCalls()).toEqual(['/api/discover?market=ZA&sort=order&limit=50']);
   expect(radarCalls()).toEqual(['/api/discover/radar?market=ZA']);
 
@@ -1055,18 +1065,18 @@ test('Discover reads its filters from the #/explore query and writes them back w
   try {
     await mount({}, routes);
     expect(tab('Kinds', 'Brand').getAttribute('aria-selected')).toBe('true');
-    expect(host.querySelector('select[name="state"]').value).toBe('emerging');
-    expect(host.querySelector('select[name="platform"]').value).toBe('tiktok');
+    expect(chip('state', 'emerging').getAttribute('aria-pressed')).toBe('true');
+    expect(chip('platform', 'tiktok').getAttribute('aria-pressed')).toBe('true');
     expect(host.querySelector('select[name="sort"]').value).toBe('reach');
     expect(discoverCalls()[0]).toBe('/api/discover?market=ZA&kind=brand&state=emerging&platform=tiktok&sort=reach&limit=50');
-    expect(radarCalls()[0]).toBe('/api/discover/radar?market=ZA&kind=brand');
+    expect(radarCalls()[0]).toBe('/api/discover/radar?market=ZA&kind=brand&state=emerging&platform=tiktok');
 
     click(tab('Kinds', 'Hashtags'));
     await settle();
     expect(window.location.hash).toBe('#/explore?kind=hashtag&state=emerging&platform=tiktok&sort=reach');
-    choose(host.querySelector('select[name="state"]'), '');
+    click(chip('state', 'emerging'));
     await settle();
-    choose(host.querySelector('select[name="platform"]'), '');
+    click(chip('platform', 'tiktok'));
     await settle();
     choose(host.querySelector('select[name="sort"]'), 'order');
     await settle();
