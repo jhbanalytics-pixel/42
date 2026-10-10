@@ -497,6 +497,11 @@ _GROUP_AFTER = re.compile(r"\s*groups?\b", re.I)
 # The clause for this guard ends at ; : ! ? and at a full stop that is not a decimal point. A comma does not end it, so
 # "Women, in May 18-24, led the trend" is one clause (CR-3).
 _CLAUSE_END = re.compile(r"[;!?:]|\.(?!\d)")
+# A colon straight after a score word does not end the clause, so "Women won: 24-17" keeps the person word and the
+# score in one clause. Any other colon still ends it.
+_SCORE_WORD_END = re.compile(
+    r"(?:(?i:\b(?:won|lost|beat|drew|scored|final\s+score|full[\s-]time|half[\s-]time))|\b(?:FT|HT))\s*$"
+)
 # A full stop after a month abbreviation ("Sept. 18-24"), and the full stops inside "e.g." and "i.e.", are not the end of
 # a clause.
 _MONTH_ABBREVIATION = re.compile(r"\b(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)$", re.I)
@@ -520,6 +525,7 @@ def _exempt_range(text, m):
             c.group(0) == "."
             and (_MONTH_ABBREVIATION.search(text[: c.start()]) or any(a <= c.start() < b for a, b in latin))
         )
+        and not (c.group(0) == ":" and _SCORE_WORD_END.search(text[: c.start()]))
     ]
     clause_start = max([0] + [c.end() for c in ends if c.end() <= m.start()])
     clause_end = min([len(text)] + [c.start() for c in ends if c.start() >= m.end()])
