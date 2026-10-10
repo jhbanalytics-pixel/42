@@ -55,11 +55,14 @@ STATUS = "BOUND_FOR_INDEPENDENT_REVIEW"
 # Live must be a80be1d before a release is bound to it (C2 v2.1 section 3.4): the serving revisions, and the jobs image (W8-REL-B v2.1 FB-5).
 A80_SERVING = {"f42-agent": "f42-agent-00047-677", "f42-api": "f42-api-00041-lns"}
 A80_JOBS_DIGEST_PREFIX = "sha256:e77c3819"
-# The clauses of the sentence Albert types to authorise the one paid Ask (RELEASE-A-PACKET section 5). The figures in it are the lead's to
-# recheck and are not compared here.
-AUTHORISATION_CLAUSES = ("I authorise exactly one live T1 Ask", "market ZA", "against the candidate API tag URL only",
-                         "no second Ask and no retry", "The window is quiet and I will start no manual job until the execution ends",
-                         "I will type DEPLOY, IDLE and the passcode myself")
+# The sentence Albert types to authorise the one paid Ask (RELEASE-A-PACKET section 5), with the release id as the one place that varies.
+# What he types must equal it after whitespace is normalised, figures included: a line that holds every clause and adds a refusal does not.
+AUTHORISATION_TEMPLATE = (
+    "RELEASE A {release_id}: I authorise exactly one live T1 Ask, market ZA, against the candidate API tag URL only, at most 60 search "
+    "credits and a USD 2.00 research budget, with a model hold ceiling of USD 4.32, no second Ask and no retry. The window is quiet and "
+    "I will start no manual job until the execution ends. I will type DEPLOY, IDLE and the passcode myself.")
+# A later attempt needs the earlier attempts and their ledgers cited by hash, which bind does not carry yet.
+SUPPORTED_ATTEMPT = "01"
 
 
 class Refused(Exception):
@@ -92,17 +95,23 @@ def refuse_existing(path):
         raise Refused(f"{Path(path).name} already exists; it is never replaced")
 
 
-def read_json(path, what):
+def read_input(path, what):
+    """(the JSON object, its sha256) from one read of the file, so the bytes that are validated are the bytes that are hashed."""
     path = Path(path)
     if not path.is_file():
         raise Refused(f"{what} is missing: {path.name}")
+    data = path.read_bytes()
     try:
-        value = json.loads(path.read_bytes().decode("utf-8-sig"))
+        value = json.loads(data.decode("utf-8-sig"))
     except ValueError:
         raise Refused(f"{what} is not readable JSON: {path.name}") from None
     if not isinstance(value, dict):
         raise Refused(f"{what} is not an object: {path.name}")
-    return value
+    return value, hashlib.sha256(data).hexdigest()
+
+
+def read_json(path, what):
+    return read_input(path, what)[0]
 
 
 def git(repo, *args):
@@ -219,20 +228,22 @@ def paste_build_service_account():
 
 
 def load_baseline(path):
-    baseline = read_json(path, "the baseline")
+    """(the baseline, its sha256), from one read."""
+    baseline, digest = read_input(path, "the baseline")
     if baseline.get("kind") != "baseline-A" or baseline.get("schema_version") != so.SCHEMA_VERSION:
         raise Refused("The baseline file is not a baseline-A receipt")
     if set(baseline.get("jobs", {})) != set(so.JOB_NAMES) or set(baseline.get("services", {})) != set(so.SERVICES):
         raise Refused("The baseline does not hold both services and the fourteen jobs")
     check_a80(baseline)
-    return baseline
+    return baseline, digest
 
 
 def passing_receipt(path, label):
-    receipt = read_json(path, f"the {label} receipt")
+    """The sha256 of a receipt that says pass, from the same read that showed it."""
+    receipt, digest = read_input(path, f"the {label} receipt")
     if receipt.get("schema_version") != so.SCHEMA_VERSION or receipt.get("verdict") != "pass":
         raise Refused(f"The {label} receipt does not say pass")
-    return sha_bytes(path)
+    return digest
 
 
 def durable_binding_problem(manifest, release_id, commit, tree):
@@ -250,6 +261,8 @@ def durable_binding_problem(manifest, release_id, commit, tree):
 
 
 def cmd_bind(args):
+    if args.attempt != SUPPORTED_ATTEMPT:
+        raise Refused(f"bind supports attempt {SUPPORTED_ATTEMPT} only: a later attempt must cite the earlier attempts and their ledgers, which it does not carry")
     packet_dir = Path(args.packet_dir)
     out = packet_dir / BINDINGS_FILE
     refuse_existing(out)
@@ -260,11 +273,11 @@ def cmd_bind(args):
     if head != args.release_commit:
         raise Refused("The checkout is not at the commit named by --release-commit")
     release_id = f"rel-{head[:7]}-{args.attempt}"
-    baseline = load_baseline(args.baseline)
+    baseline, baseline_sha = load_baseline(args.baseline)
     compat = passing_receipt(packet_dir / COMPAT_FILE, "compat")
     old = passing_receipt(packet_dir / OLD_READER_FILE, "old-reader")
     durable = Path(args.durable_manifest)
-    durable_value = read_json(durable, "the durable-effects manifest")
+    durable_value, durable_sha = read_input(durable, "the durable-effects manifest")
     problems = dec.validate_manifest(durable_value)
     if problems:
         raise Refused("The durable-effects manifest is not valid: " + problems[0])
@@ -277,7 +290,7 @@ def cmd_bind(args):
     bound = {
         "schema_version": so.SCHEMA_VERSION, "mode": "services-only", "status": STATUS, "release_id": release_id, "target": head,
         "tree": tree, "releaseDir": str(packet_dir.resolve()), "baselinePath": str(Path(args.baseline).resolve()),
-        "baselineSha256": sha_bytes(args.baseline), "callerAccount": args.caller_account,
+        "baselineSha256": baseline_sha, "callerAccount": args.caller_account,
         "buildServiceAccount": paste_build_service_account(), "buildConfigSha256": build_config,
         "readTimeoutSeconds": {"gcloud": args.gcloud_timeout_seconds, "http": args.http_timeout_seconds},
         "maxSmokeAgeMinutes": args.max_smoke_age_minutes,
@@ -285,7 +298,7 @@ def cmd_bind(args):
         "envDeltas": {"f42-agent": {"F42_VERSION": short},
                       "f42-api": {"F42_VERSION": short, "AGENT_URL": so.tag_url(release_id, agent), "AGENT_AUDIENCE": agent}},
         "compatReceiptSha256": compat, "oldReaderReceiptSha256": old, "durableManifestPath": str(durable.resolve()),
-        "durableManifestSha256": sha_bytes(durable), "inflightAsksSqlSha256": dec.INFLIGHT_ASKS_SQL_SHA256,
+        "durableManifestSha256": durable_sha, "inflightAsksSqlSha256": dec.INFLIGHT_ASKS_SQL_SHA256,
         "inflightAsksBytesCap": args.inflight_asks_bytes_cap,
     }
     try:
@@ -352,8 +365,7 @@ def cmd_review(args):
 # receipt
 
 def check_authorisation(text, release_id):
-    line = " ".join(text.split())
-    if not line.startswith(f"RELEASE A {release_id}:") or any(clause not in line for clause in AUTHORISATION_CLAUSES):
+    if " ".join(text.split()) != AUTHORISATION_TEMPLATE.format(release_id=release_id):
         raise Refused("The authorisation line is not the one the packet asks Albert to type for this release")
 
 

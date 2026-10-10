@@ -43,6 +43,10 @@ def gcloud_command():
     return [shutil.which("gcloud") or "gcloud"]
 
 
+# Every gcloud child keeps no file log, as the children of the release paste do: the arguments of a read can name what the release removes.
+GCLOUD_ENV = {"CLOUDSDK_CORE_DISABLE_FILE_LOGGING": "1"}
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, file_pointer, code, message, headers, new_url):
         return None
@@ -59,7 +63,8 @@ class GcloudReader:
             raise so.Stop("WRITE_REFUSED", "The helper issues read commands only")
         try:
             result = subprocess.run([*gcloud_command(), *args], stdin=subprocess.DEVNULL, capture_output=True,
-                                    encoding="utf-8", errors="strict", timeout=self.gcloud_timeout)
+                                    encoding="utf-8", errors="strict", timeout=self.gcloud_timeout,
+                                    env={**os.environ, **GCLOUD_ENV})
         except subprocess.TimeoutExpired:
             raise so.Probe("A read exceeded its bound timeout") from None
         except (UnicodeDecodeError, OSError):

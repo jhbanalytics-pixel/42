@@ -1254,3 +1254,276 @@ def test_r10_a_quiet_window_that_goes_stale_while_the_words_are_typed_stops_prom
     assert [c["prompt"] for c in prompts(result)] == ["Type IDLE to continue", "Type DEPLOY to continue"]  # both words were typed first
     fresh = promote_world(tmp_path / "fresh").run(quiet=verified, extra={"minutes_per_prompt": 0.2})
     assert fresh.returncode == 0, fresh.stderr
+
+
+# W4-R3: the programs the paste runs (gcloud, git, py, bash) are found as programs in their install folders, never by name on PATH,
+# a script of the same name is never run, and the path that was found is the one that is called.
+
+NATIVES = ("gcloud", "git", "py", "bash")
+ON_WINDOWS = os.name == "nt"
+ECHO_ARGV = "import json, sys\nsys.stdout.write(json.dumps(sys.argv[1:]))\n"
+FORWARD_LINE = '"{python}" "%~dp0echo_argv.py" %* & goto lastline 2>NUL || "%COMSPEC%" /C exit 0'
+
+
+def native_file(name):
+    if not ON_WINDOWS:
+        return name
+    return "gcloud.cmd" if name == "gcloud" else name + ".exe"
+
+
+def write_native(folder, name):
+    """A stand-in for one program. On Windows gcloud is a real command file with the forwarding line of the Cloud SDK's own gcloud.cmd,
+    so cmd.exe parses the arguments as it does for the real one; every other program is an empty file, enough to be found."""
+    import sys
+
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / native_file(name)
+    if name != "gcloud":
+        target.write_bytes(b"")
+    elif ON_WINDOWS:
+        (folder / "echo_argv.py").write_text(ECHO_ARGV, encoding="utf-8")
+        target.write_text("@echo off\nSETLOCAL\n" + FORWARD_LINE.format(python=sys.executable) + "\n:lastline\n\"%COMSPEC%\" /C exit %ERRORLEVEL%\n",
+                          encoding="ascii", newline="\r\n")
+    else:
+        (folder / "echo_argv.py").write_text(ECHO_ARGV, encoding="utf-8")
+        target.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{folder / "echo_argv.py"}" "$@"\n', encoding="utf-8", newline="\n")
+    if not ON_WINDOWS:
+        target.chmod(0o755)
+    return target
+
+
+def plant_scripts_and_programs(folder, marker):
+    """Everything a hostile PATH could offer ahead of the install folders: a script for each program, and a program of the same name
+    that records that it ran. Whatever runs leaves the marker file."""
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    for name in NATIVES:
+        (folder / f"{name}.ps1").write_text(f"Set-Content -LiteralPath '{marker}' -Value ran\n", encoding="utf-8")
+        if ON_WINDOWS:
+            (folder / f"{name}.cmd").write_text(f'@echo off\necho ran> "{marker}"\n', encoding="ascii", newline="\r\n")
+        else:
+            (folder / name).write_text(f'#!/bin/sh\necho ran > "{marker}"\n', encoding="utf-8", newline="\n")
+            (folder / name).chmod(0o755)
+
+
+def quoted(path):
+    return "'" + str(path).replace("'", "''") + "'"
+
+
+def native_frame(tmp_path, folders, call, *, prefix=""):
+    """A definitions-only load of the real paste with the install folders named by the test, then the call."""
+    table = "@{" + "; ".join(f"{name} = @(" + ",".join(quoted(f) for f in dirs) + ")" for name, dirs in folders.items()) + "}"
+    return paste_function(f"{prefix}$Script:TestNativeFolders = {table}; {call}", tmp_path)
+
+
+def found_paths(done):
+    return {line[5:].split("=", 1)[0]: line.split("=", 1)[1] for line in done.stdout.splitlines() if line.startswith("PATH:")}
+
+
+def test_w4r3_each_program_is_found_as_a_program_in_its_install_folder_and_not_by_name_on_path(tmp_path):
+    good, planted, marker = tmp_path / "good", tmp_path / "planted", tmp_path / "ran.txt"
+    for name in NATIVES:
+        write_native(good, name)
+    plant_scripts_and_programs(planted, marker)
+    prefix = f"$env:PATH = {quoted(planted)} + [IO.Path]::PathSeparator + $env:PATH; "
+    done = native_frame(tmp_path, {name: [good] for name in NATIVES},
+                        "foreach ($n in 'gcloud','git','py','bash') { 'PATH:' + $n + '=' + (Get-NativePath $n) }", prefix=prefix)
+    assert "RESULT:ok" in done.stdout, (done.stdout, done.stderr)
+    assert {k: os.path.normcase(v) for k, v in found_paths(done).items()} == {name: os.path.normcase(str(good / native_file(name))) for name in NATIVES}
+    assert not marker.exists()
+
+
+def test_w4r3_the_first_install_folder_that_holds_the_program_wins_and_a_later_one_is_not_used(tmp_path):
+    first, second = tmp_path / "first", tmp_path / "second"
+    write_native(second, "git")
+    done = native_frame(tmp_path, {"git": [first, second]}, "'PATH:git=' + (Get-NativePath 'git')")
+    assert os.path.normcase(found_paths(done)["git"]) == os.path.normcase(str(second / native_file("git"))), (done.stdout, done.stderr)
+    write_native(first, "git")
+    done = native_frame(tmp_path, {"git": [first, second]}, "'PATH:git=' + (Get-NativePath 'git')")
+    assert os.path.normcase(found_paths(done)["git"]) == os.path.normcase(str(first / native_file("git"))), (done.stdout, done.stderr)
+
+
+@pytest.mark.parametrize("label", ["a script of the name and no program", "an empty folder", "a folder that does not exist", "a script on PATH and no program"])
+def test_w4r3_a_script_is_never_taken_for_the_program_and_nothing_is_found_by_name_on_path(tmp_path, label):
+    folder, planted, marker = tmp_path / "folder", tmp_path / "planted", tmp_path / "ran.txt"
+    if label == "a script of the name and no program":
+        plant_scripts_and_programs(folder, marker)
+        for leftover in list(folder.iterdir()):
+            if leftover.suffix != ".ps1":
+                leftover.unlink()
+    elif label == "an empty folder":
+        folder.mkdir()
+    elif label == "a script on PATH and no program":
+        folder.mkdir()
+        plant_scripts_and_programs(planted, marker)
+    prefix = f"$env:PATH = {quoted(planted)} + [IO.Path]::PathSeparator + $env:PATH; " if planted.exists() else ""
+    done = native_frame(tmp_path, {"gcloud": [folder]}, "Get-NativePath 'gcloud'", prefix=prefix)
+    assert "RESULT:NOT EXECUTABLE" in done.stdout and "gcloud" in done.stdout, (label, done.stdout, done.stderr)
+    assert not marker.exists()
+
+
+def test_w4r3_a_name_that_is_not_one_of_the_four_programs_is_passed_through_untouched(tmp_path):
+    done = native_frame(tmp_path, {}, "'PATH:tar=' + (Get-NativePath 'C:\\somewhere\\tar.exe')")
+    assert found_paths(done)["tar"] == "C:\\somewhere\\tar.exe", (done.stdout, done.stderr)
+
+
+def test_w4r3_the_paste_writes_no_user_name_and_no_drive_letter_path():
+    text = (ROOT / "core/setup/release/SERVICES-PASTE.ps1").read_text(encoding="utf-8")
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    assert not re.search(r"[A-Za-z]:\\", code) and "Users" not in code and "$env:USERNAME" not in code and "$env:USERPROFILE" not in code
+
+
+def test_w4r3_the_install_folders_are_the_stated_ones_and_come_from_the_known_folders_of_the_machine(tmp_path):
+    done = paste_function("foreach ($n in 'gcloud','git','py','bash') { foreach ($f in $Script:NativeFolders[$n]) { 'FOLDER:' + $n + '=' + $f } }", tmp_path)
+    assert "RESULT:ok" in done.stdout, (done.stdout, done.stderr)
+    found = {name: [] for name in NATIVES}
+    for line in done.stdout.splitlines():
+        if line.startswith("FOLDER:"):
+            name, folder = line[7:].split("=", 1)
+            found[name].append(os.path.normcase(folder))
+    if not ON_WINDOWS:
+        assert found == {name: [] for name in NATIVES}
+        return
+    local, files, files86, windows = (os.environ.get(n) for n in ("LOCALAPPDATA", "ProgramFiles", "ProgramFiles(x86)", "SystemRoot"))
+
+    def under(base, *parts):
+        return [os.path.normcase(os.path.join(base, *parts))] if base else []
+
+    expected = {
+        "gcloud": [f for base in (local, files86, files) for f in under(base, "Google", "Cloud SDK", "google-cloud-sdk", "bin")],
+        "git": under(local, "Programs", "Git", "cmd") + under(files, "Git", "cmd") + under(files86, "Git", "cmd"),
+        "bash": under(local, "Programs", "Git", "bin") + under(files, "Git", "bin") + under(files86, "Git", "bin"),
+        "py": under(windows) + under(local, "Programs", "Python", "Launcher") + under(files, "Python Launcher"),
+    }
+    assert found == {name: [os.path.normcase(f) for f in folders] for name, folders in expected.items()}
+
+
+def test_w4r3_the_test_folders_are_honoured_only_by_a_definitions_only_load(tmp_path):
+    import subprocess
+
+    good = tmp_path / "good"
+    write_native(good, "gcloud")
+    paste = ROOT / "core/setup/release/SERVICES-PASTE.ps1"
+    frame = tmp_path / "real_load.ps1"
+    frame.write_text(f"$ErrorActionPreference = 'Stop'; try {{ . '{paste}' -Action Rollback -Lock x -Review x -Bindings x -Receipt x }} catch {{ }}; "
+                     f"$Script:TestNativeFolders = @{{ gcloud = @({quoted(good)}) }}; "
+                     "try { 'PATH:gcloud=' + (Get-NativePath 'gcloud') } catch { 'RESULT:' + $_.Exception.Message }", encoding="utf-8", newline="\n")
+    done = subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(frame)], stdin=subprocess.DEVNULL, capture_output=True, encoding="utf-8", timeout=120)
+    assert str(good) not in done.stdout, (done.stdout, done.stderr)
+
+
+def gcloud_argvs(tmp_path):
+    """Every gcloud argument list the four actions issue, read from the calls the doubled world records."""
+    found = []
+    for action in ACTIONS:
+        if action == "Promote":
+            world = promote_world(tmp_path / action)
+        else:
+            world = PasteWorld(tmp_path / action, action, durable={"schema_version": 1, "effects": [{"apply_kind": "schema"}, {"apply_kind": "tag_add"}]})
+            if action == "Retire":
+                world.readback("AfterRollback")
+        result = world.run()
+        assert result.returncode == 0, (action, result.stderr)
+        for call in result.external:
+            if call["argv"][0] == "gcloud" and call["argv"][1:] not in found:
+                found.append(call["argv"][1:])
+    return found
+
+
+def test_w4r3_every_argument_list_the_paste_issues_to_gcloud_reaches_the_command_file_unchanged(tmp_path):
+    shapes = gcloud_argvs(tmp_path / "worlds")
+    flat = [a for argv in shapes for a in argv]
+    assert any(a.startswith("--format=json(") and "," in a for a in flat) and any(re.fullmatch(r"--to-revisions=[^=]+=100", a) for a in flat)
+    assert any(a.startswith("_IMAGE=") for a in flat) and len(shapes) > 5
+    shapes += [["x", "a b", "c=d,e(f)", "--g=h=100"], ["--substitutions", "_IMAGE=a b,K=(v)"], ["run", "services", "describe", "path with  two spaces"]]
+    good = tmp_path / "good"
+    write_native(good, "gcloud")
+    data = tmp_path / "argvs.json"
+    data.write_text(json.dumps(shapes), encoding="utf-8")
+    out, logs = tmp_path / "read", tmp_path / "logged"
+    out.mkdir()
+    logs.mkdir()
+    call = (f"$list = @(Get-Content -LiteralPath {quoted(data)} -Raw | ConvertFrom-Json); $i = 0; $Script:RunDir = {quoted(logs)}; "
+            f"foreach ($argv in $list) {{ $a = [string[]]$argv; "
+            f"Read-Native -Exe gcloud -Arguments $a | Set-Content -LiteralPath (Join-Path {quoted(out)} \"$i.json\") -Encoding utf8 -NoNewline; "
+            f"Run-Logged -Name \"r$i\" -Argv (@('gcloud') + $a) | Out-Null; $i++ }}")
+    done = native_frame(tmp_path, {"gcloud": [good]}, call)
+    assert "RESULT:ok" in done.stdout, (done.stdout, done.stderr)
+    for i, argv in enumerate(shapes):
+        assert json.loads((out / f"{i}.json").read_text(encoding="utf-8-sig")) == argv, ("read", argv)
+        assert json.loads((logs / f"r{i}.log").read_text(encoding="utf-8-sig").strip()) == argv, ("run", argv)
+
+
+@pytest.mark.parametrize("action, expected", [("Candidate", ["gcloud", "git", "py", "bash"]), ("Promote", ["gcloud", "git", "py"]),
+                                              ("Rollback", ["gcloud", "git", "py"]), ("Retire", ["gcloud", "git", "py"])])
+def test_w4r3_the_programs_an_action_runs_are_all_resolved_before_any_call_prompt_or_file(tmp_path, action, expected):
+    world = promote_world(tmp_path) if action == "Promote" else PasteWorld(tmp_path, action)
+    if action == "Retire":
+        world.readback("AfterRollback")
+    result = world.run()
+    assert result.returncode == 0, result.stderr
+    natives = [c["name"] for c in result.calls if c["kind"] == "native"]
+    assert natives == expected
+    assert [c["kind"] for c in result.calls[:len(expected)]] == ["native"] * len(expected)
+
+
+@pytest.mark.parametrize("action", ["Candidate", "Promote"])
+def test_w4r3_a_program_that_cannot_be_found_stops_the_action_before_any_call_prompt_or_file(tmp_path, action):
+    world = promote_world(tmp_path) if action == "Promote" else PasteWorld(tmp_path, action)
+    result = world.run(extra={"native_missing": "gcloud"})
+    assert result.returncode != 0 and "NOT EXECUTABLE" in result.stderr and "'gcloud'" in result.stderr
+    assert result.external == [] and prompts(result) == [] and not (world.release_dir / "runs").exists()
+
+
+def test_w4r3_a_candidate_stops_before_any_call_when_bash_is_the_missing_program(tmp_path):
+    world = PasteWorld(tmp_path)
+    result = world.run(extra={"native_missing": "bash"})
+    assert result.returncode != 0 and "'bash'" in result.stderr and result.external == [] and prompts(result) == []
+
+
+# W4-R5: the repository default, the comment, and the cause of a refused prompt
+
+def test_w4r5_the_repo_default_is_resolved_after_the_first_resolution_check_and_not_as_a_parameter_default(tmp_path):
+    marker = tmp_path / "location-called.txt"
+    done = paste_run(f"function global:Get-Location {{ Set-Content -LiteralPath '{marker.as_posix()}' -Value ran; [pscustomobject]@{{ Path = '.' }} }}", tmp_path)
+    assert not marker.exists(), "a function of the caller ran as the default of -Repo"
+    assert GUARD_REFUSED + "Get-Location'" in done.stdout, (done.stdout, done.stderr)
+
+
+def test_w4r5_without_a_repo_parameter_the_repo_is_the_current_location_once_the_check_has_passed(tmp_path):
+    import subprocess
+
+    here = tmp_path / "work tree"
+    here.mkdir()
+    paste = ROOT / "core/setup/release/SERVICES-PASTE.ps1"
+    frame = tmp_path / "repo_default.ps1"
+    frame.write_text(f"$ErrorActionPreference = 'Stop'; try {{ . '{paste}' -Action Rollback -Lock x -Review x -Bindings x -Receipt x }} catch {{ }}; "
+                     "'REPO:' + $Repo", encoding="utf-8", newline="\n")
+    done = subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(frame)], cwd=here, stdin=subprocess.DEVNULL, capture_output=True, encoding="utf-8", timeout=120)
+    reported = next(line for line in done.stdout.splitlines() if line.startswith("REPO:"))[5:]
+    assert os.path.normcase(os.path.realpath(reported)) == os.path.normcase(os.path.realpath(here)), (done.stdout, done.stderr)
+
+
+def test_w4r5_the_comment_says_the_fresh_file_start_is_the_only_control_for_what_the_check_cannot_see():
+    text = (ROOT / "core/setup/release/SERVICES-PASTE.ps1").read_text(encoding="utf-8")
+    block = text[:text.index("$Script:ResolutionCheck = {")]
+    comment = " ".join(line.lstrip("# ").strip() for line in block.splitlines() if line.lstrip().startswith("#"))
+    for phrase in ("pwsh -NoProfile -File", "only control", "breakpoints", "engine events", "type data", "parameter defaults"):
+        assert phrase in comment, phrase
+
+
+SWAP_CHECK = "$script:n = 0; $Script:ResolutionCheck = { $script:n++; if ($script:n -ge 2) { throw 'NOT EXECUTABLE: planted refusal' } }; "
+
+
+@pytest.mark.parametrize("call", ["Read-Word 'DEPLOY'", "$null = Read-Passcode"])
+def test_w4r5_a_prompt_the_resolution_check_refuses_keeps_that_cause_and_is_not_reported_as_a_missing_console(tmp_path, call):
+    done = paste_function(SWAP_CHECK + call, tmp_path)
+    assert "RESULT:NOT EXECUTABLE: planted refusal" in done.stdout and "NOT INTERACTIVE" not in done.stdout, (done.stdout, done.stderr)
+
+
+@pytest.mark.parametrize("call, said", [("Read-Word 'DEPLOY'", "NOT INTERACTIVE: the prompt for DEPLOY could not be shown."),
+                                        ("$null = Read-Passcode", "NOT INTERACTIVE: the passcode prompt could not be shown.")])
+def test_w4r5_a_prompt_that_fails_for_any_other_reason_is_still_reported_as_a_missing_console(tmp_path, call, said):
+    done = paste_function("function Read-Typed { throw 'no console' }; $Script:TestDoubles = @('Read-Typed'); " + call, tmp_path)
+    assert "RESULT:" + said in done.stdout, (done.stdout, done.stderr)

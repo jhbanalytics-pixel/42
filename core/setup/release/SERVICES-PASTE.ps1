@@ -10,7 +10,7 @@ param(
     [Parameter(Mandatory)][string]$Review,
     [Parameter(Mandatory)][string]$Bindings,
     [Parameter(Mandatory)][string]$Receipt,
-    [string]$Repo = (Get-Location).Path,
+    [string]$Repo,
     [string]$QuietWindowVerifiedAtUtc,
     [switch]$DefinitionsOnly
 )
@@ -27,19 +27,52 @@ $Script:TestDoubles = @()
 $Script:AllowTestDoubles = $DefinitionsOnly.IsPresent
 $Script:NativeNames = @('gcloud', 'git', 'py', 'bash')
 $Script:CheckedNames = $null
+$Script:NativePaths = @{}
+$Script:TestNativeFolders = $null
+
+# The folders each program may come from, and the file it is there. They come from the operating system's own known folders, so
+# no user name, drive letter or environment variable is written here: the Cloud SDK's bin folder for gcloud, the Git install for
+# git and bash, the Python launcher for py. The first folder that holds the program wins.
+$Script:OnWindows = [IO.Path]::DirectorySeparatorChar -eq '\'
+$Script:NativeFiles = if ($Script:OnWindows) { @{ gcloud = 'gcloud.cmd'; git = 'git.exe'; py = 'py.exe'; bash = 'bash.exe' } } else { @{ gcloud = 'gcloud'; git = 'git'; py = 'py'; bash = 'bash' } }
+$Script:NativeFolders = @{ gcloud = [Collections.Generic.List[string]]::new(); git = [Collections.Generic.List[string]]::new(); py = [Collections.Generic.List[string]]::new(); bash = [Collections.Generic.List[string]]::new() }
+function Add-NativeFolder([string]$Name, [string]$Base, [string[]]$Parts) {
+    if (-not [string]::IsNullOrEmpty($Base)) { $Script:NativeFolders[$Name].Add([IO.Path]::Combine([string[]](@($Base) + $Parts))) }
+}
+if ($Script:OnWindows) {
+    $userPrograms = [Environment]::GetFolderPath('LocalApplicationData')
+    $programFiles = [Environment]::GetFolderPath('ProgramFiles')
+    $programFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
+    $windowsFolder = [Environment]::GetFolderPath('Windows')
+    foreach ($base in @($userPrograms, $programFilesX86, $programFiles)) { Add-NativeFolder 'gcloud' $base @('Google', 'Cloud SDK', 'google-cloud-sdk', 'bin') }
+    Add-NativeFolder 'git' $userPrograms @('Programs', 'Git', 'cmd')
+    Add-NativeFolder 'git' $programFiles @('Git', 'cmd')
+    Add-NativeFolder 'git' $programFilesX86 @('Git', 'cmd')
+    Add-NativeFolder 'bash' $userPrograms @('Programs', 'Git', 'bin')
+    Add-NativeFolder 'bash' $programFiles @('Git', 'bin')
+    Add-NativeFolder 'bash' $programFilesX86 @('Git', 'bin')
+    Add-NativeFolder 'py' $windowsFolder @()
+    Add-NativeFolder 'py' $userPrograms @('Programs', 'Python', 'Launcher')
+    Add-NativeFolder 'py' $programFiles @('Python Launcher')
+}
 
 # The typed words are Albert's and nothing in the session that started this paste may stand in for them. Every command name the
 # paste invokes is taken from its own syntax tree (the commands it calls and the functions it defines, plus Read-Host and
 # Get-Alias) and resolved the way the engine would resolve it. A name must resolve to a function of this paste, or to a cmdlet
 # of a Microsoft.PowerShell module that lives in the PowerShell install folder. It must never resolve to an alias, to a function
 # of the caller, to a cmdlet from anywhere else, or be written with a module prefix. The programs it runs (gcloud, git, py,
-# bash) must not resolve to anything but a program or script file. A command lookup hook, or a function or alias named with a
-# module prefix over a checked name, refuses the run too.
+# bash) must not resolve to anything but a program or script file here, and are not run by that name at all: Get-NativePath finds
+# each one as a program in its install folder and the paste calls that path. A command lookup hook, or a function or alias named
+# with a module prefix over a checked name, refuses the run too.
 # Only a definitions-only load, which is how the test driver reaches the functions, may name functions of its own in
 # $Script:TestDoubles. A real run is never a definitions-only load, so the list is empty and unused there.
 # The check is a script block called with the call operator and calls no PowerShell command, so no alias, function or lookup
 # hook can replace any part of it. A caller can still make an alias after a check has run, so the check runs again at the top
 # of Invoke-Release, inside Confirm-Action just before the console gate, before each prompt, and before each step that runs.
+# The check cannot see everything that comes with the calling session: breakpoints with actions, engine events, extended type data
+# on the types it reads and parameter defaults ($PSDefaultParameterValues, and the default of a parameter of this script, which
+# runs before any of this) are out of its reach. The fresh start, pwsh -NoProfile -File from a newly opened console, is the only
+# control for those. The -Repo default is worked out after the first check for that reason, and not as a parameter default.
 $Script:ResolutionCheck = {
     $invoker = $ExecutionContext.InvokeCommand
     if ($null -ne $invoker.PreCommandLookupAction) { throw 'NOT EXECUTABLE: a command lookup hook is set in this session (PreCommandLookupAction). Start the paste from a freshly opened console with pwsh -NoProfile -File.' }
@@ -191,8 +224,29 @@ function Test-Receipt {
 }
 
 # 2. Commands. Every external invocation goes through Read-Native (a read) or Run-Logged (a step with a log and an exit file).
+# The program a name stands for, found as a program and never as a script, an alias or a function, in the first of its install
+# folders that holds one, and called by that path. PATH is not searched, so a program or script of the same name put ahead of the
+# real one on PATH is never found, and the Cloud SDK's own gcloud.ps1, which a lookup by name finds first, is never run in this
+# session. A name that is not one of the four programs (the full path of tar) is returned as it is. Only a definitions-only load
+# may name other folders, which is how the tests stand in for the programs.
+function Get-NativePath([string]$Name) {
+    if ($Script:NativeNames -notcontains $Name) { return $Name }
+    if ($Script:NativePaths.ContainsKey($Name)) { return $Script:NativePaths[$Name] }
+    $folders = if ($Script:AllowTestDoubles -and $null -ne $Script:TestNativeFolders) { @($Script:TestNativeFolders[$Name]) } else { @($Script:NativeFolders[$Name]) }
+    foreach ($folder in $folders) {
+        if ([string]::IsNullOrEmpty($folder)) { continue }
+        $found = $ExecutionContext.InvokeCommand.GetCommand([IO.Path]::Combine($folder, $Script:NativeFiles[$Name]), [System.Management.Automation.CommandTypes]::Application)
+        if ($found -is [System.Management.Automation.ApplicationInfo]) {
+            $Script:NativePaths[$Name] = $found.Path
+            return $found.Path
+        }
+    }
+    throw "NOT EXECUTABLE: the program '$Name' was not found as a program (a script is never run in its place) in its install folder. Looked in: $($folders -join '; ')."
+}
+
 function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
-    $result = if ($PSBoundParameters.ContainsKey('InputText')) { $InputText | & $Exe @Arguments } else { & $Exe @Arguments }
+    $path = Get-NativePath $Exe
+    $result = if ($PSBoundParameters.ContainsKey('InputText')) { $InputText | & $path @Arguments } else { & $path @Arguments }
     $code = $LASTEXITCODE
     if ($code -ne 0) { throw "Native command failed with exit $code. Stop and retain its error." }
     return ($result -join "`n")
@@ -204,6 +258,7 @@ function Read-Cloud([string[]]$Arguments) {
 
 function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
     $exe, $rest = $Argv
+    $exe = Get-NativePath $exe
     $log = Join-Path $Script:RunDir ($Name + '.log')
     if ($WorkDir) { Push-Location -LiteralPath $WorkDir }
     try {
@@ -445,13 +500,13 @@ function Get-UtcNow { return [DateTimeOffset]::UtcNow }
 
 function Read-Word([string]$Word) {
     & $Script:ResolutionCheck
-    try { $typed = Read-Typed "Type $Word to continue" } catch { throw "NOT INTERACTIVE: the prompt for $Word could not be shown." }
+    try { $typed = Read-Typed "Type $Word to continue" } catch { if ($_.Exception.Message.StartsWith('NOT EXECUTABLE:')) { throw }; throw "NOT INTERACTIVE: the prompt for $Word could not be shown." }
     if ($typed -cne $Word) { throw "NOT CONFIRMED: $Word was not typed exactly. Nothing was written." }
 }
 
 function Read-Passcode {
     & $Script:ResolutionCheck
-    try { $secret = Read-Typed 'Smoke passcode' -Secure } catch { throw 'NOT INTERACTIVE: the passcode prompt could not be shown.' }
+    try { $secret = Read-Typed 'Smoke passcode' -Secure } catch { if ($_.Exception.Message.StartsWith('NOT EXECUTABLE:')) { throw }; throw 'NOT INTERACTIVE: the passcode prompt could not be shown.' }
     if ($null -eq $secret -or $secret.Length -eq 0) { throw 'NOT CONFIRMED: no smoke passcode was typed. Nothing was written.' }
     return $secret
 }
@@ -526,6 +581,9 @@ function Invoke-Release {
     & $Script:ResolutionCheck
     Test-Packet
     Test-Receipt
+    # Every program the action runs is found before anything is asked or run, so a missing one cannot stop a Candidate half way.
+    $needed = if ($Action -eq 'Candidate') { $Script:NativeNames } else { @('gcloud', 'git', 'py') }
+    foreach ($name in $needed) { $null = Get-NativePath $name }
     $inheritedPresent = Test-Path Env:F42_SMOKE_PASSCODE
     $inherited = $env:F42_SMOKE_PASSCODE
     # Every child inherits these: gcloud keeps no file log of its arguments (the removed names travel in one), Python writes no
@@ -554,4 +612,8 @@ function Invoke-Release {
     }
 }
 
-if (-not $DefinitionsOnly) { & $Script:ResolutionCheck; Invoke-Release }
+if (-not $DefinitionsOnly) {
+    & $Script:ResolutionCheck
+    if ([string]::IsNullOrEmpty($Repo)) { $Repo = (Get-Location).Path }
+    Invoke-Release
+}

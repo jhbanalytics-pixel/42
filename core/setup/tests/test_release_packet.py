@@ -587,3 +587,165 @@ def test_bind_still_accepts_a_durable_manifest_written_for_this_release_and_atte
     code, out, err = run(bench.bind_argv(), capsys)
     assert code == 0, err
     assert bench.bindings_value()["release_id"] == json.loads(bench.durable.read_text(encoding="utf-8"))["release_id"]
+
+
+# W4-R5: bind supports the first attempt only
+
+@pytest.mark.parametrize("attempt", ["02", "00", "99"])
+def test_bind_refuses_any_attempt_but_01_and_writes_no_bindings(tmp_path, monkeypatch, capsys, attempt):
+    bench = pw.Bench(tmp_path, monkeypatch, attempt=attempt)
+    bench.prepare_inputs()
+    assert run(bench.capture_argv(), capsys)[0] == 0
+    code, out, err = run(bench.bind_argv(), capsys)
+    assert code == 1 and "attempt" in err and "01" in err and not bench.bindings.exists()
+
+
+# W4-R5: each input bind reads is read once, and the bytes that are validated are the bytes that are hashed
+
+READ_ONCE = {"durable": ("durableManifestSha256", lambda b: b.durable), "baseline": ("baselineSha256", lambda b: b.baseline),
+             "compat": ("compatReceiptSha256", lambda b: b.packet / "compat-receipt.json"),
+             "old-reader": ("oldReaderReceiptSha256", lambda b: b.packet / "old-reader-receipt.json")}
+
+
+@pytest.mark.parametrize("victim", sorted(READ_ONCE))
+def test_bind_reads_each_input_once_and_hashes_the_bytes_it_validated(bench, capsys, monkeypatch, victim):
+    bench.prepare_inputs()
+    assert run(bench.capture_argv(), capsys)[0] == 0
+    key, locate = READ_ONCE[victim]
+    path = locate(bench).resolve()
+    original = path.read_bytes()
+    reads = []
+    real = Path.read_bytes
+
+    def spy(self):
+        data = real(self)
+        if self.resolve() != path:
+            return data
+        reads.append(1)
+        return data if len(reads) == 1 else data + b" "
+
+    monkeypatch.setattr(Path, "read_bytes", spy)
+    code, out, err = run(bench.bind_argv(), capsys)
+    assert code == 0, err
+    assert len(reads) == 1, f"{victim} was read {len(reads)} times"
+    assert bench.bindings_value()[key] == hashlib.sha256(original).hexdigest()
+
+
+# W4-R5: the authorisation line is the template with the release id, after whitespace is normalised, and nothing else
+
+AUTHORISATION = ("RELEASE A {rid}: I authorise exactly one live T1 Ask, market ZA, against the candidate API tag URL only, at most 60 search "
+                 "credits and a USD 2.00 research budget, with a model hold ceiling of USD 4.32, no second Ask and no retry. The window is "
+                 "quiet and I will start no manual job until the execution ends. I will type DEPLOY, IDLE and the passcode myself.")
+
+
+def swap(old, new):
+    return lambda line: line.replace(old, new)
+
+
+@pytest.mark.parametrize("name,edit", [
+    ("a refusal appended", lambda line: line + " I do not authorise this."),
+    ("a refusal first", lambda line: "I do not authorise this. " + line),
+    ("a second market", swap("market ZA", "market ZA and market NG")),
+    ("another credit figure", swap("60 search credits", "600 search credits")),
+    ("another research budget", swap("USD 2.00", "USD 20.00")),
+    ("another hold ceiling", swap("USD 4.32", "USD 43.20")),
+    ("the sentences reordered", lambda line: line.replace("The window is quiet and I will start no manual job until the execution ends. ", "").replace(
+        "I will type DEPLOY, IDLE and the passcode myself.", "I will type DEPLOY, IDLE and the passcode myself. The window is quiet and I will start no manual job until the execution ends.")),
+    ("a clause dropped and repeated", lambda line: line.replace("no second Ask and no retry", "no second Ask and no retry, no second Ask and no retry")),
+    ("a word changed", swap("exactly one", "exactly two")),
+])
+def test_receipt_refuses_a_line_that_is_not_the_exact_template_for_this_release(bench, capsys, name, edit):
+    reviewed_bench(bench, capsys)
+    bench.line.write_text(edit(AUTHORISATION.format(rid=bench.release_id)) + "\n", encoding="utf-8")
+    code, out, err = run(bench.receipt_argv(), capsys)
+    assert code == 1 and "authorisation" in err, name
+    assert not bench.receipt.exists(), name
+
+
+@pytest.mark.parametrize("name,shape", [
+    ("the line as it stands", lambda line: line),
+    ("a trailing newline and blank lines", lambda line: "\n\n" + line + "\n\n"),
+    ("wrapped over several lines", lambda line: line.replace(", ", ",\n").replace(". ", ".\n")),
+    ("tabs and doubled spaces", lambda line: line.replace(" ", "  ", 5).replace("Ask,", "Ask,\t")),
+    ("carriage returns", lambda line: line.replace(". ", ".\r\n")),
+])
+def test_receipt_accepts_the_template_for_this_release_whatever_its_whitespace(bench, capsys, name, shape):
+    reviewed_bench(bench, capsys)
+    bench.line.write_text(shape(AUTHORISATION.format(rid=bench.release_id)), encoding="utf-8")
+    code, out, err = run(bench.receipt_argv(), capsys)
+    assert code == 0, (name, err)
+    assert bench.receipt.is_file()
+
+
+def test_the_template_in_the_packet_tool_is_the_one_this_test_file_pins():
+    assert packet.AUTHORISATION_TEMPLATE.format(release_id="rel-0000000-01") == AUTHORISATION.format(rid="rel-0000000-01")
+
+
+# W4-R5: bindings that are not bound for independent review are refused where they are read
+
+@pytest.mark.parametrize("status", ["DRAFT", "", "bound_for_independent_review", None])
+@pytest.mark.parametrize("command", ["lock", "review", "receipt"])
+def test_a_bindings_file_with_another_status_is_refused_by_lock_review_and_receipt(bench, capsys, command, status):
+    if command == "lock":
+        bound_bench(bench, capsys)
+    elif command == "review":
+        locked_bench(bench, capsys)
+    else:
+        reviewed_bench(bench, capsys)
+    value = bench.bindings_value()
+    if status is None:
+        del value["status"]
+    else:
+        value["status"] = status
+    bench.bindings.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    argv = {"lock": bench.lock_argv, "review": bench.review_argv, "receipt": bench.receipt_argv}[command]()
+    outputs = {"lock": bench.lock_file(), "review": bench.review, "receipt": bench.receipt}
+    existed = outputs[command].exists()
+    code, out, err = run(argv, capsys)
+    assert code == 1 and "not bound for independent review" in err
+    assert outputs[command].exists() == existed
+
+
+# W4-R5: the lock hashes the packet tool and its tests
+
+def test_the_lock_lists_the_packet_tool_and_the_files_that_test_it():
+    assert "core/setup/release/packet.py" in locklib.REPO_FILES
+    for rel in ("core/setup/tests/packet_world.py", "core/setup/tests/test_release_packet.py", "core/setup/tests/test_release_packet_paste.py"):
+        assert rel in locklib.TEST_FILES, rel
+    for rel in ("core/setup/release/packet.py", "core/setup/tests/packet_world.py", "core/setup/tests/test_release_packet.py",
+                "core/setup/tests/test_release_packet_paste.py"):
+        assert (ROOT / rel).is_file(), rel
+
+
+def test_a_built_lock_holds_the_hash_of_each_of_those_files_and_a_change_to_the_tool_is_a_lock_problem(tmp_path):
+    bound = {}
+    for name in locklib.BOUND_NAMES:
+        bound[name] = tmp_path / f"{name}.json"
+        bound[name].write_text("{}\n", encoding="utf-8")
+    lock = locklib.build_lock(ROOT, "rel-0000000-01", bound)
+    assert lock["repo_files"]["core/setup/release/packet.py"] == locklib.sha_file(ROOT / "core/setup/release/packet.py")
+    for rel in ("core/setup/tests/packet_world.py", "core/setup/tests/test_release_packet.py", "core/setup/tests/test_release_packet_paste.py"):
+        assert lock["tests"][rel] == locklib.sha_file(ROOT / rel), rel
+    changed = json.loads(json.dumps(lock))
+    changed["repo_files"]["core/setup/release/packet.py"] = "0" * 64
+    assert any("packet.py differs from the lock" in problem for problem in locklib.lock_problems(ROOT, changed))
+    missing = json.loads(json.dumps(lock))
+    del missing["repo_files"]["core/setup/release/packet.py"]
+    assert any("packet.py is not in the lock" in problem for problem in locklib.lock_problems(ROOT, missing))
+
+
+# W4-R5: the reader's gcloud child keeps no file log
+
+def test_the_readers_gcloud_child_runs_with_file_logging_off_and_the_callers_own_environment_is_untouched(monkeypatch):
+    seen = {}
+
+    def fake_run(command, **kwargs):
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(command, 0, stdout="{}", stderr="")
+
+    monkeypatch.delenv("CLOUDSDK_CORE_DISABLE_FILE_LOGGING", raising=False)
+    monkeypatch.setenv("F42_PROBE_MARKER", "kept")
+    monkeypatch.setattr(helper.subprocess, "run", fake_run)
+    assert helper.GcloudReader({"gcloud": 5, "http": 5})._gcloud(["config", "list"]) == {}
+    assert seen["env"]["CLOUDSDK_CORE_DISABLE_FILE_LOGGING"] == "1" and seen["env"]["F42_PROBE_MARKER"] == "kept"
+    assert "CLOUDSDK_CORE_DISABLE_FILE_LOGGING" not in __import__("os").environ

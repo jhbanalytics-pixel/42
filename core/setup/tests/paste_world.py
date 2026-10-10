@@ -142,8 +142,13 @@ function Read-Typed {
 }
 
 function Start-Sleep { param($Seconds) Log-Call @{ kind = 'sleep'; seconds = $Seconds } }
+function Get-NativePath([string]$Name) {
+    Log-Call @{ kind = 'native'; name = $Name }
+    if ($Script:Cfg.native_missing -eq $Name) { throw "NOT EXECUTABLE: the program '$Name' was not found as a program in its expected install folder." }
+    return $Name
+}
 
-$Script:TestDoubles = @('Read-Native', 'Run-Logged', 'Get-UtcNow', 'Start-Sleep')
+$Script:TestDoubles = @('Read-Native', 'Run-Logged', 'Get-UtcNow', 'Start-Sleep', 'Get-NativePath')
 if (-not $cfg.real_console) { $Script:TestDoubles += @('Read-Typed', 'Test-Interactive') }
 foreach ($alias in @($cfg.aliases)) { Set-Alias -Scope Global -Name $alias.name -Value $alias.value }
 if ($cfg.attack) { . ([scriptblock]::Create($cfg.attack)) }
@@ -259,7 +264,7 @@ class PasteWorld:
             "typed": typed, "no_interactive": not interactive, "inherited": inherited, "freeze_hash": FREEZE_HASH, "api_tag_url": API_TAG_URL,
             "no_readback": list(no_readback), "no_manifest_on_freeze": no_manifest_on_freeze, "manifest_hash_on_freeze": None, "reads_after": {},
             "words": {}, "describe_json": json.dumps(DESCRIBE), "declared_matches": "", "inflight_running": 0, "inflight_refused": False,
-            "minutes_per_prompt": 0, "aliases": [], "real_console": False, "attack": "", "inject": "", "inject_at_run": 0,
+            "minutes_per_prompt": 0, "native_missing": "", "aliases": [], "real_console": False, "attack": "", "inject": "", "inject_at_run": 0,
             **(extra or {})}
         self.write(self.tmp / "config.json", config)
         driver = self.tmp / "driver.ps1"
