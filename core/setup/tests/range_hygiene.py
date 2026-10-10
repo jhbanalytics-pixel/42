@@ -34,7 +34,8 @@ LANE_PATHS = (
     "core/setup/tests/range_hygiene.py",
     # the assembled release: the wiring, the packet command line and the lock tests with their support
     "core/setup/tests/test_jobs_wiring.py", "core/setup/tests/test_jobs_packet.py", "core/setup/tests/jobs_packet_world.py",
-    "core/setup/tests/test_jobs_lock.py", "core/setup/tests/lock_closure.py",
+    "core/setup/tests/test_jobs_lock.py", "core/setup/tests/lock_closure.py", "core/setup/tests/test_jobs_final.py", "core/setup/tests/jobs_e2e_world.py",
+    "core/setup/tests/e2e_shim.py",
 )
 # The folders in which an agent instruction file, a tool directory or scratch output must never be added.
 LANE_FOLDERS = ("core/setup/release", "core/setup/tests")

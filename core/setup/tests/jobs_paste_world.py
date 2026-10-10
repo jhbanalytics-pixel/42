@@ -33,7 +33,10 @@ $Script:RunCount = 0
 function Log-Call($entry) { ($entry | ConvertTo-Json -Compress -Depth 6) | Add-Content -LiteralPath $Script:Cfg.calls -Encoding utf8 }
 $splat = @{ Action = $cfg.action; Lock = $cfg.lock; Review = $cfg.review; Bindings = $cfg.bindings; Receipt = $cfg.receipt; Repo = $cfg.repo; DefinitionsOnly = $true }
 . $cfg.paste @splat
-function Get-UtcNow { return [DateTimeOffset]::UtcNow.AddMinutes($Script:ClockMinutes) }
+function Get-UtcNow {
+    if ($Script:Cfg.fixed_now) { return [DateTimeOffset]::Parse([string]$Script:Cfg.fixed_now).AddMinutes($Script:ClockMinutes) }
+    return [DateTimeOffset]::UtcNow.AddMinutes($Script:ClockMinutes)
+}
 
 function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
     $key = ((@($Exe) + $Arguments) -join ' ')
@@ -57,6 +60,15 @@ function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [strin
     if ($Argv[0] -match '(^|[\\/])tar(\.exe)?$') {
         $target = $Argv[[array]::IndexOf($Argv, '-C') + 1]
         if (-not (Test-Path -LiteralPath $target -PathType Container)) { $code = 2 }
+    }
+    if ($Script:Cfg.executor) {
+        # the end to end test: the command is played by a real python program over a fake world, and its real exit code comes back
+        $output = & py -3.13 -B $Script:Cfg.executor $Script:Cfg.state @Argv 2>&1
+        $code = $LASTEXITCODE
+        [IO.File]::WriteAllLines((Join-Path $Script:RunDir ($Name + '.log')), [string[]]@($output | ForEach-Object { [string]$_ }))
+        [string]$code | Set-Content -LiteralPath (Join-Path $Script:RunDir ($Name + '.exit.txt')) -Encoding utf8
+        if ($code -ne 0 -and $code -notin $Accept) { throw "$Name exited $code. Stop; the release may be partial. The declared branch is printed above." }
+        return $code
     }
     $scripted = $Script:Cfg.exits.PSObject.Properties[$Name]
     if ($null -ne $scripted) { $code = [int]$scripted.Value }
@@ -145,6 +157,7 @@ class JobsPasteWorld:
     def __init__(self, tmp_path, action="JobsUpdate", *, mutate_paste=None, receipt=None, bindings=None, declared_steps=None):
         self.tmp = Path(tmp_path)
         self.action, self.rid = action, RID
+        self.commit, self.tree = COMMIT, TREE
         self.repo = self.tmp / "repo"
         for rel in locklib.REPO_FILES:
             if (ROOT / rel).is_file():
@@ -196,11 +209,11 @@ class JobsPasteWorld:
         calls.write_text("", encoding="utf-8")
         config = {
             "paste": str(paste or self.paste), "dirty_after_runs": dirty_after_runs, "action": action or self.action, "lock": str(self.lock), "review": str(self.review), "bindings": str(self.bindings),
-            "receipt": str(self.receipt), "repo": str(self.repo), "calls": str(calls), "commit": COMMIT, "tree": TREE, "status": status,
+            "receipt": str(self.receipt), "repo": str(self.repo), "calls": str(calls), "commit": self.commit, "tree": self.tree, "status": status,
             "config_json": json.dumps({"core": {"account": CALLER, "project": "ogilvy-trends-v2"}}), "exits": exits or {},
             "no_interactive": not interactive, "words": words or {}, "snapshot_age_minutes": snapshot_age,
             "no_readback": list(no_readback), "minutes_per_prompt": minutes_per_prompt, "aliases": list(aliases), "real_console": False, "attack": "",
-            "inject": "", "inject_at_run": 0, "blockers_result": "", "blockers_blocked": False, **(extra or {})}
+            "inject": "", "inject_at_run": 0, "blockers_result": "", "blockers_blocked": False, "executor": "", "state": "", "fixed_now": "", **(extra or {})}
         self.write(self.tmp / "config.json", config)
         driver = self.tmp / "driver.ps1"
         driver.write_text(DRIVER, encoding="utf-8", newline="\n")

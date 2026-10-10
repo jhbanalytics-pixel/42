@@ -60,14 +60,14 @@ def authorisation_line(release_id):
 
 
 class JobsBench:
-    def __init__(self, tmp, monkeypatch, *, repo=None):
+    def __init__(self, tmp, monkeypatch, *, repo=None, fixture_class=None):
         from core.setup.release import bound_readback as helper
 
         self.tmp = Path(tmp)
         self.monkeypatch = monkeypatch
         self.repo = make_jobs_repo(repo or self.tmp / "repo")
         self.packet = self.tmp / "packet"
-        self.fixture = jw.ChainFixture(self.tmp / "world")
+        self.fixture = (fixture_class or jw.ChainFixture)(self.tmp / "world")
         self.world = self.fixture.world
         self.argv, self.log = pw.fake_gcloud(self.tmp / "fake", self.world)
         monkeypatch.setattr(helper, "gcloud_command", lambda: self.argv)

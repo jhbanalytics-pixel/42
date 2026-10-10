@@ -81,7 +81,7 @@ def test_lock_every_test_support_module_those_sources_import_is_in_test_files():
 
 def test_lock_every_test_file_and_world_named_for_the_jobs_release_is_in_test_files():
     folder = ROOT / "core/setup/tests"
-    named = sorted(p.relative_to(ROOT).as_posix() for pattern in ("test_jobs_*.py", "jobs_*.py", "test_chain_evidence.py") for p in folder.glob(pattern))
+    named = sorted(p.relative_to(ROOT).as_posix() for pattern in ("test_jobs_*.py", "jobs_*.py", "e2e_*.py", "test_chain_evidence.py") for p in folder.glob(pattern))
     assert len(named) >= 14
     missing = [p for p in named if p not in locklib.TEST_FILES]
     assert missing == [], missing

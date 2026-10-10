@@ -568,7 +568,7 @@ def test_the_jobs_authorisation_line_names_the_release_id_and_that_only_the_jobs
     for word in ("passcode", "T1", "Ask,", "USD", "credits"):
         assert word not in line, word
     assert "I will type DEPLOY and IDLE myself" in line
-    assert not re.search("[–—]|--", line)
+    assert not any(ch in line for ch in (chr(0x2013), chr(0x2014))) and chr(45) * 2 not in line
 
 
 @pytest.mark.parametrize("change", [
