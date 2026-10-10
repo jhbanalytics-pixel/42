@@ -262,6 +262,8 @@ def validate_effect(effect, label):
         problems.append(f"{label}: native_readback kind {str(readback['kind'])[:40]!r} is unknown")
     elif readback["kind"] == "helper_phase" and readback["target"] not in HELPER_PHASES:
         problems.append(f"{label}: native_readback names a phase the helper does not have")
+    if effect["kind"] == "schema" and isinstance(readback, dict) and readback.get("kind") != "information_schema_columns":
+        problems.append(f"{label}: a schema effect must carry an information_schema_columns readback, not a helper phase or a deferred read")
     compat = effect["compat"]
     if not isinstance(compat, dict) or any(key not in compat for key in COMPAT_KEYS):
         problems.append(f"{label}: compat lacks one of {', '.join(COMPAT_KEYS)}")

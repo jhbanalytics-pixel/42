@@ -558,3 +558,23 @@ def test_the_readbacks_check_refuses_an_invalid_manifest_before_any_bigquery_cal
 
 def test_the_rollback_blockers_output_carries_a_schema_version_when_blockers_exist():
     assert de.run_rollback_blockers(blocked_manifest(), FakeBQ())["schema_version"] == 1
+
+
+# RJ-3: a schema effect is read back from information_schema, never by a phase of the helper or a deferred read
+
+DEFERRED_READBACKS = [
+    {"kind": "helper_phase", "target": "BeforeCandidate", "expected_result_sha256": "ab" * 32},
+    {"kind": "row_count_since_marker", "target": "intelligence_42_agent.notes#created_at#2026-10-09", "expected_result_sha256": "ab" * 32},
+]
+
+
+@pytest.mark.parametrize("readback", DEFERRED_READBACKS, ids=lambda r: r["kind"])
+def test_rj3_a_schema_effect_with_a_helper_phase_or_deferred_readback_is_refused_by_the_effect_and_the_manifest(readback):
+    assert has(de.validate_effect(effect(native_readback=readback), "effect E01"), "a schema effect must carry an information_schema_columns readback")
+    assert has(problems(manifest(effect(native_readback=readback))), "a schema effect must carry an information_schema_columns readback")
+
+
+def test_rj3_a_schema_effect_with_the_information_schema_readback_and_an_effect_of_another_kind_with_a_helper_phase_are_still_accepted():
+    tag = effect("E02", kind="cloud_run_tag", target="f42-api", change="tag_add", apply_order=2, apply_kind="tag_add",
+                 native_readback={"kind": "helper_phase", "target": "AfterSmoke", "expected_result_sha256": "ab" * 32})
+    assert problems(manifest(effect(), tag)) == []
