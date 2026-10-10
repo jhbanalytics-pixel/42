@@ -16,6 +16,11 @@ def _too_few(m):
     return f"Too few of its posts were in this market ({m[1]} of {m[2]} with a known location)"
 
 
+def _too_few_posts(m):
+    """The v1 Global line counts every card source post, not only the located ones, so it says posts (W3-5b)."""
+    return f"Too few of its posts were in this market ({m[1]} of {m[2]} posts)"
+
+
 GATE_WORDS = (
     (re.compile(r"Data issue: \d+ of the last 3 market-days invalid on the main platform"),
      lambda m: "Not enough clean data on the main platform"),
@@ -25,7 +30,7 @@ GATE_WORDS = (
      lambda m: "We could not confirm which market this comes from"),
     (re.compile(r"Global: (\d+) of (\d+) card source posts in the last 7 days were located in this market or came "
                 r"from its feeds"),
-     _too_few),
+     _too_few_posts),
     (re.compile(r"Not local: (\d+) of (\d+) located posts in the last 7 days were in this market"),
      _too_few),
     (re.compile(r"Evidence could not be read"), lambda m: "We could not read the evidence for this trend"),

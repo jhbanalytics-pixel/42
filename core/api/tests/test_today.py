@@ -1819,7 +1819,7 @@ def _held_with_reason(rule, text):
      "Political: waiting for independent confirmation"),
     ("G3", "Found by search: seen only in search", "Only found through our own searches so far"),
     ("G6", "Global: 14 of 52 card source posts in the last 7 days were located in this market or came from its feeds",
-     "Too few of its posts were in this market (14 of 52 with a known location)"),
+     "Too few of its posts were in this market (14 of 52 posts)"),
     ("G6", "Market unconfirmed: source market evidence is missing or invalid",
      "We could not confirm which market this comes from"),
     ("G6", "Market unconfirmed: source market evidence is inconsistent",

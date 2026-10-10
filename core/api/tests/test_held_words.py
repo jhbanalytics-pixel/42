@@ -75,19 +75,28 @@ def test_briefs_stored_with_the_earlier_wording_still_read_plainly(raw, words):
 NOT_LOCAL_RAW = "Not local: {} of {} located posts in the last 7 days were in this market"
 GLOBAL_RAW = "Global: {} of {} card source posts in the last 7 days were located in this market or came from its feeds"
 TOO_FEW_WORDS = "Too few of its posts were in this market ({} of {} with a known location)"
+# W3-5b: the v1 Global line counts all card source posts, not only located ones, so it says posts and not a known location.
+TOO_FEW_POSTS_WORDS = "Too few of its posts were in this market ({} of {} posts)"
 
 
-@pytest.mark.parametrize("raw_form", [NOT_LOCAL_RAW, GLOBAL_RAW], ids=["not_local", "global_v1"])
+@pytest.mark.parametrize("raw_form, words", [(NOT_LOCAL_RAW, TOO_FEW_WORDS), (GLOBAL_RAW, TOO_FEW_POSTS_WORDS)],
+                         ids=["not_local", "global_v1"])
 @pytest.mark.parametrize("local, known", [(4, 8), (11, 19), (11, 20)])
-def test_the_locality_held_lines_read_too_few_of_its_posts_were_in_this_market(raw_form, local, known):
+def test_the_locality_held_lines_read_too_few_of_its_posts_were_in_this_market(raw_form, words, local, known):
     raw = raw_form.format(local, known)
     out = plain_reason({"reason_text": raw})
-    assert out == {"reason_text": TOO_FEW_WORDS.format(local, known), "reason_raw": raw}
+    assert out == {"reason_text": words.format(local, known), "reason_raw": raw}
 
 
 def test_the_locality_held_line_is_word_for_word_with_the_local_count_first():
     out = plain_reason({"reason_text": NOT_LOCAL_RAW.format(11, 19)})
     assert out["reason_text"] == "Too few of its posts were in this market (11 of 19 with a known location)"
+
+
+def test_the_v1_global_held_line_is_word_for_word_and_counts_posts_not_located_posts():
+    out = plain_reason({"reason_text": GLOBAL_RAW.format(11, 19)})
+    assert out["reason_text"] == "Too few of its posts were in this market (11 of 19 posts)"
+    assert "known location" not in out["reason_text"]
 
 
 def test_the_unreadable_evidence_hold_reads_as_signed_off():
