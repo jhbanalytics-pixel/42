@@ -7,10 +7,31 @@ CREATE OR REPLACE VIEW {core}.v_good_runs AS
 SELECT r.stage, r.run_date, ARRAY_AGG(r.run_id ORDER BY r.finished_at DESC LIMIT 1)[OFFSET(0)] run_id
 FROM {agent}.runs r WHERE r.status = 'ok' GROUP BY r.stage, r.run_date;
 
+-- W8-DEC-11: a paid route that landed nothing two days running is recorded invalid for the second and later days
+-- with reason zero_yield (core/collect/writers.py). The first of those days was written valid, because the next
+-- day did not exist yet, so it reads zero_yield here once the next day's good-run row names it. A row already
+-- invalid keeps its own reason. The day before is found by (market, series, route, lane_class), the key the
+-- writer uses, because a rotating curated protocol and a versioned token change protocol from one day to the next
+-- while the series stays, and the panels that share prism/profiles in lane panel (culture desk, curated, Instagram
+-- gossip) are different series. Only a row that was itself a zero day is flipped (every call answered, nothing
+-- landed), so a live row of the same route, such as the culture desk beside a dead curated panel, stays valid.
+-- Columns are unchanged.
 CREATE OR REPLACE VIEW {core}.v_collection_health_current AS
-SELECT s.* FROM {core}.collection_health s
+SELECT s.* REPLACE (
+  IF(z.market IS NOT NULL AND s.valid, FALSE, s.valid) AS valid,
+  IF(z.market IS NOT NULL AND s.valid, 'zero_yield', s.invalid_reason) AS invalid_reason)
+FROM {core}.collection_health s
 JOIN {core}.v_good_runs g
-  ON g.stage = 'collect' AND g.run_date = s.day AND g.run_id = s.run_id;
+  ON g.stage = 'collect' AND g.run_date = s.day AND g.run_id = s.run_id
+LEFT JOIN (
+  SELECT DISTINCT DATE_SUB(n.day, INTERVAL 1 DAY) AS day, n.market, n.series, n.route, n.lane_class
+  FROM {core}.collection_health n
+  JOIN {core}.v_good_runs gn
+    ON gn.stage = 'collect' AND gn.run_date = n.day AND gn.run_id = n.run_id
+  WHERE n.invalid_reason = 'zero_yield') z
+  ON z.day = s.day AND z.market = s.market AND z.series = s.series AND z.route = s.route
+  AND z.lane_class = s.lane_class
+  AND s.calls > 0 AND s.calls_ok = s.calls AND s.items = 0;
 
 CREATE OR REPLACE VIEW {core}.v_item_daily_current AS
 SELECT s.* FROM {core}.item_daily s
