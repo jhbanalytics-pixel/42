@@ -258,6 +258,10 @@ def validate_effect(effect, label):
         problems.append(f"{label}: native_readback kind {str(readback['kind'])[:40]!r} is unknown")
     elif readback["kind"] == "helper_phase" and readback["target"] not in HELPER_PHASES:
         problems.append(f"{label}: native_readback names a phase the helper does not have")
+    elif readback["kind"] == "chain_manifest" and (effect["kind"], effect["apply_kind"]) != ("view", "code"):
+        problems.append(f"{label}: a chain_manifest readback is for a view applied as code, not for kind {str(effect['kind'])[:40]!r}")
+    if effect["kind"] == "schema" and isinstance(readback, dict) and readback.get("kind") != "information_schema_columns":
+        problems.append(f"{label}: a schema effect must carry an information_schema_columns readback")
     compat = effect["compat"]
     if not isinstance(compat, dict) or any(key not in compat for key in COMPAT_KEYS):
         problems.append(f"{label}: compat lacks one of {', '.join(COMPAT_KEYS)}")

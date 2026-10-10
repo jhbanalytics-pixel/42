@@ -455,3 +455,59 @@ def test_rbc9_detect_creates_views_sql_before_locality_views_and_the_chain_runs_
     second = min(line for line, name in calls if name.endswith("apply_locality_views_step"))
     assert first < second
     assert chain.STAGES.index("detect") < chain.STAGES.index("brief")
+
+
+# RJ-3: a deferred or phase readback is for the effect kinds that can only be read that way, never for a schema effect
+
+def test_rj3_a_schema_effect_must_carry_information_schema_columns_so_no_other_readback_is_accepted(manifest):
+    for kind, target in (("chain_manifest", "first_b_chain"), ("helper_phase", "AfterJobsUpdate"),
+                         ("row_count_since_marker", "intelligence_42_agent.runs#finished_at#2026-01-01")):
+        for victim in schema_effects(manifest):
+            other = copy.deepcopy(manifest)
+            effect(other, victim["effect_id"])["native_readback"] = {"kind": kind, "target": target, "expected_result_sha256": ""}
+            problems = de.validate_manifest(seal(other))
+            assert any(victim["effect_id"] in p and "information_schema_columns" in p for p in problems), (kind, victim["effect_id"], problems)
+
+
+def test_rj3_re_declaring_all_fourteen_schema_effects_as_chain_manifest_is_refused_and_run_readbacks_reads_nothing(manifest):
+    for victim in schema_effects(manifest):
+        victim["native_readback"] = {"kind": "chain_manifest", "target": "x", "expected_result_sha256": ""}
+    seal(manifest)
+    problems = de.validate_manifest(manifest)
+    assert len([p for p in problems if "information_schema_columns" in p]) == 14
+
+    class Recorder:
+        calls = []
+
+        def dry_run(self, sql, params=None):
+            self.calls.append(sql)
+            return 1
+
+        def query(self, sql, params=None, max_bytes=None):
+            self.calls.append(sql)
+            return []
+
+    bq = Recorder()
+    with pytest.raises(de.Refusal):
+        de.run_readbacks(manifest, bq)
+    assert bq.calls == []
+
+
+def test_rj3_chain_manifest_is_accepted_only_on_a_view_applied_as_code(manifest):
+    assert effect(manifest, "E-JOB-VIEWS")["kind"] == "view" and effect(manifest, "E-JOB-VIEWS")["apply_kind"] == "code"
+    assert effect(manifest, "E-JOB-VIEWS")["native_readback"]["kind"] == "chain_manifest"
+    assert de.validate_manifest(manifest) == []
+    other = copy.deepcopy(manifest)
+    effect(other, "E-JOB-VIEWS")["apply_kind"] = "env_set"
+    assert any("E-JOB-VIEWS" in p and "chain_manifest" in p for p in de.validate_manifest(seal(other)))
+    third = copy.deepcopy(manifest)
+    effect(third, "E-JOBS-IMAGE")["native_readback"] = {"kind": "chain_manifest", "target": "first_b_chain", "expected_result_sha256": ""}
+    assert any("E-JOBS-IMAGE" in p and "chain_manifest" in p for p in de.validate_manifest(seal(third)))
+    effect(third, "E-JOBS-IMAGE")["apply_kind"] = "code"
+    assert any("E-JOBS-IMAGE" in p and "chain_manifest" in p for p in de.validate_manifest(seal(third)))
+
+
+def test_rj3_the_image_effect_keeps_its_helper_phase_and_the_views_effect_its_chain_manifest(manifest):
+    assert effect(manifest, "E-JOBS-IMAGE")["native_readback"]["kind"] == "helper_phase"
+    assert effect(manifest, "E-JOB-VIEWS")["native_readback"]["kind"] == "chain_manifest"
+    assert de.validate_manifest(manifest) == []
