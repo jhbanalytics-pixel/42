@@ -208,6 +208,20 @@
   color: var(--muted);
 }
 .gate-v4-status.is-error { color: var(--down-text, var(--accent-text)); font-weight: 700; }
+.gate-v4-retry {
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 0 18px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 600 var(--type-3)/1 var(--oi-sans);
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+.gate-v4-retry:hover:not(:disabled) { border-color: var(--accent); }
+.gate-v4-retry:disabled { color: var(--muted); }
+.gate-v4-retry:focus-visible { outline: 2px solid var(--accent-text); outline-offset: var(--focus-offset); }
 
 @media (max-width: 760px) {
   .gate-v4 { position: fixed; display: block; }
@@ -229,5 +243,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gate-v4-progress,
+  .gate-v4-retry,
   .gate-v4-submit { transition: none; }
 }

@@ -248,7 +248,9 @@ for (const [route, ownRead] of [['pulse', '/api/today'], ['explore', '/api/disco
     expect(ownReads[0].init.headers?.['X-Passcode']).toBe(passcode);
     expect(text()).not.toContain('40d ago');
     expect(deskCalls()).toHaveLength(0);
-    expect(calls.some((call) => String(call.init.method || 'GET').toUpperCase() === 'POST')).toBe(false);
+    /* C5 v2 section 13.2, item 2: a stored key is checked once with a POST to
+       the verify route before anything is read. That is the only POST. */
+    expect(calls.filter((call) => String(call.init.method || 'GET').toUpperCase() === 'POST').map((call) => call.url)).toEqual(['/api/auth/verify']);
   });
 }
 

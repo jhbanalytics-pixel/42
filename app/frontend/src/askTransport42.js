@@ -2,14 +2,10 @@
    passcode header. The event stream is read with fetch rather than
    EventSource, because EventSource cannot send that header; when the stream
    drops, the record is polled every two seconds until it stops running. */
-import {PASS_KEY, storedValue} from './api.js';
+import {credential} from './api.js';
 import {releaseExportUrlLater} from './exportUrl.js';
 
 const POLL_MS = 2000;
-
-function headers(extra){
-  return {...(extra || {}), 'X-Passcode': storedValue(PASS_KEY)};
-}
 
 async function failure(res){
   let body = null;
@@ -20,12 +16,12 @@ async function failure(res){
   const error = new Error(message);
   error.status = res.status;
   if (body && typeof body.error === 'string') error.code = body.error;
-  if (res.status === 401) error.auth = true;
+  if (res.status === 401 && credential.refused(res)) error.auth = true;
   return error;
 }
 
 async function request(path, init){
-  const res = await fetch(path, {...init, headers: headers(init && init.headers)});
+  const res = await credential.fetch(path, init);
   if (!res.ok) throw await failure(res);
   return res;
 }
@@ -122,7 +118,7 @@ export async function streamAsk(askId, onEvent, options = {}){
   try {
     const extra = {Accept: 'text/event-stream'};
     if (lastEventId != null) extra['Last-Event-ID'] = lastEventId;
-    const res = await fetch('/api/ask/' + encodeURIComponent(askId) + '/events', {headers: headers(extra), signal});
+    const res = await credential.fetch('/api/ask/' + encodeURIComponent(askId) + '/events', {headers: extra, signal});
     if (res.status === 401) throw await failure(res);
     if (res.ok && res.body){
       const reader = res.body.getReader();

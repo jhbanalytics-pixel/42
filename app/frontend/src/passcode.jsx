@@ -1,7 +1,16 @@
 import {useState, useEffect, useRef} from 'react';
 import './styles/gate.css';
 
-export function PasscodeScreen({onSubmit, failed}){
+const WRONG_KEY = 'Access not recognised. Check the key and try again.';
+
+/* failure is {n, kind, message, clear}: n counts every failed attempt, so the
+   alert is announced again each time and a repeat reads differently to a
+   screen reader; clear says the typed value was refused and is wiped, which a
+   rate limit or an unreachable service is not. notice is words that are not a
+   failure of this attempt, such as a saved key the server turned down.
+   onRetry draws Try again for a check that could not be completed. failed is
+   the older flag for one wrong key. */
+export function PasscodeScreen({onSubmit, failed, failure = null, notice = '', onRetry = null, retrying = false}){
   const [v, setV] = useState('');
   const inputRef = useRef(null);
   const [accessFirst, setAccessFirst] = useState(false);
@@ -20,6 +29,12 @@ export function PasscodeScreen({onSubmit, failed}){
     if (!failed) return;
     setV('');
   }, [failed]);
+  const attempt = failure ? failure.n : 0;
+  const wipe = Boolean(failure && failure.clear);
+  useEffect(() => {
+    if (attempt && wipe) setV('');
+  }, [attempt, wipe]);
+  const alertWords = failure ? failure.message : failed ? WRONG_KEY : '';
   const progress = Math.min(v.length / 12, 1);
   const principles = (
     <section key="principles" className="gate-v4-field" aria-label="42 intelligence principles">
@@ -72,13 +87,16 @@ export function PasscodeScreen({onSubmit, failed}){
       </form>
 
       <p
+        key={attempt}
         id="gate-status"
-        className={'gate-v4-status' + (failed ? ' is-error' : '')}
-        role={failed ? 'alert' : 'status'}
-        aria-live={failed ? 'assertive' : 'polite'}
+        className={'gate-v4-status' + (alertWords ? ' is-error' : '')}
+        role={alertWords ? 'alert' : 'status'}
+        aria-live={alertWords ? 'assertive' : 'polite'}
       >
-        {failed ? 'Access not recognised. Check the key and try again.' : 'Protected Ogilvy team access.'}
+        {alertWords || notice || 'Protected Ogilvy team access.'}
+        {alertWords && attempt > 1 && <span className="sr-only"> Attempt {attempt}.</span>}
       </p>
+      {onRetry && <button type="button" className="gate-v4-retry" disabled={retrying} onClick={onRetry}>Try again</button>}
     </aside>
   );
   return (

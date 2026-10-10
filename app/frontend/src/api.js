@@ -3,6 +3,9 @@ import {useState, useEffect} from 'react';
 import {apiFailureDetails, normalizeApiDetail} from './redesignContract.js';
 
 export const PASS_KEY = 'pulse_passcode';
+/* Written before the key is removed when the server turned the key down, so
+   another tab can tell that apart from Log out (C5 v2 section 13.2, item 9). */
+export const REASON_KEY = 'pulse_auth_reason';
 
 export function storedValue(key, fallback = ''){
   try {
@@ -12,6 +15,156 @@ export function storedValue(key, fallback = ''){
     return fallback;
   }
 }
+
+/* The credential gate (C5 v2 section 13.2). It is the only code that supplies
+   the passcode to a request, and the one place that decides whether a 401 is
+   the server turning the key down.
+
+   A 401 is a verdict on the key only when the body is JSON that names the
+   gate: f42-api calls f42-agent with an ID token and relays the upstream
+   status, so a Cloud Run refusal on that hop is also a 401 and must not wipe a
+   valid key. f42-api words it as error unauthorized. The older routes word the
+   same refusal as detail.code, or in plain words about the passcode, and keep
+   handing over to the gate as they did. A plain-text or HTML body, or another
+   error code, names nothing.
+
+   Past a verdict the gate holds no key. Every site then throws a local auth
+   error without calling fetch, until a key is stored again. */
+const gate = {mode: null, held: '', rejected: false, listeners: new Set(), verifying: null};
+const verdicts = new WeakMap();
+
+function localAuthError(){
+  const error = new Error('Passcode required');
+  error.auth = true;
+  error.status = 401;
+  return error;
+}
+
+const PASSCODE_WORDS = /passcode/i;
+function namesTheGate(payload){
+  if (!payload || typeof payload !== 'object') return false;
+  if (payload.error === 'unauthorized') return true;
+  if (payload.detail && typeof payload.detail === 'object' && payload.detail.code === 'unauthorized') return true;
+  return [payload.detail, payload.message].some((words) => typeof words === 'string' && PASSCODE_WORDS.test(words));
+}
+
+async function readPayload(res){
+  try {
+    return await (typeof res.clone === 'function' ? res.clone() : res).json();
+  } catch (_error){
+    return null;
+  }
+}
+
+function writeStorage(action){
+  try { action(); return true; } catch (_error){ return false; }
+}
+
+const RATE_WORDS = 'Too many attempts from this network. Wait a minute, then try again.';
+
+export const credential = {
+  /* The shell calls this once it knows the mode. Only a passcode desk clears
+     a key; the other modes keep the key and only classify the 401. */
+  begin(mode){
+    gate.mode = mode;
+    gate.held = '';
+    gate.rejected = false;
+  },
+  /* The shell is gone: nothing the gate learned outlives it. */
+  end(){
+    credential.begin(null);
+  },
+  key(){
+    return gate.held || storedValue(PASS_KEY);
+  },
+  header(){
+    if (gate.rejected) throw localAuthError();
+    return {'X-Passcode': credential.key()};
+  },
+  /* Keeps a verified key. A browser that will not save it keeps it in memory
+     for the life of the page, and the caller is told so. */
+  store(code){
+    gate.rejected = false;
+    writeStorage(() => localStorage.removeItem(REASON_KEY));
+    if (writeStorage(() => localStorage.setItem(PASS_KEY, code))){
+      gate.held = '';
+      return true;
+    }
+    gate.held = code;
+    return false;
+  },
+  /* A closed desk holds no key, whoever closed it. */
+  drop(){
+    gate.held = '';
+    gate.rejected = true;
+  },
+  /* The server turned the key down. The reason is written first, then the key
+     removed, so a second tab reading the removal finds the reason. */
+  reject(){
+    if (gate.rejected) return;
+    writeStorage(() => localStorage.setItem(REASON_KEY, 'stale'));
+    writeStorage(() => localStorage.removeItem(PASS_KEY));
+    gate.held = '';
+    gate.rejected = true;
+    for (const listener of [...gate.listeners]) listener();
+  },
+  subscribe(listener){
+    gate.listeners.add(listener);
+    return () => gate.listeners.delete(listener);
+  },
+  /* True when this response was the server turning the key down. */
+  refused(res){
+    return verdicts.get(res) === true;
+  },
+  /* The one door for a gated request. The header is the gate's, a 401 is
+     classified before the site sees it, and a verdict on the key in use
+     removes it, so a page that swallows its own errors cannot keep a stale
+     key alive. */
+  async fetch(url, init = {}){
+    const headers = {...(init.headers || {}), ...credential.header()};
+    const sent = headers['X-Passcode'];
+    const res = await fetch(url, {...init, headers});
+    if (res.status === 401){
+      const genuine = namesTheGate(await readPayload(res));
+      /* A late answer for a key that has since been replaced says nothing
+         about the key now in use. */
+      const current = credential.key() === sent;
+      verdicts.set(res, genuine && current);
+      if (genuine && current && gate.mode === 'passcode') credential.reject();
+    }
+    return res;
+  },
+  /* One check of a key against the gate. Never throws: the outcome says what
+     happened and the caller decides what it means. */
+  async verify(code){
+    let res;
+    try {
+      res = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({passcode: code}),
+      });
+    } catch (_error){
+      return {outcome: 'unavailable'};
+    }
+    if (res.status === 401) return {outcome: 'wrong'};
+    if (res.status === 429){
+      const payload = await readPayload(res);
+      const words = payload && payload.error === 'rate_limited' && typeof payload.message === 'string' && payload.message.trim();
+      return {outcome: 'rate', message: words || RATE_WORDS};
+    }
+    if (!res.ok) return {outcome: 'unavailable'};
+    const payload = await readPayload(res);
+    return payload && payload.ok === true ? {outcome: 'ok'} : {outcome: 'unavailable'};
+  },
+  /* The stored key, checked once however many callers ask. */
+  verifyStored(){
+    if (!gate.verifying){
+      gate.verifying = credential.verify(credential.key()).finally(() => { gate.verifying = null; });
+    }
+    return gate.verifying;
+  },
+};
 
 /* bounded LRU: the engine refreshes daily, so a handful of GET paths is the
    real working set. Cap the Map and evict the oldest entry on overflow so a
@@ -48,7 +201,7 @@ async function readApiError(res){
 }
 
 async function authCheck(res){
-  if (res.status === 401){ const e = new Error('Passcode required'); e.auth = true; e.status = 401; throw e; }
+  if (res.status === 401 && credential.refused(res)){ const e = new Error('Passcode required'); e.auth = true; e.status = 401; throw e; }
   if (!res.ok){
     const failure = await readApiError(res);
     const e = new Error(failure.message);
@@ -140,7 +293,7 @@ export function sentenceCase(text){
 
 export function apiGet(path){
   if (cache.has(path)) return cache.get(path);
-  const p = fetch(path, {headers: {'X-Passcode': storedValue(PASS_KEY)}})
+  const p = credential.fetch(path)
     .then(authCheck)
     .catch(err => {
       if (cache.get(path) === p) cache.delete(path);
@@ -154,7 +307,7 @@ export function apiGet(path){
    AbortSignal lets the ask flow stop polling when the panel closes. Extra
    headers are added after the passcode and never replace it. */
 export function apiGetFresh(path, signal, extraHeaders, onResponse){
-  return fetch(path, {headers: {...(extraHeaders || {}), 'X-Passcode': storedValue(PASS_KEY)}, signal})
+  return credential.fetch(path, {headers: extraHeaders, signal})
     .then(res => { if (onResponse) onResponse(res); return res; })
     .then(authCheck);
 }
@@ -163,13 +316,9 @@ export function apiGetFresh(path, signal, extraHeaders, onResponse){
    review commands use them for the review session's CSRF token, which is held
    in memory and never written to a URL or to storage. */
 export function apiPost(path, body, signal, extraHeaders){
-  return fetch(path, {
+  return credential.fetch(path, {
     method: 'POST',
-    headers: {
-      ...(extraHeaders || {}),
-      'Content-Type': 'application/json',
-      'X-Passcode': storedValue(PASS_KEY)
-    },
+    headers: {...(extraHeaders || {}), 'Content-Type': 'application/json'},
     body: JSON.stringify(body),
     signal
   }).then(authCheck);
