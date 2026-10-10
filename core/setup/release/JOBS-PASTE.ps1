@@ -309,9 +309,21 @@ function Invoke-JobsUpdate {
     Invoke-Helper 'AfterJobsUpdate' | Out-Null
 }
 
+# W8-REL-B 3.4: the rollback blockers checker runs first, offline, on the durable manifest the lock holds. Only a result that says blocked
+# false lets the rollback go on: a missing, unreadable or differently typed result is a stop, never a pass.
+function Assert-RollbackNotBlocked {
+    Step -Name 'rollback-blockers' -Argv @('py', '-3.13', 'core/setup/durable_effects_check.py', '--manifest', $Script:Paths.durableManifestPath, '--check', 'rollback-blockers', '--evidence', $Script:RunDir) | Out-Null
+    $path = Join-Path $Script:RunDir 'rollback-blockers.json'
+    if (-not (Test-Path -LiteralPath $path)) { throw 'ROLLBACK BLOCKED: the blockers checker left no result.' }
+    try { $result = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json } catch { throw 'ROLLBACK BLOCKED: the blockers result is not readable JSON.' }
+    $property = $result.PSObject.Properties['blocked']
+    if ($null -eq $property -or $property.Value -isnot [bool] -or $property.Value -ne $false) { throw 'ROLLBACK BLOCKED: the blockers checker did not say blocked false. Tell the lead; nothing was changed.' }
+}
+
 function Invoke-JobsRollback {
     Note-Source
     Assert-Identity
+    Assert-RollbackNotBlocked
     Invoke-Helper 'BeforeJobsRollback' | Out-Null
     Invoke-Runner 'jobs-run-rollback' 'rollback' | Out-Null
     Invoke-Helper 'AfterJobsRollback' | Out-Null

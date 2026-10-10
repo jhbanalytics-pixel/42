@@ -258,3 +258,14 @@ def test_ju02_the_positive_list_refuses_every_flag_beyond_the_build_the_commit_t
     assert plan.jobs_matching_entries(without) == []
     no_commit = BUILD[:4] + BUILD[6:]
     assert plan.jobs_matching_entries(no_commit) == []
+
+
+# W8-REL-B 3.4: the rollback starts with the blockers checker, offline
+
+def test_ju01_the_rollback_renders_the_rollback_blockers_checker_first_on_the_durable_manifest():
+    steps = plan.JOBS_ACTIONS["JobsRollback"](ctx(manifest="C:/release/durable.json"))
+    assert steps[0].name == "checker:rollback-blockers"
+    assert steps[0].argv == ("py", "-3.13", "core/setup/durable_effects_check.py", "--manifest", "C:/release/durable.json", "--check", "rollback-blockers",
+                             "--evidence", "C:/release/run")
+    assert plan.jobs_matching_entries(list(steps[0].argv)) == ["checker"]
+    assert [s.name for s in steps[1:3]] == ["helper:BeforeJobsRollback", "jobs_run:rollback"]

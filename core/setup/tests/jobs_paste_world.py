@@ -73,6 +73,14 @@ function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [strin
             ($body | ConvertTo-Json -Compress -Depth 5) | Set-Content -LiteralPath (Join-Path $folder "$phase-01.json") -Encoding utf8
         }
     }
+    if ($code -eq 0 -and $Name -eq 'rollback-blockers') {
+        $how = [string]$Script:Cfg.blockers_result
+        $path = Join-Path $Script:RunDir 'rollback-blockers.json'
+        if ($how -eq '') { (@{ schema_version = 1; check = 'rollback-blockers'; blocked = [bool]$Script:Cfg.blockers_blocked; blockers = 0 } | ConvertTo-Json -Compress) | Set-Content -LiteralPath $path -Encoding utf8 }
+        elseif ($how -eq 'not_json') { 'not json' | Set-Content -LiteralPath $path -Encoding utf8 }
+        elseif ($how -eq 'blocked_missing') { '{"schema_version": 1, "check": "rollback-blockers"}' | Set-Content -LiteralPath $path -Encoding utf8 }
+        elseif ($how -eq 'blocked_text') { '{"schema_version": 1, "check": "rollback-blockers", "blocked": "false"}' | Set-Content -LiteralPath $path -Encoding utf8 }
+    }
     [IO.File]::WriteAllLines((Join-Path $Script:RunDir ($Name + '.log')), [string[]]$text)
     [string]$code | Set-Content -LiteralPath (Join-Path $Script:RunDir ($Name + '.exit.txt')) -Encoding utf8
     if ($code -ne 0 -and $code -notin $Accept) { throw "$Name exited $code. Stop; the release may be partial. The declared branch is printed above." }
@@ -192,7 +200,7 @@ class JobsPasteWorld:
             "config_json": json.dumps({"core": {"account": CALLER, "project": "ogilvy-trends-v2"}}), "exits": exits or {},
             "no_interactive": not interactive, "words": words or {}, "snapshot_age_minutes": snapshot_age,
             "no_readback": list(no_readback), "minutes_per_prompt": minutes_per_prompt, "aliases": list(aliases), "real_console": False, "attack": "",
-            "inject": "", "inject_at_run": 0, **(extra or {})}
+            "inject": "", "inject_at_run": 0, "blockers_result": "", "blockers_blocked": False, **(extra or {})}
         self.write(self.tmp / "config.json", config)
         driver = self.tmp / "driver.ps1"
         driver.write_text(DRIVER, encoding="utf-8", newline="\n")

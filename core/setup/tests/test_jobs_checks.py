@@ -30,6 +30,15 @@ def candidate_ran(w):
     w.built()
 
 
+def candidate_ran_at(w, at):
+    """A BeforeAnyWrite readback with the time `at`, written as the file JobsCandidate would have left. BeforeAnyWrite itself now refuses a
+    start outside the window, so a test of BeforeJobsUpdate that needs an early candidate writes the file."""
+    jw.write_json(w.release_dir / "readbacks" / "BeforeAnyWrite-01.json", {
+        "schema_version": 1, "mode": "jobs", "phase": "BeforeAnyWrite", "release_id": w.bound["release_id"], "at_utc": at.isoformat(),
+        "observations": {}, "blocking": {}})
+    w.built()
+
+
 def job_env(w, name):
     return w.world.jobs[name]["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]["env"]
 
@@ -199,7 +208,7 @@ def test_ju09_a_candidate_older_than_the_bound_hours_is_refused_before_the_updat
 
 def test_ju09_a_candidate_from_another_sast_day_is_refused_even_inside_the_age(tmp_path):
     w = world(tmp_path)
-    w.now = dt.datetime(2026, 10, 11, 19, 30, tzinfo=jw.UTC)  # 21:30 SAST
+    w.now = dt.datetime(2026, 10, 11, 18, 30, tzinfo=jw.UTC)  # 20:30 SAST
     candidate_ran(w)
     next_day = dt.datetime(2026, 10, 11, 22, 30, tzinfo=jw.UTC)  # 00:30 SAST on the 12th
     assert w.stop("BeforeJobsUpdate", now=next_day).code == "CANDIDATE_AGE"
@@ -260,7 +269,7 @@ def test_ju06_the_before_update_phase_refuses_outside_0805_to_2100_sast_and_open
     w = jw.ReleaseWorld(tmp_path)
     w.now = dt.datetime(2026, 10, 11, 6, 4, tzinfo=jw.UTC)  # 08:04 SAST
     w.prepare()
-    candidate_ran(w)
+    candidate_ran_at(w, dt.datetime(2026, 10, 11, 6, 0, tzinfo=jw.UTC))
     assert w.stop("BeforeJobsUpdate", now=dt.datetime(2026, 10, 11, 6, 4, tzinfo=jw.UTC)).code == "WINDOW"
     assert w.run("BeforeJobsUpdate", now=dt.datetime(2026, 10, 11, 6, 5, tzinfo=jw.UTC))["phase"] == "BeforeJobsUpdate"
     late = world(tmp_path / "late")

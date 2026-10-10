@@ -85,7 +85,7 @@ def test_ju08_jobs_rollback_asks_nothing_and_does_not_need_a_console(tmp_path):
         result = JobsPasteWorld(tmp_path / str(interactive), "JobsRollback").run(interactive=interactive)
         assert result.returncode == 0, result.stderr
         assert result.prompts == []
-        assert result.names == ["helper-BeforeJobsRollback-0", "jobs-run-rollback", "helper-AfterJobsRollback-0"]
+        assert result.names == ["rollback-blockers", "helper-BeforeJobsRollback-0", "jobs-run-rollback", "helper-AfterJobsRollback-0"]
 
 
 @pytest.mark.parametrize("action", ["JobsCandidate", "JobsUpdate"])
@@ -185,9 +185,9 @@ def test_ju08_after_three_retries_the_action_stops_and_a_stop_is_never_retried(t
     exits = {f"helper-BeforeJobsRollback-{i}": 3 for i in range(5)}
     result = JobsPasteWorld(tmp_path / "exhausted", "JobsRollback").run(exits=exits)
     assert result.returncode != 0 and "could not complete after 3 retries" in result.stderr + result.stdout
-    assert result.names == [f"helper-BeforeJobsRollback-{i}" for i in range(4)]
+    assert result.names == ["rollback-blockers", *[f"helper-BeforeJobsRollback-{i}" for i in range(4)]]
     stop = JobsPasteWorld(tmp_path / "stop", "JobsRollback").run(exits={"helper-BeforeJobsRollback-0": 1})
-    assert stop.returncode != 0 and stop.names == ["helper-BeforeJobsRollback-0"] and [c for c in stop.calls if c["kind"] == "sleep"] == []
+    assert stop.returncode != 0 and stop.names == ["rollback-blockers", "helper-BeforeJobsRollback-0"] and [c for c in stop.calls if c["kind"] == "sleep"] == []
 
 
 def test_ju08_the_helper_is_asked_for_mode_jobs_and_the_bound_bindings_and_the_run_folder(tmp_path):
@@ -305,7 +305,7 @@ def test_ju08_the_checkout_is_asserted_before_every_command_of_candidate_and_upd
         result = JobsPasteWorld(tmp_path / action, action).run(dirty_after_runs=1)
         assert result.returncode != 0 and result.names == [first], (action, result.names)
     rollback = JobsPasteWorld(tmp_path / "rollback", "JobsRollback").run(dirty_after_runs=1)
-    assert rollback.returncode == 0 and rollback.names == ["helper-BeforeJobsRollback-0", "jobs-run-rollback", "helper-AfterJobsRollback-0"]
+    assert rollback.returncode == 0 and rollback.names == ["rollback-blockers", "helper-BeforeJobsRollback-0", "jobs-run-rollback", "helper-AfterJobsRollback-0"]
 
 
 # RB-T1 (F1): the typed words are Albert's. The paste resolves every command name it invokes, taken from its own syntax tree, and
@@ -661,4 +661,39 @@ def test_rb_t3_a_durable_path_outside_the_release_directory_is_refused_before_an
 def test_rb_t8_a_helper_that_passes_without_writing_its_readback_file_stops_the_action(tmp_path, action, phase):
     result = JobsPasteWorld(tmp_path, action).run(no_readback=[phase])
     assert result.returncode != 0 and "readback file does not exist" in result.stderr, (result.stdout, result.stderr)
-    assert result.names == [f"helper-{phase}-0"]
+    assert result.names == (["rollback-blockers"] if action == "JobsRollback" else []) + [f"helper-{phase}-0"]
+
+
+# W8-REL-B 3.4: JobsRollback runs the rollback blockers checker first, offline, and goes on only when it says blocked false
+
+def test_ju08_jobs_rollback_runs_the_rollback_blockers_checker_on_the_bound_durable_manifest_before_any_helper(tmp_path):
+    world = JobsPasteWorld(tmp_path, "JobsRollback")
+    result = world.run()
+    assert result.returncode == 0, result.stderr
+    run_dir = result.run("helper-BeforeJobsRollback-0")["argv"][-1]
+    assert result.run("rollback-blockers")["argv"] == ["py", "-3.13", "core/setup/durable_effects_check.py", "--manifest", str(world.durable), "--check",
+                                                       "rollback-blockers", "--evidence", run_dir]
+    assert result.names.index("rollback-blockers") < result.names.index("helper-BeforeJobsRollback-0")
+    assert [c["kind"] for c in result.calls if c["kind"] == "prompt"] == []
+
+
+def test_ju08_a_rollback_that_the_checker_says_is_blocked_runs_nothing_after_it(tmp_path):
+    result = JobsPasteWorld(tmp_path, "JobsRollback").run(extra={"blockers_blocked": True})
+    assert result.returncode != 0 and "ROLLBACK BLOCKED" in result.stderr + result.stdout
+    assert result.names == ["rollback-blockers"]
+
+
+@pytest.mark.parametrize("how", ["no_result", "not_json", "blocked_missing", "blocked_text"])
+def test_ju08_a_checker_result_that_does_not_say_blocked_false_is_a_stop_and_not_a_pass(tmp_path, how):
+    result = JobsPasteWorld(tmp_path, "JobsRollback").run(extra={"blockers_result": how})
+    assert result.returncode != 0 and result.names == ["rollback-blockers"]
+
+
+def test_ju08_a_checker_that_exits_nonzero_stops_the_rollback_before_the_helper(tmp_path):
+    result = JobsPasteWorld(tmp_path, "JobsRollback").run(exits={"rollback-blockers": 1})
+    assert result.returncode != 0 and result.names == ["rollback-blockers"]
+
+
+@pytest.mark.parametrize("action", ["JobsCandidate", "JobsUpdate"])
+def test_ju08_the_other_two_actions_do_not_run_the_rollback_blockers_checker(tmp_path, action):
+    assert "rollback-blockers" not in JobsPasteWorld(tmp_path, action).run().names

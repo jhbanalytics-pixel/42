@@ -510,6 +510,8 @@ def check_baseline_chain(rel):
 
 
 def phase_before_any_write(rel, phase, result):
+    # Q5: the candidate starts inside the window too, so the billed build is never made for a day on which the schema apply would be refused.
+    require(window_open(rel.bound, rel.now()), "WINDOW", "JobsCandidate starts only inside the bound window")
     # JS-09: the build is billed, so the apply dry run receipt is checked first. The hash and the views to cover are the bindings' and
     # the bound commit's own, recomputed here; the receipt is the thing being proven.
     js.require_dry_run_receipt(rel.bound, rel.head_files())

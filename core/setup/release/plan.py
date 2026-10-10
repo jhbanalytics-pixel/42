@@ -432,10 +432,10 @@ def jobs_update(ctx):
 
 
 def jobs_rollback(ctx):
-    """3.9 JobsRollback: collect first, watchdog last, each with the rollback digest, and nothing typed."""
+    """3.4 and 3.9 JobsRollback: the blockers checker offline, then collect first and watchdog last, each with the rollback digest, and nothing typed."""
     wrapper = jobs_run(ctx, "rollback")
     pairs = [dataclasses.replace(s, via="jobs_run") for s in update_pairs(tuple(reversed(jo.UPDATE_ORDER)), ctx.rollback_digest, "restore")]
-    return [jobs_helper(ctx, "BeforeJobsRollback"), wrapper, *pairs, jobs_helper(ctx, "AfterJobsRollback")]
+    return [checker(_services_view(ctx), "rollback-blockers"), jobs_helper(ctx, "BeforeJobsRollback"), wrapper, *pairs, jobs_helper(ctx, "AfterJobsRollback")]
 
 
 JOBS_ACTIONS = {"JobsCandidate": jobs_candidate, "JobsUpdate": jobs_update, "JobsRollback": jobs_rollback}

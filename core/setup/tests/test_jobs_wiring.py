@@ -211,3 +211,26 @@ def test_jb03_the_two_calls_deploy_jobs_makes_for_the_build_each_match_one_entry
     rendered = {s.name: s for s in steps}
     assert rendered["build:upload"].argv[4] == upload[4] and rendered["build:upload"].argv[5:] == tuple(upload[5:])
     assert rendered["build:create"].argv == ("POST", session.posts[0][0])
+
+
+# Q5 / F6: JobsCandidate starts only inside the window, so the billed build never runs for a candidate the schema apply would then refuse
+
+def at_sast(hour, minute, day=11):
+    import datetime as dt
+
+    return dt.datetime(2026, 10, day, hour, minute, tzinfo=jw.SAST).astimezone(jw.UTC)
+
+
+@pytest.mark.parametrize("hour,minute", [(0, 0), (7, 0), (8, 4), (21, 0), (21, 1), (23, 59)])
+def test_window_before_any_write_refuses_outside_08_05_to_21_00_sast_before_any_job_or_service_read(tmp_path, hour, minute):
+    w = candidate_world(tmp_path)
+    stopped = w.stop("BeforeAnyWrite", now=at_sast(hour, minute))
+    assert stopped.code == "WINDOW"
+    assert not [c for c in w.fake_reader.calls if c[0] in ("job", "service", "registry_digest")]
+    assert not (w.release_dir / "readbacks").exists()
+
+
+@pytest.mark.parametrize("hour,minute", [(8, 5), (12, 0), (20, 59)])
+def test_window_before_any_write_passes_inside_the_window(tmp_path, hour, minute):
+    w = candidate_world(tmp_path)
+    assert w.run("BeforeAnyWrite", now=at_sast(hour, minute))["phase"] == "BeforeAnyWrite"
