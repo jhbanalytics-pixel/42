@@ -53,6 +53,7 @@ SERIES_WORDS = {"feed_tiktok": "TikTok", "board_tiktok_hashtag": "TikTok hashtag
                 "curve_tiktok_hashtag": "TikTok hashtag popularity", "board_youtube": "YouTube trending board",
                 "board_apple_music": "Apple Music chart", "list_reddit": "Reddit",
                 "panel_fb_hub": "Facebook", "panel_culture_desk": "Culture accounts we follow",
+                "panel_curated_creators": "Creator accounts we follow",
                 "panel_x_hub": "X", "panel_telegram": "Telegram",
                 "ig_location": "Instagram location posts", "counter_tiktok_hashtag": "TikTok hashtag totals",
                 "counter_tiktok_sound": "TikTok sound totals",

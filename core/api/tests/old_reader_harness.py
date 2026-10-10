@@ -292,3 +292,144 @@ def read_with_meta(reader, ask_ids):
             body = client.get(f"/api/ask/{ask_id}", headers=ch.HEADERS).json()
             reads[ask_id]["ask read"]["meta"] = "absent" if "answer_meta" not in body else "null" if body["answer_meta"] is None else body["answer_meta"]
     return reads
+
+
+# The receipt (old-reader-receipt.json, C2 4.4): layers 1 to 4 on a candidate tree, one verdict
+
+HARNESS_FILES = (Path(__file__).resolve(), ch.SELF)
+CRLF, LF = b"\r\n", b"\n"
+IDENTIFIER = re.compile(r"(?<![A-Za-z0-9])([ar])_\d{8}_[0-9a-f]{8}(?![0-9a-f])")
+TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
+DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+STEP_COUNT = re.compile(r"\d+ of (\d+) research steps")
+
+
+def harness_sha256():
+    """The hash of this harness and the compat harness it builds on, read together: a change to either changes the receipt."""
+    lines = [f"{path.name}:{hashlib.sha256(path.read_bytes().replace(CRLF, LF)).hexdigest()}\n" for path in HARNESS_FILES]
+    return hashlib.sha256("".join(lines).encode("utf-8")).hexdigest()
+
+
+def stable_form(rows):
+    """The corpus without the values a run invents: ask and run ids become numbers in order of first appearance (so which record
+    points at which stays visible), timestamps, digests that cover an id, the seconds a run took and the count of research steps a
+    stop interrupted are masked. Everything else in every record is kept."""
+    numbered = {}
+
+    def number(match):
+        return f"{match.group(1)}_<{numbered.setdefault(match.group(0), len(numbered) + 1)}>"
+
+    def walk(value, key=None):
+        if isinstance(value, dict):
+            return {k: walk(v, k) for k, v in value.items()}
+        if isinstance(value, list):
+            return [walk(v) for v in value]
+        if isinstance(value, str):
+            value = DIGEST.sub("sha256:<digest>", TIMESTAMP.sub("<time>", IDENTIFIER.sub(number, value)))
+            return STEP_COUNT.sub(r"<n> of \1 research steps", value)
+        return "<seconds>" if key == "seconds" else value
+
+    return walk(rows)
+
+
+def corpus_sha256(rows):
+    """A hash of the corpus rows in their stable form: the same for two runs of the writers, different when one record changes."""
+    return hashlib.sha256(canonical(stable_form(rows)).encode("utf-8")).hexdigest()
+
+
+def layer1_problems(rows):
+    """The corpus holds every execution and summary state, each kind of record, and the key both present and absent."""
+    if not rows:
+        return ["the corpus is empty"]
+    metas = [row["record"]["answer_meta"] for row in rows if "answer_meta" in row["record"]]
+    expected = {"execution": {state[1] for state in STATES}, "summary": {state[3] for state in STATES}}
+    found = {"execution": {m["execution"]["state"] for m in metas}, "summary": {m["summary"]["state"] for m in metas}}
+    problems = [f"no record holds {name} state {state}" for name in expected for state in sorted(expected[name] - found[name])]
+    problems += [f"no {kind} record" for kind in ("complete", "partial", "failed", "stopped") if kind not in {kind_of(row) for row in rows}]
+    if not metas:
+        problems.append("no record holds answer_meta")
+    if all("answer_meta" in row["record"] for row in rows):
+        problems.append("no record leaves answer_meta absent")
+    return problems
+
+
+def unread(reads, ask_ids, route):
+    """The ask ids with no usable read on a route: a layer that read nothing has found nothing, which is not a pass."""
+    return [ask_id for ask_id in ask_ids if not isinstance(reads.get(ask_id, {}).get(route), dict) or not reads[ask_id][route].get("status")]
+
+
+def layer_problems(data):
+    """{layer name: [problems]} for the data collect returns, or the same shape built from fixtures by the tests."""
+    rows, legacy = data["rows"], data["legacy"]
+    ids, legacy_ids = [ask_id_of(row) for row in rows], [ask_id_of(row) for row in legacy]
+    layer2 = [f"{ask_id}: no read of {route}" for route in ("ask read", "ask events", "ask export") for ask_id in unread(data["reads"], ids, route)]
+    layer2 += layer2_problems(data["reads"], data["twin_of"])
+    layer3 = [] if data["paths"] else ["no JSON path is read from the previous release"]
+    layer3 += [] if legacy else ["no record written by the previous writers"]
+    layer3 += layer3_problems(legacy, rows, data["paths"])
+    layer4 = [f"{ask_id}: no read of the candidate readers" for ask_id in unread(data["reverse"], legacy_ids, "ask read")]
+    layer4 += reverse_problems(data["reverse"])
+    return {"layer 1": layer1_problems(rows), "layer 2": layer2, "layer 3": layer3, "layer 4": layer4}
+
+
+def build_receipt(candidate_commit, data):
+    """old-reader-receipt.json (schema_version 1): both commits, the harness and corpus hashes, the counts, every problem of layers
+    1 to 4 prefixed with its layer, and a verdict that is pass only with no problem. An empty corpus, no legacy rows, no JSON paths
+    and a layer that read nothing are each a problem, so none of them can pass."""
+    problems = [f"{layer}: {problem}" for layer, found in layer_problems(data).items() for problem in found]
+    counts = {"corpus_rows": len(data["rows"]), "legacy_rows": len(data["legacy"]), "json_paths": len(data["paths"])}
+    return {"schema_version": 1, "base_commit": ch.BASE_COMMIT, "candidate_commit": candidate_commit,
+            "harness_sha256": harness_sha256(), "corpus_sha256": corpus_sha256(data["rows"]), **counts,
+            "problems": problems, "verdict": "pass" if not problems else "fail"}
+
+
+def collect(candidate_tree, log_dir):
+    """Run layers 1 to 4 on a candidate tree. Returns the data build_receipt reads; the tests build the same shape from their fixtures."""
+    tmp = Path(log_dir)
+    base = ch.archive(ch.BASE_COMMIT, tmp / "base")
+    legacy = written_rows(base)
+    rows, twin_of = corpus(written_rows(candidate_tree))
+    with OldReader(base, tmp) as reader:
+        reader.load(rows)
+        reads = reader.read([ask_id_of(row) for row in rows])
+    candidate = copy_tree(candidate_tree, tmp / "candidate")
+    with OldReader(candidate, tmp) as reader:
+        reader.load(legacy)
+        reverse = read_with_meta(reader, [ask_id_of(row) for row in legacy])
+    return {"rows": rows, "twin_of": twin_of, "legacy": legacy, "paths": a80_record_paths(base), "reads": reads, "reverse": reverse}
+
+
+def changed_files(root):
+    """The files under core/ that differ from HEAD or are not tracked: a receipt names HEAD, so the tree it judged must be HEAD."""
+    out = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", "core"], capture_output=True, encoding="utf-8", check=True)
+    return [line[3:] for line in out.stdout.splitlines()]
+
+
+def main(argv=None):
+    import argparse
+    import tempfile
+
+    parser = argparse.ArgumentParser(description="Write old-reader-receipt.json for the candidate worktree.")
+    parser.add_argument("--receipt", required=True)
+    args = parser.parse_args(argv)
+    target = Path(args.receipt)
+    if target.exists():
+        print(f"old-reader receipt: refusing to replace {target}", file=sys.stderr)
+        return 1
+    if not target.parent.is_dir():
+        print(f"old-reader receipt: the folder of {target} does not exist", file=sys.stderr)
+        return 1
+    dirty = changed_files(ROOT)
+    if dirty:
+        print(f"old-reader receipt: the tree differs from HEAD in {len(dirty)} file(s), first {dirty[0]}", file=sys.stderr)
+        return 1
+    with tempfile.TemporaryDirectory() as tmp:
+        receipt = build_receipt(ch.git_head(), collect(ROOT, tmp))
+    with target.open("x", encoding="utf-8", newline="\n") as out:
+        out.write(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+    print(f"old-reader verdict: {receipt['verdict']}")
+    return 0 if receipt["verdict"] == "pass" else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

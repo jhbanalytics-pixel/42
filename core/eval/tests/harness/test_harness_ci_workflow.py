@@ -303,24 +303,26 @@ def test_no_step_writes_to_the_runner_environment_file(path):
     assert "github_env" not in text
 
 
-CORE_PASSED_FLOOR = 26_000  # 26233 passed and 4 failed under the guard on Windows; raise this with the workflow floor
-RATCHET_GAP_CEILING = 1_000
+CORE_FLOOR = 27_390  # exact, not a minimum: 27430 pass on the tree with Release B assembled (27583 collected, 70 skipped, 83 expected to fail), so 27390 sits under it
+CORE_RATCHET_GAP = 800  # exact: the job fails when the passed count has grown more than this past the floor
 
 
 def test_the_core_job_pins_a_floor_on_tests_that_passed_and_a_ratchet_that_makes_it_follow_the_tree():
     """`--min-total` counts skipped tests, so a run that skipped most of the tree still met it."""
     data = core_workflow()
     [report] = skip_reports(data, "core-junit.xml")
+    total = re.search(r"--min-total\s+(\d+)", report["run"])
     floor = re.search(r"--min-passed\s+(\d+)", report["run"])
     gap = re.search(r"--ratchet-gap\s+(\d+)", report["run"])
-    assert floor and gap, report["run"]
-    assert int(floor.group(1)) >= CORE_PASSED_FLOOR, floor.group(1)
-    assert 0 < int(gap.group(1)) <= RATCHET_GAP_CEILING, gap.group(1)
+    assert total and floor and gap, report["run"]
+    assert int(floor.group(1)) == CORE_FLOOR, floor.group(1)
+    assert int(total.group(1)) == CORE_FLOOR, total.group(1)
+    assert int(gap.group(1)) == CORE_RATCHET_GAP, gap.group(1)
     assert report.get("if") == "always()"
 
 
 OPS_PASSED_FLOOR = 150  # the ops partition passed 158 tests and skipped 3 when this was pinned
-OPS_RATCHET_GAP_CEILING = 50
+OPS_RATCHET_GAP = 20  # exact: the ops floor follows the partition up once it has grown this far
 
 
 def test_the_ops_partition_has_its_own_floors_and_ratchet_in_the_skip_report():
@@ -333,7 +335,7 @@ def test_the_ops_partition_has_its_own_floors_and_ratchet_in_the_skip_report():
     gap = re.search(r"--ratchet-gap\s+(\d+)", report["run"])
     assert total and floor and gap, report["run"]
     assert int(floor.group(1)) >= OPS_PASSED_FLOOR and int(total.group(1)) >= OPS_PASSED_FLOOR, report["run"]
-    assert 0 < int(gap.group(1)) <= OPS_RATCHET_GAP_CEILING, gap.group(1)
+    assert int(gap.group(1)) == OPS_RATCHET_GAP, gap.group(1)
     assert report.get("if") == "always()" and not report.get("continue-on-error")
     order = [s.get("run", "") for _, s in steps(data)]
     ops_at = next(i for i, r in enumerate(order) if "-m pytest ops/" in r)
