@@ -553,21 +553,27 @@ test('C14 at every site a 401 that is not the gate is no verdict on the key', as
   expect(localStorage.getItem(REASON_KEY)).toBeNull();
 });
 
-test('R2 the older wordings of the same refusal still name the gate', async () => {
-  credential.begin('passcode');
-  const bodies = [
+test('R2 the older wordings of the same refusal still name the gate, and a coded error that is not unauthorized does not', async () => {
+  const named = [
     {detail: 'Passcode required'},
     {detail: {code: 'unauthorized'}},
-    {error: 'unauthorised', message: 'Passcode needed.'},
   ];
-  for (const body of bodies){
-    localStorage.setItem(PASS_KEY, GOOD_KEY);
-    credential.begin('passcode');
-    serve({gated: () => json(401, body)});
-    let error = null;
-    try { await apiGet('/api/older-' + JSON.stringify(body).length); } catch (caught) { error = caught; }
-    expect(JSON.stringify(body) + Boolean(error && error.auth)).toBe(JSON.stringify(body) + 'true');
-    expect(localStorage.getItem(PASS_KEY)).toBeNull();
+  const unnamed = [
+    {error: 'unauthorised', message: 'Passcode needed.'},
+    {error: 'agent_unavailable', detail: 'Passcode required'},
+    {error: 'agent_unavailable', message: 'Passcode required.'},
+    {message: 'Passcode required.'},
+  ];
+  for (const [bodies, expected] of [[named, true], [unnamed, false]]){
+    for (const body of bodies){
+      localStorage.setItem(PASS_KEY, GOOD_KEY);
+      credential.begin('passcode');
+      serve({gated: () => json(401, body)});
+      let error = null;
+      try { await apiGet('/api/older-' + JSON.stringify(body).length); } catch (caught) { error = caught; }
+      expect(JSON.stringify(body) + Boolean(error && error.auth)).toBe(JSON.stringify(body) + String(expected));
+      expect(JSON.stringify(body) + (localStorage.getItem(PASS_KEY) === null)).toBe(JSON.stringify(body) + String(expected));
+    }
   }
 });
 
@@ -585,4 +591,127 @@ test('C08 a desk closed by another tab sends nothing more from this one', async 
   try { await apiGet('/api/after-close'); } catch (caught) { error = caught; }
   expect(error && error.auth).toBe(true);
   expect(calls.length).toBe(before);
+});
+
+/* A storage that records every write and remove, in order, and can refuse the
+   marker write the way a full browser store does. */
+function watchStorage({refuseMarker = false} = {}){
+  const real = globalThis.localStorage;
+  const ops = [];
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key) => real.getItem(key),
+      removeItem(key){ ops.push('remove:' + key); return real.removeItem(key); },
+      setItem(key, value){
+        ops.push('set:' + key);
+        if (refuseMarker && key === REASON_KEY) throw new Error('storage full');
+        return real.setItem(key, value);
+      },
+    },
+  });
+  return ops;
+}
+
+test('AM07 a rejected key writes the stale marker first and removes the key second', async () => {
+  credential.begin('passcode');
+  localStorage.setItem(PASS_KEY, GOOD_KEY);
+  const ops = watchStorage();
+  credential.reject();
+  expect(ops.filter((op) => op === 'set:' + REASON_KEY || op === 'remove:' + PASS_KEY)).toEqual(['set:' + REASON_KEY, 'remove:' + PASS_KEY]);
+  expect(localStorage.getItem(PASS_KEY)).toBeNull();
+  expect(localStorage.getItem(REASON_KEY)).toBe('stale');
+});
+
+test('AM07 when the marker cannot be written the key stays in storage and the rejection is held in memory', async () => {
+  credential.begin('passcode');
+  localStorage.setItem(PASS_KEY, GOOD_KEY);
+  const ops = watchStorage({refuseMarker: true});
+  serve();
+  credential.reject();
+  expect(ops).not.toContain('remove:' + PASS_KEY);
+  expect(localStorage.getItem(PASS_KEY)).toBe(GOOD_KEY);
+  let error = null;
+  try { await apiGet('/api/after-full-storage'); } catch (caught) { error = caught; }
+  expect(error && error.auth).toBe(true);
+  expect(calls.length).toBe(0);
+});
+
+test('AM07 a full browser store does not turn a stale key into a Log out for other tabs', async () => {
+  localStorage.setItem(PASS_KEY, GOOD_KEY);
+  watchStorage({refuseMarker: true});
+  serve({gated: () => unauthorized()});
+  mount();
+  await until(() => passcodeInput() !== null);
+  expect(passcodeInput()).not.toBeNull();
+  expect(text()).toContain(STALE_COPY);
+  expect(localStorage.getItem(PASS_KEY)).toBe(GOOD_KEY);
+});
+
+test('AM09 storing a verified key removes a lingering stale marker', async () => {
+  credential.begin('passcode');
+  localStorage.setItem(REASON_KEY, 'stale');
+  expect(credential.store(GOOD_KEY)).toBe(true);
+  expect(localStorage.getItem(PASS_KEY)).toBe(GOOD_KEY);
+  expect(localStorage.getItem(REASON_KEY)).toBeNull();
+});
+
+test('AM09 signing in at the gate removes a marker an older tab left behind', async () => {
+  localStorage.setItem(REASON_KEY, 'stale');
+  serve();
+  mount();
+  await settle();
+  expect(passcodeInput()).not.toBeNull();
+  await submit(GOOD_KEY);
+  await until(() => localStorage.getItem(PASS_KEY) === GOOD_KEY);
+  expect(localStorage.getItem(PASS_KEY)).toBe(GOOD_KEY);
+  expect(localStorage.getItem(REASON_KEY)).toBeNull();
+});
+
+test('C08 Log out in one tab shows a second tab the normal gate even when an old stale marker lingers', async () => {
+  const saved = () => {
+    localStorage.clear();
+    localStorage.setItem(PASS_KEY, GOOD_KEY);
+    localStorage.setItem(REASON_KEY, 'stale');
+    localStorage.setItem('pulse-briefs-ver', '2');
+    localStorage.setItem('pulse-briefs', '[]');
+    localStorage.setItem('pulse-chat', '{"threads":[]}');
+  };
+  /* Tab A: the real Log out click, and the removals it makes, in order. */
+  saved();
+  const ops = watchStorage();
+  serve();
+  mount();
+  await settle();
+  const more = [...host.querySelectorAll('button')].find((node) => node.textContent.trim().startsWith('More'));
+  if (more) flushSync(() => more.dispatchEvent(new MouseEvent('click', {bubbles: true})));
+  flushSync(() => button('Log out').dispatchEvent(new MouseEvent('click', {bubbles: true})));
+  await settle();
+  const removals = ops.filter((op) => op.startsWith('remove:')).map((op) => op.slice('remove:'.length));
+  expect(removals).toContain(PASS_KEY);
+  expect(removals).toContain(REASON_KEY);
+  unmount();
+  credential.end();
+  clearCache();
+  Object.defineProperty(globalThis, 'localStorage', realStorage);
+
+  /* Tab B: a fresh page signed in, which sees tab A's removals one at a time.
+     A browser sends a storage event only when a removal changed something. */
+  saved();
+  calls = [];
+  serve();
+  mount();
+  await settle();
+  expect(passcodeInput()).toBeNull();
+  for (const key of removals){
+    const present = localStorage.getItem(key) !== null;
+    localStorage.removeItem(key);
+    if (!present) continue;
+    flushSync(() => window.dispatchEvent(new StorageEvent('storage', {key, oldValue: 'x', newValue: null})));
+  }
+  await settle();
+  expect(passcodeInput()).not.toBeNull();
+  expect(text()).not.toContain(STALE_COPY);
+  expect(localStorage.getItem('pulse-briefs')).toBeNull();
+  expect(localStorage.getItem('pulse-chat')).toBeNull();
 });
