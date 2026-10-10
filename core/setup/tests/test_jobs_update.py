@@ -614,6 +614,22 @@ def test_f1_a_rollback_runs_and_logs_an_unknown_hour_when_the_candidate_readback
     assert written["past_rollback_deadline"] is None and written["complete"] is True
 
 
+@pytest.mark.parametrize("error", [PermissionError("held open by another program"), FileNotFoundError("gone between the check and the read"), OSError("unreadable")],
+                         ids=["held_open", "vanished", "os_error"])
+def test_f1_a_rollback_runs_and_logs_an_unknown_hour_when_the_candidate_readback_cannot_be_read_from_disk(tmp_path, monkeypatch, error):
+    # On Windows the BeforeAnyWrite readback can be held open by another program; reading it then raises OSError, and the rollback goes on.
+    w, cloud, clock = started(tmp_path)
+    update(w, cloud, clock)
+
+    def unreadable(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(jo, "verified_readback", unreadable)
+    log = rollback(w, cloud, clock)
+    assert log["past_rollback_deadline"] is None and log["rollback_deadline_at"] is None
+    assert log["complete"] is True and log["stopped"] is None and all(v == OLD for v in digests(cloud).values())
+
+
 @pytest.mark.parametrize("how", ["missing", "garbage"])
 def test_f1_the_rollback_command_exits_zero_and_restores_the_fourteen_jobs_when_the_candidate_readback_has_no_usable_at_utc(tmp_path, how):
     w, cloud, clock = started(tmp_path)

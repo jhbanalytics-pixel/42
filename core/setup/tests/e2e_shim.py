@@ -6,8 +6,10 @@
 The real paste runs as a real pwsh process with its own Read-Native and Run-Logged. The `py` and `gcloud` it starts are two small .cmd files
 first on PATH (EndToEnd.install_programs), which hand the command line to this program. The program loads the fake world the test pickled,
 runs the real main() of the named script against that world, saves the world again and exits with the code the real script returned, so the
-paste's own retry, stop and readback rules act on real exit codes. git is the real git, over a real throwaway repository at the release
-commit. What is faked is only what reaches a cloud: the Cloud Run readers and adapter, the BigQuery clients (the durable column readbacks and
+paste's own retry, stop and readback rules act on real exit codes. git is the real git for the paste, over a real throwaway repository at
+the release commit, but deploy_jobs.py runs with a fake git (rev-parse, status and archive) and a module check that always passes, so the
+build's own HEAD and clean checks and the git archive tarball never run here; the paste's Assert-Source still checks the checkout with real
+git. The rest of what is faked reaches a cloud: the Cloud Run readers and adapter, the BigQuery clients (the durable column readbacks and
 core.schema.apply), the Cloud Build session and the gcloud configuration read.
 """
 from __future__ import annotations
