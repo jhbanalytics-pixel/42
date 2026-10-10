@@ -628,7 +628,11 @@ def test_the_jobs_quiet_line_is_release_a_s_own_sentence_with_the_release_b_id_i
     lambda t, rid: t.replace("The window is quiet and ", ""),
     lambda t, rid: "",
     lambda t, rid: jpw.authorisation_line(rid),
-], ids=["other_release", "release_a", "no_marker", "weaker_promise", "extra_sentence", "missing_clause", "empty", "the_other_line"])
+    lambda t, rid: t.lower(),
+    lambda t, rid: t.replace("The window", "the window"),
+    lambda t, rid: t.replace("QUIET", "quiet"),
+], ids=["other_release", "release_a", "no_marker", "weaker_promise", "extra_sentence", "missing_clause", "empty", "the_other_line",
+        "all_lowercase", "lowercase_first_word", "lowercase_marker"])
 def test_receipt_refuses_a_quiet_line_that_is_not_the_one_the_packet_asks_albert_to_type(bench, capsys, change):
     receipt_world(bench, capsys, quiet=change(bench.quiet_text(), bench.release_id))
     code, out, err = run(bench.receipt_argv(), capsys)
@@ -650,6 +654,30 @@ def test_receipt_accepts_the_quiet_line_word_for_word_and_normalises_whitespace(
     assert code == 0, err
     value = json.loads(bench.receipt.read_text(encoding="utf-8"))
     assert value["quiet_window_confirmed"] is True and value["no_new_manual_starts_until_execution_ends"] is True
+
+
+SIGNATURE = chr(0xFEFF).encode("utf-8")
+
+
+def test_receipt_accepts_a_quiet_line_file_saved_with_a_leading_byte_order_mark(bench, capsys):
+    """Notepad can save a file as UTF-8 with a signature. The mark is three bytes in front of the text and must not
+    make Albert's exact line read as a different line."""
+    receipt_world(bench, capsys)
+    signed = SIGNATURE + bench.quiet_text().encode("utf-8") + chr(10).encode("utf-8")
+    bench.quiet_line_file.write_bytes(signed)
+    assert bench.quiet_line_file.read_bytes()[:3] == SIGNATURE
+    code, out, err = run(bench.receipt_argv(), capsys)
+    assert code == 0, err
+    value = json.loads(bench.receipt.read_text(encoding="utf-8"))
+    assert value["quiet_window_confirmed"] is True and value["no_new_manual_starts_until_execution_ends"] is True
+
+
+def test_a_byte_order_mark_does_not_rescue_a_wrong_quiet_line(bench, capsys):
+    receipt_world(bench, capsys)
+    wrong = bench.quiet_text().replace("QUIET", "quiet")
+    bench.quiet_line_file.write_bytes(SIGNATURE + wrong.encode("utf-8") + chr(10).encode("utf-8"))
+    code, out, err = run(bench.receipt_argv(), capsys)
+    assert code == 1 and "quiet" in err.lower() and not bench.receipt.exists()
 
 
 def test_the_services_receipt_takes_no_second_line_and_refuses_one(bench, capsys):
