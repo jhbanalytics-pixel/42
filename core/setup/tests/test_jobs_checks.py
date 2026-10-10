@@ -583,3 +583,250 @@ def test_rb_t7_the_promoted_branch_is_unchanged_a_serving_revision_named_for_a_a
     w = jw.ReleaseWorld(tmp_path)
     w.prepare()
     assert w.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"
+
+
+# RB-T8 (F8, F11, F13, F14 and the reviewer's real mutant survivors O09, O12, O13, O29)
+
+PINNED_WINDOW = {"startSast": "08:05", "endSast": "21:00", "rollbackDeadlineSast": "23:30"}
+
+
+def test_rb_t8_the_window_the_bindings_carry_is_pinned_to_0805_2100_and_2330_sast(tmp_path):
+    w = world(tmp_path)
+    assert jo.PINNED_WINDOW == PINNED_WINDOW
+    jo.validate_jobs_bindings({**w.bound, "window": dict(PINNED_WINDOW)})
+    for change in ({"startSast": "00:00"}, {"startSast": "08:00"}, {"startSast": "08:06"}, {"endSast": "23:59"}, {"endSast": "21:30"},
+                   {"endSast": "20:59"}, {"rollbackDeadlineSast": "23:59"}, {"rollbackDeadlineSast": "22:00"}, {"rollbackDeadlineSast": "00:00"}):
+        with pytest.raises(so.Stop) as stop:
+            jo.validate_jobs_bindings({**w.bound, "window": {**PINNED_WINDOW, **change}})
+        assert stop.value.code == "BINDINGS", change
+    for window in ({"startSast": "08:05", "endSast": "21:00"}, {**PINNED_WINDOW, "extra": "12:00"}):
+        with pytest.raises(so.Stop) as stop:
+            jo.validate_jobs_bindings({**w.bound, "window": window})
+        assert stop.value.code == "BINDINGS"
+
+
+def test_rb_t8_a_window_of_the_whole_day_no_longer_lets_jobs_update_complete_at_2130_sast(tmp_path):
+    w = world(tmp_path)
+    candidate_ran(w)
+    w.bound["window"] = {"startSast": "00:00", "endSast": "23:59", "rollbackDeadlineSast": "23:30"}
+    with pytest.raises(so.Stop) as stop:
+        w.run("BeforeJobsUpdate", now=dt.datetime(2026, 10, 11, 19, 30, tzinfo=jw.UTC))
+    assert stop.value.code == "BINDINGS"
+
+
+@pytest.mark.parametrize("value", [31, 100000])
+def test_rb_t8_the_collect_start_tolerance_is_capped_at_30_minutes(tmp_path, value):
+    w = world(tmp_path)
+    for producer in (False, True):
+        with pytest.raises(so.Stop) as stop:
+            jo.validate_jobs_bindings({**w.bound, "collectStartToleranceMinutes": value}, producer=producer)
+        assert stop.value.code == "BINDINGS"
+
+
+@pytest.mark.parametrize("value", [0, 10, 30])
+def test_rb_t8_a_tolerance_up_to_30_minutes_is_accepted(tmp_path, value):
+    w = world(tmp_path)
+    jo.validate_jobs_bindings({**w.bound, "collectStartToleranceMinutes": value})
+    jo.validate_jobs_bindings({**w.bound, "collectStartToleranceMinutes": value}, producer=True)
+
+
+# O29: the release id names the target commit
+
+@pytest.mark.parametrize("release_id", ["rel-0000000-01", "rel-b5e1a2d-01", "rel-B5E1A2C-01"])
+def test_rb_t8_a_release_id_that_does_not_name_the_target_commit_is_refused(tmp_path, release_id):
+    w = world(tmp_path)
+    with pytest.raises(so.Stop) as stop:
+        jo.validate_jobs_bindings({**w.bound, "release_id": release_id})
+    assert stop.value.code == "BINDINGS"
+
+
+# O09: the image tag of this attempt must not exist before the build
+
+def test_rb_t8_an_image_tag_that_already_resolves_in_the_registry_stops_before_any_write(tmp_path):
+    w = world(tmp_path)
+    w.world.registry[jo.image_tag(w.bound)] = jw.NEW_DIGEST
+    assert w.stop("BeforeAnyWrite").code == "TAG_MOVED"
+
+
+# O12 and O13: a by-line baseline is rechecked against its own recorded degradation
+
+def by_line_world(tmp_path):
+    w = jw.ReleaseWorld(tmp_path)
+    w.set_cluster_error("KE")
+    w.set_cluster_error("NG")
+    w.prepare()
+    assert baseline_manifest(w)["verdict"]["baseline_by_line"] is True
+    return w
+
+
+def test_rb_t8_a_by_line_baseline_that_also_fails_another_rule_is_refused(tmp_path):
+    for index, extra in enumerate(("ORDER", "IMAGE", "MANUAL", "LINEAGE")):
+        w = by_line_world(tmp_path / str(index))
+        manifest = baseline_manifest(w)
+        manifest["verdict"]["reasons"] = ["DEGRADED", extra]
+        rebind(w, manifest)
+        assert w.stop("BeforeAnyWrite").code == "BASELINE", extra
+
+
+@pytest.mark.parametrize("lines", [{"KE": "ValueError: something else broke", "NG": "ValueError: something else broke"},
+                                   {"KE": "cannot round-trip through string representation", "NG": "PARSE_JSON in some other place"},
+                                   {"KE": "PARSE_JSON", "NG": "cannot round-trip through string representation of a float"}])
+def test_rb_t8_a_by_line_baseline_whose_recorded_first_lines_lack_the_signature_is_refused(tmp_path, lines):
+    w = by_line_world(tmp_path)
+    manifest = baseline_manifest(w)
+    manifest["stages"]["understand"]["degradation"]["cluster_error_first_lines"] = lines
+    rebind(w, manifest)
+    assert w.stop("BeforeAnyWrite").code == "BASELINE"
+
+
+def test_rb_t8_a_by_line_baseline_that_also_shows_an_embed_error_a_partial_run_or_no_recorded_line_is_refused(tmp_path):
+    for index, change in enumerate(({"embed_error": True}, {"enrich_error": True}, {"partial": True}, {"cluster_error_first_lines": {}})):
+        w = by_line_world(tmp_path / str(index))
+        manifest = baseline_manifest(w)
+        manifest["stages"]["understand"]["degradation"].update(change)
+        rebind(w, manifest)
+        assert w.stop("BeforeAnyWrite").code == "BASELINE", change
+
+
+# F11: the readbacks a later action trusts must be this release's, in this mode, in this version, for this phase
+
+def candidate_file(w):
+    return sorted((w.release_dir / "readbacks").glob("BeforeAnyWrite-*.json"))[-1]
+
+
+@pytest.mark.parametrize("change", [{"mode": "services-only"}, {"release_id": "rel-0badf00-02"}, {"schema_version": 2}, {"phase": "BeforeJobsUpdate"}])
+def test_rb_t8_a_candidate_readback_of_another_mode_release_version_or_phase_is_not_taken_as_the_candidate(tmp_path, change):
+    w = world(tmp_path)
+    candidate_ran(w)
+    path = candidate_file(w)
+    body = json.loads(path.read_text(encoding="utf-8"))
+    body.update(change)
+    path.write_text(json.dumps(body), encoding="utf-8")
+    assert w.stop("BeforeJobsUpdate").code == "READBACK_IDENTITY"
+
+
+def test_rb_t8_a_newer_readback_file_of_another_release_in_the_same_directory_is_not_skipped_over(tmp_path):
+    w = world(tmp_path)
+    candidate_ran(w)
+    body = json.loads(candidate_file(w).read_text(encoding="utf-8"))
+    body["release_id"] = "rel-0badf00-02"
+    jw.write_json(w.release_dir / "readbacks" / "BeforeAnyWrite-02.json", body)
+    assert w.stop("BeforeJobsUpdate").code == "READBACK_IDENTITY"
+
+
+@pytest.mark.parametrize("change", [{"mode": "services-only"}, {"release_id": "rel-0badf00-02"}, {"schema_version": 2}, {"phase": "BeforeAnyWrite"}])
+def test_rb_t8_the_update_orchestrator_refuses_a_before_update_readback_of_another_mode_release_version_or_phase(tmp_path, change):
+    from core.setup.release import jobs_run as jr
+    from core.setup.tests.update_support import started
+
+    w, cloud, clock = started(tmp_path)
+    path = sorted((w.release_dir / "readbacks").glob("BeforeJobsUpdate-*.json"))[-1]
+    body = json.loads(path.read_text(encoding="utf-8"))
+    body.update(change)
+    path.write_text(json.dumps(body), encoding="utf-8")
+    with pytest.raises(so.Stop) as stop:
+        jr.run_update(w.bound, cloud, w.bq_client(), w.evidence, now=clock.now)
+    assert stop.value.code == "READBACK_IDENTITY" and cloud.update_calls == 0
+
+
+# F13: the quiet snapshot and the rollback look at the same executions
+
+def stale(w, job, name, days=5, **over):
+    w.world.executions[name] = jw.execution_raw(name, job, (w.now - dt.timedelta(days=days)).isoformat(), None, jw.ROLLBACK_DIGEST, succeeded=0, **over)
+
+
+def snapshot_of(w):
+    from core.setup.release import jobs_run as jr
+
+    return jo.quiet_snapshot(w.fake_reader, jr.runner_for(w.bound, w.bq_client()), w.now)
+
+
+def test_rb_t8_a_five_day_old_chain_execution_with_no_completion_time_is_active_in_the_snapshot_and_in_the_list(tmp_path):
+    w = world(tmp_path)
+    stale(w, "f42-collect", "f42-collect-stale")
+    snapshot = snapshot_of(w)
+    assert snapshot["active"]["chain"] == ["f42-collect-stale"]
+    assert {"name": "f42-collect-stale", "state": "active"} in snapshot["executions"]["f42-collect"]
+    with pytest.raises(so.Stop) as stop:
+        jo.assert_quiet(snapshot)
+    assert stop.value.code == "CHAIN_ACTIVE"
+
+
+def test_rb_t8_before_jobs_update_stops_on_that_execution_and_so_do_the_rollback_checks(tmp_path):
+    w = world(tmp_path)
+    candidate_ran(w)
+    stale(w, "f42-detect", "f42-detect-stale")
+    assert w.stop("BeforeJobsUpdate").code == "CHAIN_ACTIVE"
+    w.update_prefix(14)
+    assert w.stop("BeforeJobsRollback").code == "CHAIN_ACTIVE"
+
+
+def test_rb_t8_an_execution_with_no_start_time_and_no_completion_time_is_active_too(tmp_path):
+    w = world(tmp_path)
+    raw = jw.execution_raw("f42-brief-queued", "f42-brief", w.now.isoformat(), None, jw.ROLLBACK_DIGEST, succeeded=0)
+    raw["status"].pop("startTime")
+    w.world.executions["f42-brief-queued"] = raw
+    assert snapshot_of(w)["active"]["chain"] == ["f42-brief-queued"]
+
+
+def test_rb_t8_a_stale_active_side_execution_is_recorded_and_allowed(tmp_path):
+    w = world(tmp_path)
+    stale(w, "f42-watchdog", "f42-watchdog-stale")
+    snapshot = snapshot_of(w)
+    assert snapshot["active"]["side"] == ["f42-watchdog-stale"] and snapshot["active"]["chain"] == []
+    jo.assert_quiet(snapshot)
+
+
+def test_rb_t8_the_listed_executions_keep_only_today_yesterday_and_the_active_ones(tmp_path):
+    # O03: the date filter of the listing
+    w = world(tmp_path)
+    old = jw.execution_raw("f42-detect-old", "f42-detect", (w.now - dt.timedelta(days=5)).isoformat(), (w.now - dt.timedelta(days=5, hours=-1)).isoformat(),
+                           jw.ROLLBACK_DIGEST)
+    today = jw.execution_raw("f42-detect-today", "f42-detect", (w.now - dt.timedelta(hours=1)).isoformat(), w.now.isoformat(), jw.ROLLBACK_DIGEST)
+    w.world.executions.update({"f42-detect-old": old, "f42-detect-today": today})
+    names = [e["name"] for e in snapshot_of(w)["executions"]["f42-detect"]]
+    assert "f42-detect-old" not in names and "f42-detect-today" in names
+
+
+# F14: Q3, B's baseline is one of the first two chains after Release A
+
+def chain_world(tmp_path, *, run_day, now_day, at_utc="2026-10-09T10:00:00+00:00"):
+    w = jw.ReleaseWorld(tmp_path, day=dt.date(2026, 10, run_day))
+    w.now = dt.datetime(2026, 10, now_day, 8, 0, tzinfo=jw.UTC)
+    w.prepare(baseline=w.baseline_j(at_utc=at_utc))
+    return w
+
+
+@pytest.mark.parametrize("run_day,now_day,accepted", [(10, 11, True), (11, 12, True), (12, 13, False), (13, 13, False)])
+def test_rb_t8_only_the_first_two_chains_after_a_terminal_readback_at_noon_sast_can_be_the_baseline(tmp_path, run_day, now_day, accepted):
+    w = chain_world(tmp_path, run_day=run_day, now_day=now_day)
+    if accepted:
+        assert w.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"
+    else:
+        stop = w.stop("BeforeAnyWrite")
+        assert stop.code == "BASELINE" and "first two chains" in stop.message
+
+
+@pytest.mark.parametrize("terminal,run_day,now_day,accepted", [
+    ("2026-10-09T23:30:00+00:00", 10, 11, True),   # 01:30 SAST on the 10th, before the day's 02:00 collect: the chain of the 10th is the first
+    ("2026-10-09T23:30:00+00:00", 11, 12, True),
+    ("2026-10-09T23:30:00+00:00", 12, 12, False),
+    ("2026-10-10T00:30:00+00:00", 12, 12, True),   # 02:30 SAST on the 10th, after that day's collect start: the 11th is the first
+    ("2026-10-10T00:30:00+00:00", 13, 13, False),
+])
+def test_rb_t8_the_first_chain_is_the_one_of_the_same_sast_day_only_when_the_terminal_readback_came_before_0200(tmp_path, terminal, run_day, now_day, accepted):
+    w = chain_world(tmp_path, run_day=run_day, now_day=now_day, at_utc=terminal)
+    if accepted:
+        assert w.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"
+    else:
+        assert w.stop("BeforeAnyWrite").code == "BASELINE"
+
+
+def test_rb_t8_a_by_line_baseline_outside_the_first_two_chains_is_refused_as_well(tmp_path):
+    w = jw.ReleaseWorld(tmp_path, day=dt.date(2026, 10, 12))
+    w.now = dt.datetime(2026, 10, 13, 8, 0, tzinfo=jw.UTC)
+    w.set_cluster_error("KE")
+    w.set_cluster_error("NG")
+    w.prepare()
+    assert baseline_manifest(w)["verdict"]["baseline_by_line"] is True
+    assert w.stop("BeforeAnyWrite").code == "BASELINE"

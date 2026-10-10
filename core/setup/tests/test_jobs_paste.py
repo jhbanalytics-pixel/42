@@ -635,3 +635,12 @@ def test_rb_t3_a_durable_path_outside_the_release_directory_is_refused_before_an
     world = JobsPasteWorld(tmp_path, action, bindings={key: str(tmp_path / "elsewhere" / "file.json")})
     result = world.run()
     assert result.returncode != 0 and result.external == [] and "outside the release directory" in result.stderr, (key, result.stdout, result.stderr)
+
+
+# RB-T8 (PS13): a helper that exits 0 and leaves no readback file is a stop, because the paste checks the file and not only the exit code
+
+@pytest.mark.parametrize("action,phase", [("JobsUpdate", "BeforeJobsUpdate"), ("JobsRollback", "BeforeJobsRollback"), ("JobsCandidate", "BeforeAnyWrite")])
+def test_rb_t8_a_helper_that_passes_without_writing_its_readback_file_stops_the_action(tmp_path, action, phase):
+    result = JobsPasteWorld(tmp_path, action).run(no_readback=[phase])
+    assert result.returncode != 0 and "readback file does not exist" in result.stderr, (result.stdout, result.stderr)
+    assert result.names == [f"helper-{phase}-0"]

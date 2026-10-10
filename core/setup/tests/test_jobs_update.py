@@ -118,10 +118,11 @@ def test_ju06_the_window_check_itself_is_what_refuses_at_0804_and_2100_when_the_
         w.fake_reader = cloud
         snapshot = jo.quiet_snapshot(cloud, jr.runner_for(w.bound, w.bq_client()), clock.now())
         w.release_dir.joinpath("readbacks").mkdir(exist_ok=True)
+        identity = {"schema_version": 1, "mode": "jobs", "release_id": w.bound["release_id"]}
         for phase in ("BeforeAnyWrite",):
-            jw.write_json(w.release_dir / "readbacks" / f"{phase}-01.json", {"phase": phase, "at_utc": clock.now().isoformat()})
+            jw.write_json(w.release_dir / "readbacks" / f"{phase}-01.json", {**identity, "phase": phase, "at_utc": clock.now().isoformat()})
         w.schema_receipt()
-        jw.write_json(w.release_dir / "readbacks" / "BeforeJobsUpdate-01.json", {"phase": "BeforeJobsUpdate", "at_utc": clock.now().isoformat(),
+        jw.write_json(w.release_dir / "readbacks" / "BeforeJobsUpdate-01.json", {**identity, "phase": "BeforeJobsUpdate", "at_utc": clock.now().isoformat(),
                                                                                    "quiet_snapshot": snapshot})
         if allowed:
             assert update(w, cloud, clock)["complete"] is True
@@ -503,3 +504,42 @@ def test_rb_t5_a_rollback_whose_read_fails_stops_with_read_failed_and_writes_its
     assert "23:30" in log["stopped"]["branch_text"] and len(sorted(w.evidence.glob("jobs-rollback-*.json"))) == 1
     rerun = rollback(w, cloud, clock)
     assert rerun["complete"] is True and all(v == OLD for v in digests(cloud).values())
+
+
+# RB-T8 (F15: R12 and R17, F8: the pinned hours in the logs)
+
+def test_rb_t8_a_restore_that_exits_zero_with_another_image_is_not_counted_as_restored(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    cloud.fail["f42-detect"] = 1
+    cloud.misapply_restores["f42-brief"] = jw.OLD_DIGEST
+    log = update(w, cloud, clock)
+    assert stopped(log) == "UPDATE_FAILED" and log["stopped"]["job"] == "f42-detect"
+    assert log["unrestored"] == ["f42-brief"] and log["restored"] == []
+    assert log["branch"] == "CHAIN_PREFIX_UNRESTORED" and "CHAIN_PREFIX_UNRESTORED" in log["codes"]
+
+
+def test_rb_t8_a_rollback_whose_update_exits_zero_with_another_image_stops_with_job_image(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    update(w, cloud, clock)
+    cloud.misapply_restores["f42-digest"] = jw.OLD_DIGEST
+    log = rollback(w, cloud, clock)
+    assert stopped(log) == "JOB_IMAGE" and log["stopped"]["job"] == "f42-digest" and log["complete"] is False
+    assert log["updated"] == ["f42-collect", "f42-understand", "f42-detect", "f42-brief", "f42-scheduled-asks"]
+    assert "f42-digest" not in log["updated"]
+
+
+def test_rb_t8_the_run_logs_and_the_branch_texts_state_the_bound_window_hours(tmp_path):
+    w, cloud, clock = started(tmp_path, at=sast(18, 0))
+    cloud.fail["f42-probe"] = 1
+    held = update(w, cloud, clock)
+    assert held["rollback_deadline_sast"] == "23:30" and held["window_end_sast"] == "21:00"
+    assert "21:00 SAST" in held["stopped"]["branch_text"] and "23:30 SAST" in held["stopped"]["branch_text"]
+    w2, cloud2, clock2 = started(tmp_path / "chain", at=sast(18, 0))
+    cloud2.fail["f42-detect"] = 1
+    restored = update(w2, cloud2, clock2)
+    assert "21:00 SAST" in restored["stopped"]["branch_text"] and "23:30 SAST" in restored["stopped"]["branch_text"]
+    w3, cloud3, clock3 = started(tmp_path / "back")
+    update(w3, cloud3, clock3)
+    cloud3.read_failures["f42-digest"] = 1
+    undone = rollback(w3, cloud3, clock3)
+    assert undone["rollback_deadline_sast"] == "23:30" and "23:30 SAST" in undone["stopped"]["branch_text"]

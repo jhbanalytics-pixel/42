@@ -425,8 +425,18 @@ def side_executions(ev, listed, stages, rows, midnight, bound_names):
         unbound = [e for e in todays if e["metadata"]["name"] not in bound_names]
         stage = next((s for s, j in jo.STAGE_JOB.items() if j == job), None)
         if stage is not None:
-            allowed = len([r for r in rows if r["stage"] == stage and r["status"] == SKIPPED])
-            if len(unbound) > allowed:
+            # The one start that is not manual: the brief's 06:15 SAST start, which writes a skipped_duplicate row on a published day.
+            # It is counted by time as well as by row, so an extra start at any other hour is MANUAL whatever rows exist, and a typed
+            # run is MANUAL too (accepted reading of hard line 2); it is listed below either way.
+            allowed = set()
+            if stage == "brief":
+                skipped = len([r for r in rows if r["stage"] == stage and r["status"] == SKIPPED])
+                scheduled = dt.datetime.combine(day, DEADLINE, SAST)
+                limit = ev.bound["collectStartToleranceMinutes"] * 60
+                near = sorted((e for e in unbound if abs((jo.aware(e["status"]["startTime"]) - scheduled).total_seconds()) <= limit),
+                              key=lambda e: (jo.aware(e["status"]["startTime"]), e["metadata"]["name"]))
+                allowed = {e["metadata"]["name"] for e in near[:skipped]}
+            if any(e["metadata"]["name"] not in allowed for e in unbound):
                 ev.fail("MANUAL", stage)
         for entry in unbound:
             view = jo.describe_execution(ev.reader, entry["metadata"]["name"])

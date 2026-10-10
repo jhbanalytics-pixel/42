@@ -209,3 +209,12 @@ def test_rb_t3_the_candidate_writes_the_schema_readback_receipt_after_the_durabl
                             "C:/release/run")
     assert plan.jobs_matching_entries(list(receipt.argv)) == ["jobs_run"] and plan.matching_entries(list(receipt.argv)) == []
     assert "schema-receipt" in plan.JOBS_RUN_ACTIONS
+
+
+# RB-T8 (P03): the describe name shape is part of the positive list on the acting path
+
+def test_rb_t8_an_execution_describe_whose_name_is_not_the_plans_shape_matches_no_entry():
+    good = ["gcloud", "run", "jobs", "executions", "describe", "f42-collect-aaaaa", "--project", "ogilvy-trends-v2", "--region", "us-central1", "--format=json"]
+    assert plan.jobs_matching_entries(good) == ["executions_read"]
+    for name in ("--project=evil", "-x", "F42-collect-aaaaa", "f42-collect aaaaa", "other-collect-1", "f42-", ""):
+        assert plan.jobs_matching_entries([*good[:5], name, *good[6:]]) == [], name

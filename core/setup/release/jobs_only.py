@@ -35,7 +35,12 @@ UPDATE_ORDER = ("f42-watchdog", "f42-probe", "f42-gdelt", "f42-gdelt-daily", "f4
                 "f42-calendar", "f42-digest", "f42-scheduled-asks", *CHAIN_GROUP)
 A_TERMINAL_KINDS = ("AfterPromotion", "AfterRollback")
 JOBS_DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
-HHMM = re.compile(r"([01][0-9]|2[0-3]):[0-5][0-9]\Z")
+# Q5, pinned here and not read from the bindings: JobsUpdate runs from 08:05 to 21:00 SAST, an update that stops is completed by 21:00 or
+# undone by JobsRollback before 23:30. The bindings carry the three values so the logs can state them; they cannot move them.
+PINNED_WINDOW = {"startSast": "08:05", "endSast": "21:00", "rollbackDeadlineSast": "23:30"}
+MAX_COLLECT_TOLERANCE_MINUTES = 30
+EXECUTION_NAME = re.compile(r"f42-[a-z0-9-]+\Z")
+COLLECT_START_SAST = dt.time(2, 0)
 
 # The bindings the chain evidence producer needs, and the rest that the release actions need. The producer runs before the
 # baseline chain manifest exists (it is the producer that writes it), so the manifest path and hash are not among its keys.
@@ -75,12 +80,12 @@ def validate_jobs_bindings(bound, *, producer=False):
     require(isinstance(templates, dict) and templates and all(SHA256.match(str(v)) for v in templates.values()), "BINDINGS",
             "templateHashes is not a table of sha256 values")
     tolerance = bound["collectStartToleranceMinutes"]
-    require(isinstance(tolerance, int) and not isinstance(tolerance, bool) and tolerance >= 0, "BINDINGS",
-            "collectStartToleranceMinutes is not a non-negative integer")
+    require(isinstance(tolerance, int) and not isinstance(tolerance, bool) and 0 <= tolerance <= MAX_COLLECT_TOLERANCE_MINUTES, "BINDINGS",
+            f"collectStartToleranceMinutes is not an integer from 0 to {MAX_COLLECT_TOLERANCE_MINUTES}")
     if not producer:
         window = bound["window"]
-        require(isinstance(window, dict) and set(window) == {"startSast", "endSast", "rollbackDeadlineSast"}
-                and all(HHMM.match(str(v)) for v in window.values()), "BINDINGS", "window must give startSast, endSast and rollbackDeadlineSast as HH:MM")
+        require(isinstance(window, dict) and window == PINNED_WINDOW, "BINDINGS",
+                "window must be startSast 08:05, endSast 21:00 and rollbackDeadlineSast 23:30 (Q5)")
         for key in ("durableManifestPath", "dryRunReceiptPath", "baselineChainPath", "schemaReadbackReceiptPath"):
             require(isinstance(bound[key], str) and bool(bound[key]), "BINDINGS", f"{key} is not a path")
         root = Path(bound["releaseDir"]).resolve()
@@ -233,7 +238,11 @@ def execution_view(raw):
 
 
 def describe_execution(reader, name):
-    """One named execution; the description must be for the name asked, else it is a contradiction."""
+    """One named execution; the description must be for the name asked, else it is a contradiction. A name that has not the shape the
+    plan allows (f42- and lowercase letters, digits and hyphens) is never passed to gcloud: a runs row declares its own execution name,
+    so the shape is checked here before the name is used."""
+    if not (isinstance(name, str) and EXECUTION_NAME.match(name)):
+        raise so.NotFound("an execution name that is not of the shape f42-<lowercase letters, digits, hyphens>")
     view = execution_view(reader.execution(name))
     require(view["name"] == name, "EXECUTION_IDENTITY", "An execution description is for another execution than the one asked")
     return view
@@ -284,9 +293,12 @@ def quiet_snapshot(reader, runner, taken_at):
         kept = []
         for entry in reader.executions(job):
             start = entry.get("status", {}).get("startTime")
-            if start is not None and aware(start).astimezone(SAST).date() not in days:
+            running = is_active(entry)
+            # Every execution with no completion time counts as active, whatever day it started, because the rollback judges the same
+            # ones. The list keeps today, yesterday and the active ones.
+            if not running and start is not None and aware(start).astimezone(SAST).date() not in days:
                 continue
-            state = "active" if is_active(entry) else "completed"
+            state = "active" if running else "completed"
             kept.append({"name": entry["metadata"]["name"], "state": state})
             if state == "active":
                 (active_chain if job in STAGE_JOB.values() else active_side).append(entry["metadata"]["name"])
@@ -372,9 +384,25 @@ class JobsRelease:
         return frozen_digest(self.root)
 
     def last_readback(self, phase):
-        folder = self.root / "readbacks"
-        found = sorted(folder.glob(f"{phase}-*.json")) if folder.exists() else []
-        return json.loads(found[-1].read_text(encoding="utf-8")) if found else None
+        return verified_readback(self.root, self.bound, phase)
+
+
+def verified_readback(root, bound, phase):
+    """The latest readback of a phase in the release directory, or None when there is none. It is trusted only when it is this release's
+    own: schema version 1, mode jobs, this phase and this release id. The latest file decides, so a newer file of another release is
+    not skipped over (A and B cut from one commit can share a directory)."""
+    folder = Path(root) / "readbacks"
+    found = sorted(folder.glob(f"{phase}-*.json")) if folder.exists() else []
+    if not found:
+        return None
+    try:
+        data = json.loads(found[-1].read_text(encoding="utf-8"))
+    except ValueError:
+        data = None
+    require(isinstance(data, dict) and data.get("schema_version") == SCHEMA_VERSION and data.get("mode") == "jobs" and data.get("phase") == phase
+            and data.get("release_id") == bound["release_id"], "READBACK_IDENTITY",
+            f"The latest {phase} readback in the release directory is not this release's, in jobs mode, at this schema version")
+    return data
 
 
 def split_view(view):
@@ -460,6 +488,10 @@ def check_baseline_chain(rel):
         require(supported, "BASELINE", "The baseline chain neither qualifies nor is a baseline by line")
     day = dt.date.fromisoformat(manifest["run_date"])
     today = rel.now().astimezone(SAST).date()
+    at = aware(terminal["at_utc"]).astimezone(SAST)
+    first_chain = at.date() if at.time() < COLLECT_START_SAST else at.date() + dt.timedelta(days=1)
+    require(day in (first_chain, first_chain + dt.timedelta(days=1)), "BASELINE",
+            f"The baseline chain of {day.isoformat()} is not one of the first two chains after Release A's terminal readback (Q3)")
     require(0 <= (today - day).days <= rel.bound["maxBaselineAgeDays"], "BASELINE_AGE",
             f"The baseline chain of {day.isoformat()} is outside the bound maximum age")
     rel.observations["baseline_chain"] = {"run_date": day.isoformat(), "qualifies": verdict["qualifies"],

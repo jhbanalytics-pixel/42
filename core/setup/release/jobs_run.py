@@ -31,12 +31,23 @@ from core.setup.release import plan  # noqa: E402
 from core.setup.release import services_only as so  # noqa: E402
 from core.setup.release.services_only import Probe, Stop, require  # noqa: E402
 
-HOLD_TEXT = ("hold: re-run JobsUpdate to finish the set by 21:00 SAST; if it cannot be finished, undo it with JobsRollback before "
-             "23:30 SAST (both are operator actions, no chain job has changed)")
-CHAIN_TEXT = ("the chain group was restored automatically and the ten non-chain jobs are new; finish the set with JobsUpdate by 21:00 SAST "
-              "or undo it with JobsRollback before 23:30 SAST")
-UNRESTORED_TEXT = ("CHAIN_PREFIX_UNRESTORED: a chain job is still on the new image; run JobsRollback before 23:30 SAST, which completes "
-                   "the restore")
+def hold_text(window):
+    return (f"hold: re-run JobsUpdate to finish the set by {window['endSast']} SAST; if it cannot be finished, undo it with JobsRollback before "
+            f"{window['rollbackDeadlineSast']} SAST (both are operator actions, no chain job has changed)")
+
+
+def chain_text(window):
+    return (f"the chain group was restored automatically and the ten non-chain jobs are new; finish the set with JobsUpdate by {window['endSast']} SAST "
+            f"or undo it with JobsRollback before {window['rollbackDeadlineSast']} SAST")
+
+
+def unrestored_text(window):
+    return (f"CHAIN_PREFIX_UNRESTORED: a chain job is still on the new image; run JobsRollback before {window['rollbackDeadlineSast']} SAST, "
+            "which completes the restore")
+
+
+def rollback_hint(window):
+    return f"re-run JobsRollback before {window['rollbackDeadlineSast']} SAST"
 
 
 TOKEN_NAME = "update-token.json"
@@ -174,8 +185,9 @@ def run_snapshot(bound, adapter, bq_client, evidence, *, now):
     return snapshot
 
 
-def new_log(action, now):
-    return {"schema_version": 1, "action": action, "started_at": now().isoformat(), "finished_at": None, "updated": [],
+def new_log(action, now, window):
+    return {"schema_version": 1, "action": action, "window_end_sast": window["endSast"], "rollback_deadline_sast": window["rollbackDeadlineSast"],
+            "started_at": now().isoformat(), "finished_at": None, "updated": [],
             "skipped_already_new": [], "restored": [], "unrestored": [], "changed_definitions": [], "active_executions": None,
             "stopped": None, "branch": None, "codes": [], "complete": False}
 
@@ -273,9 +285,8 @@ def run_update(bound, adapter, bq_client, evidence, *, now, sleep=None):
     digest = jo.frozen_digest(bound["releaseDir"])
     started = now()
     require(jo.window_open(bound, started), "WINDOW", "JobsUpdate runs only inside the bound window")
-    folder = Path(bound["releaseDir"]) / "readbacks"
-    found = sorted(folder.glob("BeforeJobsUpdate-*.json")) if folder.exists() else []
-    first = json.loads(found[-1].read_text(encoding="utf-8")).get("quiet_snapshot") if found else None
+    held = jo.verified_readback(bound["releaseDir"], bound, "BeforeJobsUpdate")
+    first = held.get("quiet_snapshot") if held else None
     require(first is not None, "STALE_SNAPSHOT", "BeforeJobsUpdate left no quiet snapshot to compare with")
     age = jo.snapshot_age_minutes(first, started)
     require(0 <= age <= jo.QUIET_MAX_AGE_MINUTES, "STALE_SNAPSHOT", "The quiet snapshot is older than 15 minutes")
@@ -283,7 +294,7 @@ def run_update(bound, adapter, bq_client, evidence, *, now, sleep=None):
     jo.assert_quiet(second)
     require(jo.chain_view(first) == jo.chain_view(second), "CHAIN_ACTIVE", "A chain execution or row changed since the first snapshot")
 
-    log = new_log("update", now)
+    log = new_log("update", now, bound["window"])
     touched = []
     try:
         for job in jo.UPDATE_ORDER:
@@ -325,13 +336,13 @@ def run_update(bound, adapter, bq_client, evidence, *, now, sleep=None):
                 if log["unrestored"]:
                     log["branch"] = "CHAIN_PREFIX_UNRESTORED"
                     log["codes"].append("CHAIN_PREFIX_UNRESTORED")
-                    log["stopped"]["branch_text"] = UNRESTORED_TEXT
+                    log["stopped"]["branch_text"] = unrestored_text(bound["window"])
                 else:
                     log["branch"] = "chain_group_restored"
-                    log["stopped"]["branch_text"] = CHAIN_TEXT
+                    log["stopped"]["branch_text"] = chain_text(bound["window"])
             else:
                 log["branch"] = "hold_non_chain"
-                log["stopped"]["branch_text"] = HOLD_TEXT
+                log["stopped"]["branch_text"] = hold_text(bound["window"])
         finalize(log, adapter, baseline, now, touched)
     except Exception as error:
         # Whatever else goes wrong after the first update call, the log of what was done is written before the error is raised.
@@ -351,7 +362,7 @@ def run_rollback(bound, adapter, evidence, *, now):
     for job in jo.STAGE_JOB.values():
         require(not any(jo.is_active(e) for e in adapter.executions(job)), "CHAIN_ACTIVE",
                 "A chain execution is running or queued; a rollback inside a live chain makes the reverse pairs")
-    log = new_log("rollback", now)
+    log = new_log("rollback", now, bound["window"])
     log["skipped_already_new"] = []
     touched = []
     try:
@@ -359,21 +370,21 @@ def run_rollback(bound, adapter, evidence, *, now):
             try:
                 view = so.job_view(adapter.job(job))
             except (Probe, so.NotFound):
-                stop(log, job, "READ_FAILED", f"{job} could not be read before its restore", "re-run JobsRollback before 23:30 SAST")
+                stop(log, job, "READ_FAILED", f"{job} could not be read before its restore", rollback_hint(bound["window"]))
                 break
             if view == baseline["jobs"][job]:
                 log["skipped_already_new"].append(job)
                 continue
             touched.append(job)
             if adapter.update_job(job, digest) != 0:
-                stop(log, job, "UPDATE_FAILED", f"The restore of {job} returned a nonzero exit", "re-run JobsRollback before 23:30 SAST")
+                stop(log, job, "UPDATE_FAILED", f"The restore of {job} returned a nonzero exit", rollback_hint(bound["window"]))
                 break
             try:
                 view = so.job_view(adapter.job(job))
             except (Probe, so.NotFound):
                 view = None
             if view is None or view["image"] != jo.image_reference(digest):
-                stop(log, job, "JOB_IMAGE", f"{job} does not run the rollback digest after its restore", "re-run JobsRollback before 23:30 SAST")
+                stop(log, job, "JOB_IMAGE", f"{job} does not run the rollback digest after its restore", rollback_hint(bound["window"]))
                 break
             if jo.split_view(view) != jo.split_view(baseline["jobs"][job]):
                 log.setdefault("residual_drift", []).append(job)

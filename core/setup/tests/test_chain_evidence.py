@@ -692,3 +692,108 @@ def test_jm11_generated_from_cites_the_commit_the_bindings_bind(tmp_path):
     other = "c" * 40
     manifest = build(fix, bound_over={"target": other, "release_id": "rel-ccccccc-01"})
     assert manifest["generated_from"] == {"head": other}
+
+
+# RB-T8 (F9, F12, F17, C30)
+
+# F9: a typed manual run is MANUAL (the accepted reading), and the skipped duplicate allowance covers only the brief's 06:15 start
+
+def manual_names(manifest):
+    return [e["name"] for e in manifest["side_executions"]]
+
+
+def test_rb_t8_a_typed_manual_run_of_a_chain_job_disqualifies_and_is_listed_in_side_executions(tmp_path):
+    fix = fixture(tmp_path)
+    fix.side_execution("f42-detect", "f42-detect-typed", fix.midnight + dt.timedelta(minutes=600))
+    manifest = build(fix)
+    assert reasons(manifest) == ["MANUAL"] and "f42-detect-typed" in manual_names(manifest)
+
+
+def test_rb_t8_an_extra_collect_start_at_0520_sast_is_manual_even_when_it_ended_as_a_skipped_duplicate(tmp_path):
+    fix = fixture(tmp_path)
+    fix.skipped("collect", "x", minutes=320)
+    manifest = build(fix)
+    assert reasons(manifest) == ["MANUAL"] and manifest["verdict"]["failed_stage"] == "collect"
+    assert manifest["stages"]["collect"]["skipped_duplicates"]  # still recorded, never a reason on its own
+
+
+def test_rb_t8_an_extra_brief_start_at_0520_sast_is_manual_although_a_skipped_row_and_the_0615_start_exist(tmp_path):
+    fix = fixture(tmp_path)
+    fix.skipped("brief", "early", minutes=320)
+    assert reasons(build(fix)) == ["MANUAL"]
+
+
+def test_rb_t8_a_second_start_near_0615_without_a_second_skipped_row_is_manual(tmp_path):
+    fix = fixture(tmp_path)
+    fix.side_execution("f42-brief", "f42-brief-again", fix.midnight + dt.timedelta(minutes=377))
+    assert reasons(build(fix)) == ["MANUAL"]
+
+
+@pytest.mark.parametrize("minutes,manual", [(385, False), (386, True), (365, False), (364, True)])
+def test_rb_t8_the_skipped_duplicate_allowance_follows_the_bound_tolerance_around_0615(tmp_path, minutes, manual):
+    fix = fixture(tmp_path)
+    fix.rows = [r for r in fix.rows if r["status"] != "skipped_duplicate"]
+    fix.world.executions = {k: v for k, v in fix.world.executions.items() if "-skip-" not in k}
+    fix.skipped("brief", "edge", minutes=minutes)
+    assert (reasons(build(fix)) == ["MANUAL"]) is manual
+
+
+def test_rb_t8_the_0615_start_with_its_skipped_row_still_does_not_disqualify(tmp_path):
+    fix = fixture(tmp_path)
+    assert reasons(build(fix)) == []
+
+
+# F12: an execution name a runs row declares about itself is checked for shape before it reaches gcloud
+
+@pytest.mark.parametrize("name", ["--project=evil", "-x", "F42-COLLECT-AAAAA", "f42-collect aaaaa", "../f42-collect-aaaaa", "f42-", "f42-collect-aaaaa;x", ""])
+def test_rb_t8_a_declared_execution_name_with_the_wrong_shape_is_a_bound_failure_and_is_never_described(tmp_path, name):
+    fix = fixture(tmp_path)
+    running = next(r for r in fix.rows if r["stage"] == "collect" and r["status"] == "running")
+    running["counts"] = json.dumps({"execution": name})
+    reader = fix.reader()
+    manifest = build(fix, reader=reader)
+    assert "BOUND" in reasons(manifest)
+    assert all(call[:5] != ["run", "jobs", "executions", "describe", name] for call in reader.argv_log)
+    assert not [call for call in reader.argv_log if name and name in call]
+
+
+def test_rb_t8_describe_execution_refuses_a_malformed_name_before_asking_the_reader():
+    class Reader:
+        def execution(self, name):
+            raise AssertionError("the reader must not be asked")
+
+    for name in ("--flag", "f42-UPPER", "other-collect-1", None, 5):
+        with pytest.raises(so.NotFound):
+            jo.describe_execution(Reader(), name)
+
+
+# C30: the producer checks who is calling
+
+@pytest.mark.parametrize("config", [{"core": {"account": "someone.else@example.com", "project": "ogilvy-trends-v2"}},
+                                    {"core": {"account": jw.CALLER, "project": "another-project"}},
+                                    {"core": {"account": jw.CALLER, "project": "ogilvy-trends-v2"}, "auth": {"impersonate_service_account": "x@y.iam"}},
+                                    {}], ids=["other_account", "other_project", "impersonation", "empty"])
+def test_rb_t8_the_producer_stops_when_the_cli_caller_project_or_impersonation_differs_from_the_bound_one(tmp_path, config):
+    fix = fixture(tmp_path)
+    fix.world.config = config
+    with pytest.raises(so.Stop) as stop:
+        build(fix)
+    assert stop.value.code == "IDENTITY"
+
+
+# F17: the thirteen codes of JM-02 are each asserted by a node of this file, so a deleted fixture cannot leave JM-02 green
+
+def test_rb_t8_each_of_the_thirteen_codes_is_asserted_by_a_jm02_node_of_this_file():
+    import ast
+
+    assert len(ce.CODES) == 13 and set(ce.CODES) == set(jo.CHAIN_CODES)
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    asserted = {}
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_jm02_"):
+            for statement in ast.walk(node):
+                if isinstance(statement, ast.Assert):
+                    for const in ast.walk(statement.test):
+                        if isinstance(const, ast.Constant) and const.value in ce.CODES:
+                            asserted.setdefault(const.value, set()).add(node.name)
+    assert sorted(set(ce.CODES) - set(asserted)) == []

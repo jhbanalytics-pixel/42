@@ -410,3 +410,18 @@ def test_rb_t4_the_reviewers_state_ends_clean_end_to_end_b_updated_then_a_servic
     assert outcome["complete"] is True and all(cloud.digest_of(job) == OLD for job in so.JOB_NAMES)
     after = w.run("AfterJobsRollback", reader=cloud, now=clock.now())
     assert after["phase"] == "AfterJobsRollback" and after["blocking"]["services"]["blocking"] is False
+
+
+# RB-T8 (B01): the jobs mode of the helper takes no --tag
+
+def test_rb_t8_the_jobs_mode_of_the_helper_refuses_a_tag_before_any_read(tmp_path, capsys):
+    w = world(tmp_path)
+    bindings = w.tmp / "jobs-bindings.json"
+    bindings.write_text(json.dumps(w.bound), encoding="utf-8")
+    reader = w.fake_reader
+    reader.calls.clear()
+    code = helper.main(["--mode", "jobs", "--phase", "BeforeAnyWrite", "--tag", "rel-b5e1a2c-01", "--bindings", str(bindings), "--evidence", str(w.evidence)],
+                       reader_factory=lambda timeouts: reader, bq_factory=lambda bound: w.bq_client(), now=lambda: w.now)
+    assert code == 1 and "STOP: MODE" in capsys.readouterr().err and reader.calls == []
+    assert helper.main(["--mode", "jobs", "--phase", "BeforeAnyWrite", "--bindings", str(bindings), "--evidence", str(w.evidence)],
+                       reader_factory=lambda timeouts: reader, bq_factory=lambda bound: w.bq_client(), now=lambda: w.now) == 0

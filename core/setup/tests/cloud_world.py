@@ -46,6 +46,7 @@ class FakeCloudRun(jr.JobsAdapter, jw.FakeJobsReader):
         self.read_failures = {}
         self.read_failures_after_update = {}
         self.missing_jobs = set()
+        self.misapply_restores = {}
         self.minutes_per_update = 0
         self.refuse_restores = False
 
@@ -108,6 +109,8 @@ class FakeCloudRun(jr.JobsAdapter, jw.FakeJobsReader):
         if self.fail.get(job) and not restoring and job not in self.apply_then_fail:
             return self.fail[job], "failed"
         self.inject(("during", k))
+        if restoring and job in self.misapply_restores:
+            reference = jw.image(self.misapply_restores[job])
         self.world.jobs[job]["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]["image"] = reference
         if job in self.read_failures_after_update and not restoring:
             self.read_failures[job] = self.read_failures.get(job, 0) + self.read_failures_after_update.pop(job)
