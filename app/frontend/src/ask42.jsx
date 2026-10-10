@@ -614,7 +614,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
               <h4 className="ask42-tech-title">What the checks recorded</h4>
               <ul className="ask42-list ask42-gaps-technical">
                 {technicalGaps.map((gap, index) => (
-                  <li key={index}>{[gap.what, gap.searched && 'Searched: ' + gap.searched, gap.why && 'Why: ' + gap.why].filter(Boolean).join(' · ')}</li>
+                  <li key={index}>{[gap.what, gap.searched && searchLabel(gap.searched, ':'), gap.why && 'Why: ' + gap.why].filter(Boolean).join(' · ')}</li>
                 ))}
               </ul>
             </>
@@ -626,6 +626,12 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
       <SourcePanel evidence={pinned} quotes={pinned ? quotesFor(answer, pinned.id) : []} onClose={() => setPinnedId(null)} />
     </div>
   );
+}
+
+/* "Searched" labels what was searched, unless the stored text already starts
+   with its own verb ("Inspected audio metadata ...", "Searched posts ..."). */
+function searchLabel(text, colon = ''){
+  return /^[A-Z][a-z]+ed\b/.test(text) ? text : 'Searched' + colon + ' ' + text;
 }
 
 /* One gap in reader words. A record the API has already put in plain words
@@ -641,7 +647,7 @@ function GapLine({gap}){
            each fact after it stays whole, so a wrapped row never starts with
            a middot. */
         <span className="ask42-muted">
-          {searched && <>{' · '}<span className="fact-unit">{'Searched ' + searched}</span></>}
+          {searched && <>{' · '}<span className="fact-unit">{searchLabel(searched)}</span></>}
           {reason && <>{' · '}<span className="fact-unit">{reason}</span></>}
         </span>
       )}

@@ -123,6 +123,12 @@ def _searched(text):
     return (rest + ", " if rest else "") + f"{len(ids)} post{'' if len(ids) == 1 else 's'}"
 
 
+def _search_line(text):
+    """"Searched: ..." unless the stored text already starts with its own verb ("Inspected audio metadata")."""
+    words = _searched(text)
+    return words if re.match(r"[A-Z][a-z]+ed\b", words) else "Searched: " + words
+
+
 def _status_words(answer, meta=None):
     words = summary_state.status_words(meta)
     if words:
@@ -533,7 +539,7 @@ def render_answer_html(record: dict) -> str:
             out.append("<article>")
             out.append(_p(gap.get("what")))
             if gap.get("searched"):
-                out.append(_p("Searched: " + _searched(gap["searched"]), "note"))
+                out.append(_p(_search_line(gap["searched"]), "note"))
             if gap.get("why"):
                 out.append(_p("Why: " + str(gap["why"]).replace("_", " "), "note"))
             out.append("</article>")
@@ -586,7 +592,7 @@ def render_answer_html(record: dict) -> str:
             out.append("<article>")
             out.append(_p(gap.get("what")))
             if gap.get("searched"):
-                out.append(_p("Searched: " + _searched(gap["searched"]), "note"))
+                out.append(_p(_search_line(gap["searched"]), "note"))
             if gap.get("why"):
                 out.append(_p("Why: " + str(gap["why"]).replace("_", " "), "note"))
             out.append("</article>")

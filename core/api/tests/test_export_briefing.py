@@ -85,3 +85,10 @@ def test_the_sections_come_in_the_briefing_order():
              "What we do not know", "How this was researched", "<h2>Sources</h2>", "Technical details"]
     at = [markup.index(token) for token in order]
     assert at == sorted(at), dict(zip(order, at))
+
+
+def test_a_gap_that_starts_with_a_verb_is_not_labelled_searched_again():
+    markup = page()
+    assert "Searched: Searched" not in markup and "Searched: Inspected" not in markup
+    assert "<p class=\"note\">Inspected audio metadata" in markup
+    assert "<p class=\"note\">Searched posts matching #funnyclip" in markup

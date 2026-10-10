@@ -17,7 +17,7 @@
 .ask42-answer-rail { grid-area: rail; min-width: 0; }
 .ask42-answer-rest { grid-area: rest; min-width: 0; }
 .ask42-answer-rail > .ask42-section:first-child { margin-top: 0; }
-@container (min-width: 1000px) {
+@container (min-width: 880px) {
   .ask42-answer-body { grid-template-areas: "lead rail" "rest rail"; grid-template-rows: auto 1fr; }
   .ask42-answer-rail { border-left: 1px solid var(--line); padding-left: var(--s-6); }
 }

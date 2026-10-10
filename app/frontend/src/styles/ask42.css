@@ -213,7 +213,7 @@
 .ask42-answer-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
 .ask42-answer-lead, .ask42-answer-rail { min-width: 0; }
 .ask42-answer-rail > .ask42-section:first-child { margin-top: 0; }
-@container (min-width: 1000px) {
+@container (min-width: 880px) {
   .ask42-answer-body { grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: var(--s-7); }
   /* The side column runs the full height of the answer: the posts, the
      numbers, what each platform returned and where to ask next. It scrolls

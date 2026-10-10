@@ -250,3 +250,31 @@ test('while it runs the view shows the current step, the steps done and the cloc
   expect(earlier.hasAttribute('open')).toBe(false);
   expect(words(earlier.querySelector('summary'))).toBe('Earlier steps · 21');
 });
+
+/* ---- lead review, 10 October: one label, and the rail at laptop width ---- */
+
+test('a gap whose stored text already starts with a verb is not given a second "Searched"', async () => {
+  await open();
+  const rows = all('.ask42-gaps li').map(words);
+  expect(rows.join(' ')).not.toMatch(/Searched (Searched|Inspected)/);
+  expect(rows[0]).toContain('Inspected audio metadata associated with sound identifiers');
+  expect(rows[0]).not.toContain('Searched Inspected');
+  expect(rows[1]).toContain('Searched posts matching #funnyclip');
+  expect(rows[1]).not.toContain('Searched Searched');
+  const record = clone(repeatRecord);
+  record.answer.gaps = [{what: 'No Instagram posts', searched: 'the posts found for this question', why: 'empty'}];
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  await open(record);
+  expect(words(host.querySelector('.ask42-gaps li'))).toContain('Searched the posts found for this question');
+});
+
+test('the rail sits beside the findings from 880px of answer width and stacks below it', async () => {
+  const {readFileSync} = await import('node:fs');
+  const css = readFileSync(new URL('../../styles/askbrief42.css', import.meta.url), 'utf8');
+  const rail = /@container \(min-width: (\d+)px\)\s*\{[^}]*\.ask42-answer-body \{[^}]*grid-template-areas: "lead rail" "rest rail"/.exec(css);
+  expect(rail, 'a container rule that places the rail beside the lead').not.toBeNull();
+  expect(Number(rail[1])).toBeLessThanOrEqual(880);
+  expect(Number(rail[1])).toBeGreaterThan(820 - 175); // narrower than a tablet's answer column stays stacked
+  expect(css).toMatch(/\.ask42-answer-body \{ grid-template-areas: "lead" "rail" "rest"; \}/);
+});
