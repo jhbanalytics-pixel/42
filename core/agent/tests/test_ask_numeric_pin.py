@@ -344,3 +344,99 @@ def test_a_query_with_a_row_that_is_not_a_dict_is_left_to_the_repair_call():
     _, issues, pinned, *_ = pinned_for(rows, "#gqom drew 6 posts from 3 creators.", [SIX])
 
     assert pinned is None
+
+
+GQ = {"hashtag": "#gqom", "posts": 9, "creators": 5}
+AM = {"hashtag": "#amapiano", "posts": 7, "creators": 6}
+KW = {"hashtag": "#kwaito", "posts": 4, "creators": 2}
+
+
+def pinned_across(queries, text, numbers_in_first=True):
+    """Each list of rows is one recorded query; the claim cites only the first, through its good number."""
+    ctx = RunContext(run_id="r_pin", tier="T1", as_of=NOW, market="ZA", window_start=NOW.date(), window_end=NOW.date())
+    by_sql, qids = {}, []
+    for n, rows in enumerate(queries):
+        sql = f"SELECT COUNT(*) AS posts FROM intelligence_42_core.posts p WHERE n = {n}"
+        qid, _ = ctx.record_query(sql, {}, rows, "counts")
+        qids.append(qid)
+        by_sql[sql] = rows
+
+    class Many(RowsWarehouse):
+        def run(self, sql, params, max_bytes_billed):
+            return copy.deepcopy(by_sql[sql])
+
+    wh = Many([])
+    draft = draft_for(text, [NINE], qids[0])
+    for number in draft["claims"][0]["numbers"]:
+        number["run_id"], number["result_hash"] = ctx.run_id, ctx.queries[qids[0]]["result_hash"]
+    window, reruns = (NOW.date(), NOW.date()), {}
+    issues = writer.unpinned_claim_numerals(draft, ctx, wh, window=window, reruns=reruns)
+    pinned = writer.pin_numerals_in_code(draft, issues, ctx, wh, window=window, reruns=reruns)
+    return draft, issues, pinned, ctx, wh, window, reruns
+
+
+@pytest.mark.parametrize("queries, text", [
+    ([[GQ], [AM]], "#gqom drew 9 posts, while #amapiano reached 5 creators."),
+    ([[GQ]], "#gqom drew 9 posts and #amapiano drew 5 creators."),
+    ([[GQ, KW], [AM]], "#gqom drew 9 posts; on #amapiano 5 creators posted."),
+], ids=["second-subject-in-an-uncited-query", "second-subject-in-no-query", "cited-query-lacks-the-second-subject"])
+def test_a_figure_is_not_pinned_when_the_claim_names_a_second_subject_wherever_that_subject_sits(queries, text):
+    """Review of 7c6049b, R1 to R3: the 5 is #gqom's creators in the data, but each sentence gives it to #amapiano.
+    The cited query shows no other row for the claim to name, yet pinning would let K2 pass the wrong attribution."""
+    draft, issues, pinned, ctx, wh, _, _ = pinned_across(queries, text)
+
+    assert issues and pinned is None
+    assert any(v == "cut" and "numeral 5 has no pinned" in why for v, why in k2_verdicts(draft, ctx, wh))
+
+
+def test_a_second_subject_in_an_uncited_query_the_claim_does_not_name_does_not_stop_the_pin():
+    _, issues, pinned, ctx, wh, window, reruns = pinned_across([[GQ], [AM]], "#gqom drew 9 posts from 5 creators.")
+
+    assert issues and pinned is not None and pinned["claims"][0]["numbers"][-1]["value"] == 5
+    assert writer.unpinned_claim_numerals(pinned, ctx, wh, window=window, reruns=reruns) == []
+
+
+@pytest.mark.parametrize("text", [
+    "#gqom drew 9 posts from 5 creators, ahead of #nobody.",
+    "#gqom drew 9 posts from 5 creators, as @someone noticed.",
+    "#gqom drew 9 posts from 5 creators; @one and @two shared it.",
+], ids=["second-tag", "handle", "two-handles"])
+def test_a_tag_or_handle_in_the_text_that_is_a_second_subject_stops_the_pin(text):
+    """The extra subject is in no query at all, so only the text can show it."""
+    _, issues, pinned, *_ = pinned_across([[GQ]], text)
+
+    assert issues and pinned is None
+
+
+def test_the_same_tag_written_twice_in_other_case_is_one_subject_and_still_pins():
+    _, _, pinned, *_ = pinned_across([[GQ]], "#gqom drew 9 posts from 5 creators, and #GQOM kept rising.")
+
+    assert pinned is not None and pinned["claims"][0]["numbers"][-1]["value"] == 5
+
+
+def test_a_platform_cell_the_claim_names_is_not_a_second_subject():
+    row = {**GQ, "platform": "TikTok"}
+
+    _, _, pinned, *_ = pinned_across([[row]], "#gqom drew 9 posts from 5 creators on TikTok.")
+
+    assert pinned is not None and pinned["claims"][0]["numbers"][-1]["value"] == 5
+
+
+def test_a_second_subject_written_without_a_hash_is_found_in_a_query_the_claim_does_not_cite():
+    plain = [{"hashtag": "gqom", "posts": 9, "creators": 5}], [{"hashtag": "amapiano", "posts": 7, "creators": 6}]
+
+    _, issues, pinned, *_ = pinned_across(list(plain), "gqom drew 9 posts, while amapiano reached 5 creators.")
+
+    assert issues and pinned is None
+
+
+def test_a_row_text_and_the_claim_tag_that_differ_only_in_case_are_one_subject():
+    _, _, pinned, *_ = pinned_across([[{**GQ, "hashtag": "#Gqom"}]], "#gqom drew 9 posts from 5 creators.")
+
+    assert pinned is not None and pinned["claims"][0]["numbers"][-1]["value"] == 5
+
+
+def test_an_at_sign_inside_a_word_is_not_a_handle_and_not_a_second_subject():
+    _, _, pinned, *_ = pinned_across([[GQ]], "#gqom drew 9 posts from 5 creators (ask ops@example.com).")
+
+    assert pinned is not None and pinned["claims"][0]["numbers"][-1]["value"] == 5
