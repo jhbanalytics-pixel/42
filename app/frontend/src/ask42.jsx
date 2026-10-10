@@ -14,7 +14,8 @@ import {go} from './router.js';
 import {marketToSend} from './askMarkets.js';
 import {costWords, itemsWords} from './costWords.js';
 import {EvidenceChip, monthName} from './ui/EvidenceChip.jsx';
-import {PostStrip} from './ui/PostStrip.jsx';
+import {FindingCard, FigureTiles, PlatformMarks} from './ui/AskBriefing.jsx';
+import {confidenceTag, distinctFigures, gapSplit, platformTotals, scopeWords} from './askEvidence.js';
 import {RankedAnswer} from './RankedAnswer.jsx';
 import {EntityLists} from './EntityLists.jsx';
 import {ResearchLog, inMarket} from './ui/ResearchLog.jsx';
@@ -23,7 +24,6 @@ import {CostConfirm} from './ui/SpikeConfirm.jsx';
 import {SkillForms, t2ReadyFrom} from './skills42.jsx';
 import {platformLabel} from './ui/PlatformGlyph.jsx';
 import {platformWord} from './ui/TrendCard.jsx';
-import {BarList} from './ui/Charts42.jsx';
 import {safeUrl} from './safeUrl.js';
 import {consumeAsk} from './askConsent.js';
 import {missingSummarySentence, statusWords, stoppedEarly, summaryNotice} from './answerMeta.js';
@@ -292,19 +292,6 @@ function metaLine(record){
   if (MARKET_NAME[record.market]) parts.push(MARKET_NAME[record.market]);
   const span = windowWords(run.window);
   if (span) parts.push('posts from ' + span);
-  const store = run.store || {};
-  if (typeof store.posts === 'number' && typeof store.creators === 'number'){
-    // Albert, 4 October: the line counts the whole store the answer drew on; the posts read are its sample.
-    let line = readerFigure(store.posts) + (store.posts === 1 ? ' post' : ' posts') + ' by '
-      + readerFigure(store.creators) + (store.creators === 1 ? ' creator' : ' creators');
-    if (typeof store.platforms === 'number') line += ' on ' + store.platforms + (store.platforms === 1 ? ' platform' : ' platforms');
-    parts.push(line + ' in the store');
-    if (typeof run.posts === 'number') parts.push(readerFigure(run.posts) + (run.posts === 1 ? ' post read' : ' posts read'));
-  } else if (typeof run.posts === 'number'){
-    let line = readerFigure(run.posts) + (run.posts === 1 ? ' post' : ' posts');
-    if (typeof run.platforms === 'number') line += ' from ' + run.platforms + (run.platforms === 1 ? ' platform' : ' platforms');
-    parts.push(line);
-  }
   return parts.join(' · ');
 }
 
@@ -405,15 +392,17 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   const findingSaveState = findingSave.askId === askId ? findingSave : {phase: 'idle', error: ''};
   const canSaveFinding = Boolean(askId && record.status === 'complete' && record.skin_id == null && record.investigation_id == null && record.parent_id == null && ['complete', 'partial'].includes(answer.status) && Array.isArray(answer.claims) && answer.claims.length > 0);
   const records = new Map((answer.evidence || []).map((item) => [item.id, item]));
-  /* Up to four figures, kept with the claim each one counts. */
-  const figures = [];
-  let figureCount = 0;
+  /* The reader's counts: each distinct figure once, one row per platform,
+     the quotes each post is read for, and the confidence of the whole. */
+  const figures = distinctFigures(answer.claims);
+  const platforms = platformTotals(run.source_status, (platform) => platformWord(platform));
+  const quoteMap = new Map();
   for (const claim of answer.claims || []){
-    const numbers = (claim.numbers || []).slice(0, Math.max(0, 4 - figureCount));
-    if (numbers.length === 0) continue;
-    figureCount += numbers.length;
-    figures.push({numbers, about: String(claim.text || '').trim()});
+    for (const quote of claim.quotes || []) quoteMap.set(quote.evidence_id, [...(quoteMap.get(quote.evidence_id) || []), quote.text]);
   }
+  const tag = confidenceTag(answer.claims, CONFIDENCE);
+  const gaps = gapSplit(answer.gaps);
+  const technicalGaps = Array.isArray(run.technical_gaps) ? run.technical_gaps : [];
   const notices = Array.isArray(run.notices) ? run.notices : [];
   const followups = Array.isArray(run.followups) ? run.followups.slice(0, 3) : [];
   const privacyWords = privacyNotice(record);
@@ -481,22 +470,25 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   }
 
   const pinned = pinnedId ? records.get(pinnedId) : null;
+  const caption = 'Posts each platform returned' + (windowWords(run.window) ? ', ' + windowWords(run.window) : '');
   return (
     <div className="ask42-answer-layout">
       <article className="ask42-answer" aria-describedby={shortId}>
-        {notices.length > 0 && (
-          <ul className="ask42-notices" aria-label="Notices">
-            {notices.map((notice, index) => <li key={index}>{notice}</li>)}
-          </ul>
-        )}
         <h2 className="ask42-question">{record.question}</h2>
         <p className="ask42-meta">{metaLine(record)}</p>
+        {tag && (
+          <p className="ask42-tag-line">
+            <span className="ask42-confidence-tag" data-label={tag.label}>{tag.word}</span>
+          </p>
+        )}
+        {scopeWords(record, windowWords) && <p className="ask42-scope">{scopeWords(record, windowWords)}</p>}
         {privacyWords && <p className="ask42-status" role="note" data-privacy-notice="">{privacyWords}</p>}
-        {/* Wide screens: the answer reads down the main column and its evidence
-           (posts, figures, what each platform returned) sits beside it, so the
-           page uses the whole width without stretching any line of prose. */}
+        {/* The briefing: the question, what is behind it, the findings with
+           their real posts; the numbers and the platforms read beside them
+           on a wide screen; then what 42 could not check, the actions and the
+           record of the research. A phone stacks them in that order. */}
         <div className="ask42-answer-body">
-        <div className="ask42-answer-main">
+        <div className="ask42-answer-lead">
         {answerStatusWords(answer, record) && <p className="ask42-status">{answerStatusWords(answer, record)}</p>}
         {stoppedEarly(record) && <p className="ask42-status">Stopped early: this answer holds only what had passed its checks</p>}
         <RankedAnswer record={record} windowLabel={windowWords(run.ranked_list?.window)}
@@ -507,26 +499,20 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
         {hasSummary && summary.kind === 'shown_rewritten' && <p className="ask42-short-note ask42-muted">{summary.sentence}</p>}
 
         {answer.claims && answer.claims.length > 0 && (
-          <ol className="ask42-claims" aria-label="Claims">
-            {answer.claims.map((claim) => {
-              const confidence = CONFIDENCE[claim.label];
-              return (
-                <li className="ask42-claim" key={claim.id}>
-                  {confidence && (
-                    <span className="ask42-confidence" data-label={claim.label}>
-                      <span className="ask42-confidence-shape" aria-hidden="true">{confidence.shape}</span>
-                      {confidence.word}
-                    </span>
-                  )}
-                  <span className="ask42-claim-text">{claim.text}</span>
-                  <ClaimSources claim={claim} records={records} answer={answer} pinnedId={pinnedId} onPin={setPinnedId} />
-                </li>
-              );
-            })}
+          <ol className="ask42-claims" aria-label="Findings">
+            {answer.claims.map((claim) => (
+              <FindingCard key={claim.id} claim={claim} records={records} quoteMap={quoteMap} confidence={CONFIDENCE[claim.label]} pinnedId={pinnedId} onPin={setPinnedId} />
+            ))}
           </ol>
         )}
+        </div>
 
+        <aside className="ask42-answer-rail" aria-label="Evidence">
+          <FigureTiles figures={figures} />
+          <PlatformMarks rows={platforms.rows} notes={platforms.notes} caption={caption} />
+        </aside>
 
+        <div className="ask42-answer-rest">
         {answer.so_what && answer.so_what.length > 0 && (
           <section className="ask42-section" aria-labelledby="ask42-sowhat-title">
             <h3 className="ask42-section-title" id="ask42-sowhat-title">What it means for a brand</h3>
@@ -545,17 +531,8 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
 
         <section className="ask42-section" aria-labelledby="ask42-gaps-title">
           <h3 className="ask42-section-title" id="ask42-gaps-title">What we do not know</h3>
-          {answer.gaps && answer.gaps.length > 0
-            ? (
-              <ul className="ask42-list">
-                {answer.gaps.map((gap, index) => (
-                  /* Each middot is tied to the words before it by a no-break
-                     space and each fact after it stays whole, so a wrapped
-                     row never starts with a middot. */
-                  <li key={index}>{plainGapWhat(gap.what)}<span className="ask42-muted">{'\u00a0· '}<span className="fact-unit">{'Searched ' + searchedWords(gap)}</span>{gap.why === 'empty' ? null : <>{'\u00a0· '}<span className="fact-unit">{whyAll(gap.why)}</span></>}</span></li>
-                ))}
-              </ul>
-            )
+          {gaps.shown.length > 0
+            ? <ul className="ask42-list ask42-gaps">{gaps.shown.map((gap, index) => <li key={index}><GapLine gap={gap} /></li>)}</ul>
             : <p className="ask42-muted">No gaps were recorded for this answer.</p>}
         </section>
 
@@ -572,13 +549,13 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
           {/* The text actions travel as one group, so a narrow row moves
               them under the button together rather than leaving one alone. */}
           <div className="ask42-actions-more">
+          <button type="button" className="ask42-quiet" onClick={exportAnswer} disabled={exporting} aria-busy={exporting ? 'true' : 'false'}>Export answer</button>
+          <button type="button" className="ask42-quiet" onClick={askEveryMonday}>Ask every Monday</button>
           {canSaveFinding && findingSaveState.phase !== 'saved' && (
             <button type="button" className="ask42-quiet" onClick={saveAnswerToFindings} disabled={findingSaveState.phase === 'pending'} aria-busy={findingSaveState.phase === 'pending' ? 'true' : 'false'}>
               {findingSaveState.phase === 'pending' ? 'Saving checked claims…' : 'Save checked claims to Findings'}
             </button>
           )}
-          <button type="button" className="ask42-quiet" onClick={exportAnswer} disabled={exporting} aria-busy={exporting ? 'true' : 'false'}>Export answer</button>
-          <button type="button" className="ask42-quiet" onClick={askEveryMonday}>Ask every Monday</button>
           </div>
         </div>
         {addError && <p className="ask42-error" role="alert">{addError}</p>}
@@ -587,52 +564,10 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
           <p className="ask42-status" role="status">Checked claims saved to Findings · <a className="ask42-quiet" href="#/history?tab=findings">Open Findings</a></p>
         )}
         {exportError && <p className="ask42-error" role="alert">{exportError}</p>}
-        {tail && <div className="ask42-answer-tail">{tail}</div>}
 
-        </div>
-        <aside className="ask42-answer-side" aria-label="Evidence">
-        <PostStrip evidence={answer.evidence} />
-        {figures.length > 0 && (
-          <section className="ask42-section" aria-labelledby="ask42-figures-title">
-            <h3 className="ask42-section-title" id="ask42-figures-title">The numbers</h3>
-            {figures.map((figure, index) => <FigureGroup key={index} numbers={figure.numbers} about={figure.about} />)}
-          </section>
-        )}
-        <footer className="ask42-footer">
-          {/* Charts, 3 October 2026: what each platform returned, drawn. A
-              source with no items number is not drawn as zero. run.posts is
-              left out: it counts differently from the per source sum. */}
-          <BarList title="Posts read by platform" data="data-ask-source-chart"
-            caption={'Posts each platform returned' + (windowWords(run.window) ? ', ' + windowWords(run.window) : '')}
-            rows={(run.source_status || []).map((source, index) => ({
-              key: (source.platform || '') + ':' + index,
-              label: platformWord(source.platform),
-              value: typeof source.items === 'number' ? source.items : null,
-              note: source.status && source.status !== 'ok' ? why(source.status) : undefined,
-            }))} />
-          {/* Cost, depth and what each platform returned, closed behind a quiet
-              toggle. The run id stays on the page as data for support; tokens,
-              query ids and source routes are not reader words (QA, 2 Oct 2026). */}
-          <details className="ask42-technical" data-run-id={run.run_id || undefined}>
-            <summary>Technical details</summary>
-            <dl className="ask42-details">
-              <dt>Cost</dt><dd>{costWords(run)}</dd>
-              <dt>Depth</dt><dd>{TIER_WORDS[run.tier] || run.tier}</dd>
-              <dt>Sources</dt>
-              <dd>
-                <ul className="ask42-list">
-                  {(run.source_status || []).map((source, index) => (
-                    <li key={index}>{(platformLabel(source.platform) || source.platform) + ' · ' + why(source.status) + ' · ' + itemsWords(source.items)}</li>
-                  ))}
-                </ul>
-              </dd>
-            </dl>
-          </details>
-        </footer>
         {followups.length > 0 && (
-          /* Suggested questions are where the reader goes next, not things to
-             do with this answer, so they sit apart under their own label,
-             beside the answer with its evidence on a wide screen. */
+          /* Suggested questions are where the reader goes next, so they sit
+             apart under their own label as chips. */
           <div className="ask42-next" role="group" aria-labelledby={nextId} data-ask-followups="">
             <h3 className="ask42-section-title" id={nextId}>Ask next</h3>
             <ul className="ask42-next-list">
@@ -642,11 +577,75 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
             </ul>
           </div>
         )}
-        </aside>
+
+        {tail && <div className="ask42-answer-tail">{tail}</div>}
+
+        {/* Cost, depth, the notices about model usage and every line the
+            checks recorded, closed behind a quiet toggle. The run id stays on
+            the page as data for support; tokens, query ids and source routes
+            are not reader words (QA, 2 Oct 2026). */}
+        <details className="ask42-technical" data-run-id={run.run_id || undefined}>
+          <summary>Technical details</summary>
+          {notices.length > 0 && (
+            <ul className="ask42-tech-notes" aria-label="Notices">
+              {notices.map((notice, index) => <li key={index}>{notice}</li>)}
+            </ul>
+          )}
+          <dl className="ask42-details">
+            <dt>Cost</dt><dd>{costWords(run)}</dd>
+            <dt>Depth</dt><dd>{TIER_WORDS[run.tier] || run.tier}</dd>
+            <dt>Sources</dt>
+            <dd>
+              <ul className="ask42-list">
+                {(run.source_status || []).map((source, index) => (
+                  <li key={index}>{(platformLabel(source.platform) || source.platform) + ' · ' + why(source.status) + ' · ' + itemsWords(source.items)}</li>
+                ))}
+              </ul>
+            </dd>
+          </dl>
+          {gaps.rest.length > 0 && (
+            <>
+              <h4 className="ask42-tech-title">More we could not check</h4>
+              <ul className="ask42-list ask42-gaps-rest">{gaps.rest.map((gap, index) => <li key={index}><GapLine gap={gap} /></li>)}</ul>
+            </>
+          )}
+          {technicalGaps.length > 0 && (
+            <>
+              <h4 className="ask42-tech-title">What the checks recorded</h4>
+              <ul className="ask42-list ask42-gaps-technical">
+                {technicalGaps.map((gap, index) => (
+                  <li key={index}>{[gap.what, gap.searched && 'Searched: ' + gap.searched, gap.why && 'Why: ' + gap.why].filter(Boolean).join(' · ')}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </details>
+        </div>
         </div>
       </article>
       <SourcePanel evidence={pinned} quotes={pinned ? quotesFor(answer, pinned.id) : []} onClose={() => setPinnedId(null)} />
     </div>
+  );
+}
+
+/* One gap in reader words. A record the API has already put in plain words
+   carries empty "searched" and "why"; an older one is cleaned here. */
+function GapLine({gap}){
+  const searched = gap.searched ? searchedWords(gap) : '';
+  const reason = gap.why && gap.why !== 'empty' ? whyAll(gap.why) : '';
+  return (
+    <>
+      {plainGapWhat(gap.what)}
+      {(searched || reason) && (
+        /* Each middot is tied to the words before it by a no-break space and
+           each fact after it stays whole, so a wrapped row never starts with
+           a middot. */
+        <span className="ask42-muted">
+          {searched && <>{' · '}<span className="fact-unit">{'Searched ' + searched}</span></>}
+          {reason && <>{' · '}<span className="fact-unit">{reason}</span></>}
+        </span>
+      )}
+    </>
   );
 }
 

@@ -211,19 +211,19 @@
    main column keeps a generous measure; below 1000px it is one column. */
 .ask42-answer { container-type: inline-size; }
 .ask42-answer-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
-.ask42-answer-main, .ask42-answer-side { min-width: 0; }
-.ask42-answer-side > .ask42-section:first-child { margin-top: 0; }
+.ask42-answer-lead, .ask42-answer-rail { min-width: 0; }
+.ask42-answer-rail > .ask42-section:first-child { margin-top: 0; }
 @container (min-width: 1000px) {
   .ask42-answer-body { grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: var(--s-7); }
   /* The side column runs the full height of the answer: the posts, the
      numbers, what each platform returned and where to ask next. It scrolls
      with the page, since it can be taller than the screen. */
-  .ask42-answer-side { border-left: 1px solid var(--line); padding-left: var(--s-6); }
-  .ask42-answer-side .ask42-footer { border-top: 0; padding-top: 0; }
+  .ask42-answer-rail { border-left: 1px solid var(--line); padding-left: var(--s-6); }
+  .ask42-answer-rail .ask42-footer { border-top: 0; padding-top: 0; }
 }
 .ask42-answer > .ask42-question,
-.ask42-answer-main > .ask42-short,
-.ask42-answer-main > .ask42-claims,
+.ask42-answer-lead > .ask42-short,
+.ask42-answer-lead > .ask42-claims,
 .ask42-answer .ask42-list,
 .ask42-answer .ask42-context p { max-width: var(--measure); }
 
@@ -452,14 +452,7 @@ details.ask42-log[open] > summary::before { transform: rotate(45deg); }
    level with the evidence beside it, not stranded under the whole page. */
 .ask42-answer-tail { margin-top: var(--s-5); }
 .ask42-answer-tail .ask42-followup-open { margin: var(--s-3) 0 0; }
-/* In one column the evidence follows the answer, and the research record and
-   the follow-up still close the page rather than sitting above the posts. */
-@container (max-width: 999px) {
-  .ask42-answer-body { gap: 0; }
-  .ask42-answer-main { display: contents; }
-  .ask42-answer-side { margin-top: var(--s-6); }
-  .ask42-answer-tail { order: 1; }
-}
+/* In one column the areas stack in the briefing order: lead, rail, rest (askbrief42.css). */
 
 /* Ask a follow-up stands beside Add to dossier as the outlined second
    button, ahead of the text actions, rather than alone under the record. */

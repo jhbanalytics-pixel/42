@@ -123,7 +123,7 @@ def _gap(gap):
     what = str(gap.get("what") or "").strip()
     searched = str(gap.get("searched") or "").strip()
     why = str(gap.get("why") or "").strip()
-    route = _ROUTE.match(searched)
+    route = _ROUTE.fullmatch(searched)  # a bare route only; a route with a query and dates reads in words already
     if route and not what.lower().startswith("live search budget"):
         sentence = route_words(route.group(0))[0]
         if what.lower().startswith("live ") and "partial" in what.lower():
@@ -195,11 +195,12 @@ def present(record: dict) -> dict:
     shown = copy.deepcopy(record)
     answer = merge_repeated_claims(shown["answer"])
     if isinstance(answer.get("gaps"), list):
+        plain = plain_gaps(answer["gaps"])
         run = shown.get("run") if isinstance(shown.get("run"), dict) else {}
-        if "technical_gaps" not in run:
+        if plain != answer["gaps"] and "technical_gaps" not in run:
             run = {**run, "technical_gaps": _distinct(answer["gaps"])}
-        shown["run"] = run
-        answer = {**answer, "gaps": plain_gaps(answer["gaps"])}
+            shown["run"] = run
+        answer = {**answer, "gaps": plain}
     shown["answer"] = answer
     if isinstance(shown.get("run"), dict) and isinstance(shown["run"].get("followups"), list):
         shown["run"] = {**shown["run"], "followups": plain_followups(shown["run"]["followups"])}

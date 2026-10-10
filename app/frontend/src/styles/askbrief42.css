@@ -1,0 +1,103 @@
+/* Ask as a briefing. The same flat language as the rest of 42: hairline rules,
+   the plane tokens, the accent for the one primary thing, no corner rounding
+   and no cast shadow. Light and dark come from the tokens. */
+
+.ask42-tag-line { margin: 0 0 var(--s-2); }
+.ask42-confidence-tag { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 28px; padding: 0 var(--s-3); border: 1px solid var(--line-2); color: var(--ink); font-size: var(--type-meta); font-weight: 600; line-height: var(--leading-meta); }
+.ask42-confidence-tag .ask42-confidence-shape { display: inline; color: var(--accent); }
+.ask42-confidence-tag[data-label="inferred"],
+.ask42-confidence-tag[data-label="single_source"] { color: var(--ink-2); }
+.ask42-scope { margin: 0 0 var(--s-5); color: var(--ink-2); font-size: var(--type-meta); line-height: var(--leading-meta); max-width: var(--measure); text-wrap: pretty; }
+
+/* The briefing grid: the lead (the short answer and the findings) beside a
+   rail of numbers and platforms on a wide screen; one column on a phone, in
+   the order lead, rail, rest. */
+.ask42-answer-body { grid-template-areas: "lead" "rail" "rest"; }
+.ask42-answer-lead { grid-area: lead; min-width: 0; }
+.ask42-answer-rail { grid-area: rail; min-width: 0; }
+.ask42-answer-rest { grid-area: rest; min-width: 0; }
+.ask42-answer-rail > .ask42-section:first-child { margin-top: 0; }
+@container (min-width: 1000px) {
+  .ask42-answer-body { grid-template-areas: "lead rail" "rest rail"; grid-template-rows: auto 1fr; }
+  .ask42-answer-rail { border-left: 1px solid var(--line); padding-left: var(--s-6); }
+}
+.ask42-answer-rest .ask42-list,
+.ask42-answer-rest .ask42-context p { max-width: var(--measure); }
+
+/* Finding cards. */
+.ask42-claims { gap: var(--s-5); }
+.ask42-claims > .ask42-finding { display: grid; gap: var(--s-3); padding: var(--s-4) var(--s-5); background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); }
+.ask42-finding > .ask42-claim-text { margin: 0; font-size: var(--type-5); line-height: 1.45; text-wrap: pretty; max-width: var(--measure); }
+.ask42-finding > .ask42-confidence { justify-self: start; margin: 0; }
+
+.ask42-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-3); }
+.ask42-tile { display: flex; gap: var(--s-3); align-items: flex-start; min-width: 0; padding: var(--s-3); background: var(--surface-inset); border: 1px solid var(--line); }
+.ask42-tile-body { display: grid; gap: var(--s-1); align-content: start; min-width: 0; flex: 1 1 auto; }
+.ask42-tile-still { width: 48px; flex: none; aspect-ratio: 9 / 16; object-fit: cover; display: block; background: var(--surface); }
+.ask42-tile-head { display: flex; align-items: center; gap: var(--s-2); min-width: 0; font-size: var(--type-meta); line-height: var(--leading-meta); }
+.ask42-tile-platform { color: var(--muted); }
+.ask42-tile-head .ask42-chip-wrap { min-width: 0; }
+.ask42-tile-head .ask42-chip { max-width: 100%; }
+.ask42-tile-head .ask42-chip-handle { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask42-tile-facts { display: block; }
+.ask42-tile-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: var(--type-body); line-height: var(--leading-body); }
+.ask42-tile-open { justify-self: start; display: inline-flex; align-items: center; min-height: 32px; color: var(--ink-2); font-size: var(--type-meta); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; transition: color var(--motion-control) var(--motion-standard-easing), text-decoration-color var(--motion-control) var(--motion-standard-easing); }
+.ask42-tile-open:hover,
+.ask42-tile-open:focus-visible { color: var(--ink); text-decoration-color: currentColor; }
+.ask42-tiles-more { justify-self: start; }
+
+/* What commenters said: quieter than the posts, set under them with a rule
+   at the left, so a comment never reads as a post. */
+.ask42-commenters { display: grid; gap: var(--s-2); padding-left: var(--s-4); border-left: 1px solid var(--line-2); }
+.ask42-commenters-title { margin: 0; font-size: var(--type-meta); font-weight: 600; color: var(--muted); line-height: var(--leading-meta); }
+.ask42-commenters-group { display: grid; gap: var(--s-1); }
+.ask42-commenters-on { margin: 0; }
+.ask42-commenters-on a { color: var(--ink-2); transition: color var(--motion-control) var(--motion-standard-easing); }
+.ask42-commenters-on a:hover,
+.ask42-commenters-on a:focus-visible { color: var(--ink); }
+.ask42-comments { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1); }
+.ask42-comments > li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s-2); font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--ink-2); }
+.ask42-comment-text { text-wrap: pretty; }
+
+/* The rail: each distinct figure once, then the platforms with their marks. */
+.ask42-figure-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--s-2); }
+.ask42-figure-tile { display: grid; gap: var(--s-1); padding: var(--s-3); border: 1px solid var(--line); background: var(--surface); font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--ink-2); }
+.ask42-figure-value { font-size: var(--type-6); line-height: 1.1; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ask42-platform-caption { margin: 0 0 var(--s-2); }
+.ask42-platforms { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.ask42-platform-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--s-1) var(--s-2); font-size: var(--type-body); line-height: var(--leading-body); }
+.ask42-platform-name { overflow-wrap: anywhere; }
+.ask42-platform-count { font-variant-numeric: tabular-nums; font-weight: 600; }
+.ask42-platform-bar { grid-column: 1 / -1; height: 2px; background: var(--line); position: relative; }
+.ask42-platform-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: calc(var(--share, 0) * 100%); background: var(--accent); }
+.ask42-platform-notes { margin: var(--s-2) 0 0; }
+
+/* Technical details hold what a reader does not need first. */
+.ask42-tech-notes { list-style: none; margin: var(--s-2) 0; padding: var(--s-2) var(--s-3); border-left: 2px solid var(--line-2); display: grid; gap: var(--s-1); font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--ink-2); }
+.ask42-tech-title { margin: var(--s-3) 0 var(--s-1); font-size: var(--type-meta); font-weight: 600; color: var(--muted); }
+.ask42-technical { margin: var(--s-4) 0 0; border-top: 1px solid var(--line); }
+.ask42-answer-tail { margin-top: var(--s-4); }
+
+/* A phone: the tiles take the width and the card loses its side padding. */
+@media (max-width: 639px) {
+  .ask42-finding { padding: var(--s-3) var(--s-4); }
+  .ask42-tiles { grid-template-columns: minmax(0, 1fr); }
+  .ask42-finding > .ask42-claim-text { font-size: var(--type-body); }
+}
+
+/* The running view folds its earlier steps. */
+details.ask42-scan-log > summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; color: var(--muted); font-size: var(--type-meta); list-style: none; transition: color var(--motion-control) var(--motion-standard-easing); }
+details.ask42-scan-log > summary::-webkit-details-marker { display: none; }
+details.ask42-scan-log > summary:hover,
+details.ask42-scan-log > summary:focus-visible { color: var(--ink); }
+
+/* The night desk gave a claim a label column with a meter. A finding card is
+   one column: the label and its meter first, then the claim, the posts and
+   what commenters said, each the full width of the card. */
+html .oi-product .ask42 .ask42-claims > .ask42-finding { grid-template-columns: minmax(0, 1fr); row-gap: var(--s-3); border-bottom: 1px solid var(--line); padding: var(--s-4) var(--s-5); }
+html .oi-product .ask42 .ask42-claims > .ask42-finding > :not(.ask42-confidence) { grid-column: 1; }
+html .oi-product .ask42 .ask42-claims > .ask42-finding > .ask42-confidence { grid-column: 1; grid-row: auto; display: flex; align-items: center; gap: var(--s-3); }
+html .oi-product .ask42 .ask42-claims { border-top: 0; }
+@media (max-width: 639px) {
+  html .oi-product .ask42 .ask42-claims > .ask42-finding { padding: var(--s-3) var(--s-4); }
+}

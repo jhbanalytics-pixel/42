@@ -398,15 +398,15 @@ html .oi-product .ask42 .ask42-figure-value {
   margin-right: var(--s-2);
 }
 /* So what and watch next read as two notes, not two more lists. */
-html .oi-product .ask42 .ask42-answer-main > .ask42-section:is([aria-labelledby="ask42-sowhat-title"], [aria-labelledby="ask42-watch-title"]) {
+html .oi-product .ask42 .ask42-answer-rest > .ask42-section:is([aria-labelledby="ask42-sowhat-title"], [aria-labelledby="ask42-watch-title"]) {
   background: var(--surface);
   padding: var(--s-4) var(--s-5);
   margin-top: var(--s-3);
 }
-html .oi-product .ask42 .ask42-answer-main > .ask42-section .ask42-list { padding-left: 0; list-style: none; }
+html .oi-product .ask42 .ask42-answer-rest > .ask42-section .ask42-list { padding-left: 0; list-style: none; }
 /* What 42 could not check stays visible, but in the quiet register: striped
    mark, muted words, so it reads as a limit and not as a warning. */
-html .oi-product .ask42 .ask42-answer-main > .ask42-section[aria-labelledby="ask42-gaps-title"] { border-top: 1px solid var(--line); padding-top: var(--s-4); }
+html .oi-product .ask42 .ask42-answer-rest > .ask42-section[aria-labelledby="ask42-gaps-title"] { border-top: 1px solid var(--line); padding-top: var(--s-4); }
 html .oi-product .ask42 #ask42-gaps-title { font-family: var(--sans); font-size: var(--nd-t-label); font-weight: 600; font-stretch: 100%; color: var(--ink-2); }
 html .oi-product .ask42 #ask42-gaps-title ~ .ask42-list { list-style: none; padding-left: 0; }
 html .oi-product .ask42 #ask42-gaps-title ~ .ask42-list li { position: relative; padding-left: var(--s-5); font-family: var(--sans); font-size: var(--nd-t-label); color: var(--ink-2); }

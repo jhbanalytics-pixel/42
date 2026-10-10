@@ -6,6 +6,7 @@ import {useId, useState} from 'react';
 import {readerFigure} from '../api.js';
 import {PlatformGlyph, platformLabel} from './PlatformGlyph.jsx';
 import {safeUrl} from '../safeUrl.js';
+import {isComment, parentWords} from '../askEvidence.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const SOURCE_MARKETS = new Map([['ZA', 'South Africa'], ['NG', 'Nigeria'], ['KE', 'Kenya']]);
@@ -78,11 +79,14 @@ export function postAuthorLabel(evidence, fallback = ''){
 
 export function postName(evidence){
   const platform = platformLabel(evidence.platform) || String(evidence.platform || '');
+  /* A comment carries the link of the post it sits under, so it is named for
+     that post and never as a post by the commenter. */
+  if (isComment(evidence)) return (platform ? platform + ' comment' : 'Comment') + ' on ' + parentWords(evidence);
   const handle = postAuthorLabel(evidence);
   return (platform ? platform + ' post' : 'Post') + (handle ? ' by ' + handle : '');
 }
 
-export function EvidenceChip({evidence, quotes, pinned, onPin}){
+export function EvidenceChip({evidence, quotes, pinned, onPin, glyph = true}){
   const [open, setOpen] = useState(false);
   const popoverId = useId();
   if (!evidence) return null;
@@ -105,7 +109,7 @@ export function EvidenceChip({evidence, quotes, pinned, onPin}){
         onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }}
         onClick={() => onPin && onPin(evidence.id)}
       >
-        <PlatformGlyph platform={evidence.platform} />
+        {glyph && <PlatformGlyph platform={evidence.platform} />}
         <span className="ask42-chip-handle">{author}</span>
       </button>
       {open && (
