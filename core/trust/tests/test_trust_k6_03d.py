@@ -635,3 +635,34 @@ def test_the_quote_floor_counts_with_the_k6_list_not_the_seeds_list_when_on(on):
     # "elders" is a K6 term and no seeds term, so the floor takes it out of the count when it counts quote words.
     assert _k6_term('He wrote "the elders spoke"', {"the elders spoke"}) == "elders"
     assert not _k6_term('He wrote "the elders spoke today"', {"the elders spoke today"})
+
+
+# A colon straight after a score word does not end the clause for the person word check, so a person word in the score
+# word's own clause blocks the score ("Women won: 24-17"). Any other colon still ends the clause. These seven breach at
+# a80be1d; the score branch let them clear until this change.
+SCORE_COLON_BREACHES = [
+    "Women won: 24-17", "Students final score: 30-18", "Fans FT: 24-17", "Women's final score: 24-17",
+    "Voters lost: 30-18 in the poll", "Viewers drew: 25-24", "Women HT: 20-15",
+]
+SCORE_COLON_CONTROLS = ["FT: 24-17", "Final Score: 31-24", "Chiefs won 24-17 on Saturday", "Half-Time 21-14"]
+
+
+@pytest.mark.parametrize("text", SCORE_COLON_BREACHES)
+def test_a_person_word_in_the_score_words_clause_blocks_a_score_across_a_colon(on, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", SCORE_COLON_BREACHES)
+def test_the_score_colon_sentences_breach_when_off_too(off, text):
+    assert _k6_term(text, set()), text
+
+
+@pytest.mark.parametrize("text", SCORE_COLON_CONTROLS)
+def test_a_score_colon_with_no_person_word_still_clears(on, text):
+    assert not _k6_term(text, set()), text
+
+
+def test_a_colon_that_does_not_follow_a_score_word_still_ends_the_clause(on):
+    assert not _k6_term("Women posted: the Chiefs won 24-17 on Saturday", set())
+    assert not _k6_term("Students were polled: FT: 24-17", set())
+    assert _k6_term("Women won: Chiefs won 24-17 on Saturday", set())
