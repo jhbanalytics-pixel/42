@@ -241,6 +241,8 @@ def test_run_end_to_end_writes_steps_and_state_for_the_detect_run(con):
     assert {r["run_id"] for r in state.values()} == {detect_id}
     # the rule version is the version of the locality authority constant (rule_version_for pins both values)
     assert {r["rule_version"] for r in state.values()} == {job.RULE_VERSION} == {job.rule_version_for(job.LOCALITY_AUTHORITY)}
+    # N21 writes near_dup_size, so item_state rows written after it are marked apart from earlier ones
+    assert job.RULE_VERSION == "warmup-1+n21-near-dup"
     assert state["new"]["state"] == "new_to_42"
     assert counts["item_state"] == 2
 

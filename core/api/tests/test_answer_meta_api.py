@@ -582,18 +582,9 @@ def prepared(record, from_agent=False):
 
 
 def release_smoke():
-    """The smoke that gates the release. core.api.smoke once it holds the typed-state check; until then the copy of
-    wave8/release (2f35df9) kept beside the tests, byte for byte."""
-    import importlib.util
-    from pathlib import Path
-
+    """The smoke that gates the release: core.api.smoke, which holds the typed-state check."""
     from core.api import smoke
-    if hasattr(smoke, "_state_problem"):
-        return smoke
-    spec = importlib.util.spec_from_file_location("release_smoke", Path(__file__).with_name("release_smoke.py"))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return smoke
 
 
 def test_the_release_smoke_passes_a_real_ask_read_through_f42_api_live_and_stored_e2e(api):
