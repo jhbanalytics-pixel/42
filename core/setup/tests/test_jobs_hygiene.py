@@ -187,7 +187,7 @@ def test_jp03_the_scan_finds_the_statements_it_is_there_for():
 
 MUTATIONS = (
     ("drop the window check before an update", "core/setup/release/jobs_run.py",
-     '        if not jo.window_open(bound, now()):\n            stop(log, job, "WINDOW"', '        if False:\n            stop(log, job, "WINDOW"',
+     '            if not jo.window_open(bound, now()):\n                stop(log, job, "WINDOW"', '            if False:\n                stop(log, job, "WINDOW"',
      "core/setup/tests/test_jobs_update.py::test_ju06_once_the_clock_passes_2100_mid_run_the_next_update_is_refused_outside_the_chain_group"),
     ("drop the WINDOW rule in the producer", "core/setup/release/chain_evidence.py",
      'not jo.aware(collect_exec["start"]) > a_at', "False",
@@ -230,7 +230,7 @@ MUTATIONS = (
      'require(0 <= (today - day).days <= rel.bound["maxBaselineAgeDays"], "BASELINE_AGE",', 'require(True, "BASELINE_AGE",',
      "core/setup/tests/test_jobs_checks.py::test_ju09_an_expired_baseline_is_refused_with_baseline_age_naming_the_manifest_date"),
     ("skip the automatic restore on the 21:00 stop", "core/setup/release/jobs_run.py",
-     '        if job in jo.CHAIN_GROUP:\n            restore_chain_group(', '        if job in jo.CHAIN_GROUP and log["stopped"]["code"] != "WINDOW":\n            restore_chain_group(',
+     '            if job in jo.CHAIN_GROUP:\n                restore_chain_group(', '            if job in jo.CHAIN_GROUP and log["stopped"]["code"] != "WINDOW":\n                restore_chain_group(',
      "core/setup/tests/test_jobs_prefix.py::test_jx04_inside_the_chain_group_the_abort_restores_the_prefix_in_reverse_order_then_stops"),
 )
 
