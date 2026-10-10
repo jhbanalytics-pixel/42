@@ -3857,3 +3857,11 @@ def test_receipts_that_cannot_be_read_do_not_fail_the_follow_up(client, monkeypa
     seen = spy_on_requests(monkeypatch)
     assert ask(client, "And on X?", wait=True, parent_id=stored["ask_id"]).status_code == 200
     assert seen[0]["parent"]["queries"] == []
+
+
+def test_at_most_twenty_cited_queries_are_handed_to_the_agent():
+    ids = [f"q_{i}" for i in range(30)]
+    answer = {"claims": [{"id": "c1", "numbers": [{"query_id": q} for q in ids]}]}
+    receipts = {q: {"purpose": "p", "sql": f"SELECT {i}", "params": {}} for i, q in enumerate(ids)}
+    got = agent_app.parent_queries(answer, receipts)
+    assert [q["query_id"] for q in got] == ids[:20] == [q["query_id"] for q in got] and len(got) == agent_app.MAX_PARENT_QUERIES == 20

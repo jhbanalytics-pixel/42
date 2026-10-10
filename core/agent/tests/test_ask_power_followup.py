@@ -103,7 +103,8 @@ def test_the_ids_are_capped_at_the_most_a_fetch_reads():
 
 
 @pytest.mark.parametrize("parent_market,child_market,reused", [
-    ("ZA", "ZA", True), ("ZA", None, True), (None, "ZA", True), ("NG", "ZA", False), ("ZA", "KE", False)])
+    ("ZA", "ZA", True), (None, None, True), ("ZA", None, False), (None, "ZA", False), ("NG", "ZA", False),
+    ("ZA", "KE", False)])
 def test_a_follow_up_never_reads_a_different_market_than_its_own(parent_market, child_market, reused):
     got = ask.parent_reuse(parent("tt_1", market=parent_market), market=child_market,
                            window=(date(2026, 9, 22), date(2026, 9, 28)), as_of=NOW)
@@ -121,10 +122,8 @@ def test_queries_cross_only_when_the_window_and_the_market_are_the_same():
     other_window = ask.parent_reuse(parent("tt_1", queries=[query()]), market="ZA",
                                     window=(date(2026, 9, 19), date(2026, 9, 28)), as_of=NOW)
     assert other_window["queries"] == [] and other_window["post_ids"] == ["tt_1"]
-    no_market = ask.parent_reuse(parent("tt_1", market=None, queries=[query()]), market="ZA", window=child, as_of=NOW)
-    assert no_market["queries"] == []
-    child_open = ask.parent_reuse(parent("tt_1", queries=[query()]), market=None, window=child, as_of=NOW)
-    assert child_open["queries"] == []
+    assert ask.parent_reuse(parent("tt_1", market=None, queries=[query()]), market="ZA", window=child, as_of=NOW) is None
+    assert ask.parent_reuse(parent("tt_1", queries=[query()]), market=None, window=child, as_of=NOW) is None
 
 
 def test_only_plain_model_queries_cross():
@@ -188,6 +187,43 @@ def test_a_cited_post_outside_the_childs_window_is_left_out():
 def test_a_cited_post_from_another_market_is_left_out():
     out, seen, h = follow(parent("tt_1", "tt_ng"))
     assert "tt_ng" not in seen["evidence"] and "tt_1" in seen["evidence"]
+
+
+def test_a_child_with_no_single_market_reads_nothing_of_a_single_market_parent():
+    out, seen, h = follow(parent("tt_1", market="ZA", queries=[query()]), market=None,
+                          question="Which creators in Nigeria and Kenya are driving it?")
+    assert seen["fetches"] == 0 and "tt_1" not in seen["evidence"] and ask.REUSE_NOTE not in seen["prompt"]
+
+
+def located(market, **extra):
+    return {"id": "p", "market": market, "flags": [], "source_market": None, **extra}
+
+
+@pytest.mark.parametrize("record,kept", [
+    (located("ZA"), True),
+    (located("ZA", source_market="NG"), True),                      # located here: where it was seen does not matter
+    (located("NG"), False),
+    (located(None, source_market="NG"), False),                    # no market of its own, seen in Nigeria's feeds
+    (located(None, source_market="ZA"), True),
+    (located(None), True),
+    (located("ZA", flags=["market_assumed"], source_market="NG"), False),
+    (located("ZA", flags=["market_assumed"], source_market="ZA"), True),
+    (located("ZA", flags=["market_assumed"]), True),
+    (located("NG", flags=["market_assumed"], source_market="NG"), False),
+])
+def test_a_reused_record_stays_only_if_it_belongs_to_the_childs_market(record, kept):
+    assert ask.reusable_in(record, "ZA") is kept
+
+
+def test_an_unlocated_post_from_another_markets_feeds_is_left_out_of_a_reusing_follow_up(monkeypatch):
+    def fake_fetch(ctx, warehouse, ids, window, exclude_suppressed=False):
+        for eid, record in (("tt_1", located("ZA", id="tt_1")), ("tt_feed", located(None, id="tt_feed", source_market="NG"))):
+            ctx.evidence[eid] = {**record, "platform": "tiktok", "handle": "h", "url": "u", "text": "t"}
+
+    monkeypatch.setattr(ask, "fetch_posts", fake_fetch)
+    out, seen, h = follow(parent("tt_1", "tt_feed"))
+    assert "tt_feed" not in seen["evidence"] and "tt_1" in seen["evidence"]
+    assert "tt_feed" not in seen["prompt"]
 
 
 def test_the_childs_own_window_bounds_the_fetch_and_the_parents_queries_stay_home():
@@ -271,3 +307,14 @@ def test_reuse_adds_no_credits_and_no_model_spend():
     out, _, _ = follow(parent("tt_1", "tt_2", queries=[query()]))
     assert out["run"]["credits"] <= base["credits"]
     assert out["run"]["model_usd"] <= base["model_usd"] + 1e-9
+
+
+def test_the_same_query_twice_is_run_once_and_the_same_sql_with_other_parameters_is_run_again():
+    child = (date(2026, 9, 22), date(2026, 9, 28))
+    sql = COUNT.replace("DATE('2026-09-22')", "DATE(@since)")
+    queries = [query(sql=COUNT), query(sql=COUNT, purpose="the same query again"),
+               query(sql=sql, params={"since": "2026-09-22"}), query(sql=sql, params={"since": "2026-09-23"}),
+               query(sql=sql, params={"since": "2026-09-23"}, purpose="repeat of the last")]
+    got = ask.parent_reuse(parent("tt_1", queries=queries), market="ZA", window=child, as_of=NOW)
+    assert [(q["sql"], q["params"]) for q in got["queries"]] == [
+        (COUNT, {}), (sql, {"since": "2026-09-22"}), (sql, {"since": "2026-09-23"})]

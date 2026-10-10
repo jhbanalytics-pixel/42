@@ -322,3 +322,24 @@ def test_the_tool_text_says_a_transcript_gives_citable_spans():
 
     text = DESCRIPTIONS["get_transcript"]
     assert "evidence ids" in text and "cite" in text
+
+
+# Review minors: the null end time, and a span already written is never overwritten.
+
+
+def test_a_segment_with_no_end_time_closes_its_span_at_its_own_start():
+    c = make_ctx()
+    items = [{"start": 0.0, "end": 4.0, "text": "first line of speech"}, {"start": 4.0, "text": "last line, no end given"}]
+    get_transcript(c, FakeClient(quote=10.0, items=items), "tiktok_7412")
+    (only,) = spans_of(c)
+    assert only["transcript_span"] == {"start_s": 0.0, "end_s": 4.0, "text": "first line of speech last line, no end given"}
+    assert isinstance(only["transcript_span"]["end_s"], float)
+
+
+def test_a_span_already_in_the_run_is_not_overwritten():
+    c = make_ctx()
+    kept = {"id": "tiktok_7412_span_1", "text": "kept", "sentinel": True,
+            "transcript_span": {"start_s": 0.0, "end_s": 1.0, "text": "kept"}}
+    c.evidence["tiktok_7412_span_1"] = kept
+    out = get_transcript(c, FakeClient(quote=10.0, items=segments()), "tiktok_7412")
+    assert c.evidence["tiktok_7412_span_1"] is kept and out["evidence_ids"][0] == "tiktok_7412_span_1"

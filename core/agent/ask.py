@@ -381,14 +381,14 @@ def _plain_params(params) -> bool:
 
 def parent_reuse(parent, *, market: str | None, window: tuple[date, date], as_of: datetime) -> dict | None:
     """What a follow-up may carry from its parent: {"post_ids", "queries"}, or None when there is nothing or the
-    follow-up's market is not the parent's. Post ids are those the parent's claims cite, a transcript span as its post
+    follow-up's market is not the parent's (a follow-up with no single market included). Post ids are those the parent's claims cite, a transcript span as its post
     and a comment not at all (neither is a stored post), at most MAX_POSTS. A query crosses only when the follow-up has
     the parent's window and market exactly, is plain model SQL with plain parameters, and is not one the code made
     itself; at most PARENT_REUSE_QUERIES."""
     if not isinstance(parent, dict):
         return None
     parent_market = parent.get("market") if isinstance(parent.get("market"), str) else None
-    if market and parent_market and market != parent_market:
+    if market != parent_market:  # a child with no single market, or a parent with none recorded, reads nothing
         return None
     answer = parent.get("answer")
     ids = []
@@ -400,7 +400,7 @@ def parent_reuse(parent, *, market: str | None, window: tuple[date, date], as_of
             if eid not in ids:
                 ids.append(eid)
     queries = []
-    if market and parent_market == market and _parent_window(parent, as_of) == tuple(window):
+    if market and _parent_window(parent, as_of) == tuple(window):
         for q in parent.get("queries") or []:
             if len(queries) == PARENT_REUSE_QUERIES:
                 break
@@ -417,6 +417,18 @@ def parent_reuse(parent, *, market: str | None, window: tuple[date, date], as_of
     return {"post_ids": ids, "queries": queries} if ids or queries else None
 
 
+def reusable_in(record: dict, market: str | None) -> bool:
+    """Whether a re-read post belongs to the follow-up's market: located in it, or with no market of its own and not
+    seen in another market's feeds. A post located elsewhere, or only seen in another market's feeds, is left out."""
+    if not market:
+        return True
+    own = record.get("market")
+    if own not in (None, "", market):
+        return False
+    located = bool(own) and "market_assumed" not in {str(f).lower() for f in record.get("flags") or []}
+    return located or record.get("source_market") in (None, "", market)
+
+
 def reuse_parent(ctx: RunContext, deps: "Deps", reuse: dict, window: tuple[date, date], progress: "Progress") -> str:
     """Do the reading parent_reuse allowed, before research, and return the prompt block (\"\" when nothing came
     back). A cited post outside the window (fetch_posts skips it) or located in another market is left out of the
@@ -431,7 +443,7 @@ def reuse_parent(ctx: RunContext, deps: "Deps", reuse: dict, window: tuple[date,
             record = ctx.evidence.get(eid)
             if record is None:
                 continue
-            if ctx.market and record.get("market") not in (None, "", ctx.market):
+            if not reusable_in(record, ctx.market):
                 del ctx.evidence[eid]
                 continue
             read.append(eid)
