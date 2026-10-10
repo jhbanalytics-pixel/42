@@ -76,9 +76,9 @@ import re
 import unicodedata
 from collections import Counter
 from datetime import date, datetime, timezone
-from itertools import combinations
 
 from core.detect.geo import COUNTRIES, MARKETS, PLACES, _fold, _pattern
+from core.trust.independence import independent_groups, is_corroborated
 
 LABELS = ("inferred", "single_source", "observed", "corroborated")
 NOT_INDEPENDENT = {
@@ -787,9 +787,10 @@ def _allowed_label(claim, records):
         if handle and not flags & NOT_INDEPENDENT:
             authors.append((handle, str(r.get("platform") or "").lower()))
     handles = {h for h, _ in authors}
-    cross_platform = any(a[0] != b[0] and a[1] != b[1] for a, b in combinations(authors, 2))
-    metric = any(_pinned(n) for n in claim.get("numbers") or [])
-    if cross_platform or (len(handles) >= 3 and metric):
+    # W8-DEC-16: Corroborated needs unrelated authors, judged over every record of the answer (core/trust/independence.py).
+    pool = [dict(r, id=i) for i, r in records.items()]
+    groups = independent_groups(pool, excluded=NOT_INDEPENDENT, author_ids={r.get("id") for r in cited})
+    if is_corroborated(groups, any(_pinned(n) for n in claim.get("numbers") or [])):
         return "corroborated"
     if len(handles) >= 2:
         return "observed"

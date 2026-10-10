@@ -2887,7 +2887,7 @@ YT_KEY = f"youtube:{YT_ID.lower()}"
 
 def with_creator_names(con, *rows):
     """The fixture creators table gains the live table's display_name and followers columns (core/schema/core.sql)."""
-    con.execute("ALTER TABLE core.creators ADD COLUMN display_name VARCHAR")
+    con.execute("ALTER TABLE core.creators ADD COLUMN IF NOT EXISTS display_name VARCHAR")
     con.execute("ALTER TABLE core.creators ADD COLUMN followers BIGINT")
     duck.load(con, "core.creators", [{"coord_score": 0, **r} for r in rows])
     return con

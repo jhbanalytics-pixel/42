@@ -1202,3 +1202,21 @@ def test_the_stats_step_reads_the_switch_from_the_jobs_own_agent_dataset(con, mo
     monkeypatch.setattr(stats, "run_stats", lambda *a, **k: seen.append(k) or 0)
     job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
     assert seen == [{"core": "core", "agent": "agent"}]
+
+
+def test_the_near_duplicate_step_records_its_wall_time(monkeypatch):
+    ticks = iter([100.0, 103.25])
+    monkeypatch.setattr(job, "_clock", lambda: next(ticks))
+    monkeypatch.setattr(job.neardup, "run_neardup", lambda client, d, core, agent: {"posts": 4, "written": 1})
+    assert job.run_neardup_step(None, None) == {"posts": 4, "written": 1, "seconds": 3.25}
+
+
+def test_a_failed_near_duplicate_step_records_its_wall_time_too(monkeypatch):
+    ticks = iter([5.0, 9.0])
+    monkeypatch.setattr(job, "_clock", lambda: next(ticks))
+
+    def boom(client, d, core, agent):
+        raise RuntimeError("no")
+    monkeypatch.setattr(job.neardup, "run_neardup", boom)
+    out = job.run_neardup_step(None, None)
+    assert out["status"] == "failed" and out["seconds"] == 4.0

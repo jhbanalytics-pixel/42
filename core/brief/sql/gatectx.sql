@@ -57,3 +57,12 @@ WHERE cm.item_id = @item_id AND cm.valid_to IS NULL;
 -- name: post_tags
 -- The stored hashtags of the cited posts (@post_ids, comma separated), read for paid-post markers.
 SELECT ps.post_id, ps.hashtags FROM {core}.posts ps WHERE ps.post_id IN UNNEST(SPLIT(@post_ids, ','));
+
+-- name: post_authors
+-- The creator's display name of each cited post (@post_ids, comma separated), read to count one person who posts
+-- under several handles once. creators holds a row per creator and platform; MAX gives one name per post.
+SELECT ps.post_id, MAX(cr.display_name) display_name
+FROM {core}.posts ps
+JOIN {core}.creators cr ON cr.creator_id = ps.creator_id AND cr.platform = ps.platform
+WHERE ps.post_id IN UNNEST(SPLIT(@post_ids, ','))
+GROUP BY ps.post_id;
