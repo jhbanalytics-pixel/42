@@ -141,6 +141,32 @@ def with_receipts(row, record, receipts, ask_id=None):
 
 
 BODY_KEYS = ("question", "market", "parent_id", "tier", "mode", "wait", "from_card")
+MAX_PARENT_QUERIES = 20
+
+
+def parent_queries(answer, receipts) -> list:
+    """The SQL behind the numbers a parent's claims still carry, for the follow-up to run again: per cited query id its
+    purpose, sql and params from the receipts, never the rows. The answer is the one a reader would see now, so a claim
+    the privacy projection dropped cites nothing. Anything unreadable gives none, and never fails the follow-up."""
+    try:
+        if not isinstance(answer, dict) or not isinstance(receipts, dict):
+            return []
+        cited = []
+        for claim in answer.get("claims") or []:
+            for number in claim.get("numbers") or []:
+                qid = number.get("query_id") if isinstance(number, dict) else None
+                if isinstance(qid, str) and qid not in cited:
+                    cited.append(qid)
+        out = []
+        for qid in cited:
+            receipt = receipts.get(qid)
+            if isinstance(receipt, dict) and isinstance(receipt.get("sql"), str):
+                params = receipt.get("params")
+                out.append({"query_id": qid, "purpose": receipt.get("purpose"), "sql": receipt["sql"],
+                            "params": params if isinstance(params, dict) else {}})
+        return out[:MAX_PARENT_QUERIES]
+    except Exception:
+        return []
 MAX_FINISHED = 200
 FINISHED_TTL_S = 3600
 MAX_RUNNING = 8
@@ -556,11 +582,18 @@ async def start(request: Request):
         req["skill"] = body["skill"]  # one of L3's Ask skills (contract 15.2), passed to run_ask as sent
     if req["parent_id"]:
         parent = get_ask(req["parent_id"])
+        receipts = None
         if parent is not None:
-            held = parent.snapshot()
+            held, receipts = parent.snapshot(), parent.receipts
         else:
             from core.api.store import get_store
-            held = await run_in_threadpool(get_store().ask_record, req["parent_id"])
+            store = get_store()
+            if hasattr(store, "ask_record_raw"):
+                raw = await run_in_threadpool(store.ask_record_raw, req["parent_id"])
+                held = viewer_record(raw)
+                receipts = raw.get("query_receipts") if isinstance(raw, dict) else None
+            else:
+                held = await run_in_threadpool(store.ask_record, req["parent_id"])
             if held is None:
                 return not_found(req["parent_id"])
         # The earlier answer enters a new run only as a reader would see it now (C5 v2 section 7).
@@ -568,7 +601,8 @@ async def start(request: Request):
         if (held.get("privacy") or {}).get("state") == "unavailable":
             return people_unavailable()
         req["parent"] = {"question": held["question"], "answer": held["answer"],
-                         "window": (held.get("run") or {}).get("window")}
+                         "window": (held.get("run") or {}).get("window"), "market": held.get("market"),
+                         "queries": parent_queries(held["answer"], receipts)}
     req["ask_id"] = f"a_{now(req['market']).strftime('%Y%m%d')}_{secrets.token_hex(4)}"
     ask = Ask(req)
     if "spike" in req:

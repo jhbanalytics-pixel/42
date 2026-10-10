@@ -276,8 +276,9 @@ def test_followup_passes_parent(client, monkeypatch):
     second = ask(client, "And on X?", wait=True, parent_id=first["ask_id"]).json()
     assert second["parent_id"] == first["ask_id"]
     # The parent's window rides along so a follow-up that names none reads the same dates (visual QA A02).
+    # Its market and the queries its claims cite ride along too (Ask power item 6); the fixture agent keeps no receipts.
     assert seen[1]["parent"] == {"question": first["question"], "answer": first["answer"],
-                                 "window": first["run"]["window"]}
+                                 "window": first["run"]["window"], "market": first["market"], "queries": []}
     assert seen[1]["parent"]["window"]["from"] and seen[1]["parent"]["window"]["to"]
     assert seen[1]["ask_id"] == second["ask_id"]
     assert "parent" not in seen[0]
@@ -740,7 +741,7 @@ def test_parent_falls_back_to_runs_store(client, monkeypatch):
     record = ask(client, "And on X?", wait=True, parent_id=stored["ask_id"]).json()
     assert record["parent_id"] == stored["ask_id"]
     assert seen[0]["parent"] == {"question": stored["question"], "answer": stored["answer"],
-                                 "window": (stored.get("run") or {}).get("window")}
+                                 "window": (stored.get("run") or {}).get("window"), "market": None, "queries": []}
 
     r = ask(client, "And on X?", parent_id="a_20260928_deadbeef")
     assert r.status_code == 404
@@ -3766,3 +3767,93 @@ def test_bigquery_ask_record_reads_only_the_partitions_around_the_ask_id_date():
     assert bq.ask_record("a_x") is None
     sql, params = client.calls[-1]
     assert "run_date" not in sql and set(params) == {"ask_id"}
+
+
+# Ask power, item 6: the follow-up's parent also carries its market and the plain queries its claims' numbers cite.
+
+PARENT_RECEIPTS = {
+    "q_fixture_tt_tag_7d": {"purpose": "posts under the tag in 7 days", "sql": "SELECT COUNT(*) AS posts FROM t",
+                            "params": {}, "result_hash": "sha256:a", "row_count": 1, "rows": [{"posts": 412}]},
+    "q_fixture_x_mentions_7d": {"purpose": "mentions on X in 7 days", "sql": "SELECT 1 AS n FROM t", "params": {"d": 1},
+                                "result_hash": "sha256:b", "row_count": 1, "rows": [{"n": 1}]},
+    "q_unused": {"purpose": "not cited by any claim", "sql": "SELECT 2 FROM t", "params": {}, "rows": [{"x": 9}]},
+}
+
+
+def with_receipts(monkeypatch):
+    """The fixture agent, with query receipts like the real one returns."""
+    seen = []
+
+    def spy(request, emit, should_stop):
+        seen.append(request)
+        return {**agent_app.fixture_agent(request, emit, should_stop), "query_receipts": copy.deepcopy(PARENT_RECEIPTS)}
+
+    monkeypatch.setattr(agent_app, "resolve_run_ask", lambda: spy)
+    return seen
+
+
+def test_a_held_parent_hands_over_its_market_and_only_the_queries_its_claims_cite(client, monkeypatch):
+    seen = with_receipts(monkeypatch)
+    first = ask(client, wait=True).json()
+    ask(client, "And on X?", wait=True, parent_id=first["ask_id"])
+    parent = seen[1]["parent"]
+    assert parent["market"] == "ZA"
+    assert [q["query_id"] for q in parent["queries"]] == ["q_fixture_tt_tag_7d", "q_fixture_x_mentions_7d"]
+    for q in parent["queries"]:
+        assert set(q) == {"query_id", "purpose", "sql", "params"}
+    assert parent["queries"][1]["params"] == {"d": 1}
+    assert "rows" not in json.dumps(parent["queries"]) and "q_unused" not in json.dumps(parent["queries"])
+
+
+def test_a_parent_with_no_receipts_hands_over_no_queries(client, monkeypatch):
+    seen = spy_on_requests(monkeypatch)
+    first = ask(client, wait=True).json()
+    ask(client, "And on X?", wait=True, parent_id=first["ask_id"])
+    assert seen[1]["parent"]["queries"] == []
+
+
+def test_a_stored_parent_hands_over_its_receipts_but_a_reader_never_gets_them(client, monkeypatch):
+    from core.api import store
+    base = load("ask_complete.json")
+    stored = {**base, "ask_id": "a_20260927_0badcafe", "status": "complete", "market": "ZA",
+              "query_receipts": copy.deepcopy(PARENT_RECEIPTS)}
+    reads = []
+
+    class FakeStore:
+        def ask_record_raw(self, ask_id):
+            reads.append(ask_id)
+            return copy.deepcopy(stored) if ask_id == stored["ask_id"] else None
+
+    monkeypatch.setattr(store, "get_store", lambda: FakeStore())
+    seen = spy_on_requests(monkeypatch)
+    record = ask(client, "And on X?", wait=True, parent_id=stored["ask_id"]).json()
+    assert record["parent_id"] == stored["ask_id"] and "query_receipts" not in record
+    assert [q["query_id"] for q in seen[0]["parent"]["queries"]] == ["q_fixture_tt_tag_7d", "q_fixture_x_mentions_7d"]
+    assert seen[0]["parent"]["market"] == "ZA" and reads == [stored["ask_id"]]
+    assert "query_receipts" not in seen[0]["parent"]
+    assert ask(client, "And on X?", parent_id="a_20260928_deadbeef").status_code == 404
+
+
+def test_the_stores_viewer_record_still_hides_receipts(tmp_path):
+    from core.api import store
+    runs = [{"stage": "ask", "record": {"ask_id": "a_20260927_0badcafe", "query_receipts": {"q_1": {}}, "answer": {}}}]
+    (tmp_path / "runs.json").write_text(json.dumps(runs), encoding="utf-8")
+    fixture_store = store.FixtureStore(tmp_path)
+    assert "query_receipts" not in fixture_store.ask_record("a_20260927_0badcafe")
+    assert fixture_store.ask_record_raw("a_20260927_0badcafe")["query_receipts"] == {"q_1": {}}
+    assert fixture_store.ask_record_raw("a_20260927_missing") is None and fixture_store.ask_record("a_20260927_x") is None
+
+
+def test_receipts_that_cannot_be_read_do_not_fail_the_follow_up(client, monkeypatch):
+    from core.api import store
+    stored = {**load("ask_complete.json"), "ask_id": "a_20260927_0badcafe", "status": "complete",
+              "query_receipts": ["not", "a", "mapping"]}
+
+    class FakeStore:
+        def ask_record_raw(self, ask_id):
+            return copy.deepcopy(stored)
+
+    monkeypatch.setattr(store, "get_store", lambda: FakeStore())
+    seen = spy_on_requests(monkeypatch)
+    assert ask(client, "And on X?", wait=True, parent_id=stored["ask_id"]).status_code == 200
+    assert seen[0]["parent"]["queries"] == []
