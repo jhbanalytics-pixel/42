@@ -2963,8 +2963,11 @@ def test_the_critics_answer_is_stored_in_the_briefs_payload_for_shown_and_held_i
     answer = {"non_cultural_explanation": "a paid campaign", "local_why_now": True, "reason": "fake",
               "news_driven": None, "scheduled_event": None, "local_reaction": None}
     for m in MARKETS:
-        assert payload(shown, m)["critic"] == [{"item_id": item(m, 1), **answer, "ruled_out": True}]
-        assert payload(held, m)["critic"] == [{"item_id": item(m, 1), **answer, "ruled_out": False}]
+        # The shadow record of core/brief/rivals.py rides on every critic entry, whether or not a rival was found.
+        for stored, ruled_out in ((payload(shown, m)["critic"], True), (payload(held, m)["critic"], False)):
+            [entry] = stored
+            assert entry.pop("code_rivals")["critic_ruled_out"] is ruled_out
+            assert stored == [{"item_id": item(m, 1), **answer, "ruled_out": ruled_out}]
         assert [c["item_id"] for c in all_cards(payload(shown, m))] == [item(m, 1)]
         assert all("critic" not in c for c in all_cards(payload(shown, m)))
         assert all("critic" not in i for i in payload(held, m)["held_back"]["items"])
