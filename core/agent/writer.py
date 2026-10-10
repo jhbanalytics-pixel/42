@@ -364,8 +364,9 @@ def _order_posts(ctx: RunContext, records: list[dict]) -> list[dict]:
     """The post records in pack order: strongest match first, then spread. A post's strength is the sum over the run's
     searches (search_posts and the topic sweep) of 1 / (60 + its rank in that search's rows), so a post several
     searches ranked high comes first. A post no search ranked takes a live post's or a sample post's weight, and a
-    comment none. Platforms then take turns, and no creator takes more than three places before the others have one
-    (spread.spread_order). Every record comes back once; a tie keeps the order the run found them."""
+    comment its post's (none when its post is not in the run). Platforms then take turns, and no creator takes more
+    than three places before the others have one (spread.spread_order). Every record comes back once; a tie keeps the
+    order the run found them."""
     strength, seen = {}, set()
     for query in list(ctx.queries.values()):
         searched = str(query.get("purpose") or "").startswith(SEARCH_PURPOSES)
@@ -377,10 +378,13 @@ def _order_posts(ctx: RunContext, records: list[dict]) -> list[dict]:
             if searched:
                 strength[pid] = strength.get(pid, 0.0) + 1.0 / (MATCH_RRF_K + rank)
 
+    by_id = {str(r.get("id")): r for r in records}
+
     def weight(record):
         pid = str(record.get("id"))
-        if record.get("parent_id"):
-            return 0.0
+        if record.get("parent_id"):  # a comment the run paid for is worth what its post is; one with no post here, nothing
+            parent = by_id.get(str(record["parent_id"]))
+            return 0.0 if parent is None or parent.get("parent_id") else weight(parent)
         if pid in strength:
             return strength[pid]
         return SAMPLE_POST_STRENGTH if pid in seen else LIVE_POST_STRENGTH

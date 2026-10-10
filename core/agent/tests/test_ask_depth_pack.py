@@ -126,3 +126,34 @@ def test_the_model_hold_rises_by_exactly_the_two_larger_writer_inputs(monkeypatc
         monkeypatch.undo()
         grown = ask.call_usd(model, 400_000, ask.WRITER_MAX_TOKENS) - ask.call_usd(model, 200_000, ask.WRITER_MAX_TOKENS)
         assert new - old == pytest.approx(2 * grown) and new > old
+
+
+# Review, Important 3: a comment the run paid for takes its parent's strength
+
+
+def test_paid_comments_on_strong_posts_reach_the_pack_when_the_posts_alone_fill_it():
+    ctx = make_ctx()
+    ids = [f"p{i}" for i in range(300)]
+    for pid in ids:
+        add_post(ctx, pid, handle=f"h_{pid}")
+    record_rows(ctx, "Topic sweep, keyword: humor", ids, tool=SWEEP_TOOL)
+    record_rows(ctx, "search_posts: humor", ids)
+    for i in range(12):
+        add_post(ctx, f"c{i}", handle=f"commenter{i}", parent_id=f"p{i}")
+    packed, left, _ = pack_ids(ctx)
+    assert len(packed) == 300 and left["posts"] == 12
+    assert {f"c{i}" for i in range(12)} <= set(packed)
+    assert not {f"p{i}" for i in range(288, 300)} & set(packed)  # the twelve weakest posts make the room
+
+
+def test_a_comment_on_a_weak_post_stays_behind_the_strong_ones_and_an_orphan_comment_weighs_nothing(monkeypatch):
+    monkeypatch.setattr(writer, "MAX_PACK_POSTS", 3)
+    ctx = make_ctx()
+    for pid in ("strong", "weak", "other"):
+        add_post(ctx, pid)
+    record_rows(ctx, "search_posts: a", ["strong", "other", "weak"])
+    add_post(ctx, "on_weak", handle="c1", parent_id="weak")
+    add_post(ctx, "orphan", handle="c2", parent_id="not_in_the_run")
+    packed, _, _ = pack_ids(ctx)
+    assert packed == ["strong", "other", "weak"]  # on_weak ties with its parent and comes after it
+    assert "orphan" not in packed and "on_weak" not in packed

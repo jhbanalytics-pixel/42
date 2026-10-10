@@ -130,7 +130,7 @@ def test_the_sweep_reaches_the_tag_family_and_the_pack_puts_it_first(ctx):
         mine = [pid for pid in ids if ctx.evidence[pid]["platform"] == platform]
         kinds = ["topic" if pid in on_topic else "comment" if pid.startswith("comment") else
                  "sample" if pid.startswith("sample") else "live" for pid in mine]
-        rank = {"topic": 0, "live": 1, "sample": 2, "comment": 3}
+        rank = {"topic": 0, "live": 1, "comment": 1, "sample": 2}  # a comment weighs what its post (live0) weighs
         assert "topic" in kinds and [rank[k] for k in kinds] == sorted(rank[k] for k in kinds)
     first_ten = ids[:10]
     assert {ctx.evidence[pid]["platform"] for pid in first_ten} >= {"tiktok", "x", "instagram"}
