@@ -14,7 +14,7 @@ import {snapshotTime} from './plainLabels.js';
 import {safeUrl} from './safeUrl.js';
 import {SearchingNow} from './ui/SearchingNow.jsx';
 import {TodayBoards} from './ui/TodayBoards.jsx';
-import {EvidenceList, PostsShownNote, countLineWords, longDate, proseDates, topicHref} from './ui/TrendCard.jsx';
+import {EvidenceList, PostsShownNote, accountsWords, countLineWords, longDate, proseDates, topicHref} from './ui/TrendCard.jsx';
 import {StoryCard, countedCreators} from './ui/StoryCard.jsx';
 import {LeadPanel} from './ui/LeadPanel.jsx';
 import {PartsBar, StepMeter} from './ui/Charts42.jsx';
@@ -772,7 +772,7 @@ function headlineLead(markets, headline){
 }
 
 function HeadlineText({text, term}){
-  const parts = headlineParts(proseDates(text), term);
+  const parts = headlineParts(accountsWords(proseDates(text)), term);
   if (!parts.term) return parts.before;
   return <>{parts.before}<span className="t42-headline-term">{parts.term}</span>{parts.after}</>;
 }
@@ -909,7 +909,7 @@ function MarketBlock({market, headline, rejected = 0, compact, date, skipBanner,
       <ClientHeld count={rejected} />
       {cards.length > 0
         ? <>
-          <p className="t42-line-text" data-today-count-window="">Creator and post counts are in the last 3 days.</p>
+          <p className="t42-line-text" data-today-count-window="">Accounts and posts are counted over the last 3 days.</p>
           <ol className="t42-cards" data-ranked="" id={listId}>
             {cards.map((card, index) => (
               <StoryCard key={card.item_id} index={index} card={watch.mark(card, market.market)} market={market.market} date={card.date || date}

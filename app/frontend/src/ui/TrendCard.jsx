@@ -53,6 +53,55 @@ export function figureWords(figure){
   return readerFigure(figure.value) + (shownUnit ? ' ' + shownUnit : '');
 }
 
+/* One name for the count of different accounts, said the same way on Today
+   and in Discover: "3 accounts posting, last 3 days". The API words the same
+   measure "creators in 3 days" and a stored brief line can carry another
+   number for it, so a card is read through its measured figure (its reach, or
+   the creators number of the brief) and the stored line takes that number or
+   gives way to it. Only the words change; no value, query id or run id does. */
+const WINDOW_UNIT = /^creators in (\d+) days?$/i;
+const ACCOUNTS_3_DAYS = /^accounts? posting, last 3 days$/;
+export function accountsFigure(figure){
+  if (!isFigure(figure)) return figure;
+  const found = WINDOW_UNIT.exec(String(figure.unit || '').trim());
+  if (!found) return figure;
+  return {...figure, unit: (Number(figure.value) === 1 ? 'account posting' : 'accounts posting') + ', last ' + found[1] + ' days'};
+}
+const COUNTED_ACCOUNTS = /(\d[\d.,   ]*?)\s+(?:creators?|accounts?)\b/gi;
+const digitsOf = (text) => Number(String(text).replace(/[^\d]/g, ''));
+function accountsLine(line, measured){
+  if (typeof line !== 'string' || !isFigure(measured)) return line;
+  const found = /^\s*\d[\d.,   ]*\s+creators?\b(.*)$/i.exec(line);
+  const window = /(?:,| in)\s+(?:the\s+)?(?:last\s+)?3 days\b/i;
+  if (found && window.test(found[1])){
+    const noun = Number(measured.value) === 1 ? '1 account posting' : readerFigure(measured.value) + ' accounts posting';
+    return noun + found[1].replace(window, ', last 3 days');
+  }
+  /* A line that counts other accounts in the same window, in words this page
+     cannot restate, would contradict the figure beside it, so it is dropped. */
+  if (/\b3 days\b/i.test(line) && [...line.matchAll(COUNTED_ACCOUNTS)].some((hit) => digitsOf(hit[1]) !== Number(measured.value))) return null;
+  return line;
+}
+export function accountsCard(card){
+  if (!card || typeof card !== 'object') return card;
+  const next = {...card};
+  if (has(card, 'reach')) next.reach = accountsFigure(card.reach);
+  if (Array.isArray(card.numbers)) next.numbers = card.numbers.map(accountsFigure);
+  if (isFigure(card.reach7)) next.reach7 = accountsFigure(card.reach7);
+  const measured = [next.reach, ...(Array.isArray(next.numbers) ? next.numbers : [])]
+    .find((figure) => isFigure(figure) && ACCOUNTS_3_DAYS.test(String(figure.unit)));
+  if (has(card, 'count_line')) next.count_line = accountsLine(card.count_line, measured);
+  return next;
+}
+
+/* The same words in a stored sentence: "posted by 31 creators in 3 days" reads
+   "posted by 31 accounts in 3 days". The stored text is unchanged. */
+const SAID_CREATORS = /(\d[\d   ]*)\s+creators?\s+in\s+(\d+ days?)\b/gi;
+export function accountsWords(text){
+  if (typeof text !== 'string') return text;
+  return text.replace(SAID_CREATORS, (whole, count, days) => count + ' ' + (digitsOf(count) === 1 ? 'account' : 'accounts') + ' in ' + days);
+}
+
 /* A stored count line as a reader says it: briefs written before 6 October
    2026 say "1 creators and 1 posts in 3 days". "21 posts" keeps its plural. */
 const ONE_COUNT = /(^|[^\d.,\u00a0\u202f])1 (creator|post)s\b/gu;
@@ -501,27 +550,36 @@ const WIDE_FOOT = 24;
 function useMeasuredWidth(active){
   const holder = useRef(null);
   const [width, setWidth] = useState(0);
+  const [height, setHeight] = useState(0);
   useEffect(() => {
     const el = holder.current;
     if (!active || !el || typeof ResizeObserver !== 'function') return undefined;
     const read = () => {
-      const next = Math.round(el.getBoundingClientRect().width);
+      const box = el.getBoundingClientRect();
+      const next = Math.round(box.width);
+      const tall = Math.round(box.height);
       setWidth((now) => (next >= 200 && Math.abs(next - now) >= 2 ? next : now));
+      setHeight((now) => (tall >= 0 && Math.abs(tall - now) >= 2 ? tall : now));
     };
     read();
     const watch = new ResizeObserver(read);
     watch.observe(el);
     return () => watch.disconnect();
   }, [active]);
-  return [holder, width];
+  return [holder, width, height];
 }
 
-export function Sparkline({sparkline, minDays = MIN_CHART_DAYS, wide = false}){
+/* fill: the drawing takes the height of the box it sits in, so a panel taller
+   than its chart gives the chart the room. The box is measured and the svg is
+   laid over it out of the flow, so the drawing never feeds back into the
+   height it was measured from. */
+export function Sparkline({sparkline, minDays = MIN_CHART_DAYS, wide = false, fill = false}){
   /* Night Desk, 4 October 2026: the line answers a pointer with the nearest
      measured day's figure (styles/nightdesk.css). The caption still carries
      the latest figure for readers who never point. */
   const [probe, setProbe] = useState(null);
-  const [holder, fitted] = useMeasuredWidth(wide);
+  const [holder, fitted, fittedHeight] = useMeasuredWidth(wide);
+  const grown = wide && fill;
   /* A missing entry reads as a day with no value, never as a crash. */
   const points = sparkline && Array.isArray(sparkline.points) ? sparkline.points.map((p) => p || {}) : [];
   if (points.length === 0) return null;
@@ -532,7 +590,7 @@ export function Sparkline({sparkline, minDays = MIN_CHART_DAYS, wide = false}){
   if (measuredDays < MIN_CHART_DAYS) return <p className="t42-status t42-spark-empty">Not enough measured days yet</p>;
   /* Visual pass, 3 October 2026: the first and last day sit under the
      baseline, so the line has a time scale as well as a value scale. */
-  const W = wide ? (fitted || WIDE_WIDTH) : 264, H = wide ? WIDE_HEIGHT : 64, pad = wide ? 8 : 4, gutter = wide ? 32 : 28, foot = wide ? WIDE_FOOT : 16;
+  const W = wide ? (fitted || WIDE_WIDTH) : 264, H = wide ? (grown ? Math.max(WIDE_HEIGHT, fittedHeight - WIDE_FOOT) : WIDE_HEIGHT) : 64, pad = wide ? 8 : 4, gutter = wide ? 32 : 28, foot = wide ? WIDE_FOOT : 16;
   const peak = Math.max(1, ...points.flatMap((p) => [p.value, p.expected_high].filter(num)));
   const x = (i) => (points.length === 1 ? (gutter + W) / 2 : gutter + pad + (i * (W - gutter - 2 * pad)) / (points.length - 1));
   const y = (v) => H - pad - (Math.max(0, v) / peak) * (H - 2 * pad);
@@ -600,10 +658,8 @@ export function Sparkline({sparkline, minDays = MIN_CHART_DAYS, wide = false}){
   };
   const probeWords = probe === null ? '' : dayWord(points[probe].date) + ': ' + seriesFigure(points[probe].value);
   const probeX = probe === null ? 0 : Math.min(W - 2, Math.max(gutter + 2, x(probe)));
-  return (
-    <figure className="t42-trend" ref={holder}>
-      <figcaption className="t42-trend-caption"><Facts parts={caption} /></figcaption>
-      <svg className="t42-spark" viewBox={'0 0 ' + W + ' ' + (H + foot)} width={wide ? '100%' : W} height={H + foot} aria-hidden="true" data-wide={wide ? '' : undefined} preserveAspectRatio={wide ? "xMinYMid meet" : undefined}
+  const drawing = (
+      <svg className="t42-spark" viewBox={'0 0 ' + W + ' ' + (H + foot)} width={wide ? '100%' : W} height={grown ? '100%' : H + foot} aria-hidden="true" data-wide={wide ? '' : undefined} preserveAspectRatio={wide ? "xMinYMid meet" : undefined}
         onPointerMove={onProbe} onPointerDown={onProbe} onPointerLeave={() => setProbe(null)}>
         {/* The caption above says what the line shows, so the drawing is not read twice. */}
         {/* The scale: zero on the baseline and the top of the range above it. */}
@@ -625,6 +681,19 @@ export function Sparkline({sparkline, minDays = MIN_CHART_DAYS, wide = false}){
           </g>
         )}
       </svg>
+  );
+  if (grown){
+    return (
+      <figure className="t42-trend" data-fill="">
+        <figcaption className="t42-trend-caption"><Facts parts={caption} /></figcaption>
+        <div className="t42-spark-fill" ref={holder}>{drawing}</div>
+      </figure>
+    );
+  }
+  return (
+    <figure className="t42-trend" ref={holder}>
+      <figcaption className="t42-trend-caption"><Facts parts={caption} /></figcaption>
+      {drawing}
     </figure>
   );
 }

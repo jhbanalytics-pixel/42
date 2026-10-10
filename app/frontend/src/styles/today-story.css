@@ -556,15 +556,37 @@ html .oi-product .t42 .sc-momentum:is([data-state="recurring"], [data-state="sea
   color: var(--ink);
 }
 
-/* When the story beside the panel is the taller zone the panel takes the
-   difference round its chart, so the figures stay at the top and the platform
-   marks at the foot and nothing is left empty under the quote. */
+/* When the story beside the panel is the taller zone the chart takes the
+   difference: the figures stay at the top, the platform marks at the foot, and
+   the drawing grows to the room between them. The box is measured and the
+   drawing is laid over it out of the flow, so it cannot push the panel taller. */
 html .oi-product .t42 .sc-chart {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  justify-content: center;
   min-width: 0;
+}
+
+html .oi-product .t42 .t42-trend[data-fill] {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+html .oi-product .t42 .t42-spark-fill {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 8.5rem;
+}
+
+html .oi-product .t42 .t42-trend[data-fill] .t42-spark {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
 }
 
 html .oi-product .t42 .sc-live > .sc-platforms {

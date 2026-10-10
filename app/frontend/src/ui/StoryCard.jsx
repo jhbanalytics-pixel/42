@@ -8,13 +8,14 @@
    Only fields the Today payload sends are drawn; a field that is missing
    shrinks its zone and never leaves a blank box. The page reads the same
    facts as the plain TrendCard, so nothing here is a new claim. */
+import {useMemo} from 'react';
 import {Facts} from './Facts.jsx';
 import {AskAboutThis} from './AskAboutThis.jsx';
 import {PlatformLogo, brandOf, platformId} from './PlatformLogo.jsx';
 import {SnapBand} from './SnapBand.jsx';
 import {
   BEFORE_COUNT, BigFigures, Feedback, Figure, Lifecycle, Novelty, PostFull, PostsShownNote, EvidenceList, ExcerptNote, Sparkline, Thumbnails,
-  askHref, askQuestion, bigFigures, countLineWords, countWindowStart, factWords, figureWords, isFigure, isYoutubeChannelAuthor, longDate, platformWord,
+  accountsCard, askHref, askQuestion, bigFigures, countLineWords, countWindowStart, factWords, figureWords, isFigure, isYoutubeChannelAuthor, longDate, platformWord,
   postTextView, proseDates, topicHref, useCardPosts, writtenTitle,
 } from './TrendCard.jsx';
 import {UNNAMED_TOPIC_WORDS, isUnnamedTopic} from '../topicNames.js';
@@ -34,7 +35,7 @@ const text = (value) => (typeof value === 'string' && value.trim() !== '' ? valu
 export function countedCreators(card){
   if (!card || typeof card !== 'object') return null;
   const figures = [card.reach, ...(Array.isArray(card.numbers) ? card.numbers : [])].filter(isFigure);
-  const found = figures.find((figure) => /^creators\b/i.test(String(figure.unit || '').trim()));
+  const found = figures.find((figure) => /^(creators\b|accounts? posting\b)/i.test(String(figure.unit || '').trim()));
   return found ? Number(found.value) : null;
 }
 
@@ -126,7 +127,9 @@ function Strip({specificity, date, title}){
 
 const hasChart = (sparkline) => Boolean(sparkline && Array.isArray(sparkline.points) && sparkline.points.length > 0);
 
-export function StoryCard({card, market, date, onAuth, onWatch, onFeedback, todaySpecificity = null, index = null, className = ''}){
+export function StoryCard({card: stored, market, date, onAuth, onWatch, onFeedback, todaySpecificity = null, index = null, className = ''}){
+  /* The card is read through its measured accounts figure, as Discover does. */
+  const card = useMemo(() => accountsCard(stored), [stored]);
   const words = cardWords(card, market, date);
   const {where, when, label, written, unnamed, title, question, href} = words;
   const {posts, open, loadPosts, togglePosts} = useCardPosts(card, where, when, onAuth);
@@ -221,7 +224,7 @@ export function StoryCard({card, market, date, onAuth, onWatch, onFeedback, toda
             </p>
           )}
           {hasLifecycle && <Lifecycle lifecycle={card.lifecycle} id={'tc-rule-' + where + '-' + card.item_id} />}
-          {chart && <div className="sc-chart"><Sparkline sparkline={card.sparkline} wide /></div>}
+          {chart && <div className="sc-chart"><Sparkline sparkline={card.sparkline} wide fill /></div>}
           <Thumbnails card={card} />
           <PlatformMarks evidence={card.evidence} attribute="data-card-platform" />
         </div>

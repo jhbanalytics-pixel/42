@@ -79,7 +79,7 @@ test('the hero panel holds the creators figure, the posts count beside it, and a
   await mount();
   const side = panel().querySelector('.t42-lead-side');
   expect(side.getAttribute('aria-hidden')).toBe('true');
-  expect(words(side.querySelector('.t42-lead-figure'))).toBe('31 creators in 3 days');
+  expect(words(side.querySelector('.t42-lead-figure'))).toBe('31 accounts posting, last 3 days');
   expect(side.querySelector('.t42-lead-figure').getAttribute('data-query-id')).toBe('q_creators3_za_a');
   expect(words(side.querySelector('[data-lead-posts]'))).toBe('58 posts in 3 days');
   const svg = side.querySelector('svg.t42-spark');
@@ -371,4 +371,90 @@ test('Boomplay keeps its monogram: simple-icons 13.21.0 is not in node_modules t
   expect(logoKey('boomplay')).toBeNull();
   flushSync(() => root.render(<PlatformLogo platform="boomplay" />));
   expect(host.querySelector('.pl-monogram').textContent).toBe('B');
+});
+
+/* Round 3: one count of accounts for a window, said the same way as Discover */
+
+const cardOf = (title) => storyCards().find((card) => card.querySelector('h3').textContent === title);
+
+test('a card reads its accounts from the measured figure only, and the stored count line gives way to it', async () => {
+  const today = clone(todayFixture);
+  another(today, '#amapiano_sunday', (card) => { card.numbers[0].value = 17; });
+  await mount({}, today);
+  const text = words(cardOf('#amapiano_sunday'));
+  expect(text).toContain('17 accounts posting, last 3 days');
+  expect(text).not.toContain('31 creators');
+  expect(text).not.toMatch(/creators?,? (in )?\d days|\d creators/);
+  expect(text.match(/accounts? posting, last 3 days/g)).toHaveLength(1);
+  expect(words(cardOf('#fixture_za_step'))).toContain('31 accounts posting, last 3 days');
+});
+
+test('a stored count line that also counts posts keeps the posts and takes the measured accounts', async () => {
+  const today = clone(todayFixture);
+  another(today, '#two_part', (card) => { card.numbers[0].value = 17; card.count_line = '12 creators and 20 posts in 3 days'; });
+  await mount({}, today);
+  const text = words(cardOf('#two_part'));
+  expect(text).toContain('17 accounts posting and 20 posts, last 3 days');
+  expect(text).not.toContain('12 creators');
+});
+
+test('one account reads in the singular, a line that counts other accounts is dropped, and a card with no measured figure keeps its line', async () => {
+  const today = clone(todayFixture);
+  another(today, '#single', (card) => { card.numbers[0].value = 1; card.count_line = '1 creator, 3 days'; card.item_id = 'c'.repeat(64); });
+  another(today, '#other_count', (card) => { card.numbers[0].value = 17; card.count_line = 'Across 31 creators, 3 days'; card.item_id = 'e'.repeat(64); });
+  another(today, '#unmeasured', (card) => { card.numbers = []; card.reach = null; card.count_line = '5 creators, 3 days'; card.item_id = 'd'.repeat(64); });
+  await mount({}, today);
+  expect(words(cardOf('#single'))).toContain('1 account posting, last 3 days');
+  expect(words(cardOf('#single'))).not.toContain('accounts posting');
+  expect(words(cardOf('#other_count'))).not.toContain('31 creators');
+  expect(words(cardOf('#other_count'))).toContain('17 accounts posting, last 3 days');
+  expect(words(cardOf('#unmeasured'))).toContain('5 creators, 3 days');
+});
+
+test('the lead panel and the headline say accounts, and the page note names the window', async () => {
+  await mount();
+  expect(words(panel().querySelector('.t42-lead-figure'))).toBe('31 accounts posting, last 3 days');
+  const headline = host.querySelector('.t42-headline').textContent;
+  expect(headline).toBe('#fixture_za_step is the biggest mover in South Africa, posted by 31 accounts in 3 days.');
+  expect(headline).not.toContain('creators');
+  expect(host.querySelector('[data-today-count-window]').textContent).toBe('Accounts and posts are counted over the last 3 days.');
+  const {accountsWords} = await import('../TrendCard.jsx');
+  expect(accountsWords('posted by 1 creator in 3 days.')).toBe('posted by 1 account in 3 days.');
+  expect(accountsWords('posted by 1 creators in 3 days.')).toBe('posted by 1 account in 3 days.');
+  expect(accountsWords('posted by 12 creators in 7 days.')).toBe('posted by 12 accounts in 7 days.');
+  expect(accountsWords('creators love it')).toBe('creators love it');
+});
+
+test('the countedCreators guard still reads the measured count after the words change', () => {
+  expect(countedCreators({reach: {value: 0, unit: 'accounts posting, last 3 days'}, numbers: []})).toBe(0);
+  expect(countedCreators({numbers: [{value: 1, unit: 'account posting, last 3 days'}]})).toBe(1);
+});
+
+test('the chart fills the live panel: its box is measured and the drawing takes that height, while the hero chart keeps its own', async () => {
+  const realRect = Element.prototype.getBoundingClientRect;
+  const RealObserver = globalThis.ResizeObserver;
+  globalThis.ResizeObserver = class { observe(){} disconnect(){} };
+  Element.prototype.getBoundingClientRect = function(){
+    const box = this.classList && this.classList.contains('t42-spark-fill') ? {width: 400, height: 300}
+      : this.matches && this.matches('figure.t42-trend:not([data-fill])') ? {width: 400, height: 160} : {width: 0, height: 0};
+    return {...box, top: 0, left: 0, right: box.width, bottom: box.height, x: 0, y: 0};
+  };
+  try {
+    await mount();
+    const fill = storyCards()[0].querySelector('.sc-live .t42-spark-fill');
+    expect(fill).not.toBeNull();
+    expect(fill.closest('figure').hasAttribute('data-fill')).toBe(true);
+    expect(fill.querySelector('svg.t42-spark').getAttribute('viewBox')).toBe('0 0 400 300');
+    expect(panel().querySelector('svg.t42-spark').getAttribute('viewBox')).toBe('0 0 400 136');
+  } finally {
+    Element.prototype.getBoundingClientRect = realRect;
+    globalThis.ResizeObserver = RealObserver;
+  }
+});
+
+test('the story card sheet lets the chart grow and draws it out of the flow so it cannot feed back into the height', () => {
+  const sheet = css('today-story.css');
+  expect(sheet).toMatch(/\.sc-chart\s*\{[^}]*flex: 1 1 auto/s);
+  expect(sheet).toMatch(/\.t42-spark-fill\s*\{[^}]*position: relative/s);
+  expect(sheet).toMatch(/\[data-fill\] \.t42-spark\s*\{[^}]*position: absolute/s);
 });

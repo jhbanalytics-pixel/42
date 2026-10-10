@@ -9,7 +9,7 @@
 import {AskAboutThis} from './AskAboutThis.jsx';
 import {PlatformLogo} from './PlatformLogo.jsx';
 import {PlatformMarks, cardWords} from './StoryCard.jsx';
-import {Sparkline, bigFigures, figureWords, isYoutubeChannelAuthor, longDate, platformWord, postTextView} from './TrendCard.jsx';
+import {Sparkline, accountsCard, bigFigures, figureWords, isYoutubeChannelAuthor, longDate, platformWord, postTextView} from './TrendCard.jsx';
 import {readerFigure} from '../api.js';
 import {safeUrl} from '../safeUrl.js';
 
@@ -34,8 +34,9 @@ function Example({item}){
   );
 }
 
-export function LeadPanel({card, specificity, market, date, watch}){
-  if (!card) return null;
+export function LeadPanel({card: stored, specificity, market, date, watch}){
+  if (!stored) return null;
+  const card = accountsCard(stored);
   const [lead, second] = bigFigures(card);
   const points = card.sparkline && Array.isArray(card.sparkline.points) ? card.sparkline.points : [];
   /* The line comes only when it can be drawn (three measured days, as on the
