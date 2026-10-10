@@ -30,7 +30,8 @@ NEW_REPO_FILES = ("core/setup/release/chain_evidence.py", "core/setup/cloudbuild
 NEW_TEST_FILES = ("core/setup/tests/test_chain_evidence.py", "core/setup/tests/test_jobs_readback.py", "core/setup/tests/test_jobs_plan.py",
                   "core/setup/tests/test_jobs_update.py", "core/setup/tests/test_jobs_paste.py", "core/setup/tests/test_jobs_hygiene.py",
                   "core/setup/tests/test_jobs_checks.py", "core/setup/tests/test_jobs_prefix.py", "core/setup/tests/update_support.py",
-                  "core/setup/tests/jobs_world.py", "core/setup/tests/cloud_world.py", "core/setup/tests/jobs_paste_world.py")
+                  "core/setup/tests/jobs_world.py", "core/setup/tests/cloud_world.py", "core/setup/tests/jobs_paste_world.py",
+                  "core/setup/tests/range_hygiene.py")
 
 
 def test_jp01_the_lock_lists_the_producer_the_build_files_the_deploy_script_and_the_jobs_paste_and_the_new_test_sources():
@@ -279,50 +280,149 @@ def test_jp04_each_mutation_is_caught_by_its_named_test_in_a_copy_and_the_copy_i
         assert target.read_bytes() == original
 
 
-# JP-05: hygiene on the branch range
+# JP-05: hygiene on the branch range, scoped to the commits that touch this lane's files (RB-T6). A branch that has other lanes merged
+# into it carries their commits too, and their messages follow their own review; the whole range is a one-shot step for a reviewer
+# (py -3.13 -m core.setup.tests.range_hygiene <base> <head>), not a node of the core suite.
 
-TOOL_NAMES = ("cl" + "aude", "anth" + "ropic", "co" + "dex", "co" + "pilot", "open" + "ai")
-EM, EN = chr(0x2014), chr(0x2013)
+from core.setup.tests import range_hygiene as rh  # noqa: E402
 
-
-def git(*args):
-    proc = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, encoding="utf-8", errors="replace", timeout=120)
-    if proc.returncode != 0:
-        pytest.fail(f"git {' '.join(args)} failed: {proc.stderr.strip()[:300]} (the hygiene range is {BASE}..HEAD)")
-    return proc.stdout
+EM, EN = rh.EM, rh.EN
 
 
-def test_jp05_author_and_committer_of_every_commit_on_the_range_are_albert_meintjes():
-    rows = git("log", f"{BASE}..HEAD", "--format=%an|%ae|%cn|%ce").splitlines()
-    assert rows, "the branch range is empty"
-    assert set(rows) == {"Albert Meintjes|albert.meintjes@ogilvy.co.za|Albert Meintjes|albert.meintjes@ogilvy.co.za"}
+def lane_commits():
+    try:
+        shas = rh.commits(ROOT, BASE, "HEAD", rh.LANE_PATHS)
+    except RuntimeError as error:
+        pytest.fail(f"{error} (the hygiene range is {BASE}..HEAD)")
+    assert shas, "no commit of the range touches the lane's files; the base or the lane list is wrong"
+    return shas
 
 
-def test_jp05_no_commit_on_the_range_carries_a_trailer_or_a_dash_or_a_double_hyphen_in_its_message():
-    for sha in git("log", f"{BASE}..HEAD", "--format=%H").split():
-        message = git("log", "-1", "--format=%B", sha)
-        trailers = subprocess.run(["git", "interpret-trailers", "--parse"], cwd=ROOT, input=message, capture_output=True, encoding="utf-8").stdout
-        assert trailers.strip() == "", (sha, trailers)
-        assert EM not in message and EN not in message and "--" not in message, sha
+def test_jp05_the_lane_paths_are_files_the_lock_lists_and_the_scan_finds_the_commits_that_touch_them():
+    assert set(NEW_REPO_FILES) | set(NEW_TEST_FILES) <= set(rh.LANE_PATHS)
+    assert all((ROOT / path).is_file() for path in rh.LANE_PATHS)
+    assert len(lane_commits()) >= 4
 
 
-def test_jp05_a_case_insensitive_search_of_the_range_for_tool_and_vendor_names_returns_nothing():
-    patch = git("log", "-p", f"{BASE}..HEAD").lower()
-    assert [name for name in TOOL_NAMES if name in patch] == []
-    names = git("log", f"{BASE}..HEAD", "--format=%D").lower() + git("branch", "--show-current").lower()
-    assert [name for name in TOOL_NAMES if name in names] == []
+def test_jp05_author_and_committer_of_every_lane_commit_are_albert_meintjes():
+    assert rh.identity_problems(ROOT, lane_commits()) == []
 
 
-def test_jp05_no_em_or_en_dash_is_added_on_the_range():
-    added = [line for line in git("diff", f"{BASE}..HEAD", "--unified=0").splitlines() if line.startswith("+") and not line.startswith("+++")]
-    assert [line for line in added if EM in line or EN in line] == []
+def test_jp05_no_lane_commit_carries_a_trailer_or_a_dash_or_a_prose_double_hyphen_in_its_message():
+    assert rh.message_problems(ROOT, lane_commits()) == []
 
 
-def test_jp05_the_range_adds_no_agent_or_instruction_file_and_no_scratch_output():
-    names = git("diff", "--name-only", f"{BASE}..HEAD").splitlines()
-    tool_dirs = "|".join(("cl" + "aude", "co" + "dex", "agents"))
-    banned = re.compile(rf"(^|/)(AGENTS|{'CL' + 'AUDE'})\.md$|(^|/)\.({tool_dirs})(/|$)|\.log$|\.tmp$")
-    assert [n for n in names if banned.search(n)] == []
+def test_jp05_a_case_insensitive_search_of_the_lane_commits_for_tool_and_vendor_names_returns_nothing():
+    assert rh.name_problems(ROOT, BASE, "HEAD", lane_commits(), rh.LANE_PATHS) == []
+
+
+def test_jp05_no_em_or_en_dash_is_added_to_a_lane_file():
+    assert rh.dash_problems(ROOT, BASE, "HEAD", rh.LANE_PATHS) == []
+
+
+def test_jp05_the_lane_adds_no_agent_or_instruction_file_and_no_scratch_output_in_its_folders():
+    assert rh.file_problems(ROOT, BASE, "HEAD", rh.LANE_FOLDERS) == []
+
+
+# the scan itself, on a small repository made for the purpose: it must ignore other lanes' commits and find the lane's own faults
+
+ALBERT = ("Albert Meintjes", "albert.meintjes@ogilvy.co.za")
+OTHER = ("Someone Else", "someone.else@example.com")
+LANE_FILE = "core/setup/release/jobs_run.py"
+
+
+def scratch_repo(tmp_path):
+    root = Path(tmp_path) / "scan"
+    root.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(root)], check=True, capture_output=True)
+    return root
+
+
+def commit(root, who, files, message):
+    for name, text in files.items():
+        target = root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8", newline="\n")
+        subprocess.run(["git", "add", "--", name], cwd=root, check=True, capture_output=True)
+    env = {**os.environ, "GIT_AUTHOR_NAME": who[0], "GIT_AUTHOR_EMAIL": who[1], "GIT_COMMITTER_NAME": who[0], "GIT_COMMITTER_EMAIL": who[1]}
+    subprocess.run(["git", "-c", "core.autocrlf=false", "commit", "-q", "--allow-empty", "-m", message], cwd=root, check=True, capture_output=True, env=env)
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, check=True, capture_output=True, encoding="utf-8").stdout.strip()
+
+
+def lane_scan(root, base, paths=(LANE_FILE,), folders=("core/setup/release",)):
+    return rh.scan(root, base, "HEAD", list(paths), list(folders))
+
+
+def test_jp05_scan_ignores_a_commit_that_does_not_touch_the_lane_files_whatever_its_author_or_message_holds(tmp_path):
+    root = scratch_repo(tmp_path)
+    base = commit(root, ALBERT, {"README": "x\n"}, "Start the repository")
+    commit(root, ALBERT, {LANE_FILE: "one\n"}, "Add the update verb, which takes --bindings and --evidence")
+    commit(root, OTHER, {"app/other.py": "two\n"}, "Other lane -- fix\n\nOwner: someone")
+    assert lane_scan(root, base) == []
+    whole = rh.scan(root, base, "HEAD")
+    assert any("author or committer" in line for line in whole) and any("trailer" in line for line in whole)
+    assert any("double hyphen" in line for line in whole)
+
+
+def test_jp05_scan_finds_a_lane_commit_by_someone_else_with_a_trailer_a_dash_or_a_prose_double_hyphen(tmp_path):
+    root = scratch_repo(tmp_path)
+    base = commit(root, ALBERT, {"README": "x\n"}, "Start the repository")
+    commit(root, OTHER, {LANE_FILE: "one\n"}, "Plain message")
+    assert any("author or committer" in line for line in lane_scan(root, base))
+    cases = (("Plain message\n\nOwner: someone", "trailer"), ("Plain " + EM + " message", "dash"), ("Plain " + EN + " message", "dash"),
+             ("a -- b", "double hyphen"), ("word--word", "double hyphen"), ("ends with --", "double hyphen"))
+    for index, (message, expected) in enumerate(cases):
+        sub = scratch_repo(Path(tmp_path) / f"case{index}")
+        start = commit(sub, ALBERT, {"README": "x\n"}, "Start")
+        commit(sub, ALBERT, {LANE_FILE: "one\n"}, message)
+        assert any(expected in line for line in lane_scan(sub, start)), (message, lane_scan(sub, start))
+
+
+def test_jp05_a_command_line_flag_in_a_message_is_allowed_and_a_message_without_one_passes(tmp_path):
+    root = scratch_repo(tmp_path)
+    base = commit(root, ALBERT, {"README": "x\n"}, "Start the repository")
+    commit(root, ALBERT, {LANE_FILE: "one\n"}, "Run it with --apply and --as-of, or pass -n\n\nThe flag --dry-run changes nothing.")
+    assert lane_scan(root, base) == []
+    assert rh.prose_double_hyphen("a -- b") and rh.prose_double_hyphen("x--y") and not rh.prose_double_hyphen("use --apply here")
+
+
+def test_jp05_scan_finds_a_tool_name_an_added_dash_and_an_agent_file_in_the_lane(tmp_path):
+    root = scratch_repo(tmp_path)
+    base = commit(root, ALBERT, {"README": "x\n"}, "Start the repository")
+    commit(root, ALBERT, {LANE_FILE: "# made with " + rh.TOOL_NAMES[0] + "\n"}, "Add a comment")
+    assert any("tool or vendor name" in line for line in lane_scan(root, base))
+    root2 = scratch_repo(Path(tmp_path) / "dash")
+    base2 = commit(root2, ALBERT, {"README": "x\n"}, "Start")
+    commit(root2, ALBERT, {LANE_FILE: "a " + EM + " b\n"}, "Add a line")
+    assert any("em or en dash" in line for line in lane_scan(root2, base2))
+    root3 = scratch_repo(Path(tmp_path) / "agent")
+    base3 = commit(root3, ALBERT, {"README": "x\n"}, "Start")
+    commit(root3, ALBERT, {LANE_FILE: "one\n", "core/setup/release/" + "AGE" + "NTS.md": "notes\n"}, "Add a file")
+    assert any("must not be committed" in line for line in lane_scan(root3, base3))
+
+
+def test_jp05_scan_says_so_when_no_commit_touches_the_lane_files(tmp_path):
+    root = scratch_repo(tmp_path)
+    base = commit(root, ALBERT, {"README": "x\n"}, "Start the repository")
+    commit(root, ALBERT, {"app/x.py": "x\n"}, "Another file")
+    assert any("no commit of the range touches" in line for line in lane_scan(root, base))
+
+
+def test_jp05_a_merge_commit_by_another_committer_is_not_a_lane_commit(tmp_path):
+    root = scratch_repo(tmp_path)
+    base = commit(root, ALBERT, {"README": "x\n"}, "Start the repository")
+    commit(root, ALBERT, {LANE_FILE: "one\n"}, "Lane work")
+    subprocess.run(["git", "checkout", "-q", "-b", "side", base], cwd=root, check=True, capture_output=True)
+    commit(root, OTHER, {"app/side.py": "s\n"}, "Side work")
+    subprocess.run(["git", "checkout", "-q", "-"], cwd=root, check=True, capture_output=True)
+    env = {**os.environ, "GIT_AUTHOR_NAME": OTHER[0], "GIT_AUTHOR_EMAIL": OTHER[1], "GIT_COMMITTER_NAME": OTHER[0], "GIT_COMMITTER_EMAIL": OTHER[1]}
+    subprocess.run(["git", "merge", "--no-ff", "-q", "-m", "Merge side", "side"], cwd=root, check=True, capture_output=True, env=env)
+    assert lane_scan(root, base) == []
+
+
+def test_jp05_the_base_must_exist_or_the_nodes_fail_and_never_skip():
+    with pytest.raises(RuntimeError):
+        rh.commits(ROOT, "0" * 40, "HEAD", rh.LANE_PATHS)
 
 
 # JP-06: the release test map knows the seven prefixes

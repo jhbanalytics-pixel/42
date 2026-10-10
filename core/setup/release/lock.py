@@ -45,6 +45,7 @@ TEST_FILES = (
     "core/setup/tests/cloud_world.py",
     "core/setup/tests/jobs_paste_world.py",
     "core/setup/tests/jobs_world.py",
+    "core/setup/tests/range_hygiene.py",
     "core/setup/tests/test_chain_evidence.py",
     "core/setup/tests/test_jobs_checks.py",
     "core/setup/tests/test_jobs_hygiene.py",
