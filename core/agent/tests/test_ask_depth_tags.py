@@ -24,7 +24,7 @@ def ctx():
 
 
 def related(*tags):
-    return [{"tag": t, "co_posts": 10 - i, "co_creators": 5, "all_posts": 40} for i, t in enumerate(tags)]
+    return [{"tag": t, "co_posts": 10, "co_creators": 5, "all_posts": 20} for t in tags]
 
 
 class TagWarehouse(SplitWarehouse):
@@ -128,7 +128,7 @@ def test_a_hashtag_query_adds_the_co_occurring_tags_as_alternatives(ctx):
     assert len(legs["related"]) == 1 and len(legs["keyword"]) == 1 and len(legs["semantic"]) == 1
     keyword_sql, keyword_params = legs["keyword"][0][0], legs["keyword"][0][1]
     assert terms_of(keyword_params) == ["humor", "funny", "comedy", "memes"]
-    assert keyword_sql.count("UNNEST(p.hashtags)") == 4 and keyword_sql.count(" OR (") >= 3
+    assert keyword_sql.count("UNNEST(p.hashtags)") == 4 and keyword_sql.count("CONTAINS_SUBSTR") == 1
     assert out["also_searched"] == ["funny", "comedy", "memes"]
     assert legs["semantic"][0][1]["q"] == "#humor"  # the semantic leg keeps the words the model wrote
     purposes = [q["purpose"] for q in ctx.queries.values()]
@@ -164,13 +164,13 @@ def test_only_a_query_of_hashtag_alternatives_is_widened(ctx, query):
 
 
 def test_related_rows_are_cleaned_before_they_become_terms(ctx):
-    junk = related("funny", "Funny", "humor", "", "two words", "semi;colon", "or", "comedy") + [
+    junk = related("funny", "Funny", "humor", "", "two words", "semi;colon", "and", "comedy") + [
         {"tag": None, "co_posts": 1, "co_creators": 1, "all_posts": 1},
         {"tag": 7, "co_posts": 1, "co_creators": 1, "all_posts": 1}]
     wh = TagWarehouse(tags=junk, keyword=[kw("a")])
     out = search_posts(ctx, wh, "#humor")
-    assert out["also_searched"] == ["funny", "or", "comedy"]
-    assert terms_of(wh.legs()["keyword"][0][1]) == ["humor", "funny", "or", "comedy"]
+    assert out["also_searched"] == ["funny", "and", "comedy"]
+    assert terms_of(wh.legs()["keyword"][0][1]) == ["humor", "funny", "and", "comedy"]
 
 
 def test_a_failed_co_occurrence_read_leaves_the_plain_search_and_is_logged(ctx, caplog):
@@ -264,5 +264,84 @@ def test_related_hashtags_ranks_by_how_much_of_a_tag_sits_with_the_seed():
                     "1, 1, NULL, NULL, 2, ?)", [(pid, who, day, tags) for pid, who, tags in rows])
     ctx = RunContext(run_id="r_rel", tier="T1", as_of=NOW)
     found = wh_module.related_hashtags(ctx, DuckWarehouse(con), ["humor"], date(2026, 10, 4), date(2026, 10, 10), None)
-    assert [r["tag"] for r in found] == ["funny", "fyp"]  # comedy has one creator, so it is left out
+    assert [r["tag"] for r in found] == ["funny"]  # comedy has one creator; fyp is 2 of 18 posts, under the floor
     assert found[0]["co_posts"] == 2 and found[0]["all_posts"] == 3
+
+
+# Review, Important 1: the family is tag matches only, at least three characters, and a share floor
+
+
+PROBE = [("memes", 8, 10), ("comedia", 6, 10), ("fyp", 9, 90), ("viral", 9, 60), ("a", 9, 9), ("foryou", 9, 200),
+         ("sa", 9, 9)]
+
+
+def probe_rows():
+    return [{"tag": tag, "co_posts": co, "co_creators": 5, "all_posts": total} for tag, co, total in PROBE]
+
+
+def test_the_probe_family_keeps_only_tags_that_mostly_sit_with_the_seed(ctx):
+    wh = TagWarehouse(tags=probe_rows(), keyword=[kw("a")])
+    out = search_posts(ctx, wh, "#humor")
+    assert out["also_searched"] == ["memes", "comedia"]
+    assert terms_of(wh.legs()["keyword"][0][1]) == ["humor", "memes", "comedia"]
+
+
+def test_a_row_under_the_share_floor_or_three_characters_is_dropped_even_if_the_warehouse_returns_it(ctx):
+    rows = [{"tag": "edge", "co_posts": 2, "co_creators": 3, "all_posts": 10},        # exactly 0.2: kept
+            {"tag": "under", "co_posts": 19, "co_creators": 3, "all_posts": 100},     # 0.19: dropped
+            {"tag": "abc", "co_posts": 5, "co_creators": 3, "all_posts": 5},          # three characters: kept
+            {"tag": "ab", "co_posts": 5, "co_creators": 3, "all_posts": 5},           # two: dropped
+            {"tag": "noshare", "co_posts": 5, "co_creators": 3},                      # no total: dropped
+            {"tag": "zero", "co_posts": 5, "co_creators": 3, "all_posts": 0}]         # no posts: dropped
+    out = search_posts(ctx, TagWarehouse(tags=rows, keyword=[kw("a")]), "#humor")
+    assert out["also_searched"] == ["edge", "abc"]
+
+
+def test_the_family_tags_are_matched_against_the_tag_column_only(ctx):
+    wh = TagWarehouse(tags=related("funny", "comedy"), keyword=[kw("a")])
+    search_posts(ctx, wh, "#humor")
+    sql, params = wh.legs()["keyword"][0][0], wh.legs()["keyword"][0][1]
+    check_sql(sql)
+    assert sql.count("CONTAINS_SUBSTR") == 1  # the seed only; a family tag is never a caption substring
+    assert sql.count("UNNEST(p.hashtags)") == 3
+    assert "LOWER(TRIM(h)) = LOWER(@term_1)" in sql and "LOWER(TRIM(h)) = LOWER(@term_2)" in sql
+    assert params["term_1"] == "funny" and params["term_2"] == "comedy"
+
+
+def test_a_curated_local_word_is_still_a_caption_or_tag_match(ctx, tmp_path, monkeypatch):
+    path = write_terms(tmp_path, '[[topics]]\nwhen = ["humor"]\nterms = ["terma"]\n')
+    monkeypatch.setattr(wh_module, "LOCAL_TERMS_PATH", path)
+    wh = TagWarehouse(tags=related("funny"), keyword=[kw("a")])
+    search_posts(ctx, wh, "#humor")
+    assert wh.legs()["keyword"][0][0].count("CONTAINS_SUBSTR") == 2  # the seed and the curated word
+
+
+def test_a_one_letter_tag_cannot_match_every_caption(ctx):
+    wh = TagWarehouse(tags=[{"tag": "a", "co_posts": 9, "co_creators": 5, "all_posts": 9}], keyword=[kw("a")])
+    out = search_posts(ctx, wh, "#humor")
+    assert "also_searched" not in out and terms_of(wh.legs()["keyword"][0][1]) == ["humor"]
+
+
+def test_the_co_occurrence_sql_applies_the_floor_and_the_length_on_duckdb():
+    import duckdb
+
+    con = duckdb.connect()
+    con.execute("CREATE SCHEMA intelligence_42_core")
+    con.execute("CREATE TABLE intelligence_42_core.posts (post_id VARCHAR, platform VARCHAR, url VARCHAR, "
+                "creator_id VARCHAR, published_at TIMESTAMP, post_date DATE, geo_market VARCHAR, geo_source VARCHAR, "
+                "text VARCHAR, views BIGINT, likes BIGINT, comments BIGINT, shares BIGINT, engagement BIGINT, "
+                "hashtags VARCHAR[])")
+    con.execute("CREATE TABLE intelligence_42_core.creators (platform VARCHAR, creator_id VARCHAR, handle VARCHAR, "
+                "home_market VARCHAR)")
+    day, rows = date(2026, 10, 8), []
+    for i in range(10):  # ten humour posts, by ten creators
+        rows.append((f"h{i}", f"u{i}", ["humor", "memes"] + (["comedia"] if i < 6 else []) + ["fyp", "viral", "a", "sa"]
+                     + (["foryou"] if i < 9 else [])))
+    # the generic tags are everywhere else too
+    rows += [(f"fy{i}", f"x{i}", ["fyp"]) for i in range(80)] + [(f"vi{i}", f"y{i}", ["viral"]) for i in range(50)]
+    rows += [(f"fo{i}", f"z{i}", ["foryou"]) for i in range(190)]
+    con.executemany("INSERT INTO intelligence_42_core.posts VALUES (?, 'tiktok', 'u', ?, NULL, ?, NULL, NULL, 't', "
+                    "1, 1, NULL, NULL, 2, ?)", [(pid, who, day, tags) for pid, who, tags in rows])
+    ctx = RunContext(run_id="r_floor", tier="T1", as_of=NOW)
+    found = wh_module.related_hashtags(ctx, DuckWarehouse(con), ["humor"], date(2026, 10, 4), date(2026, 10, 10), None)
+    assert [r["tag"] for r in found] == ["memes", "comedia"]

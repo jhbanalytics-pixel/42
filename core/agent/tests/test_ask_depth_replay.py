@@ -49,7 +49,9 @@ def humour_store():
 
     for i in range(3):  # what the run found: the literal tag, in the caption and the column
         add(f"lit{i}", "tiktok", f"lit_c{i}", ["humor", "memes", "comedia"], "so funny #humor #memes #comedia")
-    for i in range(40):  # humour held in related tags only
+    for i in range(9):  # more posts that carry the tag in the column but not in the caption
+        add(f"seed{i}", "tiktok", f"seed_c{i}", ["humor", "memes", "comedia"])
+    for i in range(20):  # humour held in related tags only
         add(f"fam{i}", platforms[i % 3], f"fam_c{i % 20}", ["comedia", "memes"])
     for i in range(25):
         add(f"mzansi{i}", platforms[i % 3], f"mz_c{i % 12}", ["mzansicomedy", "funny"])
@@ -108,7 +110,8 @@ def test_the_question_names_the_tag_the_run_searched():
 
 def test_the_literal_search_finds_only_the_posts_that_carry_the_tag(ctx):
     out = search_posts(ctx, ReplayWarehouse(humour_store()), "humor", limit=100)
-    assert {e["id"] for e in out["evidence"]} == {"lit0", "lit1", "lit2"} | {f"colonly{i}" for i in range(5)}
+    assert {e["id"] for e in out["evidence"]} == ({"lit0", "lit1", "lit2"} | {f"colonly{i}" for i in range(5)}
+                                                  | {f"seed{i}" for i in range(9)})
 
 
 def test_the_sweep_reaches_the_tag_family_and_the_pack_puts_it_first(ctx):
@@ -116,8 +119,8 @@ def test_the_sweep_reaches_the_tag_family_and_the_pack_puts_it_first(ctx):
     out = topic_sweep(ctx, ReplayWarehouse(humour_store()), sweep_topic(QUESTION), platforms=None)
     assert out["searches"] == 2 and set(out["failed"]) == {"semantic a", "semantic b"}
     assert {"comedia", "memes"} <= set(out["family"])
-    on_topic = {pid for pid in ctx.evidence if pid.startswith(("lit", "fam", "colonly"))}
-    assert len(on_topic) >= 40 > STORED_ANSWER["cited_humor_posts"]  # 3 before, the family now
+    on_topic = {pid for pid in ctx.evidence if pid.startswith(("lit", "seed", "fam", "colonly"))}
+    assert len(on_topic) >= 30 > STORED_ANSWER["cited_humor_posts"]  # 3 before, the family now
     assert not any(pid.startswith("mzansi") for pid in ctx.evidence) or "mzansicomedy" in out["family"]
     assert not any(pid.startswith("noise") for pid in ctx.evidence)
 

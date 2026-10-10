@@ -415,7 +415,12 @@ TERM_TEST = ("(CONTAINS_SUBSTR(p.text, {0}) OR EXISTS (SELECT 1 FROM UNNEST(p.ha
 TAG_TEST = "EXISTS (SELECT 1 FROM UNNEST(p.hashtags) AS h WHERE LOWER(TRIM(h)) = LOWER({0}))"  # the column alone
 RELATED_TAG_POOL = 30  # rows the co-occurrence read returns; the term cap decides how many are used
 MIN_RELATED_CREATORS = 2  # a tag seen with the seed by one creator only is not a family
-TAG_WORD = re.compile(r"\w{1,50}")
+# A tag joins the family only when at least this share of its own posts also carry the seed. That keeps out the tags
+# every post carries (fyp, viral, foryou) without a list of them. A tag also needs this many characters, so a short one
+# cannot stand for a letter pair that is in most words.
+MIN_RELATED_SHARE = 0.2
+MIN_TAG_CHARS = 3
+TAG_WORD = re.compile(r"\w{3,50}")
 
 
 def _reason(exc: Exception) -> str:
@@ -470,11 +475,22 @@ def _search_filters(platforms, author, min_engagement) -> tuple[list[str], dict]
 
 
 def _keyword_sql(ctx: RunContext, query: str, since, until, shared: dict, filters: list[str], sort: str,
-                 limit: int, test: str = TERM_TEST) -> tuple[str, dict]:
-    """The keyword leg's SQL and parameters. Raises Refused for a query with more than MAX_TERMS terms."""
+                 limit: int, test: str = TERM_TEST, tag_terms=()) -> tuple[str, dict]:
+    """The keyword leg's SQL and parameters. tag_terms are alternatives to the query that match the hashtags column
+    only (the co-occurring tags). Raises Refused for more than MAX_TERMS terms in all."""
     params = {"since": since, "until": until, **shared, "limit": limit}
     where = ["p.post_date BETWEEN @since AND @until"]
-    where.append(_match(_terms(query, params, strip_hash=True), test))
+    condition = _match(_terms(query, params, strip_hash=True), test)
+    if tag_terms:
+        used = sum(1 for k in params if k.startswith("term_"))
+        if used + len(tag_terms) > MAX_TERMS:
+            raise Refused(f"Use at most {MAX_TERMS} search terms; got more.")
+        extra = []
+        for n, tag in enumerate(tag_terms, start=used):
+            params[f"term_{n}"] = tag
+            extra.append(TAG_TEST.format(f"@term_{n}"))
+        condition = "(" + " OR ".join([condition, *extra]) + ")"
+    where.append(condition)
     where += [f.format(a="p") for f in filters]
     if ctx.market:
         params["market"] = ctx.market
@@ -519,6 +535,8 @@ def related_hashtags(ctx: RunContext, warehouse: Warehouse, seeds: list[str], si
     joins, where, params, _ = _store_scope(ctx, platforms, (since, until))
     params["seed_keys"] = "|" + "|".join(s.replace("|", "") for s in seeds) + "|"
     params["min_creators"] = MIN_RELATED_CREATORS
+    params["min_chars"] = MIN_TAG_CHARS
+    params["min_share"] = MIN_RELATED_SHARE
     params["pool"] = RELATED_TAG_POOL
     sql = (
         "WITH scoped AS (SELECT p.post_id, p.creator_id, LOWER(TRIM(tag)) AS tag "
@@ -529,7 +547,8 @@ def related_hashtags(ctx: RunContext, warehouse: Warehouse, seeds: list[str], si
         "FROM scoped s JOIN seeded d ON d.post_id = s.post_id "
         "WHERE STRPOS(@seed_keys, CONCAT('|', s.tag, '|')) = 0 GROUP BY s.tag) "
         "SELECT co.tag, co.co_posts, co.co_creators, totals.all_posts FROM co JOIN totals ON totals.tag = co.tag "
-        "WHERE co.co_creators >= @min_creators "
+        "WHERE co.co_creators >= @min_creators AND LENGTH(co.tag) >= @min_chars "
+        "AND co.co_posts / totals.all_posts >= @min_share "
         "ORDER BY co.co_posts * co.co_posts / totals.all_posts DESC, co.co_posts DESC, co.tag LIMIT @pool"
     )
     seeds_text = ", ".join(seeds)[:80]
@@ -537,10 +556,18 @@ def related_hashtags(ctx: RunContext, warehouse: Warehouse, seeds: list[str], si
                      purpose=f"search_posts related tags: hashtags posted beside {seeds_text}")["rows"]
 
 
-def _widen(ctx: RunContext, warehouse: Warehouse, query: str, since, until, platforms) -> list[str]:
+def _share_ok(row) -> bool:
+    co, total = (row.get("co_posts"), row.get("all_posts")) if isinstance(row, dict) else (None, None)
+    return (isinstance(co, (int, float)) and isinstance(total, (int, float)) and total > 0
+            and co / total >= MIN_RELATED_SHARE)
+
+
+def _widen(ctx: RunContext, warehouse: Warehouse, query: str, since, until, platforms) -> tuple[list[str], list[str]]:
     """Words to search beside a query that is only alternatives (one word or hashtag each, joined by OR): the curated
-    local terms for its topic, then, when every alternative is a hashtag, the tags that co-occur with them, all within
-    the term cap. Any other query is searched as written. A failed co-occurrence read leaves the curated words."""
+    local terms for its topic (matched in the caption or the tags, as the query's own words are) and, when every
+    alternative is a hashtag, the tags that co-occur with them (matched against the hashtags column only, and only
+    those that sit mostly with the seed), all within the term cap. Any other query is searched as written. A failed
+    co-occurrence read leaves the curated words. Returns (curated, tags)."""
     groups = [[]]
     for word in (query or "").split():
         if word in _OR:
@@ -549,7 +576,7 @@ def _widen(ctx: RunContext, warehouse: Warehouse, query: str, since, until, plat
             groups[-1].append(word)
     groups = [g for g in groups if g]
     if not groups or any(len(g) != 1 for g in groups):
-        return []
+        return [], []
     room = MAX_TERMS - len(groups)
     seeds = [g[0].lstrip("#").lower() for g in groups]
     extras = []
@@ -558,6 +585,7 @@ def _widen(ctx: RunContext, warehouse: Warehouse, query: str, since, until, plat
             extras += [w for w in topic["terms"] if w.lower() not in seeds and w.lower() not in
                        [e.lower() for e in extras]]
     extras = extras[:max(room, 0)]
+    tags = []
     if all(g[0].startswith("#") for g in groups) and len(extras) < room:
         try:
             rows = related_hashtags(ctx, warehouse, seeds, since, until, platforms)
@@ -566,12 +594,12 @@ def _widen(ctx: RunContext, warehouse: Warehouse, query: str, since, until, plat
             rows = []
         for row in rows:
             tag = row.get("tag") if isinstance(row, dict) else None
-            if (isinstance(tag, str) and TAG_WORD.fullmatch(tag) and tag.lower() not in seeds
-                    and tag.lower() not in [e.lower() for e in extras]):
-                extras.append(tag)
-                if len(extras) == room:
+            if (isinstance(tag, str) and TAG_WORD.fullmatch(tag) and _share_ok(row) and tag.lower() not in seeds
+                    and tag.lower() not in [e.lower() for e in extras + tags]):
+                tags.append(tag)
+                if len(extras) + len(tags) == room:
                     break
-    return extras
+    return extras, tags
 
 
 def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=None, since=None, until=None,
@@ -588,14 +616,14 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
     filters, shared = _search_filters(platforms, author, min_engagement)
 
     lists, query_ids, note, failed = [], [], {}, {}
-    extras = _widen(ctx, warehouse, query, since, until, platforms)
-    if extras:
-        note["also_searched"] = extras
+    curated, tags = _widen(ctx, warehouse, query, since, until, platforms)
+    if curated or tags:
+        note["also_searched"] = curated + tags
     # Each leg stands alone: a leg that fails (a refused argument, a byte cap, a warehouse error) leaves the other to
     # answer. Both reasons reach the model and the log, and a call where both fail raises with both.
     try:
-        sql, params = _keyword_sql(ctx, query + "".join(f" OR #{w}" for w in extras), since, until, shared, filters,
-                                   sort, limit)
+        sql, params = _keyword_sql(ctx, query + "".join(f" OR #{w}" for w in curated), since, until, shared, filters,
+                                   sort, limit, tag_terms=tags)
         result = sql_query(ctx, warehouse, sql, purpose=f"search_posts: {query}", params=params)
     except Exception as e:
         _emit_retrieval_trace(ctx, "keyword", error=e)
@@ -940,16 +968,17 @@ def topic_sweep(ctx: RunContext, warehouse: Warehouse, topic: list[str], platfor
     filters, shared = _search_filters(platforms, None, 0)
     words = " OR ".join(topic)
     base = " ".join(t.lstrip("#") for t in topic)
-    out["family"] = _widen(ctx, warehouse, words, since, until, platforms)
-    family_query = words + "".join(f" OR #{w}" for w in out["family"])
+    curated, tags = _widen(ctx, warehouse, words, since, until, platforms)
+    out["family"] = curated + tags
+    family_query = words + "".join(f" OR #{w}" for w in curated)
     tags_only = all(t.startswith("#") for t in topic)
     market = MARKET_NAMES.get(ctx.market, "Africa")
     searches = [
         ("keyword", "keyword", lambda: _keyword_sql(ctx, family_query, since, until, shared, filters, "engagement",
-                                                     MAX_POSTS)),
+                                                     MAX_POSTS, tag_terms=tags)),
         ("tag column" if tags_only else "recent", "keyword",
          lambda: _keyword_sql(ctx, family_query, since, until, shared, filters, "recent", MAX_POSTS,
-                              test=TAG_TEST if tags_only else TERM_TEST)),
+                              test=TAG_TEST if tags_only else TERM_TEST, tag_terms=tags)),
         ("semantic a", "semantic", lambda: _semantic_sql(ctx, base, since, until, shared, filters, MAX_POSTS)),
         ("semantic b", "semantic", lambda: _semantic_sql(ctx, f"people posting about {base}, {market}", since, until,
                                                          shared, filters, MAX_POSTS)),
