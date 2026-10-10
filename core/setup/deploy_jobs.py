@@ -11,7 +11,12 @@
                                                                  f42-scheduled-asks
 
 It runs as whatever gcloud and application default credentials act as (f42-builder). The image is
-built from a git archive of HEAD, so its tag, the git short sha, names exactly what is inside it; --build
+built from a clean clone at the bound commit: the tool runs in a git clone, --commit names the commit that clone must have
+checked out, and the dirty refusal below keeps the working tree equal to it. It has no archive mode and does not run from
+an extracted archive, which has no .git; the source tarball it uploads is the git archive of that commit. Its tag is the first twelve hex characters of the commit and the attempt number
+(jobs:<sha12>-<nn>, --attempt, default 1), so a rebuild of the same commit never reuses a tag, and the full 40 character
+commit goes to the build as the separate _GIT_SHA substitution, because the run stamp accepts a sha and not a tag with a
+suffix. --commit binds the build to one commit and refuses when HEAD is another; --build
 and --apply refuse while core/ has uncommitted changes. --build uploads the archive with gcloud storage cp into the media bucket, then creates the build through the Cloud Build
 REST API with f42-deployer as the build identity, because gcloud builds submit needs bucket permissions
 f42-builder does not hold. Jobs are deployed by digest, taken from the build results or read back from
@@ -94,6 +99,8 @@ BUILDS = f"https://cloudbuild.googleapis.com/v1/projects/{PROJECT}/locations/{RE
 POLL_SECONDS = 15
 FAILED = ("FAILURE", "INTERNAL_ERROR", "TIMEOUT", "CANCELLED", "EXPIRED")
 ROUTES = "docs/full-42/reference/sc_routes.json"
+COMMIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
+MAX_ATTEMPT = 99
 SOURCES = ("core", ROUTES)
 SECRET = "SOCIALCRAWL_OGILVY_API_KEY"
 UNDERSTAND = "core.understand.job"
@@ -253,6 +260,24 @@ def source_location():
     return location.groups()
 
 
+def image_tag(commit, attempt):
+    """jobs:<sha12>-<nn>: the first twelve hex characters of a 40 character commit and a two digit attempt number."""
+    if not isinstance(commit, str) or not COMMIT_SHA.match(commit):
+        raise ValueError("the commit is not a 40 character lower case hex sha")
+    if isinstance(attempt, bool) or not isinstance(attempt, int) or not 1 <= attempt <= MAX_ATTEMPT:
+        raise ValueError(f"the attempt number is not an integer from 1 to {MAX_ATTEMPT}")
+    return f"{commit[:12]}-{attempt:02d}"
+
+
+def attempt_number(text):
+    try:
+        value = int(text)
+        image_tag("0" * 40, value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{text!r} is not an attempt number from 1 to {MAX_ATTEMPT}") from None
+    return value
+
+
 def source_object(tag):
     _, prefix = source_location()
     return f"{prefix.rstrip('/')}/jobs-{tag}.tar.gz"
@@ -275,10 +300,13 @@ def substitute(value, subs):
     return value
 
 
-def build_request(tag):
-    """The Cloud Build API body: steps and images from cloudbuild.jobs.yaml with _IMAGE and _TAG filled in here."""
+def build_request(tag, git_sha):
+    """The Cloud Build API body: steps and images from cloudbuild.jobs.yaml with _IMAGE, _TAG and _GIT_SHA filled in here.
+    The config holds no default for the tag or the sha, so a build without them fails instead of pushing an untraceable image."""
+    if not isinstance(git_sha, str) or not COMMIT_SHA.match(git_sha):
+        raise ValueError("_GIT_SHA is not a 40 character lower case hex sha")
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
-    subs = {**cfg.get("substitutions", {}), "_IMAGE": IMAGE, "_TAG": tag}
+    subs = {**cfg.get("substitutions", {}), "_IMAGE": IMAGE, "_TAG": tag, "_GIT_SHA": git_sha}
     bucket, _ = source_location()
     return {
         "source": {"storageSource": {"bucket": bucket, "object": source_object(tag)}},
@@ -382,6 +410,9 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--build", action="store_true", help="build the image for HEAD in Cloud Build")
     parser.add_argument("--apply", action="store_true", help="deploy each enabled job on the image built for HEAD")
+    parser.add_argument("--attempt", type=attempt_number, default=1,
+                        help=f"the build attempt number, 1 to {MAX_ATTEMPT}; part of the image tag so a rebuild never reuses one")
+    parser.add_argument("--commit", help="the 40 character commit this build is bound to; refused when HEAD is another commit")
     parser.add_argument("--only", choices=[j.name for j in JOBS + SMOKE_JOBS], help="limit the deploy to one job")
     parser.add_argument("--smoke", action="store_true", help="plan or deploy the smoke jobs instead of the chain jobs")
     parser.add_argument("--run-smoke", action="store_true", help="print the commands that run the smoke jobs")
@@ -406,18 +437,26 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
         return 0
     gcloud = gcloud or Gcloud()
 
-    tag = git(["rev-parse", "--short", "HEAD"]).strip()
+    try:
+        commit = git(["rev-parse", "HEAD"]).strip()
+    except GcloudError:
+        sys.exit("This is not a git clone. Run the build from a clean clone checked out at the bound commit; there is no archive mode.")
+    if not COMMIT_SHA.match(commit):
+        sys.exit(f"HEAD is not a 40 character commit sha: {commit[:12]!r}")
+    if args.commit is not None and (not COMMIT_SHA.match(args.commit) or args.commit != commit):
+        sys.exit(f"--commit {args.commit[:12]!r} is not the bound commit: HEAD is {commit[:12]}. Check out the bound commit.")
+    tag = image_tag(commit, args.attempt)
     dirty = git(["status", "--porcelain", "--", *SOURCES]).strip()
     if dirty and (args.build or args.apply):
         sys.exit("Uncommitted changes under core/ or the routes file would not be in the image. Commit first:\n"
                  + dirty)
 
-    print(f"Image {IMAGE}:{tag}, built from a git archive of HEAD {tag} ({', '.join(SOURCES)})")
+    print(f"Image {IMAGE}:{tag}, built from a clean clone at commit {commit} ({', '.join(SOURCES)})")
     if dirty:
         print("Note: uncommitted changes under core/ are not in HEAD, so they would not be in the image.")
 
     source = Path(workdir) / "source.tar.gz" if workdir else None
-    body = build_request(tag)
+    body = build_request(tag, commit)
     upload = upload_argv(source or "<git archive of HEAD>.tar.gz", tag)
     print("Upload the source:")
     print("  " + show(upload))
@@ -438,9 +477,9 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
         session = session or cloud_session()
         if workdir is None:
             with tempfile.TemporaryDirectory() as tmp:
-                digest = build(gcloud, git, session, sleep, Path(tmp) / "source.tar.gz", tag, body)
+                digest = build(gcloud, git, session, sleep, Path(tmp) / "source.tar.gz", tag, body, commit)
         else:
-            digest = build(gcloud, git, session, sleep, source, tag, body)
+            digest = build(gcloud, git, session, sleep, source, tag, body, commit)
         print("  build finished.")
     if args.apply and digest is None:
         digest = gcloud.run(digest_argv(tag)).strip()
@@ -506,9 +545,9 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
     return 0
 
 
-def build(gcloud, git, session, sleep, source, tag, body):
-    """Archive, upload, create the build, poll it to the end. Returns the image digest from the results, or None."""
-    git(["archive", "--format=tar.gz", f"--output={source}", tag, *SOURCES])
+def build(gcloud, git, session, sleep, source, tag, body, commit):
+    """Archive the commit, upload, create the build, poll it to the end. Returns the image digest from the results, or None."""
+    git(["archive", "--format=tar.gz", f"--output={source}", commit, *SOURCES])
     upload = upload_argv(source, tag)
     gcloud.run(upload)
     print(f"  uploaded {upload[3]}")

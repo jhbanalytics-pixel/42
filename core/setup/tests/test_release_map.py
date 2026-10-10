@@ -79,8 +79,8 @@ def test_tm01_the_pending_and_not_applicable_ids_are_exactly_the_ones_this_branc
     states = {ident: e["status"] for ident, e in data["ids"].items() if e["status"] != "built"}
     assert {i for i, s in states.items() if s == "not_applicable"} == {"HR-03", "HR-48"}
     # AU-01 to AU-09 were pending on wave8/release, which had no audience split; wave8/api builds them in test_app.py
-    pending = {f"JB-{n:02d}" for n in range(1, 9)} | {f"JS-{n:02d}" for n in range(1, 12)} | {"JX-06", "JX-08"}
-    assert {i for i, s in states.items() if s == "pending"} == pending
+    # JB-01 to JB-08 and JS-01 to JS-11 are built by the job code half; JX-06 and JX-08 need the B source commit and Albert's corpus
+    assert {i for i, s in states.items() if s == "pending"} == {"JX-06", "JX-08"}
 
 
 # TM-02: the lock

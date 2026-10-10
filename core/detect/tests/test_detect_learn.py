@@ -650,7 +650,9 @@ def test_no_gate_threshold_card_or_hold_reads_the_outcome_measure():
                 continue
             if "card_outcome" in path.read_text(encoding="utf-8", errors="ignore"):
                 found.add(path.relative_to(ROOT).as_posix())
-    assert found == READERS_OF_THE_MEASURE | {"core/eval/sql/card_outcome.sql", "core/schema/card_outcome.sql"}
+    # core/setup/release/jobs_source.py names card_outcome.sql only to check that it stays outside SQL_FILES (Release B, JS-01)
+    assert found == READERS_OF_THE_MEASURE | {"core/eval/sql/card_outcome.sql", "core/schema/card_outcome.sql",
+                                              "core/setup/release/jobs_source.py"}
 
 
 def test_learn_uses_the_outcome_measure_only_inside_its_step_and_stores_the_result_under_one_counts_key():

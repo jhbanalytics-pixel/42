@@ -1,10 +1,12 @@
 # Builds the 42 jobs image in Cloud Build as f42-deployer and pushes it to intelligence-42.
-# Read by core/setup/deploy_jobs.py, which fills in _IMAGE and _TAG (the git short sha of HEAD) itself and
-# creates the build through the Cloud Build API, taking steps, images, options and timeout from here.
-# _TAG has no default, so a build without it fails instead of pushing an untraceable image.
+# Read by core/setup/deploy_jobs.py, which fills in _IMAGE, _TAG (the first twelve hex characters of the commit and the
+# attempt number) and _GIT_SHA (the full 40 character commit) itself and creates the build through the Cloud Build API,
+# taking steps, images, options and timeout from here.
+# _TAG and _GIT_SHA have no default, so a build without them fails instead of pushing an untraceable image. The sha is a
+# separate substitution because the run stamp accepts a sha and records nothing for a tag with an attempt suffix.
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: ["build", "-f", "core/setup/jobs.Dockerfile", "--build-arg", "GIT_SHA=${_TAG}", "-t", "${_IMAGE}:${_TAG}", "."]
+    args: ["build", "-f", "core/setup/jobs.Dockerfile", "--build-arg", "GIT_SHA=${_GIT_SHA}", "-t", "${_IMAGE}:${_TAG}", "."]
 images:
   - "${_IMAGE}:${_TAG}"
 substitutions:
