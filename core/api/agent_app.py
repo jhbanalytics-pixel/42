@@ -241,6 +241,18 @@ def fixture_state(request, answer, run):
         return None
 
 
+def stopped_state(request, answer, run):
+    """The state the real producer builds for a run stopped on request: its fixed stop text is a fixed_text summary and
+    nothing was removed or rewritten. None if answer_state is not there."""
+    try:
+        return summary_state.module().build(
+            ask_id=request["ask_id"], check_run_id=run.get("run_id"), execution_state="stopped_on_request",
+            stop_reason=None, summary_state="fixed_text", removals=[], rewrite="not_attempted", answer=answer)
+    except Exception as exc:
+        log.error("ask %s: answer_meta not built: %s", request["ask_id"], type(exc).__name__)
+        return None
+
+
 def fixture_agent(request, emit, should_stop):
     question = request["question"].lower()
     fixture = os.environ.get("F42_FIXTURE_STATE")  # one fixture of C1 v2 section 7 (P-19), by its id
@@ -271,7 +283,7 @@ def fixture_agent(request, emit, should_stop):
             answer["gaps"].append({"what": "Research stopped on request",
                                    "searched": f"{done} of {len(script)} research steps", "why": "stopped"})
             run["notices"].append("Stopped on request before the research finished")
-            return {"answer": answer, "run": run}
+            return {"answer": answer, "run": run, "answer_meta": stopped_state(request, answer, run)}
         emit(event)
         time.sleep(delay)
     if failing:

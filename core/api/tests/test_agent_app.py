@@ -321,6 +321,16 @@ def test_stop_gives_stopped(client, monkeypatch):
     assert len(record["steps"]) < 4
 
 
+def test_a_stop_on_request_stores_the_typed_state_like_the_real_producer(client, monkeypatch):
+    monkeypatch.setenv("F42_FIXTURE_DELAY", "0.2")
+    body = ask(client).json()
+    client.post(f"/api/ask/{body['ask_id']}/stop")
+    parse_sse(client.get(body["events_url"]).text)
+    meta = client.get(body["url"]).json()["answer_meta"]
+    assert meta["execution"] == {"state": "stopped_on_request", "stop_reason": None}
+    assert meta["summary"]["state"] == "fixed_text"
+
+
 def test_stop_unknown_ask_gives_404(client):
     r = client.post("/api/ask/a_20260928_deadbeef/stop")
     assert r.status_code == 404
