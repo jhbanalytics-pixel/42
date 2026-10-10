@@ -266,6 +266,21 @@ test('F-01 the Stopped early line is shown unless the run is verified as complet
   expect(meta.stoppedEarly({status: 'complete'})).toBe(false);
 });
 
+test('F-01 the status words are never read from a value that is not a verified wire, even when it carries an execution state', () => {
+  const budget = {state: 'stopped_on_budget', stop_reason: 'budget_full'};
+  const stored = [
+    {execution: budget},
+    {check: 'unverified', problem: 'digest', execution: budget},
+    {check: 'legacy_unknown', execution: budget},
+    {check: 'verified', v: 1, execution: budget},
+    {check: 'verified', v: 2, execution: budget, summary: {state: 'fixed_text', removals: [], rewrite: 'not_attempted'}},
+    {...WIRE('fixed_text', {execution: budget}), digest: 'sha256:' + '0'.repeat(64)},
+    {...WIRE('fixed_text', {execution: {state: 'stopped_on_request', stop_reason: null}}), extra: 1},
+  ];
+  for (const value of stored) expect(meta.statusWords({answer_meta: value})).toBeNull();
+  expect(meta.statusWords({answer_meta: WIRE('fixed_text', {execution: budget})})).toBe("Stopped at this question's model budget, not for lack of evidence");
+});
+
 /* F-02, F-04: the Ask page, held to the export */
 
 const STATUS_LINES = [
@@ -313,6 +328,23 @@ for (const entry of states){
     expect(plain(page.textContent)).not.toMatch(CODES);
   });
 }
+
+test('F-02 the Ask page says nothing about how a run ended from a state that did not verify', async () => {
+  /* A partial answer with no stop gap, so no older wording can produce the line. */
+  const entry = clone(states.find((item) => item.name === 'F06'));
+  entry.answer.status = 'partial';
+  entry.answer.gaps = [];
+  entry.answer_meta = {check: 'unverified', problem: 'digest', execution: {state: 'stopped_on_budget', stop_reason: 'budget_full'}};
+  await showFollowed(recordOf(entry));
+  const statuses = [...host.querySelectorAll('.ask42-status')].map((node) => plain(node.textContent));
+  for (const line of STATUS_LINES) expect(statuses).not.toContain(line);
+  /* The same record with a verified state does say it. */
+  await act(async () => root.render(null));
+  entry.answer_meta = WIRE('fixed_text', {execution: {state: 'stopped_on_budget', stop_reason: 'budget_full'}});
+  await showFollowed(recordOf(entry));
+  const verified = [...host.querySelectorAll('.ask42-status')].map((node) => plain(node.textContent));
+  expect(verified).toContain("Stopped at this question's model budget, not for lack of evidence");
+});
 
 test('F-02 the claims list still renders for a partial answer with surviving claims', async () => {
   const entry = states.find((item) => item.name === 'F10');
@@ -424,6 +456,21 @@ test('F-05 the investigation view shows the run-ending words of a verified stop'
   await until(() => host.querySelector('.ask42-short'), 'the investigation answer');
   const statuses = [...host.querySelectorAll('.ask42-status')].map((node) => plain(node.textContent));
   expect(statuses).toContain("Stopped at this question's model budget, not for lack of evidence");
+});
+
+test('F-05 the investigation view drops the Stopped early line when the verified state says the run completed, and keeps it when the run did not', async () => {
+  for (const [name, expected] of [['F01-stopped-after-final', false], ['F10-stopped-after-final', false], ['stopped-on-request', true]]){
+    const entry = states.find((item) => item.name === name);
+    const body = {...investigationBody(recordOf(entry)), status: 'stopped'};
+    const stub = async () => json(200, body);
+    globalThis.fetch = stub;
+    window.fetch = stub;
+    await act(async () => root.render(<InvestigationPage investigationId="i_0123456789ab" />));
+    await until(() => host.querySelector('.ask42-short'), 'the investigation answer');
+    const statuses = [...host.querySelectorAll('.ask42-status')].map((node) => plain(node.textContent));
+    expect(name + ':' + statuses.some((words) => words.startsWith('Stopped early'))).toBe(name + ':' + expected);
+    await act(async () => root.render(null));
+  }
 });
 
 const C = completeRecord.answer;
