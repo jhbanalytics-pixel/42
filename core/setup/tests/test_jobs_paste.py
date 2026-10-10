@@ -542,10 +542,10 @@ def test_rb_t1_confirm_update_asks_for_a_console_again_before_the_first_word(tmp
 
 
 def test_rb_t1_a_name_written_with_a_module_prefix_inside_the_paste_is_refused_before_anything_runs(tmp_path):
-    world = JobsPasteWorld(tmp_path, mutate_paste=lambda t: t + "\nfunction Show-Extra { Microsoft.PowerShell.Utility\Get-Date }\n")
+    world = JobsPasteWorld(tmp_path, mutate_paste=lambda t: t + "\nfunction Show-Extra { Microsoft.PowerShell.Utility\\Get-Date }\n")
     world.relock()
     result = world.run()
-    assert result.returncode != 0 and "Microsoft.PowerShell.Utility\Get-Date" in result.stderr and result.external == [], (result.stdout, result.stderr)
+    assert result.returncode != 0 and "Microsoft.PowerShell.Utility\\Get-Date" in result.stderr and result.external == [], (result.stdout, result.stderr)
 
 
 def test_rb_t1_a_command_added_to_the_paste_is_checked_without_any_list_being_edited(tmp_path):
