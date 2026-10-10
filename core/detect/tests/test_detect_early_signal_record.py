@@ -26,7 +26,7 @@ B0_STATE = "4ee60d59e7d91e47b07c2fc218003db39b79dcb6cc35ddb32c23834d6fada4c5"
 # The wave8/api lane changes the Today payload, so the base commit's digest of it (8b5b4670...) no longer holds in a tree
 # that has that lane. This is the digest of the same fixture payload at wave8/api 068ee52, which has no early signal:
 # the early signal merged on top of it leaves the payload as that lane built it.
-API_TODAY = "9f9b44d64a4bfeb205df6c78347b1e19d976529d7f40077451bb36a1097b2ce5"
+LANE_TODAY_DIGEST = "9f9b44d64a4bfeb205df6c78347b1e19d976529d7f40077451bb36a1097b2ce5"
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -59,7 +59,7 @@ def test_state_worth_ranks_and_eligibility_are_byte_identical_to_the_base_commit
 
 
 def test_the_today_payload_is_byte_identical_to_the_one_the_api_lane_built():
-    assert ident.today_digest() == API_TODAY
+    assert ident.today_digest() == LANE_TODAY_DIGEST
 
 
 def test_the_identity_run_is_not_vacuous_the_flag_fired_where_no_state_did(built):
