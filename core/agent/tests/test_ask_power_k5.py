@@ -106,3 +106,11 @@ def test_a_post_and_its_own_span_cited_together_are_still_one_author_and_one_ori
     ctx, ids = world([FIRST, COPY, X], spans_of=["tt_a"])
     label, _ = label_of(ctx, ["tt_a", ids["tt_a"], "x_1"], ids["tt_a"])
     assert label == "corroborated"  # tt_a is the original; its span does not make it a copy of itself
+
+
+def test_a_flag_set_on_the_post_after_its_span_was_written_still_excludes_the_span():
+    ctx, ids = world([CLEAN, X], spans_of=["tt_clean"])
+    ctx.evidence["tt_clean"]["flags"] = ["sponsored"]
+    assert ctx.evidence[ids["tt_clean"]]["flags"] == []
+    label, _ = label_of(ctx, [ids["tt_clean"], "x_1"], ids["tt_clean"])
+    assert label == "single_source"
