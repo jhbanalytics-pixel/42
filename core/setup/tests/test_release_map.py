@@ -66,6 +66,15 @@ def test_tm01_every_built_id_has_a_test_in_the_partition_named_for_its_prefix_an
             assert entry["status"] in ("pending", "not_applicable") and entry["reason"]
 
 
+def test_tm01_the_two_end_to_end_files_are_in_the_deploy_partition_and_skip_off_windows_for_a_stated_reason():
+    deploy = set(load_map()["partitions"]["deploy"])
+    for rel, reason in (("core/setup/tests/test_release_e2e.py", "exist on Windows only"), ("core/setup/tests/test_jobs_final.py", "exist on Windows only")):
+        assert rel in deploy, rel
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        marks = [n for n in ast.walk(ast.parse(text)) if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "skipif"]
+        assert len(marks) == 1 and "ON_WINDOWS" in ast.unparse(marks[0]) and reason in text, rel
+
+
 def test_tm01_every_file_of_a_partition_exists_and_no_file_is_in_both():
     data = load_map()
     core, deploy = set(data["partitions"]["core"]), set(data["partitions"]["deploy"])
@@ -155,7 +164,8 @@ def test_tm03_a_missing_prerequisite_is_named_not_skipped(tmp_path):
 
 def test_tm03_the_new_test_files_carry_no_skip_marker_but_the_one_that_names_its_reason():
     allowed = {"core/setup/tests/test_declared_env_removals.py": "kept out of the repository",
-               "core/setup/tests/test_services_paste.py": "refuses every gcloud by design"}
+               "core/setup/tests/test_services_paste.py": "refuses every gcloud by design",
+               "core/setup/tests/test_jobs_final.py": "which exist on Windows only"}
     for rel in list(locklib.TEST_FILES) + ["core/setup/tests/paste_world.py", "core/setup/tests/release_world.py", "core/api/tests/smoke_support.py"]:
         path = ROOT / rel
         if not path.is_file() or path.suffix != ".py":

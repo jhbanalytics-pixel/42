@@ -1049,7 +1049,8 @@
    "core/setup/tests/test_jobs_paste.py",
    "core/setup/tests/test_jobs_hygiene.py",
    "core/setup/tests/test_release_packet_paste.py",
-   "core/setup/tests/test_release_e2e.py"
+   "core/setup/tests/test_release_e2e.py",
+   "core/setup/tests/test_jobs_final.py"
   ]
  },
  "schema_version": 1

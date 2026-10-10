@@ -1,7 +1,10 @@
 """Release B end to end, offline (the assembled branch): the packet files come from the packet command line, JobsCandidate, JobsUpdate and
 JobsRollback are the real JOBS-PASTE.ps1 run as pwsh processes, and every command the paste starts is played by the real python program
 over a fake world: deploy_jobs.py for the build, bound_readback.py for FreezeJobs and the readbacks, durable_effects_check.py for the
-validate and the schema readbacks, jobs_run.py for the snapshot, the 14 updates and the rollback. pwsh is required; a missing pwsh fails."""
+validate and the schema readbacks, jobs_run.py for the snapshot, the 14 updates and the rollback. pwsh is required; a missing pwsh fails.
+
+These tests are in the deploy partition (release_test_ids.json). They run on Windows only, as Release A's end to end test does, because
+the stand-ins for py and gcloud are .cmd files, which pwsh starts on Windows only."""
 import contextlib
 import datetime as dt
 import io
@@ -15,13 +18,31 @@ from core.setup.release import chain_evidence as ce
 from core.setup.release import jobs_only as jo
 from core.setup.release import plan
 from core.setup.tests import jobs_world as jw
+from core.setup.tests.e2e_world import ON_WINDOWS
 from core.setup.tests.jobs_e2e_world import EndToEnd
+
+pytestmark = pytest.mark.skipif(not ON_WINDOWS, reason="the stand-ins for py and gcloud are .cmd files, which exist on Windows only")
 
 
 @pytest.fixture(autouse=True)
 def pwsh_is_present():
     if shutil.which("pwsh") is None:
         pytest.fail("pwsh is not installed; the end to end tests cannot run (install PowerShell 7)")
+
+
+FORBIDDEN_WORDS = ("update-traffic", "scheduler", "set-iam-policy", "--set-secrets", "--update-env-vars", "--remove-env-vars", "execute", "delete")
+
+
+def forbidden_commands(commands):
+    """The commands that hold a forbidden word in any argument, whether the word is the whole argument or only part of it (a flag with its value attached)."""
+    return [argv for argv in commands if any(word in token for token in argv for word in FORBIDDEN_WORDS)]
+
+
+def test_the_forbidden_word_check_sees_a_word_inside_an_argument_as_well_as_a_whole_argument():
+    assert forbidden_commands([["gcloud", "run", "jobs", "update", "f42-x", "--update-env-vars=A=b"]])
+    assert forbidden_commands([["gcloud", "run", "jobs", "update", "f42-x", "--update-env-vars", "A=b"]])
+    assert forbidden_commands([["gcloud", "run", "jobs", "update", "f42-x", "--image=img@sha256:ab", "--remove-env-vars=A"]])
+    assert not forbidden_commands([["gcloud", "run", "jobs", "update", "f42-x", "--image=img@sha256:ab", "--region=europe-west1"]])
 
 
 def ok(result):
@@ -105,9 +126,8 @@ def test_the_whole_release_candidate_update_and_rollback_runs_through_the_real_p
     for result in (candidate, update, rollback):
         for argv in result.commands:
             assert len(plan.jobs_matching_entries(argv)) == 1, argv
-    forbidden = ("update-traffic", "scheduler", "set-iam-policy", "--set-secrets", "--update-env-vars", "--remove-env-vars", "execute", "delete")
     for result in (candidate, update, rollback):
-        assert not [argv for argv in result.commands if any(word in argv for word in forbidden)]
+        assert not forbidden_commands(result.commands)
 
 
 def test_the_paste_orders_the_schema_apply_before_its_readbacks_and_the_receipt_and_jobs_update_needs_that_receipt(tmp_path, monkeypatch):
