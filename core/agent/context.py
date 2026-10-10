@@ -21,6 +21,9 @@ TIERS = {
 # The tool mark on the whole-store count queries Ask runs before the writer (tools/warehouse.py store_breadth); the
 # writer puts those queries first in its pack.
 STORE_TOOL = "store_breadth"
+# The tool mark on the topic sweep's searches (tools/warehouse.py topic_sweep). Their rows are posts already in the
+# run's evidence, so the writer's pack leaves their query blocks out.
+SWEEP_TOOL = "topic_sweep"
 
 
 class Refused(Exception):

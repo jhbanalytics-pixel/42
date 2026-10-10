@@ -15,7 +15,8 @@ import core.agent.checks as checks
 from core.agent.checks import (EVIDENCE_KEYS, INSUFFICIENT, LABEL_RANK, _code_gap,
                                _country_people_candidates, _country_people_problems, _forecast_problem, _located,
                                _mentions, _searched, _text_breaches, check_answer, mostly_non_english)
-from core.agent.context import STORE_TOOL, RunContext
+from core.agent.context import STORE_TOOL, SWEEP_TOOL, RunContext
+from core.agent.spread import spread_order
 from core.agent.native_review import tone_cap_ids
 from core.llm.provider import GEMINI_DEFAULT_MODEL, price_for, reserve_output
 
@@ -25,9 +26,17 @@ ROWS_SHOWN = 50  # enough rows for a top-hashtags or per-platform count to reach
 STORE_ROWS_SHOWN = 500
 # The writer's evidence pack is bounded (review, 4 October: "writer pack uncapped"): at most MAX_PACK_POSTS post blocks
 # and WRITER_PACK_BYTES of blocks in all, inside the input ask.py holds for a writer call (WRITER_INPUT_TOKENS, read as
-# one token per byte). The whole-store counts go first, then posts in the order they were found, then other queries.
-MAX_PACK_POSTS = 150
-WRITER_PACK_BYTES = 150_000
+# one token per byte). The whole-store counts go first, then posts by how well the run's searches matched them and
+# spread across platforms and creators (Albert, 10 October: 300 posts, 300,000 bytes), then other queries.
+MAX_PACK_POSTS = 300
+WRITER_PACK_BYTES = 300_000
+MATCH_RRF_K = 60
+# What a post is worth to the pack order when no search ranked it. A post a live call fetched was returned by a search
+# the model chose, so it counts as a tenth ranked hit; a post only the gate fetched from a whole-store list, or a
+# comment, matched nothing. These weights order the pack and say nothing about what a claim may cite.
+LIVE_POST_STRENGTH = 1.0 / (MATCH_RRF_K + 10)
+SAMPLE_POST_STRENGTH = 0.001
+SEARCH_PURPOSES = ("search_posts", "Topic sweep")
 MAX_CLAIMS = 10  # one support call each, and ask.py's hold covers ten
 SUPPORT_MAX_TOKENS, SUPPORT_INPUT_TOKENS = 400, 20_000
 K4_REWRITE_MAX_TOKENS, K4_REWRITE_INPUT_TOKENS = 200, 20_000
@@ -351,13 +360,43 @@ def _query_block(query_id: str, query: dict) -> str:
             f"rows shown: {min(len(rows), limit)} of {len(rows)}\n{_fence(shown)}")
 
 
+def _order_posts(ctx: RunContext, records: list[dict]) -> list[dict]:
+    """The post records in pack order: strongest match first, then spread. A post's strength is the sum over the run's
+    searches (search_posts and the topic sweep) of 1 / (60 + its rank in that search's rows), so a post several
+    searches ranked high comes first. A post no search ranked takes a live post's or a sample post's weight, and a
+    comment none. Platforms then take turns, and no creator takes more than three places before the others have one
+    (spread.spread_order). Every record comes back once; a tie keeps the order the run found them."""
+    strength, seen = {}, set()
+    for query in list(ctx.queries.values()):
+        searched = str(query.get("purpose") or "").startswith(SEARCH_PURPOSES)
+        for rank, row in enumerate(query.get("rows") or [], start=1):
+            pid = str(row.get("post_id")) if isinstance(row, dict) and row.get("post_id") is not None else None
+            if pid is None:
+                continue
+            seen.add(pid)
+            if searched:
+                strength[pid] = strength.get(pid, 0.0) + 1.0 / (MATCH_RRF_K + rank)
+
+    def weight(record):
+        pid = str(record.get("id"))
+        if record.get("parent_id"):
+            return 0.0
+        if pid in strength:
+            return strength[pid]
+        return SAMPLE_POST_STRENGTH if pid in seen else LIVE_POST_STRENGTH
+
+    return spread_order(records, platform=lambda r: r.get("platform"),
+                        creator=lambda r: r.get("handle") or r.get("id"), strength=weight)
+
+
 def _pack(ctx: RunContext, records: list[dict]) -> tuple[list[str], dict]:
-    """The evidence pack's blocks, bounded: whole-store queries, then post blocks (at most MAX_PACK_POSTS), then the
-    other queries, each kept while the pack stays within WRITER_PACK_BYTES. Returns the blocks and what was left out."""
+    """The evidence pack's blocks, bounded: whole-store queries, then post blocks (at most MAX_PACK_POSTS, in
+    _order_posts order), then the other queries, each kept while the pack stays within WRITER_PACK_BYTES. The sweep's
+    queries are not shown: their rows are posts the pack already holds. Returns the blocks and what was left out."""
     store = [q for q, v in ctx.queries.items() if v.get("tool") == STORE_TOOL]
-    others = [q for q in ctx.queries if q not in store]
+    others = [q for q, v in ctx.queries.items() if q not in store and v.get("tool") != SWEEP_TOOL]
     candidates = ([("queries", _query_block(q, ctx.queries[q])) for q in store]
-                  + [("posts", _post_block(r)) for r in records[:MAX_PACK_POSTS]]
+                  + [("posts", _post_block(r)) for r in _order_posts(ctx, records)[:MAX_PACK_POSTS]]
                   + [("queries", _query_block(q, ctx.queries[q])) for q in others])
     blocks, used = [], 0
     left = {"posts": max(0, len(records) - MAX_PACK_POSTS), "queries": 0}

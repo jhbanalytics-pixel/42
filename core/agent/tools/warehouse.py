@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Protocol
 
 from core.agent.checks import LABEL_RANK
-from core.agent.context import STORE_TOOL, Refused, RunContext
+from core.agent.context import STORE_TOOL, SWEEP_TOOL, Refused, RunContext
 from core.agent.skills import PAGE_TIERS
 from core.agent.spread import spread_order
 from core.agent.tools.dates import SAST, resolve_dates
@@ -905,7 +905,6 @@ def _store_before(ctx: RunContext, warehouse: Warehouse, platforms, shown: str, 
 # recency, and two wordings of it for the semantic leg. The posts are balanced across platforms and creators and stored
 # straight into the run's evidence, so the research model's history does not carry them (about 15,000 tokens per 100
 # posts, re-sent every turn). Each search is a recorded query, so a K2 re-run of any cited one works as for any query.
-SWEEP_TOOL = "topic_sweep"
 SWEEP_KEEP = 300  # posts a sweep stores, as many as the writer's pack holds (writer.MAX_PACK_POSTS)
 MAX_SWEEP_TOPIC = 3
 _HASHTAG = re.compile(r"(?<![\w#])#(\w{2,50})")

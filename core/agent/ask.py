@@ -95,7 +95,7 @@ FAILED_STEPS = {"sql_query": "A warehouse count", "search_posts": "A search of s
 MODEL_INPUT = {"search_posts": "query", "recall_findings": "query", "sql_query": "purpose", "resolve_dates": "expression"}
 # The writer, support and field-check calls an ask may make after research, for its hold. Output is each call's
 # max_tokens in writer.py; input is a generous estimate, the writer's near a full context window of evidence.
-WRITER_MAX_TOKENS, WRITER_INPUT_TOKENS = 8000, 200_000
+WRITER_MAX_TOKENS, WRITER_INPUT_TOKENS = 8000, 400_000
 # Seconds one Gemini HTTP attempt of Ask's (writer, checks, research turns) may run; the SDK default has no limit, so
 # a stalled call held the f42-agent request. Twice the brief's 60 s, since a writer call carries up to 200,000 input
 # tokens and 10,000 output tokens with thinking. With one retry a stall ends in about four minutes, far inside the
