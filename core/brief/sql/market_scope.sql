@@ -1,6 +1,8 @@
 -- name: market_scope
 -- The location share of the exact evidence set in evidence.sql: seven local days, no creator on the suppression list,
--- two posts per creator, twelve total, less the confirm search finds that are not local (see creator_ranked).
+-- members of the item's cluster in the market's own run first (C4 v2 section 19), two posts per creator chosen
+-- members first, twelve total, less the confirm search finds that are not local (see creator_ranked). The ordering
+-- is copied from evidence.sql and v_item_market_scope; tests/test_pack_scope.py checks all three against each other.
 WITH seen AS (
   SELECT po.post_id, LOGICAL_OR(po.lane_class IN ('unbiased_rank', 'panel')) measured,
     LOGICAL_OR(IFNULL(po.lane, '') != 'confirm') beyond_confirm
@@ -11,13 +13,21 @@ WITH seen AS (
     AND po.lane_class != 'legacy'
     AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
   GROUP BY po.post_id
+), members AS (
+  SELECT DISTINCT mb.post_id
+  FROM {core}.cluster_members mb
+  JOIN {core}.clusters k ON k.cluster_id = mb.cluster_id
+  WHERE k.item_id = @item_id AND UPPER(k.market) = @market
+    AND k.cluster_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
 ), creator_ranked AS (
   SELECT ps.post_id, ps.platform, ps.geo_market, ps.geo_confidence, ps.geo_source, seen.measured,
-    IFNULL(ps.engagement, 0) eng,
+    IFNULL(ps.engagement, 0) eng, mm.post_id IS NOT NULL market_member,
     ROW_NUMBER() OVER (PARTITION BY IFNULL(ps.creator_id, ps.post_id)
-                       ORDER BY seen.measured DESC, IFNULL(ps.engagement, 0) DESC, ps.post_id) creator_rank
+                       ORDER BY mm.post_id IS NULL, seen.measured DESC, IFNULL(ps.engagement, 0) DESC,
+                                ps.post_id) creator_rank
   FROM seen
   JOIN {core}.posts ps ON ps.post_id = seen.post_id
+  LEFT JOIN members mm ON mm.post_id = seen.post_id
   WHERE ps.published_at >= @start AND ps.published_at < @end
     -- As evidence.sql: a suppressed creator's posts leave before ranking, so the count describes the pack.
     AND NOT EXISTS (SELECT 1 FROM {core}.v_suppressed_creators sc WHERE sc.creator_id = ps.creator_id)
@@ -39,7 +49,7 @@ WITH seen AS (
 ), eligible_posts AS (
   SELECT * FROM creator_ranked
   WHERE creator_rank <= 2
-  ORDER BY measured DESC, eng DESC, post_id
+  ORDER BY market_member DESC, measured DESC, eng DESC, post_id
   LIMIT 12
 ), market_posts AS (
   SELECT DISTINCT p.post_id
