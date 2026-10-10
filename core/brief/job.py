@@ -833,26 +833,31 @@ def _merge(by_market):
     return merged
 
 
-def _collapse_events(by_market, m):
-    """After the final gate: of the market's published Today cards, one that shares evidence with a higher ranked
-    published card (a post, or two creators, in common) and says the same event (same_event) is listed under that
-    card's also and leaves by_market[m]. It was explained on its own, so a held higher card never takes a publishable
-    card with it: only a published card absorbs another. No evidence is moved onto the kept card, which is already
-    explained. Returns [{market, into, item_id, by}] in rank order."""
+def _final(decision, name):
+    return decision.get(name) if isinstance(decision, dict) else getattr(decision, name)
+
+
+def _collapse_events(market, pairs):
+    """pairs: [(candidate, payload item)] of the market, the items carrying their FINAL decision (after the G10 hold in
+    _market_payload). Of the published Today cards, one that shares evidence with a higher ranked published card (a post,
+    or two creators, in common) and says the same event (same_event) is listed under that card's also and leaves the
+    items. It was explained on its own, and a card the final decision holds takes no part, so a held card never takes
+    a publishable card with it. A card that was absorbed is not a card others collapse into. No evidence is moved
+    onto the kept card, which is already explained. Returns (items left, in their order, [{market, into, item_id, by}]
+    in rank order)."""
     merged, kept, gone = [], [], set()
-    live = [c for c in by_market[m] if c["decision"].publish and c["decision"].where == "today"]
-    for cand in sorted(live, key=lambda c: _worth(c["row"])):
-        into = next((k for k in kept if shares_evidence(k, cand)
-                     and same_event(k["row"]["title"], cand["row"]["title"])), None)
+    live = [(c, i) for c, i in pairs if _final(i["decision"], "publish") is True
+            and _final(i["decision"], "where") == "today"]
+    for cand, item in sorted(live, key=lambda ci: _worth(ci[0]["row"])):
+        into = next(((k, ki) for k, ki in kept if shares_evidence(k, cand)
+                     and same_event(ki["title"], item["title"], market)), None)
         if into is None:
-            kept.append(cand)
+            kept.append((cand, item))
             continue
-        into.setdefault("also", []).append({"item_id": cand["row"]["item_id"], "title": cand["row"]["title"]})
-        merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"],
-                       "by": "same_event"})
-        gone.add(id(cand))
-    by_market[m] = [c for c in by_market[m] if id(c) not in gone]
-    return merged
+        into[1]["also"] = [*into[1]["also"], {"item_id": item["item_id"], "title": item["title"]}]
+        merged.append({"market": market, "into": into[1]["item_id"], "item_id": item["item_id"], "by": "same_event"})
+        gone.add(id(item))
+    return [i for _, i in pairs if id(i) not in gone], merged
 
 
 class ModelUnavailable(Exception):
@@ -1312,7 +1317,8 @@ def _payload_candidate(cand, result, specificity=None):
     }
 
 
-def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues, selection_audit=None):
+def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues, selection_audit=None,
+                    merged=None):
     # A candidate whose market scope could not be read is not known to be global, so it stays, held for its
     # unreadable evidence.
     # A candidate admitted under locality_v2.1 stays whatever its scope: a not_local one is held by G6 and shown, which
@@ -1347,6 +1353,10 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
                 # an explanation (the enum in core/api/contract.md has no explained-and-held value).
                 item["explanation_status"] = "failed_checks"
         items.append(item)
+    # Collapse on the final decisions, so a card held just above never absorbs another.
+    items, collapsed = _collapse_events(market, list(zip(local_cands, items)))
+    if merged is not None:
+        merged += collapsed
     # An evidence read that failed is a data problem too, so it counts with G1 toward the over-30% banner. The
     # denominator is every current-market candidate considered: the G1 holds that _candidates backfilled past as well
     # as the candidates judged, so the banner still shows how much of what was looked at bad data blocked.
@@ -1658,14 +1668,13 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                                    "claim_id": chk["claim_id"], "rule": chk["rule"], "verdict": chk["verdict"],
                                    "checker": chk["checker"], "run_id": run.run_id,
                                    "reason": check_reason(chk), **retained_columns(chk)})
-        merged += _collapse_events(by_market, m)
-        cands = by_market[m]
         banners = [b for b in (warm, None if m in confirmed else NO_CONFIRM, late_banner) if b]
         if selection_audits.get(m, {}).get("candidate_read") in ("held", NULL_COLUMN_READ_FAILED):
             banners.append({"kind": "data_issue", "text": "Data issue: today's candidates could not be read"})
         boards_, unnamed = boards(client, d, m, core, agent, hidden=hidden)
         payload = _market_payload(m, d, cands, results, banners=banners, moments_=calendar[m],
-                                  boards_=boards_, issues=_unnamed_issue(unnamed), selection_audit=selection_audits.get(m))
+                                  boards_=boards_, issues=_unnamed_issue(unnamed), selection_audit=selection_audits.get(m),
+                                  merged=merged)
         # Titles, aliases and model text never name a suppressed person either, as Today reads them.
         selection_receipt = payload.pop("selection_receipt", None)
         payload = without_hidden(payload, hidden)

@@ -1,15 +1,17 @@
 """Whether two published cards of one market are one event told twice.
 
-    same_event(title_a, title_b)   True when, nicknames replaced, one title's words are all in the other's and at
-                                   least MIN_SHARED words are shared
-    shares_evidence(a, b)          True when two candidates have a post in common or MIN_CREATORS creators in common
-    aliases(path)                  {nickname: name} from core/brief/event_aliases.yaml
+    same_event(title_a, title_b, market)   True when the two titles have equal words once nicknames are replaced, and
+                                           say something beyond the market's own name
+    shares_evidence(a, b)                  True when two candidates have a post in common or MIN_CREATORS creators in
+                                           common
+    aliases(path)                          {nickname: name} from core/brief/event_aliases.yaml
 
-Both are needed. Matching words alone merges a rugby and a cricket card ("springboks, south africa, england" and
-"proteas, south africa, england"), and sharing a creator alone merges anything one creator posts about. The words of a
-title are folded (lower case, accents off, whole words), a nickname is replaced by its name, and the fixture words vs,
-v, versus, against and the are dropped. One title must add nothing to the other (a subset), so a title with a word of
-its own that the other lacks (banyana, proteas, jollof) is another story. Pure text and ids; nothing is looked up.
+Both are needed. Matching words alone merges a rugby and a cricket card, and sharing a creator alone merges anything one
+creator posts about. The words of a title are folded (lower case, accents off, whole words), a nickname is replaced by
+its name, the fixture words vs, v, versus, against and the are dropped, and the market's own country name becomes one
+token that never counts as a shared word, so "South Africa" alone is no event. The two word sets must be EQUAL: a title
+with a word of its own that the other lacks (banyana, women, u20, pitso, petrol) is another story. Pure text and ids;
+nothing is looked up.
 """
 
 import re
@@ -19,10 +21,13 @@ from pathlib import Path
 
 import yaml
 
+from core.brief.payload import LABELS
+
 ALIASES = Path(__file__).parent / "event_aliases.yaml"
-MIN_SHARED = 2
+MIN_SHARED = 1
 MIN_CREATORS = 2
 FIXTURE_WORDS = frozenset({"vs", "v", "versus", "against", "the"})
+MARKET_TOKEN = "<market>"
 
 
 def fold(text):
@@ -41,17 +46,19 @@ def aliases(path=ALIASES):
     return dict(_table(Path(path)))
 
 
-def words(title, path=ALIASES):
-    """The set of words a title says, nicknames replaced by their names, longest nickname first."""
+def words(title, market, path=ALIASES):
+    """The set of words a title says: nicknames replaced by their names, longest nickname first, then the market's own
+    name as one token."""
     text = fold(title)
     for nick, name in sorted(_table(Path(path)).items(), key=lambda kv: (-len(kv[0]), kv[0])):
         text = text.replace(f" {nick} ", f" {name} ")
+    text = text.replace(fold(LABELS[market]), f" {MARKET_TOKEN} ")
     return frozenset(text.split()) - FIXTURE_WORDS
 
 
-def same_event(title_a, title_b, path=ALIASES):
-    a, b = words(title_a, path), words(title_b, path)
-    return len(a & b) >= MIN_SHARED and (a <= b or b <= a)
+def same_event(title_a, title_b, market, path=ALIASES):
+    a, b = words(title_a, market, path), words(title_b, market, path)
+    return a == b and len((a & b) - {MARKET_TOKEN}) >= MIN_SHARED
 
 
 def _creators(cand):

@@ -1,11 +1,9 @@
 # Nicknames a brief title can use for the name of what it is about, read by core/brief/same_event.py. Two published
 # cards of one market that share evidence are collapsed into one only when their titles also say the same thing once
-# these nicknames are replaced by the name they stand for. A nickname is shown here as "nickname: name".
+# these nicknames are replaced by the name they stand for. A nickname is written "nickname: name".
 #
-# Entries need review by Albert or Thapelo before they count. The list ships with the one pair Albert reported on the 10 October 2026 ZA
-# board (Bafana Bafana is South Africa's national football team) and nothing a builder chose. Add a nickname only when it
-# names one thing everywhere: leave out women's and age group sides, other sports, clubs, and any word that is also an
-# ordinary word in a market language.
+# Entries are reviewed by Albert or Thapelo before they are added, and nothing is added without that review. Add a
+# nickname only when it names one thing everywhere: leave out women's and age group sides, other sports, clubs, and any
+# word that is also an ordinary word in a market language (bare "bafana" is isiZulu for boys, so it is not here).
 aliases:
   bafana bafana: south africa
-  bafana: south africa
