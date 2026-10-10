@@ -442,8 +442,8 @@ def test_rb_t4_only_a_split_service_is_recorded_and_every_other_refusal_or_faile
 
 
 # F20 (final assembly): AfterJobsUpdate says which chain is the first one on the new image and the earliest moment the producer may read it,
-# so the read does not depend on anyone remembering the date. The date follows the readback's own clock (the same rule as the baseline's
-# first chain after Release A): collect starts at 02:00 SAST, so a readback before 02:00 is read for that same date and any other for the next.
+# so the read does not depend on anyone remembering the date. The date follows the update (the BeforeJobsUpdate readback), by the same 02:00 SAST
+# rule as the baseline's first chain after Release A, so reading the readback again later does not move it.
 
 def test_f20_after_jobs_update_names_the_first_b_chain_date_and_the_earliest_producer_read(tmp_path):
     w = world(tmp_path)
@@ -456,12 +456,24 @@ def test_f20_after_jobs_update_names_the_first_b_chain_date_and_the_earliest_pro
         "read_not_before_utc": "2026-10-12T04:15:00+00:00"}
 
 
-def test_f20_a_readback_before_0200_sast_names_the_same_date_and_one_at_0200_sast_the_next(tmp_path):
+def test_f20_the_first_b_chain_is_the_first_collect_at_0200_sast_after_the_update_whatever_the_clock_of_the_readback_says(tmp_path):
+    # Finding 4 of the Opus review of 6b71adb. The update ran on 11 Oct inside the window, so the first chain on the new digest is the one whose
+    # collect starts at 02:00 SAST on 12 Oct. A readback that is taken again at or after that hour on the 12th, or later, still names the 12th:
+    # the date follows the BeforeJobsUpdate readback the update started from and never the readback's own clock.
     w = world(tmp_path)
     candidate_ran(w)
     w.run("BeforeJobsUpdate")
     w.update_prefix(14)
-    early = dt.datetime(2026, 10, 12, 1, 59, tzinfo=SAST)
-    assert w.run("AfterJobsUpdate", now=early)["observations"]["first_b_chain"]["run_date"] == "2026-10-12"
-    on_time = dt.datetime(2026, 10, 12, 2, 0, tzinfo=SAST)
-    assert w.run("AfterJobsUpdate", now=on_time)["observations"]["first_b_chain"]["run_date"] == "2026-10-13"
+    for label, when in (("before 02:00", dt.datetime(2026, 10, 12, 1, 59, tzinfo=SAST)), ("at 02:00", dt.datetime(2026, 10, 12, 2, 0, tzinfo=SAST)),
+                        ("the next morning", dt.datetime(2026, 10, 12, 7, 30, tzinfo=SAST)), ("two days on", dt.datetime(2026, 10, 13, 9, 0, tzinfo=SAST))):
+        chain = w.run("AfterJobsUpdate", now=when)["observations"]["first_b_chain"]
+        assert chain == {"expect": "first-b", "run_date": "2026-10-12", "read_not_before_sast": "2026-10-12T06:15:00+02:00",
+                         "read_not_before_utc": "2026-10-12T04:15:00+00:00"}, label
+
+
+def test_f20_the_first_b_chain_date_is_taken_from_the_before_jobs_update_readback_that_was_verified_not_from_the_clock(tmp_path):
+    w = world(tmp_path)
+    candidate_ran(w)
+    w.run("BeforeJobsUpdate", now=dt.datetime(2026, 10, 11, 20, 59, tzinfo=SAST))
+    w.update_prefix(14)
+    assert w.run("AfterJobsUpdate", now=dt.datetime(2026, 10, 11, 21, 30, tzinfo=SAST))["observations"]["first_b_chain"]["run_date"] == "2026-10-12"

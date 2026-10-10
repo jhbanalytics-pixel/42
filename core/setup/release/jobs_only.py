@@ -637,13 +637,16 @@ def phase_after_jobs_update(rel, phase, result):
                 view = describe_execution(rel.reader, entry["metadata"]["name"])
                 listed.append({"job": job, "name": view["name"], "start": view["start"], "image_digest": view["image_digest"]})
     rel.observations["jobs_at_digest"] = len(UPDATE_ORDER)
-    rel.observations["first_b_chain"] = first_b_chain(rel.now())
+    # The first chain on the new image follows the update, not this readback: BeforeJobsUpdate is the readback the update started from, so a
+    # readback taken again the next morning names the same chain as one taken straight after the update.
+    rel.observations["first_b_chain"] = first_b_chain(began["at_utc"])
     rel.observations["executions_in_window"] = sorted(listed, key=lambda e: (e["start"], e["name"]))
 
 
 def first_b_chain(taken_at):
-    """The first chain on the new image and the earliest moment the producer may read it (F20). Collect starts at 02:00 SAST, so a readback
-    before that is read for the same date and any other for the next. The producer refuses to read before the brief's deadline of the date."""
+    """The first chain on the new image and the earliest moment the producer may read it (F20), counted from `taken_at`, the moment the update
+    started. Collect starts at 02:00 SAST, so a moment before that is read for the same date and any other for the next. The producer refuses
+    to read before the brief's deadline of the date."""
     local = aware(taken_at).astimezone(SAST)
     day = local.date() if local.time() < COLLECT_START_SAST else local.date() + dt.timedelta(days=1)
     earliest = dt.datetime.combine(day, BRIEF_DEADLINE_SAST, tzinfo=SAST)
