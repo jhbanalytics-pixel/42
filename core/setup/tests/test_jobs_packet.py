@@ -628,3 +628,19 @@ def test_the_lock_a_jobs_packet_builds_lists_the_tooling_and_job_code_files_the_
                 "core/setup/release/jobs_source.py", "core/setup/release/jobs_effects.py", "core/setup/release/env_scan.py",
                 "core/setup/deploy_jobs.py", "core/setup/release/jobs_run.py", "core/collect/chain.py", "core/setup/stamp.py"):
         assert rel in lock["repo_files"], rel
+
+
+def test_bind_says_why_a_second_attempt_is_not_supported_instead_of_failing_somewhere_else(bench, capsys):
+    prepared(bench, capsys)
+    code, out, err = run(bench.bind_argv(**{"--attempt": "02"}), capsys)
+    assert code == 1 and "supports attempt 01 only" in err and not bench.bindings.exists()
+
+
+@pytest.mark.parametrize("minutes", ["0", "30"])
+def test_bind_accepts_the_two_ends_of_the_collect_start_tolerance(bench, capsys, minutes):
+    with_producer(bench, capsys) if minutes == "0" else captured(bench, capsys)
+    argv = bench.bind_argv if minutes == "0" else bench.producer_argv
+    if minutes == "0":
+        bench.write_chain(), bench.write_durable(), bench.write_dry_run()
+    code, out, err = run(argv(**{"--collect-start-tolerance-minutes": minutes}), capsys)
+    assert code == 0, err

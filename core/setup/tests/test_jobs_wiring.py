@@ -234,3 +234,33 @@ def test_window_before_any_write_refuses_outside_08_05_to_21_00_sast_before_any_
 def test_window_before_any_write_passes_inside_the_window(tmp_path, hour, minute):
     w = candidate_world(tmp_path)
     assert w.run("BeforeAnyWrite", now=at_sast(hour, minute))["phase"] == "BeforeAnyWrite"
+
+
+# the default source of the files the receipt is held to, and the exclusive create of the build id
+
+def test_js09_the_files_the_receipt_is_held_to_are_read_from_git_at_the_bound_commit_unless_a_caller_hands_them_in(tmp_path, monkeypatch):
+    from core.setup import durable_effects_check as de
+    from core.setup.release import jobs_only as jo
+
+    w = candidate_world(tmp_path)
+    asked = []
+
+    def fake(rev, prefix="core", cwd=None):
+        asked.append(rev)
+        return jw.head_tree()
+
+    monkeypatch.setattr(de, "git_tree_files", fake)
+    jo.run_phase(w.bound, "BeforeAnyWrite", w.fake_reader, w.evidence, now=lambda: w.now, bq=w.bq_client())
+    assert asked == [w.bound["target"]]
+
+
+def test_jb03_the_build_itself_creates_the_id_file_exclusively_so_a_file_that_appears_meanwhile_is_not_replaced(tmp_path):
+    from core.setup.tests import test_jobs_build as tb
+
+    target = tmp_path / "build-id.txt"
+    target.write_text("someone else" + chr(10), encoding="utf-8")
+    gcloud, git, session = tb.FakeGcloud(), tb.FakeGit(), tb.FakeSession(tb.tag_for(1))
+    body = dj.build_request(tb.tag_for(1), tb.COMMIT)
+    with pytest.raises(FileExistsError):
+        dj.build(gcloud, git, session, lambda s: None, tmp_path / "source.tar.gz", tb.tag_for(1), body, tb.COMMIT, target)
+    assert target.read_text(encoding="utf-8") == "someone else" + chr(10)
