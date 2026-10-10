@@ -53,6 +53,11 @@ def steps(data):
     return [(name, step) for name, job in data["jobs"].items() for step in job.get("steps", [])]
 
 
+def skip_reports(data, junit):
+    """The steps that run the skip report on one partition's JUnit file."""
+    return [s for _, s in steps(data) if "ci_skip_report.py" in s.get("run", "") and junit in s.get("run", "")]
+
+
 def effective_env(data, job_name, step):
     return {**(data.get("env") or {}), **(data["jobs"][job_name].get("env") or {}), **(step.get("env") or {})}
 
@@ -186,7 +191,7 @@ def test_the_core_job_installs_from_the_one_core_requirements_file_and_that_file
 
 def test_the_skip_report_runs_even_when_the_suite_fails_and_the_script_exists():
     data = core_workflow()
-    reports = [s for _, s in steps(data) if "ci_skip_report.py" in s.get("run", "")]
+    reports = skip_reports(data, "core-junit.xml")
     assert len(reports) == 1
     assert reports[0].get("if") == "always()"
     assert (ROOT / "tests_support" / "ci_skip_report.py").is_file()
@@ -256,7 +261,7 @@ def test_nothing_in_a_live_workflow_can_change_what_pytest_collects_or_loads(pat
 
 def test_the_core_job_pins_a_floor_on_the_number_of_tests_that_ran():
     data = core_workflow()
-    reports = [s for _, s in steps(data) if "ci_skip_report.py" in s.get("run", "")]
+    reports = skip_reports(data, "core-junit.xml")
     assert len(reports) == 1
     found = re.search(r"--min-total\s+(\d+)", reports[0]["run"])
     assert found, "the skip report is not given a floor"
@@ -305,13 +310,35 @@ RATCHET_GAP_CEILING = 1_000
 def test_the_core_job_pins_a_floor_on_tests_that_passed_and_a_ratchet_that_makes_it_follow_the_tree():
     """`--min-total` counts skipped tests, so a run that skipped most of the tree still met it."""
     data = core_workflow()
-    [report] = [s for _, s in steps(data) if "ci_skip_report.py" in s.get("run", "")]
+    [report] = skip_reports(data, "core-junit.xml")
     floor = re.search(r"--min-passed\s+(\d+)", report["run"])
     gap = re.search(r"--ratchet-gap\s+(\d+)", report["run"])
     assert floor and gap, report["run"]
     assert int(floor.group(1)) >= CORE_PASSED_FLOOR, floor.group(1)
     assert 0 < int(gap.group(1)) <= RATCHET_GAP_CEILING, gap.group(1)
     assert report.get("if") == "always()"
+
+
+OPS_PASSED_FLOOR = 150  # the ops partition passed 158 tests and skipped 3 when this was pinned
+OPS_RATCHET_GAP_CEILING = 50
+
+
+def test_the_ops_partition_has_its_own_floors_and_ratchet_in_the_skip_report():
+    """The core floors do not see the ops partition: its tests are in a separate JUnit file, so losing most of them
+    would leave every core floor met. W4-R2: the skip report runs on the ops file with floors of its own."""
+    data = core_workflow()
+    [report] = skip_reports(data, "ops-junit.xml")
+    total = re.search(r"--min-total\s+(\d+)", report["run"])
+    floor = re.search(r"--min-passed\s+(\d+)", report["run"])
+    gap = re.search(r"--ratchet-gap\s+(\d+)", report["run"])
+    assert total and floor and gap, report["run"]
+    assert int(floor.group(1)) >= OPS_PASSED_FLOOR and int(total.group(1)) >= OPS_PASSED_FLOOR, report["run"]
+    assert 0 < int(gap.group(1)) <= OPS_RATCHET_GAP_CEILING, gap.group(1)
+    assert report.get("if") == "always()" and not report.get("continue-on-error")
+    order = [s.get("run", "") for _, s in steps(data)]
+    ops_at = next(i for i, r in enumerate(order) if "-m pytest ops/" in r)
+    report_at = next(i for i, r in enumerate(order) if "ci_skip_report.py" in r and "ops-junit.xml" in r)
+    assert ops_at < report_at, "the ops report reads the file the ops run writes"
 
 
 ALLOWED_EXPRESSIONS = {"github.ref", "github.workspace", "runner.temp"}

@@ -92,6 +92,13 @@ jobs:
         if: always()
         run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 24300 --min-passed 24300 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
 
+      # The ops partition has floors of its own. Its tests are in a separate JUnit file, so the core floors above cannot
+      # see a loss there. Pinned a little under the 161 tests the partition collected and the 158 that passed under the
+      # guard at the wave 8 integration, with a ratchet of 20 so the floor follows the partition up.
+      - name: Report the ops tests that ran
+        if: always()
+        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/ops-junit.xml" --min-total 158 --min-passed 155 --ratchet-gap 20 >> "${GITHUB_STEP_SUMMARY}"
+
       # A refusal the product code catches and carries on from leaves the suite green, so the log is checked here.
       - name: Fail on any offline guard refusal the tests did not ask for
         if: always()
