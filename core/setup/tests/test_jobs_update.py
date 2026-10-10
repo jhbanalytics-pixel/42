@@ -277,3 +277,122 @@ def test_ju07_a_chain_execution_the_first_snapshot_already_shows_still_stops_the
     with pytest.raises(so.Stop) as stop:
         update(w, cloud, clock)
     assert stop.value.code == "CHAIN_ACTIVE" and "running or queued" in stop.value.message and cloud.update_calls == 0
+
+
+# RB-T2 (F2): the update verb is a write entry point, so it asks for what the paste gives it: a console on stdin and a per-run token
+# file the paste writes after DEPLOY, under a minute old, which the verb consumes. Rollback and snapshot stay wordless.
+
+def cli(w, cloud, clock, verb, *, console, wall=None):
+    path = w.tmp / "bindings-file.json"
+    jw.write_json(path, w.bound)
+    kwargs = {"console": lambda: console}
+    if wall is not None:
+        kwargs["wall"] = wall
+    return jr.main([verb, "--bindings", str(path), "--evidence", str(w.evidence)], adapter_factory=lambda t: cloud,
+                   bq_factory=lambda b: w.bq_client(), now=clock.now, **kwargs)
+
+
+def write_token(w, *, age=1.0, **over):
+    import os
+    import time
+
+    body = {"schema_version": 1, "release_id": w.bound["release_id"], "token": "a1" * 16, **over}
+    path = w.evidence / jr.TOKEN_NAME
+    path.write_text(json.dumps(body), encoding="utf-8")
+    stamp = time.time() - age
+    os.utime(path, (stamp, stamp))
+    return path
+
+
+def test_rb_t2_update_with_no_console_is_refused_before_any_call_even_with_a_fresh_token(tmp_path, capsys):
+    w, cloud, clock = started(tmp_path)
+    token = write_token(w)
+    assert cli(w, cloud, clock, "update", console=False) == 1
+    assert "NOT_INTERACTIVE" in capsys.readouterr().err
+    assert cloud.update_calls == 0 and token.exists()
+
+
+def test_rb_t2_update_with_a_console_and_no_token_is_refused_before_any_call(tmp_path, capsys):
+    w, cloud, clock = started(tmp_path)
+    assert cli(w, cloud, clock, "update", console=True) == 1
+    assert "UPDATE_TOKEN" in capsys.readouterr().err and cloud.update_calls == 0
+
+
+@pytest.mark.parametrize("age", [61.0, 600.0, -30.0])
+def test_rb_t2_a_token_older_than_a_minute_or_dated_in_the_future_is_refused(tmp_path, capsys, age):
+    w, cloud, clock = started(tmp_path)
+    write_token(w, age=age)
+    assert cli(w, cloud, clock, "update", console=True) == 1
+    assert "UPDATE_TOKEN" in capsys.readouterr().err and cloud.update_calls == 0
+
+
+@pytest.mark.parametrize("over", [{"release_id": "rel-0000000-01"}, {"schema_version": 2}, {"token": ""}, {"token": "short"}])
+def test_rb_t2_a_token_for_another_release_or_without_a_real_token_value_is_refused(tmp_path, capsys, over):
+    w, cloud, clock = started(tmp_path)
+    write_token(w, **over)
+    assert cli(w, cloud, clock, "update", console=True) == 1
+    assert "UPDATE_TOKEN" in capsys.readouterr().err and cloud.update_calls == 0
+
+
+def test_rb_t2_a_token_that_is_not_json_is_refused(tmp_path, capsys):
+    w, cloud, clock = started(tmp_path)
+    (w.evidence / jr.TOKEN_NAME).write_text("not json", encoding="utf-8")
+    assert cli(w, cloud, clock, "update", console=True) == 1
+    assert "UPDATE_TOKEN" in capsys.readouterr().err and cloud.update_calls == 0
+
+
+def test_rb_t2_a_console_and_a_fresh_token_run_the_update_and_the_token_is_used_up(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    token = write_token(w, age=30.0)
+    assert cli(w, cloud, clock, "update", console=True) == 0
+    assert len(update_targets(cloud)) == 14 and not token.exists()
+
+
+def test_rb_t2_a_second_run_with_the_same_token_is_refused(tmp_path, capsys):
+    w, cloud, clock = started(tmp_path)
+    write_token(w)
+    assert cli(w, cloud, clock, "update", console=True) == 0
+    cloud.argv_calls.clear()
+    assert cli(w, cloud, clock, "update", console=True) == 1
+    assert "UPDATE_TOKEN" in capsys.readouterr().err and update_targets(cloud) == []
+
+
+def test_rb_t2_the_token_age_is_judged_by_the_wall_clock_and_not_by_the_clock_of_the_run(tmp_path, capsys):
+    import time
+
+    w, cloud, clock = started(tmp_path)
+    write_token(w, age=10.0)
+    assert cli(w, cloud, clock, "update", console=True, wall=lambda: time.time() + 120) == 1
+    assert "UPDATE_TOKEN" in capsys.readouterr().err and cloud.update_calls == 0
+
+
+@pytest.mark.parametrize("verb", ["rollback", "snapshot"])
+def test_rb_t2_rollback_and_snapshot_ask_for_no_console_and_no_token(tmp_path, verb):
+    w, cloud, clock = started(tmp_path)
+    assert cli(w, cloud, clock, verb, console=False) == 0
+
+
+def test_rb_t2_the_real_command_line_with_stdin_not_a_console_refuses_the_update_before_it_reads_anything(tmp_path):
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    done = subprocess.run([sys.executable, "-B", str(root / "core/setup/release/jobs_run.py"), "update", "--bindings", str(tmp_path / "none.json"),
+                           "--evidence", str(tmp_path / "none")], stdin=subprocess.DEVNULL, capture_output=True, encoding="utf-8", timeout=120)
+    assert done.returncode == 1 and "NOT_INTERACTIVE" in done.stderr, (done.stdout, done.stderr)
+
+
+def test_rb_t2_a_pipe_on_stdin_is_not_a_console_either(tmp_path):
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    done = subprocess.run([sys.executable, "-B", str(root / "core/setup/release/jobs_run.py"), "update", "--bindings", str(tmp_path / "none.json"),
+                           "--evidence", str(tmp_path / "none")], input="DEPLOY\n", capture_output=True, encoding="utf-8", timeout=120)
+    assert done.returncode == 1 and "NOT_INTERACTIVE" in done.stderr, (done.stdout, done.stderr)
+
+
+def test_rb_t2_the_console_test_is_false_for_a_redirected_stdin_in_process():
+    assert jr.stdin_is_console() is False  # pytest captures stdin

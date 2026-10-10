@@ -15,9 +15,12 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 if __package__ in (None, ""):
@@ -34,6 +37,47 @@ CHAIN_TEXT = ("the chain group was restored automatically and the ten non-chain 
               "or undo it with JobsRollback before 23:30 SAST")
 UNRESTORED_TEXT = ("CHAIN_PREFIX_UNRESTORED: a chain job is still on the new image; run JobsRollback before 23:30 SAST, which completes "
                    "the restore")
+
+
+TOKEN_NAME = "update-token.json"
+TOKEN_MAX_AGE_SECONDS = 60
+TOKEN_FUTURE_SKEW_SECONDS = 5
+
+
+def stdin_is_console():
+    """True only when standard input is a real console. On Windows isatty() is also true for the NUL device, so the console mode of
+    the handle is asked for, which only a console input buffer answers."""
+    try:
+        if not sys.stdin or not sys.stdin.isatty():
+            return False
+        if os.name != "nt":
+            return True
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        mode = wintypes.DWORD()
+        return bool(ctypes.windll.kernel32.GetConsoleMode(wintypes.HANDLE(msvcrt.get_osfhandle(sys.stdin.fileno())), ctypes.byref(mode)))
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
+def consume_update_token(bound, evidence, wall):
+    """The per-run token the paste writes into its run folder after DEPLOY is typed (RB-T2). The update verb is a write entry point,
+    so it runs only when that file is there, names this release, holds a real token value and was written under a minute ago by the
+    wall clock; it is used up here, so a second call with the same file is refused. The age is the file system's, not the run's own
+    clock and not a time the file states about itself."""
+    path = Path(evidence) / TOKEN_NAME
+    require(path.is_file(), "UPDATE_TOKEN", "The paste wrote no update token for this run; the update verb is run by the paste after DEPLOY")
+    age = wall() - path.stat().st_mtime
+    require(-TOKEN_FUTURE_SKEW_SECONDS <= age <= TOKEN_MAX_AGE_SECONDS, "UPDATE_TOKEN", "The update token is not under a minute old")
+    try:
+        body = json.loads(path.read_text(encoding="utf-8-sig"))
+    except ValueError:
+        body = None
+    require(isinstance(body, dict) and body.get("schema_version") == 1 and body.get("release_id") == bound["release_id"]
+            and re.fullmatch(r"[0-9a-f]{32}", str(body.get("token"))) is not None, "UPDATE_TOKEN", "The update token is not for this release")
+    path.unlink()
 
 
 class JobsAdapter:
@@ -287,16 +331,22 @@ def run_rollback(bound, adapter, evidence, *, now):
     return log
 
 
-def main(argv=None, adapter_factory=None, bq_factory=None, now=None):
+def main(argv=None, adapter_factory=None, bq_factory=None, now=None, console=None, wall=None):
     parser = argparse.ArgumentParser(description="Release B update orchestrator.")
     parser.add_argument("action", choices=plan.JOBS_RUN_ACTIONS)
     parser.add_argument("--bindings", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     args = parser.parse_args(argv)
     clock = now or (lambda: dt.datetime.now(dt.timezone.utc))
+    if args.action == "update" and not (console or stdin_is_console)():
+        print("STOP: NOT_INTERACTIVE: the update verb is run by the paste at a console, after DEPLOY; rollback and snapshot need neither",
+              file=sys.stderr)
+        return 1
     try:
         bound = json.loads(args.bindings.read_text(encoding="utf-8-sig"))
         jo.validate_jobs_bindings(bound)
+        if args.action == "update":
+            consume_update_token(bound, args.evidence, wall or time.time)
         adapter = (adapter_factory or GcloudJobs)(bound["readTimeoutSeconds"])
         if args.action == "rollback":
             log = run_rollback(bound, adapter, args.evidence, now=clock)

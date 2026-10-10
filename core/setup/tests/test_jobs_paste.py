@@ -562,3 +562,57 @@ def test_rb_t1_a_function_the_paste_defines_but_never_calls_is_checked_too(tmp_p
     assert world.run().returncode == 0
     taken = world.run(extra={"attack": "Set-Alias -Scope Global -Name Show-Extra -Value Get-Process\n"})
     assert taken.returncode != 0 and "'Show-Extra'" in taken.stderr and taken.external == [], (taken.stdout, taken.stderr)
+
+
+# RB-T2 (F2): the paste writes a per-run token file after DEPLOY, the update verb needs it, and the paste removes it after use
+
+def token_of(call):
+    return json.loads(call["token"]) if call["token"] else None
+
+
+def test_rb_t2_jobs_update_writes_the_token_after_both_words_and_before_the_runner_and_removes_it_after(tmp_path):
+    from core.setup.tests.jobs_paste_world import RID
+
+    world = JobsPasteWorld(tmp_path, "JobsUpdate")
+    result = world.run()
+    assert result.returncode == 0, result.stderr
+    token = token_of(result.run("jobs-run-update"))
+    assert token["schema_version"] == 1 and token["release_id"] == RID and re.fullmatch(r"[0-9a-f]{32}", token["token"])
+    assert all(token_of(call) is None for call in result.runs if call["name"] != "jobs-run-update")
+    assert not list(world.release_dir.glob("runs/*/update-token.json"))
+    assert len(prompts_of(result)) == 2 and result.calls.index(result.prompts[1]) < result.calls.index(result.run("jobs-run-update"))
+
+
+def test_rb_t2_the_token_is_removed_even_when_the_runner_stops_the_action(tmp_path):
+    world = JobsPasteWorld(tmp_path, "JobsUpdate")
+    result = world.run(exits={"jobs-run-update": 1})
+    assert result.returncode != 0 and token_of(result.run("jobs-run-update")) is not None
+    assert not list(world.release_dir.glob("runs/*/update-token.json"))
+
+
+def test_rb_t2_each_run_writes_a_different_token(tmp_path):
+    first = token_of(JobsPasteWorld(tmp_path / "a", "JobsUpdate").run().run("jobs-run-update"))
+    second = token_of(JobsPasteWorld(tmp_path / "b", "JobsUpdate").run().run("jobs-run-update"))
+    assert first["token"] != second["token"]
+
+
+@pytest.mark.parametrize("action", ["JobsCandidate", "JobsRollback"])
+def test_rb_t2_candidate_and_rollback_write_no_token(tmp_path, action):
+    world = JobsPasteWorld(tmp_path, action)
+    result = world.run()
+    assert result.returncode == 0 and all(token_of(call) is None for call in result.runs)
+    assert not list(world.release_dir.glob("runs/*/update-token.json"))
+
+
+@pytest.mark.parametrize("words", [{"IDLE": "idle"}, {"IDLE": "IDLE", "DEPLOY": "deploy"}])
+def test_rb_t2_a_wrong_word_leaves_no_token_behind(tmp_path, words):
+    world = JobsPasteWorld(tmp_path, "JobsUpdate")
+    result = world.run(words=words)
+    assert result.returncode != 0 and "jobs-run-update" not in result.names
+    assert not list(world.release_dir.glob("runs/*/update-token.json"))
+
+
+def test_rb_t2_the_file_name_the_paste_writes_is_the_one_the_runner_reads():
+    from core.setup.release import jobs_run as jr
+
+    assert jr.TOKEN_NAME in PASTE.read_text(encoding="utf-8")

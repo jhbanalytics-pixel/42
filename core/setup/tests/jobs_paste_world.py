@@ -50,7 +50,9 @@ function Read-Native([string]$Exe, [string[]]$Arguments, [string]$InputText) {
 function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
     $Script:RunCount++
     if ($Script:Cfg.inject -and $Script:RunCount -eq [int]$Script:Cfg.inject_at_run) { . ([scriptblock]::Create($Script:Cfg.inject)) }
-    Log-Call @{ kind = 'run'; name = $Name; argv = $Argv; workdir = $WorkDir; run_dir_existed = (Test-Path -LiteralPath $Script:RunDir -PathType Container); env = (Env-Snap) }
+    $tokenPath = Join-Path $Script:RunDir 'update-token.json'
+    $tokenText = if (Test-Path -LiteralPath $tokenPath) { Get-Content -LiteralPath $tokenPath -Raw } else { $null }
+    Log-Call @{ kind = 'run'; name = $Name; argv = $Argv; workdir = $WorkDir; run_dir_existed = (Test-Path -LiteralPath $Script:RunDir -PathType Container); env = (Env-Snap); token = $tokenText }
     $code = 0
     if ($Argv[0] -match '(^|[\\/])tar(\.exe)?$') {
         $target = $Argv[[array]::IndexOf($Argv, '-C') + 1]

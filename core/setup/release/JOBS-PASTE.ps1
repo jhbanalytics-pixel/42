@@ -291,11 +291,21 @@ function Invoke-JobsCandidate {
     Step -Name 'durable-readbacks' -Argv @('py', '-3.13', 'core/setup/durable_effects_check.py', '--manifest', $Script:Paths.durableManifestPath, '--check', 'readbacks', '--evidence', $Script:RunDir) | Out-Null
 }
 
+# The update verb of jobs_run.py is a write entry point, so it refuses unless this paste has written a token for this run after DEPLOY was
+# typed: a file in the run folder, named for this release, under a minute old. The verb uses it up; the paste removes what is left.
+function New-UpdateToken {
+    $path = Join-Path $Script:RunDir 'update-token.json'
+    $body = [ordered]@{ schema_version = 1; release_id = $Script:Bound.release_id; token = [guid]::NewGuid().ToString('N') }
+    ($body | ConvertTo-Json -Compress) | Set-Content -LiteralPath $path -Encoding utf8
+    return $path
+}
+
 function Invoke-JobsUpdate {
     $readback = Invoke-Helper 'BeforeJobsUpdate'
     Confirm-Update
     Test-SnapshotAge $readback
-    Invoke-Runner 'jobs-run-update' 'update' | Out-Null
+    $token = New-UpdateToken
+    try { Invoke-Runner 'jobs-run-update' 'update' | Out-Null } finally { Remove-Item -LiteralPath $token -Force -ErrorAction SilentlyContinue }
     Invoke-Helper 'AfterJobsUpdate' | Out-Null
 }
 
