@@ -519,6 +519,21 @@ def test_the_harness_hash_covers_both_harness_files_and_ignores_line_endings(mon
     assert changed != before
     second.write_bytes(b"alpha!\n")
     assert h.harness_sha256() not in (before, changed)
+    same_bytes = h.harness_sha256()
+    renamed = tmp_path / "other_name.py"
+    renamed.write_bytes(second.read_bytes())
+    monkeypatch.setattr(h, "HARNESS_FILES", (first, renamed))
+    assert h.harness_sha256() != same_bytes  # the same bytes under another name are another file
+
+
+def test_collect_runs_the_four_layers_for_this_tree_and_gives_what_the_receipt_reads(world, tmp_path):
+    data = h.collect(ROOT, tmp_path)
+    assert set(data) == {"rows", "twin_of", "legacy", "paths", "reads", "reverse"}
+    receipt = h.build_receipt("c" * 40, data)
+    assert receipt["problems"] == [] and receipt["verdict"] == "pass"
+    assert receipt["corpus_rows"] == len(world["rows"]) and receipt["legacy_rows"] == 4 and receipt["json_paths"] == len(world["paths"])
+    assert receipt["corpus_sha256"] == h.corpus_sha256(world["rows"])
+    assert len(data["twin_of"]) == len(world["twin_of"]) > len(h.STATES) - 1
 
 
 # The command
