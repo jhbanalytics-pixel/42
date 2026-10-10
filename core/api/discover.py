@@ -13,8 +13,8 @@ from core.api import alerts, fast
 from core.api.held_words import plain_reason
 from core.api.searching import searching_now
 from core.api.store import canon_platform, creator_key
-from core.api.today import (FLAG_WORDS, LABELS, MARKETS, SAST, NotFound, NotReady, _card, _display_title,
-                            _platform_word, _series_name, _warmup, hidden_people, state_word, without_hidden)
+from core.api.today import (FLAG_WORDS, LABELS, MARKETS, PLATFORM_WORDS, SAST, STATE_WORDS, NotFound, NotReady, _card,
+                            _display_title, _platform_word, _series_name, _warmup, hidden_people, state_word, without_hidden)
 from core.trust import locality
 
 SORTS = ("order", "velocity", "reach", "new")
@@ -368,9 +368,35 @@ def _platforms(row):
     return [canon_platform(p) for p in row.get("platforms") or []]
 
 
-def _matches(row, kind, state, platform):
-    return ((not kind or row.get("kind") == kind) and (not state or row.get("state") == state)
-            and (not platform or canon_platform(platform) in _platforms(row)))
+_WORD = re.compile(r"[a-z0-9_]{1,40}")
+
+
+def _picked(value, what, known):
+    """The values a filter names, in the order given and each once: a comma list, a list of them, or one value.
+    X may be written twitter. A value outside the known set is a 400, so nothing a caller types is matched, searched
+    or echoed as it stands. Nothing named means no filter."""
+    parts = [value] if isinstance(value, str) else list(value or [])
+    names = [n.strip().lower() for part in parts for n in str(part).split(",") if n.strip()]
+    out = []
+    for name in names:
+        name = canon_platform(name) if what == "platform" else name
+        if not _WORD.fullmatch(name) or name not in known:
+            raise BadRequest(f"That is not a {what} 42 knows.")
+        if name not in out:
+            out.append(name)
+    return tuple(out)
+
+
+def _filters(cards, state, platform):
+    """(states, platforms) the request names, checked against the states 42 words and the platforms it names or
+    has read in this run's rows."""
+    return (_picked(state, "state", set(STATE_WORDS) | {r["state"] for r, _, _ in cards if r.get("state")}),
+            _picked(platform, "platform", set(PLATFORM_WORDS) | {p for r, _, _ in cards for p in _platforms(r)}))
+
+
+def _matches(row, kind, states, platforms):
+    return ((not kind or row.get("kind") == kind) and (not states or row.get("state") in states)
+            and (not platforms or not set(platforms).isdisjoint(_platforms(row))))
 
 
 def _market_arg(market):
@@ -409,7 +435,8 @@ def build_discover(store, market, kind=None, state=None, platform=None, sort="or
     filters = {"kinds": sorted({r["kind"] for r, _, _ in cards if r.get("kind")}),
                "states": sorted({r["state"] for r, _, _ in cards if r.get("state")}),
                "platforms": sorted({p for r, _, _ in cards for p in _platforms(r)})}
-    picked = [(r, c, h) for r, c, h in cards if _matches(r, kind, state, platform)]
+    states, platforms = _filters(cards, state, platform)
+    picked = [(r, c, h) for r, c, h in cards if _matches(r, kind, states, platforms)]
     shown = sorted([(r, c) for r, c, h in picked if h is None], key=_sort_key(sort))
     held = [{"item_id": c["item_id"], "title": c["title"], "reason": h[1],
              **{k: v for k, v in c["held_back"].items() if k in ("reason_text", "reason_raw")}, "card": c}
@@ -437,11 +464,12 @@ def _with_reach7(store, run, cards):
     return cards
 
 
-def build_radar(store, market, kind=None):
+def build_radar(store, market, kind=None, state=None, platform=None):
     market = _market_arg(market)
     run = _run(store)
     cards, warmup = _cards(store, run, market)
-    picked = [(r, c, h) for r, c, h in cards if _matches(r, kind, None, None)]
+    states, platforms = _filters(cards, state, platform)
+    picked = [(r, c, h) for r, c, h in cards if _matches(r, kind, states, platforms)]
     shown = sorted([(r, c) for r, c, h in picked if h is None], key=_sort_key("order"))
     reach = _reach(store, run, market, [c["item_id"] for _, c in shown])
     return {"date": run["run_date"], "market": market, "window": _window(store, run, market),

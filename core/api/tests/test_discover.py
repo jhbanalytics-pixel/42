@@ -2327,3 +2327,66 @@ def test_a_hold_is_worded_from_the_brief_card_when_the_brief_has_one():
                         ({"explanation_status": "failed_checks", "failed_reason": "x"}, "The explanation did not pass our checks")):
         status, failed = discover._hold_basis(card, None)
         assert plain_reason(dict(held, **({"failed_reason": failed} if failed else {})), status)["reason_text"] == words
+
+
+# ---------- several states and platforms at once ----------
+
+def test_discover_takes_several_platforms_and_states(fx):
+    # Any of the platforms named; a comma list, a list, and the old single value all read the same way.
+    both = ids(discover.build_discover(fx, "ZA", platform="x,instagram")["items"])
+    assert both == ids(discover.build_discover(fx, "ZA", platform=["x", "instagram"])["items"])
+    assert both == [STEP, RISING]  # STEP posts on tiktok and instagram, RISING on tiktok and x
+    assert ids(discover.build_discover(fx, "ZA", platform="instagram")["items"]) == [STEP]
+    assert ids(discover.build_discover(fx, "ZA", state="rising,emerging")["items"]) == [STEP, RISING]
+    assert ids(discover.build_discover(fx, "ZA", state=["emerging"], platform=["x", "instagram"])["items"]) == [STEP]
+    assert ids(discover.build_discover(fx, "ZA", state=["rising", "emerging"], platform="tiktok",
+                                       kind="hashtag")["items"]) == [STEP]
+
+
+def test_discover_several_filters_keep_held_back_and_the_full_filter_lists(fx):
+    out = discover.build_discover(fx, "ZA", platform="x,instagram")
+    assert {h["item_id"] for h in out["held_back"]["items"]} == {BOTNET, SPONSORED}
+    assert out["filters"]["platforms"] == ["instagram", "tiktok", "x"]  # the choices stay, whatever is picked
+
+
+def test_discover_names_each_platform_once_and_reads_twitter_as_x(fx):
+    assert ids(discover.build_discover(fx, "ZA", platform="twitter,x")["items"]) == [RISING]
+    assert ids(discover.build_discover(fx, "ZA", platform=" X , x ")["items"]) == [RISING]
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"platform": "myspace"}, {"platform": "x,;drop"}, {"platform": "x' OR '1'='1"}, {"state": "viral"},
+    {"state": "rising,viral"}, {"platform": "x" * 200},
+])
+def test_discover_refuses_a_platform_or_state_it_does_not_know(fx, kwargs):
+    with pytest.raises(discover.BadRequest):
+        discover.build_discover(fx, "ZA", **kwargs)
+    with pytest.raises(discover.BadRequest):
+        discover.build_radar(fx, "ZA", **kwargs)
+
+
+def test_discover_empty_filter_values_mean_no_filter(fx):
+    assert ids(discover.build_discover(fx, "ZA", platform="", state=[])["items"]) == ids(
+        discover.build_discover(fx, "ZA")["items"])
+    assert ids(discover.build_discover(fx, "ZA", platform=" , ")["items"]) == ids(
+        discover.build_discover(fx, "ZA")["items"])
+
+
+def test_radar_takes_the_same_filters_as_the_list(fx):
+    # Radar reads the same cards as the list, so a filter that shortens the list shortens Radar to the same trends.
+    for kwargs in ({"platform": "x,instagram"}, {"state": "rising,emerging"}, {"state": "emerging", "platform": "tiktok"},
+                   {"kind": "hashtag", "platform": "instagram"}):
+        listed = ids(discover.build_discover(fx, "ZA", **kwargs)["items"])
+        plotted = [p["item_id"] for p in discover.build_radar(fx, "ZA", **kwargs)["points"]]
+        assert sorted(plotted) == sorted(listed), kwargs
+    out = discover.build_radar(fx, "ZA", platform="instagram")
+    assert [p["item_id"] for p in out["points"]] == [STEP]
+    assert out["held_back_count"] == 1  # the sponsored one; held counts follow the same filter
+
+
+def test_radar_filters_are_not_string_built_into_a_query(fx):
+    # The filter runs over rows already read; no filter value reaches a store read as an argument.
+    seen = []
+    store = Patched(item_states=lambda run, market, *rest: seen.append((run, market, rest)) or FixtureStore().item_states(run, market))
+    discover.build_discover(store, "ZA", platform="x,instagram", state="rising")
+    assert seen and all(rest == () and market == "ZA" for _, market, rest in seen)

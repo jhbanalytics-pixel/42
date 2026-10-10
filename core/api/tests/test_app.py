@@ -1429,3 +1429,24 @@ def test_a_tag_host_is_never_the_audience(monkeypatch, caplog):
     with caplog.at_level("WARNING", logger="f42.api"), pytest.raises(ApiError):
         build_client()
     assert minted == []
+
+
+def test_discover_route_takes_several_platforms_and_states(v2):
+    get = v2.client.get
+    one = get("/api/discover", params={"market": "ZA", "platform": "instagram"}, headers=GOOD).json()
+    assert [c["title"] for c in one["items"]] == ["#fixture_za_step"]
+    comma = get("/api/discover", params={"market": "ZA", "platform": "x,instagram"}, headers=GOOD).json()
+    repeated = get("/api/discover?market=ZA&platform=x&platform=instagram", headers=GOOD).json()
+    assert [c["item_id"] for c in comma["items"]] == [c["item_id"] for c in repeated["items"]]
+    assert len(comma["items"]) == 2
+    states = get("/api/discover?market=ZA&state=rising&state=emerging", headers=GOOD).json()
+    assert len(states["items"]) == 2
+    radar = get("/api/discover/radar?market=ZA&platform=x&platform=instagram&state=rising,emerging", headers=GOOD).json()
+    assert len(radar["points"]) == 2
+
+
+@pytest.mark.parametrize("query", ["platform=myspace", "platform=x,nope", "state=viral", "platform=x&platform=%27%3Bdrop"])
+def test_discover_routes_refuse_unknown_platforms_and_states(v2, query):
+    for path in ("/api/discover?market=ZA&", "/api/discover/radar?market=ZA&"):
+        r = v2.client.get(path + query, headers=GOOD)
+        assert r.status_code == 400 and r.json()["error"] == "bad_request" and r.json()["message"]
