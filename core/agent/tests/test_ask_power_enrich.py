@@ -38,6 +38,12 @@ def test_a_t2_researcher_keeps_twenty_percent_of_its_own_slice():
     assert enrich_credits_left(c) == pytest.approx(20.0)
 
 
+def test_a_t1_context_with_its_own_limits_keeps_twenty_percent_of_them():
+    c = make_ctx("T1")
+    c.limits = {"credits": 50.0, "calls": 10, "max_turns": 10, "max_budget_usd": 1.0}
+    assert enrich_credits_left(c) == pytest.approx(10.0)
+
+
 def test_two_transcripts_and_comments_fit_at_t1_and_a_third_transcript_does_not():
     c = make_ctx("T1")
     c.evidence["tiktok_2"] = {**c.evidence["tiktok_7412"], "id": "tiktok_2", "url": "https://www.tiktok.com/@chef_za/video/2"}

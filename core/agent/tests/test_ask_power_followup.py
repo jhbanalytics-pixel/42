@@ -129,9 +129,12 @@ def test_queries_cross_only_when_the_window_and_the_market_are_the_same():
 
 def test_only_plain_model_queries_cross():
     child = (date(2026, 9, 22), date(2026, 9, 28))
-    queries = [query(), query(purpose="Whole-store posts by platform"),
-               query(purpose="Topic sweep: amapiano"), query(purpose="fetch_posts: 5 posts listed in query rows"),
-               query(purpose="search_posts: amapiano"), query(sql=""), query(sql=7), {"sql": COUNT}, "COUNT", None,
+    def other(n, purpose):  # each its own SQL, so only the purpose can keep it out
+        return query(sql=COUNT + f" LIMIT {n}", purpose=purpose)
+
+    queries = [query(), other(1, "Whole-store posts by platform"),
+               other(2, "Topic sweep: amapiano"), other(3, "fetch_posts: 5 posts listed in query rows"),
+               other(4, "search_posts: amapiano"), other(5, "Earlier answer, re-run: posts"), query(sql=""), query(sql=7), {"sql": COUNT}, "COUNT", None,
                query(params={"since": {"nested": "object"}}), query(params={1: "x"}), query(params=["not", "a", "map"]),
                query(sql=COUNT + " /* " + "x" * 20_000 + " */")]
     got = ask.parent_reuse(parent("tt_1", queries=queries), market="ZA", window=child, as_of=NOW)
@@ -216,6 +219,13 @@ def test_a_parent_query_the_guard_refuses_is_skipped_and_the_run_goes_on():
     assert any(q["sql"] == COUNT for q in seen["queries"].values())
     assert "schema peek" not in seen["prompt"]
     assert out["answer"] is not None
+
+
+def test_a_parent_query_on_an_object_only_the_code_may_read_never_reaches_the_warehouse():
+    fenced = query(sql="SELECT finding_id FROM intelligence_42_agent.findings", purpose="earlier findings")
+    out, seen, h = follow(parent("tt_1", queries=[fenced, query()]))
+    assert not any("intelligence_42_agent.findings" in sql for sql, *_ in h.warehouse.runs)
+    assert any(q["sql"] == COUNT for q in seen["queries"].values()) and out["answer"] is not None
 
 
 def test_reuse_replaces_the_opening_lookups_and_a_first_question_keeps_them():

@@ -75,6 +75,8 @@ def test_the_tool_result_hands_the_model_the_fenced_spans_and_their_ids():
     assert len(out["evidence"]) == len(out["evidence_ids"])
     for row in out["evidence"]:
         assert row["text"].startswith("<untrusted_content>") and row["evidence_id"] in out["evidence_ids"]
+        assert row["transcript_span"]["text"].startswith("<untrusted_content>")  # no raw scraped text reaches the model
+        assert row["transcript_span"]["text"] == row["text"]
         assert row["parent_id"] == "tiktok_7412"
     assert out["segments"]  # the timed segments are still returned, as before
 
