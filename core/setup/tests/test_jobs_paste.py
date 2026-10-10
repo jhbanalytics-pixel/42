@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 
 from core.setup.release import plan
-from core.setup.tests.jobs_paste_world import JobsPasteWorld
+from core.setup.tests.jobs_paste_world import RID, JobsPasteWorld
+from core.setup.tests.paste_world import COMMIT
 
 ACTIONS = ("JobsCandidate", "JobsUpdate", "JobsRollback")
 
@@ -199,19 +200,36 @@ def test_ju08_the_helper_is_asked_for_mode_jobs_and_the_bound_bindings_and_the_r
 
 # JobsCandidate
 
-def test_ju08_jobs_candidate_runs_the_checks_the_build_seam_freeze_validate_snapshot_schema_apply_and_readbacks_in_order(tmp_path):
+def test_ju08_jobs_candidate_runs_the_checks_the_build_freeze_validate_snapshot_schema_apply_and_readbacks_in_order(tmp_path):
     result = JobsPasteWorld(tmp_path, "JobsCandidate").run()
     assert result.returncode == 0, result.stderr
-    assert result.names == ["helper-BeforeAnyWrite-0", "archive", "extract", "helper-FreezeJobs-0", "durable-validate", "snapshot", "schema-apply",
+    assert result.names == ["helper-BeforeAnyWrite-0", "jobs-build", "helper-FreezeJobs-0", "durable-validate", "snapshot", "schema-apply",
                             "durable-readbacks", "schema-receipt"]
-    assert [c for c in result.calls if c["kind"] == "build"]
-    assert result.names.index("snapshot") < result.names.index("schema-apply")
+    assert result.names.index("snapshot") < result.names.index("schema-apply") < result.names.index("durable-readbacks") < result.names.index("schema-receipt")
 
 
-def test_ju08_without_the_build_requirements_jobs_candidate_stops_at_the_seam_and_writes_nothing_after_it(tmp_path):
-    result = JobsPasteWorld(tmp_path, "JobsCandidate").run(build_double=False)
-    assert result.returncode != 0 and "NOT BUILT" in result.stderr + result.stdout
-    assert result.names == ["helper-BeforeAnyWrite-0", "archive", "extract"]
+def test_jb03_the_build_is_the_one_deploy_jobs_command_for_the_bound_commit_and_the_attempt_with_the_id_file_in_the_run_folder(tmp_path):
+    world = JobsPasteWorld(tmp_path, "JobsCandidate")
+    result = world.run()
+    build = result.run("jobs-build")
+    run_dir = result.run("helper-FreezeJobs-0")["argv"][-1]
+    assert run_dir.startswith(str(world.release_dir / "runs")) and run_dir == result.run("helper-BeforeAnyWrite-0")["argv"][-1]
+    assert build["argv"][:5] == ["py", "-3.13", "core/setup/deploy_jobs.py", "--build", "--commit"]
+    assert build["argv"][5] == COMMIT and build["argv"][6:8] == ["--attempt", RID[-2:]]
+    assert build["argv"][8] == "--build-id-file" and build["argv"][9] == str(Path(run_dir) / "build-id.txt") and len(build["argv"]) == 10
+    assert build["workdir"] == ""
+    assert not [n for n in result.names if n in ("archive", "extract")]
+
+
+def test_jb03_a_build_that_exits_nonzero_stops_the_candidate_before_freezejobs_and_nothing_after_it_runs(tmp_path):
+    result = JobsPasteWorld(tmp_path, "JobsCandidate").run(exits={"jobs-build": 1})
+    assert result.returncode != 0 and "jobs-build exited 1" in result.stderr + result.stdout
+    assert result.names == ["helper-BeforeAnyWrite-0", "jobs-build"]
+
+
+def test_jb03_a_dirty_checkout_after_the_build_stops_before_freezejobs(tmp_path):
+    result = JobsPasteWorld(tmp_path, "JobsCandidate").run(dirty_after_runs=2)
+    assert result.returncode != 0 and result.names == ["helper-BeforeAnyWrite-0", "jobs-build"]
 
 
 def test_ju08_a_schema_apply_runs_only_when_the_durable_manifest_declares_a_schema_effect(tmp_path):

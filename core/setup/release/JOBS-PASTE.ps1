@@ -29,7 +29,6 @@ $Script:ReleasePattern = '^rel-[0-9a-f]{7}-[0-9]{2}$'
 $Script:Retries = 3
 $Script:RetrySeconds = 10
 $Script:SnapshotMinutes = 15
-$Script:Tar = if ($env:SystemRoot) { Join-Path $env:SystemRoot 'System32\tar.exe' } else { 'tar' }
 $Script:Steps = @('JobsCandidate', 'JobsUpdate', 'JobsRollback')
 $Script:TestDoubles = @()
 $Script:AllowTestDoubles = $DefinitionsOnly.IsPresent
@@ -261,20 +260,19 @@ function Invoke-Runner([string]$Name, [string]$Verb) {
     return (Step -Name $Name -Argv @('py', '-3.13', $Script:Runner, $Verb, '--bindings', $Bindings, '--evidence', $Script:RunDir))
 }
 
-# The image build and FreezeJobs belong to the build requirements (JB-01 to JB-03). Until they supply the build, JobsCandidate stops here
-# and says so; nothing written before this point is a release step.
+# The image build (JB-03 as amended by RJ-4): deploy_jobs.py runs from this checkout, which Step has just held at the bound commit with a
+# clean status, so the build is made from a clean clone at that commit and there is no archive and no extract. The tag carries the attempt
+# number of the release id, the full commit goes to the build as its own substitution, and the id of the build is written to the run folder
+# for the FreezeJobs phase, which reads the build record and the registry and trusts only the bindings.
 function Invoke-JobsBuild {
-    throw 'NOT BUILT: the jobs image build is not part of this tooling yet (JB-01 to JB-03). Nothing past BeforeAnyWrite was written.'
+    $attempt = $Script:Bound.release_id.Substring($Script:Bound.release_id.Length - 2)
+    Step -Name 'jobs-build' -Argv @('py', '-3.13', 'core/setup/deploy_jobs.py', '--build', '--commit', $Script:Bound.target, '--attempt', $attempt,
+        '--build-id-file', (Join-Path $Script:RunDir 'build-id.txt')) | Out-Null
 }
 
 # 3. The three actions.
 function Invoke-JobsCandidate {
     Invoke-Helper 'BeforeAnyWrite' | Out-Null
-    $archive = Join-Path $Script:RunDir 'source.tar'
-    $extract = Join-Path $Script:RunDir 'source'
-    Step -Name 'archive' -Argv @('git', 'archive', '--format=tar', "--output=$archive", $Script:Bound.target) | Out-Null
-    New-Item -ItemType Directory -Path $extract | Out-Null
-    Step -Name 'extract' -Argv @($Script:Tar, '-xf', $archive, '-C', $extract) | Out-Null
     Invoke-JobsBuild
     Invoke-Helper 'FreezeJobs' | Out-Null
     # The validator runs on the real durable manifest before anything is applied.

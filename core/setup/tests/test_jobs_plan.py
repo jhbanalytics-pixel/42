@@ -66,11 +66,12 @@ def test_ju01_the_helper_phases_bracket_each_action_and_the_chain_group_is_last_
 
 def test_ju01_the_candidate_runs_the_checks_then_the_build_then_freeze_then_validate_then_the_snapshot_then_the_schema_apply():
     names = [s.name for s in plan.JOBS_ACTIONS["JobsCandidate"](ctx(schema_effects=True))]
-    wanted = ["helper:BeforeAnyWrite", "archive", "extract", "build:upload", "build:create", "helper:FreezeJobs", "checker:validate",
+    wanted = ["helper:BeforeAnyWrite", "build", "build:upload", "build:create", "helper:FreezeJobs", "checker:validate",
               "snapshot", "schema_apply", "checker:readbacks"]
     positions = [names.index(n) for n in wanted]
     assert positions == sorted(positions)
     assert names.index("snapshot") < names.index("schema_apply")
+    assert "archive" not in names and "extract" not in names  # RJ-4: no archive and no extract, the build runs from the clean clone
 
 
 def test_ju01_a_digest_that_is_not_a_sha256_is_refused_at_render_time():
@@ -99,10 +100,11 @@ def test_ju02_every_step_of_every_jobs_action_matches_exactly_one_entry():
 
 
 def test_ju02_the_new_entries_exist_and_the_services_entries_are_unchanged():
-    assert {"jobs_update", "jobs_build", "executions_read", "chain_evidence", "jobs_read", "jobs_run"} <= set(plan.JOBS_ALLOWED)
-    assert not {"jobs_update", "jobs_build", "executions_read", "chain_evidence", "jobs_read", "jobs_run"} & set(plan.ALLOWED)
-    assert set(plan.JOBS_ALLOWED) - {"jobs_update", "jobs_build", "executions_read", "chain_evidence", "jobs_read", "jobs_run"} == {
-        "git_read", "archive", "identity", "checker", "schema_apply", "helper"}
+    new = {"jobs_update", "jobs_build", "jobs_build_start", "executions_read", "chain_evidence", "jobs_read", "jobs_run"}
+    assert new <= set(plan.JOBS_ALLOWED)
+    assert not new & set(plan.ALLOWED)
+    # RJ-4: the jobs list has no archive entry, because the jobs actions neither archive nor extract
+    assert set(plan.JOBS_ALLOWED) - new == {"git_read", "identity", "checker", "schema_apply", "helper"}
 
 
 def test_ju02_the_two_allowlists_do_not_lend_each_other_anything():
@@ -218,3 +220,41 @@ def test_rb_t8_an_execution_describe_whose_name_is_not_the_plans_shape_matches_n
     assert plan.jobs_matching_entries(good) == ["executions_read"]
     for name in ("--project=evil", "-x", "F42-collect-aaaaa", "f42-collect aaaaa", "other-collect-1", "f42-", ""):
         assert plan.jobs_matching_entries([*good[:5], name, *good[6:]]) == [], name
+
+
+# JB-03 as amended by RJ-4: one build step, run from the clean clone, bound to the commit, the attempt and the run folder
+
+BUILD = ["py", "-3.13", "core/setup/deploy_jobs.py", "--build", "--commit", jw.B_COMMIT, "--attempt", "01", "--build-id-file", "C:/release/run/build-id.txt"]
+
+
+def test_jb03_the_candidate_renders_one_build_step_with_the_commit_the_attempt_of_the_release_id_and_the_run_folder_id_file():
+    steps = plan.JOBS_ACTIONS["JobsCandidate"](ctx(build_id_file="C:/release/run/build-id.txt"))
+    build = next(s for s in steps if s.name == "build")
+    assert list(build.argv) == BUILD
+    assert plan.jobs_matching_entries(BUILD) == ["jobs_build_start"] and plan.matching_entries(BUILD) == []
+    inside = [s.name for s in steps if s.via == "deploy_jobs"]
+    assert inside == ["build:upload", "build:create"]
+    attempt = plan.JOBS_ACTIONS["JobsCandidate"](ctx(release_id="rel-b5e1a2c-07", build_id_file="C:/release/run/build-id.txt"))
+    assert next(s for s in attempt if s.name == "build").argv[6:8] == ("--attempt", "07")
+
+
+@pytest.mark.parametrize("change", [
+    {5: jw.B_COMMIT[:12]}, {5: jw.B_COMMIT.upper()}, {7: "1"}, {7: "00"}, {7: "100"}, {7: "x1"}, {9: "C:/release/run/notes.txt"},
+    {9: "C:/release/run/build-id.txt.bak"}, {1: "-3.12"}, {2: "core/setup/deploy_jobs.pyc"},
+], ids=["short_commit", "upper_commit", "one_digit_attempt", "attempt_zero", "three_digit_attempt", "attempt_text", "other_file",
+        "backup_file", "other_python", "other_script"])
+def test_jb03_the_positive_list_refuses_a_build_command_with_a_wrong_value(change):
+    argv = list(BUILD)
+    for index, value in change.items():
+        argv[index] = value
+    assert plan.jobs_matching_entries(argv) == []
+
+
+@pytest.mark.parametrize("extra", [["--apply"], ["--only", "f42-probe"], ["--smoke"], ["--model-provider", "gemini"], ["--run-smoke"], ["--from-archive"]])
+def test_jb03_the_positive_list_refuses_every_flag_beyond_the_build_the_commit_the_attempt_and_the_id_file(extra):
+    assert plan.jobs_matching_entries([*BUILD, *extra]) == []
+    assert plan.jobs_matching_entries([*BUILD[:4], *extra, *BUILD[4:]]) == []
+    without = [a for a in BUILD if a != "--build"]
+    assert plan.jobs_matching_entries(without) == []
+    no_commit = BUILD[:4] + BUILD[6:]
+    assert plan.jobs_matching_entries(no_commit) == []

@@ -358,9 +358,8 @@ class JobsCtx:
     digest: str
     rollback_digest: str
     image_tag: str
-    archive: str = "<archive>"
-    extract_dir: str = "<extract dir>"
     manifest: str = "<durable manifest>"
+    build_id_file: str = "<run dir>/build-id.txt"
     schema_effects: bool = False
 
 
@@ -402,11 +401,13 @@ def jobs_candidate(ctx):
         step("assert:status", ["git", "status", "--porcelain=v1"]),
         step("assert:identity", ["gcloud", "config", "list", f"--format={IDENTITY_FIELDS}"]),
         jobs_helper(ctx, "BeforeAnyWrite"),
-        step("archive", ["git", "archive", "--format=tar", f"--output={ctx.archive}", ctx.commit]),
-        step("extract", [SYSTEM_TAR, "-xf", ctx.archive, "-C", ctx.extract_dir]),
-        step("build:upload", ["gcloud", "storage", "cp", ctx.archive, f"{BUILD_BUCKET}/jobs-{ctx.commit[:12]}-{ctx.release_id[-2:]}.tar.gz",
-                              "--no-clobber", f"--project={PROJECT}"]),
-        step("build:create", ["POST", BUILDS_URL]),
+        # RJ-4: built from the clean clone at the bound commit, which the source assertions above hold. deploy_jobs.py makes the two
+        # calls below itself, so they are listed as its own and judged by the same positive list in test_jobs_wiring.
+        step("build", ["py", "-3.13", "core/setup/deploy_jobs.py", "--build", "--commit", ctx.commit, "--attempt", ctx.release_id[-2:],
+                       "--build-id-file", ctx.build_id_file]),
+        step("build:upload", ["gcloud", "storage", "cp", "<git archive of the commit>.tar.gz",
+                              f"{BUILD_BUCKET}/jobs-{ctx.commit[:12]}-{ctx.release_id[-2:]}.tar.gz", "--no-clobber", f"--project={PROJECT}"], via="deploy_jobs"),
+        step("build:create", ["POST", BUILDS_URL], via="deploy_jobs"),
         jobs_helper(ctx, "FreezeJobs"),
         checker(_services_view(ctx), "validate"),
         step("snapshot", ["py", "-3.13", ctx.runner, "snapshot", "--bindings", ctx.bindings, "--evidence", ctx.evidence]),
@@ -479,6 +480,14 @@ def _jobs_run(a):
             and a[6] == "--evidence")
 
 
+def _jobs_build_start(a):
+    """The one command that starts the image build: deploy_jobs.py --build for the bound commit and the attempt of the release id, and
+    the file the build id is written to. No other flag is on the list, so --apply, --only, --smoke and the rest are refused."""
+    return (len(a) == 10 and a[:5] == ["py", "-3.13", "core/setup/deploy_jobs.py", "--build", "--commit"] and bool(re.fullmatch(r"[0-9a-f]{40}", a[5]))
+            and a[6] == "--attempt" and bool(re.fullmatch(r"(0[1-9]|[1-9][0-9])", a[7])) and a[8] == "--build-id-file"
+            and bool(re.fullmatch(r"(.*[/\\])?build-id\.txt", a[9])))
+
+
 def _jobs_build(a):
     if len(a) == 7 and a[:3] == ["gcloud", "storage", "cp"]:
         return (bool(re.fullmatch(rf"{re.escape(BUILD_BUCKET)}/jobs-[0-9a-f]{{12}}-[0-9]{{2}}\.tar\.gz", a[4])) and a[5:] == ["--no-clobber", f"--project={PROJECT}"])
@@ -488,10 +497,10 @@ def _jobs_build(a):
 # The positive list of the jobs actions. It is its own table: the services allowlist above stays services only, so the services
 # paste can never pass a jobs update, and the jobs paste can never pass a traffic change or a services phase.
 JOBS_ALLOWED = {
-    "git_read": ALLOWED["git_read"], "archive": ALLOWED["archive"], "identity": ALLOWED["identity"], "checker": ALLOWED["checker"],
+    "git_read": ALLOWED["git_read"], "identity": ALLOWED["identity"], "checker": ALLOWED["checker"],
     "schema_apply": ALLOWED["schema_apply"],
     "helper": _jobs_helper, "jobs_update": _jobs_update, "jobs_read": _jobs_read, "executions_read": _executions_read,
-    "chain_evidence": _chain_evidence, "jobs_run": _jobs_run, "jobs_build": _jobs_build,
+    "chain_evidence": _chain_evidence, "jobs_run": _jobs_run, "jobs_build": _jobs_build, "jobs_build_start": _jobs_build_start,
 }
 
 

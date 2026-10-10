@@ -97,10 +97,8 @@ function Read-Typed {
 }
 
 function Start-Sleep { param($Seconds) Log-Call @{ kind = 'sleep'; seconds = $Seconds } }
-if ($cfg.build_double) { function Invoke-JobsBuild { Log-Call @{ kind = 'build' } } }
 
 $Script:TestDoubles = @('Read-Native', 'Run-Logged', 'Get-UtcNow', 'Start-Sleep')
-if ($cfg.build_double) { $Script:TestDoubles += 'Invoke-JobsBuild' }
 if (-not $cfg.real_console) { $Script:TestDoubles += @('Read-Typed', 'Test-Interactive') }
 foreach ($alias in @($cfg.aliases)) { Set-Alias -Scope Global -Name $alias.name -Value $alias.value }
 if ($cfg.attack) { . ([scriptblock]::Create($cfg.attack)) }
@@ -184,7 +182,7 @@ class JobsPasteWorld:
         self.lock = self.build_lock()
         self.write(self.review, locklib.review_for(self.lock, COMMIT))
 
-    def run(self, *, exits=None, interactive=True, action=None, status="", words=None, snapshot_age=1.0, build_double=True, no_readback=(),
+    def run(self, *, exits=None, interactive=True, action=None, status="", words=None, snapshot_age=1.0, no_readback=(),
             minutes_per_prompt=0, aliases=(), extra=None, paste=None, dirty_after_runs=-1):
         calls = self.tmp / "calls.jsonl"
         calls.write_text("", encoding="utf-8")
@@ -192,7 +190,7 @@ class JobsPasteWorld:
             "paste": str(paste or self.paste), "dirty_after_runs": dirty_after_runs, "action": action or self.action, "lock": str(self.lock), "review": str(self.review), "bindings": str(self.bindings),
             "receipt": str(self.receipt), "repo": str(self.repo), "calls": str(calls), "commit": COMMIT, "tree": TREE, "status": status,
             "config_json": json.dumps({"core": {"account": CALLER, "project": "ogilvy-trends-v2"}}), "exits": exits or {},
-            "no_interactive": not interactive, "words": words or {}, "snapshot_age_minutes": snapshot_age, "build_double": build_double,
+            "no_interactive": not interactive, "words": words or {}, "snapshot_age_minutes": snapshot_age,
             "no_readback": list(no_readback), "minutes_per_prompt": minutes_per_prompt, "aliases": list(aliases), "real_console": False, "attack": "",
             "inject": "", "inject_at_run": 0, **(extra or {})}
         self.write(self.tmp / "config.json", config)

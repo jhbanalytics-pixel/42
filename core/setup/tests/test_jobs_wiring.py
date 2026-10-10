@@ -188,3 +188,26 @@ def test_js09_a_source_commit_that_cannot_be_read_stops_with_a_code_and_not_a_tr
     with pytest.raises(so.Stop) as stopped:
         jo.run_phase(w.bound, "BeforeAnyWrite", w.fake_reader, w.evidence, now=lambda: w.now, bq=w.bq_client(), head_files=unreadable)
     assert stopped.value.code == "SOURCE"
+
+
+# JB-03 on the acting path: what deploy_jobs.py itself issues when the paste starts it is judged by the same positive list
+
+def test_jb03_the_two_calls_deploy_jobs_makes_for_the_build_each_match_one_entry_of_the_jobs_positive_list(tmp_path):
+    from core.setup.release import plan
+    from core.setup.tests import test_jobs_build as tb
+
+    gcloud, git, session = tb.FakeGcloud(), tb.FakeGit(), tb.FakeSession(tb.tag_for(1))
+    target = tmp_path / "run" / "build-id.txt"
+    code = dj.main(["--build", "--commit", tb.COMMIT, "--attempt", "01", "--build-id-file", str(target)], gcloud=gcloud, git=git,
+                   exists=lambda m: True, workdir="unused", session=session, sleep=lambda s: None)
+    assert code == 0 and len(session.posts) == 1
+    upload = ["gcloud", *gcloud.calls[0]]
+    assert plan.jobs_matching_entries(upload) == ["jobs_build"]
+    assert plan.jobs_matching_entries(["POST", session.posts[0][0]]) == ["jobs_build"]
+    # and the plan's own rendering of the same two calls has the same shape
+    steps = plan.JOBS_ACTIONS["JobsCandidate"](plan.JobsCtx(
+        release_id="rel-" + tb.COMMIT[:7] + "-01", commit=tb.COMMIT, helper="core/setup/release/bound_readback.py", runner="core/setup/release/jobs_run.py",
+        bindings="b.json", evidence="run", digest=jw.NEW_DIGEST, rollback_digest=jw.ROLLBACK_DIGEST, image_tag=jo.image_tag({"target": tb.COMMIT, "release_id": "rel-x-01"})))
+    rendered = {s.name: s for s in steps}
+    assert rendered["build:upload"].argv[4] == upload[4] and rendered["build:upload"].argv[5:] == tuple(upload[5:])
+    assert rendered["build:create"].argv == ("POST", session.posts[0][0])
