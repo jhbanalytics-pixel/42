@@ -322,3 +322,91 @@ def test_jr01_mode_full_with_services_only_bindings_is_refused_before_any_read(t
     code = helper.main(["--mode", "full", "--phase", "AfterRollback", "--bindings", str(bindings), "--evidence", str(tmp_path)],
                        reader_factory=no_reader)
     assert code == 1 and "STOP: MODE" in capsys.readouterr().err
+
+
+# RB-T4 (F4): a rollback never refuses for service drift. A service that is not at one revision at 100% is recorded as not blocking by
+# BeforeJobsRollback and AfterJobsRollback, and the rollback goes on.
+
+def split_traffic(w, names=("f42-api",)):
+    for name in names:
+        w.world.svc[name]["traffic"] = [{"revisionName": rw.A80_REV[name], "percent": 50},
+                                        {"revisionName": rw.CAND_REV[name], "percent": 50, "tag": rw.RID}]
+
+
+def test_rb_t4_before_a_rollback_a_service_that_is_not_at_one_revision_is_recorded_not_blocking_and_the_phase_passes(tmp_path):
+    w = world(tmp_path)
+    w.update_prefix(14)
+    split_traffic(w)
+    result = w.run("BeforeJobsRollback")
+    assert result["observations"]["services_changed"] == ["f42-api"]
+    assert result["blocking"]["services"] == {"blocking": False, "changed": ["f42-api"], "not_one_revision": ["f42-api"]}
+
+
+def test_rb_t4_both_services_split_and_one_service_with_no_traffic_at_all_are_recorded_too(tmp_path):
+    both = world(tmp_path / "both")
+    both.update_prefix(14)
+    split_traffic(both, ("f42-agent", "f42-api"))
+    assert both.run("BeforeJobsRollback")["blocking"]["services"]["not_one_revision"] == ["f42-agent", "f42-api"]
+    none = world(tmp_path / "none")
+    none.update_prefix(14)
+    none.world.svc["f42-api"]["traffic"] = [{"revisionName": rw.A80_REV["f42-api"], "percent": 0}]
+    result = none.run("BeforeJobsRollback")
+    assert result["blocking"]["services"]["not_one_revision"] == ["f42-api"] and result["blocking"]["services"]["blocking"] is False
+
+
+def test_rb_t4_a_service_that_changed_but_still_serves_one_revision_is_recorded_as_changed_and_not_as_split(tmp_path):
+    w = world(tmp_path)
+    w.update_prefix(14)
+    w.world.svc["f42-api"]["env"]["F42_EXTRA"] = "1"
+    result = w.run("BeforeJobsRollback")
+    assert result["blocking"]["services"] == {"blocking": False, "changed": ["f42-api"], "not_one_revision": []}
+
+
+def test_rb_t4_a_chain_execution_still_refuses_the_rollback_even_when_a_service_is_split(tmp_path):
+    w = world(tmp_path)
+    w.update_prefix(14)
+    split_traffic(w)
+    w.world.executions["f42-detect-live"] = jw.execution_raw("f42-detect-live", "f42-detect", (w.now - dt.timedelta(hours=1)).isoformat(), None,
+                                                              jw.NEW_DIGEST, succeeded=0)
+    assert w.stop("BeforeJobsRollback").code == "CHAIN_ACTIVE"
+
+
+def test_rb_t4_after_a_rollback_with_a_split_service_the_phase_records_it_and_ends_clean(tmp_path):
+    w = world(tmp_path)
+    w.update_prefix(14)
+    w.update(jo.UPDATE_ORDER, jw.ROLLBACK_DIGEST)
+    split_traffic(w)
+    result = w.run("AfterJobsRollback")
+    assert result["blocking"]["services"] == {"blocking": False, "changed": ["f42-api"], "not_one_revision": ["f42-api"]}
+
+
+def test_rb_t4_after_a_rollback_a_split_service_does_not_hide_a_job_that_is_not_baseline_j(tmp_path):
+    w = world(tmp_path)
+    w.update_prefix(14)
+    w.update(jo.UPDATE_ORDER, jw.ROLLBACK_DIGEST)
+    w.update(["f42-collect"], jw.NEW_DIGEST)
+    split_traffic(w)
+    assert w.stop("AfterJobsRollback").code == "JOB_IMAGE"
+
+
+def test_rb_t4_after_a_rollback_the_other_service_still_stops_when_it_changed_while_one_is_split(tmp_path):
+    w = world(tmp_path)
+    w.update_prefix(14)
+    w.update(jo.UPDATE_ORDER, jw.ROLLBACK_DIGEST)
+    split_traffic(w, ("f42-api",))
+    w.world.svc["f42-agent"]["env"]["F42_EXTRA"] = "1"
+    assert w.stop("AfterJobsRollback").code == "SERVICE_CHANGED"
+
+
+def test_rb_t4_the_reviewers_state_ends_clean_end_to_end_b_updated_then_a_service_split(tmp_path):
+    from core.setup.tests.update_support import OLD, rollback, started, update
+
+    w, cloud, clock = started(tmp_path)
+    update(w, cloud, clock)
+    split_traffic(w)
+    before = w.run("BeforeJobsRollback", reader=cloud, now=clock.now())
+    assert before["blocking"]["services"]["not_one_revision"] == ["f42-api"]
+    outcome = rollback(w, cloud, clock)
+    assert outcome["complete"] is True and all(cloud.digest_of(job) == OLD for job in so.JOB_NAMES)
+    after = w.run("AfterJobsRollback", reader=cloud, now=clock.now())
+    assert after["phase"] == "AfterJobsRollback" and after["blocking"]["services"]["blocking"] is False

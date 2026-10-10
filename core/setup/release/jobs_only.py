@@ -162,6 +162,20 @@ def live_services(reader):
     return {name: service_state(reader, name) for name in so.SERVICES}
 
 
+def tolerant_services(reader):
+    """The state of each service as a rollback sees it: None for a service that does not serve one revision at 100%, which a
+    rollback records and goes on from (RB-T4). Any other refusal, and a read that cannot complete, is still raised."""
+    out = {}
+    for name in so.SERVICES:
+        try:
+            out[name] = service_state(reader, name)
+        except Stop as error:
+            if error.code != "SERVICE_CHANGED":
+                raise
+            out[name] = None
+    return out
+
+
 def parse_utc(text):
     return so.parse_utc(text)
 
@@ -551,10 +565,11 @@ def phase_after_jobs_update(rel, phase, result):
 
 def phase_before_jobs_rollback(rel, phase, result):
     """A rollback never refuses for drift: services and jobs are recorded. It refuses only while a chain execution is live."""
-    live = live_services(rel.reader)
+    live = tolerant_services(rel.reader)
     changed_services = [name for name in so.SERVICES if live[name] != rel.baseline["services"][name]]
     if changed_services:
-        rel.blocking["services"] = {"blocking": False, "changed": changed_services}
+        rel.blocking["services"] = {"blocking": False, "changed": changed_services,
+                                    "not_one_revision": [name for name in so.SERVICES if live[name] is None]}
     rel.observations["services_changed"] = changed_services
     changed_jobs = [name for name in so.JOB_NAMES if so.job_view(rel.reader.job(name)) != rel.baseline["jobs"][name]]
     if changed_jobs:
@@ -577,7 +592,13 @@ def phase_after_jobs_rollback(rel, phase, result):
     for name in so.JOB_NAMES:
         view = check_job_after_update(rel.reader, rel.baseline, name, digest)
         require(view == rel.baseline["jobs"][name], "JOB_DRIFT", f"{name} does not equal baseline-J")
-    check_services(rel, a_state=False)
+    live = tolerant_services(rel.reader)
+    not_one = [name for name in so.SERVICES if live[name] is None]
+    if not_one:
+        rel.blocking["services"] = {"blocking": False, "changed": not_one, "not_one_revision": not_one}
+    for name in so.SERVICES:
+        if live[name] is not None:
+            require(live[name] == rel.baseline["services"][name], "SERVICE_CHANGED", f"{name} differs from the bound post-A state")
     active = []
     for job in so.JOB_NAMES:
         for entry in rel.reader.executions(job):
