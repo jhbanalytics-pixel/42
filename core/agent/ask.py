@@ -97,8 +97,9 @@ MODEL_INPUT = {"search_posts": "query", "recall_findings": "query", "sql_query":
 # max_tokens in writer.py; input is a generous estimate, the writer's near a full context window of evidence.
 WRITER_MAX_TOKENS, WRITER_INPUT_TOKENS = 8000, 400_000
 # Seconds one Gemini HTTP attempt of Ask's (writer, checks, research turns) may run; the SDK default has no limit, so
-# a stalled call held the f42-agent request. Twice the brief's 60 s, since a writer call carries up to 200,000 input
-# tokens and 10,000 output tokens with thinking. With one retry a stall ends in about four minutes, far inside the
+# a stalled call held the f42-agent request. Twice the brief's 60 s, since a writer call carried up to 200,000 input
+# tokens and 10,000 output tokens with thinking. The input is now up to 400,000 tokens (WRITER_INPUT_TOKENS) and the
+# 120 s has not been measured against a full pack. With one retry a stall ends in about four minutes, far inside the
 # service's 3,600 s request timeout. A timeout fails the call like any provider error: its reserve stays booked in full.
 ASK_GEMINI_TIMEOUT_S = 120
 NUMERIC_REPAIR_CALLS = 1
@@ -667,6 +668,11 @@ class _ReadTally:
         return getattr(self._warehouse, name)
 
 
+# Seconds the gate waits for the topic sweep once research has finished. A sweep still running then is dropped whole, so
+# a slow search costs the Ask at most this long (Opus review, 10 October).
+SWEEP_JOIN_S = 10
+
+
 def _run_sweep(deps: "Deps", ctx: RunContext, warehouse, topic: list[str] | None, platforms: list[str]) -> None:
     """The topic sweep, when the question names a topic and the deps carry one. It adds evidence and recorded queries
     and nothing else, so a failure costs those and is only logged."""
@@ -684,49 +690,82 @@ class _StoreCount:
     """The whole-store counts (Deps.store_counts), started on a thread of their own once the window is final, so they
     run beside research instead of after it. Their SQL, market, window and parameters depend on nothing research finds.
     The reads record into a private query record; adopt() hands them to the ask's context under the next ids, in the
-    order the serial run took them, so the ids, SQL, params and result hashes are what a serial count records."""
+    order the serial run took them, so the ids, SQL, params and result hashes are what a serial count records.
+
+    The topic sweep, when the question names a topic, runs beside them on a thread and lane of its own. adopt() takes
+    the counts first and the sweep after them, so the sweep's ids always follow the counts'. The gate waits for the sweep
+    at most SWEEP_JOIN_S; a sweep not finished by then is dropped whole, and whatever it writes later stays in its lane."""
 
     def __init__(self, ctx: RunContext, deps: "Deps", platforms: list[str], recorder, topic: list[str] | None = None):
         self.run_id = ctx.run_id
-        self.lane = ctx.lane(dict(ctx.budget))
-        self.lane.queries = {}
-        self.lane.lock = threading.Lock()
+        self.lane = self._new_lane(ctx)
         self.ids: dict = {}
         self.error: BaseException | None = None
         self._recorder = recorder
-        self._thread = threading.Thread(target=self._run, args=(deps, platforms, topic), daemon=True,
+        self._thread = threading.Thread(target=self._run, args=(deps, platforms), daemon=True,
                                         name=f"store-count-{ctx.run_id}")
+        self.sweep_lane = None
+        self._sweep_done = threading.Event()
+        if topic and deps.topic_sweep is not None:
+            self.sweep_lane = self._new_lane(ctx)
+            self._sweep_thread = threading.Thread(target=self._run_sweep, args=(deps, platforms, topic), daemon=True,
+                                                  name=f"topic-sweep-{ctx.run_id}")
+            self._sweep_thread.start()
         self._thread.start()
 
-    def _run(self, deps: "Deps", platforms: list[str], topic: list[str] | None = None) -> None:
+    @staticmethod
+    def _new_lane(ctx: RunContext) -> RunContext:
+        lane = ctx.lane(dict(ctx.budget))
+        lane.queries = {}
+        lane.lock = threading.Lock()
+        return lane
+
+    def _run(self, deps: "Deps", platforms: list[str]) -> None:
         span = self._recorder.begin("io", "store_count_background")
         tally = _ReadTally(deps.warehouse)
         try:
             self.ids = dict(deps.store_counts(self.lane, tally, platforms))
         except Exception as exc:
             self.error = exc
-        try:
-            _run_sweep(deps, self.lane, tally, topic, platforms)
         finally:
             span.end()
             log.info("ask store count finished: run %s, %d reads, %d dry-run bytes, %s", self.run_id, tally.reads,
                      tally.dry_run_bytes, "failed" if self.error is not None else "ok")
 
-    def adopt(self, ctx: RunContext) -> dict:
-        """Wait for the counts, then record what they read in ctx as the serial run would have, even when they failed
-        part way, and return the store query ids. Raises the counts' own error after that."""
-        self._thread.join()
+    def _run_sweep(self, deps: "Deps", platforms: list[str], topic: list[str]) -> None:
+        try:
+            _run_sweep(deps, self.sweep_lane, _ReadTally(deps.warehouse), topic, platforms)
+        finally:
+            self._sweep_done.set()
+
+    @staticmethod
+    def _take(ctx: RunContext, lane: RunContext) -> dict:
+        """Record the lane's queries in ctx under the next ids, and carry over its events and model spend."""
         renumbered = {}
         with ctx.lock:
-            for old, query in self.lane.queries.items():
+            for old, query in lane.queries.items():
                 renumbered[old] = f"q_{len(ctx.queries) + 1}"
                 ctx.queries[renumbered[old]] = query
-        for event in self.lane.events:
+        for event in lane.events:
             ctx.events.append({**event, "query_id": renumbered.get(event["query_id"], event["query_id"])}
                               if "query_id" in event else event)
-        ctx.model_usd_extra += self.lane.model_usd_extra
-        for eid, record in self.lane.evidence.items():  # the sweep's posts; a post research found keeps its record
-            ctx.evidence.setdefault(eid, record)
+        ctx.model_usd_extra += lane.model_usd_extra
+        return renumbered
+
+    def adopt(self, ctx: RunContext) -> dict:
+        """Wait for the counts, then record what they read in ctx as the serial run would have, even when they failed
+        part way, and return the store query ids. The sweep follows, if it finished in time. Raises the counts' own
+        error after that."""
+        self._thread.join()
+        renumbered = self._take(ctx, self.lane)
+        if self.sweep_lane is not None:
+            if self._sweep_done.wait(SWEEP_JOIN_S):
+                self._take(ctx, self.sweep_lane)
+                for eid, record in self.sweep_lane.evidence.items():  # a post research found keeps its record
+                    ctx.evidence.setdefault(eid, record)
+            else:
+                log.warning("ask topic sweep dropped: run %s, not finished %s seconds after research", self.run_id,
+                            SWEEP_JOIN_S)
         if self.error is not None:
             raise self.error
         return {name: renumbered.get(query_id, query_id) for name, query_id in self.ids.items()}

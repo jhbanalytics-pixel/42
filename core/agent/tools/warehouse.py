@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import re
+import time
 import tomllib
 from pathlib import Path
 from typing import Protocol
@@ -23,7 +24,7 @@ from core.agent.skills import PAGE_TIERS
 from core.agent.spread import spread_order
 from core.agent.tools.dates import SAST, resolve_dates
 from core.agent.tools.socialcrawl import PLATFORM_NAMES, _fence
-from core.agent.tools.sql_query import PROJECT, Warehouse, internal_read, sql_query
+from core.agent.tools.sql_query import PROJECT, QUERY_TIMEOUT_S, Warehouse, internal_read, sql_query
 
 log = logging.getLogger(__name__)
 
@@ -430,9 +431,10 @@ def _reason(exc: Exception) -> str:
 
 
 def _check_market(ctx: RunContext, market) -> None:
-    """search_posts follows the question's market. A market the model names is accepted only when it is that market, so
-    naming one never widens or moves the search."""
+    """search_posts follows the question's market. A market the model names, by its code or its full name, is accepted
+    only when it is that market, so naming one never widens or moves the search."""
     asked = str(market).strip().upper()
+    asked = next((code for code, name in MARKET_NAMES.items() if asked == name.upper()), asked)
     if not ctx.market:
         raise Refused("search_posts follows the question's market and this question has none, so market is not "
                       "accepted. Leave it out and put the place in the query.")
@@ -933,6 +935,8 @@ def _store_before(ctx: RunContext, warehouse: Warehouse, platforms, shown: str, 
 # recency, and two wordings of it for the semantic leg. The posts are balanced across platforms and creators and stored
 # straight into the run's evidence, so the research model's history does not carry them (about 15,000 tokens per 100
 # posts, re-sent every turn). Each search is a recorded query, so a K2 re-run of any cited one works as for any query.
+SWEEP_DEADLINE_S = 60  # the sweep starts no search after this many seconds
+SWEEP_QUERY_TIMEOUT_S = 30  # most a sweep read waits for its BigQuery job
 SWEEP_KEEP = 300  # posts a sweep stores, as many as the writer's pack holds (writer.MAX_PACK_POSTS)
 MAX_SWEEP_TOPIC = 3
 _HASHTAG = re.compile(r"(?<![\w#])#(\w{2,50})")
@@ -960,11 +964,20 @@ def topic_sweep(ctx: RunContext, warehouse: Warehouse, topic: list[str], platfor
     returns counts only: posts stored, searches that ran, the searches that failed with their reasons, and the tags
     added to the family. A search that fails leaves the others; the sweep never raises for a warehouse failure."""
     topic = [t for t in topic if isinstance(t, str) and t.strip()][:MAX_SWEEP_TOPIC]
-    out = {"posts": 0, "searches": 0, "failed": {}, "family": []}
     if not topic:
-        return out
+        return {"posts": 0, "searches": 0, "failed": {}, "family": []}
+    wait = QUERY_TIMEOUT_S.set(SWEEP_QUERY_TIMEOUT_S)  # every read of the sweep, the tag read too, has a time limit
+    try:
+        return _topic_sweep(ctx, warehouse, topic, platforms)
+    finally:
+        QUERY_TIMEOUT_S.reset(wait)
+
+
+def _topic_sweep(ctx: RunContext, warehouse: Warehouse, topic: list[str], platforms) -> dict:
+    out = {"posts": 0, "searches": 0, "failed": {}, "family": []}
     since, until = _store_window(ctx)
     window = (since, until)
+    started = time.monotonic()
     filters, shared = _search_filters(platforms, None, 0)
     words = " OR ".join(topic)
     base = " ".join(t.lstrip("#") for t in topic)
@@ -985,6 +998,9 @@ def topic_sweep(ctx: RunContext, warehouse: Warehouse, topic: list[str], platfor
     ]
     lists, query_ids = [], []
     for label, mode, build in searches:
+        if time.monotonic() - started > SWEEP_DEADLINE_S:
+            out["failed"][label] = f"not started: the sweep passed its {SWEEP_DEADLINE_S} second deadline"
+            continue
         try:
             sql, params = build()
             result = sql_query(ctx, warehouse, sql, params=params, purpose=f"Topic sweep, {label}: {base}")
@@ -1006,7 +1022,8 @@ def topic_sweep(ctx: RunContext, warehouse: Warehouse, topic: list[str], platfor
                           creator=lambda r: r.get("creator_id") or r.get("handle"),
                           strength=lambda r: best[id(r)])[:SWEEP_KEEP]
     for row in chosen:
-        _store(ctx, row)
+        if str(row["post_id"]) not in ctx.evidence:  # a record the run already holds is the one it keeps
+            _store(ctx, row)
     kept = {str(r["post_id"]) for r in chosen}
     for qid, rows in zip(query_ids, lists):
         ids = [str(r["post_id"]) for r in rows]
