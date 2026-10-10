@@ -781,6 +781,14 @@ STAGING_SERIES = [  # the 17 distinct (platform, series) pairs in staging collec
 ]
 
 
+def test_coverage_names_the_curated_creator_panel_apart_from_the_culture_desk():
+    rows = [health_row(None, "panel_culture_desk", False, reason="calls"),
+            health_row(None, "panel_curated_creators", False, reason="calls")]
+    cov = market(today.build_today(Patched(collection_health=lambda date: rows), D30), "ZA")["coverage"]
+    assert cov["issues"] == ["Culture accounts we follow: could not be read",
+                             "Creator accounts we follow: could not be read"]
+
+
 def test_coverage_names_every_staging_series():
     rows = [health_row(p, s, False, reason="calls") for p, s, _ in STAGING_SERIES]
     cov = market(today.build_today(Patched(collection_health=lambda date: rows), D30), "ZA")["coverage"]
