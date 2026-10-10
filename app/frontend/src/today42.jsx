@@ -1144,6 +1144,19 @@ function HeldItemDetail({item, inRow = false}){
 const HELD_RULE_HELP = {
   G1: 'At least one of the last three days had invalid data on the main platform, so these could not be checked fairly. They are checked again each day and can clear once no invalid day is left in that window.',
 };
+/* The gate holds evidence it could not read under G1 as well, but no day was invalid there, so the sentence about invalid days would be false for it. */
+const UNREADABLE_EVIDENCE = 'Evidence could not be read';
+function heldHelp(item){
+  if (item.reason_raw === UNREADABLE_EVIDENCE) return '';
+  if (nonEmptyString(item.reason_text) && item.reason_text.trim() === UNREADABLE_EVIDENCE) return '';
+  return HELD_RULE_HELP[item.rule] || '';
+}
+
+/* A hold that names its own counts, "(3 of 40 with a known location)", ends in a bracket that holds a figure. The counts belong to the topic, so a group is made from the words ahead of them. */
+const HELD_COUNTS = /\s*\([^()]*\d[^()]*\)\s*$/;
+function heldStem(text){
+  return text.replace(HELD_COUNTS, '').trim() || text;
+}
 
 /* A failed explanation reads the same in reason_text whichever check held it. The check is the name ahead of the colon in failed_reason ("Critic: ...", "Support check: ..."), so it splits the groups. A topic held for a busy model ran no check and keeps its own reason. */
 const CHECK_FAMILY = /^([A-Z][A-Za-z ]{1,38}):/;
@@ -1153,22 +1166,31 @@ function checkFamily(item){
   return match ? match[1] : '';
 }
 
+/* A group is a reason code plus the words of the reason with the topic's own counts set aside, so two not-local holds with different counts are one group. A group of one reads its reason whole; a group of several reads the words they share and leaves each topic its own counts. */
+const NO_REASON = 'No specific held reason was provided.';
 function heldGroups(items){
   const groups = [];
   const byReason = new Map();
   for (const item of items){
     const family = checkFamily(item);
-    const said = nonEmptyString(item.reason_text) ? item.reason_text.trim() : 'No specific held reason was provided.';
-    const reason = family ? said + ': ' + family : said;
-    const help = HELD_RULE_HELP[item.rule] || '';
-    const key = reason + '\n' + help;
+    const said = nonEmptyString(item.reason_text) ? item.reason_text.trim() : NO_REASON;
+    const stem = heldStem(said);
+    const help = heldHelp(item);
+    const code = nonEmptyString(item.reason) ? item.reason : '';
+    const key = code + '\n' + (family ? stem + ': ' + family : stem) + '\n' + help;
     let group = byReason.get(key);
     if (!group){
-      group = {key, reason, help, items: []};
+      group = {key, stem, family, help, items: []};
       byReason.set(key, group);
       groups.push(group);
     }
     group.items.push(item);
+  }
+  for (const group of groups){
+    const said = group.items.map((item) => (nonEmptyString(item.reason_text) ? item.reason_text.trim() : NO_REASON));
+    const whole = said.every((words) => words === said[0]) ? said[0] : group.stem;
+    group.whole = whole;
+    group.reason = group.family ? whole + ': ' + group.family : whole;
   }
   return groups.sort((a, b) => b.items.length - a.items.length);
 }
@@ -1201,7 +1223,7 @@ function HeldForEvidence({held, market}){
               </h3>
               {group.help && <p className="t42-line-text t42-held-group-help">{group.help}</p>}
               <ul className="t42-rows t42-held-list">
-                {group.items.map((item) => <HeldGroupItem key={item.item_id} item={item} reason={group.reason} />)}
+                {group.items.map((item) => <HeldGroupItem key={item.item_id} item={item} reason={group.reason} said={group.whole} />)}
               </ul>
             </section>
           ))
@@ -1212,11 +1234,13 @@ function HeldForEvidence({held, market}){
   );
 }
 
-function HeldGroupItem({item, reason}){
+function HeldGroupItem({item, reason, said}){
   const heldDetail = nonEmptyString(item.held_detail) ? item.held_detail.trim() : '';
+  const own = nonEmptyString(item.reason_text) ? item.reason_text.trim() : '';
   return (
     <li data-held-item-id={item.item_id}>
       <strong className="t42-held-title">{item.title}</strong>
+      {own && own !== said && <p className="t42-line-text" data-held-own-reason="">{own}</p>}
       {heldDetail && heldDetail !== reason && <p className="t42-line-text" data-held-detail="">{heldDetail}</p>}
       <details className="t42-held-more">
         <summary>Posts and figures<span className="sr-only"> for {item.title}</span></summary>
