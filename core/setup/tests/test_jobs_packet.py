@@ -684,3 +684,16 @@ def test_bind_refuses_a_baseline_chain_manifest_generated_from_another_commit(be
     bench.chain_path.write_text(json.dumps(value), encoding="utf-8")
     code, out, err = run(bench.bind_argv(), capsys)
     assert code == 1 and "another commit" in err and not bench.bindings.exists()
+
+
+def test_capture_baseline_j_after_a_rollback_holds_the_services_to_the_pinned_a80_revisions_and_records_them(tmp_path, monkeypatch, capsys):
+    bench = jpw.JobsBench(tmp_path, monkeypatch)
+    for name in so.SERVICES:
+        bench.world.restore(name, keep_tag=True)
+    pw.fake_gcloud(bench.tmp / "fake", bench.world)
+    bench.write_a_readback(phase="AfterRollback")
+    code, out, err = run(bench.capture_argv(), capsys)
+    assert code == 0, err
+    value = bench.baseline_value()
+    assert value["aTerminal"]["kind"] == "AfterRollback" and value["a80Serving"] == packet.A80_SERVING == rw.A80_REV
+    assert {name: value["services"][name]["serving"]["name"] for name in so.SERVICES} == rw.A80_REV
