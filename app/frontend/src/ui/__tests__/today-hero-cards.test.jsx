@@ -97,7 +97,8 @@ test('the hero names the platforms of its evidence with their marks, then two re
   expect(marks.map((mark) => mark.getAttribute('data-lead-platform'))).toEqual(['tiktok', 'instagram', 'youtube']);
   expect(marks.map((mark) => words(mark.querySelector('.sc-platform-name')))).toEqual(['TikTok', 'Instagram', 'YouTube']);
   expect(marks[0].querySelector('svg.pl-logo').getAttribute('data-logo')).toBe('tiktok');
-  expect(marks[1].querySelector('.pl-monogram')).not.toBeNull();
+  expect(marks[1].querySelector('svg.pl-logo').getAttribute('data-logo')).toBe('instagram');
+  expect(marks[1].querySelector('.pl-monogram')).toBeNull();
   const examples = [...panel().querySelectorAll('[data-lead-example]')];
   expect(examples).toHaveLength(2);
   const card = leadCard(todayFixture);

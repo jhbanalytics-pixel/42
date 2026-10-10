@@ -184,7 +184,7 @@ html .oi-product .t42 .sc-platform-mark {
   place-items: center;
   inline-size: 1.75rem;
   block-size: 1.75rem;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--brand-edge, var(--line-2));
   background: var(--brand, var(--surface-inset));
   color: var(--brand-on, var(--ink));
 }

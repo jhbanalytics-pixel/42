@@ -106,7 +106,7 @@ test('every chart header carries a decorative logo beside its text label', () =>
 });
 
 test('the named platforms each have a vendored mark and an unknown one falls back to a text monogram', () => {
-  for (const platform of ['apple_music', 'spotify', 'shazam', 'app_store', 'google_play', 'tiktok', 'youtube', 'google', 'reddit']) expect(LOGO_KEYS).toContain(platform);
+  for (const platform of ['apple_music', 'spotify', 'shazam', 'app_store', 'google_play', 'tiktok', 'youtube', 'google', 'reddit', 'instagram', 'x']) expect(LOGO_KEYS).toContain(platform);
   /* simple-icons has no Boomplay or Nairaland mark, so they stay text monograms. */
   for (const platform of ['boomplay', 'nairaland']){
     expect(LOGO_KEYS).not.toContain(platform);
@@ -115,7 +115,9 @@ test('the named platforms each have a vendored mark and an unknown one falls bac
   flushSync(() => root.render(<PlatformLogo platform="boomplay" />));
   expect(host.querySelector('.pl-monogram').textContent).toBe('B');
   expect(host.querySelector('svg')).toBeNull();
-  expect(logoKey('twitter')).toBeNull();
+  expect(logoKey('twitter')).toBe('x');
+  expect(logoKey('X')).toBe('x');
+  expect(logoKey('instagram_reels')).toBe('instagram');
   expect(logoKey('app_store_iphone')).toBe('app_store');
   expect(logoKey('kworb_spotify')).toBe('spotify');
   expect(logoKey('Apple Music')).toBe('apple_music');
@@ -145,6 +147,8 @@ const PINNED = {
   youtube: '8142fbc0e697bc1b',
   google: '1418294b312c0653',
   reddit: '56447b3636ee5a28',
+  instagram: 'acf15f9fb76fd2bd',
+  x: '52ea74b2897c7ec5',
 };
 
 test('each official mark is the pinned simple-icons path, one colour, decorative, with its source named', () => {
@@ -168,6 +172,35 @@ test('each official mark is the pinned simple-icons path, one colour, decorative
   const logoCss = css('platform-logo.css');
   expect(logoCss).toMatch(/\.pl-logo\s*\{[^}]*fill:\s*currentColor/);
   expect(logoCss).not.toMatch(/stroke:\s*currentColor/);
+});
+
+test('instagram and x render their official path, not the boxed letter', () => {
+  for (const platform of ['instagram', 'x', 'twitter']){
+    flushSync(() => root.render(<PlatformLogo platform={platform} />));
+    expect(host.querySelector('.pl-monogram'), platform).toBeNull();
+    const path = host.querySelector('svg.pl-logo path');
+    expect(path, platform).not.toBeNull();
+    expect(path.getAttribute('d').length, platform).toBeGreaterThan(100);
+    expect(host.textContent).toBe('');
+  }
+});
+
+test('Boomplay keeps its fallback and the source says why', () => {
+  const source = readFileSync(new URL('../PlatformLogo.jsx', import.meta.url), 'utf8');
+  expect(source).toMatch(/Boomplay[^\n]*absent from simple-icons 13\.21\.0|absent from simple-icons 13\.21\.0[^\n]*Boomplay/);
+  flushSync(() => root.render(<PlatformLogo platform="boomplay" />));
+  expect(host.querySelector('.pl-monogram').textContent).toBe('B');
+});
+
+test('BRAND_MARKS.md names the source package, version, licence and the trademark position', () => {
+  const notice = readFileSync(new URL('../BRAND_MARKS.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
+  expect(notice).toContain('simple-icons');
+  expect(notice).toContain('13.21.0');
+  expect(notice).toContain('CC0-1.0');
+  expect(notice).toMatch(/trademarks of their owners/);
+  expect(notice).toMatch(/identify the platform/);
+  expect(notice).toContain('Boomplay');
+  expect(notice).not.toMatch(new RegExp([0x2014, 0x2013].map((c) => String.fromCharCode(c)).join('|') + '|--'));
 });
 
 test('a logo never loads anything from the network and the stylesheet uses theme tokens only', () => {

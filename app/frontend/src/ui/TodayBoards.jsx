@@ -1,7 +1,7 @@
 import {useId, useState} from 'react';
 import {boardTitle} from '../readerUnits.js';
 import {platformWord} from './TrendCard.jsx';
-import {PlatformLogo, brandOf, platformId} from './PlatformLogo.jsx';
+import {PlatformLogo, brandOf, brandStyle, platformId} from './PlatformLogo.jsx';
 import {SnapBand} from './SnapBand.jsx';
 import '../styles/today-boards.css';
 
@@ -169,7 +169,7 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
      no readable row can carry it, which keeps a null reason from matching. */
   const saidByReason = chart.state !== 'ok' && chart.leftOut > 0 && [words, stateWords('today')[chart.state]].some((text) => sentence(text) === sentence(chart.reason));
   return (
-    <section className="tb-card" style={brand ? {'--brand': brand.hex, '--brand-on': brand.on} : undefined} data-board-card="" data-chart-state={chart.state} data-platform={chart.id || undefined} aria-labelledby={headId}>
+    <section className="tb-card" style={brand ? brandStyle(brand) : undefined} data-board-card="" data-chart-state={chart.state} data-platform={chart.id || undefined} aria-labelledby={headId}>
       <div className="tb-card-head">
         <span className="tb-logo"><PlatformLogo platform={chart.id} size={28} /></span>
         <Heading className="tb-card-title" id={headId}>

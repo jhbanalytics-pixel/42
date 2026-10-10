@@ -11,7 +11,7 @@
 import {useMemo} from 'react';
 import {Facts} from './Facts.jsx';
 import {AskAboutThis} from './AskAboutThis.jsx';
-import {PlatformLogo, brandOf, platformId} from './PlatformLogo.jsx';
+import {PlatformLogo, brandOf, brandStyle, platformId} from './PlatformLogo.jsx';
 import {SnapBand} from './SnapBand.jsx';
 import {
   BEFORE_COUNT, BigFigures, Feedback, Figure, Lifecycle, Novelty, PostFull, PostsShownNote, EvidenceList, ExcerptNote, Sparkline, Thumbnails,
@@ -66,7 +66,7 @@ export function PlatformMarks({evidence, attribute, className = ''}){
       {seen.map((id) => {
         const brand = brandOf(id);
         return (
-          <li key={id} className="sc-platform" {...{[attribute]: id}} style={brand ? {'--brand': brand.hex, '--brand-on': brand.on} : undefined}>
+          <li key={id} className="sc-platform" {...{[attribute]: id}} style={brand ? brandStyle(brand) : undefined}>
             <span className="sc-platform-mark"><PlatformLogo platform={id} size={16} /></span>
             <span className="sc-platform-name">{platformWord(id)}</span>
           </li>

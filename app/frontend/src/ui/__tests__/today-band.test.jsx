@@ -394,6 +394,50 @@ test('a platform with an official mark has its brand colour, a readable ink on i
   expect(brandOf('tiktok').on).toBe('#FFFFFF');
 });
 
+/* The brand colours are the simple-icons 13.21.0 hexes, pinned here as literals
+   so they are not read from the component under test. */
+const OFFICIAL_HEX = {
+  app_store: '#0D96F6', apple_music: '#FA243C', google_play: '#414141', instagram: '#FF0069', reddit: '#FF4500',
+  shazam: '#0088FF', spotify: '#1ED760', tiktok: '#000000', x: '#000000', youtube: '#FF0000', google: '#4285F4',
+};
+
+const linear = (n) => { const v = n / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return 0.2126 * linear(n >> 16) + 0.7152 * linear((n >> 8) & 255) + 0.0722 * linear(n & 255); };
+const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+
+test('every brand hex is the official one and every ink on its chip holds 3 to 1', () => {
+  for (const [key, hex] of Object.entries(OFFICIAL_HEX)){
+    const brand = brandOf(key);
+    expect(brand.hex, key).toBe(hex);
+    expect(ratio(brand.on, hex), key).toBeGreaterThanOrEqual(3);
+  }
+  expect(brandOf('twitter').hex).toBe('#000000');
+  expect(brandOf('instagram_reels').hex).toBe('#FF0069');
+  expect(brandOf('instagram').on).toBe('#FFFFFF');
+  expect(brandOf('x').on).toBe('#FFFFFF');
+});
+
+test('a chip as dark as the dark surface carries an edge that shows on both themes, and a bright chip needs none', () => {
+  const SURFACES = {dark: '#0B0D10', light: '#FFFFFF'};
+  for (const key of ['tiktok', 'x', 'google_play']){
+    const brand = brandOf(key);
+    expect(brand.edge, key).toMatch(/^#[0-9A-F]{6}$/);
+    expect(ratio(brand.edge, SURFACES.dark), key + ' on dark').toBeGreaterThanOrEqual(3);
+    expect(ratio(brand.edge, SURFACES.light), key + ' on light').toBeGreaterThanOrEqual(3);
+    expect(ratio(brand.edge, brand.hex), key + ' on its own chip').toBeGreaterThanOrEqual(3);
+  }
+  for (const key of ['spotify', 'youtube', 'instagram', 'reddit', 'app_store', 'apple_music', 'shazam']) expect(brandOf(key).edge, key).toBeNull();
+});
+
+test('the chip border takes the edge colour where there is one, on the boards and the story cards', () => {
+  const read = (name) => readFileSync(new URL(`../../styles/${name}`, import.meta.url), 'utf8');
+  expect(read('today-boards.css')).toMatch(/\.tb-logo\s*\{[^}]*border:\s*1px solid var\(--brand-edge,\s*var\(--line-2\)\)/);
+  expect(read('today-story.css')).toMatch(/\.sc-platform-mark\s*\{[^}]*border:\s*1px solid var\(--brand-edge,\s*var\(--line-2\)\)/);
+  show({boards: payload()});
+  const tiktok = [...cards()].find((c) => c.getAttribute('data-platform') === 'tiktok');
+  if (tiktok) expect(tiktok.getAttribute('style')).toMatch(/--brand-edge:\s*#[0-9A-F]{6}/i);
+});
+
 test('a card with a brand carries it as one custom property for its top rule and its logo chip', () => {
   show({boards: payload()});
   const spotify = [...cards()].find((c) => c.getAttribute('data-platform') === 'spotify');
