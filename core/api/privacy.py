@@ -27,6 +27,8 @@ UNAVAILABLE_NOTE = "42 could not check its hidden-people list just now, so the p
 PEOPLE_UNAVAILABLE = "People view unavailable."
 
 OBS_ID = re.compile(r"^obs1_[0-9a-f]{32}$")
+_HELD = "held"  # first part of the key a stream keeps an earlier evidence record under, beside post id to creator id
+_IDENTITY = ("id", "platform", "handle", "creator_id", "posted_at", "parent_id")  # the fields that decide who wrote it
 MARGIN = dt.timedelta(days=3)
 SUPPRESSION_MAX_AGE_S = 30  # a run in flight may use a list this old (rule R2, section 8.4)
 READ = object()  # "read the list now"; None stands for UNAVAILABLE
@@ -141,24 +143,35 @@ def _day(value):
         return None
 
 
-def evidence_gone(evidence, hidden, store, creators=None):
+def evidence_gone(evidence, hidden, store, creators=None, parents=()):
     """The ids of the evidence records that belong to a hidden person (5.1). hidden None (UNAVAILABLE) gives every
     id. Stored posts are matched by who wrote them, found in one batched, date-bounded lookup of posts: a post the
-    lookup cannot place is gone too. Raises PeopleUnavailable when that lookup fails. creators memoises post id to
-    creator id across calls (the fact never changes; whether that person is hidden is never cached)."""
+    lookup cannot place is gone too. A record with a parent_id (a comment) is judged by its parent as well: it is gone
+    when its own author is hidden, when the post it sits under is gone, or when that post cannot be found among the
+    evidence or the parents handed in (a comment may carry the post's address, handle and all). parents are records
+    seen earlier in a stream; they are judged, never returned. Raises PeopleUnavailable when the lookup fails. creators
+    memoises post id to creator id across calls (the fact never changes; whether that person is hidden is never
+    cached)."""
     records = [e for e in evidence or [] if isinstance(e, dict)]
     if hidden is None:
         return {e.get("id") for e in records}
     keys, ids, _ = hidden
+    listed = {e.get("id") for e in records}
+    earlier = [p for p in parents or () if isinstance(p, dict) and p.get("id") not in listed]
     gone, stored = set(), []
-    for e in records:
+    for e in records + earlier:
         if creator_key(e.get("platform"), e.get("handle")) in keys or e.get("creator_id") in ids:
             gone.add(e.get("id"))
         elif isinstance(e.get("id"), str) and OBS_ID.match(e["id"]):
             stored.append(e)
     creators = {} if creators is None else creators
-    if not ids:  # no creator id is hidden, so who wrote a post cannot decide anything: no lookup
-        return gone
+    if ids:  # no creator id hidden means who wrote a post cannot decide anything: no lookup
+        _place_stored(stored, ids, store, creators, gone)
+    _under_gone_parents(records, earlier, gone)
+    return gone - {p.get("id") for p in earlier}
+
+
+def _place_stored(stored, ids, store, creators, gone):
     todo = [e for e in stored if e["id"] not in creators]
     if todo:
         days = [_day(e.get("posted_at")) for e in todo]
@@ -168,8 +181,7 @@ def evidence_gone(evidence, hidden, store, creators=None):
             try:
                 reader = getattr(store, "post_creators", None)
                 rows = reader([e["id"] for e, d in zip(todo, days) if d is not None],
-                              (min(known) - MARGIN).isoformat(), (max(known) + MARGIN).isoformat()) \
-                    if callable(reader) else None
+                              (min(known) - MARGIN).isoformat(), (max(known) + MARGIN).isoformat())                     if callable(reader) else None
             except Exception as exc:
                 log.warning("the post lookup failed (%s); the copy is not shown", type(exc).__name__)
                 raise PeopleUnavailable from exc
@@ -182,7 +194,24 @@ def evidence_gone(evidence, hidden, store, creators=None):
     for e in stored:
         if e["id"] not in creators or creators[e["id"]] in ids:
             gone.add(e["id"])  # a miss is never read as "not hidden"
-    return gone
+
+
+def _under_gone_parents(records, earlier, gone):
+    """Add the ids of the records that sit under a post that is gone, or under none that can be found. The chain is
+    walked to a record with no parent_id, and a chain that loops is gone."""
+    by_id = {}
+    for e in records + earlier:
+        if isinstance(e.get("id"), str):
+            by_id.setdefault(e["id"], e)
+    for e in records:
+        cur, walked = e, {id(e)}
+        while cur.get("parent_id") is not None:
+            parent = by_id.get(cur["parent_id"]) if isinstance(cur["parent_id"], str) else None
+            if parent is None or id(parent) in walked or parent.get("id") in gone:
+                gone.add(e.get("id"))
+                break
+            walked.add(id(parent))
+            cur = parent
 
 
 def mask(value, hidden):
@@ -396,8 +425,11 @@ def project_event(kind, data, hidden, store, gone, seen):
         return data
     if kind == "evidence":
         record = data.get("evidence") if isinstance(data.get("evidence"), dict) else {}
+        if isinstance(record.get("id"), str):  # kept so a comment arriving later is judged by its post (5.1)
+            seen[(_HELD, record["id"])] = {k: record[k] for k in _IDENTITY if k in record}
+        earlier = [v for k, v in seen.items() if type(k) is tuple]
         try:
-            left_out = hidden is None or bool(evidence_gone([record], hidden, store, seen))
+            left_out = hidden is None or bool(evidence_gone([record], hidden, store, seen, earlier))
         except PeopleUnavailable:
             left_out = True
         if left_out:
