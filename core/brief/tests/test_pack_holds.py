@@ -292,7 +292,8 @@ def test_build_pack_passes_the_registry_and_the_default_cap_and_returns_the_stag
     counts = {}
     pack, _, _ = evidence.build_pack(client, state, D, "NG", core="core", agent="agent", stages=counts)
     assert seen["keys"] == []
-    assert set(pack) == {"evidence", "numbers", "facts"}  # the pack keeps its three keys
+    # the pack keeps its three keys; the two rival keys are the intel-rivals lane's (pinned, rival_read), read here
+    assert set(pack) - {"pinned", "rival_read"} == {"evidence", "numbers", "facts"}
     assert counts["version"] == 1
     assert counts["available"] == {"posts": 3, "showable": 3, "local": 3, "members": 0}
     assert counts["after_outlet_cap"]["posts"] == len(pack["evidence"]) == 3
