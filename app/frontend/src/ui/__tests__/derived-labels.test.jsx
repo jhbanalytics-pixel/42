@@ -94,7 +94,7 @@ test('fieldwork frames that recorded no code print no code', () => {
 /* Restated 2 October 2026: a 401 from 42's API hands over to the passcode
    screen and the page says so in words, with no code. */
 test('the fieldwork auth frame hands over to the passcode screen on a 401', async () => {
-  globalThis.fetch = async () => ({ok: false, status: 401, url: '', headers: {get: () => null}, json: async () => ({error: 'unauthorised', message: 'Passcode needed.'})});
+  globalThis.fetch = async () => ({ok: false, status: 401, url: '', headers: {get: () => null}, json: async () => ({error: 'unauthorized', message: 'Passcode needed.'})});
   let authed = 0;
   mount(<FieldworkWorkspace onAuth={() => { authed += 1; }} />);
   await settled(() => host.querySelector('[data-fieldwork-state="auth"]'));
