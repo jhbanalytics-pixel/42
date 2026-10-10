@@ -227,7 +227,7 @@ def test_rb_t8_an_execution_describe_whose_name_is_not_the_plans_shape_matches_n
 BUILD = ["py", "-3.13", "core/setup/deploy_jobs.py", "--build", "--commit", jw.B_COMMIT, "--attempt", "01", "--build-id-file", "C:/release/run/build-id.txt"]
 
 
-def test_jb03_the_candidate_renders_one_build_step_with_the_commit_the_attempt_of_the_release_id_and_the_run_folder_id_file():
+def test_ju02_the_candidate_renders_one_build_step_with_the_commit_the_attempt_of_the_release_id_and_the_run_folder_id_file():
     steps = plan.JOBS_ACTIONS["JobsCandidate"](ctx(build_id_file="C:/release/run/build-id.txt"))
     build = next(s for s in steps if s.name == "build")
     assert list(build.argv) == BUILD
@@ -243,7 +243,7 @@ def test_jb03_the_candidate_renders_one_build_step_with_the_commit_the_attempt_o
     {9: "C:/release/run/build-id.txt.bak"}, {1: "-3.12"}, {2: "core/setup/deploy_jobs.pyc"},
 ], ids=["short_commit", "upper_commit", "one_digit_attempt", "attempt_zero", "three_digit_attempt", "attempt_text", "other_file",
         "backup_file", "other_python", "other_script"])
-def test_jb03_the_positive_list_refuses_a_build_command_with_a_wrong_value(change):
+def test_ju02_the_positive_list_refuses_a_build_command_with_a_wrong_value(change):
     argv = list(BUILD)
     for index, value in change.items():
         argv[index] = value
@@ -251,7 +251,7 @@ def test_jb03_the_positive_list_refuses_a_build_command_with_a_wrong_value(chang
 
 
 @pytest.mark.parametrize("extra", [["--apply"], ["--only", "f42-probe"], ["--smoke"], ["--model-provider", "gemini"], ["--run-smoke"], ["--from-archive"]])
-def test_jb03_the_positive_list_refuses_every_flag_beyond_the_build_the_commit_the_attempt_and_the_id_file(extra):
+def test_ju02_the_positive_list_refuses_every_flag_beyond_the_build_the_commit_the_attempt_and_the_id_file(extra):
     assert plan.jobs_matching_entries([*BUILD, *extra]) == []
     assert plan.jobs_matching_entries([*BUILD[:4], *extra, *BUILD[4:]]) == []
     without = [a for a in BUILD if a != "--build"]

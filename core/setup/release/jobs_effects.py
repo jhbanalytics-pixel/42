@@ -108,7 +108,7 @@ def classify(statement):
 DETECT_VIEW_FILES = ("core/detect/sql/views.sql", "core/detect/sql/locality_views.sql")
 
 def ddl_statements(files):
-    """{object name: the CREATE OR REPLACE statement text, whitespace collapsed} for the non-test files under core/ outside
+    """{object name: the text of the statement that replaces the object, whitespace collapsed} for the non-test files under core/ outside
     core/schema. The text runs from the CREATE to the first semicolon or closing triple quote."""
     out = {}
     for path, text in files:

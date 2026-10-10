@@ -160,8 +160,9 @@ def test_jp02_the_paste_world_call_logs_carry_no_forbidden_verb(tmp_path):
 
 # JP-03: no statement that removes or replaces data in a file B adds under core/setup/release
 
-B_FILES = ("chain_evidence.py", "jobs_only.py", "jobs_run.py", "JOBS-PASTE.ps1")
-SERVICES_FILES = {"bound_readback.py", "declared_env_removals.py", "lock.py", "packet.py", "plan.py", "services_only.py", "SERVICES-PASTE.ps1",
+B_FILES = ("chain_evidence.py", "jobs_only.py", "jobs_run.py", "JOBS-PASTE.ps1", "env_scan.py", "jobs_baseline.py", "jobs_effects.py", "jobs_freeze.py",
+           "jobs_source.py")
+SERVICES_FILES = {"bound_readback.py", "declared_env_removals.py", "lock.py", "natives.py", "packet.py", "plan.py", "services_only.py", "SERVICES-PASTE.ps1",
                   "durable-effects-manifest.template.json", "__init__.py"}
 DESTRUCTIVE = re.compile(r"create\s+or\s+replace|\bdrop\s+(table|view|schema|function|index)\b|\bdelete\s+from\b|\btruncate\s+table\b|\bdrop\b|\btruncate\b", re.I)
 
@@ -261,6 +262,8 @@ def test_jp04_each_mutation_is_caught_by_its_named_test_in_a_copy_and_the_copy_i
     copy_root = tmp_path / "copy"
     shutil.copytree(ROOT / "core/setup", copy_root / "core/setup", ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "locks"))
     shutil.copyfile(ROOT / "core/__init__.py", copy_root / "core/__init__.py")
+    # the worlds read the schema files to build the apply dry run receipt the release now demands (JS-09)
+    shutil.copytree(ROOT / "core/schema", copy_root / "core/schema", ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "tests"))
     nodes = sorted({node for *_, node in MUTATIONS})
     code, out = pytest_run(copy_root, nodes)
     assert code == 0, "the copy is not clean before a mutation:\n" + out[-1500:]

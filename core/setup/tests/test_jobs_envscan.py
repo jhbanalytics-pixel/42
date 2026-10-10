@@ -235,8 +235,8 @@ def test_rbc7_the_test_harness_variable_is_classified_in_conftest_and_that_file_
     assert env_scan.classified(read, set())
     assert not env_scan.classified(env_scan.Read("core/other.py", 1, pair[1], "get"), set())
     readers = {p for p, t in env_scan.tree_from_disk(ROOT / "core", ROOT) if "F42_TEST_LOCALITY_AUTHORITY" in t}
-    assert readers == {"core/conftest.py", "core/detect/tests/test_detect_scorecard.py", "core/setup/release/env_scan.py",
-                       "core/setup/tests/test_jobs_envscan.py"}
+    assert readers == {"core/brief/tests/test_pack_order.py", "core/conftest.py", "core/detect/tests/test_detect_scorecard.py",
+                       "core/setup/release/env_scan.py", "core/setup/tests/test_jobs_envscan.py"}
 
 
 def test_rbc7_the_scan_of_this_checkout_no_longer_reports_the_three_names():

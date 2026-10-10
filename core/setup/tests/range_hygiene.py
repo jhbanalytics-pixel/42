@@ -32,6 +32,9 @@ LANE_PATHS = (
     "core/setup/tests/test_jobs_checks.py", "core/setup/tests/test_jobs_prefix.py", "core/setup/tests/update_support.py",
     "core/setup/tests/jobs_world.py", "core/setup/tests/cloud_world.py", "core/setup/tests/jobs_paste_world.py",
     "core/setup/tests/range_hygiene.py",
+    # the assembled release: the wiring, the packet command line and the lock tests with their support
+    "core/setup/tests/test_jobs_wiring.py", "core/setup/tests/test_jobs_packet.py", "core/setup/tests/jobs_packet_world.py",
+    "core/setup/tests/test_jobs_lock.py", "core/setup/tests/lock_closure.py",
 )
 # The folders in which an agent instruction file, a tool directory or scratch output must never be added.
 LANE_FOLDERS = ("core/setup/release", "core/setup/tests")

@@ -208,7 +208,7 @@ def test_ju08_jobs_candidate_runs_the_checks_the_build_freeze_validate_snapshot_
     assert result.names.index("snapshot") < result.names.index("schema-apply") < result.names.index("durable-readbacks") < result.names.index("schema-receipt")
 
 
-def test_jb03_the_build_is_the_one_deploy_jobs_command_for_the_bound_commit_and_the_attempt_with_the_id_file_in_the_run_folder(tmp_path):
+def test_ju08_the_build_is_the_one_deploy_jobs_command_for_the_bound_commit_and_the_attempt_with_the_id_file_in_the_run_folder(tmp_path):
     world = JobsPasteWorld(tmp_path, "JobsCandidate")
     result = world.run()
     build = result.run("jobs-build")
@@ -221,13 +221,13 @@ def test_jb03_the_build_is_the_one_deploy_jobs_command_for_the_bound_commit_and_
     assert not [n for n in result.names if n in ("archive", "extract")]
 
 
-def test_jb03_a_build_that_exits_nonzero_stops_the_candidate_before_freezejobs_and_nothing_after_it_runs(tmp_path):
+def test_ju08_a_build_that_exits_nonzero_stops_the_candidate_before_freezejobs_and_nothing_after_it_runs(tmp_path):
     result = JobsPasteWorld(tmp_path, "JobsCandidate").run(exits={"jobs-build": 1})
     assert result.returncode != 0 and "jobs-build exited 1" in result.stderr + result.stdout
     assert result.names == ["helper-BeforeAnyWrite-0", "jobs-build"]
 
 
-def test_jb03_a_dirty_checkout_after_the_build_stops_before_freezejobs(tmp_path):
+def test_ju08_a_dirty_checkout_after_the_build_stops_before_freezejobs(tmp_path):
     result = JobsPasteWorld(tmp_path, "JobsCandidate").run(dirty_after_runs=2)
     assert result.returncode != 0 and result.names == ["helper-BeforeAnyWrite-0", "jobs-build"]
 
