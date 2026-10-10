@@ -105,7 +105,7 @@ CREATE TABLE core.post_enrichment (post_id VARCHAR, embedding DOUBLE[], langs VA
 
 CREATE TABLE core.creators (
   creator_id VARCHAR, platform VARCHAR, handle VARCHAR, account_created_at TIMESTAMPTZ,
-  home_market VARCHAR, verified_region VARCHAR, coord_score BIGINT);
+  home_market VARCHAR, verified_region VARCHAR, coord_score BIGINT, display_name VARCHAR);
 
 CREATE TABLE core.clusters (
   cluster_date DATE, cluster_id VARCHAR, market VARCHAR, item_id VARCHAR, match_kind VARCHAR);

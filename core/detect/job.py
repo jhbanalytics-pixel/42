@@ -16,6 +16,9 @@ detect runs row names each one that failed, with its error, under view_failures 
 and the job logs one line naming them; the detect run still reads 'ok'. Before aggregating the run
 date, any of the three days before it that has collection_health rows but no ok aggregate run is aggregated
 first, each with its own runs row; stats, coaction and state run for the run date only.
+A day whose understand run is partial with cluster_stack_failed (its clusterer produced nothing) still runs: state
+judges no topic items that day, the detect counts carry topics_failed with the plain-words data_issue, and
+every other item is judged as usual.
 Lane L1's chain helper opens and closes the detect run and starts the next job. Every write appends.
 
 Entry point: python -m core.detect.job. The run date is RUN_DATE when set, else today in SAST (chain.today).
@@ -29,14 +32,29 @@ from pathlib import Path
 from google.cloud import bigquery
 
 from . import aggregate, breakout, centroids, coaction, forecasts, runs, seeds, sqlrun, stats, watches
+from .items import TOPIC_KIND
 
 PROJECT = "ogilvy-trends-v2"
 RULE_VERSION = "warmup-1"
 SQL = Path(__file__).parent / "sql"
 
 ITEM_STATE_COUNT_SQL = "SELECT COUNT(*) n FROM {core}.item_state s WHERE s.metric_date = @d AND s.run_id = @run_id"
+TOPIC_ITEM_STATE_COUNT_SQL = (
+    "SELECT COUNT(*) n FROM {core}.item_state s WHERE s.metric_date = @d AND s.run_id = @run_id AND s.kind = @kind")
 
 CATCH_UP_DAYS = 3
+
+# Understand records a day whose clusterer produced nothing as ok but partial (counts.partial_reason). Detect then
+# judges no topic items for that day and still runs for the rest.
+TOPICS_PARTIAL_REASON = "cluster_stack_failed"
+TOPICS_DATA_ISSUE = "Data issue: topic grouping failed today"
+UNDERSTAND_COUNTS_SQL = """
+SELECT r.counts FROM {agent}.runs r
+WHERE r.stage = 'understand' AND r.run_date = @d AND r.status = 'ok'
+ORDER BY r.finished_at DESC LIMIT 1
+"""
+# state.sql is verbatim DATA.md 3.7, so the topic stop is applied to its text here and not written into the file.
+STATE_MAP_JOIN = "JOIN {core}.cultural_map cm ON cm.item_id = a.item_id AND cm.valid_to IS NULL"
 
 # The detect counts keys of the steps that build views or centroids with no runs row of their own.
 VIEW_STEPS = ("spread", "agent_views", "news", "item_centroids")
@@ -212,13 +230,52 @@ def run_centroids_step(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
         return {"status": "failed", "error": error}
 
 
-def run_state(client, d, run_id, rule_version, core=sqlrun.CORE, agent=sqlrun.AGENT):
-    """Run the state.sql script (a temp function and the item_state INSERT) and return the rows it wrote."""
+def without_topics(script):
+    """state.sql with topic items left out of item_state. It stops rather than guess if the join it extends
+    is no longer in the text exactly once."""
+    if script.count(STATE_MAP_JOIN) != 1:
+        raise RuntimeError("state.sql no longer has the cultural_map join detect extends to leave out topic items")
+    return script.replace(STATE_MAP_JOIN, STATE_MAP_JOIN + f" AND cm.kind != '{TOPIC_KIND}'")
+
+
+def topics_failed_today(client, d, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """{reason, data_issue} when the latest ok understand run for d is partial because its clusterer failed, else
+    None. The latest ok run decides, so a repaired rerun lifts it."""
+    rows = sqlrun.query(client, UNDERSTAND_COUNTS_SQL, {"d": d}, core=core, agent=agent)
+    counts = rows[0]["counts"] if rows else None
+    counts = json.loads(counts) if isinstance(counts, str) else counts
+    if not isinstance(counts, dict) or counts.get("partial_reason") != TOPICS_PARTIAL_REASON:
+        return None
+    return {"reason": TOPICS_PARTIAL_REASON, "data_issue": counts.get("data_issue") or TOPICS_DATA_ISSUE}
+
+
+def topic_items_judged(client, d, run_id, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """How many item_state rows of kind TOPIC_KIND this run's state step wrote for d, read back from item_state."""
+    rows = sqlrun.query(client, TOPIC_ITEM_STATE_COUNT_SQL, {"d": d, "run_id": run_id, "kind": TOPIC_KIND},
+                        core=core, agent=agent)
+    return rows[0]["n"]
+
+
+def run_topic_count_step(client, d, run_id, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    """The topic count for the detect counts. It is information only, so a failure never stops detect: it is logged
+    and returned as the status and error."""
+    try:
+        return topic_items_judged(client, d, run_id, core, agent)
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        print(f"detect {d.isoformat()}: topic count failed: {error}", file=sys.stderr)
+        return {"status": "failed", "error": error}
+
+
+def run_state(client, d, run_id, rule_version, core=sqlrun.CORE, agent=sqlrun.AGENT, topics_failed=False):
+    """Run the state.sql script (a temp function and the item_state INSERT) and return the rows it wrote. With
+    topics_failed, topic items are not judged."""
     config = bigquery.QueryJobConfig(query_parameters=[
         bigquery.ScalarQueryParameter("d", "DATE", d),
         bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
         bigquery.ScalarQueryParameter("rule_version", "STRING", rule_version)])
-    script = sqlrun.render((SQL / "state.sql").read_text(encoding="utf-8"), core, agent)
+    text = (SQL / "state.sql").read_text(encoding="utf-8")
+    script = sqlrun.render(without_topics(text) if topics_failed else text, core, agent)
     client.query(script, job_config=config).result()
     rows = sqlrun.query(client, ITEM_STATE_COUNT_SQL, {"d": d, "run_id": run_id}, core=core, agent=agent)
     return rows[0]["n"]
@@ -260,7 +317,16 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
         counts["series_test"] = _step(client, "stats", d, agent, lambda rid: {
             "series_test": stats.run_stats(client, d, rid, rule_version, core=core)})["series_test"]
         counts["coaction"] = run_coaction_step(client, d, rule_version, core, agent)
-        counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent)
+        topics = topics_failed_today(client, d, core, agent)
+        if topics:
+            counts["topics_failed"] = topics
+        counts["item_state"] = run_state(client, d, detect.run_id, rule_version, core, agent,
+                                         topics_failed=bool(topics))
+        if topics:
+            topics["topic_items_judged"] = run_topic_count_step(client, d, detect.run_id, core, agent)
+            if isinstance(topics["topic_items_judged"], int):
+                print(f"detect {d.isoformat()}: {topics['data_issue']}; {topics['topic_items_judged']} topic items "
+                      "judged", file=sys.stderr)
         counts["breakout"] = run_breakout_step(client, d, rule_version, core, agent)
         counts["watch"] = run_watch_step(client, d, detect.run_id, core, agent)
         counts["seeds"] = run_seeds_step(client, d, detect.run_id, core, agent)

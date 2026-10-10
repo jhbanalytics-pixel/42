@@ -136,7 +136,8 @@ QUALIFY ROW_NUMBER() OVER (
 INSERT_ANALOGUES_SQL = f"""INSERT INTO `{ANALOGUE_TABLE}` (moment_date, market, name, analogue_date, match_kind,
   window_start, window_end, status, reason, evidence, query_text, query_params, computed_at)
 SELECT moment_date, market, name, analogue_date, match_kind, window_start, window_end, status, reason,
-  PARSE_JSON(evidence), query_text, PARSE_JSON(query_params), CURRENT_TIMESTAMP()
+  PARSE_JSON(evidence, wide_number_mode => 'round'), query_text,
+  PARSE_JSON(query_params, wide_number_mode => 'round'), CURRENT_TIMESTAMP()
 FROM UNNEST(@rows)
 """
 

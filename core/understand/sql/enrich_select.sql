@@ -10,6 +10,9 @@
 -- was sighted in on @run_date, in that market's newest good detect run (v_item_state_current, the view the
 -- brief's candidates read) dated within the 7 days up to @run_date, so the posts the brief's candidates rest on
 -- are enriched before the rest. Within each part, lowest post_id first.
+-- A post by a creator on the suppression list (v_suppressed_creators) is never selected for enrichment; embed.sql
+-- and video_clips.sql apply the same rule to their own reads. A post with no creator_id names nobody and stays.
+-- This stops new model calls only: rows already written for a creator hidden later are not removed here.
 
 WITH latest_state AS (
   SELECT s.market, s.item_id, s.eligible
@@ -55,5 +58,10 @@ WHERE p.post_date >= DATE_SUB(@run_date, INTERVAL 400 DAY)
     SELECT 1
     FROM `ogilvy-trends-v2.intelligence_42_core.post_observations` AS o
     WHERE o.post_id = p.post_id AND o.observed_date = @run_date
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM `ogilvy-trends-v2.intelligence_42_core.v_suppressed_creators` AS v
+    WHERE v.creator_id = p.creator_id
   )
 ORDER BY ep.post_id IS NULL, p.post_id
