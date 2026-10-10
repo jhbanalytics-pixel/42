@@ -69,6 +69,8 @@ SCHEMAS = {
         "query": _STR, "platforms": _STRS, "since": {"type": "string", "description": "YYYY-MM-DD"},
         "until": {"type": "string", "description": "YYYY-MM-DD"}, "min_engagement": {"type": "number", "minimum": 0},
         "author": _STR, "sort": _STR, "limit": {"type": "integer", "minimum": 1},
+        "market": {"type": "string", "description": "Optional. The question's market is always the one searched; "
+                                                    "naming a different market is refused."},
     }, ["query"]),
     "socialcrawl_call": _schema({
         "platform": _STR, "endpoint": _STR, "params": {"type": "object"},

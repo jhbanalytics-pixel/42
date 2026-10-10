@@ -370,10 +370,29 @@ def discover_creators(ctx: RunContext, warehouse: Warehouse, question: str) -> d
     return result
 
 
-def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=None, since=None, until=None,
-                 min_engagement=0, author=None, sort="engagement", limit=50) -> dict:
-    if sort not in SORTS:
-        raise Refused(f"sort must be one of {', '.join(SORTS)}; got {sort!r}.")
+def _reason(exc: Exception) -> str:
+    """Why a search leg failed, in one line for the model and the log: the first line of the error, links removed."""
+    first = re.sub(r"https?://\S+", "", str(exc).splitlines()[0] if str(exc) else type(exc).__name__)
+    return " ".join(first.split())[:300]
+
+
+def _check_market(ctx: RunContext, market) -> None:
+    """search_posts follows the question's market. A market the model names is accepted only when it is that market, so
+    naming one never widens or moves the search."""
+    asked = str(market).strip().upper()
+    if not ctx.market:
+        raise Refused("search_posts follows the question's market and this question has none, so market is not "
+                      "accepted. Leave it out and put the place in the query.")
+    if asked != ctx.market:
+        raise Refused(f"search_posts searches the question's market, {ctx.market}, and cannot search {asked}. "
+                      "Leave market out of the call.")
+
+
+def _has_terms(query) -> bool:
+    return any(w not in _OR and w not in _AND and w.lstrip("#") for w in (query or "").split())
+
+
+def _search_dates(ctx: RunContext, since, until) -> tuple[dt.date, dt.date, tuple | None]:
     default_since, default_until = resolve_dates("last 7 days", ctx.as_of)
     since = default_since if since is None else _day(since, "since")
     until = default_until if until is None else _day(until, "until")
@@ -384,10 +403,11 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
         since, until = max(since, window[0]), min(until, window[1])
         if since > until:
             raise Refused(f"The dates asked fall outside the ask's window, {window[0]} to {window[1]}.")
+    return since, until, window
 
-    limit = max(1, min(int(limit), MAX_POSTS))
-    filters, shared = [], {"min_engagement": int(min_engagement or 0)}
-    filters.append("IFNULL({a}.engagement, 0) >= @min_engagement")
+
+def _search_filters(platforms, author, min_engagement) -> tuple[list[str], dict]:
+    filters, shared = ["IFNULL({a}.engagement, 0) >= @min_engagement"], {"min_engagement": int(min_engagement or 0)}
     wanted = [str(p).strip().lower() for p in (platforms or []) if str(p).strip()]
     if wanted:
         names = []
@@ -398,7 +418,12 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
     if author and str(author).strip().lstrip("@"):
         shared["author"] = str(author).strip().lstrip("@")
         filters.append("(LOWER(c.handle) = LOWER(@author) OR {a}.creator_id = @author)")
+    return filters, shared
 
+
+def _keyword_sql(ctx: RunContext, query: str, since, until, shared: dict, filters: list[str], sort: str,
+                 limit: int) -> tuple[str, dict]:
+    """The keyword leg's SQL and parameters. Raises Refused for a query with more than MAX_TERMS terms."""
     params = {"since": since, "until": until, **shared, "limit": limit}
     where = ["p.post_date BETWEEN @since AND @until"]
     where.append(_match(_terms(query, params), "CONTAINS_SUBSTR(p.text, {})"))
@@ -408,25 +433,20 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
         params["profile_source"] = PROFILE_SOURCE
         where.append("(p.geo_market = @market OR ((p.geo_market IS NULL OR p.geo_source = @profile_source) "
                      "AND (c.home_market = @market OR @market IN UNNEST(o.scoped_markets))))")
-
     sql = (
         f"SELECT {POST_COLUMNS} {POSTS_JOIN}{_source_sightings_join('p', 'since', 'until', scoped=bool(ctx.market))}"
         f"WHERE {' AND '.join(where)} "
         f"ORDER BY {SORTS[sort]} LIMIT @limit"
     )
-    try:
-        result = sql_query(ctx, warehouse, sql, purpose=f"search_posts: {query}", params=params)
-    except Exception as e:
-        _emit_retrieval_trace(ctx, "keyword", error=e)
-        raise
-    _emit_retrieval_trace(ctx, "keyword", query_id=result["query_id"], rows=result["rows"])
-    lists, query_ids, note = [result["rows"]], [result["query_id"]], {}
+    return sql, params
 
-    # Semantic search catches posts that say the same thing in other words or languages (isiZulu, Pidgin, Sheng).
-    sem_params = {"q": query, "since": since, "until": until, "k": limit * 2, **shared}
+
+def _semantic_sql(ctx: RunContext, query: str, since, until, shared: dict, filters: list[str],
+                  k: int) -> tuple[str, dict]:
+    params = {"q": query, "since": since, "until": until, "k": k, **shared}
     if ctx.market:
-        sem_params["market"] = ctx.market
-    sem_sql = (
+        params["market"] = ctx.market
+    sql = (
         "SELECT s.post_id, s.platform, s.url, s.creator_id, COALESCE(c.handle, s.creator_id) AS handle, "
         "s.published_at, d.post_date, s.geo_market, d.geo_source, s.text, s.engagement, s.distance, "
         "c.home_market, o.source_sightings "
@@ -440,16 +460,55 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
         f"WHERE {' AND '.join(f.format(a='s') for f in filters)} "
         "ORDER BY s.distance, s.post_id"
     )
+    return sql, params
+
+
+def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=None, since=None, until=None,
+                 min_engagement=0, author=None, sort="engagement", limit=50, market=None) -> dict:
+    if market not in (None, ""):
+        _check_market(ctx, market)
+    if sort not in SORTS:
+        raise Refused(f"sort must be one of {', '.join(SORTS)}; got {sort!r}.")
+    if not _has_terms(query):
+        raise Refused("The search query is empty.")
+    since, until, window = _search_dates(ctx, since, until)
+
+    limit = max(1, min(int(limit), MAX_POSTS))
+    filters, shared = _search_filters(platforms, author, min_engagement)
+
+    lists, query_ids, note, failed = [], [], {}, {}
+    # Each leg stands alone: a leg that fails (a refused argument, a byte cap, a warehouse error) leaves the other to
+    # answer. Both reasons reach the model and the log, and a call where both fail raises with both.
     try:
+        sql, params = _keyword_sql(ctx, query, since, until, shared, filters, sort, limit)
+        result = sql_query(ctx, warehouse, sql, purpose=f"search_posts: {query}", params=params)
+    except Exception as e:
+        _emit_retrieval_trace(ctx, "keyword", error=e)
+        failed["keyword"] = _reason(e)
+        note.update({"keyword": "unavailable", "keyword_reason": failed["keyword"]})
+        log.warning("search_posts keyword leg failed: run %s: %s", ctx.run_id, failed["keyword"])
+    else:
+        _emit_retrieval_trace(ctx, "keyword", query_id=result["query_id"], rows=result["rows"])
+        lists.append(result["rows"])
+        query_ids.append(result["query_id"])
+
+    # Semantic search catches posts that say the same thing in other words or languages (isiZulu, Pidgin, Sheng).
+    try:
+        sem_sql, sem_params = _semantic_sql(ctx, query, since, until, shared, filters, limit * 2)
         semantic = sql_query(ctx, warehouse, sem_sql, purpose=f"search_posts semantic: {query}", params=sem_params)
-    except Exception as e:  # no embeddings yet, the function missing, or the byte cap: keywords still answer
+    except Exception as e:  # no embeddings yet, the function missing, or the byte cap
         _emit_retrieval_trace(ctx, "semantic", error=e)
-        reason = re.sub(r"https?://\S+", "", str(e).splitlines()[0] if str(e) else type(e).__name__)
-        note = {"semantic": "unavailable", "semantic_reason": " ".join(reason.split())[:300]}
+        failed["semantic"] = _reason(e)
+        note.update({"semantic": "unavailable", "semantic_reason": failed["semantic"]})
+        log.warning("search_posts semantic leg failed: run %s: %s", ctx.run_id, failed["semantic"])
     else:
         _emit_retrieval_trace(ctx, "semantic", query_id=semantic["query_id"], rows=semantic["rows"])
         lists.append(semantic["rows"])
         query_ids.append(semantic["query_id"])
+
+    if len(failed) == 2:
+        raise Refused(f"Keyword search did not run: {failed['keyword']}. "
+                      f"Semantic search did not run: {failed['semantic']}.")
 
     if window:  # the same rule as fetch_posts: no post published outside the ask's window is stored, and each query
         # record counts and lists what its own rows skipped
@@ -460,7 +519,7 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
         lists = [[r for r in rows if _inside(r, window)] for rows in lists]
         note["skipped_outside_window"] = len(skipped)
     evidence = [_store(ctx, row) for row in _fuse(lists, limit, ctx.market)]
-    return {"evidence": evidence, "query_id": result["query_id"], "query_ids": query_ids, **note}
+    return {"evidence": evidence, "query_id": query_ids[0], "query_ids": query_ids, **note}
 
 
 # Fields of a stored post the research model is not sent: the url (the model reads a post by its id, text and
