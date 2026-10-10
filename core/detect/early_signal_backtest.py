@@ -30,7 +30,6 @@ BigQuery through backtest.load and writes a markdown report and a JSON file; it 
 
 import argparse
 import json
-import math
 import sys
 from collections import Counter, defaultdict
 from datetime import date, timedelta
@@ -260,7 +259,9 @@ def _injected(replay, as_of, scenarios, horizon, replicates, share, seed):
                         res["non_injected"]["cusum_flag_days"] += int(sig["alarm"])
             for sid in chosen:
                 f = flags[sid]
-                first = lambda seq: next((k for k in range(1, horizon + 1) if seq[k]), None)
+                def first(seq):
+                    return next((k for k in range(1, horizon + 1) if seq[k]), None)
+
                 res["series"].append(f"{rep}:{sid}")
                 res["first_day"]["cusum"].append(first(f["cusum"]))
                 res["first_day"]["daily"].append(first(f["daily"]))
