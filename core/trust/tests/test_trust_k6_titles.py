@@ -268,12 +268,22 @@ def test_an_a80_breach_beside_an_exempt_form_is_still_held(form, breach):
 
 def test_no_string_in_the_fixed_corpus_passes_k6_that_breaches_at_a80be1d():
     corpus = A80_BREACHES + [t for t, _ in TRUE_CATCHES] + [f for f in FALSE_HOLDS]
+    # Seeds also breach on elders (the rule 1 ruling of wave 8 integration); the K6 claim check reads that one pattern
+    # with the title exemption, so it is left out of the a80 side here and the claims path is what is asserted.
+    a80 = [t for t in claims._BREACH_TERMS if t.pattern != claims._ELDERS]
     for text in corpus:
-        if claims._breach_term(text, set()):
+        if claims._first_term(text, set(), a80):
             assert claims._k6_term(text, set()), text
 
 
 def test_the_a80_list_is_untouched_by_the_exemptions():
-    for text in ("Council of Elders", "APC Elders", "Granny Live", "The Hospitality Pikin", "genz_score",
-                 "under a generation match", "grandma", "granny"):
+    for text in ("Granny Live", "The Hospitality Pikin", "genz_score", "under a generation match", "grandma", "granny"):
         assert claims._breach_term(text, set()) is None, text
+
+
+def test_seeds_keep_breaching_on_elders_where_only_the_claim_check_exempts_a_title():
+    # Lead ruling at integration: the title exemption is for the K6 claims path only; a seed with elders stays out.
+    for text in ("Council of Elders", "APC Elders", "the elders agreed"):
+        assert claims._breach_term(text, set()), text
+    for text in ("Council of Elders", "APC Elders"):
+        assert claims._k6_term(text, set()) is None, text
