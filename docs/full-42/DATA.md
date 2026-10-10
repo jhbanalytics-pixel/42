@@ -204,7 +204,8 @@ A series is one item on one source in one market, measured in the unit that sour
 | list_reddit | reddit/subreddit rising and hot (7) | ZA, NG, KE | unbiased_rank | appearances, days present | beta-binomial |
 | x_trends | web/scrape of the X trends archive (23b) | ZA, NG, KE | unbiased_rank, seed only | entry, days present | none: never evidence, floor, state or Today |
 | panel_fb_hub | facebook/profile/posts since=, hub pages (8) | ZA, NG, KE | panel | posts per day times k | negative binomial |
-| panel_culture_desk | prism/profiles include=posts since= (23) | ZA, NG, KE | panel | posts per day times k | negative binomial |
+| panel_culture_desk | prism/profiles include=posts since=, the hubs.yaml culture desk list (23) | ZA, NG, KE | panel | posts per day times k | negative binomial |
+| panel_curated_creators | prism/profiles include=posts since=, the day's rotation of kept creators (23) | ZA, NG, KE | panel | posts per day times k | negative binomial |
 | panel_x_hub | twitter/user/tweets since= (23a) | ZA, NG, KE | panel | posts per day times k | negative binomial |
 | panel_telegram | telegram/profile/posts, curated channels (9, Stage 2) | ZA, NG, KE | panel | posts per day times k | negative binomial |
 | counter_tiktok_hashtag, counter_tiktok_sound | tiktok/hashtag and tiktok/song totals (12) | GLOBAL | unbiased_counter | daily delta of the running total | negative binomial |
@@ -222,6 +223,7 @@ A series is one item on one source in one market, measured in the unit that sour
 Rules:
 - Baselines come only from unbiased_rank, unbiased_counter and panel series. Floors count posts and creators seen in unbiased_rank and panel lanes (counters carry no creators). watchlist and search_presence rows are evidence, presence, authenticity and location only: never baseline, floor, test or spread. Items seen only in those lanes have no series and get no state (G3, "Found by search").
 - Protocol start: rank lists and panels watch every item at once, so an item's series on them starts on the protocol's first day in that market and days before its first sighting are genuine zeros. Counters are read per item, so their series starts at the item's first read; earlier days are NULL. A vendor curve read on first sighting carries its own past days (source 'vendor_history', available_at the read time); those count as observed days of that series.
+- The culture desk and the curated creator rotation read the same route in the same lane, and each has its own series, so one panel's zero day is never the day before of the other (W8-DEC-11, RB-C3). Rows written before the split hold both panels under panel_culture_desk and stay as written; the rotation's baselines under panel_curated_creators start with no history.
 - GLOBAL counters are tested in their own family. They never make an item Rising in a market by themselves; they count only as the independent second platform.
 - Effort factor k applies only to panel series: k = units_planned / units_ok (accounts scheduled over accounts read successfully), and the panel's day is valid only with k inside [0.5, 2]. Feeds, boards, charts and counters are fixed-length lists or platform totals and are never scaled.
 - Rank and rank climb are stored per pull and shown on cards; the test on rank lists uses presence, which is less noisy with three pulls a day.

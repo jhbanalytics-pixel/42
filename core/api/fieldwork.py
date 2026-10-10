@@ -41,7 +41,8 @@ SERIES = {
     "panel_fb_hub": ("own", "Facebook news pages"),
     "panel_x_hub": ("own", "X accounts"),
     "panel_ig_gossip": ("own", "Gossip and entertainment accounts on Instagram"),
-    "panel_culture_desk": ("creators", "Culture desk and kept creator accounts"),
+    "panel_culture_desk": ("creators", "Culture desk accounts"),
+    "panel_curated_creators": ("creators", "Kept creator accounts"),
     "board_kworb_spotify": ("charts", "Spotify daily chart (via Kworb)"),
     "board_boomplay": ("charts", "Boomplay trending songs"),
     "board_audiomack": ("charts", "Audiomack trending"),
@@ -199,11 +200,12 @@ def _members(series, market, rows, plan):
     if series == "panel_fb_hub":
         return [], f"{len(rows)} news and radio pages, posts since yesterday"
     if series == "panel_culture_desk":
-        desk = len((plan["hubs"].get(market.lower()) or {}).get("culture_desk") or [])
-        accounts = sum(len(r["params"].get("items") or []) for r in rows)
+        desk = sum(len(r["params"].get("items") or []) for r in rows)
+        return [], f"{desk} culture desk accounts"
+    if series == "panel_curated_creators":
+        rotation = sum(len(r["params"].get("items") or []) for r in rows)
+        detail = f"{rotation} kept creator accounts in today's rotation"
         kept = plan["kept_creators"].get(market)
-        rotation = max(accounts - desk, 0)
-        detail = f"{desk} culture desk accounts and {rotation} kept creator accounts in today's rotation"
         if kept:
             detail += f", from {kept} kept for this market"
         return [], detail

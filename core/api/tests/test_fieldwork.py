@@ -47,8 +47,11 @@ def test_roster_comes_from_the_collect_config(out):
     assert source(out, "KE", "feed_tiktok")["planned_calls"] == 1
     news = source(out, "ZA", "news_rss")
     assert "Briefly (RSS)" in news["members"] and "eNCA" in news["members"] and news["free"] is True
-    creators = source(out, "ZA", "panel_culture_desk")
-    assert creators["group"] == "creators" and "kept creator accounts" in creators["detail"]
+    desk = source(out, "ZA", "panel_culture_desk")
+    assert desk["group"] == "creators" and "culture desk accounts" in desk["detail"]
+    assert "kept creator" not in desk["detail"]
+    kept = source(out, "ZA", "panel_curated_creators")
+    assert kept["group"] == "creators" and "kept creator accounts in today's rotation" in kept["detail"]
     trends = source(out, "ZA", "google_trends")
     assert trends["group"] == "search_interest" and "never evidence" in trends["detail"]
 
