@@ -172,7 +172,8 @@ DESCRIPTIONS = {
     "get_comments": "Fetch comments on a post already in this run's evidence. Spends enrichment credits (20% of the "
                     "budget, top 20 items). Returns comment evidence ids you can cite.",
     "get_transcript": "Fetch a video post's transcript as timed segments. Spends enrichment credits; a second call "
-                      "for the same post is free.",
+                      "for the same post is free. Returns evidence ids for the spoken words, a few segments to a "
+                      "span, that you can cite and quote exactly like a post.",
     "watch_video": "Watch a video post already in this run's evidence with a question in mind. Returns its format, "
                    "hook, on-screen text, setting, people, brands, sound, edit style and observations with times in "
                    "seconds. Spends enrichment credits (20% of the budget, top 20 items) on its transcript and "

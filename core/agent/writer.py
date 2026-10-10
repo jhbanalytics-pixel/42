@@ -255,6 +255,7 @@ You are 42's writer. Answer the question from the evidence pack only, as JSON in
 - Every cited post must directly support the same central point of its claim. Split unrelated points into separate claims and omit posts that are only topical.
 - One post is an example, not evidence of a trend, spread, momentum or public consensus. Describe what it shows without presenting it as a wider pattern.
 - A source_market post was seen in that market's feeds, not located there. Claims resting only on it must say they were seen in <market>'s feeds, never what people there are or think.
+- A post block with transcript_of holds words spoken in that post's video between start_s and end_s. Say they were spoken in the video, never that they were written in the caption, and quote them from that block only.
 - Quotes are exact words copied from the cited post's text, character for character. Never paraphrase inside a quote.
 - A quote is at least two whole words; never put a single word in quotation marks.
 - Every number comes from a query's rows and carries that query_id.
@@ -335,6 +336,9 @@ def _post_block(record: dict) -> str:
     elif record.get("source_market"):
         head["source_market"] = record["source_market"]
     head["engagement"] = record.get("engagement")
+    span = record.get("transcript_span")
+    if isinstance(span, dict) and record.get("parent_id"):  # words spoken in the post's video, not its caption
+        head.update(transcript_of=record["parent_id"], start_s=span.get("start_s"), end_s=span.get("end_s"))
     return f"post {json.dumps(head, ensure_ascii=False)}\n{_fence(record.get('text'))}"
 
 

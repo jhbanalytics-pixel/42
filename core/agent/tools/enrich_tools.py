@@ -231,12 +231,73 @@ def _segments(items) -> list[dict]:
     return segments
 
 
+SPAN_CHARS = 240  # a span closes before it would pass this many characters; one longer segment stands alone
+MAX_SPANS = 12  # spans one transcript adds to the run's evidence; the model still reads every segment
+
+
+def _span_groups(segments: list[dict]) -> list[list[dict]]:
+    groups, current, size = [], [], 0
+    for segment in segments:
+        added = len(segment["text"]) + (1 if current else 0)
+        if current and size + added > SPAN_CHARS:
+            groups.append(current)
+            current, size, added = [], 0, len(segment["text"])
+        current.append(segment)
+        size += added
+    if current:
+        groups.append(current)
+    return groups
+
+
+def _keep_spans(ctx: RunContext, parent_id: str, segments: list[dict], route: str) -> tuple[list[str], int]:
+    """Write a transcript into ctx.evidence as span records a claim can cite, and return their ids and how many spans
+    past MAX_SPANS were left out. A span is a child of its post: it takes the post's handle, link, time, market, source
+    market and flags, so it is exactly as located as the post and no more, and the checks count it as the post's
+    author. Its text is the segments' words joined by a space, so a quote must sit inside one span to be verbatim.
+    A span already written stays as it is, so asking twice changes nothing."""
+    parent = ctx.evidence[parent_id]
+    groups = _span_groups(segments)
+    ids = []
+    for n, group in enumerate(groups[:MAX_SPANS], start=1):
+        text = " ".join(s["text"] for s in group)
+        last = group[-1]
+        eid = f"{parent_id}_span_{n}"
+        record = {
+            "id": eid,
+            "platform": parent.get("platform"),
+            "handle": parent.get("handle"),
+            "url": parent.get("url"),
+            "posted_at": parent.get("posted_at"),
+            "market": parent.get("market"),
+            "text": text,
+            "engagement": {},
+            "flags": list(parent.get("flags") or []),
+            "parent_id": parent_id,
+            "via": route,
+            "transcript_span": {"start_s": group[0]["start_s"],
+                                "end_s": last["end_s"] if last["end_s"] is not None else last["start_s"],
+                                "text": text},
+        }
+        if parent.get("source_market"):
+            record["source_market"] = parent["source_market"]
+        ctx.evidence.setdefault(eid, record)
+        ids.append(eid)
+    return ids, max(0, len(groups) - MAX_SPANS)
+
+
+def _span_view(record: dict) -> dict:
+    """A span as the model reads it: the words fenced, in the text and in the span."""
+    fenced = _fence(record["text"])
+    return {**record, "evidence_id": record["id"], "text": fenced,
+            "transcript_span": {**record["transcript_span"], "text": fenced}}
+
+
 def get_transcript(ctx: RunContext, client: SocialCrawlClient, evidence_id: str) -> dict:
+    _, route, url = _parent(ctx, evidence_id, TRANSCRIPT_ROUTES, "transcripts")
     if evidence_id in ctx.transcripts:
         hit = ctx.transcripts[evidence_id]
         segments, spent, status, reason, cached = hit["segments"], 0.0, hit["status"], "", True
     else:
-        _, route, url = _parent(ctx, evidence_id, TRANSCRIPT_ROUTES, "transcripts")
         result, event = _charged_call(ctx, client, "get_transcript", route, {"url": url}, ctx.credits_left(),
                                       evidence_id)
         status, spent, cached = result.get("status"), result["credits_charged"], False
@@ -252,9 +313,13 @@ def get_transcript(ctx: RunContext, client: SocialCrawlClient, evidence_id: str)
             _set_status(ctx, event, status)
         if segments:  # only a transcript with segments is kept, so an empty or failed fetch can be retried
             ctx.transcripts[evidence_id] = {"status": status, "segments": segments}
+    span_ids, dropped = _keep_spans(ctx, evidence_id, segments, route) if segments else ([], 0)
     return {
         "evidence_id": evidence_id,
         "segments": [{**s, "text": _fence(s["text"])} for s in segments],
+        "evidence_ids": span_ids,
+        "evidence": [_span_view(ctx.evidence[i]) for i in span_ids],
+        "spans_dropped": dropped,
         "credits_spent": spent,
         "status": status,
         "reason": reason,
@@ -348,6 +413,7 @@ class _VideoCalls:
                 _set_status(self.ctx, event, status)
             if segments:
                 self.ctx.transcripts[self.evidence_id] = {"status": status, "segments": segments}
+                _keep_spans(self.ctx, self.evidence_id, segments, route)
             items = segments
         return SimpleNamespace(status=status, items=items, credits_charged=result["credits_charged"])
 

@@ -35,7 +35,7 @@ TOLERANCE = 0.02  # ratios and other floats; counts are exact
 IDENTITY_FIELDS = ("url", "handle", "platform", "posted_at", "market")
 REQUIRED_FIELDS = ("platform", "handle", "url", "posted_at", "market", "text")
 EVIDENCE_KEYS = ("id", "platform", "handle", "url", "posted_at", "market", "source_market", "text", "engagement",
-                 "flags")
+                 "flags", "transcript_span")
 NOT_INDEPENDENT = {"paid", "brand", "brand_owned", "sponsored", "near_duplicate", "market_assumed"}
 GENERATIVE_HOSTS = ("gemini.google.com", "bard.google.com", "aistudio.google.com", "notebooklm.google.com", "labs.google")
 PLATFORM_LABELS = {"tiktok": "TikTok", "youtube": "YouTube", "x": "X", "twitter": "X"}
