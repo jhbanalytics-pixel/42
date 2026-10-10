@@ -1,9 +1,10 @@
 /* The Today story card: one trend as a full-width card on the 12 column grid.
    The story is on the left (rank, headline, badges, why now, the quote as a
-   pull quote), a live panel is on the right (creators and posts in the counted
-   window, the posts a day chart, the platforms of the evidence, momentum when
-   the payload sends it), the real example posts run along the foot as a
-   swipeable strip, and the actions and the feedback taps close the card.
+   pull quote, then the real example posts as tiles, two side by side and a
+   swipeable strip on a phone), a live panel is on the right (creators and
+   posts in the counted window, the posts a day chart, the platforms of the
+   evidence, momentum when the payload sends it), and the actions and the
+   feedback taps close the card across both.
    Only fields the Today payload sends are drawn; a field that is missing
    shrinks its zone and never leaves a blank box. The page reads the same
    facts as the plain TrendCard, so nothing here is a new claim. */
@@ -88,14 +89,13 @@ function Tile({item, quoted, countFrom}){
   return (
     <li className="t42-post sc-tile" data-evidence-id={item.id}>
       <p className="t42-post-meta sr-only"><Facts parts={meta} /></p>
-      <div className="sc-tile-head" aria-hidden="true">
-        <span className="sc-tile-mark"><PlatformLogo platform={item.platform} size={18} /></span>
-        <span className="sc-tile-who">{who}</span>
+      <div className="sc-tile-head">
+        <span className="sc-tile-mark" aria-hidden="true"><PlatformLogo platform={item.platform} size={18} /></span>
+        <span className="sc-tile-who" aria-hidden="true">{who}</span>
+        {quotedAbove && <span className="sc-tile-tag" data-quoted="">quoted</span>}
       </div>
       <p className="sc-tile-when" aria-hidden="true">{[when, views !== null ? readerFigure(views) + ' views' : null].filter(Boolean).join(' · ')}</p>
-      {view.preview && (quotedAbove
-        ? <p className="sc-tile-text sc-tile-quoted" data-quoted-above="">Quoted above</p>
-        : <p className="t42-post-text sc-tile-text" data-shortened={view.shortened ? '' : undefined}>{view.preview}</p>)}
+      {view.preview && <p className="t42-post-text sc-tile-text" data-shortened={view.shortened ? '' : undefined}>{view.preview}</p>}
       {view.full && <PostFull text={view.full} />}
       {before && <p className="sc-tile-note" aria-hidden="true">{BEFORE_COUNT}</p>}
       {url && <a className="t42-link sc-tile-open" href={url} target="_blank" rel="noopener noreferrer">Open the post</a>}
@@ -198,6 +198,7 @@ export function StoryCard({card, market, date, onAuth, onWatch, onFeedback, toda
               </blockquote>
             </>
           )}
+          {todaySpecificity && todaySpecificity.examples.length > 0 && <Strip specificity={todaySpecificity} date={when} title={title} />}
         </div>
         <div className="sc-live">
           <BigFigures figures={big} reach={card.reach} reach7={reach7} />
@@ -224,7 +225,6 @@ export function StoryCard({card, market, date, onAuth, onWatch, onFeedback, toda
           <Thumbnails card={card} />
           <PlatformMarks evidence={card.evidence} attribute="data-card-platform" />
         </div>
-        {todaySpecificity && todaySpecificity.examples.length > 0 && <Strip specificity={todaySpecificity} date={when} title={title} />}
       </div>
       <div className="t42-card-foot sc-foot">
         <div className="t42-actions">

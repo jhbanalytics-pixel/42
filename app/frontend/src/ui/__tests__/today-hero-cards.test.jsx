@@ -146,6 +146,13 @@ test('the meta line and the guide sit inside the header under the headline', asy
   expect(head.querySelector('[data-today-guide]')).not.toBeNull();
 });
 
+test('the headline, the meta line and the guide are adjacent rows with no flexible row between them', () => {
+  const sheet = css('today-story.css');
+  expect(sheet).toMatch(/@media \(min-width: 1000px\)[\s\S]*grid-template-rows: 1fr auto auto auto auto 1fr/);
+  const head = sheet.match(/\.t42-head:has\(> \.t42-lead\)\s*\{[^}]*\}/s)[0];
+  expect(head).not.toMatch(/grid-template-rows:[^;]*auto 1fr auto/);
+});
+
 test('the hero grid is 12 columns: headline 7, panel 5, one column below desktop; the headline line is capped', () => {
   const sheet = css('today-story.css');
   expect(sheet).toMatch(/repeat\(12, minmax\(0, 1fr\)\)/);
@@ -178,8 +185,15 @@ test('each trend is one story card with the story left, the live panel right and
   expect(first.querySelector('.sc-live svg.t42-spark[data-wide]')).not.toBeNull();
   expect([...first.querySelectorAll('.sc-live [data-card-platform]')].map((el) => el.getAttribute('data-card-platform'))).toEqual(['tiktok', 'instagram', 'youtube']);
   const zones = [...first.querySelector('.sc-body').children].map((el) => el.className.split(' ')[0]);
-  expect(zones.indexOf('sc-story')).toBeLessThan(zones.indexOf('sc-live'));
-  expect(zones.indexOf('sc-live')).toBeLessThan(zones.indexOf('sc-evidence'));
+  expect(zones).toEqual(['sc-story', 'sc-live']);
+  const story = [...first.querySelector('.sc-story').children];
+  const at = (name) => story.findIndex((el) => el.classList.contains(name));
+  expect(at('sc-pull')).toBeGreaterThan(-1);
+  expect(at('sc-evidence')).toBeGreaterThan(at('sc-pull'));
+  expect(first.querySelector('.sc-live .sc-evidence')).toBeNull();
+  const foot = first.querySelector('.sc-foot');
+  expect(first.querySelector('.sc-body').compareDocumentPosition(foot) & 4).toBe(4);
+  expect(foot.closest('.sc-body')).toBeNull();
 });
 
 test('the momentum chip shows only when the payload sends a state word', async () => {
@@ -205,7 +219,11 @@ test('the evidence strip is a snapping row of tiles with mark, handle, date, vie
   expect(words(tile.querySelector('.sc-tile-who'))).toContain('@fixture_za_6');
   expect(words(tile.querySelector('.sc-tile-when'))).toContain('26 September 2026');
   expect(words(tile.querySelector('.sc-tile-when'))).toContain('7 200 views');
-  expect(tile.querySelector('[data-quoted-above]').textContent).toBe('Quoted above');
+  expect(tile.querySelector('[data-quoted-above]')).toBeNull();
+  expect(words(tile)).not.toContain('Quoted above');
+  expect(tile.querySelector('.sc-tile-text').textContent).toBe('Post 6: the #fixture_za_step routine at the taxi rank');
+  expect(tile.querySelector('.sc-tile-tag[data-quoted]').textContent).toBe('quoted');
+  expect(tiles[1].querySelector('.sc-tile-tag')).toBeNull();
   expect(tiles[1].querySelector('.sc-tile-text').textContent).toBe('Post 7: the #fixture_za_step routine at the taxi rank');
   expect(words(tile.querySelector('.sc-tile-note'))).toBe('posted before the counted days');
   const link = tile.querySelector('a.sc-tile-open');
@@ -213,6 +231,27 @@ test('the evidence strip is a snapping row of tiles with mark, handle, date, vie
   expect(link.getAttribute('target')).toBe('_blank');
   expect(words(tile.querySelector('.t42-post-meta'))).toBe('TikTok · @fixture_za_6 · 26 September 2026 · posted before the counted days · 7 200 views');
   expect(strip.querySelector('[data-examples-window]').textContent).toBe('From the last 7 days of posts. The counts above cover 3 days.');
+});
+
+test('every evidence tile shows its post text, and a tile whose text is the quote says so with a small tag', async () => {
+  const today = clone(todayFixture);
+  const card = za(today).cards[0];
+  card.specificity.quote.text = card.evidence[0].text;
+  await mount({}, today);
+  const tiles = [...storyCards()[0].querySelectorAll('.sc-evidence .sc-tile')];
+  expect(tiles).toHaveLength(2);
+  for (const tile of tiles){
+    expect(tile.querySelector('.sc-tile-text').textContent.trim().length).toBeGreaterThan(0);
+    expect(words(tile)).not.toContain('Quoted above');
+  }
+  expect(tiles.map((tile) => tile.querySelector('.sc-tile-tag') !== null)).toEqual([true, false]);
+});
+
+test('the evidence tiles sit two side by side on desktop and swipe on a phone, and both zones stretch to one height', () => {
+  const sheet = css('today-story.css');
+  expect(sheet).toMatch(/@media \(min-width: 600px\)[^{]*\{[^@]*\.sc-tile\s*\{[^}]*flex: 0 0 calc\(50% - /s);
+  expect(sheet).not.toMatch(/\.sc-evidence\s*\{[^}]*grid-column: 1 \/ -1/s);
+  expect(sheet).toMatch(/\.sc-body\s*\{[^}]*align-items: stretch/s);
 });
 
 test('the evidence strip shows arrows only while more tiles are off screen', async () => {

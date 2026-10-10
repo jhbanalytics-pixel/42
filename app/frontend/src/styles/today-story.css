@@ -9,13 +9,37 @@
    package moves only (a 140ms hover, the 360ms reveal) and runs only for a
    reader who has not asked for less. */
 
-/* The hero */
+/* The hero. The words are one block: the heading, the headline, the meta line
+   and the guide sit on adjacent rows with nothing flexible between them. On
+   desktop the panel spans every row and the two flexible rows above and below
+   the block share what the panel has over, so the block is centred on the
+   panel and no gap opens inside it. Below 1000px the block comes first and
+   the panel follows it. */
 html .oi-product .t42 .t42-head:has(> .t42-lead) {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto 1fr auto auto;
   column-gap: var(--s-6);
   align-items: start;
+}
+
+html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-heading {
+  grid-row: 1;
+}
+
+html .oi-product .t42 .t42-head > .t42-lead > .t42-headline {
+  grid-row: 2;
+}
+
+html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-status-area {
+  grid-row: 3;
+}
+
+html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-guide {
+  grid-row: 4;
+}
+
+html .oi-product .t42 .t42-head > .t42-lead > .t42-lead-panel {
+  grid-row: 5;
 }
 
 html .oi-product .t42 .t42-head:has(> .t42-lead) > * {
@@ -37,16 +61,6 @@ html .oi-product .t42 .t42-head > .t42-lead > .t42-headline {
 
 html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-status-area {
   margin-block: var(--s-2) 0;
-}
-
-@media (min-width: 1000px) {
-  html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-status-area {
-    grid-row: 4;
-  }
-
-  html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-guide {
-    grid-row: 5;
-  }
 }
 
 html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-guide {
@@ -230,14 +244,16 @@ html .oi-product .t42 .t42-lead-example-meta {
 }
 
 html .oi-product .t42 .t42-lead-example-text {
+  display: -webkit-box;
   margin: 0;
   overflow: hidden;
   color: var(--ink);
   font-family: var(--serif);
   font-size: var(--t-4);
   line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 html .oi-product .t42 .t42-lead-example-open {
@@ -305,6 +321,23 @@ html .oi-product .t42 :is(.t42-lead-panel, .sc-card) :is(a, button) {
 @media (min-width: 1000px) {
   html .oi-product .t42 .t42-head:has(> .t42-lead) {
     grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-rows: 1fr auto auto auto auto 1fr;
+  }
+
+  html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-heading {
+    grid-row: 2;
+  }
+
+  html .oi-product .t42 .t42-head > .t42-lead > .t42-headline {
+    grid-row: 3;
+  }
+
+  html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-status-area {
+    grid-row: 4;
+  }
+
+  html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-guide {
+    grid-row: 5;
   }
 
   html .oi-product .t42 .t42-head:has(> .t42-lead) > .t42-heading,
@@ -316,7 +349,7 @@ html .oi-product .t42 :is(.t42-lead-panel, .sc-card) :is(a, button) {
 
   html .oi-product .t42 .t42-head > .t42-lead > .t42-lead-panel {
     grid-column: 8 / span 5;
-    grid-row: 1 / span 5;
+    grid-row: 1 / span 6;
     margin-block-start: 0;
   }
 }
@@ -369,8 +402,8 @@ html .oi-product .t42 .sc-body {
 }
 
 html .oi-product .t42 .sc-story {
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: var(--s-4);
   min-width: 0;
 }
@@ -463,8 +496,8 @@ html .oi-product .t42 .sc-pull > .t42-post-text {
 
 /* The live panel. */
 html .oi-product .t42 .sc-live {
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: var(--s-4);
   box-sizing: border-box;
   min-width: 0;
@@ -523,8 +556,25 @@ html .oi-product .t42 .sc-momentum:is([data-state="recurring"], [data-state="sea
   color: var(--ink);
 }
 
+/* When the story beside the panel is the taller zone the panel takes the
+   difference round its chart, so the figures stay at the top and the platform
+   marks at the foot and nothing is left empty under the quote. */
 html .oi-product .t42 .sc-chart {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
   min-width: 0;
+}
+
+html .oi-product .t42 .sc-live > .sc-platforms {
+  margin-block-start: auto;
+}
+
+/* With no chart there is nothing to centre, so the panel keeps its own height
+   instead of stretching into a tall empty box. */
+html .oi-product .t42 .sc-live:not(:has(> .sc-chart)) {
+  align-self: start;
 }
 
 /* The evidence strip: the band's own snap row, tiles instead of cards. */
@@ -532,6 +582,7 @@ html .oi-product .t42 .sc-evidence {
   display: grid;
   gap: var(--s-2);
   min-width: 0;
+  margin-block-start: auto;
 }
 
 html .oi-product .t42 .sc-strip {
@@ -543,6 +594,11 @@ html .oi-product .t42 .sc-strip-head {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s-1) var(--s-4);
+}
+
+/* The label row is only as tall as an arrow, and only leaves room for the
+   two arrows, while the strip has tiles off screen to reach. */
+html .oi-product .t42 .sc-strip[data-scrollable] .sc-strip-head {
   min-block-size: var(--target-min);
   padding-inline-end: calc(var(--target-min) * 2 + var(--s-4));
 }
@@ -562,6 +618,10 @@ html .oi-product .t42 .sc-strip-window {
   font-size: var(--t-3);
 }
 
+html .oi-product .t42 .sc-strip .tb-track {
+  inline-size: 100%;
+}
+
 html .oi-product .t42 .sc-strip .tb-scroll {
   -webkit-overflow-scrolling: touch;
   scroll-padding-inline: 0;
@@ -576,15 +636,24 @@ html .oi-product .t42 .sc-tiles {
   list-style: none;
 }
 
+html .oi-product .t42 .sc-strip .sc-tiles {
+  flex: 1 0 100%;
+  min-width: 0;
+}
+
+html .oi-product .t42 .sc-tile:only-child {
+  max-inline-size: none;
+}
+
 html .oi-product .t42 .sc-tile {
   box-sizing: border-box;
   display: flex;
   flex: 1 0 min(22rem, 84vw);
-  max-inline-size: 36rem;
+  max-inline-size: 88%;
   flex-direction: column;
   gap: var(--s-2);
   min-width: 0;
-  padding: var(--s-4);
+  padding: var(--s-3) var(--s-4);
   border: 1px solid var(--line);
   border-top: 2px solid var(--line-2);
   background: var(--canvas);
@@ -642,14 +711,18 @@ html .oi-product .t42 .sc-tile-text {
   font-size: var(--t-4);
   line-height: 1.4;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
-html .oi-product .t42 .sc-tile-quoted {
+html .oi-product .t42 .sc-tile-tag {
+  margin-inline-start: auto;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line-2);
   color: var(--muted);
-  font-family: var(--sans);
-  font-size: var(--t-3);
+  font-size: var(--t-2);
+  font-weight: 600;
+  line-height: 1.6;
 }
 
 html .oi-product .t42 .sc-tile-note {
@@ -736,6 +809,7 @@ html .oi-product .t42 .sc-card > .t42-posts {
   html .oi-product .t42 .sc-body {
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: var(--s-6);
+    align-items: stretch;
     padding: var(--s-6);
   }
 
@@ -746,10 +820,6 @@ html .oi-product .t42 .sc-card > .t42-posts {
   html .oi-product .t42 .sc-live {
     grid-column: 8 / span 5;
     padding: var(--s-5);
-  }
-
-  html .oi-product .t42 .sc-evidence {
-    grid-column: 1 / -1;
   }
 
   html .oi-product .t42 .sc-rank {
@@ -769,6 +839,19 @@ html .oi-product .t42 .sc-card > .t42-posts {
   }
 }
 
+/* From 600px two tiles sit side by side across the story column. A third or
+   later tile is reached by the strip's swipe, keys and arrows. */
+@media (min-width: 600px) {
+  html .oi-product .t42 .sc-tile {
+    flex: 0 0 calc(50% - var(--s-3) / 2);
+    max-inline-size: none;
+  }
+
+  html .oi-product .t42 .sc-tile:only-child {
+    flex-basis: 100%;
+  }
+}
+
 @media (max-width: 599px) {
   html .oi-product .t42 .sc-strip {
     --tb-fade: 1.5rem;
@@ -780,6 +863,13 @@ html .oi-product .t42 .sc-card > .t42-posts {
 
   html .oi-product .t42 .sc-foot .t42-actions {
     inline-size: 100%;
+    flex-wrap: nowrap;
+    gap: var(--s-2);
+  }
+
+  html .oi-product .t42 .sc-foot .t42-actions .t42-action {
+    flex: 0 1 auto;
+    padding: 0 var(--s-2);
   }
 }
 
@@ -884,8 +974,4 @@ html .oi-product .t42 .sc-skeleton-tile {
   html .oi-product .t42 .t42-lead-panel {
     padding: var(--s-4);
   }
-}
-
-html .oi-product .t42 .sc-strip .sc-tiles {
-  flex: 1 0 auto;
 }

@@ -652,7 +652,7 @@ test('the Ask link carries the question, market, item and date', async () => {
 
 test('the sparkline leaves gaps as breaks and draws the band only when expected values exist', async () => {
   await mount();
-  const svg = cardTitled('#fixture_za_step').querySelector('svg');
+  const svg = cardTitled('#fixture_za_step').querySelector('svg.t42-spark');
   const line = svg.querySelector('.t42-line').getAttribute('d');
   expect(line.match(/M/g)).toHaveLength(2);
   expect(svg.querySelector('.t42-band')).toBeNull();
@@ -2371,7 +2371,11 @@ test('the earlier-brief notice keeps its date whole too', async () => {
   expect(notice.querySelector('.t42-nowrap')?.textContent).toBe('30 September 2026');
 });
 
-test('a local example whose text is the quote is not printed twice', async () => {
+/* Restated (lead review of the story cards, 10 October 2026): a tile always
+   shows its post text, so a tile whose text is the quote prints the words a
+   second time and says so with a small "quoted" tag. The old "Quoted above"
+   placeholder is gone. */
+test('a local example whose text is the quote shows its text with a quoted tag and no placeholder', async () => {
   const today = clone(todayFixture);
   const card = today.markets[0].cards[0];
   card.specificity = specificityFor(card);
@@ -2379,12 +2383,15 @@ test('a local example whose text is the quote is not printed twice', async () =>
   const checked = cardTitled(card.title).querySelector('[data-today-specificity]');
   const quote = card.specificity.quote.text;
   expect(checked.querySelector('blockquote').textContent).toContain(quote);
-  expect(checked.textContent.split(quote).length - 1).toBe(1);
   const examples = checked.querySelector('[data-local-examples]');
   const ids = [...examples.querySelectorAll('[data-evidence-id]')].map((item) => item.getAttribute('data-evidence-id'));
   expect(ids).toEqual([card.specificity.quote.evidence_id, 'ig_za_007']);
   const quoted = examples.querySelector('[data-evidence-id="' + card.specificity.quote.evidence_id + '"]');
-  expect(quoted.querySelector('[data-quoted-above]')?.textContent).toBe('Quoted above');
+  expect(quoted.querySelector('[data-quoted-above]')).toBeNull();
+  expect(quoted.textContent).not.toContain('Quoted above');
+  expect(quoted.querySelector('.sc-tile-text').textContent).toBe(quote);
+  expect(quoted.querySelector('.sc-tile-tag[data-quoted]')?.textContent).toBe('quoted');
+  expect(examples.querySelector('[data-evidence-id="ig_za_007"] .sc-tile-tag')).toBeNull();
   expect(Boolean(quoted.querySelector('a.t42-link'))).toBe(true);
 });
 
