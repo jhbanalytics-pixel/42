@@ -213,8 +213,8 @@ class Fetch:
 
     def protocol(self):
         if self.route == "prism/profiles":
-            from core.collect.job import panel_protocol
-            return panel_protocol(self.params["items"])
+            from core.collect.job import PRISM_PROTOCOL_VERSION, panel_protocol
+            return panel_protocol(self.params["items"], PRISM_PROTOCOL_VERSION)
         if self.route == "web/scrape":
             return _protocol(self.route, self.params, ("url", "location_country"))
         if self.route == "apple_rss":

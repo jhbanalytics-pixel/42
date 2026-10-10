@@ -76,7 +76,7 @@ class FakeClient:
             items = []
         else:
             body = json.loads(json.dumps(PROFILES))
-            items = body["data"]["items"]
+            items = body["data"]["results"]
         charged = hold if self.charge is None else max(hold, self.charge)
         return Result("ok", route, credits_quoted=hold, credits_charged=charged, body=body, items=items)
 

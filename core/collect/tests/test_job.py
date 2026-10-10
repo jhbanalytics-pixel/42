@@ -18,6 +18,7 @@ from types import SimpleNamespace
 from urllib.parse import urlsplit
 
 import pytest
+import yaml
 
 from core.collect import chain, ids, job, writers
 from core.collect import local_sources as ls
@@ -424,7 +425,8 @@ def test_panels_carry_a_protocol_hashed_from_the_hub_list():
     assert all(len({c.protocol for c in curated if c.market == m}) == 1 for m in job.MARKETS)
     assert all(c.source_market == c.market for c in curated)
     assert all(c.params["since"] == "2026-09-28" for c in desk + x_hub)
-    assert all(re.fullmatch(r"panel:[0-9a-f]{12}", c.protocol) for c in desk + x_hub)
+    assert all(re.fullmatch(r"panel:[0-9a-f]{12}:v2", c.protocol) for c in desk)  # v2: a fresh health reference
+    assert all(re.fullmatch(r"panel:[0-9a-f]{12}", c.protocol) for c in x_hub)
     za_x = {c.protocol for c in x_hub if c.market == "ZA"}
     assert len(za_x) == 1 and za_x != {c.protocol for c in x_hub if c.market == "NG"}
     changed = copy.deepcopy(job.load_config())
@@ -518,6 +520,23 @@ def test_exploration_takes_10_to_15_percent_of_row_14_from_below_the_cut():
     assert all(c.params["since"] == "2026-09-22" for c in multi)
     assert [c.params["clipId"] for c in calls if c.row == "11"] == ranked["sound"][:6]
     assert len([c for c in calls if c.row == "12"]) == 10
+
+
+def test_the_live_hashtag_board_envelope_yields_board_tag_sightings():
+    live = json.loads((Path(__file__).parent / "fixtures" / "parse_live.json").read_text(encoding="utf-8"))
+    _, items, _ = split_vendor_labels(live["hashtags_popular"])
+    call = SimpleNamespace(route="tiktok/hashtags/popular", row="2")
+    done = [(call, SimpleNamespace(status="ok", items=items), None)]
+    seen = job.sightings(done)
+    assert ("hashtag", "shebeenfriday", "2", "tiktok") in seen
+    assert ("hashtag", "kotarun", "2", "tiktok") in seen
+    assert job.score_candidates(seen)["origin"]["shebeenfriday"] == ("tiktok", "2")
+
+
+def test_a_bare_hashtag_board_row_still_yields_its_sighting():
+    call = SimpleNamespace(route="tiktok/hashtags/popular", row="2")
+    done = [(call, SimpleNamespace(status="ok", items=[{"hashtag_name": "amapiano"}]), None)]
+    assert job.sightings(done) == [("hashtag", "amapiano", "2", "tiktok")]
 
 
 def test_a_rule_one_harvest_tag_is_never_a_candidate_so_no_row_calls_it():
@@ -974,6 +993,54 @@ def test_main_marks_the_run_failed_and_exits_non_zero_on_an_exception():
     assert run_main(["--run-date", "2026-09-29"], runs=runs, jobs=jobs, bq=Broken()) != 0
     assert [r["status"] for r in runs.rows] == ["running", "failed"]
     assert "load failed" in runs.rows[-1]["error"]
+    assert jobs.started == []
+
+
+def test_a_run_whose_balance_could_not_be_read_finishes_failed_and_starts_nothing_next():
+    class Unreadable(FakeClient):
+        def call(self, route, params=None, **kw):
+            super().call(route, params, **kw)
+            return Result("balance_floor", route, reason="balance could not be read", failure="balance_unread")
+
+    runs, jobs, client = chain.MemoryRunsStore(), FakeJobs(), Unreadable()
+    assert run_main(["--run-date", "2026-09-29"], runs=runs, jobs=jobs, client=client) != 0
+    assert [r["status"] for r in runs.rows] == ["running", "failed"]
+    final = runs.rows[-1]
+    assert "balance" in final["error"] and "could not be read" in final["error"]
+    assert final["counts"]["stopped"] == "balance_floor" and final["counts"]["credits_charged"] == 0
+    assert len(client.calls) == 1
+    assert jobs.started == []
+
+
+def test_a_run_stopped_below_the_floor_is_not_reported_as_an_unread_balance():
+    class Low(FakeClient):
+        def call(self, route, params=None, **kw):
+            super().call(route, params, **kw)
+            return Result("balance_floor", route, reason="balance 100 is below the floor 20000", failure="")
+
+    runs = chain.MemoryRunsStore()
+    assert run_main(["--run-date", "2026-09-29"], runs=runs, client=Low()) == 0
+    assert runs.rows[-1]["status"] == "ok"
+
+
+def test_the_runs_row_never_counts_more_ok_calls_than_calls():
+    runs = chain.MemoryRunsStore()
+    assert run_main(["--run-date", "2026-09-29"], runs=runs) == 0
+    counts = runs.rows[-1]["counts"]
+    assert counts["local_records"] > 0
+    assert counts["calls_ok"] <= counts["calls"]
+
+
+def test_a_collect_that_raises_midway_still_records_the_calls_and_credits_it_made():
+    def script(n, route, market):
+        if n == 6:
+            raise RuntimeError("vendor client crashed")
+
+    runs, jobs, client = chain.MemoryRunsStore(), FakeJobs(), FakeClient(script)
+    assert run_main(["--run-date", "2026-09-29"], runs=runs, jobs=jobs, client=client) != 0
+    final = runs.rows[-1]
+    assert final["status"] == "failed" and "vendor client crashed" in final["error"]
+    assert final["counts"]["calls"] == 5 and final["counts"]["credits_charged"] > 0
     assert jobs.started == []
 
 
@@ -2134,6 +2201,57 @@ class TrendsTablesBQ(FakeBQ):
         return super().get_table(table_id)
 
 
+@pytest.fixture
+def google_bq_on(monkeypatch):
+    """The BigQuery Google Trends phase is parked by default (W8-DEC-04); these tests cover it when enabled."""
+    monkeypatch.setattr(job, "google_bq_enabled", lambda: True)
+
+
+def test_google_bq_is_parked_by_config():
+    assert job.google_bq_enabled() is False
+    assert yaml.safe_load((job.CONFIG / "google_sources.yaml").read_text(encoding="utf-8"))["google_bq"]["enabled"] is False
+
+
+def test_a_missing_google_sources_file_reads_as_parked(monkeypatch, tmp_path):
+    monkeypatch.setattr(job, "CONFIG", tmp_path)
+    assert not (tmp_path / "google_sources.yaml").exists()
+    assert job.google_bq_enabled() is False
+
+
+def test_a_google_sources_file_with_no_enabled_key_reads_as_parked(monkeypatch, tmp_path):
+    monkeypatch.setattr(job, "CONFIG", tmp_path)
+    for lines in ([], ["other: 1"], ["google_bq:"], ["google_bq: {}"], ["google_bq:", "  other: true"]):
+        (tmp_path / "google_sources.yaml").write_text("\n".join(lines), encoding="utf-8")
+        assert job.google_bq_enabled() is False, lines
+
+
+def test_a_parked_google_bq_makes_no_public_table_read_and_says_so_in_the_counts():
+    class NoPublicTables(TrendsTablesBQ):
+        def query(self, sql, job_config=None, **kw):
+            assert "bigquery-public-data" not in sql, "the public Google Trends tables were read"
+            return super().query(sql, job_config, **kw)
+
+    runs, bq = chain.MemoryRunsStore(), NoPublicTables()
+    assert run_main(["--run-date", "2026-09-29"], runs=runs, bq=bq) == 0
+    counts = runs.rows[-1]["counts"]
+    assert runs.rows[-1]["status"] == "ok"
+    assert set(counts["google_bq_states"].values()) == {"parked"} and counts["google_bq_signals"] == 0
+    assert counts["google_bq_bytes_billed"] == 0 and counts["google_bq_error"] is None
+    assert all(r["source"] != "google_bq" for r in bq.loaded("google_search_signals"))
+    assert not bq.loaded("posts")
+
+
+def test_google_rss_and_google_trending_stay_live_while_google_bq_is_parked(monkeypatch):
+    phases = []
+    real_trends, real_rss = job.trends_phase, job.google_rss.read_signals
+    monkeypatch.setattr(job, "trends_phase", lambda *a, **kw: (phases.append("google_trending"), real_trends(*a, **kw))[1])
+    monkeypatch.setattr(job.google_rss, "read_signals", lambda *a, **kw: (phases.append("google_rss"), real_rss(*a, **kw))[1])
+    runs, bq = chain.MemoryRunsStore(), TrendsTablesBQ()
+    assert run_main(["--run-date", "2026-09-29"], runs=runs, bq=bq) == 0
+    assert set(phases) == {"google_trending", "google_rss"}
+
+
+@pytest.mark.usefixtures("google_bq_on")
 def test_main_reads_the_trends_tables_and_appends_their_rows_as_search_signals():
     runs, bq = chain.MemoryRunsStore(), TrendsTablesBQ()
     assert run_main(["--run-date", "2026-09-29"], runs=runs, bq=bq) == 0
@@ -2149,6 +2267,7 @@ def test_main_reads_the_trends_tables_and_appends_their_rows_as_search_signals()
     assert not bq.loaded("posts") and all(r.get("post_id") is None for r in loaded)
 
 
+@pytest.mark.usefixtures("google_bq_on")
 def test_a_failed_trends_table_read_never_stops_the_run():
     runs, jobs = chain.MemoryRunsStore(), FakeJobs()
     assert run_main(["--run-date", "2026-09-29"], runs=runs, jobs=jobs, bq=FakeBQ()) == 0
@@ -2158,6 +2277,7 @@ def test_a_failed_trends_table_read_never_stops_the_run():
     assert counts["google_bq_signals"] == 0 and counts["google_search_signals"] == 0
 
 
+@pytest.mark.usefixtures("google_bq_on")
 def test_an_exception_in_the_trends_table_phase_is_recorded_and_the_run_goes_on(monkeypatch):
     def boom(*a, **kw):
         raise RuntimeError("client gone")
@@ -2171,6 +2291,7 @@ def test_an_exception_in_the_trends_table_phase_is_recorded_and_the_run_goes_on(
     assert set(counts["google_bq_states"].values()) == {"error"}
 
 
+@pytest.mark.usefixtures("google_bq_on")
 def test_a_failed_search_signals_append_never_stops_the_run():
     runs, bq = chain.MemoryRunsStore(), TrendsTablesBQ(fail_signals_table=True)
     assert run_main(["--run-date", "2026-09-29"], runs=runs, bq=bq) == 0
@@ -2181,6 +2302,7 @@ def test_a_failed_search_signals_append_never_stops_the_run():
     assert bq.loaded("collection_health")
 
 
+@pytest.mark.usefixtures("google_bq_on")
 def test_the_trends_table_rows_join_the_search_signals_with_the_same_label():
     run = job.Collected("collect-test")
     job.bq_trends_phase(run, TrendsTablesBQ(), date(2026, 9, 29), clock=lambda: NOW)
@@ -2188,6 +2310,7 @@ def test_the_trends_table_rows_join_the_search_signals_with_the_same_label():
     assert all(set(s) == {"term", "market", "source", "rank", "refreshed_at", "label"} for s in run.search_signals)
 
 
+@pytest.mark.usefixtures("google_bq_on")
 def test_the_trending_read_rows_go_to_google_search_signals_beside_the_trends_table_rows():
     # The SocialCrawl trending read is the only Google search interest for KE (the public tables have no KE
     # rows), and Searching now and the readiness report read source google_trending from the table.
@@ -2248,3 +2371,28 @@ def test_the_scaled_plan_fits_its_collect_share_with_row_14_and_16_sized_by_it(m
             assert all(c.params.get("max_pages", 1) == size.pages and c.hold() == size.pages for c in row14)
             assert sum(c.row == "16" for c in calls) == size.multi_top
             assert all(c.lane_class() == "search_presence" for c in row14)
+
+
+def test_song_curve_samples_are_skipped_and_counted_never_written_as_counters():
+    fixtures = json.loads((Path(__file__).resolve().parent / "fixtures" / "parse_stored_song_videos.json")
+                          .read_text(encoding="utf-8"))
+    runner = job._Runner(FakeClient(), job.Collected("curve-test"), job._CountedIds(fake_item_id),
+                         job.safe_geo(FakeGeo()), lambda: NOW, job.Budget(), None, TUESDAY)
+    call = job.Call("11", "tiktok/song/videos", {"clipId": "m100", "use": 1}, "ZA", "watchlist", seed_key="m100")
+    for name in ("song_videos_1", "song_videos_2"):
+        parsed = runner._parse(call, SimpleNamespace(status="ok", body=fixtures[name]["body"]), NOW)
+        assert parsed["counters"] == [] and parsed["posts"]
+    assert runner.run.counters == []
+    assert runner.run.counts()["song_curve_sample_skipped"] == 14 + 16
+
+
+def test_song_curve_points_of_a_seeded_call_are_not_counted_as_skipped():
+    fixtures = json.loads((Path(__file__).resolve().parent / "fixtures" / "parse_stored_song_videos.json")
+                          .read_text(encoding="utf-8"))
+    runner = job._Runner(FakeClient(), job.Collected("curve-seed-test"), job._CountedIds(fake_item_id),
+                         job.safe_geo(FakeGeo()), lambda: NOW, job.Budget(), None, TUESDAY)
+    seeded = job.Call("11", "tiktok/song/videos", {"clipId": "m100", "use": 1}, "ZA", "expansion", seed_key="m100",
+                      seed=SimpleNamespace(source="queue", query="m100"))
+    parsed = runner._parse(seeded, SimpleNamespace(status="ok", body=fixtures["song_videos_1"]["body"]), NOW)
+    assert parsed["posts"] and parsed["counters"] == []
+    assert runner.run.song_curve_sample_skipped == 0
