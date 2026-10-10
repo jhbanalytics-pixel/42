@@ -9,7 +9,7 @@ from sqlglot import exp
 from core.agent import checks
 from core.agent.answer import validate_answer
 from core.agent.context import Refused, RunContext
-from core.agent.tools.sql_query import check_sql
+from core.agent.tools.sql_query import check_sql, check_sql_harness
 from core.agent.tools.warehouse import (
     FINDINGS_TABLE,
     MAX_POSTS,
@@ -719,7 +719,9 @@ def test_recall_findings_query_id_and_parameters(ctx):
     wh = FakeWarehouse([{"finding_id": "f_1", "status": "current"}])
     out = recall_findings(ctx, wh, INJECTION, since="2026-09-01")
     sql, params = wh.runs[0][0], wh.runs[0][1]
-    check_sql(sql)
+    check_sql_harness(sql)
+    with pytest.raises(Refused):
+        check_sql(sql)  # the tool's own read of v_prior_findings; model SQL may not name it
     assert tables_in(sql) == ["intelligence_42_agent.v_prior_findings"]
     assert "DROP" not in sql
     assert any("DROP" in v for v in params.values() if isinstance(v, str))
@@ -733,7 +735,9 @@ def test_recall_findings_any_status_and_refusals(ctx):
     wh = FakeWarehouse([])
     recall_findings(ctx, wh, "amapiano", status=None)
     assert "status" not in wh.runs[0][1]
-    check_sql(wh.runs[0][0])
+    check_sql_harness(wh.runs[0][0])
+    with pytest.raises(Refused):
+        check_sql(wh.runs[0][0])
     with pytest.raises(Refused):
         recall_findings(ctx, wh, "amapiano", status="deleted")
     with pytest.raises(Refused):

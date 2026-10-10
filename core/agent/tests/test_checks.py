@@ -3736,3 +3736,102 @@ def test_no_age_lens_and_the_checks_flag_an_apostrophe_decade_in_their_alike():
     expected = [True] * len(APOSTROPHE_AGES) + [False] * len(APOSTROPHE_CLEAN)
     assert json.loads(done.stdout) == expected
     assert [bool(checks._text_breaches(p)) for p in phrases] == expected
+
+
+# N22 (checks part). Ask evidence records only ever carry market_assumed, so K5's NOT_INDEPENDENT set never dropped a
+# paid, sponsored or copied post and two disclosed ads from two handles on two platforms read as corroboration.
+def _pair(text_a, text_b, platform_b="x"):
+    return [record("p_a", "tiktok", "@creator_a", text_a), record("p_b", platform_b, "@creator_b", text_b)]
+
+
+def _label(records, numbers=False):
+    claim_ = {"id": "c1", "text": "Posts mention the new trainers.", "kind": "observation", "numbers": [1] if numbers else []}
+    return checks._max_label(claim_, records)[0]
+
+
+@pytest.mark.parametrize("disclosure", [
+    "Loving my new trainers from the brand #ad", "New trainers day #Sponsored", "New trainers, paid partnership with the brand",
+    "Trainers drop #paidpartnership", "Thanks for the free trainers #gifted", "New trainers! Sponsored by the brand",
+    "New trainers #AD",
+])
+def test_k5_two_disclosed_ads_on_two_platforms_are_not_corroboration(disclosure):
+    assert _label(_pair(disclosure, disclosure.replace("trainers", "kicks"))) == "single_source"
+
+
+def test_k5_a_disclosed_ad_does_not_count_as_the_second_independent_author():
+    organic = record("p_o", "tiktok", "@fan", "These trainers are everywhere at taxi ranks this week")
+    ad = record("p_ad", "x", "@influencer", "Obsessed with my new trainers #ad")
+    assert _label([organic, ad]) == "single_source"
+
+
+@pytest.mark.parametrize("organic", [
+    "Adidas trainers are everywhere #adidas", "I add salt to everything and the trainers too", "Addis trainers #addis",
+])
+def test_k5_words_that_only_contain_ad_stay_independent(organic):
+    records = _pair(organic, organic.replace("trainers", "shoes"))
+    assert _label(records) == "corroborated"
+
+
+def test_k5_a_copied_post_from_a_second_handle_is_one_author_not_two():
+    text = "Every taxi rank in Joburg is playing this amapiano track today, nobody can stop it"
+    copied = [record("p_a", "tiktok", "@creator_a", text), record("p_b", "x", "@creator_b", text + " https://t.co/xyz #amapiano")]
+    assert _label(copied) == "single_source"
+
+
+def test_k5_the_first_post_by_id_stands_as_the_author_whatever_order_the_records_arrive_in():
+    # Two handles post the same words; the earlier id is the author and the later one the copy, so the claim keeps the
+    # X author and the TikTok author of the different post (two platforms: corroborated). If the later copy stood, the
+    # claim would hold two TikTok authors and read as observed, so which one stands decides the label.
+    text = "Every taxi rank in Joburg is playing this amapiano track today, nobody can stop it"
+    records = [record("p_a", "x", "@creator_a", text), record("p_b", "tiktok", "@creator_b", text),
+               record("p_c", "tiktok", "@creator_c", "My uncle in Durban asked me for that new song")]
+    for arrival in (records, records[::-1], [records[1], records[2], records[0]]):
+        assert checks._copied_ids(arrival) == {"p_b"}
+        assert _label(arrival) == "corroborated"
+
+
+def test_k5_two_different_posts_stay_corroborated():
+    records = _pair("Every taxi rank in Joburg is playing this track today", "My uncle in Durban asked me for that new song")
+    assert _label(records) == "corroborated"
+
+
+def test_k5_independence_is_read_without_changing_the_stored_records():
+    records = _pair("Obsessed #ad", "Obsessed #ad")
+    before = copy.deepcopy(records)
+    _label(records)
+    assert records == before
+
+
+# N15 (checks part). Rule 1 words live in two lists, Ask's AGE_PATTERNS and the Brief's claims._BREACH_TERMS, with no
+# test between them. Ask let plain English descriptors through, and three Brief terms had no Ask counterpart.
+RULE_ONE_PHRASES = [
+    "The clip shows an old man dancing", "An old woman sings", "old men at the rank", "old women queue", "an old lady waves",
+    "an old couple dances", "an old person speaks", "Elders at a gathering", "An elder speaks", "a little girl singing",
+    "a small boy dances", "little boys play", "a schoolgirl in uniform", "two schoolboys", "a grey-haired man",
+    "a gray haired woman", "a child dancing", "learners at the rank", "a learner with a bag", "school-going creators",
+    "senior citizens queue", "Senior Citizens",
+]
+RULE_ONE_GUARDS = [
+    "Old Mutual posted an ad", "elderberry syrup is trending", "old school amapiano is back", "my boyfriend and I went",
+    "Child's Day events are planned", "a learner's licence test", "the senior leadership team",
+    "a schooling debate", "the old town of Soweto",
+]
+
+
+@pytest.mark.parametrize("phrase", RULE_ONE_PHRASES)
+def test_k6_rule_one_plain_descriptors_are_age_terms(phrase):
+    assert checks._text_breaches(phrase) == ["age or generation term"]
+
+
+@pytest.mark.parametrize("phrase", RULE_ONE_GUARDS)
+def test_k6_rule_one_words_inside_other_words_and_names_stay_clean(phrase):
+    assert "age or generation term" not in checks._text_breaches(phrase)
+
+
+def test_k6_every_phrase_the_brief_blocks_from_the_shared_table_is_blocked_by_ask_too():
+    from core.trust import claims as brief
+
+    shared = RULE_ONE_PHRASES + ["kids", "children", "pensioners", "elderly", "teens", "youths", "millennials"]
+    in_brief = [p for p in shared if any(t.search(p) for t in brief._BREACH_TERMS)]
+    assert in_brief, "the Brief list no longer blocks any phrase of the shared table"
+    assert [p for p in in_brief if not any(t.search(p) for t in checks.AGE_PATTERNS)] == []

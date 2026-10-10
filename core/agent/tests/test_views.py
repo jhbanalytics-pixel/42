@@ -7,7 +7,9 @@ from sqlglot import exp
 from sqlglot.optimizer.qualify import qualify
 
 from core.agent.apply_views import VIEWS_SQL, apply, statements
-from core.agent.context import RunContext
+import pytest
+
+from core.agent.context import Refused, RunContext
 from core.agent.tools.sql_query import check_sql
 from core.agent.tools.warehouse import recall_findings, rising_topics
 
@@ -87,9 +89,18 @@ def test_views_sql_never_replaces_drops_or_deletes():
     assert not re.search(r"\b(REPLACE|DROP|DELETE|TRUNCATE|MERGE|INSERT|UPDATE)\b", text, re.I)
 
 
+# The class D objects each view body reads, written out (C5 12.9): v_items_today reads runs for its as_of, and
+# v_prior_findings reads findings. A body that reads anything more fails the first check below.
+BODY_DEPS = {"v_items_today": ("intelligence_42_agent.runs",), "v_prior_findings": ("intelligence_42_agent.findings",)}
+
+
 def test_view_bodies_are_read_only_queries_over_allowed_datasets():
-    for _, tree in views().values():
-        check_sql(tree.expression.sql(dialect="bigquery"))
+    assert set(views()) == set(BODY_DEPS)
+    for name, (_, tree) in views().items():
+        body = tree.expression.sql(dialect="bigquery")
+        check_sql(body, hidden_ok=BODY_DEPS[name])
+        with pytest.raises(Refused):
+            check_sql(body)  # without the dependency named, the body is a read of a class D object
 
 
 def test_items_today_exposes_every_item_state_column_plus_label_and_as_of():
@@ -165,7 +176,9 @@ def test_recall_findings_reads_only_columns_v_prior_findings_exposes():
     wh = FakeWarehouse()
     recall_findings(ctx(), wh, "amapiano braai", since="2026-09-01")
     sql = wh.runs[0]
-    check_sql(sql)
+    check_sql(sql, hidden_ok=("intelligence_42_agent.v_prior_findings", "intelligence_42_agent.findings"))
+    with pytest.raises(Refused):
+        check_sql(sql)  # the tool's own read; model SQL may not name the view
     assert "intelligence_42_agent.v_prior_findings" in sql
     used = referenced(sql, "f")
     assert used and used <= set(view_columns(views()["v_prior_findings"][1]))

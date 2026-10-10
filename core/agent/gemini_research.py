@@ -17,7 +17,7 @@ from typing import Callable
 from core.agent import ask
 from core.agent.context import Refused, RunContext
 from core.agent.model_budget import BudgetRefused
-from core.agent.toolset import DESCRIPTIONS, SCHEMAS, TOOL_NAMES, build_functions, guard, run_plain
+from core.agent.toolset import DESCRIPTIONS, SCHEMAS, TOOL_NAMES, build_functions, fence_for_model, guard, run_plain
 from core.llm.gemini import GeminiModel, usage_of
 
 log = logging.getLogger(__name__)
@@ -315,6 +315,14 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                         break
                     if failed is not None:  # the retry is refused for another reason: the earlier failure stands
                         raise failed from None
+                    if model_budget.stopped:
+                        # A tool (watch_video's model call, say) stopped the shared budget between turns, with any of
+                        # its reasons: usage_unknown, bound_exceeded, ceiling_exceeded and the rest. The question's
+                        # model calls are over, as at the writer gate, so research ends as a budget stop. No call is
+                        # made, so this only spends less than the failed ask it replaces.
+                        result["stopped"] = True
+                        budget_note = "Research stopped: this question's model calls were stopped by its budget."
+                        break
                     raise
                 try:
                     response = client.models.generate_content(model=options.model, contents=history, config=config)
@@ -419,7 +427,7 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                 ask._found(emit, ctx)
                 answers.append(types.Part(function_response=types.FunctionResponse(
                     id=getattr(call, "id", None), name=name,
-                    response={"error": out} if is_error else {"output": out})))
+                    response={"error": out} if is_error else {"output": fence_for_model(name, out)})))
         history.append(types.Content(role="user", parts=answers))
         log.info("ask research turn: run %s, turn %d, model %.1f s, tools %.1f s, %d calls", ctx.run_id, turn + 1,
                  model_seconds, clock() - turn_started - model_seconds, len(calls))

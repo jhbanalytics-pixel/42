@@ -348,7 +348,7 @@ def test_full_t1_run_gives_a_valid_answer_and_run_object():
     out = h.run()
     answer, run = out["answer"], out["run"]
 
-    assert set(out) == {"answer", "run", "query_receipts"}
+    assert set(out) == {"answer", "run", "query_receipts", "answer_meta"}
     assert validate_answer(answer) == []
     assert answer["status"] == "partial"  # K10: the support check cut c2
     assert [c["id"] for c in answer["claims"]] == ["c1", "c3"]
@@ -618,7 +618,7 @@ def test_t2_loads_native_policy_once_and_refreshes_only_new_evidence_languages()
     assert len(model.by(SUPPORT_SCHEMA)) == 6
     assert len(model.by(FIELDS_SCHEMA)) == 2
     assert len(model.by(critic.CRITIC_SCHEMA)) == 2
-    assert set(out) == {"answer", "run", "query_receipts"} and set(out["run"]) == RUN_KEYS
+    assert set(out) == {"answer", "run", "query_receipts", "answer_meta"} and set(out["run"]) == RUN_KEYS
     assert validate_answer(out["answer"]) == []
 
 
