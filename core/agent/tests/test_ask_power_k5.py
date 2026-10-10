@@ -13,7 +13,7 @@ from core.agent.checks import check_answer
 from core.agent.context import RunContext
 from core.agent.tests.test_checks import (AS_OF, PARAMS, ROWS, RUN, SQL, STORED, WINDOW, FakeWarehouse, claim, record,
                                           verdict)
-from core.agent.tests.test_ask_power_transcripts import _cite, segments
+from core.agent.tests.test_ask_power_transcripts import LINES, _cite, segments
 from core.agent.tests.test_enrich_tools import FakeClient
 from core.agent.tools.enrich_tools import get_transcript
 from datetime import datetime
@@ -26,14 +26,16 @@ COPY = record("tt_b", "tiktok", "@second_poster", CAPTION)
 CLEAN = record("tt_clean", "tiktok", "@mpho.cooks.za", "Sunday 7 colours check, beetroot beside the chakalaka #7colours")
 
 
-def world(stored, spans_of=()):
+def world(stored, spans_of=(), lines=None):
+    """lines maps a parent id to its own transcript lines; any other parent gets the shared LINES."""
     ctx = RunContext(run_id=RUN, tier="T1", as_of=datetime.fromisoformat(AS_OF), market="ZA")
     for r in [*STORED[:3], *stored]:  # the three posts make_draft names, beside this test's own
         ctx.evidence[r["id"]] = copy.deepcopy(r)
     ctx.record_query(SQL, PARAMS, copy.deepcopy(ROWS), "daily posts and ratio")
     ids = {}
     for parent in spans_of:
-        ids[parent] = get_transcript(ctx, FakeClient(quote=10.0, items=segments()), parent)["evidence_ids"][0]
+        items = segments((lines or {}).get(parent) or LINES)
+        ids[parent] = get_transcript(ctx, FakeClient(quote=10.0, items=items), parent)["evidence_ids"][0]
     return ctx, ids
 
 
@@ -137,9 +139,32 @@ def test_a_caption_that_repeats_another_creators_spoken_words_is_not_a_second_au
     assert label == "single_source"
 
 
-def test_two_spans_with_different_words_from_two_creators_still_count_as_two():
-    ctx, ids = world([CLEAN, X], spans_of=["tt_clean", "x_1"])
-    ctx.evidence[ids["x_1"]]["text"] = "an entirely different spoken line about something else altogether today"
-    ctx.evidence[ids["x_1"]]["transcript_span"]["text"] = ctx.evidence[ids["x_1"]]["text"]
-    label, _ = label_of(ctx, [ids["tt_clean"], ids["x_1"]], ids["tt_clean"], label="observed")
-    assert label == "observed"
+def test_two_creators_on_two_platforms_with_their_own_transcripts_still_corroborate():
+    own = {"ig_1": ["Honestly the plating matters more than the sauce on a Sunday afternoon at home",
+                    "My nan taught me to start with the pap and finish with the chakalaka every time",
+                    "Share this with someone who still puts the gravy on first"]}
+    ctx, ids = world([CLEAN, IG, X], spans_of=["tt_clean", "ig_1"], lines=own)
+    assert ctx.evidence[ids["tt_clean"]]["text"] != ctx.evidence[ids["ig_1"]]["text"]
+    label, verdicts = label_of(ctx, [ids["tt_clean"], ids["ig_1"]], ids["tt_clean"], label="corroborated")
+    assert label == "corroborated"
+    reason = verdict(verdicts, "c1", "K5")["reason"]
+    assert verdict(verdicts, "c1", "K5")["verdict"] == "pass" and "2 unrelated author groups on 2 platforms" in reason
+
+
+def test_identical_uncited_spans_do_link_authors_and_cap_the_label():
+    """Pins the other side: independence is judged over every stored record of the answer (W8-DEC-16), so two creators
+    whose transcripts share a later span, cited or not, are one group however different their cited spans are."""
+    shared = ["The same trending sound line plays here and everybody sings along to it again",
+              "Now the chorus comes round and the whole street joins in at the top of its voice"]
+    first_a = " ".join(["Welcome back to the kitchen where today we cook a proper Sunday lunch for the whole family"] * 3)
+    first_b = " ".join(["Honestly the plating matters more than the sauce on a Sunday afternoon at home with friends"] * 3)
+    own = {"tt_clean": [first_a, *shared], "ig_1": [first_b, *shared]}
+    ctx, ids = world([CLEAN, IG, X], spans_of=["tt_clean", "ig_1"], lines=own)
+    a, b = ids["tt_clean"], ids["ig_1"]
+    assert ctx.evidence[a]["text"] != ctx.evidence[b]["text"]
+    assert ctx.evidence["tt_clean_span_2"]["text"] == ctx.evidence["ig_1_span_2"]["text"]  # uncited, identical
+    draft = _cite(ctx, [a, b], a, "Welcome back to the kitchen")
+    draft["claims"][0]["label"] = "corroborated"
+    answer, verdicts = check_answer(draft, ctx, FakeWarehouse([]), window=WINDOW, market="ZA")
+    assert claim(answer, "c1")["label"] == "observed"
+    assert "1 unrelated author group on 2 platforms" in verdict(verdicts, "c1", "K5")["reason"]
