@@ -44,6 +44,16 @@ CODES = ("IMAGE", "WINDOW", "NOT_ONE_RUN", "TERMINAL", "BOUND", "RETRIED", "ORDE
          "SERVICES", "MANUAL")
 PARSE_JSON_SIGNATURE = ("cannot round-trip through string representation", "PARSE_JSON")
 
+
+class Pending(Stop):
+    """The brief's 06:15 SAST start is still running, so its skipped_duplicate row does not exist yet and the start cannot be told from a
+    manual one. Nothing is written for the date; the same date is read again after that start ends."""
+
+    def __init__(self, names):
+        super().__init__("PENDING", "The brief's 06:15 SAST start is still running (" + ", ".join(names) + "); nothing is written for this date, read it again "
+                                    "after that execution ends")
+        self.names = names
+
 # The fixed templates (2.3). Each is one SELECT, carries its partition filter, and is hashed into the bindings.
 TEMPLATES = {
     "stage_rows": ("SELECT run_id, stage, status, started_at, finished_at, counts, error IS NOT NULL AS has_error, "
@@ -223,6 +233,7 @@ class Evidence:
     def __init__(self, bound, reader, runner, day, role, now):
         self.bound, self.reader, self.runner, self.day, self.role, self.now = bound, reader, runner, day, role, now
         self.failures = []  # (code, stage or None)
+        self.pending = []
 
     def fail(self, code, stage=None):
         if (code, stage) not in self.failures:
@@ -278,6 +289,8 @@ def build_manifest(bound, reader, bq_client, day, role, *, now=None):
 
     substages = substage_block(ev, rows)
     side = side_executions(ev, listed, stages, rows, midnight, bound_names)
+    if ev.pending:
+        raise Pending(sorted(ev.pending))
     lineage(ev, stages)
 
     reasons = [c for c in CODES if any(code == c for code, _ in ev.failures)]
@@ -440,7 +453,10 @@ def side_executions(ev, listed, stages, rows, midnight, bound_names):
                 near = sorted((e for e in unbound if abs((jo.aware(e["status"]["startTime"]) - scheduled).total_seconds()) <= limit),
                               key=lambda e: (jo.aware(e["status"]["startTime"]), e["metadata"]["name"]))
                 allowed = {e["metadata"]["name"] for e in near[:skipped]}
-            if any(e["metadata"]["name"] not in allowed for e in unbound):
+                # A start in the window with no row beyond those counted is the scheduled start while it still runs, when its skipped_duplicate
+                # row is not written yet. That is a read taken too soon, not a manual run, and it must not be recorded for good.
+                ev.pending += [e["metadata"]["name"] for e in near[skipped:] if jo.is_active(e)]
+            if any(e["metadata"]["name"] not in allowed and e["metadata"]["name"] not in ev.pending for e in unbound):
                 ev.fail("MANUAL", stage)
         for entry in unbound:
             view = jo.describe_execution(ev.reader, entry["metadata"]["name"])
@@ -482,6 +498,17 @@ def write_manifest(release_dir, manifest):
     return path
 
 
+def write_pending(evidence, day, names, taken):
+    """The note a read leaves in the run folder when it stopped on PENDING: which date, when, and which executions were still running. It is
+    numbered, so a second pending read leaves a second note, and it is not the manifest: the release directory gets nothing."""
+    folder = Path(evidence)
+    folder.mkdir(parents=True, exist_ok=True)
+    number = len(list(folder.glob(f"chain-evidence-{day.isoformat()}.pending-*.json"))) + 1
+    with (folder / f"chain-evidence-{day.isoformat()}.pending-{number:02d}.json").open("x", encoding="utf-8") as out:
+        out.write(json.dumps({"schema_version": 1, "kind": "chain-evidence-pending", "run_date": day.isoformat(), "read_at_utc": taken.isoformat(),
+                              "in_flight": list(names)}, indent=2, sort_keys=True) + "\n")
+
+
 def main(argv=None, reader_factory=None, bq_factory=None, now=None):
     parser = argparse.ArgumentParser(description="Read-only chain evidence producer.")
     parser.add_argument("--date", required=True)
@@ -504,6 +531,10 @@ def main(argv=None, reader_factory=None, bq_factory=None, now=None):
         args.evidence.mkdir(parents=True, exist_ok=True)
         with (args.evidence / f"chain-evidence-{day.isoformat()}.run.json").open("x", encoding="utf-8") as log:
             log.write(json.dumps({"commands": manifest["reader"]["commands"], "bytes_billed": manifest["bytes_billed"]}, indent=2) + "\n")
+    except Pending as error:
+        write_pending(args.evidence, day, error.names, (now or (lambda: dt.datetime.now(dt.timezone.utc)))())
+        print(f"STOP: {error.code}: {error.message}", file=sys.stderr)
+        return 1
     except Stop as error:
         print(f"STOP: {error.code}: {error.message}", file=sys.stderr)
         return 1

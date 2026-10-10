@@ -865,3 +865,116 @@ def test_f8_the_same_chain_is_never_a_baseline_by_line_even_with_the_parse_json_
     fix.set_terminal("brief", status="failed")
     manifest = build(fix)
     assert "TERMINAL" in reasons(manifest) and manifest["verdict"]["baseline_by_line"] is False
+
+
+# Finding 3 of the Opus review of 6b71adb: a date's manifest is written once, so a read made while the 06:15 SAST start of the brief is still
+# running must not write MANUAL for good. The start has no skipped_duplicate row until it ends. That read records the date as pending, writes
+# no manifest, and a later read writes it.
+
+def in_flight_brief(fix, name="f42-brief-fly", seconds=5, minutes=375):
+    start = fix.midnight + dt.timedelta(minutes=minutes, seconds=seconds)
+    fix.world.executions[name] = jw.execution_raw(name, "f42-brief", start.isoformat(), None, fix.digest)
+    return name
+
+
+def without_skipped_brief(fix):
+    fix.rows = [r for r in fix.rows if r["status"] != "skipped_duplicate"]
+    fix.world.executions = {k: v for k, v in fix.world.executions.items() if "-skip-" not in k}
+
+
+def finish_brief_start(fix, name):
+    """The 06:15 start ends: its execution completes and its skipped_duplicate row exists."""
+    start = jo.aware(fix.world.executions[name]["status"]["startTime"])
+    fix.world.executions[name]["status"]["completionTime"] = (start + dt.timedelta(seconds=20)).isoformat()
+    fix.rows.append({"run_id": f"brief-{fix.stamp}-late", "stage": "brief", "status": "skipped_duplicate", "started_at": start, "finished_at": start,
+                     "counts": None, "has_error": True, "error_sha256": jw.sha("already ran ok")})
+
+
+def test_f3_a_read_while_the_0615_brief_start_is_running_is_pending_writes_no_manifest_and_leaves_a_record(tmp_path, capsys):
+    fix = fixture(tmp_path)
+    without_skipped_brief(fix)
+    name = in_flight_brief(fix)
+    fix.write_bindings()
+    assert run_cli_at(fix, sast(fix.day, 6, 15, 30)) == 1
+    err = capsys.readouterr().err
+    assert "PENDING" in err and name in err and "MANUAL" not in err
+    assert not fix.manifest_path().exists()
+    records = sorted(fix.evidence.glob(f"chain-evidence-{fix.day.isoformat()}.pending-*.json"))
+    assert len(records) == 1
+    record = json.loads(records[0].read_text(encoding="utf-8"))
+    assert record["kind"] == "chain-evidence-pending" and record["run_date"] == fix.day.isoformat() and record["in_flight"] == [name]
+
+
+def test_f3_a_later_read_writes_the_manifest_without_manual_once_the_0615_start_has_ended(tmp_path, capsys):
+    fix = fixture(tmp_path)
+    without_skipped_brief(fix)
+    name = in_flight_brief(fix)
+    fix.write_bindings()
+    assert run_cli_at(fix, sast(fix.day, 6, 15, 30)) == 1
+    finish_brief_start(fix, name)
+    assert run_cli_at(fix, sast(fix.day, 6, 20)) == 0, capsys.readouterr().err
+    manifest = json.loads(fix.manifest_path().read_text(encoding="utf-8"))
+    assert manifest["verdict"]["qualifies"] is True and "MANUAL" not in manifest["verdict"]["reasons"]
+    assert name in [e["name"] for e in manifest["side_executions"]]
+
+
+def test_f3_a_second_pending_read_leaves_a_second_record_and_still_no_manifest(tmp_path):
+    fix = fixture(tmp_path)
+    without_skipped_brief(fix)
+    in_flight_brief(fix)
+    fix.write_bindings()
+    assert run_cli_at(fix, sast(fix.day, 6, 15, 30)) == 1
+    assert run_cli_at(fix, sast(fix.day, 6, 16)) == 1
+    assert len(list(fix.evidence.glob("chain-evidence-*.pending-*.json"))) == 2 and not fix.manifest_path().exists()
+
+
+def test_f3_build_manifest_raises_pending_with_the_names_and_the_other_in_flight_starts_stay_manual(tmp_path):
+    fix = fixture(tmp_path)
+    without_skipped_brief(fix)
+    name = in_flight_brief(fix)
+    with pytest.raises(ce.Pending) as stop:
+        build(fix)
+    assert stop.value.code == "PENDING" and stop.value.names == [name]
+    # a start that is running but is not the 06:15 start is a manual run whatever its state: that fact does not change, so it is not pending
+    fix2 = fixture(tmp_path / "other")
+    typed = fix2.midnight + dt.timedelta(minutes=600)
+    fix2.world.executions["f42-detect-typed"] = jw.execution_raw("f42-detect-typed", "f42-detect", typed.isoformat(), None, fix2.digest)
+    manifest = build(fix2)
+    assert reasons(manifest) == ["MANUAL"] and "f42-detect-typed" in manual_names(manifest)
+
+
+def test_f3_a_start_near_0615_that_has_ended_without_a_skipped_row_is_still_manual_not_pending(tmp_path):
+    fix = fixture(tmp_path)
+    without_skipped_brief(fix)
+    fix.side_execution("f42-brief", "f42-brief-ended", fix.midnight + dt.timedelta(minutes=375, seconds=5))
+    assert reasons(build(fix)) == ["MANUAL"]
+
+
+def test_f3_one_ended_start_with_its_row_and_one_running_start_without_a_row_is_pending_not_manual(tmp_path):
+    fix = fixture(tmp_path)
+    name = in_flight_brief(fix, seconds=40)
+    with pytest.raises(ce.Pending) as stop:
+        build(fix)
+    assert stop.value.names == [name]
+
+
+def test_f3_a_running_start_near_0615_that_already_has_its_skipped_row_is_allowed(tmp_path):
+    fix = fixture(tmp_path)
+    for name, execution in fix.world.executions.items():
+        if "-skip-" in name:
+            execution["status"].pop("completionTime")
+    assert reasons(build(fix)) == []
+
+
+# M07 of the review: the first-b read is held to the 06:15 deadline as well
+
+@pytest.mark.parametrize("role", ["baseline", "first-b"])
+def test_f20_both_roles_stop_too_early_one_second_before_0615_sast_and_write_nothing(tmp_path, capsys, role):
+    fix = fixture(tmp_path, role=role, digest=jw.NEW_DIGEST if role == "first-b" else jw.ROLLBACK_DIGEST)
+    fix.write_bindings()
+    if role == "first-b":
+        fix.freeze(jw.NEW_DIGEST)
+        jw.set_all_jobs_image(fix.world, jw.NEW_DIGEST)
+    assert run_cli_at(fix, sast(fix.day, 6, 14, 59)) == 1
+    assert "TOO_EARLY" in capsys.readouterr().err and not fix.manifest_path().exists()
+    assert run_cli_at(fix, sast(fix.day, 6, 15)) == 0, capsys.readouterr().err
