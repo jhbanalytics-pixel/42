@@ -147,13 +147,15 @@ def test_a_failed_transcript_adds_no_records_and_costs_only_its_own_call(status,
 
 def test_a_charged_failure_costs_what_the_vendor_charged_and_nothing_more():
     c = make_ctx()
+    c.credits_spent = c.enrich_credits_spent = 11.0  # the T1 pool is 21, so 10 are left for this call
     client = FakeClient(quote=10.0, items=[], status="error", charged=10.0)
     out = get_transcript(c, client, "tiktok_7412")
-    assert out["credits_spent"] == 10.0 == c.credits_spent == c.enrich_credits_spent and len(client.calls) == 1
+    assert out["credits_spent"] == 10.0 and c.credits_spent == c.enrich_credits_spent == 21.0
+    assert len(client.calls) == 1
     retry = FakeClient(quote=10.0, items=segments())
     with pytest.raises(Refused):  # nothing was kept, and the pool the failed call drained cannot pay for a retry
         get_transcript(c, retry, "tiktok_7412")
-    assert retry.calls == [] and c.credits_spent == 10.0 and spans_of(c) == []
+    assert retry.calls == [] and c.credits_spent == 21.0 and spans_of(c) == []
 
 
 def test_a_failed_transcript_is_a_plain_gap_in_the_answer():

@@ -169,14 +169,17 @@ DESCRIPTIONS = {
                     "makes the same claim, word for word, and that claim passes the answer's checks.",
     "budget_status": "Credits and SocialCrawl calls left for this question.",
     "resolve_dates": "Turn a date expression into an inclusive from and to date. Never compute dates yourself.",
-    "get_comments": "Fetch comments on a post already in this run's evidence. Spends enrichment credits (20% of the "
-                    "budget, top 20 items). Returns comment evidence ids you can cite.",
-    "get_transcript": "Fetch a video post's transcript as timed segments. Spends enrichment credits; a second call "
-                      "for the same post is free. Returns evidence ids for the spoken words, a few segments to a "
+    "get_comments": "Fetch comments on a post already in this run's evidence. Spends enrichment credits (35% at T1, "
+                    "20% at other tiers, top 20 items): TikTok 1 credit a page, Instagram and Reddit 5. Read comments "
+                    "first, they cost the least and often say why. Returns comment evidence ids you can cite.",
+    "get_transcript": "Fetch a video post's transcript as timed segments. Spends enrichment credits, far more than "
+                      "comments: TikTok 10 credits, Instagram, X, Reddit and Facebook 10, YouTube 3 credits. Fetch one "
+                      "only for a video whose spoken words carry the point; a second call for the same post is free. "
+                      "Returns evidence ids for the spoken words, a few segments to a "
                       "span, that you can cite and quote exactly like a post.",
     "watch_video": "Watch a video post already in this run's evidence with a question in mind. Returns its format, "
                    "hook, on-screen text, setting, people, brands, sound, edit style and observations with times in "
-                   "seconds. Spends enrichment credits (20% of the budget, top 20 items) on its transcript and "
+                   "seconds. Spends enrichment credits (35% at T1, 20% at other tiers, top 20 items) on its transcript and "
                    "screen text, and model spend.",
     "log_forecast": "Log a forecast about an item: reach_rising, cross_market or persist_50 over 7 or 14 days, with "
                     "a probability and evidence ids, and the statement worded as its field says. Returns the forecast_id any "

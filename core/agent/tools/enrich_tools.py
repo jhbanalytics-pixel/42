@@ -44,6 +44,9 @@ TRANSCRIPT_ROUTES = {
 }
 PLATFORM_ALIASES = {"x": "twitter"}
 ENRICH_SHARE = 0.2  # AGENT.md: 20% of a tier's credits for enrichment on the top 10 to 20 items only
+# T1 has no gap round, so its pool is 35%, beside the 55% first round (a staging Ask on 10 October spent a 12 credit
+# pool on one errored transcript and two comment pages and was refused the rest). A T2 or T3 lane keeps 20% of its slice.
+T1_ENRICH_SHARE = 0.35
 MAX_ENRICHED = 20
 MAX_COMMENTS = 50
 PLAIN_ID = re.compile(r"[\w.:-]{1,128}", re.ASCII)  # a comment id kept as scraped; any other gets a sha256 of the item
@@ -64,8 +67,12 @@ def _parent(ctx: RunContext, evidence_id: str, routes: dict, what: str) -> tuple
     return record, routes[platform], record["url"]
 
 
+def enrich_share(ctx: RunContext) -> float:
+    return T1_ENRICH_SHARE if ctx.tier == "T1" and ctx.limits is None else ENRICH_SHARE
+
+
 def enrich_credits_left(ctx: RunContext) -> float:
-    share = ENRICH_SHARE * ctx.budget["credits"] - ctx.enrich_credits_spent
+    share = enrich_share(ctx) * ctx.budget["credits"] - ctx.enrich_credits_spent
     return max(0.0, min(ctx.credits_left(), share))
 
 
@@ -87,7 +94,7 @@ def _charged_call(ctx: RunContext, client: SocialCrawlClient, step: str, route: 
     left = enrich_credits_left(ctx)
     if quote > left:
         raise Refused(f"{route} costs {quote} credits, over the {left} enrichment credits left in this question "
-                      f"({ENRICH_SHARE:.0%} of the budget, within the {ctx.credits_left()} credits left)")
+                      f"({enrich_share(ctx):.0%} of the budget, within the {ctx.credits_left()} credits left)")
 
     result = client.call(route, params, lane="agent_live", run_id=ctx.run_id, max_credits=min(max_credits, left))
     status = result.get("status")

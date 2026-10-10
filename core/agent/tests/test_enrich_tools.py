@@ -8,6 +8,7 @@ from core.agent.tools.enrich_tools import (
     COMMENT_ROUTES,
     ENRICH_SHARE,
     MAX_ENRICHED,
+    T1_ENRICH_SHARE,
     TRANSCRIPT_ROUTES,
     get_comments,
     get_transcript,
@@ -203,7 +204,7 @@ def test_get_comments_refuses_when_no_calls_are_left():
 def test_get_comments_caps_max_credits_passed_to_the_client():
     c, client = make_ctx("T1"), FakeClient(quote=1.0)
     get_comments(c, client, "tiktok_7412", limit=5, max_credits=50)
-    assert client.calls[0]["max_credits"] == pytest.approx(60 * ENRICH_SHARE)
+    assert client.calls[0]["max_credits"] == pytest.approx(60 * T1_ENRICH_SHARE)
 
 
 def test_get_comments_enriches_at_most_twenty_items():
