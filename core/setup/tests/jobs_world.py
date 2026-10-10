@@ -14,10 +14,12 @@ import json
 from pathlib import Path
 
 from core.setup.release import jobs_only as jo
+from core.setup.release import jobs_source as js
 from core.setup.release import services_only as so
 from core.setup.tests import release_world as rw
 
 UTC = dt.timezone.utc
+ROOT = Path(__file__).resolve().parents[3]
 B_COMMIT = "b5e1a2c4d6f8091a2b3c4d5e6f708192a3b4c5d6"
 B_TREE = "7f3a9c1e5b2d8046a1c3e5f7092b4d6f8a0c2e41"
 B_RID = "rel-b5e1a2c-01"
@@ -33,6 +35,31 @@ MARKETS = ("ZA", "NG", "KE")
 CLUSTER_MARKETS = ("ZA", "NG", "KE", "pan")
 SUBSTAGES = ("aggregate", "stats", "coaction", "breakout", "watch", "seeds", "forecast")
 PARSE_JSON_ERROR = "ValueError: PARSE_JSON cannot round-trip through string representation of a float"
+
+
+_TREE = []
+
+
+def head_tree():
+    """(path, text) of core/ in this checkout, which stands in for the tree of B's source commit. Read once."""
+    if not _TREE:
+        _TREE.extend(js.tree_from_disk(ROOT))
+    return list(_TREE)
+
+
+def dry_run_receipt_text(drift=None, skipped=None, failed=None, tail="dry run only; nothing created\n"):
+    """The log `py -3.13 -m core.schema.apply` prints for a dry run, one line per statement of the SQL_FILES in this tree."""
+    from core.schema import apply
+
+    lines = []
+    for statement in apply.load_statements():
+        name = apply.statement_name(statement)
+        if skipped and name in skipped:
+            continue
+        lines.append(f"dry run failed on {name}: boom" if failed and name == failed else f"dry run ok: {name}")
+    for name in drift or []:
+        lines.append(f"view differs from the file: {name}. The live view is the older SQL; CREATE VIEW IF NOT EXISTS does not change it.")
+    return "\n".join(lines) + "\n" + tail
 
 
 def utc(text):
@@ -334,7 +361,7 @@ class ReleaseWorld(ChainFixture):
         self.fake_reader = None
         self.quiet_rows = []
 
-    def prepare(self, *, baseline=None, **over):
+    def prepare(self, *, baseline=None, frozen=True, **over):
         """Bindings with every release key. The baseline chain manifest is produced by the producer itself."""
         from core.setup.release import chain_evidence as ce
 
@@ -344,7 +371,7 @@ class ReleaseWorld(ChainFixture):
         path = ce.write_manifest(self.release_dir, manifest)
         bound.update({"baselineChainPath": str(path), "baselineChainSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                       "buildServiceAccount": rw.BUILD_SA, "buildConfigSha256": "c1" * 32, "dockerfileSha256": "d1" * 32,
-                      "durableManifestSha256": durable_sha, "dryRunReceiptSha256": "d3" * 32,
+                      "durableManifestSha256": durable_sha, "dryRunReceiptSha256": self.write_dry_run_file(self.release_dir),
                       "schemaReadbackReceiptPath": str(self.release_dir / SCHEMA_RECEIPT_NAME),
                       "schemaReadbackReceiptSha256": so.fingerprint(self.schema_receipt_body(bound["release_id"], durable_sha)),
                       "durableManifestPath": str(self.release_dir / "durable-effects.json"),
@@ -353,9 +380,26 @@ class ReleaseWorld(ChainFixture):
                       "maxBaselineAgeDays": 2, "maxCandidateAgeHours": 12, "priorAttempts": [], "priorLedgers": [],
                       QUIET_HASH_FIELD: jo.quiet_template_hashes()})
         bound.update(over)
-        self.freeze(NEW_DIGEST)
+        if frozen:
+            self.freeze(NEW_DIGEST)
         self.fake_reader = FakeJobsReader(self.world)
         return bound
+
+    @staticmethod
+    def write_dry_run_file(release_dir, text=None):
+        """The apply dry run log Albert saves outside the paste; returns the sha256 of the bytes the bindings bind."""
+        path = Path(release_dir) / "apply-dry-run-receipt.json"
+        path.write_bytes((dry_run_receipt_text() if text is None else text).encode("utf-8"))
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def rewrite_dry_run(self, text, *, rebind=True):
+        """Replace the dry run log; by default the bound hash follows it, so only the content is in question."""
+        digest = self.write_dry_run_file(self.release_dir, text)
+        if rebind:
+            self.bound["dryRunReceiptSha256"] = digest
+
+    def head_files(self):
+        return head_tree()
 
     @staticmethod
     def schema_receipt_body(release_id, durable_sha):
@@ -391,7 +435,7 @@ class ReleaseWorld(ChainFixture):
         from core.setup.release import jobs_only
 
         return jobs_only.run_phase(self.bound, phase, reader or self.fake_reader, self.evidence, now=lambda: now or self.now,
-                                   bq=bq or self.bq_client(), sleep=lambda s: None)
+                                   bq=bq or self.bq_client(), sleep=lambda s: None, head_files=self.head_files)
 
     def stop(self, phase, **kw):
         try:

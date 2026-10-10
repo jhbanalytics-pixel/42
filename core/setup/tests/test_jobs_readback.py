@@ -52,10 +52,10 @@ def test_jr01_every_phase_passes_on_the_world_it_expects_and_writes_a_numbered_r
     assert len(readbacks(w, "BeforeAnyWrite")) == 2
 
 
-def test_jr01_the_freeze_phase_is_registered_and_fails_closed_until_the_build_requirements_supply_it(tmp_path):
+def test_jr01_the_freeze_phase_is_registered_and_fails_closed_when_the_build_left_no_id_in_the_run_folder(tmp_path):
     w = world(tmp_path)
     stop = w.stop("FreezeJobs")
-    assert stop.code == "NOT_BUILT"
+    assert stop.code == "BUILD"
 
 
 def test_jr01_exit_codes_are_0_for_pass_1_for_a_stop_and_3_for_a_read_that_could_not_complete(tmp_path, capsys):
@@ -66,7 +66,7 @@ def test_jr01_exit_codes_are_0_for_pass_1_for_a_stop_and_3_for_a_read_that_could
     def go(phase, reader=None, mode="jobs"):
         return helper.main(["--mode", mode, "--phase", phase, "--bindings", str(bindings), "--evidence", str(w.evidence)],
                            reader_factory=lambda timeouts: reader or w.fake_reader, bq_factory=lambda bound: w.bq_client(),
-                           now=lambda: w.now)
+                           now=lambda: w.now, head_files_factory=lambda bound: w.head_files())
 
     assert go("BeforeAnyWrite") == 0
     w.world.principals_ok = False
@@ -424,7 +424,8 @@ def test_rb_t8_the_jobs_mode_of_the_helper_refuses_a_tag_before_any_read(tmp_pat
                        reader_factory=lambda timeouts: reader, bq_factory=lambda bound: w.bq_client(), now=lambda: w.now)
     assert code == 1 and "STOP: MODE" in capsys.readouterr().err and reader.calls == []
     assert helper.main(["--mode", "jobs", "--phase", "BeforeAnyWrite", "--bindings", str(bindings), "--evidence", str(w.evidence)],
-                       reader_factory=lambda timeouts: reader, bq_factory=lambda bound: w.bq_client(), now=lambda: w.now) == 0
+                       reader_factory=lambda timeouts: reader, bq_factory=lambda bound: w.bq_client(), now=lambda: w.now,
+                       head_files_factory=lambda bound: w.head_files()) == 0
 
 
 def test_rb_t4_only_a_split_service_is_recorded_and_every_other_refusal_or_failed_read_of_a_service_still_stops():

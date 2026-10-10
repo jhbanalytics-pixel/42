@@ -413,6 +413,9 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
     parser.add_argument("--attempt", type=attempt_number, default=1,
                         help=f"the build attempt number, 1 to {MAX_ATTEMPT}; part of the image tag so a rebuild never reuses one")
     parser.add_argument("--commit", help="the 40 character commit this build is bound to; refused when HEAD is another commit")
+    parser.add_argument("--build-id-file", type=Path,
+                        help="with --build: write the id of the Cloud Build build to this new file as soon as Cloud Build accepts it, "
+                             "so the release paste can hand it to FreezeJobs; an existing file is refused")
     parser.add_argument("--only", choices=[j.name for j in JOBS + SMOKE_JOBS], help="limit the deploy to one job")
     parser.add_argument("--smoke", action="store_true", help="plan or deploy the smoke jobs instead of the chain jobs")
     parser.add_argument("--run-smoke", action="store_true", help="print the commands that run the smoke jobs")
@@ -422,6 +425,11 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
                              "as it is when not passed. Smoke jobs never get it: the gemini smoke path runs only with "
                              "--update-env-vars=MODEL_PROVIDER=gemini on the smoke execute")
     args = parser.parse_args(argv)
+    if args.build_id_file is not None:
+        if not args.build:
+            parser.error("--build-id-file needs --build")
+        if args.build_id_file.exists():
+            sys.exit(f"{args.build_id_file.name} already exists; a build id file is written once and never replaced")
     if args.only in {j.name for j in SMOKE_JOBS} and not args.smoke:
         sys.exit(f"--only {args.only} is a smoke job: add --smoke")
     understand = not args.smoke and understand_in_chain(exists)
@@ -477,9 +485,9 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
         session = session or cloud_session()
         if workdir is None:
             with tempfile.TemporaryDirectory() as tmp:
-                digest = build(gcloud, git, session, sleep, Path(tmp) / "source.tar.gz", tag, body, commit)
+                digest = build(gcloud, git, session, sleep, Path(tmp) / "source.tar.gz", tag, body, commit, args.build_id_file)
         else:
-            digest = build(gcloud, git, session, sleep, source, tag, body, commit)
+            digest = build(gcloud, git, session, sleep, source, tag, body, commit, args.build_id_file)
         print("  build finished.")
     if args.apply and digest is None:
         digest = gcloud.run(digest_argv(tag)).strip()
@@ -545,7 +553,7 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
     return 0
 
 
-def build(gcloud, git, session, sleep, source, tag, body, commit):
+def build(gcloud, git, session, sleep, source, tag, body, commit, build_id_file=None):
     """Archive the commit, upload, create the build, poll it to the end. Returns the image digest from the results, or None."""
     git(["archive", "--format=tar.gz", f"--output={source}", commit, *SOURCES])
     upload = upload_argv(source, tag)
@@ -555,6 +563,10 @@ def build(gcloud, git, session, sleep, source, tag, body, commit):
     if resp.status_code != 200:
         sys.exit(f"Cloud Build refused the build: HTTP {resp.status_code} {resp.text}")
     build = resp.json()["metadata"]["build"]
+    if build_id_file is not None:
+        Path(build_id_file).parent.mkdir(parents=True, exist_ok=True)
+        with Path(build_id_file).open("x", encoding="utf-8", newline="\n") as out:
+            out.write(f"{build['id']}\n")
     status = None
     while True:
         if build["status"] != status:

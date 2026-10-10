@@ -255,3 +255,64 @@ def test_rj4_a_tree_that_is_not_a_git_clone_is_refused_in_words_before_any_gclou
         dj.main(["--build", "--commit", COMMIT], gcloud=gcloud, git=git, exists=lambda m: True, workdir="unused", session=session)
     assert "clean clone" in str(stop.value.code) and "bound commit" in str(stop.value.code)
     assert gcloud.calls == [] and session.posts == [] and [c for c in git.calls if c[:1] == ["archive"]] == []
+
+
+# JB-02 and JB-03 wiring: the id of the build the tool started is handed to FreezeJobs through a file the paste names
+
+def run_with_id_file(argv, tmp_path, session=None, **kw):
+    gcloud, git, session = FakeGcloud(), FakeGit(), session or FakeSession(tag_for(1))
+    code = dj.main(argv, gcloud=gcloud, git=git, exists=lambda m: True, workdir="unused", session=session, sleep=lambda s: None, **kw)
+    return code, gcloud, session
+
+
+def test_jb03_the_id_of_the_build_cloud_build_accepted_is_written_once_to_the_file_the_caller_names(tmp_path):
+    target = tmp_path / "run" / "build-id.txt"
+    code, _, session = run_with_id_file(["--build", "--commit", COMMIT, "--build-id-file", str(target)], tmp_path)
+    assert code == 0 and target.read_text(encoding="utf-8") == "b-1\n"
+    assert len(session.posts) == 1
+
+
+def test_jb03_the_id_is_written_before_the_build_is_polled_so_a_build_that_fails_still_leaves_it(tmp_path):
+    class Failing(FakeSession):
+        def get(self, url, timeout=None):
+            self.gets.append(url)
+            return FakeResponse({"id": "b-1", "status": "FAILURE", "results": {}})
+
+    target = tmp_path / "build-id.txt"
+    with pytest.raises(SystemExit):
+        run_with_id_file(["--build", "--commit", COMMIT, "--build-id-file", str(target)], tmp_path, session=Failing(tag_for(1)))
+    assert target.read_text(encoding="utf-8") == "b-1\n"
+
+
+def test_jb03_an_existing_id_file_is_refused_before_any_call_so_a_stale_id_is_never_taken_for_this_build(tmp_path):
+    target = tmp_path / "build-id.txt"
+    target.write_text("old-id\n", encoding="utf-8")
+    gcloud, git, session = FakeGcloud(), FakeGit(), FakeSession(tag_for(1))
+    with pytest.raises(SystemExit) as stop:
+        dj.main(["--build", "--commit", COMMIT, "--build-id-file", str(target)], gcloud=gcloud, git=git, exists=lambda m: True, workdir="unused",
+                session=session)
+    assert stop.value.code != 2 and "already exists" in str(stop.value.code)
+    assert gcloud.calls == [] and session.posts == [] and target.read_text(encoding="utf-8") == "old-id\n"
+
+
+def test_jb03_an_id_file_without_a_build_is_a_command_line_error_and_nothing_is_written(tmp_path, capsys):
+    target = tmp_path / "build-id.txt"
+    gcloud, git, session = FakeGcloud(), FakeGit(), FakeSession(tag_for(1))
+    with pytest.raises(SystemExit) as stop:
+        dj.main(["--commit", COMMIT, "--build-id-file", str(target)], gcloud=gcloud, git=git, exists=lambda m: True, workdir="unused", session=session)
+    assert stop.value.code == 2 and not target.exists() and session.posts == []
+    assert "--build-id-file needs --build" in capsys.readouterr().err
+
+
+def test_jb03_a_build_that_cloud_build_refuses_leaves_no_id_file(tmp_path):
+    class Refusing(FakeSession):
+        def post(self, url, json=None, timeout=None):
+            self.posts.append((url, json))
+            return FakeResponse({}, status_code=403)
+
+    target = tmp_path / "build-id.txt"
+    session = Refusing(tag_for(1))
+    with pytest.raises(SystemExit) as stop:
+        run_with_id_file(["--build", "--commit", COMMIT, "--build-id-file", str(target)], tmp_path, session=session)
+    assert "Cloud Build refused" in str(stop.value.code) and len(session.posts) == 1
+    assert not target.exists()

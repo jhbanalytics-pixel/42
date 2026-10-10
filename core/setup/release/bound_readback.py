@@ -223,7 +223,7 @@ class GcloudReader:
         return {"verified_principals_match": True}
 
 
-def main(argv=None, reader_factory=None, bq_factory=None, now=None):
+def main(argv=None, reader_factory=None, bq_factory=None, now=None, head_files_factory=None):
     from core.setup.release import jobs_only as jo
 
     parser = argparse.ArgumentParser(description="Read-only release readback.")
@@ -242,7 +242,8 @@ def main(argv=None, reader_factory=None, bq_factory=None, now=None):
             jo.validate_jobs_bindings(bound)
             reader = (reader_factory or GcloudReader)(bound["readTimeoutSeconds"])
             client = (bq_factory or _default_bq)(bound)
-            result = jo.run_phase(bound, args.phase, reader, args.evidence, now=now, bq=client)
+            head_files = (lambda: head_files_factory(bound)) if head_files_factory else None
+            result = jo.run_phase(bound, args.phase, reader, args.evidence, now=now, bq=client, head_files=head_files)
         else:
             so.require(args.phase in so.PHASES, "MODE", "That phase does not belong to services-only mode")
             so.validate_bindings(bound)

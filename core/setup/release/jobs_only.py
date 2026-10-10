@@ -23,6 +23,8 @@ import datetime as dt
 import re
 from pathlib import Path
 
+from core.setup import durable_effects_check as de
+from core.setup.release import jobs_source as js
 from core.setup.release import services_only as so
 from core.setup.release.services_only import Probe, Stop, require
 
@@ -360,9 +362,10 @@ def image_tag(bound):
 
 
 class JobsRelease:
-    def __init__(self, bound, reader, evidence=None, now=None, sleep=None, bq=None):
+    def __init__(self, bound, reader, evidence=None, now=None, sleep=None, bq=None, head_files=None):
         self.root = validate_jobs_bindings(bound)
         self.bound, self.reader, self.evidence, self.sleep, self._now = bound, reader, evidence, sleep, now
+        self._head_files = head_files
         self.rid = bound["release_id"]
         self.baseline = load_baseline_j(bound)
         self.bq = bq
@@ -371,6 +374,14 @@ class JobsRelease:
 
     def now(self):
         return self._now() if callable(self._now) else (self._now or dt.datetime.now(dt.timezone.utc))
+
+    def head_files(self):
+        """(path, text) of core/ at the bound commit. By default it is read from git for the bound commit, never from the working tree
+        and never from a file the release directory holds; a caller that runs the phase in a test may hand in the files."""
+        try:
+            return self._head_files() if self._head_files is not None else de.git_tree_files(self.bound["target"])
+        except de.Refusal:
+            raise Stop("SOURCE", "The files of the bound commit could not be read") from None
 
     def runner(self):
         from core.setup.release.chain_evidence import BqRunner
@@ -499,6 +510,9 @@ def check_baseline_chain(rel):
 
 
 def phase_before_any_write(rel, phase, result):
+    # JS-09: the build is billed, so the apply dry run receipt is checked first. The hash and the views to cover are the bindings' and
+    # the bound commit's own, recomputed here; the receipt is the thing being proven.
+    js.require_dry_run_receipt(rel.bound, rel.head_files())
     check_baseline_images(rel)
     require(rel.reader.registry_digest(image_tag(rel.bound)) is None, "TAG_MOVED", "The image tag already exists in the registry")
     states = job_states(rel, rel.bound["rollbackJobsDigest"])
@@ -507,8 +521,28 @@ def phase_before_any_write(rel, phase, result):
     check_baseline_chain(rel)
 
 
+BUILD_ID_FILE = "build-id.txt"
+BUILD_ID_LINE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(\r?\n)?\Z")
+
+
+def read_build_id(evidence):
+    """The id of the build the paste started, which deploy_jobs.py wrote into the run folder when Cloud Build accepted it. It is only
+    the handle for the native read of the build record: everything FreezeJobs trusts is compared with the bindings, never with this
+    file. It is one UUID and nothing else, because it becomes an argument of `gcloud builds describe`."""
+    require(evidence is not None, "BUILD", "FreezeJobs needs the run folder the paste wrote the build id to")
+    path = Path(evidence) / BUILD_ID_FILE
+    require(path.is_file(), "BUILD", "The build left no build id in the run folder")
+    text = path.read_bytes().decode("utf-8-sig", errors="replace")
+    require(BUILD_ID_LINE.match(text) is not None, "BUILD", "The build id in the run folder is not one build UUID")
+    return text.strip()
+
+
 def phase_freeze_jobs(rel, phase, result):
-    raise Stop("NOT_BUILT", "FreezeJobs binds the build result to the registry digest (JB-02), which this tooling does not carry yet")
+    from core.setup.release import jobs_freeze
+
+    frozen = jobs_freeze.freeze_jobs(rel.bound, rel.reader, read_build_id(rel.evidence), now=rel.now)
+    rel.observations["image_digest"] = frozen["image_digest"]
+    rel.observations["manifest_sha256"] = frozen["manifest_sha256"]
 
 
 SCHEMA_RECEIPT_KIND = "schema-readback-receipt"
@@ -664,9 +698,9 @@ def write_readback(rel, phase, result):
     result["file"] = target.name
 
 
-def run_phase(bound, phase, reader, evidence=None, *, now=None, sleep=None, bq=None):
+def run_phase(bound, phase, reader, evidence=None, *, now=None, sleep=None, bq=None, head_files=None):
     require(phase in PHASES, "BINDINGS", f"Unknown phase: {phase}")
-    rel = JobsRelease(bound, reader, evidence, now, sleep, bq)
+    rel = JobsRelease(bound, reader, evidence, now, sleep, bq, head_files)
     so.check_config(rel)
     if phase in PRINCIPAL_PHASES:
         so.check_principals(rel)
