@@ -81,8 +81,8 @@ test('F6 a topic held because its evidence could not be read carries no invalid-
   expect(invalidGroup.textContent).toContain(G1_HELP);
 });
 
-test('F6 the help is skipped by the gate words as well as by the plain words', async () => {
-  const { groups } = await mountKenya([{rule: 'G1', reason: 'data_issue', reason_text: 'Evidence could not be read', reason_raw: 'Evidence could not be read'}]);
+test('F6 a hold that carries only the gate words, with no reason_raw, skips the help too', async () => {
+  const { groups } = await mountKenya([{rule: 'G1', reason: 'data_issue', reason_text: 'Evidence could not be read', reason_raw: undefined}]);
   expect(groups).toHaveLength(1);
   expect(groups[0].textContent).not.toContain(G1_HELP);
 });

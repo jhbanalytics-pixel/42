@@ -305,6 +305,7 @@ test('C06 a genuine 401 after sign-in removes the key, shows the gate, and every
     api42: () => getJson('/api/after-4'),
     streamInvestigation: () => streamInvestigation('inv_after', () => {}),
     askTransport: () => startAsk({question: 'after', market: 'ZA'}),
+    askStream: () => streamAsk('a_after_0001', () => {}),
     research: () => downloadResearchHtml('art_after_0001', {docJson: {title: 'x'}}),
   };
   for (const [name, call] of Object.entries(sites)){
