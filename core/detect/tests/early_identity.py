@@ -17,7 +17,7 @@ import numpy as np
 
 from .. import stats
 from . import duck
-from .fixtures import D, day, run
+from .fixtures import D, at, day, run
 from .test_detect_states import RULE, STATS_RUN, World, detect, sql_statements
 from .test_detect_stats import SW_PANEL, StatsClient
 
@@ -89,7 +89,11 @@ def build(con):
     state SQL; returns the item_state rows by item."""
     make_world().load(con)
     duck.load(con, "core.test_switch", [SW_PANEL])
-    stats.run_stats(StatsClient(con), D, STATS_RUN, RULE, core="core")
+    # A switch row is in force only once the backtest run it cites has an ok runs row (core/detect/sql/stats.sql).
+    # That row is a fixture, not something detect writes, so dump() leaves it out and the digests stay the base ones.
+    duck.load(con, "agent.runs", [{**run("backtest", day(3), run_id=SW_PANEL["backtest_run_id"]),
+                                   "finished_at": at(day(3))}])
+    stats.run_stats(StatsClient(con), D, STATS_RUN, RULE, core="core", agent="agent")
     duck.load(con, "agent.runs", [run("stats", D, STATS_RUN)])
     return detect(con)
 
@@ -102,16 +106,84 @@ def _plain(value):
     return str(value)
 
 
+# The tables and columns the base commit 24fc597 had in this world. Later lanes add tables and columns (the locality
+# tables, post_items.linked_on, the item_state switch columns, and so on) that detect writes empty or null here, so the
+# digests pinned from the base commit compare what the base commit had and nothing a later lane grew.
+BASE_SCHEMA = {
+    "agent.briefs": ("brief_date", "market", "run_id", "published_at", "status", "payload", "rule_version",),
+    "agent.engine_scorecard": ("week_start", "week_end", "market", "run_id", "rule_version", "time_to_detect",
+        "lead_time", "precision", "recall", "breadth_platforms", "expansion_cluster_share",
+        "expansion_platform_share", "expansion_language_share", "cost_per_confirmed",),
+    "agent.forecasts": ("forecast_id", "item_id", "market", "target", "issue_date", "horizon", "rule", "prob",
+        "predicted_arrival", "persistence_arrival", "resolve_date", "observed_arrival",),
+    "agent.runs": ("run_id", "stage", "run_date", "status", "started_at", "finished_at", "counts", "error",
+        "question", "tier", "plan", "calls", "credits", "tokens", "seconds", "outcome", "answer", "record",),
+    "agent.watch_matches": ("watch_id", "match_date", "item_id", "market", "method", "run_id",),
+    "agent.watches": ("watch_id", "created_at", "status_at", "who", "target", "market", "rule", "label", "status",),
+    "core.breaking_signals": ("hour", "market", "item_id", "posts6", "creators6", "expected6", "ratio", "platforms",
+        "run_id", "rule_version",),
+    "core.breakout_signals": ("metric_date", "market", "item_id", "run_id", "creators", "posts",
+        "evidence_post_ids", "top_ratio", "held_flagged", "rule_version",),
+    "core.calendar": ("moment_date", "market", "name", "kind", "source", "item_ids",),
+    "core.cluster_members": ("cluster_id", "post_id", "probability",),
+    "core.clusters": ("cluster_date", "cluster_id", "market", "item_id", "match_kind",),
+    "core.collection_health": ("day", "market", "platform", "route", "series", "protocol", "lane_class", "calls",
+        "calls_ok", "units_planned", "units_ok", "items", "ref_items", "ref_days", "k", "valid", "invalid_reason",
+        "located_share", "run_id",),
+    "core.coord_signals": ("metric_date", "item_id", "market", "run_id", "signal", "component_id", "accounts",
+        "item_posts_share", "rule_version",),
+    "core.creators": ("creator_id", "platform", "handle", "account_created_at", "home_market", "verified_region",
+        "coord_score",),
+    "core.cultural_map": ("item_id", "kind", "canonical_key", "label", "aliases", "parent_item_id", "centroid",
+        "first_seen", "first_seen_market", "first_seen_platform", "last_seen", "recurrences", "lifecycle", "status",
+        "rejected_until", "valid_from", "valid_to",),
+    "core.item_counter_daily": ("obs_date", "market", "platform", "item_id", "series", "route", "protocol",
+        "is_board", "lane_class", "unit", "pull_seq", "value", "source", "observed_at", "available_at", "run_id",),
+    "core.item_daily": ("metric_date", "market", "platform", "item_id", "lane_class", "series", "protocol", "posts",
+        "creators", "unflagged_creators", "engagement", "tier_posts", "first_post_at", "geo_known_posts",
+        "local_posts", "source_regime", "available_at", "run_id", "rule_version",),
+    "core.item_hourly": ("market", "item_id", "platform", "hour", "posts", "creators", "lane_class", "run_id",),
+    "core.item_state": ("metric_date", "market", "item_id", "kind", "state_raw", "state", "untested",
+        "main_series_id", "main_y", "main_mu", "main_ratio", "q_min", "sig_days3", "creators3", "posts3",
+        "top_creator_share3", "authenticity", "share_flags", "sponsored_share", "geo_status", "local_share",
+        "geo_known_posts7", "spread_platforms", "found_platforms", "markets_hot", "lead_market", "diffusion",
+        "novelty", "last_wave", "moment", "eligible", "worth_raw", "worth_pct", "run_id", "rule_version",
+        "base_state",),
+    "core.media": ("sha256", "post_id", "gcs_uri", "kind",),
+    "core.post_enrichment": ("post_id", "embedding", "langs", "tone", "stance", "sponsored", "near_dup_size",),
+    "core.post_items": ("post_id", "item_id", "via",),
+    "core.post_observations": ("post_id", "observed_at", "observed_date", "market", "platform", "route", "series",
+        "protocol", "lane", "lane_class", "seed_key", "pull_seq", "rank", "views", "likes", "comments", "shares",
+        "run_id",),
+    "core.posts": ("post_id", "platform", "native_id", "url", "creator_id", "creator_tier_at_post", "text",
+        "transcript", "hashtags", "sound_id", "thumbnail_url", "duration_s", "published_at", "post_date", "views",
+        "likes", "comments", "shares", "engagement", "geo_market", "geo_confidence", "geo_source", "geo_scope",
+        "vendor", "endpoint", "source_regime", "vendor_labels", "run_id",),
+    "core.raw_responses": ("run_id", "job", "market", "route", "params_hash", "lane", "seed_key", "fetched_at",
+        "http_status", "credits_quoted", "credits_charged", "cache_hit", "body",),
+    "core.seed_queue": ("seed_date", "market", "item_id", "query", "kind", "lane",),
+    "core.series_test": ("metric_date", "series_id", "item_id", "market", "platform", "series", "protocol",
+        "lane_class", "kind", "y", "trials", "obs_prior", "obs28", "first_measured", "baseline_state", "hist_mean",
+        "med", "v3", "v7", "peak28", "vel", "accel", "z_display", "test", "mu", "alpha", "weekday_factor",
+        "mu_prior", "ratio", "p_mid", "q", "significant", "run_id", "rule_version",),
+    "core.source_market_fixture": ("post_id", "source_markets", "source_sightings",),
+    "core.suppressed_fixture": ("creator_id",),
+    "core.test_switch": ("market", "platform", "lane_class", "switched_on", "backtest_run_id", "rule_version",),
+}
+
+
 def dump(con, skip=("early_signal",)):
-    """Canonical JSON bytes of every core table and agent.runs, rows sorted, apart from the tables in skip."""
+    """Canonical JSON bytes of every table and column the base commit had (BASE_SCHEMA), rows sorted, apart from the
+    tables in skip."""
     tables = [r[0] for r in con.execute(
         "SELECT table_schema || '.' || table_name FROM information_schema.tables "
         "WHERE table_type = 'BASE TABLE' AND table_schema IN ('core', 'agent') ORDER BY 1").fetchall()]
     out = {}
     for t in tables:
-        if t.split(".")[1] in skip:
+        if t.split(".")[1] in skip or t not in BASE_SCHEMA:
             continue
-        cur = con.execute(f"SELECT * FROM {t} ORDER BY ALL")
+        where = f" WHERE run_id != '{SW_PANEL['backtest_run_id']}'" if t == "agent.runs" else ""
+        cur = con.execute(f"SELECT {', '.join(BASE_SCHEMA[t])} FROM {t}{where} ORDER BY ALL")
         cols = [c[0] for c in cur.description]
         out[t] = [dict(zip(cols, row)) for row in cur.fetchall()]
     return json.dumps(out, sort_keys=True, default=_plain, separators=(",", ":")).encode("utf-8")
