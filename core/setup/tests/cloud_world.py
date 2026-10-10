@@ -42,6 +42,10 @@ class FakeCloudRun(jr.JobsAdapter, jw.FakeJobsReader):
         self.injections = {}
         self.update_calls = 0
         self.expire_credential_at = None
+        self.expire_reads_at = None
+        self.read_failures = {}
+        self.read_failures_after_update = {}
+        self.missing_jobs = set()
         self.minutes_per_update = 0
         self.refuse_restores = False
 
@@ -74,14 +78,22 @@ class FakeCloudRun(jr.JobsAdapter, jw.FakeJobsReader):
     # gcloud --------------------------------------------------------------------------------------------------------------
     def _execute(self, argv):
         tail = argv[1:]
+        if tail[:3] == ["run", "jobs", "update"]:
+            return self.update(tail[3], tail[5])
+        if self.expire_reads_at is not None and self.update_calls >= self.expire_reads_at:
+            return 1, "ERROR: credential expired"
+        if tail[:3] == ["run", "jobs", "describe"]:
+            if tail[3] in self.missing_jobs:
+                return 1, "NOT_FOUND"
+            if self.read_failures.get(tail[3]):
+                self.read_failures[tail[3]] -= 1
+                return 1, "ERROR: the read did not complete"
         if tail[:3] == ["run", "jobs", "describe"]:
             return 0, json.dumps(self.world.jobs[tail[3]])
         if tail[:4] == ["run", "jobs", "executions", "list"]:
             return 0, json.dumps([e for e in self.world.executions.values() if e["metadata"]["labels"].get(jw.JOB_LABEL) == tail[5]])
         if tail[:4] == ["run", "jobs", "executions", "describe"]:
             return (0, json.dumps(self.world.executions[tail[4]])) if tail[4] in self.world.executions else (1, "NOT_FOUND")
-        if tail[:3] == ["run", "jobs", "update"]:
-            return self.update(tail[3], tail[5])
         raise AssertionError(f"the fake does not play {argv}")
 
     def update(self, job, reference):
@@ -97,6 +109,8 @@ class FakeCloudRun(jr.JobsAdapter, jw.FakeJobsReader):
             return self.fail[job], "failed"
         self.inject(("during", k))
         self.world.jobs[job]["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]["image"] = reference
+        if job in self.read_failures_after_update and not restoring:
+            self.read_failures[job] = self.read_failures.get(job, 0) + self.read_failures_after_update.pop(job)
         self.rev_of[job] += 1
         self.templates[job].append(reference)
         if job in self.after_apply and not restoring:

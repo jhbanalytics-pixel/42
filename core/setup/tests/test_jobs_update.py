@@ -397,3 +397,109 @@ def test_rb_t2_a_pipe_on_stdin_is_not_a_console_either(tmp_path):
 
 def test_rb_t2_the_console_test_is_false_for_a_redirected_stdin_in_process():
     assert jr.stdin_is_console() is False  # pytest captures stdin
+
+
+# RB-T5 (F5): a read that raises Probe or NotFound inside the update loop is a READ_FAILED stop, not an escape. Inside the chain group the
+# automatic restore runs, and the run log is written in every case. The credential double fails reads as well as updates.
+
+def lapse(cloud, after_updates):
+    """The credential dies once `after_updates` updates have been attempted: every update and every read after that point fails."""
+    cloud.expire_credential_at = after_updates
+    cloud.expire_reads_at = after_updates
+
+
+def logs(w):
+    return sorted(w.evidence.glob("jobs-update-*.json"))
+
+
+def test_rb_t5_the_credential_double_fails_reads_as_well_as_updates(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    lapse(cloud, 0)
+    with pytest.raises(so.Probe):
+        cloud.job("f42-watchdog")
+    with pytest.raises(so.Probe):
+        cloud.executions("f42-watchdog")
+    assert cloud.update_job("f42-watchdog", NEW) != 0
+
+
+def test_rb_t5_the_reviewers_input_the_credential_lapses_after_the_update_of_brief_and_the_readback_fails(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    lapse(cloud, 11)  # ten side jobs and brief are updated; the describe that follows brief's update is the first call to fail
+    log = update(w, cloud, clock)
+    assert stopped(log) == "READ_FAILED" and log["stopped"]["job"] == "f42-brief" and "READ_FAILED" in log["codes"]
+    assert len(logs(w)) == 1 and json.loads(logs(w)[0].read_text(encoding="utf-8"))["stopped"]["code"] == "READ_FAILED"
+    assert restore_targets(cloud) == ["f42-collect", "f42-understand", "f42-detect", "f42-brief"]  # the restore was tried, in reverse order
+    assert log["branch"] == "CHAIN_PREFIX_UNRESTORED" and "f42-brief" in log["unrestored"]
+    assert log["active_executions"] is None and log["active_executions_error"] == "unreadable"
+
+
+def test_rb_t5_a_read_that_fails_once_inside_the_chain_group_stops_restores_the_prefix_and_writes_the_log(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    cloud.read_failures["f42-detect"] = 1  # the read of detect before its update
+    log = update(w, cloud, clock)
+    assert stopped(log) == "READ_FAILED" and log["stopped"]["job"] == "f42-detect"
+    assert log["branch"] == "chain_group_restored" and log["restored"] == ["f42-brief"] and log["unrestored"] == []
+    assert digests(cloud)["f42-brief"] == OLD and len(logs(w)) == 1
+    assert [j for j, _ in update_targets(cloud)] == ORDER[:11] + ["f42-brief"]
+
+
+def test_rb_t5_a_failed_readback_after_an_update_inside_the_chain_group_is_a_read_failed_stop_with_the_restore(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    cloud.read_failures_after_update["f42-detect"] = 1  # the describe that follows detect's update
+    log = update(w, cloud, clock)
+    assert stopped(log) == "READ_FAILED" and log["stopped"]["job"] == "f42-detect"
+    assert set(log["restored"]) == {"f42-detect", "f42-brief"} and digests(cloud)["f42-detect"] == OLD and digests(cloud)["f42-brief"] == OLD
+    assert len(logs(w)) == 1
+
+
+@pytest.mark.parametrize("index", [0, 5, 9])
+def test_rb_t5_a_read_failure_outside_the_chain_group_holds_with_the_declared_branch_and_a_log(tmp_path, index):
+    w, cloud, clock = started(tmp_path)
+    cloud.read_failures[ORDER[index]] = 1
+    log = update(w, cloud, clock)
+    assert stopped(log) == "READ_FAILED" and log["stopped"]["job"] == ORDER[index] and log["branch"] == "hold_non_chain"
+    assert restore_targets(cloud) == [] and [j for j, _ in update_targets(cloud)] == ORDER[:index] and len(logs(w)) == 1
+    assert "21:00" in log["stopped"]["branch_text"]
+
+
+def test_rb_t5_a_job_that_cannot_be_found_is_a_read_failed_stop_too(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    cloud.missing_jobs.add("f42-probe")
+    log = update(w, cloud, clock)
+    assert stopped(log) == "READ_FAILED" and log["stopped"]["job"] == "f42-probe" and len(logs(w)) == 1
+
+
+def test_rb_t5_the_command_line_exits_one_with_the_code_and_not_three_when_a_read_fails_inside_the_loop(tmp_path, capsys):
+    w, cloud, clock = started(tmp_path)
+    cloud.read_failures["f42-detect"] = 1
+    path = w.tmp / "bindings-file.json"
+    jw.write_json(path, w.bound)
+    token = w.evidence / jr.TOKEN_NAME
+    token.write_text(json.dumps({"schema_version": 1, "release_id": w.bound["release_id"], "token": "a1" * 16}), encoding="utf-8")
+    code = jr.main(["update", "--bindings", str(path), "--evidence", str(w.evidence)], adapter_factory=lambda t: cloud, bq_factory=lambda b: w.bq_client(),
+                   now=clock.now, console=lambda: True)
+    assert code == 1 and "READ_FAILED" in capsys.readouterr().err and len(logs(w)) == 1
+
+
+def test_rb_t5_an_unexpected_error_inside_the_loop_still_leaves_the_run_log_and_is_raised(tmp_path):
+    w, cloud, clock = started(tmp_path)
+
+    def boom(*a, **k):
+        raise RuntimeError("boom")
+
+    cloud.after_apply["f42-probe"] = boom
+    with pytest.raises(RuntimeError):
+        update(w, cloud, clock)
+    written = logs(w)
+    assert len(written) == 1 and json.loads(written[0].read_text(encoding="utf-8"))["stopped"]["code"] == "UNEXPECTED"
+
+
+def test_rb_t5_a_rollback_whose_read_fails_stops_with_read_failed_and_writes_its_log(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    update(w, cloud, clock)
+    cloud.read_failures["f42-digest"] = 1
+    log = rollback(w, cloud, clock)
+    assert stopped(log) == "READ_FAILED" and log["stopped"]["job"] == "f42-digest" and log["complete"] is False
+    assert "23:30" in log["stopped"]["branch_text"] and len(sorted(w.evidence.glob("jobs-rollback-*.json"))) == 1
+    rerun = rollback(w, cloud, clock)
+    assert rerun["complete"] is True and all(v == OLD for v in digests(cloud).values())

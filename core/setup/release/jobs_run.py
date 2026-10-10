@@ -285,46 +285,61 @@ def run_update(bound, adapter, bq_client, evidence, *, now, sleep=None):
 
     log = new_log("update", now)
     touched = []
-    for job in jo.UPDATE_ORDER:
-        view = so.job_view(adapter.job(job))
-        base = baseline["jobs"][job]
-        if view == jo.with_image(base, digest):
-            log["skipped_already_new"].append(job)
-            continue
-        if view != base:
-            stop(log, job, "JOB_DRIFT", f"{job} is neither baseline-J nor the new definition", None)
-            break
-        if not jo.window_open(bound, now()):
-            stop(log, job, "WINDOW", "The clock passed the end of the window before this update", None)
-            break
-        touched.append(job)
-        code = adapter.update_job(job, digest)
-        if code != 0:
-            stop(log, job, "UPDATE_FAILED", f"The update of {job} returned a nonzero exit", None)
-            break
-        try:
-            jo.check_job_after_update(adapter, baseline, job, digest)
-        except Stop as error:
-            stop(log, job, error.code, error.message, None)
-            break
-        log["updated"].append(job)
-    else:
-        log["complete"] = True
-    if log["stopped"] is not None:
-        job = log["stopped"]["job"]
-        if job in jo.CHAIN_GROUP:
-            restore_chain_group(adapter, baseline, bound["rollbackJobsDigest"], log, touched)
-            if log["unrestored"]:
-                log["branch"] = "CHAIN_PREFIX_UNRESTORED"
-                log["codes"].append("CHAIN_PREFIX_UNRESTORED")
-                log["stopped"]["branch_text"] = UNRESTORED_TEXT
-            else:
-                log["branch"] = "chain_group_restored"
-                log["stopped"]["branch_text"] = CHAIN_TEXT
+    try:
+        for job in jo.UPDATE_ORDER:
+            try:
+                view = so.job_view(adapter.job(job))
+            except (Probe, so.NotFound):
+                stop(log, job, "READ_FAILED", f"{job} could not be read before its update", None)
+                break
+            base = baseline["jobs"][job]
+            if view == jo.with_image(base, digest):
+                log["skipped_already_new"].append(job)
+                continue
+            if view != base:
+                stop(log, job, "JOB_DRIFT", f"{job} is neither baseline-J nor the new definition", None)
+                break
+            if not jo.window_open(bound, now()):
+                stop(log, job, "WINDOW", "The clock passed the end of the window before this update", None)
+                break
+            touched.append(job)
+            code = adapter.update_job(job, digest)
+            if code != 0:
+                stop(log, job, "UPDATE_FAILED", f"The update of {job} returned a nonzero exit", None)
+                break
+            try:
+                jo.check_job_after_update(adapter, baseline, job, digest)
+            except Stop as error:
+                stop(log, job, error.code, error.message, None)
+                break
+            except (Probe, so.NotFound):
+                stop(log, job, "READ_FAILED", f"{job} could not be read after its update", None)
+                break
+            log["updated"].append(job)
         else:
-            log["branch"] = "hold_non_chain"
-            log["stopped"]["branch_text"] = HOLD_TEXT
-    finalize(log, adapter, baseline, now, touched)
+            log["complete"] = True
+        if log["stopped"] is not None:
+            job = log["stopped"]["job"]
+            if job in jo.CHAIN_GROUP:
+                restore_chain_group(adapter, baseline, bound["rollbackJobsDigest"], log, touched)
+                if log["unrestored"]:
+                    log["branch"] = "CHAIN_PREFIX_UNRESTORED"
+                    log["codes"].append("CHAIN_PREFIX_UNRESTORED")
+                    log["stopped"]["branch_text"] = UNRESTORED_TEXT
+                else:
+                    log["branch"] = "chain_group_restored"
+                    log["stopped"]["branch_text"] = CHAIN_TEXT
+            else:
+                log["branch"] = "hold_non_chain"
+                log["stopped"]["branch_text"] = HOLD_TEXT
+        finalize(log, adapter, baseline, now, touched)
+    except Exception as error:
+        # Whatever else goes wrong after the first update call, the log of what was done is written before the error is raised.
+        if log["stopped"] is None:
+            stop(log, None, "UNEXPECTED", type(error).__name__, None)
+        log["finished_at"] = now().isoformat()
+        write_new(numbered(evidence, "jobs-update"), log)
+        raise
     write_new(numbered(evidence, "jobs-update"), log)
     return log
 
@@ -339,27 +354,39 @@ def run_rollback(bound, adapter, evidence, *, now):
     log = new_log("rollback", now)
     log["skipped_already_new"] = []
     touched = []
-    for job in reversed(jo.UPDATE_ORDER):
-        if so.job_view(adapter.job(job)) == baseline["jobs"][job]:
-            log["skipped_already_new"].append(job)
-            continue
-        touched.append(job)
-        if adapter.update_job(job, digest) != 0:
-            stop(log, job, "UPDATE_FAILED", f"The restore of {job} returned a nonzero exit", "re-run JobsRollback before 23:30 SAST")
-            break
-        try:
-            view = so.job_view(adapter.job(job))
-        except (Probe, so.NotFound):
-            view = None
-        if view is None or view["image"] != jo.image_reference(digest):
-            stop(log, job, "JOB_IMAGE", f"{job} does not run the rollback digest after its restore", "re-run JobsRollback before 23:30 SAST")
-            break
-        if jo.split_view(view) != jo.split_view(baseline["jobs"][job]):
-            log.setdefault("residual_drift", []).append(job)
-        log["updated"].append(job)
-    else:
-        log["complete"] = True
-    finalize(log, adapter, baseline, now, touched)
+    try:
+        for job in reversed(jo.UPDATE_ORDER):
+            try:
+                view = so.job_view(adapter.job(job))
+            except (Probe, so.NotFound):
+                stop(log, job, "READ_FAILED", f"{job} could not be read before its restore", "re-run JobsRollback before 23:30 SAST")
+                break
+            if view == baseline["jobs"][job]:
+                log["skipped_already_new"].append(job)
+                continue
+            touched.append(job)
+            if adapter.update_job(job, digest) != 0:
+                stop(log, job, "UPDATE_FAILED", f"The restore of {job} returned a nonzero exit", "re-run JobsRollback before 23:30 SAST")
+                break
+            try:
+                view = so.job_view(adapter.job(job))
+            except (Probe, so.NotFound):
+                view = None
+            if view is None or view["image"] != jo.image_reference(digest):
+                stop(log, job, "JOB_IMAGE", f"{job} does not run the rollback digest after its restore", "re-run JobsRollback before 23:30 SAST")
+                break
+            if jo.split_view(view) != jo.split_view(baseline["jobs"][job]):
+                log.setdefault("residual_drift", []).append(job)
+            log["updated"].append(job)
+        else:
+            log["complete"] = True
+        finalize(log, adapter, baseline, now, touched)
+    except Exception as error:
+        if log["stopped"] is None:
+            stop(log, None, "UNEXPECTED", type(error).__name__, None)
+        log["finished_at"] = now().isoformat()
+        write_new(numbered(evidence, "jobs-rollback"), log)
+        raise
     write_new(numbered(evidence, "jobs-rollback"), log)
     return log
 
