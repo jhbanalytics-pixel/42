@@ -163,7 +163,7 @@ def test_evidence_record_has_the_contract_fields_and_flags():
         "quote_text": transcript,
         "engagement": {"views": 184000, "likes": 9100, "comments": 300, "shares": 120},
         "flags": ["flagged", "sponsored", "near_duplicate"], "thumbnail_url": "https://t.example/p1.jpg",
-        "duration_s": 21.0, "creator_tier": "mid", "sponsor_checked": True,
+        "duration_s": 21.0, "creator_tier": "mid", "sponsor_checked": True, "outlet_class": "creator",
     }
     assert set(first) == CONTRACT_FIELDS | {"quote_text", "sponsor_checked"}
     assert len(first["text"]) == 280 and len(first["quote_text"]) == 450
