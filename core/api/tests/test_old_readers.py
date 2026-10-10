@@ -441,9 +441,10 @@ def test_a_layer_1_problem_gives_fail_when_the_corpus_lacks_a_state(world, rever
 
 def test_an_empty_corpus_no_legacy_rows_or_no_json_paths_cannot_pass(world, reverse):
     data = data_of(world, reverse)
-    for name, empty in (("legacy", []), ("paths", set())):
+    for name, empty, message in (("legacy", [], "layer 3: no record written by the previous writers"),
+                                 ("paths", set(), "layer 3: no JSON path is read from the previous release")):
         receipt = h.build_receipt("c" * 40, {**data, name: empty})
-        assert receipt["verdict"] == "fail" and layer_of(receipt, "layer 3"), name
+        assert receipt["verdict"] == "fail" and message in receipt["problems"], name
     receipt = h.build_receipt("c" * 40, {**data, "rows": [], "twin_of": {}, "reads": {}})
     assert receipt["verdict"] == "fail" and receipt["corpus_rows"] == 0
     assert layer_of(receipt, "layer 1") == ["layer 1: the corpus is empty"]
