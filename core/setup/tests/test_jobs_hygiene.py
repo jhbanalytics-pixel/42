@@ -420,6 +420,23 @@ def test_jp05_a_merge_commit_by_another_committer_is_not_a_lane_commit(tmp_path)
     assert lane_scan(root, base) == []
 
 
+def test_jp05_a_merge_commit_that_resolves_a_conflict_in_a_lane_file_is_not_a_lane_commit_either(tmp_path):
+    root = scratch_repo(tmp_path)
+    base = commit(root, ALBERT, {LANE_FILE: "a\nb\nc\n"}, "Start with the file")
+    subprocess.run(["git", "checkout", "-q", "-b", "side"], cwd=root, check=True, capture_output=True)
+    commit(root, ALBERT, {LANE_FILE: "a\nside\nc\n"}, "Side edit")
+    subprocess.run(["git", "checkout", "-q", "-"], cwd=root, check=True, capture_output=True)
+    commit(root, ALBERT, {LANE_FILE: "a\nmain\nc\n"}, "Main edit")
+    env = {**os.environ, "GIT_AUTHOR_NAME": OTHER[0], "GIT_AUTHOR_EMAIL": OTHER[1], "GIT_COMMITTER_NAME": OTHER[0], "GIT_COMMITTER_EMAIL": OTHER[1]}
+    merged = subprocess.run(["git", "merge", "--no-ff", "-q", "-m", "Merge side", "side"], cwd=root, capture_output=True, env=env)
+    assert merged.returncode != 0  # the same line changed on both sides
+    (root / LANE_FILE).write_text("a\nboth\nc\n", encoding="utf-8", newline="\n")
+    subprocess.run(["git", "add", "--", LANE_FILE], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-q", "--no-edit"], cwd=root, check=True, capture_output=True, env=env)
+    assert len(subprocess.run(["git", "log", "--merges", "--format=%H"], cwd=root, capture_output=True, encoding="utf-8").stdout.split()) == 1
+    assert lane_scan(root, base) == []
+
+
 def test_jp05_the_base_must_exist_or_the_nodes_fail_and_never_skip():
     with pytest.raises(RuntimeError):
         rh.commits(ROOT, "0" * 40, "HEAD", rh.LANE_PATHS)

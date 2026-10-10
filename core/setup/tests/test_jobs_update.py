@@ -543,3 +543,17 @@ def test_rb_t8_the_run_logs_and_the_branch_texts_state_the_bound_window_hours(tm
     cloud3.read_failures["f42-digest"] = 1
     undone = rollback(w3, cloud3, clock3)
     assert undone["rollback_deadline_sast"] == "23:30" and "23:30 SAST" in undone["stopped"]["branch_text"]
+
+
+def test_rb_t5_an_unexpected_error_inside_a_rollback_still_leaves_its_log_and_is_raised(tmp_path):
+    w, cloud, clock = started(tmp_path)
+    update(w, cloud, clock)
+
+    def boom(job, digest):
+        raise RuntimeError("boom")
+
+    cloud.update_job = boom
+    with pytest.raises(RuntimeError):
+        rollback(w, cloud, clock)
+    written = sorted(w.evidence.glob("jobs-rollback-*.json"))
+    assert len(written) == 1 and json.loads(written[0].read_text(encoding="utf-8"))["stopped"]["code"] == "UNEXPECTED"

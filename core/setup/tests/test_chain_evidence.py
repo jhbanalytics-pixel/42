@@ -797,3 +797,10 @@ def test_rb_t8_each_of_the_thirteen_codes_is_asserted_by_a_jm02_node_of_this_fil
                         if isinstance(const, ast.Constant) and const.value in ce.CODES:
                             asserted.setdefault(const.value, set()).add(node.name)
     assert sorted(set(ce.CODES) - set(asserted)) == []
+
+
+@pytest.mark.parametrize("stage", ["collect", "understand", "detect"])
+def test_rb_t8_only_the_brief_has_a_skipped_duplicate_allowance_even_at_0615(tmp_path, stage):
+    fix = fixture(tmp_path)
+    fix.skipped(stage, "x", minutes=375)
+    assert reasons(build(fix)) == ["MANUAL"]

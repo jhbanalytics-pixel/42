@@ -425,3 +425,16 @@ def test_rb_t8_the_jobs_mode_of_the_helper_refuses_a_tag_before_any_read(tmp_pat
     assert code == 1 and "STOP: MODE" in capsys.readouterr().err and reader.calls == []
     assert helper.main(["--mode", "jobs", "--phase", "BeforeAnyWrite", "--bindings", str(bindings), "--evidence", str(w.evidence)],
                        reader_factory=lambda timeouts: reader, bq_factory=lambda bound: w.bq_client(), now=lambda: w.now) == 0
+
+
+def test_rb_t4_only_a_split_service_is_recorded_and_every_other_refusal_or_failed_read_of_a_service_still_stops():
+    class Raising:
+        def __init__(self, error):
+            self.error = error
+
+        def service(self, name):
+            raise self.error
+
+    for error in (so.Stop("IDENTITY", "x"), so.Stop("WRITE_REFUSED", "x"), so.Probe("a read did not complete"), so.NotFound("f42-api")):
+        with pytest.raises(type(error)):
+            jo.tolerant_services(Raising(error))

@@ -521,7 +521,7 @@ def test_rb_t3_the_receipt_verb_needs_neither_a_console_nor_a_token(tmp_path):
 # RB-T7 (F7): when baseline-J says Release A was rolled back, the live revisions must still hold Release A's candidate revision
 # f42-<service>-<a_release_id>. The a80 pair with Release A never run is neither state, whatever baseline-J claims about itself.
 
-def never_ran_world(tmp_path, *, a_kind="AfterRollback", a_release_id=jw.A_RID):
+def never_ran_world(tmp_path, *, a_kind="AfterRollback", a_release_id=jw.A_RID, forge=None):
     """Both services on the a80 revisions with no candidate revision of any release, and a baseline-J captured from that world."""
     w = jw.ReleaseWorld(tmp_path)
     for name in so.SERVICES:
@@ -530,6 +530,8 @@ def never_ran_world(tmp_path, *, a_kind="AfterRollback", a_release_id=jw.A_RID):
         w.world.svc[name].update(latest_created=rw.A80_REV[name], latest_ready=rw.A80_REV[name], traffic=[{"revisionName": rw.A80_REV[name], "percent": 100}])
     baseline = w.baseline_j(a_kind=a_kind)
     baseline["aTerminal"]["a_release_id"] = a_release_id
+    if forge:
+        forge(baseline)
     w.prepare(baseline=baseline)
     return w
 
@@ -830,3 +832,31 @@ def test_rb_t8_a_by_line_baseline_outside_the_first_two_chains_is_refused_as_wel
     w.prepare()
     assert baseline_manifest(w)["verdict"]["baseline_by_line"] is True
     assert w.stop("BeforeAnyWrite").code == "BASELINE"
+
+
+@pytest.mark.parametrize("over", [
+    {"effects": []},
+    {"effects": [{"effect_id": "E-RUNS-DDL", "result_sha256": jw.sha("runs columns")}, {"effect_id": "E-CLAIM-DDL", "result_sha256": jw.sha("other")}]},
+    {"release_id": "rel-0000000-01"},
+    {"durable_manifest_sha256": "0" * 64},
+], ids=["no_effects", "wrong_readback_hash", "other_release", "other_manifest"])
+def test_rb_t3_a_receipt_that_carries_the_bound_hash_for_a_different_body_is_refused(tmp_path, over):
+    # The file claims the hash the bindings bind, so only comparing its body with the one the pinned manifest produces can refuse it.
+    w = world(tmp_path)
+    w.run("BeforeAnyWrite")
+    w.built(receipt=False)
+    w.schema_receipt(**over)
+    path = receipt_path(w)
+    body = json.loads(path.read_text(encoding="utf-8"))
+    body["receipt_sha256"] = w.bound["schemaReadbackReceiptSha256"]
+    path.write_text(json.dumps(body), encoding="utf-8")
+    assert w.stop("BeforeJobsUpdate").code == "SCHEMA_RECEIPT"
+
+
+def test_rb_t7_the_candidate_revision_is_looked_for_among_the_live_revisions_and_not_in_what_baseline_j_says_about_them(tmp_path):
+    def forge(baseline):
+        for name in so.SERVICES:
+            baseline["services"][name]["revisions"] = sorted([*baseline["services"][name]["revisions"], rw.CAND_REV[name]])
+
+    w = never_ran_world(tmp_path, forge=forge)
+    assert w.stop("BeforeAnyWrite").code == "A_STATE"
