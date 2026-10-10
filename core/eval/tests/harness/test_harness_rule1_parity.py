@@ -1,6 +1,9 @@
 """Rule 1 (no age lens, TRUST.md K6): the brief's term list and Ask's term list must agree.
 
-The brief gate keeps its terms in core/trust/claims.py (_BREACH_TERMS, read through _breach_term). Ask keeps its
+The seeds list keeps its terms in core/trust/claims.py (_BREACH_TERMS, read through _breach_term). Since the K6 split
+that is the list this file calls the brief's: the brief's claim check reads _k6_term instead, which adds the K6 only
+terms and the 03d exceptions, and test_the_claim_path_measurement_of_the_corpus_is_reported measures that path. Every
+"brief" case below therefore measures the seeds list. Ask keeps its
 own in core/agent/checks.py (AGE_PATTERNS and DEMOGRAPHIC, read through _text_breaches). A third copy of Ask's list
 sits in core/eval/promptfooconfig.yaml, as JavaScript. The two lists are written separately and cover different
 words, so these tests judge both against one corpus (rule1_terms.py) instead of comparing their source:
@@ -69,6 +72,7 @@ def ask_flags(text):
 
 
 def brief_flags(text):
+    """The seeds list (_breach_term), not the claim check; see the module docstring."""
     from core.trust import claims
 
     return claims._breach_term(text, frozenset()) is not None
@@ -137,6 +141,31 @@ def test_the_corpus_is_large_enough_to_judge_a_list():
     allow = [r for r in rows if not r[1]]
     assert len(flag) >= 80 and len(allow) >= 20
     assert {group for _, _, group in rows} >= {"generation label", "age figure", "inferred demographic"}
+
+
+# The claim path measurement, reported and not xfailed (whole-diff review, area 1, finding 6). The brief tests above read
+# brief_flags, which is _breach_term, the seeds list since the K6 split. The brief's claim check reads _k6_term: the
+# seeds list, the K6 only terms and the 03d exceptions. This runs the same corpus through _k6_term and pins what it
+# measured on the integration base, so a change in either direction shows up here by name. It is a measurement of the
+# claim path, not a claim that the rule is met: these nine phrases are named by rule 1 and pass the claim check, and
+# the one look-alike below is held by it. a80be1d misses the same nine.
+CLAIM_PATH_MISSES = (
+    'baby', 'twenty-somethings', 'thirty-somethings', 'middle class', 'working-class', 'demographics', 'life stage',
+    'high income', 'low-income households',
+)
+CLAIM_PATH_OVER_FLAGS = ('25-30 minutes',)
+
+
+def test_the_claim_path_measurement_of_the_corpus_is_reported(record_property):
+    from core.trust import claims
+
+    rows = rule1_terms.phrases()
+    missed = tuple(p for p, must_flag, _ in rows if must_flag and claims._k6_term(p, frozenset()) is None)
+    over = tuple(p for p, must_flag, _ in rows if not must_flag and claims._k6_term(p, frozenset()) is not None)
+    flagged_total = sum(1 for _, must_flag, _ in rows if must_flag)
+    record_property("claim_path_missed", f"{len(missed)} of {flagged_total}: {', '.join(missed)}")
+    record_property("claim_path_over_flagged", ", ".join(over))
+    assert (missed, over) == (CLAIM_PATH_MISSES, CLAIM_PATH_OVER_FLAGS)
 
 
 class TestTheComparisonCanFail:
