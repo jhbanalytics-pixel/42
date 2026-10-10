@@ -147,6 +147,12 @@ def test_hold_base_reads_the_wording_whatever_cap_it_names():
     assert pack_order.hold_base(base) == base and pack_order.hold_base("Platform-generic tag") == "Platform-generic tag"
 
 
+def test_hold_base_leaves_a_wording_that_has_a_colon_and_the_but_names_no_cap():
+    # "Not explained: the run stopped ..." is a wording of its own (payload.NOT_REACHED_TEXT), not a floor hold's cap
+    for text in (payload_module.NOT_REACHED_TEXT, "Not explained: the model did not get to this topic"):
+        assert pack_order.hold_base(text) == text
+
+
 def test_the_hold_text_names_the_cap_that_removed_the_posts_and_keeps_the_old_text_when_none_did():
     base = "Fewer than 2 supported local posts"
     outlet = {"cause": "capped_by_outlet", "counts": {"available": 5, "after_creator_cap": 4, "after_outlet_cap": 1,
