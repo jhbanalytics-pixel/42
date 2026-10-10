@@ -8,6 +8,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -581,6 +582,14 @@ def test_main_refuses_a_folder_that_does_not_exist_and_runs_nothing(monkeypatch,
     target = tmp_path / "missing" / "old-reader-receipt.json"
     assert h.main(["--receipt", str(target)]) == 1
     assert "does not exist" in capsys.readouterr().err
+
+
+def test_the_module_runs_as_a_command_and_its_exit_code_is_main_s(tmp_path):
+    target = tmp_path / "old-reader-receipt.json"
+    target.write_text("kept", encoding="utf-8")
+    done = subprocess.run([sys.executable, "-B", "-m", "core.api.tests.old_reader_harness", "--receipt", str(target)], cwd=ROOT,
+                          capture_output=True, encoding="utf-8", timeout=120)
+    assert done.returncode == 1 and str(target) in done.stderr and target.read_text(encoding="utf-8") == "kept"
 
 
 def test_main_needs_the_receipt_flag(capsys):
