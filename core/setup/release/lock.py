@@ -10,6 +10,9 @@ bound_files   the release's own durable inputs (bindings, baseline, durable-effe
 tests         the test sources of section 5, by repository path.
 expected_smoke_checks   the number of checks smoke.py records, derived from its source by AST, never typed.
 
+The lock hashes only the files listed here. Assert-Source (HEAD commit, HEAD tree and a clean porcelain status) pins the rest of the
+tracked tree before every step of Candidate and Promote.
+
 A lock for an attempt that never ran is kept, never removed: priorAttempts and priorLedgers cite locks and ledgers by hash.
 """
 from __future__ import annotations
