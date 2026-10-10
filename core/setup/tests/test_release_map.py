@@ -14,9 +14,9 @@ from core.setup.tests import release_prereq
 
 ROOT = Path(__file__).resolve().parents[3]
 MAP = ROOT / "core/setup/tests/release_test_ids.json"
-COUNTS = {"DS": 22, "RT": 5, "PS": 23, "HR": 54, "AU": 9, "CT": 7, "DE": 15, "TM": 5, "SM": 1}
-PARTITION_OF_PREFIX = {"HR": "core", "AU": "core", "DE": "core", "TM": "core", "SM": "core", "DS": "deploy", "RT": "deploy", "PS": "deploy", "CT": "deploy"}
-NODE = re.compile(r"^test_(hr|au|ds|rt|ps|ct|de|tm|sm)(\d\d)(?:_|$)")
+COUNTS = {"DS": 22, "RT": 5, "PS": 23, "HR": 54, "AU": 9, "CT": 7, "DE": 15, "TM": 5, "SM": 1, "JB": 8, "JS": 11}
+PARTITION_OF_PREFIX = {"HR": "core", "AU": "core", "DE": "core", "TM": "core", "SM": "core", "JB": "core", "JS": "core", "DS": "deploy", "RT": "deploy", "PS": "deploy", "CT": "deploy"}
+NODE = re.compile(r"^test_(hr|au|ds|rt|ps|ct|de|tm|sm|jb|js)(\d\d)(?:_|$)")
 
 
 def load_map():
@@ -30,7 +30,7 @@ def declared_ids():
 def collected():
     """{id: {file, ...}} from every test file under the three test folders, read from the source (the names pytest collects)."""
     found = {}
-    for folder in ("core/setup/tests", "core/api/tests", "core/schema/tests"):
+    for folder in ("core/setup/tests", "core/api/tests", "core/schema/tests", "core/collect/tests", "core/detect/tests"):
         for path in sorted((ROOT / folder).glob("test_*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"))
             for node in ast.walk(tree):

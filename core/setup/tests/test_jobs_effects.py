@@ -511,3 +511,24 @@ def test_rj3_the_image_effect_keeps_its_helper_phase_and_the_views_effect_its_ch
     assert effect(manifest, "E-JOBS-IMAGE")["native_readback"]["kind"] == "helper_phase"
     assert effect(manifest, "E-JOB-VIEWS")["native_readback"]["kind"] == "chain_manifest"
     assert de.validate_manifest(manifest) == []
+
+
+# RJ-6: a consumer file that is not in the tree, or does not name its table, is refused
+
+def test_rj6_a_consumer_file_missing_from_the_tree_or_not_naming_its_table_is_refused():
+    files = [("core/a.py", "INSERT INTO agent.runs VALUES (1)"), ("core/b.py", "x = 1")]
+    assert je.consumer("core/a.py", "write", files, "intelligence_42_agent.runs")["file"] == "core/a.py"
+    assert je.consumer("core/b.py", "write", files)["file"] == "core/b.py"
+    with pytest.raises(ValueError, match="core/b.py"):
+        je.consumer("core/b.py", "write", files, "intelligence_42_agent.runs")
+    with pytest.raises(ValueError, match="core/gone.py"):
+        je.consumer("core/gone.py", "write", files, "intelligence_42_agent.runs")
+    with pytest.raises(ValueError, match="core/gone.py"):
+        je.consumer("core/gone.py", "write", files)
+
+
+def test_rj6_the_manifest_cannot_be_built_when_the_file_that_writes_a_table_is_gone_from_the_tree(trees):
+    head, a80 = trees
+    without = [(path, text) for path, text in head if path != "core/collect/chain.py"]
+    with pytest.raises(ValueError, match="core/collect/chain.py"):
+        je.build_jobs_manifest(without, a80, release_id=RID, commit=COMMIT, tree=TREE, owner=OWNER)

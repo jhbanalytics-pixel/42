@@ -19,6 +19,7 @@ BUILD_ID = "b1d-0002"
 
 def record(**over):
     value = {"id": BUILD_ID, "status": "SUCCESS", "serviceAccount": f"projects/ogilvy-trends-v2/serviceAccounts/{DEPLOYER}",
+             "source": {"storageSource": {"bucket": dj.source_location()[0], "object": dj.source_object(f"{COMMIT[:12]}-02")}},
              "steps": [{"name": "gcr.io/cloud-builders/docker",
                         "args": ["build", "-f", "core/setup/jobs.Dockerfile", "--build-arg", f"GIT_SHA={COMMIT}", "-t", TAG, "."]}],
              "results": {"images": [{"name": TAG, "digest": DIGEST}]}}
@@ -146,3 +147,63 @@ def test_jb02_freeze_never_overwrites_a_manifest(tmp_path):
 def test_jb02_the_build_result_is_read_before_the_registry_and_each_once(tmp_path):
     reader, _ = freeze(tmp_path)
     assert [c[0] for c in reader.calls] == ["build", "registry"]
+
+
+# RJ-6: attempt 00, two steps, and the source object the build read
+
+def test_rj6_attempt_00_is_a_stop_on_the_bindings_and_nothing_is_read(tmp_path):
+    reader = FakeReader()
+    with pytest.raises(so.Stop) as stop:
+        jf.freeze_jobs(bound(tmp_path, release_id="rel-5e1c0de-00"), reader, BUILD_ID)
+    assert stop.value.code == "BINDINGS"
+    assert reader.calls == [] and written(tmp_path) == []
+
+
+def test_rj6_expected_tag_takes_attempts_one_to_the_deploy_tools_maximum_and_refuses_00_on_the_bindings(tmp_path):
+    assert dj.MAX_ATTEMPT == 99
+    for attempt in (1, 12, 99):
+        assert jf.expected_tag(bound(tmp_path, release_id=f"rel-5e1c0de-{attempt:02d}")) == (dj.image_tag(COMMIT, attempt), attempt)
+    with pytest.raises(so.Stop) as stop:
+        jf.expected_tag(bound(tmp_path, release_id="rel-5e1c0de-00"))
+    assert stop.value.code == "BINDINGS" and "attempt 00" in stop.value.message
+
+
+def test_rj6_a_build_record_with_two_steps_is_refused_even_when_the_first_is_right(tmp_path):
+    good = record()["steps"][0]
+    with pytest.raises(so.Stop) as stop:
+        freeze(tmp_path, FakeReader(build=record(steps=[good, {"name": "docker", "args": ["push", TAG]}])))
+    assert stop.value.code == "BUILD" and "single docker step" in stop.value.message
+    assert written(tmp_path) == []
+
+
+def test_rj6_the_source_object_the_build_read_is_the_one_this_attempts_tag_names():
+    assert record()["source"]["storageSource"]["object"].endswith(f"jobs-{COMMIT[:12]}-02.tar.gz")
+    assert record()["source"]["storageSource"]["object"] == dj.source_object(f"{COMMIT[:12]}-02")
+
+
+@pytest.mark.parametrize("source", [
+    {"storageSource": {"bucket": "b", "object": "release-source/jobs-" + COMMIT[:12] + "-01.tar.gz"}},
+    {"storageSource": {"bucket": "b", "object": "release-source/jobs-" + "7" * 12 + "-02.tar.gz"}},
+    {"storageSource": {"bucket": "b", "object": "somewhere/else.tar.gz"}},
+    {"storageSource": {"bucket": "b"}},
+    {"storageSource": {"bucket": "b", "object": ""}},
+    {"storageSource": {}},
+    {"repoSource": {"commitSha": COMMIT}},
+    {},
+    None,
+    "gs://b/jobs",
+])
+def test_rj6_a_build_that_read_another_source_object_or_none_is_refused_before_any_registry_read(tmp_path, source):
+    reader = FakeReader(build=record(source=source))
+    with pytest.raises(so.Stop) as stop:
+        freeze(tmp_path, reader)
+    assert stop.value.code == "BUILD" and "source" in stop.value.message
+    assert ("registry", TAG) not in reader.calls and written(tmp_path) == []
+
+
+def test_rj6_a_build_record_with_no_source_key_at_all_is_refused(tmp_path):
+    build = record()
+    del build["source"]
+    with pytest.raises(so.Stop) as stop:
+        freeze(tmp_path, FakeReader(build=build))
+    assert stop.value.code == "BUILD"

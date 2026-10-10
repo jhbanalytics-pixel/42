@@ -537,6 +537,101 @@
    "partition": "core",
    "status": "built"
   },
+  "JB-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-09": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-10": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-11": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
   "PS-01": {
    "owner": "lane 3",
    "partition": "deploy",
@@ -719,7 +814,15 @@
    "core/setup/tests/test_release_map.py",
    "core/setup/tests/test_release_plan.py",
    "core/api/tests/test_old_readers.py",
-   "core/api/tests/test_app.py"
+   "core/api/tests/test_app.py",
+   "core/setup/tests/test_jobs_build.py",
+   "core/setup/tests/test_jobs_freeze.py",
+   "core/setup/tests/test_jobs_baseline.py",
+   "core/setup/tests/test_jobs_envscan.py",
+   "core/setup/tests/test_jobs_source.py",
+   "core/setup/tests/test_jobs_effects.py",
+   "core/collect/tests/test_chain_record.py",
+   "core/detect/tests/test_js07_switch_columns.py"
   ],
   "deploy": [
    "core/api/tests/test_deploy_candidate.py",

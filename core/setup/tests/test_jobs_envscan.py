@@ -433,3 +433,21 @@ def test_rj2_the_cli_classifies_a_name_the_bound_baseline_holds_and_refuses_a_fi
     assert "BINDINGS" in capsys.readouterr().out
     other = 'import os\nx = os.environ.get("NOT_HELD_BY_ANY_JOB")\n'
     assert cli(tmp_path, other, "--baseline-j", str(path), "--baseline-j-sha256", sha) == 1
+
+
+# RJ-6: a whole mapping is judged by its subscript reads too, and only by reads
+
+SUBSCRIPT_LIKE = '''import os
+
+
+def build(env=None):
+    env = os.environ if env is None else env
+    env["WRITTEN_NAME"] = "1"
+    return env["SUBSCRIPTED_NAME"]
+'''
+
+
+def test_rj6_a_whole_mapping_is_judged_by_the_names_it_reads_with_a_subscript_and_not_by_a_name_it_writes():
+    found = scan([("core/setup/other_stamp.py", SUBSCRIPT_LIKE)])
+    assert [(f.name, f.line) for f in found] == [("SUBSCRIPTED_NAME", 7)]
+    assert scan([("core/setup/other_stamp.py", SUBSCRIPT_LIKE)], names={"SUBSCRIPTED_NAME"}) == []

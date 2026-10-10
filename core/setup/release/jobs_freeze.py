@@ -30,10 +30,11 @@ def expected_tag(bound):
     require(isinstance(target, str) and COMMIT.match(target) and isinstance(rid, str) and so.RELEASE_ID.match(rid)
             and rid[4:11] == target[:7], "BINDINGS", "The release id does not name the target commit")
     attempt = int(rid[-2:])
+    require(1 <= attempt <= dj.MAX_ATTEMPT, "BINDINGS", f"The release id names attempt {attempt:02d}, outside 01 to {dj.MAX_ATTEMPT:02d}")
     return dj.image_tag(target, attempt), attempt
 
 
-def check_build_record(bound, build, build_id, name):
+def check_build_record(bound, build, build_id, name, tag):
     require(isinstance(build, dict) and build.get("id") == build_id, "BUILD", "The build record is not the build the paste started")
     require(build.get("status") == "SUCCESS", "BUILD", "The jobs build did not succeed")
     account = f"projects/{so.PROJECT}/serviceAccounts/" + str(bound.get("buildServiceAccount", "")).split("serviceAccounts/")[-1]
@@ -44,6 +45,10 @@ def check_build_record(bound, build, build_id, name):
     require(isinstance(args, list), "BUILD", "The build step has no argument list")
     require(any(a == f"GIT_SHA={bound['target']}" for a in args), "BUILD", "The build was not made from the bound commit")
     require(any(args[i] == "-t" and args[i + 1] == name for i in range(len(args) - 1)), "BUILD", "The build produced another image tag")
+    source = build.get("source")
+    stored = source.get("storageSource") if isinstance(source, dict) else None
+    require(isinstance(stored, dict) and stored.get("object") == dj.source_object(tag), "BUILD",
+            "The build did not read the source object of this attempt's tag")
 
 
 def build_digest(build, name):
@@ -60,7 +65,7 @@ def freeze_jobs(bound, reader, build_id, now=None):
     path, sidecar = root / "release-manifest.json", root / "release-manifest.sha256"
     require(not path.exists() and not sidecar.exists(), "MANIFEST_HASH", "The manifest already exists; FreezeJobs does not overwrite it")
     build = reader.build(build_id)
-    check_build_record(bound, build, build_id, name)
+    check_build_record(bound, build, build_id, name, tag)
     digest = build_digest(build, name)
     registry = reader.registry_digest(name)
     require(isinstance(registry, str) and DIGEST.match(registry), "DIGEST", "The registry holds no well formed digest for the image tag")

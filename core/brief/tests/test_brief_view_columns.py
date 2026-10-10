@@ -1,7 +1,11 @@
 """Release B carry item RB-C2: the brief's candidates statement names no view column that the views.sql of the same commit does
 not give. On the B image the brief binds only after detect has re-created the views in the same chain, so a column the head
 brief reads and the head views lack would fail the first B chain's brief. The views are built on the DuckDB harness from the
-tree's own views.sql and locality_views.sql and described; the references are read from the statement's text."""
+tree's own views.sql and locality_views.sql and described; the references are read from the statement's text.
+
+A chain whose detect stops before its views step leaves the brief's first statement failing on market_news_posts7. The brief
+then reads the null variant, but that chain fails TERMINAL, because detect's own terminal row is not ok. It is not DEGRADED,
+which is understand's rule (W8-REL-B 2.4)."""
 import re
 
 import pytest
