@@ -15,9 +15,10 @@ import {PlatformLogo, brandOf, brandStyle, platformId} from './PlatformLogo.jsx'
 import {SnapBand} from './SnapBand.jsx';
 import {
   BEFORE_COUNT, BigFigures, Feedback, Figure, Lifecycle, Novelty, PostFull, PostsShownNote, EvidenceList, ExcerptNote, Sparkline, Thumbnails,
-  accountsCard, askHref, askQuestion, bigFigures, countLineWords, countWindowStart, factWords, figureWords, isFigure, isYoutubeChannelAuthor, longDate, platformWord,
+  askHref, askQuestion, bigFigures, countLineWords, countWindowStart, factWords, figureWords, isFigure, isYoutubeChannelAuthor, longDate, platformWord,
   postTextView, proseDates, topicHref, useCardPosts, writtenTitle,
 } from './TrendCard.jsx';
+import {accountsCard, countedCreators} from './accounts.js';
 import {UNNAMED_TOPIC_WORDS, isUnnamedTopic} from '../topicNames.js';
 import {readerFigure} from '../api.js';
 import {safeUrl} from '../safeUrl.js';
@@ -29,15 +30,7 @@ const sameText = (a, b) => typeof a === 'string' && typeof b === 'string'
   && a.replace(/\s+/g, ' ').trim() === b.replace(/\s+/g, ' ').trim();
 const text = (value) => (typeof value === 'string' && value.trim() !== '' ? value : '');
 
-/* The creators the card counts in its window: the reach figure or the number
-   whose unit is creators. null when the payload carries no such figure, so a
-   card is only held back for a count that was sent and is zero. */
-export function countedCreators(card){
-  if (!card || typeof card !== 'object') return null;
-  const figures = [card.reach, ...(Array.isArray(card.numbers) ? card.numbers : [])].filter(isFigure);
-  const found = figures.find((figure) => /^(creators\b|accounts? posting\b)/i.test(String(figure.unit || '').trim()));
-  return found ? Number(found.value) : null;
-}
+export {countedCreators};
 
 /* The question, the title the reader sees and the Ask address for one card. */
 export function cardWords(card, market, date){

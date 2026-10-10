@@ -14,8 +14,9 @@ import {snapshotTime} from './plainLabels.js';
 import {safeUrl} from './safeUrl.js';
 import {SearchingNow} from './ui/SearchingNow.jsx';
 import {TodayBoards} from './ui/TodayBoards.jsx';
-import {EvidenceList, PostsShownNote, accountsWords, countLineWords, longDate, proseDates, topicHref} from './ui/TrendCard.jsx';
-import {StoryCard, countedCreators} from './ui/StoryCard.jsx';
+import {accountsWords, countedCreators} from './ui/accounts.js';
+import {EvidenceList, PostsShownNote, countLineWords, longDate, proseDates, topicHref} from './ui/TrendCard.jsx';
+import {StoryCard} from './ui/StoryCard.jsx';
 import {LeadPanel} from './ui/LeadPanel.jsx';
 import {PartsBar, StepMeter} from './ui/Charts42.jsx';
 import {FigureLine} from './ui/FigureLine.jsx';
@@ -219,9 +220,9 @@ function todaySpecificityView(card){
 
 function prepareTodayMarket(market){
   /* A published card whose counted creators is 0 is never drawn. */
-  const cards = (Array.isArray(market.cards) ? market.cards : [])
-    .concat(Array.isArray(market.more) ? market.more : [])
-    .filter((card) => countedCreators(card) !== 0);
+  const published = (Array.isArray(market.cards) ? market.cards : [])
+    .concat(Array.isArray(market.more) ? market.more : []);
+  const cards = published.filter((card) => countedCreators(card) !== 0);
   const admitted = cards.flatMap((card) => {
     const specificity = todaySpecificityView(card);
     return specificity ? [{card, specificity}] : [];
@@ -230,6 +231,7 @@ function prepareTodayMarket(market){
     market: {...market, cards: admitted.slice(0, 5).map(({card}) => card), more: admitted.slice(5).map(({card}) => card)},
     admitted,
     rejectedCards: cards.length - admitted.length,
+    noAccountsCards: published.length - cards.length,
     specificityByItemId: new Map(admitted.map(({card, specificity}) => [card.item_id, specificity])),
   };
 }
@@ -359,7 +361,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
   const partialCopy = incompleteMarkets.length > 0
     ? 'Some markets are incomplete: ' + incompleteMarkets.map((market) => nonEmptyString(market.label) ? market.label : market.market).join(', ') + '.'
     : null;
-  const checkedHeldMarkets = shown.filter(({rejectedCards}) => rejectedCards === 0).map(({market}) => market).filter((market) => {
+  const checkedHeldMarkets = shown.filter(({rejectedCards, noAccountsCards}) => rejectedCards === 0 && noAccountsCards === 0).map(({market}) => market).filter((market) => {
     const held = market.held_back;
     return !hasIncompleteRun(market) && market.cards.length + market.more.length === 0
       && Array.isArray(held?.items) && held.items.length > 0 && held.count === held.items.length
@@ -508,6 +510,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
                 key={m.market.market + ':' + tab}
                 market={m.market}
                 rejected={m.rejectedCards}
+                noAccounts={m.noAccountsCards}
                 specificityByItemId={m.specificityByItemId}
                 headline={headline}
                 compact={tab === 'ALL'}
@@ -877,18 +880,28 @@ function MarketStatus({market, banners, sourceDetails, empty}){
   );
 }
 
-function ClientHeld({count}){
-  if (!(count > 0)) return null;
+function ClientHeld({count, noAccounts = 0}){
   return (
-    <p className="t42-line-text" data-client-held="">
-      {count === 1
-        ? '1 trend the brief cleared is not shown here, because its example posts did not pass this page’s own check.'
-        : count + ' trends the brief cleared are not shown here, because their example posts did not pass this page’s own check.'}
-    </p>
+    <>
+      {count > 0 && (
+        <p className="t42-line-text" data-client-held="">
+          {count === 1
+            ? '1 trend the brief cleared is not shown here, because its example posts did not pass this page’s own check.'
+            : count + ' trends the brief cleared are not shown here, because their example posts did not pass this page’s own check.'}
+        </p>
+      )}
+      {noAccounts > 0 && (
+        <p className="t42-line-text" data-client-held-zero="">
+          {noAccounts === 1
+            ? '1 trend the brief cleared is not shown here, because it counts 0 accounts posting, last 3 days.'
+            : noAccounts + ' trends the brief cleared are not shown here, because they count 0 accounts posting, last 3 days.'}
+        </p>
+      )}
+    </>
   );
 }
 
-function MarketBlock({market, headline, rejected = 0, compact, date, skipBanner, onAuth, watch, onFeedback, specificityByItemId, searchingNow, showHistoryLink, onOpenMarket, dataIssue = false}){
+function MarketBlock({market, headline, rejected = 0, noAccounts = 0, compact, date, skipBanner, onAuth, watch, onFeedback, specificityByItemId, searchingNow, showHistoryLink, onOpenMarket, dataIssue = false}){
   const [all, setAll] = useState(false);
   const top = Array.isArray(market.cards) ? market.cards : [];
   const more = Array.isArray(market.more) ? market.more : [];
@@ -906,7 +919,7 @@ function MarketBlock({market, headline, rejected = 0, compact, date, skipBanner,
       {compact && <h2 className="t42-market-name">{market.label}</h2>}
       <MarketStatus market={market} empty={cards.length === 0} sourceDetails={sourceDetails}
         banners={banners.filter((banner) => banner.kind !== 'thin_coverage' && !isSourceFailureBanner(banner))} />
-      <ClientHeld count={rejected} />
+      <ClientHeld count={rejected} noAccounts={noAccounts} />
       {cards.length > 0
         ? <>
           <p className="t42-line-text" data-today-count-window="">Accounts and posts are counted over the last 3 days.</p>

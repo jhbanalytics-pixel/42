@@ -28,8 +28,10 @@ const MARKS = {
 // Boomplay: the mark is absent from simple-icons 13.21.0, so it keeps the text monogram.
 export const LOGO_KEYS = Object.keys(MARKS);
 
-/* Each mark's own brand colour, from the same simple-icons release, for the
-   chip behind it and the thin rule on a board card. A platform with no mark
+/* Each mark's own brand colour, the hex that simple-icons 13.21.0 lists for
+   it in _data/simple-icons.json. Every value below was compared with that
+   file, and the tests pin the same literals. It is the colour for the
+   chip behind the mark and the thin rule on a board card. A platform with no mark
    has no colour here either, so it keeps the neutral card. The ink on the
    chip is white unless white would fall under 3 to 1 on that colour. A chip
    nearly as dark as the dark theme surface (TikTok and X at 000000, Google

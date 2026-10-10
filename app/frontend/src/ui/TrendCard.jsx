@@ -53,54 +53,7 @@ export function figureWords(figure){
   return readerFigure(figure.value) + (shownUnit ? ' ' + shownUnit : '');
 }
 
-/* One name for the count of different accounts, said the same way on Today
-   and in Discover: "3 accounts posting, last 3 days". The API words the same
-   measure "creators in 3 days" and a stored brief line can carry another
-   number for it, so a card is read through its measured figure (its reach, or
-   the creators number of the brief) and the stored line takes that number or
-   gives way to it. Only the words change; no value, query id or run id does. */
-const WINDOW_UNIT = /^creators in (\d+) days?$/i;
-const ACCOUNTS_3_DAYS = /^accounts? posting, last 3 days$/;
-export function accountsFigure(figure){
-  if (!isFigure(figure)) return figure;
-  const found = WINDOW_UNIT.exec(String(figure.unit || '').trim());
-  if (!found) return figure;
-  return {...figure, unit: (Number(figure.value) === 1 ? 'account posting' : 'accounts posting') + ', last ' + found[1] + ' days'};
-}
-const COUNTED_ACCOUNTS = /(\d[\d.,   ]*?)\s+(?:creators?|accounts?)\b/gi;
-const digitsOf = (text) => Number(String(text).replace(/[^\d]/g, ''));
-function accountsLine(line, measured){
-  if (typeof line !== 'string' || !isFigure(measured)) return line;
-  const found = /^\s*\d[\d.,   ]*\s+creators?\b(.*)$/i.exec(line);
-  const window = /(?:,| in)\s+(?:the\s+)?(?:last\s+)?3 days\b/i;
-  if (found && window.test(found[1])){
-    const noun = Number(measured.value) === 1 ? '1 account posting' : readerFigure(measured.value) + ' accounts posting';
-    return noun + found[1].replace(window, ', last 3 days');
-  }
-  /* A line that counts other accounts in the same window, in words this page
-     cannot restate, would contradict the figure beside it, so it is dropped. */
-  if (/\b3 days\b/i.test(line) && [...line.matchAll(COUNTED_ACCOUNTS)].some((hit) => digitsOf(hit[1]) !== Number(measured.value))) return null;
-  return line;
-}
-export function accountsCard(card){
-  if (!card || typeof card !== 'object') return card;
-  const next = {...card};
-  if (has(card, 'reach')) next.reach = accountsFigure(card.reach);
-  if (Array.isArray(card.numbers)) next.numbers = card.numbers.map(accountsFigure);
-  if (isFigure(card.reach7)) next.reach7 = accountsFigure(card.reach7);
-  const measured = [next.reach, ...(Array.isArray(next.numbers) ? next.numbers : [])]
-    .find((figure) => isFigure(figure) && ACCOUNTS_3_DAYS.test(String(figure.unit)));
-  if (has(card, 'count_line')) next.count_line = accountsLine(card.count_line, measured);
-  return next;
-}
-
-/* The same words in a stored sentence: "posted by 31 creators in 3 days" reads
-   "posted by 31 accounts in 3 days". The stored text is unchanged. */
-const SAID_CREATORS = /(\d[\d   ]*)\s+creators?\s+in\s+(\d+ days?)\b/gi;
-export function accountsWords(text){
-  if (typeof text !== 'string') return text;
-  return text.replace(SAID_CREATORS, (whole, count, days) => count + ' ' + (digitsOf(count) === 1 ? 'account' : 'accounts') + ' in ' + days);
-}
+export {accountsCard, accountsFigure, accountsWords} from './accounts.js';
 
 /* A stored count line as a reader says it: briefs written before 6 October
    2026 say "1 creators and 1 posts in 3 days". "21 posts" keeps its plural. */

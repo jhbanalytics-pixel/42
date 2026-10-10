@@ -390,13 +390,34 @@ test('a card reads its accounts from the measured figure only, and the stored co
   expect(words(cardOf('#fixture_za_step'))).toContain('31 accounts posting, last 3 days');
 });
 
-test('a stored count line that also counts posts keeps the posts and takes the measured accounts', async () => {
+test('a stored count line that carries a number is dropped, never rewritten or joined to the measured figures', async () => {
   const today = clone(todayFixture);
-  another(today, '#two_part', (card) => { card.numbers[0].value = 17; card.count_line = '12 creators and 20 posts in 3 days'; });
+  another(today, '#two_part', (card) => { card.numbers[0].value = 17; card.numbers[1].value = 40; card.count_line = '12 creators and 20 posts in 3 days'; });
+  another(today, '#seven_day', (card) => { card.numbers[0].value = 12; card.count_line = '31 creators in 7 days, 12 posts in 3 days'; card.item_id = 'a'.repeat(64); });
   await mount({}, today);
   const text = words(cardOf('#two_part'));
-  expect(text).toContain('17 accounts posting and 20 posts, last 3 days');
+  expect(text).toContain('17 accounts posting, last 3 days');
+  expect(text).toContain('40 posts in 3 days');
   expect(text).not.toContain('12 creators');
+  expect(text).not.toContain('20 posts');
+  expect(text).not.toContain('17 accounts posting and');
+  expect(cardOf('#two_part').querySelector('.t42-count')).toBeNull();
+  const seven = words(cardOf('#seven_day'));
+  expect(seven).toContain('12 accounts posting, last 3 days');
+  expect(seven).not.toMatch(/accounts posting in 7 days|31 (creators|accounts)/);
+  expect(seven).not.toContain('31 creators');
+});
+
+test('a card whose measured accounts figure is zero is not drawn, and the page says it left', async () => {
+  const today = clone(todayFixture);
+  another(today, '#nobody_posting', (card) => { card.numbers[0].value = 0; card.item_id = 'b'.repeat(64); });
+  another(today, '#seven_day_zero', (card) => { card.numbers = [{...card.numbers[0], value: 0, unit: 'creators in 7 days'}, {...card.numbers[0], value: 9, unit: 'creators in 3 days'}]; card.item_id = '9'.repeat(64); });
+  await mount({}, today);
+  expect(cardOf('#nobody_posting')).toBeUndefined();
+  expect(words(cardOf('#seven_day_zero'))).toContain('9 accounts posting, last 3 days');
+  const note = host.querySelector('[data-client-held-zero]');
+  expect(note).not.toBeNull();
+  expect(words(note)).toBe('1 trend the brief cleared is not shown here, because it counts 0 accounts posting, last 3 days.');
 });
 
 test('one account reads in the singular, a line that counts other accounts is dropped, and a card with no measured figure keeps its line', async () => {
@@ -410,6 +431,7 @@ test('one account reads in the singular, a line that counts other accounts is dr
   expect(words(cardOf('#other_count'))).not.toContain('31 creators');
   expect(words(cardOf('#other_count'))).toContain('17 accounts posting, last 3 days');
   expect(words(cardOf('#unmeasured'))).toContain('5 creators, 3 days');
+  expect(cardOf('#other_count').querySelector('.t42-count')).toBeNull();
 });
 
 test('the lead panel and the headline say accounts, and the page note names the window', async () => {

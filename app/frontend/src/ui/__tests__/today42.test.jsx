@@ -2562,7 +2562,7 @@ test('a count of one reads "1 creator" and "1 post", on the card and in a stored
   today.headline = null;
   await mount({}, today);
   const shown = cards()[0];
-  expect(shown.querySelector('.t42-count').textContent).toBe('1 account posting and 1 post, last 3 days');
+  expect(shown.querySelector('.t42-count')).toBeNull();
   expect([...shown.querySelectorAll('.tc-big-item')].map((item) => item.textContent)).toEqual(['1 account posting, last 3 days', '1 post in 3 days']);
   expect(shown.textContent).not.toMatch(/\b1 (creators|posts)\b/);
 });
@@ -2651,7 +2651,9 @@ test('a tap anywhere on a Today card opens it, and its controls keep their own j
   expect(opened).toBe(2);
   click(button(card, 'Posts'));
   expect(opened).toBe(2);
-  click(card.querySelector('[data-local-examples] a.t42-link'));
+  const example = card.querySelector('[data-local-examples] a.t42-link');
+  example.setAttribute('href', '#example');
+  click(example);
   expect(opened).toBe(2);
   // The title link stays the card's one keyboard stop.
   expect(card.getAttribute('tabindex')).toBeNull();
