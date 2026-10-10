@@ -226,3 +226,10 @@ def test_a_nickname_at_either_end_of_a_title_is_read():
 
 def test_a_nickname_inside_a_longer_word_is_not_replaced():
     assert not same_event.same_event("abafana vs Egypt", "asouth africa vs Egypt")
+
+
+def test_a_decision_that_does_not_publish_is_not_collapsed_whatever_its_place():
+    bafana = candidate("bafana", BAFANA, 0.97, posts={"p1"})
+    unpublished = candidate("safe", SAFE, 0.96, posts={"p1"}, publish=False)
+    merged, left = collapse(bafana, unpublished)
+    assert merged == [] and left == [bafana, unpublished]
