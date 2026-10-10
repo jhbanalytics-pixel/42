@@ -8,8 +8,8 @@ write is seeded, so a file the helper reads that nobody writes stops the run, as
 These tests are in the deploy partition (release_test_ids.json). A missing pwsh fails them; nothing here skips for a missing
 prerequisite. They run on Windows only, because the paste finds gcloud as gcloud.cmd and the launcher as py.exe there.
 """
-import datetime as dt
 import json
+import re
 import shutil
 import subprocess
 
@@ -18,7 +18,7 @@ import pytest
 from core.setup.release import services_only as so
 from core.setup.tests import release_prereq
 from core.setup.tests import release_world as rw
-from core.setup.tests.e2e_world import E2E, ON_WINDOWS, PASSCODE, ROOT
+from core.setup.tests.e2e_world import E2E, ON_WINDOWS, ROOT
 
 pytestmark = pytest.mark.skipif(not ON_WINDOWS, reason="the paste finds gcloud as gcloud.cmd and the launcher as py.exe, which exist on Windows only")
 
@@ -40,7 +40,7 @@ def e2e(tmp_path_factory):
 
 
 def tail(run):
-    return f"{run.action} exited {run.returncode}\n--- stdout\n{run.stdout[-3000:]}\n--- stderr\n{run.stderr[-3000:]}"
+    return f"{run.action} exited {run.returncode}\n== stdout ==\n{run.stdout[-3000:]}\n== stderr ==\n{run.stderr[-3000:]}"
 
 
 def need(run):
@@ -117,6 +117,8 @@ def test_candidate_writes_freeze_inputs_from_the_build_it_ran_and_the_helper_che
     source = build["source"]["storageSource"]
     assert inputs["build_id"] == build_id
     assert inputs["uploaded_source"] == f"gs://{source['bucket']}/{source['object']}"
+    # gcloud builds describe gives nine fractional digits and a Z, and the helper has to read that against the paste's start
+    assert re.search(r"\.\d{9}Z$", build["createTime"])
     started = so.parse_utc(inputs["paste_started_utc"])
     assert candidate.started <= started <= so.parse_utc(build["createTime"])
     manifest = e2e.json_file("release-manifest.json")
