@@ -100,7 +100,7 @@ from core.collect import location_sources
 from core.collect import seeds as seeding
 from core.collect.parse import (LANES, adoption_sample_points, ROUTES, board_hashtag, SEARCH_LANES, SEEDED, _dict, _first, _local_day, _protocol, _rows,
                                 parse_with_creators)
-from core.collect.socialcrawl_client import PRICED, TRANSIENT, Refused, Result, load_caps, quote_for
+from core.collect.socialcrawl_client import PRICED, TRANSIENT, Refused, Result, load_caps, quote_for, retry_fields
 
 log = logging.getLogger(__name__)
 
@@ -193,6 +193,12 @@ class Call:
 
     def hold(self):
         return quote_for(self.route, self.method, self.params)
+
+    @property
+    def slow_retry(self):
+        """A board or a panel: the calls a 5xx answer gets one retry after SERVER_RETRY_WAIT for (W8-DEC-19). A
+        seeded call on a panel route is a search of that platform, not the panel."""
+        return self.seed is None and self.route in SLOW_RETRY_ROUTES
 
     def series(self):
         if self.seed is not None:
@@ -1003,7 +1009,12 @@ class Collected:
                                                    for m in MARKETS},
                 "public_feed_raw_rows": len(self.public_feed_raw_rows),
                 "public_feed_summary": self.public_feed_summary,
-                "public_feed_error": self.public_feed_error}
+                "public_feed_error": self.public_feed_error,
+                "server_retries": [
+                    {"route": r["route"], "market": r["market"], "first_status": r["first_status"],
+                     "attempts": r["attempts"], "server_retry": r["server_retry"], "status": r["status"],
+                     "credits": r["credits_charged"]}
+                    for r in self.records if r.get("server_retry")]}
         if trends:
             counts["credits_charged"] += self.trends_credits
             counts["credits_by_share"]["TRENDS"] = self.trends_credits
@@ -1084,9 +1095,10 @@ class _Runner:
                 result = self.client.account_profile(ROUTES[call.route][1], call.params["handle"], method=call.method,
                     market=call.market, seed_key=call.seed_key, lane=call.lane, use_cache=call.use_cache)
             else:
+                room = {"server_retry_room": self._retry_room(call)} if call.slow_retry else {}
                 result = self.client.call(call.route, call.params, method=call.method, market=call.market,
                                           item_id=call.seed.item_id if call.seed else None, seed_key=call.seed_key,
-                                          lane=call.lane, use_cache=call.use_cache)
+                                          lane=call.lane, use_cache=call.use_cache, **room)
             fetched = self.clock()
             self.run.client_calls.append({"route": call.route, "params": call.params, "market": call.market,
                                           "status": result.status})
@@ -1114,6 +1126,17 @@ class _Runner:
             elif result.status in STOP_ALL:
                 self.run.stopped = result.status
                 self.run.balance_unread = self.run.balance_unread or result.failure == "balance_unread"
+
+    def _retry_room(self, call):
+        """The credits a board or panel call and its one 5xx retry may charge together: the run's collect cap
+        less the later phases' holds (reels_room) and less what the run has charged, and under a cap override
+        the call's share less what it has spent."""
+        cap = self.reels_room if self.reels_room is not None else load_caps()["ENGINE_DAILY"]["collect"]
+        room = cap - self.run.credits
+        if self.budget.limits is not None:
+            key = budget_key(call)
+            room = min(room, self.budget.limits[key] - self.budget.spent.get(key, 0))
+        return room
 
     def _on_day(self, call, moment):
         return {_local_day(moment, call.market), _local_day(moment, call.health_market())} == {self.day}
@@ -1179,6 +1202,7 @@ class _Runner:
             "units_planned": units_planned, "units_ok": units_ok, "items": items,
             "post_ids": [p["post_id"] for p in parsed["posts"]], "reason": result.reason if result is not None else ("day_changed" if status == "day_changed" else ""),
             "failure": getattr(result, "failure", "") if result is not None else "",
+            **retry_fields(result),
         })
 
 
@@ -1731,9 +1755,13 @@ def print_backfill_plan(since, until):
 
 # Rows 1 to 7, the rank lists and boards: one failed day on any of them fails its platform's baseline health
 # in the market (DATA.md 3.3) and so holds every item led by that platform for three days (TRUST.md G1). The
-# client retries their transient failures (socialcrawl_client, retry_routes); local scrapes and panels keep
-# one attempt, so the local cap and the panel effort stay as planned.
+# client retries their transient failures (socialcrawl_client, retry_routes); the local scrapes and the panels
+# have no quick retries, so the local cap and the panel effort stay as planned.
 RETRY_ROUTES = frozenset(route for route, entry in ROUTES.items() if entry[0] in ("rank", "board"))
+# The boards and panels whose 5xx answer is tried once more after 60 seconds, inside the run's credit cap, and
+# recorded on the receipt (W8-DEC-19): the five board routes (a board family or a board series) and the three
+# panel routes. The rank lists the client already retries (RETRY_ROUTES) that are not boards are left alone.
+SLOW_RETRY_ROUTES = frozenset(route for route, entry in ROUTES.items() if entry[0] in ("board", "panel") or entry[3])
 # The same lists are the ones COLLECT_ONLY_ROUTES may repair (only_routes).
 REPAIR_ROUTES = RETRY_ROUTES
 

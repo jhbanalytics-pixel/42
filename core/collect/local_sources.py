@@ -64,7 +64,7 @@ from core.collect.ids import post_id
 from core.collect.parse import (
     COUNTER_COLUMNS, OBSERVATION_COLUMNS, POST_COLUMNS, _local_day, _ok, _protocol, parse, parse_time)
 from core.collect.socialcrawl_client import (
-    PRICED, SAST, TRANSIENT, Refused, http_failure, list_price, quote_for, transport_failure)
+    PRICED, SAST, TRANSIENT, Refused, http_failure, list_price, quote_for, retry_fields, transport_failure)
 
 log = logging.getLogger(__name__)
 
@@ -631,20 +631,24 @@ def run(day, run_id, *, client, get, clock, item_id_fn, geo_fn, last_pulls=None,
     news = {m: {} for m in MARKETS}
     listed = None
 
+    receipt = {}  # the receipt keys of the fetch in hand when its call was retried (socialcrawl_client.retry_fields)
+
     def record(f, status, *, calls=0, ok=False, items=0, units_ok=0, post_ids=(), reason="", failure=""):
         planned = len(f.params["items"]) if f.route == "prism/profiles" else 1
         out["records"].append({
             "row": ROW, "route": f.route, "market": f.market, "day": _local_day(clock(), f.market),
             "platform": f.platform, "series": f.series, "protocol": f.protocol(), "lane_class": f.lane_class,
             "status": status, "ok": ok, "calls": calls, "units_planned": planned, "units_ok": units_ok,
-            "items": items, "post_ids": list(post_ids), "reason": reason, "failure": failure})
+            "items": items, "post_ids": list(post_ids), "reason": reason, "failure": failure, **receipt})
 
     def next_pull(f):
         key = (f.market, f.series, f.protocol())
         pulls[key] = pulls.get(key, 0) + 1
         return pulls[key]
 
-    for f in plan(day):
+    fetches = plan(day)
+    for i, f in enumerate(fetches):
+        receipt.clear()
         if f.paid:
             if stopped:
                 record(f, "not_made", reason=f"stopped: {stopped}")
@@ -662,7 +666,14 @@ def run(day, run_id, *, client, get, clock, item_id_fn, geo_fn, last_pulls=None,
         if f.paid:
             pull = next_pull(f) if f.lane_class == "unbiased_rank" else None
             lane = "panel" if f.route == "prism/profiles" else "sweep"
-            result = client.call(f.route, f.params, method=f.method, market=f.market, lane=lane)
+            # A board or the gossip panel answered 5xx is tried once more inside the local cap, leaving the
+            # holds of the paid fetches still to come (W8-DEC-19); the chart pulls and the plan stay as planned.
+            room = {}
+            if f.lane_class == "unbiased_rank" or f.route == "prism/profiles":
+                later = sum(g.hold() for g in fetches[i + 1:] if g.paid and g.priced())
+                room = {"server_retry_room": LOCAL_DAILY_CAP - out["credits"] - later}
+            result = client.call(f.route, f.params, method=f.method, market=f.market, lane=lane, **room)
+            receipt.update(retry_fields(result))
             fetched = clock()
             out["credits"] += result.credits_charged or 0
             if result.status in STOP:
