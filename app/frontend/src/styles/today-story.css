@@ -885,3 +885,7 @@ html .oi-product .t42 .sc-skeleton-tile {
     padding: var(--s-4);
   }
 }
+
+html .oi-product .t42 .sc-strip .sc-tiles {
+  flex: 1 0 auto;
+}
