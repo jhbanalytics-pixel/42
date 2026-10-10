@@ -395,6 +395,40 @@ function Invoke-Smoke([string]$ApiTagUrl) {
 }
 
 # 3. The four actions.
+$Script:StagingDir = 'gs://ogilvy-trends-v2-f42-media-staging/build-source'
+
+# What the build step printed, read from its own log (Run-Logged keeps every line of it): the build id, the object that was uploaded
+# and the table row gcloud ends with. The three must agree with each other, the row must say SUCCESS for the image tag this paste
+# computed, and the object must lie in the staging folder this paste passed. Nothing is guessed: a log that does not hold all three
+# once refuses the run before Freeze, and nothing is written.
+function Read-BuildFacts([string]$LogPath, [string]$ImageTag) {
+    $uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+    $created = [Collections.Generic.List[string]]::new()
+    $uploads = [Collections.Generic.List[string]]::new()
+    $rows = [Collections.Generic.List[object]]::new()
+    foreach ($line in @(Get-Content -LiteralPath $LogPath -ErrorAction SilentlyContinue)) {
+        $text = ([string]$line).TrimEnd()
+        if ($text -match "^Created \[https://cloudbuild\.googleapis\.com/v1/projects/ogilvy-trends-v2/locations/us-central1/builds/($uuid)\]\.$") { $created.Add($Matches[1]) }
+        elseif ($text -match '^Uploading tarball of \[\.\] to \[(gs://\S+)\]$') { $uploads.Add($Matches[1]) }
+        elseif ($text -match "^($uuid)\s+\S+\s+\S+\s+(gs://\S+)\s+(\S+)\s+([A-Z_]+)$") { $rows.Add(@($Matches[1], $Matches[2], $Matches[3], $Matches[4])) }
+    }
+    if ($created.Count -ne 1 -or $uploads.Count -ne 1 -or $rows.Count -ne 1) { throw 'NOT EXECUTABLE: the build output does not name exactly one build, one uploaded source and one result row. Freeze is not run.' }
+    $row = $rows[0]
+    if ($row[0] -ne $created[0] -or $row[1] -ne $uploads[0]) { throw 'NOT EXECUTABLE: the build result row is not the build and the source the build output named. Freeze is not run.' }
+    if ($row[2] -ne $ImageTag -or $row[3] -ne 'SUCCESS') { throw 'NOT EXECUTABLE: the build result row is not SUCCESS for the image tag this release builds. Freeze is not run.' }
+    if (-not $uploads[0].StartsWith($Script:StagingDir + '/', [StringComparison]::Ordinal)) { throw 'NOT EXECUTABLE: the uploaded source is not in the staging folder this paste passed. Freeze is not run.' }
+    return @{ build_id = $created[0]; uploaded_source = $uploads[0] }
+}
+
+# The one file the Freeze phase reads from the paste: what the paste can show about the build it ran, and when it started. The
+# helper checks each claim against the build record and the registry, which it reads itself. The file is created once and an
+# existing one stops the run, so a retry never reads the inputs of another attempt.
+function Write-FreezeInputs($Facts) {
+    $value = [ordered]@{ schema_version = 1; build_id = $Facts.build_id; uploaded_source = $Facts.uploaded_source; paste_started_utc = $Script:PasteStartedUtc }
+    $stream = [IO.File]::Open((Join-Path $Script:RunDir 'freeze-inputs.json'), [IO.FileMode]::CreateNew)
+    try { $writer = New-Object IO.StreamWriter($stream); $writer.Write(($value | ConvertTo-Json)); $writer.Flush() } finally { $stream.Dispose() }
+}
+
 function Invoke-Candidate {
     Invoke-Helper 'BeforeAnyWrite' | Out-Null
     $tag = "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/f42-web:$($Script:Bound.target.Substring(0, 12))-$($Script:Bound.release_id.Substring($Script:Bound.release_id.Length - 2))"
@@ -407,8 +441,9 @@ function Invoke-Candidate {
     New-Item -ItemType Directory -Path $extract | Out-Null
     Step -Name 'extract' -Argv @($Script:Tar, '-xf', $archive, '-C', $extract) | Out-Null
     Step -Name 'build' -WorkDir $extract -Argv @('gcloud', 'builds', 'submit', '--project', 'ogilvy-trends-v2', '--region', 'us-central1', '--config', 'core/api/cloudbuild.yaml',
-        '--substitutions', "_IMAGE=$tag", '--gcs-source-staging-dir', 'gs://ogilvy-trends-v2-f42-media-staging/build-source',
+        '--substitutions', "_IMAGE=$tag", '--gcs-source-staging-dir', $Script:StagingDir,
         '--service-account', 'projects/ogilvy-trends-v2/serviceAccounts/f42-deployer@ogilvy-trends-v2.iam.gserviceaccount.com', '.') | Out-Null
+    Write-FreezeInputs (Read-BuildFacts (Join-Path $Script:RunDir 'build.log') $tag)
     if (Test-Path -LiteralPath $Script:Paths.manifest) { throw 'The manifest already exists; Freeze creates it once and never overwrites it.' }
     Invoke-Helper 'Freeze' | Out-Null
     # The validator runs on the real manifest before anything is applied (DE-01, PS-17).
@@ -584,6 +619,7 @@ function Confirm-Action {
 
 function Invoke-Release {
     & $Script:ResolutionCheck
+    $Script:PasteStartedUtc = (Get-UtcNow).ToString('yyyy-MM-ddTHH:mm:ss.ffffffzzz', [Globalization.CultureInfo]::InvariantCulture)
     Test-Packet
     Test-Receipt
     # Every program the action runs is found before anything is asked or run, so a missing one cannot stop a Candidate half way.

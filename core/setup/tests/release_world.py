@@ -321,7 +321,7 @@ class Scenario:
             "source": {"storageSource": {"bucket": "ogilvy-trends-v2-f42-media-staging", "object": "build-source/rel.tgz"}},
             "results": {"images": [{"name": self.tag(), "digest": CAND_DIGEST}]}}
         (self.evidence / "freeze-inputs.json").write_text(json.dumps(
-            {"build_id": BUILD_ID, "uploaded_source": UPLOADED, "paste_started_utc": "2026-10-08T20:55:00+00:00"}), encoding="utf-8")
+            {"schema_version": 1, "build_id": BUILD_ID, "uploaded_source": UPLOADED, "paste_started_utc": "2026-10-08T20:55:00+00:00"}), encoding="utf-8")
 
     def write_smoke_receipt(self, **over):
         manifest = json.loads((self.release_dir / "release-manifest.json").read_text(encoding="utf-8"))

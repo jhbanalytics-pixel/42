@@ -149,6 +149,8 @@ def update_traffic(world, args):
         revision, _, percent = target.partition("=")
         if percent != "100" or revision not in world.revisions:
             return fail("ERROR: (gcloud.run.services.update-traffic) unexpected traffic arguments", 1)
+        if world.__dict__.get("fail_traffic_to") == revision:
+            return fail("ERROR: (gcloud.run.services.update-traffic) the backend is unavailable", 1)
         tagged = [dict(e, percent=0) for e in state["traffic"] if e.get("tag")]
         entry = next((e for e in tagged if e["revisionName"] == revision), None)
         if entry is None:
@@ -188,8 +190,8 @@ def main(args):
     elif head == ("artifacts", "docker", "images"):
         digest = world.registry.get(args[4]) if args[3] == "describe" else None
         code = say({"image_summary": {"digest": digest}}) if digest else fail("ERROR: NOT_FOUND: the image was not found")
-    elif head == ("builds", "describe"):
-        code = say(world.builds[args[3]]) if args[3] in world.builds else fail("ERROR: NOT_FOUND: the build was not found")
+    elif args[:2] == ["builds", "describe"]:
+        code = say(world.builds[args[2]]) if args[2] in world.builds else fail("ERROR: NOT_FOUND: the build was not found")
     elif args[:2] == ["auth", "print-access-token"]:
         sys.stdout.write("e2e-cli-token\n")
         code = 0

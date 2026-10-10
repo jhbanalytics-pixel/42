@@ -214,3 +214,74 @@ def test_retire_removes_the_release_tag_from_both_services_and_the_ledger_record
         assert len(e2e.readbacks(phase)) == 1, phase
     states = [event["state"] for event in e2e.json_file("tag-ledger.json")["events"]]
     assert states == ["CANDIDATE", "CANDIDATE", "SERVING", "SERVING", "RETIRED", "RETIRED"]
+
+
+# A failed build: the stop of 10 Oct 2026 was a Freeze stop; a build that fails must leave nothing and Freeze must not run
+
+@pytest.fixture(scope="module")
+def failed_build(tmp_path_factory):
+    with pytest.MonkeyPatch.context() as patch:
+        world = E2E(tmp_path_factory.mktemp("e2e-failed-build"), patch)
+        world.set_world(fail_build=True)
+        yield world, world.run("Candidate")
+
+
+def test_a_failed_build_leaves_no_freeze_inputs_no_freeze_and_nothing_deployed(failed_build):
+    e2e, run = failed_build
+    assert run.returncode != 0 and "build exited" in run.stderr.replace("\n", " ")
+    assert not (run.run_dir / "freeze-inputs.json").exists()
+    assert [p.name for p in (e2e.release_dir / "readbacks").iterdir()] == ["BeforeAnyWrite-01.json"]
+    assert not (e2e.release_dir / "release-manifest.json").exists()
+    assert gcloud_writes(e2e) == [("builds submit", "")]
+    world = e2e.world_now()
+    assert world.builds == {} and world.registry == {}
+    for name in so.SERVICES:
+        assert world.svc[name]["traffic"] == [{"latestRevision": True, "percent": 100}]
+
+
+# The rollback from a half promoted release, and a Retire that is asked for too early
+
+@pytest.fixture(scope="module")
+def half(tmp_path_factory):
+    """Candidate completes, then the API's promotion fails after the agent was promoted: the state the rollback is for."""
+    with pytest.MonkeyPatch.context() as patch:
+        world = E2E(tmp_path_factory.mktemp("e2e-half"), patch)
+        candidate_run = world.run("Candidate")
+        need(candidate_run)
+        world.set_world(fail_traffic_to=f"f42-api-{world.rid}")
+        promote_run = world.run("Promote")
+        early_retire = world.run("Retire")
+        after_early = world.world_now()
+        after_early.readbacks_seen = world.readbacks("BeforeRetire")
+        rollback_run = world.run("Rollback")
+        retire_run = world.run("Retire")
+        yield world, promote_run, early_retire, after_early, rollback_run, retire_run
+
+
+def test_a_promotion_that_fails_on_the_api_stops_with_the_agent_promoted_and_issues_nothing_more(half):
+    e2e, promote_run, _, _, _, _ = half
+    assert promote_run.returncode != 0 and "promote-f42-api exited" in promote_run.stderr.replace("\n", " ")
+    assert len(e2e.readbacks("AfterAgentPromotion")) == 1 and e2e.readbacks("AfterPromotion") == []
+
+
+def test_retire_is_refused_after_a_promotion_until_a_rollback_has_been_read_back(half):
+    e2e, _, early_retire, after_early, _, _ = half
+    assert early_retire.returncode != 0 and "Retire is refused" in early_retire.stderr.replace("\n", " ")
+    assert after_early.readbacks_seen == []
+    for name in so.SERVICES:
+        assert tagged(after_early, name, e2e.rid) != []
+
+
+def test_rollback_from_a_half_promoted_release_returns_both_services_to_the_baseline_revisions(half):
+    e2e, _, _, _, rollback_run, _ = half
+    assert rollback_run.returncode == 0, tail(rollback_run)
+    assert e2e.readbacks("BeforeRollback")[0]["state"] == "agent candidate, api a80"
+    assert len(e2e.readbacks("AfterRollback")) == 1
+
+
+def test_retire_after_that_rollback_removes_the_tags(half):
+    e2e, _, _, _, _, retire_run = half
+    assert retire_run.returncode == 0, tail(retire_run)
+    world = e2e.world_now()
+    for name in so.SERVICES:
+        assert tagged(world, name, e2e.rid) == [] and traffic(world, name) == {rw.A80_REV[name]: 100}
