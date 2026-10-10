@@ -306,7 +306,9 @@ def all_cards(p):
 
 
 def test_the_briefs_rule_version_names_the_g4b_companion_rule():
-    assert job.RULE_VERSION == "warmup-1+w8-dec-06b"
+    # The version is the detect version followed by one token per rule change (pinned whole in test_pack_order.py), so
+    # this test reads its own token among them.
+    assert "w8-dec-06b" in job.RULE_VERSION.split("+")
 
 
 # A normal morning
