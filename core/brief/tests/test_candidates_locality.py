@@ -22,7 +22,7 @@ NL = chr(10)
 V2 = "locality_v2.1"
 STUBS = """
 CREATE TABLE core.ms_stub (metric_date DATE, item_id VARCHAR, market VARCHAR, market_scope VARCHAR,
-  total_posts7 BIGINT, market_posts7 BIGINT);
+  total_posts7 BIGINT, market_posts7 BIGINT, market_news_posts7 BIGINT);
 CREATE TABLE core.lf_stub (item_id VARCHAR, creators BIGINT);
 """
 COLUMNS = ("metric_version", "population_posts", "known_posts", "local_posts", "foreign_posts", "unknown_posts",
@@ -211,7 +211,8 @@ def test_rows_on_the_v1_basis_order_exactly_as_the_repository_statement_orders_t
         state(con, item, True, worth, basis="v1" if item != "v1f" else None, creators3=c3, posts3=p3)
         if scope:
             duck.load(con, "core.ms_stub", [{"metric_date": D, "item_id": item, "market": "NG", "market_scope": scope,
-                                              "total_posts7": total, "market_posts7": mkt}])
+                                              "total_posts7": total, "market_posts7": mkt,
+                                              "market_news_posts7": 0}])
         if lf:
             duck.load(con, "core.lf_stub", [{"item_id": item, "creators": lf}])
     # a v2 locality row exists for v1b: it must be ignored while the basis is v1
