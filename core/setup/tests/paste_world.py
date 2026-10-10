@@ -28,6 +28,29 @@ API_TAG_URL = f"https://{RID}---f42-api-fibxg5ynpq-uc.a.run.app"
 FREEZE_HASH = "ab" * 32
 DESCRIBE = {"spec": {"template": {"spec": {"containers": [{"env": [{"name": "F42_DATA", "value": "bigquery"}]}]}}}}
 CALLER = "jhb.analytics@gmail.com"
+BUILD_ID = "7e52dd7a-ebfd-4bde-b443-21b41a2c95ac"
+BUILD_OBJECT = "gs://ogilvy-trends-v2-f42-media-staging/build-source/1791626261.534925-81b61401bcdc49caa85f3e14e096ec95.tgz"
+# What gcloud builds submit printed in the real Candidate of 10 Oct 2026 (rel-7122f58-01), with its build id, its uploaded object and
+# its image tag as placeholders. The lines are the real ones, line for line.
+REAL_BUILD_LINES = [
+    "Creating temporary archive of 3080 file(s) totalling 58.9 MiB before compression.",
+    "Some files were not included in the source upload.",
+    "",
+    "Check the gcloud log [None] to see which files and the contents of the",
+    "default gcloudignore file used (see `$ gcloud topic gcloudignore` to learn",
+    "more).",
+    "",
+    "Uploading tarball of [.] to [{object}]",
+    "Created [https://cloudbuild.googleapis.com/v1/projects/ogilvy-trends-v2/locations/us-central1/builds/{id}].",
+    "Logs are available at [ https://console.cloud.google.com/cloud-build/builds;region=us-central1/{id}?project=590353929363 ].",
+    "",
+    "gcloud builds submit only displays logs from Cloud Storage. To view logs from Cloud Logging, run:",
+    "gcloud beta builds submit",
+    "",
+    "Waiting for build to complete. Polling interval: 1 second(s).",
+    "ID                                    CREATE_TIME                DURATION  SOURCE   IMAGES   STATUS",
+    "{id}  2026-10-10T09:58:30+00:00  2M22S     {object}  {image}  SUCCESS",
+]
 INHERITED = "inherited-passcode-should-never-be-used"
 TYPED = "typed-passcode-by-albert"
 
@@ -95,6 +118,10 @@ function Run-Logged([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [strin
     if ($null -ne $scripted) { $code = [int]$scripted.Value }
     $text = @()
     $joined = $Argv -join ' '
+    if ($Name -eq 'build') {
+        $image = $Argv[[array]::IndexOf($Argv, '--substitutions') + 1].Substring('_IMAGE='.Length)
+        $text = @($Script:Cfg.build_lines | ForEach-Object { $_.Replace('{id}', $Script:Cfg.build_id).Replace('{object}', $Script:Cfg.build_object).Replace('{image}', $image) })
+    }
     if ($Argv -contains 'core/api/smoke.py') {
         $url = $Argv[3]
         $text = @($Script:Cfg.smoke_lines | ForEach-Object { $_.Replace('{url}', $url) })
@@ -265,6 +292,7 @@ class PasteWorld:
             "typed": typed, "no_interactive": not interactive, "inherited": inherited, "freeze_hash": FREEZE_HASH, "api_tag_url": API_TAG_URL,
             "no_readback": list(no_readback), "no_manifest_on_freeze": no_manifest_on_freeze, "manifest_hash_on_freeze": None, "reads_after": {},
             "words": {}, "describe_json": json.dumps(DESCRIBE), "declared_matches": "", "inflight_running": 0, "inflight_refused": False,
+            "build_lines": REAL_BUILD_LINES, "build_id": BUILD_ID, "build_object": BUILD_OBJECT,
             "minutes_per_prompt": 0, "native_missing": "", "aliases": [], "real_console": False, "attack": "", "inject": "", "inject_at_run": 0,
             **(extra or {})}
         self.write(self.tmp / "config.json", config)

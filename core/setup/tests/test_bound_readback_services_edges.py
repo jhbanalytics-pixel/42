@@ -249,6 +249,19 @@ def test_freeze_inputs_the_paste_did_not_write_are_a_bindings_stop(tmp_path, inp
     stops_with(s, "Freeze", "BINDINGS")
 
 
+@pytest.mark.parametrize("version", [None, 0, 2, "1", True])
+def test_freeze_inputs_of_an_unknown_version_are_a_schema_version_stop(tmp_path, version):
+    s = Scenario(tmp_path)
+    s.step("Freeze")
+    path = s.evidence / "freeze-inputs.json"
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value.pop("schema_version")
+    if version is not None:
+        value["schema_version"] = version
+    path.write_text(json.dumps(value), encoding="utf-8")
+    stops_with(s, "Freeze", "SCHEMA_VERSION")
+
+
 def test_the_stale_a80_rollback_targets_are_refused_in_the_bindings(tmp_path):
     for key, value in (("rollbackRevision", "f42-agent-00046-wks"), ("rollbackImageDigest", "sha256:" + "6c" * 32)):
         s = Scenario(tmp_path / key)

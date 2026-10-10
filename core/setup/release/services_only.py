@@ -795,6 +795,9 @@ def read_freeze_inputs(rel):
     value = json.loads(path.read_text(encoding="utf-8"))
     require(all(isinstance(value.get(k), str) and value[k] for k in ("build_id", "uploaded_source", "paste_started_utc")),
             "BINDINGS", "freeze-inputs.json lacks the build id, the uploaded source or the paste start")
+    version = value.get("schema_version")
+    require(isinstance(version, int) and not isinstance(version, bool) and version == SCHEMA_VERSION, "SCHEMA_VERSION",
+            "Unknown freeze-inputs.json schema_version")
     return value
 
 

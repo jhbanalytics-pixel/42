@@ -1,10 +1,12 @@
 """The release paste (W8-REL 5.2, PS-01 to PS-23), run as a pwsh process with the real paste text and doubled commands. No
 external command runs. A missing pwsh fails the tests: it is never a reason to skip them."""
+import datetime as dt
 import hashlib
 import json
 import os
 import re
 import shutil
+import subprocess
 import dataclasses
 from pathlib import Path
 
@@ -359,6 +361,132 @@ def test_ps13_a_manifest_that_already_exists_stops_candidate_before_freeze(tmp_p
     world.frozen_manifest()
     result = world.run()
     assert result.returncode != 0 and "already exists" in result.stderr and "helper-Freeze-0" not in result.names
+
+
+# CS-1: the paste writes freeze-inputs.json, once, before Freeze, from the build it ran and the clock at its start
+
+OTHER_ID = "11111111-2222-3333-4444-555555555555"
+OTHER_OBJECT = "gs://ogilvy-trends-v2-f42-media-staging/build-source/other.tgz"
+OTHER_IMAGE = "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/f42-web:000000000000-01"
+SEEN_AT_FREEZE = "Copy-Item -LiteralPath (Join-Path $Script:RunDir 'freeze-inputs.json') -Destination (Join-Path $Script:RunDir 'seen-at-freeze.json')\n"
+
+
+def flat(text):
+    """An error as pwsh draws it, on one line: no colour codes, and the break and the bar it puts in a long message taken out."""
+    return re.sub(r"\s*\n\s*(\|\s*)?", " ", re.sub(r"\x1b\[[0-9;]*m", "", text))
+
+
+def candidate_run_dir(world):
+    (found,) = (world.release_dir / "runs").glob("*-Candidate")
+    return found
+
+
+def test_cs1_candidate_writes_freeze_inputs_once_from_the_build_output_and_before_freeze_runs(tmp_path):
+    from core.setup.release import services_only as so
+    from core.setup.tests.paste_world import BUILD_ID, BUILD_OBJECT
+
+    world = PasteWorld(tmp_path)
+    before = dt.datetime.now(dt.timezone.utc)
+    result = world.run(extra={"inject": SEEN_AT_FREEZE, "inject_at_run": 5})
+    after = dt.datetime.now(dt.timezone.utc)
+    assert result.returncode == 0, result.stderr
+    folder = candidate_run_dir(world)
+    written = json.loads((folder / "freeze-inputs.json").read_text(encoding="utf-8"))
+    assert set(written) == {"schema_version", "build_id", "uploaded_source", "paste_started_utc"} and written["schema_version"] == 1
+    assert written["build_id"] == BUILD_ID and written["uploaded_source"] == BUILD_OBJECT
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}\+00:00", written["paste_started_utc"])
+    assert before <= so.parse_utc(written["paste_started_utc"]) <= after
+    assert json.loads((folder / "seen-at-freeze.json").read_text(encoding="utf-8")) == written
+    assert result.names.index("build") + 1 == result.names.index("helper-Freeze-0")
+
+
+def test_cs1_the_start_time_is_read_before_the_prompts_and_not_after_them(tmp_path):
+    from core.setup.release import services_only as so
+
+    world = PasteWorld(tmp_path)
+    before = dt.datetime.now(dt.timezone.utc)
+    result = world.run(extra={"minutes_per_prompt": 7})
+    after = dt.datetime.now(dt.timezone.utc)
+    assert result.returncode == 0, result.stderr
+    written = json.loads((candidate_run_dir(world) / "freeze-inputs.json").read_text(encoding="utf-8"))
+    assert before <= so.parse_utc(written["paste_started_utc"]) <= after
+
+
+def test_cs1_a_failed_build_writes_no_freeze_inputs_and_freeze_never_runs(tmp_path):
+    world = PasteWorld(tmp_path)
+    result = world.run(exits={"build": 1})
+    assert result.returncode != 0 and "helper-Freeze-0" not in result.names
+    assert not (candidate_run_dir(world) / "freeze-inputs.json").exists()
+
+
+def test_cs1_an_existing_freeze_inputs_file_stops_the_run_and_is_left_as_it_was(tmp_path):
+    world = PasteWorld(tmp_path)
+    result = world.run(extra={"inject": "Set-Content -LiteralPath (Join-Path $Script:RunDir 'freeze-inputs.json') -Value 'earlier attempt'\n", "inject_at_run": 4})
+    assert result.returncode != 0 and "helper-Freeze-0" not in result.names and "already exists" in result.stderr
+    assert (candidate_run_dir(world) / "freeze-inputs.json").read_text(encoding="utf-8").strip() == "earlier attempt"
+
+
+def lines_with(transform):
+    from core.setup.tests.paste_world import REAL_BUILD_LINES
+
+    return transform(list(REAL_BUILD_LINES))
+
+
+def replaced(old, new, *, where=None, count=None):
+    def go(lines):
+        out, done = [], 0
+        for line in lines:
+            if (where is None or line.startswith(where)) and old in line and (count is None or done < count):
+                line, done = line.replace(old, new), done + 1
+            out.append(line)
+        return out
+    return go
+
+
+REFUSED_BUILD_OUTPUT = {
+    "no Created line": lambda lines: [x for x in lines if not x.startswith("Created [")],
+    "two Created lines": lambda lines: lines + [x for x in lines if x.startswith("Created [")],
+    "no Uploading line": lambda lines: [x for x in lines if not x.startswith("Uploading tarball")],
+    "two Uploading lines": lambda lines: lines + [x for x in lines if x.startswith("Uploading tarball")],
+    "no result row": lambda lines: lines[:-1],
+    "two result rows": lambda lines: lines + [lines[-1]],
+    "no output at all": lambda lines: [],
+    "a row for another build": replaced("{id}", OTHER_ID, where="{id}", count=1),
+    "a row for another source": replaced("{object}", OTHER_OBJECT, where="{id}"),
+    "a row for another image": replaced("{image}", OTHER_IMAGE, where="{id}"),
+    "a row that is not SUCCESS": replaced("SUCCESS", "FAILURE", where="{id}"),
+    "a row whose status is not the last word": replaced("SUCCESS", "SUCCESS extra", where="{id}"),
+    "a source outside the staging folder": replaced("{object}", "gs://elsewhere/build-source/x.tgz"),
+}
+
+
+@pytest.mark.parametrize("name", sorted(REFUSED_BUILD_OUTPUT))
+def test_cs1_a_build_output_that_does_not_prove_the_build_writes_nothing_and_stops_before_freeze(tmp_path, name):
+    world = PasteWorld(tmp_path)
+    result = world.run(extra={"build_lines": lines_with(REFUSED_BUILD_OUTPUT[name])})
+    assert result.returncode != 0 and "Freeze is not run" in flat(result.stderr), result.stderr
+    assert "helper-Freeze-0" not in result.names and "durable-validate" not in result.names
+    assert not (candidate_run_dir(world) / "freeze-inputs.json").exists()
+
+
+def test_cs1_the_parser_reads_the_lines_gcloud_really_printed_for_rel_7122f58_01(tmp_path):
+    """The lines the real Candidate of 10 Oct 2026 printed, with their real id, object and image tag, read by the paste's own
+    function in a pwsh process (no other command runs)."""
+    from core.setup.tests.paste_world import REAL_BUILD_LINES
+
+    world = PasteWorld(tmp_path)
+    build_id = "7e52dd7a-ebfd-4bde-b443-21b41a2c95ac"
+    obj = "gs://ogilvy-trends-v2-f42-media-staging/build-source/1791626261.534925-81b61401bcdc49caa85f3e14e096ec95.tgz"
+    image = "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/f42-web:7122f581d440-01"
+    log = tmp_path / "build.log"
+    text = "\r\n".join(x.replace("{id}", build_id).replace("{object}", obj).replace("{image}", image) for x in REAL_BUILD_LINES) + "\r\n"
+    log.write_bytes(text.encode("utf-8"))
+    script = tmp_path / "parse.ps1"
+    script.write_text(f"$ErrorActionPreference = 'Stop'\n. '{world.paste}' -Action Candidate -Lock x -Review x -Bindings x -Receipt x -DefinitionsOnly\n"
+                      f"Read-BuildFacts '{log}' '{image}' | ConvertTo-Json -Compress\n", encoding="utf-8", newline="\n")
+    done = subprocess.run(["pwsh", "-NoProfile", "-NonInteractive", "-File", str(script)], capture_output=True, stdin=subprocess.DEVNULL, encoding="utf-8", timeout=120)
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout) == {"build_id": build_id, "uploaded_source": obj}
 
 
 @pytest.mark.parametrize("key", ["manifestPath", "sidecarPath", "smokeReceiptPath", "compatReceiptPath", "oldReaderReceiptPath"])
