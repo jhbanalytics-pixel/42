@@ -44,6 +44,8 @@
 .ask42-status { font-size: var(--type-body); color: var(--ink-2); margin: 0 0 var(--s-3);
   line-height: var(--leading-body);
 }
+.ask42-progress { margin: 0 0 var(--s-3); font-size: var(--type-body); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ask42-progress-phase { font-weight: 600; color: var(--ink); }
 .ask42-short { font-family: var(--serif); font-size: var(--type-body); line-height: var(--leading-body); margin: 0 0 var(--s-5); }
 
 .ask42-notices { list-style: none; margin: 0 0 var(--s-4); padding: var(--s-3) var(--s-4); border-left: 2px solid var(--accent); background: var(--surface); font-size: var(--type-body);

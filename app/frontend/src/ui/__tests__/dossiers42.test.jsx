@@ -381,7 +381,7 @@ test('Freeze is the one red action on a draft, and a draft offers no export', as
   expect(button('Export PDF')).toBeUndefined();
 });
 
-test('removing a claim sends keep, order, title and notes only, with no claim content', async () => {
+test('removing a claim sends from_version and keep only, with no claim content', async () => {
   const next = draft();
   next.version = 2;
   next.claims = [next.claims[0], next.claims[2], {...next.claims[1], kept: false}];
@@ -389,11 +389,7 @@ test('removing a claim sends keep, order, title and notes only, with no claim co
   await click(button('Remove', claimItem(c2.text)));
   await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
   const put = calls.find((call) => call.method === 'PUT');
-  expect(Object.keys(put.body).sort()).toEqual(['from_version', 'keep', 'notes', 'order', 'title']);
-  expect(put.body.from_version).toBe(1);
-  expect(put.body.keep).toEqual(['c1', 'c3']);
-  expect(put.body.order).toEqual(['c1', 'c3']);
-  expect(put.body.title).toBe(completeRecord.question);
+  expect(put.body).toEqual({from_version: 1, keep: ['c1', 'c3']});
   for (const words of [c1.text, c2.text, C3_TEXT, answer.short_answer, 'corroborated', 'inferred', 'single_source', 'tt_fixture_1', 'kitchen table']){
     expect(put.raw).not.toContain(words);
   }
@@ -409,8 +405,7 @@ test('moving a claim down sends the new order', async () => {
   await click(button('Move down', claimItem(c1.text)));
   await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
   const put = calls.find((call) => call.method === 'PUT');
-  expect(put.body.keep).toEqual(['c2', 'c1', 'c3']);
-  expect(put.body.order).toEqual(['c2', 'c1', 'c3']);
+  expect(put.body).toEqual({from_version: 1, order: ['c2', 'c1', 'c3']});
   await until(() => host.querySelector('li[data-claim]') && plain(host.querySelector('li[data-claim]').textContent).includes(c2.text), 'the new order on screen');
 });
 
@@ -426,8 +421,7 @@ test('a note is saved against its claim and shown as the reviewer\'s note', asyn
   await click(button('Save note', claimItem(c1.text)));
   await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
   const put = calls.find((call) => call.method === 'PUT');
-  expect(put.body.notes.c1).toBe('Lead the deck with this');
-  expect(Object.keys(put.body).sort()).toEqual(['from_version', 'keep', 'notes', 'order', 'title']);
+  expect(put.body).toEqual({from_version: 1, notes: {c1: 'Lead the deck with this'}});
 });
 
 test('a new title is saved through the same edit', async () => {
@@ -440,7 +434,7 @@ test('a new title is saved through the same edit', async () => {
   await click(button('Save title'));
   await until(() => host.querySelector('h1').textContent === 'Kitchen-table dance', 'the new title');
   const put = calls.find((call) => call.method === 'PUT');
-  expect(put.body.title).toBe('Kitchen-table dance');
+  expect(put.body).toEqual({from_version: 1, title: 'Kitchen-table dance'});
 });
 
 test('saving one note keeps the unsaved note on another claim, and a reorder keeps an unsaved title', async () => {
@@ -569,11 +563,7 @@ test('a frozen version offers Edit again, which starts a new draft version throu
   const writes = calls.filter((call) => call.method !== 'GET');
   expect(writes.map((call) => call.method + ' ' + call.path)).toEqual(['PUT /api/dossiers/d_fixture01']);
   const put = writes[0];
-  expect(Object.keys(put.body).sort()).toEqual(['from_version', 'keep', 'notes', 'order', 'title']);
-  expect(put.body.from_version).toBe(2);
-  expect(put.body.keep).toEqual(['c1', 'c2', 'c3']);
-  expect(put.body.order).toEqual(['c1', 'c2', 'c3']);
-  expect(put.body.title).toBe(completeRecord.question);
+  expect(put.body).toEqual({from_version: 2});
   for (const words of [c1.text, c2.text, C3_TEXT, answer.short_answer, 'corroborated', 'inferred', 'single_source']){
     expect(put.raw).not.toContain(words);
   }
@@ -687,4 +677,248 @@ test('a share link to a draft version says it is not frozen yet and shows none o
 test('the page copy names no age group, no Google Trends and no retired product', async () => {
   await openDraft();
   expect(text()).not.toMatch(/gen ?z|millennial|youth|generation|google trends|prompt pulse|nano banana/i);
+});
+
+/* Tester report, 6 October 2026: nobody knew what Freeze does. The words sit
+   beside the button, stay on screen whatever the claims need, and are tied to
+   the button for a screen reader. They say only what the server does: a frozen
+   version never changes, is the one that exports and shares, cannot be taken
+   back, and Edit again starts a new draft from it. */
+test('Freeze is explained in plain words beside the button and described to a screen reader', async () => {
+  await openDraft();
+  const freeze = button('Freeze');
+  const described = freeze.getAttribute('aria-describedby');
+  expect(described).toBeTruthy();
+  const note = host.querySelector('#' + described);
+  expect(note).toBeTruthy();
+  expect(host.querySelector('.dossiers42-actions').contains(note)).toBe(true);
+  const words = plain(note.textContent);
+  expect(words).toContain('Freezing saves this version as final');
+  expect(words).toContain('no longer be edited');
+  expect(words).toContain('the saved version never changes');
+  expect(words).toContain('only a frozen version can be exported');
+  expect(words).not.toContain('reads the same thing');
+  expect(words).toContain('exported as HTML or PDF');
+  expect(words).toContain('cannot be undone');
+  expect(words).toContain('Edit again');
+  expect(words).toContain('new draft');
+});
+
+test('the Freeze explanation stays when a claim still needs a tick or an edit is unsaved', async () => {
+  await openDraft();
+  const described = () => plain(host.querySelector('#' + button('Freeze').getAttribute('aria-describedby')).textContent);
+  expect(plain(host.querySelector('.dossiers42-actions').textContent)).toContain('still need a tick before this version can freeze');
+  expect(described()).toContain('cannot be undone');
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'A different title'));
+  expect(plain(host.querySelector('.dossiers42-actions').textContent)).toContain('Save your edits first');
+  expect(described()).toContain('cannot be undone');
+});
+
+/* wave8/api refuses an edit that keeps a claim resting on a post or person 42
+   no longer shows (409 not_ready). The view marks such a claim withheld:true.
+   The page shows its slot with a plain reason and Remove, sends keep only for
+   claims the reader keeps, and sends only the fields that changed. */
+const WITHHELD_WORDS = 'This claim rests on a post 42 no longer shows.';
+const SERVER_WITHHELD_TEXT = 'This finding was left out because it rested on a post 42 no longer shows.';
+
+function withheldDraft(){
+  const body = draft();
+  body.claims[2] = {...body.claims[2], text: SERVER_WITHHELD_TEXT, evidence_ids: [], quotes: [], withheld: true};
+  return body;
+}
+const withheldItem = () => [...host.querySelectorAll('li[data-claim]')].find((node) => node.getAttribute('data-claim') === 'c3');
+
+test('a withheld claim keeps its slot with a plain reason and Remove, and offers no review, move or note', async () => {
+  await openDraft(withheldDraft());
+  const slot = withheldItem();
+  expect(slot).toBeDefined();
+  expect(plain(slot.textContent)).toContain(WITHHELD_WORDS);
+  expect(button('Remove', slot)).toBeDefined();
+  expect(slot.querySelector('input[type="checkbox"]')).toBeNull();
+  expect(slot.querySelector('textarea')).toBeNull();
+  expect(button('Move up', slot)).toBeUndefined();
+  expect(button('Move down', slot)).toBeUndefined();
+  expect(plain(slot.textContent)).not.toContain('needs a tick');
+  expect(plain(host.querySelector('.dossiers42-actions').textContent)).toContain('1 claim still needs a tick');
+});
+
+test('renaming with a withheld claim sends the title and the claims the reader keeps, without it', async () => {
+  const next = withheldDraft();
+  next.version = 2;
+  next.title = 'Kitchen-table dance';
+  next.claims[2].kept = false;
+  await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Kitchen-table dance'));
+  await click(button('Save title'));
+  await until(() => host.querySelector('h1').textContent === 'Kitchen-table dance', 'the new title');
+  const put = calls.find((call) => call.method === 'PUT');
+  expect(put.body).toEqual({from_version: 1, title: 'Kitchen-table dance', keep: ['c1', 'c2']});
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+});
+
+test('removing a withheld claim sends keep without it, and the removed slot cannot be kept again', async () => {
+  const next = withheldDraft();
+  next.version = 2;
+  next.claims[2].kept = false;
+  await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+  await click(button('Remove', withheldItem()));
+  await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
+  expect(calls.find((call) => call.method === 'PUT').body).toEqual({from_version: 1, keep: ['c1', 'c2']});
+  await until(() => !button('Remove', withheldItem()), 'the claim removed');
+  const slot = withheldItem();
+  expect(plain(slot.textContent)).toContain(WITHHELD_WORDS);
+  expect(button('Keep', slot)).toBeUndefined();
+});
+
+test('another edit with a withheld claim still on the page leaves it out of keep and order', async () => {
+  const next = withheldDraft();
+  next.version = 2;
+  next.claims = [next.claims[1], next.claims[0], next.claims[2]];
+  await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+  await click(button('Move down', claimItem(c1.text)));
+  await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
+  expect(calls.find((call) => call.method === 'PUT').body).toEqual({from_version: 1, order: ['c2', 'c1'], keep: ['c1', 'c2']});
+});
+
+test('Edit again on a frozen version with a withheld claim sends keep without it', async () => {
+  const body = frozen();
+  body.claims[2] = {...body.claims[2], text: SERVER_WITHHELD_TEXT, evidence_ids: [], quotes: [], withheld: true};
+  const next = draft();
+  next.version = 3;
+  next.needs_tick = [];
+  await openDraft(body, [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+  await click(button('Edit again'));
+  await until(() => calls.some((call) => call.method === 'PUT'), 'the edit');
+  expect(calls.find((call) => call.method === 'PUT').body).toEqual({from_version: 2, keep: ['c1', 'c2']});
+});
+
+for (const [label, message] of [
+  ['a keep that names it', 'c3 cannot be kept: it rests on a post, or names a person, 42 no longer shows.'],
+  ['a carried-forward choice', 'c3 cannot be kept any more: it rests on a post, or names a person, 42 no longer shows. Send keep without it to save a new version.'],
+]){
+  test(`a 409 for ${label} reads in plain words with Reload and no claim id`, async () => {
+    const latest = withheldDraft();
+    latest.version = 2;
+    let reads = 0;
+    serve([
+      ['PUT', '/api/dossiers/d_fixture01', json(409, {error: 'not_ready', message})],
+      ['GET', '/api/dossiers/d_fixture01', () => { reads += 1; return json(200, reads === 1 ? draft() : latest); }],
+    ]);
+    await act(async () => root.render(<DossierPage dossierId="d_fixture01" onAuth={() => {}} />));
+    await until(() => text().includes(answer.short_answer), 'the draft');
+    await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Kitchen-table dance'));
+    await click(button('Save title'));
+    await until(() => host.querySelector('[role="alert"]'), 'the refusal');
+    const words = plain(host.querySelector('[role="alert"]').textContent);
+    expect(words).toContain('can no longer be kept because it rests on a post 42 no longer shows');
+    expect(words).toContain('remove it');
+    expect(words).not.toMatch(/\bc3\b/);
+    expect(words).not.toContain('Send keep');
+    await click(button('Reload'));
+    await until(() => withheldItem() && plain(withheldItem().textContent).includes(WITHHELD_WORDS), 'the withheld slot after Reload');
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+}
+
+/* Lead ruling on the withheld-claim edits: a save that drops a withheld claim
+   says so afterwards, and Freeze waits while one remains. */
+const REMOVED_ONE = '1 claim was removed because it rests on a post 42 no longer shows.';
+const statusText = () => [...host.querySelectorAll('[role="status"]')].map((node) => plain(node.textContent)).join(' | ');
+
+function savedWithout(body, extra = {}){
+  const next = {...body, version: body.version + 1, state: 'draft', ...extra};
+  next.claims = body.claims.map((claim) => (claim.withheld ? {...claim, kept: false} : claim));
+  return next;
+}
+
+test('a rename that drops a withheld claim says how many were removed and why, once the save has worked', async () => {
+  await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, savedWithout(withheldDraft(), {title: 'Kitchen-table dance'}))]]);
+  expect(statusText()).not.toContain('was removed');
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Kitchen-table dance'));
+  await click(button('Save title'));
+  await until(() => host.querySelector('h1').textContent === 'Kitchen-table dance', 'the new title');
+  expect(statusText()).toContain(REMOVED_ONE);
+});
+
+test('a note, a move and Remove on the withheld claim itself each say the same after they save', async () => {
+  for (const act1 of ['note', 'move', 'remove']){
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    calls = [];
+    const next = savedWithout(withheldDraft());
+    if (act1 === 'note') next.claims[0].note = 'Lead with this';
+    if (act1 === 'move') next.claims = [next.claims[1], next.claims[0], next.claims[2]];
+    await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+    if (act1 === 'note'){
+      await act(async () => typeInto(claimItem(c1.text).querySelector('textarea'), 'Lead with this'));
+      await click(button('Save note', claimItem(c1.text)));
+    } else if (act1 === 'move') await click(button('Move down', claimItem(c1.text)));
+    else await click(button('Remove', withheldItem()));
+    await until(() => statusText().includes(REMOVED_ONE), 'the notice after ' + act1);
+  }
+});
+
+test('Edit again on a frozen version with a withheld claim says it in the new draft', async () => {
+  const body = frozen();
+  body.claims[2] = {...body.claims[2], text: SERVER_WITHHELD_TEXT, evidence_ids: [], quotes: [], withheld: true};
+  const next = draft();
+  next.version = 3;
+  next.claims[2].kept = false;
+  next.needs_tick = [];
+  await openDraft(body, [['PUT', '/api/dossiers/d_fixture01', json(200, next)]]);
+  await click(button('Edit again'));
+  await until(() => text().includes('Draft version 3'), 'the new draft');
+  expect(statusText()).toContain(REMOVED_ONE);
+});
+
+test('two withheld claims are counted in the notice', async () => {
+  const two = withheldDraft();
+  two.claims[1] = {...two.claims[1], text: SERVER_WITHHELD_TEXT, evidence_ids: [], quotes: [], withheld: true};
+  await openDraft(two, [['PUT', '/api/dossiers/d_fixture01', json(200, savedWithout(two, {title: 'Two gone'}))]]);
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Two gone'));
+  await click(button('Save title'));
+  await until(() => statusText().includes('2 claims were removed because they rest on a post 42 no longer shows.'), 'the plural notice');
+});
+
+test('a save with no withheld claim shows no removal notice', async () => {
+  const plainNext = draft();
+  plainNext.version = 2;
+  plainNext.title = 'Kitchen-table dance';
+  await openDraft(draft(), [['PUT', '/api/dossiers/d_fixture01', json(200, plainNext)]]);
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Kitchen-table dance'));
+  await click(button('Save title'));
+  await until(() => host.querySelector('h1').textContent === 'Kitchen-table dance', 'the new title');
+  expect(statusText()).not.toContain('removed because');
+});
+
+test('the notice is cleared by the next write', async () => {
+  const after = savedWithout(withheldDraft(), {title: 'Kitchen-table dance'});
+  await openDraft(withheldDraft(), [
+    ['PUT', '/api/dossiers/d_fixture01', json(200, after)],
+    ['POST', '/api/dossiers/d_fixture01/ticks', (path, body) => json(201, {dossier_id: 'd_fixture01', claim_id: body.claim_id, ticked: body.ticked, note: null, who: 'passcode', at: '2026-09-28T06:13:00+02:00'})],
+  ]);
+  await act(async () => typeInto(host.querySelector('input[name="title"]'), 'Kitchen-table dance'));
+  await click(button('Save title'));
+  await until(() => statusText().includes(REMOVED_ONE), 'the notice');
+  await act(async () => { claimItem(c2.text).querySelector('input[type="checkbox"]').click(); });
+  await until(() => !statusText().includes(REMOVED_ONE), 'the notice cleared');
+});
+
+test('Freeze is off while a withheld claim remains, says why, and comes back once it is removed', async () => {
+  await openDraft(withheldDraft(), [['PUT', '/api/dossiers/d_fixture01', json(200, savedWithout(withheldDraft()))]]);
+  expect(button('Freeze').disabled).toBe(true);
+  expect(button('Freeze').getAttribute('aria-describedby')).toBe('dossiers42-freeze-explain');
+  const hint = plain(host.querySelector('.dossiers42-actions').textContent);
+  expect(hint).toContain('1 claim rests on a post 42 no longer shows. Remove it before freezing.');
+  await click(button('Remove', withheldItem()));
+  await until(() => !button('Freeze').disabled, 'Freeze back');
+  expect(plain(host.querySelector('.dossiers42-actions').textContent)).not.toContain('Remove it before freezing');
+});
+
+test('Freeze counts several withheld claims in its reason', async () => {
+  const two = withheldDraft();
+  two.claims[1] = {...two.claims[1], text: SERVER_WITHHELD_TEXT, evidence_ids: [], quotes: [], withheld: true};
+  await openDraft(two);
+  expect(button('Freeze').disabled).toBe(true);
+  expect(plain(host.querySelector('.dossiers42-actions').textContent)).toContain('2 claims rest on a post 42 no longer shows. Remove them before freezing.');
 });
