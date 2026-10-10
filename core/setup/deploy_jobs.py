@@ -11,7 +11,9 @@
                                                                  f42-scheduled-asks
 
 It runs as whatever gcloud and application default credentials act as (f42-builder). The image is
-built from a git archive of HEAD. Its tag is the first twelve hex characters of the commit and the attempt number
+built from a clean clone at the bound commit: the tool runs in a git clone, --commit names the commit that clone must have
+checked out, and the dirty refusal below keeps the working tree equal to it. It has no archive mode and does not run from
+an extracted archive, which has no .git; the source tarball it uploads is the git archive of that commit. Its tag is the first twelve hex characters of the commit and the attempt number
 (jobs:<sha12>-<nn>, --attempt, default 1), so a rebuild of the same commit never reuses a tag, and the full 40 character
 commit goes to the build as the separate _GIT_SHA substitution, because the run stamp accepts a sha and not a tag with a
 suffix. --commit binds the build to one commit and refuses when HEAD is another; --build
@@ -435,7 +437,10 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
         return 0
     gcloud = gcloud or Gcloud()
 
-    commit = git(["rev-parse", "HEAD"]).strip()
+    try:
+        commit = git(["rev-parse", "HEAD"]).strip()
+    except GcloudError:
+        sys.exit("This is not a git clone. Run the build from a clean clone checked out at the bound commit; there is no archive mode.")
     if not COMMIT_SHA.match(commit):
         sys.exit(f"HEAD is not a 40 character commit sha: {commit[:12]!r}")
     if args.commit is not None and (not COMMIT_SHA.match(args.commit) or args.commit != commit):
@@ -446,7 +451,7 @@ def main(argv=None, gcloud=None, git=git, exists=module_present, workdir=None, s
         sys.exit("Uncommitted changes under core/ or the routes file would not be in the image. Commit first:\n"
                  + dirty)
 
-    print(f"Image {IMAGE}:{tag}, built from a git archive of commit {commit} ({', '.join(SOURCES)})")
+    print(f"Image {IMAGE}:{tag}, built from a clean clone at commit {commit} ({', '.join(SOURCES)})")
     if dirty:
         print("Note: uncommitted changes under core/ are not in HEAD, so they would not be in the image.")
 

@@ -222,3 +222,36 @@ def test_jb04_the_only_build_argument_is_git_sha_and_it_is_stamped_after_the_pip
     assert [ln.strip() for ln in text.splitlines() if ln.strip().startswith("ARG ")] == ["ARG GIT_SHA=unknown"]
     assert re.search(r"^ENV F42_GIT_SHA=\$\{?GIT_SHA\}?$", text, re.M)
     assert text.index("ARG GIT_SHA") > text.index("pip install --no-cache-dir --no-deps bertopic")
+
+
+# RJ-4: JB-03 reads "built from a clean clone at the bound commit"; there is no archive mode
+
+def test_rj4_the_tool_says_it_is_built_from_a_clean_clone_at_the_bound_commit(capsys):
+    assert "clean clone at the bound commit" in dj.__doc__
+    assert "built from a git archive of HEAD" not in dj.__doc__
+    build(["--build", "--commit", COMMIT])
+    out = capsys.readouterr().out
+    assert f"built from a clean clone at commit {COMMIT}" in out
+    assert "built from a git archive of commit" not in out
+
+
+def test_rj4_there_is_no_archive_mode_so_the_tool_offers_no_option_to_run_from_an_extracted_archive():
+    for flag in ("--from-archive", "--archive", "--source", "--no-git"):
+        gcloud, git, session = FakeGcloud(), FakeGit(), FakeSession(tag_for(1))
+        with pytest.raises(SystemExit) as stop:
+            dj.main(["--build", flag], gcloud=gcloud, git=git, exists=lambda m: True, workdir="unused", session=session)
+        assert stop.value.code == 2
+        assert gcloud.calls == [] and session.posts == []
+
+
+def test_rj4_a_tree_that_is_not_a_git_clone_is_refused_in_words_before_any_gcloud_or_api_call():
+    class NoGit(FakeGit):
+        def __call__(self, args):
+            self.calls.append(list(args))
+            raise dj.GcloudError("git rev-parse HEAD failed: fatal: not a git repository")
+
+    gcloud, git, session = FakeGcloud(), NoGit(), FakeSession(tag_for(1))
+    with pytest.raises(SystemExit) as stop:
+        dj.main(["--build", "--commit", COMMIT], gcloud=gcloud, git=git, exists=lambda m: True, workdir="unused", session=session)
+    assert "clean clone" in str(stop.value.code) and "bound commit" in str(stop.value.code)
+    assert gcloud.calls == [] and session.posts == [] and [c for c in git.calls if c[:1] == ["archive"]] == []
