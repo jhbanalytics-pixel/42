@@ -48,7 +48,6 @@
    width runs out. */
 .d42-groups { display: contents; }
 .d42-group-kind { order: 1; }
-.d42-choice { order: 2; }
 .d42-break { display: block; order: 3; flex: 0 0 100%; block-size: 0; }
 .d42-group-platform { order: 4; }
 .d42-group-state { order: 5; }
@@ -81,7 +80,10 @@
 .d42-chip .pl-logo,
 .d42-chip .pl-monogram { opacity: .9; }
 .d42-chip .pl-monogram { color: inherit; }
-.d42-choice { display: flex; flex-direction: row; align-items: center; gap: var(--s-3); margin-inline-start: auto; }
+.d42-choice { display: flex; flex-direction: row; align-items: center; gap: var(--s-3); }
+/* Sort by sits on the Trends heading: it orders Trends, not Radar. */
+.d42-trends-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); margin-bottom: var(--s-3); }
+.d42-trends-head .d42-title { margin: 0; }
 .d42-select {
   font: inherit;
   font-size: var(--t42-small);
@@ -162,7 +164,7 @@
   .d42-controls { gap: var(--s-3); }
   .d42-break { display: none; }
   .d42-group { flex-direction: column; align-items: flex-start; }
-  .d42-choice { flex-direction: column; align-items: stretch; order: 0; }
+  .d42-trends-head .d42-select { inline-size: auto; }
   .d42-segment { flex: 1 1 100%; }
   .d42-segment-tab { flex: 1 1 0; padding-inline: var(--s-2); }
   .d42-filters-open { display: inline-flex; min-block-size: 44px; }
@@ -471,7 +473,7 @@
   background: var(--surface-2);
 }
 .d42-local-bar > span { display: block; block-size: 100%; background: var(--ink-2); }
-.d42-table-wrap[data-sticky="header"] { max-block-size: 34rem; overflow: auto; border-bottom: 1px solid var(--line); }
+.d42-table-wrap[data-sticky="header"] { max-block-size: 40rem; overflow: auto; border-bottom: 1px solid var(--line); }
 .d42-table-wrap[data-sticky="header"] .d42-table { border-bottom: 0; }
 .d42-table-wrap[data-sticky="header"] thead th {
   position: sticky;

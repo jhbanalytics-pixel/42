@@ -412,7 +412,8 @@ test('the card shows the lifecycle marker with its rule on focus, the spread lin
   expect(card.querySelector('.tc-spread').textContent).toBe(first.spread_line);
   expect(card.querySelector('.tc-novelty').textContent).toBe('Recurrence: the last wave peaked on 2 August 2026 at 1 200 posts on its peak day');
   const reach = card.querySelector('[data-figure="reach"]');
-  expect(reach.textContent).toBe('Reach: 31 creators in 3 days');
+  /* Wave 8: Discover words the count of accounts one way in Radar and on every row. */
+  expect(reach.textContent).toBe('Reach: 31 accounts posting, last 3 days');
   expect(reach.getAttribute('data-query-id')).toBe(first.reach.query_id);
   const growth = card.querySelector('[data-figure="growth"]');
   expect(growth.textContent).toBe('Growth: 2.8 times its usual level');
@@ -655,7 +656,7 @@ test('in warm-up Radar ranks creators in 7 days, words the rest, and keeps thin 
   await mount({}, standard(measured));
   const section = host.querySelector('[data-section="radar"]');
   expect(section.querySelector('[data-strip-caption]').textContent)
-    .toBe('Each row is a trend, sorted by accounts posting in the last 7 days (14 October to 20 October 2026). Bars compare with the top row; rows under 8 posts come last, without a bar.');
+    .toBe('Each row is a trend, sorted by accounts posting in the last 7 days (14 October to 20 October 2026). Bars compare with the top row; rows under 8 posts come last, without a bar. Sort by below orders Trends, not this table.');
   expect(section.querySelector('[data-window-short]').textContent).toBe('Short collection days: YouTube 6 of 7 days');
   /* Design review, 4 October 2026: restated. The facts were one run-on
      sentence per row; they are now labelled table columns, one per measure.
@@ -1241,14 +1242,14 @@ test('a Discover card shows the 7-day reach from every source beside the 3-day r
   const seven = big.querySelector('[data-figure="reach7"]');
   // The 3-day figure is unchanged and still leads.
   expect(lead.classList.contains('tc-big-lead')).toBe(true);
-  expect(lead.querySelector('.tc-big-value').textContent + lead.querySelector('.tc-big-unit').textContent).toBe('1 creator in 3 days');
+  expect(lead.querySelector('.tc-big-value').textContent + lead.querySelector('.tc-big-unit').textContent).toBe('1 account posting, last 3 days');
   expect(lead.getAttribute('title')).toBe('From query q_creators_in_3_days. Counts only trending boards and followed accounts, which is what the quality checks use.');
   expect(seven.classList.contains('tc-big-lead')).toBe(false);
-  expect(seven.querySelector('.tc-big-value').textContent + seven.querySelector('.tc-big-unit').textContent).toBe('59 creators in 7 days, every source');
+  expect(seven.querySelector('.tc-big-value').textContent + seven.querySelector('.tc-big-unit').textContent).toBe('59 accounts posting, last 7 days, every source');
   expect(seven.getAttribute('data-query-id')).toBe('q_item_reach');
   expect(seven.getAttribute('title')).toContain('Every collection lane 42 reads, over 7 days, with flagged accounts left out. The 3-day reach counts only trending boards and followed accounts');
   expect(seven.querySelector('.sr-only').textContent).toBe('Reach from every source: ');
-  expect(two.querySelector('[data-figure="reach7"]').textContent).toContain('1 creator in 7 days, every source');
+  expect(two.querySelector('[data-figure="reach7"]').textContent).toContain('1 account posting, last 7 days, every source');
   // A card the API sent no reach7 for shows no second reach and keeps its plain query title.
   expect(three.querySelector('[data-figure="reach7"]')).toBeNull();
   expect(three.querySelector('[data-figure="reach"]').getAttribute('title')).toBe('From query ' + page.items[2].reach.query_id);

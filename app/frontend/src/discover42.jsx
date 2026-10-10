@@ -84,8 +84,8 @@ const globalSearchLabel = (card) => {
    or platforms read as "or", since a trend matches any one of them. */
 const orWords = (words) => (words.length < 2 ? words.join('') : words.slice(0, -1).join(', ') + ' or ' + words[words.length - 1]);
 const noMatchWords = (kind, states, platforms) => 'No '
-  + [states.length > 0 && orWords(states.map(stateSaid)), platforms.length > 0 && orWords(platforms.map(platformWord)), kind ? kindMany(kind) : 'trends']
-    .filter(Boolean).join(' ')
+  + [platforms.length > 0 && orWords(platforms.map(platformWord)), kind ? kindMany(kind) : 'trends'].filter(Boolean).join(' ')
+  + (states.length > 0 ? ' that are ' + orWords(states.map(stateSaid)) : '')
   + ' match these filters.';
 const emptyWords = (market, held) => {
   const where = SEARCH_MARKET_NAMES[market] || 'any market';
@@ -177,6 +177,37 @@ const rowNoun = (kind) => (kind ? kindOne(kind) : 'trend');
 const accountsHelp = (kind) => 'Different accounts that '
   + (!kind ? 'posted about this' : kind === 'hashtag' ? 'used this hashtag' : kind === 'sound' ? 'used this sound' : 'posted about this ' + kindOne(kind))
   + ' in the last 7 days. One account counts once, however many times it posted.';
+
+/* One name for the count of different accounts, said the same way in Radar
+   and on every Trends row: "3 accounts posting, last 3 days". The API words
+   the same measure "creators in 3 days" and a stored brief line can carry
+   another number for it, so the card is read through the measured figure,
+   which keeps its query, and the stored line gives way to it. Only the
+   words change; no value, query id or run id does. */
+const WINDOW_UNIT = /^creators in (\d+) days?$/i;
+function accountsFigure(figure){
+  if (!isFigure(figure)) return figure;
+  const found = WINDOW_UNIT.exec(String(figure.unit || '').trim());
+  if (!found) return figure;
+  return {...figure, unit: (figure.value === 1 ? 'account posting' : 'accounts posting') + ', last ' + found[1] + ' days'};
+}
+function accountsLine(line, reach){
+  if (typeof line !== 'string' || !isFigure(reach) || !/^accounts? posting, last 3 days$/.test(String(reach.unit))) return line;
+  const found = /^\s*\d[\d.,\u00a0\u202f ]*\s+creators?\b(.*)$/i.exec(line);
+  const window = /(?:,| in)\s+(?:the\s+)?(?:last\s+)?3 days\b/i;
+  if (!found || !window.test(found[1])) return line;
+  const noun = reach.value === 1 ? '1 account posting' : readerFigure(reach.value) + ' accounts posting';
+  return noun + found[1].replace(window, ', last 3 days');
+}
+function plainCard(card){
+  if (!card || typeof card !== 'object') return card;
+  const next = {...card};
+  if (hasField(card, 'reach')) next.reach = accountsFigure(card.reach);
+  if (Array.isArray(card.numbers)) next.numbers = card.numbers.map(accountsFigure);
+  if (isFigure(card.reach7)) next.reach7 = accountsFigure(card.reach7);
+  if (hasField(card, 'count_line')) next.count_line = accountsLine(card.count_line, next.reach);
+  return next;
+}
 
 export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
   const [market, setMarket] = useState(() => tabForRegion(region));
@@ -275,7 +306,7 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
   const summary = [marketName, platforms.length > 0 && listWords(platforms.map(platformWord)),
     states.length > 0 && listWords(states.map(stateWord))].filter(Boolean);
   const countWords = load.state === 'ready'
-    ? (load.refreshing ? 'Updating results' : load.items.length + (load.cursor ? '+' : '') + ' '
+    ? (load.refreshing ? 'Updating ' + (kind ? kindMany(kind) : 'results') : load.items.length + (load.cursor ? '+' : '') + ' '
       + (kind ? (load.items.length === 1 && !load.cursor ? kindOne(kind) : kindMany(kind)) : (load.items.length === 1 && !load.cursor ? 'result' : 'results')))
     : load.state === 'loading' ? 'Loading results' : load.state === 'error' ? 'Results did not load' : 'Results need the passcode';
 
@@ -318,7 +349,6 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
                 </div>
               </div>
             )}
-            <Choice id="d42-sort" name="sort" label="Sort by" value={sort} onChange={setSort} options={SORTS} />
             <span className="d42-break" aria-hidden="true" />
             <div className="d42-group d42-group-platform">
               <span className="d42-label" id="d42-platform-label">Platform</span>
@@ -350,7 +380,7 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
           {active > 0 && <button type="button" className="d42-clear" onClick={clear}>Clear filters</button>}
         </p>
         <Radar market={market} kind={kind} states={states} platforms={platforms} onAuth={onAuth} onNote={setRadarNote} />
-        <Feed load={load} market={market} filtered={active > 0} kind={kind} states={states} platforms={platforms} more={more} onMore={loadMore} onClear={clear}
+        <Feed sortControl={<Choice id="d42-sort" name="sort" label="Sort by" value={sort} onChange={setSort} options={SORTS} />} load={load} market={market} filtered={active > 0} kind={kind} states={states} platforms={platforms} more={more} onMore={loadMore} onClear={clear}
           onRetry={() => setFeedTick((t) => t + 1)} onAuth={onAuth} watch={watch}
           radarSaysGrowth={SAYS_GROWTH_WAIT.test(radarNote)} />
         {load.state === 'ready' && <HeldBack held={load.data.held_back} market={market} date={load.data.date} onAuth={onAuth} watch={watch} />}
@@ -371,7 +401,7 @@ function Choice({id, name, label, value, options, onChange}){
   );
 }
 
-function Feed({load, market, filtered, kind, states, platforms, more, onMore, onClear, onRetry, onAuth, watch, radarSaysGrowth = false}){
+function Feed({sortControl, load, market, filtered, kind, states, platforms, more, onMore, onClear, onRetry, onAuth, watch, radarSaysGrowth = false}){
   if (load.state === 'loading'){
     return (
       <>
@@ -418,7 +448,10 @@ function Feed({load, market, filtered, kind, states, platforms, more, onMore, on
       {moreBusy && <p className="t42-status" role="status" aria-live="polite" data-feed-status="">{moreStatus}</p>}
       {refreshing && <p className="t42-status" role="status" aria-live="polite" data-feed-status="">{load.slow ? 'Updating is taking longer than usual.' : 'Updating results'}</p>}
       <section className={'d42-feed' + (refreshing ? ' d42-dim' : '')} id="d42-feed" aria-label="Trends" aria-busy={moreBusy || refreshing ? 'true' : undefined}>
-        <h2 className="d42-title">Trends</h2>
+        <div className="d42-trends-head">
+          <h2 className="d42-title">Trends</h2>
+          {sortControl}
+        </div>
         {data.date && <p className="t42-status">Updated {longDate(data.date)}</p>}
         {notYetLine && <p className="t42-status d42-not-yet" data-feed-not-yet="">{notYetLine}</p>}
         <SearchingNow signals={Array.isArray(data.searching_now) ? data.searching_now : []} market={market} />
@@ -434,7 +467,7 @@ function Feed({load, market, filtered, kind, states, platforms, more, onMore, on
                 return (
                   <TrendCard key={where + ':' + card.item_id} index={index}
                     className={'d42-cell' + (label ? ' d42-cell-global' : '') + (notRun ? ' d42-cell-not-run' : '')}
-                    card={watch.mark(card, apiMarket(market))} market={where} date={card.date || data.date}
+                    card={plainCard(watch.mark(card, apiMarket(market)))} market={where} date={card.date || data.date}
                     onAuth={onAuth} onWatch={watch.onWatch} linkTopic posts={false} sparkMinDays={14} saidAbove={notYet}
                     scope={label ? <>
                       <p className="d42-global-scope">{label}</p>
@@ -489,7 +522,7 @@ function HeldBack({held, market, date, onAuth, watch}){
                     {label && evidence && <p className="d42-market-evidence">{evidence}</p>}
                     {h.card && (
                       <ol className="t42-cards">
-                        <TrendCard card={watch.mark(h.card, apiMarket(market))} market={h.card.market || apiMarket(market)} date={h.card.date || date} onAuth={onAuth} onWatch={watch.onWatch} linkTopic posts={false} />
+                        <TrendCard card={plainCard(watch.mark(h.card, apiMarket(market)))} market={h.card.market || apiMarket(market)} date={h.card.date || date} onAuth={onAuth} onWatch={watch.onWatch} linkTopic posts={false} />
                       </ol>
                     )}
                   </div>
@@ -522,7 +555,7 @@ function Radar({market, kind, states, platforms, onAuth, onNote}){
     fetchRadar(market, kind, {state: states, platform: platforms, signal: ctrl.signal})
       .then((data) => {
         clearTimeout(slowTimer);
-        if (!ctrl.signal.aborted) setLoad({state: 'ready', data: data || {}});
+        if (!ctrl.signal.aborted) setLoad({state: 'ready', data: data || {}, kind});
       })
       .catch((error) => {
         clearTimeout(slowTimer);
@@ -546,7 +579,8 @@ function Radar({market, kind, states, platforms, onAuth, onNote}){
   else if (load.state === 'auth') body = null;
   else if (load.state === 'error') body = <p className="t42-status">Radar could not load.</p>;
   else if (list(load.data.points).filter((p) => isFigure(p.reach)).length === 0) return null;
-  else body = <RadarBody data={load.data} market={market} kind={kind} />;
+  /* The words follow the rows on screen, which are the kind last read. */
+  else body = <RadarBody data={load.data} market={market} kind={load.kind || ''} />;
 
   return (
     <section className={'t42-section d42-radar' + (load.refreshing ? ' d42-dim' : '')} data-section="radar" aria-label="Radar" aria-busy={load.refreshing ? 'true' : undefined}>
@@ -783,8 +817,8 @@ function MeasuredStrip({data, points, market, held, kind}){
       </p>
       <p className="d42-strip-caption" data-strip-caption="">
         {bars
-          ? 'Each row is a ' + rowNoun(kind) + ', sorted by accounts posting in the last 7 days' + (span ? ' (' + span + ')' : '') + '. Bars compare with the top row; rows under ' + BAR_FLOOR + ' posts come last, without a bar.'
-          : 'Each row is a ' + rowNoun(kind) + ', sorted by posts in the last 7 days' + (span ? ' (' + span + ')' : '') + '. Rows under ' + BAR_FLOOR + ' posts show a count only.'}
+          ? 'Each row is a ' + rowNoun(kind) + ', sorted by accounts posting in the last 7 days' + (span ? ' (' + span + ')' : '') + '. Bars compare with the top row; rows under ' + BAR_FLOOR + ' posts come last, without a bar. Sort by below orders Trends, not this table.'
+          : 'Each row is a ' + rowNoun(kind) + ', sorted by posts in the last 7 days' + (span ? ' (' + span + ')' : '') + '. Rows under ' + BAR_FLOOR + ' posts show a count only. Sort by below orders Trends, not this table.'}
       </p>
       {/* With no row over the floor there is no scale to draw, so the table
           drops its bar column and the facts take the width. */}

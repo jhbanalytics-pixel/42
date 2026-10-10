@@ -309,7 +309,7 @@ test('a filter with no rows says so in plain words and offers Clear filters', as
     ['/api/discover', reply(200, none)],
   ]);
   const feed = host.querySelector('.d42-feed');
-  expect(feed.textContent).toContain('No emerging TikTok creators match these filters.');
+  expect(feed.textContent).toContain('No TikTok creators that are emerging match these filters.');
   expect(host.querySelector('[data-filter-summary]').textContent).toContain('0 creators, South Africa, TikTok, Emerging');
   click([...feed.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Clear filters'));
   await settle();
@@ -410,3 +410,72 @@ for (const [kind, head, noun, help] of KINDS){
     expect(summary).toStartWith(kind ? '2 ' + (kind === 'brand' ? 'brands' : kind + 's') + ', South Africa' : '2 results, South Africa');
   });
 }
+
+/* Wave 8, round 3: one count of accounts for a window on a row, said the same way in Radar and Trends. */
+const pageWithCards = (cards) => ({...pageWith([]), items: cards});
+const trendCard = (title, order, extra) => grown({...za.cards[0], item_id: 'tc_' + order, title}, order, extra);
+const trendText = (title) => [...host.querySelectorAll('.d42-feed [data-card]')].find((c) => c.querySelector('h3').textContent === title).textContent.replace(/\s+/g, ' ');
+
+test('a Trends row says its accounts once: the stored count line gives way to the measured figure, in the same words as Radar', async () => {
+  const card = trendCard('The Joburg Drift Report', 1, {count_line: '31 creators, 3 days', reach: figure(3, 'creators in 3 days'),
+    numbers: [figure(3, 'creators in 3 days')], reach7: figure(4, 'creators in 7 days')});
+  await mount(base(pageWithCards([card])));
+  const row = trendText('The Joburg Drift Report');
+  expect(row).toContain('3 accounts posting, last 3 days');
+  expect(row).toContain('4 accounts posting, last 7 days, every source');
+  expect(row).not.toContain('31');
+  expect(row).not.toMatch(/creators? in \d days|\d creators/);
+  expect(row.match(/accounts? posting, last 3 days/g)).toHaveLength(1);
+});
+
+test('a stored count line that also counts posts keeps the posts and takes the measured accounts', async () => {
+  const card = trendCard('Two part line', 1, {count_line: '12 creators and 20 posts in 3 days', reach: figure(3, 'creators in 3 days'),
+    numbers: [figure(3, 'creators in 3 days'), figure(20, 'posts in 3 days')]});
+  await mount(base(pageWithCards([card])));
+  const row = trendText('Two part line');
+  expect(row).toContain('3 accounts posting and 20 posts, last 3 days');
+  expect(row).not.toContain('12');
+});
+
+test('one account reads in the singular, and a card with no reach figure keeps its own line', async () => {
+  const one = trendCard('Single account', 1, {count_line: '1 creator, 3 days', reach: figure(1, 'creators in 3 days'), numbers: [figure(1, 'creators in 3 days')]});
+  const none = trendCard('No reach', 2, {count_line: '5 creators, 3 days', reach: null, numbers: []});
+  await mount(base(pageWithCards([one, none])));
+  expect(trendText('Single account')).toContain('1 account posting, last 3 days');
+  expect(trendText('Single account')).not.toContain('accounts posting, last 3 days');
+  expect(trendText('No reach')).toContain('5 creators, 3 days');
+});
+
+test('Sort by sits on the Trends section and orders Trends only; Radar says so and keeps its own order', async () => {
+  await mount(base());
+  const sort = host.querySelector('select[name="sort"]');
+  expect(sort.closest('.d42-feed')).not.toBeNull();
+  expect(host.querySelector('[data-section="radar"]').contains(sort)).toBe(false);
+  expect(host.querySelector('.d42-groups').contains(sort)).toBe(false);
+  const caption = host.querySelector('[data-strip-caption]').textContent;
+  expect(caption).toContain('Sort by below orders Trends, not this table.');
+  const before = radarCalls().length;
+  flushSync(() => { sort.value = 'new'; sort.dispatchEvent(new Event('change', {bubbles: true})); });
+  await settle();
+  expect(discoverCalls().at(-1)).toContain('sort=new');
+  expect(radarCalls()).toHaveLength(before);
+});
+
+test('while Radar reads again for a new kind, the dimmed table keeps the words of the rows it still shows', async () => {
+  let release;
+  await mount([
+    ['/api/discover/radar', (url) => (url.includes('kind=creator') ? new Promise((resolve) => { release = resolve; }) : reply(200, radarWith(['Ayanda', 'Bheki'], {kind: 'hashtag'})))],
+    ['/api/discover', reply(200, pageWith(['#alpha']))],
+  ]);
+  const section = () => host.querySelector('[data-section="radar"]');
+  expect(section().querySelector('thead th').textContent).toBe('Trend');
+  click(tab('Kinds', 'Creators'));
+  await settle();
+  expect(section().classList.contains('d42-dim')).toBe(true);
+  expect(section().querySelector('thead th').textContent).toBe('Trend');
+  expect(section().querySelector('[data-strip-caption]').textContent).toStartWith('Each row is a trend');
+  release(reply(200, radarWith(['Ayanda'], {kind: 'creator'})));
+  await settle();
+  expect(section().querySelector('thead th').textContent).toBe('Creator');
+  expect(section().querySelector('[data-strip-caption]').textContent).toStartWith('Each row is a creator');
+});
