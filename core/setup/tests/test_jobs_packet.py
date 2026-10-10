@@ -559,15 +559,16 @@ def test_receipt_refuses_a_services_step_in_mode_jobs(bench, capsys):
     assert code == 1 and "REFUSED" in err and not bench.receipt.exists()
 
 
-def test_the_jobs_authorisation_line_names_the_release_id_and_that_only_the_jobs_change_and_has_no_passcode_or_ask():
-    line = packet.JOBS_AUTHORISATION_TEMPLATE.format(release_id="rel-abcdef0-01", n_jobs=len(so.JOB_NAMES), start=jo.PINNED_WINDOW["startSast"],
-                                                     end=jo.PINNED_WINDOW["endSast"], deadline=jo.PINNED_WINDOW["rollbackDeadlineSast"])
-    assert line == jpw.authorisation_line("rel-abcdef0-01")
-    assert line.startswith("RELEASE B rel-abcdef0-01: ") and "jobs only release" in line and "nothing else" in line
-    assert "14 Cloud Run jobs" in line and "08:05" in line and "21:00" in line and "23:30" in line
-    for word in ("passcode", "T1", "Ask,", "USD", "credits"):
+def test_the_jobs_authorisation_line_is_exactly_the_line_albert_approved_with_the_release_id_and_no_other_sentence():
+    line = packet.JOBS_AUTHORISATION_TEMPLATE.format(release_id="rel-abcdef0-01", n_jobs=len(so.JOB_NAMES))
+    assert line == jpw.APPROVED_LINE.format(release_id="rel-abcdef0-01")
+    assert line == ("RELEASE B rel-abcdef0-01: I authorise the jobs only release of this release id and nothing else. Only the 14 Cloud Run jobs "
+                    "change, to one image built from the release commit; no service revision, traffic entry, tag, scheduler entry, secret, "
+                    "environment variable or paid Ask changes.")
+    assert packet.jobs_authorisation("rel-abcdef0-01") == line
+    assert line.count(". ") == 1 and line.endswith("paid Ask changes.")
+    for word in ("passcode", "T1", "Ask,", "USD", "credits", "SAST", "JobsUpdate", "DEPLOY", "IDLE", "quiet"):
         assert word not in line, word
-    assert "I will type DEPLOY and IDLE myself" in line
     assert not any(ch in line for ch in (chr(0x2013), chr(0x2014))) and chr(45) * 2 not in line
 
 
@@ -576,17 +577,27 @@ def test_the_jobs_authorisation_line_names_the_release_id_and_that_only_the_jobs
     lambda t, rid: t.replace("RELEASE B", "RELEASE A"),
     lambda t, rid: t.replace("Only the 14 Cloud Run jobs change", "Cloud Run jobs and services change"),
     lambda t, rid: t.replace("nothing else", "nothing else, with a refusal"),
-    lambda t, rid: t.replace("08:05", "06:00"),
-    lambda t, rid: t.replace("23:30", "23:59"),
-    lambda t, rid: t.replace("I will type DEPLOY and IDLE myself", "I will type DEPLOY, IDLE and the passcode myself"),
-    lambda t, rid: t.replace("The window is quiet and I will start no manual job until the execution ends. ", ""),
+    lambda t, rid: t.replace("paid Ask changes.", "paid Ask changes. I will type DEPLOY, IDLE and the passcode myself."),
+    lambda t, rid: t + " JobsUpdate runs on the day of JobsCandidate between 08:05 and 21:00 SAST.",
+    lambda t, rid: t + " The window is quiet and I will start no manual job until the execution ends.",
+    lambda t, rid: t + " I will type DEPLOY and IDLE myself.",
+    lambda t, rid: t.replace(" no service revision,", ""),
     lambda t, rid: "",
-], ids=["other_release", "release_a", "services_change", "extra_clause", "window_start", "deadline", "passcode", "no_quiet_clause", "empty"])
+], ids=["other_release", "release_a", "services_change", "extra_clause", "passcode", "window_sentence", "quiet_sentence", "typed_words_sentence",
+        "missing_clause", "empty"])
 def test_receipt_refuses_a_line_that_is_not_the_one_the_packet_asks_albert_to_type(bench, capsys, change):
     reviewed_bench(bench, capsys)
     bench.line.write_text(change(bench.line_text(), bench.release_id) + chr(10), encoding="utf-8")
     code, out, err = run(bench.receipt_argv(), capsys)
     assert code == 1 and "authorisation line" in err and not bench.receipt.exists()
+
+
+def test_receipt_accepts_the_line_albert_approved_word_for_word(bench, capsys):
+    reviewed_bench(bench, capsys)
+    bench.line.write_text(jpw.APPROVED_LINE.format(release_id=bench.release_id) + chr(10), encoding="utf-8")
+    code, out, err = run(bench.receipt_argv(), capsys)
+    assert code == 0, err
+    assert json.loads(bench.receipt.read_text(encoding="utf-8"))["release_id"] == bench.release_id
 
 
 def test_receipt_refuses_the_release_a_line_in_mode_jobs_and_the_jobs_line_in_mode_services(bench, capsys):

@@ -93,15 +93,13 @@ SCHEMA_RECEIPT_FILE = "schema-readback-receipt.json"
 JOBS_STEPS = ("JobsCandidate", "JobsUpdate", "JobsRollback")
 JOBS_BUILD_CONFIG = "core/setup/cloudbuild.jobs.yaml"
 JOBS_DOCKERFILE = "core/setup/jobs.Dockerfile"
-# The sentence Albert types to authorise Release B, with the release id as the one place that varies and the window, the deadline and
-# the job count taken from the code that enforces them. It names the release id and that only the jobs change, and it asks for no passcode
-# because Release B runs no Ask. What he types must equal it after whitespace is normalised.
+# The sentence Albert types to authorise Release B, as he approved it on 10 Oct 2026 (batch 8, FOR-ALBERT-PENDING item 11): the release id is
+# the one place that varies, the job count is taken from the code that holds the list of jobs, and nothing is added to it. The window and the
+# typed words are not part of what he approved. What he types must equal it after whitespace is normalised.
 JOBS_AUTHORISATION_TEMPLATE = (
     "RELEASE B {release_id}: I authorise the jobs only release of this release id and nothing else. Only the {n_jobs} Cloud Run jobs "
     "change, to one image built from the release commit; no service revision, traffic entry, tag, scheduler entry, secret, "
-    "environment variable or paid Ask changes. JobsUpdate runs on the day of JobsCandidate between {start} and {end} SAST, and an "
-    "update that stops is finished by {end} SAST or undone by JobsRollback before {deadline} SAST. The window is quiet and I will "
-    "start no manual job until the execution ends. I will type DEPLOY and IDLE myself.")
+    "environment variable or paid Ask changes.")
 
 
 def utc_now():
@@ -555,9 +553,7 @@ def cmd_review(args):
 # receipt
 
 def jobs_authorisation(release_id):
-    window = jo.PINNED_WINDOW
-    return JOBS_AUTHORISATION_TEMPLATE.format(release_id=release_id, n_jobs=len(so.JOB_NAMES), start=window["startSast"], end=window["endSast"],
-                                              deadline=window["rollbackDeadlineSast"])
+    return JOBS_AUTHORISATION_TEMPLATE.format(release_id=release_id, n_jobs=len(so.JOB_NAMES))
 
 
 def check_authorisation(text, release_id, mode="services-only"):

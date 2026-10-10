@@ -50,12 +50,15 @@ def make_jobs_repo(path):
     return path
 
 
+# The line Albert approved on 10 Oct 2026 (batch 8, decisions/FOR-ALBERT-PENDING.md item 11), pinned here as written and not built from the
+# template in packet.py, so the template cannot move this value. It has no sentence beyond the approved one.
+APPROVED_LINE = ("RELEASE B {release_id}: I authorise the jobs only release of this release id and nothing else. Only the 14 Cloud Run jobs "
+                 "change, to one image built from the release commit; no service revision, traffic entry, tag, scheduler entry, secret, "
+                 "environment variable or paid Ask changes.")
+
+
 def authorisation_line(release_id):
-    return (f"RELEASE B {release_id}: I authorise the jobs only release of this release id and nothing else. Only the 14 Cloud Run jobs "
-            "change, to one image built from the release commit; no service revision, traffic entry, tag, scheduler entry, secret, "
-            "environment variable or paid Ask changes. JobsUpdate runs on the day of JobsCandidate between 08:05 and 21:00 SAST, and an "
-            "update that stops is finished by 21:00 SAST or undone by JobsRollback before 23:30 SAST. The window is quiet and I will "
-            "start no manual job until the execution ends. I will type DEPLOY and IDLE myself.")
+    return APPROVED_LINE.format(release_id=release_id)
 
 
 class JobsBench:
