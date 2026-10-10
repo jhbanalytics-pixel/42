@@ -368,11 +368,22 @@ _SPAN_ID = re.compile(r"_span_\d+$")
 _CODE_MADE = ("Whole-store", "Topic sweep", "fetch_posts", "search_posts", REUSE_PURPOSE.strip())
 
 
+def _plain_params(params) -> bool:
+    """None, or the JSON a model passes as query parameters: string names, and string, number, boolean or null values
+    or flat lists of them. Anything else (a nested object, a date the code made) is not re-run."""
+    def scalar(v):
+        return v is None or isinstance(v, (str, int, float, bool))
+
+    return params is None or (isinstance(params, dict) and all(
+        isinstance(k, str) and (scalar(v) or (isinstance(v, list) and all(scalar(i) for i in v)))
+        for k, v in params.items()))
+
+
 def parent_reuse(parent, *, market: str | None, window: tuple[date, date], as_of: datetime) -> dict | None:
     """What a follow-up may carry from its parent: {"post_ids", "queries"}, or None when there is nothing or the
     follow-up's market is not the parent's. Post ids are those the parent's claims cite, a transcript span as its post
     and a comment not at all (neither is a stored post), at most MAX_POSTS. A query crosses only when the follow-up has
-    the parent's window and market exactly, is plain model SQL with no parameters, and is not one the code made
+    the parent's window and market exactly, is plain model SQL with plain parameters, and is not one the code made
     itself; at most PARENT_REUSE_QUERIES."""
     if not isinstance(parent, dict):
         return None
@@ -394,11 +405,14 @@ def parent_reuse(parent, *, market: str | None, window: tuple[date, date], as_of
             if len(queries) == PARENT_REUSE_QUERIES:
                 break
             sql, purpose = (q.get("sql"), q.get("purpose")) if isinstance(q, dict) else (None, None)
-            if (not isinstance(sql, str) or not sql.strip() or len(sql) > PARENT_REUSE_SQL_CHARS or q.get("params")
+            params = q.get("params") if isinstance(q, dict) else None
+            if (not isinstance(sql, str) or not sql.strip() or len(sql) > PARENT_REUSE_SQL_CHARS
+                    or not _plain_params(params)
                     or not isinstance(purpose, str) or not purpose.strip() or purpose.startswith(_CODE_MADE)
-                    or any(sql == done["sql"] for done in queries)):
+                    or any(sql == done["sql"] and (params or {}) == done["params"] for done in queries)):
                 continue
-            queries.append({"purpose": purpose.strip()[:PARENT_REUSE_PURPOSE_CHARS], "sql": sql})
+            queries.append({"purpose": purpose.strip()[:PARENT_REUSE_PURPOSE_CHARS], "sql": sql,
+                            "params": dict(params or {})})
     ids = ids[:MAX_POSTS]
     return {"post_ids": ids, "queries": queries} if ids or queries else None
 
@@ -425,7 +439,8 @@ def reuse_parent(ctx: RunContext, deps: "Deps", reuse: dict, window: tuple[date,
     ran = []
     for q in reuse["queries"]:
         try:
-            out = model_sql_query(ctx, deps.warehouse, q["sql"], purpose=REUSE_PURPOSE + q["purpose"])
+            out = model_sql_query(ctx, deps.warehouse, q["sql"], purpose=REUSE_PURPOSE + q["purpose"],
+                                  params=q["params"] or None)
         except Exception:
             continue
         if out.get("query_id"):

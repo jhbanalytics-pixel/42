@@ -129,10 +129,21 @@ def test_queries_cross_only_when_the_window_and_the_market_are_the_same():
 
 def test_only_plain_model_queries_cross():
     child = (date(2026, 9, 22), date(2026, 9, 28))
-    queries = [query(), query(params={"term": "amapiano"}), query(purpose="Whole-store posts by platform"),
-               query(purpose="Topic sweep: amapiano"), query(sql=""), query(sql=7), {"sql": COUNT}, "COUNT", None]
+    queries = [query(), query(purpose="Whole-store posts by platform"),
+               query(purpose="Topic sweep: amapiano"), query(purpose="fetch_posts: 5 posts listed in query rows"),
+               query(purpose="search_posts: amapiano"), query(sql=""), query(sql=7), {"sql": COUNT}, "COUNT", None,
+               query(params={"since": {"nested": "object"}}), query(params={1: "x"}), query(params=["not", "a", "map"]),
+               query(sql=COUNT + " /* " + "x" * 20_000 + " */")]
     got = ask.parent_reuse(parent("tt_1", queries=queries), market="ZA", window=child, as_of=NOW)
     assert [q["purpose"] for q in got["queries"]] == ["posts and platforms in the window"]
+
+
+def test_plain_json_parameters_cross_and_are_passed_on():
+    child = (date(2026, 9, 22), date(2026, 9, 28))
+    sql = COUNT.replace("DATE('2026-09-22')", "DATE(@since)")
+    queries = [query(sql=sql, params={"since": "2026-09-22", "tags": ["a", "b"], "n": 3}), query(sql=sql, params={})]
+    got = ask.parent_reuse(parent("tt_1", queries=queries), market="ZA", window=child, as_of=NOW)
+    assert [q["params"] for q in got["queries"]] == [{"since": "2026-09-22", "tags": ["a", "b"], "n": 3}, {}]
 
 
 def test_at_most_six_queries_cross_and_their_purposes_are_bounded():
