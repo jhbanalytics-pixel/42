@@ -243,7 +243,7 @@ def test_the_frontend_test_that_needs_the_built_bundle_still_names_that_path_and
     assert "web/dist" in config.replace("\\", "/")
 
 
-CORE_TEST_FLOOR = 17_000  # the core tree collects 17446 tests on the machine this was pinned on
+CORE_TEST_FLOOR = 26_000  # the integrated core tree collected 26391 tests under the guard when this was pinned
 PYTEST_CONTROLS = ("PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTEST_DISABLE_PLUGIN_AUTOLOAD")
 
 
@@ -303,7 +303,7 @@ def test_no_step_writes_to_the_runner_environment_file(path):
     assert "github_env" not in text
 
 
-CORE_PASSED_FLOOR = 17_000  # raise this with the floor in the workflow when the ratchet says the tree has grown
+CORE_PASSED_FLOOR = 26_000  # 26233 passed and 4 failed under the guard on Windows; raise this with the workflow floor
 RATCHET_GAP_CEILING = 1_000
 
 
