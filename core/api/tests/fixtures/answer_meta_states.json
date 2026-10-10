@@ -1,0 +1,1442 @@
+[
+ {
+  "name": "F01",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "complete",
+   "short_answer": "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle.",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "shown",
+    "removals": [],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [],
+   "short": [
+    [
+     "",
+     "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F02",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle.",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "shown_rewritten",
+    "removals": [
+     {
+      "stage": "support_check",
+      "cause": "claim_cut"
+     }
+    ],
+    "rewrite": "kept"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "",
+     "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle."
+    ],
+    [
+     "note",
+     "This summary was rewritten once from the findings that passed."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F03",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "complete",
+   "short_answer": "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle.",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "shown_rewritten",
+    "removals": [
+     {
+      "stage": "support_check",
+      "cause": "claim_narrowed"
+     }
+    ],
+    "rewrite": "kept"
+   }
+  },
+  "export": {
+   "review": [],
+   "short": [
+    [
+     "",
+     "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle."
+    ],
+    [
+     "note",
+     "This summary was rewritten once from the findings that passed."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F04",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "insufficient_evidence",
+   "short_answer": "42 found fewer than two claims that passed its checks, so it cannot answer this yet. The gaps list what was searched and why claims were held back.",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 0,
+   "evidence": 0
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "fixed_text",
+    "removals": [],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Not enough evidence to answer"
+   ],
+   "short": [
+    [
+     "",
+     "42 found fewer than two claims that passed its checks, so it cannot answer this yet. The gaps list what was searched and why claims were held back."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F06",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "insufficient_evidence",
+   "short_answer": "The answer was not finished because the next model call would not fit in this question's model budget.",
+   "gaps": [
+    {
+     "what": "The answer stopped because the next model call would not fit in this question's model budget",
+     "searched": "stored posts and live sources, 21 to 27 September",
+     "why": "model cost or usage could not be verified within the per-question budget"
+    }
+   ],
+   "claims": 0,
+   "evidence": 0
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "stopped_on_budget",
+    "stop_reason": "budget_full"
+   },
+   "summary": {
+    "state": "fixed_text",
+    "removals": [],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Stopped at this question's model budget, not for lack of evidence"
+   ],
+   "short": [
+    [
+     "",
+     "The answer was not finished because the next model call would not fit in this question's model budget."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F07",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "insufficient_evidence",
+   "short_answer": "The answer was not finished: a model call failed or did not report what it cost, so nothing more was spent on this question. You can ask again.",
+   "gaps": [
+    {
+     "what": "The answer stopped because a model call failed or did not report what it cost",
+     "searched": "stored posts and live sources, 21 to 27 September",
+     "why": "model cost or usage could not be verified within the per-question budget"
+    }
+   ],
+   "claims": 0,
+   "evidence": 0
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "stopped_on_budget",
+    "stop_reason": "model_call_unverified"
+   },
+   "summary": {
+    "state": "fixed_text",
+    "removals": [],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Stopped because a model call failed or did not report what it cost, not for lack of evidence"
+   ],
+   "short": [
+    [
+     "",
+     "The answer was not finished: a model call failed or did not report what it cost, so nothing more was spent on this question. You can ask again."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F08",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "insufficient_evidence",
+   "short_answer": "This question was not researched because the model budget for today is spent.",
+   "gaps": [
+    {
+     "what": "The question was not researched",
+     "searched": "nothing, 21 to 27 September",
+     "why": "model budget for today spent"
+    }
+   ],
+   "claims": 0,
+   "evidence": 0
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "refused_budget_spent",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "fixed_text",
+    "removals": [],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Not researched: the model budget for today is spent"
+   ],
+   "short": [
+    [
+     "",
+     "This question was not researched because the model budget for today is spent."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F10",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "Short answer removed: a term or source the trust rules do not allow",
+     "searched": "the short answer text",
+     "why": "the text used a term or cited a source that the trust rules do not allow"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "first_check",
+      "cause": "K6"
+     }
+    ],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed because it used a term or source the trust rules do not allow."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F11",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "Short answer removed: a number with no query behind it",
+     "searched": "the short answer text",
+     "why": "every number must come from a saved count for this answer and match when checked again"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "first_check",
+      "cause": "K2"
+     }
+    ],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed because it used a figure that no checked finding holds."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F12a",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "One-line summary removed: it repeated a claim that did not pass its checks",
+     "searched": "the short answer text",
+     "why": "a summary that repeats a removed claim is not shown, and no checked summary of the claims that passed could take its place"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "support_check",
+      "cause": "claim_cut"
+     }
+    ],
+    "rewrite": "empty"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed after a claim it may have rested on did not pass its checks."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F12b",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "One-line summary removed: it repeated a claim that did not pass its checks",
+     "searched": "the short answer text",
+     "why": "a summary that repeats a removed claim is not shown, and no checked summary of the claims that passed could take its place"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "support_check",
+      "cause": "claim_cut"
+     }
+    ],
+    "rewrite": "call_failed"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed after a claim it may have rested on did not pass its checks."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F12c",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "One-line summary removed: it repeated a claim that did not pass its checks",
+     "searched": "the short answer text",
+     "why": "a summary that repeats a removed claim is not shown, and no checked summary of the claims that passed could take its place"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "support_check",
+      "cause": "claim_cut"
+     }
+    ],
+    "rewrite": "no_budget"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed after a claim it may have rested on did not pass its checks."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F13",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "One-line summary removed: it repeated a claim that did not pass its checks",
+     "searched": "the short answer text",
+     "why": "a summary that repeats a removed claim is not shown, and no checked summary of the claims that passed could take its place"
+    },
+    {
+     "what": "One-line summary removed after a claim was narrowed",
+     "searched": "the short answer text and the retained claims",
+     "why": "the original summary could repeat the broader claim, and no checked replacement could take its place"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "support_check",
+      "cause": "claim_cut"
+     },
+     {
+      "stage": "support_check",
+      "cause": "claim_narrowed"
+     }
+    ],
+    "rewrite": "repeated_removed_claim"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed after a claim it may have rested on did not pass its checks."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F14",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "One-line summary removed: it repeated a claim that did not pass its checks",
+     "searched": "the short answer text",
+     "why": "a summary that repeats a removed claim is not shown, and no checked summary of the claims that passed could take its place"
+    },
+    {
+     "what": "Short answer removed: a term or source the trust rules do not allow",
+     "searched": "the short answer text",
+     "why": "the text used a term or cited a source that the trust rules do not allow"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "support_check",
+      "cause": "claim_cut"
+     },
+     {
+      "stage": "recheck",
+      "cause": "K6"
+     }
+    ],
+    "rewrite": "removed_after_check"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed after a claim it may have rested on did not pass its checks. A rewritten summary did not pass the checks either."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F15a",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "One-line summary removed: it repeated a claim that did not pass its checks",
+     "searched": "the short answer text",
+     "why": "a summary that repeats a removed claim is not shown, and no checked summary of the claims that passed could take its place"
+    },
+    {
+     "what": "Short answer removed: a forecast that has not outperformed a simple no-change forecast",
+     "searched": "the short answer text",
+     "why": "forecasts are not shown until they outperform a simple no-change forecast"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "support_check",
+      "cause": "claim_cut"
+     },
+     {
+      "stage": "field_check",
+      "cause": "K9"
+     }
+    ],
+    "rewrite": "removed_after_check"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed after a claim it may have rested on did not pass its checks. A rewritten summary did not pass the checks either."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F15b",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "Short answer removed: a description of people the trust rules do not allow",
+     "searched": "the short answer text",
+     "why": "text check: the text check found the text describes or infers who people are beyond what the posts show"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "field_check",
+      "cause": "K6"
+     }
+    ],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed because the text check found it describes people in a way the trust rules do not allow."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F16",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "Short answer removed: text too long to check with the posts it rests on",
+     "searched": "the short answer text",
+     "why": "the text, with the claims and posts it rests on, was too long to check, so it was left out rather than shown unchecked"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "field_check",
+      "cause": "field_unchecked"
+     }
+    ],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was too long to check with the posts it rests on, so it was left out."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F17",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "One-line summary removed: it repeated a claim that did not pass its checks",
+     "searched": "the short answer text",
+     "why": "a summary that repeats a removed claim is not shown, and no checked summary of the claims that passed could take its place"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "support_check",
+      "cause": "claim_cut"
+     },
+     {
+      "stage": "critic",
+      "cause": "claim_cut"
+     }
+    ],
+    "rewrite": "removed_after_check"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed after a claim it may have rested on did not pass its checks. A rewritten summary did not pass the checks either."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F18",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "complete",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "blank_unexplained",
+    "removals": [],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. No one-line summary was written for this answer."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F10-partial-base",
+  "base": "partial",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram data",
+     "searched": "instagram/hashtag #fixture, Kenya, 21 to 27 September",
+     "why": "rate_limited"
+    },
+    {
+     "what": "No X posts about #fixture from Kenya",
+     "searched": "x/search #fixture, Kenya, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "Short answer removed: a term or source the trust rules do not allow",
+     "searched": "the short answer text",
+     "why": "the text used a term or cited a source that the trust rules do not allow"
+    }
+   ],
+   "claims": 1,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "first_check",
+      "cause": "K6"
+     }
+    ],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "1 checked finding from 2 posts on TikTok is below. The one-line summary was removed because it used a term or source the trust rules do not allow."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F18-partial-base",
+  "base": "partial",
+  "record_status": "complete",
+  "answer": {
+   "status": "complete",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram data",
+     "searched": "instagram/hashtag #fixture, Kenya, 21 to 27 September",
+     "why": "rate_limited"
+    },
+    {
+     "what": "No X posts about #fixture from Kenya",
+     "searched": "x/search #fixture, Kenya, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 1,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "blank_unexplained",
+    "removals": [],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [],
+   "short": [
+    [
+     "note",
+     "1 checked finding from 2 posts on TikTok is below. No one-line summary was written for this answer."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F01-partial-base",
+  "base": "partial",
+  "record_status": "complete",
+  "answer": {
+   "status": "complete",
+   "short_answer": "There is only a thin trace of #fixture in Kenya: 9 TikTok posts from 21 to 27 September, and the two we could read come from one Nairobi creator and a reply to them. That is too little to call it a trend here yet; Instagram was rate limited, so part of the picture is missing.",
+   "gaps": [
+    {
+     "what": "No Instagram data",
+     "searched": "instagram/hashtag #fixture, Kenya, 21 to 27 September",
+     "why": "rate_limited"
+    },
+    {
+     "what": "No X posts about #fixture from Kenya",
+     "searched": "x/search #fixture, Kenya, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 1,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "shown",
+    "removals": [],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [],
+   "short": [
+    [
+     "",
+     "There is only a thin trace of #fixture in Kenya: 9 TikTok posts from 21 to 27 September, and the two we could read come from one Nairobi creator and a reply to them. That is too little to call it a trend here yet; Instagram was rate limited, so part of the picture is missing."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F19",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "Short answer removed: a term or source the trust rules do not allow",
+     "searched": "the short answer text",
+     "why": "the text used a term or cited a source that the trust rules do not allow"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "legacy_unknown"
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary is not available for this answer."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F20",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "One-line summary removed: it repeated a claim that did not pass its checks",
+     "searched": "the short answer text",
+     "why": "a summary that repeats a removed claim is not shown, and no checked summary of the claims that passed could take its place"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "legacy_unknown"
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary is not available for this answer."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F01-stopped-after-final",
+  "base": "complete",
+  "record_status": "stopped",
+  "answer": {
+   "status": "complete",
+   "short_answer": "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle.",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "shown",
+    "removals": [],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [],
+   "short": [
+    [
+     "",
+     "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "F10-stopped-after-final",
+  "base": "complete",
+  "record_status": "stopped",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    },
+    {
+     "what": "Short answer removed: a term or source the trust rules do not allow",
+     "searched": "the short answer text",
+     "why": "the text used a term or cited a source that the trust rules do not allow"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "completed",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "removed",
+    "removals": [
+     {
+      "stage": "first_check",
+      "cause": "K6"
+     }
+    ],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary was removed because it used a term or source the trust rules do not allow."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "stopped-on-request",
+  "base": "complete",
+  "record_status": "stopped",
+  "answer": {
+   "status": "insufficient_evidence",
+   "short_answer": "Stopped on request before any claim passed the checks.",
+   "gaps": [
+    {
+     "what": "Research stopped on request",
+     "searched": "0 of 8 research steps",
+     "why": "stopped on request"
+    }
+   ],
+   "claims": 0,
+   "evidence": 0
+  },
+  "answer_meta": {
+   "check": "verified",
+   "v": 1,
+   "execution": {
+    "state": "stopped_on_request",
+    "stop_reason": null
+   },
+   "summary": {
+    "state": "fixed_text",
+    "removals": [],
+    "rewrite": "not_attempted"
+   }
+  },
+  "export": {
+   "review": [
+    "Stopped before an answer was written",
+    "Stopped before the end; this is what passed the checks by then."
+   ],
+   "short": [
+    [
+     "",
+     "Stopped on request before any claim passed the checks."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "planted-wire-on-blank",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "unverified",
+   "problem": "forbidden_key"
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "2 checked findings from 2 posts on TikTok and X are below. The one-line summary is not available for this answer."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "planted-wire-on-text",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "complete",
+   "short_answer": "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle.",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 2,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "unverified",
+   "problem": "forbidden_key"
+  },
+  "export": {
+   "review": [],
+   "short": [
+    [
+     "",
+     "#fixture moved from a handful of TikTok posts to 312 in the week of 21 to 27 September, carried by a kitchen-table dance format that X posters are now quoting. Creators in Gauteng and the Western Cape both use the same opening line, so the format has travelled beyond one circle."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "blank-legacy-no-claims",
+  "base": "complete",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram posts in the window",
+     "searched": "instagram/hashtag #fixture, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 0,
+   "evidence": 0
+  },
+  "answer_meta": {
+   "check": "legacy_unknown"
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "Nothing passed the checks to sum up."
+    ]
+   ]
+  }
+ },
+ {
+  "name": "blank-legacy-partial-base",
+  "base": "partial",
+  "record_status": "complete",
+  "answer": {
+   "status": "partial",
+   "short_answer": "",
+   "gaps": [
+    {
+     "what": "No Instagram data",
+     "searched": "instagram/hashtag #fixture, Kenya, 21 to 27 September",
+     "why": "rate_limited"
+    },
+    {
+     "what": "No X posts about #fixture from Kenya",
+     "searched": "x/search #fixture, Kenya, 21 to 27 September: 0 found",
+     "why": "empty"
+    }
+   ],
+   "claims": 1,
+   "evidence": 2
+  },
+  "answer_meta": {
+   "check": "legacy_unknown"
+  },
+  "export": {
+   "review": [
+    "Partial answer"
+   ],
+   "short": [
+    [
+     "note",
+     "1 checked finding from 2 posts on TikTok is below. The one-line summary is not available for this answer."
+    ]
+   ]
+  }
+ }
+]

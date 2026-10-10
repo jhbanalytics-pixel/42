@@ -111,6 +111,20 @@ def test_the_pins_cover_the_seven_pages_routes_and_every_history_read():
     assert all(len(PINS["pins"][r]) >= 4 for r in ROUTES)
 
 
+# The count of pinned key paths per route, written out. Deleting a pin from old_tab_pins.json (or from the route that
+# held it) lowers a count and fails here, so the suite cannot go green by losing the pin that would have failed.
+PIN_COUNTS = {"today": 209, "discover": 163, "radar": 63, "topic": 143, "coverage": 116, "fieldwork": 83,
+              "history_asks": 10, "history_briefs": 19, "history_findings": 26, "history_item": 54,
+              "history_search": 4}
+PIN_TOTAL = 890
+
+
+def test_the_pins_are_counted_per_route_and_in_all():
+    assert sorted(PIN_COUNTS) == sorted(ROUTES)
+    assert {route: len(PINS["pins"][route]) for route in ROUTES} == PIN_COUNTS
+    assert sum(PIN_COUNTS.values()) == PIN_TOTAL == sum(len(pins) for pins in PINS["pins"].values())
+
+
 @pytest.mark.parametrize("route", ROUTES)
 def test_every_request_an_old_tab_makes_answers_with_the_status_a80_gave(head, route):
     wrong = {p: (head[p][0], s) for p, s in PINS["requests"][route].items() if head[p][0] != s}
