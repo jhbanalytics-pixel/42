@@ -47,11 +47,8 @@ def test_roster_comes_from_the_collect_config(out):
     assert source(out, "KE", "feed_tiktok")["planned_calls"] == 1
     news = source(out, "ZA", "news_rss")
     assert "Briefly (RSS)" in news["members"] and "eNCA" in news["members"] and news["free"] is True
-    desk = source(out, "ZA", "panel_culture_desk")
-    assert desk["group"] == "creators" and "culture desk accounts" in desk["detail"]
-    assert "kept creator" not in desk["detail"]
-    kept = source(out, "ZA", "panel_curated_creators")
-    assert kept["group"] == "creators" and "kept creator accounts in today's rotation" in kept["detail"]
+    creators = source(out, "ZA", "panel_culture_desk")
+    assert creators["group"] == "creators" and "kept creator accounts" in creators["detail"]
     trends = source(out, "ZA", "google_trends")
     assert trends["group"] == "search_interest" and "never evidence" in trends["detail"]
 
@@ -232,3 +229,117 @@ def test_a_calls_failure_that_names_its_class_reads_as_a_failed_or_unmade_call()
     reddit = source(out, "ZA", "list_reddit")
     assert reddit["status"] == "failed"
     assert reddit["status_words"] == "Failed: could not be read; no calls were made"
+
+
+# The culture desk and the kept creator rotation. Before the jobs that write panel_curated_creators ship, the live
+# jobs store both under panel_culture_desk, so the reader works out which shape the stored rows have.
+
+DESK = "panel_culture_desk"
+KEPT = "panel_curated_creators"
+OLD_NAME = "Culture desk and kept creator accounts"
+# What the code at 3580ecf returns for the old stored shape on D30 (its fieldwork.py and job.plan run in a checkout of
+# that commit, with one desk protocol row and one rotation protocol row of health per market): name, detail,
+# planned_calls, planned_credits, health calls and items collected.
+OLD_SHAPE_AT_3580ECF = {
+    "ZA": ("12 culture desk accounts and 124 kept creator accounts in today's rotation, from 124 kept for this market",
+           6, 272),
+    "NG": ("12 culture desk accounts and 155 kept creator accounts in today's rotation, from 155 kept for this market",
+           8, 334),
+    "KE": ("12 culture desk accounts and 129 kept creator accounts in today's rotation, from 129 kept for this market",
+           7, 282),
+}
+
+
+def desk_health(code, series, protocol, accounts, items=40):
+    return {"day": D30, "market": code, "platform": None, "route": "prism/profiles", "series": series,
+            "protocol": protocol, "lane_class": "panel", "calls": 1, "calls_ok": 1, "units_planned": accounts,
+            "units_ok": accounts, "items": items, "ref_items": None, "ref_days": 0, "k": 1.0, "valid": True,
+            "invalid_reason": None, "located_share": 0.5, "run_id": "collect-x"}
+
+
+def stored_panels(shape, *, rotation=True):
+    """Health rows of the culture desk and kept creators as the old jobs store them (both under panel_culture_desk,
+    a desk protocol and a rotation protocol) or as the split jobs store them (two series)."""
+    plan = fieldwork._plan(D30)
+    rows = []
+    for code in ("ZA", "NG", "KE"):
+        desk = len(plan["hubs"][code.lower()]["culture_desk"])
+        kept = sum(len(r["params"].get("items") or []) for r in plan["rows"]
+                   if r["market"] == code and r["series"] == KEPT)
+        rows.append(desk_health(code, DESK, "panel:desk", desk))
+        if rotation:
+            rows.append(desk_health(code, DESK if shape == "old" else KEPT, "panel:rot", kept))
+    return rows
+
+
+def panels_out(rows):
+    store = Patched(collection_health=lambda d: [r for r in FixtureStore().collection_health(d)] + rows)
+    return fieldwork.build_fieldwork(store, D30, now=NOW)
+
+
+def test_old_stored_shape_reads_exactly_as_the_code_at_3580ecf_did():
+    out = panels_out(stored_panels("old"))
+    for code, (detail, calls, credits) in OLD_SHAPE_AT_3580ECF.items():
+        row = source(out, code, DESK)
+        assert (row["name"], row["detail"], row["group"]) == (OLD_NAME, detail, "creators")
+        assert (row["planned_calls"], row["planned_credits"]) == (calls, credits)
+        assert (row["members"], row["free"]) == ([], False)
+        assert (row["status"], row["health"]["calls"], row["health"]["items"]["value"]) == ("delivered", 2, 80)
+        assert [s["series"] for s in market(out, code)["sources"]].count(KEPT) == 0
+
+
+KEPT_DETAIL = {
+    "ZA": "124 kept creator accounts in today's rotation, from 124 kept for this market",
+    "NG": "155 kept creator accounts in today's rotation, from 155 kept for this market",
+    "KE": "129 kept creator accounts in today's rotation, from 129 kept for this market",
+}
+
+
+def test_split_stored_shape_names_the_desk_alone_and_gives_the_kept_creators_their_own_row():
+    out = panels_out(stored_panels("split"))
+    for code in ("ZA", "NG", "KE"):
+        desk, kept = source(out, code, DESK), source(out, code, KEPT)
+        assert desk["name"] == "Culture desk accounts" and desk["detail"] == "12 culture desk accounts"
+        assert desk["health"]["calls"] == 1 and desk["planned_calls"] == 1
+        assert kept["name"] == "Kept creator accounts" and kept["group"] == "creators"
+        assert kept["detail"] == KEPT_DETAIL[code]
+        assert kept["health"]["calls"] == 1 and kept["planned_calls"] == OLD_SHAPE_AT_3580ECF[code][1] - 1
+
+
+def test_desk_series_holding_exactly_the_desk_list_is_the_desk_alone_with_no_kept_creators_line():
+    out = panels_out(stored_panels("old", rotation=False))
+    for code in ("ZA", "NG", "KE"):
+        desk = source(out, code, DESK)
+        assert desk["name"] == "Culture desk accounts" and desk["detail"] == "12 culture desk accounts"
+        assert "kept creator" not in desk["detail"] and "kept creator" not in desk["name"]
+        assert source(out, code, KEPT)["detail"] == KEPT_DETAIL[code]
+
+
+def test_with_no_stored_rows_for_the_day_the_roster_reads_as_it_did_at_3580ecf():
+    out = fieldwork.build_fieldwork(Patched(collection_health=lambda d: []), D30, now=NOW)
+    assert out["health_state"] == "absent"
+    for code, (detail, calls, credits) in OLD_SHAPE_AT_3580ECF.items():
+        row = source(out, code, DESK)
+        assert (row["name"], row["detail"], row["planned_calls"], row["planned_credits"]) == (
+            OLD_NAME, detail, calls, credits)
+        assert KEPT not in [s["series"] for s in market(out, code)["sources"]]
+
+
+def test_kept_creators_with_a_series_of_their_own_make_the_split_shape_even_with_no_desk_row():
+    rows = [r for r in stored_panels("split") if r["series"] == KEPT]
+    out = panels_out(rows)
+    for code in ("ZA", "NG", "KE"):
+        assert source(out, code, DESK)["name"] == "Culture desk accounts"
+        assert source(out, code, DESK)["detail"] == "12 culture desk accounts"
+        assert source(out, code, KEPT)["detail"] == KEPT_DETAIL[code]
+
+
+def test_old_shape_is_read_from_the_accounts_planned_so_a_failed_rotation_does_not_change_the_words():
+    rows = stored_panels("old")
+    for r in rows:
+        if r["protocol"] == "panel:rot":
+            r.update(units_ok=0, calls_ok=0, items=0, valid=False, invalid_reason="calls")
+    out = panels_out(rows)
+    for code, (detail, calls, credits) in OLD_SHAPE_AT_3580ECF.items():
+        row = source(out, code, DESK)
+        assert (row["name"], row["detail"], row["planned_calls"]) == (OLD_NAME, detail, calls)

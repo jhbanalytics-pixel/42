@@ -62,6 +62,10 @@ SERIES = {
     "curve_tiktok_sound": ("search", "TikTok sound curves"),
     "x_trends": ("platform", "X trends archive"),
 }
+# The jobs that write panel_curated_creators ship after the services that read it. Until they do, the live jobs store
+# the culture desk and the kept creator rotation together under panel_culture_desk, and the row keeps its old name.
+DESK_SERIES, KEPT_SERIES = "panel_culture_desk", "panel_curated_creators"
+MERGED_DESK_NAME = "Culture desk and kept creator accounts"
 # local_sources.FEEDS names its RSS feeds by key; these are the publications.
 RSS_NAMES = {"briefly": "Briefly", "zalebs": "ZAlebs", "bellanaija": "BellaNaija", "punch": "Punch",
              "legit": "Legit", "nairametrics": "Nairametrics", "tuko": "Tuko", "kenyans": "Kenyans.co.ke"}
@@ -177,7 +181,21 @@ def _plan(day_iso):
     }
 
 
-def _members(series, market, rows, plan):
+def _desk_series_is_split(market, plan, by_health):
+    """True when the stored rows show the desk and the kept creators apart, False when they sit together under
+    panel_culture_desk. Split: the kept creators have a series of their own, or the desk series holds no more
+    accounts than the plan's culture desk list. Together: it holds more. With no stored row for the desk series
+    there is nothing to tell the shapes apart, and the row reads as it did before the split."""
+    if by_health.get((market, KEPT_SERIES)):
+        return True
+    held = by_health.get((market, DESK_SERIES))
+    if not held:
+        return False
+    desk = len((plan["hubs"].get(market.lower()) or {}).get("culture_desk") or [])
+    return sum(r.get("units_planned") or 0 for r in held) <= desk
+
+
+def _members(series, market, rows, plan, merged=False):
     """Who or what a source reads, in words a strategist knows."""
     if series == "list_reddit":
         subs = []
@@ -199,6 +217,14 @@ def _members(series, market, rows, plan):
         return [_handle(i["handle"]) for i in items], "Posts since yesterday"
     if series == "panel_fb_hub":
         return [], f"{len(rows)} news and radio pages, posts since yesterday"
+    if series == "panel_culture_desk" and merged:
+        desk = len((plan["hubs"].get(market.lower()) or {}).get("culture_desk") or [])
+        accounts = sum(len(r["params"].get("items") or []) for r in rows)
+        kept = plan["kept_creators"].get(market)
+        detail = f"{desk} culture desk accounts and {max(accounts - desk, 0)} kept creator accounts in today's rotation"
+        if kept:
+            detail += f", from {kept} kept for this market"
+        return [], detail
     if series == "panel_culture_desk":
         desk = sum(len(r["params"].get("items") or []) for r in rows)
         return [], f"{desk} culture desk accounts"
@@ -300,9 +326,11 @@ def _status_words(status, summary):
     return STATUS_WORDS[status]
 
 
-def _source(market, series, planned, health_rows, health_state, plan):
+def _source(market, series, planned, health_rows, health_state, plan, merged=False):
     group, name = SERIES.get(series) or ("platform", _series_name({"series": series, "platform": None}))
-    members, detail = _members(series, market, planned, plan) if planned else ([], None)
+    if merged and series == DESK_SERIES:
+        name = MERGED_DESK_NAME
+    members, detail = _members(series, market, planned, plan, merged) if planned else ([], None)
     credits = sum(r["credits"] for r in planned if r.get("priced", True))
     unpriced = [r for r in planned if r.get("priced") is False]
     summary = _health_summary(health_rows) if health_rows else None
@@ -489,8 +517,12 @@ def build_fieldwork(store, date=None, *, now=None):
     if plan is not None:
         planned = _rows_by_source(plan)
         for m in MARKETS + (GLOBAL,):
+            merged = m != GLOBAL and not _desk_series_is_split(m, plan, by_health)
+            if merged and (m, KEPT_SERIES) in planned:
+                planned[(m, DESK_SERIES)] = planned.get((m, DESK_SERIES), []) + planned.pop((m, KEPT_SERIES))
             keys = [k for k in planned if k[0] == m] + [k for k in by_health if k[0] == m and k not in planned]
-            sources = [_source(m, s, planned.get((m, s), []), by_health.get((m, s), []), health_state, plan)
+            sources = [_source(m, s, planned.get((m, s), []), by_health.get((m, s), []), health_state, plan,
+                               merged=merged)
                        for _, s in keys]
             if m != GLOBAL:
                 sources.append(_trends_source(m, plan, collect_run, credit_rows))
