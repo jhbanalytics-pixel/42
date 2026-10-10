@@ -20,6 +20,7 @@ from typing import Protocol
 from core.agent.checks import LABEL_RANK
 from core.agent.context import STORE_TOOL, Refused, RunContext
 from core.agent.skills import PAGE_TIERS
+from core.agent.spread import spread_order
 from core.agent.tools.dates import SAST, resolve_dates
 from core.agent.tools.socialcrawl import PLATFORM_NAMES, _fence
 from core.agent.tools.sql_query import PROJECT, Warehouse, internal_read, sql_query
@@ -411,6 +412,7 @@ def load_local_terms(path=None) -> list[dict]:
 # held only in the hashtags column (the parser fills it from the vendor's list) is found as well.
 TERM_TEST = ("(CONTAINS_SUBSTR(p.text, {0}) OR EXISTS (SELECT 1 FROM UNNEST(p.hashtags) AS h "
              "WHERE LOWER(TRIM(h)) = LOWER({0})))")
+TAG_TEST = "EXISTS (SELECT 1 FROM UNNEST(p.hashtags) AS h WHERE LOWER(TRIM(h)) = LOWER({0}))"  # the column alone
 RELATED_TAG_POOL = 30  # rows the co-occurrence read returns; the term cap decides how many are used
 MIN_RELATED_CREATORS = 2  # a tag seen with the seed by one creator only is not a family
 TAG_WORD = re.compile(r"\w{1,50}")
@@ -468,11 +470,11 @@ def _search_filters(platforms, author, min_engagement) -> tuple[list[str], dict]
 
 
 def _keyword_sql(ctx: RunContext, query: str, since, until, shared: dict, filters: list[str], sort: str,
-                 limit: int) -> tuple[str, dict]:
+                 limit: int, test: str = TERM_TEST) -> tuple[str, dict]:
     """The keyword leg's SQL and parameters. Raises Refused for a query with more than MAX_TERMS terms."""
     params = {"since": since, "until": until, **shared, "limit": limit}
     where = ["p.post_date BETWEEN @since AND @until"]
-    where.append(_match(_terms(query, params, strip_hash=True), TERM_TEST))
+    where.append(_match(_terms(query, params, strip_hash=True), test))
     where += [f.format(a="p") for f in filters]
     if ctx.market:
         params["market"] = ctx.market
@@ -896,6 +898,94 @@ def _store_before(ctx: RunContext, warehouse: Warehouse, platforms, shown: str, 
     except Exception as exc:
         log.warning("ask store counts before the window failed: run %s: %s", ctx.run_id, type(exc).__name__)
         return None
+
+
+# Topic sweep (Albert, 10 October: Ask read 169 posts and rested on 3). Once a question names a topic, code runs up to
+# four recorded searches beside the whole-store counts: the topic and its tag family by engagement, the tag column by
+# recency, and two wordings of it for the semantic leg. The posts are balanced across platforms and creators and stored
+# straight into the run's evidence, so the research model's history does not carry them (about 15,000 tokens per 100
+# posts, re-sent every turn). Each search is a recorded query, so a K2 re-run of any cited one works as for any query.
+SWEEP_TOOL = "topic_sweep"
+SWEEP_KEEP = 300  # posts a sweep stores, as many as the writer's pack holds (writer.MAX_PACK_POSTS)
+MAX_SWEEP_TOPIC = 3
+_HASHTAG = re.compile(r"(?<![\w#])#(\w{2,50})")
+_QUOTED = re.compile(r'"([^"]{3,60})"')
+
+
+def sweep_topic(question: str) -> list[str]:
+    """What a question names as its topic, for code to search: its hashtags (as #tag, lower case) and any phrase in
+    double quotes, at most MAX_SWEEP_TOPIC. A question that names neither has no topic code can read, and no sweep."""
+    topic = []
+    for m in _HASHTAG.finditer(question or ""):
+        tag = "#" + m.group(1).lower()
+        if tag not in topic:
+            topic.append(tag)
+    for m in _QUOTED.finditer(question or ""):
+        words = [w.lstrip("#") for w in m.group(1).split() if w not in _OR and w not in _AND]
+        phrase = " ".join(w for w in words if w)
+        if phrase and phrase not in topic:
+            topic.append(phrase)
+    return topic[:MAX_SWEEP_TOPIC]
+
+
+def topic_sweep(ctx: RunContext, warehouse: Warehouse, topic: list[str], platforms=None) -> dict:
+    """The sweep for topic (hashtags and phrases from sweep_topic). Stores up to SWEEP_KEEP posts in ctx.evidence and
+    returns counts only: posts stored, searches that ran, the searches that failed with their reasons, and the tags
+    added to the family. A search that fails leaves the others; the sweep never raises for a warehouse failure."""
+    topic = [t for t in topic if isinstance(t, str) and t.strip()][:MAX_SWEEP_TOPIC]
+    out = {"posts": 0, "searches": 0, "failed": {}, "family": []}
+    if not topic:
+        return out
+    since, until = _store_window(ctx)
+    window = (since, until)
+    filters, shared = _search_filters(platforms, None, 0)
+    words = " OR ".join(topic)
+    base = " ".join(t.lstrip("#") for t in topic)
+    out["family"] = _widen(ctx, warehouse, words, since, until, platforms)
+    family_query = words + "".join(f" OR #{w}" for w in out["family"])
+    tags_only = all(t.startswith("#") for t in topic)
+    market = MARKET_NAMES.get(ctx.market, "Africa")
+    searches = [
+        ("keyword", "keyword", lambda: _keyword_sql(ctx, family_query, since, until, shared, filters, "engagement",
+                                                     MAX_POSTS)),
+        ("tag column" if tags_only else "recent", "keyword",
+         lambda: _keyword_sql(ctx, family_query, since, until, shared, filters, "recent", MAX_POSTS,
+                              test=TAG_TEST if tags_only else TERM_TEST)),
+        ("semantic a", "semantic", lambda: _semantic_sql(ctx, base, since, until, shared, filters, MAX_POSTS)),
+        ("semantic b", "semantic", lambda: _semantic_sql(ctx, f"people posting about {base}, {market}", since, until,
+                                                         shared, filters, MAX_POSTS)),
+    ]
+    lists, query_ids = [], []
+    for label, mode, build in searches:
+        try:
+            sql, params = build()
+            result = sql_query(ctx, warehouse, sql, params=params, purpose=f"Topic sweep, {label}: {base}")
+        except Exception as e:
+            _emit_retrieval_trace(ctx, mode, error=e)
+            out["failed"][label] = _reason(e)
+            log.warning("ask topic sweep %s failed: run %s: %s", label, ctx.run_id, out["failed"][label])
+            continue
+        _emit_retrieval_trace(ctx, mode, query_id=result["query_id"], rows=result["rows"])
+        ctx.queries[result["query_id"]]["tool"] = SWEEP_TOOL
+        lists.append(result["rows"])
+        query_ids.append(result["query_id"])
+    out["searches"] = len(lists)
+
+    inside = [[r for r in rows if _inside(r, window)] for rows in lists]
+    fused = _fuse(inside, 10**6, ctx.market)
+    best = {id(row): len(fused) - i for i, row in enumerate(fused)}
+    chosen = spread_order(fused, platform=lambda r: r.get("platform"),
+                          creator=lambda r: r.get("creator_id") or r.get("handle"),
+                          strength=lambda r: best[id(r)])[:SWEEP_KEEP]
+    for row in chosen:
+        _store(ctx, row)
+    kept = {str(r["post_id"]) for r in chosen}
+    for qid, rows in zip(query_ids, lists):
+        ids = [str(r["post_id"]) for r in rows]
+        ctx.queries[qid]["skipped_outside_window"] = sum(1 for r in rows if not _inside(r, window))
+        ctx.queries[qid]["skipped_ids"] = [pid for pid in dict.fromkeys(ids) if pid not in kept]
+    out["posts"] = len(chosen)
+    return out
 
 
 def store_totals(ctx: RunContext, query_id: str | None) -> dict | None:

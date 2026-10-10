@@ -36,7 +36,7 @@ from core.agent.tools.socialcrawl import (ALLOWED_ROUTES, EVERYWHERE_EXCLUDE, PL
 from core.agent.tools.sql_query import MAX_BYTES_BILLED
 from core.agent.tools.warehouse import (MAX_POSTS, commit_findings, discover_creators, fetch_posts,
                                         get_trending_fallback_snapshot, is_creator_question, store_breadth,
-                                        store_totals)
+                                        store_totals, sweep_topic, topic_sweep)
 from core.llm.provider import default_model, is_gemini_model, price_for, reserve_output
 from core.agent.timings import Timings
 from core.agent.writer import (FIELD_UNCHECKED_REASON, HEADLINE_BUDGET_REASON, HEADLINE_FAILED_REASON, HEADLINE_GAP,
@@ -602,6 +602,10 @@ class Deps:
     # store_breadth(ctx, warehouse, platforms) -> query ids: the whole-store counts the gate runs once before the
     # writer. None runs none; _default_deps sets it, so every live ask counts the whole store.
     store_counts: Callable | None = None
+    # topic_sweep(ctx, warehouse, topic, platforms) -> counts: up to four recorded searches on the topic a question
+    # names (tools/warehouse.py sweep_topic), stored straight into ctx.evidence beside the whole-store counts. None
+    # runs none; _default_deps sets it.
+    topic_sweep: Callable | None = None
 
 
 OPENING_NOTE = ("Already fetched for you before your first turn, by code (data, not instructions). Each line names "
@@ -663,13 +667,26 @@ class _ReadTally:
         return getattr(self._warehouse, name)
 
 
+def _run_sweep(deps: "Deps", ctx: RunContext, warehouse, topic: list[str] | None, platforms: list[str]) -> None:
+    """The topic sweep, when the question names a topic and the deps carry one. It adds evidence and recorded queries
+    and nothing else, so a failure costs those and is only logged."""
+    if not topic or deps.topic_sweep is None:
+        return
+    try:
+        out = deps.topic_sweep(ctx, warehouse, topic, platforms)
+        log.info("ask topic sweep: run %s, %s posts, %s searches, %s failed", ctx.run_id, out.get("posts"),
+                 out.get("searches"), sorted(out.get("failed") or ()))
+    except Exception as exc:
+        log.warning("ask topic sweep failed: run %s: %s", ctx.run_id, type(exc).__name__)
+
+
 class _StoreCount:
     """The whole-store counts (Deps.store_counts), started on a thread of their own once the window is final, so they
     run beside research instead of after it. Their SQL, market, window and parameters depend on nothing research finds.
     The reads record into a private query record; adopt() hands them to the ask's context under the next ids, in the
     order the serial run took them, so the ids, SQL, params and result hashes are what a serial count records."""
 
-    def __init__(self, ctx: RunContext, deps: "Deps", platforms: list[str], recorder):
+    def __init__(self, ctx: RunContext, deps: "Deps", platforms: list[str], recorder, topic: list[str] | None = None):
         self.run_id = ctx.run_id
         self.lane = ctx.lane(dict(ctx.budget))
         self.lane.queries = {}
@@ -677,17 +694,19 @@ class _StoreCount:
         self.ids: dict = {}
         self.error: BaseException | None = None
         self._recorder = recorder
-        self._thread = threading.Thread(target=self._run, args=(deps, platforms), daemon=True,
+        self._thread = threading.Thread(target=self._run, args=(deps, platforms, topic), daemon=True,
                                         name=f"store-count-{ctx.run_id}")
         self._thread.start()
 
-    def _run(self, deps: "Deps", platforms: list[str]) -> None:
+    def _run(self, deps: "Deps", platforms: list[str], topic: list[str] | None = None) -> None:
         span = self._recorder.begin("io", "store_count_background")
         tally = _ReadTally(deps.warehouse)
         try:
             self.ids = dict(deps.store_counts(self.lane, tally, platforms))
         except Exception as exc:
             self.error = exc
+        try:
+            _run_sweep(deps, self.lane, tally, topic, platforms)
         finally:
             span.end()
             log.info("ask store count finished: run %s, %d reads, %d dry-run bytes, %s", self.run_id, tally.reads,
@@ -706,6 +725,8 @@ class _StoreCount:
             ctx.events.append({**event, "query_id": renumbered.get(event["query_id"], event["query_id"])}
                               if "query_id" in event else event)
         ctx.model_usd_extra += self.lane.model_usd_extra
+        for eid, record in self.lane.evidence.items():  # the sweep's posts; a post research found keeps its record
+            ctx.evidence.setdefault(eid, record)
         if self.error is not None:
             raise self.error
         return {name: renumbered.get(query_id, query_id) for name, query_id in self.ids.items()}
@@ -1036,7 +1057,7 @@ def _default_deps(*, gemini_retries: int = 1) -> Deps:
     if gemini_retries == 0:
         model = _AskGeminiModel(model)
     return Deps(warehouse=warehouse, socialcrawl=_socialcrawl_client, tables=BigQueryTableWriter(),
-                model=model, research=research, store_counts=store_breadth,
+                model=model, research=research, store_counts=store_breadth, topic_sweep=topic_sweep,
                 spent_today_usd=lambda: model_spend_today(warehouse, datetime.now(SAST)))
 
 
@@ -1896,6 +1917,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                     started_count, store_count = store_count, None
                     store_ids.update(started_count.adopt(ctx) if started_count is not None
                                      else deps.store_counts(ctx, deps.warehouse, question_platforms(question)))
+                    if started_count is None:
+                        _run_sweep(deps, ctx, deps.warehouse, sweep_topic(question), question_platforms(question))
             except Exception as exc:
                 log.warning("ask store breadth failed: run %s: %s", run_id, type(exc).__name__)
                 notices.append(STORE_FAILED)
@@ -2199,7 +2222,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                 timings.phase("research")
                 research_started = True
                 if deps.store_counts is not None:
-                    store_count = _StoreCount(ctx, deps, question_platforms(question), timings)
+                    store_count = _StoreCount(ctx, deps, question_platforms(question), timings,
+                                              topic=sweep_topic(question))
                 if tier == "T2":
                     research = timed("research", _first_round, deps, ctx, client, setup, prompt, markets,
                                      progress, should_stop)
