@@ -1914,6 +1914,8 @@ def test_market_payload_holds_a_generic_result_without_supported_claim_reference
     p = publication_payload(cand, result)
 
     assert p["cards"] == [] and p["held_back"]["items"][0]["reason"] == "explanation_failed"
+    # The explanation was explained by the model but G10 held it, so the held item reports the failed check.
+    assert p["held_back"]["items"][0]["explanation_status"] == "failed_checks"
 
 
 def test_market_payload_emits_recomputed_specificity_for_a_checked_local_result():

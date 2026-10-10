@@ -61,8 +61,9 @@ Rules:
         support or explicit source-market support stated only as feed scope. A source-only feed mention
         cannot support a residual place or people claim. Else cut.
     K5  the label is lowered to the highest the evidence allows, one step further when a named place
-        has source-market support only. Records flagged brand, brand_owned, paid, sponsored,
-        near_duplicate or generated are not independent authors; market_assumed alone is not an
+        has source-market support only. Records carrying the flag brand, brand_owned, paid, sponsored,
+        near_duplicate, flagged (a creator the brief's coordination score marks) or generated are not
+        independent authors; market_assumed alone is not an
         author-independence exclusion.
     K6  age or generation terms, demographic inference, Google Trends or a generated record as
         evidence are a breach. Checked in claim text, quote translations, a proposal's basis and
@@ -87,6 +88,7 @@ NOT_INDEPENDENT = {
     "paid",
     "sponsored",
     "near_duplicate",
+    "flagged",
     "generated",
     "ai_generated",
 }
@@ -247,6 +249,178 @@ _NUMERAL = re.compile(
 )
 _MULTIPLIER = {"k": 1e3, "thousand": 1e3, "m": 1e6, "million": 1e6, "bn": 1e9, "billion": 1e9}
 
+class _Conditional:
+    """A K6 term that counts only when its context says so. It matches like a compiled pattern (search and sub);
+    a hit that _counts rejects is not a hit, and sub leaves it in place as an ordinary word."""
+
+    def __init__(self, source):
+        self._re = re.compile(source, re.I)
+        self.pattern = source
+        self.flags = self._re.flags
+
+    def _counts(self, text, m):
+        raise NotImplementedError
+
+    def search(self, text):
+        for m in self._re.finditer(text):
+            if self._counts(text, m):
+                return m
+        return None
+
+    def sub(self, repl, text):
+        return self._re.sub(lambda m: repl if self._counts(text, m) else m.group(0), text)
+
+
+class _KinName(_Conditional):
+    """A K6 kin word that is also a personal name: Babu Owino, Bibi Titi Mohamed, Koko Rapapa.
+
+    A hit is dropped when the word is written as a name: first letter capital and the rest lower case, singular, and
+    then one of: followed by a capitalised word that is a surname; set in a list ("Raila, Babu and Sifuna") with a
+    capitalised word that is not a kin word, a possessive or a surname stop word; or the same capitalised word appears
+    elsewhere in the text followed by a surname (the short form of a name given in full). A surname is a capitalised
+    word that is not another kin word and not a platform or common word (Gogo TikTok, Babu Joins). Lower case, all
+    capitals, a plural, a bare capitalised word and a headline in title case stay age terms.
+
+    Three further forms are read as a name or a title, each only in its written form. A lower case hashtag of the
+    word ("#granny") is a name when the capitalised word is also in the text, where it is judged on its own ("Granny
+    Horror Gameplay #granny"). A persona title is "The", one capitalised word, then the capitalised kin word ("The
+    Hospitality Pikin"), unless that middle word is itself an age word (The Little Pikin). For elders only a title
+    counts, never a name: "Council of Elders" with both capitals, or a capitalised "Elders" straight after an acronym
+    of two to six capitals that is not a common word ("APC Elders"). So "Elder Mavuso", a bare "Elders" and "council
+    of elders" stay age terms.
+    """
+
+    _NAME = r"[A-Z][a-z][\w'\u2019-]*"
+    _COUNCIL_OF = re.compile(r"(?<![A-Za-z])Council of $")
+    _ACRONYM_BEFORE = re.compile(r"(?<![A-Za-z0-9_])([A-Z]{2,6})\s+$")
+    _PERSONA_BEFORE = re.compile(r"(?<![A-Za-z])The\s+([A-Z][a-z]+)\s+$")
+    _AFTER = re.compile(r"\s+(" + _NAME + ")")
+    _LIST_AFTER = re.compile(r"\s*(?:,|&|\band\b)\s*(" + _NAME + ")")
+    _LIST_BEFORE = re.compile(r"\b(" + _NAME + r")\s*(?:,|&|\band\b)\s*$")
+    # Full names of public people, read as names in any case: item labels are stored lower case, so "babu owino" is
+    # how the name reaches a claim. A list of full names only; a bare kin word never matches here.
+    _KNOWN_FULL_NAMES = re.compile(r"\b(?:babu\s+owino|bibi\s+titi\s+mohamed)\b", re.I)
+    _NOT_SURNAMES = frozenset(
+        "tiktok instagram facebook youtube twitter whatsapp snapchat telegram threads reels shorts linkedin pinterest"
+        " reddit club dance challenge trend trends culture joins takes goes wins is are was says said and the of in on"
+        " at to for with new video videos music show song party fans fan viral day night week post posts story"
+        " stories vibes style fashion food recipe recipes kitchen church group team band queue queues era life".split()
+    )
+
+    # Capitals that are common words and not the name of a party or a body: "OUR Elders" is not "APC Elders".
+    _NOT_ACRONYMS = frozenset(
+        "THE OUR ALL OLD YOUR MY AND FOR WITH NEW ONE TWO ANY HIS HER ITS OF TO IN ON AT BY AS IS IT OR SO UP US WE NO"
+        " BIG OUT ARE WAS NOT BUT CAN HAS HAD MAY NOW WHO HOW WHY DID SAY SAID THESE THOSE SOME MANY MORE MOST FEW SUCH"
+        " THEIR WISE GREAT GOOD BAD".split()
+    )
+    # An age word between "The" and the kin word makes it a description and not a persona name.
+    _NOT_PERSONAS = frozenset("young younger youngest little small old older elder baby new first last big tiny".split())
+
+    def __init__(self, source, by_name=True):
+        super().__init__(source)
+        self._by_name = by_name
+
+    def _is_kin(self, word):
+        return bool(self._re.fullmatch(word))
+
+    def _is_surname(self, word):
+        return not self._is_kin(word) and word.lower() not in self._NOT_SURNAMES
+
+    @staticmethod
+    def _headline(text):
+        words = [w for w in text.split() if any(ch.isalpha() for ch in w)]
+        return len(words) >= 5 and sum(w[0].isupper() for w in words if w[0].isalpha()) >= 0.8 * len(words)
+
+    def _surname_after(self, text, end):
+        m = self._AFTER.match(text, end)
+        return bool(m) and self._is_surname(m.group(1))
+
+    def _list_mate(self, word):
+        return self._is_surname(word) and not word.lower().endswith(("'s", "\u2019s"))
+
+    def _is_title(self, text, m):
+        term, before = m.group(0), text[: m.start()]
+        if term == "Elders":
+            acronym = self._ACRONYM_BEFORE.search(before)
+            return bool(self._COUNCIL_OF.search(before)) or bool(acronym and acronym.group(1) not in self._NOT_ACRONYMS)
+        persona = self._PERSONA_BEFORE.search(before)
+        return (
+            self._by_name
+            and term == term.capitalize()
+            and not term.lower().endswith("s")
+            and bool(persona)
+            and persona.group(1).lower() not in self._NOT_PERSONAS
+        )
+
+    def _is_hashtag_of_name(self, text, m):
+        term = m.group(0)
+        return (
+            m.start() > 0
+            and text[m.start() - 1] == "#"
+            and term == term.lower()
+            and any(other.group(0) == term.capitalize() for other in self._re.finditer(text))
+        )
+
+    def _is_name(self, text, m):
+        term = m.group(0)
+        if any(known.start() == m.start() for known in self._KNOWN_FULL_NAMES.finditer(text)):
+            return True
+        if self._is_title(text, m):
+            return True
+        if not self._by_name:
+            return False
+        if term.lower().endswith("s") or self._headline(text):
+            return False
+        if term != term.capitalize():
+            return self._is_hashtag_of_name(text, m)
+        if self._surname_after(text, m.end()):
+            return True
+        after = self._LIST_AFTER.match(text, m.end())
+        if after and self._list_mate(after.group(1)):
+            return True
+        before = self._LIST_BEFORE.search(text[: m.start()])
+        if before and self._list_mate(before.group(1)):
+            return True
+        return any(
+            other.group(0) == term and self._surname_after(text, other.end()) for other in self._re.finditer(text)
+        )
+
+    def _counts(self, text, m):
+        return not self._is_name(text, m)
+
+
+class _AgeContext(_Conditional):
+    """A K6 term that is an age unless it is a measure: "mid 20s" is a temperature, a score or a price as often as an
+    age. It does not count only when a weather, score or money word sits within six words of it in the same sentence
+    (temperatures, highs, degrees, score, won, rand, KSh, naira, dollars, price, costs, fees). With none of those it
+    counts, whoever the sentence is about, so a new way to name a group of people cannot slip past a word list. An
+    age marker counts whatever else the sentence holds: aged, ages, in their, in her, in his, and every audience word
+    that 3d5dd63 read as age context (people, fans, women, men, users, audience, viewers, creators, followers,
+    students, youth, adults, girls, boys, parents, listeners), anywhere in the sentence, so nothing held at 3d5dd63
+    clears here."""
+
+    _MEASURE = re.compile(
+        r"\b(?:temperatures?|temps?|degrees?|celsius|fahrenheit|weather|forecasts?|highs?|lows?|heat|hot|cold|warm"
+        r"|humid|rain(?:fall)?|scores?|scored|scoring|won|wins?|goals?|points|wickets|overs|runs"
+        r"|bowled|all\s+out|dismissed|innings"
+        r"|(?:a|the)\s+lead|leads?\s+by|led\s+by|rand|naira|dollars?|usd|pounds?|euros?|shillings?|ksh|price[sd]?"
+        r"|costs?|costing|fees?|revenue|salary|salaries|wages?|worth)\b|\u00b0|[$\u00a3\u20ac]|(?-i:\bR\s?\d|\bR\b)", re.I)
+    _AGE_MARKER = re.compile(
+        r"\b(?:aged?|ages|in\s+(?:their|her|his)|people|fans?|women|men|users?|audiences?|viewers?|creators?"
+        r"|followers?|students?|youth|adults?|girls|boys|parents|listeners?)\b", re.I)
+    _SENTENCE_END = re.compile(r"[.!?]\s+")
+    _WORDS_BESIDE = 6
+
+    def _counts(self, text, m):
+        start = max([0] + [s.end() for s in self._SENTENCE_END.finditer(text, 0, m.start())])
+        stop = next((s.start() for s in self._SENTENCE_END.finditer(text, m.end())), len(text))
+        if self._AGE_MARKER.search(text[start:stop]):
+            return True
+        before = " ".join(text[start : m.start()].split()[-self._WORDS_BESIDE :])
+        after = " ".join(text[m.end() : stop].split()[: self._WORDS_BESIDE])
+        return not (self._MEASURE.search(before) or self._MEASURE.search(after))
+
+
 _BREACH_TERMS = [
     re.compile(p, re.I)
     for p in (
@@ -294,6 +468,54 @@ _BREACH_TERMS = [
         r"\bsearch\s+interest\b",
     )
 ]
+
+# Terms the brief's K6 check took on after a80be1d. Only _k6_term reads them. core/detect/seeds.py calls
+# _breach_term, which reads _BREACH_TERMS alone, so seed queries are filtered by the a80be1d list and nothing here
+# changes what a seed passes. test_trust_seeds_input.py pins both lists.
+_K6_ONLY_TERMS = [
+    p if isinstance(p, _Conditional) else re.compile(p, re.I)
+    for p in (
+        # N13-T: an age range the bare-range pattern above misses: "aged between 18 and 24", "ages from 18 to 24".
+        # The N-Ns band ("the 18-24s are watching") is not here: no pattern for it keeps "the 1980s", "temperatures in
+        # the 20-30s" and "marks in the 70-80s" clear, so it waits for W8-DEC-03d.
+        r"\bage[ds]?\s+(?:between|from)\s+\d{1,2}\s+(?:and|to)\s+\d{1,2}\b",
+        # N15: age and generation words the Ask checks (core/agent/checks.py AGE_PATTERNS) flag and this list missed,
+        # with the same look-alike exclusions, then old-age words neither list had. test_trust_rule1_parity.py pins both.
+        r"\b(?:tweens|pre-?teens?|toddlers?|infants?|retirees?|minors|juveniles?|youthful)\b",
+        r"\bschool[\s-]?(?:children|kids)\b",
+        r"\bmiddle[\s-]?aged\b",
+        r"\b(?:digital[\s-]natives?|born[\s-]frees?)\b",
+        r"\b(?:matriculants?|matric[\s-]+(?:learners?|pupils?|students?)|first[\s-]?time[\s-]+voters?"
+        r"|school[\s-]?leavers?)\b",
+        r"(?<!\bfur\s)(?<!\bplant\s)(?<!\bsugar\s)\bbabies\b",
+        r"\b(?:grandmas?|grandmothers?|grandfathers?|grandparents?|watoto|abantwana|vijana|wazee|(?:ama|i)khehla)\b",
+        # Grandpa and grandad: in neither this list nor the Ask list before.
+        r"\bgrand(?:pa|dad|ad)s?\b",
+        # Kin words that are also names (Babu Owino, Bibi Titi Mohamed, Koko Rapapa): read as a name when written as one.
+        # Granny and pikin are here too: a game title or a persona name, written as one, is a name.
+        _KinName(r"\b(?:(?:u|o|ko)?gogos?|mkhulus?|(?:u|o)?makhulus?|koko|bibi|babu|grann(?:y|ies)|pikins?)\b"),
+        r"\bborn\s+(?:in|after|before|since|around|between)\s+(?:the\s+)?(?:early|mid|late)?[\s-]*"
+        r"['\u2019]?(?:(?:19|20)\d{2}|\d0s)",
+        r"(?:\d0s|nineties|noughties)[\s-](?:born|generation|babies)\b",
+        r"\bgrew\s+up\s+in\s+the\s+(?:early|mid|late)?[\s-]*['\u2019]?(?:(?:19|20)\d0s|\d0s|nineties|noughties)",
+        r"\b(?:early|mid|late)[\s-]?['\u2019]?(?:teens|twenties|thirties|forties|fifties|sixties|seventies)\b",
+        # "mid 20s" is a temperature, a score or a price as often as an age, so it is an age unless a measure sits beside it.
+        _AgeContext(r"\b(?:early|mid|late)[\s-]?['\u2019]?[2-7]0s\b"),
+        # "once in a generation" and "for a generation" are lengths of time, not an audience.
+        r"\b(?:next|this|(?:the|a)\s+new)[\s-]+generation\b(?!\s+(?:of|ago)\b)",
+        # "a generation match" is a storage precondition (the object store's generation match), not an audience.
+        r"(?<!\bonce[\s-]in[\s-])(?<!\bfor\s)\ba[\s-]+generation\b(?!\s+(?:of|ago)\b)(?!\s+match\b(?!-))",
+        r"#gen(?:eration)?[_-]?(?:z|alpha)",
+        # genz_score and genz_markers are column names: lower case, the whole identifier, and not a handle or a tag.
+        r"(?!(?<![@#])(?-i:genz_(?:score|markers)\b))\bgen(?:eration)?[_-]?(?:z|alpha)(?=(?-i:[A-Z])|[\d_])",
+        r"\b(?:kid(?:z|dos?|dies?)|zillenn?ials?|igen(?:eration)?s?|ama[_-]?(?:(?:19|20)\d{2}'?s?|[12]ks?))\b",
+        r"\bold[\s-]?(?:people|folks?|heads|timers?)\b",
+        r"\bold[\s-](?:man|men|woman|women|lady|ladies)\b",
+        rf"\b(?:older|elder)\s+{_PERSON}\b",
+        _KinName(r"\belders?\b", by_name=False),
+    )
+]
+_K6_TERMS = _BREACH_TERMS + _K6_ONLY_TERMS
 
 
 def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
@@ -347,7 +569,7 @@ def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
     live_numbers = [e for c in survivors for e in c.get("numbers") or [] if _pinned(e)]
 
     def field_fault(text):
-        term = _breach_term(text, live_quotes)
+        term = _k6_term(text, live_quotes)
         if term:
             return "K6", "breach", f"banned term {term!r}"
         raw = _unmatched_numeral(text, live_quotes, live_numbers, spans)
@@ -379,7 +601,7 @@ def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
 
     kept = []
     for i, gap in enumerate(new.get("gaps") or []):
-        faults = [(k, _breach_term(gap.get(k) or "", live_quotes)) for k in ("what", "why")]
+        faults = [(k, _k6_term(gap.get(k) or "", live_quotes)) for k in ("what", "why")]
         faults = [(k, t) for k, t in faults if t]
         if faults:
             row(None, "K6", "breach", f"gaps[{i}].{faults[0][0]}: banned term {faults[0][1]!r}")
@@ -430,22 +652,22 @@ def _quoted(match):
     return _norm(next(g for g in match.groups() if g is not None))
 
 
-def _other_words(content):
-    for pattern in _BREACH_TERMS:
+def _other_words(content, terms=_BREACH_TERMS):
+    for pattern in terms:
         content = pattern.sub(" ", content)
     return len(content.split())
 
 
-def _strip_quotes(text, exempt, k6=False):
+def _strip_quotes(text, exempt, k6=False, terms=_BREACH_TERMS):
     """Remove quoted spans whose content equals one of the exempt verified quotes.
 
-    For K6 a span is removed only if it keeps 3 or more words once banned terms are taken out,
+    For K6 a span is removed only if it keeps 3 or more words once banned terms (from terms) are taken out,
     so a quote that is only the banned term is still read as prose.
     """
 
     def keep(m):
         content = _quoted(m)
-        if content in exempt and (not k6 or _other_words(content) >= 3):
+        if content in exempt and (not k6 or _other_words(content, terms) >= 3):
             return " "
         return m.group(0)
 
@@ -695,13 +917,23 @@ def _k3(claim, records, start, end, market):
     )
 
 
-def _breach_term(text, exempt):
-    text = _norm(_strip_quotes(text, exempt, k6=True))
-    for pattern in _BREACH_TERMS:
+def _first_term(text, exempt, terms):
+    text = _norm(_strip_quotes(text, exempt, k6=True, terms=terms))
+    for pattern in terms:
         m = pattern.search(text)
         if m:
             return m.group(0)
     return None
+
+
+def _breach_term(text, exempt):
+    """The a80be1d term list. core/detect/seeds.py calls this; keep its answers as they were."""
+    return _first_term(text, exempt, _BREACH_TERMS)
+
+
+def _k6_term(text, exempt):
+    """What the brief's K6 check reads: the a80be1d list and the terms added since."""
+    return _first_term(text, exempt, _K6_TERMS)
 
 
 def _k6(claim, records, verified):
@@ -716,7 +948,7 @@ def _k6(claim, records, verified):
     ]
     texts += [("basis", claim.get("basis")), ("falsifier", claim.get("falsifier"))]
     for field, text in texts:
-        term = _breach_term(text or "", verified)
+        term = _k6_term(text or "", verified)
         if term:
             return "breach", f"{field}: banned term {term!r}"
     return "pass", "no age, demographic, Google Trends or generated evidence"

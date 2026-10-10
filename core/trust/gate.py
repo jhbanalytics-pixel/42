@@ -33,7 +33,8 @@ Rules, in the order they are applied (the first hold wins):
     G4b political without Corroborated in an unbiased lane: held, flag "Not assessed"
     G8  state seasonal: published to moments instead of today
     G10 explanation failed claim checks (after the repair, and the second draft where step 8 allows one):
-        published with numbers_only true
+        returned with numbers_only true; the brief job (core/brief/job.py) holds that item in held_back with the
+        reason shown (W8-DEC-02), so it is never published as numbers and posts only
 
 market_banner takes the decisions for one market's candidates and returns "Data issue" when
 more than 30% of them were held by G1, else None.

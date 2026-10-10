@@ -25,7 +25,7 @@ CARD_KEYS = {
 HEADLINE_KEYS = {"text", "market", "item_id", "claim_ids"}
 HELD_KEYS = {"count", "text", "items"}
 HELD_ITEM_KEYS = {"item_id", "title", "rule", "reason", "reason_text", "evidence_ids", "evidence", "numbers",
-                  "count_line", "failed_reason"}
+                  "count_line", "failed_reason", "explanation_status"}
 MOMENT_KEYS = {"date", "name", "kind", "source", "item_ids"}
 SPARK_POINT_KEYS = {"date", "value", "expected_low", "expected_high"}
 NUMBER_KEYS = {"value", "unit", "query_id", "run_id", "result_hash"}

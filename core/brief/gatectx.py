@@ -12,7 +12,8 @@ evidence and numbers: the evidence pack's lists from core/brief/evidence.py.
 ctx keys:
     valid_days             [d, d-1, d-2] on the item's main platform in the market: True when every baseline series
                            (unbiased_rank, panel, unbiased_counter) of that platform was valid that day, False when
-                           any was invalid, None with no baseline health row. Search, placebo and watchlist rows are
+                           any was invalid, False with no baseline health row on d-1 or d-2 after the platform's history began (a gap),
+                           None with no baseline health row otherwise (no history yet, or d itself). Search, placebo and watchlist rows are
                            never baseline and do not count. The main platform is the main series' platform, else the
                            platform with most sightings in 14 days. The main series' own route counts as well when
                            its health rows name no platform (the culture desk panel).
@@ -173,12 +174,18 @@ def build_ctx(client, item_row, d, market, evidence, *, campaign_hashtags, polit
                 per_platform[row["platform"]] = per_platform.get(row["platform"], 0) + row["n"]
         if per_platform:
             platform = min(per_platform, key=lambda p: (-per_platform[p], p))
-    days = {}
+    days, first = {}, None
     if platform:
-        days = {r["day"]: r["ok"] for r in run("health", {"market": market, "platform": platform, "d": d,
-                                                          "item_id": item_id,
-                                                          "series_id": item_row.get("main_series_id") or ""})}
+        health = {"market": market, "platform": platform, "d": d, "item_id": item_id,
+                  "series_id": item_row.get("main_series_id") or ""}
+        days = {r["day"]: r["ok"] for r in run("health", health)}
+        first = (run("health_first", health) or [{}])[0].get("first_day")
     valid_days = [days.get(d - timedelta(days=i)) for i in range(3)]
+    # A day before d with no baseline row, after the platform's history began, is a gap and so invalid (TRUST.md G1).
+    # d itself stays None: the brief runs only after a good collect run for d, so a missing d is no collect failure.
+    for i in (1, 2):
+        if valid_days[i] is None and first is not None and first < d - timedelta(days=i):
+            valid_days[i] = False
 
     lanes = {row["lane_class"] for row in sightings}
     if run("board", base)[0]["n"]:
