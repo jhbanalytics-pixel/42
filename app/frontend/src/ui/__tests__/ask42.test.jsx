@@ -1134,7 +1134,10 @@ test('the scope line counts what the answer rests on, then the posts read, then 
   expect(text()).not.toContain('51 posts from 1 platform');
 });
 
-test('a failed record shows its message and Try again asks again', async () => {
+/* Re-review X1: Try again after a fresh ask failed posted a second paid ask
+   with no confirm. It now names the ceiling first, like any other ask again,
+   and nothing is posted until the confirm is accepted. */
+test('a failed record shows its message and Try again asks again only once its confirm is accepted', async () => {
   const record = clone(failedRecord);
   const server = serve([record]);
   await render({query: {q: record.question, market: 'ZA'}});
@@ -1142,9 +1145,20 @@ test('a failed record shows its message and Try again asks again', async () => {
   await finish(server, record);
   await until(() => text().includes(record.error.message), 'the failure');
   expect(button('Try again')).toBeDefined();
+  const asks = () => calls.filter((call) => call.method === 'POST' && call.path === '/api/ask');
   await act(async () => { button('Try again').click(); });
-  await until(() => calls.filter((call) => call.path === '/api/ask').length === 2, 'the retry');
-  expect(calls.filter((call) => call.path === '/api/ask')[1].body.question).toBe(record.question);
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+  expect(asks()).toHaveLength(1);
+  const confirm = host.querySelector('[role="dialog"]');
+  expect(confirm).not.toBeNull();
+  expect(plain(confirm.textContent)).toContain('credits');
+  await act(async () => { [...confirm.querySelectorAll('button')].find((node) => plain(node.textContent) === 'Cancel').click(); });
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
+  expect(asks()).toHaveLength(1);
+  await act(async () => { button('Try again').click(); });
+  await act(async () => { [...host.querySelectorAll('[role="dialog"] button')].find((node) => plain(node.textContent) === 'Ask again').click(); });
+  await until(() => asks().length === 2, 'the retry');
+  expect(asks()[1].body.question).toBe(record.question);
 });
 
 test('safeUrl keeps plain http and https addresses and refuses everything else', async () => {
@@ -1725,7 +1739,10 @@ test('Try again after a started ask lost its stream follows that ask and posts n
   expect(text()).toContain(record.answer.short_answer);
 });
 
-test('Try again on a question that never got an ask_id asks it again, with no confirm', async () => {
+/* Re-review X1: a question that never got an ask_id spent nothing yet, but
+   asking it again is a new paid ask, so it goes through the credit confirm
+   and nothing is posted until the confirm is accepted. */
+test('Try again on a question that never got an ask_id asks it again only through the credit confirm', async () => {
   const record = clone(completeRecord);
   const server = serve([record]);
   const served = globalThis.fetch;
@@ -1744,6 +1761,10 @@ test('Try again on a question that never got an ask_id asks it again, with no co
   await askByTyping(record.question);
   await until(() => text().includes('The Ask agent is not installed on this service.'), 'the refusal');
   await act(async () => { button('Try again').click(); });
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+  expect(calls.filter((call) => call.path === '/api/ask')).toHaveLength(1);
+  expect(confirmBox()).not.toBeNull();
+  await act(async () => { [...confirmBox().querySelectorAll('button')].find((node) => plain(node.textContent) === 'Ask again').click(); });
   await until(() => calls.filter((call) => call.path === '/api/ask').length === 2, 'the second post');
   expect(confirmBox()).toBeNull();
   expect(calls.filter((call) => call.path === '/api/ask')[1].body.question).toBe(record.question);

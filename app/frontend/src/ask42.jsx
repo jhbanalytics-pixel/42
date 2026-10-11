@@ -961,14 +961,19 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
      scheduled answer to Schedules. Any other names its tier's ceiling first.
      Nothing is asked again while the record still reads as running. A
      failure after the ask got its id reads that ask again rather than
-     posting a second one. */
+     posting a second one. A fresh ask that failed asks again only through
+     the same credit confirm, with what it first asked for. */
   function tryAgain(){
     if (!run.request) return;
     const record = run.record;
     if (run.phase === 'done' && record && record.status === 'running') return;
     const followed = run.request.extra && run.request.extra.follow;
     if (run.phase === 'error' && (followed || run.askId)){ follow(followed || run.askId); return; }
-    if (!followed){ ask(run.request.text, run.request.mkt, run.request.extra); return; }
+    if (!followed){
+      const extra = run.request.extra || {};
+      setRetry({tier: CEILING[extra.tier] ? extra.tier : null, extra});
+      return;
+    }
     const spike = record && record.spike;
     if (spike && spike.item_id){
       const query = new URLSearchParams({market: spike.market || record.market || ''});
@@ -984,8 +989,9 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
 
   function askAgain(){
     const tier = retry && retry.tier;
+    const extra = retry && retry.extra;
     setRetry(null);
-    ask(run.request.text, run.request.mkt, tier ? {tier} : {});
+    ask(run.request.text, run.request.mkt, extra || (tier ? {tier} : {}));
   }
 
   const record = run.record;
