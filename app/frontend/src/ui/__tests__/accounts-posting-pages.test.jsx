@@ -107,3 +107,27 @@ test('a fired alert says its reach in accounts', async () => {
   expect(text()).toContain('When reach passes 50 accounts posting in 3 days');
   expect(text()).not.toMatch(/creators in 3 days|50 creators/);
 });
+
+/* Review of item 12: Compare still said "Distinct creators in the window" and
+   "5 creators in 7 days", and Method said Radar counts creators. */
+test('Compare says accounts posting for its creator counts', async () => {
+  const itemsFixture = (await import('./fixtures/compare42_items.json')).default;
+  const {Compare42} = await import('../../compare42.jsx');
+  expect(JSON.stringify(itemsFixture)).toMatch(/creators in 7 days/);
+  serve([['/api/compare', reply(200, itemsFixture)], ['/api/discover', reply(200, {items: [], filters: {}})]]);
+  flushSync(() => root.render(<Compare42 search="mode=items&items=i_step,i_cola,i_ring&market=ZA&days=7" region="ZA" />));
+  await settle();
+  const table = host.querySelector('[data-section="table"]');
+  expect(table.textContent).toContain('Accounts posting in the window');
+  expect(table.textContent).toContain('5 accounts posting, last 7 days');
+  expect(table.textContent).toContain('31 accounts posting, last 3 days');
+  expect(table.textContent).not.toMatch(/creators/i);
+});
+
+test('Method says Radar counts the accounts posting about a topic', async () => {
+  const {MethodPage} = await import('../../views.jsx');
+  flushSync(() => root.render(<MethodPage />));
+  await settle();
+  expect(text()).toContain('Radar ranks topics by how many different accounts post about them.');
+  expect(text()).not.toContain('different creators');
+});
