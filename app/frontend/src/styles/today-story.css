@@ -547,7 +547,7 @@ html .oi-product .t42 .sc-momentum:is([data-state="emerging"], [data-state="new_
 
 html .oi-product .t42 .sc-momentum:is([data-state="peaking"], [data-state="spike"]) {
   background: var(--heat-2);
-  color: var(--accent-ink);
+  color: var(--heat-ink);
 }
 
 html .oi-product .t42 .sc-momentum:is([data-state="recurring"], [data-state="seasonal"], [data-state="on_the_boards"], [data-state="mainstream"], [data-state="fading"]) {

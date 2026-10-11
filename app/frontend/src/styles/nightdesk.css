@@ -257,7 +257,9 @@ html .oi-product .t42 .t42-card-meta > .t42-state {
 /* State chips mean their state on the heat ramp; a state that is not
    momentum (recurring, on the boards) is an outline, not a fill. */
 html .oi-product .t42 .t42-card-meta > .t42-state:is([data-state="emerging"], [data-state="new_to_42"]) { background: var(--heat-4); }
-html .oi-product .t42 .t42-card-meta > .t42-state:is([data-state="peaking"], [data-state="spike"]) { background: var(--heat-2); color: var(--accent-ink); }
+/* The hot chip takes the heat ink like the other heat chips: white on the
+   daylight red, near black on the midnight red, where white read at 3.91:1. */
+html .oi-product .t42 .t42-card-meta > .t42-state:is([data-state="peaking"], [data-state="spike"]) { background: var(--heat-2); color: var(--heat-ink); }
 html .oi-product .t42 .t42-card-meta > .t42-state:is([data-state="recurring"], [data-state="seasonal"], [data-state="on_the_boards"], [data-state="mainstream"], [data-state="fading"]) {
   background: transparent;
   color: var(--ink);
