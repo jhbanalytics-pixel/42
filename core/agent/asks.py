@@ -47,13 +47,21 @@ _YES_NO = re.compile(r"^(?:is|are|was|were|has|have|had|does|do|did|can|could|sh
 # "about" ends the question ("talking about most", "about this week") or names its subject ("about Checkers").
 _ABOUT_SUBJECT = re.compile(r"\babout\s+(?!(?:the\s+)?most\b|this\b|today\b|right\b|now\b|lately\b|currently\b|in\b"
                             r"|across\b|on\b|the\s+(?:week|month|year|market)\b)\w", re.IGNORECASE)
+# A question for a brief is the brief skill's, whatever it says about the top stories.
+_BRIEF = re.compile(r"\bbrief\b", re.IGNORECASE)
+# Around, on, for and with name a subject the way about does, unless what follows is the market, a platform or a span.
+_SUBJECT_PREP = re.compile(r"\b(?:around|on|for|with)\s+(?!(?:the\s+)?(?:most|top|biggest|this|today|right|now|lately|currently"
+                           r"|week|month|year|market|south|african|nigeria|nigerian|kenya|kenyan|social|tiktok|instagram"
+                           r"|youtube|x|twitter|facebook|reddit|threads|bluesky|linkedin|telegram|sa|za|mzansi|kzn|gauteng"
+                           r"|joburg|johannesburg|lagos|nairobi|abuja)\b|\d)\w", re.IGNORECASE)
 # A capital that is not the start of a sentence names something other than a market or a platform.
 _KNOWN_CAPITALS = frozenset({
     "South", "Africa", "African", "Africans", "SA", "ZA", "Nigeria", "Nigerian", "Nigerians", "Kenya", "Kenyan",
     "Kenyans", "TikTok", "Instagram", "YouTube", "X", "Twitter", "Facebook", "Reddit", "Threads", "Bluesky",
     "LinkedIn", "Telegram", "I", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
     "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November",
-    "December"})
+    "December", "Mzansi", "KZN", "Gauteng", "Joburg", "Johannesburg", "Pretoria", "Cape", "Town", "Durban", "Soweto",
+    "Lagos", "Abuja", "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Gen", "Z"})
 
 
 def _names_a_subject(text: str) -> bool:
@@ -69,4 +77,5 @@ def asks_ranked(question) -> bool:
     text = _plain(question)
     return (bool(text) and not _YES_NO.search(text) and bool(_RANK_CUE.search(text)) and bool(_STORY_CUE.search(text))
             and not _OWN_LIST.search(text) and not _BRAND_RANKED.search(text) and not _ABOUT_SUBJECT.search(text)
+            and not _SUBJECT_PREP.search(text) and not _BRIEF.search(text)
             and not _names_a_subject(text) and not asks_why(text) and not _FORECAST.search(text))

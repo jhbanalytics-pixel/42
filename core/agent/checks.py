@@ -1978,6 +1978,15 @@ def _k8(text, records):
 
 # K10 and assembly
 
+_COUNTS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+           **{str(n): n for n in range(2, 11)}}
+
+
+def fold(text):
+    """A story name and a lead compared as plain text: curly apostrophes are straight ones."""
+    return str(text).replace("’", "'").replace("‘", "'")
+
+
 def cut_story_in_lead(short_answer, cut_texts, kept_texts):
     """The name of a story the short answer names when every claim of that story was cut, or None. A ranked answer's
     lead names its stories in plain words and shares no run of eight words with a claim, so _mentions never sees it rest
@@ -1987,7 +1996,7 @@ def cut_story_in_lead(short_answer, cut_texts, kept_texts):
         return None
 
     def key(name):
-        return " ".join(name.split()).casefold()
+        return " ".join(fold(name).split()).casefold()
 
     kept = {key(name) for text in kept_texts if (name := briefing.story_name(text))}
     cut = {}
@@ -1996,9 +2005,13 @@ def cut_story_in_lead(short_answer, cut_texts, kept_texts):
             cut.setdefault(key(name), name)
     if len(kept | set(cut)) < 2:
         return None
-    for name_key, name in cut.items():
-        if name_key not in kept and re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", short_answer, re.IGNORECASE):
+    gone = [(name_key, name) for name_key, name in cut.items() if name_key not in kept]
+    for name_key, name in gone:
+        if re.search(r"(?<!\w)" + re.escape(fold(name)) + r"(?!\w)", fold(short_answer), re.IGNORECASE):
             return name
+    count = re.match(r"\W*(two|three|four|five|six|seven|eight|nine|ten|[2-9]|10)\b", fold(short_answer), re.IGNORECASE)
+    if gone and count and _COUNTS[count[1].lower()] > len(kept):  # a lead that counts a story the answer no longer has
+        return gone[0][1]
     return None
 
 

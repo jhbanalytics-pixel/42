@@ -253,6 +253,10 @@ NOT_RANKED_ASKS = [
     ("Compare football banter in South Africa, Nigeria and Kenya.", labelled("South Africa", "Nigeria", "Kenya")),
     ("How is the Springbok tour playing on social?", labelled("TikTok", "X")),
     ("What is happening with amapiano Sundays?", THREE),
+    ("A launch brief for a student data bundle in Nigeria: lean into the top trending conversations on campus.", THREE),
+    ("Why are the top stories in South Africa trending?", THREE),
+    ("Which of the top stories will keep growing?", THREE),
+    ("Which topics are most likely to blow up in South Africa this week?", THREE),
     ("", THREE),
     (None, THREE),
 ]
@@ -303,12 +307,21 @@ def test_two_stories_that_quote_the_same_words_with_the_same_figures_are_not_mer
     assert [(s["name"], s["so_what"]) for s in shown["run"]["briefing"]["stories"]] == [("Soweto unrest", [0]), ("Cup final", [1])]
 
 
-def test_a_claim_said_twice_inside_one_story_still_merges():
+def test_a_claim_said_twice_inside_one_story_still_merges_and_the_story_is_read_after_the_merge():
     quote = [{"evidence_id": "p1", "text": "burning tyres at the intersection"}]
     one = {**sized("c1", "Soweto unrest", 640, 301, "q_a", 4), "quotes": quote}
     twin = {**one, "id": "c2"}
     other = sized("c3", "Cup final", 512, 233, "q_b", 4)
     shown = answer_view.present(record([one, twin, other]))
+    assert [c["id"] for c in shown["answer"]["claims"]] == ["c1", "c3"]
+    assert [s["claim_ids"] for s in shown["run"]["briefing"]["stories"]] == [["c1"], ["c3"]]
+
+
+def test_a_claim_said_twice_in_two_cases_of_one_name_is_one_fact_in_one_story():
+    quote = [{"evidence_id": "p1", "text": "burning tyres at the intersection"}]
+    one = {**sized("c1", "Soweto unrest", 640, 301, "q_a", 4), "quotes": quote}
+    twin = {**one, "id": "c2", "text": one["text"].replace("Soweto unrest", "SOWETO UNREST")}
+    shown = answer_view.present(record([one, twin, sized("c3", "Cup final", 512, 233, "q_b", 4)]))
     assert [c["id"] for c in shown["answer"]["claims"]] == ["c1", "c3"]
 
 

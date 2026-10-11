@@ -321,7 +321,8 @@ RANKED_RULE_SKILLS = (None, "culture-read")
 # answer has no field for it and gains none: briefing.py reads the groups back from the claims at read time.
 RANKED_BRIEFING_RULE = (
     "This question asks which stories lead, so write a ranked briefing. The short answer is one line that names the "
-    "stories in rank order in plain words, may open with how many it names, and carries no other figure. Write a group "
+    "stories in rank order in plain words, may open with how many it names, and carries no other figure. Name each "
+    "story in it with exactly the name its claims start with. Write a group "
     "of claims for each story, the strongest first, ranked by the whole-store rows with most creators first and then "
     "most posts. Every claim of a story starts with the story's name, a colon and a space, with the same name on each "
     "of its claims, and the claims of one story follow each other. Keep the name to a few plain words with no digit. "
@@ -515,10 +516,12 @@ def _window_days(window: str) -> str:
 
 def write_answer(model: Model, *, question: str, as_of, market, window: str, ctx: RunContext, gaps: list = (),
                  failed_sources: list = (), note: str = "", model_name: str = GEMINI_DEFAULT_MODEL,
-                 skill: str | None = None) -> tuple[dict, dict]:
+                 skill: str | None = None, asked: str | None = None) -> tuple[dict, dict]:
     """Ask the writer for strict JSON claims, then pin numbers and attach evidence records in code.
 
-    failed_sources reach the model as context only. The checks own their gaps, so no draft gap may name one."""
+    failed_sources reach the model as context only. The checks own their gaps, so no draft gap may name one. asked is the
+    question the asker typed when question carries more (the numeric repair adds its instructions), and it is what decides
+    which rule the user message gets."""
     as_of = as_of.isoformat() if isinstance(as_of, datetime) else as_of
     writer_records, exclusions = _writer_evidence(ctx)
     pack, left_out = _pack(ctx, writer_records)
@@ -539,9 +542,9 @@ def write_answer(model: Model, *, question: str, as_of, market, window: str, ctx
         parts.append(f"The pack is bounded: {left_out['posts']} post blocks and {left_out['queries']} query blocks "
                      "were left out. They are not citable, and these counts support no claim or number.")
     if skill != "spike-explain":  # a spike ask keeps its skill's first claim, the jump against its baseline
-        if asks_why(question):
+        if asks_why(asked if asked is not None else question):
             parts.append(CAUSE_FIRST_RULE)
-        elif asks_ranked(question) and skill in RANKED_RULE_SKILLS:
+        elif asks_ranked(asked if asked is not None else question) and skill in RANKED_RULE_SKILLS:
             parts.append(RANKED_BRIEFING_RULE)
     if note:
         parts.append("Researcher's working note. Context for reading the pack, not evidence: evidence comes only from "
@@ -771,7 +774,7 @@ def repair_answer_numbers(model: Model, *, draft: dict, issues: list, question: 
     ) if part)
     return write_answer(model, question=repair_question, as_of=as_of, market=market, window=window, ctx=ctx,
                         gaps=draft.get("gaps") or [], failed_sources=failed_sources, note=repair_note,
-                        model_name=model_name, skill=skill)
+                        model_name=model_name, skill=skill, asked=question)
 
 
 def writer_gaps(draft_gaps: list) -> list:

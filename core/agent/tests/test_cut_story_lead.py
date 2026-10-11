@@ -39,6 +39,40 @@ def test_the_name_is_matched_whatever_its_case_and_only_as_whole_words():
     assert checks.cut_story_in_lead("The unrests led.", [text("unrest")], [text("Cup final"), text("Trial")]) is None
 
 
+def test_a_curly_apostrophe_in_the_lead_still_names_the_story():
+    assert checks.cut_story_in_lead("The Nando’s trial led.", [text("Nando's trial")], KEPT) == "Nando's trial"
+    assert checks.cut_story_in_lead("The Nando's trial led.", [text("Nando’s trial")], KEPT) == "Nando’s trial"
+
+
+def test_a_story_cut_under_another_case_of_its_name_is_still_the_same_story_as_the_one_kept():
+    kept = [*KEPT, text("FORBES AND MOTSOANE MURDER TRIAL")]
+    assert checks.cut_story_in_lead(LEAD, [text("Forbes and Motsoane murder trial")], kept) is None
+
+
+def test_a_lead_that_counts_more_stories_than_survive_is_found_when_a_story_was_cut():
+    short = "Three stories led South Africa this week: the unrest, the cup final and the trial."
+    assert checks.cut_story_in_lead(short, [text("Forbes and Motsoane murder trial")], KEPT) is not None
+    assert checks.cut_story_in_lead("Two stories led South Africa this week.", [text("Forbes and Motsoane murder trial")], KEPT) is None
+    kept = [*KEPT, text("Murder trial")]
+    assert checks.cut_story_in_lead(short, [text("Forbes and Motsoane murder trial")], kept) is None
+    assert checks.cut_story_in_lead("3 stories led.", [text("Forbes and Motsoane murder trial")], KEPT) is not None
+
+
+def test_a_count_with_no_story_cut_is_left_alone():
+    assert checks.cut_story_in_lead("Three stories led South Africa this week.", ["No label here."], KEPT) is None
+
+
+def test_an_insufficient_evidence_short_answer_is_never_blanked_by_the_lead_cut():
+    from datetime import datetime, timezone
+    from core.agent.context import RunContext
+    ctx = RunContext(run_id="r_20261011_0800", tier="T1", as_of=datetime(2026, 10, 11, 6, 0, tzinfo=timezone.utc), market="ZA")
+    rows = []
+    fields = {"short_answer": checks.INSUFFICIENT, "context": "", "so_what": [], "watch_next": [], "gaps": []}
+    out, cut = checks._answer_fields(fields, [], ctx, lambda *a: rows.append(a), allow=checks._allowance(None, ctx.as_of),
+                                     gap_indexes=range(0), lead_cut="Forbes and Motsoane murder trial")
+    assert out["short_answer"] == checks.INSUFFICIENT and cut is False and not rows
+
+
 def test_a_lead_that_does_not_name_the_cut_story_is_left_alone():
     assert checks.cut_story_in_lead("Two stories led.", [text("Forbes and Motsoane murder trial")], KEPT) is None
 

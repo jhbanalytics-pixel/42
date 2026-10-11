@@ -52,6 +52,12 @@ RANKED = [
     "What stories dominate Kenyan social this week?",
     "What are the biggest moments on South African social this week?",
     "What are the top stories this week and what should brands do?",
+    "What dominated conversation in Mzansi this week?",
+    "What are the biggest stories in Joburg this week?",
+    "What are the top conversations in Lagos this week?",
+    "What are people in KZN talking about most?",
+    "What are the top trends in Gauteng?",
+    "What are Gen Z South Africans talking about most?",
 ]
 NOT_RANKED = [
     "What is happening with amapiano Sundays?",
@@ -79,6 +85,15 @@ NOT_RANKED = [
     "Is the biggest story in South Africa this week the election?",
     "What are the top conversations around #gqom this week?",
     "Explain the trending conversation on load shedding.",
+    "What are the biggest conversations on load shedding this week?",
+    "What's the biggest story for vodacom this week?",
+    "What are the top stories for mtn this week?",
+    "What are the top conversations around amapiano right now?",
+    "A launch brief for a student data bundle in Nigeria: lean into the top trending conversations on campus.",
+    "Give me a brief on the top conversations in Nigeria this week.",
+    "Which topics are most likely to blow up in South Africa this week?",
+    "Which of the top stories will keep growing?",
+    "Why are the top stories in South Africa trending?",
     "",
 ]
 
@@ -177,6 +192,11 @@ def test_the_rule_leaves_a_part_out_when_the_pack_does_not_support_it():
 def test_the_rule_asks_for_one_so_what_line_per_story_worded_as_interpretation():
     rule = writer.RANKED_BRIEFING_RULE
     assert "so_what" in rule and "claim ids" in rule and "interpretation" in rule
+
+
+def test_the_rule_asks_the_lead_to_name_each_story_with_exactly_the_name_its_claims_start_with():
+    rule = writer.RANKED_BRIEFING_RULE
+    assert "short answer" in rule and "exactly the name" in rule
 
 
 def test_the_rule_keeps_every_other_rule():
