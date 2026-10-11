@@ -5,6 +5,8 @@ from pathlib import Path
 
 from core.api import agent_app
 from core.api.export import render_answer_html
+from core.api.tests import test_privacy_ask_routes as routes
+from core.api.tests.test_privacy_ask_routes import ASK, GOOD, remote_agent
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
@@ -45,7 +47,7 @@ def test_the_export_of_a_raw_stored_answer_is_the_same_view():
 
 
 # The API stored-record path (GET /api/ask/{id} when the agent no longer holds the Ask).
-from core.api.tests.test_privacy_ask_routes import ASK, GOOD, api, remote_agent  # noqa: E402,F401
+api = routes.api  # the fixture of the privacy route tests
 
 
 def repeated():

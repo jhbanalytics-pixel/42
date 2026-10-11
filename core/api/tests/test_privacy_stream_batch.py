@@ -1,11 +1,10 @@
 """Release C review I4: a stream asks who wrote its stored posts once per chunk of events, not once per event."""
-import time
-
-import pytest
-
 from core.api import agent_app
-from core.api.tests.test_privacy_ask_routes import ASK, RouteStore, hold, sse, world  # noqa: F401
+from core.api.tests import test_privacy_ask_routes as routes
+from core.api.tests.test_privacy_ask_routes import ASK, hold, sse
 from core.api.tests.test_privacy_projection import P_HID1, ask_record, ev, leaks
+
+world = routes.world  # the fixture of the privacy route tests
 
 HIDDEN_AT = {7, 42}  # positions of the events written by the hidden creator c_hid
 
