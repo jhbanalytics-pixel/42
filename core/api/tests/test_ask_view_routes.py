@@ -10,12 +10,19 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def stored():
-    return json.loads((FIXTURES / "ask_comments_repeat.json").read_text(encoding="utf-8"))
+    """The fixture with c1 and c7 saying c2 again (same quoted posts and words, same figures and queries). c3, c4 and
+    c6 are three creators' own posts and are not repeats."""
+    record = json.loads((FIXTURES / "ask_comments_repeat.json").read_text(encoding="utf-8"))
+    claims = {c["id"]: c for c in record["answer"]["claims"]}
+    claims["c1"]["numbers"] = json.loads(json.dumps(claims["c2"]["numbers"]))
+    claims["c7"]["quotes"] = json.loads(json.dumps(claims["c2"]["quotes"]))
+    claims["c7"]["numbers"] = json.loads(json.dumps(claims["c2"]["numbers"]))
+    return record
 
 
 def test_the_agent_reads_a_stored_answer_as_the_reader_view():
     shown = agent_app.readable(stored(), (set(), set(), {}))
-    assert [c["id"] for c in shown["answer"]["claims"]] == ["c2", "c5"]
+    assert [c["id"] for c in shown["answer"]["claims"]] == ["c2", "c3", "c4", "c5", "c6"]
     assert "tiktok/post/transcript" not in json.dumps(shown["answer"]["gaps"])
     assert shown["run"]["technical_gaps"]
 
@@ -42,17 +49,15 @@ from core.api.tests.test_privacy_ask_routes import ASK, GOOD, api, remote_agent 
 
 
 def repeated():
-    """The stored fixture with its first claim restating the second one: same quotes, same figures, same queries."""
     record = stored()
     record["ask_id"] = ASK
-    record["answer"]["claims"][0]["numbers"] = json.loads(json.dumps(record["answer"]["claims"][1]["numbers"]))
     return record
 
 
 def test_the_api_reads_a_stored_answer_the_agent_does_not_hold_as_the_reader_view_i1(api):
     api.store.records[ASK] = repeated()
     body = api.serve(remote_agent({})).get(f"/api/ask/{ASK}", headers=GOOD).json()
-    assert "c1" not in [c["id"] for c in body["answer"]["claims"]]  # c1 restates c2 and goes; which others stay is I2
+    assert [c["id"] for c in body["answer"]["claims"]] == ["c2", "c3", "c4", "c5", "c6"]
     assert "tiktok/post/transcript" not in json.dumps(body["answer"]["gaps"])
     assert any(g["searched"] == "tiktok/post/transcript" for g in body["run"]["technical_gaps"])
 

@@ -39,14 +39,23 @@ def _norm(text) -> str:
     return _QUIET.sub(" ", str(text or "")).strip().lower()
 
 
-def _fact_key(claim: dict, comment_ids: set):
-    """What a claim rests on, as the words of the posts it quotes. Comments are not part of it: they sit under a post
-    and are not the post. A claim that quotes no post has no key and is never merged."""
+def _plain(value):
+    return value if value is None or isinstance(value, (bool, int, float, str)) else repr(value)
+
+
+def _fact_key(claim: dict):
+    """What a claim rests on: its kind, the posts and words it quotes (each as its post id and its words), and the
+    figures it carries (value, unit and the query that gave it). Two claims are one fact only when all three match.
+    A claim that quotes nothing has no key and is never merged, and nor is a proposal."""
     if claim.get("kind") == "proposal":
         return None
-    quotes = [q for q in claim.get("quotes") or [] if isinstance(q, dict) and q.get("evidence_id") not in comment_ids]
-    texts = frozenset(_norm(q.get("text")) for q in quotes if _norm(q.get("text")))
-    return (claim.get("kind"), texts) if texts else None
+    quotes = frozenset((_plain(q.get("evidence_id")), _norm(q.get("text")))
+                       for q in claim.get("quotes") or [] if isinstance(q, dict) and _norm(q.get("text")))
+    if not quotes:
+        return None
+    numbers = frozenset((_plain(n.get("value")), _plain(n.get("unit")), _plain(n.get("query_id")))
+                        for n in claim.get("numbers") or [] if isinstance(n, dict))
+    return (claim.get("kind"), quotes, numbers)
 
 
 def _strength(claim: dict, index: int):
@@ -55,14 +64,22 @@ def _strength(claim: dict, index: int):
     return (LABEL_RANK.get(claim.get("label"), -1), posts, numbers, len(str(claim.get("text") or "")), -index)
 
 
-def merge_repeated_claims(answer: dict) -> dict:
-    """Claims that quote the same post words are one fact said several times. The strongest stays (label, then the
-    most posts, figures and words) and the rest go; a line that referred to a gone claim refers to the one that stays."""
+def _ranked_claim_ids(run) -> set:
+    """The claims run.ranked_list points at; the list cites each by id, so none of them may be merged away."""
+    ranked = run.get("ranked_list") if isinstance(run, dict) else None
+    items = ranked.get("items") if isinstance(ranked, dict) else None
+    return {item.get("claim_id") for item in items if isinstance(item, dict)} if isinstance(items, list) else set()
+
+
+def merge_repeated_claims(answer: dict, protected=frozenset()) -> dict:
+    """Claims with the same kind, the same quoted posts and words and the same figures are one fact said several
+    times. The strongest stays (label, then the most posts, figures and words) and the rest go. A line that referred
+    to a gone claim refers to the one that stays, which carries the same figures by the key. A claim in `protected`
+    (one the ranked list points at) is never merged."""
     claims = [c for c in answer.get("claims") or [] if isinstance(c, dict)]
-    comment_ids = {e.get("id") for e in answer.get("evidence") or [] if is_comment(e)}
     groups: dict = {}
     for index, claim in enumerate(claims):
-        key = _fact_key(claim, comment_ids)
+        key = None if claim.get("id") in protected else _fact_key(claim)
         if key is not None:
             groups.setdefault(key, []).append(index)
     drop, stays = set(), {}
@@ -193,7 +210,7 @@ def present(record: dict) -> dict:
     if not isinstance(record, dict) or not isinstance(record.get("answer"), dict):
         return record
     shown = copy.deepcopy(record)
-    answer = merge_repeated_claims(shown["answer"])
+    answer = merge_repeated_claims(shown["answer"], _ranked_claim_ids(shown.get("run")))
     if isinstance(answer.get("gaps"), list):
         plain = plain_gaps(answer["gaps"])
         run = shown.get("run") if isinstance(shown.get("run"), dict) else {}
