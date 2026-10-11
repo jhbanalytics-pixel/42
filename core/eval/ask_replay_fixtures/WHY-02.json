@@ -1,0 +1,99 @@
+{
+  "id": "WHY-02",
+  "note": "Thin stored side (under 100 posts), three platforms searched live, one live creator suppressed while it ran, no comment evidence. Seeded: a percentage no query holds (K2), a claim citing a 2025 post that is outside the window (K1), and a corroborated label on one platform (K5).",
+  "tier": "T1",
+  "hidden_before": [{"platform": "x", "handle": "@lagos_hustle_hq"}],
+  "posts": [
+    {"id": "tt_d1", "platform": "tiktok", "handle": "@flightsnaija", "days_ago": 2, "text": "Lagos December flights are already on my screen, book before the diaspora rush starts", "views": 88000},
+    {"id": "tt_d2", "platform": "tiktok", "handle": "@owambe_olu", "days_ago": 6, "text": "December is not even close and I have three weddings and a concert in my calendar", "views": 51000},
+    {"id": "x_d1", "platform": "x", "handle": "@ticketpadi", "days_ago": 4, "text": "Early bird tickets for the December Lagos show open Friday, first batch is limited", "views": 23000},
+    {"id": "x_d2", "platform": "x", "handle": "@detty_doyin", "days_ago": 9, "text": "who is coming home for December, I need a group chat before the ticket prices jump", "views": 17000},
+    {"id": "x_d3", "platform": "x", "handle": "@lekki_lara", "days_ago": 11, "text": "Detty December plans: ticket, flight, outfit, in that order", "views": 9000},
+    {"id": "ig_d1", "platform": "instagram", "handle": "@eventsbyfemi", "days_ago": 13, "text": "December lineup dropping soon, Lagos is about to be loud", "views": 30000},
+    {"id": "tt_d3", "platform": "tiktok", "handle": "@abuja_to_lagos", "days_ago": 17, "text": "countdown to December in Lagos has started in my house", "views": 14000},
+    {"id": "x_hist", "platform": "x", "handle": "@lagos_old_guard", "days_ago": 380, "text": "Detty December planning only starts in November, relax everyone", "views": 5000}
+  ],
+  "bulk": {
+    "count": 40, "prefix": "wd", "creators": 22, "platforms": ["tiktok", "x", "instagram"], "days": [0, 29],
+    "stems": [
+      "December plans are already taking over my timeline",
+      "flights home for December are not cheap this year",
+      "ticket link for the December show is in my bio"
+    ]
+  },
+  "queries": [
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"year": 2026},
+     "rows": [{"posts": 212, "authors": 131, "platforms": 3}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"year": 2025},
+     "rows": [{"posts": 148, "authors": 97, "platforms": 3}]}
+  ],
+  "socialcrawl": {
+    "tiktok/search/top": {
+      "credits_charged": 3.0,
+      "items": [
+        {"id": "t901", "handle": "@flightsnaija", "market": "NG", "posted_at": "2026-10-09T10:00:00+01:00", "url": "https://example.test/tiktok/t901", "text": "Lagos flights for December are filling, this is your sign", "engagement": {"views": 40100, "likes": 2300}},
+        {"id": "t902", "handle": "@owambe_olu", "market": "NG", "posted_at": "2026-10-08T18:00:00+01:00", "url": "https://example.test/tiktok/t902", "text": "December owambe calendar is full and it is only October", "engagement": {"views": 22000, "likes": 1500}},
+        {"id": "t903", "handle": "@jollof_jade", "market": "NG", "posted_at": "2026-10-07T12:30:00+01:00", "url": "https://example.test/tiktok/t903", "text": "booked the Lagos trip for December already, my mum is thrilled", "engagement": {"views": 12000, "likes": 800}}
+      ]
+    },
+    "twitter/search/tweets": {
+      "credits_charged": 2.0,
+      "items": [
+        {"id": "w911", "handle": "@ticketpadi", "market": "NG", "posted_at": "2026-10-09T09:00:00+01:00", "url": "https://example.test/x/w911", "text": "second batch of December Lagos tickets goes live tonight", "engagement": {"views": 31000, "likes": 900}},
+        {"id": "w912", "handle": "@lagos_hustle_hq", "market": "NG", "posted_at": "2026-10-09T09:30:00+01:00", "url": "https://example.test/x/w912", "text": "December is the new January for Lagos planners", "engagement": {"views": 8000, "likes": 300}},
+        {"id": "w913", "handle": "@bola_in_london", "market": "NG", "posted_at": "2026-10-06T20:00:00+01:00", "url": "https://example.test/x/w913", "text": "flight home for December booked, who is picking me up", "engagement": {"views": 6000, "likes": 410}}
+      ]
+    },
+    "youtube/search/advanced": {
+      "credits_charged": 2.0,
+      "items": [
+        {"id": "y921", "handle": "@lagostravelvlog", "market": "NG", "posted_at": "2026-10-05T14:00:00+01:00", "url": "https://example.test/youtube/y921", "text": "How early is too early to plan Detty December in Lagos", "engagement": {"views": 15000, "likes": 700}}
+      ]
+    }
+  },
+  "research": {
+    "note": "Reading: December plans, flights and tickets in Lagos, this year and last.",
+    "tokens": [95000, 4600],
+    "calls": [
+      {"tool": "search_posts", "query": "detty december", "as": "stored", "args": {"since": "2026-09-12", "until": "2026-10-11"}},
+      {"tool": "sql_query", "as": "y26", "purpose": "December plan posts this year, with creators and platforms",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND EXTRACT(YEAR FROM p.post_date) = @year",
+       "params": {"term": "december", "year": 2026}},
+      {"tool": "sql_query", "as": "y25", "purpose": "December plan posts last year, with creators and platforms",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND EXTRACT(YEAR FROM p.post_date) = @year",
+       "params": {"term": "december", "year": 2025}},
+      {"tool": "socialcrawl", "platform": "tiktok", "endpoint": "search/top", "params": {"query": "detty december", "country": "NG"}, "max_credits": 5},
+      {"tool": "socialcrawl", "platform": "twitter", "endpoint": "search/tweets", "params": {"query": "detty december", "country": "NG"}, "max_credits": 5},
+      {"tool": "socialcrawl", "platform": "youtube", "endpoint": "search/advanced", "params": {"query": "detty december lagos", "country": "NG"}, "max_credits": 5}
+    ]
+  },
+  "writer": {
+    "short_answer": "Posts about December plans are up on last year in Lagos, led by event promoters and people abroad booking flights.",
+    "claims": [
+      {"id": "c1", "text": "Posts about December plans in Lagos number 212 against 148 in the same stretch last year.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_d1", "x_d1", "ig_d1"],
+       "quotes": [{"evidence_id": "x_d1", "text": "Early bird tickets for the December Lagos show open Friday"}],
+       "numbers": [{"value": 212, "unit": "posts", "query_id": "@y26"}, {"value": 148, "unit": "posts", "query_id": "@y25"}]},
+      {"id": "c2", "text": "Event promoters and people booking flights home lead the early chatter.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_d1", "x_d2", "tiktok_t901", "twitter_w913", "tt_d2", "x_d3", "tt_d3", "youtube_y921"],
+       "quotes": [{"evidence_id": "x_d2", "text": "who is coming home for December"}, {"evidence_id": "twitter_w913", "text": "flight home for December booked"}],
+       "numbers": []},
+      {"id": "c3", "text": "One reading is that promoters opened ticket sales earlier this year, which pulled the planning posts forward.", "label": "inferred", "kind": "interpretation",
+       "evidence_ids": ["x_d1", "twitter_w911"],
+       "quotes": [{"evidence_id": "twitter_w911", "text": "second batch of December Lagos tickets goes live tonight"}],
+       "numbers": []},
+      {"id": "c4", "text": "December plan posts are up 43% on last year.", "label": "observed", "kind": "observation",
+       "evidence_ids": ["tt_d2"], "quotes": [], "numbers": [{"value": 43, "unit": "percent", "query_id": "@y26"}]},
+      {"id": "c5", "text": "Last year the same chatter only began in November.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["x_hist"], "quotes": [{"evidence_id": "x_hist", "text": "planning only starts in November"}], "numbers": []},
+      {"id": "c6", "text": "Ticket sale announcements cluster on X.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["x_d1", "twitter_w911"], "quotes": [], "numbers": []}
+    ],
+    "so_what": [{"text": "A brand planning for December can start its build-up earlier than last year.", "claim_ids": ["c1", "c2"]}],
+    "watch_next": [],
+    "gaps": [{"what": "Collection differs between the two years", "searched": "the same terms and platforms in both years", "why": "fewer sources were collected last year, which limits the comparison"}],
+    "context": ""
+  },
+  "headline_rewrite": "Posts about December plans are more numerous than last year in Lagos, led by event promoters and people booking flights home.",
+  "support": {}
+}

@@ -1,0 +1,110 @@
+{
+  "id": "WHY-03",
+  "note": "Thin stored side, three platforms searched live, Sheng and Swahili quotes for the native-speaker flag, two claims that rest on comments. Seeded: a forecast sentence (K9), and a claim the support check calls partial, which the K4 rewrite narrows and keeps with a lower label. One cited creator is hidden after the answer is stored.",
+  "tier": "T1",
+  "hidden_after": [{"platform": "x", "handle": "@stadium_skeptic_ke"}],
+  "posts": [
+    {"id": "tt_a1", "platform": "tiktok", "handle": "@harambee_hype_ke", "days_ago": 4, "text": "Harambee Stars are back and manze niaje Pamoja AFCON ni yetu, the whole estate is watching the qualifiers", "views": 120000},
+    {"id": "yt_a1", "platform": "youtube", "handle": "@pitchside_ke", "days_ago": 6, "text": "Pamoja AFCON is our chance to show Kenya can host and we cannot waste it", "views": 45000},
+    {"id": "x_a1", "platform": "x", "handle": "@nairobi_news_watch", "days_ago": 3, "text": "Stadium works are behind and the ticket plan is still a rumour, same story every time", "views": 38000},
+    {"id": "x_a2", "platform": "x", "handle": "@kenya_cost_check", "days_ago": 8, "text": "Billions for stadiums while hospitals queue, but sawa, let us clap when it is done", "views": 22000},
+    {"id": "tt_a2", "platform": "tiktok", "handle": "@mtaani_mike", "days_ago": 10, "text": "niaje wasee, AFCON ikifika Kenya itakuwa moto, nimeshaanza kuchora flag", "views": 61000},
+    {"id": "x_a3", "platform": "x", "handle": "@gor_mahia_gal", "days_ago": 5, "text": "Harambee Stars looked sharp last night, maybe this time the hype is real", "views": 27000},
+    {"id": "x_a4", "platform": "x", "handle": "@stadium_skeptic_ke", "days_ago": 7, "text": "Another stadium photo op, another deadline missed, I will believe it when I see the seats", "views": 33000},
+    {"id": "x_a5", "platform": "x", "handle": "@ticketwatch_ke", "days_ago": 9, "text": "ticket prices for the qualifiers are already too high for a normal fan", "views": 15000},
+    {"id": "tt_a3", "platform": "tiktok", "handle": "@sheng_sasa", "days_ago": 12, "text": "Pamoja AFCON si joke, mbogi nzima imeamua tutashangilia", "views": 40000}
+  ],
+  "bulk": {
+    "count": 30, "prefix": "wa", "creators": 18, "platforms": ["tiktok", "x", "youtube"], "days": [0, 29],
+    "stems": [
+      "Harambee Stars qualifiers tonight and the group chat is loud",
+      "stadium update thread, still waiting on the seats",
+      "manze Pamoja AFCON ni kubwa, tuko tayari"
+    ]
+  },
+  "queries": [
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"stance": "excited"},
+     "rows": [{"posts": 118, "authors": 74, "platforms": 3}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"stance": "cynical"},
+     "rows": [{"posts": 91, "authors": 62, "platforms": 3}]}
+  ],
+  "socialcrawl": {
+    "tiktok/post/comments": {
+      "credits_charged": 1.0,
+      "items": [
+        {"id": "k201", "created_at": "2026-10-08T19:20:00+03:00", "author": "@wanjiku_w", "likes": 300, "text": "kenya tuko tayari, we will fill that stadium"},
+        {"id": "k202", "created_at": "2026-10-08T19:40:00+03:00", "author": "@otieno_o", "likes": 120, "text": "sawa hype iko lakini where are the tickets"}
+      ]
+    },
+    "tiktok/search/top": {
+      "credits_charged": 3.0,
+      "items": [
+        {"id": "s301", "handle": "@kasarani_kid_fan", "market": "KE", "posted_at": "2026-10-09T17:00:00+03:00", "url": "https://example.test/tiktok/s301", "text": "Harambee Stars fans are already planning the match day outfits", "engagement": {"views": 33000, "likes": 2100}},
+        {"id": "s302", "handle": "@mathare_media", "market": "KE", "posted_at": "2026-10-07T12:00:00+03:00", "url": "https://example.test/tiktok/s302", "text": "ni vizuri tupate AFCON lakini stadium ziko wapi", "engagement": {"views": 18000, "likes": 900}}
+      ]
+    },
+    "twitter/search/tweets": {
+      "credits_charged": 2.0,
+      "items": [
+        {"id": "s311", "handle": "@kenya_sports_desk", "market": "KE", "posted_at": "2026-10-09T08:00:00+03:00", "url": "https://example.test/x/s311", "text": "Harambee Stars squad named for the qualifier, fans split between hope and worry", "engagement": {"views": 52000, "likes": 1800}},
+        {"id": "s312", "handle": "@citizen_numbers", "market": "KE", "posted_at": "2026-10-06T10:00:00+03:00", "url": "https://example.test/x/s312", "text": "Cost of the AFCON stadium upgrades keeps climbing and nobody explains the numbers", "engagement": {"views": 29000, "likes": 1200}}
+      ]
+    },
+    "youtube/search/advanced": {
+      "credits_charged": 2.0,
+      "items": [
+        {"id": "s321", "handle": "@football_kenya_tv", "market": "KE", "posted_at": "2026-10-05T15:00:00+03:00", "url": "https://example.test/youtube/s321", "text": "Pamoja AFCON preview: what Kenya needs to get right before kickoff", "engagement": {"views": 21000, "likes": 800}}
+      ]
+    }
+  },
+  "research": {
+    "note": "Reading: AFCON excitement and cynicism in Kenyan posts, the last month.",
+    "tokens": [98000, 5000],
+    "calls": [
+      {"tool": "search_posts", "query": "AFCON", "as": "stored", "args": {"since": "2026-09-12", "until": "2026-10-11"}},
+      {"tool": "get_comments", "evidence_id": "tt_a1", "limit": 5},
+      {"tool": "sql_query", "as": "excited", "purpose": "AFCON posts with excited wording, creators and platforms",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @stance = 'excited'",
+       "params": {"term": "AFCON", "stance": "excited"}},
+      {"tool": "sql_query", "as": "cynical", "purpose": "AFCON posts with cynical wording, creators and platforms",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @stance = 'cynical'",
+       "params": {"term": "AFCON", "stance": "cynical"}},
+      {"tool": "socialcrawl", "platform": "tiktok", "endpoint": "search/top", "params": {"query": "AFCON Kenya", "country": "KE"}, "max_credits": 5},
+      {"tool": "socialcrawl", "platform": "twitter", "endpoint": "search/tweets", "params": {"query": "AFCON Kenya", "country": "KE"}, "max_credits": 5},
+      {"tool": "socialcrawl", "platform": "youtube", "endpoint": "search/advanced", "params": {"query": "Pamoja AFCON Kenya", "country": "KE"}, "max_credits": 5}
+    ]
+  },
+  "writer": {
+    "short_answer": "Excitement is ahead of cynicism in Kenyan posts, but the cynical posts are about stadiums and ticket prices and are not going away.",
+    "claims": [
+      {"id": "c1", "text": "Of the posts that took a side, 118 sounded excited and 91 sounded cynical, classified by the wording they use.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_a1", "x_a1", "yt_a1"],
+       "quotes": [{"evidence_id": "yt_a1", "text": "our chance to show Kenya can host"}],
+       "numbers": [{"value": 118, "unit": "posts", "query_id": "@excited"}, {"value": 91, "unit": "posts", "query_id": "@cynical"}]},
+      {"id": "c2", "text": "The excitement rests on Harambee Stars form and on the chance to host, and it is loudest in TikTok fan posts and comments.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_a1", "tt_a2", "x_a3", "tiktok_comment_k201", "tiktok_s301"],
+       "quotes": [{"evidence_id": "tt_a1", "text": "manze niaje Pamoja AFCON ni yetu"}, {"evidence_id": "tiktok_comment_k201", "text": "we will fill that stadium"}],
+       "numbers": []},
+      {"id": "c3", "text": "The cynicism is about stadium delays, cost and ticket prices, and X carries most of it.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["x_a1", "x_a2", "x_a4", "x_a5", "tiktok_comment_k202", "twitter_s312"],
+       "quotes": [{"evidence_id": "x_a4", "text": "I will believe it when I see the seats"}, {"evidence_id": "tiktok_comment_k202", "text": "where are the tickets"}],
+       "numbers": []},
+      {"id": "c4", "text": "Excitement will keep rising as the kickoff gets closer.", "label": "inferred", "kind": "interpretation",
+       "evidence_ids": ["tt_a1", "x_a3"], "quotes": [], "numbers": []},
+      {"id": "c5", "text": "Fan pages on TikTok and YouTube carry the excitement, while news and cost accounts on X carry the doubt.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_a3", "yt_a1", "tiktok_s301", "x_a1", "twitter_s311", "twitter_s312"],
+       "quotes": [{"evidence_id": "tt_a3", "text": "Pamoja AFCON si joke"}], "numbers": []},
+      {"id": "c6", "text": "Most of the cynicism is about ticket prices.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["x_a5"], "quotes": [], "numbers": []}
+    ],
+    "so_what": [{"text": "A brand can join the match-day excitement now and keep stadium and cost talk out of its posts.", "claim_ids": ["c1", "c2", "c5"]}],
+    "watch_next": [{"text": "Watch whether the ticket plan lands before the next qualifier.", "claim_ids": ["c3"], "forecast": false}],
+    "gaps": [],
+    "context": ""
+  },
+  "support": {
+    "c6": {"verdict": "partial", "reason": "one post complains about prices; the cited post does not show most of the cynicism is about them"}
+  },
+  "rewrite": {"c6": "One X post complains that qualifier ticket prices are too high for a normal fan."},
+  "headline_rewrite": "Excitement is ahead of cynicism in Kenyan posts, and the cynical posts are about stadiums and ticket prices."
+}
