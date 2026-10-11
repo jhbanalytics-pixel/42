@@ -1848,7 +1848,7 @@ test('a claim figure with a warehouse unit reads as words, singular for one', as
   serve([record]);
   await render({query: {follow: record.ask_id}});
   await until(() => host.querySelector('.ask42-answer .ask42-figure-tile'), 'the figures');
-  const figures = [...host.querySelectorAll('.ask42-answer .ask42-figure-tile')].map((node) => plain(node.textContent));
+  const figures = [...host.querySelectorAll('.ask42-answer .ask42-figure-tile .ask42-figure-line')].map((node) => plain(node.textContent));
   expect(figures).toContain('59 posts with a known location');
   expect(figures).toContain('1 creator with a known location');
   expect(text()).not.toContain('located_');

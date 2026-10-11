@@ -15,7 +15,7 @@ import {marketToSend} from './askMarkets.js';
 import {costWords, itemsWords} from './costWords.js';
 import {EvidenceChip, monthName} from './ui/EvidenceChip.jsx';
 import {FindingCard, FigureTiles, PlatformMarks} from './ui/AskBriefing.jsx';
-import {confidenceTag, distinctFigures, gapSplit, platformTotals, scopeWords, withParents} from './askEvidence.js';
+import {confidenceTag, figureTiles, gapSplit, platformTotals, scopeWords, withParents} from './askEvidence.js';
 import {RankedAnswer} from './RankedAnswer.jsx';
 import {EntityLists} from './EntityLists.jsx';
 import {ResearchLog, inMarket} from './ui/ResearchLog.jsx';
@@ -286,6 +286,15 @@ function ShortAnswer({text}){
   return <><span className="ask42-short-lead">{lead}</span>{rest}</>;
 }
 
+/* Where a tile's figures were read: the market and the window of the run. */
+function figureScope(record){
+  const parts = [];
+  if (MARKET_NAME[record.market]) parts.push(MARKET_NAME[record.market]);
+  const span = windowWords((record.run || {}).window);
+  if (span) parts.push(span);
+  return parts.join(', ');
+}
+
 function metaLine(record){
   const run = record.run || {};
   const parts = [];
@@ -394,7 +403,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   const records = new Map(withParents(answer.evidence).map((item) => [item.id, item]));
   /* The reader's counts: each distinct figure once, one row per platform,
      the quotes each post is read for, and the confidence of the whole. */
-  const figures = distinctFigures(answer.claims);
+  const figures = figureTiles(answer.claims, figureScope(record));
   const platforms = platformTotals(run.source_status, (platform) => platformWord(platform));
   const quoteMap = new Map();
   for (const claim of answer.claims || []){
@@ -508,7 +517,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
         </div>
 
         <aside className="ask42-answer-rail" aria-label="Evidence">
-          <FigureTiles figures={figures} />
+          <FigureTiles tiles={figures} />
           <PlatformMarks rows={platforms.rows} notes={platforms.notes} caption={caption} />
         </aside>
 

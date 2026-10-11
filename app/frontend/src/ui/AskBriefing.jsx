@@ -2,7 +2,7 @@
    what commenters said under the post they belong to, the number tiles and
    the platform marks. A card names the posts its claim rests on and nothing
    else; a comment is never a tile (askEvidence.js). */
-import {useState} from 'react';
+import {Fragment, useState} from 'react';
 import {readerFigure} from '../api.js';
 import {safeUrl} from '../safeUrl.js';
 import {isComment, parentShown, parentWords} from '../askEvidence.js';
@@ -108,15 +108,26 @@ export function FindingCard({claim, records, quoteMap, confidence, pinnedId, onP
   );
 }
 
-export function FigureTiles({figures}){
-  if (!figures.length) return null;
+/* Each tile says what it counts: the figures in one line, the claim they
+   belong to, and where they were read. Its name is the whole sentence. */
+export function FigureTiles({tiles}){
+  if (!tiles.length) return null;
   return (
     <section className="ask42-section" aria-labelledby="ask42-figures-title">
       <h3 className="ask42-section-title" id="ask42-figures-title">The numbers</h3>
       <ul className="ask42-figure-tiles">
-        {figures.map((figure) => (
-          <li className="ask42-figure-tile" key={figure.key} data-query-id={figure.queryId || undefined}>
-            <b className="ask42-figure-value">{figure.value}</b>{' '}<span className="ask42-figure-unit">{figure.unit}</span>
+        {tiles.map((tile) => (
+          <li className="ask42-figure-tile" key={tile.key} aria-label={tile.sentence} data-query-id={tile.queryId || undefined} data-query-ids={tile.queryIds.length > 1 ? tile.queryIds.join(' ') : undefined}>
+            <p className="ask42-figure-line">
+              {tile.parts.map((part, index) => (
+                <Fragment key={index}>
+                  {index > 0 && <span className="ask42-figure-by">{' by '}</span>}
+                  <span className="ask42-figure-count"><b className="ask42-figure-value">{part.value}</b>{' '}<span className="ask42-figure-unit">{part.unit}</span></span>
+                </Fragment>
+              ))}
+            </p>
+            <p className="ask42-figure-about" title={tile.full || undefined}>{tile.about}</p>
+            {tile.scope && <p className="ask42-figure-scope">{tile.scope}</p>}
           </li>
         ))}
       </ul>

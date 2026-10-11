@@ -60,9 +60,15 @@
 .ask42-comment-text { text-wrap: pretty; }
 
 /* The rail: each distinct figure once, then the platforms with their marks. */
-.ask42-figure-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--s-2); }
+.ask42-figure-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: var(--s-2); }
 .ask42-figure-tile { display: grid; gap: var(--s-1); padding: var(--s-3); border: 1px solid var(--line); background: var(--surface); font-size: var(--type-meta); line-height: var(--leading-meta); color: var(--ink-2); }
 .ask42-figure-value { font-size: var(--type-6); line-height: 1.1; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+/* A tile reads as one sentence: the figures, the claim they count, where they were read. */
+.ask42-figure-line { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s-1); }
+.ask42-figure-count { display: inline-flex; align-items: baseline; gap: var(--s-1); }
+.ask42-figure-by { color: var(--ink-2); }
+.ask42-figure-about { margin: 0; color: var(--ink-2); text-wrap: pretty; overflow-wrap: anywhere; }
+.ask42-figure-scope { margin: 0; color: var(--muted); }
 .ask42-platform-caption { margin: 0 0 var(--s-2); }
 .ask42-platforms { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
 .ask42-platform-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--s-1) var(--s-2); font-size: var(--type-body); line-height: var(--leading-body); }

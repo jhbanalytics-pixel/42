@@ -88,21 +88,85 @@ export function scopeWords(record, windowWords){
 }
 
 /* Each distinct figure once, with the unit in words. Two claims that count
-   the same thing (same value, same unit) leave one tile. */
+   the same thing (same value, same unit) leave one tile. Each figure also
+   carries the position of the claim it is pinned to, so a tile can name it. */
 export function distinctFigures(claims, limit = 8){
   const seen = new Set();
   const out = [];
-  for (const claim of claims || []){
+  (claims || []).forEach((claim, claimIndex) => {
     for (const number of (claim && claim.numbers) || []){
       if (!number || typeof number.value !== 'number') continue;
       const unit = unitFor(number.value, plainUnit(number.unit));
       const key = readerFigure(number.value) + ' ' + unit;
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({key, value: readerFigure(number.value), unit, queryId: number.query_id || ''});
+      out.push({key, value: readerFigure(number.value), unit, queryId: number.query_id || '', claimIndex, claimText: String(claim.text || '')});
     }
-  }
+  });
   return out.slice(0, limit);
+}
+
+/* A claim as one short line: its first sentence, cut at a word when it runs
+   past TOPIC_MAX. The whole claim stays in the title and the tile's name. */
+const TOPIC_MAX = 90;
+export function topicWords(text){
+  const whole = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!whole) return '';
+  const first = whole.split(/(?<=[.!?])\s+/)[0];
+  if (first.length <= TOPIC_MAX) return first;
+  const cut = first.slice(0, TOPIC_MAX - 1);
+  const space = cut.lastIndexOf(' ');
+  return (space > TOPIC_MAX / 2 ? cut.slice(0, space) : cut).replace(/[\s,;:.]+$/, '') + '…';
+}
+
+export const UNNAMED_FIGURE = 'Counted by a search this answer ran, not tied to a named finding.';
+
+const sentence = (text) => (/[.!?]$/.test(text) ? text : text + '.');
+const nounOf = (unit) => (/^posts?$/i.test(unit) ? 'posts' : /^creators?$/i.test(unit) ? 'creators' : '');
+
+/* The tiles of The numbers. Each says what it counts: the posts and the
+   creators of one claim read as one line ("179 posts by 118 creators"), then
+   the claim they belong to and where they were read. Only a posts figure and
+   a creators figure of the same claim are joined; any other unit stands on
+   its own line with the same claim under it. A figure whose claim has no
+   words says so, so no tile is ever a bare number. `scope` is the market and
+   the window the run read, already in words. */
+export function figureTiles(claims, scope = '', limit = 8){
+  const figures = distinctFigures(claims, limit);
+  const pairs = new Map();
+  for (const figure of figures){
+    const noun = nounOf(figure.unit);
+    if (!noun) continue;
+    const slot = pairs.get(figure.claimIndex) || {posts: [], creators: []};
+    slot[noun].push(figure);
+    pairs.set(figure.claimIndex, slot);
+  }
+  const joined = new Set();
+  const tiles = [];
+  for (const figure of figures){
+    if (joined.has(figure.key)) continue;
+    const slot = pairs.get(figure.claimIndex);
+    const paired = slot && slot.posts.length === 1 && slot.creators.length === 1 && [slot.posts[0], slot.creators[0]].includes(figure);
+    const parts = paired ? [slot.posts[0], slot.creators[0]] : [figure];
+    for (const part of parts) joined.add(part.key);
+    const line = parts.map((part) => part.value + ' ' + part.unit).join(' by ');
+    const full = figure.claimText.replace(/\s+/g, ' ').trim();
+    let said = line + '.';
+    said += full ? ' Finding: ' + sentence(full) : ' ' + UNNAMED_FIGURE;
+    if (scope) said += ' Read in ' + scope + '.';
+    tiles.push({
+      key: parts.map((part) => part.key).join(' by '),
+      parts: parts.map(({value, unit}) => ({value, unit})),
+      line,
+      queryId: parts[0].queryId,
+      queryIds: parts.map((part) => part.queryId).filter(Boolean),
+      about: topicWords(full) || UNNAMED_FIGURE,
+      full,
+      scope,
+      sentence: said,
+    });
+  }
+  return tiles;
 }
 
 /* Posts each platform returned, once per platform. A call that failed is not
