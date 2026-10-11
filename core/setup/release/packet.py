@@ -96,7 +96,9 @@ def cents_up(value):
     return str(Decimal(f"{float(value):.6f}").quantize(Decimal("0.01"), rounding=ROUND_CEILING))
 
 
-# Run in a child with the tree of the bound commit first on the path (-I: no PYTHONPATH, no working directory, no user site).
+# Run in a child with the tree of the bound commit first on the path. The child keeps the environment of this process, so a test guard
+# on PYTHONPATH loads in it, and puts the tree in front of everything the environment adds: `core` is found in the tree, never in the
+# checkout that runs this tool. -s keeps the user site out; -I is not used because it drops PYTHONPATH and the guard with it.
 HOLD_PROGRAM = ("import sys; sys.path.insert(0, sys.argv[1]); from core.agent import ask; "
                 "sys.stdout.write(repr(ask.hold_usd('T1', ask.MODEL)))")
 
@@ -117,7 +119,7 @@ def bound_hold(repo, commit):
         with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as bundle:
             bundle.extractall(tree, filter="data")
         try:
-            done = subprocess.run([sys.executable, "-I", "-B", "-c", HOLD_PROGRAM, tree], cwd=tree, capture_output=True, encoding="utf-8",
+            done = subprocess.run([sys.executable, "-B", "-s", "-c", HOLD_PROGRAM, tree], cwd=tree, capture_output=True, encoding="utf-8",
                                   timeout=120, stdin=subprocess.DEVNULL)
         except (OSError, subprocess.TimeoutExpired):
             raise Refused("The hold of the bound commit could not be read") from None

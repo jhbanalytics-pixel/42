@@ -118,7 +118,7 @@ def ask_closure():
         program = ("import sys, core.agent.ask; sys.stdout.write(chr(10).join(m.__file__ for n, m in sorted(sys.modules.items()) "
                    "if n.startswith('core') and getattr(m, '__file__', None)))")
         done = subprocess.run([sys.executable, "-B", "-c", program], cwd=ROOT, capture_output=True, encoding="utf-8", timeout=120,
-                              env={**os.environ, "PYTHONPATH": str(ROOT)})
+                              env={**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(ROOT), os.environ.get("PYTHONPATH", "")]))})
         assert done.returncode == 0, done.stderr
         loaded = [Path(f).resolve().relative_to(ROOT) for f in done.stdout.splitlines() if f]
         # the modules read data files that sit beside them (a schema, a term list), so the folders they live in come whole, one level deep

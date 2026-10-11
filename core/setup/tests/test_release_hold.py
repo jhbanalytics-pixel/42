@@ -1,5 +1,6 @@
 """The model hold ceiling in the sentence Albert types (review of Release C, finding m6): rounded up to the cent, never down, and read from the
 repository and commit the release is bound to, not from whichever checkout runs the packet tool."""
+import os
 import sys
 
 import pytest
@@ -58,6 +59,15 @@ def test_the_running_checkouts_modules_are_not_the_ones_the_bound_commit_is_read
     repo, commit = fake_repo(tmp_path, 3.0)
     (repo / "core/agent/other.py").write_text("raise SystemExit('should never be imported')\n", encoding="utf-8")
     assert packet.hold_ceiling(repo, commit) == "3.00"
+
+
+def test_the_bound_commit_wins_when_the_environment_puts_the_running_checkout_on_the_path(tmp_path, monkeypatch):
+    """The hold child keeps the environment, so a guard directory on PYTHONPATH still loads in it. A checkout on that path must not be
+    where `ask` comes from."""
+    repo, commit = fake_repo(tmp_path, 7.001)
+    inherited = os.pathsep.join(filter(None, [str(ROOT), os.environ.get("PYTHONPATH", "")]))
+    monkeypatch.setenv("PYTHONPATH", inherited)
+    assert packet.hold_ceiling(repo, commit) == "7.01" != packet.hold_ceiling()
 
 
 @pytest.mark.parametrize("body", ["raise RuntimeError('no')", "def hold_usd(tier, model):\n    return 'many'", "def hold_usd(tier, model):\n    return float('nan')",
