@@ -150,3 +150,25 @@ test('the input is not changed', () => {
   storyView(input);
   expect(JSON.stringify(input)).toBe(before);
 });
+
+test('a recommendation or a proposal is never a line of a story', () => {
+  const forged = record();
+  forged.answer.claims[1].kind = 'recommendation';
+  const view = storyView(forged);
+  expect(view.stories[0].lines.map((l) => l.claim.id)).toEqual(['c1']);
+  expect(view.others.map((c) => c.id)).toEqual(['c2', 'c4']);
+});
+
+test('figures that come from two queries are not shown together: the first query keeps its figures', () => {
+  const forged = record();
+  forged.answer.claims[0].numbers[1] = number(301, 'creators', 'q_other');
+  expect(storyView(forged).stories[0].figures.map((f) => f.unit)).toEqual(['posts', 'platforms']);
+});
+
+test('a number whose hash is not shaped like one is left off, and so is a zero or a missing run', () => {
+  const forged = record();
+  forged.answer.claims[0].numbers[0] = {...number(640, 'posts'), result_hash: 'sha256:abc'};
+  forged.answer.claims[0].numbers[1] = number(0, 'creators');
+  forged.answer.claims[0].numbers[2] = {...number(4, 'platforms'), run_id: ''};
+  expect(storyView(forged).stories[0].figures).toEqual([]);
+});

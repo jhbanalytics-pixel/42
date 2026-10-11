@@ -85,14 +85,20 @@ test('the answer opens with the one line lead and then one block per story in ra
   expect(host.querySelector('.ask42-stories').tagName).toBe('OL');
 });
 
-test('the figures sit inside each story, each with its unit and the window, never bare', async () => {
+test('the figures sit inside each story, each with its unit, never bare', async () => {
   await open(clone(rankedRecord));
   const [first, , third] = all('.ask42-story');
   expect(all('.ask42-story-figure').length).toBe(9);
   expect(all('.ask42-story-figure').every((node) => /^[\d,]+ [a-z]+$/.test(words(node)))).toBe(true);
   expect([...first.querySelectorAll('.ask42-story-figure')].map(words)).toEqual(['640 posts', '301 creators', '4 platforms']);
   expect([...third.querySelectorAll('.ask42-story-figure')].map(words)).toEqual(['288 posts', '146 creators', '3 platforms']);
-  expect(words(first.querySelector('.ask42-story-window'))).toBe('5 to 11 October 2026');
+});
+
+test('no window is printed beside the figures of a story, since the page cannot tell which span each count covers', async () => {
+  await open(clone(rankedRecord));
+  expect(host.querySelector('.ask42-story-window')).toBeNull();
+  for (const figures of all('.ask42-story-figures')) expect(words(figures)).not.toMatch(/October|20[0-9][0-9]/);
+  expect(host.querySelector('.ask42-stories-caption').textContent).not.toMatch(/October|\d{4}/);
 });
 
 test('the usual numbers section is replaced by the figures in the stories', async () => {
@@ -142,9 +148,9 @@ test('a claim that names no story stays as a finding under "Across the stories"'
   expect(across.querySelectorAll('.ask42-finding').length).toBe(1);
 });
 
-test('the caption says what ranks the stories when the pinned figures confirm it', async () => {
+test('the caption says the stories are ranked by the figures below, and makes no claim about a window', async () => {
   await open(clone(rankedRecord));
-  expect(words(host.querySelector('.ask42-stories-caption'))).toBe('Ranked by creators, then posts, 5 to 11 October 2026');
+  expect(words(host.querySelector('.ask42-stories-caption'))).toBe('Ranked by the figures below');
 });
 
 test('an unconfirmed order shows no rank and says so', async () => {
@@ -152,7 +158,7 @@ test('an unconfirmed order shows no rank and says so', async () => {
   record.run.briefing.ordered = false;
   await open(record);
   expect(all('.ask42-story-rank').length).toBe(0);
-  expect(words(host.querySelector('.ask42-stories-caption'))).toBe('In the order 42 listed them; the counts do not confirm a ranking');
+  expect(words(host.querySelector('.ask42-stories-caption'))).toBe('In the order 42 listed them; the figures below do not rank them');
 });
 
 test('a story the answer does not bear out is not shown, and the ranks follow the stories that are', async () => {
@@ -188,4 +194,13 @@ test('a briefing that points at words the claims do not hold shows nothing of it
   await open(record);
   expect(host.textContent).not.toContain('Forged headline');
   expect(all('.ask42-story-name').map(words)).toEqual(['Pirates vs Sundowns cup final', 'Forbes and Motsoane murder trial']);
+});
+
+test('a so-what line no story took carries the interpretation mark like the ones that did', async () => {
+  const record = clone(rankedRecord);
+  record.run.briefing.stories[0].so_what = [];
+  await open(record);
+  const heading = host.querySelector('#ask42-sowhat-title');
+  expect(words(heading)).toBe('More for a brand, interpretation');
+  expect(words(host.querySelector('.ask42-answer-rest'))).toContain('A brand with a Soweto presence should pause scheduled posts');
 });

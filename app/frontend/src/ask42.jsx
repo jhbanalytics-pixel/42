@@ -503,7 +503,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
         <p id={shortId} className="ask42-short">{hasSummary ? <ShortAnswer text={answer.short_answer} /> : noShortAnswer(answer, record)}</p>
         {hasSummary && summary.kind === 'shown_rewritten' && <p className="ask42-short-note ask42-muted">{summary.sentence}</p>}
 
-        {stories && <AskStories view={stories} windowLabel={windowWords(run.window)} records={records} quoteMap={quoteMap} confidence={CONFIDENCE} pinnedId={pinnedId} onPin={setPinnedId} />}
+        {stories && <AskStories view={stories} records={records} quoteMap={quoteMap} confidence={CONFIDENCE} pinnedId={pinnedId} onPin={setPinnedId} />}
         {stories && stories.others.length > 0 && (
           <section className="ask42-across" aria-labelledby="ask42-across-title">
             <h3 className="ask42-section-title" id="ask42-across-title">Across the stories</h3>
@@ -531,7 +531,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
         <div className="ask42-answer-rest">
         {soWhatShown.length > 0 && (
           <section className="ask42-section" aria-labelledby="ask42-sowhat-title">
-            <h3 className="ask42-section-title" id="ask42-sowhat-title">{stories ? 'More for a brand' : 'What it means for a brand'}</h3>
+            <h3 className="ask42-section-title" id="ask42-sowhat-title">{stories ? 'More for a brand, interpretation' : 'What it means for a brand'}</h3>
             <ul className="ask42-list">{soWhatShown.map((item) => <li key={item.index}>{item.text}</li>)}</ul>
           </section>
         )}

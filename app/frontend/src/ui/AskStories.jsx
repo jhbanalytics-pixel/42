@@ -1,5 +1,5 @@
 /* Ask · the ranked briefing: one block per story, in rank order. A block has its name, its own figures with their
-   units and the window, the lines the answer holds for it (what it is, when it peaked or whether it is still rising,
+   units, the lines the answer holds for it (what it is, when it peaked or whether it is still rising,
    why it is moving), one or two of the real posts behind it and, last, the line for a brand marked as interpretation.
    The view comes from askStories.js, which keeps only what the answer's own claims bear out. */
 import {useState} from 'react';
@@ -39,7 +39,7 @@ function StoryPosts({story, records, quoteMap, pinnedId, onPin}){
   );
 }
 
-function Story({story, windowLabel, records, quoteMap, confidence, pinnedId, onPin}){
+function Story({story, records, quoteMap, confidence, pinnedId, onPin}){
   return (
     <li className="ask42-story">
       <header className="ask42-story-head">
@@ -53,7 +53,6 @@ function Story({story, windowLabel, records, quoteMap, confidence, pinnedId, onP
               <b className="ask42-story-figure-value">{figure.value}</b>{' '}<span className="ask42-story-figure-unit">{figure.unit}</span>
             </li>
           ))}
-          {windowLabel && <li className="ask42-story-window ask42-muted">{windowLabel}</li>}
         </ul>
       )}
       <ul className="ask42-story-lines">
@@ -83,16 +82,18 @@ function Story({story, windowLabel, records, quoteMap, confidence, pinnedId, onP
   );
 }
 
-export function AskStories({view, windowLabel, records, quoteMap, confidence, pinnedId, onPin}){
+export function AskStories({view, records, quoteMap, confidence, pinnedId, onPin}){
+  /* The page cannot tell which span each story's count covers, so it names no window and claims no more than that the
+     listed figures do not contradict the order. */
   const caption = view.ordered
-    ? 'Ranked by creators, then posts' + (windowLabel ? ', ' + windowLabel : '')
-    : 'In the order 42 listed them; the counts do not confirm a ranking';
+    ? 'Ranked by the figures below'
+    : 'In the order 42 listed them; the figures below do not rank them';
   return (
     <section className="ask42-stories-wrap" aria-label="The stories">
       <p className="ask42-stories-caption ask42-muted">{caption}</p>
       <ol className="ask42-stories">
         {view.stories.map((story) => (
-          <Story key={story.key} story={story} windowLabel={windowLabel} records={records} quoteMap={quoteMap} confidence={confidence} pinnedId={pinnedId} onPin={onPin} />
+          <Story key={story.key} story={story} records={records} quoteMap={quoteMap} confidence={confidence} pinnedId={pinnedId} onPin={onPin} />
         ))}
       </ol>
     </section>

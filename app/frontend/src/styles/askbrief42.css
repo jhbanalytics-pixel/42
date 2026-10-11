@@ -116,7 +116,6 @@ html .oi-product .ask42 .ask42-claims { border-top: 0; }
 .ask42-story-figures { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-4); }
 .ask42-story-figure { display: inline-flex; align-items: baseline; gap: var(--s-1); color: var(--ink-2); font-size: var(--type-body); line-height: var(--leading-body); }
 .ask42-story-figure-value { color: var(--ink); font-size: var(--type-signal-title); font-weight: 600; font-variant-numeric: tabular-nums; }
-.ask42-story-window { font-size: var(--type-meta); line-height: var(--leading-meta); }
 .ask42-story-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
 .ask42-story-item { display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: var(--s-4); align-items: start; }
 html .oi-product .ask42 .ask42-story-confidence { grid-column: 1; grid-row: 1; margin: 0; }
