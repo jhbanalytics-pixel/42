@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 A80 = "a80be1dee7f4ee2aa9775d0f353bab930809f057"
+RELEASE_A = "3710c5e593027212c96b4c896fa7fae8c9792cd5"
 
 
 def resolve_bash(env=None, platform=None, which=shutil.which):
@@ -36,7 +37,8 @@ def resolve_bash(env=None, platform=None, which=shutil.which):
 
 
 def prerequisites(repo, env=None, which=shutil.which):
-    """The missing prerequisites of the deploy partition, by name: pwsh, bash, and the a80 commit in full history."""
+    """The missing prerequisites of the deploy partition, by name: pwsh, bash, and the commits of the prior releases (a80 and Release A)
+    in full history."""
     import subprocess
 
     missing = []
@@ -46,6 +48,7 @@ def prerequisites(repo, env=None, which=shutil.which):
         resolve_bash(env)
     except FileNotFoundError:
         missing.append("bash")
-    if subprocess.run(["git", "cat-file", "-e", A80], cwd=repo, capture_output=True).returncode != 0:
-        missing.append(f"commit {A80}")
+    for commit in (A80, RELEASE_A):
+        if subprocess.run(["git", "cat-file", "-e", commit], cwd=repo, capture_output=True).returncode != 0:
+            missing.append(f"commit {commit}")
     return missing

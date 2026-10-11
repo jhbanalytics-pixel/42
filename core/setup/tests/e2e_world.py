@@ -51,14 +51,15 @@ Invoke-Release
 '''
 
 
-def deploy_consistent_world():
-    """The a80 world, with the secret references the deploy flags set (core/api/deploy_flags.env), so a candidate the fake deploy
-    makes from those flags is the baseline plus the declared deltas and nothing else."""
-    world = pw.a80_world(declared=())
+def deploy_consistent_world(after=None):
+    """The a80 world (or, for after="A", the world Release A leaves), with the secret references the deploy flags set
+    (core/api/deploy_flags.env) on every revision, so a candidate the fake deploy makes from those flags is the baseline plus the declared
+    deltas and nothing else."""
+    world = pw.a_world() if after == "A" else pw.a80_world(declared=())
     for service, name in (("f42-agent", "SOCIALCRAWL_OGILVY_API_KEY"), ("f42-api", "UI_PASSCODE")):
         secret = {"valueFrom": {"secretKeyRef": {"name": name, "key": "latest"}}}
         world.svc[service]["env"][name] = secret
-        for revision in (rw.A80_REV[service], rw.OLDER_REV[service]):
+        for revision in world.revision_names[service]:
             world.set_env(revision, name, secret)
     return world
 
@@ -79,13 +80,13 @@ class Run:
 
 
 class E2E:
-    def __init__(self, tmp, monkeypatch):
+    def __init__(self, tmp, monkeypatch, *, after=None):
         self.tmp = Path(tmp)
         repo = self.tmp / "bench" / "repo"
         (repo / "core" / "agent").mkdir(parents=True)
         (repo / "core" / "agent" / "answer_state.py").write_bytes((ROOT / "core/agent/answer_state.py").read_bytes().replace(b"\r\n", b"\n"))
-        self.world = deploy_consistent_world()
-        self.bench = bench = pw.Bench(self.tmp / "bench", monkeypatch, world=self.world, repo=repo)
+        self.world = deploy_consistent_world(after)
+        self.bench = bench = pw.Bench(self.tmp / "bench", monkeypatch, world=self.world, repo=repo, after=after)
         bench.lock_dir = self.tmp / "locks"
         bench.prepare_inputs()
         for argv in (bench.capture_argv(), bench.bind_argv(), bench.lock_argv(), bench.review_argv(), bench.receipt_argv()):
