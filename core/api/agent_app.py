@@ -34,7 +34,7 @@ OFFSETS = {"ZA": 2, "NG": 1, "KE": 3}
 EVENT_TYPES = ("step", "evidence", "claim")
 # The run object's keys (contract section 6); a failed ask keeps only these, and only as plain JSON.
 RUN_KEYS = ("run_id", "tier", "mode", "credits", "tokens", "seconds", "model_usd", "window",
-            "posts", "platforms", "source_status", "followups", "notices", "notice", "timings")
+            "posts", "platforms", "source_status", "followups", "notices", "notice", "timings", "technical_gaps")
 MAX_RUN_BYTES = 64_000
 
 

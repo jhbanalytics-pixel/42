@@ -76,3 +76,10 @@ def test_the_stored_record_is_not_changed_by_the_api_read_i1(api):
     api.store.records[ASK] = repeated()
     api.serve(remote_agent({})).get(f"/api/ask/{ASK}", headers=GOOD)
     assert api.store.records[ASK] == repeated()
+
+
+def test_run_technical_gaps_is_a_named_run_key_m9():
+    assert "technical_gaps" in agent_app.RUN_KEYS
+    contract = (Path(__file__).resolve().parents[1] / "contract.md").read_text(encoding="utf-8")
+    ask_section = contract[contract.index("\n## 6. Ask"):contract.index("\n## 7.")]
+    assert "`run.technical_gaps`" in ask_section
