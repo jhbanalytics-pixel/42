@@ -194,8 +194,8 @@ def test_a_verbatim_quote_from_a_span_passes_the_checks():
                                     window=WINDOW, market="ZA")
     assert claim(answer, "c1") is not None
     assert verdict(verdicts, "c1", "K1")["verdict"] == "pass" and verdict(verdicts, "c1", "K8")["verdict"] == "pass"
-    assert [e["id"] for e in answer["evidence"]] == ids[:1]
-    assert answer["evidence"][0]["transcript_span"]["text"] == ctx.evidence[ids[0]]["text"]
+    assert [e["id"] for e in answer["evidence"]] == ["tt_1", ids[0]]  # a span is a child: its post comes with it (Release D)
+    assert answer["evidence"][1]["transcript_span"]["text"] == ctx.evidence[ids[0]]["text"]
 
 
 def test_a_quote_that_is_not_in_the_span_is_cut():

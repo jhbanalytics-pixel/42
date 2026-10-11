@@ -2060,18 +2060,21 @@ def source_gaps(ctx, window) -> list[dict]:
 
 
 _COMMENT_ID = re.compile(r"^[a-z0-9]+_comment_")  # a comment record's id: "<platform>_comment_<native>"
+_SPAN_ID = re.compile(r"_span_[0-9]+$")  # a transcript span's id: "<post id>_span_<n>"
 
 
 def _parent_of(eid, stored):
-    """The post id a comment record names as its parent. Only a comment has one here: any other record that carries a
-    parent_id, a transcript span for one, is not linked to it."""
+    """The post id a child record names as its parent. A child is a comment or a transcript span of a post (Release D:
+    spans are children, parent_id travels). Any other record that carries a parent_id is not linked to it."""
     record = stored.get(eid) or {}
-    return record.get("parent_id") if isinstance(eid, str) and _COMMENT_ID.match(eid) else None
+    child = isinstance(eid, str) and (_COMMENT_ID.match(eid) or _SPAN_ID.search(eid))
+    return record.get("parent_id") if child else None
 
 
 def _with_parents(cited, stored):
-    """cited with the post each cited comment sits under placed just before it, once, when the run holds that post:
-    the privacy check judges a comment by its post, so an answer that keeps a comment keeps its post (C5 v2 5.1)."""
+    """cited with the post each cited comment or span sits under placed just before it, once, when the run holds that
+    post: the privacy check judges a child by its post, so an answer that keeps a comment or a span keeps its post
+    (C5 v2 5.1)."""
     out = []
     for eid in cited:
         parent = _parent_of(eid, stored)
@@ -2082,17 +2085,17 @@ def _with_parents(cited, stored):
 
 
 def cited_with_parents(claims, stored):
-    """The evidence ids the claims cite, and the post each cited comment sits under when the run holds it. A prune that
-    rebuilds an answer's evidence from the claims that stay keeps these, so a comment kept alone keeps its post and the
-    link between them (C5 v2 5.1)."""
+    """The evidence ids the claims cite, and the post each cited comment or span sits under when the run holds it. A
+    prune that rebuilds an answer's evidence from the claims that stay keeps these, so a comment or a span kept alone
+    keeps its post and the link between them (C5 v2 5.1)."""
     cited = {eid for claim in claims for eid in claim.get("evidence_ids") or [] if isinstance(eid, str)}
     return cited | set(_with_parents(sorted(cited), stored))
 
 
 def comment_links(answer, stored):
-    """{"v": 1, "parents": {comment id: post id}} for the comments an answer shows whose post it shows too, or None. It
-    is kept beside the answer, not in it: the evidence shape is the one Release A readers accept, and the privacy check
-    needs the link to judge a comment by its post (C5 v2 5.1)."""
+    """{"v": 1, "parents": {child id: post id}} for the comments and spans an answer shows whose post it shows too, or
+    None. It is kept beside the answer, not in it: the evidence shape is the one Release A readers accept, and the
+    privacy check needs the link to judge a child by its post (C5 v2 5.1)."""
     shown = {r.get("id") for r in answer.get("evidence") or [] if isinstance(r, dict)}
     parents = {eid: _parent_of(eid, stored) for eid in shown
                if isinstance(eid, str) and eid in stored and isinstance(_parent_of(eid, stored), str)

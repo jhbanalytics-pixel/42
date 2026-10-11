@@ -113,8 +113,11 @@ def test_the_live_stream_withholds_the_span_and_the_claim_that_cites_it():
     assert privacy.project_event("evidence", {"seq": 3, "evidence": sp}, hidden, store, gone, seen) is None
     claim = record_with_span()["answer"]["claims"][1]
     assert privacy.project_event("claim", {"seq": 4, "claim": claim}, hidden, store, gone, seen) is None
+    post = ev(P_VIS1, "vis_handle", "visible fixture words", "2026-10-05T09:00:00+02:00")
     visible = span(P_VIS1, "vis_handle", posted="2026-10-05T09:00:00+02:00")
-    assert privacy.project_event("evidence", {"seq": 5, "evidence": visible}, hidden, store, gone, seen) is not None
+    # a span is a child of its post (Release D): it is shown once the stream has shown the post it sits under
+    assert privacy.project_event("evidence", {"seq": 5, "evidence": post}, hidden, store, gone, seen) is not None
+    assert privacy.project_event("evidence", {"seq": 6, "evidence": visible}, hidden, store, gone, seen) is not None
 
 
 def test_the_stream_looks_a_post_up_once_for_the_post_and_each_of_its_spans():
@@ -128,4 +131,5 @@ def test_the_stream_looks_a_post_up_once_for_the_post_and_each_of_its_spans():
     for n, record in enumerate(events):
         assert privacy.project_event("evidence", {"seq": n, "evidence": record}, hidden, store, gone, seen) is None
     assert calls == [[P_REN1]] and gone == {e["id"] for e in events}
-    assert set(seen) == {P_REN1}  # the memo is keyed by the post, never by a span id
+    assert {k for k in seen if isinstance(k, str)} == {P_REN1}  # the creator memo is keyed by the post, never by a span id
+    assert {k[1] for k in seen if isinstance(k, tuple)} == {e["id"] for e in events}  # the identity of each, as for a comment

@@ -34,6 +34,7 @@ _IDENTITY = ("id", "platform", "handle", "url", "creator_id", "posted_at", "pare
 # A transcript span of a stored post (Ask power): the post's id plus _span_N. Its words are the post's creator's, so it is
 # judged by the creator of the post its id names.
 SPAN_ID = re.compile(r"^(obs1_[0-9a-f]{32})_span_[0-9]+$")
+_SPAN_TAIL = re.compile(r"_span_[0-9]+$")  # any span id, of a stored post or a live one: "<post id>_span_<n>"
 
 
 def _post_key(record_id):
@@ -199,12 +200,13 @@ def _their_handles(records, keys, ids, creators):
     creator id is, or the lookup placed it with a hidden creator. A record gone for any other reason names no one."""
     theirs = {e.get("id") for e in records
               if isinstance(e.get("id"), str) and not _is_comment(e) and (creator_key(e.get("platform"), e.get("handle")) in keys
-                                         or e.get("creator_id") in ids or creators.get(e.get("id"), object()) in ids)}
+                                         or e.get("creator_id") in ids
+                                         or creators.get(_post_key(e["id"]) or e["id"], object()) in ids)}
     out = set()
     for e in records:
         if isinstance(e.get("id"), str) and e["id"] in theirs:
             handles = [e.get("handle"), _url_handle(e.get("url"))]
-        elif _is_comment(e) and isinstance(e.get("parent_id"), str) and e["parent_id"] in theirs:
+        elif _is_child(e) and isinstance(e.get("parent_id"), str) and e["parent_id"] in theirs:
             handles = [_url_handle(e.get("url"))]
         else:
             continue
@@ -248,19 +250,20 @@ def _place_stored(stored, ids, store, creators, gone):
 
 
 def _under_gone_parents(records, earlier, gone):
-    """Add the ids of the comments that sit under a post that is gone, or under none that can be found. The chain is
-    walked from a comment to a record that is not a comment or has no parent_id; more hops than there are records means
-    a loop, and that is gone too. A record that is not a comment is never walked, whatever parent_id it carries."""
+    """Add the ids of the children (comments and transcript spans) that sit under a post that is gone, or under none
+    that can be found. The chain is walked from a child to a record that is not a child or has no parent_id; more hops
+    than there are records means a loop, and that is gone too. A record that is not a child is never walked, whatever
+    parent_id it carries."""
     by_id = {}
     for e in records + earlier:
         if isinstance(e.get("id"), str):
             by_id.setdefault(e["id"], e)
     for e in records:
-        if not _is_comment(e):
+        if not _is_child(e):
             continue
         cur = e
         for _ in range(len(by_id) + 1):
-            if not _is_comment(cur) or cur.get("parent_id") is None:
+            if not _is_child(cur) or cur.get("parent_id") is None:
                 break
             parent = by_id.get(cur["parent_id"]) if isinstance(cur["parent_id"], str) else None
             if parent is None or parent.get("id") in gone:
@@ -273,6 +276,11 @@ def _under_gone_parents(records, earlier, gone):
 
 def _is_comment(record):
     return isinstance(record.get("id"), str) and bool(COMMENT_ID.match(record["id"]))
+
+
+def _is_child(record):
+    """A comment, or a transcript span of a post: the two kinds of record that sit under a post and are judged by it."""
+    return _is_comment(record) or (isinstance(record.get("id"), str) and bool(_SPAN_TAIL.search(record["id"])))
 
 
 def _url_handle(url):
