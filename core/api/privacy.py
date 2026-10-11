@@ -392,12 +392,14 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
         if ans.get("status") == "complete" and not kept:
             ans["status"] = "partial"
         _ranked(out, claims_gone, present, hidden, unavailable)
-    shown = {e.get("id") for e in (ans.get("evidence") if isinstance(ans, dict) else None) or [] if isinstance(e, dict)}
+    kept_evidence = [e for e in (ans.get("evidence") if isinstance(ans, dict) else None) or [] if isinstance(e, dict)]
+    shown = {e.get("id") for e in kept_evidence}
     out.pop(comment_links.KEY, None)
     if comment_links.prune(links, shown):
         out[comment_links.KEY] = comment_links.prune(links, shown)
     before = _json(out)
     out = mask(out, with_names(hidden, named))
+    _mask_unclear_steps(out, kept_evidence)
     changed = _json(out) != before
     if meta is not None:
         out["answer_meta"] = meta
@@ -534,6 +536,18 @@ def _mask_unclear_handles(data, shown):
         return match.group(0) if _folded(core) in shown else "@***" + match.group(1)[len(core):]
 
     return {**data, "text": AT_HANDLE.sub(hide, text)}
+
+
+def _mask_unclear_steps(record, evidence):
+    """record's step texts with every @handle masked unless it is the author of evidence the record keeps: the stream's
+    rule (project_event) on the stored steps, so the poll, the investigation read, the finished record and the replays
+    agree with it. A running record holds no answer and a finished one only what it cited, so the old name of a hidden
+    creator whose post it does not hold cannot be learned here; a handle it cannot clear is masked."""
+    steps = record.get("steps")
+    if not isinstance(steps, list):
+        return
+    shown = set().union(*(_author_handles(e) for e in evidence))
+    record["steps"] = [_mask_unclear_handles(s, shown) if isinstance(s, dict) else s for s in steps]
 
 
 def project_event(kind, data, hidden, store, gone, seen, named=None, shown=None):
