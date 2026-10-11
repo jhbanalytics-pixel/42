@@ -15,6 +15,8 @@ import {marketToSend} from './askMarkets.js';
 import {costWords, itemsWords} from './costWords.js';
 import {EvidenceChip, monthName} from './ui/EvidenceChip.jsx';
 import {FindingCard, FigureTiles, PlatformMarks} from './ui/AskBriefing.jsx';
+import {AskStories} from './ui/AskStories.jsx';
+import {storyView} from './askStories.js';
 import {confidenceTag, distinctFigures, gapSplit, platformTotals, scopeWords, withParents} from './askEvidence.js';
 import {RankedAnswer} from './RankedAnswer.jsx';
 import {EntityLists} from './EntityLists.jsx';
@@ -395,6 +397,9 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   /* The reader's counts: each distinct figure once, one row per platform,
      the quotes each post is read for, and the confidence of the whole. */
   const figures = distinctFigures(answer.claims);
+  /* A ranked briefing (core/agent/briefing.py), checked against the claims it points at; null means the usual layout. */
+  const stories = storyView(record);
+  const soWhatShown = stories ? stories.restSoWhat : (answer.so_what || []).map((item, index) => ({index, text: item.text}));
   const platforms = platformTotals(run.source_status, (platform) => platformWord(platform));
   const quoteMap = new Map();
   for (const claim of answer.claims || []){
@@ -498,7 +503,18 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
         <p id={shortId} className="ask42-short">{hasSummary ? <ShortAnswer text={answer.short_answer} /> : noShortAnswer(answer, record)}</p>
         {hasSummary && summary.kind === 'shown_rewritten' && <p className="ask42-short-note ask42-muted">{summary.sentence}</p>}
 
-        {answer.claims && answer.claims.length > 0 && (
+        {stories && <AskStories view={stories} windowLabel={windowWords(run.window)} records={records} quoteMap={quoteMap} confidence={CONFIDENCE} pinnedId={pinnedId} onPin={setPinnedId} />}
+        {stories && stories.others.length > 0 && (
+          <section className="ask42-across" aria-labelledby="ask42-across-title">
+            <h3 className="ask42-section-title" id="ask42-across-title">Across the stories</h3>
+            <ol className="ask42-claims" aria-label="Findings">
+              {stories.others.map((claim) => (
+                <FindingCard key={claim.id} claim={claim} records={records} quoteMap={quoteMap} confidence={CONFIDENCE[claim.label]} pinnedId={pinnedId} onPin={setPinnedId} />
+              ))}
+            </ol>
+          </section>
+        )}
+        {!stories && answer.claims && answer.claims.length > 0 && (
           <ol className="ask42-claims" aria-label="Findings">
             {answer.claims.map((claim) => (
               <FindingCard key={claim.id} claim={claim} records={records} quoteMap={quoteMap} confidence={CONFIDENCE[claim.label]} pinnedId={pinnedId} onPin={setPinnedId} />
@@ -508,15 +524,15 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
         </div>
 
         <aside className="ask42-answer-rail" aria-label="Evidence">
-          <FigureTiles figures={figures} />
+          {!stories && <FigureTiles figures={figures} />}
           <PlatformMarks rows={platforms.rows} notes={platforms.notes} caption={caption} />
         </aside>
 
         <div className="ask42-answer-rest">
-        {answer.so_what && answer.so_what.length > 0 && (
+        {soWhatShown.length > 0 && (
           <section className="ask42-section" aria-labelledby="ask42-sowhat-title">
-            <h3 className="ask42-section-title" id="ask42-sowhat-title">What it means for a brand</h3>
-            <ul className="ask42-list">{answer.so_what.map((item, index) => <li key={index}>{item.text}</li>)}</ul>
+            <h3 className="ask42-section-title" id="ask42-sowhat-title">{stories ? 'More for a brand' : 'What it means for a brand'}</h3>
+            <ul className="ask42-list">{soWhatShown.map((item) => <li key={item.index}>{item.text}</li>)}</ul>
           </section>
         )}
 

@@ -17,7 +17,7 @@ function oneLine(text){
   return String(text || '').replace(/\s+/g, ' ').trim();
 }
 
-function PostTile({post, quote, pinned, onPin}){
+export function PostTile({post, quote, pinned, onPin}){
   const [stillFailed, setStillFailed] = useState(false);
   const url = safeUrl(post.url);
   const still = safeUrl(post.thumbnail_url);

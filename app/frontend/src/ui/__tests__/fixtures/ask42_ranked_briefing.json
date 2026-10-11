@@ -1,0 +1,590 @@
+{
+  "ask_id": "a_20261011_ranked",
+  "question": "What are people in South Africa posting about most this week?",
+  "parent_id": null,
+  "market": "ZA",
+  "status": "complete",
+  "created_at": "2026-10-11T08:00:00+02:00",
+  "finished_at": "2026-10-11T08:00:41+02:00",
+  "answer": {
+    "status": "complete",
+    "as_of": "2026-10-11T08:00:00+02:00",
+    "short_answer": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+    "claims": [
+      {
+        "id": "c1",
+        "text": "Soweto unrest: the biggest story of the week, with roadblocks, burning tyres and stopped taxis on the main routes, in 640 posts from 301 creators on 4 platforms.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_u1",
+          "x_u1",
+          "yt_u1"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "tt_u1",
+            "text": "burning tyres at the intersection"
+          }
+        ],
+        "numbers": [
+          {
+            "value": 640,
+            "unit": "posts",
+            "query_id": "q_7",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:03261cd6ef87191e5fa14c6c50755f3b859e3c9eca1dedefd60ced5a16fb5d13"
+          },
+          {
+            "value": 301,
+            "unit": "creators",
+            "query_id": "q_7",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:03261cd6ef87191e5fa14c6c50755f3b859e3c9eca1dedefd60ced5a16fb5d13"
+          },
+          {
+            "value": 4,
+            "unit": "platforms",
+            "query_id": "q_7",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:03261cd6ef87191e5fa14c6c50755f3b859e3c9eca1dedefd60ced5a16fb5d13"
+          }
+        ]
+      },
+      {
+        "id": "c2",
+        "text": "Soweto unrest: posts peaked on 8 Oct at 152 in a day and had fallen to 60 by 11 Oct.",
+        "label": "observed",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_u1",
+          "x_u1"
+        ],
+        "quotes": [],
+        "numbers": [
+          {
+            "value": 152,
+            "unit": "posts",
+            "query_id": "q_8",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:812e38f4ffbccf26329f7009979cee6a7ee55eefe2f709bec922620f2f29abe0"
+          },
+          {
+            "value": 60,
+            "unit": "posts",
+            "query_id": "q_8",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:812e38f4ffbccf26329f7009979cee6a7ee55eefe2f709bec922620f2f29abe0"
+          }
+        ]
+      },
+      {
+        "id": "c3",
+        "text": "Soweto unrest: residents say it began after a fight over taxi routes and spread to the roadblocks overnight.",
+        "label": "single_source",
+        "kind": "observation",
+        "evidence_ids": [
+          "yt_u1",
+          "x_u1"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "yt_u1",
+            "text": "began after a fight over taxi routes"
+          }
+        ],
+        "numbers": []
+      },
+      {
+        "id": "c4",
+        "text": "Pirates vs Sundowns cup final: the match fans are counting down to, in 512 posts from 233 creators on 4 platforms.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_c1",
+          "x_c1",
+          "ig_c1"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "tt_c1",
+            "text": "the whole street is already in black and white and yellow"
+          }
+        ],
+        "numbers": [
+          {
+            "value": 512,
+            "unit": "posts",
+            "query_id": "q_9",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:12ce088812160b0bb1c58547e4ad1325c7046cfbbfe1bbb2547ac2cf6733ba36"
+          },
+          {
+            "value": 233,
+            "unit": "creators",
+            "query_id": "q_9",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:12ce088812160b0bb1c58547e4ad1325c7046cfbbfe1bbb2547ac2cf6733ba36"
+          },
+          {
+            "value": 4,
+            "unit": "platforms",
+            "query_id": "q_9",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:12ce088812160b0bb1c58547e4ad1325c7046cfbbfe1bbb2547ac2cf6733ba36"
+          }
+        ]
+      },
+      {
+        "id": "c5",
+        "text": "Pirates vs Sundowns cup final: posts about it rose from 38 on the first day of the week to 142 on the last, so it is still rising.",
+        "label": "observed",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_c1",
+          "yt_c1"
+        ],
+        "quotes": [],
+        "numbers": [
+          {
+            "value": 38,
+            "unit": "posts",
+            "query_id": "q_10",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:293526d77a23bd407a8081b01717a9dbaf74c7676c5b89b6977e94584678314c"
+          },
+          {
+            "value": 142,
+            "unit": "posts",
+            "query_id": "q_11",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:1dc3484e6032293a2b907ad5fe27433f445e521ad71807477c03b885623b5f28"
+          }
+        ]
+      },
+      {
+        "id": "c6",
+        "text": "Pirates vs Sundowns cup final: ticket queues wrapped around the stadium by noon, and fans were already wearing their colours in the street.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": [
+          "x_c1",
+          "tt_c1"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "x_c1",
+            "text": "wrapped around the stadium by noon"
+          }
+        ],
+        "numbers": []
+      },
+      {
+        "id": "c7",
+        "text": "Forbes and Motsoane murder trial: followed through court updates and explainers, in 288 posts from 146 creators on 3 platforms.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": [
+          "x_t1",
+          "tt_t1",
+          "x_t2"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "x_t1",
+            "text": "the public gallery is expected to fill early"
+          }
+        ],
+        "numbers": [
+          {
+            "value": 288,
+            "unit": "posts",
+            "query_id": "q_12",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:850b3788ca407f56822f1552962e4a18eec197e212a3ce7d90cf7d7b1c0acacd"
+          },
+          {
+            "value": 146,
+            "unit": "creators",
+            "query_id": "q_12",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:850b3788ca407f56822f1552962e4a18eec197e212a3ce7d90cf7d7b1c0acacd"
+          },
+          {
+            "value": 3,
+            "unit": "platforms",
+            "query_id": "q_12",
+            "run_id": "r_20261011_080000_b8216971_2fc342c06e3349b7882aabce2a232573",
+            "result_hash": "sha256:850b3788ca407f56822f1552962e4a18eec197e212a3ce7d90cf7d7b1c0acacd"
+          }
+        ]
+      },
+      {
+        "id": "c8",
+        "text": "The unrest and the trial are followed mostly on X and YouTube, while the cup final is spread across all four platforms.",
+        "label": "observed",
+        "kind": "observation",
+        "evidence_ids": [
+          "x_u2",
+          "yt_u1",
+          "ig_c1",
+          "tt_c1"
+        ],
+        "quotes": [],
+        "numbers": []
+      }
+    ],
+    "evidence": [
+      {
+        "id": "tt_u1",
+        "platform": "tiktok",
+        "handle": "@soweto_street_eye",
+        "url": "https://example.test/tiktok/tt_u1",
+        "posted_at": "2026-10-10T12:07:00+02:00",
+        "market": "ZA",
+        "text": "Roadblocks on the main routes in Soweto again this morning, burning tyres at the intersection and taxis not running",
+        "engagement": {
+          "views": 188000,
+          "likes": 7520,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      },
+      {
+        "id": "x_u1",
+        "platform": "x",
+        "handle": "@jozi_commuter_watch",
+        "url": "https://example.test/x/x_u1",
+        "posted_at": "2026-10-10T12:07:00+02:00",
+        "market": "ZA",
+        "text": "Taxis have stopped running in parts of Soweto after the overnight clashes, check your route before you leave",
+        "engagement": {
+          "views": 64000,
+          "likes": 2560,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      },
+      {
+        "id": "yt_u1",
+        "platform": "youtube",
+        "handle": "@eyewitness_sa",
+        "url": "https://example.test/youtube/yt_u1",
+        "posted_at": "2026-10-09T12:07:00+02:00",
+        "market": "ZA",
+        "text": "Residents say the unrest began after a fight over taxi routes and spread to the roadblocks overnight",
+        "engagement": {
+          "views": 91000,
+          "likes": 3640,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      },
+      {
+        "id": "tt_c1",
+        "platform": "tiktok",
+        "handle": "@kasi_football_hub",
+        "url": "https://example.test/tiktok/tt_c1",
+        "posted_at": "2026-10-11T12:07:00+02:00",
+        "market": "ZA",
+        "text": "Pirates vs Sundowns cup final tonight and the whole street is already in black and white and yellow",
+        "engagement": {
+          "views": 244000,
+          "likes": 9760,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      },
+      {
+        "id": "x_c1",
+        "platform": "x",
+        "handle": "@psl_chatter",
+        "url": "https://example.test/x/x_c1",
+        "posted_at": "2026-10-10T12:07:00+02:00",
+        "market": "ZA",
+        "text": "Ticket queues for the Pirates vs Sundowns cup final wrapped around the stadium by noon",
+        "engagement": {
+          "views": 71000,
+          "likes": 2840,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      },
+      {
+        "id": "ig_c1",
+        "platform": "instagram",
+        "handle": "@matchday_mzansi",
+        "url": "https://example.test/instagram/ig_c1",
+        "posted_at": "2026-10-09T12:07:00+02:00",
+        "market": "ZA",
+        "text": "Pirates vs Sundowns cup final preview: whoever wins the midfield wins the trophy",
+        "engagement": {
+          "views": 58000,
+          "likes": 2320,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      },
+      {
+        "id": "yt_c1",
+        "platform": "youtube",
+        "handle": "@terrace_talk_za",
+        "url": "https://example.test/youtube/yt_c1",
+        "posted_at": "2026-10-08T12:07:00+02:00",
+        "market": "ZA",
+        "text": "Full reaction to the semi final and why the Pirates vs Sundowns cup final will not be quiet",
+        "engagement": {
+          "views": 83000,
+          "likes": 3320,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      },
+      {
+        "id": "x_t1",
+        "platform": "x",
+        "handle": "@court_roll_za",
+        "url": "https://example.test/x/x_t1",
+        "posted_at": "2026-10-10T12:07:00+02:00",
+        "market": "ZA",
+        "text": "The Forbes and Motsoane murder trial resumes on Monday and the public gallery is expected to fill early",
+        "engagement": {
+          "views": 39000,
+          "likes": 1560,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      },
+      {
+        "id": "tt_t1",
+        "platform": "tiktok",
+        "handle": "@law_explained_za",
+        "url": "https://example.test/tiktok/tt_t1",
+        "posted_at": "2026-10-09T12:07:00+02:00",
+        "market": "ZA",
+        "text": "What happens next in the Forbes and Motsoane murder trial, explained in sixty seconds",
+        "engagement": {
+          "views": 72000,
+          "likes": 2880,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      },
+      {
+        "id": "x_t2",
+        "platform": "x",
+        "handle": "@newsdesk_jozi",
+        "url": "https://example.test/x/x_t2",
+        "posted_at": "2026-10-07T12:07:00+02:00",
+        "market": "ZA",
+        "text": "Another day in court for the Forbes and Motsoane murder trial",
+        "engagement": {
+          "views": 21000,
+          "likes": 840,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      },
+      {
+        "id": "x_u2",
+        "platform": "x",
+        "handle": "@soweto_mama_speaks",
+        "url": "https://example.test/x/x_u2",
+        "posted_at": "2026-10-08T12:07:00+02:00",
+        "market": "ZA",
+        "text": "My street has had no bus since Tuesday, people just want the roads open again",
+        "engagement": {
+          "views": 27000,
+          "likes": 1080,
+          "comments": 3,
+          "shares": 1
+        },
+        "flags": []
+      }
+    ],
+    "so_what": [
+      {
+        "text": "A brand with a Soweto presence should pause scheduled posts near the affected routes and say nothing that reads as comment on the unrest.",
+        "claim_ids": [
+          "c1",
+          "c2",
+          "c3"
+        ]
+      },
+      {
+        "text": "A sports or drinks brand has a live, positive moment here: plan for the final whistle, not the build up, while attention is still climbing.",
+        "claim_ids": [
+          "c4",
+          "c5",
+          "c6"
+        ]
+      },
+      {
+        "text": "A brand should stay clear of the trial: it is an active murder case, not a place for brand content.",
+        "claim_ids": [
+          "c7"
+        ]
+      }
+    ],
+    "watch_next": [],
+    "gaps": [],
+    "context": ""
+  },
+  "run": {
+    "run_id": "r_20261011_080000_fixture",
+    "tier": "T1",
+    "mode": "live",
+    "credits": 0,
+    "tokens": {
+      "input": 161236,
+      "output": 9300
+    },
+    "seconds": 41.2,
+    "model_usd": 0.0,
+    "window": {
+      "from": "2026-10-05",
+      "to": "2026-10-11"
+    },
+    "posts": 100,
+    "platforms": 4,
+    "source_status": [
+      {
+        "platform": "tiktok",
+        "route": "tiktok/search",
+        "status": "ok",
+        "items": 74
+      },
+      {
+        "platform": "x",
+        "route": "twitter/search",
+        "status": "ok",
+        "items": 52
+      },
+      {
+        "platform": "instagram",
+        "route": "instagram/search",
+        "status": "ok",
+        "items": 31
+      },
+      {
+        "platform": "youtube",
+        "route": "youtube/search",
+        "status": "ok",
+        "items": 29
+      }
+    ],
+    "followups": [],
+    "notices": [],
+    "store": {
+      "posts": 14210,
+      "creators": 3320,
+      "platforms": 4
+    },
+    "briefing": {
+      "kind": "ranked_stories",
+      "ordered": true,
+      "stories": [
+        {
+          "rank": 1,
+          "name": "Soweto unrest",
+          "claim_ids": [
+            "c1",
+            "c2",
+            "c3"
+          ],
+          "size": {
+            "claim_id": "c1",
+            "figures": [
+              {
+                "unit": "posts",
+                "index": 0
+              },
+              {
+                "unit": "creators",
+                "index": 1
+              },
+              {
+                "unit": "platforms",
+                "index": 2
+              }
+            ]
+          },
+          "so_what": [
+            0
+          ]
+        },
+        {
+          "rank": 2,
+          "name": "Pirates vs Sundowns cup final",
+          "claim_ids": [
+            "c4",
+            "c5",
+            "c6"
+          ],
+          "size": {
+            "claim_id": "c4",
+            "figures": [
+              {
+                "unit": "posts",
+                "index": 0
+              },
+              {
+                "unit": "creators",
+                "index": 1
+              },
+              {
+                "unit": "platforms",
+                "index": 2
+              }
+            ]
+          },
+          "so_what": [
+            1
+          ]
+        },
+        {
+          "rank": 3,
+          "name": "Forbes and Motsoane murder trial",
+          "claim_ids": [
+            "c7"
+          ],
+          "size": {
+            "claim_id": "c7",
+            "figures": [
+              {
+                "unit": "posts",
+                "index": 0
+              },
+              {
+                "unit": "creators",
+                "index": 1
+              },
+              {
+                "unit": "platforms",
+                "index": 2
+              }
+            ]
+          },
+          "so_what": [
+            2
+          ]
+        }
+      ],
+      "other_claim_ids": [
+        "c8"
+      ]
+    }
+  },
+  "steps": [],
+  "error": null
+}

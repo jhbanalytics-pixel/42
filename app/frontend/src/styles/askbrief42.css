@@ -101,3 +101,34 @@ html .oi-product .ask42 .ask42-claims { border-top: 0; }
 @media (max-width: 639px) {
   html .oi-product .ask42 .ask42-claims > .ask42-finding { padding: var(--s-3) var(--s-4); }
 }
+
+/* The ranked briefing: one block per story. The rank and the name lead, the
+   figures sit under them each with its unit, then the lines the answer holds
+   for the story, one or two real posts and the line for a brand. The same flat
+   language as a finding card: hairline rules, the accent on the left edge. */
+.ask42-stories-wrap { display: grid; gap: var(--s-3); margin: 0 0 var(--s-6); }
+.ask42-stories-caption { margin: 0; max-width: var(--measure); }
+.ask42-stories { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-5); }
+.ask42-story { display: grid; gap: var(--s-3); min-width: 0; padding: var(--s-4) var(--s-5); background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); }
+.ask42-story-head { display: flex; align-items: baseline; gap: var(--s-3); min-width: 0; }
+.ask42-story-rank { flex: none; color: var(--accent); font-size: var(--type-6); font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.ask42-story-name { margin: 0; font-size: var(--type-signal-title); font-weight: 600; line-height: var(--leading-signal-title); overflow-wrap: anywhere; text-wrap: balance; }
+.ask42-story-figures { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-4); }
+.ask42-story-figure { display: inline-flex; align-items: baseline; gap: var(--s-1); color: var(--ink-2); font-size: var(--type-body); line-height: var(--leading-body); }
+.ask42-story-figure-value { color: var(--ink); font-size: var(--type-signal-title); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ask42-story-window { font-size: var(--type-meta); line-height: var(--leading-meta); }
+.ask42-story-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.ask42-story-item { display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: var(--s-4); align-items: start; }
+html .oi-product .ask42 .ask42-story-confidence { grid-column: 1; grid-row: 1; margin: 0; }
+html .oi-product .ask42 .ask42-story-line { grid-column: 2; grid-row: 1; margin: 0; max-width: var(--measure); font-family: var(--serif); font-size: var(--nd-t-read); line-height: 1.45; text-wrap: pretty; }
+.ask42-story-tiles { margin-top: var(--s-1); }
+.ask42-story-sowhat { display: grid; gap: var(--s-1); margin: var(--s-1) 0 0; padding-top: var(--s-3); border-top: 1px solid var(--line); max-width: var(--measure); }
+.ask42-story-sowhat-label { color: var(--muted); font-size: var(--type-meta); font-weight: 600; line-height: var(--leading-meta); }
+.ask42-story-sowhat-text { font-size: var(--type-body); line-height: var(--leading-body); text-wrap: pretty; }
+.ask42-across { margin: 0 0 var(--s-6); }
+@media (max-width: 639px) {
+  .ask42-story { padding: var(--s-3) var(--s-4); }
+  .ask42-story-figures { gap: var(--s-1) var(--s-3); }
+  .ask42-story-item { grid-template-columns: minmax(0, 1fr); row-gap: var(--s-1); }
+  html .oi-product .ask42 .ask42-story-line { grid-column: 1; grid-row: 2; }
+}
