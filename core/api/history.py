@@ -324,6 +324,36 @@ def _finding_market(row):
     return found if found in MARKETS else None
 
 
+def _without_gone_posts(finding, hidden, store):
+    """The finding with the posts a hidden person wrote left out, judged as an Ask record's are (privacy.evidence_gone):
+    by who wrote the stored post, whoever they were called when it was saved, and by the comment rule. A saved envelope
+    holds no creator id and no link, so a comment is judged by its address and the posts beside it. A claim that rested
+    on a post that is gone, and the answer text built from the claims, are replaced by the notices an Ask record shows.
+    The saved row is never changed. A list that cannot be read is left to without_hidden, which names no author; a
+    post lookup that fails leaves out every post."""
+    evidence = [e for e in finding.get("evidence") or [] if isinstance(e, dict)]
+    if not evidence or hidden is None or privacy.nothing_hidden(hidden):
+        return finding
+    try:
+        gone = privacy.evidence_gone(evidence, hidden, store)
+    except privacy.PeopleUnavailable:
+        gone = privacy.evidence_gone(evidence, None, store)
+    if not gone:
+        return finding
+    finding = dict(finding)
+    finding["evidence"] = [e for e in finding["evidence"] if not (isinstance(e, dict) and e.get("id") in gone)]
+    claims, withheld = [], False
+    for claim in finding.get("claims") or []:
+        if isinstance(claim, dict) and gone & set(claim.get("evidence_post_ids") or []):
+            claim = {**claim, "text": privacy.CLAIM_WITHHELD, "evidence_post_ids": []}
+            withheld = True
+        claims.append(claim)
+    finding["claims"] = claims
+    if withheld and isinstance(finding.get("answer"), str) and finding["answer"].strip():
+        finding["answer"] = privacy.SUMMARY_WITHHELD
+    return finding
+
+
 def build_history_findings(store, item_id=None, status=None, market=None):
     """market drops findings asked about another market; one with no recorded market stays in every market."""
     market = _market(market, optional=True)
@@ -366,4 +396,6 @@ def build_history_findings(store, item_id=None, status=None, market=None):
             ids = list(dict.fromkeys(pid for c in r.get("claims") or [] for pid in c.get("evidence_post_ids") or []))
             finding["evidence"] = [post_evidence(posts[pid], keep_flags=True) for pid in ids if pid in posts]
         out.append(finding)
-    return without_hidden({"findings": out, "note": None if checked else NOT_CHECKED}, privacy.read_hidden(store))
+    hidden = privacy.read_hidden(store)
+    out = [_without_gone_posts(f, hidden, store) for f in out]
+    return without_hidden({"findings": out, "note": None if checked else NOT_CHECKED}, hidden)
