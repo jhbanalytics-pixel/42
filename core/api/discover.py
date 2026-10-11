@@ -13,8 +13,9 @@ from core.api import alerts, fast
 from core.api.held_words import plain_reason
 from core.api.searching import searching_now
 from core.api.store import canon_platform, creator_key
-from core.api.today import (FLAG_WORDS, LABELS, MARKETS, PLATFORM_WORDS, SAST, STATE_WORDS, NotFound, NotReady, _card,
-                            _display_title, _platform_word, _series_name, _warmup, hidden_people, state_word, without_hidden)
+from core.api.today import (FLAG_WORDS, LABELS, MARKETS, MUSIC_PLATFORMS, PLATFORM_WORDS, SAST, STATE_WORDS, NotFound,
+                            NotReady, _card, _display_title, _platform_word, _series_name, _warmup, hidden_people,
+                            state_word, without_hidden)
 from core.trust import locality
 
 SORTS = ("order", "velocity", "reach", "new")
@@ -387,11 +388,22 @@ def _picked(value, what, known):
     return tuple(out)
 
 
+def _collected_platforms():
+    """The platforms the collectors write for some market (the music charts and the local boards), whether or not the
+    rows of the market asked for carry one: the page keeps a picked platform when the market tab changes, so Boomplay
+    picked on NG reaches ZA, where it matches nothing."""
+    from core.collect import local_sources
+
+    return {s.platform for s in local_sources.SCRAPE_SOURCES.values()} | set(MUSIC_PLATFORMS)
+
+
 def _filters(cards, state, platform):
-    """(states, platforms) the request names, checked against the states 42 words and the platforms it names or
-    has read in this run's rows."""
+    """(states, platforms) the request names, checked against the states 42 words and the platforms it names, the
+    collectors write or this run's rows carry. A platform 42 knows that no row here carries matches nothing; one it
+    does not know is a 400."""
     return (_picked(state, "state", set(STATE_WORDS) | {r["state"] for r, _, _ in cards if r.get("state")}),
-            _picked(platform, "platform", set(PLATFORM_WORDS) | {p for r, _, _ in cards for p in _platforms(r)}))
+            _picked(platform, "platform", set(PLATFORM_WORDS) | _collected_platforms()
+                    | {p for r, _, _ in cards for p in _platforms(r)}))
 
 
 def _matches(row, kind, states, platforms):

@@ -17,7 +17,7 @@ VIS_URL = "https://www.tiktok.com/@vis_handle/video/1"
 
 
 @pytest.mark.parametrize("linked", [True, False])
-def test_a_stored_step_that_names_the_old_handle_of_a_hidden_creator_is_not_in_the_export(api, linked):
+def test_a_stored_step_that_names_the_old_handle_of_a_hidden_creator_is_not_in_the_export(api, linked):  # noqa: F811
     record, remark = stored_record(linked)
     record["steps"] = [{"seq": 1, "text": OLD_STEP}, {"seq": 2, "text": "Reading 3 posts"}]
     api.store.hide = {"c_ren"}
