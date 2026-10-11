@@ -1,14 +1,17 @@
-"""A claim a dossier does not keep is stored without its words when the handles the source evidence reveals mask them
-further than the list alone does (release C review 4, finding 1).
+"""A claim a dossier does not keep is stored and shown without its words when they would name, or rest on, a hidden
+person (release C review 4, findings 1 and 2). Two gaps are pinned here.
 
 A claim whose words name the hidden creator's current handle as well as the old one was never learned, so a dossier
-stored it as written and showed the old handle the Ask read masks."""
+stored it as written and showed the old handle the Ask read masks. A claim not kept that rests on a hidden post kept its
+words, its verbatim quote and the post id, because a dossier holds only the evidence of the claims it keeps, so the
+hidden post was never among what the dossier could judge. And a dossier made before the hide shows those words again
+unless the read itself withholds a claim not kept whose evidence the dossier does not hold."""
 import json
 
-from core.api import agent_app, privacy
+from core.api import agent_app, dossiers, privacy
 from core.api.tests import test_privacy_ask_routes as routes
 from core.api.tests.test_privacy_ask_routes import ASK, hold
-from core.api.tests.test_privacy_projection import PrivStore, ask_record
+from core.api.tests.test_privacy_projection import P_HID1, P_REN1, P_VIS1, PrivStore, ask_record, ev
 
 world = routes.world
 OLD = "hid_old_handle"
@@ -103,3 +106,128 @@ def test_a_claim_whose_words_the_list_alone_masks_is_not_learned_and_the_read_sh
     learned = set()
     privacy.selectable_claims({"c1": claims["c1"]}, record["answer"]["evidence"], privacy.read_hidden(store), store, learned)
     assert learned == set()
+
+
+# Finding 2: a claim not kept that rests on a hidden post.
+def test_a_claim_not_kept_that_rests_on_a_hidden_post_is_stored_without_its_words_quote_and_post_id(world):
+    response, did = made(world, ask_record(), {"c_hid"})
+    ask = world.client.get(f"/api/ask/{ASK}").text
+    view = world.client.get(f"/api/dossiers/{did}")
+    stored = json.dumps(stored_of(did), default=str)
+    for needle in (HID_WORDS, P_HID1, "The hidden creator led"):
+        assert ask.count(needle) == 0
+        assert response.text.count(needle) == 0 and view.text.count(needle) == 0 and stored.count(needle) == 0
+    by = rows(view.json())
+    assert_withheld_in_full(by["c2"])
+    assert_withheld_in_full(by["c3"])
+    assert by["c1"]["kept"] is True and by["c1"]["quotes"][0]["text"] == "visible fixture words"
+
+
+def test_a_claim_not_kept_that_cites_the_renamed_creators_post_and_names_the_old_handle_is_stored_without_both(world):
+    record = ask_record()
+    record["answer"]["claims"][3].update(text=f"A renamed creator posted, @{OLD}",
+                                         quotes=[{"evidence_id": P_REN1, "text": REN_WORDS}])
+    response, did = made(world, record, {"c_ren"})
+    view = world.client.get(f"/api/dossiers/{did}")
+    stored = json.dumps(stored_of(did), default=str)
+    for needle in (OLD, REN_WORDS, P_REN1):
+        assert response.text.count(needle) == 0 and view.text.count(needle) == 0 and stored.count(needle) == 0
+    assert_withheld_in_full(rows(view.json())["c4"])
+
+
+def test_an_edit_made_while_somebody_is_hidden_stores_the_new_version_without_those_words(world):
+    world.store.hide = set()
+    hold(ask_record())
+    did = world.client.post("/api/dossiers", json={"from": {"ask_id": ASK}}).json()["dossier_id"]
+    world.store.hide = {"c_hid"}
+    edited = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "title": "Renamed", "from_version": 1})
+    assert edited.status_code == 200, edited.text
+    latest = stored_of(did)[-1]
+    text = json.dumps(latest, default=str)
+    for needle in (HID_WORDS, P_HID1, "The hidden creator led"):
+        assert text.count(needle) == 0 and edited.text.count(needle) == 0
+    assert_withheld_in_full({c["claim_id"]: c for c in latest["claims"]}["c2"])
+
+
+def test_a_claim_not_kept_whose_words_are_clean_is_stored_as_written(world):
+    _, did = made(world, ask_record(), {"c_hid"})
+    stored = {c["claim_id"]: c for c in stored_of(did)[0]["claims"]}
+    assert stored["c4"]["kept"] is True  # the renamed creator is not hidden here, so the default route keeps it
+    removed = world.client.put(f"/api/dossiers/{did}", json={"keep": ["c1"], "from_version": 1})
+    assert removed.status_code == 200
+    stored = {c["claim_id"]: c for c in stored_of(did)[-1]["claims"]}
+    assert stored["c4"]["kept"] is False and stored["c4"]["text"] == "A renamed creator posted"
+    assert stored["c4"]["evidence_ids"] == [P_REN1]
+
+
+def test_only_the_claims_that_rest_on_a_hidden_post_are_learned():
+    store = PrivStore(hide={"c_hid"})
+    record = ask_record()
+    claims = {c["id"]: c for c in record["answer"]["claims"]}
+    learned = set()
+    privacy.selectable_claims(claims, record["answer"]["evidence"], privacy.read_hidden(store), store, learned)
+    assert learned == {"c2", "c3"}
+
+
+def test_a_withheld_claim_is_stored_with_the_keys_of_any_other_claim(world):
+    _, did = made(world, ask_record(), {"c_hid"})
+    by = {c["claim_id"]: c for c in stored_of(did)[0]["claims"]}
+    assert set(by["c2"]) == set(by["c4"]) and "withheld" not in by["c2"]
+
+
+# A dossier made before the hide.
+def draft_before_the_hide(world, keep):
+    world.store.hide = set()
+    hold(ask_record())
+    did = world.client.post("/api/dossiers", json={"from": {"ask_id": ASK}}).json()["dossier_id"]
+    assert world.client.put(f"/api/dossiers/{did}", json={"keep": keep, "from_version": 1}).status_code == 200
+    return did
+
+
+def test_a_version_made_before_the_hide_withholds_a_claim_not_kept_that_rests_on_the_hidden_post(world):
+    did = draft_before_the_hide(world, ["c1"])
+    world.store.hide = {"c_hid"}
+    for path in (f"/api/dossiers/{did}", f"/api/dossiers/{did}/versions/2"):
+        view = world.client.get(path)
+        for needle in (HID_WORDS, P_HID1, "The hidden creator led"):
+            assert view.text.count(needle) == 0, (path, needle)
+        by = rows(view.json())
+        assert by["c2"]["withheld"] is True and by["c2"]["text"] == privacy.CLAIM_WITHHELD
+        assert by["c1"]["kept"] is True
+        assert view.json()["privacy"]["state"] == "applied"
+    stored = json.dumps(stored_of(did)[1], default=str)
+    assert stored.count(HID_WORDS) == 1  # the stored body is never rewritten by a read
+
+
+def test_a_claim_not_kept_that_cites_a_post_the_dossier_does_not_hold_is_withheld_while_somebody_is_hidden():
+    view = dossiers_view_with_removed_claims()
+    out = privacy.project_dossier(view, PrivStore(hide={"c_hid"}))
+    by = {c["claim_id"]: c for c in out["claims"]}
+    assert by["c2"]["withheld"] is True and by["c4"]["withheld"] is True
+    assert by["c1"]["kept"] is True and "withheld" not in by["c1"]
+    assert HID_WORDS not in json.dumps(out) and P_HID1 not in json.dumps(out)
+
+
+def test_a_claim_not_kept_that_cites_a_post_the_dossier_holds_or_none_is_shown_as_stored():
+    view = dossiers_view_with_removed_claims()
+    held = ev(P_VIS1, "vis_handle", "visible fixture words")
+    assert [e["id"] for e in view["evidence"]] == [P_VIS1]
+    view["claims"][1].update(evidence_ids=[P_VIS1], quotes=[], text="Not kept, cites a held visible post")
+    view["claims"][2].update(evidence_ids=[], quotes=[], text="Not kept, cites nothing")
+    out = privacy.project_dossier(view, PrivStore(hide={"c_hid"}))
+    by = {c["claim_id"]: c for c in out["claims"]}
+    assert by["c2"]["text"] == "Not kept, cites a held visible post" and "withheld" not in by["c2"]
+    assert by["c3"]["text"] == "Not kept, cites nothing" and "withheld" not in by["c3"]
+    assert held["id"] in json.dumps(out)
+
+
+def test_nobody_hidden_shows_a_claim_not_kept_as_stored():
+    view = dossiers_view_with_removed_claims()
+    assert privacy.project_dossier(view, PrivStore(hide=set())) == view
+
+
+def dossiers_view_with_removed_claims():
+    record = ask_record()
+    body = dossiers.build(record, {"keep": ["c1"], "title": "Amapiano", "notes": {}}, dossier_id="d_fixture2", version=1,
+                          created_at="2026-10-07T10:00:00+02:00", source={"ask_id": record["ask_id"]})
+    return {**body, "content_hash": dossiers.content_hash(body), "ticks": {}, "needs_tick": []}

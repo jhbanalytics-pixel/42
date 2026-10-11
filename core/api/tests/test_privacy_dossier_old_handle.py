@@ -89,13 +89,13 @@ def test_a_claim_with_no_old_handle_is_still_keepable_and_not_withheld():
     assert "c1" not in privacy.finding_blockers(record, store)[0]
 
 
-def test_a_claim_that_rests_on_a_hidden_post_is_not_counted_as_learned():
+def test_a_claim_that_rests_on_a_hidden_post_is_learned_so_a_dossier_that_does_not_keep_it_stores_no_words():
     store = routes.RouteStore(hide={"c_hid"})
     record = ask_record()
     claims = {c["id"]: c for c in record["answer"]["claims"]}
     learned = set()
     kept = privacy.selectable_claims({"c2": claims["c2"]}, record["answer"]["evidence"], privacy.read_hidden(store), store, learned)
-    assert kept == {"c2": False} and learned == set()
+    assert kept == {"c2": False} and learned == {"c2"}
 
 
 def test_a_question_that_names_the_old_handle_blocks_a_finding():

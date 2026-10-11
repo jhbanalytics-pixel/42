@@ -326,7 +326,7 @@ def test_a_dossier_keeps_its_slots_and_shows_a_withheld_claim_in_words_a25_a34()
     by = {c["claim_id"]: c for c in out["claims"]}
     assert list(by) == ["c1", "c2", "c3", "c4"] and by["c4"]["kept"] is False
     assert by["c1"]["text"] == "Amapiano posts rose" and by["c1"]["quotes"][0]["text"] == "visible fixture words"
-    for cid in ("c2", "c3"):
+    for cid in ("c2", "c3", "c4"):  # c4 is not kept and cites a post the dossier does not hold: withheld while anyone is hidden
         assert by[cid]["text"] == privacy.CLAIM_WITHHELD and by[cid]["withheld"] is True
         assert by[cid]["evidence_ids"] == [] and by[cid]["quotes"] == []
         assert by[cid]["label"] == body["claims"][int(cid[1]) - 1]["label"]  # the slot's facts stay
@@ -335,7 +335,7 @@ def test_a_dossier_keeps_its_slots_and_shows_a_withheld_claim_in_words_a25_a34()
     assert out["title"] == "Amapiano and ***" or "hid_handle" not in out["title"]
     assert out["ticks"]["c1"]["note"] != "checked @hid_handle" and "hid_handle" not in body_of(out["ticks"])
     assert "hid_handle" not in body_of(out) and P_HID1 not in body_of(out)
-    assert out["privacy"] == {"v": 1, "state": "applied", "withheld": {"posts": 1, "claims": 2, "summary": False}}
+    assert out["privacy"] == {"v": 1, "state": "applied", "withheld": {"posts": 1, "claims": 3, "summary": False}}
     assert out["content_hash"] == dossiers.content_hash(body)
     assert out["content_hash"] != dossiers.content_hash({k: v for k, v in out.items() if k not in
                                                          ("content_hash", "ticks", "needs_tick", "privacy")})
