@@ -158,6 +158,8 @@ def evidence_gone(evidence, hidden, store, creators=None, parents=()):
     if hidden is None:
         return {e.get("id") for e in records}
     keys, ids, _ = hidden
+    if not keys and not ids:  # nobody is hidden, so nothing can be gone, whatever links a comment to its post
+        return set()
     listed = {e.get("id") for e in records}
     earlier = [p for p in parents or () if isinstance(p, dict) and p.get("id") not in listed]
     gone, stored = set(), []
