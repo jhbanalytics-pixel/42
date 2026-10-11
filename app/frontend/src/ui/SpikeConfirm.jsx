@@ -29,6 +29,16 @@ export function CostConfirm({title, where, line, does, get, confirmWord, busy = 
   }, []);
   useFocusTrap(box);
 
+  /* The page behind holds still while the confirm is open, and gets its own
+     scroll back when it closes. */
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const page = [document.documentElement, document.body];
+    const before = page.map((node) => node.style.overflow);
+    page.forEach((node) => { node.style.overflow = 'hidden'; });
+    return () => page.forEach((node, index) => { node.style.overflow = before[index]; });
+  }, []);
+
   // While the ask is on its way the dialog stays open, so its answer is followed, not lost.
   const close = () => { if (!busy) onClose(); };
 
@@ -36,10 +46,16 @@ export function CostConfirm({title, where, line, does, get, confirmWord, busy = 
      inside the card, which keeps a transform while it rises, so the scrim
      covered the card and the title sat above the screen. The confirm renders
      on the route layer instead, which keeps no transform once its entrance
-     ends, so the backdrop covers the viewport from any opener. */
+     ends, so the backdrop covers the viewport from any opener. A portal still
+     passes React events up to the opener, and a Today card reads a click
+     that reaches it as a tap that opens the topic, so no click, key or press
+     inside the confirm travels past its backdrop. */
   const layer = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
   const sheet = (
-    <div className="w42-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
+    <div className="w42-backdrop"
+      onMouseDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) close(); }}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}>
       <div ref={box} className="w42-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}
         onKeyDown={(e) => { if (e.key === 'Escape'){ e.stopPropagation(); close(); } }}>
         <h2 id={titleId} className="w42-title">{title}</h2>
