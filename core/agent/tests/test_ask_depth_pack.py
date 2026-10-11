@@ -157,3 +157,13 @@ def test_a_comment_on_a_weak_post_stays_behind_the_strong_ones_and_an_orphan_com
     packed, _, _ = pack_ids(ctx)
     assert packed == ["strong", "other", "weak"]  # on_weak ties with its parent and comes after it
     assert "orphan" not in packed and "on_weak" not in packed
+
+
+def test_posts_read_counts_the_posts_the_writer_pack_kept_m5(monkeypatch):
+    from core.agent.tests.test_ask_depth_sweep import QUESTION, sweep_harness
+
+    monkeypatch.setattr(writer, "MAX_PACK_POSTS", 4)
+    out = sweep_harness().run(question=QUESTION)  # six researched posts and two the sweep stored
+    assert out["run"]["posts"] == 4  # four reached the writer; the other four were never read by a model
+    monkeypatch.setattr(writer, "MAX_PACK_POSTS", 300)
+    assert sweep_harness().run(question=QUESTION)["run"]["posts"] == 8

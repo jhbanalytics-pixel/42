@@ -10,7 +10,12 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def page():
+    """The fixture with c1 and c7 saying c2 again (same quoted posts and words, same figures and queries)."""
     record = json.loads((FIXTURES / "ask_comments_repeat.json").read_text(encoding="utf-8"))
+    claims = {c["id"]: c for c in record["answer"]["claims"]}
+    claims["c1"]["numbers"] = json.loads(json.dumps(claims["c2"]["numbers"]))
+    claims["c7"]["quotes"] = json.loads(json.dumps(claims["c2"]["quotes"]))
+    claims["c7"]["numbers"] = json.loads(json.dumps(claims["c2"]["numbers"]))
     return render_answer_html(record)
 
 
@@ -21,7 +26,7 @@ def text_of(markup):
 def test_comments_are_labelled_as_comments_on_the_post_and_link_to_it():
     markup = page()
     assert "Comment on @lerato_clips_22&#x27;s post (TikTok)" in markup
-    assert "ngwenya.tales&#x27;s post" not in markup  # its comments backed only a merged claim, so they are gone
+    assert markup.count("Comment on @ngwenya.tales&#x27;s post (TikTok)") == 2  # c3 is its own finding, it stays
     assert "<h3>[5] TikTok · pretty.zodwa</h3>" not in markup
     assert "TikTok · mkhize.lwazi" not in markup
     # the comment's link is the post's link
@@ -30,16 +35,19 @@ def test_comments_are_labelled_as_comments_on_the_post_and_link_to_it():
 
 def test_what_commenters_said_sits_apart_from_the_posts_in_the_finding():
     markup = page()
-    finding = re.search(r'<article class="finding">(?:(?!</article>).)*What commenters said.*?</article>', markup, re.S)
-    assert finding, "the commenters row belongs to the finding that cites the comments"
-    block = finding.group(0)
-    assert '<ul class="posts">' not in block  # commenters are not posts
-    assert "On <a" in block and "lerato_clips_22" in block
+    blocks = [m.group(0) for m in re.finditer(r'<article class="finding">(?:(?!</article>).)*?</article>', markup, re.S)
+              if "What commenters said" in m.group(0)]
+    assert blocks, "the commenters row belongs to the findings that cite the comments"
+    for block in blocks:  # commenters are not posts: a posts list comes first and the row is outside it
+        if '<ul class="posts">' in block:
+            assert block.index("</ul>", block.index('<ul class="posts">')) < block.index("What commenters said")
+    only = [block for block in blocks if '<ul class="posts">' not in block]
+    assert only and "On <a" in only[0] and "lerato_clips_22" in only[0]
 
 
 def test_the_scope_line_says_what_the_answer_rests_on_before_what_was_read():
     scope = re.search(r'<p class="scope">(.*?)</p>', page()).group(1)
-    assert scope == ("Answer based on 3 posts by 3 creators and 2 comments · 169 posts read on 8 platforms · "
+    assert scope == ("Answer based on 3 posts by 3 creators and 4 comments · 169 posts read on 8 platforms · "
                      "3 208 posts in the store for 4 to 10 October 2026")
 
 

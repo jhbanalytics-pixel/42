@@ -1322,7 +1322,7 @@ def apply_support(model: Model, answer: dict, ctx: RunContext,
                 continue
             items.append({**item, "claim_ids": left})
         answer[section] = items
-    still_cited = {eid for claim in kept for eid in claim.get("evidence_ids") or []}
+    still_cited = checks.cited_with_parents(kept, ctx.evidence)
     answer["evidence"] = [r for r in answer.get("evidence") or [] if r.get("id") in still_cited]
     removed_fields = []
     if narrowed and had_context and not answer.get("context"):

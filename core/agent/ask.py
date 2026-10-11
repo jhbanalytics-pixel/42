@@ -425,6 +425,7 @@ class Progress:
         self.market_label = market_label
         self.window = window
         self.sent: set[str] = set()
+        self.held_back: set[str] = set()  # evidence the code stored, kept out of the stream until a claim cites it
         self._lock = threading.RLock()  # T2 researchers report from their own threads
 
     def __call__(self, event: dict) -> None:
@@ -441,11 +442,27 @@ class Progress:
 
     def new_evidence(self, ctx: RunContext) -> list[dict]:
         with self._lock:
-            fresh = [r for eid, r in ctx.evidence.items() if eid not in self.sent]
+            fresh = [r for eid, r in ctx.evidence.items() if eid not in self.sent and eid not in self.held_back]
             for record in fresh:
                 self.sent.add(record["id"])
                 self._emit({"event": "evidence", "evidence": dict(record)})
         return fresh
+
+    def hold_back(self, ids) -> None:
+        """Keep these evidence ids out of the stream: posts the code stored (the topic sweep) that the model never
+        chose. One already sent stays sent. release() sends one when a claim cites it."""
+        with self._lock:
+            self.held_back |= set(ids) - self.sent
+
+    def release(self, ctx: RunContext, ids) -> None:
+        """Send the evidence events of the held back posts among ids, so a claim's event always follows the events of
+        the posts it cites and the privacy projection of a stream knows every post a claim rests on."""
+        with self._lock:
+            for eid in ids:
+                if isinstance(eid, str) and eid in self.held_back and eid in ctx.evidence:
+                    self.held_back.discard(eid)
+                    self.sent.add(eid)
+                    self._emit({"event": "evidence", "evidence": dict(ctx.evidence[eid])})
 
 
 def _dates_in(tool_input: dict, fallback: tuple[date, date]) -> tuple[date, date]:
@@ -529,7 +546,8 @@ def _describe(name: str, tool_input: dict, progress: Progress) -> tuple[str, str
 
 
 def _found(progress: Progress, ctx: RunContext) -> None:
-    fresh = _for_market(ctx, [r for eid, r in ctx.evidence.items() if eid not in progress.sent])
+    fresh = _for_market(ctx, [r for eid, r in ctx.evidence.items()
+                              if eid not in progress.sent and eid not in progress.held_back])
     if fresh:
         platforms = sorted({r.get("platform") for r in fresh if r.get("platform")})
         platform = platforms[0] if len(platforms) == 1 else None
@@ -546,17 +564,20 @@ ID_ECHO_TOOLS = ("get_comments", "get_transcript", "watch_video", "log_forecast"
 def listed_post_ids(ctx: RunContext) -> list[str]:
     """Post ids in the query rows the writer's pack shows that are not evidence yet, first seen first, at most
     MAX_POSTS. A post_id column counts whatever its values; another post_id-like column counts only obs1_ ids. An id a
-    fetch skipped as outside the window is left out, so a second gate does not fetch it again."""
+    fetch skipped as outside the window is left out, so a second gate does not fetch it again. A sweep query's own rows
+    list the posts it dropped (sweep_dropped_ids); those are not fetched on its account, but are on another query's."""
     ids = []
     skipped = {pid for query in list(ctx.queries.values()) for pid in query.get("skipped_ids") or ()}
     for query in list(ctx.queries.values()):
+        dropped = set(query.get("sweep_dropped_ids") or ())  # the sweep's rows it did not keep, for this query only
         for row in (query.get("rows") or [])[:ROWS_SHOWN]:
             for column, value in (row.items() if isinstance(row, dict) else ()):
                 if "post_id" not in str(column).lower():
                     continue
                 for pid in (value if isinstance(value, (list, tuple)) else [value]):
                     if (isinstance(pid, str) and (column == "post_id" or POST_ID.match(pid))
-                            and pid not in ctx.evidence and pid not in skipped and pid not in ids):
+                            and pid not in ctx.evidence and pid not in skipped and pid not in dropped
+                            and pid not in ids):
                         ids.append(pid)
     return ids[:MAX_POSTS]
 
@@ -1008,7 +1029,7 @@ def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[
     removed = {c["id"]: c for c in answer["claims"] if c.get("id") in cut}
     kept = [c for c in answer["claims"] if c.get("id") not in cut]
     answer["claims"] = kept
-    cited = {e for c in kept for e in c.get("evidence_ids") or []}
+    cited = checks.cited_with_parents(kept, ctx.evidence if ctx is not None else {})
     answer["evidence"] = [r for r in answer.get("evidence") or [] if r.get("id") in cited]
     for cid, claim in removed.items():
         pending = cut[cid]["reason"] == critic.ROW_REASON["pending"]
@@ -1791,7 +1812,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             "timings": timings.snapshot(elapsed),
             "model_usd": model_usd(),
             "window": {"from": window[0].isoformat(), "to": window[1].isoformat()},
-            "posts": len(read),
+            "posts": max(0, len(read) - int((getattr(ctx, "writer_pack_left_out", None) or {}).get("posts") or 0)),
             "platforms": len(platforms),
             "source_status": _source_status(ctx, client) if client is not None else [],
             "followups": followups,
@@ -1951,6 +1972,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         if deps.store_counts is not None and not store_ids and STORE_FAILED not in notices:
             timings.phase("store_count")
             progress.step("read", "Counting every stored post in the market and window, by platform, sound and hashtag")
+            before = set(ctx.evidence)
             try:
                 with timings.begin("io", "store_count"):
                     started_count, store_count = store_count, None
@@ -1961,6 +1983,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             except Exception as exc:
                 log.warning("ask store breadth failed: run %s: %s", run_id, type(exc).__name__)
                 notices.append(STORE_FAILED)
+            progress.hold_back(set(ctx.evidence) - before)  # the sweep's posts: streamed only if a claim cites one
         timings.phase("prepare")
         listed = listed_post_ids(ctx)
         if listed:
@@ -2312,6 +2335,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             for event in _claim_events(draft, answer, verdicts, support, ctx.evidence, ctx.queries):
                 if should_stop():
                     raise _StopRequested()
+                progress.release(ctx, event["claim"].get("evidence_ids") or [])
                 emit(event)
             if should_stop():
                 raise _StopRequested()

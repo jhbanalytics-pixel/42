@@ -174,9 +174,21 @@ def test_rows_the_sweep_did_not_keep_are_listed_as_skipped_so_the_gate_does_not_
     wh = SweepWarehouse(by_engagement=[make_row(f"p{i}") for i in range(6)])
     topic_sweep(ctx, wh, ["#humor"], platforms=None)
     assert len(ctx.evidence) == 2
-    skipped = {pid for q in sweep_queries(ctx).values() for pid in q.get("skipped_ids") or ()}
-    assert skipped == {f"p{i}" for i in range(6)} - set(ctx.evidence)
+    dropped = {pid for q in sweep_queries(ctx).values() for pid in q.get("sweep_dropped_ids") or ()}
+    assert dropped == {f"p{i}" for i in range(6)} - set(ctx.evidence)
+    assert not any(q.get("skipped_ids") for q in sweep_queries(ctx).values())  # in the window, so not "skipped"
     assert ask.listed_post_ids(ctx) == []
+
+
+def test_a_post_the_sweep_dropped_is_still_fetched_when_another_query_lists_it_m4(ctx, monkeypatch):
+    monkeypatch.setattr(wh_module, "SWEEP_KEEP", 2)
+    wh = SweepWarehouse(by_engagement=[make_row(f"p{i}") for i in range(6)])
+    topic_sweep(ctx, wh, ["#humor"], platforms=None)
+    dropped = sorted({pid for q in sweep_queries(ctx).values() for pid in q.get("sweep_dropped_ids") or ()})
+    assert len(dropped) == 4
+    ctx.queries["q_store"] = {"tool": "sql_query", "rows": [{"platform": "tiktok", "sample_post_id": dropped[0],
+                                                             "post_id": dropped[0]}]}
+    assert ask.listed_post_ids(ctx) == [dropped[0]]  # a store count listed it, so the gate fetches it, as before
 
 
 def test_one_failed_search_leaves_the_others_and_never_raises(ctx):

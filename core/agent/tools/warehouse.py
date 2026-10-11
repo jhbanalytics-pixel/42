@@ -1027,8 +1027,12 @@ def _topic_sweep(ctx: RunContext, warehouse: Warehouse, topic: list[str], platfo
     kept = {str(r["post_id"]) for r in chosen}
     for qid, rows in zip(query_ids, lists):
         ids = [str(r["post_id"]) for r in rows]
+        outside = {str(r["post_id"]) for r in rows if not _inside(r, window)}
         ctx.queries[qid]["skipped_outside_window"] = sum(1 for r in rows if not _inside(r, window))
-        ctx.queries[qid]["skipped_ids"] = [pid for pid in dict.fromkeys(ids) if pid not in kept]
+        ctx.queries[qid]["skipped_ids"] = [pid for pid in dict.fromkeys(ids) if pid not in kept and pid in outside]
+        # In the window but not among the posts kept: this query's own rows are not fetched for these, though another
+        # query that lists one still gets it fetched.
+        ctx.queries[qid]["sweep_dropped_ids"] = [pid for pid in dict.fromkeys(ids) if pid not in kept and pid not in outside]
     out["posts"] = len(chosen)
     return out
 

@@ -5,17 +5,26 @@ from pathlib import Path
 
 from core.api import agent_app
 from core.api.export import render_answer_html
+from core.api.tests import test_privacy_ask_routes as routes
+from core.api.tests.test_privacy_ask_routes import ASK, GOOD, remote_agent
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def stored():
-    return json.loads((FIXTURES / "ask_comments_repeat.json").read_text(encoding="utf-8"))
+    """The fixture with c1 and c7 saying c2 again (same quoted posts and words, same figures and queries). c3, c4 and
+    c6 are three creators' own posts and are not repeats."""
+    record = json.loads((FIXTURES / "ask_comments_repeat.json").read_text(encoding="utf-8"))
+    claims = {c["id"]: c for c in record["answer"]["claims"]}
+    claims["c1"]["numbers"] = json.loads(json.dumps(claims["c2"]["numbers"]))
+    claims["c7"]["quotes"] = json.loads(json.dumps(claims["c2"]["quotes"]))
+    claims["c7"]["numbers"] = json.loads(json.dumps(claims["c2"]["numbers"]))
+    return record
 
 
 def test_the_agent_reads_a_stored_answer_as_the_reader_view():
     shown = agent_app.readable(stored(), (set(), set(), {}))
-    assert [c["id"] for c in shown["answer"]["claims"]] == ["c2", "c5"]
+    assert [c["id"] for c in shown["answer"]["claims"]] == ["c2", "c3", "c4", "c5", "c6"]
     assert "tiktok/post/transcript" not in json.dumps(shown["answer"]["gaps"])
     assert shown["run"]["technical_gaps"]
 
@@ -35,3 +44,44 @@ def test_the_export_of_a_raw_stored_answer_is_the_same_view():
     assert "Why: error" not in page
     assert page.count("Every post tagged with #funnyclip") == 1
     assert "Posts featured the hashtags #funnyclip, #skits, and #laughs together" not in page
+
+
+# The API stored-record path (GET /api/ask/{id} when the agent no longer holds the Ask).
+api = routes.api  # the fixture of the privacy route tests
+
+
+def repeated():
+    record = stored()
+    record["ask_id"] = ASK
+    return record
+
+
+def test_the_api_reads_a_stored_answer_the_agent_does_not_hold_as_the_reader_view_i1(api):
+    api.store.records[ASK] = repeated()
+    body = api.serve(remote_agent({})).get(f"/api/ask/{ASK}", headers=GOOD).json()
+    assert [c["id"] for c in body["answer"]["claims"]] == ["c2", "c3", "c4", "c5", "c6"]
+    assert "tiktok/post/transcript" not in json.dumps(body["answer"]["gaps"])
+    assert any(g["searched"] == "tiktok/post/transcript" for g in body["run"]["technical_gaps"])
+
+
+def test_the_api_stored_path_and_the_agent_path_show_the_same_answer_i1(api):
+    api.store.records[ASK] = repeated()
+    from_store = api.serve(remote_agent({})).get(f"/api/ask/{ASK}", headers=GOOD).json()
+    held = agent_app.readable(repeated(), (set(), set(), {}))
+    from_agent = api.serve(remote_agent({}, held=held)).get(f"/api/ask/{ASK}", headers=GOOD).json()
+    assert from_store["answer"] == from_agent["answer"]
+    assert from_store["run"]["technical_gaps"] == from_agent["run"]["technical_gaps"]
+    assert from_store["run"]["followups"] == from_agent["run"]["followups"]
+
+
+def test_the_stored_record_is_not_changed_by_the_api_read_i1(api):
+    api.store.records[ASK] = repeated()
+    api.serve(remote_agent({})).get(f"/api/ask/{ASK}", headers=GOOD)
+    assert api.store.records[ASK] == repeated()
+
+
+def test_run_technical_gaps_is_a_named_run_key_m9():
+    assert "technical_gaps" in agent_app.RUN_KEYS
+    contract = (Path(__file__).resolve().parents[1] / "contract.md").read_text(encoding="utf-8")
+    ask_section = contract[contract.index("\n## 6. Ask"):contract.index("\n## 7.")]
+    assert "`run.technical_gaps`" in ask_section

@@ -34,7 +34,7 @@ OFFSETS = {"ZA": 2, "NG": 1, "KE": 3}
 EVENT_TYPES = ("step", "evidence", "claim")
 # The run object's keys (contract section 6); a failed ask keeps only these, and only as plain JSON.
 RUN_KEYS = ("run_id", "tier", "mode", "credits", "tokens", "seconds", "model_usd", "window",
-            "posts", "platforms", "source_status", "followups", "notices", "notice", "timings")
+            "posts", "platforms", "source_status", "followups", "notices", "notice", "timings", "technical_gaps")
 MAX_RUN_BYTES = 64_000
 
 
@@ -621,6 +621,7 @@ def follow(ask, after):
     people = skin_people(skin_id) if skin_id else None
     hidden = set()  # handles stripped from this stream's evidence, masked wherever they appear
     store, left_out, memo, said = privacy.LazyStore(get_store), set(), {}, False
+    named = set()  # handles a hidden person's posts carry, old ones too, masked wherever they appear in this stream
     fresh = privacy.FreshList(store)  # a list no older than 30 seconds while the run is in flight (R2)
     if people:
         with ask.cond:
@@ -633,10 +634,12 @@ def follow(ask, after):
                 ask.cond.wait(KEEPALIVE_SECONDS)
             new = ask.events[sent:]
             done = ask.done
+        privacy.place_chunk(new, fresh.get(), store, memo, named)  # who wrote this chunk's stored posts, in one lookup
         for kind, data in new:
-            shown = skins.mask_event(data, people["approved"], [], hidden) if people else data
             current = fresh.get()
-            shown_event = privacy.project_event(kind, shown, current, store, left_out, memo)
+            shown_event = privacy.project_event(kind, data, current, store, left_out, memo, named)  # before the skin strips handles
+            if shown_event is not None and people:
+                shown_event = skins.mask_event(shown_event, people["approved"], [], hidden)
             if shown_event is None and current is None and not said:
                 said = True  # one step says why no evidence or claim follows (5.5)
                 yield frame("step", {"seq": data["seq"], "text": privacy.UNAVAILABLE_NOTE})
@@ -1145,14 +1148,15 @@ def shown_record(record):
 
 
 def readable(record, hidden=privacy.READ, creators=None):
-    """An Ask record as a reader may see it now: the skin masks first (a skin report names only who it may), then the
-    list of hidden people read on this request, which wins over an approved account (C5 v2 5.2, R2). hidden is the
-    list when the request has already read it."""
+    """An Ask record as a reader may see it now: the list of hidden people read on this request first, which wins over
+    an approved account (C5 v2 5.2, R2), then the skin (a skin report names only who it may). The skin strips the
+    handle of every author it may not name, so a suppression row that names only a handle must be matched before it.
+    hidden is the list when the request has already read it."""
     from core.api.store import get_store
     # The typed summary state is read from the raw record first: privacy changes the answer it is bound to.
-    projected = privacy.project_record(shown_record(summary_state.with_wire(record)), privacy.LazyStore(get_store),
+    projected = privacy.project_record(summary_state.with_wire(record), privacy.LazyStore(get_store),
                                        hidden, creators=creators)
-    return answer_view.present(projected)  # comments, repeated claims and gaps in the reader's words (a copy)
+    return answer_view.present(shown_record(projected))  # comments, repeated claims and gaps in the reader's words (a copy)
 
 
 def people_unavailable():
