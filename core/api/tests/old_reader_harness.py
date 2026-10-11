@@ -372,21 +372,22 @@ def layer_problems(data):
     return {"layer 1": layer1_problems(rows), "layer 2": layer2, "layer 3": layer3, "layer 4": layer4}
 
 
-def build_receipt(candidate_commit, data):
+def build_receipt(candidate_commit, data, base_commit=ch.BASE_COMMIT):
     """old-reader-receipt.json (schema_version 1): both commits, the harness and corpus hashes, the counts, every problem of layers
     1 to 4 prefixed with its layer, and a verdict that is pass only with no problem. An empty corpus, no legacy rows, no JSON paths
     and a layer that read nothing are each a problem, so none of them can pass."""
     problems = [f"{layer}: {problem}" for layer, found in layer_problems(data).items() for problem in found]
     counts = {"corpus_rows": len(data["rows"]), "legacy_rows": len(data["legacy"]), "json_paths": len(data["paths"])}
-    return {"schema_version": 1, "base_commit": ch.BASE_COMMIT, "candidate_commit": candidate_commit,
+    return {"schema_version": 1, "base_commit": base_commit, "candidate_commit": candidate_commit,
             "harness_sha256": harness_sha256(), "corpus_sha256": corpus_sha256(data["rows"]), **counts,
             "problems": problems, "verdict": "pass" if not problems else "fail"}
 
 
-def collect(candidate_tree, log_dir):
-    """Run layers 1 to 4 on a candidate tree. Returns the data build_receipt reads; the tests build the same shape from their fixtures."""
+def collect(candidate_tree, log_dir, base_commit=ch.BASE_COMMIT):
+    """Run layers 1 to 4 on a candidate tree against the tree of base_commit. Returns the data build_receipt reads; the tests build the
+    same shape from their fixtures."""
     tmp = Path(log_dir)
-    base = ch.archive(ch.BASE_COMMIT, tmp / "base")
+    base = ch.archive(base_commit, tmp / "base")
     legacy = written_rows(base)
     rows, twin_of = corpus(written_rows(candidate_tree))
     with OldReader(base, tmp) as reader:
@@ -411,6 +412,8 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser(description="Write old-reader-receipt.json for the candidate worktree.")
     parser.add_argument("--receipt", required=True)
+    parser.add_argument("--base-commit", type=ch.commit_argument, default=ch.BASE_COMMIT,
+                        help="the previous release's commit; the default is Release A's a80be1d")
     args = parser.parse_args(argv)
     target = Path(args.receipt)
     if target.exists():
@@ -424,7 +427,7 @@ def main(argv=None):
         print(f"old-reader receipt: the tree differs from HEAD in {len(dirty)} file(s), first {dirty[0]}", file=sys.stderr)
         return 1
     with tempfile.TemporaryDirectory() as tmp:
-        receipt = build_receipt(ch.git_head(), collect(ROOT, tmp))
+        receipt = build_receipt(ch.git_head(), collect(ROOT, tmp, **ch.collect_arguments(args.base_commit)), base_commit=args.base_commit)
     with target.open("x", encoding="utf-8", newline="\n") as out:
         out.write(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
     print(f"old-reader verdict: {receipt['verdict']}")

@@ -22,6 +22,8 @@ from pathlib import Path
 import httpx
 
 ROOT = Path(__file__).resolve().parents[3]
+# The previous release. a80be1d was Release A's; a release whose rollback target is another release names that release's commit with
+# --base-commit (the commit of the prior-release record), and the receipt records the commit it was given.
 BASE_COMMIT = "a80be1d"
 PASSCODE = "compat-passcode"
 HEADERS = {"X-Passcode": PASSCODE}
@@ -426,22 +428,22 @@ def git_head():
     return subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
 
 
-def build_receipt(candidate_commit, routes, missing_routes, uncalled, runs, dead):
+def build_receipt(candidate_commit, routes, missing_routes, uncalled, runs, dead, base_commit=BASE_COMMIT):
     """compat-receipt.json (schema_version 1): both commits, the script and harness hash, the route diff, the new keys and the verdict."""
     problems = [f"{name}: {p}" for name, report in runs.items() for p in report["problems"]]
     problems += [f"route {method} {path} is not in the candidate agent route table" for method, path in sorted(missing_routes)]
     problems += [f"route {path} is not covered by the script" for path in uncalled]
     problems += [f"{p}" for p in dead]
-    return {"schema_version": 1, "base_commit": BASE_COMMIT, "candidate_commit": candidate_commit,
+    return {"schema_version": 1, "base_commit": base_commit, "candidate_commit": candidate_commit,
             "script_sha256": script_sha256(), "forwarded_routes": len(routes),
             "route_diff": {"missing_from_candidate": sorted(list(m) for m in missing_routes), "not_covered": uncalled},
             "new_keys": {name: sorted(set(report["new_keys"])) for name, report in runs.items()},
             "problems": problems, "verdict": "pass" if not problems else "fail"}
 
 
-def collect(candidate_tree, log_dir):
-    """Run the whole comparison. Returns the data the tests and the receipt both read."""
-    base = archive(BASE_COMMIT, Path(log_dir) / "base")
+def collect(candidate_tree, log_dir, base_commit=BASE_COMMIT):
+    """Run the whole comparison against the tree of base_commit. Returns the data the tests and the receipt both read."""
+    base = archive(base_commit, Path(log_dir) / "base")
     routes = forwarded_routes((base / "core/api/app.py").read_text(encoding="utf-8"))
     candidate_routes = agent_routes((Path(candidate_tree) / "core/api/agent_app.py").read_text(encoding="utf-8"))
     control, control_health = run_pair(base, base, log_dir)
@@ -465,19 +467,35 @@ def dead_agent_problems(dead):
     return [] if [(r["status"], r["shape"]) for r in left] == [(r["status"], r["shape"]) for r in right] and all(r["status"] == 502 for r in left)         else ["the 502 passthrough differs between the previous and the candidate API"]
 
 
+def commit_argument(text):
+    """A commit given on the command line: seven to forty lowercase hexadecimal characters, never a name git would resolve."""
+    import argparse
+
+    if not re.fullmatch(r"[0-9a-f]{7,40}", text):
+        raise argparse.ArgumentTypeError("not a commit (7 to 40 lowercase hexadecimal characters)")
+    return text
+
+
+def collect_arguments(base_commit):
+    """The default base is collected the way it always was; another base is passed by name."""
+    return {} if base_commit == BASE_COMMIT else {"base_commit": base_commit}
+
+
 def main(argv=None):
     import argparse
 
     parser = argparse.ArgumentParser(description="Write compat-receipt.json for the candidate worktree.")
     parser.add_argument("--receipt", required=True)
+    parser.add_argument("--base-commit", type=commit_argument, default=BASE_COMMIT,
+                        help="the previous release's commit; the default is Release A's a80be1d")
     args = parser.parse_args(argv)
     with tempfile.TemporaryDirectory() as tmp:
-        data = collect(ROOT, tmp)
+        data = collect(ROOT, tmp, **collect_arguments(args.base_commit))
         runs = {"previous API with candidate agent": compare_runs(data["control"], data["old_api"]),
                 "candidate API with candidate agent": compare_runs(data["control"], data["new_api"])}
         missing = data["routes"] - data["candidate_routes"]
         receipt = build_receipt(git_head(), data["routes"], missing, uncovered(data["routes"], data["control"]), runs,
-                                dead_agent_problems(data["dead"]))
+                                dead_agent_problems(data["dead"]), base_commit=args.base_commit)
     Path(args.receipt).write_text(json.dumps(receipt, indent=2, sort_keys=True) + chr(10), encoding="utf-8")
     print(f"compat verdict: {receipt['verdict']}")
     return 0 if receipt["verdict"] == "pass" else 1

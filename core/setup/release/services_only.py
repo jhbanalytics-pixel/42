@@ -175,10 +175,12 @@ def policy_public(policy):
                if b.get("role") == "roles/run.invoker" for m in b.get("members", []))
 
 
-def capture_baseline(reader, captured_utc):
+def capture_baseline(reader, captured_utc, prior=None):
     """The bound baseline receipt (kind baseline-A), read only, captured and hashed before review. It stores views,
     never raw descriptions, and the one literal the release must be able to restore: the serving API revision's
-    AGENT_URL, which must equal the agent's status.url or a rollback would not restore the canonical URL."""
+    AGENT_URL. Without a prior release record the live system is the a80 pair, and that literal must equal the agent's
+    status.url or a rollback would not restore the canonical URL. With a prior release record (validate_prior_release) the
+    record is the pin: live must be that release, and the literal is the one the record names, never one read from live."""
     services, canonical_urls, api_literal = {}, {}, None
     for name in SERVICES:
         raw = reader.service(name)
@@ -193,12 +195,136 @@ def capture_baseline(reader, captured_utc):
         services[name] = {"annotations": view["annotations"], "template": view["template"], "traffic": view["traffic"],
                           "revisions": sorted(reader.revisions(name)), "serving": revision_view(serving_raw)}
         canonical_urls[name] = view["url"]
-    require(isinstance(api_literal, str) and api_literal == canonical_urls["f42-agent"], "BASELINE",
-            "The serving API AGENT_URL is not the agent status.url")
-    return {"schema_version": SCHEMA_VERSION, "kind": "baseline-A", "captured_utc": captured_utc,
-            "canonical": canonical_urls, "api_agent_url_literal": api_literal, "services": services,
-            "jobs": {name: job_view(reader.job(name)) for name in JOB_NAMES},
-            "agent_policy_sha256": fingerprint(reader.policy())}
+    if prior is None:
+        require(isinstance(api_literal, str) and api_literal == canonical_urls["f42-agent"], "BASELINE",
+                "The serving API AGENT_URL is not the agent status.url")
+    baseline = {"schema_version": SCHEMA_VERSION, "kind": "baseline-A", "captured_utc": captured_utc,
+                "canonical": canonical_urls, "api_agent_url_literal": api_literal, "services": services,
+                "jobs": {name: job_view(reader.job(name)) for name in JOB_NAMES},
+                "agent_policy_sha256": fingerprint(reader.policy())}
+    if prior is not None:
+        problem = prior_baseline_problem(baseline, prior)
+        require(problem is None, "BASELINE", problem or "")
+    return baseline
+
+
+# the prior release: the release that is live when this one starts, and the one a rollback restores
+
+# The a80 pair is the prior release of Release A. It is the default when the bindings carry no record, so a release bound the way
+# Release A was bound behaves as it did: the canonical agent URL in the API, no audience variable, no tags, the e77c3819 jobs.
+A80_PRIOR = {"kind": "a80", "revisions": {"f42-agent": "f42-agent-00047-677", "f42-api": "f42-api-00041-lns"},
+             "jobs_digest_prefix": "sha256:e77c3819"}
+PRIOR_KEYS = frozenset({"schema_version", "kind", "release_id", "commit", "tag", "revisions", "image_digest", "tag_urls",
+                        "api_agent_url_literal", "agent_audience", "sources"})
+PRIOR_SOURCES = ("lock_sha256", "bindings_sha256", "manifest_sha256", "after_promotion_sha256")
+CANONICAL_URL = re.compile(r"https://[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)+\Z")
+JOB_IMAGE_DIGEST = re.compile(r"@(sha256:[0-9a-f]{64})\Z")
+
+
+def validate_prior_release(record, *, need_jobs):
+    """The shape of a prior-release record, and the ties inside it: the tag is the release id, the commit starts with the id, the
+    API names the agent tag URL of the release on the canonical audience. need_jobs: the record is the one bind wrote, which
+    holds the jobs image read from the fresh baseline; the file `packet prior-release` writes does not."""
+    require(isinstance(record, dict), "BINDINGS", "The prior release is not an object")
+    keys = set(record)
+    wanted = PRIOR_KEYS | ({"jobs_image_digest"} if need_jobs else set())
+    require(wanted <= keys <= PRIOR_KEYS | {"jobs_image_digest"}, "BINDINGS", "The prior release record has other keys than it should")
+    require(record["schema_version"] == SCHEMA_VERSION and not isinstance(record["schema_version"], bool), "BINDINGS",
+            "Unknown prior release schema_version")
+    require(record["kind"] == "prior-release", "BINDINGS", "The prior release record is of another kind")
+    rid = record["release_id"]
+    require(isinstance(rid, str) and RELEASE_ID.match(rid), "BINDINGS", "The prior release id is not rel-<sha7>-<nn>")
+    require(isinstance(record["commit"], str) and re.fullmatch(r"[0-9a-f]{40}", record["commit"]) and record["commit"][:7] == rid[4:11],
+            "BINDINGS", "The prior release commit is not the full commit its id names")
+    require(record["tag"] == rid, "BINDINGS", "The prior release tag is not its release id")
+    for key in ("revisions", "tag_urls"):
+        require(isinstance(record[key], dict) and set(record[key]) == set(SERVICES), "BINDINGS",
+                f"The prior release {key} do not name both services")
+    for name in SERVICES:
+        require(isinstance(record["revisions"][name], str) and re.fullmatch(re.escape(name) + r"-[a-z0-9-]+", record["revisions"][name]),
+                "BINDINGS", f"The prior release revision of {name} is not a revision of that service")
+    require(isinstance(record["image_digest"], str) and DIGEST.match(record["image_digest"]), "BINDINGS",
+            "The prior release image digest is not a sha256 digest")
+    audience = record["agent_audience"]
+    require(isinstance(audience, str) and CANONICAL_URL.match(audience), "BINDINGS", "The prior release audience is not a canonical URL")
+    require(record["tag_urls"]["f42-agent"] == tag_url(rid, audience), "BINDINGS",
+            "The prior release agent tag URL is not its release id on the audience host")
+    api_tag_url = record["tag_urls"]["f42-api"]
+    require(isinstance(api_tag_url, str) and re.fullmatch(re.escape("https://" + rid + "---") + r"[a-z0-9][a-z0-9.-]*", api_tag_url),
+            "BINDINGS", "The prior release API tag URL is not its release id on a host")
+    require(record["api_agent_url_literal"] == record["tag_urls"]["f42-agent"], "BINDINGS",
+            "The prior release API does not name its own agent tag URL")
+    sources = record["sources"]
+    require(isinstance(sources, dict) and set(sources) == set(PRIOR_SOURCES)
+            and all(isinstance(v, str) and re.fullmatch(r"[0-9a-f]{64}", v) for v in sources.values()), "BINDINGS",
+            "The prior release sources are not four sha256 hashes")
+    if "jobs_image_digest" in record:
+        require(isinstance(record["jobs_image_digest"], str) and DIGEST.match(record["jobs_image_digest"]), "BINDINGS",
+                "The prior release jobs image is not a sha256 digest")
+    return record
+
+
+def receipt_commits_problem(receipt, prior, release_commit):
+    """Why a compat or old-reader receipt was not made for this release against its prior release, or None. The expected commits are
+    the prior record's and the release's own, never the receipt's: its base must be the prior release commit (a short form of at
+    least seven characters or the full one) and its candidate the release commit."""
+    base = receipt.get("base_commit")
+    if not (isinstance(base, str) and re.fullmatch(r"[0-9a-f]{7,40}", base) and prior["commit"].startswith(base)):
+        return "was not made against the prior release commit"
+    if receipt.get("candidate_commit") != release_commit:
+        return "was not made at the release commit"
+    return None
+
+
+def prior_retained(record):
+    """What a release retains because of its prior release, derived from the record and never typed beside it: the prior tag on
+    the prior revision of each service, and the agent tag URL the prior API names."""
+    return ({name: {record["tag"]: record["revisions"][name]} for name in SERVICES}, [record["tag_urls"]["f42-agent"]])
+
+
+def prior_baseline_problem(baseline, prior):
+    """The first way the baseline is not the prior release, as a sentence that names a field and no value, or None. For the a80
+    pair: the serving revisions and the e77c3819 jobs. For a record: the serving revisions, their digest, the prior tag on each, the
+    API's agent URL and audience, and the fourteen jobs on one image by digest (the record's, once the record holds it)."""
+    if prior["kind"] == "a80":
+        for name, revision in prior["revisions"].items():
+            serving = baseline["services"][name]["serving"]["name"]
+            if serving != revision:
+                return f"Live is not a80be1d: {name} serves {serving}, not {revision}"
+        for name, view in baseline["jobs"].items():
+            if f"@{prior['jobs_digest_prefix']}" not in str(view.get("image")):
+                return f"The job {name} is not on the {prior['jobs_digest_prefix'].split(':')[1]} image"
+        return None
+    label = f"Live is not the prior release {prior['release_id']}"
+    for name in SERVICES:
+        service = baseline["services"][name]
+        serving = service["serving"]
+        if serving["name"] != prior["revisions"][name]:
+            return f"{label}: {name} serves {serving['name']}, not {prior['revisions'][name]}"
+        if serving["image_digest"] != f"{REPO}@{prior['image_digest']}":
+            return f"{label}: {name} serves another image digest"
+        if prior["tag_urls"][name] != tag_url(prior["tag"], baseline["canonical"][name]):
+            return f"{label}: the {name} tag URL is not the prior tag on its canonical host"
+        tagged = [e for e in service["traffic"]["status"] if e["tag"] == prior["tag"]]
+        if len(tagged) != 1 or tagged[0]["revision"] != prior["revisions"][name] or tagged[0]["url"] != prior["tag_urls"][name]:
+            return f"{label}: {name} does not hold the prior tag once, on the prior revision, at its tag URL"
+    if baseline["api_agent_url_literal"] != prior["api_agent_url_literal"]:
+        return f"{label}: the serving API AGENT_URL is not the agent tag URL of the prior release"
+    if prior["agent_audience"] != baseline["canonical"]["f42-agent"]:
+        return f"{label}: the prior audience is not the agent status.url"
+    if baseline["services"]["f42-api"]["serving"]["env"].get("AGENT_AUDIENCE") != literal(prior["agent_audience"]):
+        return f"{label}: the serving API audience is not the canonical agent URL"
+    digests = {}
+    for name, view in baseline["jobs"].items():
+        found = JOB_IMAGE_DIGEST.search(str(view.get("image")))
+        if not found:
+            return f"{label}: the job {name} does not run an image by digest"
+        digests[name] = found.group(1)
+    if len(set(digests.values())) != 1:
+        return f"{label}: the fourteen jobs do not run one image"
+    if "jobs_image_digest" in prior and set(digests.values()) != {prior["jobs_image_digest"]}:
+        return f"{label}: the jobs run another image than the record names"
+    return None
 
 
 # bindings, paths, Stage 1
@@ -271,7 +397,24 @@ def validate_bindings(bound):
     for key in PATH_KEYS:
         if key in bound:
             inside(root, bound[key])
+    if "releaseLetter" in bound:
+        require(isinstance(bound["releaseLetter"], str) and re.fullmatch(r"[A-Z]", bound["releaseLetter"]), "BINDINGS",
+                "The release letter is not one capital letter")
+    if "priorRelease" in bound:
+        validate_prior(bound)
     return root
+
+
+def validate_prior(bound):
+    """A release bound to a prior release other than a80: the record is well formed and holds the jobs image, the release is not the
+    prior release, the letter is named, and the tags and agent URLs the release retains are exactly the ones the record gives."""
+    record = validate_prior_release(bound["priorRelease"], need_jobs=True)
+    require("releaseLetter" in bound, "BINDINGS", "A release bound to a prior release names its release letter")
+    require(bound["release_id"] != record["release_id"] and bound["target"] != record["commit"], "BINDINGS",
+            "The release is the prior release")
+    tags, urls = prior_retained(record)
+    require(bound.get("retainedTags") == tags and bound.get("retainedAgentUrls") == urls, "BINDINGS",
+            "The retained tags and agent URLs are not the ones the prior release gives")
 
 
 def short12(bound):
@@ -337,13 +480,16 @@ def stage1(bound, baseline):
     rid = bound["release_id"]
     services = baseline["services"]
     prior = bound.get("priorAttempts", [])
+    if "priorRelease" in bound:
+        problem = prior_baseline_problem(baseline, bound["priorRelease"])
+        require(problem is None, "BASELINE", problem or "")
     candidates = {}
     for name in SERVICES:
         variants, removals = expected_env_variants(baseline, bound, name, rid)
         candidates[name] = {"revision": f"{name}-{rid}", "tag": rid, "tag_url": tag_url(rid, baseline["canonical"][name]),
                             "env_deltas": candidate_deltas(bound, baseline, name, rid),
                             "env_removals_declared_sha256": sorted(sha_text(n) for n in removals), "expected_env_sha256": fingerprint(variants[0])}
-    return {
+    derived = {
         "release_id": rid, "mode": "services-only",
         "source": {"commit": bound["target"], "tree": bound["tree"], "short7": bound["target"][:7], "short12": short12(bound)},
         "canonical": {"agent_url": baseline["canonical"]["f42-agent"], "api_url": baseline["canonical"]["f42-api"],
@@ -362,6 +508,9 @@ def stage1(bound, baseline):
         "durable": {"manifest_sha256": bound["durableManifestSha256"]},
         "smoke": {"expected_checks": bound["expectedSmokeChecks"]},
     }
+    if "priorRelease" in bound:
+        derived["prior_release"] = copy.deepcopy(bound["priorRelease"])
+    return derived
 
 
 STAGE1_KEYS = ("release_id", "mode", "source", "canonical", "candidates", "allowed_revisions", "rollback", "jobs",
@@ -386,6 +535,7 @@ class Release:
         self.bound, self.reader, self.sleep, self.evidence = bound, reader, sleep, evidence
         self._now = now
         self.rid = bound["release_id"]
+        self.prior = bound.get("priorRelease")
         self.baseline = load_bound_json(bound["baselinePath"], bound["baselineSha256"], "baseline")
         require(self.baseline.get("kind") == "baseline-A", "BASELINE", "The bound receipt is not a baseline")
         require(set(self.baseline["jobs"]) == set(JOB_NAMES), "BASELINE", "The baseline does not hold the fourteen jobs")
@@ -395,6 +545,11 @@ class Release:
 
     def now(self):
         return self._now() if callable(self._now) else (self._now or dt.datetime.now(dt.timezone.utc))
+
+    @property
+    def prior_word(self):
+        """How the readbacks name the revisions a rollback restores: a80 for the a80 pair, prior for a recorded prior release."""
+        return "a80" if self.prior is None else "prior"
 
     def path(self, key):
         return inside(self.root, self.bound[key]) if key in self.bound else self.root / PATH_KEYS[key]
@@ -414,7 +569,7 @@ class Release:
                 "MANIFEST_HASH", "The manifest sidecar does not hold the manifest hash")
         require(manifest_hash(manifest) == manifest.get("manifest_sha256"), "MANIFEST_HASH",
                 "The manifest hash does not match its content")
-        for key in STAGE1_KEYS:
+        for key in STAGE1_KEYS + (("prior_release",) if "priorRelease" in self.bound else ()):
             require(manifest.get(key) == self.stage1[key], "MANIFEST_STAGE1",
                     f"Manifest field {key} differs from the one re-derived from the bindings and the baseline")
         return manifest
@@ -506,15 +661,21 @@ def baseline_name(rel, service):
 
 
 def check_baseline_serving(rel, live, code):
-    """The a80 serving revisions equal the baseline, exactly, and the API revision keeps its canonical URL."""
+    """The serving revisions of the baseline equal the baseline, exactly. The a80 API revision keeps its canonical URL and has no
+    audience variable; the API revision of a recorded prior release keeps the agent tag URL and the audience the record names."""
+    word = rel.prior_word
     for name in SERVICES:
         view = live.revision(baseline_name(rel, name))
-        require(view is not None, code, f"The a80 revision of {name} is gone")
-        require(view == rel.baseline["services"][name]["serving"], code, f"The a80 revision of {name} differs from the baseline")
+        require(view is not None, code, f"The {word} revision of {name} is gone")
+        require(view == rel.baseline["services"][name]["serving"], code, f"The {word} revision of {name} differs from the baseline")
     api = live.revision(baseline_name(rel, "f42-api"))
     require(api["env"].get("AGENT_URL") == literal(rel.baseline["api_agent_url_literal"]), code,
-            "The a80 API revision AGENT_URL differs from the baseline literal")
-    require("AGENT_AUDIENCE" not in api["env"], code, "The a80 API revision carries an audience variable")
+            f"The {word} API revision AGENT_URL differs from the baseline literal")
+    if rel.prior is None:
+        require("AGENT_AUDIENCE" not in api["env"], code, "The a80 API revision carries an audience variable")
+    else:
+        require(api["env"].get("AGENT_AUDIENCE") == literal(rel.prior["agent_audience"]), code,
+                "The prior API revision audience differs from the record")
 
 
 def check_one_revision_at_100(rel, live, name, allowed):
@@ -541,6 +702,27 @@ def check_no_tag_or_candidate(rel, live):
                 require(e["tag"] in retained.get(name, {}), "TAG_MAPPING", f"{name} carries a tag that no ledger retains")
         extra = sorted(set(live.revision_names[name]) - set(rel.stage1["allowed_revisions"][name]))
         require(not extra, "UNRELATED_REVISION", f"{name} has revisions outside the allowed set: {len(extra)}")
+
+
+def retained_tag_problems(rel, live):
+    """The retained tags of a recorded prior release that are not as they were: gone, or moved off the prior revision or its tag
+    URL, as (service, tag) pairs. Nothing in a release moves or removes a tag it did not add (C4), and the prior API names the
+    agent tag URL, so a missing one would leave the prior release unable to reach its agent. A release bound to a80 has no record
+    and keeps no such judgment."""
+    if rel.prior is None:
+        return []
+    gone = []
+    for name in SERVICES:
+        for tag in rel.bound.get("retainedTags", {}).get(name, {}):
+            entries = live.tag_entries(name, tag)
+            if len(entries) != 1 or entries[0]["revision"] != rel.prior["revisions"][name] or entries[0]["url"] != rel.prior["tag_urls"][name]:
+                gone.append((name, tag))
+    return gone
+
+
+def check_retained_tags(rel, live):
+    gone = retained_tag_problems(rel, live)
+    require(not gone, "TAG_MAPPING", "A retained tag of the prior release is gone or moved: " + ", ".join(f"{n}:{t}" for n, t in gone))
 
 
 def check_template_baseline(rel, live):
@@ -573,6 +755,9 @@ def check_receipts(rel, manifest):
         receipt = json.loads(data.decode("utf-8"))
         require(receipt.get("schema_version") == SCHEMA_VERSION, "SCHEMA_VERSION", f"Unknown {key} receipt version")
         require(receipt.get("verdict") == "pass", code, f"The {key} receipt does not say pass")
+        if rel.prior is not None:
+            problem = receipt_commits_problem(receipt, rel.prior, rel.bound["target"])
+            require(problem is None, code, f"The {key} receipt {problem}")
 
 
 def check_tags(rel, live):
@@ -589,6 +774,7 @@ def check_tags(rel, live):
         for other in live.services[name]["traffic"]["status"] + live.services[name]["traffic"]["spec"]:
             if other["tag"] and other["tag"] != rel.rid:
                 require(other["tag"] in retained.get(name, {}), "TAG_MAPPING", f"{name} carries an unexpected tag")
+    check_retained_tags(rel, live)
 
 
 def check_revision_set(rel, live):
@@ -744,14 +930,19 @@ def pre_candidate(rel, phase, live):
     base = rel.baseline
     for name in SERVICES:
         require(live.services[name]["url"] == base["canonical"][name], "BASELINE", f"The {name} URL differs from the bound baseline")
-    require(base["api_agent_url_literal"] == base["canonical"]["f42-agent"], "BASELINE",
-            "The baseline API AGENT_URL is not the agent status.url, so a rollback would not restore the canonical URL")
+    if rel.prior is None:
+        require(base["api_agent_url_literal"] == base["canonical"]["f42-agent"], "BASELINE",
+                "The baseline API AGENT_URL is not the agent status.url, so a rollback would not restore the canonical URL")
+    else:
+        require(base["api_agent_url_literal"] == rel.prior["api_agent_url_literal"], "BASELINE",
+                "The baseline API AGENT_URL is not the agent tag URL of the prior release, so a rollback would not restore it")
     check_baseline_serving(rel, live, "BASELINE")
     for name in SERVICES:
         check_one_revision_at_100(rel, live, name, {baseline_name(rel, name)})
         if phase == "BeforeCandidate":
             check_no_latest(live, name)
     check_no_tag_or_candidate(rel, live)
+    check_retained_tags(rel, live)
     check_template_baseline(rel, live)
     check_policy_and_access(rel, live)
     check_anonymous(rel, base["canonical"]["f42-agent"])
@@ -912,7 +1103,7 @@ def rollback_states(rel, live):
     for name in SERVICES:
         cand = rel.stage1["candidates"][name]["revision"]
         revision = check_one_revision_at_100(rel, live, name, {baseline_name(rel, name), cand})
-        states[name] = "a80" if revision == baseline_name(rel, name) else "candidate"
+        states[name] = rel.prior_word if revision == baseline_name(rel, name) else "candidate"
         target = live.revision(baseline_name(rel, name))
         require(target is not None and target["image_digest"] == rel.baseline["services"][name]["serving"]["image_digest"],
                 "DIGEST", f"The rollback target of {name} is missing or has another digest")
@@ -927,6 +1118,9 @@ def phase_before_rollback(rel, phase, live, result):
     check_policy_and_access(rel, live, blocking=False)
     check_anonymous(rel, rel.baseline["canonical"]["f42-agent"], blocking=False)
     check_jobs(rel, blocking=False)
+    gone = retained_tag_problems(rel, live)
+    if gone:
+        rel.blocking["retained_tags"] = {"blocking": False, "missing": sorted(f"{n}:{t}" for n, t in gone)}
     result["state"] = f"agent {states['f42-agent']}, api {states['f42-api']}"
     result["tags"] = {n: bool(live.tag_entries(n, rel.rid)) for n in SERVICES}
     result["candidates_present"] = {n: rel.stage1["candidates"][n]["revision"] in live.revision_names[n] for n in SERVICES}
@@ -943,10 +1137,17 @@ def phase_after_rollback(rel, phase, live, result):
         require(view is not None and view["image_digest"] == base["services"][name]["serving"]["image_digest"], "DIGEST",
                 f"The serving digest of {name} is not the baseline digest")
     api = live.revision(baseline_name(rel, "f42-api"))
-    require(api["env"].get("AGENT_URL") == literal(base["api_agent_url_literal"]) and base["api_agent_url_literal"] == live.services["f42-agent"]["url"],
-            "ENV", "The serving API AGENT_URL is not the canonical agent URL")
-    require("AGENT_AUDIENCE" not in api["env"], "ENV", "The serving API still carries AGENT_AUDIENCE")
+    if rel.prior is None:
+        require(api["env"].get("AGENT_URL") == literal(base["api_agent_url_literal"]) and base["api_agent_url_literal"] == live.services["f42-agent"]["url"],
+                "ENV", "The serving API AGENT_URL is not the canonical agent URL")
+        require("AGENT_AUDIENCE" not in api["env"], "ENV", "The serving API still carries AGENT_AUDIENCE")
+    else:
+        require(api["env"].get("AGENT_URL") == literal(rel.prior["api_agent_url_literal"]), "ENV",
+                "The serving API AGENT_URL is not the agent tag URL of the prior release")
+        require(api["env"].get("AGENT_AUDIENCE") == literal(rel.prior["agent_audience"]) and rel.prior["agent_audience"] == live.services["f42-agent"]["url"],
+                "ENV", "The serving API audience is not the canonical agent URL")
     check_baseline_serving(rel, live, "PRESERVATION")
+    check_retained_tags(rel, live)
     check_policy_and_access(rel, live)
     check_anonymous(rel, base["canonical"]["f42-agent"])
     check_jobs(rel)
@@ -983,6 +1184,7 @@ def phase_after_retire(rel, phase, live, result):
     for name in SERVICES:
         require(not live.tag_entries(name, rel.rid), "TAG_MAPPING", f"{name} still holds the release tag")
         check_one_revision_at_100(rel, live, name, {baseline_name(rel, name), rel.stage1["candidates"][name]["revision"]})
+    check_retained_tags(rel, live)
     result["tags"] = {n: False for n in SERVICES}
     append_ledger(rel, "RETIRED", phase, live, None)
 

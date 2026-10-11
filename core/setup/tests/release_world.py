@@ -30,6 +30,16 @@ A80_REV = {"f42-agent": "f42-agent-00047-677", "f42-api": "f42-api-00041-lns"}
 OLDER_REV = {"f42-agent": "f42-agent-00046-wks", "f42-api": "f42-api-00040-cw5"}
 CAND_REV = {name: f"{name}-{RID}" for name in so.SERVICES}
 TAG_URL = {name: so.tag_url(RID, CANON[name]) for name in so.SERVICES}
+# Release A as it is live after its promotion (its own receipts: rel-3710c5e-01 at 100% on both services, tag kept, the API naming
+# A's agent tag URL with the canonical audience). A later release treats it as the prior release.
+A_COMMIT = "3710c5e593027212c96b4c896fa7fae8c9792cd5"
+A_RID = "rel-3710c5e-01"
+A_SHORT12 = A_COMMIT[:12]
+A_DIGEST = "sha256:ed9f4196cb156af15bbdc4a2a552b2d6550435925478c36a3ad6bf369a2a6083"
+A_REV = {name: f"{name}-{A_RID}" for name in so.SERVICES}
+A_TAG_URL = {name: so.tag_url(A_RID, CANON[name]) for name in so.SERVICES}
+# The jobs image once a jobs only release has moved the fourteen jobs off e77c3819.
+B_JOBS_DIGEST = "sha256:" + "b14a" + "0" * 60
 CALLER = "jhb.analytics@gmail.com"
 BUILD_SA = "projects/ogilvy-trends-v2/serviceAccounts/f42-deployer@ogilvy-trends-v2.iam.gserviceaccount.com"
 BUILD_ID = "9f00e5ce-3375-45fb-b557-c5b937acc59f"
@@ -86,11 +96,11 @@ def revision_raw(name, service, image, digest, env, annotations=None):
             "status": {"imageDigest": f"{REPO}@{digest}", "conditions": copy.deepcopy(READY)}}
 
 
-def job_raw(name):
+def job_raw(name, digest=JOBS_DIGEST):
     return {"metadata": {"name": name, "annotations": {}},
             "spec": {"template": {"spec": {"parallelism": 1, "taskCount": 1, "template": {
                 "metadata": {"annotations": {}},
-                "spec": {"containers": [{"image": f"{so.REGION}-docker.pkg.dev/{PROJECT}/intelligence-42/jobs@{JOBS_DIGEST}",
+                "spec": {"containers": [{"image": f"{so.REGION}-docker.pkg.dev/{PROJECT}/intelligence-42/jobs@{digest}",
                                          "command": ["python"], "args": ["-m", name], "env": env_entries({"F42_PROJECT": PROJECT, "S": SECRET}),
                                          "resources": {"limits": {"cpu": "1000m", "memory": "2Gi"}}}],
                          "serviceAccountName": "f42-jobs@ogilvy-trends-v2.iam.gserviceaccount.com", "timeoutSeconds": 3600,
@@ -100,8 +110,10 @@ def job_raw(name):
 class World:
     """The services, their revisions, the jobs and everything a Reader can ask about."""
 
-    def __init__(self, declared=()):
-        """declared: environment names f42-agent carries on every live revision (the ones a test declares removed)."""
+    def __init__(self, declared=(), after=None, jobs_digest=JOBS_DIGEST):
+        """declared: environment names f42-agent carries on every live revision (the ones a test declares removed).
+        after: "A" leaves the world as Release A leaves it. jobs_digest: the image the fourteen jobs run."""
+        self.base_rev = dict(A80_REV)
         self.svc, self.revisions, self.revision_names = {}, {}, {}
         for name, env in (("f42-agent", {**AGENT_ENV, **{n: PROJECT for n in declared}}), ("f42-api", API_ENV)):
             rev = A80_REV[name]
@@ -112,7 +124,7 @@ class World:
                               "env": copy.deepcopy(env), "traffic": [{"latestRevision": True, "percent": 100}],
                               "latest_created": rev, "latest_ready": rev, "sa": SA[name], "timeout": 3600,
                               "url": CANON[name]}
-        self.jobs = {name: job_raw(name) for name in so.JOB_NAMES}
+        self.jobs = {name: job_raw(name, jobs_digest) for name in so.JOB_NAMES}
         self.policy = copy.deepcopy(POLICY)
         self.config = {"core": {"account": CALLER, "project": PROJECT}}
         self.principals_ok = True
@@ -120,6 +132,17 @@ class World:
         self.source_sha = CONFIG_SHA
         self.anonymous = {}
         self.health = {url: [HEALTHY] for url in (CANON["f42-api"], TAG_URL["f42-api"])}
+        if after == "A":
+            self.become_release_a()
+
+    def become_release_a(self):
+        """Release A's candidates deployed and promoted, the agent first: both services serve A by name at 100% with A's tag kept, and the
+        API names A's agent tag URL with the canonical audience. The revisions the serving ones are pinned back to are now A's."""
+        for name in so.SERVICES:
+            self.deploy_candidate(name, rid=A_RID, digest=A_DIGEST, version=A_SHORT12)
+        for name in so.SERVICES:
+            self.promote(name, rid=A_RID)
+        self.base_rev = dict(A_REV)
 
     # description builders ------------------------------------------------------------------------------------------
     def service_raw(self, name):
@@ -145,12 +168,16 @@ class World:
     # mutators, the way the real commands change the world ------------------------------------------------------------
     def pin(self, name=None):
         for n in [name] if name else so.SERVICES:
-            self.svc[n]["traffic"] = [{"revisionName": A80_REV[n], "percent": 100}, *[e for e in self.svc[n]["traffic"] if e.get("tag")]]
+            base = self.base_rev[n]
+            tagged = [e for e in self.svc[n]["traffic"] if e.get("tag")]
+            kept = next((e for e in tagged if e.get("revisionName") == base), None)
+            self.svc[n]["traffic"] = [{"revisionName": base, "percent": 100, **({"tag": kept["tag"]} if kept else {})},
+                                      *[e for e in tagged if e is not kept]]
 
-    def deploy_candidate(self, name, *, env_override=None, remove_env=(), digest=CAND_DIGEST, rid=RID):
+    def deploy_candidate(self, name, *, env_override=None, remove_env=(), digest=CAND_DIGEST, rid=RID, version=SHORT12):
         st = self.svc[name]
         env = copy.deepcopy(st["env"])
-        env["F42_VERSION"] = SHORT12
+        env["F42_VERSION"] = version
         if name == "f42-api":
             env["AGENT_URL"] = so.tag_url(rid, CANON["f42-agent"])
             env["AGENT_AUDIENCE"] = CANON["f42-agent"]
@@ -164,19 +191,23 @@ class World:
         self.revision_names[name].append(rev)
 
     def promote(self, name, rid=RID):
+        """Traffic to the release's revision. A tag another release put there stays, at 0%, as Cloud Run keeps it."""
         rev = f"{name}-{rid}"
-        self.svc[name]["traffic"] = [{"revisionName": rev, "percent": 100, "tag": rid}]
+        others = [dict(e, percent=0) for e in self.svc[name]["traffic"] if e.get("tag") and e["tag"] != rid]
+        self.svc[name]["traffic"] = [{"revisionName": rev, "percent": 100, "tag": rid}, *others]
 
     def restore(self, name, keep_tag=True):
+        base = self.base_rev[name]
         tags = [e for e in self.svc[name]["traffic"] if e.get("tag") and keep_tag]
-        self.svc[name]["traffic"] = [{"revisionName": A80_REV[name], "percent": 100},
-                                     *[{**e, "percent": 0} for e in tags if e["revisionName"] != A80_REV[name]]]
+        kept = next((e for e in tags if e["revisionName"] == base), None)
+        self.svc[name]["traffic"] = [{"revisionName": base, "percent": 100, **({"tag": kept["tag"]} if kept else {})},
+                                     *[{**e, "percent": 0} for e in tags if e["revisionName"] != base]]
 
     def remove_tag(self, name, tag=RID):
         st = self.svc[name]
         st["traffic"] = [e for e in st["traffic"] if e.get("tag") != tag]
         if not any(e.get("percent") for e in st["traffic"]):
-            st["traffic"].insert(0, {"revisionName": A80_REV[name], "percent": 100})
+            st["traffic"].insert(0, {"revisionName": self.base_rev[name], "percent": 100})
 
     def set_env(self, revision, name, value):
         for entry in self.revisions[revision]["spec"]["containers"][0]["env"]:
@@ -257,6 +288,30 @@ class FakeReader:
         return {"verified_principals_match": True}
 
 
+def prior_record_a(*, jobs_digest=B_JOBS_DIGEST):
+    """The prior-release record of Release A as `packet prior-release` derives it from A's own files, with the jobs image bind adds
+    from the fresh baseline (None leaves it out, as the file the command writes does)."""
+    record = {"schema_version": 1, "kind": "prior-release", "release_id": A_RID, "commit": A_COMMIT, "tag": A_RID,
+              "revisions": dict(A_REV), "image_digest": A_DIGEST, "tag_urls": dict(A_TAG_URL),
+              "api_agent_url_literal": A_TAG_URL["f42-agent"], "agent_audience": CANON["f42-agent"],
+              "sources": {"lock_sha256": "11" * 32, "bindings_sha256": "22" * 32, "manifest_sha256": "33" * 32,
+                          "after_promotion_sha256": "44" * 32}}
+    if jobs_digest:
+        record["jobs_image_digest"] = jobs_digest
+    return record
+
+
+def jobs_image_digest(world):
+    """The digest the first of the fourteen jobs runs: what a fresh baseline reads and bind records."""
+    image = world.jobs[so.JOB_NAMES[0]]["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]["image"]
+    return image.rsplit("@", 1)[1]
+
+
+def retained_for(record):
+    """What bind writes for a prior release: its tag on its revision, per service, and its agent tag URL."""
+    return ({name: {record["tag"]: record["revisions"][name]} for name in so.SERVICES}, [record["tag_urls"]["f42-agent"]])
+
+
 def write_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -270,9 +325,12 @@ class Scenario:
     ORDER = ("BeforeAnyWrite", "Freeze", "BeforeCandidate", "BeforeSmoke", "AfterSmoke", "BeforePromotion",
              "AfterAgentPromotion", "AfterPromotion")
 
-    def __init__(self, tmp_path, *, bound_over=None, world=None, prior=None, release_id=RID, retained=None, baseline_from=None):
+    def __init__(self, tmp_path, *, bound_over=None, world=None, prior=None, release_id=RID, retained=None, baseline_from=None, after=None):
+        """after: "A" makes Release A the prior release: the world is A's live state, the jobs run another image than e77c3819, and the
+        bindings carry A's record, the tags to retain and the agent tag URLs to retain."""
         self.tmp = Path(tmp_path)
-        self.world = world or World()
+        self.world = world or (World(after="A", jobs_digest=B_JOBS_DIGEST) if after == "A" else World())
+        self.prior_release = prior_record_a(jobs_digest=jobs_image_digest(self.world)) if after == "A" else None
         self.reader = FakeReader(self.world)
         self.rid = release_id
         self.release_dir = self.tmp / "releases" / release_id
@@ -280,13 +338,15 @@ class Scenario:
         self.evidence.mkdir(parents=True, exist_ok=True)
         self.release_dir.mkdir(parents=True, exist_ok=True)
         if baseline_from is None:
-            baseline = so.capture_baseline(self.reader, "2026-10-08T10:00:00+00:00")
+            baseline = so.capture_baseline(self.reader, "2026-10-08T10:00:00+00:00",
+                                           **({"prior": self.prior_release} if self.prior_release else {}))
             baseline_sha = write_json(self.tmp / "baseline" / "baseline-A.json", baseline)
             self.baseline_path = self.tmp / "baseline" / "baseline-A.json"
         else:
             self.baseline_path, baseline_sha = baseline_from.baseline_path, baseline_from.bound["baselineSha256"]
-        compat = write_json(self.release_dir / "compat-receipt.json", {"schema_version": 1, "verdict": "pass"})
-        old = write_json(self.release_dir / "old-reader-receipt.json", {"schema_version": 1, "verdict": "pass"})
+        commits = {"base_commit": A_SHORT12[:7], "candidate_commit": COMMIT} if after == "A" else {}
+        compat = write_json(self.release_dir / "compat-receipt.json", {"schema_version": 1, "verdict": "pass", **commits})
+        old = write_json(self.release_dir / "old-reader-receipt.json", {"schema_version": 1, "verdict": "pass", **commits})
         self.sleeps = []
         self.now = dt.datetime(2026, 10, 9, 8, 0, tzinfo=dt.timezone.utc)
         agent = CANON["f42-agent"]
@@ -304,6 +364,9 @@ class Scenario:
             self.bound["priorAttempts"] = prior
         if retained:
             self.bound["retainedTags"] = retained
+        if self.prior_release:
+            tags, urls = retained_for(self.prior_release)
+            self.bound.update(priorRelease=copy.deepcopy(self.prior_release), retainedTags=tags, retainedAgentUrls=urls, releaseLetter="C")
         self.bound.update(bound_over or {})
 
     # running -----------------------------------------------------------------------------------------------------------

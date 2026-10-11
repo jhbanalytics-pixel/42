@@ -1,9 +1,12 @@
 """The command line that produces the files a services-only release packet is made of (packet flag F6).
 
+    py -3.13 -m core.setup.release.packet prior-release --prior-lock <file> --prior-packet-dir <dir> --out <file>
     py -3.13 -m core.setup.release.packet capture-baseline --out <file> --gcloud-timeout-seconds <n>
+        [--prior-release <file> [--expect-jobs-digest <sha256:...>]]
     py -3.13 -m core.setup.release.packet bind    --repo <checkout> --release-commit <40 hex> --attempt <nn> --packet-dir <dir>
         --baseline <file> --durable-manifest <file> --caller-account <email> --gcloud-timeout-seconds <n>
         --http-timeout-seconds <n> --max-smoke-age-minutes <n> --inflight-asks-bytes-cap <n>
+        [--prior-release <file> --release-letter <A-Z> [--expect-jobs-digest <sha256:...>]]
     py -3.13 -m core.setup.release.packet lock    --repo <checkout> --packet-dir <dir> [--lock-dir <dir>]
     py -3.13 -m core.setup.release.packet review  --repo <checkout> --packet-dir <dir> --verdict ACCEPT|REJECT [--lock-dir <dir>]
     py -3.13 -m core.setup.release.packet receipt --repo <checkout> --packet-dir <dir> --authorisation-line-file <file>
@@ -15,8 +18,11 @@ release directory, so it holds live-bindings.json, independent-review.json, exec
 release paste looks for by name (compat-receipt.json, old-reader-receipt.json).
 
 capture-baseline reads the live system through GcloudReader, which refuses every gcloud command outside bound_readback.READ_PREFIXES,
-and it refuses to write a baseline unless live is the a80 pair on the e77c3819 jobs image. Nothing here prints or stores an
-environment value, and a refusal names a field, never a value.
+and it refuses to write a baseline unless live is the prior release. The prior release is the a80 pair on the e77c3819 jobs image
+unless the command is given a prior-release record, which `prior-release` derives from the prior release's own lock and packet: then
+live must be that release, and the jobs image is whatever the fresh baseline reads (one image by digest on all fourteen jobs, which
+the lead may pin with --expect-jobs-digest). Nothing here prints or stores an environment value, and a refusal names a field, never
+a value.
 
 Values are taken from where they are proven, not from the caller: the target and tree from git, the hashes from the bytes on disk,
 the smoke check count from smoke.py by AST, the build config hash from the commit, the in-flight query hash from the checker, the
@@ -28,11 +34,16 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import io
 import json
+import math
 import os
 import re
 import subprocess
 import sys
+import tarfile
+import tempfile
+from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 
 if __package__ in (None, ""):
@@ -53,23 +64,81 @@ OLD_READER_FILE = "old-reader-receipt.json"
 PASTE = "core/setup/release/SERVICES-PASTE.ps1"
 BUILD_CONFIG = "core/api/cloudbuild.yaml"
 STATUS = "BOUND_FOR_INDEPENDENT_REVIEW"
-# Live must be a80be1d before a release is bound to it (C2 v2.1 section 3.4): the serving revisions, and the jobs image (W8-REL-B v2.1 FB-5).
-A80_SERVING = {"f42-agent": "f42-agent-00047-677", "f42-api": "f42-api-00041-lns"}
-A80_JOBS_DIGEST_PREFIX = "sha256:e77c3819"
-# The sentence Albert types to authorise the one paid Ask (RELEASE-A-PACKET section 5), with the release id as the one place that varies.
-# What he types must equal it after whitespace is normalised, figures included: a line that holds every clause and adds a refusal does not.
-# The hold ceiling is not typed into this file: hold_ceiling() takes it from the code that holds it (Ask's hold_usd for T1).
-AUTHORISATION_TEMPLATE = (
-    "RELEASE A {release_id}: I authorise exactly one live T1 Ask, market ZA, against the candidate API tag URL only, at most 60 search "
-    "credits and a USD 2.00 research budget, with a model hold ceiling of USD {hold}, no second Ask and no retry. The window is quiet and "
+# The a80 pair, which the services tool holds as its default prior release (services_only.A80_PRIOR). Release B's capture-baseline-j reads
+# the revisions to hold an A that was rolled back to, and the jobs image prefix, from these names.
+A80_SERVING = dict(so.A80_PRIOR["revisions"])
+A80_JOBS_DIGEST_PREFIX = so.A80_PRIOR["jobs_digest_prefix"]
+MANIFEST_FILE = "release-manifest.json"
+SIDECAR_FILE = "release-manifest.sha256"
+LEDGER_FILE = "tag-ledger.json"
+# The sentence Albert types to authorise the one paid Ask (RELEASE-A-PACKET section 5), with the release letter and the release id as the
+# two places that vary. What he types must equal it after whitespace is normalised, figures included: a line that holds every clause and
+# adds a refusal does not. The letter is the one in the bindings the lock hashes (Release A, which has none, is A). The hold ceiling is
+# not typed into this file: hold_ceiling() takes it from the code that holds it (Ask's hold_usd for T1).
+_AUTHORISATION = (
+    "RELEASE {letter} {{release_id}}: I authorise exactly one live T1 Ask, market ZA, against the candidate API tag URL only, at most 60 search "
+    "credits and a USD 2.00 research budget, with a model hold ceiling of USD {{hold}}, no second Ask and no retry. The window is quiet and "
     "I will start no manual job until the execution ends. I will type DEPLOY, IDLE and the passcode myself.")
 
 
-def hold_ceiling():
-    """The model hold ceiling for one T1 Ask as the line shows it: the code's own hold, to the cent."""
-    from core.agent import ask
+def authorisation_template(letter="A"):
+    if not (isinstance(letter, str) and re.fullmatch(r"[A-Z]", letter)):
+        raise Refused("The release letter must be one capital letter")
+    return _AUTHORISATION.format(letter=letter)
 
-    return f"{ask.hold_usd('T1', ask.MODEL):.2f}"
+
+AUTHORISATION_TEMPLATE = authorisation_template("A")
+
+
+def cents_up(value):
+    """A dollar figure raised to the next cent and never lowered, as text. The figure is first held to six places so that float noise on a
+    figure that is a cent already (4.9200000000000017) is not read as a fraction of one."""
+    return str(Decimal(f"{float(value):.6f}").quantize(Decimal("0.01"), rounding=ROUND_CEILING))
+
+
+# Run in a child with the tree of the bound commit first on the path (-I: no PYTHONPATH, no working directory, no user site).
+HOLD_PROGRAM = ("import sys; sys.path.insert(0, sys.argv[1]); from core.agent import ask; "
+                "sys.stdout.write(repr(ask.hold_usd('T1', ask.MODEL)))")
+
+
+def bound_hold(repo, commit):
+    """The T1 hold of the code at `commit` of the repository, as a float: `core/` of that commit is extracted from git to a scratch folder
+    and `ask` imported from there in a child process, so neither the checkout running this tool nor a change to the working tree of
+    `repo` after the commit decides it."""
+    program = git_program()
+    try:
+        archive = subprocess.run([program, "archive", "--format=tar", commit, "core"], cwd=repo, capture_output=True, timeout=120,
+                                 stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired):
+        raise Refused("git could not be run in the checkout") from None
+    if archive.returncode != 0:
+        raise Refused("The bound commit is not in the repository")
+    with tempfile.TemporaryDirectory() as tree:
+        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as bundle:
+            bundle.extractall(tree, filter="data")
+        try:
+            done = subprocess.run([sys.executable, "-I", "-B", "-c", HOLD_PROGRAM, tree], cwd=tree, capture_output=True, encoding="utf-8",
+                                  timeout=120, stdin=subprocess.DEVNULL)
+        except (OSError, subprocess.TimeoutExpired):
+            raise Refused("The hold of the bound commit could not be read") from None
+    try:
+        value = float(done.stdout.strip())
+    except ValueError:
+        value = float("nan")
+    if done.returncode != 0 or not math.isfinite(value) or value <= 0:
+        raise Refused("The bound commit gives no usable model hold for one T1 Ask")
+    return value
+
+
+def hold_ceiling(repo=None, commit=None):
+    """The model hold ceiling for one T1 Ask as the line shows it: the hold of the code, raised to the cent. With a repository and a commit
+    it is the hold of that commit (bound_hold); the receipt command always gives both. Without them it is the code of the checkout that
+    runs this module, which only a test has a use for."""
+    if repo is None:
+        from core.agent import ask
+
+        return cents_up(ask.hold_usd("T1", ask.MODEL))
+    return cents_up(bound_hold(repo, commit))
 
 
 # A later attempt needs the earlier attempts and their ledgers cited by hash, which bind does not carry yet.
@@ -217,23 +286,135 @@ def baseline_reader(gcloud_timeout):
     return helper.GcloudReader({"gcloud": gcloud_timeout, "http": gcloud_timeout})
 
 
-def check_a80(baseline):
-    for name, revision in A80_SERVING.items():
-        serving = baseline["services"][name]["serving"]["name"]
-        if serving != revision:
-            raise Refused(f"Live is not a80be1d: {name} serves {serving}, not {revision}")
-    for name, view in baseline["jobs"].items():
-        if f"@{A80_JOBS_DIGEST_PREFIX}" not in str(view.get("image")):
-            raise Refused(f"The job {name} is not on the e77c3819 image")
+def load_prior_record(path):
+    """The prior-release record in a file (the one `prior-release` wrote), checked for shape. It is the pin: live is judged against it."""
+    record = read_json(path, "the prior release record")
+    try:
+        so.validate_prior_release(record, need_jobs=False)
+    except so.Stop as error:
+        raise Refused(f"The prior release record is not accepted: {error.message}") from None
+    return record
+
+
+def baseline_jobs_digest(baseline):
+    """The one image all fourteen jobs run, by digest, as the baseline holds it, or None when they do not run one."""
+    found = [so.JOB_IMAGE_DIGEST.search(str(view.get("image"))) for view in baseline["jobs"].values()]
+    digests = {m.group(1) for m in found if m}
+    return digests.pop() if len(digests) == 1 and all(found) else None
+
+
+def check_prior(baseline, prior=None, expect_jobs=None):
+    """Live, as the baseline holds it, is the prior release: the a80 pair when there is no record, else the record. The jobs digest the
+    lead may name is a pin the baseline is judged against; without one it is whatever the fresh baseline read."""
+    problem = so.prior_baseline_problem(baseline, prior or so.A80_PRIOR)
+    if problem:
+        raise Refused(problem)
+    if expect_jobs is not None:
+        if prior is None:
+            raise Refused("--expect-jobs-digest needs a prior release record")
+        if baseline_jobs_digest(baseline) != expect_jobs:
+            raise Refused("The jobs do not run the image the lead named")
+
+
+def jobs_digest_argument(text):
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", text):
+        raise argparse.ArgumentTypeError("not a sha256 digest")
+    return text
 
 
 def cmd_capture_baseline(args):
     out = Path(args.out)
     refuse_existing(out)
+    prior = load_prior_record(args.prior_release) if args.prior_release else None
+    if args.expect_jobs_digest is not None and prior is None:
+        raise Refused("--expect-jobs-digest needs a prior release record")
     now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
-    baseline = so.capture_baseline(baseline_reader(args.gcloud_timeout_seconds), now)
-    check_a80(baseline)
+    baseline = so.capture_baseline(baseline_reader(args.gcloud_timeout_seconds), now, prior)
+    check_prior(baseline, prior, args.expect_jobs_digest)
     write_json_new(out, baseline)
+    print(f"wrote {out}\nsha256 {sha_bytes(out)}")
+    return 0
+
+
+# prior-release
+
+def latest_readback(packet_dir, phase):
+    """(the readback, its sha256) of the last readbacks/<phase>-<nn>.json of a packet directory, or Refused."""
+    found = sorted((Path(packet_dir) / "readbacks").glob(f"{phase}-*.json"))
+    if not found:
+        raise Refused(f"The prior packet has no {phase} readback")
+    return read_input(found[-1], f"the prior {phase} readback")
+
+
+def tie(ok, message):
+    if not ok:
+        raise Refused(message)
+
+
+def cmd_prior_release(args):
+    try:
+        return derive_prior_release(args)
+    except (AttributeError, KeyError, TypeError):
+        raise Refused("The prior packet is not shaped as a packet is") from None
+
+
+def derive_prior_release(args):
+    """The record of a release that is live, derived from its own lock and the files that lock and the review tie together. Every tie
+    is a recomputation: the bindings against the lock, the manifest against its own hash and its sidecar, the readback and the ledger
+    against the manifest. The values come from the bindings and the manifest; none comes from the file it is judged against."""
+    out = Path(args.out)
+    refuse_existing(out)
+    packet_dir = Path(args.prior_packet_dir)
+    lock, lock_sha = read_input(args.prior_lock, "the prior lock")
+    rid = lock.get("release_id")
+    tie(isinstance(rid, str) and so.RELEASE_ID.match(rid) is not None, "The prior lock names no release id")
+    review, _ = read_input(packet_dir / REVIEW_FILE, "the prior independent review")
+    bindings, bindings_sha = read_input(packet_dir / BINDINGS_FILE, "the prior bindings")
+    tie(review.get("verdict") == "ACCEPT" and review.get("lock_sha256") == lock_sha, "The prior independent review does not accept this lock")
+    tie(isinstance(lock.get("bound_files"), dict) and lock["bound_files"].get("bindings") == bindings_sha, "The prior bindings differ from the prior lock")
+    commit = bindings.get("target")
+    tie(bindings.get("release_id") == rid and isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{40}", commit) and commit[:7] == rid[4:11]
+        and review.get("target") == commit, "The prior bindings and review are not for the release the lock names")
+    manifest, manifest_sha = read_input(packet_dir / MANIFEST_FILE, "the prior manifest")
+    recomputed = so.manifest_hash(manifest)
+    tie(manifest.get("manifest_sha256") == recomputed, "The prior manifest does not match its own hash")
+    sidecar = packet_dir / SIDECAR_FILE
+    tie(sidecar.is_file() and sidecar.read_text(encoding="utf-8").strip() == recomputed, "The prior manifest sidecar does not hold the manifest hash")
+    source = manifest.get("source") if isinstance(manifest.get("source"), dict) else {}
+    tie(manifest.get("release_id") == rid and manifest.get("mode") == "services-only" and source.get("commit") == commit,
+        "The prior manifest is not for the release and commit the lock and bindings name")
+    for phase in ("AfterRollback", "AfterRetire"):
+        tie(not list((packet_dir / "readbacks").glob(f"{phase}-*.json")), f"The prior release has a {phase} readback: it is no longer the live release")
+    after, after_sha = latest_readback(packet_dir, "AfterPromotion")
+    tie(after.get("phase") == "AfterPromotion" and after.get("release_id") == rid and after.get("manifest_sha256") == recomputed,
+        "The prior AfterPromotion readback is not for this release and manifest")
+    canonical, candidates, image = manifest.get("canonical", {}), manifest.get("candidates", {}), manifest.get("image", {})
+    digest = image.get("digest")
+    tie(isinstance(digest, str) and image.get("registry_digest") == digest and image.get("reference") == f"{so.REPO}@{digest}",
+        "The prior manifest image is not one digest")
+    ledger, _ = read_input(packet_dir / LEDGER_FILE, "the prior tag ledger")
+    serving = [e for e in ledger.get("events", []) if e.get("phase") == "AfterPromotion" and e.get("state") == "SERVING"]
+    revisions, tag_urls = {}, {}
+    for name in so.SERVICES:
+        candidate = candidates.get(name) if isinstance(candidates.get(name), dict) else {}
+        events = [e for e in serving if e.get("service") == name]
+        tie(candidate.get("tag") == rid and candidate.get("revision") == f"{name}-{rid}", f"The prior manifest candidate of {name} is not the release id")
+        tie(len(events) == 1 and events[0].get("revision") == candidate["revision"] and events[0].get("tag") == rid
+            and events[0].get("tag_url") == candidate.get("tag_url") and events[0].get("digest") == f"{so.REPO}@{digest}"
+            and events[0].get("manifest_sha256") == recomputed, f"The prior ledger does not show {name} serving the manifest candidate")
+        revisions[name], tag_urls[name] = candidate["revision"], candidate["tag_url"]
+    deltas = bindings.get("envDeltas", {}).get("f42-api", {}) if isinstance(bindings.get("envDeltas"), dict) else {}
+    tie(deltas.get("AGENT_URL") == tag_urls["f42-agent"] and deltas.get("AGENT_AUDIENCE") == canonical.get("agent_url"),
+        "The prior bindings do not give the API the agent tag URL and the canonical audience")
+    record = {"schema_version": so.SCHEMA_VERSION, "kind": "prior-release", "release_id": rid, "commit": commit, "tag": rid,
+              "revisions": revisions, "image_digest": digest, "tag_urls": tag_urls, "api_agent_url_literal": deltas["AGENT_URL"],
+              "agent_audience": deltas["AGENT_AUDIENCE"],
+              "sources": {"lock_sha256": lock_sha, "bindings_sha256": bindings_sha, "manifest_sha256": manifest_sha, "after_promotion_sha256": after_sha}}
+    try:
+        so.validate_prior_release(record, need_jobs=False)
+    except so.Stop as error:
+        raise Refused(f"The prior release record would not be accepted: {error.message}") from None
+    write_json_new(out, record)
     print(f"wrote {out}\nsha256 {sha_bytes(out)}")
     return 0
 
@@ -248,22 +429,28 @@ def paste_build_service_account():
     return found.pop()
 
 
-def load_baseline(path):
+def load_baseline(path, prior=None, expect_jobs=None):
     """(the baseline, its sha256), from one read."""
     baseline, digest = read_input(path, "the baseline")
     if baseline.get("kind") != "baseline-A" or baseline.get("schema_version") != so.SCHEMA_VERSION:
         raise Refused("The baseline file is not a baseline-A receipt")
     if set(baseline.get("jobs", {})) != set(so.JOB_NAMES) or set(baseline.get("services", {})) != set(so.SERVICES):
         raise Refused("The baseline does not hold both services and the fourteen jobs")
-    check_a80(baseline)
+    check_prior(baseline, prior, expect_jobs)
     return baseline, digest
 
 
-def passing_receipt(path, label):
-    """The sha256 of a receipt that says pass, from the same read that showed it."""
+def passing_receipt(path, label, prior=None, release_commit=None):
+    """The sha256 of a receipt that says pass, from the same read that showed it. Against a recorded prior release the receipt must also
+    say which commits it compared (so.receipt_commits_problem, which the helper applies again on the acting path). Both expected values
+    are the bind's own, never the receipt's."""
     receipt, digest = read_input(path, f"the {label} receipt")
     if receipt.get("schema_version") != so.SCHEMA_VERSION or receipt.get("verdict") != "pass":
         raise Refused(f"The {label} receipt does not say pass")
+    if prior is not None:
+        problem = so.receipt_commits_problem(receipt, prior, release_commit)
+        if problem:
+            raise Refused(f"The {label} receipt {problem}")
     return digest
 
 
@@ -294,9 +481,16 @@ def cmd_bind(args):
     if head != args.release_commit:
         raise Refused("The checkout is not at the commit named by --release-commit")
     release_id = f"rel-{head[:7]}-{args.attempt}"
-    baseline, baseline_sha = load_baseline(args.baseline)
-    compat = passing_receipt(packet_dir / COMPAT_FILE, "compat")
-    old = passing_receipt(packet_dir / OLD_READER_FILE, "old-reader")
+    prior = load_prior_record(args.prior_release) if args.prior_release else None
+    if args.release_letter is not None:
+        authorisation_template(args.release_letter)
+    elif prior is not None:
+        raise Refused("A release bound to a prior release needs --release-letter")
+    if args.expect_jobs_digest is not None and prior is None:
+        raise Refused("--expect-jobs-digest needs a prior release record")
+    baseline, baseline_sha = load_baseline(args.baseline, prior, args.expect_jobs_digest)
+    compat = passing_receipt(packet_dir / COMPAT_FILE, "compat", prior, head)
+    old = passing_receipt(packet_dir / OLD_READER_FILE, "old-reader", prior, head)
     durable = Path(args.durable_manifest)
     durable_value, durable_sha = read_input(durable, "the durable-effects manifest")
     problems = dec.validate_manifest(durable_value)
@@ -322,6 +516,12 @@ def cmd_bind(args):
         "durableManifestSha256": durable_sha, "inflightAsksSqlSha256": dec.INFLIGHT_ASKS_SQL_SHA256,
         "inflightAsksBytesCap": args.inflight_asks_bytes_cap,
     }
+    if prior is not None:
+        record = {**prior, "jobs_image_digest": baseline_jobs_digest(baseline)}
+        tags, urls = so.prior_retained(record)
+        bound.update(priorRelease=record, retainedTags=tags, retainedAgentUrls=urls)
+    if args.release_letter is not None:
+        bound["releaseLetter"] = args.release_letter
     try:
         so.validate_bindings(bound)
         so.stage1(bound, baseline)
@@ -385,8 +585,10 @@ def cmd_review(args):
 
 # receipt
 
-def check_authorisation(text, release_id):
-    if " ".join(text.split()) != AUTHORISATION_TEMPLATE.format(release_id=release_id, hold=hold_ceiling()):
+def check_authorisation(text, release_id, mode="services-only", letter="A", repo=None, commit=None):
+    if mode != "services-only":
+        raise Refused(f"There is no authorisation line for the mode {mode}")
+    if " ".join(text.split()) != authorisation_template(letter).format(release_id=release_id, hold=hold_ceiling(repo, commit)):
         raise Refused("The authorisation line is not the one the packet asks Albert to type for this release")
 
 
@@ -403,10 +605,14 @@ def cmd_receipt(args):
         raise Refused("The independent review does not say ACCEPT")
     if review.get("lock_sha256") != sha_bytes(path) or review.get("target") != bound["target"]:
         raise Refused("The independent review does not bind this lock and target")
+    head, _ = checkout(repo, clean=False)
+    if head != bound["target"]:
+        raise Refused("The checkout is not at the bound commit")
     line_file = Path(args.authorisation_line_file)
     if not line_file.is_file():
         raise Refused("The authorisation line file is missing")
-    check_authorisation(line_file.read_text(encoding="utf-8-sig"), bound["release_id"])
+    check_authorisation(line_file.read_text(encoding="utf-8-sig"), bound["release_id"], letter=bound.get("releaseLetter", "A"), repo=repo,
+                        commit=bound["target"])
     steps = [step for step in STEPS if step in args.steps]
     receipt = {"schema_version": so.SCHEMA_VERSION, "release_id": bound["release_id"], "target": bound["target"],
                "declared_steps": steps, "later_explicit_user_instruction": True, "quiet_window_confirmed": True,
@@ -422,9 +628,17 @@ def build_parser():
     parser = argparse.ArgumentParser(prog="packet", description="Produce the files of a services-only release packet.")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    prior = sub.add_parser("prior-release", help="derive the record of the live prior release from its own lock and packet, once")
+    prior.add_argument("--prior-lock", type=Path, required=True)
+    prior.add_argument("--prior-packet-dir", type=Path, required=True)
+    prior.add_argument("--out", type=Path, required=True)
+    prior.set_defaults(handler=cmd_prior_release)
+
     capture = sub.add_parser("capture-baseline", help="read live (read-only gcloud) and write the baseline receipt, once")
     capture.add_argument("--out", type=Path, required=True)
     capture.add_argument("--gcloud-timeout-seconds", type=positive_int, required=True)
+    capture.add_argument("--prior-release", type=Path, help="the record `prior-release` wrote: live must be that release (default: the a80 pair)")
+    capture.add_argument("--expect-jobs-digest", type=jobs_digest_argument, help="the image the fourteen jobs must run (with --prior-release)")
     capture.set_defaults(handler=cmd_capture_baseline)
 
     bind = sub.add_parser("bind", help="write live-bindings.json in the packet directory")
@@ -439,6 +653,9 @@ def build_parser():
     bind.add_argument("--http-timeout-seconds", type=positive_int, required=True)
     bind.add_argument("--max-smoke-age-minutes", type=positive_int, required=True)
     bind.add_argument("--inflight-asks-bytes-cap", type=positive_int, required=True)
+    bind.add_argument("--prior-release", type=Path, help="the record `prior-release` wrote (default: the a80 pair)")
+    bind.add_argument("--release-letter", help="the letter of this release in the authorisation line; required with --prior-release")
+    bind.add_argument("--expect-jobs-digest", type=jobs_digest_argument, help="the image the fourteen jobs must run (with --prior-release)")
     bind.set_defaults(handler=cmd_bind)
 
     lock = sub.add_parser("lock", help="write the packet lock into the checkout, once")

@@ -721,7 +721,11 @@
    "core/setup/tests/test_release_plan.py",
    "core/api/tests/test_old_readers.py",
    "core/api/tests/test_app.py",
-   "core/setup/tests/test_release_packet.py"
+   "core/setup/tests/test_release_packet.py",
+   "core/setup/tests/test_release_hold.py",
+   "core/setup/tests/test_release_c_durable.py",
+   "core/setup/tests/test_release_prior.py",
+   "core/setup/tests/test_release_prior_packet.py"
   ],
   "deploy": [
    "core/api/tests/test_deploy_candidate.py",
@@ -730,7 +734,9 @@
    "core/setup/tests/test_release_retry.py",
    "core/setup/tests/test_services_paste.py",
    "core/setup/tests/test_release_packet_paste.py",
-   "core/setup/tests/test_release_e2e.py"
+   "core/setup/tests/test_release_e2e.py",
+   "core/setup/tests/test_release_prior_e2e.py",
+   "core/api/tests/test_release_base_commit.py"
   ]
  },
  "schema_version": 1
