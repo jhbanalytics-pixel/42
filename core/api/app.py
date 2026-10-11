@@ -993,6 +993,9 @@ async def api_ask_read(ask_id: str) -> Response:
             privacy.POLLS.done(("api", ask_id))
         shown = await _projected(held, held.get("privacy") if isinstance(held, dict) else None,
                                  ("api", ask_id) if running else None)
+        # The agent built its reader view with the list it read; this projection can withhold more. The view is read
+        # again from what is left, so a ranked briefing never names a story or a claim the projection took out.
+        shown = answer_view.present(shown)
         return JSONResponse(jsonable_encoder(shown), headers=privacy.NO_STORE)
     if resp.status_code != 404:
         return _passthrough(resp)
