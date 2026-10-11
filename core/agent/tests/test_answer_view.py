@@ -231,3 +231,34 @@ def test_a_claim_that_quotes_a_comment_is_keyed_by_the_comment_too_i2():
                         quotes=[{"evidence_id": "p1", "text": "words"}, {"evidence_id": "tiktok_comment_2", "text": "other remark"}])],
         "so_what": [], "watch_next": [], "gaps": []}, "run": {"followups": []}}
     assert [c["id"] for c in answer_view.present(record)["answer"]["claims"]] == ["c1", "c2"]
+
+
+# Release C review m7: two mutants of the gap view survived the first tests.
+def route_record(gaps):
+    return {"ask_id": "a_1", "answer": {"evidence": [], "claims": [], "so_what": [], "watch_next": [], "gaps": gaps},
+            "run": {"followups": []}}
+
+
+def test_a_reworded_route_gap_shows_a_status_word_or_nothing_never_the_stored_reason_m4():
+    gaps = [{"what": "Transcript of a TikTok post not fetched", "searched": "tiktok/post/transcript",
+             "why": "HTTP 500 from host 10.0.0.7 after 3 tries"},
+            {"what": "Comments on a post not fetched", "searched": "tiktok/post/comments", "why": "rate_limited"}]
+    shown = answer_view.present(route_record(gaps))["answer"]["gaps"]
+    assert [g["why"] for g in shown] == ["", "rate_limited"]
+    assert [g["searched"] for g in shown] == ["", ""]
+
+
+def test_gaps_that_already_read_in_words_add_no_technical_details_m3():
+    gaps = [{"what": "Original sound titles for the three TikTok posts", "searched": "Inspected audio metadata",
+             "why": "The platform records only numeric sound identifiers"}]
+    shown = answer_view.present(route_record(gaps))
+    assert shown["answer"]["gaps"] == gaps
+    assert "technical_gaps" not in shown["run"]
+    assert answer_view.present(route_record([]))["run"] == {"followups": []}
+
+
+def test_reworded_gaps_keep_their_stored_text_in_the_technical_details_once_m3():
+    gaps = [{"what": "Transcript of a TikTok post not fetched", "searched": "tiktok/post/transcript", "why": "error"}] * 2
+    shown = answer_view.present(route_record(gaps))
+    assert shown["run"]["technical_gaps"] == gaps[:1]
+    assert answer_view.present(shown)["run"]["technical_gaps"] == gaps[:1]  # a second view keeps the first one's text
