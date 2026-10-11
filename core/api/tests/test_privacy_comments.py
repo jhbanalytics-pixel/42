@@ -126,8 +126,9 @@ def test_a_comment_under_a_comment_that_is_dropped_is_dropped():
 
 
 def test_a_comment_that_names_itself_as_its_parent_is_not_its_own_proof():
-    out = project(with_comments(comment(C_ORPHAN, C_ORPHAN)), PrivStore(hide={"c_hid"}))
-    assert C_ORPHAN not in ids_of(out)
+    store = PrivStore(hide={"c_hid"})
+    records = [comment(C_ORPHAN, C_ORPHAN)]
+    assert ends(lambda: privacy.evidence_gone(records, privacy.read_hidden(store), store)) == {C_ORPHAN}
 
 
 def test_an_unreadable_list_still_drops_every_comment():
@@ -463,3 +464,27 @@ def test_a_dossier_made_from_a_claim_that_cites_only_a_comment_carries_its_post(
     body = dossiers.build(record, sel, dossier_id="d_fixture1", version=1, created_at="2026-10-07T10:00:00+02:00",
                           source={"ask_id": record["ask_id"]})
     assert [e["id"] for e in body["evidence"]] == [P_REN1, remark["id"]]
+
+
+def test_a_comment_with_a_post_is_judged_by_that_post_not_by_the_address_it_carries():
+    own = "https://www.tiktok.com/@vis_handle/video/1?comment=77"  # an address of its own, matching no post
+    out = project(with_comments(comment(C_VIS, P_VIS1, url=own)), PrivStore(hide={"c_hid"}))
+    assert C_VIS in ids_of(out)
+
+
+def test_a_stream_keeps_a_legacy_comment_under_a_visible_post_it_saw():
+    store = PrivStore(hide={"c_hid"})
+    hidden = privacy.read_hidden(store)
+    gone, seen = set(), {}
+    vis = {"seq": 3, "evidence": ev(P_VIS1, "vis_handle", "visible fixture words")}
+    event = {"seq": 4, "evidence": without_parent(comment(C_VIS, None, url="https://www.tiktok.com/@vis_handle/video/1"))}
+    assert privacy.project_event("evidence", vis, hidden, store, gone, seen) == vis
+    assert privacy.project_event("evidence", event, hidden, store, gone, seen) == event
+
+
+def test_a_legacy_comment_with_no_address_is_not_matched_to_a_post_with_none():
+    record = ask_record()
+    record["answer"]["evidence"] = [{**ev(P_VIS1, "vis_handle", "words"), "url": None},
+                                    without_parent(comment(C_ORPHAN, None, url=None))]
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert ids_of(out) == [P_VIS1]
