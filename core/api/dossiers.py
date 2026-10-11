@@ -133,8 +133,9 @@ def _claim(cid, claim, kept, note):
 
 
 def _withheld(claim):
-    """A claim not kept, whose words name a hidden person the dossier cannot learn from what it holds: the same keys,
-    with the words, the quotes and the evidence it rests on left out."""
+    """A claim not kept that rests on a hidden person's post, or whose words only a name the source evidence reveals
+    makes unshowable: the same keys, with the words, the quotes and the evidence ids it rests on left out. The numbers
+    stay in the slot (C5 v2 section 5.3 rule 2)."""
     out = {**claim, "text": privacy.CLAIM_WITHHELD, "evidence_ids": [], "quotes": []}
     out.update({key: "" for key in ("basis", "falsifier") if key in claim})
     return out
@@ -144,8 +145,8 @@ def build(record, sel, *, dossier_id, version, created_at, source, who="passcode
     """One draft version, rebuilt from the source record with the client's selection.
 
     people, for a skin report, is who it may name: {"skin_id", "approved", "allowed"} (see shown). withheld holds the ids
-    of claims not kept whose words only a name the source evidence reveals makes unshowable: they are stored without
-    their words (see _withheld)."""
+    of claims that rest on a hidden person's post, or whose words the names the source evidence reveals mask further than
+    the list does; a claim among them that is not kept is stored without its words (see _withheld)."""
     answer = answer_of(record)
     claims, left_out = admitted(answer)
     order = sel["keep"] + [cid for cid in claims if cid not in sel["keep"]]

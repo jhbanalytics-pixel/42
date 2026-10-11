@@ -1,8 +1,10 @@
 """A durable copy keeps only what the Ask read shows (release C review 3, finding 3). A visible claim cites a visible post
 and its words name the old handle of a creator who was renamed and is hidden. The Ask read masks that handle because the
 record also holds the hidden creator's post, which says what they used to be called. What a dossier keeps, and what a
-finding is built from, is judged with the same knowledge, so a dossier never stores or shows a handle the Ask read masks.
-A dossier holds no hidden post to learn the name from, so a claim it does not keep is stored without its words."""
+finding is built from, is judged with the same knowledge, so a claim a dossier keeps never carries a handle the Ask read
+masks when the dossier is made. A dossier holds no hidden post to learn the name from, so a claim it does not keep is
+stored without its words. A version made before the hide, or one whose kept claim names the handle, is masked on read
+with the names its source Ask reveals (see test_privacy_dossier_source.py)."""
 import json
 
 from core.api import agent_app, privacy
