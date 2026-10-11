@@ -31,6 +31,19 @@ OBS_ID = re.compile(r"^obs1_[0-9a-f]{32}$")
 COMMENT_ID = re.compile(r"^[a-z0-9]+_comment_")  # a comment record's id: "<platform>_comment_<native>"
 _HELD = "held"  # first part of the key a stream keeps an earlier evidence record under, beside post id to creator id
 _IDENTITY = ("id", "platform", "handle", "url", "creator_id", "posted_at", "parent_id")  # the fields that decide who wrote it
+# A transcript span of a stored post (Ask power): the post's id plus _span_N. Its words are the post's creator's, so it is
+# judged by the creator of the post its id names.
+SPAN_ID = re.compile(r"^(obs1_[0-9a-f]{32})_span_[0-9]+$")
+
+
+def _post_key(record_id):
+    """The stored post id whose creator decides this record: the id itself, or the post a span belongs to."""
+    if not isinstance(record_id, str):
+        return None
+    if OBS_ID.match(record_id):
+        return record_id
+    span = SPAN_ID.match(record_id)
+    return span.group(1) if span else None
 MARGIN = dt.timedelta(days=3)
 SUPPRESSION_MAX_AGE_S = 30  # a run in flight may use a list this old (rule R2, section 8.4)
 READ = object()  # "read the list now"; None stands for UNAVAILABLE
@@ -168,7 +181,7 @@ def evidence_gone(evidence, hidden, store, creators=None, parents=(), names=None
     for e in records + earlier:
         if creator_key(e.get("platform"), e.get("handle")) in keys or e.get("creator_id") in ids:
             gone.add(e.get("id"))
-        elif isinstance(e.get("id"), str) and OBS_ID.match(e["id"]):
+        elif _post_key(e.get("id")) is not None:
             stored.append(e)
     creators = {} if creators is None else creators
     if ids:  # no creator id hidden means who wrote a post cannot decide anything: no lookup
@@ -207,7 +220,7 @@ def with_names(hidden, names):
 
 
 def _place_stored(stored, ids, store, creators, gone):
-    todo = [e for e in stored if e["id"] not in creators]
+    todo = list({_post_key(e["id"]): e for e in stored if _post_key(e["id"]) not in creators}.values())
     if todo:
         days = [_day(e.get("posted_at")) for e in todo]
         known = [d for d in days if d is not None]
@@ -215,7 +228,7 @@ def _place_stored(stored, ids, store, creators, gone):
         if known:
             try:
                 reader = getattr(store, "post_creators", None)
-                rows = reader([e["id"] for e, d in zip(todo, days) if d is not None],
+                rows = reader([_post_key(e["id"]) for e, d in zip(todo, days) if d is not None],
                               (min(known) - MARGIN).isoformat(), (max(known) + MARGIN).isoformat()) \
                     if callable(reader) else None
             except Exception as exc:
@@ -225,10 +238,12 @@ def _place_stored(stored, ids, store, creators, gone):
                 raise PeopleUnavailable
             found = {r["post_id"]: r.get("creator_id") for r in rows}
         for e in todo:
-            if e["id"] in found:
-                creators[e["id"]] = found[e["id"]]
+            key = _post_key(e["id"])
+            if key in found:
+                creators[key] = found[key]
     for e in stored:
-        if e["id"] not in creators or creators[e["id"]] in ids:
+        key = _post_key(e["id"])
+        if key not in creators or creators[key] in ids:
             gone.add(e["id"])  # a miss is never read as "not hidden"
 
 

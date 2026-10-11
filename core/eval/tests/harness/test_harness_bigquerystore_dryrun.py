@@ -37,7 +37,7 @@ FINDING = {"finding_id": "f1", "question": "q", "answer": "{}", "as_of": D, "cla
 CALLS = {
     "latest_brief_date": (), "briefs": (D,), "previous_brief": ("ZA", D), "collection_health": (D,),
     "latest_collection_day": (D,), "calendar": (S0, D), "runs": ("collect", D), "first_ok_collect_date": (),
-    "ask_record": ("a_1",), "health": (), "latest_detect_run": (D,), "item_states": (RUN, "ZA"),
+    "ask_record": ("a_1",), "ask_record_raw": ("a_1",), "health": (), "latest_detect_run": (D,), "item_states": (RUN, "ZA"),
     "watch_matches": (RUN,), "item_gate": ("ZA", D), "item_history": ("i1", "ZA", S0, D),
     "item_series": ("i1", "ZA", 7), "item_waves": ("i1", "ZA"), "coord_signals": ("i1", "ZA", D),
     "item_spread": (D, "ZA", "i1"), "item_reach": (D, "ZA", ["i1"]), "health_days": ("ZA", S0, D),

@@ -183,9 +183,14 @@ default day and Coverage's way back from an empty day)."""
                    default=None)
 
     def ask_record(self, ask_id):
+        return viewer_record(self.ask_record_raw(ask_id))
+
+    def ask_record_raw(self, ask_id):
+        """The stored record as the runs row holds it, query receipts included. Only the follow-up path reads it, to
+        pass a parent's SQL to the agent; every reader goes through ask_record."""
         for r in self._load("runs"):
             if r["stage"] == "ask" and (r.get("record") or {}).get("ask_id") == ask_id:
-                return viewer_record(r["record"])
+                return r["record"]
         return None
 
     def health(self):
@@ -911,6 +916,9 @@ or None."""
         return rows[0]["d"] if rows else None
 
     def ask_record(self, ask_id):
+        return viewer_record(self.ask_record_raw(ask_id))
+
+    def ask_record_raw(self, ask_id):
         # An ask id is a_YYYYMMDD_xxxxxxxx with the market's day, and its runs row is dated by the SAST day of its
         # start: at most a day apart, so those partitions are the only ones read. Any other id reads them all.
         m = _ASK_DAY.match(ask_id) if isinstance(ask_id, str) else None
@@ -928,7 +936,7 @@ or None."""
             + ("AND r.run_date BETWEEN @lo AND @hi " if day else "")
             + "ORDER BY r.finished_at DESC LIMIT 1",
             ask_id=("STRING", ask_id), **window)
-        return viewer_record(rows[0]["record"]) if rows else None
+        return rows[0]["record"] if rows else None
 
     def health(self):
         try:

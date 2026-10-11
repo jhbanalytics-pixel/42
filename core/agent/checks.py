@@ -35,7 +35,7 @@ TOLERANCE = 0.02  # ratios and other floats; counts are exact
 IDENTITY_FIELDS = ("url", "handle", "platform", "posted_at", "market")
 REQUIRED_FIELDS = ("platform", "handle", "url", "posted_at", "market", "text")
 EVIDENCE_KEYS = ("id", "platform", "handle", "url", "posted_at", "market", "source_market", "text", "engagement",
-                 "flags")
+                 "flags", "transcript_span")
 NOT_INDEPENDENT = {"paid", "brand", "brand_owned", "sponsored", "near_duplicate", "market_assumed"}
 GENERATIVE_HOSTS = ("gemini.google.com", "bard.google.com", "aistudio.google.com", "notebooklm.google.com", "labs.google")
 PLATFORM_LABELS = {"tiktok": "TikTok", "youtube": "YouTube", "x": "X", "twitter": "X"}
@@ -1819,17 +1819,39 @@ def _copied_ids(records) -> set:
     return copies
 
 
+def _is_span(record) -> bool:
+    return bool(record.get("parent_id")) and isinstance(record.get("transcript_span"), dict)
+
+
 def _evidence_label(claim, records, pool=None):
-    copies = _copied_ids(records)
+    # A transcript span's words are the transcript, which carries neither its caption's ad marker nor its repeated
+    # words, so K5 reads a span's paid disclosure and copied words from the post it belongs to (Ask power review).
+    # A span whose post is not among the run's records, or whose post is excluded, is not an author at all.
+    union = {r.get("id"): r for r in [*(pool or []), *records]}
+    judge = {rid: (union.get(r["parent_id"]) if _is_span(r) else r) for rid, r in union.items()}
+
+    def span_out(r):
+        post = judge.get(r.get("id"))
+        return _is_span(r) and (post is None or _disclosed_paid(post) or bool(
+            NOT_INDEPENDENT & {str(f).lower() for f in post.get("flags") or []}))
+
+    cited_posts = list({p.get("id"): p for p in (judge.get(r.get("id")) for r in records) if p is not None}.values())
+    copied_posts = _copied_ids(cited_posts)
+    # A record is also a copy when its own words repeat another cited record's, as they always did: two creators saying
+    # the same spoken words, or a caption repeating another creator's spoken words, are not two authors.
+    own_copies = _copied_ids(records)
+    copies = {r.get("id") for r in records
+              if r.get("id") in own_copies
+              or (judge.get(r.get("id")) is not None and judge[r.get("id")].get("id") in copied_posts)}
     independent = [r for r in records if not NOT_INDEPENDENT & {str(f).lower() for f in r.get("flags") or []}
-                   and not _disclosed_paid(r) and r.get("id") not in copies]
+                   and not _disclosed_paid(r) and not span_out(r) and r.get("id") not in copies]
     authors = {str(r.get("handle") or "").lower().lstrip("@") for r in independent}
     # W8-DEC-16: Corroborated needs unrelated authors, judged over every stored record of the answer. A disclosed ad
     # and a copy of an earlier post are not authors and lend no platform, so both go in as paid_ids.
     own = {r.get("id"): r for r in records}
     pool = [own.get(r.get("id"), r) for r in pool] if pool is not None else records
     groups = independent_groups(pool, excluded=NOT_INDEPENDENT,
-                                paid_ids={r.get("id") for r in pool if _disclosed_paid(r)} | copies,
+                                paid_ids={r.get("id") for r in pool if _disclosed_paid(r) or span_out(r)} | copies,
                                 author_ids={r.get("id") for r in records})
     # The reason counts what the label is judged on: unrelated author groups that stand on a platform, and the
     # platforms they stand on. A group with no platform is named apart, as it can never make a second platform.

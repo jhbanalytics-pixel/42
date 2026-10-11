@@ -87,6 +87,7 @@ for _name in _SUPPRESSION_READERS:
 # that work.
 INTERNAL_ALLOW = {
     "discover_creators": (_SUPPRESSED_VIEW, _SUPPRESSIONS),
+    "fetch_posts_reuse": (_SUPPRESSED_VIEW, _SUPPRESSIONS),
     "recall_findings": (f"{_AGENT}.v_prior_findings", f"{_AGENT}.findings"),
     "get_trending_fallback_snapshot": (f"{_AGENT}.v_briefs_current", _BRIEFS),
     "log_forecast": (f"{_AGENT}.forecasts",),

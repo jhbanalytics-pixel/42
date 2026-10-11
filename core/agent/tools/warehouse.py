@@ -738,10 +738,13 @@ def _inside(row, window) -> bool:
     return day is not None and window[0] <= day <= window[1]
 
 
-def fetch_posts(ctx: RunContext, warehouse: Warehouse, ids, window: tuple[dt.date, dt.date]) -> dict:
+def fetch_posts(ctx: RunContext, warehouse: Warehouse, ids, window: tuple[dt.date, dt.date],
+                exclude_suppressed: bool = False) -> dict:
     """Store the posts behind ids the researcher only saw in sql_query rows, so a claim citing them resolves (K1).
     At most MAX_POSTS ids, each once, one named parameter per id. Only posts published inside the ask's window become
-    evidence; the query record counts the rest in skipped_outside_window and lists them in skipped_ids."""
+    evidence; the query record counts the rest in skipped_outside_window and lists them in skipped_ids. A follow-up
+    reading its parent's cited ids passes exclude_suppressed, and a post whose creator is suppressed now is not read
+    (the one read of the suppression view this function is registered for in sql_query.INTERNAL_ALLOW)."""
     wanted = list(dict.fromkeys(str(i) for i in ids if i))[:MAX_POSTS]
     if not wanted:
         return {"evidence": [], "query_id": None}
@@ -750,8 +753,13 @@ def fetch_posts(ctx: RunContext, warehouse: Warehouse, ids, window: tuple[dt.dat
     ids = ", ".join("@" + name for name in post_params)
     sql = (f"SELECT {POST_COLUMNS} {POSTS_JOIN}"
            f"{_source_sightings_join('p', 'source_since', 'source_until')}WHERE p.post_id IN ({ids})")
-    result = sql_query(ctx, warehouse, sql, purpose=f"fetch_posts: {len(wanted)} posts listed in query rows",
-                       params=params)
+    purpose = f"fetch_posts: {len(wanted)} posts listed in query rows"
+    if exclude_suppressed:
+        sql += (" AND NOT EXISTS (SELECT 1 FROM intelligence_42_core.v_suppressed_creators s "
+                "WHERE s.creator_id = p.creator_id)")
+        result = internal_read("fetch_posts_reuse", ctx, warehouse, sql, purpose=purpose, params=params)
+    else:
+        result = sql_query(ctx, warehouse, sql, purpose=purpose, params=params)
     inside, skipped = [], []
     for row in result["rows"]:
         if _inside(row, window):
