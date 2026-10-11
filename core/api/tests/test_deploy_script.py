@@ -411,3 +411,15 @@ def test_cloud_build_hands_no_sha_for_a_tag_that_does_not_name_one(tmp_path, tag
     build = run_cloud_build_step(tmp_path, f"{REPO_IMAGE}:{tag}")
     assert build[build.index("--build-arg") + 1] == "F42_VERSION="
     assert build[build.index("--tag") + 1] == f"{REPO_IMAGE}:{tag}"
+
+
+def test_cloud_build_reaches_the_tag_only_through_the_step_env_and_the_images_list():
+    # The script reads the tag from $IMAGE. A ${_IMAGE} inside the script would be pasted into bash by Cloud Build
+    # before bash parses it, so a crafted tag could run commands; the shape check above cannot see that.
+    config = yaml.safe_load(CLOUD_BUILD.read_text(encoding="utf-8"))
+    [step] = config["steps"]
+    script = step["args"][step["args"].index("-c") + 1]
+    assert "_IMAGE" not in script
+    assert [line for line in step["env"] if "_IMAGE" in line] == ["IMAGE=${_IMAGE}"]
+    assert config["images"] == ["${_IMAGE}"]
+    assert [arg for arg in step["args"] if "_IMAGE" in arg] == []
