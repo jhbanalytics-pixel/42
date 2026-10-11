@@ -212,7 +212,6 @@ button.d42-sheet-done { border-radius: 2px; }
   .d42-chip { padding-inline: var(--s-3); }
   .d42-choice { margin-inline-start: 0; }
   .d42-select { inline-size: 100%; }
-  .d42-groups:focus { outline: none; }
 }
 
 .d42-feed { margin-bottom: var(--s-6); }
