@@ -167,3 +167,13 @@ def test_a_record_reads_the_same_with_the_span_link_or_without_it_when_someone_e
 def test_a_record_with_a_span_and_no_hide_still_names_nobody():
     record = stored(run_it())
     assert privacy.project_record(copy.deepcopy(record), PrivStore(hide=set()))["answer"] == record["answer"]
+
+
+def test_the_handles_a_hidden_creator_goes_by_are_named_from_a_span_that_sits_under_the_post_as_from_a_comment():
+    store = PrivStore(hide={"c_hid"})
+    post = ev(P_HID1, "hid_handle", "post words")
+    child = span("tiktok_55", "vis_handle", parent=P_HID1)
+    child["url"] = "https://www.tiktok.com/@hid_alias/video/1"  # the address names the author the post is by
+    names = set()
+    privacy.evidence_gone([post, child], hidden_of(store), store, names=names)
+    assert {"tiktok:hid_handle", "tiktok:hid_alias"} <= names
