@@ -100,22 +100,10 @@ export function distinctFigures(claims, limit = 8){
       const key = readerFigure(number.value) + ' ' + unit;
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({key, value: readerFigure(number.value), unit, queryId: number.query_id || '', claimIndex, claimText: String(claim.text || '')});
+      out.push({key, value: readerFigure(number.value), unit, queryId: number.query_id || '', raw: number.value, claimIndex, claimText: String(claim.text || '')});
     }
   });
   return out.slice(0, limit);
-}
-
-/* A claim as one short line: the claim cut at a word when it runs past
-   TOPIC_MAX. It is not split at a full stop, because "Mr." and "vs." end in
-   one. The whole claim stays in the title and the tile's name. */
-const TOPIC_MAX = 90;
-export function topicWords(text){
-  const whole = String(text || '').replace(/\s+/g, ' ').trim();
-  if (whole.length <= TOPIC_MAX) return whole;
-  const cut = whole.slice(0, TOPIC_MAX - 1);
-  const space = cut.lastIndexOf(' ');
-  return (space > TOPIC_MAX / 2 ? cut.slice(0, space) : cut).replace(/[\s,;:.]+$/, '') + '…';
 }
 
 export const UNNAMED_FIGURE = 'Counted for a finding with no words of its own.';
@@ -141,9 +129,10 @@ function joinableClaims(claims){
 }
 
 /* The tiles of The numbers. Each says what it counts: the posts and the
-   creators of one claim and one query read as one line ("179 posts by 118
-   creators"), then the claim they belong to. Any other unit stands on its
-   own line with the same claim under it. A figure whose claim has no words
+   creators of one claim and one query stand side by side in one line ("179
+   posts · 118 accounts posting"), then the claim they belong to. There is
+   no "by" between them, because the same query does not prove the same row.
+   Any other unit stands on its own line with the same claim under it. A figure whose claim has no words
    says so, so no tile is ever a bare number. A tile gives no market or
    window: a stored figure does not record one. */
 export function figureTiles(claims, limit = 8){
@@ -163,17 +152,16 @@ export function figureTiles(claims, limit = 8){
     if (joined.has(figure.key)) continue;
     const slot = pairs.get(figure.claimIndex);
     const paired = slot && slot.posts.length === 1 && slot.creators.length === 1 && [slot.posts[0], slot.creators[0]].includes(figure);
-    const parts = paired ? [slot.posts[0], slot.creators[0]] : [figure];
+    const parts = (paired ? [slot.posts[0], slot.creators[0]] : [figure]).map((part) => (paired && nounOf(part.unit) === 'creators' ? {...part, unit: unitFor(part.raw, 'accounts posting')} : part));
     for (const part of parts) joined.add(part.key);
-    const line = parts.map((part) => part.value + ' ' + part.unit).join(' by ');
+    const line = parts.map((part) => part.value + ' ' + part.unit).join(' · ');
     const full = figure.claimText.replace(/\s+/g, ' ').trim();
     tiles.push({
-      key: parts.map((part) => part.key).join(' by '),
+      key: parts.map((part) => part.key).join(' | '),
       parts: parts.map(({value, unit}) => ({value, unit})),
       line,
       queryId: parts[0].queryId,
-      queryIds: parts.map((part) => part.queryId).filter(Boolean),
-      about: topicWords(full) || UNNAMED_FIGURE,
+      about: full || UNNAMED_FIGURE,
       full,
       sentence: line + '. ' + (full ? 'Finding: ' + sentence(full) : UNNAMED_FIGURE),
     });

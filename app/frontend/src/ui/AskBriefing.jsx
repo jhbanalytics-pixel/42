@@ -108,6 +108,20 @@ export function FindingCard({claim, records, quoteMap, confidence, pinnedId, onP
   );
 }
 
+/* The claim a tile counts, whole, with the style holding it to three lines. A
+   claim long enough to run past them has a toggle, which a touch or a keyboard
+   reaches, and which opens the rest in place. */
+const CLAIM_SHORT = 110;
+function FigureClaim({text, long}){
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <p className="ask42-figure-claim" data-open={open ? '' : undefined}>{text}</p>
+      {long && <button type="button" className="ask42-quiet ask42-figure-more" aria-expanded={open ? 'true' : 'false'} onClick={() => setOpen((value) => !value)}>{open ? 'Show less' : 'Show all'}</button>}
+    </>
+  );
+}
+
 /* Each tile says what it counts: the figures in one line and the claim they
    belong to. Its name is the whole sentence. */
 export function FigureTiles({tiles}){
@@ -115,19 +129,19 @@ export function FigureTiles({tiles}){
   return (
     <section className="ask42-section" aria-labelledby="ask42-figures-title">
       <h3 className="ask42-section-title" id="ask42-figures-title">The numbers</h3>
-      <p className="ask42-muted ask42-figure-caption">Counted in the store, not only in the posts cited above</p>
+      <p className="ask42-muted ask42-figure-caption">Counted in the store, not only in the posts this answer cites</p>
       <ul className="ask42-figure-tiles">
         {tiles.map((tile) => (
-          <li className="ask42-figure-tile" key={tile.key} aria-label={tile.sentence} data-query-id={tile.queryId || undefined} data-query-ids={tile.queryIds.length > 1 ? tile.queryIds.join(' ') : undefined}>
+          <li className="ask42-figure-tile" key={tile.key} aria-label={tile.sentence} data-query-id={tile.queryId || undefined}>
             <p className="ask42-figure-line">
               {tile.parts.map((part, index) => (
                 <Fragment key={index}>
-                  {index > 0 && <span className="ask42-figure-by">{' by '}</span>}
+                  {index > 0 && <span className="ask42-figure-sep" aria-hidden="true">{' · '}</span>}
                   <span className="ask42-figure-count"><b className="ask42-figure-value">{part.value}</b>{' '}<span className="ask42-figure-unit">{part.unit}</span></span>
                 </Fragment>
               ))}
             </p>
-            <p className="ask42-figure-claim" title={tile.full || undefined}>{tile.about}</p>
+            <FigureClaim text={tile.about} long={tile.full.length > CLAIM_SHORT} />
           </li>
         ))}
       </ul>

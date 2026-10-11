@@ -87,9 +87,9 @@ test('the fixture has eight figures in four claims under the header counts of th
   for (const number of numbers) expect(number.run_id).toBe(clone(record).run.run_id);
 });
 
-test('the posts and the creators of one claim and one query are one tile, in one sentence', async () => {
+test('the posts and the accounts posting of one claim and one query are side by side in one tile, with no "by" between them', async () => {
   await open();
-  expect(lines()).toEqual(['179 posts by 118 creators', '104 posts by 31 creators', '18 posts by 2 creators', '6 posts by 6 creators']);
+  expect(lines()).toEqual(['179 posts · 118 accounts posting', '104 posts · 31 accounts posting', '18 posts · 2 accounts posting', '6 posts · 6 accounts posting']);
   expect(all('.ask42-figure-tile').length).toBe(4);
 });
 
@@ -99,8 +99,8 @@ test('each tile names the claim it counts and carries no market or window of its
   all('.ask42-figure-tile').forEach((tile, index) => {
     const about = tile.querySelector('.ask42-figure-claim');
     expect(about).not.toBeNull();
-    expect(claims[index].text.startsWith(words(about).replace(/…$/, ''))).toBe(true);
-    expect(about.getAttribute('title')).toBe(claims[index].text);
+    expect(words(about)).toBe(claims[index].text);
+    expect(about.getAttribute('title')).toBeNull();
     expect(tile.querySelector('.ask42-figure-scope')).toBeNull();
     expect(tile.getAttribute('aria-label')).not.toMatch(/Read in|October|South Africa\./);
   });
@@ -109,15 +109,15 @@ test('each tile names the claim it counts and carries no market or window of its
 test('one caption under the heading says the figures are counted in the store, not only in the cited posts', async () => {
   await open();
   expect(all('.ask42-figure-caption').length).toBe(1);
-  expect(words(host.querySelector('.ask42-figure-caption'))).toBe('Counted in the store, not only in the posts cited above');
+  expect(words(host.querySelector('.ask42-figure-caption'))).toBe('Counted in the store, not only in the posts this answer cites');
 });
 
 test('the accessible name of a tile is the whole sentence', async () => {
   await open();
   const claims = clone(record).answer.claims;
   const names = all('.ask42-figure-tile').map((tile) => tile.getAttribute('aria-label'));
-  expect(names[0]).toBe('179 posts by 118 creators. Finding: ' + claims[0].text);
-  expect(names[3]).toBe('6 posts by 6 creators. Finding: ' + claims[3].text);
+  expect(names[0]).toBe('179 posts · 118 accounts posting. Finding: ' + claims[0].text);
+  expect(names[3]).toBe('6 posts · 6 accounts posting. Finding: ' + claims[3].text);
   for (const name of names) expect(name).not.toMatch(/^\d[\d ]* (posts|creators)\.\s*$/);
 });
 
@@ -135,7 +135,7 @@ test('a figure repeated by a second claim stays once, and a lone figure still na
   const body = clone(record);
   body.answer.claims[1].numbers = [{...body.answer.claims[0].numbers[0]}, {...body.answer.claims[1].numbers[1]}];
   await open(body);
-  expect(lines()).toEqual(['179 posts by 118 creators', '31 creators', '18 posts by 2 creators', '6 posts by 6 creators']);
+  expect(lines()).toEqual(['179 posts · 118 accounts posting', '31 creators', '18 posts · 2 accounts posting', '6 posts · 6 accounts posting']);
   const lone = all('.ask42-figure-tile')[1];
   expect(words(lone.querySelector('.ask42-figure-claim'))).toContain('Springboks');
 });
@@ -151,7 +151,7 @@ test('a count of one reads in the singular and a unit in words is not paired wit
     {...body.answer.claims[1].numbers[1], value: 4, unit: 'creators'},
   ];
   await open(body);
-  expect(lines().slice(0, 3)).toEqual(['1 post by 1 creator', '59 posts with a known location', '4 creators']);
+  expect(lines().slice(0, 3)).toEqual(['1 post · 1 account posting', '59 posts with a known location', '4 creators']);
 });
 
 test('a claim with no words of its own still says what its figure belongs to', async () => {
@@ -160,44 +160,65 @@ test('a claim with no words of its own still says what its figure belongs to', a
   await open(body);
   const tile = all('.ask42-figure-tile')[3];
   expect(words(tile.querySelector('.ask42-figure-claim'))).toBe('Counted for a finding with no words of its own.');
-  expect(tile.getAttribute('aria-label')).toBe('6 posts by 6 creators. Counted for a finding with no words of its own.');
+  expect(tile.getAttribute('aria-label')).toBe('6 posts · 6 accounts posting. Counted for a finding with no words of its own.');
 });
 
-test('a long claim is cut at a word to one short line and the whole claim stays in the title', async () => {
+test('a long claim is shown whole and its toggle opens and closes it for touch and keyboard users', async () => {
   const body = clone(record);
   const long = 'Posts about the Soweto unrest anniversary led the week across TikTok and X, with creators in Gauteng driving most of the volume and a second wave from the Western Cape later in the week. A second sentence follows.';
   body.answer.claims[0].text = long;
   await open(body);
-  const about = all('.ask42-figure-tile')[0].querySelector('.ask42-figure-claim');
-  expect(words(about).length).toBeLessThanOrEqual(91);
-  expect(words(about).endsWith('…')).toBe(true);
-  expect(long.startsWith(words(about).slice(0, -1).trim())).toBe(true);
-  expect(about.getAttribute('title')).toBe(long);
+  const tile = all('.ask42-figure-tile')[0];
+  expect(words(tile.querySelector('.ask42-figure-claim'))).toBe(long);
+  expect(tile.querySelector('.ask42-figure-claim').getAttribute('title')).toBeNull();
+  const toggle = tile.querySelector('button.ask42-figure-more');
+  expect(toggle).not.toBeNull();
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  expect(tile.querySelector('.ask42-figure-claim').getAttribute('data-open')).toBeNull();
+  await act(async () => toggle.click());
+  expect(tile.querySelector('button.ask42-figure-more').getAttribute('aria-expanded')).toBe('true');
+  expect(tile.querySelector('.ask42-figure-claim').getAttribute('data-open')).toBe('');
+  expect(words(tile.querySelector('button.ask42-figure-more'))).toBe('Show less');
+  await act(async () => tile.querySelector('button.ask42-figure-more').click());
+  expect(tile.querySelector('.ask42-figure-claim').getAttribute('data-open')).toBeNull();
 });
 
-test('a claim that holds an abbreviation is never cut down to the abbreviation', () => {
-  expect(evidence.topicWords('Mr. Mbeki trended on X. Then the posts spread.')).toBe('Mr. Mbeki trended on X. Then the posts spread.');
-  expect(evidence.topicWords('Use of #SA vs. #ZA was split.')).toBe('Use of #SA vs. #ZA was split.');
-  expect(evidence.topicWords('U.S. creators posted 40 posts about it.')).toBe('U.S. creators posted 40 posts about it.');
-  const long = 'Mr. Mbeki was named in a long run of posts on X vs. posts on TikTok, and the creators who named him differed by platform.';
-  const cut = evidence.topicWords(long);
-  expect(cut.endsWith('…')).toBe(true);
-  expect(cut.length).toBeLessThanOrEqual(90);
-  expect(cut.startsWith('Mr. Mbeki was named')).toBe(true);
-  expect(cut).not.toMatch(/\s…$/);
-  const tiles = evidence.figureTiles([{id: 'a', text: 'Mr. Mbeki trended on X. Then it faded.', numbers: [posts(40, 'q1'), creators(12, 'q1')]}]);
-  expect(tiles.map((tile) => tile.about)).toEqual(['Mr. Mbeki trended on X. Then it faded.']);
+test('a short claim has no toggle and a long one has', async () => {
+  const body = clone(record);
+  body.answer.claims.forEach((claim, index) => { claim.text = index === 0 ? 'A short claim.' : index === 1 ? 'A claim that runs on well past three lines of a narrow rail, with a clause about the week before at its very end.' : claim.text; });
+  await open(body);
+  const tiles = all('.ask42-figure-tile');
+  expect(tiles[0].querySelector('button.ask42-figure-more')).toBeNull();
+  expect(tiles[1].querySelector('button.ask42-figure-more')).not.toBeNull();
 });
 
-test('figureTiles joins posts and creators only from one claim, one query, with creators no more than posts', () => {
+test('a claim that holds an abbreviation is shown whole, never cut down to the abbreviation', () => {
+  const claim = (text) => [{id: 'a', text, numbers: [posts(40, 'q1'), creators(12, 'q1')]}];
+  for (const text of ['Mr. Mbeki trended on X. Then the posts spread.', 'Use of #SA vs. #ZA was split.', 'U.S. creators posted 40 posts about it.']){
+    expect(evidence.figureTiles(claim(text)).map((tile) => tile.about)).toEqual([text]);
+  }
+  const long = 'Mr. Mbeki was named in a long run of posts on X vs. posts on TikTok, and the creators who named him differed by platform, week on week, for the whole month.';
+  expect(evidence.figureTiles(claim(long)).map((tile) => tile.about)).toEqual([long]);
+  expect(evidence.topicWords).toBeUndefined();
+});
+
+test('an answer with no figures shows no empty heading or caption', async () => {
+  const body = clone(record);
+  for (const claim of body.answer.claims) claim.numbers = [];
+  await open(body);
+  expect(host.querySelector('#ask42-figures-title')).toBeNull();
+  expect(host.querySelector('.ask42-figure-caption')).toBeNull();
+});
+
+test('figureTiles puts posts and accounts posting side by side only from one claim, one query, with creators no more than posts', () => {
   const claims = [
     {id: 'a', text: 'First claim.', numbers: [posts(5, 'q1'), creators(3, 'q1')]},
     {id: 'b', text: 'Second claim.', numbers: [creators(7, 'q3')]},
     {id: 'c', text: 'Third claim.', numbers: [posts(2, 'q4'), posts(9, 'q5')]},
   ];
   const tiles = evidence.figureTiles(claims);
-  expect(tiles.map((tile) => tile.line)).toEqual(['5 posts by 3 creators', '7 creators', '2 posts', '9 posts']);
-  expect(tiles[0].queryIds).toEqual(['q1', 'q1']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['5 posts · 3 accounts posting', '7 creators', '2 posts', '9 posts']);
+  expect(tiles[0].queryId).toBe('q1');
   expect(tiles.every((tile) => tile.about.length > 0 && tile.sentence.includes(tile.line))).toBe(true);
   expect(evidence.figureTiles([])).toEqual([]);
 });
@@ -224,13 +245,14 @@ test('a tie between claims leaves no false pair: the repeated count drops out an
   const first = {id: 'a', text: 'Eish was used by 9 creators in 13 posts.', numbers: [posts(13, 'q_a'), creators(9, 'q_a')]};
   const second = {id: 'b', text: 'Run away was used by 11 creators in 13 posts, against 4 posts in the 7-day period before.', numbers: [creators(11, 'q_now'), posts(13, 'q_now'), posts(4, 'q_before')]};
   const tied = evidence.figureTiles([first, second]).map((tile) => tile.line);
-  expect(tied).toEqual(['13 posts by 9 creators', '11 creators', '4 posts']);
-  expect(tied).not.toContain('4 posts by 11 creators');
+  expect(tied).toEqual(['13 posts · 9 accounts posting', '11 creators', '4 posts']);
+  expect(tied).not.toContain('4 posts · 11 accounts posting');
+  expect(tied.join(' ')).not.toContain(' by ');
 });
 
 test('a claim with three numbers joins the posts and the creators of one query and keeps the third apart', () => {
   const tiles = evidence.figureTiles([{id: 'a', text: 'A claim with a view count.', numbers: [posts(10, 'q1'), {value: 500, unit: 'views', query_id: 'q1'}, creators(4, 'q1')]}]);
-  expect(tiles.map((tile) => tile.line)).toEqual(['10 posts by 4 creators', '500 views']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['10 posts · 4 accounts posting', '500 views']);
 });
 
 test('two posts figures in one claim are not joined with its creators', () => {
@@ -240,7 +262,25 @@ test('two posts figures in one claim are not joined with its creators', () => {
 
 test('only the first eight figures are shown, so five pairs leave four tiles', () => {
   const claims = [1, 2, 3, 4, 5].map((n) => ({id: 'c' + n, text: 'Claim ' + n + '.', numbers: [posts(100 + n, 'q' + n), creators(10 + n, 'q' + n)]}));
-  expect(evidence.figureTiles(claims).map((tile) => tile.line)).toEqual(['101 posts by 11 creators', '102 posts by 12 creators', '103 posts by 13 creators', '104 posts by 14 creators']);
+  expect(evidence.figureTiles(claims).map((tile) => tile.line)).toEqual(['101 posts · 11 accounts posting', '102 posts · 12 accounts posting', '103 posts · 13 accounts posting', '104 posts · 14 accounts posting']);
   expect(evidence.distinctFigures(claims).length).toBe(8);
   expect(evidence.figureTiles(claims, 10).length).toBe(5);
+});
+
+test('a claim with a second creators figure never pairs its posts with the creators of another query', () => {
+  const first = {id: 'a', text: 'First.', numbers: [posts(20, 'q_a'), creators(11, 'q_a')]};
+  const second = {id: 'b', text: 'Second.', numbers: [creators(11, 'q_now'), posts(13, 'q_now'), creators(3, 'q_before')]};
+  expect(evidence.figureTiles([first, second]).map((tile) => tile.line)).toEqual(['20 posts · 11 accounts posting', '13 posts', '3 creators']);
+});
+
+test('a side by side claim whose partner repeats an earlier claim leaves the other figure alone, without error', () => {
+  const first = {id: 'a', text: 'First.', numbers: [posts(13, 'q_a'), creators(9, 'q_a')]};
+  const second = {id: 'b', text: 'Second.', numbers: [posts(13, 'q_b'), creators(11, 'q_b')]};
+  expect(evidence.figureTiles([first, second]).map((tile) => tile.line)).toEqual(['13 posts · 9 accounts posting', '11 creators']);
+  const third = {id: 'c', text: 'Third.', numbers: [posts(30, 'q_c'), creators(9, 'q_c')]};
+  expect(evidence.figureTiles([first, third]).map((tile) => tile.line)).toEqual(['13 posts · 9 accounts posting', '30 posts']);
+});
+
+test('a joined creators count in the singular reads "1 account posting"', () => {
+  expect(evidence.figureTiles([{id: 'a', text: 'One.', numbers: [posts(1, 'q1'), creators(1, 'q1')]}]).map((tile) => tile.line)).toEqual(['1 post · 1 account posting']);
 });

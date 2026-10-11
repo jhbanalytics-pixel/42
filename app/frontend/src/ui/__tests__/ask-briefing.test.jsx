@@ -217,7 +217,7 @@ test('each distinct figure is one tile, however many claims state it', async () 
   record.answer.claims[1].numbers = clone(record.answer.claims[0].numbers).map((number) => ({...number, query_id: 'q_other'}));
   await open(record);
   const tiles = all('.ask42-figure-tile .ask42-figure-line').map(words);
-  expect(tiles).toEqual(['3 posts by 3 creators']);
+  expect(tiles).toEqual(['3 posts · 3 accounts posting']);
   expect(evidence.distinctFigures(record.answer.claims).length).toBe(2);
 });
 
