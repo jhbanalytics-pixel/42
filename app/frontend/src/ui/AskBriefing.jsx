@@ -2,7 +2,7 @@
    what commenters said under the post they belong to, the number tiles and
    the platform marks. A card names the posts its claim rests on and nothing
    else; a comment is never a tile (askEvidence.js). */
-import {Fragment, useLayoutEffect, useRef, useState} from 'react';
+import {Fragment, useState} from 'react';
 import {readerFigure} from '../api.js';
 import {safeUrl} from '../safeUrl.js';
 import {isComment, parentShown, parentWords} from '../askEvidence.js';
@@ -108,46 +108,8 @@ export function FindingCard({claim, records, quoteMap, confidence, pinnedId, onP
   );
 }
 
-/* The claim a tile counts, with the style holding it to three lines. A closed
-   tile of a lone figure shows the sentence that writes its number (tile.about)
-   and Show all opens the whole claim (tile.full). The toggle shows when the
-   closed text is a part of the claim or is taller than its box. The height is
-   read before the page paints, and again when the window, the box or the fonts
-   change. An open claim keeps its button, and so does a button that has focus,
-   so neither is taken away from under a keyboard. */
-function FigureClaim({about, full, trimmed}){
-  const [open, setOpen] = useState(false);
-  const [clipped, setClipped] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const node = useRef(null);
-  useLayoutEffect(() => {
-    const claim = node.current;
-    if (!claim) return undefined;
-    const measure = () => {
-      if (claim.hasAttribute('data-open')) return;
-      setClipped(claim.scrollHeight > claim.clientHeight + 1);
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    const watcher = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
-    if (watcher) watcher.observe(claim);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
-    return () => {
-      window.removeEventListener('resize', measure);
-      if (watcher) watcher.disconnect();
-    };
-  }, [about, open]);
-  const toggle = trimmed || clipped || open || focused;
-  return (
-    <>
-      <p ref={node} className="ask42-figure-claim" data-open={open ? '' : undefined}>{open ? full : about}</p>
-      {toggle && <button type="button" className="ask42-quiet ask42-figure-more" aria-expanded={open ? 'true' : 'false'} onClick={() => setOpen((value) => !value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>{open ? 'Show less' : 'Show all'}</button>}
-    </>
-  );
-}
-
-/* Each tile says what it counts: the figures in one line and the claim they
-   belong to. Its name is the whole sentence. */
+/* Each tile says what it counts: the figures in one line and the whole claim
+   they belong to. Its name is the whole sentence. */
 export function FigureTiles({tiles}){
   if (!tiles.length) return null;
   return (
@@ -165,7 +127,7 @@ export function FigureTiles({tiles}){
                 </Fragment>
               ))}
             </p>
-            <FigureClaim about={tile.about} full={tile.full || tile.about} trimmed={tile.trimmed} />
+            <p className="ask42-figure-claim">{tile.about}</p>
           </li>
         ))}
       </ul>
