@@ -228,8 +228,8 @@ def blob_lines(path):
 def test_the_consumers_are_the_non_test_files_that_name_the_key_each_with_a_line_that_does():
     consumers = stored_effect(built())["consumers"]
     files = {c["file"] for c in consumers}
-    assert files == {"core/agent/ask.py", "core/agent/checks.py", "core/api/agent_app.py", "core/api/comment_links.py", "core/api/dossiers.py",
-                     "core/api/privacy.py"}
+    assert files == {"core/agent/answer_view.py", "core/agent/ask.py", "core/agent/checks.py", "core/api/agent_app.py",
+                     "core/api/comment_links.py", "core/api/dossiers.py", "core/api/privacy.py"}
     assert {c["access"] for c in consumers} == {"read", "write"} and all(c["image"] == "f42-web" and c["line"] > 0 for c in consumers)
     for consumer in consumers:
         assert any(word in blob_lines(consumer["file"])[consumer["line"] - 1] for word in ("evidence_links", "comment_links")), consumer
