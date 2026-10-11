@@ -262,3 +262,12 @@ def test_reworded_gaps_keep_their_stored_text_in_the_technical_details_once_m3()
     shown = answer_view.present(route_record(gaps))
     assert shown["run"]["technical_gaps"] == gaps[:1]
     assert answer_view.present(shown)["run"]["technical_gaps"] == gaps[:1]  # a second view keeps the first one's text
+
+
+def test_the_same_post_words_and_query_with_another_value_or_kind_are_not_one_fact_i2():
+    other_value = restated()
+    other_value["answer"]["claims"][1]["numbers"] = [number(40, "posts", "q_1")]  # 41 and 40, the same query
+    assert [c["id"] for c in answer_view.present(other_value)["answer"]["claims"]] == ["c1", "c2"]
+    other_kind = restated()
+    other_kind["answer"]["claims"][1]["kind"] = "interpretation"
+    assert [c["id"] for c in answer_view.present(other_kind)["answer"]["claims"]] == ["c1", "c2"]
