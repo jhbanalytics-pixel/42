@@ -10,6 +10,8 @@ from __future__ import annotations
 import copy
 import re
 
+from core.agent import briefing
+
 LABEL_RANK = {"inferred": 0, "single_source": 1, "observed": 2, "corroborated": 3}  # as core.agent.checks.LABEL_RANK
 PLATFORM_WORDS = {"tiktok": "TikTok", "instagram": "Instagram", "youtube": "YouTube", "reddit": "Reddit", "x": "X",
                   "threads": "Threads", "bluesky": "Bluesky", "facebook": "Facebook", "linkedin": "LinkedIn",
@@ -221,4 +223,11 @@ def present(record: dict) -> dict:
     shown["answer"] = answer
     if isinstance(shown.get("run"), dict) and isinstance(shown["run"].get("followups"), list):
         shown["run"] = {**shown["run"], "followups": plain_followups(shown["run"]["followups"])}
+    # The ranked briefing is read from the claims on every read. A briefing found in a stored run is not read as one.
+    stories = briefing.stories(answer)
+    run = shown.get("run") if isinstance(shown.get("run"), dict) else None
+    if stories is not None:
+        shown["run"] = {**(run or {}), "briefing": stories}
+    elif run is not None and "briefing" in run:
+        shown["run"] = {k: v for k, v in run.items() if k != "briefing"}
     return shown
