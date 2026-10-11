@@ -801,6 +801,7 @@ def check_answer(draft: dict, ctx, warehouse, *, window, markets=None, market=_U
         for eid in claim.get("evidence_ids") or []:
             if eid not in cited:
                 cited.append(eid)
+    cited = _with_parents(cited, ctx.evidence)
 
     answer = {
         "status": status,
@@ -2034,6 +2035,29 @@ def source_gaps(ctx, window) -> list[dict]:
         searched = route if step != "socialcrawl" else f"{route}, {window_text(window)}"
         gaps.append({"what": what, "searched": searched, "why": ", ".join(map(str, statuses))})
     return gaps
+
+
+def _with_parents(cited, stored):
+    """cited with the post each cited comment sits under placed just before it, once, when the run holds that post:
+    the privacy check judges a comment by its post, so an answer that keeps a comment keeps its post (C5 v2 5.1)."""
+    out = []
+    for eid in cited:
+        parent = (stored.get(eid) or {}).get("parent_id")
+        for one in (parent, eid):
+            if isinstance(one, str) and one in stored and one not in out:
+                out.append(one)
+    return out
+
+
+def comment_links(answer, stored):
+    """{"v": 1, "parents": {comment id: post id}} for the comments an answer shows whose post it shows too, or None. It
+    is kept beside the answer, not in it: the evidence shape is the one Release A readers accept, and the privacy check
+    needs the link to judge a comment by its post (C5 v2 5.1)."""
+    shown = {r.get("id") for r in answer.get("evidence") or [] if isinstance(r, dict)}
+    parents = {eid: stored[eid]["parent_id"] for eid in shown
+               if isinstance(eid, str) and eid in stored and isinstance(stored[eid].get("parent_id"), str)
+               and stored[eid]["parent_id"] in shown}
+    return {"v": 1, "parents": parents} if parents else None
 
 
 def _output_record(record):

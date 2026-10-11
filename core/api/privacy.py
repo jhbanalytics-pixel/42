@@ -12,8 +12,9 @@ import logging
 import re
 import threading
 import time
+from urllib.parse import urlparse
 
-from core.api import summary_state, today
+from core.api import comment_links, summary_state, today
 from core.api.export import EXPORT_NOTICE  # noqa: F401  (the one line an export carries)
 from core.api.store import creator_key
 
@@ -27,6 +28,9 @@ UNAVAILABLE_NOTE = "42 could not check its hidden-people list just now, so the p
 PEOPLE_UNAVAILABLE = "People view unavailable."
 
 OBS_ID = re.compile(r"^obs1_[0-9a-f]{32}$")
+COMMENT_ID = re.compile(r"^[a-z0-9]+_comment_")  # a comment record's id: "<platform>_comment_<native>"
+_HELD = "held"  # first part of the key a stream keeps an earlier evidence record under, beside post id to creator id
+_IDENTITY = ("id", "platform", "handle", "url", "creator_id", "posted_at", "parent_id")  # the fields that decide who wrote it
 MARGIN = dt.timedelta(days=3)
 SUPPRESSION_MAX_AGE_S = 30  # a run in flight may use a list this old (rule R2, section 8.4)
 READ = object()  # "read the list now"; None stands for UNAVAILABLE
@@ -141,24 +145,36 @@ def _day(value):
         return None
 
 
-def evidence_gone(evidence, hidden, store, creators=None):
+def evidence_gone(evidence, hidden, store, creators=None, parents=()):
     """The ids of the evidence records that belong to a hidden person (5.1). hidden None (UNAVAILABLE) gives every
     id. Stored posts are matched by who wrote them, found in one batched, date-bounded lookup of posts: a post the
-    lookup cannot place is gone too. Raises PeopleUnavailable when that lookup fails. creators memoises post id to
-    creator id across calls (the fact never changes; whether that person is hidden is never cached)."""
+    lookup cannot place is gone too. A record with a parent_id (a comment) is judged by its parent as well: it is gone
+    when its own author is hidden, when the post it sits under is gone, or when that post cannot be found among the
+    evidence or the parents handed in (a comment may carry the post's address, handle and all). parents are records
+    seen earlier in a stream; they are judged, never returned. Raises PeopleUnavailable when the lookup fails. creators
+    memoises post id to creator id across calls (the fact never changes; whether that person is hidden is never
+    cached)."""
     records = [e for e in evidence or [] if isinstance(e, dict)]
     if hidden is None:
         return {e.get("id") for e in records}
     keys, ids, _ = hidden
+    listed = {e.get("id") for e in records}
+    earlier = [p for p in parents or () if isinstance(p, dict) and p.get("id") not in listed]
     gone, stored = set(), []
-    for e in records:
+    for e in records + earlier:
         if creator_key(e.get("platform"), e.get("handle")) in keys or e.get("creator_id") in ids:
             gone.add(e.get("id"))
         elif isinstance(e.get("id"), str) and OBS_ID.match(e["id"]):
             stored.append(e)
     creators = {} if creators is None else creators
-    if not ids:  # no creator id is hidden, so who wrote a post cannot decide anything: no lookup
-        return gone
+    if ids:  # no creator id hidden means who wrote a post cannot decide anything: no lookup
+        _place_stored(stored, ids, store, creators, gone)
+    _legacy_comments_gone(records, earlier, keys, gone)
+    _under_gone_parents(records, earlier, gone)
+    return gone - {p.get("id") for p in earlier}
+
+
+def _place_stored(stored, ids, store, creators, gone):
     todo = [e for e in stored if e["id"] not in creators]
     if todo:
         days = [_day(e.get("posted_at")) for e in todo]
@@ -182,7 +198,65 @@ def evidence_gone(evidence, hidden, store, creators=None):
     for e in stored:
         if e["id"] not in creators or creators[e["id"]] in ids:
             gone.add(e["id"])  # a miss is never read as "not hidden"
-    return gone
+
+
+def _under_gone_parents(records, earlier, gone):
+    """Add the ids of the records that sit under a post that is gone, or under none that can be found. The chain is
+    walked to a record with no parent_id; more hops than there are records means a loop, and that is gone too."""
+    by_id = {}
+    for e in records + earlier:
+        if isinstance(e.get("id"), str):
+            by_id.setdefault(e["id"], e)
+    for e in records:
+        cur = e
+        for _ in range(len(by_id) + 1):
+            if cur.get("parent_id") is None:
+                break
+            parent = by_id.get(cur["parent_id"]) if isinstance(cur["parent_id"], str) else None
+            if parent is None or parent.get("id") in gone:
+                gone.add(e.get("id"))
+                break
+            cur = parent
+        else:
+            gone.add(e.get("id"))
+
+
+def _is_comment(record):
+    return isinstance(record.get("id"), str) and bool(COMMENT_ID.match(record["id"]))
+
+
+def _url_handle(url):
+    """The author named in a post's address (@name, an X handle, a Reddit user), or None."""
+    try:
+        parts = urlparse(url) if isinstance(url, str) else None
+    except ValueError:
+        return None
+    segments = [x for x in parts.path.split("/") if x] if parts else []
+    if segments and segments[0].startswith("@"):
+        return segments[0]
+    if segments and (parts.hostname or "").removeprefix("www.") in ("x.com", "twitter.com"):
+        return segments[0]
+    if len(segments) > 1 and segments[0] in ("user", "u"):
+        return "u/" + segments[1]
+    return None
+
+
+def _legacy_comments_gone(records, earlier, keys, gone):
+    """A comment (its id says "<platform>_comment_") is gone when the author in its address is hidden, whatever links it
+    to a post. One with no parent, because the record holds no link for it, is judged by the post that carries the same
+    address too: gone when that post is gone or when no post carrying its address can be found."""
+    posts = [p for p in records + earlier if not _is_comment(p)]
+    for e in records:
+        if not _is_comment(e):
+            continue
+        if creator_key(e.get("platform"), _url_handle(e.get("url"))) in keys:
+            gone.add(e.get("id"))
+            continue
+        if e.get("parent_id") is not None:
+            continue
+        same = [p for p in posts if isinstance(e.get("url"), str) and e["url"] and p.get("url") == e["url"]]
+        if not same or any(p.get("id") in gone for p in same):
+            gone.add(e.get("id"))
 
 
 def mask(value, hidden):
@@ -248,7 +322,8 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
     if nothing_hidden(hidden):
         return base if carried is None else {**base, "privacy": carried}
     answer = base.get("answer")
-    evidence = answer.get("evidence") if isinstance(answer, dict) else None
+    links = comment_links.read(base)
+    evidence = comment_links.attach(answer.get("evidence") if isinstance(answer, dict) else None, links)
     try:
         gone = evidence_gone(evidence, hidden, store, creators)
     except PeopleUnavailable:
@@ -280,6 +355,10 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
         if ans.get("status") == "complete" and not kept:
             ans["status"] = "partial"
         _ranked(out, claims_gone, present, hidden, unavailable)
+    shown = {e.get("id") for e in (ans.get("evidence") if isinstance(ans, dict) else None) or [] if isinstance(e, dict)}
+    out.pop(comment_links.KEY, None)
+    if comment_links.prune(links, shown):
+        out[comment_links.KEY] = comment_links.prune(links, shown)
     before = _json(out)
     out = mask(out, hidden)
     changed = _json(out) != before
@@ -392,12 +471,16 @@ def project_event(kind, data, hidden, store, gone, seen):
     """One event of a run in flight, or None to withhold it (5.5). gone collects the ids of the evidence left out of
     this stream so a claim citing one is left out too; seen memoises post id to creator id for the stream. hidden
     None (UNAVAILABLE) sends no evidence or claim event."""
+    if kind == "evidence" and isinstance(data.get("evidence"), dict) and isinstance(data["evidence"].get("id"), str):
+        # kept even while nobody is hidden, so a comment arriving after a hide is judged by its post (5.1)
+        seen[(_HELD, data["evidence"]["id"])] = {k: data["evidence"][k] for k in _IDENTITY if k in data["evidence"]}
     if nothing_hidden(hidden):
         return data
     if kind == "evidence":
         record = data.get("evidence") if isinstance(data.get("evidence"), dict) else {}
+        earlier = [v for k, v in seen.items() if type(k) is tuple]
         try:
-            left_out = hidden is None or bool(evidence_gone([record], hidden, store, seen))
+            left_out = hidden is None or bool(evidence_gone([record], hidden, store, seen, earlier))
         except PeopleUnavailable:
             left_out = True
         if left_out:
@@ -436,7 +519,7 @@ def finding_blockers(record, store, hidden=READ):
              and mask({"q": record["question"]}, hidden)["q"] != record["question"])
     if not isinstance(answer, dict):
         return [], named
-    evidence = answer.get("evidence")
+    evidence = comment_links.attach(answer.get("evidence"), comment_links.read(record))
     claims = [c for c in answer.get("claims") or [] if isinstance(c, dict)]
     return [c.get("id") for c in claims if not selectable(c, evidence, hidden, store)], named
 
