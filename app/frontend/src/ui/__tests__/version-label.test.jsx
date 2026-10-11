@@ -119,6 +119,9 @@ describe('the release files', () => {
     expect(releases.map((r) => r.next)).toEqual([true, false, false, false]);
     expect(releases[0].when).toBe('Next, not live yet');
     expect(releases[0].summary).toMatch(/\bD0\b/);
+    /* The line naming a release stays true once it is live: release state
+       is the heading's alone, and the panel reads it against VERSION. */
+    for (const release of releases) expect(release.summary).not.toMatch(/\bnext\b|not live/i);
     expect(releases[1].when).toBe('11 October 2026');
     expect(releases[1].summary).toContain('Release C');
     expect(releases[1].summary).toContain('rel-d0aebe7-01');

@@ -8,7 +8,7 @@ The newest release comes first, and VERSION at the root of the repository holds 
 
 ## 2.3.0 (next, not live yet)
 
-Release D0, the next website and Ask release.
+Release D0, the website and Ask.
 
 - The menu shows the version 42 is on, with this list of what changed.
 - A quiet hint offers a reload when the live version changes while the page is open, on phones too.
