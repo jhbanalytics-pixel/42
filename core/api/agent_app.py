@@ -1258,7 +1258,8 @@ def dossier_view(version, ticks):
     from core.api.store import get_store
     body = current_people(version["body"])
     view = privacy.project_dossier({**body, "content_hash": version["content_hash"], "ticks": ticks,
-                                    "needs_tick": dossiers.needs_tick(body, ticks)}, privacy.LazyStore(get_store))
+                                    "needs_tick": dossiers.needs_tick(body, ticks)}, privacy.LazyStore(get_store),
+                                   read_source=source_record)
     return dossiers.shown(view)
 
 
@@ -1360,7 +1361,8 @@ def create_dossier_from(ask_id, change):
 def keepable(record, learned=None):
     """{claim id: whether the list lets a dossier keep it now} for the source answer, or None when who is hidden
     cannot be checked (C5 v2 section 7: build from what the projection leaves, refuse the rest). learned, when given,
-    receives the ids of the claims that only a name the source evidence reveals makes unkeepable."""
+    receives the ids of the claims that rest on a hidden person's post, and of those whose words only a name the source
+    evidence reveals makes unkeepable."""
     from core.api.store import get_store
     answer = record.get("answer") if isinstance(record, dict) else None
     if not isinstance(answer, dict):
@@ -1700,7 +1702,8 @@ def export_dossier(dossier_id: str, version: int, format: str = "html"):
     if held is None:
         return error(404, "not_found", f"Dossier {dossier_id} has no version {version}.")
     from core.api.store import get_store
-    projected = privacy.project_dossier(current_people(held["body"]), privacy.LazyStore(get_store))
+    projected = privacy.project_dossier(current_people(held["body"]), privacy.LazyStore(get_store),
+                                        read_source=source_record)
     if (projected.get("privacy") or {}).get("state") == "unavailable":
         return people_unavailable()
     try:

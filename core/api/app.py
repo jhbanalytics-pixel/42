@@ -209,7 +209,8 @@ async def _again(resp: httpx.Response, kind: str) -> Response:
             if kind == "investigations":
                 return privacy.mask(body, hidden)
             if kind == "dossier" and isinstance(body, dict):
-                return privacy.project_dossier(body, lazy, hidden, body.get("privacy"))
+                return privacy.project_dossier(body, lazy, hidden, body.get("privacy"),
+                                               read_source=lambda ask_id: store.get_store().ask_record(ask_id))
             if kind == "dossiers" and isinstance(body, dict) and isinstance(body.get("dossiers"), list):
                 return {**body, "dossiers": [privacy.project_summary(row, lazy, hidden) for row in body["dossiers"]]}
             return body

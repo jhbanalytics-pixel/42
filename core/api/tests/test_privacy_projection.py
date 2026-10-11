@@ -326,7 +326,7 @@ def test_a_dossier_keeps_its_slots_and_shows_a_withheld_claim_in_words_a25_a34()
     by = {c["claim_id"]: c for c in out["claims"]}
     assert list(by) == ["c1", "c2", "c3", "c4"] and by["c4"]["kept"] is False
     assert by["c1"]["text"] == "Amapiano posts rose" and by["c1"]["quotes"][0]["text"] == "visible fixture words"
-    for cid in ("c2", "c3", "c4"):  # c4 is not kept and cites a post the dossier does not hold: withheld while anyone is hidden
+    for cid in ("c2", "c3", "c4"):  # no source Ask is handed in, so c4, not kept and citing a post the dossier does not hold, is withheld (fail closed)
         assert by[cid]["text"] == privacy.CLAIM_WITHHELD and by[cid]["withheld"] is True
         assert by[cid]["evidence_ids"] == [] and by[cid]["quotes"] == []
         assert by[cid]["label"] == body["claims"][int(cid[1]) - 1]["label"]  # the slot's facts stay

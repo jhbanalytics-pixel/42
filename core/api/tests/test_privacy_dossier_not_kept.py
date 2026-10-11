@@ -5,7 +5,9 @@ A claim whose words name the hidden creator's current handle as well as the old 
 stored it as written and showed the old handle the Ask read masks. A claim not kept that rests on a hidden post kept its
 words, its verbatim quote and the post id, because a dossier holds only the evidence of the claims it keeps, so the
 hidden post was never among what the dossier could judge. And a dossier made before the hide shows those words again
-unless the read itself withholds a claim not kept whose evidence the dossier does not hold. The notice that some content was
+unless the read itself withholds a claim not kept that rests on a hidden post: judged against the source Ask
+(test_privacy_dossier_source.py), or, when the source cannot be read, any claim not kept whose evidence the dossier does
+not hold. The notice that some content was
 left out is raised only when the projection withheld something or masked a hidden person's handle, not when the step rule
 masked a handle it could not clear."""
 import json

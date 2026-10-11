@@ -440,9 +440,31 @@ def _ranked(record, claims_gone, present, hidden, unavailable):
         run.pop("ranked_list", None)
 
 
-def project_dossier(view, store, hidden=READ, inbound=None):
+def _source_evidence(read_source, ask_id):
+    """The evidence of the Ask a dossier was made from, with its comment links attached, as the reader read_source
+    (ask id to Ask record, or None) gives it; None when it cannot be had. A source that cannot be read judges nothing."""
+    if read_source is None or not isinstance(ask_id, str):
+        return None
+    try:
+        record = read_source(ask_id)
+        answer = record.get("answer") if isinstance(record, dict) else None
+        if not isinstance(answer, dict):
+            return None
+        return [e for e in comment_links.attach(answer.get("evidence"), comment_links.read(record)) or [] if isinstance(e, dict)]
+    except Exception:
+        return None
+
+
+def project_dossier(view, store, hidden=READ, inbound=None, read_source=None):
     """A dossier version as a reader may see it now (5.3). The stored body is never changed, and content_hash stays
-    the stored row's hash (R11)."""
+    the stored row's hash (R11).
+
+    A dossier holds the evidence of the claims it keeps only, so a claim it does not keep cites posts it does not hold.
+    read_source, a function from an ask id to the stored or held Ask record (None when there is none), lets the read
+    judge those claims against the Ask the dossier was made from: a removed claim is withheld when it cites a post of
+    a hidden person there, and the handles that Ask reveals for a hidden person are masked as the Ask read masks them.
+    It is called once, and only when somebody is hidden. A source that cannot be read judges nothing, and a removed claim
+    that cites a post the dossier does not hold is then withheld (fail closed)."""
     if not isinstance(view, dict):
         return view
     base = {k: v for k, v in view.items() if k != "privacy"}
@@ -451,8 +473,12 @@ def project_dossier(view, store, hidden=READ, inbound=None):
     if nothing_hidden(hidden):
         return base if carried is None else {**base, "privacy": carried}
     named = set()
+    source = None if hidden is None else _source_evidence(read_source, base.get("source_ask_id"))
+    source_gone = set()
     try:
         gone = evidence_gone(base.get("evidence"), hidden, store, names=named)
+        if source is not None:
+            source_gone = evidence_gone(source, hidden, store, names=named)
     except PeopleUnavailable:
         hidden = None
         gone = evidence_gone(base.get("evidence"), None, store)
@@ -463,11 +489,12 @@ def project_dossier(view, store, hidden=READ, inbound=None):
         out["evidence"] = [e for e in out.get("evidence") or [] if not (isinstance(e, dict) and e.get("id") in gone)]
     withheld, summary_gone = 0, False
     held = {e.get("id") for e in base.get("evidence") or [] if isinstance(e, dict)}
+    judged = held | {e.get("id") for e in source or []}
     for claim in out.get("claims") or []:
-        # A dossier holds the evidence of the claims it keeps only, so a claim not kept that cites a post it does not
-        # hold cannot be judged here: while anybody is hidden it is withheld, never shown on trust (fail closed).
-        unjudged = not claim.get("kept") and bool(_claim_ids(claim) - {None} - held)
-        if unavailable or _claim_ids(claim) & gone or unjudged:
+        # A claim not kept that cites a post neither the dossier nor its source Ask holds cannot be judged: while
+        # anybody is hidden it is withheld, never shown on trust (fail closed).
+        unjudged = not claim.get("kept") and bool(_claim_ids(claim) - {None} - judged)
+        if unavailable or _claim_ids(claim) & (gone | source_gone) or unjudged:
             claim.update(text=CLAIM_WITHHELD, evidence_ids=[], quotes=[], withheld=True)
             for key in ("basis", "falsifier"):
                 if key in claim:
