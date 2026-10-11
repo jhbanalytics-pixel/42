@@ -21,7 +21,7 @@ import {LeadPanel} from './ui/LeadPanel.jsx';
 import {PartsBar, StepMeter} from './ui/Charts42.jsx';
 import {FigureLine} from './ui/FigureLine.jsx';
 import {Facts} from './ui/Facts.jsx';
-import {MARKET_WORDS, heldWords, useCardWatch} from './ui/WatchDialog.jsx';
+import {MARKET_WORDS, firedWords, heldWords, useCardWatch} from './ui/WatchDialog.jsx';
 import './styles/today42.css';
 import './styles/today-story.css';
 import './styles/alerts42.css';
@@ -682,7 +682,7 @@ function AlertsStrip({alerts}){
             <li key={a.watch_id + ':' + a.market + ':' + a.item_id} data-held={held ? '' : undefined}>
               <a className="t42-link" href={topicHref(a.item_id, a.market)}>{a.label}</a>:{' '}
               {held && <><span className="a42-held">{heldWords(held)}</span> · </>}
-              {accountsWords(a.fired_because)} · {MARKET_WORDS[a.market] || a.market}
+              {firedWords(a.fired_because)} · {MARKET_WORDS[a.market] || a.market}
             </li>
           );
         })}

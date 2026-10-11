@@ -6,8 +6,8 @@
 import {useEffect, useId, useRef, useState} from 'react';
 import {MarketScopeNote, inMarket, pickedMarket, useFollowedMarket} from './marketScope.jsx';
 import {createWatch, fetchAlerts, listWatches, pauseWatch, resumeWatch} from './api42.js';
-import {accountsWords, longDate, topicHref} from './ui/TrendCard.jsx';
-import {FIRST_CHOICE, MARKET_WORDS, RuleChoice, heldWords, ruleFrom, ruleWords, waitingWords} from './ui/WatchDialog.jsx';
+import {longDate, topicHref} from './ui/TrendCard.jsx';
+import {FIRST_CHOICE, MARKET_WORDS, RuleChoice, firedWords, heldWords, ruleFrom, ruleWords, waitingWords} from './ui/WatchDialog.jsx';
 import './styles/today42.css';
 import './styles/alerts42.css';
 
@@ -137,7 +137,7 @@ function TodaysAlerts({picked = '', alerts, watches, onRetry}){
                 <li key={a.watch_id + ':' + a.market + ':' + a.item_id} className="a42-alert" data-held={held ? '' : undefined}>
                   <a className="t42-link a42-name" href={topicHref(a.item_id, a.market)}>{a.label}</a>
                   {held && <span className="a42-held">{heldWords(held)}</span>}
-                  <span className="a42-meta">{accountsWords(a.fired_because)} · {marketWord(a.market)}{a.since ? ' · since ' + longDate(a.since) : ''}</span>
+                  <span className="a42-meta">{firedWords(a.fired_because)} · {marketWord(a.market)}{a.since ? ' · since ' + longDate(a.since) : ''}</span>
                 </li>
               );
             })}

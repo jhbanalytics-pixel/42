@@ -432,6 +432,15 @@ test("the skin's watches and today's alerts show, with no other watch", async ()
   expect(link).toBeDefined();
 });
 
+/* Design audit item 12: a skin's reach alert says its count the way the rule does. */
+test("a skin's reach alert says accounts posting, as its rule does", async () => {
+  const reach = {...SKIN_TODAY, alerts: {alerts: [{...SKIN_TODAY.alerts.alerts[0], fired_because: 'Reach passed 50 creators in 3 days'}], waiting: []}};
+  await mountPage(pageRoutes([['/api/skins/sk_000000000001/today', reply(200, reach)]]));
+  const watches = section('skin-watches');
+  expect(text(watches)).toContain('Reach passed 50 accounts posting in 3 days');
+  expect(text(watches)).not.toContain('50 creators');
+});
+
 test('past reports are the dossiers whose investigation carries this skin', async () => {
   await mountPage();
   const reports = section('skin-reports');

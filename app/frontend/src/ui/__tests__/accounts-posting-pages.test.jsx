@@ -84,13 +84,13 @@ test('the trend cards on a community page say accounts posting', async () => {
 });
 
 test('the reach rule counts accounts posting', () => {
-  expect(ruleWords({reach_over: 50})).toBe('When reach passes 50 accounts posting');
+  expect(ruleWords({reach_over: 50})).toBe('When reach passes 50 accounts posting in 3 days');
   expect(ruleFrom({...FIRST_CHOICE, kind: 'reach', reach: '0'}).error).toBe('Reach must be a whole number of accounts posting above 0.');
   const html = renderToStaticMarkup(<RuleChoice choice={{...FIRST_CHOICE, kind: 'reach', reach: '50'}} onChange={() => {}} />);
   const form = new window.DOMParser().parseFromString(html, 'text/html');
   const reach = form.querySelector('input[name="reach"]');
-  expect(reach.getAttribute('aria-label')).toBe('Reach, accounts posting in the last 3 days');
-  expect(reach.nextSibling.textContent.trim()).toBe('accounts posting');
+  expect(reach.getAttribute('aria-label')).toBe('Reach, accounts posting in 3 days');
+  expect(reach.nextSibling.textContent.trim()).toBe('accounts posting in 3 days');
   expect(form.body.textContent).not.toMatch(/creators/);
 });
 
@@ -102,7 +102,8 @@ test('a fired alert says its reach in accounts', async () => {
   serve([['/api/watches', reply(200, {watches: [watch]})], ['/api/alerts', reply(200, alerts)]]);
   flushSync(() => root.render(<AlertsPage42 />));
   await settle();
-  expect(text()).toContain('Reach passed 50 accounts in 3 days');
-  expect(text()).toContain('When reach passes 50 accounts posting');
+  /* One phrasing per rule: the reason an alert fired says its count as the rule does. */
+  expect(text()).toContain('Reach passed 50 accounts posting in 3 days');
+  expect(text()).toContain('When reach passes 50 accounts posting in 3 days');
   expect(text()).not.toMatch(/creators in 3 days|50 creators/);
 });

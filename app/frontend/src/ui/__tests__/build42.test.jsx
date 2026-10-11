@@ -83,6 +83,17 @@ test('the page is called Build and lists recent work from the 42 API', async () 
   expect(section('b42-recent-schedules').textContent).toContain('No scheduled questions yet.');
 });
 
+/* Design audit item 12: Build says an answer's state in the words History and Dossiers use. */
+test('a recent question says Answered or Partial answer, as History does', async () => {
+  const partial = {ask_id: 'a_part', question: 'Who carried the step to Lagos?', at: '2026-09-29T09:00:00+02:00', status: 'complete', answer_status: 'partial'};
+  const {api} = fakeApi({fetchHistoryAsks: async () => ({asks: [...ASKS, partial], next_before: null})});
+  await mount({region: 'ALL', api});
+  const row = (id) => section('b42-recent-asks').querySelector('a[href="#/ask?follow=' + id + '"]').parentElement.textContent;
+  expect(row('a_done')).toContain('Answered');
+  expect(row('a_part')).toContain('Partial answer');
+  expect(section('b42-recent-asks').textContent).not.toContain('Partly answered');
+});
+
 test('none of the retired workbench words or calls are on the page', async () => {
   const {api} = fakeApi();
   await mount({region: 'ZA', api});

@@ -141,7 +141,7 @@ test('every rule reads in words', () => {
   expect(ruleWords({state_in: ['rising', 'peaking']})).toBe('When it enters Rising or Peaking');
   expect(ruleWords({state_in: ['new_to_42']})).toBe('When it enters New to 42');
   expect(ruleWords({ratio_over: 2.5})).toBe('When growth passes 2.5 times');
-  expect(ruleWords({reach_over: 50})).toBe('When reach passes 50 accounts posting');
+  expect(ruleWords({reach_over: 50})).toBe('When reach passes 50 accounts posting in 3 days');
   expect(ruleWords({breakout: true})).toBe('When a creator breaks out');
   expect(ruleWords({tone_flip: true})).toBe('When the tone flips');
   expect(ruleWords({creator_surge: true})).toBe("When the creator's views surge");
@@ -162,7 +162,7 @@ test('each watch shows its target, market, rule in words and status, with Pause 
   for (const words of ['#amapiano', 'Hashtag', 'South Africa', 'When it starts rising', 'Active']) expect(one).toContain(words);
   expect(button(row('w_1'), 'Pause')).toBeDefined();
   const two = text(row('w_2'));
-  for (const words of ['Castle Lager', 'Brand', 'All markets', 'When reach passes 50 accounts posting', 'Paused']) expect(two).toContain(words);
+  for (const words of ['Castle Lager', 'Brand', 'All markets', 'When reach passes 50 accounts posting in 3 days', 'Paused']) expect(two).toContain(words);
   expect(button(row('w_2'), 'Resume')).toBeDefined();
   expect(text(row('w_3'))).toContain('Waiting for creator views detection');
   expect(text(row('w_4'))).toContain('When growth passes 2.5 times');
@@ -248,7 +248,7 @@ test('the add form watches a hashtag in a market with the chosen rule', async ()
   expect(made).toHaveLength(1);
   expect(bodyOf(made[0])).toEqual({target: {kind: 'sound', value: 'pula groove'}, market: 'KE', rule: {reach_over: 80}, label: 'pula groove'});
   expect(host.querySelectorAll('[data-watch]')).toHaveLength(5);
-  expect(text(row('w_new'))).toContain('When reach passes 80 accounts posting');
+  expect(text(row('w_new'))).toContain('When reach passes 80 accounts posting in 3 days');
   expect(text(form)).toContain('Watching pula groove');
   expect(form.querySelector('input[name="value"]').value).toBe('');
 });
