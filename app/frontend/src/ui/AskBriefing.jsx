@@ -108,13 +108,14 @@ export function FindingCard({claim, records, quoteMap, confidence, pinnedId, onP
   );
 }
 
-/* Each tile says what it counts: the figures in one line, the claim they
-   belong to, and where they were read. Its name is the whole sentence. */
+/* Each tile says what it counts: the figures in one line and the claim they
+   belong to. Its name is the whole sentence. */
 export function FigureTiles({tiles}){
   if (!tiles.length) return null;
   return (
     <section className="ask42-section" aria-labelledby="ask42-figures-title">
       <h3 className="ask42-section-title" id="ask42-figures-title">The numbers</h3>
+      <p className="ask42-muted ask42-figure-caption">Counted in the store, not only in the posts cited above</p>
       <ul className="ask42-figure-tiles">
         {tiles.map((tile) => (
           <li className="ask42-figure-tile" key={tile.key} aria-label={tile.sentence} data-query-id={tile.queryId || undefined} data-query-ids={tile.queryIds.length > 1 ? tile.queryIds.join(' ') : undefined}>
@@ -126,8 +127,7 @@ export function FigureTiles({tiles}){
                 </Fragment>
               ))}
             </p>
-            <p className="ask42-figure-about" title={tile.full || undefined}>{tile.about}</p>
-            {tile.scope && <p className="ask42-figure-scope">{tile.scope}</p>}
+            <p className="ask42-figure-claim" title={tile.full || undefined}>{tile.about}</p>
           </li>
         ))}
       </ul>

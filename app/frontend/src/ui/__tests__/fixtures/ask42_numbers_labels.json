@@ -30,14 +30,14 @@
       "value": 179,
       "unit": "posts",
       "query_id": "q_soweto",
-      "run_id": "r_20261011_000000_fixture",
+      "run_id": "r_20261010_000000_fixture",
       "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
      },
      {
       "value": 118,
       "unit": "creators",
       "query_id": "q_soweto",
-      "run_id": "r_20261011_000000_fixture",
+      "run_id": "r_20261010_000000_fixture",
       "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
      }
     ]
@@ -61,14 +61,14 @@
       "value": 104,
       "unit": "posts",
       "query_id": "q_boks",
-      "run_id": "r_20261011_000000_fixture",
+      "run_id": "r_20261010_000000_fixture",
       "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
      },
      {
       "value": 31,
       "unit": "creators",
       "query_id": "q_boks",
-      "run_id": "r_20261011_000000_fixture",
+      "run_id": "r_20261010_000000_fixture",
       "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
      }
     ]
@@ -92,14 +92,14 @@
       "value": 18,
       "unit": "posts",
       "query_id": "q_power",
-      "run_id": "r_20261011_000000_fixture",
+      "run_id": "r_20261010_000000_fixture",
       "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
      },
      {
       "value": 2,
       "unit": "creators",
       "query_id": "q_power",
-      "run_id": "r_20261011_000000_fixture",
+      "run_id": "r_20261010_000000_fixture",
       "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
      }
     ]
@@ -123,14 +123,14 @@
       "value": 6,
       "unit": "posts",
       "query_id": "q_taxi",
-      "run_id": "r_20261011_000000_fixture",
+      "run_id": "r_20261010_000000_fixture",
       "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
      },
      {
       "value": 6,
       "unit": "creators",
       "query_id": "q_taxi",
-      "run_id": "r_20261011_000000_fixture",
+      "run_id": "r_20261010_000000_fixture",
       "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
      }
     ]

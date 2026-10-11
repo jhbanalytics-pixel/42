@@ -286,15 +286,6 @@ function ShortAnswer({text}){
   return <><span className="ask42-short-lead">{lead}</span>{rest}</>;
 }
 
-/* Where a tile's figures were read: the market and the window of the run. */
-function figureScope(record){
-  const parts = [];
-  if (MARKET_NAME[record.market]) parts.push(MARKET_NAME[record.market]);
-  const span = windowWords((record.run || {}).window);
-  if (span) parts.push(span);
-  return parts.join(', ');
-}
-
 function metaLine(record){
   const run = record.run || {};
   const parts = [];
@@ -403,7 +394,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   const records = new Map(withParents(answer.evidence).map((item) => [item.id, item]));
   /* The reader's counts: each distinct figure once, one row per platform,
      the quotes each post is read for, and the confidence of the whole. */
-  const figures = figureTiles(answer.claims, figureScope(record));
+  const figures = figureTiles(answer.claims);
   const platforms = platformTotals(run.source_status, (platform) => platformWord(platform));
   const quoteMap = new Map();
   for (const claim of answer.claims || []){
