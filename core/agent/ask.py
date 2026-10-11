@@ -2335,4 +2335,6 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     meta = _meta_or_none(request.get("ask_id") or run_id, run_id, state, stop, answer, summary_ledger)
     if meta is not None:
         result["answer_meta"] = meta
+    if links := checks.comment_links(answer, ctx.evidence):  # beside the answer, never in it (Release A schema)
+        result["evidence_links"] = links
     return result

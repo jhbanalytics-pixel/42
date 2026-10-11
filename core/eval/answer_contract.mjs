@@ -44,7 +44,6 @@ const EVIDENCE = obj(['id', 'platform', 'handle', 'url', 'posted_at', 'market', 
   text: id,
   engagement: obj([], {}, { type: 'number', minimum: 0 }),
   flags: list(str),
-  parent_id: id,
   thumbnail_url: { type: 'string', pattern: /^https?:\/\/\S+$/ },
   duration_s: { type: 'number', minimum: 0 },
   transcript_span: obj(['start_s', 'end_s', 'text'], {

@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from core.api import dossiers, finding_save, fixture_states, investigations, privacy, skins, summary_state
+from core.api import comment_links, dossiers, finding_save, fixture_states, investigations, privacy, skins, summary_state
 from core.api.store import SUPPRESSIONS, viewer_record
 # The watch list read and its table live in core/api/watchlist.py so the f42-digest job can read watches
 # without fastapi; WATCHES and _lock are the same objects there and here.
@@ -380,6 +380,8 @@ def execute(ask, run_ask, after=None):
         ask.receipts = result.get("query_receipts")
         update = {"status": "stopped" if ask.stop else "complete",
                   "answer": result.get("answer"), "run": result.get("run")}
+        if result.get("evidence_links"):
+            update["evidence_links"] = result["evidence_links"]
         meta = result.get("answer_meta")
     except Exception as exc:
         log.exception("ask %s failed", ask.request["ask_id"])
@@ -1353,7 +1355,8 @@ def keepable(record):
         return None
     claims, _ = dossiers.admitted(answer)
     try:
-        return privacy.selectable_claims(claims, answer.get("evidence"), hidden, store)
+        evidence = comment_links.attach(answer.get("evidence"), comment_links.read(record))
+        return privacy.selectable_claims(claims, evidence, hidden, store)
     except privacy.PeopleUnavailable:
         return None
 

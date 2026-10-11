@@ -14,7 +14,7 @@ import threading
 import time
 from urllib.parse import urlparse
 
-from core.api import summary_state, today
+from core.api import comment_links, summary_state, today
 from core.api.export import EXPORT_NOTICE  # noqa: F401  (the one line an export carries)
 from core.api.store import creator_key
 
@@ -242,15 +242,17 @@ def _url_handle(url):
 
 
 def _legacy_comments_gone(records, earlier, keys, gone):
-    """A comment stored before parent_id was kept (its id says "<platform>_comment_") is judged by what it still has:
-    the author in its address, and the post that carries the same address. It is gone when that author is hidden, when
-    that post is gone, or when no post carrying its address can be found."""
+    """A comment (its id says "<platform>_comment_") is gone when the author in its address is hidden, whatever links it
+    to a post. One with no parent, because the record holds no link for it, is judged by the post that carries the same
+    address too: gone when that post is gone or when no post carrying its address can be found."""
     posts = [p for p in records + earlier if not _is_comment(p)]
     for e in records:
-        if e.get("parent_id") is not None or not _is_comment(e):
+        if not _is_comment(e):
             continue
         if creator_key(e.get("platform"), _url_handle(e.get("url"))) in keys:
             gone.add(e.get("id"))
+            continue
+        if e.get("parent_id") is not None:
             continue
         same = [p for p in posts if isinstance(e.get("url"), str) and e["url"] and p.get("url") == e["url"]]
         if not same or any(p.get("id") in gone for p in same):
@@ -320,7 +322,8 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
     if nothing_hidden(hidden):
         return base if carried is None else {**base, "privacy": carried}
     answer = base.get("answer")
-    evidence = answer.get("evidence") if isinstance(answer, dict) else None
+    links = comment_links.read(base)
+    evidence = comment_links.attach(answer.get("evidence") if isinstance(answer, dict) else None, links)
     try:
         gone = evidence_gone(evidence, hidden, store, creators)
     except PeopleUnavailable:
@@ -352,6 +355,10 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
         if ans.get("status") == "complete" and not kept:
             ans["status"] = "partial"
         _ranked(out, claims_gone, present, hidden, unavailable)
+    shown = {e.get("id") for e in (ans.get("evidence") if isinstance(ans, dict) else None) or [] if isinstance(e, dict)}
+    out.pop(comment_links.KEY, None)
+    if comment_links.prune(links, shown):
+        out[comment_links.KEY] = comment_links.prune(links, shown)
     before = _json(out)
     out = mask(out, hidden)
     changed = _json(out) != before
@@ -512,7 +519,7 @@ def finding_blockers(record, store, hidden=READ):
              and mask({"q": record["question"]}, hidden)["q"] != record["question"])
     if not isinstance(answer, dict):
         return [], named
-    evidence = answer.get("evidence")
+    evidence = comment_links.attach(answer.get("evidence"), comment_links.read(record))
     claims = [c for c in answer.get("claims") or [] if isinstance(c, dict)]
     return [c.get("id") for c in claims if not selectable(c, evidence, hidden, store)], named
 

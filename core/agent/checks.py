@@ -35,7 +35,7 @@ TOLERANCE = 0.02  # ratios and other floats; counts are exact
 IDENTITY_FIELDS = ("url", "handle", "platform", "posted_at", "market")
 REQUIRED_FIELDS = ("platform", "handle", "url", "posted_at", "market", "text")
 EVIDENCE_KEYS = ("id", "platform", "handle", "url", "posted_at", "market", "source_market", "text", "engagement",
-                 "flags", "parent_id")
+                 "flags")
 NOT_INDEPENDENT = {"paid", "brand", "brand_owned", "sponsored", "near_duplicate", "market_assumed"}
 GENERATIVE_HOSTS = ("gemini.google.com", "bard.google.com", "aistudio.google.com", "notebooklm.google.com", "labs.google")
 PLATFORM_LABELS = {"tiktok": "TikTok", "youtube": "YouTube", "x": "X", "twitter": "X"}
@@ -2047,6 +2047,17 @@ def _with_parents(cited, stored):
             if isinstance(one, str) and one in stored and one not in out:
                 out.append(one)
     return out
+
+
+def comment_links(answer, stored):
+    """{"v": 1, "parents": {comment id: post id}} for the comments an answer shows whose post it shows too, or None. It
+    is kept beside the answer, not in it: the evidence shape is the one Release A readers accept, and the privacy check
+    needs the link to judge a comment by its post (C5 v2 5.1)."""
+    shown = {r.get("id") for r in answer.get("evidence") or [] if isinstance(r, dict)}
+    parents = {eid: stored[eid]["parent_id"] for eid in shown
+               if isinstance(eid, str) and eid in stored and isinstance(stored[eid].get("parent_id"), str)
+               and stored[eid]["parent_id"] in shown}
+    return {"v": 1, "parents": parents} if parents else None
 
 
 def _output_record(record):

@@ -23,7 +23,7 @@ import httpx
 from core.api.tests import compat_harness as ch
 
 ROOT = ch.ROOT
-RECORD_KEYS = {"answer_meta"}  # the one top-level key the record gains (C1 2.2); the dossier keys are not reachable offline
+RECORD_KEYS = {"answer_meta", "evidence_links"}  # the keys the record gains: the typed summary state, the comment links
 
 DRIVER = r'''
 import json, os, sys, time

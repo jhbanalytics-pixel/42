@@ -112,7 +112,6 @@
         "text": {"type": "string", "minLength": 1},
         "engagement": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0}},
         "flags": {"type": "array", "items": {"type": "string"}},
-        "parent_id": {"type": "string", "minLength": 1},
         "thumbnail_url": {"type": "string", "pattern": "^https?://\\S+$"},
         "duration_s": {"type": "number", "minimum": 0},
         "transcript_span": {
