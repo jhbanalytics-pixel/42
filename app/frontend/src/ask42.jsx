@@ -15,7 +15,7 @@ import {marketToSend} from './askMarkets.js';
 import {costWords, itemsWords} from './costWords.js';
 import {EvidenceChip, monthName} from './ui/EvidenceChip.jsx';
 import {FindingCard, FigureTiles, PlatformMarks} from './ui/AskBriefing.jsx';
-import {confidenceTag, distinctFigures, gapSplit, platformTotals, scopeWords} from './askEvidence.js';
+import {confidenceTag, distinctFigures, gapSplit, platformTotals, scopeWords, withParents} from './askEvidence.js';
 import {RankedAnswer} from './RankedAnswer.jsx';
 import {EntityLists} from './EntityLists.jsx';
 import {ResearchLog, inMarket} from './ui/ResearchLog.jsx';
@@ -391,7 +391,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   const findingSaveRequest = useRef(null);
   const findingSaveState = findingSave.askId === askId ? findingSave : {phase: 'idle', error: ''};
   const canSaveFinding = Boolean(askId && record.status === 'complete' && record.skin_id == null && record.investigation_id == null && record.parent_id == null && ['complete', 'partial'].includes(answer.status) && Array.isArray(answer.claims) && answer.claims.length > 0);
-  const records = new Map((answer.evidence || []).map((item) => [item.id, item]));
+  const records = new Map(withParents(answer.evidence).map((item) => [item.id, item]));
   /* The reader's counts: each distinct figure once, one row per platform,
      the quotes each post is read for, and the confidence of the whole. */
   const figures = distinctFigures(answer.claims);

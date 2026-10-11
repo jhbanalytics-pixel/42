@@ -5,7 +5,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {Highlighted, clock, postDay, postName, sourceMarketLabel, viewsLine} from './EvidenceChip.jsx';
 import {safeUrl} from '../safeUrl.js';
-import {isComment} from '../askEvidence.js';
+import {isComment, parentShown} from '../askEvidence.js';
 
 export function SourcePanel({evidence, quotes, onClose}){
   const heading = useRef(null);
@@ -30,7 +30,7 @@ export function SourcePanel({evidence, quotes, onClose}){
   const span = evidence.transcript_span && typeof evidence.transcript_span === 'object' ? evidence.transcript_span : null;
   const thumbnail = safeUrl(evidence.thumbnail_url);
   const showThumbnail = thumbnail && !failedThumbnails.has(thumbnail);
-  const url = safeUrl(evidence.url);
+  const url = isComment(evidence) && !parentShown(evidence) ? null : safeUrl(evidence.url);
   return (
     <aside className="ask42-source" aria-label="Source" ref={panel}
       onKeyDown={(event) => { if (event.key === 'Escape' && onClose){ event.stopPropagation(); onClose(); } }}>

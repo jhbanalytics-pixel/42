@@ -19,6 +19,7 @@ import {FigureLine} from './ui/FigureLine.jsx';
 import {SourcePanel} from './ui/SourcePanel.jsx';
 import {plainSearched} from './readerUnits.js';
 import {dossierSummaryWords} from './answerMeta.js';
+import {withParents} from './askEvidence.js';
 import {PEOPLE_UNAVAILABLE_WORDS, privacyNotice} from './privacyNotice.js';
 
 const MARKET_NAME = {ZA: 'South Africa', NG: 'Nigeria', KE: 'Kenya'};
@@ -308,7 +309,7 @@ function Exports({view, onFailure}){
    version and never changes this one. */
 function FrozenBody({view, onFailure, editAgain}){
   const [pinnedId, setPinnedId] = useState(null);
-  const records = new Map((view.evidence || []).map((record) => [record.id, record]));
+  const records = new Map(withParents(view.evidence).map((record) => [record.id, record]));
   const reviews = view.reviews || {};
   const kept = view.claims.filter((claim) => claim.kept);
   const pinned = pinnedId ? records.get(pinnedId) : null;
@@ -497,7 +498,7 @@ export function DossierPage({dossierId, onAuth}){
     );
   }
 
-  const records = new Map((view.evidence || []).map((record) => [record.id, record]));
+  const records = new Map(withParents(view.evidence).map((record) => [record.id, record]));
   const removed = claims.filter((claim) => !claim.kept);
   const needs = (claim) => claim.kept && !isWithheld(claim) && NEEDS_TICK.has(claim.label) && !(ticks[claim.claim_id] && ticks[claim.claim_id].ticked);
   const waiting = claims.filter(needs).length;

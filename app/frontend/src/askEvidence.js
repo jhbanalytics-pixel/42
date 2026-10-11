@@ -10,16 +10,36 @@ import {plainUnit, unitFor} from './readerUnits.js';
 
 export const isComment = (item) => Boolean(item && typeof item.id === 'string' && item.id.includes('_comment_'));
 
-/* The author of the post a comment sits under. Only a TikTok link names its
-   author; any other platform returns '' and the reader sees "a post". */
-export function commentParentHandle(item){
-  const match = /^https?:\/\/(?:www\.)?tiktok\.com\/@([^/?#]+)\//i.exec(String(item && item.url || ''));
-  return match ? match[1] : '';
+/* A comment carries the link of the post it sits under, handle and all, and
+   no reader has judged that link: a creator hidden by id and renamed since
+   still shows in it by the old handle. So a comment is named for its post
+   only when that post is itself among the sources shown, which the privacy
+   readers have already judged (core/api/export.py says the same in Python).
+   withParents returns the evidence with each comment resolved that way; the
+   resolution lives outside the record, so nothing on the wire can name a
+   post, and a comment nobody resolved reads "a post". */
+const parentHandles = new WeakMap();
+
+export function withParents(evidence){
+  const list = Array.isArray(evidence) ? evidence : [];
+  const posts = new Map();
+  for (const item of list){
+    if (item && typeof item === 'object' && !isComment(item) && item.url && typeof item.handle === 'string' && item.handle.trim()) posts.set(item.url, item.handle.trim());
+  }
+  return list.map((item) => {
+    if (!isComment(item)) return item;
+    const copy = {...item};
+    if (posts.has(item.url)) parentHandles.set(copy, posts.get(item.url));
+    return copy;
+  });
 }
 
+/* Whether the post a comment sits under is among the sources shown. A link to a post that is not shown is not shown. */
+export const parentShown = (item) => parentHandles.has(item);
+
 export function parentWords(item){
-  const handle = commentParentHandle(item);
-  return handle ? '@' + handle + "'s post" : 'a post';
+  const handle = parentHandles.get(item);
+  return handle ? '@' + handle.replace(/^@+/, '') + "'s post" : 'a post';
 }
 
 const plural = (count, one, many) => readerFigure(count) + ' ' + (count === 1 ? one : many);

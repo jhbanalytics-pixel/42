@@ -5,7 +5,7 @@
 import {useState} from 'react';
 import {readerFigure} from '../api.js';
 import {safeUrl} from '../safeUrl.js';
-import {isComment, parentWords} from '../askEvidence.js';
+import {isComment, parentShown, parentWords} from '../askEvidence.js';
 import {EvidenceChip, clock, postDay, sourceMarketLabel, viewsLine} from './EvidenceChip.jsx';
 import {PlatformLogo} from './PlatformLogo.jsx';
 import {platformLabel} from './PlatformGlyph.jsx';
@@ -56,8 +56,8 @@ function Commenters({comments, quotes, pinnedId, onPin}){
     <div className="ask42-commenters">
       <h4 className="ask42-commenters-title">What commenters said</h4>
       {[...groups].map(([url, items]) => {
-        const link = safeUrl(url);
         const whose = parentWords(items[0]);
+        const link = parentShown(items[0]) ? safeUrl(url) : null;
         return (
           <div className="ask42-commenters-group" key={url}>
             <p className="ask42-muted ask42-commenters-on">{'On '}{link ? <a href={link} target="_blank" rel="noopener noreferrer">{whose}</a> : whose}</p>
