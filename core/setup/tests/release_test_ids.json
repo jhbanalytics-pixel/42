@@ -723,6 +723,7 @@
    "core/api/tests/test_app.py",
    "core/setup/tests/test_release_packet.py",
    "core/setup/tests/test_release_hold.py",
+   "core/setup/tests/test_release_c_durable.py",
    "core/setup/tests/test_release_prior.py",
    "core/setup/tests/test_release_prior_packet.py"
   ],
