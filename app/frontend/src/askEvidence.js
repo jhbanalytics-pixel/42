@@ -110,9 +110,71 @@ export const UNNAMED_FIGURE = 'Counted for a finding with no words of its own.';
 
 const sentence = (text) => (/[.!?]$/.test(text) ? text : text + '.');
 const nounOf = (unit) => (/^posts?$/i.test(unit) ? 'posts' : /^creators?$/i.test(unit) ? 'creators' : '');
+/* Where a claim writes a figure: its numeral, with or without a thousands
+   separator, and never inside a longer number (4 is not in 41, 14 or 4.5). */
+const SEPARATOR = '[ ,\\u00a0\\u202f]?';
+function numeralPattern(value){
+  const [whole, fraction] = String(Math.abs(value)).split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+$)/g, SEPARATOR);
+  return '(?<![\\d.,])' + grouped + (fraction ? '[.,]' + fraction : '') + '(?![\\d]|[.,]\\d)';
+}
+
+/* The first place the claim writes the figure, preferring the one that is
+   followed by the figure's own noun. -1 when it is not written there. */
+function findNumeral(text, value, unit){
+  const noun = ((/[A-Za-z]+/.exec(String(unit || '')) || [''])[0]).toLowerCase().replace(/s$/, '');
+  let first = -1;
+  for (const match of text.matchAll(new RegExp(numeralPattern(value), 'g'))){
+    if (first < 0) first = match.index;
+    if (noun && new RegExp('^\\s+' + noun, 'i').test(text.slice(match.index + match[0].length, match.index + match[0].length + 40))) return match.index;
+  }
+  return first;
+}
+
+/* Sentences, where a full stop after an abbreviation or an initial
+   (Mr., vs., U.S.) does not end one. */
+const ABBREVIATION = /(?:^|[\s(])(?:Mr|Mrs|Ms|Dr|Prof|St|Mt|vs|etc|No|Inc|Ltd|Jr|Sr|Co|[A-Za-z](?:\.[A-Za-z])+)$/;
+function sentenceSpans(text){
+  const spans = [];
+  let start = 0;
+  for (const match of text.matchAll(/[.!?]+["')\]]*\s+/g)){
+    const next = match.index + match[0].length;
+    if (!/^[A-Z0-9#@"'(]/.test(text.slice(next, next + 1))) continue;
+    if (match[0][0] === '.' && ABBREVIATION.test(text.slice(start, match.index))) continue;
+    spans.push({start, end: match.index + match[0].trimEnd().length});
+    start = next;
+  }
+  spans.push({start, end: text.length});
+  return spans;
+}
+
+/* What a closed tile shows of a lone figure's claim, so the figure's own
+   number is in view: the whole sentence that writes it, from its clause when
+   that sentence is long, cut at a word and never inside one. The claim itself
+   is not changed; null when the claim already shows the number first, or does
+   not write it. */
+const LEAD_FITS = 90;
+const CLAUSE_AT = 70;
+export function claimLead(text, value, unit){
+  const at = findNumeral(text, value, unit);
+  if (at < 0) return null;
+  const span = sentenceSpans(text).find((item) => at >= item.start && at <= item.end);
+  if (!span || (span.start === 0 && at < LEAD_FITS)) return null;
+  let begin = span.start;
+  if (at - begin > CLAUSE_AT){
+    const head = text.slice(begin, at);
+    let cut = -1;
+    for (const match of head.matchAll(/[,;:]\s+/g)) cut = match.index + match[0].length;
+    begin += cut > 0 ? cut : head.lastIndexOf(' ', Math.max(0, head.length - 40)) + 1;
+  }
+  const shown = text.slice(begin, span.end).trim();
+  if (begin === 0 && span.end >= text.length) return null;
+  return (begin > 0 ? '…' : '') + shown;
+}
+
 const nounOfNumber = (number) => nounOf(unitFor(number.value, plainUnit(number.unit)));
 
-/* The claims whose posts and creators may be read as one line. The decision
+/* The claims whose posts and creators may stand side by side in one line. The decision
    is made on the claim's own numbers, before any repeat is dropped: exactly
    one posts figure and one creators figure, counted by the same query, with
    no more creators than posts. Anything else would put figures from two
@@ -132,9 +194,12 @@ function joinableClaims(claims){
    creators of one claim and one query stand side by side in one line ("179
    posts · 118 accounts posting"), then the claim they belong to. There is
    no "by" between them, because the same query does not prove the same row.
-   Any other unit stands on its own line with the same claim under it. A figure whose claim has no words
-   says so, so no tile is ever a bare number. A tile gives no market or
-   window: a stored figure does not record one. */
+   Any other figure stands on its own line with its claim under it, and a
+   closed tile of a lone figure opens on the sentence that writes its number
+   (claimLead). A figure whose claim has no words says so, so no tile is ever
+   a bare number. A tile gives no market or window: a stored figure does not
+   record one. A count of creators has one name on a tile, "accounts
+   posting". */
 export function figureTiles(claims, limit = 8){
   const joinable = joinableClaims(claims);
   const figures = distinctFigures(claims, limit);
@@ -152,18 +217,21 @@ export function figureTiles(claims, limit = 8){
     if (joined.has(figure.key)) continue;
     const slot = pairs.get(figure.claimIndex);
     const paired = slot && slot.posts.length === 1 && slot.creators.length === 1 && [slot.posts[0], slot.creators[0]].includes(figure);
-    const parts = (paired ? [slot.posts[0], slot.creators[0]] : [figure]).map((part) => (paired && nounOf(part.unit) === 'creators' ? {...part, unit: unitFor(part.raw, 'accounts posting')} : part));
+    const parts = (paired ? [slot.posts[0], slot.creators[0]] : [figure]).map((part) => (nounOf(part.unit) === 'creators' ? {...part, unit: unitFor(part.raw, 'accounts posting')} : part));
     for (const part of parts) joined.add(part.key);
     const line = parts.map((part) => part.value + ' ' + part.unit).join(' · ');
     const full = figure.claimText.replace(/\s+/g, ' ').trim();
+    const lead = full && parts.length === 1 ? claimLead(full, figure.raw, figure.unit) : null;
     tiles.push({
       key: parts.map((part) => part.key).join(' | '),
       parts: parts.map(({value, unit}) => ({value, unit})),
       line,
       queryId: parts[0].queryId,
-      about: full || UNNAMED_FIGURE,
+      joined: parts.length === 2,
+      about: lead || full || UNNAMED_FIGURE,
+      trimmed: lead !== null,
       full,
-      sentence: line + '. ' + (full ? 'Finding: ' + sentence(full) : UNNAMED_FIGURE),
+      sentence: parts.map((part) => part.value + ' ' + part.unit).join(' and ') + '. ' + (full ? 'Finding: ' + sentence(full) : UNNAMED_FIGURE),
     });
   }
   return tiles;

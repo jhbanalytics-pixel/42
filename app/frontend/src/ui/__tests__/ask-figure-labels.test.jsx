@@ -1,7 +1,8 @@
 /* Ask, "The numbers" panel: every tile says what it counts. Albert saw bare
    tiles ("179 posts", "118 creators") with no subject on the live page. A
-   tile now joins the posts and the creators of one claim and one query in one
-   sentence and names the claim they count. It carries no market or window of
+   tile now puts the posts and the accounts posting of one claim and one query
+   side by side and names the claim they count. A closed lone tile shows the
+   sentence that holds its own number. It carries no market or window of
    its own, because a stored figure does not record one. */
 import {GlobalRegistrator} from '@happy-dom/global-registrator';
 import {afterAll, afterEach, beforeEach, expect, test} from 'bun:test';
@@ -15,6 +16,8 @@ const {act} = React;
 const actEnvironment = globalThis.IS_REACT_ACT_ENVIRONMENT;
 const {AskPage} = await import('../../ask42.jsx');
 const evidence = await import('../../askEvidence.js');
+const {FigureTiles} = await import('../AskBriefing.jsx');
+const {flushSync} = await import('react-dom');
 
 const realFetch = globalThis.fetch;
 const realWindowFetch = window.fetch;
@@ -116,8 +119,8 @@ test('the accessible name of a tile is the whole sentence', async () => {
   await open();
   const claims = clone(record).answer.claims;
   const names = all('.ask42-figure-tile').map((tile) => tile.getAttribute('aria-label'));
-  expect(names[0]).toBe('179 posts · 118 accounts posting. Finding: ' + claims[0].text);
-  expect(names[3]).toBe('6 posts · 6 accounts posting. Finding: ' + claims[3].text);
+  expect(names[0]).toBe('179 posts and 118 accounts posting. Finding: ' + claims[0].text);
+  expect(names[3]).toBe('6 posts and 6 accounts posting. Finding: ' + claims[3].text);
   for (const name of names) expect(name).not.toMatch(/^\d[\d ]* (posts|creators)\.\s*$/);
 });
 
@@ -135,7 +138,7 @@ test('a figure repeated by a second claim stays once, and a lone figure still na
   const body = clone(record);
   body.answer.claims[1].numbers = [{...body.answer.claims[0].numbers[0]}, {...body.answer.claims[1].numbers[1]}];
   await open(body);
-  expect(lines()).toEqual(['179 posts · 118 accounts posting', '31 creators', '18 posts · 2 accounts posting', '6 posts · 6 accounts posting']);
+  expect(lines()).toEqual(['179 posts · 118 accounts posting', '31 accounts posting', '18 posts · 2 accounts posting', '6 posts · 6 accounts posting']);
   const lone = all('.ask42-figure-tile')[1];
   expect(words(lone.querySelector('.ask42-figure-claim'))).toContain('Springboks');
 });
@@ -151,7 +154,7 @@ test('a count of one reads in the singular and a unit in words is not paired wit
     {...body.answer.claims[1].numbers[1], value: 4, unit: 'creators'},
   ];
   await open(body);
-  expect(lines().slice(0, 3)).toEqual(['1 post · 1 account posting', '59 posts with a known location', '4 creators']);
+  expect(lines().slice(0, 3)).toEqual(['1 post · 1 account posting', '59 posts with a known location', '4 accounts posting']);
 });
 
 test('a claim with no words of its own still says what its figure belongs to', async () => {
@@ -160,7 +163,7 @@ test('a claim with no words of its own still says what its figure belongs to', a
   await open(body);
   const tile = all('.ask42-figure-tile')[3];
   expect(words(tile.querySelector('.ask42-figure-claim'))).toBe('Counted for a finding with no words of its own.');
-  expect(tile.getAttribute('aria-label')).toBe('6 posts · 6 accounts posting. Counted for a finding with no words of its own.');
+  expect(tile.getAttribute('aria-label')).toBe('6 posts and 6 accounts posting. Counted for a finding with no words of its own.');
 });
 
 /* happy-dom does no layout, so the clamp is stubbed: a claim element reports
@@ -168,9 +171,15 @@ test('a claim with no words of its own still says what its figure belongs to', a
 function stubLayout(heights){
   const proto = window.HTMLElement.prototype;
   const claim = (node) => node.classList && node.classList.contains('ask42-figure-claim');
+  const saved = ['scrollHeight', 'clientHeight'].map((name) => [name, Object.getOwnPropertyDescriptor(proto, name)]);
   Object.defineProperty(proto, 'scrollHeight', {configurable: true, get(){ return claim(this) ? heights.scroll(this) : 0; }});
   Object.defineProperty(proto, 'clientHeight', {configurable: true, get(){ return claim(this) ? heights.client(this) : 0; }});
-  return () => { delete proto.scrollHeight; delete proto.clientHeight; };
+  return () => {
+    for (const [name, descriptor] of saved){
+      if (descriptor) Object.defineProperty(proto, name, descriptor);
+      else delete proto[name];
+    }
+  };
 }
 
 const resize = async () => { await act(async () => { window.dispatchEvent(new window.Event('resize')); }); };
@@ -274,15 +283,15 @@ test('figureTiles puts posts and accounts posting side by side only from one cla
     {id: 'c', text: 'Third claim.', numbers: [posts(2, 'q4'), posts(9, 'q5')]},
   ];
   const tiles = evidence.figureTiles(claims);
-  expect(tiles.map((tile) => tile.line)).toEqual(['5 posts · 3 accounts posting', '7 creators', '2 posts', '9 posts']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['5 posts · 3 accounts posting', '7 accounts posting', '2 posts', '9 posts']);
   expect(tiles[0].queryId).toBe('q1');
-  expect(tiles.every((tile) => tile.about.length > 0 && tile.sentence.includes(tile.line))).toBe(true);
+  expect(tiles.every((tile) => tile.about.length > 0 && tile.sentence.startsWith(tile.line.replace(' · ', ' and ')))).toBe(true);
   expect(evidence.figureTiles([])).toEqual([]);
 });
 
 test('posts from one query and creators from another in one claim stay two tiles', () => {
   const tiles = evidence.figureTiles([{id: 'a', text: 'Load shedding drew 18 posts, and 2 creators posted about Eskom.', numbers: [posts(18, 'q_ls'), creators(2, 'q_eskom')]}]);
-  expect(tiles.map((tile) => tile.line)).toEqual(['18 posts', '2 creators']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['18 posts', '2 accounts posting']);
 });
 
 test('figures with no query id are not joined', () => {
@@ -290,19 +299,19 @@ test('figures with no query id are not joined', () => {
     {id: 'a', text: 'A claim.', numbers: [posts(18, ''), creators(2, '')]},
     {id: 'b', text: 'B claim.', numbers: [{value: 9, unit: 'posts'}, {value: 3, unit: 'creators'}]},
   ]);
-  expect(tiles.map((tile) => tile.line)).toEqual(['18 posts', '2 creators', '9 posts', '3 creators']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['18 posts', '2 accounts posting', '9 posts', '3 accounts posting']);
 });
 
 test('more creators than posts is not a pair', () => {
   const tiles = evidence.figureTiles([{id: 'a', text: 'A claim.', numbers: [posts(3, 'q1'), creators(30, 'q1')]}]);
-  expect(tiles.map((tile) => tile.line)).toEqual(['3 posts', '30 creators']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['3 posts', '30 accounts posting']);
 });
 
 test('a tie between claims leaves no false pair: the repeated count drops out and the leftovers stay apart', () => {
   const first = {id: 'a', text: 'Eish was used by 9 creators in 13 posts.', numbers: [posts(13, 'q_a'), creators(9, 'q_a')]};
   const second = {id: 'b', text: 'Run away was used by 11 creators in 13 posts, against 4 posts in the 7-day period before.', numbers: [creators(11, 'q_now'), posts(13, 'q_now'), posts(4, 'q_before')]};
   const tied = evidence.figureTiles([first, second]).map((tile) => tile.line);
-  expect(tied).toEqual(['13 posts · 9 accounts posting', '11 creators', '4 posts']);
+  expect(tied).toEqual(['13 posts · 9 accounts posting', '11 accounts posting', '4 posts']);
   expect(tied).not.toContain('4 posts · 11 accounts posting');
   expect(tied.join(' ')).not.toContain(' by ');
 });
@@ -314,7 +323,7 @@ test('a claim with three numbers joins the posts and the creators of one query a
 
 test('two posts figures in one claim are not joined with its creators', () => {
   const tiles = evidence.figureTiles([{id: 'a', text: 'A claim.', numbers: [posts(10, 'q1'), posts(4, 'q1'), creators(3, 'q1')]}]);
-  expect(tiles.map((tile) => tile.line)).toEqual(['10 posts', '4 posts', '3 creators']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['10 posts', '4 posts', '3 accounts posting']);
 });
 
 test('only the first eight figures are shown, so five pairs leave four tiles', () => {
@@ -327,17 +336,219 @@ test('only the first eight figures are shown, so five pairs leave four tiles', (
 test('a claim with a second creators figure never pairs its posts with the creators of another query', () => {
   const first = {id: 'a', text: 'First.', numbers: [posts(20, 'q_a'), creators(11, 'q_a')]};
   const second = {id: 'b', text: 'Second.', numbers: [creators(11, 'q_now'), posts(13, 'q_now'), creators(3, 'q_before')]};
-  expect(evidence.figureTiles([first, second]).map((tile) => tile.line)).toEqual(['20 posts · 11 accounts posting', '13 posts', '3 creators']);
+  expect(evidence.figureTiles([first, second]).map((tile) => tile.line)).toEqual(['20 posts · 11 accounts posting', '13 posts', '3 accounts posting']);
 });
 
 test('a side by side claim whose partner repeats an earlier claim leaves the other figure alone, without error', () => {
   const first = {id: 'a', text: 'First.', numbers: [posts(13, 'q_a'), creators(9, 'q_a')]};
   const second = {id: 'b', text: 'Second.', numbers: [posts(13, 'q_b'), creators(11, 'q_b')]};
-  expect(evidence.figureTiles([first, second]).map((tile) => tile.line)).toEqual(['13 posts · 9 accounts posting', '11 creators']);
+  expect(evidence.figureTiles([first, second]).map((tile) => tile.line)).toEqual(['13 posts · 9 accounts posting', '11 accounts posting']);
   const third = {id: 'c', text: 'Third.', numbers: [posts(30, 'q_c'), creators(9, 'q_c')]};
   expect(evidence.figureTiles([first, third]).map((tile) => tile.line)).toEqual(['13 posts · 9 accounts posting', '30 posts']);
 });
 
 test('a joined creators count in the singular reads "1 account posting"', () => {
   expect(evidence.figureTiles([{id: 'a', text: 'One.', numbers: [posts(1, 'q1'), creators(1, 'q1')]}]).map((tile) => tile.line)).toEqual(['1 post · 1 account posting']);
+});
+
+/* ---- a lone figure's own number stays in view while the claim is closed ---- */
+
+const LONG_FIRST = 'Posts about the Soweto unrest anniversary led the week across TikTok and X, with creators in Gauteng driving most of the volume and a second wave from the Western Cape later in the week.';
+const lone = (text, ...numbers) => [{id: 'a', text, numbers}];
+
+test('the sentence that holds a lone figure comes first, whole, when the claim is closed', () => {
+  const text = LONG_FIRST + ' Load shedding was steady all week. Run away drew 4 posts in the 7-day period before.';
+  const [tile] = evidence.figureTiles(lone(text, posts(4, 'q1')));
+  expect(tile.about).toBe('…Run away drew 4 posts in the 7-day period before.');
+  expect(tile.about).toContain('4 posts');
+  expect(tile.trimmed).toBe(true);
+  expect(tile.full).toBe(text);
+  expect(tile.sentence).toBe('4 posts. Finding: ' + text);
+});
+
+test('a figure in the first sentence, early enough to be seen, leaves the claim whole', () => {
+  const text = 'Load shedding drew 18 posts across the week. ' + LONG_FIRST;
+  const [tile] = evidence.figureTiles(lone(text, posts(18, 'q1')));
+  expect(tile.about).toBe(text);
+  expect(tile.trimmed).toBe(false);
+});
+
+test('a figure deep in one long sentence starts the excerpt at its clause, at a word', () => {
+  const text = 'Run away was used by 41 creators across TikTok and Instagram and a long list of other places in 63 posts over the whole week, against 4 posts in the 7-day period before.';
+  const [tile] = evidence.figureTiles(lone(text, posts(4, 'q1')));
+  expect(tile.about).toBe('…against 4 posts in the 7-day period before.');
+  const plainText = 'A long run of words with no commas at all that goes on and on and on and on and on and on and on until it reaches 4 posts in the end of the sentence.';
+  const [late] = evidence.figureTiles(lone(plainText, posts(4, 'q1')));
+  expect(late.about.startsWith('…')).toBe(true);
+  expect(late.about).toContain('4 posts');
+  const rest = late.about.slice(1);
+  const start = plainText.indexOf(rest);
+  expect(start).toBeGreaterThan(0);
+  expect(plainText[start - 1]).toBe(' ');
+  expect(rest[0]).not.toBe(' ');
+});
+
+test('a number is matched whole: 4 is not found inside 41 or 14, and 1,200 is found for 1200', () => {
+  const [a] = evidence.figureTiles(lone(LONG_FIRST + ' Then 41 creators and 14 posts agreed. Later 4 posts did.', posts(4, 'q1')));
+  expect(a.about).toBe('…Later 4 posts did.');
+  const [b] = evidence.figureTiles(lone(LONG_FIRST + ' TikTok carried the most posts, 1,200 of them.', posts(1200, 'q1')));
+  expect(b.about).toBe('…TikTok carried the most posts, 1,200 of them.');
+  const whole = LONG_FIRST + ' Then 40 posts came. Nothing about the count here.';
+  const [c] = evidence.figureTiles(lone(whole, posts(4, 'q1')));
+  expect(c.trimmed).toBe(false);
+  expect(c.about).toBe(whole);
+});
+
+test('an abbreviation does not end a sentence when the excerpt is taken', () => {
+  const [tile] = evidence.figureTiles(lone(LONG_FIRST + ' Mr. Mbeki trended on X vs. #ZA with 412 posts in March 2025.', posts(412, 'q1')));
+  expect(tile.about).toBe('…Mr. Mbeki trended on X vs. #ZA with 412 posts in March 2025.');
+});
+
+test('a closed lone tile shows its own number and Show all opens the whole claim', async () => {
+  const restore = stubLayout({scroll: () => 60, client: () => 60});
+  try {
+    const body = clone(record);
+    const text = LONG_FIRST + ' Load shedding was steady all week. Run away drew 4 posts in the 7-day period before.';
+    body.answer.claims[3].text = text;
+    body.answer.claims[3].numbers = [{...body.answer.claims[3].numbers[0], value: 4, unit: 'posts'}];
+    await open(body);
+    const tile = all('.ask42-figure-tile')[3];
+    expect(words(tile.querySelector('.ask42-figure-claim'))).toBe('…Run away drew 4 posts in the 7-day period before.');
+    const toggle = tile.querySelector('button.ask42-figure-more');
+    expect(toggle).not.toBeNull();
+    await act(async () => toggle.click());
+    expect(words(tile.querySelector('.ask42-figure-claim'))).toBe(text);
+    await act(async () => tile.querySelector('button.ask42-figure-more').click());
+    expect(words(tile.querySelector('.ask42-figure-claim'))).toBe('…Run away drew 4 posts in the 7-day period before.');
+    expect(tile.getAttribute('aria-label')).toBe('4 posts. Finding: ' + text);
+  } finally { restore(); }
+});
+
+test('a joined tile keeps its whole claim, and only a joined tile is marked for the smaller numerals', async () => {
+  const restore = stubLayout({scroll: () => 60, client: () => 60});
+  try {
+    const body = clone(record);
+    body.answer.claims[1].numbers = [{...body.answer.claims[1].numbers[0]}];
+    await open(body);
+    const tiles = all('.ask42-figure-tile');
+    expect(tiles.map((tile) => tile.hasAttribute('data-joined'))).toEqual([true, false, true, true]);
+    expect(words(tiles[0].querySelector('.ask42-figure-claim'))).toBe(clone(record).answer.claims[0].text);
+  } finally { restore(); }
+});
+
+/* ---- the Show all toggle ---- */
+
+test('the toggle is on the first frame, measured before the page paints', () => {
+  const restore = stubLayout({scroll: () => 90, client: () => 60});
+  globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+  try {
+    const tiles = evidence.figureTiles(lone('A claim that is clipped.', posts(5, 'q1')));
+    flushSync(() => root.render(<FigureTiles tiles={tiles} />));
+    expect(host.querySelector('button.ask42-figure-more')).not.toBeNull();
+  } finally {
+    restore();
+    flushSync(() => root.render(null));
+    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  }
+});
+
+test('the layout stub gives back what it replaced', () => {
+  const proto = window.HTMLElement.prototype;
+  const before = ['scrollHeight', 'clientHeight'].map((name) => Object.getOwnPropertyDescriptor(proto, name));
+  stubLayout({scroll: () => 1, client: () => 1})();
+  expect(['scrollHeight', 'clientHeight'].map((name) => Object.getOwnPropertyDescriptor(proto, name))).toEqual(before);
+  expect(typeof document.createElement('div').clientHeight).toBe('number');
+});
+
+test('a one pixel overhang is not clipping and two pixels are', async () => {
+  let overhang = 1;
+  const restore = stubLayout({scroll: () => 60 + overhang, client: () => 60});
+  try {
+    await open();
+    expect(all('.ask42-figure-tile button.ask42-figure-more').length).toBe(0);
+    overhang = 2;
+    await resize();
+    expect(all('.ask42-figure-tile button.ask42-figure-more').length).toBe(4);
+  } finally { restore(); }
+});
+
+test('while a claim is open a resize does not measure it, because the open box is not the clamped box', async () => {
+  const restore = stubLayout({scroll: (node) => (node.hasAttribute('data-open') ? 60 : 90), client: () => 60});
+  try {
+    await open();
+    await act(async () => all('.ask42-figure-tile button.ask42-figure-more')[0].click());
+    await resize();
+    const showLess = all('.ask42-figure-tile button.ask42-figure-more')[0];
+    expect(words(showLess)).toBe('Show less');
+    await act(async () => showLess.click());
+    const buttons = all('.ask42-figure-tile button.ask42-figure-more');
+    expect(buttons.length).toBe(4);
+    expect(words(buttons[0])).toBe('Show all');
+    expect(buttons[0]).toBe(showLess);
+  } finally { restore(); }
+});
+
+test('closing a claim measures it again, so a claim that now fits loses its button', async () => {
+  let clipped = true;
+  const restore = stubLayout({scroll: () => (clipped ? 90 : 60), client: () => 60});
+  try {
+    await open();
+    await act(async () => all('.ask42-figure-tile button.ask42-figure-more')[0].click());
+    clipped = false;
+    await act(async () => all('.ask42-figure-tile button.ask42-figure-more')[0].click());
+    expect(all('.ask42-figure-tile button.ask42-figure-more').length).toBe(3);
+  } finally { restore(); }
+});
+
+test('focus stays on the toggle after Show less when a resize made the claim fit', async () => {
+  let clipped = true;
+  const restore = stubLayout({scroll: () => (clipped ? 90 : 60), client: () => 60});
+  try {
+    await open();
+    const toggle = all('.ask42-figure-tile button.ask42-figure-more')[0];
+    await act(async () => { toggle.focus(); });
+    await act(async () => { toggle.click(); });
+    clipped = false;
+    await resize();
+    const less = all('.ask42-figure-tile button.ask42-figure-more')[0];
+    expect(words(less)).toBe('Show less');
+    expect(document.activeElement).toBe(less);
+    await act(async () => less.click());
+    const kept = all('.ask42-figure-tile button.ask42-figure-more')[0];
+    expect(kept).toBe(less);
+    expect(document.activeElement).toBe(kept);
+    await act(async () => { kept.blur(); });
+    expect(all('.ask42-figure-tile button.ask42-figure-more').length).toBe(0);
+  } finally { restore(); }
+});
+
+test('the toggle is measured again when the claim box changes size, and the watcher is let go on unmount', async () => {
+  const watchers = [];
+  const RealObserver = globalThis.ResizeObserver;
+  globalThis.ResizeObserver = class {
+    constructor(callback){ this.callback = callback; this.gone = false; watchers.push(this); }
+    observe(){}
+    disconnect(){ this.gone = true; }
+  };
+  let clipped = false;
+  const restore = stubLayout({scroll: () => (clipped ? 90 : 60), client: () => 60});
+  try {
+    await open();
+    expect(watchers.length).toBeGreaterThan(0);
+    expect(all('.ask42-figure-tile button.ask42-figure-more').length).toBe(0);
+    clipped = true;
+    await act(async () => { for (const watcher of watchers.filter((item) => !item.gone)) watcher.callback(); });
+    expect(all('.ask42-figure-tile button.ask42-figure-more').length).toBe(4);
+    await act(async () => root.unmount());
+    expect(watchers.every((watcher) => watcher.gone)).toBe(true);
+    root = createRoot(host);
+  } finally {
+    restore();
+    if (RealObserver) globalThis.ResizeObserver = RealObserver; else delete globalThis.ResizeObserver;
+  }
+});
+
+test('the sentence chosen is the one where the number stands beside the figure\'s own noun', () => {
+  const [tile] = evidence.figureTiles(lone(LONG_FIRST + ' Load shedding hit stage 4 for a day. Run away drew 4 posts in the 7-day period before.', posts(4, 'q1')));
+  expect(tile.about).toBe('…Run away drew 4 posts in the 7-day period before.');
 });

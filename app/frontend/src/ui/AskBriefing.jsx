@@ -2,7 +2,7 @@
    what commenters said under the post they belong to, the number tiles and
    the platform marks. A card names the posts its claim rests on and nothing
    else; a comment is never a tile (askEvidence.js). */
-import {Fragment, useEffect, useRef, useState} from 'react';
+import {Fragment, useLayoutEffect, useRef, useState} from 'react';
 import {readerFigure} from '../api.js';
 import {safeUrl} from '../safeUrl.js';
 import {isComment, parentShown, parentWords} from '../askEvidence.js';
@@ -108,16 +108,19 @@ export function FindingCard({claim, records, quoteMap, confidence, pinnedId, onP
   );
 }
 
-/* The claim a tile counts, whole, with the style holding it to three lines.
-   The toggle shows only when the text is taller than its box, which is read
-   from the page and read again when the window or the box changes size, so a
-   claim that fits has no button. An open claim keeps its button, so it can
-   be closed. */
-function FigureClaim({text}){
+/* The claim a tile counts, with the style holding it to three lines. A closed
+   tile of a lone figure shows the sentence that writes its number (tile.about)
+   and Show all opens the whole claim (tile.full). The toggle shows when the
+   closed text is a part of the claim or is taller than its box. The height is
+   read before the page paints, and again when the window, the box or the fonts
+   change. An open claim keeps its button, and so does a button that has focus,
+   so neither is taken away from under a keyboard. */
+function FigureClaim({about, full, trimmed}){
   const [open, setOpen] = useState(false);
   const [clipped, setClipped] = useState(false);
+  const [focused, setFocused] = useState(false);
   const node = useRef(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const claim = node.current;
     if (!claim) return undefined;
     const measure = () => {
@@ -133,11 +136,12 @@ function FigureClaim({text}){
       window.removeEventListener('resize', measure);
       if (watcher) watcher.disconnect();
     };
-  }, [text, open]);
+  }, [about, open]);
+  const toggle = trimmed || clipped || open || focused;
   return (
     <>
-      <p ref={node} className="ask42-figure-claim" data-open={open ? '' : undefined}>{text}</p>
-      {(clipped || open) && <button type="button" className="ask42-quiet ask42-figure-more" aria-expanded={open ? 'true' : 'false'} onClick={() => setOpen((value) => !value)}>{open ? 'Show less' : 'Show all'}</button>}
+      <p ref={node} className="ask42-figure-claim" data-open={open ? '' : undefined}>{open ? full : about}</p>
+      {toggle && <button type="button" className="ask42-quiet ask42-figure-more" aria-expanded={open ? 'true' : 'false'} onClick={() => setOpen((value) => !value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>{open ? 'Show less' : 'Show all'}</button>}
     </>
   );
 }
@@ -152,7 +156,7 @@ export function FigureTiles({tiles}){
       <p className="ask42-muted ask42-figure-caption">Counted in the store, not only in the posts this answer cites</p>
       <ul className="ask42-figure-tiles">
         {tiles.map((tile) => (
-          <li className="ask42-figure-tile" key={tile.key} aria-label={tile.sentence} data-query-id={tile.queryId || undefined}>
+          <li className="ask42-figure-tile" key={tile.key} aria-label={tile.sentence} data-joined={tile.joined ? '' : undefined} data-query-id={tile.queryId || undefined}>
             <p className="ask42-figure-line">
               {tile.parts.map((part, index) => (
                 <Fragment key={index}>
@@ -161,7 +165,7 @@ export function FigureTiles({tiles}){
                 </Fragment>
               ))}
             </p>
-            <FigureClaim text={tile.about} />
+            <FigureClaim about={tile.about} full={tile.full || tile.about} trimmed={tile.trimmed} />
           </li>
         ))}
       </ul>
