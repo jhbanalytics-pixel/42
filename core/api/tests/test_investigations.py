@@ -209,9 +209,9 @@ def test_ceilings_are_the_lower_of_plan_and_budget_left():
         {"max_credits": 100, "max_model_usd": 1.2}
 
 
-# Design audit item 10: the refusal is shown to the reader as written, so it names no setting, person or
-# second currency. Credits are the reader's money; the model budget is said as today's research budget.
-NOT_FOR_READERS = ("ASK_DAILY", "MODEL_DAILY_USD", "Albert", "USD", "model spend")
+# Design audit item 10: the refusal is shown to the reader as written, so it names no setting or person.
+# Money has one name per kind: credits for credits, USD for the dollars of model time.
+NOT_FOR_READERS = ("ASK_DAILY", "MODEL_DAILY_USD", "Albert", "model spend", "research budget")
 
 
 def test_refusal_says_whichever_budget_the_estimate_breaks_in_reader_words():
@@ -219,17 +219,17 @@ def test_refusal_says_whichever_budget_the_estimate_breaks_in_reader_words():
     credits = inv.refusal({"credits": 301, "model_usd": 1.5}, {"credits": 300, "model_usd": 5})
     assert credits == "This plan needs about 301 credits but only 300 are left today. Try a smaller plan or try again tomorrow."
     usd = inv.refusal({"credits": 10, "model_usd": 2.0}, {"credits": 300, "model_usd": 1.25})
-    assert usd == ("This plan needs more of today's research budget than is left. "
+    assert usd == ("This plan needs about USD 2.00 of model time but only USD 1.25 is left today. "
                    "Try a smaller plan or try again tomorrow.")
     both = inv.refusal({"credits": 999, "model_usd": 99}, {"credits": 1, "model_usd": 1})
-    assert both == ("This plan needs about 999 credits but only 1 are left today, and more of today's research budget "
-                    "than is left. Try a smaller plan or try again tomorrow.")
+    assert both == ("This plan needs about 999 credits but only 1 is left today, and about USD 99.00 of model time "
+                    "but only USD 1.00 is left today. Try a smaller plan or try again tomorrow.")
     for words in (credits, usd, both):
         assert not any(name in words for name in NOT_FOR_READERS), words
 
 
 def test_model_spent_is_said_in_reader_words():
-    assert inv.MODEL_SPENT == "Today's research budget is used up. Try again tomorrow."
+    assert inv.MODEL_SPENT == "Today's model time is used up. Try again tomorrow."
     assert not any(name in inv.MODEL_SPENT for name in NOT_FOR_READERS)
 
 

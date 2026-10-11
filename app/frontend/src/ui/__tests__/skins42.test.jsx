@@ -456,7 +456,7 @@ test('Build weekly report is the one red action; it posts the report route and o
 });
 
 test('a refused report shows the server words and stays on the page', async () => {
-  const message = "Today's model budget is spent; try tomorrow or ask Albert to raise MODEL_DAILY_USD";
+  const message = "Today's model time is used up. Try again tomorrow.";
   await mountPage(pageRoutes([['/api/skins/sk_000000000001/report', reply(429, {error: 'rate_limited', message})]]));
   click(button(host, 'Build weekly report'));
   await settle();

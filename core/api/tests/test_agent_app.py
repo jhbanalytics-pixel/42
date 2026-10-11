@@ -1934,7 +1934,7 @@ def test_bigquery_dossier_insert_errors_give_500(client, dossier_store, monkeypa
 
 INV_KEYS = {"investigation_id", "version", "created_at", "who", "status", "question", "market",
             "plan", "estimate", "ask_id", "run_id"}
-MODEL_SPENT = "Today's research budget is used up. Try again tomorrow."
+MODEL_SPENT = "Today's model time is used up. Try again tomorrow."
 NEED_T3 = "Investigations need the T3 agent"
 
 
@@ -2508,7 +2508,7 @@ def test_start_refused_over_the_credit_budget_with_its_words(client, inv):
     assert body["error"] == "not_ready"
     assert body["message"] == ("This plan needs about 300 credits but only 150 are left today. "
                                "Try a smaller plan or try again tomorrow.")
-    assert not any(name in body["message"] for name in ("ASK_DAILY", "MODEL_DAILY_USD", "Albert", "research budget"))
+    assert not any(name in body["message"] for name in ("ASK_DAILY", "MODEL_DAILY_USD", "Albert", "model time"))
     assert [r["status"] for r in agent_app.INVESTIGATIONS] == ["draft"]
     assert inv.RESERVED.total() == {"credits": 0, "model_usd": 0}
 
@@ -2519,8 +2519,9 @@ def test_start_refused_over_the_model_budget_with_its_words(client, inv):
     r = client.post(f"/api/investigations/{held['investigation_id']}/start")
     assert r.status_code == 409
     message = r.json()["message"]
-    assert message == "This plan needs more of today's research budget than is left. Try a smaller plan or try again tomorrow."
-    assert not any(name in message for name in ("ASK_DAILY", "MODEL_DAILY_USD", "Albert", "USD", "credits"))
+    assert message.startswith("This plan needs about USD 1.50 of model time but only USD ")
+    assert message.endswith(" is left today. Try a smaller plan or try again tomorrow.")
+    assert not any(name in message for name in ("ASK_DAILY", "MODEL_DAILY_USD", "Albert", "credits"))
     assert [r["status"] for r in agent_app.INVESTIGATIONS] == ["draft"]
     assert agent_app.ASKS == {}
 

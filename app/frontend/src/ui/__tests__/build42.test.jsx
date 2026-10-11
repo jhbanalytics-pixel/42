@@ -165,7 +165,7 @@ test('drafting an investigation posts the question with the market and opens the
 });
 
 test('a refused draft shows the server own words', async () => {
-  const {api} = fakeApi({createInvestigation: async () => { throw Object.assign(new Error("Today's model budget is spent; try tomorrow."), {status: 429}); }});
+  const {api} = fakeApi({createInvestigation: async () => { throw Object.assign(new Error("Today's model time is used up. Try again tomorrow."), {status: 429}); }});
   await mount({region: 'ZA', api});
   const box = host.querySelector('#b42-inv-question');
   await act(async () => {
@@ -175,7 +175,7 @@ test('a refused draft shows the server own words', async () => {
   });
   await act(async () => { box.form.querySelector('button[type="submit"]').click(); });
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
-  expect(section('b42-inv-title').querySelector('[role="alert"]').textContent).toBe("Today's model budget is spent; try tomorrow.");
+  expect(section('b42-inv-title').querySelector('[role="alert"]').textContent).toBe("Today's model time is used up. Try again tomorrow.");
 });
 
 test('a dossier starts from a finished investigation or an answered question, and opens', async () => {

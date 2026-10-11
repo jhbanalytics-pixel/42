@@ -37,7 +37,7 @@ MAX_TEXT = 500
 MAX_RESEARCHERS = MAX_SUB_QUESTIONS
 ROUND_USD = 4
 
-MODEL_SPENT = "Today's research budget is used up. Try again tomorrow."
+MODEL_SPENT = "Today's model time is used up. Try again tomorrow."
 BUDGET_UNKNOWN = ("Today's spend could not be read, so 42 will not {what} an investigation that might overspend; "
                   "try again in a few minutes.")
 NEED_T3 = "Investigations need the T3 agent"
@@ -181,12 +181,14 @@ RESERVED = Reservations()
 
 def refusal(estimate, left):
     """The words for whichever budget the estimate breaks, or None when it fits both."""
-    # The reader sees these words as written, so they name no setting or person and only one currency.
+    # The reader sees these words as written, so they name no setting or person; credits are said as credits
+    # and the dollars of model time as USD.
     broken = []
     if estimate["credits"] > left["credits"]:
-        broken.append(f"about {estimate['credits']:,} credits but only {left['credits']:,} are left today")
+        verb = "is" if left["credits"] == 1 else "are"
+        broken.append(f"about {estimate['credits']:,} credits but only {left['credits']:,} {verb} left today")
     if estimate["model_usd"] > left["model_usd"]:
-        broken.append("more of today's research budget than is left")
+        broken.append(f"about USD {estimate['model_usd']:.2f} of model time but only USD {left['model_usd']:.2f} is left today")
     if not broken:
         return None
     return "This plan needs " + ", and ".join(broken) + ". Try a smaller plan or try again tomorrow."

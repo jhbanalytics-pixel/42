@@ -200,13 +200,13 @@ test('the investigation reads and writes use the contract paths, bodies and the 
 
 test('a refused write keeps the server words, code and status, and a 401 is marked auth', async () => {
   serve([
-    ['POST', '/api/investigations', json(429, {error: 'rate_limited', message: "Today's model budget is spent; try tomorrow or ask Albert to raise MODEL_DAILY_USD"})],
+    ['POST', '/api/investigations', json(429, {error: 'rate_limited', message: "Today's model time is used up. Try again tomorrow."})],
     ['POST', '/api/investigations/' + ID + '/start', json(401, {error: 'unauthorized', message: 'Missing or wrong passcode.'})],
   ]);
   const spent = await api.createInvestigation({question: QUESTION, market: 'ZA'}).catch((error) => error);
   expect(spent.status).toBe(429);
   expect(spent.code).toBe('rate_limited');
-  expect(spent.message).toBe("Today's model budget is spent; try tomorrow or ask Albert to raise MODEL_DAILY_USD");
+  expect(spent.message).toBe("Today's model time is used up. Try again tomorrow.");
   const locked = await api.startInvestigation(ID).catch((error) => error);
   expect(locked.auth).toBe(true);
 });
@@ -356,9 +356,9 @@ test('investigations copy says drafting uses model budget before Start', async (
   /* UX pass, 3 October 2026: the lede now opens with the question the page
      answers (pageQuestions.js); the account of the steps follows unchanged. */
   /* Design audit item 12: credits are the reader's only money, so the model
-     budget is said as today's research budget, with no second currency. */
-  expect(copy).toBe("What is 42 researching for you in depth? 42 drafts a research plan first, and drafting uses some of today's research budget. Check the plan, then press Start and the research runs in the background.");
-  expect(copy).toContain("drafting uses some of today's research budget");
+     dollars are said as USD of model time, never as model spend. */
+  expect(copy).toBe("What is 42 researching for you in depth? 42 drafts a research plan first, and drafting uses some of today's model time. Check the plan, then press Start and the research runs in the background.");
+  expect(copy).toContain("drafting uses some of today's model time");
   expect(copy).toContain('press Start and the research runs');
   expect(copy).not.toContain('nothing is spent until you start it');
 });
@@ -401,7 +401,7 @@ test('New investigation holds more than eight angles until the list is within th
 
 test('a draft refused for money or for want of the agent shows the server words and opens nothing', async () => {
   for (const [status, body] of [
-    [429, {error: 'rate_limited', message: "Today's model budget is spent; try tomorrow or ask Albert to raise MODEL_DAILY_USD"}],
+    [429, {error: 'rate_limited', message: "Today's model time is used up. Try again tomorrow."}],
     [503, {error: 'agent_unavailable', message: 'Investigations need the T3 agent'}],
   ]){
     serve([['GET', /^\/api\/investigations(\?.*)?$/, json(200, {investigations: []})], ['POST', '/api/investigations', json(status, body)]]);
@@ -427,9 +427,9 @@ test('a draft shows the plan first: sub-questions with platforms and credits, re
   expect(plain(subs[2].textContent)).toContain('X, Reddit and Threads, YouTube');
   expect(text()).toContain('3 researchers');
   expect(text()).toContain('A gap round after the first pass');
-  expect(text()).toContain('About 300 credits and 6 minutes.');
-  expect(text()).toContain('Spends at most 400 credits.');
-  expect(text()).not.toMatch(/USD|model spend/);
+  expect(text()).toContain('About 300 credits, USD 1.50 of model time and 6 minutes.');
+  expect(text()).toContain('Spends at most 400 credits and USD 3.00 of model time.');
+  expect(text()).not.toMatch(/model spend|research budget/);
   expect(text()).toContain('checked again when you start');
   const plan = host.querySelector('[data-section="plan"]');
   const estimate = host.querySelector('[data-section="estimate"]');
@@ -452,14 +452,14 @@ test('a draft opened from New investigation shows its estimate against the budge
   await until(() => window.location.hash === '#/investigations/' + ID, 'the draft to open');
   await act(async () => root.render(<InvestigationPage investigationId={ID} />));
   await until(() => text().includes('Left today'), 'the budget line');
-  expect(text()).toContain('Left today: 1 200 credits.');
-  expect(text()).not.toMatch(/USD|model spend/);
+  expect(text()).toContain('Left today: 1 200 credits and USD 19.46 of model time.');
+  expect(text()).not.toMatch(/model spend|research budget/);
 });
 
 test('a draft read again after a reload shows the budget left today that the read carries', async () => {
   await openDraft(draft({budget_left: {credits: 590, model_usd: 17.25}}));
   await until(() => text().includes('Left today'), 'the budget line');
-  expect(text()).toContain('Left today: 590 credits. What is left is checked again when you start.');
+  expect(text()).toContain('Left today: 590 credits and USD 17.25 of model time. Both are checked again when you start.');
   expect(text()).not.toContain('What is left today is checked again when you start.');
 });
 
@@ -501,7 +501,7 @@ test('Edit plan changes sub-question text, platforms and credits, keeps research
     sub_questions: [{id: 'q1', text: 'Who posted it first?', platforms: ['tiktok', 'reddit_threads'], credits: 70}, PLAN.sub_questions[1], PLAN.sub_questions[2]],
     gap_round: false, max_credits: 400, max_model_usd: 3,
   }});
-  expect(text()).toContain('Left today: 580 credits.');
+  expect(text()).toContain('Left today: 580 credits and USD 18.00 of model time.');
   expect(button('Start')).toBeDefined();
 });
 
@@ -519,10 +519,10 @@ test('a plan the server will not take keeps the edit open with its words, and Ca
 });
 
 const REFUSALS = [
-  [409, 'This plan needs about 300 credits but only 120 are left today under ASK_DAILY. Trim the plan, try tomorrow or ask Albert to raise ASK_DAILY for today.'],
-  [409, 'This plan needs about USD 1.50 of model spend but only USD 0.40 is left today under MODEL_DAILY_USD. Trim the plan, try tomorrow or ask Albert to raise MODEL_DAILY_USD for today.'],
+  [409, 'This plan needs about 300 credits but only 120 are left today. Try a smaller plan or try again tomorrow.'],
+  [409, 'This plan needs about USD 1.50 of model time but only USD 0.40 is left today. Try a smaller plan or try again tomorrow.'],
   [409, "Today's spend could not be read, so 42 will not start an investigation that might overspend; try again in a few minutes."],
-  [429, "Today's model budget is spent; try tomorrow or ask Albert to raise MODEL_DAILY_USD"],
+  [429, "Today's model time is used up. Try again tomorrow."],
   [503, 'Investigations need the T3 agent'],
 ];
 
@@ -821,15 +821,15 @@ test('a follow-up on a finished investigation fills Ask with the question and do
   expect(params.get('draft')).toBe('1');
 });
 
-test('the drafting hint says drafting uses a little of the research budget and the research waits for Start', async () => {
+test('the drafting hint says drafting uses a little model time and the research waits for Start', async () => {
   serve([['GET', /^\/api\/investigations(\?.*)?$/, json(200, {investigations: []})]]);
   await act(async () => root.render(<InvestigationsPage />));
   await until(() => host.querySelector('.inv42-hint'), 'the hint');
   const hint = () => plain(host.querySelector('.inv42-hint').textContent);
-  expect(hint()).toBe("Write the question first. Drafting the plan uses a little of today's research budget; the research itself waits until you press Start.");
+  expect(hint()).toBe("Write the question first. Drafting the plan uses a little model time; the research itself waits until you press Start.");
   await act(async () => typeInto(host.querySelector('#inv42-question'), QUESTION));
   await act(async () => typeInto(host.querySelector('#inv42-market'), 'NG'));
-  expect(hint()).toBe("42 drafts a plan for Nigeria, which uses a little of today's research budget. The research itself waits until you press Start.");
+  expect(hint()).toBe("42 drafts a plan for Nigeria, which uses a little model time. The research itself waits until you press Start.");
   expect(text()).not.toContain('before anything runs');
   expect(text()).not.toContain('Nothing runs');
 });
