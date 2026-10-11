@@ -621,6 +621,7 @@ def follow(ask, after):
     people = skin_people(skin_id) if skin_id else None
     hidden = set()  # handles stripped from this stream's evidence, masked wherever they appear
     store, left_out, memo, said = privacy.LazyStore(get_store), set(), {}, False
+    named = set()  # handles a hidden person's posts carry, old ones too, masked wherever they appear in this stream
     fresh = privacy.FreshList(store)  # a list no older than 30 seconds while the run is in flight (R2)
     if people:
         with ask.cond:
@@ -633,10 +634,10 @@ def follow(ask, after):
                 ask.cond.wait(KEEPALIVE_SECONDS)
             new = ask.events[sent:]
             done = ask.done
-        privacy.place_chunk(new, fresh.get(), store, memo)  # who wrote this chunk's stored posts, in one lookup
+        privacy.place_chunk(new, fresh.get(), store, memo, named)  # who wrote this chunk's stored posts, in one lookup
         for kind, data in new:
             current = fresh.get()
-            shown_event = privacy.project_event(kind, data, current, store, left_out, memo)  # before the skin strips handles
+            shown_event = privacy.project_event(kind, data, current, store, left_out, memo, named)  # before the skin strips handles
             if shown_event is not None and people:
                 shown_event = skins.mask_event(shown_event, people["approved"], [], hidden)
             if shown_event is None and current is None and not said:

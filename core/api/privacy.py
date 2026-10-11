@@ -145,7 +145,7 @@ def _day(value):
         return None
 
 
-def evidence_gone(evidence, hidden, store, creators=None, parents=()):
+def evidence_gone(evidence, hidden, store, creators=None, parents=(), names=None):
     """The ids of the evidence records that belong to a hidden person (5.1). hidden None (UNAVAILABLE) gives every
     id. Stored posts are matched by who wrote them, found in one batched, date-bounded lookup of posts: a post the
     lookup cannot place is gone too. A record with a parent_id (a comment) is judged by its parent as well: it is gone
@@ -153,7 +153,9 @@ def evidence_gone(evidence, hidden, store, creators=None, parents=()):
     evidence or the parents handed in (a comment may carry the post's address, handle and all). parents are records
     seen earlier in a stream; they are judged, never returned. Raises PeopleUnavailable when the lookup fails. creators
     memoises post id to creator id across calls (the fact never changes; whether that person is hidden is never
-    cached)."""
+    cached). names, when given, is a set that receives the creator keys of the handles a hidden person's posts and the
+    comments under them carry, whatever the person is called now: a renamed creator's old posts still name the old
+    handle, and so does a step the run stored while it searched. Masking reads them beside the current handles."""
     records = [e for e in evidence or [] if isinstance(e, dict)]
     if hidden is None:
         return {e.get("id") for e in records}
@@ -173,7 +175,35 @@ def evidence_gone(evidence, hidden, store, creators=None, parents=()):
         _place_stored(stored, ids, store, creators, gone)
     _legacy_comments_gone(records, earlier, keys, gone)
     _under_gone_parents(records, earlier, gone)
+    if names is not None:
+        names.update(_their_handles(records + earlier, keys, ids, creators))
     return gone - {p.get("id") for p in earlier}
+
+
+def _their_handles(records, keys, ids, creators):
+    """Creator keys for the handles in the posts a hidden person wrote (the handle and the author in the address), and
+    for the author in the address of a comment under one of those posts. A post is theirs when its handle is hidden, its
+    creator id is, or the lookup placed it with a hidden creator. A record gone for any other reason names no one."""
+    theirs = {e.get("id") for e in records
+              if isinstance(e.get("id"), str) and not _is_comment(e) and (creator_key(e.get("platform"), e.get("handle")) in keys
+                                         or e.get("creator_id") in ids or creators.get(e.get("id"), object()) in ids)}
+    out = set()
+    for e in records:
+        if isinstance(e.get("id"), str) and e["id"] in theirs:
+            handles = [e.get("handle"), _url_handle(e.get("url"))]
+        elif _is_comment(e) and isinstance(e.get("parent_id"), str) and e["parent_id"] in theirs:
+            handles = [_url_handle(e.get("url"))]
+        else:
+            continue
+        out.update(k for k in (creator_key(e.get("platform"), h) for h in handles if isinstance(h, str) and h) if k)
+    return out
+
+
+def with_names(hidden, names):
+    """hidden with the handles evidence_gone found added to its creator keys, for masking only."""
+    if hidden is None or not names:
+        return hidden
+    return hidden[0] | set(names), hidden[1], hidden[2]
 
 
 def _place_stored(stored, ids, store, creators, gone):
@@ -329,8 +359,9 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
     answer = base.get("answer")
     links = comment_links.read(base)
     evidence = comment_links.attach(answer.get("evidence") if isinstance(answer, dict) else None, links)
+    named = set()
     try:
-        gone = evidence_gone(evidence, hidden, store, creators)
+        gone = evidence_gone(evidence, hidden, store, creators, names=named)
     except PeopleUnavailable:
         hidden = None
         gone = evidence_gone(evidence, None, store)
@@ -365,7 +396,7 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
     if comment_links.prune(links, shown):
         out[comment_links.KEY] = comment_links.prune(links, shown)
     before = _json(out)
-    out = mask(out, hidden)
+    out = mask(out, with_names(hidden, named))
     changed = _json(out) != before
     if meta is not None:
         out["answer_meta"] = meta
@@ -472,45 +503,48 @@ def selectable(claim, source_evidence, hidden, store, gone=None):
     return _json(mask(words, hidden)) == _json(words)
 
 
-def project_event(kind, data, hidden, store, gone, seen):
+def project_event(kind, data, hidden, store, gone, seen, named=None):
     """One event of a run in flight, or None to withhold it (5.5). gone collects the ids of the evidence left out of
     this stream so a claim citing one is left out too; seen memoises post id to creator id for the stream. hidden
-    None (UNAVAILABLE) sends no evidence or claim event."""
+    None (UNAVAILABLE) sends no evidence or claim event. named collects the handles a hidden person's posts carry,
+    old ones included (evidence_gone), and every event is masked with them too."""
     if kind == "evidence" and isinstance(data.get("evidence"), dict) and isinstance(data["evidence"].get("id"), str):
         # kept even while nobody is hidden, so a comment arriving after a hide is judged by its post (5.1)
         seen[(_HELD, data["evidence"]["id"])] = {k: data["evidence"][k] for k in _IDENTITY if k in data["evidence"]}
     if nothing_hidden(hidden):
         return data
+    named = set() if named is None else named
     if kind == "evidence":
         record = data.get("evidence") if isinstance(data.get("evidence"), dict) else {}
         earlier = [v for k, v in seen.items() if type(k) is tuple]
         try:
-            left_out = hidden is None or bool(evidence_gone([record], hidden, store, seen, earlier))
+            left_out = hidden is None or bool(evidence_gone([record], hidden, store, seen, earlier, names=named))
         except PeopleUnavailable:
             left_out = True
         if left_out:
             gone.add(record.get("id"))
             return None
-        return mask(data, hidden)
+        return mask(data, with_names(hidden, named))
     if kind == "claim":
         claim = data.get("claim") if isinstance(data.get("claim"), dict) else {}
         if hidden is None or _claim_ids(claim) & gone:
             return None
-        return mask(data, hidden)
-    return mask(data, hidden)
+        return mask(data, with_names(hidden, named))
+    return mask(data, with_names(hidden, named))
 
 
-def place_chunk(events, hidden, store, seen):
+def place_chunk(events, hidden, store, seen, named=None):
     """Find who wrote the stored posts among a chunk of stream events in one batched lookup, ahead of judging them one
     by one. The answers go into seen (post id to creator id), so project_event finds each one there and asks the store
     nothing more: a chunk of any size costs one lookup. A lookup that fails is left for project_event to meet and
-    judge per event, as before."""
+    judge per event, as before. The handles the chunk's hidden posts carry go into named, so a step in the chunk that
+    comes before its post is masked with them."""
     if hidden is None or nothing_hidden(hidden):
         return
     records = [d["evidence"] for kind, d in events
                if kind == "evidence" and isinstance(d, dict) and isinstance(d.get("evidence"), dict)]
     try:
-        evidence_gone(records, hidden, store, seen)
+        evidence_gone(records, hidden, store, seen, names=named)
     except PeopleUnavailable:
         pass
 
