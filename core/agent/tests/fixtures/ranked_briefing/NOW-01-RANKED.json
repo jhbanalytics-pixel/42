@@ -1,0 +1,488 @@
+{
+  "id": "NOW-01-RANKED",
+  "note": "NOW-01 in the ranked briefing shape. The same stored side and queries; the writer reply is three named stories, the first with a size, a momentum claim and a why claim, the second with a size and a why claim, the third with a size alone because the pack holds nothing more for it. One claim names no story.",
+  "tier": "T1",
+  "posts": [
+    {
+      "id": "tt_p1",
+      "platform": "tiktok",
+      "handle": "@pot_and_pap_thabo",
+      "days_ago": 1,
+      "text": "pap and gravy duet challenge: you stir, I season, we both pretend it is not 11pm",
+      "views": 210000
+    },
+    {
+      "id": "tt_p2",
+      "platform": "tiktok",
+      "handle": "@gravy_queen_nomsa",
+      "days_ago": 3,
+      "text": "my gravy won the duet and my pap has not forgiven me",
+      "views": 98000
+    },
+    {
+      "id": "ig_p1",
+      "platform": "instagram",
+      "handle": "@sundaykitchen_za",
+      "days_ago": 2,
+      "text": "Sunday lunch is now a pap and gravy duet and the whole family is in the frame",
+      "views": 54000
+    },
+    {
+      "id": "tt_t1",
+      "platform": "tiktok",
+      "handle": "@rank_dj_ronny",
+      "days_ago": 1,
+      "text": "taxi rank playlist day twelve and the driver just asked me to play it again",
+      "views": 176000
+    },
+    {
+      "id": "tt_t2",
+      "platform": "tiktok",
+      "handle": "@commute_with_zodwa",
+      "days_ago": 4,
+      "text": "this taxi rank playlist has more range than my whole spotify",
+      "views": 66000
+    },
+    {
+      "id": "x_t1",
+      "platform": "x",
+      "handle": "@route_report",
+      "days_ago": 2,
+      "text": "the taxi rank playlist is the only thing keeping the Monday commute alive",
+      "views": 31000
+    },
+    {
+      "id": "ig_r1",
+      "platform": "instagram",
+      "handle": "@5am_runclub_jozi",
+      "days_ago": 1,
+      "text": "5 am run club is full again, bring a light and a friend",
+      "views": 42000
+    },
+    {
+      "id": "ig_r2",
+      "platform": "instagram",
+      "handle": "@sunrise_sipho",
+      "days_ago": 5,
+      "text": "the run club group photo is the new office team building",
+      "views": 23000
+    },
+    {
+      "id": "x_r1",
+      "platform": "x",
+      "handle": "@lace_up_lerato",
+      "days_ago": 3,
+      "text": "run club coffee after is the real reason I am awake before the sun",
+      "views": 14000
+    },
+    {
+      "id": "x_p1",
+      "platform": "x",
+      "handle": "@dishes_dineo",
+      "days_ago": 5,
+      "text": "the pap and gravy duets are the only wholesome thing on my timeline today",
+      "views": 19000
+    }
+  ],
+  "bulk": {
+    "count": 150,
+    "prefix": "nb",
+    "creators": 55,
+    "platforms": [
+      "tiktok",
+      "instagram",
+      "x"
+    ],
+    "days": [
+      0,
+      6
+    ],
+    "stems": [
+      "pap and gravy duet number two is up, link in bio",
+      "taxi rank playlist drop, driver approved",
+      "run club sunrise post, who is joining tomorrow",
+      "another day another duet",
+      "the playlist the driver would not turn off"
+    ]
+  },
+  "queries": [
+    {
+      "match": "CONTAINS_SUBSTR(p.text, @term)",
+      "params": {
+        "term": "pap and gravy",
+        "part": "all"
+      },
+      "rows": [
+        {
+          "posts": 187,
+          "authors": 96,
+          "platforms": 3
+        }
+      ]
+    },
+    {
+      "match": "CONTAINS_SUBSTR(p.text, @term)",
+      "params": {
+        "term": "taxi rank playlist",
+        "part": "all"
+      },
+      "rows": [
+        {
+          "posts": 142,
+          "authors": 81,
+          "platforms": 3
+        }
+      ]
+    },
+    {
+      "match": "CONTAINS_SUBSTR(p.text, @term)",
+      "params": {
+        "term": "run club",
+        "part": "all"
+      },
+      "rows": [
+        {
+          "posts": 98,
+          "authors": 64,
+          "platforms": 3
+        }
+      ]
+    },
+    {
+      "match": "CONTAINS_SUBSTR(p.text, @term)",
+      "params": {
+        "term": "pap and gravy",
+        "part": "first"
+      },
+      "rows": [
+        {
+          "posts": 9,
+          "authors": 8,
+          "platforms": 2
+        }
+      ]
+    },
+    {
+      "match": "CONTAINS_SUBSTR(p.text, @term)",
+      "params": {
+        "term": "pap and gravy",
+        "part": "last"
+      },
+      "rows": [
+        {
+          "posts": 31,
+          "authors": 27,
+          "platforms": 3
+        }
+      ]
+    }
+  ],
+  "research": {
+    "note": "Reading: what South African social is talking about this week, outside the election and sport.",
+    "tokens": [
+      104000,
+      5100
+    ],
+    "calls": [
+      {
+        "tool": "search_posts",
+        "query": "pap and gravy duet",
+        "as": "pap",
+        "args": {
+          "since": "2026-10-05",
+          "until": "2026-10-08"
+        }
+      },
+      {
+        "tool": "search_posts",
+        "query": "taxi rank playlist",
+        "as": "taxi",
+        "args": {
+          "since": "2026-10-09",
+          "until": "2026-10-11"
+        }
+      },
+      {
+        "tool": "search_posts",
+        "query": "run club",
+        "as": "run",
+        "args": {
+          "since": "2026-10-05",
+          "until": "2026-10-11",
+          "platforms": [
+            "instagram",
+            "x"
+          ]
+        }
+      },
+      {
+        "tool": "sql_query",
+        "as": "pap_all",
+        "purpose": "pap and gravy posts, creators and platforms this week",
+        "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'all'",
+        "params": {
+          "term": "pap and gravy",
+          "part": "all"
+        }
+      },
+      {
+        "tool": "sql_query",
+        "as": "taxi_all",
+        "purpose": "taxi rank playlist posts, creators and platforms this week",
+        "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'all'",
+        "params": {
+          "term": "taxi rank playlist",
+          "part": "all"
+        }
+      },
+      {
+        "tool": "sql_query",
+        "as": "run_all",
+        "purpose": "run club posts, creators and platforms this week",
+        "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'all'",
+        "params": {
+          "term": "run club",
+          "part": "all"
+        }
+      },
+      {
+        "tool": "sql_query",
+        "as": "pap_first",
+        "purpose": "pap and gravy posts on the first day of the window",
+        "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'first'",
+        "params": {
+          "term": "pap and gravy",
+          "part": "first"
+        }
+      },
+      {
+        "tool": "sql_query",
+        "as": "pap_last",
+        "purpose": "pap and gravy posts on the last day of the window",
+        "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'last'",
+        "params": {
+          "term": "pap and gravy",
+          "part": "last"
+        }
+      }
+    ]
+  },
+  "writer": {
+    "short_answer": "Three conversations led South African social this week: pap and gravy duets, taxi rank playlists and run club mornings.",
+    "claims": [
+      {
+        "id": "c1",
+        "text": "Pap and gravy duets: the biggest conversation of the week, a food challenge where one person stirs and the other seasons, with 187 posts from 96 creators on 3 platforms.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_p1",
+          "tt_p2",
+          "ig_p1"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "tt_p1",
+            "text": "pap and gravy duet challenge"
+          }
+        ],
+        "numbers": [
+          {
+            "value": 187,
+            "unit": "posts",
+            "query_id": "@pap_all"
+          },
+          {
+            "value": 96,
+            "unit": "creators",
+            "query_id": "@pap_all"
+          },
+          {
+            "value": 3,
+            "unit": "platforms",
+            "query_id": "@pap_all"
+          }
+        ]
+      },
+      {
+        "id": "c2",
+        "text": "Pap and gravy duets: posts about it went from 9 on the first day of the week to 31 on the last day.",
+        "label": "observed",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_p1",
+          "x_p1"
+        ],
+        "quotes": [],
+        "numbers": [
+          {
+            "value": 9,
+            "unit": "posts",
+            "query_id": "@pap_first"
+          },
+          {
+            "value": 31,
+            "unit": "posts",
+            "query_id": "@pap_last"
+          }
+        ]
+      },
+      {
+        "id": "c3",
+        "text": "Pap and gravy duets: posts present it as a two person challenge where one stirs and the other seasons, which makes it easy to join.",
+        "label": "single_source",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_p1",
+          "ig_p1"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "tt_p1",
+            "text": "you stir, I season"
+          }
+        ],
+        "numbers": []
+      },
+      {
+        "id": "c4",
+        "text": "Taxi rank playlists: the second conversation, with 142 posts from 81 creators on 3 platforms.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_t1",
+          "tt_t2",
+          "x_t1"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "x_t1",
+            "text": "keeping the Monday commute alive"
+          }
+        ],
+        "numbers": [
+          {
+            "value": 142,
+            "unit": "posts",
+            "query_id": "@taxi_all"
+          },
+          {
+            "value": 81,
+            "unit": "creators",
+            "query_id": "@taxi_all"
+          },
+          {
+            "value": 3,
+            "unit": "platforms",
+            "query_id": "@taxi_all"
+          }
+        ]
+      },
+      {
+        "id": "c5",
+        "text": "Taxi rank playlists: posts say drivers keep asking for the playlist to be played again.",
+        "label": "single_source",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_t1",
+          "tt_t2"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "tt_t1",
+            "text": "the driver just asked me to play it again"
+          }
+        ],
+        "numbers": []
+      },
+      {
+        "id": "c6",
+        "text": "Run club mornings: the third conversation, with 98 posts from 64 creators on 3 platforms.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": [
+          "ig_r1",
+          "ig_r2",
+          "x_r1"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "ig_r1",
+            "text": "5 am run club is full again"
+          }
+        ],
+        "numbers": [
+          {
+            "value": 98,
+            "unit": "posts",
+            "query_id": "@run_all"
+          },
+          {
+            "value": 64,
+            "unit": "creators",
+            "query_id": "@run_all"
+          },
+          {
+            "value": 3,
+            "unit": "platforms",
+            "query_id": "@run_all"
+          }
+        ]
+      },
+      {
+        "id": "c7",
+        "text": "Each of the three lives on TikTok and one other platform, and the duets and the playlists are mostly TikTok while the run club is mostly Instagram.",
+        "label": "corroborated",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_p1",
+          "ig_p1",
+          "tt_t1",
+          "x_t1",
+          "ig_r1",
+          "x_r1"
+        ],
+        "quotes": [],
+        "numbers": []
+      }
+    ],
+    "so_what": [
+      {
+        "text": "A food brand can join the duets by lending a sauce, not a script.",
+        "claim_ids": [
+          "c1",
+          "c2",
+          "c3"
+        ]
+      },
+      {
+        "text": "A transport or music brand can sponsor a playlist drop at a rank.",
+        "claim_ids": [
+          "c4",
+          "c5"
+        ]
+      },
+      {
+        "text": "A sports or health brand can host a morning run.",
+        "claim_ids": [
+          "c6"
+        ]
+      }
+    ],
+    "watch_next": [],
+    "gaps": [],
+    "context": ""
+  },
+  "support": {},
+  "question": "What's South African social actually talking about this week, outside the election and sport? Give me the three conversations with the most momentum right now and show me the posts that prove it.",
+  "vars": {
+    "id": "NOW-01-RANKED",
+    "family": "now",
+    "markets": [
+      "ZA"
+    ],
+    "window": "last 7 days",
+    "window_days": 7,
+    "expected_answerability": "answerable"
+  }
+}

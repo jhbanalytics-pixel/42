@@ -1,0 +1,335 @@
+{
+  "id": "NOW-03-RANKED",
+  "note": "NOW-03 in the ranked briefing shape. The stored side is thin and holds no whole-store count, so no story can be given a size and the order stays unconfirmed. One live creator is suppressed while it runs. Seeded: a quote that is not verbatim in the post (K1) on the second claim of the first story, so that story keeps its first claim.",
+  "tier": "T1",
+  "hidden_before": [
+    {
+      "platform": "tiktok",
+      "handle": "@shiko_shiko_ke"
+    }
+  ],
+  "posts": [
+    {
+      "id": "tt_n1",
+      "platform": "tiktok",
+      "handle": "@matatu_mambo",
+      "days_ago": 2,
+      "text": "mambo ni matatu leo, nani ana nauli ya kurudi nyumbani",
+      "views": 140000
+    },
+    {
+      "id": "tt_n2",
+      "platform": "tiktok",
+      "handle": "@ngong_road_sketch",
+      "days_ago": 4,
+      "text": "skit mpya: mambo ni matatu part two, driver ameamua hatuendi",
+      "views": 87000
+    },
+    {
+      "id": "x_n1",
+      "platform": "x",
+      "handle": "@sheng_dictionary_ke",
+      "days_ago": 5,
+      "text": "mambo ni matatu is the new way to say things are chaotic but we are still moving",
+      "views": 29000
+    },
+    {
+      "id": "tt_n3",
+      "platform": "tiktok",
+      "handle": "@kasarani_kicks",
+      "days_ago": 3,
+      "text": "Kasarani Kick sound is everywhere, manze niaje wasee mmeona hii",
+      "views": 99000
+    },
+    {
+      "id": "tt_n4",
+      "platform": "tiktok",
+      "handle": "@dance_with_wambui",
+      "days_ago": 6,
+      "text": "Kasarani Kick challenge day three, my neighbours are tired of me",
+      "views": 52000
+    },
+    {
+      "id": "x_n2",
+      "platform": "x",
+      "handle": "@nairobi_ears",
+      "days_ago": 7,
+      "text": "the Kasarani Kick sound has taken over every matatu speaker this week",
+      "views": 18000
+    },
+    {
+      "id": "x_n3",
+      "platform": "x",
+      "handle": "@gen_kenya_voice",
+      "days_ago": 9,
+      "text": "aje bro, the 'si ulisema' reply is the funniest way to end an argument online",
+      "views": 24000
+    },
+    {
+      "id": "tt_n5",
+      "platform": "tiktok",
+      "handle": "@comedy_corner_ke",
+      "days_ago": 8,
+      "text": "si ulisema, I said what I said, wacha tuendelee",
+      "views": 61000
+    },
+    {
+      "id": "x_n4",
+      "platform": "x",
+      "handle": "@brand_watch_ke",
+      "days_ago": 10,
+      "text": "brands using mambo ni matatu in ads this early look like they are trying too hard",
+      "views": 12000
+    },
+    {
+      "id": "tt_n6",
+      "platform": "tiktok",
+      "handle": "@mtaani_vibes",
+      "days_ago": 11,
+      "text": "when a brand does the Kasarani Kick it is giving uncle at a wedding",
+      "views": 33000
+    }
+  ],
+  "bulk": {
+    "count": 40,
+    "prefix": "nk",
+    "creators": 20,
+    "platforms": [
+      "tiktok",
+      "x"
+    ],
+    "days": [
+      0,
+      13
+    ],
+    "stems": [
+      "mambo ni matatu is my whole personality this week",
+      "Kasarani Kick again, who made this",
+      "si ulisema and we move"
+    ]
+  },
+  "socialcrawl": {
+    "tiktok/search/top": {
+      "credits_charged": 3.0,
+      "items": [
+        {
+          "id": "n401",
+          "handle": "@shiko_shiko_ke",
+          "market": "KE",
+          "posted_at": "2026-10-08T12:00:00+03:00",
+          "url": "https://example.test/tiktok/n401",
+          "text": "mambo ni matatu in the club, the DJ understood the assignment",
+          "engagement": {
+            "views": 70000,
+            "likes": 5200
+          }
+        },
+        {
+          "id": "n402",
+          "handle": "@eastlands_edits",
+          "market": "KE",
+          "posted_at": "2026-10-09T15:00:00+03:00",
+          "url": "https://example.test/tiktok/n402",
+          "text": "Kasarani Kick edit with the matatu graffiti, mtaa iko moto",
+          "engagement": {
+            "views": 44000,
+            "likes": 3100
+          }
+        }
+      ]
+    },
+    "twitter/search/tweets": {
+      "credits_charged": 2.0,
+      "items": [
+        {
+          "id": "n411",
+          "handle": "@kenya_memes_daily",
+          "market": "KE",
+          "posted_at": "2026-10-10T09:00:00+03:00",
+          "url": "https://example.test/x/n411",
+          "text": "si ulisema is trending as a reply to every hot take today",
+          "engagement": {
+            "views": 36000,
+            "likes": 1500
+          }
+        }
+      ]
+    }
+  },
+  "research": {
+    "note": "Reading: Kenyan in-jokes, sounds and Sheng phrases, the last two weeks.",
+    "tokens": [
+      92000,
+      4700
+    ],
+    "calls": [
+      {
+        "tool": "search_posts",
+        "query": "mambo ni matatu OR Kasarani Kick OR si ulisema",
+        "as": "stored",
+        "args": {
+          "since": "2026-09-28",
+          "until": "2026-10-11"
+        }
+      },
+      {
+        "tool": "socialcrawl",
+        "platform": "tiktok",
+        "endpoint": "search/top",
+        "params": {
+          "query": "mambo ni matatu",
+          "country": "KE"
+        },
+        "max_credits": 5
+      },
+      {
+        "tool": "socialcrawl",
+        "platform": "twitter",
+        "endpoint": "search/tweets",
+        "params": {
+          "query": "si ulisema",
+          "country": "KE"
+        },
+        "max_credits": 5
+      }
+    ]
+  },
+  "writer": {
+    "short_answer": "Three things keep coming up in Kenyan feeds: the mambo ni matatu line, the Kasarani Kick sound and the si ulisema reply.",
+    "claims": [
+      {
+        "id": "c1",
+        "text": "Mambo ni matatu: a line used for a chaotic day that still keeps moving, which started in skits and spread to X.",
+        "label": "single_source",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_n1",
+          "tt_n2",
+          "x_n1",
+          "tiktok_n402"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "tt_n1",
+            "text": "mambo ni matatu leo"
+          },
+          {
+            "evidence_id": "x_n1",
+            "text": "the new way to say things are chaotic"
+          }
+        ],
+        "numbers": []
+      },
+      {
+        "id": "c2",
+        "text": "Mambo ni matatu: it is also said in clubs, as one post on TikTok shows.",
+        "label": "single_source",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_n1"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "tt_n1",
+            "text": "mambo ni matatu kila siku"
+          }
+        ],
+        "numbers": []
+      },
+      {
+        "id": "c3",
+        "text": "Kasarani Kick: a sound on TikTok challenges that also comes up in matatu speaker talk on X, and it is still being posted this week.",
+        "label": "single_source",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_n3",
+          "tt_n4",
+          "x_n2",
+          "tiktok_n402"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "tt_n3",
+            "text": "manze niaje wasee mmeona hii"
+          },
+          {
+            "evidence_id": "x_n2",
+            "text": "taken over every matatu speaker"
+          }
+        ],
+        "numbers": []
+      },
+      {
+        "id": "c4",
+        "text": "Kasarani Kick: one post compares the sound from a brand to an uncle at a wedding.",
+        "label": "single_source",
+        "kind": "observation",
+        "evidence_ids": [
+          "tt_n6"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "tt_n6",
+            "text": "giving uncle at a wedding"
+          }
+        ],
+        "numbers": []
+      },
+      {
+        "id": "c5",
+        "text": "Si ulisema: a reply used to end an argument online, seen on X and in a TikTok joke.",
+        "label": "single_source",
+        "kind": "observation",
+        "evidence_ids": [
+          "x_n3",
+          "tt_n5",
+          "twitter_n411"
+        ],
+        "quotes": [
+          {
+            "evidence_id": "x_n3",
+            "text": "the funniest way to end an argument online"
+          }
+        ],
+        "numbers": []
+      }
+    ],
+    "so_what": [
+      {
+        "text": "A brand should join the Kasarani Kick as a fan, not as an advertiser.",
+        "claim_ids": [
+          "c3",
+          "c4"
+        ]
+      },
+      {
+        "text": "A brand can use the reply once, lightly, in a comment and not in an ad.",
+        "claim_ids": [
+          "c5"
+        ]
+      }
+    ],
+    "watch_next": [],
+    "gaps": [
+      {
+        "what": "Only TikTok and X were searched live",
+        "searched": "TikTok and X live, stored posts on both",
+        "why": "the question named the feed and not other platforms"
+      }
+    ],
+    "context": ""
+  },
+  "headline_rewrite": "Three phrases and sounds keep coming up in Kenyan feeds: mambo ni matatu, the Kasarani Kick and si ulisema.",
+  "support": {},
+  "question": "What are Kenyan creators and commenters riffing on in the last two weeks: the in-jokes, sounds and Sheng phrases that keep coming up? I need to know what would make a brand post feel current in a Kenyan feed right now.",
+  "vars": {
+    "id": "NOW-03-RANKED",
+    "family": "now",
+    "markets": [
+      "KE"
+    ],
+    "window": "last 14 days",
+    "window_days": 14,
+    "expected_answerability": "answerable"
+  }
+}

@@ -8,7 +8,9 @@ of its own: every word and every figure a reader sees is a stored claim's, with 
 What a story's size is. One claim of the story pins its posts and its creators to the same query (and its platforms
 when that query gives them). A claim that pins posts alone, such as a peak, is not a size. Two claims that both look
 like the size leave it open, and so does a claim whose posts and creators come from different queries. Nothing is
-filled in for a part the answer does not carry.
+filled in for a part the answer does not carry. Whether a pinned figure really is its query's was settled when the claim
+was kept (K2, against the recorded rows); this module cannot recompute a hash, so it only refuses a figure that carries
+no pin at all, and a pin of the right shape proves nothing here.
 
 What the order is. The stories are in the order the writer gave. They are marked ordered only when every story has a
 size and the sizes do not rise from one story to the next by creators and then posts. That is a check of the pinned

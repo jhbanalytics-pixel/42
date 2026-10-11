@@ -85,9 +85,10 @@ def test_two_claims_that_both_look_like_the_size_leave_the_size_open():
     assert got["stories"][0]["size"] is None
 
 
-def test_an_unpinned_or_boolean_or_negative_figure_is_not_a_size():
+def test_a_figure_that_carries_no_pin_is_not_a_size():
     for bad in ({"value": 412, "unit": "posts"}, number(True, "posts", "q_a"), number(-4, "posts", "q_a"),
-                {**number(412, "posts", "q_a"), "query_id": ""}):
+                {**number(412, "posts", "q_a"), "query_id": ""}, {**number(412, "posts", "q_a"), "run_id": ""},
+                {**number(412, "posts", "q_a"), "result_hash": "sha256:abc"}):
         broken = claim("c1", "Soweto unrest: the biggest.", numbers=[bad, number(188, "creators", "q_a")])
         got = briefing.stories(answer([broken, THREE[2]]))
         assert got["stories"][0]["size"] is None, bad
