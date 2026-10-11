@@ -1812,7 +1812,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             "timings": timings.snapshot(elapsed),
             "model_usd": model_usd(),
             "window": {"from": window[0].isoformat(), "to": window[1].isoformat()},
-            "posts": len(read),
+            "posts": max(0, len(read) - int((getattr(ctx, "writer_pack_left_out", None) or {}).get("posts") or 0)),
             "platforms": len(platforms),
             "source_status": _source_status(ctx, client) if client is not None else [],
             "followups": followups,
