@@ -2,7 +2,7 @@
    what commenters said under the post they belong to, the number tiles and
    the platform marks. A card names the posts its claim rests on and nothing
    else; a comment is never a tile (askEvidence.js). */
-import {Fragment, useState} from 'react';
+import {Fragment, useEffect, useRef, useState} from 'react';
 import {readerFigure} from '../api.js';
 import {safeUrl} from '../safeUrl.js';
 import {isComment, parentShown, parentWords} from '../askEvidence.js';
@@ -108,16 +108,36 @@ export function FindingCard({claim, records, quoteMap, confidence, pinnedId, onP
   );
 }
 
-/* The claim a tile counts, whole, with the style holding it to three lines. A
-   claim long enough to run past them has a toggle, which a touch or a keyboard
-   reaches, and which opens the rest in place. */
-const CLAIM_SHORT = 110;
-function FigureClaim({text, long}){
+/* The claim a tile counts, whole, with the style holding it to three lines.
+   The toggle shows only when the text is taller than its box, which is read
+   from the page and read again when the window or the box changes size, so a
+   claim that fits has no button. An open claim keeps its button, so it can
+   be closed. */
+function FigureClaim({text}){
   const [open, setOpen] = useState(false);
+  const [clipped, setClipped] = useState(false);
+  const node = useRef(null);
+  useEffect(() => {
+    const claim = node.current;
+    if (!claim) return undefined;
+    const measure = () => {
+      if (claim.hasAttribute('data-open')) return;
+      setClipped(claim.scrollHeight > claim.clientHeight + 1);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const watcher = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    if (watcher) watcher.observe(claim);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      if (watcher) watcher.disconnect();
+    };
+  }, [text, open]);
   return (
     <>
-      <p className="ask42-figure-claim" data-open={open ? '' : undefined}>{text}</p>
-      {long && <button type="button" className="ask42-quiet ask42-figure-more" aria-expanded={open ? 'true' : 'false'} onClick={() => setOpen((value) => !value)}>{open ? 'Show less' : 'Show all'}</button>}
+      <p ref={node} className="ask42-figure-claim" data-open={open ? '' : undefined}>{text}</p>
+      {(clipped || open) && <button type="button" className="ask42-quiet ask42-figure-more" aria-expanded={open ? 'true' : 'false'} onClick={() => setOpen((value) => !value)}>{open ? 'Show less' : 'Show all'}</button>}
     </>
   );
 }
@@ -141,7 +161,7 @@ export function FigureTiles({tiles}){
                 </Fragment>
               ))}
             </p>
-            <FigureClaim text={tile.about} long={tile.full.length > CLAIM_SHORT} />
+            <FigureClaim text={tile.about} />
           </li>
         ))}
       </ul>

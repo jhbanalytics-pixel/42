@@ -163,33 +163,90 @@ test('a claim with no words of its own still says what its figure belongs to', a
   expect(tile.getAttribute('aria-label')).toBe('6 posts · 6 accounts posting. Counted for a finding with no words of its own.');
 });
 
-test('a long claim is shown whole and its toggle opens and closes it for touch and keyboard users', async () => {
-  const body = clone(record);
-  const long = 'Posts about the Soweto unrest anniversary led the week across TikTok and X, with creators in Gauteng driving most of the volume and a second wave from the Western Cape later in the week. A second sentence follows.';
-  body.answer.claims[0].text = long;
-  await open(body);
-  const tile = all('.ask42-figure-tile')[0];
-  expect(words(tile.querySelector('.ask42-figure-claim'))).toBe(long);
-  expect(tile.querySelector('.ask42-figure-claim').getAttribute('title')).toBeNull();
-  const toggle = tile.querySelector('button.ask42-figure-more');
-  expect(toggle).not.toBeNull();
-  expect(toggle.getAttribute('aria-expanded')).toBe('false');
-  expect(tile.querySelector('.ask42-figure-claim').getAttribute('data-open')).toBeNull();
-  await act(async () => toggle.click());
-  expect(tile.querySelector('button.ask42-figure-more').getAttribute('aria-expanded')).toBe('true');
-  expect(tile.querySelector('.ask42-figure-claim').getAttribute('data-open')).toBe('');
-  expect(words(tile.querySelector('button.ask42-figure-more'))).toBe('Show less');
-  await act(async () => tile.querySelector('button.ask42-figure-more').click());
-  expect(tile.querySelector('.ask42-figure-claim').getAttribute('data-open')).toBeNull();
+/* happy-dom does no layout, so the clamp is stubbed: a claim element reports
+   the height of its text and the height of the box that holds it. */
+function stubLayout(heights){
+  const proto = window.HTMLElement.prototype;
+  const claim = (node) => node.classList && node.classList.contains('ask42-figure-claim');
+  Object.defineProperty(proto, 'scrollHeight', {configurable: true, get(){ return claim(this) ? heights.scroll(this) : 0; }});
+  Object.defineProperty(proto, 'clientHeight', {configurable: true, get(){ return claim(this) ? heights.client(this) : 0; }});
+  return () => { delete proto.scrollHeight; delete proto.clientHeight; };
+}
+
+const resize = async () => { await act(async () => { window.dispatchEvent(new window.Event('resize')); }); };
+
+test('a clipped claim shows its whole text, and its toggle opens and closes it for touch and keyboard users', async () => {
+  const restore = stubLayout({scroll: () => 90, client: () => 60});
+  try {
+    const body = clone(record);
+    const long = 'Posts about the Soweto unrest anniversary led the week across TikTok and X, with creators in Gauteng driving most of the volume and a second wave from the Western Cape later in the week. A second sentence follows.';
+    body.answer.claims[0].text = long;
+    await open(body);
+    const tile = all('.ask42-figure-tile')[0];
+    expect(words(tile.querySelector('.ask42-figure-claim'))).toBe(long);
+    expect(tile.querySelector('.ask42-figure-claim').getAttribute('title')).toBeNull();
+    const toggle = tile.querySelector('button.ask42-figure-more');
+    expect(toggle).not.toBeNull();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(tile.querySelector('.ask42-figure-claim').getAttribute('data-open')).toBeNull();
+    await act(async () => toggle.click());
+    expect(tile.querySelector('button.ask42-figure-more').getAttribute('aria-expanded')).toBe('true');
+    expect(tile.querySelector('.ask42-figure-claim').getAttribute('data-open')).toBe('');
+    expect(words(tile.querySelector('button.ask42-figure-more'))).toBe('Show less');
+    await act(async () => tile.querySelector('button.ask42-figure-more').click());
+    expect(tile.querySelector('.ask42-figure-claim').getAttribute('data-open')).toBeNull();
+    expect(words(tile.querySelector('button.ask42-figure-more'))).toBe('Show all');
+  } finally { restore(); }
 });
 
-test('a short claim has no toggle and a long one has', async () => {
-  const body = clone(record);
-  body.answer.claims.forEach((claim, index) => { claim.text = index === 0 ? 'A short claim.' : index === 1 ? 'A claim that runs on well past three lines of a narrow rail, with a clause about the week before at its very end.' : claim.text; });
-  await open(body);
-  const tiles = all('.ask42-figure-tile');
-  expect(tiles[0].querySelector('button.ask42-figure-more')).toBeNull();
-  expect(tiles[1].querySelector('button.ask42-figure-more')).not.toBeNull();
+test('a claim that fits its box has no toggle, however many characters it has', async () => {
+  const restore = stubLayout({scroll: () => 60, client: () => 60});
+  try {
+    const body = clone(record);
+    body.answer.claims[0].text = 'A claim that runs to a great many characters but which the rail still holds in its three lines, a long way past a hundred and ten.';
+    await open(body);
+    expect(all('.ask42-figure-tile button.ask42-figure-more').length).toBe(0);
+  } finally { restore(); }
+});
+
+test('the toggle follows the layout: only the claims whose text is taller than their box have one', async () => {
+  const restore = stubLayout({scroll: (node) => (node.textContent.length > 100 ? 90 : 40), client: () => 60});
+  try {
+    await open();
+    const tiles = all('.ask42-figure-tile');
+    const long = clone(record).answer.claims.map((claim) => claim.text.length > 100);
+    expect(long).toEqual([true, false, false, false]);
+    tiles.forEach((tile, index) => expect(Boolean(tile.querySelector('button.ask42-figure-more'))).toBe(long[index]));
+  } finally { restore(); }
+});
+
+test('the toggle is measured again when the window is resized', async () => {
+  let clipped = false;
+  const restore = stubLayout({scroll: () => (clipped ? 90 : 60), client: () => 60});
+  try {
+    await open();
+    expect(all('.ask42-figure-tile button.ask42-figure-more').length).toBe(0);
+    clipped = true;
+    await resize();
+    expect(all('.ask42-figure-tile button.ask42-figure-more').length).toBe(4);
+    clipped = false;
+    await resize();
+    expect(all('.ask42-figure-tile button.ask42-figure-more').length).toBe(0);
+  } finally { restore(); }
+});
+
+test('an open claim keeps its Show less button when a resize makes it fit', async () => {
+  let clipped = true;
+  const restore = stubLayout({scroll: () => (clipped ? 90 : 60), client: () => 60});
+  try {
+    await open();
+    await act(async () => all('.ask42-figure-tile button.ask42-figure-more')[0].click());
+    clipped = false;
+    await resize();
+    const buttons = all('.ask42-figure-tile button.ask42-figure-more');
+    expect(buttons.length).toBe(1);
+    expect(words(buttons[0])).toBe('Show less');
+  } finally { restore(); }
 });
 
 test('a claim that holds an abbreviation is shown whole, never cut down to the abbreviation', () => {
