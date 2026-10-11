@@ -2172,7 +2172,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                     as_of=as_of, market=market,
                     window=f"{window[0].isoformat()} to {window[1].isoformat()}", ctx=ctx,
                     failed_sources=[r for r in source_status if r["status"] != "ok"], note=note,
-                    model_name=model_name)
+                    model_name=model_name, skill=skill)
                 spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
                 if should_stop():
                     raise _StopRequested()

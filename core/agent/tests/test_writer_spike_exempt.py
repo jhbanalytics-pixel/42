@@ -62,3 +62,16 @@ def test_a_run_of_the_same_words_with_no_spike_gives_the_writer_the_rule_once():
     h.run(question=SPIKE_PHRASING)
     users = [c["user"] for c in h.model.calls if c["schema"] is writer.WRITER_SCHEMA]
     assert len(users) == 1 and users[0].count(writer.CAUSE_FIRST_RULE) == 1
+
+
+def repair_user(question, ctx_, **extra):
+    model = FakeModel(draft_output())
+    writer.repair_answer_numbers(model, draft=draft_output(), issues=[], question=question,
+                                 as_of="2026-09-28T06:10:00+02:00", market="ZA", window="21 to 27 September 2026",
+                                 ctx=ctx_, **extra)
+    return model.calls[0]["user"]
+
+
+def test_the_numeric_repair_call_of_a_spike_ask_gets_no_cause_first_rule_either(ctx):
+    assert writer.CAUSE_FIRST_RULE not in repair_user(SPIKE_PHRASING, ctx, skill="spike-explain")
+    assert writer.CAUSE_FIRST_RULE in repair_user(SPIKE_PHRASING, ctx)

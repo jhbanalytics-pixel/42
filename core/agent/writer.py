@@ -785,7 +785,7 @@ def _claim_subjects(said: str, ctx: RunContext) -> set:
 
 def repair_answer_numbers(model: Model, *, draft: dict, issues: list, question: str, as_of, market, window: str,
                           ctx: RunContext, failed_sources=(), note: str = "",
-                          model_name: str = GEMINI_DEFAULT_MODEL) -> tuple[dict, dict]:
+                          model_name: str = GEMINI_DEFAULT_MODEL, skill: str | None = None) -> tuple[dict, dict]:
     """Run one ordinary writer call to repair numeric issues, preserving its normalization and billed usage."""
     instruction = ("Numeric repair instructions: remove each listed numeral or pin it with a matching query_id from "
                    "this evidence pack. Remove each invalid numbers[] entry or correct it only from a query in this "
@@ -798,7 +798,7 @@ def repair_answer_numbers(model: Model, *, draft: dict, issues: list, question: 
     ) if part)
     return write_answer(model, question=repair_question, as_of=as_of, market=market, window=window, ctx=ctx,
                         gaps=draft.get("gaps") or [], failed_sources=failed_sources, note=repair_note,
-                        model_name=model_name)
+                        model_name=model_name, skill=skill)
 
 
 def writer_gaps(draft_gaps: list) -> list:
