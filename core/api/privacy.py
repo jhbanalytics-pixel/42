@@ -34,6 +34,7 @@ _IDENTITY = ("id", "platform", "handle", "url", "creator_id", "posted_at", "pare
 MARGIN = dt.timedelta(days=3)
 SUPPRESSION_MAX_AGE_S = 30  # a run in flight may use a list this old (rule R2, section 8.4)
 READ = object()  # "read the list now"; None stands for UNAVAILABLE
+UNPLACED = object()  # a creators entry for a stored post the lookup did not find: it is gone, and is not looked up again
 _clock = time.monotonic
 _shared = threading.local()
 
@@ -228,7 +229,7 @@ def _place_stored(stored, ids, store, creators, gone):
             if e["id"] in found:
                 creators[e["id"]] = found[e["id"]]
     for e in stored:
-        if e["id"] not in creators or creators[e["id"]] in ids:
+        if creators.get(e["id"], UNPLACED) is UNPLACED or creators[e["id"]] in ids:
             gone.add(e["id"])  # a miss is never read as "not hidden"
 
 
@@ -447,8 +448,9 @@ def project_dossier(view, store, hidden=READ, inbound=None):
     hidden = _resolve(hidden, store)
     if nothing_hidden(hidden):
         return base if carried is None else {**base, "privacy": carried}
+    named = set()
     try:
-        gone = evidence_gone(base.get("evidence"), hidden, store)
+        gone = evidence_gone(base.get("evidence"), hidden, store, names=named)
     except PeopleUnavailable:
         hidden = None
         gone = evidence_gone(base.get("evidence"), None, store)
@@ -469,7 +471,7 @@ def project_dossier(view, store, hidden=READ, inbound=None):
         out["summary"], summary_gone = SUMMARY_WITHHELD, True
     before = _json(out)
     stored_hash = out.get("content_hash")
-    out = mask(out, hidden)
+    out = mask(out, with_names(hidden, named))
     changed = _json(out) != before
     if "content_hash" in base:
         out["content_hash"] = stored_hash

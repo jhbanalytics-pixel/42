@@ -324,20 +324,40 @@ def _finding_market(row):
     return found if found in MARKETS else None
 
 
-def _without_gone_posts(finding, hidden, store):
+def _placed_posts(findings, hidden, store):
+    """(creators, names) for every finding at once: who wrote each stored post of all the findings, found in one
+    lookup, and the handles the hidden people's posts carry, whatever those people are called now. A post the lookup
+    does not find is kept as unplaced, so no finding asks again. creators is None when the lookup failed, which leaves
+    out every post. Nothing hidden, or a list that cannot be read, asks nothing."""
+    creators, names = {}, set()
+    evidence = [e for f in findings for e in f.get("evidence") or [] if isinstance(e, dict)]
+    if not evidence or hidden is None or privacy.nothing_hidden(hidden):
+        return creators, names
+    try:
+        privacy.evidence_gone(evidence, hidden, store, creators, names=names)
+    except privacy.PeopleUnavailable:
+        return None, names
+    for e in evidence:
+        if isinstance(e.get("id"), str) and e["id"] not in creators:
+            creators[e["id"]] = privacy.UNPLACED
+    return creators, names
+
+
+def _without_gone_posts(finding, hidden, store, creators, names):
     """The finding with the posts a hidden person wrote left out, judged as an Ask record's are (privacy.evidence_gone):
     by who wrote the stored post, whoever they were called when it was saved, and by the comment rule. A saved envelope
     holds no creator id and no link, so a comment is judged by its address and the posts beside it. A claim that rested
     on a post that is gone, and the answer text built from the claims, are replaced by the notices an Ask record shows.
-    The saved row is never changed. A list that cannot be read is left to without_hidden, which names no author; a
-    post lookup that fails leaves out every post."""
+    The saved row is never changed. creators and names come from _placed_posts, so this asks the store nothing. A list
+    that cannot be read is left to without_hidden, which names no author; creators None (the lookup failed) leaves out
+    every post."""
     evidence = [e for e in finding.get("evidence") or [] if isinstance(e, dict)]
     if not evidence or hidden is None or privacy.nothing_hidden(hidden):
         return finding
-    try:
-        gone = privacy.evidence_gone(evidence, hidden, store)
-    except privacy.PeopleUnavailable:
+    if creators is None:
         gone = privacy.evidence_gone(evidence, None, store)
+    else:
+        gone = privacy.evidence_gone(evidence, hidden, store, creators, names=names)
     if not gone:
         return finding
     finding = dict(finding)
@@ -397,5 +417,6 @@ def build_history_findings(store, item_id=None, status=None, market=None):
             finding["evidence"] = [post_evidence(posts[pid], keep_flags=True) for pid in ids if pid in posts]
         out.append(finding)
     hidden = privacy.read_hidden(store)
-    out = [_without_gone_posts(f, hidden, store) for f in out]
-    return without_hidden({"findings": out, "note": None if checked else NOT_CHECKED}, hidden)
+    creators, names = _placed_posts(out, hidden, store)
+    out = [_without_gone_posts(f, hidden, store, creators, names) for f in out]
+    return without_hidden({"findings": out, "note": None if checked else NOT_CHECKED}, privacy.with_names(hidden, names))
