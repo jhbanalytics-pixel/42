@@ -397,3 +397,68 @@ def test_deploy_sh_is_staging_only():
     for line in commands.splitlines():
         if re.search(r"\bgcloud (run|builds) ", line):
             assert '--project "$PROJECT"' in line and '--region "$REGION"' in line, line
+
+
+# The version line (11 October 2026): the web stage builds the menu's version from VERSION, CHANGELOG.md and
+# the short sha. The image build has no .git, so both files have to reach the build context and sit where
+# app/frontend/vite.config.mjs reads them (two levels above the frontend), and the sha comes in as the build
+# argument F42_VERSION that the vite config reads when there is no git.
+def stage(name):
+    """(instruction, arguments) of the named Dockerfile stage, continuation lines joined."""
+    body = re.sub(r"\\r?\n\s*", " ", text(DOCKERFILE))
+    lines = [ln.strip() for ln in body.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+    start = next(i for i, ln in enumerate(lines) if re.fullmatch(rf"FROM\s+\S+\s+AS\s+{name}", ln, re.I))
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].upper().startswith("FROM ")), len(lines))
+    return [(ln.split(None, 1)[0].upper(), ln.split(None, 1)[1]) for ln in lines[start + 1:end]]
+
+
+def web_build():
+    """The web stage's instructions, the index of its bun build and the directory that build runs in."""
+    ops, workdir, at = stage("web"), "/", None
+    for i, (op, args) in enumerate(ops):
+        if op == "WORKDIR":
+            workdir = posixpath.join(workdir, args)
+        if op == "RUN" and "bun run build" in args:
+            at = i
+            break
+    assert at is not None, "the web stage runs no bun build"
+    return ops, at, workdir
+
+
+def web_copies(ops, before):
+    """Where each context file a web stage COPY names lands, for the COPYs before index before."""
+    workdir, landed = "/", {}
+    for op, args in ops[:before]:
+        if op == "WORKDIR":
+            workdir = posixpath.join(workdir, args)
+        if op != "COPY" or args.startswith("--from"):
+            continue
+        *sources, dest = args.split()
+        dest = posixpath.join(workdir, dest)
+        for source in sources:
+            landed[source] = posixpath.join(dest, posixpath.basename(source)) if len(sources) > 1 or dest.endswith("/") else dest
+    return landed
+
+
+def test_build_context_holds_the_release_files_the_menu_reads():
+    assert not ignored("VERSION")
+    assert not ignored("CHANGELOG.md")
+    # The rest of the repository root stays out.
+    assert ignored("README.md")
+    assert ignored("CONTRIBUTING.md")
+
+
+def test_web_stage_puts_the_release_files_where_the_vite_config_reads_them_before_it_builds():
+    assert "new URL('../../', import.meta.url)" in text(ROOT / "app" / "frontend" / "vite.config.mjs")
+    ops, at, workdir = web_build()
+    assert workdir == "/src/app/frontend"
+    root = posixpath.normpath(posixpath.join(workdir, "../.."))
+    landed = web_copies(ops, at)
+    assert landed.get("VERSION") == posixpath.join(root, "VERSION")
+    assert landed.get("CHANGELOG.md") == posixpath.join(root, "CHANGELOG.md")
+
+
+def test_web_stage_takes_the_short_sha_as_a_build_argument_before_it_builds():
+    ops, at, _ = web_build()
+    args = [i for i, (op, value) in enumerate(ops) if op == "ARG" and value.split("=", 1)[0] == "F42_VERSION"]
+    assert args and args[0] < at

@@ -1,10 +1,21 @@
 # Builds the f42-api and f42-agent image in Cloud Build as f42-deployer (SETUP.md:
 # until GitHub Actions exists, images build in Cloud Build). Started by core/api/deploy.sh.
+# Both callers pass only _IMAGE, tagged <sha12> (deploy.sh) or <sha12>-<nn> (the release paste). The tag's sha
+# goes to the web stage as F42_VERSION for the menu's version line, since the uploaded source has no .git; a tag
+# that names no 12 character sha hands an empty value and the menu then shows no sha.
 steps:
   - name: gcr.io/cloud-builders/docker
+    entrypoint: bash
     env:
       - DOCKER_BUILDKIT=1
-    args: [build, --file, core/api/Dockerfile, --tag, "${_IMAGE}", .]
+      - IMAGE=${_IMAGE}
+    args:
+      - -c
+      - |
+        tag="$${IMAGE##*:}"
+        sha="$${tag%%-*}"
+        if ! [[ "$$sha" =~ ^[0-9a-f]{12}$$ ]]; then sha=""; fi
+        docker build --build-arg "F42_VERSION=$$sha" --file core/api/Dockerfile --tag "$$IMAGE" .
 images:
   - "${_IMAGE}"
 options:
