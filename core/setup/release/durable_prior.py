@@ -19,7 +19,7 @@ commit, and the key is declared in the statement. It changes no SQL, and its for
 the key through unread, a rollback leaves it in place, and a record a previous writer saves later has no key.
 
 The compat verdicts of the effects stay as the template has them (pending): they are settled from the harness receipts, which is the
-lead's step. With --old-reader-receipt the five verdicts of the stored effect alone are settled from that receipt, and only after it is
+lead's step. Given an old-reader receipt on the command line, the five verdicts of the stored effect alone are settled from it, and only after it is
 checked against this tree: it says pass with no problem, it was made against the base and at the release commit, and its harness hash
 equals the one recomputed here from the two harness files at the release commit. The output file is created once and never replaced.
 Exit 0 written, 1 refused.
