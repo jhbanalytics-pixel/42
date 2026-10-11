@@ -307,9 +307,9 @@ def free_port():
         return sock.getsockname()[1]
 
 
-def archive(commit, dest):
-    """A read-only `git archive` of core/ at `commit`, extracted into `dest`."""
-    tar = subprocess.run(["git", "-C", str(ROOT), "archive", commit, "core"], capture_output=True, check=True).stdout
+def archive(commit, dest, repo=ROOT):
+    """A read-only `git archive` of core/ at `commit` of `repo` (this checkout unless another is given), extracted into `dest`."""
+    tar = subprocess.run(["git", "-C", str(repo), "archive", commit, "core"], capture_output=True, check=True).stdout
     dest.mkdir(parents=True, exist_ok=True)
     with tarfile.open(fileobj=io.BytesIO(tar)) as bundle:
         bundle.extractall(dest, filter="data")

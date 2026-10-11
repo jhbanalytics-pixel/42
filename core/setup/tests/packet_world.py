@@ -162,7 +162,7 @@ def valid_durable_manifest(path, release_id, repo):
     return Path(path)
 
 
-def write_receipts(packet_dir, verdict="pass", *, base=None, candidate=None):
+def write_receipts(packet_dir, verdict="pass", *, base=None, candidate=None, stores=None):
     """The two receipts bind reads. base and candidate are the commits the harnesses write into theirs; a release bound to an a80 prior
     release does not read them, one bound to a recorded prior release must."""
     packet_dir = Path(packet_dir)
@@ -173,6 +173,8 @@ def write_receipts(packet_dir, verdict="pass", *, base=None, candidate=None):
             value["base_commit"] = base
         if candidate is not None:
             value["candidate_commit"] = candidate
+        if stores is not None and name == "old-reader-receipt.json":
+            value["prior_stores_answer_meta"] = stores
         (packet_dir / name).write_text(json.dumps(value) + "\n", encoding="utf-8", newline="\n")
 
 
@@ -270,6 +272,12 @@ class Bench:
         self.world = world or (a_world() if after == "A" else a80_world())
         self.argv, self.log = fake_gcloud(self.tmp / "fake", self.world)
         monkeypatch.setattr(helper, "gcloud_command", lambda: self.argv)
+        if after == "A":
+            # The real derivation runs the prior commit's writers (about ten seconds); the throwaway repository does not hold that commit.
+            # test_release_prior_packet.py runs the real one on this repository.
+            from core.setup.release import packet as packet_tool
+
+            monkeypatch.setattr(packet_tool, "prior_writes_answer_meta", lambda repo, commit: True)
         self.target = head(self.repo)
         self.attempt = attempt
         self.release_id = f"rel-{self.target[:7]}-{attempt}"
@@ -284,7 +292,7 @@ class Bench:
     # the argv of each subcommand, as the lead would type it
     def prior_argv(self):
         return ["prior-release", "--prior-lock", str(self.prior_root / "lock" / f"PACKET-LOCK-{rw.A_RID}.json"),
-                "--prior-packet-dir", str(self.prior_root / "packet"), "--out", str(self.prior_file)]
+                "--prior-packet-dir", str(self.prior_root / "packet"), "--repo", str(self.repo), "--out", str(self.prior_file)]
 
     def capture_argv(self, *extra):
         prior = ["--prior-release", str(self.prior_file)] if self.after else []
@@ -329,7 +337,7 @@ class Bench:
         from core.setup.release import packet as packet_tool
 
         if self.after:
-            write_receipts(self.packet, base="3710c5e", candidate=self.target)
+            write_receipts(self.packet, base="3710c5e", candidate=self.target, stores=True)
             self.prepare_prior()
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 assert packet_tool.main(self.prior_argv()) == 0

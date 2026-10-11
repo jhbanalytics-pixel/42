@@ -62,6 +62,39 @@ def test_prior_release_writes_the_record_built_from_the_values_and_hashes_of_the
     assert so.validate_prior_release(expected, need_jobs=False)
 
 
+def test_prior_release_derives_whether_the_prior_release_stores_the_typed_state_from_its_writers_at_that_commit(bench, capsys, prior, monkeypatch):
+    asked = []
+
+    def derive(repo, commit):
+        asked.append((str(repo), commit))
+        return False
+
+    monkeypatch.setattr(packet, "prior_writes_answer_meta", derive)
+    code, out, err = run(bench.prior_argv(), capsys)
+    assert code == 0, err
+    assert asked == [(str(bench.repo), rw.A_COMMIT)]
+    assert json.loads(bench.prior_file.read_text(encoding="utf-8"))["stores_answer_meta"] is False
+
+
+def test_prior_release_does_not_write_a_record_when_the_writers_cannot_be_run(bench, capsys, prior, monkeypatch):
+    def refuse(repo, commit):
+        raise packet.Refused("The writers of the prior commit could not be run")
+
+    monkeypatch.setattr(packet, "prior_writes_answer_meta", refuse)
+    code, out, err = run(bench.prior_argv(), capsys)
+    assert code == 1 and "writers" in err and not bench.prior_file.exists()
+
+
+def test_the_real_derivation_reads_a80_as_not_storing_the_state_and_release_a_as_storing_it():
+    assert packet.prior_writes_answer_meta(pw.ROOT, "a80be1dee7f4ee2aa9775d0f353bab930809f057") is False
+    assert packet.prior_writes_answer_meta(pw.ROOT, rw.A_COMMIT) is True
+
+
+def test_the_real_derivation_refuses_a_commit_the_repository_does_not_hold():
+    with pytest.raises(packet.Refused):
+        packet.prior_writes_answer_meta(pw.ROOT, "0" * 40)
+
+
 def test_prior_release_is_what_the_helper_and_the_live_system_of_a_agree_on(bench, capsys, prior):
     assert run(bench.prior_argv(), capsys)[0] == 0
     record = json.loads(bench.prior_file.read_text(encoding="utf-8"))
@@ -341,6 +374,22 @@ def test_bind_refuses_a_receipt_whose_commits_are_not_the_prior_commit_and_the_r
     pw.edit_json(bench.packet / name, change)
     code, out, err = run(bench.bind_argv(), capsys)
     assert code == 1 and "receipt" in err and not bench.bindings.exists(), (name, field, value)
+
+
+@pytest.mark.parametrize("change,fragment", [(lambda r: r.update(prior_stores_answer_meta=False), "rules"), (lambda r: r.pop("prior_stores_answer_meta"), "rules"),
+                                              (lambda r: r.update(prior_stores_answer_meta="true"), "rules")])
+def test_bind_refuses_an_old_reader_receipt_judged_by_other_rules_than_the_record_calls_for(bench, capsys, change, fragment):
+    bench.prepare_inputs()
+    assert run(bench.capture_argv(), capsys)[0] == 0
+    pw.edit_json(bench.packet / "old-reader-receipt.json", change)
+    code, out, err = run(bench.bind_argv(), capsys)
+    assert code == 1 and "old-reader" in err and fragment in err and not bench.bindings.exists()
+
+
+def test_bind_leaves_the_compat_receipt_out_of_the_rules_it_asks_of_the_old_reader_receipt(bench, capsys):
+    bound_bench(bench, capsys)
+    assert "prior_stores_answer_meta" not in json.loads((bench.packet / "compat-receipt.json").read_text(encoding="utf-8"))
+    assert bench.bindings_value()["priorRelease"]["stores_answer_meta"] is True
 
 
 @pytest.mark.parametrize("base", ["3710c5e", rw.A_COMMIT, rw.A_COMMIT[:12]])

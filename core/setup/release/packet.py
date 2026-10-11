@@ -351,6 +351,22 @@ def tie(ok, message):
         raise Refused(message)
 
 
+def prior_writes_answer_meta(repo, commit):
+    """Whether the writers of the prior release store the typed state (answer_meta) in the records they write, read by running them: the
+    old-reader harness archives `core/` of the commit from the repository and runs its fixture writers (complete, partial, failed and
+    stopped Asks); every record they leave must carry the key. It is not typed by hand and not read from any file under review."""
+    import tempfile
+
+    from core.api.tests import compat_harness as ch
+    from core.api.tests import old_reader_harness as orh
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            return orh.stores_answer_meta(orh.written_rows(ch.archive(commit, Path(tmp) / "prior", repo=repo)))
+    except (subprocess.CalledProcessError, RuntimeError, OSError, tarfile.TarError):
+        raise Refused("The writers of the prior commit could not be run") from None
+
+
 def cmd_prior_release(args):
     try:
         return derive_prior_release(args)
@@ -406,9 +422,10 @@ def derive_prior_release(args):
     deltas = bindings.get("envDeltas", {}).get("f42-api", {}) if isinstance(bindings.get("envDeltas"), dict) else {}
     tie(deltas.get("AGENT_URL") == tag_urls["f42-agent"] and deltas.get("AGENT_AUDIENCE") == canonical.get("agent_url"),
         "The prior bindings do not give the API the agent tag URL and the canonical audience")
+    stores = prior_writes_answer_meta(Path(args.repo), commit)
     record = {"schema_version": so.SCHEMA_VERSION, "kind": "prior-release", "release_id": rid, "commit": commit, "tag": rid,
               "revisions": revisions, "image_digest": digest, "tag_urls": tag_urls, "api_agent_url_literal": deltas["AGENT_URL"],
-              "agent_audience": deltas["AGENT_AUDIENCE"],
+              "agent_audience": deltas["AGENT_AUDIENCE"], "stores_answer_meta": stores,
               "sources": {"lock_sha256": lock_sha, "bindings_sha256": bindings_sha, "manifest_sha256": manifest_sha, "after_promotion_sha256": after_sha}}
     try:
         so.validate_prior_release(record, need_jobs=False)
@@ -440,7 +457,7 @@ def load_baseline(path, prior=None, expect_jobs=None):
     return baseline, digest
 
 
-def passing_receipt(path, label, prior=None, release_commit=None):
+def passing_receipt(path, label, prior=None, release_commit=None, old_reader=False):
     """The sha256 of a receipt that says pass, from the same read that showed it. Against a recorded prior release the receipt must also
     say which commits it compared (so.receipt_commits_problem, which the helper applies again on the acting path). Both expected values
     are the bind's own, never the receipt's."""
@@ -448,7 +465,7 @@ def passing_receipt(path, label, prior=None, release_commit=None):
     if receipt.get("schema_version") != so.SCHEMA_VERSION or receipt.get("verdict") != "pass":
         raise Refused(f"The {label} receipt does not say pass")
     if prior is not None:
-        problem = so.receipt_commits_problem(receipt, prior, release_commit)
+        problem = so.receipt_commits_problem(receipt, prior, release_commit, old_reader=old_reader)
         if problem:
             raise Refused(f"The {label} receipt {problem}")
     return digest
@@ -490,7 +507,7 @@ def cmd_bind(args):
         raise Refused("--expect-jobs-digest needs a prior release record")
     baseline, baseline_sha = load_baseline(args.baseline, prior, args.expect_jobs_digest)
     compat = passing_receipt(packet_dir / COMPAT_FILE, "compat", prior, head)
-    old = passing_receipt(packet_dir / OLD_READER_FILE, "old-reader", prior, head)
+    old = passing_receipt(packet_dir / OLD_READER_FILE, "old-reader", prior, head, old_reader=True)
     durable = Path(args.durable_manifest)
     durable_value, durable_sha = read_input(durable, "the durable-effects manifest")
     problems = dec.validate_manifest(durable_value)
@@ -631,6 +648,7 @@ def build_parser():
     prior = sub.add_parser("prior-release", help="derive the record of the live prior release from its own lock and packet, once")
     prior.add_argument("--prior-lock", type=Path, required=True)
     prior.add_argument("--prior-packet-dir", type=Path, required=True)
+    prior.add_argument("--repo", type=Path, default=Path("."), help="the repository that holds the prior release commit (its writers are run to read whether it stores answer_meta)")
     prior.add_argument("--out", type=Path, required=True)
     prior.set_defaults(handler=cmd_prior_release)
 

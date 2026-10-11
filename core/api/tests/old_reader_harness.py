@@ -284,6 +284,30 @@ def reverse_problems(reads):
     return problems
 
 
+def stores_answer_meta(rows):
+    """True when the writers that wrote these rows store the typed state: there is at least one record, and every record carries
+    answer_meta. Release A and later do; a80be1d does not. It is read from the previous release's own writers, never typed."""
+    return bool(rows) and all("answer_meta" in row["record"] for row in rows)
+
+
+def reverse_meta_problems(reads, legacy_rows):
+    """For a previous release that stores answer_meta: a record its writers wrote reads, in the candidate readers, as exactly the state it
+    stored (verified, the same version, execution and summary). A reader that gives none, a null, legacy_unknown or another state has
+    lost or invented an outcome."""
+    problems = []
+    for row in legacy_rows:
+        ask_id = ask_id_of(row)
+        got = reads.get(ask_id, {}).get("ask read")
+        if got is None or got.get("kind") != "json":
+            continue
+        stored = row["record"]["answer_meta"]
+        meta = got.get("meta", "absent")
+        expected = {"check": "verified", **{key: stored[key] for key in ("v", "execution", "summary")}}
+        if meta != expected:
+            problems.append(f"{ask_id}: a record that stored its state reads as {meta}, not as {expected}")
+    return problems
+
+
 def read_with_meta(reader, ask_ids):
     """reader.read plus, for the Ask read, the answer_meta the API gave (the shape alone cannot tell the values apart)."""
     reads = reader.read(ask_ids)
@@ -361,26 +385,29 @@ def unread(reads, ask_ids, route):
 def layer_problems(data):
     """{layer name: [problems]} for the data collect returns, or the same shape built from fixtures by the tests."""
     rows, legacy = data["rows"], data["legacy"]
-    ids, legacy_ids = [ask_id_of(row) for row in rows], [ask_id_of(row) for row in legacy]
+    stores = data.get("prior_stores_answer_meta", False)
+    ids, legacy_ids = [ask_id_of(row) for row in data.get("layer2_rows", rows)], [ask_id_of(row) for row in legacy]
     layer2 = [f"{ask_id}: no read of {route}" for route in ("ask read", "ask events", "ask export") for ask_id in unread(data["reads"], ids, route)]
-    layer2 += layer2_problems(data["reads"], data["twin_of"])
+    layer2 += layer2_problems(data["reads"], data["twin_of"], declared=() if stores else RECORD_KEYS)
     layer3 = [] if data["paths"] else ["no JSON path is read from the previous release"]
     layer3 += [] if legacy else ["no record written by the previous writers"]
     layer3 += layer3_problems(legacy, rows, data["paths"])
     layer4 = [f"{ask_id}: no read of the candidate readers" for ask_id in unread(data["reverse"], legacy_ids, "ask read")]
-    layer4 += reverse_problems(data["reverse"])
+    layer4 += reverse_meta_problems(data["reverse"], legacy) if stores else reverse_problems(data["reverse"])
     return {"layer 1": layer1_problems(rows), "layer 2": layer2, "layer 3": layer3, "layer 4": layer4}
 
 
 def build_receipt(candidate_commit, data, base_commit=ch.BASE_COMMIT):
     """old-reader-receipt.json (schema_version 1): both commits, the harness and corpus hashes, the counts, every problem of layers
     1 to 4 prefixed with its layer, and a verdict that is pass only with no problem. An empty corpus, no legacy rows, no JSON paths
-    and a layer that read nothing are each a problem, so none of them can pass."""
+    and a layer that read nothing are each a problem, so none of them can pass. prior_stores_answer_meta says which rules layers 2 and 4
+    were judged by: the key-absent twin and the declared answer_meta key (False, a80be1d), or the previous release's own records of the
+    same kind and the state each stored (True, Release A and later)."""
     problems = [f"{layer}: {problem}" for layer, found in layer_problems(data).items() for problem in found]
     counts = {"corpus_rows": len(data["rows"]), "legacy_rows": len(data["legacy"]), "json_paths": len(data["paths"])}
     return {"schema_version": 1, "base_commit": base_commit, "candidate_commit": candidate_commit,
             "harness_sha256": harness_sha256(), "corpus_sha256": corpus_sha256(data["rows"]), **counts,
-            "problems": problems, "verdict": "pass" if not problems else "fail"}
+            "prior_stores_answer_meta": bool(data.get("prior_stores_answer_meta", False)), "problems": problems, "verdict": "pass" if not problems else "fail"}
 
 
 def collect(candidate_tree, log_dir, base_commit=ch.BASE_COMMIT):
@@ -389,15 +416,24 @@ def collect(candidate_tree, log_dir, base_commit=ch.BASE_COMMIT):
     tmp = Path(log_dir)
     base = ch.archive(base_commit, tmp / "base")
     legacy = written_rows(base)
-    rows, twin_of = corpus(written_rows(candidate_tree))
+    written = written_rows(candidate_tree)
+    rows, twin_of = corpus(written)
+    stores = stores_answer_meta(legacy)
+    # A previous release that stores answer_meta is judged on the candidate's real records as written (the typed state present, as the
+    # previous readers know it), against its own records of the same kind read by the same readers. The synthetic clones are not read.
+    layer2_rows, layer2_twin = rows, twin_of
+    if stores:
+        by_kind = {kind_of(row): ask_id_of(row) for row in legacy}
+        layer2_rows, layer2_twin = [*written, *legacy], {ask_id_of(row): by_kind[kind_of(row)] for row in written if kind_of(row) in by_kind}
     with OldReader(base, tmp) as reader:
-        reader.load(rows)
-        reads = reader.read([ask_id_of(row) for row in rows])
+        reader.load(layer2_rows)
+        reads = reader.read([ask_id_of(row) for row in layer2_rows])
     candidate = copy_tree(candidate_tree, tmp / "candidate")
     with OldReader(candidate, tmp) as reader:
         reader.load(legacy)
         reverse = read_with_meta(reader, [ask_id_of(row) for row in legacy])
-    return {"rows": rows, "twin_of": twin_of, "legacy": legacy, "paths": a80_record_paths(base), "reads": reads, "reverse": reverse}
+    return {"rows": rows, "twin_of": layer2_twin, "legacy": legacy, "paths": a80_record_paths(base), "reads": reads, "reverse": reverse,
+            "prior_stores_answer_meta": stores, "layer2_rows": layer2_rows}
 
 
 def changed_files(root):

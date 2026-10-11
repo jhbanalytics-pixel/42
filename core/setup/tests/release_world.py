@@ -293,7 +293,7 @@ def prior_record_a(*, jobs_digest=B_JOBS_DIGEST):
     from the fresh baseline (None leaves it out, as the file the command writes does)."""
     record = {"schema_version": 1, "kind": "prior-release", "release_id": A_RID, "commit": A_COMMIT, "tag": A_RID,
               "revisions": dict(A_REV), "image_digest": A_DIGEST, "tag_urls": dict(A_TAG_URL),
-              "api_agent_url_literal": A_TAG_URL["f42-agent"], "agent_audience": CANON["f42-agent"],
+              "api_agent_url_literal": A_TAG_URL["f42-agent"], "agent_audience": CANON["f42-agent"], "stores_answer_meta": True,
               "sources": {"lock_sha256": "11" * 32, "bindings_sha256": "22" * 32, "manifest_sha256": "33" * 32,
                           "after_promotion_sha256": "44" * 32}}
     if jobs_digest:
@@ -346,7 +346,8 @@ class Scenario:
             self.baseline_path, baseline_sha = baseline_from.baseline_path, baseline_from.bound["baselineSha256"]
         commits = {"base_commit": A_SHORT12[:7], "candidate_commit": COMMIT} if after == "A" else {}
         compat = write_json(self.release_dir / "compat-receipt.json", {"schema_version": 1, "verdict": "pass", **commits})
-        old = write_json(self.release_dir / "old-reader-receipt.json", {"schema_version": 1, "verdict": "pass", **commits})
+        stored = {"prior_stores_answer_meta": True} if after == "A" else {}
+        old = write_json(self.release_dir / "old-reader-receipt.json", {"schema_version": 1, "verdict": "pass", **commits, **stored})
         self.sleeps = []
         self.now = dt.datetime(2026, 10, 9, 8, 0, tzinfo=dt.timezone.utc)
         agent = CANON["f42-agent"]

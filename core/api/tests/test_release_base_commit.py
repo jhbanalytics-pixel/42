@@ -104,12 +104,9 @@ def test_the_tree_the_harness_archives_at_the_prior_commit_is_that_commit_and_no
             assert (tree / path).read_bytes() == shown, path
 
 
-# the evidence at Release A. The compat run below passes. The old-reader run does not give Release C a verdict yet, and that is not
-# asserted away: layers 2 and 4 were written for a previous release that stores no answer_meta (a80be1d), and Release A's writers
-# store it, so A's API returns the typed state as a structure (answer_meta.v, .execution, .summary) that layer 2 does not declare and
-# the candidate reader reads A's records as stated outcomes, which layer 4 forbids for records with no typed state. What a release
-# whose previous release already has the typed state must declare is a decision for the lead; this test pins the mechanics (the harness
-# archives A, runs A's writers and A's API, and records A as its base) and the fact that makes a verdict impossible without that decision.
+# The evidence at Release A. Both harnesses run against the archive of 3710c5e. Release A's writers store answer_meta, so the old-reader
+# harness derives that from them and judges layers 2 and 4 by the rules for such a previous release (test_old_readers_prior_meta.py holds
+# the verdict); here the mechanics: the harness archives A, runs A's writers and A's API on the candidate's records, and records A as its base.
 
 @pytest.fixture(scope="module")
 def readers_at_a(tmp_path_factory):
@@ -120,12 +117,13 @@ def test_the_old_reader_harness_runs_release_a_writers_and_readers_and_records_a
     receipt = h.build_receipt(ch.git_head(), readers_at_a, base_commit=A)
     assert receipt["base_commit"] == A and receipt["candidate_commit"] == ch.git_head()
     assert receipt["legacy_rows"] > 0 and receipt["json_paths"] > 0 and receipt["corpus_rows"] > 0
-    assert all(h.ask_id_of(row) in readers_at_a["reads"] for row in readers_at_a["rows"])
+    assert all(h.ask_id_of(row) in readers_at_a["reads"] for row in readers_at_a["layer2_rows"])
     assert all(h.ask_id_of(row) in readers_at_a["reverse"] for row in readers_at_a["legacy"])
 
 
-def test_release_a_writers_store_the_typed_state_that_layers_2_and_4_assume_the_previous_release_lacks(readers_at_a):
+def test_release_a_writers_store_the_typed_state_so_the_harness_judges_it_by_the_rules_for_a_release_that_does(readers_at_a):
     assert readers_at_a["legacy"] and all("answer_meta" in row["record"] for row in readers_at_a["legacy"])
+    assert readers_at_a["prior_stores_answer_meta"] is True
 
 
 @pytest.fixture(scope="module")

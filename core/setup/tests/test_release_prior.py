@@ -137,6 +137,38 @@ def test_the_helper_refuses_a_receipt_that_was_not_made_against_the_prior_commit
     assert error.code == code and "receipt" in error.message, (label, error.code, error.message)
 
 
+BAD_OLD_READER_RULES = {
+    "judged by the key-absent rules when the record says the key is stored": lambda r: r.update(prior_stores_answer_meta=False),
+    "no statement of the rules": lambda r: r.pop("prior_stores_answer_meta"),
+    "the rules given as a word": lambda r: r.update(prior_stores_answer_meta="true"),
+}
+
+
+@pytest.mark.parametrize("label", sorted(BAD_OLD_READER_RULES))
+def test_the_helper_refuses_an_old_reader_receipt_judged_by_other_rules_than_the_prior_release_calls_for(tmp_path, label):
+    s = Scenario(tmp_path, after="A")
+    path = s.release_dir / "old-reader-receipt.json"
+    receipt = json.loads(path.read_text(encoding="utf-8"))
+    BAD_OLD_READER_RULES[label](receipt)
+    s.bound["oldReaderReceiptSha256"] = write_json(path, receipt)
+    s.ready("BeforeCandidate")
+    error = s.stop("BeforeCandidate")
+    assert error.code == "OLD_READER" and "rules" in error.message, (label, error.code, error.message)
+
+
+def test_a_prior_release_that_stores_no_typed_state_is_judged_by_the_key_absent_rules_and_the_record_says_so(tmp_path):
+    s = Scenario(tmp_path, after="A")
+    s.bound["priorRelease"]["stores_answer_meta"] = False
+    path = s.release_dir / "old-reader-receipt.json"
+    receipt = json.loads(path.read_text(encoding="utf-8"))
+    receipt["prior_stores_answer_meta"] = False
+    s.bound["oldReaderReceiptSha256"] = write_json(path, receipt)
+    s.ready("BeforeCandidate")
+    assert s.run("BeforeCandidate")["phase"] == "BeforeCandidate"
+    compat = json.loads((s.release_dir / "compat-receipt.json").read_text(encoding="utf-8"))
+    assert "prior_stores_answer_meta" not in compat
+
+
 def test_the_helper_accepts_the_prior_commit_in_its_full_form_as_the_base(tmp_path):
     s = Scenario(tmp_path, after="A")
     for name, key, _ in RECEIPTS:
@@ -249,6 +281,9 @@ BAD_BINDINGS = {
     "a tag that is not the release id": put("rel-aaaaaaa-01", "priorRelease", "tag"),
     "a revision of the other service": put(A_REV[API], "priorRelease", "revisions", AGENT),
     "an image digest that is a shape and not a digest": put("sha256:abc", "priorRelease", "image_digest"),
+    "no stores_answer_meta": drop("priorRelease", "stores_answer_meta"),
+    "a stores_answer_meta that is a word": put("yes", "priorRelease", "stores_answer_meta"),
+    "a stores_answer_meta that is a number": put(1, "priorRelease", "stores_answer_meta"),
     "a jobs digest that is not a digest": put("e77c3819", "priorRelease", "jobs_image_digest"),
     "no jobs digest": drop("priorRelease", "jobs_image_digest"),
     "a tag URL that is not the release id on a host": put("https://example.com", "priorRelease", "tag_urls", API),

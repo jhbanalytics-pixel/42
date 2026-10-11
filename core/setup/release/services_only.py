@@ -215,7 +215,7 @@ def capture_baseline(reader, captured_utc, prior=None):
 A80_PRIOR = {"kind": "a80", "revisions": {"f42-agent": "f42-agent-00047-677", "f42-api": "f42-api-00041-lns"},
              "jobs_digest_prefix": "sha256:e77c3819"}
 PRIOR_KEYS = frozenset({"schema_version", "kind", "release_id", "commit", "tag", "revisions", "image_digest", "tag_urls",
-                        "api_agent_url_literal", "agent_audience", "sources"})
+                        "api_agent_url_literal", "agent_audience", "stores_answer_meta", "sources"})
 PRIOR_SOURCES = ("lock_sha256", "bindings_sha256", "manifest_sha256", "after_promotion_sha256")
 CANONICAL_URL = re.compile(r"https://[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)+\Z")
 JOB_IMAGE_DIGEST = re.compile(r"@(sha256:[0-9a-f]{64})\Z")
@@ -254,6 +254,7 @@ def validate_prior_release(record, *, need_jobs):
             "BINDINGS", "The prior release API tag URL is not its release id on a host")
     require(record["api_agent_url_literal"] == record["tag_urls"]["f42-agent"], "BINDINGS",
             "The prior release API does not name its own agent tag URL")
+    require(isinstance(record["stores_answer_meta"], bool), "BINDINGS", "The prior release stores_answer_meta is not true or false")
     sources = record["sources"]
     require(isinstance(sources, dict) and set(sources) == set(PRIOR_SOURCES)
             and all(isinstance(v, str) and re.fullmatch(r"[0-9a-f]{64}", v) for v in sources.values()), "BINDINGS",
@@ -264,15 +265,19 @@ def validate_prior_release(record, *, need_jobs):
     return record
 
 
-def receipt_commits_problem(receipt, prior, release_commit):
+def receipt_commits_problem(receipt, prior, release_commit, old_reader=False):
     """Why a compat or old-reader receipt was not made for this release against its prior release, or None. The expected commits are
     the prior record's and the release's own, never the receipt's: its base must be the prior release commit (a short form of at
-    least seven characters or the full one) and its candidate the release commit."""
+    least seven characters or the full one) and its candidate the release commit. The old-reader receipt must also say it was judged by
+    the rules the record calls for: the ones for a previous release that stores answer_meta when the record says it does, else the a80
+    ones (prior_stores_answer_meta equals the record's stores_answer_meta, as a boolean)."""
     base = receipt.get("base_commit")
     if not (isinstance(base, str) and re.fullmatch(r"[0-9a-f]{7,40}", base) and prior["commit"].startswith(base)):
         return "was not made against the prior release commit"
     if receipt.get("candidate_commit") != release_commit:
         return "was not made at the release commit"
+    if old_reader and receipt.get("prior_stores_answer_meta") is not prior["stores_answer_meta"]:
+        return "was judged by other rules than the prior release calls for (prior_stores_answer_meta)"
     return None
 
 
@@ -756,7 +761,7 @@ def check_receipts(rel, manifest):
         require(receipt.get("schema_version") == SCHEMA_VERSION, "SCHEMA_VERSION", f"Unknown {key} receipt version")
         require(receipt.get("verdict") == "pass", code, f"The {key} receipt does not say pass")
         if rel.prior is not None:
-            problem = receipt_commits_problem(receipt, rel.prior, rel.bound["target"])
+            problem = receipt_commits_problem(receipt, rel.prior, rel.bound["target"], old_reader=key == "old_readers")
             require(problem is None, code, f"The {key} receipt {problem}")
 
 

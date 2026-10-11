@@ -50,6 +50,7 @@ TEST_FILES = (
     "core/api/tests/test_smoke_state.py",
     "core/api/tests/test_agent_compat.py",
     "core/api/tests/test_old_readers.py",
+    "core/api/tests/test_old_readers_prior_meta.py",
     "core/api/tests/test_release_base_commit.py",
     "core/schema/tests/test_durable_effects.py",
     "core/setup/tests/packet_world.py",

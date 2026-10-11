@@ -720,6 +720,7 @@
    "core/setup/tests/test_release_map.py",
    "core/setup/tests/test_release_plan.py",
    "core/api/tests/test_old_readers.py",
+   "core/api/tests/test_old_readers_prior_meta.py",
    "core/api/tests/test_app.py",
    "core/setup/tests/test_release_packet.py",
    "core/setup/tests/test_release_hold.py",

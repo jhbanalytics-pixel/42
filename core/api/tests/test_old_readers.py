@@ -400,8 +400,9 @@ def test_receipt_says_pass_for_this_tree_and_carries_both_commits_the_version_th
     receipt = h.build_receipt("c" * 40, data_of(world, reverse))
     assert receipt["problems"] == [] and receipt["verdict"] == "pass"
     assert set(receipt) == {"schema_version", "base_commit", "candidate_commit", "harness_sha256", "corpus_sha256", "corpus_rows",
-                            "legacy_rows", "json_paths", "problems", "verdict"}
+                            "legacy_rows", "json_paths", "prior_stores_answer_meta", "problems", "verdict"}
     assert receipt["schema_version"] == 1 and receipt["base_commit"] == "a80be1d" and receipt["candidate_commit"] == "c" * 40
+    assert receipt["prior_stores_answer_meta"] is False, "a80be1d stores no typed state, so the a80 rules judged it"
     assert re.fullmatch(r"[0-9a-f]{64}", receipt["harness_sha256"]) and re.fullmatch(r"[0-9a-f]{64}", receipt["corpus_sha256"])
     assert receipt["harness_sha256"] not in {hashlib.sha256(p.read_bytes()).hexdigest() for p in h.HARNESS_FILES}
     assert receipt["corpus_sha256"] == h.corpus_sha256(world["rows"])
