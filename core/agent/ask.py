@@ -24,6 +24,7 @@ from uuid import uuid4
 
 from core.agent import answer_state, checks, critic, native_review, plain, skills, timings as timing
 from core.agent.answer import validate_answer
+from core.agent.asks import asks_ranked
 from core.agent.checks import _text_breaches, _unpinned, check_answer, platform_label, source_gaps, window_text
 from core.agent.context import TIERS, Refused, RunContext
 from core.agent.ranked import ranked_list
@@ -46,7 +47,7 @@ from core.agent.writer import (FIELD_UNCHECKED_REASON, HEADLINE_BUDGET_REASON, H
                                HEADLINE_REWRITE_MAX_TOKENS, HEADLINE_REWRITTEN_REASON, HEADLINE_USED_REASON,
                                K4_RECHECK_CALLS, K4_REWRITE_CALLS, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS,
                                FIELDS_SCHEMA, HEADLINE_REWRITE_SCHEMA, K4_REWRITE_SCHEMA, SUPPORT_SCHEMA, WRITER_SCHEMA,
-                               MAX_CLAIMS, MAX_GAPS, MAX_ITEMS, ROWS_SHOWN, SUPPORT_INPUT_TOKENS, SUPPORT_MAX_TOKENS,
+                               MAX_CLAIMS, MAX_GAPS, MAX_ITEMS, RANKED_RULE_SKILLS, ROWS_SHOWN, SUPPORT_INPUT_TOKENS, SUPPORT_MAX_TOKENS,
                                _failed_call_usage, _fence, _k10, _usage_or_reserve, apply_field_check, apply_support,
                                field_max_tokens, headline_blanked, _input_token_upper_bound, repair_answer_numbers,
                                pin_numerals_in_code, rewrite_headline, unpinned_claim_numerals, write_answer,
@@ -978,6 +979,12 @@ def _label(model: str, plain: str) -> str:
     return plain
 
 
+def _cut_texts(before: dict, after: dict) -> list:
+    """The words of the claims before held that after no longer holds (cut by the stage between the two)."""
+    kept = {c.get("id") for c in after.get("claims") or [] if isinstance(c, dict)}
+    return [c.get("text") for c in before.get("claims") or [] if isinstance(c, dict) and c.get("id") not in kept]
+
+
 def _claim_fingerprint(claim: dict) -> str:
     """A claim's words and cited posts: what makes a later draft's claim the same claim as an earlier draft's."""
     return json.dumps([claim.get("text"), sorted(str(e) for e in claim.get("evidence_ids") or [])], ensure_ascii=False)
@@ -1821,6 +1828,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     started = time.monotonic()
     timings = Timings(started)
     question, tier, mode, market, skill = _request(request)
+    ranked_ask = asks_ranked(question) and skill in RANKED_RULE_SKILLS  # the one question shape whose lead names stories
     guarded_gemini = is_gemini_model(MODEL)
     deps = deps or _default_deps(gemini_retries=0 if guarded_gemini else 1)
     as_of = deps.now().astimezone(SAST).replace(microsecond=0)
@@ -2184,6 +2192,11 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         with timings.begin("check", "code_checks", rule="all") as span:
             checked, verdicts = timed("checks", check, draft, ctx, deps.warehouse, window=window, markets=markets)
             span.set(claims=len(draft["claims"]), **_verdict_counts(verdicts))
+        # A lead that names or counts a story the code checks cut is rebuilt in code: never blanked, so it never
+        # reaches the one short answer rewrite, which is paid for only when the support check blanks a lead.
+        checked, lead_row = checks.replace_cut_story_lead(checked, _cut_texts(draft, checked), ranked=ranked_ask)
+        if lead_row:
+            verdicts = [*verdicts, {**lead_row, "run_id": ctx.run_id}]
         summary_ledger.observe("first_check", pre_check, checked, verdicts)
         if should_stop():
             raise _StopRequested()
@@ -2199,6 +2212,9 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                                            window=window, markets=markets,
                                            rewrite_attempted=rewrite_attempted)
             span.set(claims=len(checked.get("claims") or []), **_verdict_counts(support))
+        answer, lead_row = checks.replace_cut_story_lead(answer, _cut_texts(checked, answer), ranked=ranked_ask)
+        if lead_row:
+            support = [*support, lead_row]
         rewrite_ledger.update(presented[cid] for cid in rewrite_attempted if cid in presented)
         summary_ledger.observe("support_check", pre_support, answer, support)
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))

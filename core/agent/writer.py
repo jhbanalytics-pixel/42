@@ -1392,7 +1392,6 @@ def _k10(answer: dict, kept: list, cut: dict, *, narrowed: list | None = None) -
     status, before = answer.get("status"), answer.get("short_answer") or ""
     headline = before
     resting = [str(cid) for cid, claim in cut.items() if _mentions(before, cid, claim.get("text"))]
-    named = checks.cut_story_in_lead(before, [c.get("text") for c in cut.values()], [c.get("text") for c in kept])
     notes = ["support check cut " + ", ".join(map(str, cut))] if cut else []
     if status != "refused":
         if cut and status == "complete":
@@ -1400,9 +1399,6 @@ def _k10(answer: dict, kept: list, cut: dict, *, narrowed: list | None = None) -
         if resting:
             headline = ""
             notes.append(f"the short answer restated cut claim {', '.join(resting)}, so it was blanked")
-        if named:
-            headline = ""
-            notes.append(f"the short answer named {named}, every claim of which was cut, so it was blanked")
         if len(kept) < 2:
             status, headline = "insufficient_evidence", INSUFFICIENT
             notes.append(f"{len(kept)} of {len(kept) + len(cut)} claims survive, under 2")

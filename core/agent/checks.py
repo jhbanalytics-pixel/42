@@ -391,10 +391,10 @@ RULE_GAPS = {
 # K10 labels more than one kind of row (a claim cut or kept, a so_what or watch_next item resting on cut claims, a short
 # answer the support or critic path blanked, each rewrite outcome), so it has no entry in RULE_GAPS, which gives one
 # wording to a rule. The lead cut, a short answer that names a story whose claims were all cut, has its own.
-LEAD_STORY_GAP = {"what": "Short answer removed: it named a story whose claims were all cut (K10)",
+LEAD_STORY_GAP = {"what": "Short answer replaced: it named a story whose claims were all cut (K10)",
                   "searched": "the short answer text",
                   "why": "the short answer may name only a story that still has a claim that passed the checks"}
-LEAD_STORY_REASON = "the short answer named a story whose claims were all cut, so it was blanked"
+LEAD_STORY_REASON = "the short answer named a story whose claims were all cut, so it was rebuilt from the stories that passed"
 WORDS = re.compile(r"[\w']+")
 
 # K3 places (Albert, 29 September 2026): "a post with no location may support a claim that names no place; only posts
@@ -797,10 +797,8 @@ def check_answer(draft: dict, ctx, warehouse, *, window, markets=None, market=_U
 
     fields = {k: draft.get(k) for k in ("short_answer", "context", "so_what", "watch_next")}
     fields["gaps"] = gaps
-    lead_cut = cut_story_in_lead(short_answer, [c.get("text") for c, _ in cut.values()],
-                                 [c.get("text") for c in survivors])
     fields, headline_cut = _answer_fields(fields, survivors, ctx, row, allow=allow,
-                                          gap_indexes=range(len(draft.get("gaps") or [])), lead_cut=lead_cut)
+                                          gap_indexes=range(len(draft.get("gaps") or [])))
     gaps = fields["gaps"]
     status, short_answer = _lower_status(draft.get("status"), fields["short_answer"], bool(cut) or headline_cut,
                                          len(survivors))
@@ -873,7 +871,7 @@ def code_gap_indexes(draft_gaps, gaps) -> set:
     return set()
 
 
-def _answer_fields(fields, claims, ctx, row, *, allow, gap_indexes, code_gaps=(), lead_cut=None):
+def _answer_fields(fields, claims, ctx, row, *, allow, gap_indexes, code_gaps=()):
     """K6, K2 and K8 on short_answer, context, so_what and watch_next, and K6 and K2 on the gaps at gap_indexes,
     all against claims. A gap at an index in code_gaps is read as the code's, every other as the writer's. Returns
     the checked fields and whether the short answer was blanked."""
@@ -891,15 +889,10 @@ def _answer_fields(fields, claims, ctx, row, *, allow, gap_indexes, code_gaps=()
     short_answer = fields.get("short_answer") or ""
     problems = ({} if short_answer == INSUFFICIENT
                 else _field_problems(short_answer, claims, ctx.evidence, ids, allow, ctx))
-    lead = bool(lead_cut) and bool(short_answer) and short_answer != INSUFFICIENT
     if problems:
         drop("short_answer", "Short answer", "the short answer text", problems)
         short_answer = ""
-    if lead:
-        row("short_answer", "K10", "cut", LEAD_STORY_REASON)
-        gaps.append(dict(LEAD_STORY_GAP))
-        short_answer = ""
-    out["short_answer"], headline_cut = short_answer, bool(problems) or lead
+    out["short_answer"], headline_cut = short_answer, bool(problems)
 
     context = fields.get("context")
     if isinstance(context, str):
@@ -1978,6 +1971,10 @@ def _k8(text, records):
 
 # K10 and assembly
 
+# An opening numeral is a count of stories only when a story word follows it (up to two words later): "three stories",
+# "5 trends", "two big stories", and not "179 posts", "5 creators" or "10 October".
+_STORY_COUNT = re.compile(r"\W*(two|three|four|five|six|seven|eight|nine|ten|[2-9]|10)\s+(?:[a-z']+\s+){0,2}"
+                          r"(?:stories|story|conversations?|trends?|topics?|themes?|moments?|things)\b", re.IGNORECASE)
 _COUNTS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
            **{str(n): n for n in range(2, 11)}}
 
@@ -2009,10 +2006,41 @@ def cut_story_in_lead(short_answer, cut_texts, kept_texts):
     for name_key, name in gone:
         if re.search(r"(?<!\w)" + re.escape(fold(name)) + r"(?!\w)", fold(short_answer), re.IGNORECASE):
             return name
-    count = re.match(r"\W*(two|three|four|five|six|seven|eight|nine|ten|[2-9]|10)\b", fold(short_answer), re.IGNORECASE)
+    count = _STORY_COUNT.match(fold(short_answer))
     if gone and count and _COUNTS[count[1].lower()] > len(kept):  # a lead that counts a story the answer no longer has
         return gone[0][1]
     return None
+
+
+def _story_names(texts):
+    """The plain story names of texts, each once, in the order they were first written."""
+    names = {}
+    for text in texts:
+        if (name := briefing.story_name(text)) and " ".join(fold(name).split()).casefold() not in names:
+            names[" ".join(fold(name).split()).casefold()] = name
+    return list(names.values())
+
+
+def replace_cut_story_lead(answer, cut_texts, *, ranked):
+    """(answer, row): the short answer rebuilt in code from the names of the stories that survive, when the question was
+    a ranked story question and the lead names or counts a story whose claims were all cut (cut_story_in_lead). Nothing
+    is blanked and no model is asked: a blanked lead is the one short answer rewrite's trigger, and that call is paid
+    for only when the support check blanks a lead, as it was before this check. The row is None when nothing changed.
+    The answer is not changed; a copy comes back."""
+    short = answer.get("short_answer")
+    if not ranked or not isinstance(short, str) or not short.strip() or short == INSUFFICIENT:
+        return answer, None
+    kept = [c.get("text") for c in answer.get("claims") or [] if isinstance(c, dict)]
+    names = _story_names(kept)
+    if not names or cut_story_in_lead(short, cut_texts, kept) is None:
+        return answer, None
+    listed = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+    gaps = list(answer.get("gaps") or [])
+    if LEAD_STORY_GAP not in gaps:
+        gaps.append(dict(LEAD_STORY_GAP))
+    row = {"claim_id": "short_answer", "rule": "K10", "verdict": "downgrade", "reason": LEAD_STORY_REASON,
+           "checker": "code"}
+    return {**answer, "short_answer": f"The stories that led: {listed}.", "gaps": gaps}, row
 
 
 def _mentions(short_answer, cid, claim_text):

@@ -20,7 +20,7 @@ from core.eval import ask_replay
 HERE = Path(__file__).resolve().parent
 GOLDEN = json.loads((HERE / "fixtures" / "k10_reasons_before_lead_cut.json").read_text(encoding="utf-8"))
 DIRS = [Path(ask_replay.__file__).parent / "ask_replay_fixtures", HERE / "fixtures" / "ranked_briefing"]
-LEAD_CUT = {"TOP-ZA-K1CUT", "TOP-ZA-SUPPORTCUT"}
+LEAD_CUT = {"TOP-ZA-K1CUT"}
 
 
 @pytest.fixture(scope="module")
@@ -37,10 +37,14 @@ def replays():
 
 
 def seen(result, lead_cut):
+    """Every stored check row and claim event reason. In a replay whose lead the lead cut rebuilds, the one row it adds
+    (the K10 row on the short answer with LEAD_STORY_REASON) is left out and every other row is compared."""
     rows = [[c["claim_id"], c["rule"], c["verdict"], c["reason"]] for c in result["claim_checks"]]
     events = [[e["claim"]["id"], e.get("check"), e.get("reason")] for e in result["events"] if e.get("event") == "claim"]
     if lead_cut:
-        rows = [r for r in rows if r[0] != "short_answer"]
+        added = [r for r in rows if r[0] == "short_answer" and r[1] == "K10" and r[3] == checks.LEAD_STORY_REASON]
+        assert len(added) == 1
+        rows = [r for r in rows if r not in added]
     return {"rows": rows, "events": events}
 
 
@@ -52,11 +56,7 @@ def test_the_golden_covers_every_replay_there_is(replays):
 def test_every_check_row_and_claim_event_reads_as_it_did_before_the_lead_cut(qid, replays):
     result = replays[qid]
     assert result["error"] is None
-    lead_cut = qid in LEAD_CUT
-    want = GOLDEN[qid]
-    if lead_cut:
-        want = {"rows": [r for r in want["rows"] if r[0] != "short_answer"], "events": want["events"]}
-    assert seen(result, lead_cut) == want
+    assert seen(result, qid in LEAD_CUT) == GOLDEN[qid]
 
 
 def test_the_older_k10_rows_are_in_the_golden_in_every_kind():
@@ -84,7 +84,7 @@ def test_the_lead_cut_has_its_own_wording_in_its_own_constants(replays):
     assert "Forbes" not in checks.LEAD_STORY_REASON and "story" in checks.LEAD_STORY_REASON
     result = replays["TOP-ZA-K1CUT"]
     lead_rows = [r for r in result["claim_checks"] if r["claim_id"] == "short_answer" and r["rule"] == "K10"]
-    assert [r["verdict"] for r in lead_rows] == ["cut"] and lead_rows[0]["reason"] == checks.LEAD_STORY_REASON
-    gaps = [g for g in result["answer"]["gaps"] if "Short answer removed" in g["what"]]
+    assert [r["verdict"] for r in lead_rows] == ["downgrade"] and lead_rows[0]["reason"] == checks.LEAD_STORY_REASON
+    gaps = [g for g in result["answer"]["gaps"] if "Short answer" in g["what"]]
     assert gaps and all("story" in g["what"] for g in gaps)
     assert checks.LEAD_STORY_GAP["what"].replace(" (K10)", "") in [g["what"] for g in gaps]
