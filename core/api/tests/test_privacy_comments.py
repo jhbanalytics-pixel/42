@@ -223,7 +223,7 @@ def test_a_dossier_claim_resting_on_such_a_comment_is_not_selectable():
     assert privacy.selectable_claims({"c9": claim}, record["answer"]["evidence"], hidden, store) == {"c9": False}
 
 
-def test_the_html_export_of_a_record_with_such_a_comment_leaks_nothing(api):
+def test_the_html_export_of_a_record_with_such_a_comment_leaks_nothing(api):  # noqa: F811
     api.store.hide = {"c_ren"}
     api.store.records[ASK] = with_comments(comment(C_REN, P_REN1), claim=only_comment_claim(C_REN))
     r = api.serve(remote_agent({})).get(f"/api/ask/{ASK}/export", headers=GOOD)
@@ -233,7 +233,7 @@ def test_the_html_export_of_a_record_with_such_a_comment_leaks_nothing(api):
     assert "Amapiano posts rose" in r.text
 
 
-def test_the_json_read_of_a_record_with_such_a_comment_leaks_nothing(api):
+def test_the_json_read_of_a_record_with_such_a_comment_leaks_nothing(api):  # noqa: F811
     api.store.hide = {"c_ren"}
     api.store.records[ASK] = with_comments(comment(C_REN, P_REN1), claim=only_comment_claim(C_REN))
     body = api.serve(remote_agent({})).get(f"/api/ask/{ASK}", headers=GOOD).json()
@@ -331,7 +331,7 @@ def stored_record(linked=True, **kw):
 
 
 @pytest.mark.parametrize("linked", [True, False])
-def test_a_stored_comment_with_no_url_of_its_own_leaks_nothing_on_every_surface(api, linked):
+def test_a_stored_comment_with_no_url_of_its_own_leaks_nothing_on_every_surface(api, linked):  # noqa: F811
     record, remark = stored_record(linked)
     assert "hid_old_handle" in remark["url"]  # it took its post's address, old handle and all
     assert ("evidence_links" in record) is linked

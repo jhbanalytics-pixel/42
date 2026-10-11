@@ -8,9 +8,8 @@ from pathlib import Path
 import jsonschema
 
 from core.agent import checks
-from core.agent.answer import validate_answer
 from core.agent.checks import check_answer
-from core.agent.tests.test_checks import STORED, WINDOW, FakeWarehouse, ROWS, make_ctx, make_draft, run
+from core.agent.tests.test_checks import WINDOW, FakeWarehouse, ROWS, make_ctx, make_draft, run
 from core.agent.tools.enrich_tools import _comment_record
 
 RELEASE_A_EVIDENCE_KEYS = {"id", "platform", "handle", "url", "posted_at", "market", "source_market", "text", "engagement",
