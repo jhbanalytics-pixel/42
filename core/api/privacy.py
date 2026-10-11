@@ -12,6 +12,7 @@ import logging
 import re
 import threading
 import time
+from urllib.parse import urlparse
 
 from core.api import summary_state, today
 from core.api.export import EXPORT_NOTICE  # noqa: F401  (the one line an export carries)
@@ -27,8 +28,9 @@ UNAVAILABLE_NOTE = "42 could not check its hidden-people list just now, so the p
 PEOPLE_UNAVAILABLE = "People view unavailable."
 
 OBS_ID = re.compile(r"^obs1_[0-9a-f]{32}$")
+COMMENT_ID = re.compile(r"^[a-z0-9]+_comment_")  # a comment record's id: "<platform>_comment_<native>"
 _HELD = "held"  # first part of the key a stream keeps an earlier evidence record under, beside post id to creator id
-_IDENTITY = ("id", "platform", "handle", "creator_id", "posted_at", "parent_id")  # the fields that decide who wrote it
+_IDENTITY = ("id", "platform", "handle", "url", "creator_id", "posted_at", "parent_id")  # the fields that decide who wrote it
 MARGIN = dt.timedelta(days=3)
 SUPPRESSION_MAX_AGE_S = 30  # a run in flight may use a list this old (rule R2, section 8.4)
 READ = object()  # "read the list now"; None stands for UNAVAILABLE
@@ -167,6 +169,7 @@ def evidence_gone(evidence, hidden, store, creators=None, parents=()):
     creators = {} if creators is None else creators
     if ids:  # no creator id hidden means who wrote a post cannot decide anything: no lookup
         _place_stored(stored, ids, store, creators, gone)
+    _legacy_comments_gone(records, earlier, keys, gone)
     _under_gone_parents(records, earlier, gone)
     return gone - {p.get("id") for p in earlier}
 
@@ -181,7 +184,8 @@ def _place_stored(stored, ids, store, creators, gone):
             try:
                 reader = getattr(store, "post_creators", None)
                 rows = reader([e["id"] for e, d in zip(todo, days) if d is not None],
-                              (min(known) - MARGIN).isoformat(), (max(known) + MARGIN).isoformat())                     if callable(reader) else None
+                              (min(known) - MARGIN).isoformat(), (max(known) + MARGIN).isoformat()) \
+                    if callable(reader) else None
             except Exception as exc:
                 log.warning("the post lookup failed (%s); the copy is not shown", type(exc).__name__)
                 raise PeopleUnavailable from exc
@@ -198,20 +202,59 @@ def _place_stored(stored, ids, store, creators, gone):
 
 def _under_gone_parents(records, earlier, gone):
     """Add the ids of the records that sit under a post that is gone, or under none that can be found. The chain is
-    walked to a record with no parent_id, and a chain that loops is gone."""
+    walked to a record with no parent_id; more hops than there are records means a loop, and that is gone too."""
     by_id = {}
     for e in records + earlier:
         if isinstance(e.get("id"), str):
             by_id.setdefault(e["id"], e)
     for e in records:
-        cur, walked = e, {id(e)}
-        while cur.get("parent_id") is not None:
+        cur = e
+        for _ in range(len(by_id) + 1):
+            if cur.get("parent_id") is None:
+                break
             parent = by_id.get(cur["parent_id"]) if isinstance(cur["parent_id"], str) else None
-            if parent is None or id(parent) in walked or parent.get("id") in gone:
+            if parent is None or parent.get("id") in gone:
                 gone.add(e.get("id"))
                 break
-            walked.add(id(parent))
             cur = parent
+        else:
+            gone.add(e.get("id"))
+
+
+def _is_comment(record):
+    return isinstance(record.get("id"), str) and bool(COMMENT_ID.match(record["id"]))
+
+
+def _url_handle(url):
+    """The author named in a post's address (@name, an X handle, a Reddit user), or None."""
+    try:
+        parts = urlparse(url) if isinstance(url, str) else None
+    except ValueError:
+        return None
+    segments = [x for x in parts.path.split("/") if x] if parts else []
+    if segments and segments[0].startswith("@"):
+        return segments[0]
+    if segments and (parts.hostname or "").removeprefix("www.") in ("x.com", "twitter.com"):
+        return segments[0]
+    if len(segments) > 1 and segments[0] in ("user", "u"):
+        return "u/" + segments[1]
+    return None
+
+
+def _legacy_comments_gone(records, earlier, keys, gone):
+    """A comment stored before parent_id was kept (its id says "<platform>_comment_") is judged by what it still has:
+    the author in its address, and the post that carries the same address. It is gone when that author is hidden, when
+    that post is gone, or when no post carrying its address can be found."""
+    posts = [p for p in records + earlier if not _is_comment(p)]
+    for e in records:
+        if e.get("parent_id") is not None or not _is_comment(e):
+            continue
+        if creator_key(e.get("platform"), _url_handle(e.get("url"))) in keys:
+            gone.add(e.get("id"))
+            continue
+        same = [p for p in posts if isinstance(e.get("url"), str) and e["url"] and p.get("url") == e["url"]]
+        if not same or any(p.get("id") in gone for p in same):
+            gone.add(e.get("id"))
 
 
 def mask(value, hidden):

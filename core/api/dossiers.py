@@ -141,6 +141,8 @@ def build(record, sel, *, dossier_id, version, created_at, source, who="passcode
     order = sel["keep"] + [cid for cid in claims if cid not in sel["keep"]]
     built = [_claim(cid, claims[cid], cid in sel["keep"], sel["notes"].get(cid)) for cid in order]
     cited = {eid for c in built if c["kept"] for eid in c["evidence_ids"]}
+    held = {e.get("id"): e for e in answer.get("evidence") or [] if isinstance(e, dict)}  # a comment keeps its post
+    cited |= {held[eid]["parent_id"] for eid in cited if eid in held and held[eid].get("parent_id") in held}
     body = {
         "dossier_id": dossier_id, "version": version, "state": "draft", "created_at": created_at, "who": who,
         "title": sel["title"], "source": dict(source), "source_ask_id": record.get("ask_id"),

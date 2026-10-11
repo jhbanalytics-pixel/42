@@ -35,7 +35,7 @@ TOLERANCE = 0.02  # ratios and other floats; counts are exact
 IDENTITY_FIELDS = ("url", "handle", "platform", "posted_at", "market")
 REQUIRED_FIELDS = ("platform", "handle", "url", "posted_at", "market", "text")
 EVIDENCE_KEYS = ("id", "platform", "handle", "url", "posted_at", "market", "source_market", "text", "engagement",
-                 "flags")
+                 "flags", "parent_id")
 NOT_INDEPENDENT = {"paid", "brand", "brand_owned", "sponsored", "near_duplicate", "market_assumed"}
 GENERATIVE_HOSTS = ("gemini.google.com", "bard.google.com", "aistudio.google.com", "notebooklm.google.com", "labs.google")
 PLATFORM_LABELS = {"tiktok": "TikTok", "youtube": "YouTube", "x": "X", "twitter": "X"}
@@ -801,6 +801,7 @@ def check_answer(draft: dict, ctx, warehouse, *, window, markets=None, market=_U
         for eid in claim.get("evidence_ids") or []:
             if eid not in cited:
                 cited.append(eid)
+    cited = _with_parents(cited, ctx.evidence)
 
     answer = {
         "status": status,
@@ -2034,6 +2035,18 @@ def source_gaps(ctx, window) -> list[dict]:
         searched = route if step != "socialcrawl" else f"{route}, {window_text(window)}"
         gaps.append({"what": what, "searched": searched, "why": ", ".join(map(str, statuses))})
     return gaps
+
+
+def _with_parents(cited, stored):
+    """cited with the post each cited comment sits under placed just before it, once, when the run holds that post:
+    the privacy check judges a comment by its post, so an answer that keeps a comment keeps its post (C5 v2 5.1)."""
+    out = []
+    for eid in cited:
+        parent = (stored.get(eid) or {}).get("parent_id")
+        for one in (parent, eid):
+            if isinstance(one, str) and one in stored and one not in out:
+                out.append(one)
+    return out
 
 
 def _output_record(record):
