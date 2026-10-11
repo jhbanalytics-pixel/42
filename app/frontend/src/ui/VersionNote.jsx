@@ -14,7 +14,9 @@
    served value that is not a sha (a local "dev") is never a difference. App
    reads health once as the page loads, which is when the two agree by
    construction, so this line checks only when the reader comes back to the
-   tab and on a slow interval, never more often than the gap. */
+   tab and on a slow interval, never more often than the gap. The last served
+   sha is kept for the tab (sessionStorage), so a line mounted again, as the
+   rail is when the window crosses 1024 px, starts from what the page saw. */
 import {useCallback, useEffect, useId, useMemo, useRef, useState} from 'react';
 
 export const CHECK_GAP_MS = 5 * 60 * 1000;
@@ -22,6 +24,23 @@ export const CHECK_EVERY_MS = 15 * 60 * 1000;
 const SHA = /^[0-9a-f]{7,40}$/;
 const HEADING = /^## (\d+\.\d+\.\d+) \((.+)\)$/;
 const UPDATE = /^### (Jobs update) \((.+)\)$/;
+const SERVED_KEY = 'f42-served-version';
+
+function rememberedServed(){
+  try {
+    return window.sessionStorage.getItem(SERVED_KEY);
+  } catch (error){
+    return null;
+  }
+}
+
+function rememberServed(sha){
+  try {
+    window.sessionStorage.setItem(SERVED_KEY, sha);
+  } catch (error){
+    /* A blocked store only costs the memory across a remount. */
+  }
+}
 
 export function builtRelease(){
   return typeof __F42_RELEASE__ === 'undefined' ? null : __F42_RELEASE__;
@@ -89,7 +108,7 @@ export function VersionNote({release = builtRelease(), active = true, gapMs = CH
 
 function VersionLine({release, active, gapMs, everyMs, onReload, onChange}){
   const [open, setOpen] = useState(false);
-  const [stale, setStale] = useState(false);
+  const [stale, setStale] = useState(() => shaDiffers(release.sha, rememberedServed()));
   const buttonRef = useRef(null);
   const dialogRef = useRef(null);
   const titleId = useId();
@@ -131,7 +150,10 @@ function VersionLine({release, active, gapMs, everyMs, onReload, onChange}){
       fetch('/api/health', {cache: 'no-store'})
         .then((response) => (response && response.ok ? response.json() : null))
         .then((body) => {
-          if (live && body && SHA.test(String(body.version || '').trim().toLowerCase())) setStale(shaDiffers(release.sha, body.version));
+          const served = String((body && body.version) || '').trim().toLowerCase();
+          if (!live || !SHA.test(served)) return;
+          rememberServed(served);
+          setStale(shaDiffers(release.sha, served));
         })
         .catch(() => {});
     };
@@ -178,7 +200,7 @@ function VersionLine({release, active, gapMs, everyMs, onReload, onChange}){
         <span className="sr-only">. What's new</span>
       </button>
       <div className="rail42-version-status" role="status">
-        {stale ? <button type="button" className="rail42-version-reload" onClick={() => onReload()}>Version changed, reload</button> : null}
+        {stale ? <button type="button" className="rail42-version-reload" onClick={() => onReload()}>Version changed. Reload</button> : null}
       </div>
       <dialog
         ref={dialogRef}
@@ -208,8 +230,8 @@ function VersionLine({release, active, gapMs, everyMs, onReload, onChange}){
                   </h3>
                   {entry.summary ? <p className="rail42-whatsnew-summary">{entry.summary}</p> : null}
                   <ul className="rail42-whatsnew-lines">{entry.lines.map((line) => <li key={line}>{line}</li>)}</ul>
-                  {entry.updates.map((update) => (
-                    <div key={`${update.title} ${update.when}`} className="rail42-whatsnew-update">
+                  {entry.updates.map((update, index) => (
+                    <div key={index} className="rail42-whatsnew-update">
                       <h4 className="rail42-whatsnew-heading">
                         <span className="rail42-whatsnew-update-title">{update.title}</span>
                         <span className="rail42-whatsnew-when">{update.when}</span>

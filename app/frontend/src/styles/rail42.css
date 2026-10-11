@@ -417,6 +417,11 @@
   margin-inline-start: var(--s-1);
   background: var(--ink);
 }
+/* Forced colours repaint backgrounds to Canvas, so the mark takes the text
+   colour there. */
+@media (forced-colors: active) {
+  .rail42-more-dot { background: CanvasText; }
+}
 .rail42-whatsnew-current { font-weight: 400; color: var(--ink); }
 .rail42-whatsnew-update { margin-top: var(--s-3); }
 .rail42-whatsnew-update-title { font-weight: 600; }

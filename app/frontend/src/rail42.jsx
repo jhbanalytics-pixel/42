@@ -105,8 +105,9 @@ function ThemeChoice({theme, onThemeChange}){
 
 /* The version line (11 October 2026) sits between the theme and Log out,
    in the wide foot and the phone More sheet (ui/VersionNote.jsx). While the
-   sheet is shut a changed version still shows: a dot on More, and a status
-   line outside the sheet that says so. */
+   sheet is shut a changed version still shows: a mark on More, and a status
+   line outside the sheet that says so. With the sheet open only the line in
+   the sheet speaks, and opening it brings the reload button into view. */
 
 /* Log out (6 October 2026) sits after the theme, at the foot of the wide
    rail and the end of the phone More sheet: a quiet, always-there exit that
@@ -204,6 +205,12 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
   }, []);
 
   useEffect(() => {
+    if (!compact || !open || !versionChanged || !sheetRef.current) return;
+    const reload = sheetRef.current.querySelector('.rail42-version-reload');
+    if (reload) reload.scrollIntoView({block: 'nearest'});
+  }, [compact, open, versionChanged]);
+
+  useEffect(() => {
     if (!open) return undefined;
     const away = (event) => {
       if (sheetRef.current && sheetRef.current.contains(event.target)) return;
@@ -258,7 +265,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
       <nav className="rail42 rail42--bar" aria-label="Main" data-rail-layout="bar" onKeyDown={onKeyDown}>
         <ul className="rail42-list" data-rail-group="bar"><Links items={BAR_ITEMS} here={here} /></ul>
         {more}
-        <p className="sr-only" role="status">{versionChanged ? 'Version changed. Open More to reload.' : ''}</p>
+        <p className="sr-only" role="status">{versionChanged && !open ? 'Version changed. Open More to reload.' : ''}</p>
       </nav>
     );
   }

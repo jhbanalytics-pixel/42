@@ -7,6 +7,7 @@
    are written here, never read from the file under test. */
 import {GlobalRegistrator} from '@happy-dom/global-registrator';
 import {afterAll, afterEach, beforeEach, describe, expect, test} from 'bun:test';
+import postcss from 'postcss';
 import React from 'react';
 import {execFileSync} from 'node:child_process';
 import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
@@ -35,6 +36,7 @@ const realFetch = globalThis.fetch;
 let host = null;
 let root = null;
 let calls = [];
+let inits = [];
 
 const click = (el) => flushSync(() => el.dispatchEvent(new MouseEvent('click', {bubbles: true})));
 const key = (el, name) => flushSync(() => el.dispatchEvent(new KeyboardEvent('keydown', {key: name, bubbles: true, cancelable: true})));
@@ -42,7 +44,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function settle(){ for (let i = 0; i < 12; i++) await pause(0); }
 const versionButton = () => host.querySelector('.rail42-version-button');
 const panel = () => host.querySelector('dialog.rail42-whatsnew');
-const hint = () => [...host.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Version changed, reload') || null;
+const hint = () => [...host.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Version changed. Reload') || null;
 const minutes = (n) => n * 60 * 1000;
 /* Moves the clock the line reads, so a check can run under the default gap. */
 function shiftClock(ms){
@@ -50,11 +52,24 @@ function shiftClock(ms){
   Date.now = () => real() + ms;
   return () => { Date.now = real; };
 }
+const moreButton = () => [...host.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith('More'));
+const barStatus = () => host.querySelector('nav[data-rail-layout="bar"] > [role="status"]');
+/* One version check under the default gap: the clock moves past it, the tab comes back. */
+async function phoneCheck(ahead = minutes(6)){
+  const restore = shiftClock(ahead);
+  try {
+    document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+  } finally {
+    restore();
+  }
+}
 const hiddenOrInert = (node) => { for (let at = node; at; at = at.parentElement) if (at.hidden || at.hasAttribute('inert')) return at; return null; };
 
 function serveHealth(version, {fail = false} = {}){
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, init) => {
     calls.push(String(url));
+    inits.push(init);
     if (fail) throw new TypeError('synthetic network failure');
     if (String(url) === '/api/health') return {ok: true, status: 200, json: async () => ({ok: true, service: 'f42-api', version})};
     return {ok: false, status: 404, json: async () => ({})};
@@ -72,6 +87,8 @@ function setHidden(hidden){
 
 beforeEach(() => {
   calls = [];
+  inits = [];
+  try { sessionStorage.clear(); } catch (e){}
   window.happyDOM.setViewport({width: 1280, height: 900});
   setHidden(false);
   host = document.createElement('div');
@@ -80,6 +97,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  try { sessionStorage.clear(); } catch (e){}
   if (root) flushSync(() => root.unmount());
   root = null;
   if (host) host.remove();
@@ -98,19 +116,29 @@ describe('the release files', () => {
     expect(VERSION_TEXT).toMatch(/^2\.3\.0\r?\n?$/);
   });
 
-  test('CHANGELOG.md opens with the numbering rule', () => {
+  /* The lead's numbering ruling of 12 October 2026, word for word. */
+  const RULING = [
+    'The version number tracks what people see: the website and Ask. History stays as it is: 2.0.0 is Release A, 2.1.0 is Release B, 2.2.0 is Release C, and 2.3.0 is D0.',
+    'Major goes up for a breaking change to stored data or a removed page. Minor goes up for a website release with new features. Patch goes up for a website release with fixes only.',
+    'From D0 on, a jobs-only release keeps the current number and gets its own dated "Jobs update" entry under that version in CHANGELOG.md.',
+    'A jobs update reaches the live What\'s new panel only with the next website build. That is accepted, because the changelog in the repo is the record and the menu shows what the website runs.',
+    'At bind for every release, the version entry\'s lines are re-derived from the merged branch list, and the go-live date is written in.',
+  ];
+
+  test('CHANGELOG.md opens with the numbering ruling, word for word and in order', () => {
     const head = CHANGELOG.split(/\n## /)[0];
-    expect(head).toMatch(/major/i);
-    expect(head).toMatch(/breaking change to stored data or a page removed/);
-    expect(head).toMatch(/minor[^.]*release with new features/i);
-    expect(head).toMatch(/patch[^.]*fixes only/i);
+    const paragraphs = head.split(/\n\s*\n/).map((text) => text.trim()).filter(Boolean);
+    expect(paragraphs[0]).toBe('# Changelog');
+    expect(paragraphs.slice(1, 1 + RULING.length)).toEqual(RULING);
   });
 
-  test('CHANGELOG.md says the number tracks the website, and a jobs-only release keeps it', () => {
+  test('nothing else in the head restates the rule or says the menu always lists every change', () => {
     const head = CHANGELOG.split(/\n## /)[0];
-    expect(head).toMatch(/number tracks what people see, the website/);
-    expect(head).toMatch(/From D0 on, a jobs-only release keeps the version number/);
-    expect(head).toMatch(/"Jobs update" entry under the current version/);
+    const rest = head.split(/\n\s*\n/).map((text) => text.trim()).filter(Boolean).slice(1 + RULING.length);
+    for (const paragraph of rest){
+      expect(paragraph).not.toMatch(/major|minor|patch|keeps the (current|version) number/i);
+      expect(paragraph).not.toMatch(/name the same number/);
+    }
   });
 
   test('the changelog lists 2.3.0 next, then Release C, B and A, each with its date and plain lines', () => {
@@ -448,6 +476,40 @@ describe('the reload hint', () => {
     expect(reloads).toBe(1);
   });
 
+  test('a new line starts from the last version the page saw, with no new check', async () => {
+    serveHealth('3710c5e59302');
+    render(<VersionNote release={BUILT} gapMs={0} />);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+    expect(hint()).not.toBeNull();
+    flushSync(() => root.unmount());
+    root = createRoot(host);
+    render(<VersionNote release={BUILT} />);
+    await settle();
+    expect(hint()).not.toBeNull();
+    expect(calls).toEqual(['/api/health']);
+  });
+
+  test('a remembered version from another build does not mark this one', async () => {
+    serveHealth('3710c5e59302');
+    render(<VersionNote release={BUILT} gapMs={0} />);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+    flushSync(() => root.unmount());
+    root = createRoot(host);
+    render(<VersionNote release={{...BUILT, sha: '3710c5e59302'}} />);
+    await settle();
+    expect(hint()).toBeNull();
+  });
+
+  test('health is read past every cache', async () => {
+    serveHealth('3710c5e59302');
+    render(<VersionNote release={BUILT} gapMs={0} />);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+    expect(inits).toEqual([{cache: 'no-store'}]);
+  });
+
   test('the check stops when the line unmounts', async () => {
     serveHealth('3710c5e59302');
     render(<VersionNote release={BUILT} gapMs={0} everyMs={10} />);
@@ -524,9 +586,11 @@ describe('in the rail', () => {
     window.happyDOM.setViewport({width: 390, height: 844});
     serveHealth('3710c5e59302');
     mountRail();
+    await settle();
     const more = [...host.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith('More'));
     expect(more.getAttribute('aria-expanded')).toBe('false');
     expect(host.querySelector('.rail42-more-dot')).toBeNull();
+    expect(barStatus().textContent).toBe('');
     const restore = shiftClock(minutes(6));
     try {
       document.dispatchEvent(new Event('visibilitychange'));
@@ -550,6 +614,103 @@ describe('in the rail', () => {
     expect(hiddenOrInert(hint())).toBeNull();
   });
 
+  test('at 390 px a check that finds the built sha leaves no mark and says nothing', async () => {
+    globalThis.__F42_RELEASE__ = BUILT;
+    window.happyDOM.setViewport({width: 390, height: 844});
+    serveHealth('0123456789ab');
+    mountRail();
+    await phoneCheck();
+    expect(calls).toEqual(['/api/health']);
+    expect(host.querySelector('.rail42-more-dot')).toBeNull();
+    expect(moreButton().textContent).not.toContain('version changed');
+    expect(barStatus().textContent).toBe('');
+  });
+
+  test('at 390 px the mark and the sentence clear when the built version is live again', async () => {
+    globalThis.__F42_RELEASE__ = BUILT;
+    window.happyDOM.setViewport({width: 390, height: 844});
+    serveHealth('3710c5e59302');
+    mountRail();
+    await phoneCheck();
+    expect(host.querySelector('.rail42-more-dot')).not.toBeNull();
+    serveHealth('0123456789ab');
+    await phoneCheck(minutes(12));
+    expect(host.querySelector('.rail42-more-dot')).toBeNull();
+    expect(barStatus().textContent).toBe('');
+  });
+
+  test('with More open a change is announced once, inside the sheet, as Version changed. Reload', async () => {
+    globalThis.__F42_RELEASE__ = BUILT;
+    window.happyDOM.setViewport({width: 390, height: 844});
+    serveHealth('3710c5e59302');
+    mountRail();
+    click(moreButton());
+    await phoneCheck();
+    const sheet = document.getElementById(moreButton().getAttribute('aria-controls'));
+    const said = [...host.querySelectorAll('[role="status"]')].filter((node) => node.textContent.trim());
+    expect(said).toHaveLength(1);
+    expect(sheet.contains(said[0])).toBe(true);
+    expect(said[0].textContent).toBe('Version changed. Reload');
+    expect(barStatus()).not.toBeNull();
+    expect(barStatus().textContent).toBe('');
+  });
+
+  test('opening More with a changed version brings the reload button into view', async () => {
+    globalThis.__F42_RELEASE__ = BUILT;
+    window.happyDOM.setViewport({width: 390, height: 844});
+    serveHealth('3710c5e59302');
+    const scrolled = [];
+    const real = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function(options){ scrolled.push({node: this, options}); };
+    try {
+      mountRail();
+      await phoneCheck();
+      expect(scrolled).toEqual([]);
+      click(moreButton());
+      await settle();
+      expect(scrolled.map((entry) => entry.node)).toEqual([hint()]);
+      expect(scrolled[0].options).toEqual({block: 'nearest'});
+    } finally {
+      Element.prototype.scrollIntoView = real;
+    }
+  });
+
+  test('opening More with no change scrolls nothing', async () => {
+    globalThis.__F42_RELEASE__ = BUILT;
+    window.happyDOM.setViewport({width: 390, height: 844});
+    const scrolled = [];
+    const real = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function(){ scrolled.push(this); };
+    try {
+      mountRail();
+      await settle();
+      click(moreButton());
+      await settle();
+      expect(scrolled).toEqual([]);
+    } finally {
+      Element.prototype.scrollIntoView = real;
+    }
+  });
+
+  test('crossing 1024 px keeps a changed version without a new check', async () => {
+    globalThis.__F42_RELEASE__ = BUILT;
+    serveHealth('3710c5e59302');
+    mountRail();
+    await phoneCheck();
+    expect(hint()).not.toBeNull();
+    expect(calls).toHaveLength(1);
+    flushSync(() => { window.happyDOM.setViewport({width: 390, height: 844}); window.dispatchEvent(new Event('resize')); });
+    await settle();
+    expect(host.querySelector('nav[data-rail-layout="bar"]')).not.toBeNull();
+    expect(host.querySelector('.rail42-more-dot')).not.toBeNull();
+    expect(barStatus().textContent).toBe('Version changed. Open More to reload.');
+    flushSync(() => { window.happyDOM.setViewport({width: 1200, height: 900}); window.dispatchEvent(new Event('resize')); });
+    await settle();
+    expect(host.querySelector('nav[data-rail-layout="rail"]')).not.toBeNull();
+    expect(hint()).not.toBeNull();
+    expect(calls).toHaveLength(1);
+  });
+
   test('the wide rail announces a changed version once, beside the line', async () => {
     globalThis.__F42_RELEASE__ = BUILT;
     serveHealth('3710c5e59302');
@@ -569,12 +730,28 @@ describe('in the rail', () => {
 
   test('the rail sheet keeps red to focus and every new rule on rail tokens', async () => {
     const css = await Bun.file(new URL('../../styles/rail42.css', import.meta.url)).text();
-    const rules = css.replace(/\/\*[^]*?\*\//g, '').split('}').filter((rule) => /rail42-(version|whatsnew)/.test(rule));
+    const rules = css.replace(/\/\*[^]*?\*\//g, '').split('}').filter((rule) => /rail42-(version|whatsnew|more-dot)/.test(rule));
     expect(rules.length).toBeGreaterThan(0);
     for (const rule of rules){
       if (/--accent/.test(rule)) expect(rule).toMatch(/:focus-visible/);
       expect(rule).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     }
+    const mark = postcss.parse(css);
+    const found = [];
+    mark.walkRules('.rail42-more-dot', (rule) => {
+      const media = rule.parent.type === 'atrule' ? rule.parent.params : '';
+      const decls = {};
+      rule.walkDecls((decl) => { decls[decl.prop] = decl.value; });
+      found.push({media, decls});
+    });
+    const base = found.find((entry) => !entry.media);
+    expect(base.decls.width).toBe('6px');
+    expect(base.decls.height).toBe('6px');
+    expect(base.decls.background).toBe('var(--ink)');
+    expect(base.decls['border-radius']).toBeUndefined();
+    const forced = found.find((entry) => /forced-colors:\s*active/.test(entry.media));
+    expect(forced).toBeDefined();
+    expect(forced.decls.background).toBe('CanvasText');
   });
 });
 
@@ -584,6 +761,8 @@ describe('compareVersions', () => {
     expect(compareVersions('2.2.0', '2.3.0')).toBeLessThan(0);
     expect(compareVersions('2.3.0', '2.3.0')).toBe(0);
     expect(compareVersions('2.10.0', '2.9.0')).toBeGreaterThan(0);
+    expect(compareVersions('2.3.1', '2.3.0')).toBeGreaterThan(0);
+    expect(compareVersions('2.3.0', '2.3.1')).toBeLessThan(0);
     expect(compareVersions('3.0.0', '2.99.99')).toBeGreaterThan(0);
   });
 });

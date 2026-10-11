@@ -1,10 +1,16 @@
 # Changelog
 
-Every 42 release of the website and Ask has a version number, major.minor.patch, shown at the foot of the menu. The number tracks what people see, the website and Ask. The major number goes up for a breaking change to stored data or a page removed. The minor number goes up for a release with new features. The patch number goes up for a release with fixes only.
+The version number tracks what people see: the website and Ask. History stays as it is: 2.0.0 is Release A, 2.1.0 is Release B, 2.2.0 is Release C, and 2.3.0 is D0.
 
-From D0 on, a jobs-only release keeps the version number and gets its own dated "Jobs update" entry under the current version, so the menu and this file name the same number. Release B was numbered 2.1.0 before this rule and keeps its number.
+Major goes up for a breaking change to stored data or a removed page. Minor goes up for a website release with new features. Patch goes up for a website release with fixes only.
 
-The newest release comes first, and VERSION at the root of the repository holds its number. The What's new panel in the menu reads this file as it is written: a heading with the version and the date in brackets, or "next, not live yet" until the date is known, one line naming the release, then one plain line per change. The panel marks the version the page runs as This version and shows "next, not live yet" only for a version above it. A jobs update is a "### Jobs update" heading with its date in brackets under the version it shipped beside, followed by its own lines.
+From D0 on, a jobs-only release keeps the current number and gets its own dated "Jobs update" entry under that version in CHANGELOG.md.
+
+A jobs update reaches the live What's new panel only with the next website build. That is accepted, because the changelog in the repo is the record and the menu shows what the website runs.
+
+At bind for every release, the version entry's lines are re-derived from the merged branch list, and the go-live date is written in.
+
+The newest release comes first, and VERSION at the root of the repository holds its number. Each version is a heading with the version and the date in brackets, or "next, not live yet" until the date is written in, then one line naming the release and one plain line per change. A jobs update is a "### Jobs update" heading with its date in brackets under its version, followed by its own lines. The panel in the menu marks the version the page runs as This version.
 
 ## 2.3.0 (next, not live yet)
 
