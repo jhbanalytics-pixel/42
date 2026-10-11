@@ -939,15 +939,20 @@ async def api_spike(request: Request) -> Response:
 
 
 async def _stored_record(ask_id: str) -> dict | None:
-    """A finished Ask record from runs, as a reader sees it: a skin run's record is masked (contract 15.1) the
-    way f42-agent masks the records it still holds."""
-    from core.api import skins, store
-
-    from core.api import summary_state
+    """A finished Ask record from runs as it is stored, with its typed summary state read first (C1 5.2). Neither the
+    privacy projection nor a skin has touched it: _projected comes first, then _skin_masked."""
+    from core.api import store, summary_state
 
     record = await run_in_threadpool(lambda: store.get_store().ask_record(ask_id))
-    if record:  # the typed summary state is read from the raw stored record first, before any masking (C1 5.2)
-        record = summary_state.with_wire(record)
+    return summary_state.with_wire(record) if record else record
+
+
+async def _skin_masked(record: dict) -> dict:
+    """A skin run's record, projected for privacy already, masked for its skin (contract 15.1) the way f42-agent masks
+    the records it still holds. The mask comes last: it strips the handle of every author the skin may not name, and a
+    suppression row that names only a handle could no longer match them."""
+    from core.api import skins, store
+
     if not record or not record.get("skin_id"):
         return record
     skin_key = None
@@ -994,7 +999,7 @@ async def api_ask_read(ask_id: str) -> Response:
     record = await _stored_record(ask_id)
     if record is None:
         raise ApiError(404, "not_found", "No Ask with that id.")
-    shown = answer_view.present(await _projected(record))  # the reader's view, as the agent and the export give it
+    shown = answer_view.present(await _skin_masked(await _projected(record)))  # the reader's view, as the agent gives it
     return JSONResponse(jsonable_encoder(shown), headers=privacy.NO_STORE)
 
 
@@ -1007,7 +1012,7 @@ async def _replay_stored_events(ask_id: str, last_event_id: str | None) -> Respo
     record = await _stored_record(ask_id)
     if record is None:
         raise ApiError(404, "not_found", "No Ask with that id.")
-    record = await _projected(record)
+    record = await _skin_masked(await _projected(record))
     after = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
     steps = record.get("steps") or []
     done_seq = max((s.get("seq", 0) for s in steps), default=0) + 1
@@ -1071,7 +1076,7 @@ async def api_ask_export(ask_id: str, format: str = "html") -> Response:
     if format != "html":
         raise ApiError(400, "bad_request", "Only format=html is available until Stage 3.")
     resp = await _forward("GET", f"/api/ask/{ask_id}")
-    inbound = None
+    inbound, stored = None, False
     if resp.status_code == 200:
         from core.api import summary_state
 
@@ -1081,9 +1086,12 @@ async def api_ask_export(ask_id: str, format: str = "html") -> Response:
         record = await _stored_record(ask_id)
         if record is None:
             raise ApiError(404, "not_found", "No Ask with that id.")
+        stored = True
     else:
         return _passthrough(resp)
     record = await _projected(record, inbound)
+    if stored:
+        record = await _skin_masked(record)
     if (record.get("privacy") or {}).get("state") == "unavailable":
         raise ApiError(503, "people_unavailable", privacy.PEOPLE_UNAVAILABLE)
     try:

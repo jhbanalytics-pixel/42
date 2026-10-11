@@ -635,9 +635,10 @@ def follow(ask, after):
             done = ask.done
         privacy.place_chunk(new, fresh.get(), store, memo)  # who wrote this chunk's stored posts, in one lookup
         for kind, data in new:
-            shown = skins.mask_event(data, people["approved"], [], hidden) if people else data
             current = fresh.get()
-            shown_event = privacy.project_event(kind, shown, current, store, left_out, memo)
+            shown_event = privacy.project_event(kind, data, current, store, left_out, memo)  # before the skin strips handles
+            if shown_event is not None and people:
+                shown_event = skins.mask_event(shown_event, people["approved"], [], hidden)
             if shown_event is None and current is None and not said:
                 said = True  # one step says why no evidence or claim follows (5.5)
                 yield frame("step", {"seq": data["seq"], "text": privacy.UNAVAILABLE_NOTE})
@@ -1146,14 +1147,15 @@ def shown_record(record):
 
 
 def readable(record, hidden=privacy.READ, creators=None):
-    """An Ask record as a reader may see it now: the skin masks first (a skin report names only who it may), then the
-    list of hidden people read on this request, which wins over an approved account (C5 v2 5.2, R2). hidden is the
-    list when the request has already read it."""
+    """An Ask record as a reader may see it now: the list of hidden people read on this request first, which wins over
+    an approved account (C5 v2 5.2, R2), then the skin (a skin report names only who it may). The skin strips the
+    handle of every author it may not name, so a suppression row that names only a handle must be matched before it.
+    hidden is the list when the request has already read it."""
     from core.api.store import get_store
     # The typed summary state is read from the raw record first: privacy changes the answer it is bound to.
-    projected = privacy.project_record(shown_record(summary_state.with_wire(record)), privacy.LazyStore(get_store),
+    projected = privacy.project_record(summary_state.with_wire(record), privacy.LazyStore(get_store),
                                        hidden, creators=creators)
-    return answer_view.present(projected)  # comments, repeated claims and gaps in the reader's words (a copy)
+    return answer_view.present(shown_record(projected))  # comments, repeated claims and gaps in the reader's words (a copy)
 
 
 def people_unavailable():
