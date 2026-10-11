@@ -1,6 +1,6 @@
 {
   "id": "TOP-ZA",
-  "note": "The ranked briefing mock. The question Albert asked on the live site, answered from synthetic posts and recorded counts: three stories, ranked by creators and then posts. The first has a per day row, so it carries a peak. The second has a first day and a last day, so it carries a rising claim. The third has only a size, because the pack holds nothing more for it. One claim names no story.",
+  "note": "The ranked briefing mock. A question asked on the live site, answered from synthetic posts and recorded counts: three stories, ranked by creators and then posts. The first has a per day row, so it carries a peak. The second has a first day and a last day, so it carries a rising claim. The third has only a size, because the pack holds nothing more for it. One claim names no story.",
   "tier": "T1",
   "question": "What are people in South Africa posting about most this week?",
   "vars": {
