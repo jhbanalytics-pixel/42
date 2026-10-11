@@ -179,16 +179,33 @@ class Reservations:
 RESERVED = Reservations()
 
 
+def _cents(value):
+    """Dollars as cents, with the float noise of a half cent (2.675 * 100 = 267.4999...) settled first."""
+    return round(float(value) * 100, 6)
+
+
+def usd_up(value):
+    """A dollar need in whole cents, rounded up, so it is never said as less than it is."""
+    return f"{math.ceil(_cents(value)) / 100:.2f}"
+
+
+def usd_down(value):
+    """Dollars left in whole cents, rounded down, so they are never said as more than they are."""
+    return f"{math.floor(_cents(value)) / 100:.2f}"
+
+
 def refusal(estimate, left):
     """The words for whichever budget the estimate breaks, or None when it fits both."""
     # The reader sees these words as written, so they name no setting or person; credits are said as credits
     # and the dollars of model time as USD.
     broken = []
     if estimate["credits"] > left["credits"]:
+        noun = "credit" if estimate["credits"] == 1 else "credits"
         verb = "is" if left["credits"] == 1 else "are"
-        broken.append(f"about {estimate['credits']:,} credits but only {left['credits']:,} {verb} left today")
+        broken.append(f"about {estimate['credits']:,} {noun} but only {left['credits']:,} {verb} left today")
     if estimate["model_usd"] > left["model_usd"]:
-        broken.append(f"about USD {estimate['model_usd']:.2f} of model time but only USD {left['model_usd']:.2f} is left today")
+        broken.append(f"about USD {usd_up(estimate['model_usd'])} of model time but only USD {usd_down(left['model_usd'])} "
+                      "is left today")
     if not broken:
         return None
     return "This plan needs " + ", and ".join(broken) + ". Try a smaller plan or try again tomorrow."

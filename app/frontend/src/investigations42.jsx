@@ -118,7 +118,13 @@ export function rememberBudget(investigationId, left){
 }
 
 const plural = (count, word) => readerFigure(count) + ' ' + word + (count === 1 ? '' : 's');
-const usd = (value) => 'USD ' + (typeof value === 'number' ? value : 0).toFixed(2) + ' of model time';
+/* Dollars in whole cents, as the server words its refusal (core/api/
+   investigations.py usd_up and usd_down): an estimate or a ceiling rounds
+   up and what is left rounds down, so the page never shows a need that
+   seems to fit and is refused. A half cent's float noise is settled first. */
+const cents = (value) => Number(((typeof value === 'number' ? value : 0) * 100).toFixed(6));
+const usdUp = (value) => 'USD ' + (Math.ceil(cents(value)) / 100).toFixed(2) + ' of model time';
+const usdDown = (value) => 'USD ' + (Math.floor(cents(value)) / 100).toFixed(2) + ' of model time';
 const platformWords = (list) => (Array.isArray(list) ? list : []).map((p) => PLATFORM_WORD[p] || p).join(', ');
 
 function useAuthHandover(onAuth){
@@ -465,7 +471,7 @@ function PlanView({plan}){
         ))}
       </ol>
       <p className="inv42-line">{plural(plan.researchers ?? 0, 'researcher') + ' · ' + (plan.gap_round ? 'A gap round after the first pass' : 'No gap round')}</p>
-      <p className="inv42-line">{'Spends at most ' + plural(plan.max_credits ?? 0, 'credit') + ' and ' + usd(plan.max_model_usd) + '.'}</p>
+      <p className="inv42-line">{'Spends at most ' + plural(plan.max_credits ?? 0, 'credit') + ' and ' + usdUp(plan.max_model_usd) + '.'}</p>
     </section>
   );
 }
@@ -475,9 +481,9 @@ function EstimateView({estimate, budget}){
   return (
     <section className="inv42-section" data-section="estimate" aria-labelledby="inv42-estimate-title">
       <h2 className="inv42-section-title" id="inv42-estimate-title">The estimate</h2>
-      <p className="inv42-line">{'About ' + plural(e.credits ?? 0, 'credit') + ', ' + usd(e.model_usd) + ' and ' + plural(Math.ceil(e.minutes ?? 0), 'minute') + '.'}</p>
+      <p className="inv42-line">{'About ' + plural(e.credits ?? 0, 'credit') + ', ' + usdUp(e.model_usd) + ' and ' + plural(Math.ceil(e.minutes ?? 0), 'minute') + '.'}</p>
       {budget
-        ? <p className="inv42-line">{'Left today: ' + plural(budget.credits ?? 0, 'credit') + ' and ' + usd(budget.model_usd) + '. Both are checked again when you start.'}</p>
+        ? <p className="inv42-line">{'Left today: ' + plural(budget.credits ?? 0, 'credit') + ' and ' + usdDown(budget.model_usd) + '. Both are checked again when you start.'}</p>
         : <p className="inv42-line">What is left today is checked again when you start.</p>}
     </section>
   );

@@ -456,6 +456,25 @@ test('a draft opened from New investigation shows its estimate against the budge
   expect(text()).not.toMatch(/model spend|research budget/);
 });
 
+/* Re-review N1: dollars are said in whole cents, a need rounded up and what
+   is left rounded down, as the server words its refusal
+   (core/api/investigations.py usd_up and usd_down), half cents included. */
+test('USD rounds the need and the ceiling up and what is left down, in cents', async () => {
+  await openDraft(draft({plan: {...clone(PLAN), max_model_usd: 2.675}, estimate: {credits: 1, model_usd: 1.005, minutes: 1}, budget_left: {credits: 590, model_usd: 1.005}}));
+  await until(() => text().includes('Left today'), 'the budget line');
+  expect(text()).toContain('About 1 credit, USD 1.01 of model time and 1 minute.');
+  expect(text()).toContain('USD 2.68 of model time.');
+  expect(text()).toContain('Left today: 590 credits and USD 1.00 of model time.');
+});
+
+test('USD keeps a whole cent as it is and splits a half cent up for a need and down for what is left', async () => {
+  await openDraft(draft({plan: {...clone(PLAN), max_model_usd: 0.125}, estimate: {credits: 300, model_usd: 1.5, minutes: 6}, budget_left: {credits: 590, model_usd: 0.125}}));
+  await until(() => text().includes('Left today'), 'the budget line');
+  expect(text()).toContain('USD 1.50 of model time and 6 minutes.');
+  expect(text()).toContain('USD 0.13 of model time.');
+  expect(text()).toContain('Left today: 590 credits and USD 0.12 of model time.');
+});
+
 test('a draft read again after a reload shows the budget left today that the read carries', async () => {
   await openDraft(draft({budget_left: {credits: 590, model_usd: 17.25}}));
   await until(() => text().includes('Left today'), 'the budget line');
