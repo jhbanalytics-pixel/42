@@ -15,8 +15,8 @@ and carries the proof the claim is held to, recomputed here from git and never t
 
 A tree that adds a writer of the evidence_links key to the stored Ask record (the base has none) also gets one stored_answer effect for
 it, written from what the tree contains: the consumers are the product files and lines that name the key, found in git at the release
-commit, and the key is declared in the statement. It changes no SQL, and its forward recovery is none_needed: the previous readers pass
-the key through unread, a rollback leaves it in place, and a record a previous writer saves later has no key.
+commit, and the key is declared in the statement. It changes no SQL, and its forward recovery is none_needed: the previous readers
+return the key as stored and do not act on it, a rollback leaves it in place, and a record a previous writer saves later has no key.
 
 The compat verdicts of the effects stay as the template has them (pending): they are settled from the harness receipts, which is the
 lead's step. Given an old-reader receipt on the command line, the five verdicts of the stored effect alone are settled from it, and only after it is
@@ -116,8 +116,9 @@ STORED_STATEMENT = ("The Ask record stored in intelligence_42_agent.runs, column
                     "to the id of the post it sits under, which the answer shows too. f42-agent writes it when an Ask ends and at least one "
                     "shown comment has its post shown too; records written before this release, and records where no such pair is shown, "
                     "do not have it.")
-STORED_RECOVERY = ("The previous readers pass the key through and do not act on it, a rollback leaves the stored key in place, and a record a "
-                   "previous writer saves later has no key and the candidate judges its comments by their address alone")
+STORED_RECOVERY = ("The previous readers return evidence_links as stored, including the id of a hidden post and the id of the comment under it, "
+                   "and do not act on it, a rollback leaves the stored key in place, and a record a previous writer saves later has no key "
+                   "and the candidate judges its comments by their address alone")
 CRLF, LF = b"\r\n", b"\n"
 
 

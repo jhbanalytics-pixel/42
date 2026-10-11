@@ -221,6 +221,13 @@ def test_the_stored_effect_recovers_forward_with_no_statement_and_no_sql():
     assert claim["claimed"] is True and claim["proof"]["schema_statements_added"] == 0 and claim["proof"]["changed_sql_or_job_owned"] == []
 
 
+def test_the_stored_effect_says_the_previous_readers_return_the_key_as_stored_ids_of_a_hidden_post_included():
+    note = stored_effect(built())["forward_recovery"]["note"]
+    assert "return evidence_links as stored" in note
+    assert "the id of a hidden post and the id of the comment under it" in note
+    assert "pass the key through" not in note
+
+
 def blob_lines(path):
     return git(ROOT, "show", f"{head()}:{path}").splitlines()
 
