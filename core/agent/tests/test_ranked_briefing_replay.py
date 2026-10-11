@@ -60,10 +60,20 @@ def replays():
     return found
 
 
-def read(result):
-    """The record as the API gives it to a reader: stored answer and run, then answer_view.present."""
-    return answer_view.present({"ask_id": "a_replay", "status": "complete", "answer": copy.deepcopy(result["answer"]),
-                                "run": copy.deepcopy(result["run"])})
+def stored(result, question=None):
+    return {"ask_id": "a_replay", "status": "complete", "question": question or result["vars"]["question"],
+            "answer": copy.deepcopy(result["answer"]), "run": copy.deepcopy(result["run"])}
+
+
+def read(result, question=None):
+    """The record as the API gives it to a reader: stored question, answer and run, then answer_view.present."""
+    return answer_view.present(stored(result, question))
+
+
+# NOW-03 and RISE-02 are not ranked questions as the benchmark asks them, so their answers in the ranked shape read as
+# usual; asked as a ranked question the same answers read as a briefing.
+KENYA_RANKED = "What are Kenyans talking about the most in the last two weeks?"
+NIGERIA_RANKED = "What are Nigerians talking about the most in the last three weeks?"
 
 
 def recomputed(result):
@@ -112,6 +122,10 @@ def test_a_ranked_answer_adds_nothing_to_the_stored_answer_or_the_stored_run(qid
                                      "gaps", "context"}
     assert "briefing" not in result["run"]
     assert set(result["answer"]["claims"][0]) <= {"id", "text", "label", "kind", "evidence_ids", "quotes", "numbers"}
+
+
+def test_the_two_reworded_questions_are_ranked_questions():
+    assert writer.asks_ranked(KENYA_RANKED) and writer.asks_ranked(NIGERIA_RANKED)
 
 
 def test_the_rule_reaches_the_writer_for_the_ranked_questions_and_for_no_other_replay(replays):
@@ -174,7 +188,7 @@ def test_each_story_has_its_own_so_what_line_and_none_is_left_over(replays):
 
 def test_hiding_the_creator_behind_the_third_story_removes_it_and_closes_the_ranks_up(replays):
     result = replays["TOP-ZA"]
-    record = {"ask_id": "a_replay", "status": "complete", "answer": result["answer"], "run": result["run"]}
+    record = stored(result)
     hidden = ({creator_key("x", "@court_roll_za")}, set(), set())
     view = answer_view.present(privacy.project_record(record, None, hidden=hidden))
     assert shape(view) == [(1, "Soweto unrest", ["c1", "c2", "c3"]), (2, "Pirates vs Sundowns cup final", ["c4", "c5", "c6"])]
@@ -185,7 +199,7 @@ def test_hiding_the_creator_behind_the_third_story_removes_it_and_closes_the_ran
 
 def test_hiding_all_but_one_story_leaves_no_briefing(replays):
     result = replays["TOP-ZA"]
-    record = {"ask_id": "a_replay", "status": "complete", "answer": result["answer"], "run": result["run"]}
+    record = stored(result)
     hidden = ({creator_key("tiktok", "@kasi_football_hub"), creator_key("x", "@court_roll_za")}, set(), set())
     view = answer_view.present(privacy.project_record(record, None, hidden=hidden))
     assert "briefing" not in view["run"]
@@ -206,7 +220,8 @@ def test_now_01_in_the_ranked_shape_has_three_sized_stories_in_order(replays):
 def test_now_03_has_no_size_for_any_story_because_the_stored_side_holds_no_count(replays):
     result = replays["NOW-03-RANKED"]
     assert cuts(result) == {"c2": ["K1", "K10"]}  # the seeded quote that is not verbatim
-    view = read(result)
+    assert "briefing" not in read(result)["run"]  # as the benchmark asks it, this is no ranked question
+    view = read(result, KENYA_RANKED)
     assert shape(view) == [(1, "Mambo ni matatu", ["c1"]), (2, "Kasarani Kick", ["c3", "c4"]), (3, "Si ulisema", ["c5"])]
     briefing_ = view["run"]["briefing"]
     assert briefing_["ordered"] is False and all(s["size"] is None for s in briefing_["stories"])
@@ -215,7 +230,8 @@ def test_now_03_has_no_size_for_any_story_because_the_stored_side_holds_no_count
 def test_rise_02_keeps_two_sized_stories_after_the_seeded_defects_are_cut(replays):
     result = replays["RISE-02-RANKED"]
     assert cuts(result) == {"c4": ["K10", "K3"], "c6": ["K4"]}
-    view = read(result)
+    assert "briefing" not in read(result)["run"]
+    view = read(result, NIGERIA_RANKED)
     assert shape(view) == [(1, "Sapa reset", ["c1", "c2", "c3"]), (2, "Wahala package", ["c5"])]
     assert view["run"]["briefing"]["ordered"] is True
 
@@ -227,3 +243,13 @@ def test_the_repos_own_now_01_replay_reads_as_before(monkeypatch):
     view = read(result)
     assert "briefing" not in view["run"]
     assert briefing.stories(result["answer"]) is None
+
+
+PAGE_FIXTURE = Path(__file__).resolve().parents[3] / "app" / "frontend" / "src" / "ui" / "__tests__" / "fixtures" / "ask42_ranked_briefing.json"
+
+
+def test_the_page_fixture_holds_the_briefing_the_reader_view_gives_today():
+    held = json.loads(PAGE_FIXTURE.read_text(encoding="utf-8"))
+    bare = copy.deepcopy(held)
+    del bare["run"]["briefing"]
+    assert answer_view.present(bare) == held

@@ -200,8 +200,12 @@ def test_a_story_whose_claims_were_withheld_drops_out_and_the_ranks_close_up():
 
 # Where a reader gets it: answer_view.present adds it to the run and recomputes it on every read.
 
-def record(claims=THREE, run=None, so_what=()):
-    return {"ask_id": "a_1", "status": "complete", "answer": answer(claims, so_what), "run": run if run is not None else {}}
+RANKED_Q = "What are people in South Africa posting about most this week?"
+
+
+def record(claims=THREE, run=None, so_what=(), question=RANKED_Q, **more):
+    return {"ask_id": "a_1", "status": "complete", "question": question, "answer": answer(claims, so_what),
+            "run": run if run is not None else {}, **more}
 
 
 def test_present_adds_the_briefing_beside_the_answer_in_the_run():
@@ -232,6 +236,111 @@ def test_a_briefing_in_a_stored_run_is_never_trusted():
 def test_an_answer_with_no_story_gets_no_briefing_key_and_no_run_is_made_up():
     plain = answer_view.present(record([claim("c1", "One plain claim.")]))
     assert "briefing" not in plain["run"]
-    bare = {"ask_id": "a_1", "status": "complete", "answer": answer([claim("c1", "One plain claim.")])}
+    bare = {"ask_id": "a_1", "status": "complete", "question": RANKED_Q, "answer": answer([claim("c1", "One plain claim.")])}
     assert "run" not in answer_view.present(bare)
     assert "briefing" in answer_view.present({**bare, "answer": answer(THREE)})["run"]
+
+
+# I1: a briefing is read only for a stored question that asked for a ranking, and never for a skin, an investigation
+# or a spike. A claim that starts with a label and a colon is not a story until the question asked for stories.
+
+def labelled(*names):
+    return [claim(f"c{i}", f"{name}: a line under its label.", evidence=(f"p{i}",)) for i, name in enumerate(names, 1)]
+
+
+NOT_RANKED_ASKS = [
+    ("A brief for a data bundle aimed at students in Nigeria.", labelled("Tensions", "Sounds", "Language to avoid")),
+    ("Compare football banter in South Africa, Nigeria and Kenya.", labelled("South Africa", "Nigeria", "Kenya")),
+    ("How is the Springbok tour playing on social?", labelled("TikTok", "X")),
+    ("What is happening with amapiano Sundays?", THREE),
+    ("", THREE),
+    (None, THREE),
+]
+
+
+@pytest.mark.parametrize("question,claims", NOT_RANKED_ASKS)
+def test_an_answer_to_a_question_that_asked_for_no_ranking_gets_no_briefing(question, claims):
+    shown = answer_view.present(record(claims, question=question))
+    assert "briefing" not in shown["run"]
+
+
+def test_the_three_misfire_answers_would_read_as_stories_if_the_question_were_not_asked():
+    for _, claims in NOT_RANKED_ASKS[:3]:
+        assert briefing.stories(answer(claims)) is not None
+
+
+def test_a_record_with_no_question_gets_no_briefing():
+    bare = record()
+    del bare["question"]
+    assert "briefing" not in answer_view.present(bare)["run"]
+
+
+@pytest.mark.parametrize("more", [{"skin_id": "skin_1"}, {"investigation_id": "inv_1"}, {"spike": {"item_id": "i"}}])
+def test_a_skin_an_investigation_or_a_spike_gets_no_briefing_even_for_a_ranked_question(more):
+    assert "briefing" not in answer_view.present(record(**more))["run"]
+
+
+def test_a_record_that_has_no_skin_and_no_spike_is_read_with_those_keys_null_or_absent():
+    assert "briefing" in answer_view.present(record(skin_id=None, investigation_id=None, spike=None))["run"]
+
+
+def test_for_record_is_the_one_gate_present_uses():
+    shown = record()
+    assert briefing.for_record(shown, shown["answer"]) == briefing.stories(shown["answer"])
+    assert briefing.for_record(None, shown["answer"]) is None
+    assert briefing.for_record({"answer": shown["answer"]}, shown["answer"]) is None
+
+
+# M2: claims of two stories are never one fact, so a merge cannot move a so-what line to another story.
+
+def test_two_stories_that_quote_the_same_words_with_the_same_figures_are_not_merged():
+    quote = [{"evidence_id": "p1", "text": "burning tyres at the intersection"}]
+    one = {**sized("c1", "Soweto unrest", 640, 301, "q_a", 4), "quotes": quote, "evidence_ids": ["p1"]}
+    two = {**sized("c2", "Cup final", 640, 301, "q_a", 4), "quotes": quote, "evidence_ids": ["p1"]}
+    lines = [{"text": "Pause posts near the routes.", "claim_ids": ["c1"]}, {"text": "Plan for the whistle.", "claim_ids": ["c2"]}]
+    shown = answer_view.present(record([one, two], so_what=lines))
+    assert [c["id"] for c in shown["answer"]["claims"]] == ["c1", "c2"]
+    assert [(s["name"], s["so_what"]) for s in shown["run"]["briefing"]["stories"]] == [("Soweto unrest", [0]), ("Cup final", [1])]
+
+
+def test_a_claim_said_twice_inside_one_story_still_merges():
+    quote = [{"evidence_id": "p1", "text": "burning tyres at the intersection"}]
+    one = {**sized("c1", "Soweto unrest", 640, 301, "q_a", 4), "quotes": quote}
+    twin = {**one, "id": "c2"}
+    other = sized("c3", "Cup final", 512, 233, "q_b", 4)
+    shown = answer_view.present(record([one, twin, other]))
+    assert [c["id"] for c in shown["answer"]["claims"]] == ["c1", "c3"]
+
+
+# M3: a masked name is not a story name.
+
+def test_a_name_a_skin_has_masked_is_no_story_name_so_two_masked_names_never_fold_into_one_story():
+    claims = [claim("c1", "*** skit: a line.", evidence=("p1",)), claim("c2", "*** skit: another line.", evidence=("p2",)),
+              sized("c3", "Cup final", 512, 233, "q_b"), sized("c4", "Murder trial", 120, 77, "q_c")]
+    got = briefing.stories(answer(claims))
+    assert [s["name"] for s in got["stories"]] == ["Cup final", "Murder trial"] and got["other_claim_ids"] == ["c1", "c2"]
+
+
+# M5: the cases a mutation pass found nothing pinning.
+
+def test_a_zero_figure_is_not_a_size():
+    zero = claim("c1", "Soweto unrest: nothing.", numbers=[number(0, "posts", "q_a"), number(5, "creators", "q_a")])
+    assert briefing.stories(answer([zero, THREE[2]]))["stories"][0]["size"] is None
+
+
+def test_every_figure_the_one_query_gives_is_named_in_order():
+    got = briefing.stories(answer(THREE))["stories"][0]["size"]["figures"]
+    assert [f["unit"] for f in got] == ["posts", "creators", "platforms"] and [f["index"] for f in got] == [0, 1, 2]
+
+
+def test_a_name_with_no_letter_or_a_padded_name_is_not_a_story():
+    other = [sized("c8", "Cup final", 301, 150, "q_b"), sized("c9", "Murder trial", 120, 77, "q_c")]
+    for text in ("***: a line.", "..: a line.", " Soweto unrest: a line.", "Soweto unrest : a line."):
+        got = briefing.stories(answer([claim("c1", text), *other]))
+        assert [s["name"] for s in got["stories"]] == ["Cup final", "Murder trial"], text
+
+
+def test_a_so_what_line_that_names_a_claim_that_is_not_there_is_not_attached():
+    lines = [{"text": "Mixed.", "claim_ids": ["c1", "c99"]}, {"text": "Fine.", "claim_ids": ["c3"]}]
+    got = briefing.stories(answer(THREE, so_what=lines))
+    assert [s["so_what"] for s in got["stories"]] == [[], [1], []]

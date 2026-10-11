@@ -21,11 +21,13 @@ from __future__ import annotations
 
 import re
 
+from core.agent.asks import asks_ranked
+
 KIND = "ranked_stories"
 SIZE_UNITS = ("posts", "creators", "platforms")
 _STORY_KINDS = ("observation", "interpretation")
 _PREFIX = re.compile(r"^(?P<name>[^:\n]{1,60}): (?P<rest>\S.*)$", re.S)
-_NOT_A_NAME = re.compile(r"[\d#@/\\<>\[\]{}()|\"]")
+_NOT_A_NAME = re.compile(r"[\d#@*/\\<>\[\]{}()|\"]")  # a * is a name a skin has masked
 _MAX_NAME_WORDS = 8
 _HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -81,6 +83,15 @@ def _size(story_claims: list[dict]) -> dict | None:
 def _amount(claims: dict, size: dict, unit: str):
     figure = next(f for f in size["figures"] if f["unit"] == unit)
     return claims[size["claim_id"]]["numbers"][figure["index"]]["value"]
+
+
+def for_record(record, answer) -> dict | None:
+    """The briefing of a stored record's answer, only when the record's own question asked which stories lead and the
+    record is no skin run, investigation or spike. A claim that starts with a label and a colon is not a story until the
+    question asked for stories: a brief's sections, a comparison's markets and a platform split all look like one."""
+    if not isinstance(record, dict) or record.get("skin_id") or record.get("investigation_id") or record.get("spike"):
+        return None
+    return stories(answer) if asks_ranked(record.get("question")) else None
 
 
 def stories(answer) -> dict | None:

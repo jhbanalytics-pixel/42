@@ -47,7 +47,7 @@ def _plain(value):
 
 def _fact_key(claim: dict):
     """What a claim rests on: its kind, the posts and words it quotes (each as its post id and its words), and the
-    figures it carries (value, unit and the query that gave it). Two claims are one fact only when all three match.
+    figures it carries (value, unit and the query that gave it). Two claims are one fact only when all three match and they name the same story (briefing.story_name), or none.
     A claim that quotes nothing has no key and is never merged, and nor is a proposal."""
     if claim.get("kind") == "proposal":
         return None
@@ -57,7 +57,8 @@ def _fact_key(claim: dict):
         return None
     numbers = frozenset((_plain(n.get("value")), _plain(n.get("unit")), _plain(n.get("query_id")))
                         for n in claim.get("numbers") or [] if isinstance(n, dict))
-    return (claim.get("kind"), quotes, numbers)
+    name = briefing.story_name(claim.get("text"))  # claims of two stories are never one fact
+    return (claim.get("kind"), quotes, numbers, " ".join(name.split()).casefold() if name else None)
 
 
 def _strength(claim: dict, index: int):
@@ -224,7 +225,7 @@ def present(record: dict) -> dict:
     if isinstance(shown.get("run"), dict) and isinstance(shown["run"].get("followups"), list):
         shown["run"] = {**shown["run"], "followups": plain_followups(shown["run"]["followups"])}
     # The ranked briefing is read from the claims on every read. A briefing found in a stored run is not read as one.
-    stories = briefing.stories(answer)
+    stories = briefing.for_record(shown, answer)
     run = shown.get("run") if isinstance(shown.get("run"), dict) else None
     if stories is not None:
         shown["run"] = {**(run or {}), "briefing": stories}
