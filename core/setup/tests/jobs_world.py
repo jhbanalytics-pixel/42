@@ -26,6 +26,10 @@ B_RID = "rel-b5e1a2c-01"
 A_RID = rw.RID
 ROLLBACK_DIGEST = "sha256:e77c3819cc688d7690d4370a5fd575026e4d3e62c0ab322d54b6eabb515c75de"
 NEW_DIGEST = "sha256:" + "b2" * 32
+# Release B as it went live on 11 Oct 2026, and the image a Release D build gets in the offline world. Both are literals of the tests,
+# never read from the code under test.
+B_LIVE_DIGEST = "sha256:a81ea0b5444c992171845a205a22c10721d50714884a50fd34747ac95dcbf0d0"
+D_DIGEST = "sha256:" + "d4" * 32
 OLD_DIGEST = "sha256:17ad022e" + "0" * 56
 RUN_DATE = dt.date(2026, 10, 10)
 A_TERMINAL_AT = "2026-10-09T10:00:00+00:00"
@@ -383,11 +387,12 @@ class ReleaseWorld(ChainFixture):
         self.fake_reader = None
         self.quiet_rows = []
 
-    def prepare(self, *, baseline=None, frozen=True, **over):
-        """Bindings with every release key. The baseline chain manifest is produced by the producer itself."""
+    def prepare(self, *, baseline=None, frozen=True, bindings_over=None, **over):
+        """Bindings with every release key. The baseline chain manifest is produced by the producer itself. `bindings_over` are bindings the
+        producer reads (a prior jobs release, the release letter), so they are in place before the producer runs; `over` are set after it."""
         from core.setup.release import chain_evidence as ce
 
-        bound = self.write_bindings(**({"baseline": baseline} if baseline else {}))
+        bound = self.write_bindings(**({"baseline": baseline} if baseline else {}), **(bindings_over or {}))
         durable_sha = write_json(self.release_dir / "durable-effects.json", {"schema_version": 1, "effects": DURABLE_EFFECTS})
         manifest = ce.build_manifest(bound, self.reader(), self.bq(), self.day, "baseline", now=lambda: self.now)
         path = ce.write_manifest(self.release_dir, manifest)

@@ -14,6 +14,9 @@ baseline-J (kind "baseline-J", schema_version 1) is captured after Release A's t
     aTerminal   {kind: AfterPromotion | AfterRollback, at_utc, a_release_id}
     a80Serving  the a80 serving revision name per service, used when A was rolled back
     captured_utc
+    priorJobsRelease   only when the release follows a jobs release (Release D on Release B): the record of that release (jobs_baseline).
+                       The bindings carry the same record. The rollback digest and the job definitions a rollback restores are its, and the
+                       baseline chain is counted from its AfterJobsUpdate readback and not from Release A's terminal readback.
 """
 from __future__ import annotations
 
@@ -24,6 +27,7 @@ import re
 from pathlib import Path
 
 from core.setup import durable_effects_check as de
+from core.setup.release import jobs_baseline as jb
 from core.setup.release import jobs_source as js
 from core.setup.release import services_only as so
 from core.setup.release.services_only import Probe, Stop, require
@@ -54,7 +58,11 @@ RELEASE_BINDINGS = (*PRODUCER_BINDINGS, "baselineChainPath", "baselineChainSha25
                     "dockerfileSha256", "durableManifestSha256", "durableManifestPath", "dryRunReceiptSha256", "dryRunReceiptPath",
                     "schemaReadbackReceiptPath", "schemaReadbackReceiptSha256", "quietTemplateHashes", "window", "maxBaselineAgeDays",
                     "maxCandidateAgeHours", "priorAttempts", "priorLedgers")
+# Keys a release may carry beyond RELEASE_BINDINGS, only when it follows a jobs release: the record of that release and the letter of this
+# one in the two lines Albert types. A release without a prior carries neither of the first, and its letter is B when it carries none.
+OPTIONAL_BINDINGS = ("priorJobsRelease", "releaseLetter")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+RELEASE_LETTER = re.compile(r"[A-Z]\Z")
 HASH_KEYS = ("baselineSha256", "baselineChainSha256", "buildConfigSha256", "dockerfileSha256", "durableManifestSha256",
              "dryRunReceiptSha256", "schemaReadbackReceiptSha256")
 
@@ -71,6 +79,15 @@ def validate_jobs_bindings(bound, *, producer=False):
     require(re.fullmatch(r"[0-9a-f]{40}", str(bound["target"])) and str(bound["release_id"])[4:11] == bound["target"][:7],
             "BINDINGS", "The release id does not name the target commit")
     require(JOBS_DIGEST.match(str(bound["rollbackJobsDigest"])), "BINDINGS", "rollbackJobsDigest is not a sha256 digest")
+    # A release bound to a jobs release that is live: the record is checked here, on the acting path, and the rollback digest must be its
+    # digest, so no bindings can name one image to restore and another release as the one before.
+    if "priorJobsRelease" in bound:
+        record = jb.validate_prior_jobs_release(bound["priorJobsRelease"])
+        require(bound["rollbackJobsDigest"] == record["image_digest"], "BINDINGS", "rollbackJobsDigest is not the digest of the prior jobs release")
+        require("releaseLetter" in bound, "BINDINGS", "A release bound to a prior jobs release needs a releaseLetter")
+    if "releaseLetter" in bound:
+        require(isinstance(bound["releaseLetter"], str) and RELEASE_LETTER.match(bound["releaseLetter"]), "BINDINGS",
+                "releaseLetter is not one capital letter")
     for key in HASH_KEYS:
         if key in bound:
             require(SHA256.match(str(bound[key])), "BINDINGS", f"{key} is not a sha256")
@@ -111,7 +128,27 @@ def load_baseline_j(bound):
     terminal = baseline.get("aTerminal")
     require(isinstance(terminal, dict) and terminal.get("kind") in A_TERMINAL_KINDS and isinstance(terminal.get("at_utc"), str)
             and bool(terminal.get("at_utc")), "A_STATE", "baseline-J does not bind Release A's terminal readback")
+    # The bindings and the baseline must name the same prior release, or neither. The record in the bindings is the expectation; a baseline
+    # that carries another record, or one the bindings do not name, is refused, and so is a baseline that was not captured against its digest.
+    held = baseline.get("priorJobsRelease")
+    require(bound.get("priorJobsRelease") == held, "BASELINE", "baseline-J and the bindings do not name the same prior jobs release")
+    if held is not None:
+        jb.validate_prior_jobs_release(held)
+        require(baseline.get("rollbackJobsDigest") == held["image_digest"], "BASELINE",
+                "baseline-J was not captured against the digest of the prior jobs release")
     return baseline
+
+
+def chain_anchor(baseline):
+    """{kind, at_utc} of the terminal readback the baseline chain is counted from: the AfterJobsUpdate of the prior jobs release when
+    baseline-J names one, else Release A's terminal readback."""
+    prior = baseline.get("priorJobsRelease")
+    terminal = prior["terminal"] if prior is not None else baseline["aTerminal"]
+    return {"kind": terminal["kind"], "at_utc": terminal["at_utc"]}
+
+
+def anchor_label(baseline):
+    return "the prior jobs release's AfterJobsUpdate readback" if baseline.get("priorJobsRelease") is not None else "Release A's terminal readback"
 
 
 def image_reference(digest):
@@ -454,6 +491,12 @@ def check_baseline_images(rel):
     for name in so.JOB_NAMES:
         require(rel.baseline["jobs"][name]["image"] == image_reference(rel.bound["rollbackJobsDigest"]), "BASELINE",
                 f"The baseline image of {name} is not the bound rollback digest")
+    # A rollback restores the prior release's definitions exactly, so the baseline it restores to is held to the fingerprints the record binds.
+    prior = rel.bound.get("priorJobsRelease")
+    if prior is not None:
+        for name in so.JOB_NAMES:
+            require(so.fingerprint(rel.baseline["jobs"][name]) == prior["job_definitions"][name], "BASELINE",
+                    f"The baseline definition of {name} is not the one the prior jobs release left")
 
 
 def check_services(rel, *, a_state=True):
@@ -486,14 +529,13 @@ def check_baseline_chain(rel):
     require(manifest.get("role") == "baseline", "BASELINE", "The baseline chain manifest was not produced as a baseline")
     require(manifest.get("jobs_image", {}).get("expected_digest") == rel.bound["rollbackJobsDigest"], "BASELINE",
             "The baseline chain was judged against another digest than the bound rollback digest")
-    terminal = rel.baseline["aTerminal"]
-    require(manifest.get("a_terminal") == {"kind": terminal["kind"], "at_utc": terminal["at_utc"]}, "BASELINE",
-            "The baseline chain manifest was made against another Release A terminal readback")
+    terminal, label = chain_anchor(rel.baseline), anchor_label(rel.baseline)
+    require(manifest.get("a_terminal") == terminal, "BASELINE", f"The baseline chain manifest was made against another terminal readback than {label}")
     verdict = manifest.get("verdict", {})
     reasons = verdict.get("reasons")
     require(isinstance(reasons, list) and set(reasons) <= set(CHAIN_CODES) and verdict.get("qualifies") is (not reasons), "BASELINE",
             "The baseline chain verdict does not agree with its own reasons")
-    require("WINDOW" not in reasons, "BASELINE", "The baseline chain ran before Release A's terminal readback")
+    require("WINDOW" not in reasons, "BASELINE", f"The baseline chain ran before {label}")
     if not verdict["qualifies"]:
         degradation = manifest.get("stages", {}).get("understand", {}).get("degradation") or {}
         lines = list((degradation.get("cluster_error_first_lines") or {}).values())
@@ -506,7 +548,7 @@ def check_baseline_chain(rel):
     at = aware(terminal["at_utc"]).astimezone(SAST)
     first_chain = at.date() if at.time() < COLLECT_START_SAST else at.date() + dt.timedelta(days=1)
     require(day in (first_chain, first_chain + dt.timedelta(days=1)), "BASELINE",
-            f"The baseline chain of {day.isoformat()} is not one of the first two chains after Release A's terminal readback (Q3)")
+            f"The baseline chain of {day.isoformat()} is not one of the first two chains after {label} (Q3)")
     require(0 <= (today - day).days <= rel.bound["maxBaselineAgeDays"], "BASELINE_AGE",
             f"The baseline chain of {day.isoformat()} is outside the bound maximum age")
     rel.observations["baseline_chain"] = {"run_date": day.isoformat(), "qualifies": verdict["qualifies"],
