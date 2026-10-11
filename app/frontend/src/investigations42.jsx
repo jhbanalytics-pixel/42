@@ -14,6 +14,7 @@ import './styles/investigations42.css';
 import {readerFigure} from './api.js';
 import {costWords, itemsWords} from './costWords.js';
 import {validateAnswer} from './answerContract.js';
+import {withParents} from './askEvidence.js';
 import {answerStatusWords, noShortAnswer} from './ask42.jsx';
 import {stoppedEarly, summaryNotice} from './answerMeta.js';
 import {peopleWords, privacyNotice} from './privacyNotice.js';
@@ -696,7 +697,7 @@ function InvestigationAnswer({record, investigationId, onFailure}){
   const [exportError, setExportError] = useState('');
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState('');
-  const records = new Map((answer.evidence || []).map((item) => [item.id, item]));
+  const records = new Map(withParents(answer.evidence).map((item) => [item.id, item]));
   const figures = (answer.claims || []).flatMap((claim) => claim.numbers || []).slice(0, 4);
   const notices = Array.isArray(run.notices) ? run.notices : [];
   const followups = Array.isArray(run.followups) ? run.followups.slice(0, 3) : [];
@@ -764,7 +765,7 @@ function InvestigationAnswer({record, investigationId, onFailure}){
           </ol>
         )}
 
-        <PostStrip evidence={answer.evidence} />
+        <PostStrip evidence={withParents(answer.evidence)} />
 
         {figures.length > 0 && (
           <section className="ask42-section" aria-labelledby="inv42-figures-title">

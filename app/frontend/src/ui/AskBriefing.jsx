@@ -5,7 +5,7 @@
 import {useState} from 'react';
 import {readerFigure} from '../api.js';
 import {safeUrl} from '../safeUrl.js';
-import {isComment, parentWords} from '../askEvidence.js';
+import {isComment, parentShown, parentWords} from '../askEvidence.js';
 import {EvidenceChip, clock, postDay, sourceMarketLabel, viewsLine} from './EvidenceChip.jsx';
 import {PlatformLogo} from './PlatformLogo.jsx';
 import {platformLabel} from './PlatformGlyph.jsx';
@@ -38,7 +38,7 @@ function PostTile({post, quote, pinned, onPin}){
         </span>
         {facts.length > 0 && <span className="ask42-muted ask42-tile-facts">{facts.join(' · ')}</span>}
         <span className="ask42-tile-line" title={line}>{span ? <span className="ask42-muted">{clock(span.start_s) + ' '}</span> : null}{line}</span>
-        {url && <a className="ask42-tile-open" href={url} target="_blank" rel="noopener noreferrer" aria-label={'Open the post by ' + String(post.handle || 'this account')}>Open post</a>}
+        {url && <a className="ask42-tile-open" href={url} target="_blank" rel="noopener noreferrer" aria-label={'Open post by ' + String(post.handle || 'this account')}>Open post</a>}
       </span>
     </li>
   );
@@ -56,8 +56,8 @@ function Commenters({comments, quotes, pinnedId, onPin}){
     <div className="ask42-commenters">
       <h4 className="ask42-commenters-title">What commenters said</h4>
       {[...groups].map(([url, items]) => {
-        const link = safeUrl(url);
         const whose = parentWords(items[0]);
+        const link = parentShown(items[0]) ? safeUrl(url) : null;
         return (
           <div className="ask42-commenters-group" key={url}>
             <p className="ask42-muted ask42-commenters-on">{'On '}{link ? <a href={link} target="_blank" rel="noopener noreferrer">{whose}</a> : whose}</p>
@@ -99,7 +99,7 @@ export function FindingCard({claim, records, quoteMap, confidence, pinnedId, onP
         </ul>
       )}
       {posts.length > TILES_SHOWN && (
-        <button type="button" className="ask42-quiet ask42-tiles-more" aria-expanded={all ? 'true' : 'false'} aria-label={all ? 'Show fewer posts' : 'Show ' + hidden + ' more ' + (hidden === 1 ? 'post' : 'posts')} onClick={() => setAll((value) => !value)}>
+        <button type="button" className="ask42-quiet ask42-tiles-more" aria-expanded={all ? 'true' : 'false'} aria-label={all ? 'Fewer posts' : 'and ' + hidden + ' more ' + (hidden === 1 ? 'post' : 'posts')} onClick={() => setAll((value) => !value)}>
           {all ? 'Fewer' : 'and ' + hidden + ' more'}
         </button>
       )}

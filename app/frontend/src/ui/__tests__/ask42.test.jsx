@@ -694,7 +694,7 @@ test('a finding shows four posts and a disclosure keeps keyboard focus while exp
   expect(plain(sourceChips()[0].querySelector('.ask42-chip-handle').textContent)).toBe('@fixture_za_1');
   expect(Boolean(more)).toBe(true);
   expect(more.getAttribute('aria-expanded')).toBe('false');
-  expect(more.getAttribute('aria-label')).toBe('Show 1 more post');
+  expect(more.getAttribute('aria-label')).toBe('and 1 more post');
   expect(plain(more.textContent)).toBe('and 1 more');
 
   await act(async () => { more.focus(); more.click(); });
@@ -702,7 +702,7 @@ test('a finding shows four posts and a disclosure keeps keyboard focus while exp
   expect(fewer === more).toBe(true);
   expect(document.activeElement === fewer).toBe(true);
   expect(fewer.getAttribute('aria-expanded')).toBe('true');
-  expect(fewer.getAttribute('aria-label')).toBe('Show fewer posts');
+  expect(fewer.getAttribute('aria-label')).toBe('Fewer posts');
   expect(plain(fewer.textContent)).toBe('Fewer');
   expect(sourceChips().length).toBe(5);
 
@@ -723,7 +723,7 @@ test('a finding shows four posts and a disclosure keeps keyboard focus while exp
   expect(collapsed === fewer).toBe(true);
   expect(document.activeElement === collapsed).toBe(true);
   expect(collapsed.getAttribute('aria-expanded')).toBe('false');
-  expect(collapsed.getAttribute('aria-label')).toBe('Show 1 more post');
+  expect(collapsed.getAttribute('aria-label')).toBe('and 1 more post');
   expect(sourceChips().length).toBe(4);
   expect(plain(panel.textContent)).toContain('@fixture_za_2');
 });

@@ -7,10 +7,14 @@ import {useState} from 'react';
 import {platformLabel} from './PlatformGlyph.jsx';
 import {clock, postAuthorLabel, postDay, postName, sourceMarketLabel, viewsLine} from './EvidenceChip.jsx';
 import {safeUrl} from '../safeUrl.js';
+import {isComment, parentShown} from '../askEvidence.js';
 import {Facts} from './Facts.jsx';
 import '../styles/poststrip42.css';
 
 const MAX_POSTS = 8;
+
+/* A comment carries the link of its post, so it links only when that post is shown (askEvidence.js). */
+const linkOf = (post) => (isComment(post) && !parentShown(post) ? null : safeUrl(post.url));
 
 export function PostStrip({evidence}){
   const [failedThumbnails, setFailedThumbnails] = useState(() => new Set());
@@ -42,7 +46,7 @@ export function PostStrip({evidence}){
         {withStill.map((post) => {
           const duration = clock(post.duration_s);
           const author = postAuthorLabel(post, 'YouTube channel');
-          const url = safeUrl(post.url);
+          const url = linkOf(post);
           const thumbnail = stillOf(post);
           const still = (
             <>
@@ -66,7 +70,7 @@ export function PostStrip({evidence}){
           const duration = clock(post.duration_s);
           const platform = platformLabel(post.platform) || String(post.platform || '') || 'Post';
           const author = postAuthorLabel(post, 'YouTube channel');
-          const url = safeUrl(post.url);
+          const url = linkOf(post);
           return (
             <li className="ask42-post ask42-post-row" key={post.id} data-post-row="">
               {/* No frame is drawn; the missing still is said to assistive tech only. */}

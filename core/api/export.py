@@ -317,34 +317,6 @@ def _platform_counts(run):
     return totals, failed
 
 
-def _step_text(text):
-    words = " ".join(str(text or "").split())
-    if not words:
-        return "Working on the question"
-    if re.match(r"^Counting in the warehouse\b", words, re.I):
-        return "Counting posts in the archive"
-    if re.match(r"^Checking saved findings\b", words, re.I):
-        return "Checking findings already saved on this question"
-    if re.match(r"^A warehouse count\b", words, re.I):
-        return re.sub(r"^A warehouse count", "A count in the archive", words, flags=re.I)
-    if re.match(r"^Using\s+\S+$", words):
-        return "Running a lookup"
-    words = re.sub(r"^Critic:\s*", "Reviewing the claims: ", words)
-    return re.sub(r",?\s*tier T\d\b", "", words)
-
-
-def _timeline(steps):
-    """Consecutive steps that read the same become one row with a count; the heading counts the rows."""
-    rows = []
-    for step in steps or []:
-        text = _step_text(step.get("text") if isinstance(step, dict) else step)
-        if rows and rows[-1][0] == text:
-            rows[-1][1] += 1
-        else:
-            rows.append([text, 1])
-    return rows
-
-
 def _post_line(item, quote_text):
     text = " ".join(str(quote_text or item.get("text") or "").split())
     return text if len(text) <= 160 else text[:157].rstrip() + "..."
@@ -400,6 +372,14 @@ def _render_post_tile(item, number, quote_text):
     )
 
 
+def _parent_words(parent):
+    """How a comment's post is named: by the handle of that post when it is one of the sources shown, which the privacy
+    readers have already judged, and otherwise "a post". The comment's own link holds the address of its post, handle
+    and all, so it names nobody the readers could not see (a hidden creator's old handle stays in the address)."""
+    handle = (parent or {}).get("handle")
+    return f"@{str(handle).lstrip('@')}'s post" if handle else "a post"
+
+
 def _render_commenters(comments, quotes, number_of, by_url):
     """One quiet row per post the comments sit under, the comments beneath it."""
     out = ['<div class="commenters"><h4>What commenters said</h4>']
@@ -408,9 +388,8 @@ def _render_commenters(comments, quotes, number_of, by_url):
         groups.setdefault(item.get("url") or "", []).append(item)
     for url, items in groups.items():
         parent = by_url.get(url)
-        handle = answer_view.comment_parent_handle(items[0]) or (parent or {}).get("handle")
-        whose = f"@{str(handle).lstrip('@')}'s post" if handle else "a post"
-        link = _web_link(url)
+        whose = _parent_words(parent)
+        link = _web_link(url) if parent else None
         label = f'<a href="{html.escape(link, quote=True)}">{_e(whose)}</a>' if link else _e(whose)
         out.append(f'<p class="note">On {label}</p><ul class="said">')
         for item in items:
@@ -551,29 +530,24 @@ def render_answer_html(record: dict) -> str:
         out.append(_p(answer["context"]))
         out.append("</section>")
 
-    rows = _timeline(record.get("steps"))
-    if rows:
-        out.append(f"<section><details><summary>How this was researched · {_count(len(rows), 'step')}</summary><ol>")
-        out.extend(f"<li>{_e(text)}" + (f" ×{times}" if times > 1 else "") + "</li>" for text, times in rows)
-        out.append("</ol></details></section>")
-
     if evidence:
         out.append("<section><h2>Sources</h2>")
         for index, item in enumerate(evidence, start=1):
             platform = item.get("platform") or ""
             out.append(f'<article id="source-{index}">')
             if answer_view.is_comment(item):
-                handle = answer_view.comment_parent_handle(item)
-                whose = f"@{handle}'s post" if handle else "a post"
+                parent = by_url.get(item.get("url"))
+                whose = _parent_words(parent)
                 out.append(f"<h3>[{index}] Comment on {_e(whose)} ({_e(_PLATFORM.get(platform, platform))})</h3>")
                 out.append(_p("Comment by " + str(item.get("handle") or "an unnamed account"), "meta"))
             else:
                 out.append(f"<h3>[{index}] {_e(_PLATFORM.get(platform, platform))} · {_e(item.get('handle'))}</h3>")
             out.append(_p(_date_text(item.get("posted_at")), "meta"))
-            link = _web_link(item.get("url"))
+            shown_link = not answer_view.is_comment(item) or item.get("url") in by_url
+            link = _web_link(item.get("url")) if shown_link else None
             if link:
                 out.append(f'<p><a href="{html.escape(link, quote=True)}">{_e(link)}</a></p>')
-            else:
+            elif shown_link:
                 out.append(_p(str(item.get("url") or "No link recorded") + " (not linked)", "note"))
             out.append(f"<blockquote>{_e(item.get('text'))}</blockquote>")
             out.append("</article>")

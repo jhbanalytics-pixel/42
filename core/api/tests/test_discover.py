@@ -2390,3 +2390,25 @@ def test_radar_filters_are_not_string_built_into_a_query(fx):
     store = Patched(item_states=lambda run, market, *rest: seen.append((run, market, rest)) or FixtureStore().item_states(run, market))
     discover.build_discover(store, "ZA", platform="x,instagram", state="rising")
     assert seen and all(rest == () and market == "ZA" for _, market, rest in seen)
+
+
+# ---------- a platform another market carries is no match here, not an error (Release C review m1) ----------
+
+@pytest.mark.parametrize("platform", ["boomplay", "nairaland", "audiomack", "turntable", "boomplay,tiktok"])
+def test_a_platform_that_only_another_markets_rows_carry_is_no_match_and_not_an_error(fx, platform):
+    # The page keeps its picked platforms when the market tab changes, so Boomplay picked on NG reaches ZA.
+    listed = discover.build_discover(fx, "ZA", platform=platform)
+    plotted = discover.build_radar(fx, "ZA", platform=platform)
+    assert "boomplay" not in listed["filters"]["platforms"]  # ZA does not offer it
+    if "tiktok" in platform:
+        assert ids(listed["items"])  # the platform ZA does carry still matches
+        assert {p["item_id"] for p in plotted["points"]} == set(ids(listed["items"]))
+    else:
+        assert listed["items"] == [] and plotted["points"] == []
+    assert listed["filters"]["platforms"] == ["instagram", "tiktok", "x"]
+
+
+def test_a_platform_no_market_has_is_still_refused_after_the_vocabulary_widened(fx):
+    for name in ("myspace", "boomplay2", "board_boomplay"):
+        with pytest.raises(discover.BadRequest):
+            discover.build_discover(fx, "ZA", platform=name)

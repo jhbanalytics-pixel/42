@@ -335,6 +335,100 @@ test('the market is a segmented control and the filters sit behind a Filters but
   expect(host.querySelector('button.d42-filters-open').getAttribute('aria-expanded')).toBe('false');
 });
 
+/* Release C review m3: on a phone the groups open as a sheet over a backdrop, so the sheet is a dialog. */
+const press = (target, key, extra = {}) => {
+  const event = new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true, ...extra});
+  flushSync(() => target.dispatchEvent(event));
+  return event;
+};
+
+test('the filter sheet is a dialog named Filters only while it is open, and focus moves into it', async () => {
+  await mount(base());
+  const open = host.querySelector('button.d42-filters-open');
+  const groups = host.querySelector('#d42-filter-groups');
+  expect(groups.getAttribute('role')).toBeNull();
+  expect(groups.getAttribute('aria-modal')).toBeNull();
+  open.focus();
+  click(open);
+  await settle();
+  expect(groups.getAttribute('role')).toBe('dialog');
+  expect(groups.getAttribute('aria-modal')).toBe('true');
+  expect(document.getElementById(groups.getAttribute('aria-labelledby')).textContent).toBe('Filters');
+  expect(groups.contains(document.activeElement)).toBe(true);
+  click(open);
+  await settle();
+  expect(groups.getAttribute('role')).toBeNull();
+});
+
+test('Escape closes the open filter sheet from inside it and from outside it, and focus returns to the Filters button', async () => {
+  await mount(base());
+  const open = host.querySelector('button.d42-filters-open');
+  const groups = host.querySelector('#d42-filter-groups');
+  open.focus();
+  click(open);
+  await settle();
+  press(document.activeElement, 'Escape');
+  await settle();
+  expect(open.getAttribute('aria-expanded')).toBe('false');
+  expect(document.activeElement === open).toBe(true);
+
+  click(open);
+  await settle();
+  const outside = document.createElement('button');
+  document.body.appendChild(outside);
+  outside.focus();
+  expect(groups.contains(document.activeElement)).toBe(false);
+  press(outside, 'Escape');
+  await settle();
+  outside.remove();
+  expect(open.getAttribute('aria-expanded')).toBe('false');
+  expect(document.activeElement === open).toBe(true);
+
+  press(document.body, 'Escape');
+  await settle();
+  expect(open.getAttribute('aria-expanded')).toBe('false'); // a closed sheet has nothing to close
+});
+
+test('Show results and the backdrop close the sheet and give focus back too', async () => {
+  await mount(base());
+  const open = host.querySelector('button.d42-filters-open');
+  open.focus();
+  click(open);
+  await settle();
+  const done = [...host.querySelectorAll('#d42-filter-groups button')].find((b) => b.textContent.trim() === 'Show results');
+  done.focus();
+  click(done);
+  await settle();
+  expect(document.activeElement === open).toBe(true);
+  click(open);
+  await settle();
+  host.querySelector('#d42-filter-groups button').focus();
+  click(host.querySelector('button.d42-backdrop'));
+  await settle();
+  expect(open.getAttribute('aria-expanded')).toBe('false');
+  expect(document.activeElement === open).toBe(true);
+});
+
+test('Tab stays inside the open sheet, wrapping from the last control to the first and back', async () => {
+  await mount(base());
+  const open = host.querySelector('button.d42-filters-open');
+  const groups = host.querySelector('#d42-filter-groups');
+  open.focus();
+  click(open);
+  await settle();
+  const controls = [...groups.querySelectorAll('button')];
+  const [first, last] = [controls[0], controls.at(-1)];
+  expect(first.textContent.trim()).toBe('Show results');
+  last.focus();
+  expect(press(last, 'Tab').defaultPrevented).toBe(true);
+  expect(document.activeElement === first).toBe(true);
+  expect(press(first, 'Tab', {shiftKey: true}).defaultPrevented).toBe(true);
+  expect(document.activeElement === last).toBe(true);
+  const middle = controls[1];
+  middle.focus();
+  expect(press(middle, 'Tab').defaultPrevented).toBe(false); // inside the sheet the browser moves focus itself
+});
+
 test('platform chips carry the platform mark and its name, and a platform without a mark keeps its letter', async () => {
   /* X has its official mark since the Today band; Boomplay is not in the mark set. */
   const page = pageWith(['#alpha', '#beta']);

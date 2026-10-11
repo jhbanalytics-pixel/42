@@ -19,6 +19,8 @@ const actEnvironment = globalThis.IS_REACT_ACT_ENVIRONMENT;
 const {AskPage} = await import('../../ask42.jsx');
 const {ResearchLog, collapseSteps} = await import('../ResearchLog.jsx');
 const evidence = await import('../../askEvidence.js');
+const {PostStrip} = await import('../PostStrip.jsx');
+const {renderToStaticMarkup} = await import('react-dom/server');
 
 const realFetch = globalThis.fetch;
 const realWindowFetch = window.fetch;
@@ -88,7 +90,7 @@ test('a comment is told from a post, names the post it sits under and never coun
   const comment = repeatRecord.answer.evidence.find((item) => item.id.includes('_comment_'));
   expect(evidence.isComment(comment)).toBe(true);
   expect(evidence.isComment(repeatRecord.answer.evidence[0])).toBe(false);
-  expect(evidence.parentWords(comment)).toBe("@lerato_clips_22's post");
+  expect(evidence.parentWords(evidence.withParents(repeatRecord.answer.evidence).find(evidence.isComment))).toBe("@lerato_clips_22's post");
   expect(evidence.parentWords({id: 'instagram_comment_9', url: 'https://www.instagram.com/p/Cx1/'})).toBe('a post');
   expect(evidence.basisWords(repeatRecord.answer.evidence)).toBe('Answer based on 3 posts by 3 creators and 2 comments');
 });
@@ -121,6 +123,79 @@ test('a comment source says it is a comment on the post, never a post by the com
   await act(async () => chips[0].click());
   await until(() => host.querySelector('.ask42-source-title'), 'the pinned comment');
   expect(words(host.querySelector('.ask42-source-title'))).toBe("TikTok comment on @lerato_clips_22's post");
+});
+
+test('a comment names its post only when that post is among the sources shown, and nothing else can name it', () => {
+  const list = repeatRecord.answer.evidence;
+  const comment = list.find(evidence.isComment);
+  expect(evidence.parentWords(comment)).toBe('a post'); // the link holds the post address, but no one has judged it
+  expect(evidence.parentWords({...comment, parent_handle: 'lerato_clips_22'})).toBe('a post'); // a field on the wire names no one
+  const shown = evidence.withParents(list.filter((item) => item.id !== 'tt_post_2'));
+  expect(shown.filter(evidence.isComment).map(evidence.parentWords)).toEqual(['a post', 'a post']);
+  expect(evidence.withParents(list).filter(evidence.isComment).map(evidence.parentWords)).toEqual(["@lerato_clips_22's post", "@lerato_clips_22's post"]);
+  expect(list.find(evidence.isComment)).toBe(comment); // the record is not changed
+  expect(evidence.withParents(null)).toEqual([]);
+});
+
+/* Release C review I3: the comment's link is its post's link, handle and all, so a creator hidden by id and renamed
+   since still shows in it by the old handle, which no reader could mask. */
+function unlistedParent(){
+  const record = clone(repeatRecord);
+  record.answer.evidence = record.answer.evidence.filter((item) => item.id !== 'tt_post_2');
+  for (const item of record.answer.evidence){
+    if (evidence.isComment(item)) item.url = 'https://www.tiktok.com/@hid_old_handle/video/7701000000000000002';
+  }
+  const first = record.answer.claims.find((claim) => claim.id === 'c2');
+  first.evidence_ids = first.evidence_ids.filter((id) => id !== 'tt_post_2');
+  first.quotes = (first.quotes || []).filter((quote) => quote.evidence_id !== 'tt_post_2');
+  return record;
+}
+
+test('a comment whose post is not among the sources says a post, links nowhere and never shows the old handle', async () => {
+  await open(unlistedParent());
+  const said = all('.ask42-commenters');
+  expect(said.length).toBe(1);
+  expect(words(said[0])).toContain('On a post');
+  expect(said[0].querySelector('.ask42-commenters-on a')).toBeNull();
+  const chips = all('.ask42-commenters button[aria-label^="Source:"]');
+  expect(chips[0].getAttribute('aria-label')).toContain('TikTok comment on a post,');
+  await act(async () => chips[0].click());
+  await until(() => host.querySelector('.ask42-source-title'), 'the pinned comment');
+  expect(words(host.querySelector('.ask42-source-title'))).toBe('TikTok comment on a post');
+  expect(host.innerHTML).not.toContain('hid_old_handle');
+});
+
+test('the post strip links a comment to its post only when that post is among the sources shown', () => {
+  const strip = (record) => renderToStaticMarkup(<PostStrip evidence={evidence.withParents(record.answer.evidence)} />);
+  const hidden = strip(unlistedParent());
+  expect(hidden).not.toContain('hid_old_handle');
+  expect(hidden).not.toContain('aria-label="Open the TikTok comment'); // a comment with no shown post has no link to open
+  expect(hidden).toContain('Still unavailable for TikTok comment on a post');
+  const shown = strip(repeatRecord);
+  expect(shown).toContain('href="https://www.tiktok.com/@lerato_clips_22/video/7701000000000000002"');
+});
+
+/* Release C review m3: a control whose accessible name differs from its visible words breaks voice control and
+   label-in-name (WCAG 2.5.3). The name starts with the words on the button and adds the context after them. */
+test('the briefing controls are named from their visible words first', async () => {
+  const record = clone(repeatRecord);
+  const base = record.answer.evidence.find((item) => item.id === 'tt_post_1');
+  for (let n = 4; n <= 9; n += 1){
+    record.answer.evidence.push({...base, id: 'tt_post_' + n, handle: 'extra.post.' + n, url: 'https://www.tiktok.com/@extra.post.' + n + '/video/' + n});
+    record.answer.claims.find((claim) => claim.id === 'c2').evidence_ids.push('tt_post_' + n);
+  }
+  await open(record);
+  const controls = [...all('.ask42-tile-open'), ...all('.ask42-tiles-more')];
+  expect(controls.length).toBeGreaterThan(3);
+  for (const control of controls){
+    const visible = words(control).toLowerCase();
+    expect(control.getAttribute('aria-label').toLowerCase().startsWith(visible), visible + ' / ' + control.getAttribute('aria-label')).toBe(true);
+  }
+  expect(all('.ask42-tile-open')[0].getAttribute('aria-label')).toBe('Open post by ngwenya.tales');
+  const more = host.querySelector('.ask42-tiles-more');
+  expect(more.getAttribute('aria-label')).toBe('and 5 more posts');
+  await act(async () => more.click());
+  expect(host.querySelector('.ask42-tiles-more').getAttribute('aria-label')).toBe('Fewer posts');
 });
 
 /* ---- 2. one claim per fact (the API view), and the confidence tag ---- */
