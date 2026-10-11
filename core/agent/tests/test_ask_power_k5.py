@@ -7,7 +7,6 @@ judged as the post it belongs to, and counts for nothing when that post is exclu
 
 import copy
 
-import pytest
 
 from core.agent.checks import check_answer
 from core.agent.context import RunContext

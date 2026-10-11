@@ -3,12 +3,11 @@
 A span's id is the post's id plus _span_N, so it missed the creator lookup that matches stored post ids and survived
 when the person was hidden by creator id and their handle no longer matched (a rename, or a creators row with no
 handle). The words, link and old handle then stayed in the stored answer and in the live stream."""
-import copy
 
 import pytest
 
 from core.api import privacy
-from core.api.tests.test_privacy_projection import (P_HID1, P_NULL, P_REN1, P_VIS1, PrivStore, ask_record, body_of, ev)
+from core.api.tests.test_privacy_projection import (P_NULL, P_REN1, P_VIS1, PrivStore, ask_record, body_of, ev)
 
 SPAN_WORDS = "spoken words of the renamed creator"
 

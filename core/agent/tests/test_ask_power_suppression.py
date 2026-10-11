@@ -9,7 +9,6 @@ from datetime import date, datetime
 
 import pytest
 
-from core.agent import ask
 from core.agent.context import RunContext
 from core.agent.tests.test_ask_depth_replay import ReplayWarehouse, posts_table
 from core.agent.tools import sql_query as sq

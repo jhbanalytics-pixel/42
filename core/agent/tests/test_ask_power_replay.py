@@ -10,7 +10,7 @@ re-run before any research turn.
 import copy
 
 from core.agent import ask
-from core.agent.tests.test_ask import COUNT_SQL, NOW, POSTS, WRITER_OUT, FakeModel, Harness
+from core.agent.tests.test_ask import COUNT_SQL, POSTS, WRITER_OUT, FakeModel, Harness
 from core.agent.tests.test_ask_power_followup import Store
 from core.agent.tools.sql_query import sql_query
 from core.agent.tools.warehouse import search_posts
