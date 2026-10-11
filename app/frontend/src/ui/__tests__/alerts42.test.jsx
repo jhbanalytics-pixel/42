@@ -471,8 +471,11 @@ test('Cancel and Escape close the chooser without a watch', async () => {
   await mountTopic((body) => { made.push(body); return Promise.resolve(body); });
   const card = host.querySelector('[data-card]');
   click(button(card, 'Watch'));
+  /* Re-review M9: the page behind holds still while the dialog is open. */
+  expect([document.documentElement.style.overflow, document.body.style.overflow]).toEqual(['hidden', 'hidden']);
   click(button(host.querySelector('[role="dialog"]'), 'Cancel'));
   expect(host.querySelector('[role="dialog"]')).toBeNull();
+  expect([document.documentElement.style.overflow, document.body.style.overflow]).toEqual(['', '']);
   click(button(card, 'Watch'));
   flushSync(() => host.querySelector('[role="dialog"]').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})));
   expect(host.querySelector('[role="dialog"]')).toBeNull();

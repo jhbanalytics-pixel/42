@@ -140,8 +140,11 @@ test('a creator page offers a quiet Hide this person; the dialog asks why and yo
 test('Escape closes the dialog and sends nothing', async () => {
   await creatorPage(reply(201, hidden()));
   click(button(host, 'Hide this person'));
+  /* Re-review M9: the page behind holds still while the dialog is open. */
+  expect([document.documentElement.style.overflow, document.body.style.overflow]).toEqual(['hidden', 'hidden']);
   flushSync(() => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})));
   expect(dialog()).toBeNull();
+  expect([document.documentElement.style.overflow, document.body.style.overflow]).toEqual(['', '']);
   expect(posts()).toHaveLength(0);
 });
 

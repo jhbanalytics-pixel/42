@@ -175,8 +175,11 @@ test('the brand lens asks for a confirm naming up to 300 credits, with Cancel fi
   expect(text(dialog())).toContain('up to 300 credits');
   expect([...dialog().querySelectorAll('.w42-primary')].map((b) => b.textContent)).toEqual(['Ask']);
   expect(document.activeElement && document.activeElement.textContent).toBe('Cancel');
+  /* Re-review M9: the page behind holds still while the dialog is open. */
+  expect([document.documentElement.style.overflow, document.body.style.overflow]).toEqual(['hidden', 'hidden']);
   click(button(dialog(), 'Cancel'));
   expect(dialog()).toBeNull();
+  expect([document.documentElement.style.overflow, document.body.style.overflow]).toEqual(['', '']);
   expect(asks()).toHaveLength(0);
 });
 

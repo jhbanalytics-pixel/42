@@ -12,6 +12,7 @@ import {useEffect, useId, useRef, useState} from 'react';
 import {sentenceCase} from '../api.js';
 import {accountsWords} from './accounts.js';
 import {useFocusTrap} from './useFocusTrap.js';
+import {useScrollLock} from './useScrollLock.js';
 import '../styles/alerts42.css';
 
 export const MARKET_WORDS = {ZA: 'South Africa', NG: 'Nigeria', KE: 'Kenya', all: 'All markets'};
@@ -148,6 +149,7 @@ export function WatchDialog({card, market, create, onDone, onClose, onAuth}){
     return () => { live.current = false; };
   }, []);
   useFocusTrap(box);
+  useScrollLock();
   const watching = Boolean(card.watch_id);
 
   const submit = (event) => {

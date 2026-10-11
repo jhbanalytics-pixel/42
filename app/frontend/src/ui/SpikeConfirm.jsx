@@ -13,6 +13,7 @@ import {askSpike} from '../api42.js';
 import {go} from '../router.js';
 import {longDate} from './TrendCard.jsx';
 import {useFocusTrap} from './useFocusTrap.js';
+import {useScrollLock} from './useScrollLock.js';
 import '../styles/today42.css';
 import '../styles/alerts42.css';
 
@@ -28,16 +29,7 @@ export function CostConfirm({title, where, line, does, get, confirmWord, busy = 
     };
   }, []);
   useFocusTrap(box);
-
-  /* The page behind holds still while the confirm is open, and gets its own
-     scroll back when it closes. */
-  useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
-    const page = [document.documentElement, document.body];
-    const before = page.map((node) => node.style.overflow);
-    page.forEach((node) => { node.style.overflow = 'hidden'; });
-    return () => page.forEach((node, index) => { node.style.overflow = before[index]; });
-  }, []);
+  useScrollLock();
 
   // While the ask is on its way the dialog stays open, so its answer is followed, not lost.
   const close = () => { if (!busy) onClose(); };

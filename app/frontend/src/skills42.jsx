@@ -11,6 +11,7 @@ import {go} from './router.js';
 import {platformWord} from './ui/TrendCard.jsx';
 import {MARKET_WORDS} from './ui/WatchDialog.jsx';
 import {useFocusTrap} from './ui/useFocusTrap.js';
+import {useScrollLock} from './ui/useScrollLock.js';
 import {CREDIT_NOTE} from './ui/SpikeConfirm.jsx';
 import './styles/today42.css';
 import './styles/alerts42.css';
@@ -221,6 +222,7 @@ function SkillConfirm({ask, onAuth, onClose}){
     };
   }, []);
   useFocusTrap(box);
+  useScrollLock();
 
   const send = () => {
     setState({status: 'asking'});
