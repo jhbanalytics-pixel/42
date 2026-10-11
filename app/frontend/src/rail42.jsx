@@ -10,6 +10,7 @@
    that does the same job (legacyRoutes.js). */
 import {useCallback, useEffect, useId, useRef, useState} from 'react';
 import {useIsMobile} from './parts.jsx';
+import {VersionNote} from './ui/VersionNote.jsx';
 import './styles/rail42.css';
 
 const MORE_EXIT_MS = 120;
@@ -101,6 +102,9 @@ function ThemeChoice({theme, onThemeChange}){
     </div>
   );
 }
+
+/* The version line (11 October 2026) sits between the theme and Log out,
+   in the wide foot and the phone More sheet (ui/VersionNote.jsx). */
 
 /* Log out (6 October 2026) sits after the theme, at the foot of the wide
    rail and the end of the phone More sheet: a quiet, always-there exit that
@@ -239,6 +243,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
         {compact ? <Group id={`${panelId}-work`} title="Your work" items={SHEET_WORK} here={here} /> : null}
         {RAIL_MORE_GROUPS.map((group) => <Group key={group.id} id={`${panelId}-${group.id}`} title={group.title} items={group.items} here={here} />)}
         {compact ? <ThemeChoice theme={theme} onThemeChange={onThemeChange} /> : null}
+        {compact ? <VersionNote active={open} /> : null}
         {compact ? <SignOut onSignOut={onSignOut} /> : null}
       </div>
     </div>
@@ -259,7 +264,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
         <Group id={`${panelId}-top`} title="Start here" items={RAIL_TOP} here={here} group="top" />
         <Group id={`${panelId}-work`} title="Your work" items={RAIL_WORK} here={here} group="work" />
         {more}
-        <div className="rail42-foot"><ThemeChoice theme={theme} onThemeChange={onThemeChange} /><SignOut onSignOut={onSignOut} /></div>
+        <div className="rail42-foot"><ThemeChoice theme={theme} onThemeChange={onThemeChange} /><VersionNote /><SignOut onSignOut={onSignOut} /></div>
       </nav>
     </>
   );

@@ -290,3 +290,118 @@
 .rail42-sheet .rail42-group-title { padding-inline-start: calc(var(--s-5) + 4px); padding-top: var(--s-2); }
 .rail42--bar .rail42-sheet .rail42-group-title { padding-inline-start: 16px; }
 .rail42-foot .rail42-theme { padding-top: var(--s-3); }
+
+/* The version line (11 October 2026): one quiet metadata row between the
+   theme and Log out, the sha after it in the softer ink. The What's new
+   panel it opens is a modal dialog, so it sits in the top layer above the
+   shell's own layers; beside the wide rail it opens at the rail's foot, at
+   phone width it sits in the middle of the screen. */
+.rail42-version { padding: 0 var(--s-4) var(--s-3); }
+.rail42-version-button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s-2);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  padding: var(--s-1) 0;
+  font: inherit;
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  color: var(--ink);
+  text-align: start;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.rail42-version-button:hover .rail42-version-name { text-decoration: underline; text-underline-offset: 2px; }
+.rail42-version-sha { color: var(--ink-2, var(--muted, var(--ink))); font-variant-numeric: tabular-nums; }
+.rail42-version-reload {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  padding: var(--s-1) 0;
+  font: inherit;
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  color: var(--ink);
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: background-color var(--motion-row) var(--motion-standard-easing);
+}
+.rail42-version-reload:hover,
+.rail42-whatsnew-close:hover { background: var(--surface-raised, var(--paper-secondary, var(--paper))); }
+.rail42-version-button:focus-visible,
+.rail42-version-reload:focus-visible,
+.rail42-whatsnew-close:focus-visible {
+  outline: var(--focus-width, 2px) solid var(--accent);
+  outline-offset: var(--focus-offset);
+}
+
+.rail42-whatsnew {
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(560px, calc(100vh - 32px));
+  margin: auto;
+  padding: 0;
+  overflow-y: auto;
+  font-family: var(--font-sans, var(--sans));
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule, var(--line));
+  border-radius: var(--shape-control);
+}
+.rail42-whatsnew::backdrop { background: rgb(0 0 0 / 0.24); }
+.rail42-whatsnew-body { padding: var(--s-4); }
+.rail42-whatsnew-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.rail42-whatsnew-title {
+  margin: 0;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  font-weight: 600;
+}
+.rail42-whatsnew-close {
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  font: inherit;
+  font-size: var(--type-meta);
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--rule, var(--line));
+  border-radius: var(--shape-control);
+  cursor: pointer;
+  transition: background-color var(--motion-row) var(--motion-standard-easing);
+}
+.rail42-whatsnew-on { margin: var(--s-1) 0 0; color: var(--ink-2, var(--muted, var(--ink))); }
+.rail42-whatsnew-list { margin: var(--s-3) 0 0; padding: 0; list-style: none; }
+.rail42-whatsnew-release { padding: var(--s-3) 0 0; border-top: 1px solid var(--rule, var(--line)); }
+.rail42-whatsnew-release + .rail42-whatsnew-release { margin-top: var(--s-3); }
+.rail42-whatsnew-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s-2);
+  margin: 0;
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  font-weight: 600;
+}
+.rail42-whatsnew-when { font-weight: 400; color: var(--ink-2, var(--muted, var(--ink))); }
+.rail42-whatsnew-summary { margin: var(--s-1) 0 0; color: var(--ink-2, var(--muted, var(--ink))); }
+.rail42-whatsnew-lines { margin: var(--s-2) 0 0; padding-inline-start: var(--s-4); }
+.rail42-whatsnew-lines > li + li { margin-top: var(--s-1); }
+@media (min-width: 1024px) {
+  .rail42-whatsnew { margin: auto auto var(--s-4) calc(176px + var(--s-4)); }
+}
