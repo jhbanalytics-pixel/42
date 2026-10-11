@@ -414,3 +414,10 @@ def test_before_rollback_refuses_a_target_that_is_not_the_prior_revision_digest(
     s.to("AfterPromotion")
     serve_digest(s.world, API, OTHER_DIGEST)
     assert s.stop("BeforeRollback").code == "DIGEST"
+
+
+def test_the_packet_tool_still_names_the_a80_pair_for_the_release_that_reads_it_there():
+    from core.setup.release import packet
+
+    assert packet.A80_SERVING == {"f42-agent": "f42-agent-00047-677", "f42-api": "f42-api-00041-lns"} == so.A80_PRIOR["revisions"]
+    assert packet.A80_JOBS_DIGEST_PREFIX == "sha256:e77c3819" == so.A80_PRIOR["jobs_digest_prefix"]

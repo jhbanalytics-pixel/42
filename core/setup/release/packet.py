@@ -64,6 +64,10 @@ OLD_READER_FILE = "old-reader-receipt.json"
 PASTE = "core/setup/release/SERVICES-PASTE.ps1"
 BUILD_CONFIG = "core/api/cloudbuild.yaml"
 STATUS = "BOUND_FOR_INDEPENDENT_REVIEW"
+# The a80 pair, which the services tool holds as its default prior release (services_only.A80_PRIOR). Release B's capture-baseline-j reads
+# the revisions to hold an A that was rolled back to, and the jobs image prefix, from these names.
+A80_SERVING = dict(so.A80_PRIOR["revisions"])
+A80_JOBS_DIGEST_PREFIX = so.A80_PRIOR["jobs_digest_prefix"]
 MANIFEST_FILE = "release-manifest.json"
 SIDECAR_FILE = "release-manifest.sha256"
 LEDGER_FILE = "tag-ledger.json"
