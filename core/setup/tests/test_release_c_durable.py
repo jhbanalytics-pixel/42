@@ -183,3 +183,204 @@ def test_release_a_reads_the_tool_mark_of_a_query_only_by_comparison_and_this_tr
     assert {kind for _, kind in reads_c} == {"Compare"}
     assert sorted(writes_c - writes_a) == [("core/agent/tools/warehouse.py", "ctx.queries[result['query_id']]['tool'] = SWEEP_TOOL")]
     assert writes_a <= writes_c
+
+
+# The one stored shape this tree adds, evidence_links in the Ask record (plan 3.4d, review of Release C finding I1)
+
+KEY_TARGET = "intelligence_42_agent.runs#record#$.evidence_links"
+STORED = "E-STORED-EVIDENCE-LINKS"
+FIVE = ["E-TRAFFIC", "E-TAG-A", "E-TAG-W", "E-ENV-AUD", "E-ENV-URL"]
+
+
+def stored_effect(manifest):
+    found = [e for e in manifest["effects"] if e["kind"] == "stored_answer"]
+    assert [e["effect_id"] for e in found] == [STORED]
+    return found[0]
+
+
+def test_the_manifest_of_this_tree_declares_the_stored_effect_for_the_key_in_the_run_metadata():
+    manifest = built()
+    effect = stored_effect(manifest)
+    assert effect["target"] == KEY_TARGET and effect["change"] == "write_shape" and effect["apply_kind"] == "code"
+    assert effect["apply_phase"] == "with_candidate" and effect["additive"] is True and effect["destructive"] is False
+    assert effect["authority_or_holds"] is False and effect["owner"] == {"lane": 3, "person": "Albert Meintjes"}
+    assert effect["apply_order"] == 1 + max(e["apply_order"] for e in manifest["effects"] if e is not effect)
+    assert effect["statement_ref"].startswith("The Ask record stored in intelligence_42_agent.runs, column record, gains the key evidence_links at $.evidence_links")
+    assert effect["statement_sha256"] == dec.sha_text(effect["statement_ref"])
+    assert effect["native_readback"] == {"kind": "helper_phase", "target": "AfterSmoke", "expected_result_sha256": ""}
+    assert dec.validate_manifest(manifest) == []
+    assert [e["effect_id"] for e in manifest["effects"]] == [*FIVE, STORED]
+
+
+def test_the_stored_effect_recovers_forward_with_no_statement_and_no_sql():
+    manifest = built()
+    recovery = stored_effect(manifest)["forward_recovery"]
+    assert recovery["kind"] == "none_needed" and recovery["statement_ref"] == "" and recovery["statement_sha256"] == ""
+    assert "rollback leaves the stored key in place" in recovery["note"]
+    claim = manifest["no_storage_change"]
+    assert claim["claimed"] is True and claim["proof"]["schema_statements_added"] == 0 and claim["proof"]["changed_sql_or_job_owned"] == []
+
+
+def blob_lines(path):
+    return git(ROOT, "show", f"{head()}:{path}").splitlines()
+
+
+def test_the_consumers_are_the_non_test_files_that_name_the_key_each_with_a_line_that_does():
+    consumers = stored_effect(built())["consumers"]
+    files = {c["file"] for c in consumers}
+    assert files == {"core/agent/ask.py", "core/agent/checks.py", "core/api/agent_app.py", "core/api/comment_links.py", "core/api/dossiers.py",
+                     "core/api/privacy.py"}
+    assert {c["access"] for c in consumers} == {"read", "write"} and all(c["image"] == "f42-web" and c["line"] > 0 for c in consumers)
+    for consumer in consumers:
+        assert any(word in blob_lines(consumer["file"])[consumer["line"] - 1] for word in ("evidence_links", "comment_links")), consumer
+    writes = {c["file"] for c in consumers if c["access"] == "write"}
+    assert {"core/agent/ask.py", "core/api/agent_app.py"} <= writes and "core/api/dossiers.py" not in writes
+
+
+def test_every_changed_product_file_that_names_the_key_is_a_consumer_of_the_stored_effect():
+    manifest = built()
+    only = {**manifest, "effects": [stored_effect(manifest)]}
+    changed_paths = set(dp.changed_paths(ROOT, A, head()))
+    changed = {path: text for path, text in dec.git_tree_files(head(), "core", ROOT)
+               if path in changed_paths and not dec.is_test_path(path) and not path.startswith("core/setup/")}
+    assert any("evidence_links" in text for text in changed.values())
+    assert dec.check_consumers(only, changed) == []
+    assert dec.check_consumers({**only, "effects": [{**only["effects"][0], "consumers": []}]}, changed) != []
+
+
+def test_without_a_receipt_the_compat_verdicts_of_the_stored_effect_stay_pending_like_the_others():
+    assert all(v["verdict"] == "pending" for v in stored_effect(built())["compat"].values())
+
+
+# the verdicts come from the old-reader receipt, recomputed against this tree
+
+def harness_hash():
+    from core.api.tests import old_reader_harness as orh
+    return orh.harness_sha256()
+
+
+def receipt_for(**over):
+    return {"schema_version": 1, "base_commit": A, "candidate_commit": head(), "harness_sha256": harness_hash(), "corpus_sha256": "0" * 64,
+            "corpus_rows": 30, "legacy_rows": 4, "json_paths": 20, "prior_stores_answer_meta": True, "problems": [], "verdict": "pass", **over}
+
+
+def write_receipt(tmp_path, **over):
+    path = tmp_path / "old-reader-receipt.json"
+    path.write_text(json.dumps(receipt_for(**over), indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def test_the_harness_hash_the_tool_recomputes_from_git_equals_the_one_the_harness_writes():
+    assert dp.harness_sha256(ROOT, head()) == harness_hash()
+
+
+def test_a_passing_receipt_made_for_this_tree_settles_the_five_verdicts_of_the_stored_effect_and_no_other_effect(tmp_path):
+    path = write_receipt(tmp_path)
+    manifest = dp.build_manifest(ROOT, head(), A, "Albert Meintjes", old_reader_receipt=path)
+    effect = stored_effect(manifest)
+    assert {k: v["verdict"] for k, v in effect["compat"].items()} == {k: "pass" for k in dec.COMPAT_KEYS}
+    digest = dec.sha_text(path.read_text(encoding="utf-8"))[:12]
+    assert all(digest in v["test"] for k, v in effect["compat"].items() if k != "a80_ddl_writers")
+    assert "no SQL" in effect["compat"]["a80_ddl_writers"]["test"]
+    assert all(v["verdict"] == "pending" for e in manifest["effects"] if e["effect_id"] != STORED for v in e["compat"].values())
+    assert dec.validate_manifest(manifest) == []
+
+
+@pytest.mark.parametrize("over", [
+    {"verdict": "fail", "problems": ["layer 2: x"]},
+    {"verdict": "pass", "problems": ["layer 2: x"]},
+    {"verdict": "pending"},
+    {"schema_version": 2},
+    {"candidate_commit": "0" * 40},
+    {"base_commit": "1" * 40},
+    {"base_commit": ""},
+    {"harness_sha256": "0" * 64},
+    {"harness_sha256": 7},
+], ids=["fail", "pass with a problem", "no verdict", "other version", "other candidate", "other base", "no base", "other harness", "harness not text"])
+def test_a_receipt_that_does_not_belong_to_this_release_or_does_not_pass_is_refused(tmp_path, over):
+    path = write_receipt(tmp_path, **over)
+    with pytest.raises(dp.Refused, match="old-reader receipt"):
+        dp.build_manifest(ROOT, head(), A, "Albert Meintjes", old_reader_receipt=path)
+
+
+def test_a_receipt_that_is_missing_or_not_a_json_object_is_refused(tmp_path):
+    for content in (None, "{", "[]"):
+        path = tmp_path / "r.json"
+        if content is not None:
+            path.write_text(content, encoding="utf-8")
+        with pytest.raises(dp.Refused, match="old-reader receipt"):
+            dp.build_manifest(ROOT, head(), A, "Albert Meintjes", old_reader_receipt=path)
+
+
+def test_a_receipt_that_names_a_short_form_of_the_base_is_accepted_and_a_wrong_one_is_not(tmp_path):
+    path = write_receipt(tmp_path, base_commit=A[:7])
+    assert stored_effect(dp.build_manifest(ROOT, head(), A, "Albert Meintjes", old_reader_receipt=path))
+    with pytest.raises(dp.Refused, match="old-reader receipt"):
+        dp.build_manifest(ROOT, head(), A, "Albert Meintjes", old_reader_receipt=write_receipt(tmp_path, base_commit="3710c5f"))
+
+
+def producer_and_harness(repo):
+    add_producer(repo)
+    for name in ("old_reader_harness.py", "compat_harness.py"):
+        (repo / "core/api/tests").mkdir(parents=True, exist_ok=True)
+        (repo / "core/api/tests" / name).write_bytes((ROOT / "core/api/tests" / name).read_bytes())
+
+
+def test_the_command_takes_the_receipt_and_refuses_a_bad_one_before_it_writes(tmp_path):
+    repo, base, tip = make_range(tmp_path, producer_and_harness)
+    out = tmp_path / "durable.json"
+    argv = ["--repo", str(repo), "--base-commit", base, "--owner", "Albert Meintjes", "--out", str(out)]
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps(receipt_for(base_commit=base, candidate_commit=tip, verdict="fail")), encoding="utf-8")
+    assert dp.main([*argv, "--old-reader-receipt", str(bad)]) == 1 and not out.exists()
+    good = tmp_path / "good.json"
+    good.write_text(json.dumps(receipt_for(base_commit=base, candidate_commit=tip)), encoding="utf-8")
+    assert dp.main([*argv, "--old-reader-receipt", str(good)]) == 0
+    written = json.loads(out.read_text(encoding="utf-8"))
+    assert dec.validate_manifest(written) == [] and all(v["verdict"] == "pass" for v in stored_effect(written)["compat"].values())
+
+
+# the effect follows the tree: it is there when the tree writes the key and not otherwise
+
+def add_producer(repo):
+    (repo / "core/agent").mkdir(parents=True)
+    (repo / "core/agent/ask.py").write_text("def done(result, links):\n    result['evidence_links'] = links\n", encoding="utf-8")
+
+
+def add_reader_only(repo):
+    (repo / "core/api/view.py").write_text("def links(record):\n    return record.get('evidence_links')\n", encoding="utf-8")
+
+
+def add_test_only(repo):
+    (repo / "core/api/tests").mkdir(parents=True)
+    (repo / "core/api/tests/test_x.py").write_text("def test_x():\n    assert 'evidence_links'\n", encoding="utf-8")
+
+
+def test_a_tree_that_writes_the_key_gets_the_effect_with_the_writer_as_a_consumer(tmp_path):
+    repo, base, tip = make_range(tmp_path, add_producer)
+    effect = stored_effect(dp.build_manifest(repo, tip, base, "Albert Meintjes"))
+    assert effect["consumers"] == [{"access": "write", "component": "ask.py", "file": "core/agent/ask.py", "image": "f42-web", "line": 2}]
+
+
+@pytest.mark.parametrize("change", [touch_api, add_reader_only, add_test_only])
+def test_a_tree_that_does_not_write_the_key_in_a_product_file_gets_no_stored_effect(tmp_path, change):
+    repo, base, tip = make_range(tmp_path, change)
+    manifest = dp.build_manifest(repo, tip, base, "Albert Meintjes")
+    assert [e["effect_id"] for e in manifest["effects"]] == FIVE
+    assert dec.validate_manifest(manifest) == []
+
+
+def test_a_tree_whose_base_already_writes_the_key_adds_no_stored_shape_and_gets_no_stored_effect(tmp_path):
+    repo, base, tip = make_range(tmp_path, add_producer)
+    assert [e["effect_id"] for e in dp.build_manifest(repo, tip, tip, "Albert Meintjes")["effects"]] == FIVE
+
+
+def add_producer_and_tooling(repo):
+    add_producer(repo)
+    (repo / "core/setup").mkdir(parents=True, exist_ok=True)
+    (repo / "core/setup/tool.py").write_text("def mark(result):\n    result['evidence_links'] = 1\n", encoding="utf-8")
+
+
+def test_release_tooling_that_names_the_key_is_not_a_consumer_of_the_stored_ask(tmp_path):
+    repo, base, tip = make_range(tmp_path, add_producer_and_tooling)
+    assert [c["file"] for c in stored_effect(dp.build_manifest(repo, tip, base, "Albert Meintjes"))["consumers"]] == ["core/agent/ask.py"]
