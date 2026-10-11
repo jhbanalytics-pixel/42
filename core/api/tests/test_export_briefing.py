@@ -64,10 +64,10 @@ def test_platforms_are_counted_once_and_a_failed_call_is_a_plain_note():
     assert "1 TikTok search failed" in markup
 
 
-def test_the_research_count_matches_the_lines_listed():
+def test_the_export_lists_no_research_steps_because_a_step_can_name_a_person_the_readers_never_saw():
     markup = page()
-    summary = re.search(r"How this was researched · (\d+) steps?</summary>(.*?)</details>", markup, re.S)
-    assert int(summary.group(1)) == len(re.findall(r"<li>", summary.group(2))) == 32
+    assert "How this was researched" not in markup
+    assert "Counting posts tagged #funnyclip, step 1" not in markup and "Reading TikTok post 0 for its words" not in markup
 
 
 def test_internal_text_stays_inside_the_technical_details():
@@ -82,7 +82,7 @@ def test_internal_text_stays_inside_the_technical_details():
 def test_the_sections_come_in_the_briefing_order():
     markup = page()
     order = ["<h1>", 'class="tag"', 'class="scope"', "Short answer", "What we found", "The numbers",
-             "What we do not know", "How this was researched", "<h2>Sources</h2>", "Technical details"]
+             "What we do not know", "<h2>Sources</h2>", "Technical details"]
     at = [markup.index(token) for token in order]
     assert at == sorted(at), dict(zip(order, at))
 
