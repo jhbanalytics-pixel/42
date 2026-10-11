@@ -1,5 +1,5 @@
 """The durable-effects manifest of Release C (a release on top of Release A) states no storage change, and the proof is recomputed from git
-(plan 3.4d; Opus review of Release C, m10). Offline: git only, no cloud."""
+(plan 3.4d; review of Release C, finding m10). Offline: git only, no cloud."""
 import ast
 import functools
 import json
