@@ -1245,12 +1245,14 @@ def current_people(body):
 
 
 def dossier_view(version, ticks):
-    """A dossier version as a reader sees it; for a skin report the whole view is masked, the ticks' notes too."""
+    """A dossier version as a reader sees it; for a skin report the whole view is masked, the ticks' notes too. The list
+    of hidden people is applied first, to the body as stored, and the skin masks what is left: the skin strips the handle
+    of every author it may not name, and a suppression row that names only a handle could no longer match them."""
     from core.api.store import get_store
     body = current_people(version["body"])
-    view = dossiers.shown({**body, "content_hash": version["content_hash"], "ticks": ticks,
-                           "needs_tick": dossiers.needs_tick(body, ticks)})
-    return privacy.project_dossier(view, privacy.LazyStore(get_store))
+    view = privacy.project_dossier({**body, "content_hash": version["content_hash"], "ticks": ticks,
+                                    "needs_tick": dossiers.needs_tick(body, ticks)}, privacy.LazyStore(get_store))
+    return dossiers.shown(view)
 
 
 def refused(exc):

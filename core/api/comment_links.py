@@ -3,8 +3,11 @@
 The evidence shape in core/eval/answer.schema.json is the one Release A readers accept, so it cannot hold a parent_id.
 The producer writes the link to the record instead, under "evidence_links": {"v": 1, "parents": {comment id: post id}}.
 A record without it (stored before it existed, or by a reader that dropped it) is judged by its address alone."""
+import re
+
 KEY = "evidence_links"
 VERSION = 1
+COMMENT_ID = re.compile(r"^[a-z0-9]+_comment_")  # a comment record's id: "<platform>_comment_<native>"
 
 
 def read(record):
@@ -22,12 +25,14 @@ def read(record):
 
 
 def attach(evidence, links):
-    """evidence with each comment that holds no parent_id given the one the links name. The stored records are not
-    changed; the copies are for judging, never for showing."""
+    """evidence with each comment that holds no parent_id given the one the links name. Only a comment is given one: a
+    link that names any other record is not followed. The stored records are not changed; the copies are for judging,
+    never for showing."""
     if not links or not isinstance(evidence, list):
         return evidence
     return [{**e, "parent_id": links[e["id"]]}
             if isinstance(e, dict) and e.get("parent_id") is None and isinstance(e.get("id"), str) and e["id"] in links
+            and COMMENT_ID.match(e["id"])
             else e for e in evidence]
 
 
