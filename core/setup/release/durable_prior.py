@@ -18,7 +18,6 @@ lead's step, and this tool settles none of them. The output file is created once
 from __future__ import annotations
 
 import argparse
-import copy
 import json
 import re
 import subprocess

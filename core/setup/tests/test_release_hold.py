@@ -1,6 +1,5 @@
 """The model hold ceiling in the sentence Albert types (review of Release C, finding m6): rounded up to the cent, never down, and read from the
 repository and commit the release is bound to, not from whichever checkout runs the packet tool."""
-import subprocess
 import sys
 
 import pytest
