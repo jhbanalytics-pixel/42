@@ -11,6 +11,7 @@ from decimal import Decimal
 from math import prod
 from urllib.parse import urlparse
 
+from core.agent import briefing
 from core.agent.answer import normalise
 from core.agent.context import result_hash
 from core.agent.forecast_promotion import promoted_forecasts, publishable_line
@@ -385,6 +386,8 @@ RULE_GAPS = {
            "every quoted span must be verbatim in a cited post"),
     "K9": ("a forecast before it has beaten persistence",
            "forecasts remain held until they beat the persistence baseline"),
+    "K10": ("a short answer that named a story with no claim left",
+            "the short answer may name only a story that still has a claim that passed the checks"),
 }
 WORDS = re.compile(r"[\w']+")
 
@@ -788,8 +791,10 @@ def check_answer(draft: dict, ctx, warehouse, *, window, markets=None, market=_U
 
     fields = {k: draft.get(k) for k in ("short_answer", "context", "so_what", "watch_next")}
     fields["gaps"] = gaps
+    lead_cut = cut_story_in_lead(short_answer, [c.get("text") for c, _ in cut.values()],
+                                 [c.get("text") for c in survivors])
     fields, headline_cut = _answer_fields(fields, survivors, ctx, row, allow=allow,
-                                          gap_indexes=range(len(draft.get("gaps") or [])))
+                                          gap_indexes=range(len(draft.get("gaps") or [])), lead_cut=lead_cut)
     gaps = fields["gaps"]
     status, short_answer = _lower_status(draft.get("status"), fields["short_answer"], bool(cut) or headline_cut,
                                          len(survivors))
@@ -862,7 +867,7 @@ def code_gap_indexes(draft_gaps, gaps) -> set:
     return set()
 
 
-def _answer_fields(fields, claims, ctx, row, *, allow, gap_indexes, code_gaps=()):
+def _answer_fields(fields, claims, ctx, row, *, allow, gap_indexes, code_gaps=(), lead_cut=None):
     """K6, K2 and K8 on short_answer, context, so_what and watch_next, and K6 and K2 on the gaps at gap_indexes,
     all against claims. A gap at an index in code_gaps is read as the code's, every other as the writer's. Returns
     the checked fields and whether the short answer was blanked."""
@@ -880,6 +885,8 @@ def _answer_fields(fields, claims, ctx, row, *, allow, gap_indexes, code_gaps=()
     short_answer = fields.get("short_answer") or ""
     problems = ({} if short_answer == INSUFFICIENT
                 else _field_problems(short_answer, claims, ctx.evidence, ids, allow, ctx))
+    if lead_cut and short_answer and short_answer != INSUFFICIENT:
+        problems = {**problems, "K10": f"the short answer names {lead_cut}, every claim of which was cut"}
     if problems:
         drop("short_answer", "Short answer", "the short answer text", problems)
         short_answer = ""
@@ -1961,6 +1968,30 @@ def _k8(text, records):
 
 
 # K10 and assembly
+
+def cut_story_in_lead(short_answer, cut_texts, kept_texts):
+    """The name of a story the short answer names when every claim of that story was cut, or None. A ranked answer's
+    lead names its stories in plain words and shares no run of eight words with a claim, so _mentions never sees it rest
+    on one. A story is the claims that start with the same plain name and a colon (briefing.story_name); the test applies
+    only when the answer names two or more stories, so a single labelled claim is never read as a ranking."""
+    if not isinstance(short_answer, str) or not short_answer.strip():
+        return None
+
+    def key(name):
+        return " ".join(name.split()).casefold()
+
+    kept = {key(name) for text in kept_texts if (name := briefing.story_name(text))}
+    cut = {}
+    for text in cut_texts:
+        if name := briefing.story_name(text):
+            cut.setdefault(key(name), name)
+    if len(kept | set(cut)) < 2:
+        return None
+    for name_key, name in cut.items():
+        if name_key not in kept and re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", short_answer, re.IGNORECASE):
+            return name
+    return None
+
 
 def _mentions(short_answer, cid, claim_text):
     if cid and re.search(r"(?<!\w)" + re.escape(cid) + r"(?!\w)", short_answer):

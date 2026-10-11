@@ -1389,6 +1389,7 @@ def _k10(answer: dict, kept: list, cut: dict, *, narrowed: list | None = None) -
     status, before = answer.get("status"), answer.get("short_answer") or ""
     headline = before
     resting = [str(cid) for cid, claim in cut.items() if _mentions(before, cid, claim.get("text"))]
+    named = checks.cut_story_in_lead(before, [c.get("text") for c in cut.values()], [c.get("text") for c in kept])
     notes = ["support check cut " + ", ".join(map(str, cut))] if cut else []
     if status != "refused":
         if cut and status == "complete":
@@ -1396,6 +1397,9 @@ def _k10(answer: dict, kept: list, cut: dict, *, narrowed: list | None = None) -
         if resting:
             headline = ""
             notes.append(f"the short answer restated cut claim {', '.join(resting)}, so it was blanked")
+        if named:
+            headline = ""
+            notes.append(f"the short answer named {named}, every claim of which was cut, so it was blanked")
         if len(kept) < 2:
             status, headline = "insufficient_evidence", INSUFFICIENT
             notes.append(f"{len(kept)} of {len(kept) + len(cut)} claims survive, under 2")
@@ -1429,6 +1433,14 @@ def _headline_removed(before: dict, answer: dict) -> list:
         elif kept[claim.get("id")].get("text") != claim.get("text"):
             removed.append((None, claim.get("text")))
     return removed
+
+
+def names_cut_story(text: str, before: dict, answer: dict) -> bool:
+    """Whether a short answer names a story that had claims in before and has none in answer."""
+    kept = [c for c in answer.get("claims") or [] if isinstance(c, dict)]
+    ids = {c.get("id") for c in kept}
+    gone = [c.get("text") for c in before.get("claims") or [] if isinstance(c, dict) and c.get("id") not in ids]
+    return checks.cut_story_in_lead(text, gone, [c.get("text") for c in kept]) is not None
 
 
 def _repeats(text: str, cid, claim_text) -> bool:
@@ -1467,7 +1479,7 @@ def rewrite_headline(model: Model, before: dict, answer: dict, ctx: RunContext,
         text += "."
     removed = _headline_removed(before, answer)
     ids = checks._id_pattern([*claims, *(c for c in before.get("claims") or [] if isinstance(c, dict))], ctx)
-    if (any(_repeats(text, cid, claim_text) for cid, claim_text in removed)
+    if (any(_repeats(text, cid, claim_text) for cid, claim_text in removed) or names_cut_story(text, before, answer)
             or (ids is not None and ids.search(text)) or re.search(r"(?<!\w)c[0-9]{1,3}(?!\w)", text)
             or re.search(r"https?:|www\.", text, re.IGNORECASE)):
         return None, usage, True, HEADLINE_REPEATS_REASON
