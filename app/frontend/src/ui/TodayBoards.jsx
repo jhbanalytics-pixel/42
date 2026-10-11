@@ -1,7 +1,8 @@
 import {useId, useState} from 'react';
 import {boardTitle} from '../readerUnits.js';
 import {platformWord} from './TrendCard.jsx';
-import {PlatformLogo, platformId} from './PlatformLogo.jsx';
+import {PlatformLogo, brandOf, brandStyle, platformId} from './PlatformLogo.jsx';
+import {SnapBand} from './SnapBand.jsx';
 import '../styles/today-boards.css';
 
 /* On the boards today: one card per platform list, in three groups. The
@@ -64,7 +65,10 @@ function describe(raw, index){
     full: boardTitle(entry.title),
     itemId: itemIdOf(entry),
   }));
-  for (const row of rows) row.tied = row.rank !== null && rows.filter((other) => other.rank === row.rank).length > 1;
+  rows.forEach((row, at) => {
+    row.tied = row.rank !== null && rows.filter((other) => other.rank === row.rank).length > 1;
+    row.tiedAfter = row.tied && rows.findIndex((other) => other.rank === row.rank) < at;
+  });
   const leftOut = declared + entries.length - shown.length;
   const state = rows.length > 0 ? 'ok' : entries.length === 0 && declared === 0 ? 'empty' : 'unreadable';
   return {...base, state, rows, leftOut, reason: raw.left_out_reason || null};
@@ -126,7 +130,7 @@ const stateWords = (day) => ({
 });
 const dayWords = (day) => (typeof day === 'string' && day.trim() !== '' ? day.trim() : 'today');
 
-function Row({chart, row, where, found}){
+function Row({chart, row, where, found, hero}){
   const music = MUSIC.has(chart.id);
   const {name, artists} = splitTitle(row.full, music);
   const charts = row.itemId ? found.get(row.itemId) : null;
@@ -134,8 +138,8 @@ function Row({chart, row, where, found}){
   const others = charts ? [...charts].filter(([key]) => key !== chart.key).map(([, label]) => label) : [];
   const rankWords = row.rank === null ? 'Unranked' : (row.tied ? 'Tied rank ' : 'Rank ') + row.rank;
   return (
-    <li className="tb-row" data-board-row="" data-row-id={`${chart.id}|${chart.list}|${row.rank ?? ''}|${row.itemId || row.full}`}>
-      <span className="tb-rank" aria-hidden="true">{row.rank === null ? '-' : (row.tied ? '=' : '') + row.rank}</span>
+    <li className="tb-row" data-board-row="" data-hero={hero ? '' : undefined} data-row-id={`${chart.id}|${chart.list}|${row.rank ?? ''}|${row.itemId || row.full}`}>
+      <span className={row.tiedAfter ? 'tb-rank tb-rank-tied' : 'tb-rank'} aria-hidden="true">{row.rank === null ? '-' : row.tiedAfter ? 'tied' : row.rank}</span>
       <span className="tb-main">
         <span className="sr-only">{rankWords}. </span>
         <span className="tb-title">{name}</span>
@@ -158,15 +162,16 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
   const shown = open ? chart.rows : chart.rows.slice(0, TOP);
   const more = chart.rows.length > TOP;
   const flagged = chart.state === 'invalid';
+  const brand = chart.invalid ? null : brandOf(chart.id);
   const words = stateWords(day)[chart.state];
   /* The server words an all-ids chart's reason as "today" whatever the day, so
      that sentence is shown in the brief day's words instead. Only a chart with
      no readable row can carry it, which keeps a null reason from matching. */
   const saidByReason = chart.state !== 'ok' && chart.leftOut > 0 && [words, stateWords('today')[chart.state]].some((text) => sentence(text) === sentence(chart.reason));
   return (
-    <section className="tb-card" data-board-card="" data-chart-state={chart.state} data-platform={chart.id || undefined} aria-labelledby={headId}>
+    <section className="tb-card" style={brand ? brandStyle(brand) : undefined} data-board-card="" data-chart-state={chart.state} data-platform={chart.id || undefined} aria-labelledby={headId}>
       <div className="tb-card-head">
-        <span className="tb-logo"><PlatformLogo platform={chart.id} size={22} /></span>
+        <span className="tb-logo"><PlatformLogo platform={chart.id} size={28} /></span>
         <Heading className="tb-card-title" id={headId}>
           {named
             ? <span className="tb-list tb-list-named fact-unit">{chart.list}</span>
@@ -179,14 +184,15 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
       {chart.state === 'ok'
         ? <>
             <p className="tb-caption">Best rank {day}</p>
-            <ul className="tb-rows" id={rowsId}>
-              {shown.map((row, at) => <Row key={at} chart={chart} row={row} where={where} found={found} />)}
+            <ul className={open ? 'tb-rows tb-rows-open' : 'tb-rows'} id={rowsId}>
+              {shown.map((row, at) => <Row key={at} chart={chart} row={row} where={where} found={found} hero={at === 0 && row.rank === 1} />)}
             </ul>
             {more && (
               <button type="button" className="tb-more" aria-expanded={open} aria-controls={rowsId}
                 aria-label={(open ? 'Show fewer entries on ' : `Show all ${chart.rows.length} entries on `) + where}
                 onClick={() => setOpen(!open)}>
                 {open ? 'Show fewer' : `Show all ${chart.rows.length}`}
+                <svg className="tb-more-mark" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" /></svg>
               </button>
             )}
           </>
@@ -196,9 +202,17 @@ function ChartCard({chart, found, uid, day, tag: Heading}){
   );
 }
 
+function Band({label, children}){
+  return (
+    <SnapBand label={label} prevLabel="Show earlier platform lists" nextLabel="Show later platform lists" itemSelector=".tb-grid > li">
+      {children}
+    </SnapBand>
+  );
+}
+
 /* The cards of one market, grouped, with each chart's rows counted against the
    market's own payload. level is the heading level of the group titles. */
-function Charts({boards, uid, level, day}){
+function Charts({boards, uid, level, day, label}){
   const found = chartIndex(boards);
   const charts = (Array.isArray(boards) ? boards : []).map((raw, index) => {
     const chart = describe(raw, index);
@@ -207,7 +221,7 @@ function Charts({boards, uid, level, day}){
   });
   const GroupTitle = 'h' + level;
   const CardTitle = 'h' + (level + 1);
-  return GROUPS.map((group) => {
+  const groups = GROUPS.map((group) => {
     const members = charts.filter((chart) => groupOf(chart.id) === group.key);
     if (members.length === 0) return null;
     const titleId = `tb-${uid}-${group.key}`;
@@ -220,6 +234,7 @@ function Charts({boards, uid, level, day}){
       </div>
     );
   });
+  return <Band label={label}>{groups}</Band>;
 }
 
 const none = (day) => <p className="t42-line-text">No platform lists were read {day}.</p>;
@@ -248,11 +263,11 @@ export function TodayBoards({boards, groups, day: given}){
                   <span className="tb-market-badge">{m.market}</span>
                   <span className="tb-market-name" id={nameId}>{m.label || m.market}</span>
                 </h4>
-                {items.length > 0 ? <Charts boards={items} uid={`${uid}-m${at}`} level={5} day={day} /> : none(day)}
+                {items.length > 0 ? <Charts boards={items} uid={`${uid}-m${at}`} level={5} day={day} label={`Platform lists for ${m.label || m.market}`} /> : none(day)}
               </div>
             );
           })
-        : list.length > 0 ? <Charts boards={list} uid={uid} level={4} day={day} /> : none(day)}
+        : list.length > 0 ? <Charts boards={list} uid={uid} level={4} day={day} label="Platform lists" /> : none(day)}
     </section>
   );
 }

@@ -190,7 +190,7 @@ test('heading, headline and the warm-up banner render once', async () => {
   expect(heading.textContent).toBe('Taking off, 30 September 2026');
   expect(heading.className).toContain('t42-heading');
   const headline = host.querySelector('.t42-headline');
-  expect(headline.textContent).toBe(todayFixture.headline.text);
+  expect(headline.textContent).toBe(todayFixture.headline.text.replace('31 creators in 3 days', '31 accounts in 3 days'));
   expect(text().split('Warming up: day 2 of 14').length - 1).toBe(1);
   expect(calls[0].url).toBe('/api/today?date=2026-09-30');
 });
@@ -523,7 +523,7 @@ test('the market glance leads with items collected, labels its bar and opens its
 test('market tabs report selection to the shared region', async () => {
   const selected = [];
   await mount({onRegionChange: (region) => selected.push(region)});
-  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text);
+  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text.replace('31 creators in 3 days', '31 accounts in 3 days'));
   const requestCount = calls.length;
   expect(calls.filter((call) => call.url.startsWith('/api/today'))).toHaveLength(1);
   click(tab('Nigeria'));
@@ -541,18 +541,18 @@ test('market tabs report selection to the shared region', async () => {
   click(tab('All'));
   expect(selected).toEqual(['NG', 'KE', 'ALL']);
   expect(tab('All').getAttribute('aria-selected')).toBe('true');
-  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text);
+  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text.replace('31 creators in 3 days', '31 accounts in 3 days'));
   expect([...host.querySelectorAll('[data-market]')].map((section) => section.getAttribute('data-market'))).toEqual(['ZA', 'NG', 'KE']);
   click(tab('South Africa'));
   expect(selected).toEqual(['NG', 'KE', 'ALL', 'ZA']);
-  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text);
+  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text.replace('31 creators in 3 days', '31 accounts in 3 days'));
   expect(calls).toHaveLength(requestCount);
   expect(calls.some((call) => String(call.init?.method || 'GET').toUpperCase() === 'POST')).toBe(false);
 });
 
 test('an external region change applies the same headline tab scope', async () => {
   await mount();
-  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text);
+  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text.replace('31 creators in 3 days', '31 accounts in 3 days'));
   const renderRegion = async (region) => {
     flushSync(() => root.render(<TodayPage42 region={region} date="2026-09-30" />));
     await settle();
@@ -568,10 +568,10 @@ test('an external region change applies the same headline tab scope', async () =
   expect(host.querySelectorAll('.t42-headline').length).toBe(0);
   await renderRegion('ALL');
   expect(tab('All').getAttribute('aria-selected')).toBe('true');
-  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text);
+  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text.replace('31 creators in 3 days', '31 accounts in 3 days'));
   await renderRegion('ZA');
   expect(tab('South Africa').getAttribute('aria-selected')).toBe('true');
-  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text);
+  expect(host.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text.replace('31 creators in 3 days', '31 accounts in 3 days'));
   expect(calls.filter((call) => call.url.startsWith('/api/today'))).toHaveLength(1);
   expect(calls.some((call) => String(call.init?.method || 'GET').toUpperCase() === 'POST')).toBe(false);
 });
@@ -591,20 +591,20 @@ test('the admitted card keeps its tag, state, count line and explanation', async
   expect(first.textContent).toContain('Moved up');
   expect(first.textContent).toContain('Emerging');
   /* Visual pass, 3 October 2026: the count is set large in the card's figure
-     panel ("31 creators in 3 days"), so the small count line that says the
+     panel ("31 accounts posting, last 3 days"), so the small count line that says the
      same fact gives way to it, as it already did to reach. */
-  expect(first.querySelector('.tc-big-lead').textContent).toBe('31 creators in 3 days');
+  expect(first.querySelector('.tc-big-lead').textContent).toBe('31 accounts posting, last 3 days');
   expect(first.querySelector('.tc-big-lead').getAttribute('data-query-id')).toBe('q_creators3_za_a');
   expect(first.textContent).toContain('#fixture_za_step is spreading on Tiktok in South Africa, possibly tied to the weekend.');
   expect(first.querySelector('.t42-flag')).toBeNull();
   expect(cards()).toHaveLength(1);
 });
 
-test('Today labels the creator and post count window while keeping the supplied figures', async () => {
+test('Today labels the accounts and post count window while keeping the supplied figures', async () => {
   await mount();
   const market = host.querySelector('[data-market="ZA"]');
-  expect(market.querySelector('[data-today-count-window]')?.textContent).toBe('Creator and post counts are in the last 3 days.');
-  expect(cardTitled('#fixture_za_step').querySelector('.tc-big-lead').textContent).toBe('31 creators in 3 days');
+  expect(market.querySelector('[data-today-count-window]')?.textContent).toBe('Accounts and posts are counted over the last 3 days.');
+  expect(cardTitled('#fixture_za_step').querySelector('.tc-big-lead').textContent).toBe('31 accounts posting, last 3 days');
   expect(cardTitled('#fixture_za_step').querySelector('.tc-big-lead').getAttribute('data-query-id')).toBe('q_creators3_za_a');
   click(tab('Kenya'));
   expect(host.querySelector('[data-today-count-window]')).toBeNull();
@@ -652,7 +652,7 @@ test('the Ask link carries the question, market, item and date', async () => {
 
 test('the sparkline leaves gaps as breaks and draws the band only when expected values exist', async () => {
   await mount();
-  const svg = cardTitled('#fixture_za_step').querySelector('svg');
+  const svg = cardTitled('#fixture_za_step').querySelector('svg.t42-spark');
   const line = svg.querySelector('.t42-line').getAttribute('d');
   expect(line.match(/M/g)).toHaveLength(2);
   expect(svg.querySelector('.t42-band')).toBeNull();
@@ -1310,6 +1310,18 @@ test('moments and boards render below the cards, with no coverage strip', async 
   expect(details.textContent).toContain('TikTok hashtag board: calls failed');
 });
 
+test('Coming up in 14 days follows the boards band in the page, both inside the sections under the cards', async () => {
+  await mount();
+  const below = host.querySelector('[data-market="ZA"] .t42-below');
+  const boards = below.querySelector(':scope > [data-section="boards"]');
+  const moments = below.querySelector(':scope > [data-section="moments"]');
+  expect(boards).not.toBeNull();
+  expect(moments).not.toBeNull();
+  expect(boards.compareDocumentPosition(moments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(boards.querySelector('[data-band-scroll]')).not.toBeNull();
+  expect(moments.querySelector('[data-band-scroll]')).toBeNull();
+});
+
 test('with no source issues there is no source line and no coverage strip', async () => {
   const today = clone(todayFixture);
   today.markets.find((market) => market.market === 'ZA').coverage.issues = [];
@@ -1319,7 +1331,7 @@ test('with no source issues there is no source line and no coverage strip', asyn
   expect(host.querySelectorAll('[data-market="ZA"] details[data-section="source-details"]')).toHaveLength(0);
 });
 
-test('a board lists each entry with its own best rank, no automatic numbering, and marks a tie with =', async () => {
+test('a board lists each entry with its own best rank, no automatic numbering, and says a tie once, then tied', async () => {
   const today = clone(todayFixture);
   today.markets[0].boards[0].entries = [
     {rank: 1, title: '#shorts', item_id: 'a'},
@@ -1331,7 +1343,7 @@ test('a board lists each entry with its own best rank, no automatic numbering, a
   expect(boards.querySelector('ol')).toBeNull();
   const list = boards.querySelector('ul.tb-rows');
   expect(list).not.toBeNull();
-  expect([...list.querySelectorAll('.tb-row')].map(boardWords)).toEqual(['=1 #shorts', '=1 #ishowspeed', '2 #fixture_za_step']);
+  expect([...list.querySelectorAll('.tb-row')].map(boardWords)).toEqual(['1 #shorts', 'tied #ishowspeed', '2 #fixture_za_step']);
   const card = boards.querySelector('[data-board-card]');
   expect(card.querySelector('.tb-card-title').textContent).toContain('TikTok');
   expect(card.querySelector('.tb-card-title').textContent).toContain('Hashtag board, 7 days');
@@ -1375,8 +1387,8 @@ test('a board leaves null and missing ranks off unranked titles without changing
   flushSync(() => more.click());
   const rows = host.querySelectorAll('[data-section="boards"] .tb-row');
   expect([...rows].map(boardWords)).toEqual([
-    '=1 #shorts',
-    '=1 #ishowspeed',
+    '1 #shorts',
+    'tied #ishowspeed',
     '2 #fixture_za_step',
     '#unranked_null',
     '#unranked_missing',
@@ -1411,8 +1423,9 @@ test('a board never shows an id as a title, says how many were left out, and kee
   expect(groups).toHaveLength(2);
   for (const group of groups) expect(group.querySelector('.tb-caption').textContent).toBe('Best rank today');
   const rows = groups.map((g) => [...g.querySelectorAll('ul.tb-rows .tb-row')].map(boardWords));
-  expect(rows).toEqual([['1 #fixture_tt_one', '3 #fixture_tt_two'], ['1 #fixture_yt_one', '=2 fixture yt name', '=2 #fixture_yt_two']]);
-  const shown = rows.flat().map((row) => Number(row.replace(/^=/, '').split(' ')[0]));
+  expect(rows).toEqual([['1 #fixture_tt_one', '3 #fixture_tt_two'], ['1 #fixture_yt_one', '2 fixture yt name', 'tied #fixture_yt_two']]);
+  /* A later row of a tie says "tied" on screen, so its number is read from the words a screen reader hears. */
+  const shown = groups.flatMap((g) => [...g.querySelectorAll('ul.tb-rows .tb-row')].map((li) => Number(li.querySelector('.sr-only').textContent.match(/(\d+)/)[1])));
   expect(shown).toEqual([1, 3, 1, 2, 2]);
   expect(groups[0].textContent).not.toContain('left out');
   expect(groups[1].querySelector('.tb-left-out').textContent).toBe('5 left out: No readable name');
@@ -2287,13 +2300,16 @@ test('a single market tab does not repeat the market name as a heading; All name
   expect([...host.querySelectorAll('.t42-market-name')].map((h) => h.textContent)).toEqual(['South Africa', 'Nigeria', 'Kenya']);
 });
 
-test('the card puts its title and state in one head row and gives Ask the one primary action', async () => {
+/* Restated for the story card (Albert approved it, 10 October 2026): the title
+   and the tag badge lead the story zone on the left, and the state is the
+   momentum chip in the live panel on the right, instead of one head row. */
+test('the card puts its title and tag in the story zone, its state in the live panel, and gives Ask the one primary action', async () => {
   await mount();
   const card = cardTitled('#fixture_za_step');
-  const head = card.querySelector(':scope > .t42-card-head');
-  expect(head.querySelector('h3').textContent).toBe('#fixture_za_step');
-  expect(head.querySelector('.t42-tag').textContent).toBe('Moved up');
-  expect(head.querySelector('.t42-state').textContent).toBe('Emerging');
+  const story = card.querySelector('.sc-story');
+  expect(story.querySelector('h3').textContent).toBe('#fixture_za_step');
+  expect(story.querySelector('.sc-badge-tag').textContent).toBe('Moved up');
+  expect(card.querySelector('.sc-live .sc-momentum').textContent).toBe('Emerging');
   const actions = card.querySelector('.t42-card-foot .t42-actions');
   const primary = actions.querySelectorAll('.t42-action-primary');
   expect(primary).toHaveLength(1);
@@ -2355,7 +2371,11 @@ test('the earlier-brief notice keeps its date whole too', async () => {
   expect(notice.querySelector('.t42-nowrap')?.textContent).toBe('30 September 2026');
 });
 
-test('a local example whose text is the quote is not printed twice', async () => {
+/* Restated (lead review of the story cards, 10 October 2026): a tile always
+   shows its post text, so a tile whose text is the quote prints the words a
+   second time and says so with a small "quoted" tag. The old "Quoted above"
+   placeholder is gone. */
+test('a local example whose text is the quote shows its text with a quoted tag and no placeholder', async () => {
   const today = clone(todayFixture);
   const card = today.markets[0].cards[0];
   card.specificity = specificityFor(card);
@@ -2363,12 +2383,15 @@ test('a local example whose text is the quote is not printed twice', async () =>
   const checked = cardTitled(card.title).querySelector('[data-today-specificity]');
   const quote = card.specificity.quote.text;
   expect(checked.querySelector('blockquote').textContent).toContain(quote);
-  expect(checked.textContent.split(quote).length - 1).toBe(1);
   const examples = checked.querySelector('[data-local-examples]');
   const ids = [...examples.querySelectorAll('[data-evidence-id]')].map((item) => item.getAttribute('data-evidence-id'));
   expect(ids).toEqual([card.specificity.quote.evidence_id, 'ig_za_007']);
   const quoted = examples.querySelector('[data-evidence-id="' + card.specificity.quote.evidence_id + '"]');
-  expect(quoted.querySelector('[data-quoted-above]')?.textContent).toBe('Quoted above');
+  expect(quoted.querySelector('[data-quoted-above]')).toBeNull();
+  expect(quoted.textContent).not.toContain('Quoted above');
+  expect(quoted.querySelector('.sc-tile-text').textContent).toBe(quote);
+  expect(quoted.querySelector('.sc-tile-tag[data-quoted]')?.textContent).toBe('quoted');
+  expect(examples.querySelector('[data-evidence-id="ig_za_007"] .sc-tile-tag')).toBeNull();
   expect(Boolean(quoted.querySelector('a.t42-link'))).toBe(true);
 });
 
@@ -2451,11 +2474,11 @@ test('the poster carries its lead figure and line beside it, and only while it s
   await mount();
   const lead = host.querySelector('.t42-lead');
   expect(lead).not.toBeNull();
-  expect(lead.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text);
+  expect(lead.querySelector('.t42-headline').textContent).toBe(todayFixture.headline.text.replace('31 creators in 3 days', '31 accounts in 3 days'));
   const side = lead.querySelector('.t42-lead-side');
   expect(side.getAttribute('aria-hidden')).toBe('true');
   const figure = side.querySelector('.t42-lead-figure');
-  expect(figure.textContent).toBe('31 creators in 3 days');
+  expect(figure.textContent).toBe('31 accounts posting, last 3 days');
   expect(figure.getAttribute('data-query-id')).toBe('q_creators3_za_a');
   expect(side.querySelector('svg.t42-spark .t42-line')).not.toBeNull();
   click(tab('Nigeria'));
@@ -2463,7 +2486,7 @@ test('the poster carries its lead figure and line beside it, and only while it s
   expect(host.querySelector('.t42-headline').textContent).toBe(ngCard.explanation);
   expect(cards()[0].querySelector('.tc-title-link').getAttribute('href')).toContain(ngCard.item_id);
   const ngFigure = host.querySelector('.t42-lead-figure');
-  expect(ngFigure.textContent).toBe('24 creators in 3 days');
+  expect(ngFigure.textContent).toBe('24 accounts posting, last 3 days');
   expect(ngFigure.getAttribute('data-query-id')).toBe(ngCard.numbers[0].query_id);
   click(tab('Kenya'));
   expect(host.querySelectorAll('.t42-lead-side')).toHaveLength(0);
@@ -2486,7 +2509,7 @@ test('the poster side panel drops what it cannot show and never says "not enough
   resetRoot();
   await mount({}, thin);
   const side = host.querySelector('.t42-lead-side');
-  expect(side.querySelector('.t42-lead-figure').textContent).toBe('31 creators in 3 days');
+  expect(side.querySelector('.t42-lead-figure').textContent).toBe('31 accounts posting, last 3 days');
   expect(side.querySelector('svg.t42-spark')).toBeNull();
   expect(side.textContent).not.toContain('Not enough measured days');
 });
@@ -2539,8 +2562,8 @@ test('a count of one reads "1 creator" and "1 post", on the card and in a stored
   today.headline = null;
   await mount({}, today);
   const shown = cards()[0];
-  expect(shown.querySelector('.t42-count').textContent).toBe('1 creator and 1 post in 3 days');
-  expect([...shown.querySelectorAll('.tc-big-item')].map((item) => item.textContent)).toEqual(['1 creator in 3 days', '1 post in 3 days']);
+  expect(shown.querySelector('.t42-count')).toBeNull();
+  expect([...shown.querySelectorAll('.tc-big-item')].map((item) => item.textContent)).toEqual(['1 account posting, last 3 days', '1 post in 3 days']);
   expect(shown.textContent).not.toMatch(/\b1 (creators|posts)\b/);
 });
 
@@ -2628,7 +2651,9 @@ test('a tap anywhere on a Today card opens it, and its controls keep their own j
   expect(opened).toBe(2);
   click(button(card, 'Posts'));
   expect(opened).toBe(2);
-  click(card.querySelector('[data-local-examples] a.t42-link'));
+  const example = card.querySelector('[data-local-examples] a.t42-link');
+  example.setAttribute('href', '#example');
+  click(example);
   expect(opened).toBe(2);
   // The title link stays the card's one keyboard stop.
   expect(card.getAttribute('tabindex')).toBeNull();
