@@ -123,3 +123,20 @@ def test_the_support_check_keeps_a_lead_that_names_no_cut_story():
     cut = {"c7": {"id": "c7", "text": text("Forbes and Motsoane murder trial")}}
     writer._k10(answer, kept, cut)
     assert answer["short_answer"].startswith("Two stories led")
+
+
+def test_the_short_answer_rewrite_is_refused_when_it_names_the_story_that_was_cut():
+    from datetime import datetime, timezone
+    from core.agent import writer
+    from core.agent.context import RunContext
+
+    class Model:
+        def complete_json(self, *, system, user, schema, model, max_tokens):
+            return {"text": "The Soweto unrest and the Forbes and Motsoane murder trial led."}, {}
+
+    ctx = RunContext(run_id="r_20261011_0800", tier="T1", as_of=datetime(2026, 10, 11, 6, 0, tzinfo=timezone.utc), market="ZA")
+    before = {"claims": [{"id": "c1", "text": text("Soweto unrest")}, {"id": "c2", "text": text("Cup final")},
+                         {"id": "c7", "text": text("Forbes and Motsoane murder trial")}]}
+    answer = {"claims": before["claims"][:2]}
+    got, _, dispatched, reason = writer.rewrite_headline(Model(), before, answer, ctx)
+    assert got is None and dispatched and reason == writer.HEADLINE_REPEATS_REASON

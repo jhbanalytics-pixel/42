@@ -76,6 +76,9 @@ NOT_RANKED = [
     "Show me the most viral post about the Durban July.",
     "How is the Springbok tour playing on social?",
     "A brief for a data bundle aimed at students in Nigeria.",
+    "Is the biggest story in South Africa this week the election?",
+    "What are the top conversations around #gqom this week?",
+    "Explain the trending conversation on load shedding.",
     "",
 ]
 
