@@ -122,6 +122,13 @@ jobs:
         working-directory: app/frontend
         run: bun install --frozen-lockfile
 
+      # The design token gate reads app/frontend/src and the baseline beside it, and nothing else. It prints one FAIL
+      # line for each raw font size past the baseline, rounded corner or drop shadow, and exits 1 on any. The tree is
+      # held at zero.
+      - name: Hold the design token gate at zero
+        working-directory: app/frontend
+        run: node scripts/check_design_tokens.mjs
+
       # A local vite bundle into the gitignored app/web/dist, which neutral-contract.test.jsx reads. Nothing is
       # uploaded or published from it.
       - name: Build the bundle the frontend tests read

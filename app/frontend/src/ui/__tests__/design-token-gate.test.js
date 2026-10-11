@@ -1,6 +1,6 @@
 import {expect, test} from 'bun:test';
 import {spawnSync} from 'node:child_process';
-import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -112,4 +112,17 @@ test('a raw font size in a sheet without a baseline entry still fails', () => {
   expect(raw.status).toBe(1);
   expect(raw.fails.length).toBe(1);
   expect(raw.fails[0]).toContain('fresh.css');
+});
+
+test('the test-only workflow runs the gate in the frontend job, before the bundle is built', () => {
+  const workflow = readFileSync(fileURLToPath(new URL('../../../../../.github/workflows/tests.yml', import.meta.url)), 'utf8');
+  const frontend = workflow.slice(workflow.indexOf('\n  frontend:'));
+  expect(frontend).toContain('\n  frontend:');
+  const gateAt = frontend.indexOf('run: node scripts/check_design_tokens.mjs\n');
+  expect(gateAt).toBeGreaterThan(0);
+  const step = frontend.slice(frontend.lastIndexOf('\n      - name:', gateAt), gateAt);
+  expect(step).toContain('working-directory: app/frontend');
+  expect(step).not.toMatch(/continue-on-error|\|\| true/);
+  expect(gateAt).toBeLessThan(frontend.indexOf('bun run build'));
+  expect(gateAt).toBeLessThan(frontend.indexOf('bun test'));
 });
