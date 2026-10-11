@@ -8,6 +8,7 @@
 export const CREDIT_NOTE = 'Credits pay for the live posts 42 reads from social platforms. The cost shown is the most this can use.';
 
 import {useEffect, useId, useRef, useState} from 'react';
+import {createPortal} from 'react-dom';
 import {askSpike} from '../api42.js';
 import {go} from '../router.js';
 import {longDate} from './TrendCard.jsx';
@@ -31,7 +32,13 @@ export function CostConfirm({title, where, line, does, get, confirmWord, busy = 
   // While the ask is on its way the dialog stays open, so its answer is followed, not lost.
   const close = () => { if (!busy) onClose(); };
 
-  return (
+  /* Design audit item 1: opened from a Today card the backdrop was placed
+     inside the card, which keeps a transform while it rises, so the scrim
+     covered the card and the title sat above the screen. The confirm renders
+     on the route layer instead, which keeps no transform once its entrance
+     ends, so the backdrop covers the viewport from any opener. */
+  const layer = typeof document !== 'undefined' ? document.getElementById('main-content') : null;
+  const sheet = (
     <div className="w42-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div ref={box} className="w42-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}
         onKeyDown={(e) => { if (e.key === 'Escape'){ e.stopPropagation(); close(); } }}>
@@ -55,6 +62,7 @@ export function CostConfirm({title, where, line, does, get, confirmWord, busy = 
       </div>
     </div>
   );
+  return layer ? createPortal(sheet, layer) : sheet;
 }
 
 /* The spike confirm, shared by the topic page and Compare: a quick scan

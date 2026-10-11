@@ -466,7 +466,7 @@ html .oi-product .cv42 :is(td, th) { font-variant-numeric: tabular-nums; }
   html .oi-product .ask42 .ask42-short,
   html .oi-product .t42 .t42-cards > .t42-card,
   html .oi-product .ask42 .ask42-claim {
-    animation: ndRise var(--motion-handoff) var(--motion-handoff-easing) both;
+    animation: ndRise var(--motion-handoff) var(--motion-handoff-easing) backwards;
     animation-delay: calc(min(var(--nd-i, 0), 5) * 80ms);
   }
   html .oi-product .t42 .t42-cards > .t42-card:nth-child(2),

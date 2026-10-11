@@ -979,7 +979,7 @@ html .oi-product .t42 .sc-skeleton-tile {
 /* Motion: the panel arrives with the headline, once */
 @media (prefers-reduced-motion: no-preference) {
   html .oi-product .t42 .t42-lead-panel {
-    animation: ndRise var(--motion-handoff) var(--motion-handoff-easing) both;
+    animation: ndRise var(--motion-handoff) var(--motion-handoff-easing) backwards;
     animation-delay: calc(min(var(--nd-i, 0), 5) * 80ms);
   }
 }
