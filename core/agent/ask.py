@@ -564,17 +564,20 @@ ID_ECHO_TOOLS = ("get_comments", "get_transcript", "watch_video", "log_forecast"
 def listed_post_ids(ctx: RunContext) -> list[str]:
     """Post ids in the query rows the writer's pack shows that are not evidence yet, first seen first, at most
     MAX_POSTS. A post_id column counts whatever its values; another post_id-like column counts only obs1_ ids. An id a
-    fetch skipped as outside the window is left out, so a second gate does not fetch it again."""
+    fetch skipped as outside the window is left out, so a second gate does not fetch it again. A sweep query's own rows
+    list the posts it dropped (sweep_dropped_ids); those are not fetched on its account, but are on another query's."""
     ids = []
     skipped = {pid for query in list(ctx.queries.values()) for pid in query.get("skipped_ids") or ()}
     for query in list(ctx.queries.values()):
+        dropped = set(query.get("sweep_dropped_ids") or ())  # the sweep's rows it did not keep, for this query only
         for row in (query.get("rows") or [])[:ROWS_SHOWN]:
             for column, value in (row.items() if isinstance(row, dict) else ()):
                 if "post_id" not in str(column).lower():
                     continue
                 for pid in (value if isinstance(value, (list, tuple)) else [value]):
                     if (isinstance(pid, str) and (column == "post_id" or POST_ID.match(pid))
-                            and pid not in ctx.evidence and pid not in skipped and pid not in ids):
+                            and pid not in ctx.evidence and pid not in skipped and pid not in dropped
+                            and pid not in ids):
                         ids.append(pid)
     return ids[:MAX_POSTS]
 
