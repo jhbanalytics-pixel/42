@@ -71,11 +71,26 @@ def _ranked_claim_ids(run) -> set:
     return {item.get("claim_id") for item in items if isinstance(item, dict)} if isinstance(items, list) else set()
 
 
-def merge_repeated_claims(answer: dict, protected=frozenset()) -> dict:
+def _comment_posts(record) -> dict:
+    """{comment id: post id} from the record's evidence_links, or {} when it holds none or one in another shape: exactly
+    the keys v and parents, v the whole number 1, and every id a non-empty string (as core.api.comment_links.read)."""
+    links = record.get("evidence_links") if isinstance(record, dict) else None
+    if not isinstance(links, dict) or set(links) != {"v", "parents"}:
+        return {}
+    version, parents = links["v"], links["parents"]
+    if type(version) is not int or version != 1 or not isinstance(parents, dict):
+        return {}
+    if any(not isinstance(k, str) or not k or not isinstance(v, str) or not v for k, v in parents.items()):
+        return {}
+    return dict(parents)
+
+
+def merge_repeated_claims(answer: dict, protected=frozenset(), comment_posts=None) -> dict:
     """Claims with the same kind, the same quoted posts and words and the same figures are one fact said several
     times. The strongest stays (label, then the most posts, figures and words) and the rest go. A line that referred
     to a gone claim refers to the one that stays, which carries the same figures by the key. A claim in `protected`
-    (one the ranked list points at) is never merged."""
+    (one the ranked list points at) is never merged. The evidence that stays is what the kept claims cite and the post
+    each cited comment sits under (`comment_posts`, the record's links), so a comment keeps its post."""
     claims = [c for c in answer.get("claims") or [] if isinstance(c, dict)]
     groups: dict = {}
     for index, claim in enumerate(claims):
@@ -95,6 +110,7 @@ def merge_repeated_claims(answer: dict, protected=frozenset()) -> dict:
         return answer
     kept = [c for i, c in enumerate(claims) if i not in drop]
     cited = {eid for c in kept for eid in c.get("evidence_ids") or []}
+    cited |= {(comment_posts or {}).get(eid) for eid in cited} - {None}
     out = {**answer, "claims": kept,
            "evidence": [e for e in answer.get("evidence") or [] if not isinstance(e, dict) or e.get("id") in cited]}
     for section in ("so_what", "watch_next"):
@@ -210,7 +226,7 @@ def present(record: dict) -> dict:
     if not isinstance(record, dict) or not isinstance(record.get("answer"), dict):
         return record
     shown = copy.deepcopy(record)
-    answer = merge_repeated_claims(shown["answer"], _ranked_claim_ids(shown.get("run")))
+    answer = merge_repeated_claims(shown["answer"], _ranked_claim_ids(shown.get("run")), _comment_posts(shown))
     if isinstance(answer.get("gaps"), list):
         plain = plain_gaps(answer["gaps"])
         run = shown.get("run") if isinstance(shown.get("run"), dict) else {}
