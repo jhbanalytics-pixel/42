@@ -194,3 +194,199 @@ def test_a_previous_record_read_by_the_candidate_as_another_state_is_found(at_a)
     mutated["reverse"][ask_id]["ask read"]["meta"] = {"check": "verified", "v": 1, "execution": {"state": "failed", "stop_reason": None},
                                                        "summary": {"state": "no_answer", "removals": [], "rewrite": "not_attempted"}}
     assert any(ask_id in p for p in h.layer_problems(mutated)["layer 4"])
+
+# Release C's one stored shape, evidence_links (plan 3.4d, review of Release C finding I1). The fixture agent never cites a comment, so a
+# corpus of its rows never put the key in front of Release A's readers. The rows below are made with the candidate's own producer
+# function; the expected values are pinned here, not read back from the rows.
+
+LINKED = {"v": 1, "parents": {"x_comment_7001": "x_fixture_3"}}
+NAMES = ("linked", "partial", "hidden_post", "post_pruned", "link_dropped")
+
+
+def ids_of(row):
+    return [e["id"] for e in (row["record"].get("answer") or {}).get("evidence") or []]
+
+
+@pytest.fixture(scope="module")
+def candidate():
+    written = h.written_rows(h.ROOT)
+    return written, h.linked_rows(h.ROOT, written)
+
+
+@pytest.fixture(scope="module")
+def named(candidate):
+    return dict(zip(NAMES, candidate[1]))
+
+
+def test_the_scenarios_are_the_five_the_corpus_must_hold():
+    assert h.LINK_SCENARIOS == NAMES
+
+
+# the rows: the links come from the candidate's producer, and the expected values are pinned here, not read back from the rows
+
+def test_a_comment_whose_post_is_shown_stores_the_link_under_the_key(named):
+    row = named["linked"]
+    assert row["record"]["evidence_links"] == LINKED
+    assert {"x_comment_7001", "x_fixture_3"} <= set(ids_of(row))
+
+
+def test_a_second_comment_with_no_stored_post_gets_no_link_and_the_first_keeps_its_own(named):
+    row = named["partial"]
+    assert row["record"]["evidence_links"] == LINKED
+    assert "x_comment_7003" in ids_of(row) and "x_comment_7003" not in row["record"]["evidence_links"]["parents"]
+
+
+def test_a_comment_shown_without_its_hidden_post_stores_no_key(named):
+    row = named["hidden_post"]
+    assert "evidence_links" not in row["record"]
+    assert "x_comment_7001" in ids_of(row) and "x_fixture_3" not in ids_of(row)
+
+
+def test_a_link_that_names_a_post_no_longer_shown_is_kept_as_stored(named):
+    row = named["post_pruned"]
+    assert row["record"]["evidence_links"] == LINKED
+    assert "x_comment_7001" in ids_of(row) and "x_fixture_3" not in ids_of(row)
+
+
+def test_a_record_whose_reader_dropped_the_link_holds_the_comment_and_its_post_and_no_key(named):
+    row = named["link_dropped"]
+    assert "evidence_links" not in row["record"]
+    assert {"x_comment_7001", "x_fixture_3"} <= set(ids_of(row))
+
+
+def test_every_link_row_is_a_complete_written_row_with_only_the_evidence_the_key_and_the_ids_changed(candidate):
+    written, linked = candidate
+    base = next(row for row in written if h.kind_of(row) == "complete")
+    ask_ids = [h.ask_id_of(row) for row in linked]
+    assert len(set(ask_ids)) == len(ask_ids) == len(NAMES) and not set(ask_ids) & {h.ask_id_of(row) for row in written}
+    for row in linked:
+        assert h.kind_of(row) == "complete" and row["run_id"] == h.ask_id_of(row)
+        kept = {k: v for k, v in row["record"].items() if k not in ("ask_id", "answer", "answer_meta", "evidence_links")}
+        assert kept == {k: v for k, v in base["record"].items() if k not in ("ask_id", "answer", "answer_meta")}
+        assert row["answer"] == row["record"]["answer"]
+        assert row["record"]["answer"]["evidence"][:len(base["record"]["answer"]["evidence"])] == base["record"]["answer"]["evidence"]
+        meta = row["record"]["answer_meta"]
+        again = h.make_meta(row["record"], meta["execution"]["state"], meta["execution"]["stop_reason"], meta["summary"]["state"],
+                            meta["summary"]["removals"], meta["summary"]["rewrite"])
+        assert meta == again and meta["ask_id"] == h.ask_id_of(row)
+
+
+def test_the_comment_and_post_records_have_the_shape_of_the_evidence_the_answer_already_holds(candidate):
+    written, linked = candidate
+    base = next(row for row in written if h.kind_of(row) == "complete")
+    shapes = {frozenset(e) for e in base["record"]["answer"]["evidence"]}
+    for row in linked:
+        assert {frozenset(e) for e in row["record"]["answer"]["evidence"]} <= shapes
+
+
+def test_a_tree_with_no_producer_gives_no_link_rows(candidate, tmp_path):
+    written, _ = candidate
+    assert h.linked_rows(ch.archive(A, tmp_path / "a"), written) == []
+
+
+# the corpus and layer 1
+
+def test_the_corpus_keeps_the_link_rows_and_judges_each_against_the_key_absent_twin_of_a_complete_row(candidate):
+    written, linked = candidate
+    rows, twin_of = h.corpus(written, linked)
+    by_id = {h.ask_id_of(row): row for row in rows}
+    assert all(h.ask_id_of(row) in by_id for row in linked)
+    for row in linked:
+        twin = by_id[twin_of[h.ask_id_of(row)]]
+        assert h.kind_of(twin) == "complete" and "answer_meta" not in twin["record"] and "evidence_links" not in twin["record"]
+    assert len(h.corpus(written)[0]) + len(linked) == len(rows) and len({h.ask_id_of(row) for row in rows}) == len(rows)
+
+
+def holds_links(row):
+    return bool((row["record"].get("evidence_links") or {}).get("parents"))
+
+
+def comment_without_key(row):
+    return "evidence_links" not in row["record"] and any("_comment_" in i for i in ids_of(row))
+
+
+def names_unshown_post(row):
+    return any(post not in ids_of(row) for post in ((row["record"].get("evidence_links") or {}).get("parents") or {}).values())
+
+
+def test_layer_1_asks_for_the_three_cases_when_the_candidate_has_the_producer(candidate):
+    written, linked = candidate
+    full, _ = h.corpus(written, linked)
+    assert h.layer1_problems(full, expects_links=True) == []
+    bare, _ = h.corpus(written)
+    assert h.layer1_problems(bare) == [] and len(h.layer1_problems(bare, expects_links=True)) == 3
+    for label, drop, count in (("holds evidence_links", holds_links, 2), ("without evidence_links", comment_without_key, 1),
+                               ("names a post", names_unshown_post, 1)):  # a corpus with no link at all also names no unshown post
+        problems = h.layer1_problems([row for row in full if not drop(row)], expects_links=True)
+        assert len(problems) == count and label in problems[0], (label, problems)
+
+
+# layer 2 with Release A's real readers (the at_a fixture above)
+
+def link_ids(data):
+    return [h.ask_id_of(row) for row in data["layer2_rows"] if str(h.ask_id_of(row)).startswith("a_20261009_link")]
+
+
+def test_release_a_reads_every_link_row_on_every_layer_and_the_data_holds_them(at_a):
+    ids = link_ids(at_a)
+    assert len(ids) == len(NAMES) and at_a["candidate_writes_links"] is True
+    assert {h.ask_id_of(row) for row in at_a["rows"]} >= set(ids)
+    for ask_id in ids:
+        assert [at_a["reads"][ask_id][route]["status"] for route in ("ask read", "ask events", "ask export")] == [200, 200, 200], ask_id
+        assert at_a["reads"][ask_id]["ask events"]["events"][-1] == "done"
+
+
+def test_release_a_gives_the_stored_link_back_unchanged_and_nothing_where_none_is_stored(at_a):
+    reads = at_a["reads"]
+    want = dict(zip(NAMES, [LINKED, LINKED, "absent", LINKED, "absent"]))
+    for name, ask_id in zip(NAMES, link_ids(at_a)):
+        assert reads[ask_id]["ask read"]["links"] == want[name], name
+
+
+def test_the_receipt_at_release_a_covers_the_key_and_says_pass(at_a):
+    receipt = h.build_receipt(ch.git_head(), at_a, base_commit=A)
+    assert receipt["problems"] == [] and receipt["verdict"] == "pass" and receipt["prior_stores_answer_meta"] is True
+    assert h.layer_problems(at_a) == {"layer 1": [], "layer 2": [], "layer 3": [], "layer 4": []}
+
+
+def test_the_key_is_declared_for_a_previous_release_that_stores_the_state_and_every_other_new_key_is_not(at_a):
+    ids = link_ids(at_a)
+    assert h.layer2_problems(at_a["reads"], at_a["twin_of"], declared=h.C_RECORD_KEYS) == []
+    undeclared = h.layer2_problems(at_a["reads"], at_a["twin_of"], declared=())
+    assert any(p.startswith(f"{ids[0]} ask read.evidence_links: undeclared key") for p in undeclared)
+    assert h.C_RECORD_KEYS == {"evidence_links"}
+    mutated = copy.deepcopy(at_a)
+    shape = mutated["reads"][ids[0]]["ask read"]["shape"]
+    mutated["reads"][ids[0]]["ask read"]["shape"] = {**shape, "surprise": "string"}
+    problems = h.layer_problems(mutated)["layer 2"]
+    assert any("ask read.surprise: undeclared key" in p for p in problems) and not any("evidence_links: undeclared" in p for p in problems)
+
+
+def test_a_previous_reader_that_changes_or_drops_the_stored_link_is_found(at_a):
+    ids = link_ids(at_a)
+    changed = copy.deepcopy(at_a)
+    changed["reads"][ids[0]]["ask read"]["links"] = {"v": 1, "parents": {}}
+    assert any(p.startswith(f"{ids[0]} ask read.evidence_links:") for p in h.layer_problems(changed)["layer 2"])
+    dropped = copy.deepcopy(at_a)
+    dropped["reads"][ids[0]]["ask read"]["links"] = "absent"
+    assert any(p.startswith(f"{ids[0]} ask read.evidence_links:") for p in h.layer_problems(dropped)["layer 2"])
+    invented = copy.deepcopy(at_a)
+    invented["reads"][ids[2]]["ask read"]["links"] = LINKED
+    assert any(p.startswith(f"{ids[2]} ask read.evidence_links:") for p in h.layer_problems(invented)["layer 2"])
+
+
+def test_a_read_that_does_not_show_whether_the_key_came_back_is_a_problem_for_a_row_that_stores_it(at_a):
+    ids = link_ids(at_a)
+    blind = copy.deepcopy(at_a)
+    del blind["reads"][ids[0]]["ask read"]["links"]
+    assert any(ids[0] in p and "evidence_links" in p for p in h.layer_problems(blind)["layer 2"])
+
+
+def test_a_corpus_without_the_link_rows_cannot_pass_once_the_candidate_has_the_producer(at_a):
+    stripped = copy.deepcopy(at_a)
+    ids = set(link_ids(stripped))
+    stripped["rows"] = [row for row in stripped["rows"] if h.ask_id_of(row) not in ids]
+    stripped["layer2_rows"] = [row for row in stripped["layer2_rows"] if h.ask_id_of(row) not in ids]
+    stripped["reads"] = {k: v for k, v in stripped["reads"].items() if k not in ids}
+    receipt = h.build_receipt(ch.git_head(), stripped, base_commit=A)
+    assert receipt["verdict"] == "fail" and any(p.startswith("layer 1: ") and "evidence_links" in p for p in receipt["problems"])

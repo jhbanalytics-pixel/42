@@ -24,6 +24,7 @@ from core.api.tests import compat_harness as ch
 
 ROOT = ch.ROOT
 RECORD_KEYS = {"answer_meta", "evidence_links"}  # the keys the record gains: the typed summary state, the comment links
+C_RECORD_KEYS = {"evidence_links"}  # the one key Release C adds on top of a previous release that already stores answer_meta
 
 DRIVER = r'''
 import json, os, sys, time
@@ -67,6 +68,75 @@ sys.stdout.write("CORPUS " + json.dumps(agent_app.SINK) + "\n")
 
 
 # Layer 1: the corpus
+
+# The records that carry evidence_links, made with the candidate's own producer function (core.agent.checks.comment_links, which
+# core/agent/ask.py calls). The fixture agent never cites a comment, so its rows cannot hold the key: the harness composes complete rows
+# from the fixture's own, adds comment and post records shaped like the evidence the answer already holds, and asks the producer for the
+# link. Five cases: the link, a comment with no stored post beside one that has it, a comment whose post is hidden (no key), a link that
+# names a post no longer shown, and a record whose reader dropped the link.
+LINK_SCENARIOS = ("linked", "partial", "hidden_post", "post_pruned", "link_dropped")
+LINK_STORED = {"x_fixture_3": {}, "x_comment_7001": {"parent_id": "x_fixture_3"}, "x_comment_7002": {"parent_id": "x_fixture_3"},
+               "x_comment_7003": {}}
+LINK_SHOWN = {"linked": ["x_fixture_3", "x_comment_7001"], "partial": ["x_fixture_3", "x_comment_7001", "x_comment_7003"],
+              "hidden_post": ["x_comment_7001"], "post_pruned": ["x_fixture_3", "x_comment_7001"],
+              "link_dropped": ["x_fixture_3", "x_comment_7001"]}
+
+LINKS_DRIVER = r'''
+import json, sys
+sys.path.insert(0, sys.argv[1])
+try:
+    from core.agent import checks
+    producer = checks.comment_links
+except (ImportError, AttributeError):
+    sys.stdout.write("LINKS null" + chr(10))
+    sys.exit(0)
+stored, shown = json.loads(sys.argv[2]), json.loads(sys.argv[3])
+out = {name: producer({"evidence": [{"id": i} for i in ids]}, stored) for name, ids in shown.items()}
+sys.stdout.write("LINKS " + json.dumps(out) + chr(10))
+'''
+
+
+def link_producer_output(tree):
+    """{scenario: what the tree's producer gives for the records that scenario shows}, or None when the tree has no such producer."""
+    done = subprocess.run([sys.executable, "-s", "-c", LINKS_DRIVER, str(tree), json.dumps(LINK_STORED), json.dumps(LINK_SHOWN)], cwd=tree,
+                          env=ch._environment({}), capture_output=True, encoding="utf-8", timeout=120)
+    lines = [line for line in done.stdout.splitlines() if line.startswith("LINKS ")]
+    if done.returncode != 0 or len(lines) != 1:
+        raise RuntimeError(f"the links driver failed in {tree}: {done.stderr[-600:]}")
+    return json.loads(lines[0][6:])
+
+
+def linked_rows(tree, written):
+    """One complete row per scenario in LINK_SCENARIOS, or [] when the tree has no producer of the links. Each is the tree's own complete
+    row with the comment and post records the scenario shows added to its evidence, the producer's link stored under evidence_links
+    (or not, where the scenario stores none) and, where the row holds answer_meta, a meta rebuilt for the new ask id."""
+    produced = link_producer_output(tree)
+    if produced is None:
+        return []
+    base = next(row for row in written if kind_of(row) == "complete")
+    template = next(e for e in base["record"]["answer"]["evidence"] if e.get("platform") == "x")
+    rows = []
+    for number, name in enumerate(LINK_SCENARIOS, 1):
+        row = copy.deepcopy(base)
+        ask_id = f"a_20261009_link{number:02d}"
+        row["record"]["ask_id"], row["run_id"] = ask_id, ask_id
+        answer = row["record"]["answer"]
+        held = {e["id"] for e in answer["evidence"]}
+        shown = [i for i in LINK_SHOWN[name] if i not in held]
+        answer["evidence"] += [{**template, "id": i, "url": f"https://example.invalid/x/{i}", "text": f"{i} (a link row)"} for i in shown]
+        next(c for c in answer["claims"] if c["id"] == "c2")["evidence_ids"] += [i for i in shown if "_comment_" in i]
+        links = produced["linked" if name in ("post_pruned", "link_dropped") else name]
+        if name == "post_pruned":
+            answer["evidence"] = [e for e in answer["evidence"] if e["id"] != "x_fixture_3"]
+        if links is not None and name != "link_dropped":
+            row["record"]["evidence_links"] = links
+        row["answer"] = copy.deepcopy(answer)
+        if "answer_meta" in row["record"]:
+            meta = row["record"]["answer_meta"]
+            row["record"]["answer_meta"] = make_meta(row["record"], meta["execution"]["state"], meta["execution"]["stop_reason"],
+                                                     meta["summary"]["state"], meta["summary"]["removals"], meta["summary"]["rewrite"])
+        rows.append(row)
+    return rows
 
 def written_rows(tree):
     """The runs rows a writer tree leaves behind on its fixture path: complete, partial, failed and stopped Asks."""
@@ -135,11 +205,11 @@ def without_meta(row, ask_id):
     return out
 
 
-def corpus(written):
+def corpus(written, linked=()):
     """(rows, twin_of): the written rows as they are, a key-absent twin of each written row that already carries answer_meta
-    (the candidate writers store it once C1 lane 2 is in), then one clone per state with a synthetic answer_meta. twin_of maps
-    every row that carries the key, clone or written, to the ask id of the row with the key absent that the previous readers
-    are judged against: a row is never compared with another state's answer_meta."""
+    (the candidate writers store it once C1 lane 2 is in), then one clone per state with a synthetic answer_meta, then the rows
+    that carry evidence_links (linked_rows). twin_of maps every row that carries a key, clone, link row or written, to the ask id of
+    the row with the keys absent that the previous readers are judged against: a row is never compared with another state's answer_meta."""
     rows, twin_of, absent = [copy.deepcopy(row) for row in written], {}, {}
     for row in written:
         if "answer_meta" in row["record"]:
@@ -159,6 +229,9 @@ def corpus(written):
         clone["run_id"] = ask_id
         clone["record"]["answer_meta"] = make_meta(clone["record"], execution, stop_reason, summary, removals, rewrite)
         rows.append(clone)
+    for row in linked:
+        rows.append(copy.deepcopy(row))
+        twin_of[ask_id_of(row)] = absent["complete"]["record"]["ask_id"]
     return rows, twin_of
 
 
@@ -191,14 +264,19 @@ class OldReader:
         self.runs.write_text(json.dumps(self.original + rows), encoding="utf-8")
 
     def read(self, ask_ids):
-        """{ask_id: {route: record}} for the three routes that read a stored Ask, plus Today."""
+        """{ask_id: {route: record}} for the three routes that read a stored Ask, plus Today. The Ask read also gives `links`, the
+        evidence_links value the reader returned, or "absent": the shape alone does not show whether a stored value came back unchanged."""
         out = {}
         with httpx.Client(base_url=self.api.url, timeout=30) as client:
             for ask_id in ask_ids:
                 out[ask_id] = {}
                 for route, path in (("ask read", f"/api/ask/{ask_id}"), ("ask events", f"/api/ask/{ask_id}/events"),
                                    ("ask export", f"/api/ask/{ask_id}/export?format=html")):
-                    out[ask_id][route] = ch._record(route, client.get(path, headers=ch.HEADERS))
+                    response = client.get(path, headers=ch.HEADERS)
+                    out[ask_id][route] = ch._record(route, response)
+                    if route == "ask read" and out[ask_id][route]["kind"] == "json":
+                        body = response.json()
+                        out[ask_id][route]["links"] = body.get("evidence_links", "absent") if isinstance(body, dict) else "absent"
             out["today"] = {"today": ch._record("today", client.get("/api/today", headers=ch.HEADERS))}
         return out
 
@@ -221,6 +299,23 @@ def layer2_problems(reads, twin_of, declared=RECORD_KEYS):
                 problems += [f"{ask_id} {key}: undeclared key" for key in added if key not in {f"{route}.{name}" for name in declared}]
             elif got["kind"] == "sse" and got["events"] != twin["events"]:
                 problems.append(f"{ask_id} {route}: events {twin['events']} became {got['events']}")
+    return problems
+
+
+def links_problems(reads, rows):
+    """For every row read: the previous reader gives evidence_links back exactly as stored, and gives none where none is stored. The
+    stored value is the corpus row's, produced by the candidate; the returned value is the previous reader's own."""
+    problems = []
+    for row in rows:
+        ask_id, stored = ask_id_of(row), row["record"].get("evidence_links", "absent")
+        got = reads.get(ask_id, {}).get("ask read")
+        if not isinstance(got, dict) or got.get("kind") != "json":
+            continue
+        if "links" not in got:
+            if stored != "absent":
+                problems.append(f"{ask_id} ask read.evidence_links: the read does not show what the previous reader gave back")
+        elif got["links"] != stored:
+            problems.append(f"{ask_id} ask read.evidence_links: the previous reader gave {got['links']} where the record stores {stored}")
     return problems
 
 
@@ -361,8 +456,14 @@ def corpus_sha256(rows):
     return hashlib.sha256(canonical(stable_form(rows)).encode("utf-8")).hexdigest()
 
 
-def layer1_problems(rows):
-    """The corpus holds every execution and summary state, each kind of record, and the key both present and absent."""
+def comments_of(row):
+    return [e["id"] for e in (row["record"].get("answer") or {}).get("evidence") or [] if "_comment_" in str(e.get("id"))]
+
+
+def layer1_problems(rows, expects_links=False):
+    """The corpus holds every execution and summary state, each kind of record, and the key both present and absent. When the candidate
+    writes evidence_links (expects_links) it also holds a record with a link, a record that shows a comment and stores no key, and a
+    record whose link names a post the record no longer shows."""
     if not rows:
         return ["the corpus is empty"]
     metas = [row["record"]["answer_meta"] for row in rows if "answer_meta" in row["record"]]
@@ -374,6 +475,15 @@ def layer1_problems(rows):
         problems.append("no record holds answer_meta")
     if all("answer_meta" in row["record"] for row in rows):
         problems.append("no record leaves answer_meta absent")
+    if expects_links:
+        links = [(row, (row["record"].get("evidence_links") or {}).get("parents") or {}) for row in rows]
+        shown = {id(row): {e["id"] for e in (row["record"].get("answer") or {}).get("evidence") or []} for row in rows}
+        if not any(parents for _, parents in links):
+            problems.append("no record holds evidence_links with a comment linked to its post")
+        if not any(comments_of(row) and "evidence_links" not in row["record"] for row in rows):
+            problems.append("no record shows a comment without evidence_links")
+        if not any(post not in shown[id(row)] for row, parents in links for post in parents.values()):
+            problems.append("no record holds evidence_links that names a post the record does not show")
     return problems
 
 
@@ -388,13 +498,14 @@ def layer_problems(data):
     stores = data.get("prior_stores_answer_meta", False)
     ids, legacy_ids = [ask_id_of(row) for row in data.get("layer2_rows", rows)], [ask_id_of(row) for row in legacy]
     layer2 = [f"{ask_id}: no read of {route}" for route in ("ask read", "ask events", "ask export") for ask_id in unread(data["reads"], ids, route)]
-    layer2 += layer2_problems(data["reads"], data["twin_of"], declared=() if stores else RECORD_KEYS)
+    layer2 += layer2_problems(data["reads"], data["twin_of"], declared=C_RECORD_KEYS if stores else RECORD_KEYS)
+    layer2 += links_problems(data["reads"], data.get("layer2_rows", rows))
     layer3 = [] if data["paths"] else ["no JSON path is read from the previous release"]
     layer3 += [] if legacy else ["no record written by the previous writers"]
     layer3 += layer3_problems(legacy, rows, data["paths"])
     layer4 = [f"{ask_id}: no read of the candidate readers" for ask_id in unread(data["reverse"], legacy_ids, "ask read")]
     layer4 += reverse_meta_problems(data["reverse"], legacy) if stores else reverse_problems(data["reverse"])
-    return {"layer 1": layer1_problems(rows), "layer 2": layer2, "layer 3": layer3, "layer 4": layer4}
+    return {"layer 1": layer1_problems(rows, expects_links=data.get("candidate_writes_links", False)), "layer 2": layer2, "layer 3": layer3, "layer 4": layer4}
 
 
 def build_receipt(candidate_commit, data, base_commit=ch.BASE_COMMIT):
@@ -417,14 +528,16 @@ def collect(candidate_tree, log_dir, base_commit=ch.BASE_COMMIT):
     base = ch.archive(base_commit, tmp / "base")
     legacy = written_rows(base)
     written = written_rows(candidate_tree)
-    rows, twin_of = corpus(written)
+    linked = linked_rows(candidate_tree, written)
+    rows, twin_of = corpus(written, linked)
     stores = stores_answer_meta(legacy)
     # A previous release that stores answer_meta is judged on the candidate's real records as written (the typed state present, as the
     # previous readers know it), against its own records of the same kind read by the same readers. The synthetic clones are not read.
     layer2_rows, layer2_twin = rows, twin_of
     if stores:
         by_kind = {kind_of(row): ask_id_of(row) for row in legacy}
-        layer2_rows, layer2_twin = [*written, *legacy], {ask_id_of(row): by_kind[kind_of(row)] for row in written if kind_of(row) in by_kind}
+        layer2_rows = [*written, *linked, *legacy]
+        layer2_twin = {ask_id_of(row): by_kind[kind_of(row)] for row in [*written, *linked] if kind_of(row) in by_kind}
     with OldReader(base, tmp) as reader:
         reader.load(layer2_rows)
         reads = reader.read([ask_id_of(row) for row in layer2_rows])
@@ -433,7 +546,7 @@ def collect(candidate_tree, log_dir, base_commit=ch.BASE_COMMIT):
         reader.load(legacy)
         reverse = read_with_meta(reader, [ask_id_of(row) for row in legacy])
     return {"rows": rows, "twin_of": layer2_twin, "legacy": legacy, "paths": a80_record_paths(base), "reads": reads, "reverse": reverse,
-            "prior_stores_answer_meta": stores, "layer2_rows": layer2_rows}
+            "prior_stores_answer_meta": stores, "layer2_rows": layer2_rows, "candidate_writes_links": bool(linked)}
 
 
 def changed_files(root):
