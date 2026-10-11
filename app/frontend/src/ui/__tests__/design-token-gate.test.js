@@ -32,6 +32,12 @@ function judge(files){
   }
 }
 
+test('the design token gate has zero FAIL lines on the real tree', () => {
+  const real = run([]);
+  expect(real.fails).toEqual([]);
+  expect(real.status).toBe(0);
+});
+
 test('a shadow named through a token is judged by what the token declares', () => {
   const drop = judge({'a.css': ':root { --lift: 0 4px 8px rgba(0, 0, 0, .2); }\n.a { box-shadow: var(--lift); }\n'});
   expect(drop.status).toBe(1);
@@ -70,6 +76,35 @@ test('a literal drop shadow still fails', () => {
   const literal = judge({'a.css': '.a { box-shadow: 0 2px 4px black; }\n'});
   expect(literal.status).toBe(1);
   expect(literal.fails.length).toBe(1);
+});
+
+test('the three shape tokens pass at their pinned values and nowhere else', () => {
+  const shapes = ':root { --shape-control: 6px; --shape-default: 8px; --shape-card: 10px; }\n';
+  const ok = judge({'a.css': `${shapes}button { border-radius: var(--shape-control); }\n.card { border-radius: var(--shape-card); }\n.pad { border-radius: var(--shape-default); }\n`});
+  expect(ok.fails).toEqual([]);
+  expect(ok.status).toBe(0);
+
+  const drifted = judge({'a.css': ':root { --shape-control: 12px; }\nbutton { border-radius: var(--shape-control); }\n'});
+  expect(drifted.status).toBe(1);
+  expect(drifted.fails.length).toBe(1);
+
+  const overridden = judge({'a.css': `${shapes}button { border-radius: var(--shape-control); }\n.x { --shape-control: 20px; }\n`});
+  expect(overridden.status).toBe(1);
+
+  const flat = judge({'a.css': `${shapes}.lex { --shape-control: 0; }\nbutton { border-radius: var(--shape-control); }\n`});
+  expect(flat.fails).toEqual([]);
+
+  const indirect = judge({'a.css': ':root { --shape-control: var(--round); --round: 6px; }\nbutton { border-radius: var(--shape-control); }\n'});
+  expect(indirect.status).toBe(1);
+});
+
+test('a token outside the three shape tokens does not buy a radius', () => {
+  const other = judge({'a.css': ':root { --pill: 6px; }\nbutton { border-radius: var(--pill); }\n'});
+  expect(other.status).toBe(1);
+  const undeclared = judge({'a.css': 'button { border-radius: var(--shape-control); }\n'});
+  expect(undeclared.status).toBe(1);
+  const literal = judge({'a.css': '.card { border-radius: 6px; }\n'});
+  expect(literal.status).toBe(1);
 });
 
 test('a raw font size in a sheet without a baseline entry still fails', () => {

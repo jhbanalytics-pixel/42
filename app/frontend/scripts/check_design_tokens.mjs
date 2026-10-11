@@ -56,6 +56,13 @@ let fail = false;
 // Rule 3. Every rule in every host sheet is held flat: radius 0, 2px on a form
 // control, or 50% on one of the circular marks listed here, and no shadow that
 // is not inset. The list of marks is closed; a new dot joins it with a reason.
+// The one other radius is the host's approved shape scale, spelled as
+// var(--shape-control), var(--shape-default) or var(--shape-card). The pixel
+// values below are pinned here, not read from the sheet: type-spacing-contract
+// and console-surface pin the same three. A token passes only when every sheet
+// that declares it declares exactly the pinned value (or 0, the flat override);
+// a drifted or redeclared value, or any other token name, fails.
+const SHAPE_SCALE = new Map([['--shape-control', '6px'], ['--shape-default', '8px'], ['--shape-card', '10px']]);
 const FORM_CONTROL = /(?:^|[\s>+~])(?:input|textarea|select|button)\b/;
 const CIRCULAR_MARKS = new Set([
   '.sent .swatch', '.cited-voices-dot', '.bc-dot', '.map-dot',
@@ -105,11 +112,20 @@ function shadowProblem(value, seen = []) {
   return null;
 }
 
+// True when value is var(--shape-*) naming one of the three approved tokens and
+// every declaration of that token is its pinned value or 0.
+function approvedShape(value) {
+  const reference = value.match(VAR_REFERENCE);
+  if (!reference || reference[2] !== undefined || !SHAPE_SCALE.has(reference[1])) return false;
+  const values = declarations.get(reference[1]) || [];
+  return values.length > 0 && values.every((declared) => declared === '0' || declared === SHAPE_SCALE.get(reference[1]));
+}
+
 for (const {rel, selector, body} of rules) {
   for (const d of body.matchAll(/border(?:-[a-z-]+)?-radius\s*:\s*([^;]+)/g)) {
     const value = d[1].replace(/\s*!important\s*$/, '').trim();
-    if (value === '0' || (value === '2px' && FORM_CONTROL.test(selector)) || (value === '50%' && CIRCULAR_MARKS.has(selector))) continue;
-    console.error(`FAIL ${rel}: ${selector} rounds a corner (${value}); radius is 0, 2px on a form control, or 50% on a listed circular mark`);
+    if (value === '0' || approvedShape(value) || (value === '2px' && FORM_CONTROL.test(selector)) || (value === '50%' && CIRCULAR_MARKS.has(selector))) continue;
+    console.error(`FAIL ${rel}: ${selector} rounds a corner (${value}); radius is 0, 2px on a form control, 50% on a listed circular mark, or one of the pinned --shape tokens`);
     fail = true;
   }
   for (const d of body.matchAll(/box-shadow\s*:\s*([^;]+)/g)) {
