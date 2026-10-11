@@ -520,19 +520,18 @@ def _author_handles(record):
     return {h for h in (_folded(f) for f in found) if h}
 
 
-def _mask_unclear_handles(data, masking, shown):
-    """data with every @handle in a step's text masked unless the stream knows it belongs to a shown creator: a post
-    this stream judged and showed while somebody was hidden, and whose handle no hidden person also carries. A step can
-    name a hidden person before their post arrives, or on a stream resumed past it, and the stream cannot clear it."""
+def _mask_unclear_handles(data, shown):
+    """data with every @handle in a step's text masked unless the stream knows it belongs to a shown creator: a post this
+    stream judged and showed while somebody was hidden. A step can name a hidden person before their post arrives, or
+    on a stream resumed past it, and the stream cannot clear it. The handles of hidden people were masked already, so
+    a handle that is clear here is not one of them."""
     text = data.get("text")
     if not isinstance(text, str) or "@" not in text:
         return data
-    barred = {_folded(k.split(":", 1)[1]) for k in masking[0]} if masking is not None else set()
-    clear = set() if masking is None else (shown or set()) - barred
 
     def hide(match):
         core = match.group(1).rstrip(".-")
-        return match.group(0) if _folded(core) in clear else "@***" + match.group(1)[len(core):]
+        return match.group(0) if _folded(core) in shown else "@***" + match.group(1)[len(core):]
 
     return {**data, "text": AT_HANDLE.sub(hide, text)}
 
@@ -567,9 +566,8 @@ def project_event(kind, data, hidden, store, gone, seen, named=None, shown=None)
         if hidden is None or _claim_ids(claim) & gone:
             return None
         return mask(data, with_names(hidden, named))
-    masking = with_names(hidden, named)
-    out = mask(data, masking)
-    return _mask_unclear_handles(out, masking, shown) if kind == "step" else out
+    out = mask(data, with_names(hidden, named))
+    return _mask_unclear_handles(out, shown) if kind == "step" else out
 
 
 def place_chunk(events, hidden, store, seen, named=None):

@@ -114,3 +114,11 @@ def test_the_resume_costs_one_more_lookup_not_one_per_skipped_event_i2(world):
     hold(ask_record(), [renamed(), visible(), ("step", {"text": "after"})])
     "".join(agent_app.follow(agent_app.ASKS[ASK], 2))
     assert world.store.calls.count("post_creators") == 1
+
+
+def test_punctuation_after_an_at_handle_is_not_part_of_the_handle_i2(world):
+    world.store.hide = {"c_ren"}
+    hold(ask_record(), [visible(), ("step", {"text": "Posts by @vis_handle."}),
+                        ("step", {"text": "Posts by @someone_else."})])
+    text = "".join(agent_app.follow(agent_app.ASKS[ASK], 0))
+    assert "@vis_handle." in text and "@***." in text and "someone_else" not in text
