@@ -116,15 +116,14 @@ def test_search_posts_traces_unknown_semantic_failure_as_error():
     assert semantic["error_type"] == "TimeoutError"
 
 
-def test_search_posts_traces_keyword_failure_and_reraises_same_error():
+def test_search_posts_traces_a_keyword_failure_and_still_runs_the_semantic_leg():
     ctx = _ctx()
     error = Refused("Only SELECT is allowed.")
 
-    with pytest.raises(Refused) as caught:
-        search_posts(ctx, _Warehouse([], keyword_error=error), "braai")
+    out = search_posts(ctx, _Warehouse([], [_post("semantic")], keyword_error=error), "braai")
 
-    assert caught.value is error
-    assert _traces(ctx) == [{
+    keyword, semantic = _traces(ctx)
+    assert keyword == {
         "step": "retrieval_trace",
         "mode": "keyword",
         "query_id": None,
@@ -133,7 +132,24 @@ def test_search_posts_traces_keyword_failure_and_reraises_same_error():
         "status": "refused",
         "refusal_category": "guard",
         "error_type": "Refused",
-    }]
+    }
+    assert (semantic["mode"], semantic["status"], semantic["post_ids"]) == ("semantic", "success", ["semantic"])
+    assert out["keyword"] == "unavailable" and out["keyword_reason"] == "Only SELECT is allowed."
+    assert [e["id"] for e in out["evidence"]] == ["semantic"]
+
+
+def test_search_posts_traces_both_failures_and_raises_with_both_reasons():
+    ctx = _ctx()
+    keyword_error = Refused("Only SELECT is allowed.")
+
+    with pytest.raises(Refused) as caught:
+        search_posts(ctx, _Warehouse([], keyword_error=keyword_error, semantic_error=TimeoutError("timed out")),
+                     "braai")
+
+    assert "Only SELECT is allowed." in str(caught.value) and "timed out" in str(caught.value)
+    keyword, semantic = _traces(ctx)
+    assert (keyword["mode"], keyword["status"], keyword["refusal_category"]) == ("keyword", "refused", "guard")
+    assert (semantic["mode"], semantic["status"], semantic["error_type"]) == ("semantic", "error", "TimeoutError")
 
 
 def test_search_posts_marks_successful_zero_rowsets_empty():

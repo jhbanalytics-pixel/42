@@ -340,13 +340,16 @@ def source_market_con():
     con.execute("CREATE SCHEMA intelligence_42_core")
     con.execute("CREATE TABLE intelligence_42_core.posts (post_id VARCHAR, platform VARCHAR, url VARCHAR, "
                 "creator_id VARCHAR, published_at TIMESTAMP, post_date DATE, geo_market VARCHAR, geo_source VARCHAR, "
-                "text VARCHAR, views BIGINT, likes BIGINT, comments BIGINT, shares BIGINT, engagement BIGINT)")
+                "text VARCHAR, views BIGINT, likes BIGINT, comments BIGINT, shares BIGINT, engagement BIGINT, "
+                "hashtags VARCHAR[])")
     con.execute("CREATE TABLE intelligence_42_core.creators (platform VARCHAR, creator_id VARCHAR, handle VARCHAR, "
                 "home_market VARCHAR)")
     con.execute("CREATE TABLE intelligence_42_core.v_post_source_markets (post_id VARCHAR, "
                 "source_markets VARCHAR[], source_sightings STRUCT(source_market VARCHAR, source_region VARCHAR, "
                 "route VARCHAR, protocol VARCHAR, observed_at TIMESTAMP, obs_date DATE)[])")
-    con.executemany("INSERT INTO intelligence_42_core.posts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+    con.executemany("INSERT INTO intelligence_42_core.posts (post_id, platform, url, creator_id, published_at, "
+                    "post_date, geo_market, geo_source, text, views, likes, comments, shares, engagement) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
         ("ke_feed", "tiktok", "https://t.example/ke_feed", "u_ke_feed", None, date(2026, 9, 27), None, None,
          "braai in the feeds", 10, 1, None, None, 11),
         ("ng_feed", "tiktok", "https://t.example/ng_feed", "u_ng_feed", None, date(2026, 9, 27), None, None,

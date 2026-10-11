@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextvars
 import re
 import threading
 from datetime import date, datetime
@@ -386,6 +387,17 @@ class Warehouse(Protocol):
     def run(self, sql: str, params: dict | None, max_bytes_billed: int) -> list[dict]: ...
 
 
+# Seconds a read on this thread may wait for its BigQuery job, or None for no limit. Set by the topic sweep for its own
+# reads, so a slow search ends as a failed search; every other read keeps the client's behaviour.
+QUERY_TIMEOUT_S: contextvars.ContextVar = contextvars.ContextVar("query_timeout_s", default=None)
+
+
+def _wait() -> dict:
+    """The timeout argument for job.result, only when this thread has set one."""
+    seconds = QUERY_TIMEOUT_S.get()
+    return {} if seconds is None else {"timeout": seconds}
+
+
 class BigQueryWarehouse:
     """google-cloud-bigquery behind the Warehouse protocol. The client is built on first use."""
 
@@ -448,10 +460,10 @@ class BigQueryWarehouse:
             )
         if semantic:
             job = self._client.query(sql, job_config=config, job_retry=None)
-            rows = job.result(max_results=MAX_ROWS + 1, job_retry=None)
+            rows = job.result(max_results=MAX_ROWS + 1, job_retry=None, **_wait())
         else:
             job = self._client.query(sql, job_config=config)
-            rows = job.result(max_results=MAX_ROWS + 1)
+            rows = job.result(max_results=MAX_ROWS + 1, **_wait())
         return [dict(row.items()) for row in rows]
 
 

@@ -108,7 +108,8 @@ def _invalid_args(name: str, args: dict) -> str | None:
     try:
         jsonschema.validate(args, SCHEMAS[name])
     except jsonschema.ValidationError as e:
-        return f"Invalid arguments: {e.message}"[:300]
+        allowed = ", ".join(SCHEMAS[name].get("properties") or ()) or "none"
+        return f"Invalid arguments: {e.message[:220]}. Allowed arguments: {allowed}."[:400]
     return None
 
 

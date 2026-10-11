@@ -1,0 +1,12 @@
+# AWAITING REVIEW by Albert or Thapelo. This file ships empty on purpose.
+# Ask searches each term listed here beside a stored search whose words match a topic. No term below has been
+# checked by a person who knows the language and the community, so none is written until one of them has reviewed it.
+# Do not add terms from memory or from a model. One word per term, no spaces; a term with a space is ignored.
+#
+# Shape of an entry, once reviewed:
+#
+#   [[topics]]
+#   when = ["humor", "humour"]        # lower case words that call for this topic
+#   terms = ["word1", "word2"]        # words to search beside them
+
+topics = []
