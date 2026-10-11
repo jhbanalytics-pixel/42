@@ -387,7 +387,7 @@ def test_the_same_comment_with_the_link_missing_is_dropped_because_nothing_shows
 
 def test_the_links_an_answer_shows_name_only_what_it_shows():
     record, remark = visible_record()
-    record["evidence_links"]["parents"]["tiktok_comment_999"] = P_HID1
+    record["evidence_links"]["parents"]["tiktok_comment_999"] = P_VIS1  # a comment the answer does not show
     out = project(record, PrivStore(hide={"c_hid"}))
     assert out["evidence_links"] == {"v": 1, "parents": {remark["id"]: P_VIS1}}
 
@@ -411,14 +411,42 @@ def test_links_are_left_as_they_are_while_nobody_is_hidden():
     assert project(record, PrivStore(hide=set())) == record
 
 
-@pytest.mark.parametrize("links", [
-    None, [], "x", {"v": 2, "parents": {C_VIS: P_VIS1}}, {"v": 1}, {"v": 1, "parents": []},
-    {"v": 1, "parents": {C_VIS: 7}}, {"v": 1, "parents": {C_VIS: ""}}, {"v": True, "parents": {C_VIS: P_VIS1}}])
-def test_links_that_are_not_the_producers_shape_are_ignored_and_the_comment_fails_closed(links):
+def odd_links(cid):
+    return [None, [], "x", {"v": 2, "parents": {cid: P_VIS1}}, {"v": 1}, {"v": 1, "parents": []},
+            {"v": 1, "parents": {cid: 7}}, {"v": 1, "parents": {cid: ""}}, {"v": 1, "parents": {"": P_VIS1, cid: P_VIS1}},
+            {"v": True, "parents": {cid: P_VIS1}}, {"v": 1.0, "parents": {cid: P_VIS1}},
+            {"v": 1, "parents": {cid: P_VIS1}, "extra": 1}]
+
+
+@pytest.mark.parametrize("n", range(12))
+def test_links_that_are_not_the_producers_shape_are_ignored_and_the_comment_fails_closed(n):
     record, remark = visible_record(linked=False)
-    record["evidence_links"] = links
+    record["evidence_links"] = odd_links(remark["id"])[n]
     out = project(record, PrivStore(hide={"c_hid"}))
     assert remark["id"] not in ids_of(out) and "evidence_links" not in out
+
+
+def test_the_producers_own_links_are_read():
+    record, remark = visible_record()
+    assert comment_links.read(record) == {remark["id"]: P_VIS1}
+
+
+def test_a_blocker_check_reads_the_links():
+    record, remark = visible_record()
+    store = PrivStore(hide={"c_hid"})
+    assert "c9" not in privacy.finding_blockers(record, store)[0]
+    del record["evidence_links"]
+    assert "c9" in privacy.finding_blockers(record, store)[0]
+
+
+def test_the_dossier_source_check_keeps_a_linked_comment_and_refuses_an_unlinked_one(monkeypatch):
+    from core.api import agent_app
+    record, remark = visible_record()
+    store = PrivStore(hide={"c_hid"})
+    monkeypatch.setattr("core.api.store.get_store", lambda: store)
+    assert agent_app.keepable(record)["c9"] is True
+    del record["evidence_links"]
+    assert agent_app.keepable(record)["c9"] is False
 
 
 def test_a_link_cannot_make_a_hidden_authors_comment_visible():
