@@ -1,0 +1,826 @@
+{
+ "ask_id": "a_20261010_0000000c",
+ "question": "What is behind #funnyclip in South Africa this week?",
+ "parent_id": null,
+ "market": "ZA",
+ "status": "complete",
+ "created_at": "2026-10-10T16:06:59+02:00",
+ "finished_at": "2026-10-10T16:10:54+02:00",
+ "answer": {
+  "status": "partial",
+  "as_of": "2026-10-10T16:10:50+02:00",
+  "short_answer": "TikTok posts in South Africa featured the hashtags #funnyclip, #skits, and #laughs, including footage that commenters recognized as archival material of a former couple, with the interpretation that posts featured these hashtags together.",
+  "claims": [
+   {
+    "id": "c1",
+    "text": "#funnyclip appeared on TikTok in South Africa across 3 posts by 3 creators.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_post_1",
+     "tt_post_2",
+     "tt_post_3"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_post_1",
+      "text": "#funnyclip #skits #laughs"
+     },
+     {
+      "evidence_id": "tt_post_2",
+      "text": "#funnyclip #skits #laughs"
+     },
+     {
+      "evidence_id": "tt_post_3",
+      "text": "#funnyclip #skits #laughs"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 3,
+      "unit": "posts",
+      "query_id": "q_3",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     },
+     {
+      "value": 3,
+      "unit": "creators",
+      "query_id": "q_3",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     }
+    ]
+   },
+   {
+    "id": "c2",
+    "text": "Every post tagged with #funnyclip in South Africa co-occurred with #laughs and #skits across 3 posts by 3 creators.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_post_1",
+     "tt_post_2",
+     "tt_post_3"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_post_1",
+      "text": "#funnyclip #skits #laughs"
+     },
+     {
+      "evidence_id": "tt_post_2",
+      "text": "#funnyclip #skits #laughs"
+     },
+     {
+      "evidence_id": "tt_post_3",
+      "text": "#funnyclip #skits #laughs"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 3,
+      "unit": "posts",
+      "query_id": "q_1",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     },
+     {
+      "value": 3,
+      "unit": "creators",
+      "query_id": "q_1",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     }
+    ]
+   },
+   {
+    "id": "c3",
+    "text": "A post by @ngwenya.tales included the hashtags #funnyclip, #skits, and #laughs.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_post_1",
+     "tiktok_comment_770200000000000004",
+     "tiktok_comment_770200000000000005"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_post_1",
+      "text": "#funnyclip #skits #laughs"
+     },
+     {
+      "evidence_id": "tiktok_comment_770200000000000004",
+      "text": "\"aww that is so sweet friend\""
+     },
+     {
+      "evidence_id": "tiktok_comment_770200000000000005",
+      "text": "\"oh no, not again \""
+     }
+    ],
+    "numbers": [
+     {
+      "value": 460457,
+      "unit": "views",
+      "query_id": "q_5",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     },
+     {
+      "value": 75470,
+      "unit": "likes",
+      "query_id": "q_5",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     }
+    ]
+   },
+   {
+    "id": "c4",
+    "text": "A post by @lerato_clips_22 included #funnyclip, #skits, and #laughs.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_post_2"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_post_2",
+      "text": "#funnyclip #skits #laughs"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 131988,
+      "unit": "views",
+      "query_id": "q_5",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     },
+     {
+      "value": 9141,
+      "unit": "likes",
+      "query_id": "q_5",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     }
+    ]
+   },
+   {
+    "id": "c5",
+    "text": "Commenters recognized the clip from @lerato_clips_22 as archival footage of a former couple.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "tiktok_comment_770200000000000006",
+     "tiktok_comment_770200000000000007"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tiktok_comment_770200000000000006",
+      "text": "This clip is old news, they were together long ago"
+     },
+     {
+      "evidence_id": "tiktok_comment_770200000000000007",
+      "text": "She moved on, she is in a serious relationship now"
+     }
+    ],
+    "numbers": []
+   },
+   {
+    "id": "c6",
+    "text": "@sipho.skits.07 shared a post on TikTok with hashtags #funnyclip, #skits, and #laughs that accumulated 232,717 views and 29,797 likes.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_post_3"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_post_3",
+      "text": "#funnyclip #skits #laughs"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 232717,
+      "unit": "views",
+      "query_id": "q_5",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     },
+     {
+      "value": 29797,
+      "unit": "likes",
+      "query_id": "q_5",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     }
+    ]
+   },
+   {
+    "id": "c7",
+    "text": "Posts featured the hashtags #funnyclip, #skits, and #laughs together.",
+    "label": "inferred",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_post_1",
+     "tt_post_2",
+     "tt_post_3"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_post_1",
+      "text": "#funnyclip #skits #laughs"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 3,
+      "unit": "posts",
+      "query_id": "q_1",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:abababababababababababababababababababababababababababababababab"
+     }
+    ]
+   }
+  ],
+  "evidence": [
+   {
+    "id": "tt_post_1",
+    "platform": "tiktok",
+    "handle": "ngwenya.tales",
+    "url": "https://www.tiktok.com/@ngwenya.tales/video/7701000000000000001",
+    "posted_at": "2026-10-04T10:12:00+02:00",
+    "market": "ZA",
+    "text": "#funnyclip #skits #laughs",
+    "engagement": {
+     "views": 460457,
+     "likes": 75470,
+     "comments": 120
+    },
+    "flags": []
+   },
+   {
+    "id": "tt_post_2",
+    "platform": "tiktok",
+    "handle": "lerato_clips_22",
+    "url": "https://www.tiktok.com/@lerato_clips_22/video/7701000000000000002",
+    "posted_at": "2026-10-04T14:40:00+02:00",
+    "market": "ZA",
+    "text": "#funnyclip #skits #laughs",
+    "engagement": {
+     "views": 131988,
+     "likes": 9141,
+     "comments": 121
+    },
+    "flags": []
+   },
+   {
+    "id": "tt_post_3",
+    "platform": "tiktok",
+    "handle": "sipho.skits.07",
+    "url": "https://www.tiktok.com/@sipho.skits.07/video/7701000000000000003",
+    "posted_at": "2026-10-07T09:05:00+02:00",
+    "market": "ZA",
+    "text": "#funnyclip #skits #laughs",
+    "engagement": {
+     "views": 232717,
+     "likes": 29797,
+     "comments": 122
+    },
+    "flags": []
+   },
+   {
+    "id": "tiktok_comment_770200000000000004",
+    "platform": "tiktok",
+    "handle": "mkhize.lwazi",
+    "url": "https://www.tiktok.com/@ngwenya.tales/video/7701000000000000001",
+    "posted_at": "2026-10-05T04:30:00+02:00",
+    "market": "ZA",
+    "text": "\"aww that is so sweet friend\"",
+    "engagement": {
+     "likes": 12
+    },
+    "flags": [
+     "market_assumed"
+    ],
+    "source_market": "ZA"
+   },
+   {
+    "id": "tiktok_comment_770200000000000005",
+    "platform": "tiktok",
+    "handle": "dube_thandi9",
+    "url": "https://www.tiktok.com/@ngwenya.tales/video/7701000000000000001",
+    "posted_at": "2026-10-05T05:30:00+02:00",
+    "market": "ZA",
+    "text": "\"oh no, not again \"",
+    "engagement": {
+     "likes": 3
+    },
+    "flags": [
+     "market_assumed"
+    ],
+    "source_market": "ZA"
+   },
+   {
+    "id": "tiktok_comment_770200000000000006",
+    "platform": "tiktok",
+    "handle": "pretty.zodwa",
+    "url": "https://www.tiktok.com/@lerato_clips_22/video/7701000000000000002",
+    "posted_at": "2026-10-05T06:30:00+02:00",
+    "market": "ZA",
+    "text": "This clip is old news, they were together long ago",
+    "engagement": {
+     "likes": 40
+    },
+    "flags": [
+     "market_assumed"
+    ],
+    "source_market": "ZA"
+   },
+   {
+    "id": "tiktok_comment_770200000000000007",
+    "platform": "tiktok",
+    "handle": "bheki_the_dj",
+    "url": "https://www.tiktok.com/@lerato_clips_22/video/7701000000000000002",
+    "posted_at": "2026-10-05T07:30:00+02:00",
+    "market": "ZA",
+    "text": "She moved on, she is in a serious relationship now",
+    "engagement": {
+     "likes": 8
+    },
+    "flags": [
+     "market_assumed"
+    ],
+    "source_market": "ZA"
+   }
+  ],
+  "so_what": [],
+  "watch_next": [],
+  "gaps": [
+   {
+    "what": "Original sound titles for the three TikTok posts",
+    "searched": "Inspected audio metadata associated with sound identifiers used across the three posts",
+    "why": "The platform records only numeric sound identifiers without text titles"
+   },
+   {
+    "what": "Local South African posts tagged #funnyclip on non-TikTok platforms",
+    "searched": "Searched posts matching #funnyclip across Instagram, YouTube, X, Threads, and Facebook",
+    "why": "Posts tagged #funnyclip on other platforms were international and lacked South African geo-location"
+   },
+   {
+    "what": "Some posts found could not be quoted",
+    "searched": "the posts found for this question",
+    "why": "some stored posts had no author handle, which every quoted post needs, so they were left out of the answer"
+   },
+   {
+    "what": "A claim was cut: a post outside the window or the market, or a place no cited post is located in",
+    "searched": "stored evidence tiktok_comment_77020000000000001, tiktok_comment_77020000000000002",
+    "why": "every cited post must fall inside the question's window and market, and text that names a place must cite a post located there"
+   },
+   {
+    "what": "A line on what to watch next was removed: a forecast that has not outperformed a simple no-change forecast",
+    "searched": "the what to watch next text",
+    "why": "forecasts are not shown until they outperform a simple no-change forecast"
+   },
+   {
+    "what": "A line on what to watch next was removed: a forecast that has not outperformed a simple no-change forecast",
+    "searched": "the what to watch next text",
+    "why": "forecasts are not shown until they outperform a simple no-change forecast"
+   },
+   {
+    "what": "Transcript of a TikTok post not fetched",
+    "searched": "tiktok/post/transcript",
+    "why": "error"
+   },
+   {
+    "what": "Background removed after a claim was narrowed or removed",
+    "searched": "the background text",
+    "why": "the background could repeat wording that did not pass the claim checks"
+   },
+   {
+    "what": "An implication removed after a claim was narrowed or removed",
+    "searched": "the implications and the claims they refer to",
+    "why": "the implication relied on wording that did not pass the claim checks"
+   }
+  ],
+  "context": ""
+ },
+ "run": {
+  "run_id": "r_20261010_000000_fixture",
+  "tier": "T1",
+  "mode": "live",
+  "credits": 12,
+  "tokens": {
+   "input": 6400,
+   "output": 720
+  },
+  "seconds": 234.7,
+  "model_usd": 0.0,
+  "window": {
+   "from": "2026-10-04",
+   "to": "2026-10-10"
+  },
+  "posts": 169,
+  "platforms": 8,
+  "store": {
+   "posts": 3208,
+   "creators": 793,
+   "platforms": 8
+  },
+  "source_status": [
+   {
+    "platform": "tiktok",
+    "route": "tiktok/hashtag",
+    "status": "error",
+    "items": 0
+   },
+   {
+    "platform": "tiktok",
+    "route": "tiktok/hashtag",
+    "status": "ok",
+    "items": 50
+   },
+   {
+    "platform": "tiktok",
+    "route": "tiktok/search",
+    "status": "ok",
+    "items": 50
+   },
+   {
+    "platform": "instagram",
+    "route": "instagram/hashtag",
+    "status": "ok",
+    "items": 40
+   },
+   {
+    "platform": "youtube",
+    "route": "youtube/search",
+    "status": "ok",
+    "items": 29
+   }
+  ],
+  "followups": [
+   "What does TikTok show once tiktok/post/transcript answers again?",
+   "Which creators posted #funnyclip in South Africa this week?"
+  ],
+  "notices": [
+   "A model call did not report what it cost, so the rest of this question's model calls were limited"
+  ]
+ },
+ "steps": [
+  {
+   "seq": 1,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 0 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 2,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 0 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 3,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 1",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 4,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 1",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 5,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 2",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 6,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 2",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 7,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 3",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 8,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 3",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 9,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 1 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 10,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 1 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 11,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 5",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 12,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 5",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 13,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 6",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 14,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 6",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 15,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 7",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 16,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 7",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 17,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 2 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 18,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 2 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 19,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 9",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 20,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 9",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 21,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 10",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 22,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 10",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 23,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 11",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 24,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 11",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 25,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 4 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 26,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 13",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 27,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 14",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 28,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 15",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 29,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 5 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 30,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 17",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 31,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 18",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 32,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 19",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 33,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 6 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 34,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 21",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 35,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 22",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 36,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 23",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 37,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 8 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 38,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 25",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 39,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 26",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 40,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 27",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 41,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Reading TikTok post 9 for its words",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 42,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 29",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 43,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "read",
+   "text": "Counting posts tagged #funnyclip, step 30",
+   "platform": "tiktok",
+   "count": 1
+  },
+  {
+   "seq": 44,
+   "at": "2026-10-10T16:07:00+02:00",
+   "kind": "search",
+   "text": "Counting posts tagged #funnyclip, step 31",
+   "platform": "tiktok",
+   "count": 1
+  }
+ ],
+ "error": null
+}

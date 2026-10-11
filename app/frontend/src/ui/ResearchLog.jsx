@@ -172,19 +172,29 @@ export function ResearchLog({steps, running, evidence, claims, action, market, c
           </div>
           {children}
         </div>
-        <div className="ask42-scan-log">
-          <h4 className="ask42-scan-log-title">{earlier.length ? 'Earlier steps' : 'Earlier steps gather here'}</h4>
-          <ol className="ask42-log-steps" aria-live="polite">
-            <StepRows rows={earlier} />
-          </ol>
-        </div>
+        {earlier.length > 0
+          ? (
+            /* The finished steps are folded: the reader sees the step in hand and
+               the counts, and opens the rest only if they want it. */
+            <details className="ask42-scan-log">
+              <summary>{'Earlier steps · ' + earlier.length}</summary>
+              <ol className="ask42-log-steps" aria-live="polite">
+                <StepRows rows={earlier} />
+              </ol>
+            </details>
+          )
+          : (
+            <div className="ask42-scan-log">
+              <h4 className="ask42-scan-log-title">Earlier steps gather here</h4>
+            </div>
+          )}
       </section>
     );
   }
   if (!list.length) return null;
   return (
     <details className="ask42-log">
-      <summary>{'How this was researched · ' + list.length + (list.length === 1 ? ' step' : ' steps')}</summary>
+      <summary>{'How this was researched · ' + rows.length + (rows.length === 1 ? ' step' : ' steps')}</summary>
       <ol className="ask42-log-steps" aria-live="polite">
         <StepRows rows={rows} />
       </ol>

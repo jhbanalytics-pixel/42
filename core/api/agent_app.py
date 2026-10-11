@@ -18,6 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
+from core.agent import answer_view
 from core.api import dossiers, finding_save, fixture_states, investigations, privacy, skins, summary_state
 from core.api.store import SUPPRESSIONS, viewer_record
 # The watch list read and its table live in core/api/watchlist.py so the f42-digest job can read watches
@@ -1147,8 +1148,9 @@ def readable(record, hidden=privacy.READ, creators=None):
     list when the request has already read it."""
     from core.api.store import get_store
     # The typed summary state is read from the raw record first: privacy changes the answer it is bound to.
-    return privacy.project_record(shown_record(summary_state.with_wire(record)), privacy.LazyStore(get_store), hidden,
-                                  creators=creators)
+    projected = privacy.project_record(shown_record(summary_state.with_wire(record)), privacy.LazyStore(get_store),
+                                       hidden, creators=creators)
+    return answer_view.present(projected)  # comments, repeated claims and gaps in the reader's words (a copy)
 
 
 def people_unavailable():

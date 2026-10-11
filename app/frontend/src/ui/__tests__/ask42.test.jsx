@@ -517,7 +517,8 @@ test('a full run shows the research as it happens, then the checked answer', asy
 
   const heading = [...host.querySelectorAll('h1, h2')].find((node) => plain(node.textContent) === record.question);
   expect(heading).toBeDefined();
-  expect(text()).toContain('South Africa · posts from 21 to 27 September 2026 · 214 posts from 2 platforms');
+  expect(text()).toContain('South Africa · posts from 21 to 27 September 2026');
+  expect(plain(host.querySelector('.ask42-scope').textContent)).toBe('Answer based on 2 posts by 2 creators · 214 posts read on 2 platforms');
   expect(text()).toContain(record.answer.short_answer);
   expect(text()).toContain('Corroborated');
   expect(text()).toContain('Inferred');
@@ -525,15 +526,13 @@ test('a full run shows the research as it happens, then the checked answer', asy
   expect(chip).toBeDefined();
   expect(chip.getAttribute('aria-label')).toBeTruthy();
 
-  const strip = host.querySelector('[aria-label="Posts"]');
-  expect(strip).not.toBeNull();
-  const cards = strip.querySelectorAll('li');
+  /* The posts behind a finding are tiles inside its card (wave 8). */
+  const cards = host.querySelector('.ask42-finding').querySelectorAll('.ask42-tile');
   expect(cards.length).toBe(2);
-  expect(plain(cards[0].textContent)).toContain('0:21');
   expect(plain(cards[0].textContent)).toContain('184 000 views');
   expect(plain(cards[0].textContent)).toContain('0:04');
   expect(plain(cards[0].textContent)).toContain('kitchen table, one pot, everybody dances');
-  expect(strip.querySelector('video')).toBeNull();
+  expect(host.querySelector('.ask42-finding video')).toBeNull();
 
   expect(text()).toContain('312 TikTok posts tagged #fixture in 7 days');
   expect(text()).toContain('What it means for a brand');
@@ -575,12 +574,12 @@ test('a full run shows the research as it happens, then the checked answer', asy
      credits and seconds sit inside the closed toggle, not under the answer. */
   expect(plain(details.textContent)).toContain('Quick scan');
   expect(plain(details.textContent)).toContain('214 credits · 41 s');
-  const footer = host.querySelector('.ask42-footer').cloneNode(true);
-  footer.querySelector('details').remove();
-  expect(plain(footer.textContent)).not.toContain(record.run.run_id);
-  expect(plain(footer.textContent)).not.toContain('Tier');
-  expect(plain(footer.textContent)).not.toContain('Tokens');
-  expect(plain(footer.textContent)).not.toContain('credits');
+  const outsideDetails = host.querySelector('.ask42-answer').cloneNode(true);
+  outsideDetails.querySelector('details.ask42-technical').remove();
+  expect(plain(outsideDetails.textContent)).not.toContain(record.run.run_id);
+  expect(plain(outsideDetails.textContent)).not.toContain('Tier');
+  expect(plain(outsideDetails.textContent)).not.toContain('Tokens');
+  expect(plain(outsideDetails.textContent)).not.toContain('credits');
   /* The same day: each figure's query id left the reader's view. QA item 5
      took it out of Technical details too; it stays as each figure's data. */
   const figureQueries = record.answer.claims.flatMap((claim) => claim.numbers || []).map((number) => number.query_id).filter(Boolean);
@@ -590,46 +589,44 @@ test('a full run shows the research as it happens, then the checked answer', asy
   for (const id of figureQueries){
     expect(plain(outside.textContent)).not.toContain(id);
     expect(plain(details.textContent)).not.toContain(id);
-    expect(host.querySelector('.ask42-figure[data-query-id="' + id + '"]')).not.toBeNull();
+    expect(host.querySelector('.ask42-figure-tile[data-query-id="' + id + '"]')).not.toBeNull();
   }
 });
 
-test('each figure in The numbers says which claim it counts', async () => {
+test('each figure in The numbers is one tile with its unit in words', async () => {
   /* Albert, 4 October 2026: "424 posts. 296 creators. 18 posts." with no
-     subject. Each figure now carries the claim it comes from. */
+     subject. Wave 8: each distinct figure is one tile that carries its unit
+     ("312 TikTok posts tagged #fixture in 7 days"), so it never stands bare
+     and never repeats. */
   const record = clone(completeRecord);
   const server = serve([record]);
   await render({query: {q: record.question, market: 'ZA'}});
   await until(() => calls.some((call) => call.path === '/api/ask'), 'the auto ask');
   await finish(server, record);
   await until(() => text().includes('What we do not know'), 'the finished answer');
-  const withFigures = record.answer.claims.filter((claim) => (claim.numbers || []).length > 0);
-  expect(withFigures.length).toBeGreaterThan(0);
-  const groups = [...host.querySelectorAll('.ask42-figure-group')];
-  expect(groups).toHaveLength(withFigures.length);
-  groups.forEach((group, index) => {
-    /* The claim's figures sit together, and the claim is said once under them. */
-    expect(group.querySelectorAll('.ask42-figure')).toHaveLength(withFigures[index].numbers.length);
-    expect(group.querySelectorAll('.ask42-figure-about')).toHaveLength(1);
-    expect(plain(group.querySelector('.ask42-figure-about').textContent)).toBe(plain(withFigures[index].text));
+  const numbers = record.answer.claims.flatMap((claim) => claim.numbers || []);
+  expect(numbers.length).toBeGreaterThan(0);
+  const tiles = [...host.querySelectorAll('.ask42-figure-tile')];
+  expect(tiles).toHaveLength(numbers.length);
+  tiles.forEach((tile, index) => {
+    expect(tile.querySelector('.ask42-figure-unit').textContent.length).toBeGreaterThan(0);
+    expect(tile.getAttribute('data-query-id')).toBe(numbers[index].query_id);
   });
 });
 
-test('The numbers keeps four figures at most, each kept with its own claim', async () => {
+test('The numbers shows each distinct figure once, however many claims state it', async () => {
   const record = clone(completeRecord);
   const [first, second] = record.answer.claims;
   const figure = (value) => ({...record.answer.claims.flatMap((claim) => claim.numbers || [])[0], value});
   first.numbers = [figure(1), figure(2), figure(3)];
-  second.numbers = [figure(4), figure(5)];
+  second.numbers = [figure(3), figure(4), figure(5)];
   const server = serve([record]);
   await render({query: {q: record.question, market: 'ZA'}});
   await until(() => calls.some((call) => call.path === '/api/ask'), 'the auto ask');
   await finish(server, record);
   await until(() => text().includes('What we do not know'), 'the finished answer');
-  const groups = [...host.querySelectorAll('.ask42-figure-group')];
-  expect(groups.map((group) => group.querySelectorAll('.ask42-figure').length)).toEqual([3, 1]);
-  expect(groups.map((group) => plain(group.querySelector('.ask42-figure-about').textContent)))
-    .toEqual([plain(first.text), plain(second.text)]);
+  const values = [...host.querySelectorAll('.ask42-figure-tile .ask42-figure-value')].map((node) => plain(node.textContent));
+  expect(values).toEqual(['1', '2', '3', '4', '5']);
 });
 
 test('a chip previews its source on focus and pins it in the side panel on click', async () => {
@@ -676,45 +673,43 @@ test('no source column shows until a source is picked, and closing it hands focu
   expect(document.activeElement).toBe(chip);
 });
 
-test('a source disclosure keeps keyboard focus while expanding and collapsing', async () => {
+test('a finding shows four posts and a disclosure keeps keyboard focus while expanding and collapsing', async () => {
   const record = clone(completeRecord);
+  const base = record.answer.evidence[0];
+  const extra = [3, 4, 5].map((n) => { const item = {...base, id: 'tt_fixture_' + n, handle: '@fixture_za_' + n, url: 'https://example.invalid/tiktok/@fixture_za_' + n + '/video/' + n}; delete item.thumbnail_url; return item; });
+  record.answer.evidence.push(...extra);
+  record.answer.claims[0].evidence_ids = ['tt_fixture_1', 'x_fixture_2', ...extra.map((item) => item.id)];
   const server = serve([record]);
   await render({query: {q: record.question, market: 'ZA'}});
   await until(() => calls.some((call) => call.path === '/api/ask'), 'the auto ask');
   await finish(server, record);
   await until(() => text().includes('What we do not know'), 'the finished answer');
 
-  const claim = [...host.querySelectorAll('.ask42-claim')]
-    .find((node) => node.querySelector('.ask42-claim-text')?.textContent === record.answer.claims[0].text);
-  const sourceChips = () => [...claim.querySelectorAll('button[aria-label^="Source:"]')];
-  const disclosure = () => claim.querySelector('button.ask42-chip-more');
+  const claim = host.querySelector('.ask42-finding');
+  const sourceChips = () => [...claim.querySelectorAll('.ask42-tile button[aria-label^="Source:"]')];
+  const disclosure = () => claim.querySelector('button.ask42-tiles-more');
   const more = disclosure();
 
-  expect(Boolean(claim)).toBe(true);
-  expect(sourceChips().length).toBe(1);
+  expect(sourceChips().length).toBe(4);
   expect(plain(sourceChips()[0].querySelector('.ask42-chip-handle').textContent)).toBe('@fixture_za_1');
   expect(Boolean(more)).toBe(true);
   expect(more.getAttribute('aria-expanded')).toBe('false');
-  expect(more.getAttribute('aria-label')).toBe('Show 1 more source');
-  /* The disclosure reads as part of a written citation now, not a boxed "+1". */
+  expect(more.getAttribute('aria-label')).toBe('Show 1 more post');
   expect(plain(more.textContent)).toBe('and 1 more');
 
   await act(async () => { more.focus(); more.click(); });
   const fewer = disclosure();
-  expect(Boolean(fewer === more)).toBe(true);
-  expect(Boolean(document.activeElement === fewer)).toBe(true);
+  expect(fewer === more).toBe(true);
+  expect(document.activeElement === fewer).toBe(true);
   expect(fewer.getAttribute('aria-expanded')).toBe('true');
-  expect(fewer.getAttribute('aria-label')).toBe('Show fewer sources');
+  expect(fewer.getAttribute('aria-label')).toBe('Show fewer posts');
   expect(plain(fewer.textContent)).toBe('Fewer');
-  expect(sourceChips().length).toBe(2);
-  expect(sourceChips().map((chip) => plain(chip.querySelector('.ask42-chip-handle').textContent)))
-    .toEqual(['@fixture_za_1', '@fixture_za_2']);
+  expect(sourceChips().length).toBe(5);
 
   const second = sourceChips()[1];
   await act(async () => { second.focus(); });
   const sourceQuote = record.answer.claims[0].quotes.find((item) => item.evidence_id === 'x_fixture_2');
-  const highlightedQuotes = [...claim.querySelectorAll('[role="tooltip"] mark')]
-    .map((mark) => plain(mark.textContent));
+  const highlightedQuotes = [...claim.querySelectorAll('[role="tooltip"] mark')].map((mark) => plain(mark.textContent));
   expect(Boolean(sourceQuote)).toBe(true);
   expect(highlightedQuotes.includes(sourceQuote.text)).toBe(true);
   await act(async () => { second.click(); });
@@ -725,17 +720,15 @@ test('a source disclosure keeps keyboard focus while expanding and collapsing', 
 
   await act(async () => { fewer.focus(); fewer.click(); });
   const collapsed = disclosure();
-  expect(Boolean(collapsed === fewer)).toBe(true);
-  expect(Boolean(document.activeElement === collapsed)).toBe(true);
+  expect(collapsed === fewer).toBe(true);
+  expect(document.activeElement === collapsed).toBe(true);
   expect(collapsed.getAttribute('aria-expanded')).toBe('false');
-  expect(collapsed.getAttribute('aria-label')).toBe('Show 1 more source');
-  expect(plain(collapsed.textContent)).toBe('and 1 more');
-  expect(sourceChips().length).toBe(1);
+  expect(collapsed.getAttribute('aria-label')).toBe('Show 1 more post');
+  expect(sourceChips().length).toBe(4);
   expect(plain(panel.textContent)).toContain('@fixture_za_2');
-  expect(Boolean(panel.querySelector('a[href="https://example.invalid/x/fixture_za_2/status/2210"]'))).toBe(true);
 });
 
-test('single-source and source-free answers have no source disclosure toggle', async () => {
+test('single-source and source-free answers have no post disclosure toggle', async () => {
   const single = clone(completeRecord);
   single.answer.claims = [single.answer.claims[1]];
   single.answer.claims[0].evidence_ids = ['x_fixture_2'];
@@ -746,8 +739,8 @@ test('single-source and source-free answers have no source disclosure toggle', a
   await until(() => calls.some((call) => call.path === '/api/ask'), 'the single-source ask');
   await finish(singleServer, single);
   await until(() => text().includes('What we do not know'), 'the single-source answer');
-  expect(host.querySelectorAll('.ask42-claim button[aria-label^="Source:"]').length).toBe(1);
-  expect(host.querySelectorAll('.ask42-chip-more').length).toBe(0);
+  expect(host.querySelectorAll('.ask42-finding button[aria-label^="Source:"]').length).toBe(1);
+  expect(host.querySelectorAll('.ask42-tiles-more').length).toBe(0);
 
   await act(async () => root.unmount());
   root = createRoot(host);
@@ -765,8 +758,8 @@ test('single-source and source-free answers have no source disclosure toggle', a
   await until(() => calls.some((call) => call.path === '/api/ask'), 'the source-free ask');
   await finish(noSourceServer, noSource);
   await until(() => text().includes('What we do not know'), 'the source-free answer');
-  expect(host.querySelectorAll('.ask42-claim button[aria-label^="Source:"]').length).toBe(0);
-  expect(host.querySelectorAll('.ask42-chip-more').length).toBe(0);
+  expect(host.querySelectorAll('.ask42-finding button[aria-label^="Source:"]').length).toBe(0);
+  expect(host.querySelectorAll('.ask42-tiles-more').length).toBe(0);
 });
 
 test('an answer that fails the contract check is refused and nothing from it renders', async () => {
@@ -832,7 +825,7 @@ test('a cut claim citing [unresolved] never becomes a chip or a post', async () 
   const chips = [...host.querySelectorAll('.ask42-chip')].filter((node) => !node.classList.contains('ask42-chip-more'));
   expect(chips.length).toBeGreaterThan(0);
   for (const chip of chips) expect(plain(chip.textContent)).not.toContain('unresolved');
-  expect(host.querySelector('[aria-label="Posts"]').querySelectorAll('li').length).toBe(record.answer.evidence.length);
+  expect(new Set([...host.querySelectorAll('.ask42-tile .ask42-chip-handle')].map((node) => plain(node.textContent))).size).toBe(record.answer.evidence.length);
 });
 
 test('a claim in the answer citing only [unresolved] is refused, so no chip or post is drawn for it', async () => {
@@ -1107,7 +1100,7 @@ test('Add to dossier starts a draft from the answer and opens it', async () => {
   expect(headerOf(post, 'X-Passcode')).toBe('fixture-pass');
 });
 
-test('notices from the run show above a partial answer', async () => {
+test('notices from the run wait in Technical details, not in a banner above the answer', async () => {
   const record = clone(partialRecord);
   const server = serve([record]);
   await render({query: {q: record.question, market: 'KE'}});
@@ -1115,14 +1108,19 @@ test('notices from the run show above a partial answer', async () => {
   await finish(server, record);
   await until(() => text().includes('What we do not know'), 'the finished answer');
   const all = text();
-  expect(all).toContain('Instagram was rate limited during this run; the answer uses TikTok only');
+  const notice = 'Instagram was rate limited during this run; the answer uses TikTok only';
+  expect(all).toContain(notice);
   expect(all).toContain('Partial answer: part of the picture is missing');
-  expect(all.indexOf('Instagram was rate limited during this run')).toBeLessThan(all.indexOf(record.answer.short_answer));
-  expect(all).toContain('Kenya · posts from 21 to 27 September 2026 · 9 posts from 1 platform');
+  expect(host.querySelector('ul.ask42-notices')).toBeNull();
+  const details = host.querySelector('details.ask42-technical');
+  expect(plain(details.textContent)).toContain(notice);
+  expect(all.indexOf(notice)).toBeGreaterThan(all.indexOf(record.answer.short_answer));
+  expect(all).toContain('Kenya · posts from 21 to 27 September 2026');
+  expect(all).toContain('9 posts read on 1 platform');
   expect(all).toContain('Single source');
 });
 
-test('the meta line counts the whole store and calls the posts read a sample', async () => {
+test('the scope line counts what the answer rests on, then the posts read, then the whole store', async () => {
   const record = clone(partialRecord);
   record.run = {...record.run, posts: 51, platforms: 1,
     store: {posts: 1108, creators: 852, located_posts: 477, located_creators: 332, platforms: 1, query_id: 'q_9'}};
@@ -1131,9 +1129,9 @@ test('the meta line counts the whole store and calls the posts read a sample', a
   await until(() => calls.some((call) => call.path === '/api/ask'), 'the auto ask');
   await finish(server, record);
   await until(() => text().includes('What we do not know'), 'the finished answer');
-  const all = text();
-  expect(all).toContain('Kenya · posts from 21 to 27 September 2026 · 1 108 posts by 852 creators on 1 platform in the store · 51 posts read');
-  expect(all).not.toContain('51 posts from 1 platform');
+  expect(plain(host.querySelector('.ask42-scope').textContent)).toBe('Answer based on 2 posts by 2 creators · 51 posts read on 1 platform · 1 108 posts in the store for 21 to 27 September 2026');
+  expect(plain(host.querySelector('.ask42-meta').textContent)).toBe('Kenya · posts from 21 to 27 September 2026');
+  expect(text()).not.toContain('51 posts from 1 platform');
 });
 
 test('a failed record shows its message and Try again asks again', async () => {
@@ -1187,14 +1185,13 @@ test('an evidence url or thumbnail that is not http or https never reaches a lin
   expect(unsafeHref()).toHaveLength(0);
   expect(unsafeSrc()).toHaveLength(0);
 
-  const strip = host.querySelector('[aria-label="Posts"]');
-  const card = [...strip.querySelectorAll('li')].find((li) => plain(li.textContent).includes(bad.handle));
+  const strip = host.querySelector('.ask42-finding');
+  const card = [...strip.querySelectorAll('.ask42-tile')].find((li) => plain(li.textContent).includes(bad.handle));
   expect(card).toBeDefined();
   expect(card.querySelector('a')).toBeNull();
   expect(card.querySelector('img')).toBeNull();
-  expect(card.querySelector('.ask42-post-blank')).not.toBeNull();
-  const good = [...strip.querySelectorAll('li')].find((li) => !plain(li.textContent).includes(bad.handle));
-  expect(good.querySelector('a').getAttribute('href')).toBe(record.answer.evidence[1].url);
+  const good = [...strip.querySelectorAll('.ask42-tile')].find((li) => !plain(li.textContent).includes(bad.handle));
+  expect(good.querySelector('a.ask42-tile-open').getAttribute('href')).toBe(record.answer.evidence[1].url);
 
   const chip = buttons().find((node) => plain(node.textContent).includes(bad.handle));
   await act(async () => { chip.focus(); });
@@ -1375,7 +1372,7 @@ test('an assumed source market reaches the chip, pinned panel, and post strip wi
   expect(plain(host.querySelector('[role="tooltip"]').textContent)).toContain('Market assumed: Kenya');
   await act(async () => { chip.click(); });
   expect(plain(host.querySelector('aside[aria-label="Source"]').textContent)).toContain('Market assumed: Kenya');
-  const card = [...host.querySelectorAll('[aria-label="Posts"] li')]
+  const card = [...host.querySelectorAll('.ask42-tile')]
     .find((node) => plain(node.textContent).includes(record.answer.evidence[0].handle));
   expect(plain(card.textContent)).toContain('Market assumed: Kenya');
   expect(host.querySelector('.ask42-confidence[data-label]').getAttribute('data-label')).toBe(claimLabel);
@@ -1435,7 +1432,7 @@ test('a partial saved Ask keeps its gaps and evidence and can be saved to Findin
   expect(text()).toContain(record.answer.gaps[0].what);
   const firstEvidence = record.answer.evidence[0];
   expect([...host.querySelectorAll('.ask42-chip')].some((chip) => chip.getAttribute('aria-label').includes(firstEvidence.handle))).toBe(true);
-  expect([...host.querySelectorAll('.ask42-post-frame')].some((frame) => frame.getAttribute('href') === firstEvidence.url)).toBe(true);
+  expect([...host.querySelectorAll('a.ask42-tile-open')].some((link) => link.getAttribute('href') === firstEvidence.url)).toBe(true);
   expect(calls.filter((call) => call.path === '/api/findings')).toHaveLength(0);
 });
 
@@ -1770,18 +1767,18 @@ test('an Ask with legacy parent masking cannot be saved to shared Findings', asy
    list beside the source facts, captioned with the run window. A platform with
    no items number says "Not measured"; a status other than ok rides as a note.
    run.posts is not drawn beside it: it disagrees with the per source sum. */
-test('the answer draws posts read by platform as a bar list named by its window', async () => {
+test('the answer lists posts read by platform with their marks, named by its window', async () => {
   const record = clone(completeRecord);
   record.run.source_status.push({platform: 'youtube', route: 'youtube/search', status: 'rate_limited'});
   serve([record]);
   await render({query: {follow: record.ask_id}});
   await until(() => host.querySelector('[data-ask-source-chart]'), 'the source chart');
   const chart = host.querySelector('[data-ask-source-chart]');
-  expect(plain(chart.querySelector('.ch42-title').textContent)).toBe('Posts read by platform');
-  expect(plain(chart.querySelector('.ch42-caption').textContent)).toBe('Posts each platform returned, 21 to 27 September 2026');
-  const rows = [...chart.querySelectorAll('.ch42-bar-row')].map((row) => [...row.children].map((cell) => plain(cell.textContent)).filter(Boolean).join(' | '));
-  expect(rows).toEqual(['TikTok | 312', 'X | 48', 'Instagram | 0 nothing found', 'YouTube | Not measured | rate limited']);
-  expect(chart.querySelectorAll('.ch42-bar-fill')).toHaveLength(3);
+  expect(plain(chart.querySelector('.ask42-section-title').textContent)).toBe('Posts read by platform');
+  expect(plain(chart.querySelector('.ask42-platform-caption').textContent)).toBe('Posts each platform returned, 21 to 27 September 2026');
+  const rows = [...chart.querySelectorAll('.ask42-platform-row')].map((row) => plain(row.querySelector('.ask42-platform-name').textContent) + ' | ' + plain(row.querySelector('.ask42-platform-count').textContent));
+  expect(rows).toEqual(['TikTok | 312', 'X | 48', 'Instagram | 0']);
+  expect(plain(chart.querySelector('.ask42-platform-notes').textContent)).toBe('1 YouTube search failed');
   expect(plain(chart.textContent)).not.toContain('214');
   const details = [...host.querySelectorAll('details')].find((node) => plain(node.querySelector('summary')?.textContent) === 'Technical details');
   expect(plain(details.textContent)).toContain('TikTok · read · 312 items');
@@ -1850,10 +1847,10 @@ test('a claim figure with a warehouse unit reads as words, singular for one', as
   ];
   serve([record]);
   await render({query: {follow: record.ask_id}});
-  await until(() => host.querySelector('.ask42-answer .ask42-figure'), 'the figures');
-  const figures = [...host.querySelectorAll('.ask42-answer .ask42-figure')].map((node) => plain(node.textContent));
-  expect(figures).toContain('59 posts with a known location.');
-  expect(figures).toContain('1 creator with a known location.');
+  await until(() => host.querySelector('.ask42-answer .ask42-figure-tile'), 'the figures');
+  const figures = [...host.querySelectorAll('.ask42-answer .ask42-figure-tile')].map((node) => plain(node.textContent));
+  expect(figures).toContain('59 posts with a known location');
+  expect(figures).toContain('1 creator with a known location');
   expect(text()).not.toContain('located_');
 });
 

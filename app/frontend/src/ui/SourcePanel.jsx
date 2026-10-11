@@ -5,6 +5,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {Highlighted, clock, postDay, postName, sourceMarketLabel, viewsLine} from './EvidenceChip.jsx';
 import {safeUrl} from '../safeUrl.js';
+import {isComment} from '../askEvidence.js';
 
 export function SourcePanel({evidence, quotes, onClose}){
   const heading = useRef(null);
@@ -43,7 +44,7 @@ export function SourcePanel({evidence, quotes, onClose}){
       <p className="ask42-muted">{[postDay(evidence.posted_at), viewsLine(evidence), sourceMarketLabel(evidence)].filter(Boolean).join(' · ')}</p>
       <p className="ask42-source-actions">
         {url
-          ? <a href={url} target="_blank" rel="noopener noreferrer">Open the post</a>
+          ? <a href={url} target="_blank" rel="noopener noreferrer">{isComment(evidence) ? 'Open the post it sits under' : 'Open the post'}</a>
           : <span className="ask42-muted">No link to this post</span>}
         <button type="button" className="ask42-quiet" onClick={onClose}>Close</button>
       </p>
