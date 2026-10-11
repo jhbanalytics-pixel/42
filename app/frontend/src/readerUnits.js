@@ -49,12 +49,18 @@ export function boardTitle(title){
 
 /* A gap's search can name the records it read by their ids ("cited posts
    obs1_7bfd..., obs1_66fa..."). A reader gets how many; the ids stay in
-   the stored record. A search can also lead with its source route
-   ("instagram/hashtag #fixture"), which reads as the platform and the term
-   it searched for ("Instagram for #fixture"). */
-const SOURCE_ROUTE = /^([a-z0-9_]+)\/[a-z0-9_/]+(?:\s+([^,:]+?))?(?=,|:|$)/i;
-const routeWords = (text) => text.replace(SOURCE_ROUTE, (whole, platform, term) =>
-  (platformLabel(platform) || platform.charAt(0).toUpperCase() + platform.slice(1).replace(/_/g, ' ')) + (term ? ' for ' + term.trim() : ''));
+   the stored record. A search can also name its source routes
+   ("instagram/hashtag #fixture"): each route on a platform this app knows
+   reads as that platform, and one search term right after it, before a
+   comma, a colon or the end, reads as "for" that term ("Instagram for
+   #fixture"). Any other words after a route stay as written, and a slash
+   after a word that is not a platform is left alone. */
+const SOURCE_ROUTE = /\b([a-z][a-z0-9_]*)\/[a-z0-9_/-]*[a-z0-9_](?:\s+([^\s,:]+)(?=[,:]|$))?/gi;
+const routeWords = (text) => text.replace(SOURCE_ROUTE, (whole, platform, term) => {
+  const label = platformLabel(platform);
+  if (!label) return whole;
+  return label + (term ? ' for ' + term : '');
+});
 
 export function plainSearched(text){
   const ids = String(text || '').match(/\bobs\d*_[0-9a-f]{8,}\b/gi) || [];
