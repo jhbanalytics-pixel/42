@@ -1,19 +1,23 @@
 """A claim a dossier does not keep is stored and shown without its words when they would name, or rest on, a hidden
-person (release C review 4, findings 1 and 2). Two gaps are pinned here.
+person (release C review 4, findings 1 and 2, and the privacy notice). Three gaps are pinned here.
 
 A claim whose words name the hidden creator's current handle as well as the old one was never learned, so a dossier
 stored it as written and showed the old handle the Ask read masks. A claim not kept that rests on a hidden post kept its
 words, its verbatim quote and the post id, because a dossier holds only the evidence of the claims it keeps, so the
 hidden post was never among what the dossier could judge. And a dossier made before the hide shows those words again
-unless the read itself withholds a claim not kept whose evidence the dossier does not hold."""
+unless the read itself withholds a claim not kept whose evidence the dossier does not hold. The notice that some content was
+left out is raised only when the projection withheld something or masked a hidden person's handle, not when the step rule
+masked a handle it could not clear."""
 import json
 
 from core.api import agent_app, dossiers, privacy
 from core.api.tests import test_privacy_ask_routes as routes
-from core.api.tests.test_privacy_ask_routes import ASK, hold
+from core.api.tests.test_privacy_ask_routes import ASK, GOOD, hold, remote_agent
 from core.api.tests.test_privacy_projection import P_HID1, P_REN1, P_VIS1, PrivStore, ask_record, ev
+from core.api.export import EXPORT_NOTICE
 
 world = routes.world
+api = routes.api
 OLD = "hid_old_handle"
 NEW = "hid_new_handle"
 HID_WORDS = "fixture hidden words one"
@@ -231,3 +235,91 @@ def dossiers_view_with_removed_claims():
     body = dossiers.build(record, {"keep": ["c1"], "title": "Amapiano", "notes": {}}, dossier_id="d_fixture2", version=1,
                           created_at="2026-10-07T10:00:00+02:00", source={"ask_id": record["ask_id"]})
     return {**body, "content_hash": dossiers.content_hash(body), "ticks": {}, "needs_tick": []}
+
+
+# The privacy notice.
+def plain_record():
+    record = ask_record()
+    record["question"] = "What is new in amapiano?"
+    record["answer"]["short_answer"] = "Amapiano posts rose."
+    record["answer"]["evidence"] = [e for e in record["answer"]["evidence"] if e["id"] == P_VIS1]
+    record["answer"]["claims"] = [c for c in record["answer"]["claims"] if c["id"] == "c1"]
+    record["answer"]["so_what"] = [s for s in record["answer"]["so_what"] if s["claim_ids"] == ["c1"]]
+    record["answer"]["watch_next"] = []
+    record["run"].pop("ranked_list", None)
+    record["steps"] = [{"seq": 1, "text": "Searching TikTok for posts by @dj_maphorisa"}, {"seq": 2, "text": "Reading 3 posts"}]
+    return record
+
+
+def test_a_step_naming_an_uncited_visible_creator_is_masked_without_raising_the_notice():
+    out = privacy.project_record(plain_record(), PrivStore(hide={"c_hid"}))
+    assert out["steps"][0]["text"] == "Searching TikTok for posts by @***"
+    assert "privacy" not in out
+
+
+def test_the_agent_read_of_such_an_answer_carries_no_notice(world):
+    world.store.hide = {"c_hid"}
+    hold(plain_record())
+    body = world.client.get(f"/api/ask/{ASK}").json()
+    assert body.get("privacy") is None and body["steps"][0]["text"] == "Searching TikTok for posts by @***"
+
+
+def test_the_export_of_such_an_answer_carries_no_notice(api):
+    api.store.hide = {"c_hid"}
+    api.store.records[ASK] = plain_record()
+    client = api.serve(remote_agent({}))
+    read = client.get(f"/api/ask/{ASK}", headers=GOOD)
+    export = client.get(f"/api/ask/{ASK}/export?format=html", headers=GOOD)
+    assert export.status_code == 200 and read.json().get("privacy") is None
+    assert EXPORT_NOTICE not in export.text
+
+
+def test_a_step_naming_a_hidden_handle_still_raises_the_notice():
+    record = plain_record()
+    record["steps"] = [{"seq": 1, "text": "Searching TikTok for posts by @hid_handle"}]
+    out = privacy.project_record(record, PrivStore(hide={"c_hid"}))
+    assert out["steps"][0]["text"] == "Searching TikTok for posts by @***"
+    assert out["privacy"] == {"v": 1, "state": "applied", "withheld": {"posts": 0, "claims": 0, "summary": False}}
+
+
+def test_a_question_naming_a_hidden_handle_still_raises_the_notice():
+    record = plain_record()
+    record["question"] = "What is @hid_handle doing?"
+    out = privacy.project_record(record, PrivStore(hide={"c_hid"}))
+    assert "hid_handle" not in json.dumps(out) and out["privacy"]["state"] == "applied"
+
+
+# The step rule, pinned where the review's mutants survived.
+MISS = "obs1_" + "9" * 32
+
+
+def test_a_step_naming_the_author_of_a_post_the_lookup_could_not_place_stays_masked():
+    record = plain_record()
+    record["answer"]["evidence"].append(ev(MISS, "ghost_handle", "ghost words"))
+    record["steps"] = [{"seq": 1, "text": "Searching TikTok for posts by @ghost_handle"}]
+    out = privacy.project_record(record, PrivStore(hide={"c_hid"}))
+    assert MISS not in {e["id"] for e in out["answer"]["evidence"]}
+    assert out["steps"][0]["text"] == "Searching TikTok for posts by @***"
+
+
+def test_a_step_names_a_creator_whose_kept_post_carries_the_handle_only_in_its_address():
+    record = plain_record()
+    kept = record["answer"]["evidence"][0]
+    kept.pop("handle")
+    kept["url"] = "https://www.tiktok.com/@url_only_handle/video/1"
+    record["steps"] = [{"seq": 1, "text": "Searching TikTok for posts by @url_only_handle"},
+                       {"seq": 2, "text": "Searching TikTok for posts by @other_handle"}]
+    out = privacy.project_record(record, PrivStore(hide={"c_hid"}))
+    assert [s["text"] for s in out["steps"]] == ["Searching TikTok for posts by @url_only_handle",
+                                                 "Searching TikTok for posts by @***"]
+
+
+def test_a_later_step_naming_the_old_handle_is_masked_like_the_first():
+    record = plain_record()
+    record["answer"]["evidence"] = [e for e in ask_record()["answer"]["evidence"] if e["id"] == P_VIS1]
+    record["steps"] = [{"seq": 1, "text": "Planning the search"},
+                       {"seq": 2, "text": "Searching TikTok for posts by @vis_handle"},
+                       {"seq": 3, "text": f"Searching TikTok for posts by @{OLD}"}]
+    out = privacy.project_record(record, PrivStore(hide={"c_ren"}))
+    assert [s["text"] for s in out["steps"]] == ["Planning the search", "Searching TikTok for posts by @vis_handle",
+                                                 "Searching TikTok for posts by @***"]

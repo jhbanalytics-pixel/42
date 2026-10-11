@@ -399,8 +399,8 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
         out[comment_links.KEY] = comment_links.prune(links, shown)
     before = _json(out)
     out = mask(out, with_names(hidden, named))
-    _mask_unclear_steps(out, kept_evidence)
     changed = _json(out) != before
+    _mask_unclear_steps(out, kept_evidence)  # after the check: a handle it cannot clear is not a hidden person's
     if meta is not None:
         out["answer_meta"] = meta
     if unavailable:
