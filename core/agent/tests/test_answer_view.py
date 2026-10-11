@@ -271,3 +271,10 @@ def test_the_same_post_words_and_query_with_another_value_or_kind_are_not_one_fa
     other_kind = restated()
     other_kind["answer"]["claims"][1]["kind"] = "interpretation"
     assert [c["id"] for c in answer_view.present(other_kind)["answer"]["claims"]] == ["c1", "c2"]
+
+
+def test_the_view_of_a_view_is_the_view_when_claims_were_merged_i2(record):
+    restating(record)
+    once = answer_view.present(record)
+    assert [c["id"] for c in once["answer"]["claims"]] == ["c2", "c3", "c4", "c5", "c6"]
+    assert answer_view.present(once) == once
