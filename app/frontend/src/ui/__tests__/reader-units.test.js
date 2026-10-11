@@ -54,3 +54,10 @@ test('a source route never swallows the sentence after it', () => {
   expect(plainSearched('instagram/hashtag #fixture, Kenya, 21 to 27 September')).toBe('Instagram for #fixture, Kenya, 21 to 27 September');
   expect(plainSearched('24/7 coverage and/or replies')).toBe('24/7 coverage and/or replies');
 });
+
+/* Re-review N4: a search term of several words still reads as "for" that term. */
+test('a search term of several words reads as for that term', () => {
+  expect(plainSearched('instagram/hashtag sunday best, 21 to 27 September')).toBe('Instagram for sunday best, 21 to 27 September');
+  expect(plainSearched('tiktok/search amapiano dance challenge: 0 found')).toBe('TikTok for amapiano dance challenge: 0 found');
+  expect(plainSearched('x/search kota in soweto')).toBe('X for kota in soweto');
+});

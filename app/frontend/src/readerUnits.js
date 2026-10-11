@@ -51,15 +51,23 @@ export function boardTitle(title){
    obs1_7bfd..., obs1_66fa..."). A reader gets how many; the ids stay in
    the stored record. A search can also name its source routes
    ("instagram/hashtag #fixture"): each route on a platform this app knows
-   reads as that platform, and one search term right after it, before a
+   reads as that platform, and the search term right after it, up to a
    comma, a colon or the end, reads as "for" that term ("Instagram for
-   #fixture"). Any other words after a route stay as written, and a slash
-   after a word that is not a platform is left alone. */
-const SOURCE_ROUTE = /\b([a-z][a-z0-9_]*)\/[a-z0-9_/-]*[a-z0-9_](?:\s+([^\s,:]+)(?=[,:]|$))?/gi;
-const routeWords = (text) => text.replace(SOURCE_ROUTE, (whole, platform, term) => {
+   #fixture", "Instagram for sunday best"). Words that begin with a joining
+   word ("and x/search", "for amapiano returned ...", "at 2026-09-24") or
+   name another route are a sentence, not a term, and stay as written, with
+   any route in them named too. A slash after a word that is not a platform
+   is left alone. */
+const SOURCE_ROUTE = /\b([a-z][a-z0-9_]*)\/[a-z0-9_/-]*[a-z0-9_]((?:\s+[^\s,:]+)*)/gi;
+const JOINING = /^(?:and|or|at|for|returned|returns|with|from|by|via|on|in|then|but)\b/i;
+const MAX_TERM_WORDS = 4;
+const routeWords = (text) => text.replace(SOURCE_ROUTE, (whole, platform, tail) => {
+  const route = whole.slice(0, whole.length - tail.length);
   const label = platformLabel(platform);
-  if (!label) return whole;
-  return label + (term ? ' for ' + term : '');
+  if (!label) return route + routeWords(tail);
+  const term = tail.trim();
+  const isTerm = term && !term.includes('/') && !JOINING.test(term) && term.split(/\s+/).length <= MAX_TERM_WORDS;
+  return isTerm ? label + ' for ' + term : label + routeWords(tail);
 });
 
 export function plainSearched(text){
