@@ -10,6 +10,7 @@ import {human} from './model.js';
 import {SearchingNow} from './ui/SearchingNow.jsx';
 import {TrendCard, figureWords, longDate, platformWord, topicHref} from './ui/TrendCard.jsx';
 import {PlatformLogo} from './ui/PlatformLogo.jsx';
+import {accountsCard} from './ui/accounts.js';
 import {Skeleton} from './ui/Skeleton.jsx';
 import {useCardWatch} from './ui/WatchDialog.jsx';
 import './styles/today42.css';
@@ -178,36 +179,8 @@ const accountsHelp = (kind) => 'Different accounts that '
   + (!kind ? 'posted about this' : kind === 'hashtag' ? 'used this hashtag' : kind === 'sound' ? 'used this sound' : 'posted about this ' + kindOne(kind))
   + ' in the last 7 days. One account counts once, however many times it posted.';
 
-/* One name for the count of different accounts, said the same way in Radar
-   and on every Trends row: "3 accounts posting, last 3 days". The API words
-   the same measure "creators in 3 days" and a stored brief line can carry
-   another number for it, so the card is read through the measured figure,
-   which keeps its query, and the stored line gives way to it. Only the
-   words change; no value, query id or run id does. */
-const WINDOW_UNIT = /^creators in (\d+) days?$/i;
-function accountsFigure(figure){
-  if (!isFigure(figure)) return figure;
-  const found = WINDOW_UNIT.exec(String(figure.unit || '').trim());
-  if (!found) return figure;
-  return {...figure, unit: (figure.value === 1 ? 'account posting' : 'accounts posting') + ', last ' + found[1] + ' days'};
-}
-function accountsLine(line, reach){
-  if (typeof line !== 'string' || !isFigure(reach) || !/^accounts? posting, last 3 days$/.test(String(reach.unit))) return line;
-  const found = /^\s*\d[\d.,\u00a0\u202f ]*\s+creators?\b(.*)$/i.exec(line);
-  const window = /(?:,| in)\s+(?:the\s+)?(?:last\s+)?3 days\b/i;
-  if (!found || !window.test(found[1])) return line;
-  const noun = reach.value === 1 ? '1 account posting' : readerFigure(reach.value) + ' accounts posting';
-  return noun + found[1].replace(window, ', last 3 days');
-}
-function plainCard(card){
-  if (!card || typeof card !== 'object') return card;
-  const next = {...card};
-  if (hasField(card, 'reach')) next.reach = accountsFigure(card.reach);
-  if (Array.isArray(card.numbers)) next.numbers = card.numbers.map(accountsFigure);
-  if (isFigure(card.reach7)) next.reach7 = accountsFigure(card.reach7);
-  if (hasField(card, 'count_line')) next.count_line = accountsLine(card.count_line, next.reach);
-  return next;
-}
+/* The count of different accounts is said the same way here and on Today, by
+   the one helper in ui/accounts.js: "3 accounts posting, last 3 days". */
 
 export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
   const [market, setMarket] = useState(() => tabForRegion(region));
@@ -467,7 +440,7 @@ function Feed({sortControl, load, market, filtered, kind, states, platforms, mor
                 return (
                   <TrendCard key={where + ':' + card.item_id} index={index}
                     className={'d42-cell' + (label ? ' d42-cell-global' : '') + (notRun ? ' d42-cell-not-run' : '')}
-                    card={plainCard(watch.mark(card, apiMarket(market)))} market={where} date={card.date || data.date}
+                    card={accountsCard(watch.mark(card, apiMarket(market)))} market={where} date={card.date || data.date}
                     onAuth={onAuth} onWatch={watch.onWatch} linkTopic posts={false} sparkMinDays={14} saidAbove={notYet}
                     scope={label ? <>
                       <p className="d42-global-scope">{label}</p>
@@ -522,7 +495,7 @@ function HeldBack({held, market, date, onAuth, watch}){
                     {label && evidence && <p className="d42-market-evidence">{evidence}</p>}
                     {h.card && (
                       <ol className="t42-cards">
-                        <TrendCard card={plainCard(watch.mark(h.card, apiMarket(market)))} market={h.card.market || apiMarket(market)} date={h.card.date || date} onAuth={onAuth} onWatch={watch.onWatch} linkTopic posts={false} />
+                        <TrendCard card={accountsCard(watch.mark(h.card, apiMarket(market)))} market={h.card.market || apiMarket(market)} date={h.card.date || date} onAuth={onAuth} onWatch={watch.onWatch} linkTopic posts={false} />
                       </ol>
                     )}
                   </div>

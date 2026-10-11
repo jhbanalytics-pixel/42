@@ -336,11 +336,16 @@ test('the market is a segmented control and the filters sit behind a Filters but
 });
 
 test('platform chips carry the platform mark and its name, and a platform without a mark keeps its letter', async () => {
-  await mount(base());
+  /* X has its official mark since the Today band; Boomplay is not in the mark set. */
+  const page = pageWith(['#alpha', '#beta']);
+  page.filters = {...page.filters, platforms: [...page.filters.platforms, 'boomplay']};
+  await mount(base(page));
   const youtube = chip('platform', 'youtube');
   expect(youtube.textContent).toContain('YouTube');
   expect(youtube.querySelector('svg[data-logo="youtube"]')).not.toBeNull();
-  expect(chip('platform', 'x').querySelector('.pl-monogram')).not.toBeNull();
+  expect(chip('platform', 'x').querySelector('svg[data-logo="x"]')).not.toBeNull();
+  expect(chip('platform', 'boomplay').textContent).toContain('Boomplay');
+  expect(chip('platform', 'boomplay').querySelector('.pl-monogram')).not.toBeNull();
 });
 
 test('Radar rows show platform marks with names, a Local bar with its words, one tidy info line and a sticky header', async () => {
@@ -428,13 +433,16 @@ test('a Trends row says its accounts once: the stored count line gives way to th
   expect(row.match(/accounts? posting, last 3 days/g)).toHaveLength(1);
 });
 
-test('a stored count line that also counts posts keeps the posts and takes the measured accounts', async () => {
+test('a stored count line that also counts posts is dropped, never joined to the measured accounts', async () => {
   const card = trendCard('Two part line', 1, {count_line: '12 creators and 20 posts in 3 days', reach: figure(3, 'creators in 3 days'),
-    numbers: [figure(3, 'creators in 3 days'), figure(20, 'posts in 3 days')]});
+    numbers: [figure(3, 'creators in 3 days'), figure(40, 'posts in 3 days')]});
   await mount(base(pageWithCards([card])));
   const row = trendText('Two part line');
-  expect(row).toContain('3 accounts posting and 20 posts, last 3 days');
+  expect(row).toContain('3 accounts posting, last 3 days');
+  expect(row).toContain('40 posts in 3 days');
   expect(row).not.toContain('12');
+  expect(row).not.toContain('20 posts');
+  expect(row).not.toContain('3 accounts posting and');
 });
 
 test('one account reads in the singular, and a card with no reach figure keeps its own line', async () => {
