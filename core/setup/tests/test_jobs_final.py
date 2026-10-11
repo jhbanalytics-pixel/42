@@ -17,9 +17,10 @@ import pytest
 from core.setup.release import chain_evidence as ce
 from core.setup.release import jobs_only as jo
 from core.setup.release import plan
+from core.setup.release import services_only as so
 from core.setup.tests import jobs_world as jw
 from core.setup.tests.e2e_world import ON_WINDOWS
-from core.setup.tests.jobs_e2e_world import EndToEnd
+from core.setup.tests.jobs_e2e_world import EndToEnd, derive_prior, release_b_live, release_d
 
 pytestmark = pytest.mark.skipif(not ON_WINDOWS, reason="the stand-ins for py and gcloud are .cmd files, which exist on Windows only")
 
@@ -220,3 +221,85 @@ def test_the_first_b_chain_read_the_lead_runs_next_morning_works_from_the_live_b
     assert code == 0, err.getvalue()
     written = json.loads((run.bench.packet / f"chain-evidence-{day.isoformat()}.json").read_text(encoding="utf-8"))
     assert written["role"] == "first-b" and written["jobs_image"]["expected_digest"] == jw.NEW_DIGEST and written["verdict"]["qualifies"] is True
+
+
+# Release D on top of the live Release B: the same tools, the same real paste, and the prior release is Release B's own packet.
+
+def image_args(argvs):
+    """The image reference of every `jobs update` among the gcloud commands the fake Cloud Run played, by job."""
+    return {argv[4]: next(a.split("=", 1)[1] if a.startswith("--image=") else argv[i + 1] for i, a in enumerate(argv) if a.startswith("--image"))
+            for argv in argvs}
+
+
+def test_release_d_binds_to_release_b_as_its_prior_updates_the_fourteen_jobs_and_rolls_back_to_b_exactly(tmp_path, monkeypatch):
+    run_b = release_b_live(tmp_path, monkeypatch)
+    assert set(run_b.job_images().values()) == {jw.B_LIVE_DIGEST}
+    left = {job: so.fingerprint(so.job_view(view)) for job, view in run_b.state()["cloud"].world.jobs.items()}
+
+    # the record is derived from Release B's own lock and packet, against the digest the lead names
+    prior_file = tmp_path / "prior-jobs-release.json"
+    record = derive_prior(run_b, prior_file)
+    assert record["image_digest"] == jw.B_LIVE_DIGEST and record["release_id"] == run_b.bench.release_id
+    assert record["job_definitions"] == left, "the fourteen definitions are the ones B's update left, as its JobsUpdate log recorded them"
+    assert record["terminal"] == {"kind": "AfterJobsUpdate", "at_utc": run_b.read("readbacks/AfterJobsUpdate-01.json")["at_utc"]}
+
+    # Release D's packet: every file from a tool, bound to that record
+    run = release_d(tmp_path, monkeypatch, run_b, prior_file)
+    bench = run.bench
+    assert bench.release_id != run_b.bench.release_id and bench.letter == "D"
+    assert [name for name, _ in run.cli_calls] == ["capture-baseline-j", "bind", "bind", "lock", "review", "receipt"]
+    baseline = bench.baseline_value()
+    assert baseline["rollbackJobsDigest"] == jw.B_LIVE_DIGEST and baseline["priorJobsRelease"] == record
+    bindings = bench.bindings_value()
+    assert bindings["rollbackJobsDigest"] == jw.B_LIVE_DIGEST and bindings["priorJobsRelease"] == record and bindings["releaseLetter"] == "D"
+    chain = json.loads(bench.chain_path.read_text(encoding="utf-8"))
+    assert chain["run_date"] == "2026-10-12" and chain["a_terminal"] == record["terminal"] and chain["jobs_image"]["expected_digest"] == jw.B_LIVE_DIGEST
+    assert bench.line.read_text(encoding="utf-8").startswith(f"RELEASE D {bench.release_id}: ")
+    assert bench.quiet_line_file.read_text(encoding="utf-8").startswith(f"RELEASE D {bench.release_id} QUIET: ")
+    assert set(run.job_images().values()) == {jw.B_LIVE_DIGEST}
+
+    # JobsCandidate and JobsUpdate: D's image is built and frozen, and the fourteen jobs move from B's image to it
+    candidate = ok(run.paste("JobsCandidate"))
+    assert candidate.played[:3] == ["gcloud config list", "bound_readback.py BeforeAnyWrite", "deploy_jobs.py --build"]
+    assert run.read("release-manifest.json")["image"]["digest"] == jw.D_DIGEST
+    assert set(run.job_images().values()) == {jw.B_LIVE_DIGEST}, "JobsCandidate changes no job"
+    update = ok(run.paste("JobsUpdate"))
+    assert update.played == ["gcloud config list", "bound_readback.py BeforeJobsUpdate", "jobs_run.py update", "bound_readback.py AfterJobsUpdate"]
+    assert set(run.job_images().values()) == {jw.D_DIGEST}
+    updates = run.state()["cloud"].update_argvs()
+    assert len(updates) == 14 and set(image_args(updates).values()) == {f"{jo.JOBS_REPO}@{jw.D_DIGEST}"} and len(image_args(updates)) == 14
+
+    # JobsRollback restores Release B's digest and Release B's definitions, and nothing of the release before it
+    rollback = ok(run.paste("JobsRollback"))
+    assert rollback.played[-2:] == ["jobs_run.py rollback", "bound_readback.py AfterJobsRollback"]
+    assert run.job_images() == {job: jw.B_LIVE_DIGEST for job in so.JOB_NAMES}
+    restores = run.state()["cloud"].update_argvs()[14:]
+    assert len(restores) == 14 and set(image_args(restores).values()) == {f"{jo.JOBS_REPO}@{jw.B_LIVE_DIGEST}"} and len(image_args(restores)) == 14
+    assert jw.ROLLBACK_DIGEST not in json.dumps(run.state()["cloud"].update_argvs())
+    restored = {job: so.fingerprint(so.job_view(view)) for job, view in run.state()["cloud"].world.jobs.items()}
+    assert restored == record["job_definitions"]
+    after = json.loads((bench.packet / "readbacks" / "AfterJobsRollback-01.json").read_text(encoding="utf-8"))
+    assert after["blocking"] == {} and after["observations"]["residue_probed"] is False
+
+    # jobs only: no service byte changed, every command is on the jobs positive list, none holds a forbidden word
+    assert run.state()["cloud"].services_bytes() == run.services_before
+    for result in (candidate, update, rollback):
+        assert not forbidden_commands(result.commands)
+        for argv in result.commands:
+            assert len(plan.jobs_matching_entries(argv)) == 1, argv
+
+
+def test_release_d_is_refused_by_the_paste_when_the_jobs_are_not_the_ones_its_prior_left(tmp_path, monkeypatch):
+    # A job changed after Release B and before Release D's baseline was captured is not the definition the prior release left. JobsCandidate
+    # stops before the build, because the baseline D is bound to would restore something B never ran.
+    run_b = release_b_live(tmp_path, monkeypatch)
+    prior_file = tmp_path / "prior-jobs-release.json"
+    derive_prior(run_b, prior_file)
+    run = release_d(tmp_path, monkeypatch, run_b, prior_file)
+    state = run.state()
+    container = state["cloud"].world.jobs["f42-digest"]["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]
+    container["args"] = ["-m", "elsewhere"]
+    run.save(state)
+    candidate = run.paste("JobsCandidate")
+    assert candidate.returncode != 0 and "deploy_jobs.py --build" not in candidate.played
+    assert set(run.job_images().values()) == {jw.B_LIVE_DIGEST}
