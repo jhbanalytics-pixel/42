@@ -503,17 +503,51 @@ def selectable(claim, source_evidence, hidden, store, gone=None):
     return _json(mask(words, hidden)) == _json(words)
 
 
-def project_event(kind, data, hidden, store, gone, seen, named=None):
+AT_HANDLE = re.compile(r"@(\w[\w.\-]*)")
+
+
+def _folded(handle):
+    return handle.casefold().lstrip("@") if isinstance(handle, str) else ""
+
+
+def _author_handles(record):
+    """The handles a shown record names as its author: its own, and the one in its address when it is a post."""
+    found = [record.get("handle")]
+    if not _is_comment(record):
+        found.append(_url_handle(record.get("url")))
+    return {h for h in (_folded(f) for f in found) if h}
+
+
+def _mask_unclear_handles(data, masking, shown):
+    """data with every @handle in a step's text masked unless the stream knows it belongs to a shown creator: a post
+    this stream judged and showed while somebody was hidden, and whose handle no hidden person also carries. A step can
+    name a hidden person before their post arrives, or on a stream resumed past it, and the stream cannot clear it."""
+    text = data.get("text")
+    if not isinstance(text, str) or "@" not in text:
+        return data
+    barred = {_folded(k.split(":", 1)[1]) for k in masking[0]} if masking is not None else set()
+    clear = set() if masking is None else (shown or set()) - barred
+
+    def hide(match):
+        core = match.group(1).rstrip(".-")
+        return match.group(0) if _folded(core) in clear else "@***" + match.group(1)[len(core):]
+
+    return {**data, "text": AT_HANDLE.sub(hide, text)}
+
+
+def project_event(kind, data, hidden, store, gone, seen, named=None, shown=None):
     """One event of a run in flight, or None to withhold it (5.5). gone collects the ids of the evidence left out of
     this stream so a claim citing one is left out too; seen memoises post id to creator id for the stream. hidden
     None (UNAVAILABLE) sends no evidence or claim event. named collects the handles a hidden person's posts carry,
-    old ones included (evidence_gone), and every event is masked with them too."""
+    old ones included (evidence_gone), and every event is masked with them too. shown collects the handles of the
+    evidence this stream showed while somebody was hidden: a step names an @handle only if it is among them."""
     if kind == "evidence" and isinstance(data.get("evidence"), dict) and isinstance(data["evidence"].get("id"), str):
         # kept even while nobody is hidden, so a comment arriving after a hide is judged by its post (5.1)
         seen[(_HELD, data["evidence"]["id"])] = {k: data["evidence"][k] for k in _IDENTITY if k in data["evidence"]}
     if nothing_hidden(hidden):
         return data
     named = set() if named is None else named
+    shown = set() if shown is None else shown
     if kind == "evidence":
         record = data.get("evidence") if isinstance(data.get("evidence"), dict) else {}
         earlier = [v for k, v in seen.items() if type(k) is tuple]
@@ -524,13 +558,16 @@ def project_event(kind, data, hidden, store, gone, seen, named=None):
         if left_out:
             gone.add(record.get("id"))
             return None
+        shown |= _author_handles(record)
         return mask(data, with_names(hidden, named))
     if kind == "claim":
         claim = data.get("claim") if isinstance(data.get("claim"), dict) else {}
         if hidden is None or _claim_ids(claim) & gone:
             return None
         return mask(data, with_names(hidden, named))
-    return mask(data, with_names(hidden, named))
+    masking = with_names(hidden, named)
+    out = mask(data, masking)
+    return _mask_unclear_handles(out, masking, shown) if kind == "step" else out
 
 
 def place_chunk(events, hidden, store, seen, named=None):
