@@ -495,6 +495,21 @@ def project_event(kind, data, hidden, store, gone, seen):
     return mask(data, hidden)
 
 
+def place_chunk(events, hidden, store, seen):
+    """Find who wrote the stored posts among a chunk of stream events in one batched lookup, ahead of judging them one
+    by one. The answers go into seen (post id to creator id), so project_event finds each one there and asks the store
+    nothing more: a chunk of any size costs one lookup. A lookup that fails is left for project_event to meet and
+    judge per event, as before."""
+    if hidden is None or nothing_hidden(hidden):
+        return
+    records = [d["evidence"] for kind, d in events
+               if kind == "evidence" and isinstance(d, dict) and isinstance(d.get("evidence"), dict)]
+    try:
+        evidence_gone(records, hidden, store, seen)
+    except PeopleUnavailable:
+        pass
+
+
 NO_STORE = {"Cache-Control": "no-store"}
 
 

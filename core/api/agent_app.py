@@ -633,6 +633,7 @@ def follow(ask, after):
                 ask.cond.wait(KEEPALIVE_SECONDS)
             new = ask.events[sent:]
             done = ask.done
+        privacy.place_chunk(new, fresh.get(), store, memo)  # who wrote this chunk's stored posts, in one lookup
         for kind, data in new:
             shown = skins.mask_event(data, people["approved"], [], hidden) if people else data
             current = fresh.get()
