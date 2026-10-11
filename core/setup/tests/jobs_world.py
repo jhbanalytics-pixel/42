@@ -214,12 +214,13 @@ class ChainFixture:
         self.counts = {"collect": {"posts": 1200}, "understand": self.understand_counts(), "detect": {"items": 300}, "brief": {"cards": 12}}
         self.outputs = {"item_state": 300, "series_test": 40, "briefs": {m: 1 for m in MARKETS}, "item_locality": None}
         self.locality_table = False
+        self.series_test_under = None  # None: series_test rows sit under any run id that starts with "stats"; else the set of run ids they sit under
         self.substage_status = {s: "ok" for s in SUBSTAGES}
         self.bound = None
         for stage in jo.CHAIN_STAGES:
             self.add_stage(stage)
         for index, sub in enumerate(SUBSTAGES):
-            self.rows.append(self.substage_row(sub, index))
+            self.rows.append(self.stats_row(f"stats-{self.stamp}-bbbbbbbbbbbb") if sub == "stats" else self.substage_row(sub, index))
         for index in range(3):
             self.side_execution("f42-watchdog", f"f42-watchdog-w{index}", self.midnight + dt.timedelta(minutes=600 + 60 * index))
         self.skipped("brief")
@@ -260,6 +261,15 @@ class ChainFixture:
         at = self.midnight + dt.timedelta(minutes=330, seconds=index)
         return {"run_id": f"{sub}-{self.stamp}-bbbbbbbbbbbb", "stage": sub, "status": self.substage_status.get(sub, "ok"), "started_at": at,
                 "finished_at": at, "counts": json.dumps({"rows": 5}), "has_error": False, "error_sha256": sha("")}
+
+    def stats_row(self, run_id, *, offset=60, length=60, status="ok"):
+        """A stats runs row as detect's own step writes it (job.py _step): one finished row under a run id of its own. offset is the
+        seconds after the detect execution started; the default puts the whole row inside the detect run's rows."""
+        detect_started, _ = self.times("detect")
+        at = detect_started + dt.timedelta(seconds=offset)
+        return {"run_id": run_id, "stage": "stats", "status": status, "started_at": at, "finished_at": at + dt.timedelta(seconds=length),
+                "counts": json.dumps({"model_usd": 0.0, "series_test": self.outputs["series_test"]}), "has_error": status != "ok",
+                "error_sha256": sha("" if status == "ok" else "x")}
 
     def skipped(self, stage, run_id="s", minutes=375):
         """A skipped_duplicate row and the execution it came from: the 06:15 SAST start of the brief on a published day."""
@@ -304,11 +314,15 @@ class ChainFixture:
 
         out["stage_rows"] = stage_rows
         out["item_state_count"] = lambda params: [{"n": self.outputs["item_state"] if params["run_id"].startswith("detect") else 0}]
-        out["series_test_count"] = lambda params: [{"n": self.outputs["series_test"] if params["run_id"].startswith("detect") else 0}]
+        out["series_test_count"] = lambda params: [{"n": self.outputs["series_test"] if self.holds_series_test(params["run_id"]) else 0}]
         out["briefs_by_market"] = lambda params: [{"market": m, "n": n} for m, n in self.outputs["briefs"].items()]
         out["item_locality_count"] = lambda params: [{"n": self.outputs["item_locality"] or 0}]
         out["table_exists"] = lambda params: [{"n": 1 if self.locality_table else 0}]
         return out
+
+    def holds_series_test(self, run_id):
+        """detect's stats step writes core.series_test under the stats run id, never under the detect run id (job.py _step)."""
+        return run_id.startswith("stats") if self.series_test_under is None else run_id in self.series_test_under
 
     def bq(self, **kw):
         return FakeBq(self.tables(), **kw)

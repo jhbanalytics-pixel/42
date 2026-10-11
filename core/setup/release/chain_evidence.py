@@ -291,7 +291,7 @@ def build_manifest(bound, reader, bq_client, day, role, *, now=None):
     side = side_executions(ev, listed, stages, rows, midnight, bound_names)
     if ev.pending:
         raise Pending(sorted(ev.pending))
-    lineage(ev, stages)
+    lineage(ev, stages, rows)
 
     reasons = [c for c in CODES if any(code == c for code, _ in ev.failures)]
     qualifies = not reasons
@@ -467,7 +467,32 @@ def side_executions(ev, listed, stages, rows, midnight, bound_names):
     return out
 
 
-def lineage(ev, stages):
+def stats_run_of(rows, detect_rows):
+    """(the stats run id that belongs to this detect run or None, every stats run that overlaps the detect run). Detect's stats step
+    runs under a run id of its own, inside the detect run, so the run is bound by time to the detect run's own rows: a run belongs to it
+    only when every row of the run, finished, lies from the detect run's first row to its terminal row, and it ended ok. Exactly one
+    overlapping run binds; none or several leave it unbound, and a stats run of any other time never counts."""
+    terminal = detect_rows[-1]
+    if terminal["finished_at"] is None:
+        return None, []
+    start, end = min(jo.aware(r["started_at"]) for r in detect_rows), jo.aware(terminal["finished_at"])
+    runs, _ = stage_runs(rows, "stats")
+
+    def overlaps(row):
+        row_start = jo.aware(row["started_at"])
+        return row_start <= end and (jo.aware(row["finished_at"]) if row["finished_at"] is not None else row_start) >= start
+
+    def inside(group):
+        return all(r["finished_at"] is not None and start <= jo.aware(r["started_at"]) and jo.aware(r["finished_at"]) <= end for r in group)
+
+    candidates = {rid: group for rid, group in runs.items() if any(overlaps(r) for r in group)}
+    if len(candidates) != 1:
+        return None, list(candidates)
+    [(rid, group)] = candidates.items()
+    return (rid if inside(group) and group[-1]["status"] == "ok" else None), [rid]
+
+
+def lineage(ev, stages, rows):
     day = ev.day
     detect, brief = stages["detect"], stages["brief"]
     drid = detect["run_ids"][-1] if detect["run_ids"] else None
@@ -477,11 +502,14 @@ def lineage(ev, stages):
     if drid is not None:
         params = {"d": day, "run_id": drid}
         item_state = ev.runner.run("item_state_count", params)[0]["n"]
-        series_test = ev.runner.run("series_test_count", params)[0]["n"]
+        # series_test is written under the stats step's own run id, never under the detect run id.
+        srid, candidates = stats_run_of(rows, stage_runs(rows, "detect")[0][drid])
+        series_test = ev.runner.run("series_test_count", {"d": day, "run_id": srid})[0]["n"] if srid is not None else None
         locality = None
         if ev.runner.run("table_exists", {})[0]["n"]:
             locality = ev.runner.run("item_locality_count", params)[0]["n"]
-        detect["lineage"]["outputs"] = {"item_state": item_state, "series_test": series_test, "item_locality": locality}
+        detect["lineage"]["outputs"] = {"item_state": item_state, "series_test": series_test, "series_test_run_id": srid,
+                                        "series_test_candidates": candidates, "item_locality": locality}
         if not item_state or not series_test:
             ev.fail("LINEAGE", "detect")
     if brid is not None:

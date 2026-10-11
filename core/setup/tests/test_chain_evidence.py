@@ -14,7 +14,6 @@ from core.setup.release import chain_evidence as ce
 from core.setup.release import jobs_only as jo
 from core.setup.release import services_only as so
 from core.setup.tests import jobs_world as jw
-from core.setup.tests import release_world as rw
 
 NOW = dt.datetime(2026, 10, 11, 9, 0, tzinfo=dt.timezone.utc)
 
@@ -254,6 +253,86 @@ def test_jm02_lineage_when_detect_wrote_no_item_state_or_a_market_has_no_brief(t
     fix3 = fixture(tmp_path / "three")
     fix3.outputs["series_test"] = 0
     assert reasons(build(fix3)) == ["LINEAGE"]
+
+
+# series_test is written by detect's stats step under the stats run id, so it is counted under the stats run that belongs to this detect run
+
+def stats_id(fix):
+    return f"stats-{fix.stamp}-bbbbbbbbbbbb"
+
+
+def series_test_asked(bq):
+    return [e[2]["run_id"] for e in bq.log if e[0] == "run" and e[1] == ce.TEMPLATES["series_test_count"]]
+
+
+def test_stats_lineage_series_test_is_counted_under_the_stats_run_of_this_detect_run_and_the_chain_qualifies(tmp_path):
+    fix = fixture(tmp_path)
+    bq = fix.bq()
+    manifest = build(fix, bq=bq)
+    outputs = manifest["stages"]["detect"]["lineage"]["outputs"]
+    assert series_test_asked(bq) == [stats_id(fix)]
+    assert outputs["series_test"] == 40 and outputs["series_test_run_id"] == stats_id(fix) and outputs["series_test_candidates"] == [stats_id(fix)]
+    assert reasons(manifest) == []
+
+
+def test_stats_lineage_series_test_found_only_under_the_detect_run_id_is_lineage(tmp_path):
+    fix = fixture(tmp_path)
+    fix.series_test_under = {f"detect-{fix.stamp}-aaaaaaaaaaaa"}
+    bq = fix.bq()
+    manifest = build(fix, bq=bq)
+    assert series_test_asked(bq) == [stats_id(fix)]
+    assert reasons(manifest) == ["LINEAGE"] and manifest["stages"]["detect"]["lineage"]["outputs"]["series_test"] == 0
+
+
+def test_stats_lineage_series_test_under_an_unrelated_stats_run_id_is_lineage(tmp_path):
+    fix = fixture(tmp_path)
+    other = f"stats-{fix.stamp}-cccccccccccc"
+    fix.series_test_under = {other}
+    fix.rows.append(fix.stats_row(other, offset=-3600))
+    bq = fix.bq()
+    manifest = build(fix, bq=bq)
+    outputs = manifest["stages"]["detect"]["lineage"]["outputs"]
+    assert series_test_asked(bq) == [stats_id(fix)] and outputs["series_test_run_id"] == stats_id(fix) and outputs["series_test_candidates"] == [stats_id(fix)]
+    assert reasons(manifest) == ["LINEAGE"]
+
+
+def test_stats_lineage_two_stats_runs_inside_one_detect_run_are_lineage_and_no_count_is_taken_under_either(tmp_path):
+    fix = fixture(tmp_path)
+    second = f"stats-{fix.stamp}-dddddddddddd"
+    fix.rows.append(fix.stats_row(second, offset=300))
+    bq = fix.bq()
+    manifest = build(fix, bq=bq)
+    outputs = manifest["stages"]["detect"]["lineage"]["outputs"]
+    assert series_test_asked(bq) == []
+    assert outputs["series_test"] is None and outputs["series_test_run_id"] is None
+    assert outputs["series_test_candidates"] == [stats_id(fix), second]
+    assert reasons(manifest) == ["LINEAGE"]
+
+
+@pytest.mark.parametrize("offset,length", [(-30, 60), (60, 3 * 3600)])
+def test_stats_lineage_a_stats_run_that_straddles_the_edge_of_the_detect_run_is_lineage(tmp_path, offset, length):
+    fix = fixture(tmp_path)
+    fix.rows = [r for r in fix.rows if r["stage"] != "stats"] + [fix.stats_row(stats_id(fix), offset=offset, length=length)]
+    bq = fix.bq()
+    manifest = build(fix, bq=bq)
+    assert series_test_asked(bq) == [] and reasons(manifest) == ["LINEAGE"]
+
+
+def test_stats_lineage_a_stats_run_that_did_not_end_ok_is_not_counted(tmp_path):
+    fix = fixture(tmp_path)
+    fix.rows = [r for r in fix.rows if r["stage"] != "stats"] + [fix.stats_row(stats_id(fix), status="failed")]
+    bq = fix.bq()
+    manifest = build(fix, bq=bq)
+    assert series_test_asked(bq) == [] and reasons(manifest) == ["SUBSTAGES", "LINEAGE"]
+
+
+def test_stats_lineage_no_stats_run_inside_the_detect_run_is_lineage(tmp_path):
+    fix = fixture(tmp_path)
+    fix.rows = [r for r in fix.rows if r["stage"] != "stats"]
+    bq = fix.bq()
+    manifest = build(fix, bq=bq)
+    outputs = manifest["stages"]["detect"]["lineage"]["outputs"]
+    assert series_test_asked(bq) == [] and outputs["series_test_candidates"] == [] and reasons(manifest) == ["LINEAGE"]
 
 
 @pytest.mark.parametrize("change", [{"enrich_error": "RuntimeError: x"}, {"embed_error": "RuntimeError: y"}, {"partial": True},
@@ -540,7 +619,7 @@ def test_jm08_every_template_is_one_select_with_its_partition_filter_and_no_writ
         assert not re.search(r"\b(INSERT|UPDATE|DELETE|DROP|CREATE|MERGE|TRUNCATE|ALTER|REPLACE|EXPORT|CALL)\b", text, re.I), name
     assert "run_date = @d" in ce.TEMPLATES["stage_rows"] and "stage IN UNNEST(@stages)" in ce.TEMPLATES["stage_rows"]
     assert "metric_date = @d" in ce.TEMPLATES["item_state_count"] and "run_id = @run_id" in ce.TEMPLATES["item_state_count"]
-    assert "metric_date = @d" in ce.TEMPLATES["series_test_count"]
+    assert "metric_date = @d" in ce.TEMPLATES["series_test_count"] and "run_id = @run_id" in ce.TEMPLATES["series_test_count"]
     assert "brief_date = @d" in ce.TEMPLATES["briefs_by_market"] and "run_id = @run_id" in ce.TEMPLATES["briefs_by_market"]
     assert "run_date = @d" in ce.TEMPLATES["item_locality_count"] and "detect_run_id = @run_id" in ce.TEMPLATES["item_locality_count"]
 
@@ -592,7 +671,6 @@ def test_jm09_no_post_text_url_handle_token_or_environment_value_reaches_the_man
     text = f"RuntimeError: bad post by {SENTINELS[1]} see {SENTINELS[0]} token {SENTINELS[2]}\nsecond line {SENTINELS[0]}"
     fix.set_counts("understand", enrich_error=text, index="failed", index_error=text)
     fix.set_cluster_error("KE", text)
-    running = next(r for r in fix.rows if r["stage"] == "collect" and r["status"] == "running")
     fix.world.jobs["f42-collect"]["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]["env"].append(
         {"name": "F42_SECRETISH", "value": SENTINELS[3]})
     fix.set_terminal("detect", counts=json.dumps({"items": 300, "note": f"{SENTINELS[1]} {SENTINELS[0]}"}))
