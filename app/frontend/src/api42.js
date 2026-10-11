@@ -51,19 +51,25 @@ export function fetchTrend(itemId, market, date, options){
   return getJson('/api/trends/' + encodeURIComponent(itemId) + '?' + query.toString(), options);
 }
 
-/* Contract section 10.2. Empty filters are left off the query. */
-export function fetchDiscover({market, kind, state, platform, sort, limit, cursor} = {}, options){
+/* Contract section 10.2. Empty filters are left off the query; several
+   states or platforms go as repeated keys, the order they were picked in. */
+function filterQuery(entries){
   const query = new URLSearchParams();
-  for (const [key, value] of [['market', market], ['kind', kind], ['state', state], ['platform', platform], ['sort', sort], ['limit', limit], ['cursor', cursor]]){
-    if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
+  for (const [key, value] of entries){
+    for (const one of Array.isArray(value) ? value : [value]){
+      if (one !== undefined && one !== null && one !== '') query.append(key, String(one));
+    }
   }
-  return getJson('/api/discover?' + query.toString(), options);
+  return query.toString();
 }
 
-export function fetchRadar(market, kind, options){
-  const query = new URLSearchParams({market});
-  if (kind) query.set('kind', kind);
-  return getJson('/api/discover/radar?' + query.toString(), options);
+export function fetchDiscover({market, kind, state, platform, sort, limit, cursor} = {}, options){
+  const query = filterQuery([['market', market], ['kind', kind], ['state', state], ['platform', platform], ['sort', sort], ['limit', limit], ['cursor', cursor]]);
+  return getJson('/api/discover?' + query, options);
+}
+
+export function fetchRadar(market, kind, {state, platform, ...options} = {}){
+  return getJson('/api/discover/radar?' + filterQuery([['market', market], ['kind', kind], ['state', state], ['platform', platform]]), options);
 }
 
 export function fetchTopic(itemId, market, options){

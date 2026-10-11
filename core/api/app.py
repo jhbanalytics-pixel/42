@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
@@ -436,8 +436,8 @@ def _stage2(build):
 def api_discover(
     market: str | None = None,
     kind: str | None = None,
-    state: str | None = None,
-    platform: str | None = None,
+    state: list[str] | None = Query(None),
+    platform: list[str] | None = Query(None),
     sort: str = "order",
     limit: int = 50,
     cursor: str | None = None,
@@ -453,13 +453,14 @@ def api_discover(
 
 
 @gated.get("/api/discover/radar")
-def api_radar(market: str | None = None, kind: str | None = None) -> dict:
+def api_radar(market: str | None = None, kind: str | None = None, state: list[str] | None = Query(None),
+              platform: list[str] | None = Query(None)) -> dict:
     from core.api import discover, fast, store
 
     mkt = (market or "").strip()
     mkt = "all" if mkt.lower() == "all" else mkt.upper()
     return _stage2(lambda: discover.build_radar(fast.prefetch(store.get_store(), fast.radar_plan, mkt), mkt,
-                                                kind=kind or None))
+                                                kind=kind or None, state=state or None, platform=platform or None))
 
 
 @gated.get("/api/topics/{item_id}")

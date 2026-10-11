@@ -95,9 +95,9 @@ test('on a phone a row of next links and empty-state actions stack, so no link i
   expect(actions).toContainEqual(expect.objectContaining({prop: 'flex-direction', value: 'column'}));
 });
 
-test('on a phone the Discover filters share one even grid, so none wraps alone', () => {
-  const grid = decls('styles/discover42.css', (s) => s.trim() === '.d42-filters').filter((d) => /max-width:\s*479px/.test(d.media));
-  expect(grid).toContainEqual(expect.objectContaining({prop: 'display', value: 'grid'}));
-  const last = decls('styles/discover42.css', (s) => s.trim() === '.d42-filters > :last-child').filter((d) => /max-width:\s*479px/.test(d.media));
-  expect(last).toContainEqual(expect.objectContaining({prop: 'grid-column', value: '1 / -1'}));
+test('on a phone the Discover filters sit in a bottom sheet, with sort across its full width', () => {
+  const sheet = decls('styles/discover42.css', (s) => s.trim() === '.d42-groups').filter((d) => /max-width:\s*767px/.test(d.media));
+  expect(sheet).toContainEqual(expect.objectContaining({prop: 'position', value: 'fixed'}));
+  const sort = decls('styles/discover42.css', (s) => s.trim() === '.d42-select').filter((d) => /max-width:\s*767px/.test(d.media));
+  expect(sort).toContainEqual(expect.objectContaining({prop: 'inline-size', value: '100%'}));
 });
