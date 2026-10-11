@@ -92,9 +92,13 @@ jobs:
       # Raised again with Release B final: the core tree collects 27680 tests, 72 skipped and 83 expected to fail, so 27525 pass on Windows.
       # The two Release B end to end files (test_jobs_final, test_release_e2e: 26 tests) skip on Linux, so 27499 are expected to pass here,
       # and the floor sits 42 under that count, as the earlier floors sat 42 under theirs. The total and the passed floor are one number.
+      # Raised again for the Release D jobs tooling: the zero count hold of the D branch (15 tests, which no floor had yet counted), the jobs
+      # tooling bound to a prior jobs release, the hold and forecast tests that came with it, and two end to end tests. The core tree collects
+      # 27821 tests (27695 on the D branch before this change), with the same 72 skipped and 83 expected to fail, so 27666 pass on Windows. The
+      # two end to end files now hold 28 tests that skip on Linux, so 27638 are expected to pass here, and the floor sits 42 under that count.
       - name: Report the skipped opt-in tests and the number of tests that ran
         if: always()
-        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 27457 --min-passed 27457 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
+        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 27596 --min-passed 27596 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
 
       # The ops partition has floors of its own. Its tests are in a separate JUnit file, so the core floors above cannot
       # see a loss there. Pinned a little under the 161 tests the partition collected and the 158 that passed under the
