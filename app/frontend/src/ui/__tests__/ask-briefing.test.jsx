@@ -175,6 +175,29 @@ test('the post strip links a comment to its post only when that post is among th
   expect(shown).toContain('href="https://www.tiktok.com/@lerato_clips_22/video/7701000000000000002"');
 });
 
+/* Release C review m3: a control whose accessible name differs from its visible words breaks voice control and
+   label-in-name (WCAG 2.5.3). The name starts with the words on the button and adds the context after them. */
+test('the briefing controls are named from their visible words first', async () => {
+  const record = clone(repeatRecord);
+  const base = record.answer.evidence.find((item) => item.id === 'tt_post_1');
+  for (let n = 4; n <= 9; n += 1){
+    record.answer.evidence.push({...base, id: 'tt_post_' + n, handle: 'extra.post.' + n, url: 'https://www.tiktok.com/@extra.post.' + n + '/video/' + n});
+    record.answer.claims.find((claim) => claim.id === 'c2').evidence_ids.push('tt_post_' + n);
+  }
+  await open(record);
+  const controls = [...all('.ask42-tile-open'), ...all('.ask42-tiles-more')];
+  expect(controls.length).toBeGreaterThan(3);
+  for (const control of controls){
+    const visible = words(control).toLowerCase();
+    expect(control.getAttribute('aria-label').toLowerCase().startsWith(visible), visible + ' / ' + control.getAttribute('aria-label')).toBe(true);
+  }
+  expect(all('.ask42-tile-open')[0].getAttribute('aria-label')).toBe('Open post by ngwenya.tales');
+  const more = host.querySelector('.ask42-tiles-more');
+  expect(more.getAttribute('aria-label')).toBe('and 5 more posts');
+  await act(async () => more.click());
+  expect(host.querySelector('.ask42-tiles-more').getAttribute('aria-label')).toBe('Fewer posts');
+});
+
 /* ---- 2. one claim per fact (the API view), and the confidence tag ---- */
 
 test('one confidence tag covers the answer and each card keeps its own label', async () => {

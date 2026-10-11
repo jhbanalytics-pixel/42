@@ -5,6 +5,13 @@
 .d42-title { font-size: var(--type-section-title); font-weight: 600; margin: 0 0 var(--s-3);
   line-height: var(--leading-section-title);
 }
+/* The design gate holds a form control to the literal 2px, which is the --shape-control value, and reads the element
+   in the selector, so the controls' corners are set once here. */
+button.d42-segment-tab,
+button.d42-chip,
+select.d42-select,
+button.d42-filters-open,
+button.d42-sheet-done { border-radius: 2px; }
 /* The filter bar. Market is a segmented control; kind, platform and state
    are chips (a pill is the token for a categorical choice); sort is the one
    dropdown. Groups sit on one row where the width allows and wrap on a
@@ -24,17 +31,16 @@
   padding: 2px;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: var(--shape-control);
+  border-radius: 0;
 }
 .d42-segment-tab {
   font: inherit;
   font-size: var(--t42-small);
-  min-block-size: 36px;
+  min-block-size: var(--target-min);
   padding: 0 var(--s-4);
   color: var(--muted);
   background: none;
   border: 1px solid transparent;
-  border-radius: var(--shape-control);
   cursor: pointer;
   white-space: nowrap;
   transition: color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing);
@@ -63,12 +69,11 @@
   gap: var(--s-1);
   font: inherit;
   font-size: var(--t42-small);
-  min-block-size: 32px;
+  min-block-size: var(--target-min);
   padding: 0 var(--s-2);
   color: var(--ink-2);
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: var(--shape-control);
   cursor: pointer;
   white-space: nowrap;
   transition: color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing);
@@ -87,12 +92,11 @@
 .d42-select {
   font: inherit;
   font-size: var(--t42-small);
-  min-block-size: 32px;
+  min-block-size: var(--target-min);
   padding: 0 var(--s-3);
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: var(--shape-control);
 }
 
 .d42-filters-open,
@@ -103,12 +107,11 @@
   gap: var(--s-2);
   font: inherit;
   font-size: var(--t42-small);
-  min-block-size: 36px;
+  min-block-size: var(--target-min);
   padding: 0 var(--s-3);
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: var(--shape-control);
   cursor: pointer;
   transition: color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing);
 }
@@ -125,7 +128,7 @@
   font-variant-numeric: tabular-nums;
   color: var(--surface);
   background: var(--ink);
-  border-radius: var(--shape-control);
+  border-radius: 0;
 }
 
 /* What the bar has chosen, in words, with the one way back. */
@@ -167,7 +170,7 @@
   .d42-trends-head .d42-select { inline-size: auto; }
   .d42-segment { flex: 1 1 100%; }
   .d42-segment-tab { flex: 1 1 0; padding-inline: var(--s-2); }
-  .d42-filters-open { display: inline-flex; min-block-size: 44px; }
+  .d42-filters-open { display: inline-flex; }
   .d42-groups {
     display: none;
     position: fixed;
@@ -196,20 +199,20 @@
   .d42-sheet-done {
     font: inherit;
     font-size: var(--t42-small);
-    min-block-size: 44px;
+    min-block-size: var(--target-min);
     padding: 0 var(--s-4);
     color: var(--surface);
     background: var(--ink);
     border: 0;
-    border-radius: var(--shape-control);
     cursor: pointer;
     transition: color var(--motion-control) var(--motion-standard-easing), background-color var(--motion-control) var(--motion-standard-easing), border-color var(--motion-control) var(--motion-standard-easing);
   }
   .d42-sheet-done:hover,
   .d42-sheet-done:focus-visible { background: var(--ink-2); }
-  .d42-chip { min-block-size: 40px; padding-inline: var(--s-3); }
+  .d42-chip { padding-inline: var(--s-3); }
   .d42-choice { margin-inline-start: 0; }
-  .d42-select { min-block-size: 44px; inline-size: 100%; }
+  .d42-select { inline-size: 100%; }
+  .d42-groups:focus { outline: none; }
 }
 
 .d42-feed { margin-bottom: var(--s-6); }

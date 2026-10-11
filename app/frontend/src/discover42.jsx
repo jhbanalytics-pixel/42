@@ -195,6 +195,9 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
   const [filters, setFilters] = useState({kinds: [], states: [], platforms: []});
   const [radarNote, setRadarNote] = useState('');
   const [sheet, setSheet] = useState(false);
+  const sheetRef = useRef(null);
+  const openRef = useRef(null);
+  const sheetWasOpen = useRef(false);
   const authRef = useRef(onAuth);
   authRef.current = onAuth;
   const moreCtrl = useRef(null);
@@ -203,6 +206,35 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
   const platformKey = platforms.join(',');
 
   useEffect(() => { setMarket(tabForRegion(region)); }, [region]);
+
+  /* On a phone the groups open as a sheet over a backdrop, so the open sheet
+     is a dialog: focus moves into it, Escape closes it from wherever focus
+     is, Tab stays inside it, and focus goes back to the Filters button. */
+  useEffect(() => {
+    if (sheet){
+      sheetWasOpen.current = true;
+      if (sheetRef.current) sheetRef.current.focus();
+      const onKey = (event) => { if (event.key === 'Escape') setSheet(false); };
+      document.addEventListener('keydown', onKey);
+      return () => document.removeEventListener('keydown', onKey);
+    }
+    if (sheetWasOpen.current){
+      sheetWasOpen.current = false;
+      if (openRef.current) openRef.current.focus();
+    }
+    return undefined;
+  }, [sheet]);
+
+  const keepTabInSheet = (event) => {
+    if (event.key !== 'Tab' || !sheet || !sheetRef.current) return;
+    const controls = [...sheetRef.current.querySelectorAll('button:not([disabled])')];
+    if (controls.length === 0) return;
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    const here = document.activeElement;
+    if (event.shiftKey && (here === first || here === sheetRef.current)){ event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && here === last){ event.preventDefault(); first.focus(); }
+  };
 
   useEffect(() => {
     if (!onExplore()) return;
@@ -298,16 +330,16 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
               }}>{t.label}</button>
             ))}
           </div>
-          <button type="button" className="d42-filters-open" aria-expanded={sheet ? 'true' : 'false'} aria-controls="d42-filter-groups" onClick={() => setSheet(!sheet)}>
+          <button type="button" className="d42-filters-open" ref={openRef} aria-expanded={sheet ? 'true' : 'false'} aria-controls="d42-filter-groups" onClick={() => setSheet(!sheet)}>
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 4h12M4.5 8h7M7 12h2" /></svg>
             Filters
             {active > 0 && <span className="d42-filters-count">{active}</span>}
           </button>
           {sheet && <button type="button" className="d42-backdrop" aria-label="Close filters" tabIndex={-1} onClick={() => setSheet(false)} />}
-          <div className="d42-groups" id="d42-filter-groups" data-open={sheet ? 'true' : 'false'}
-            onKeyDown={(e) => { if (e.key === 'Escape') setSheet(false); }}>
+          <div className="d42-groups" id="d42-filter-groups" data-open={sheet ? 'true' : 'false'} ref={sheetRef} onKeyDown={keepTabInSheet}
+            role={sheet ? 'dialog' : undefined} aria-modal={sheet ? 'true' : undefined} aria-labelledby={sheet ? 'd42-sheet-title' : undefined} tabIndex={sheet ? -1 : undefined}>
             <div className="d42-sheet-head">
-              <span className="d42-sheet-title">Filters</span>
+              <span className="d42-sheet-title" id="d42-sheet-title">Filters</span>
               <button type="button" className="d42-sheet-done" onClick={() => setSheet(false)}>Show results</button>
             </div>
             {kinds.length > 0 && (

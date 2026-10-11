@@ -38,7 +38,7 @@ function PostTile({post, quote, pinned, onPin}){
         </span>
         {facts.length > 0 && <span className="ask42-muted ask42-tile-facts">{facts.join(' · ')}</span>}
         <span className="ask42-tile-line" title={line}>{span ? <span className="ask42-muted">{clock(span.start_s) + ' '}</span> : null}{line}</span>
-        {url && <a className="ask42-tile-open" href={url} target="_blank" rel="noopener noreferrer" aria-label={'Open the post by ' + String(post.handle || 'this account')}>Open post</a>}
+        {url && <a className="ask42-tile-open" href={url} target="_blank" rel="noopener noreferrer" aria-label={'Open post by ' + String(post.handle || 'this account')}>Open post</a>}
       </span>
     </li>
   );
@@ -99,7 +99,7 @@ export function FindingCard({claim, records, quoteMap, confidence, pinnedId, onP
         </ul>
       )}
       {posts.length > TILES_SHOWN && (
-        <button type="button" className="ask42-quiet ask42-tiles-more" aria-expanded={all ? 'true' : 'false'} aria-label={all ? 'Show fewer posts' : 'Show ' + hidden + ' more ' + (hidden === 1 ? 'post' : 'posts')} onClick={() => setAll((value) => !value)}>
+        <button type="button" className="ask42-quiet ask42-tiles-more" aria-expanded={all ? 'true' : 'false'} aria-label={all ? 'Fewer posts' : 'and ' + hidden + ' more ' + (hidden === 1 ? 'post' : 'posts')} onClick={() => setAll((value) => !value)}>
           {all ? 'Fewer' : 'and ' + hidden + ' more'}
         </button>
       )}
