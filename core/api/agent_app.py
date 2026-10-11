@@ -1357,9 +1357,10 @@ def create_dossier_from(ask_id, change):
     return first_version(record, change, {"ask_id": ask_id}, people)
 
 
-def keepable(record):
+def keepable(record, learned=None):
     """{claim id: whether the list lets a dossier keep it now} for the source answer, or None when who is hidden
-    cannot be checked (C5 v2 section 7: build from what the projection leaves, refuse the rest)."""
+    cannot be checked (C5 v2 section 7: build from what the projection leaves, refuse the rest). learned, when given,
+    receives the ids of the claims that only a name the source evidence reveals makes unkeepable."""
     from core.api.store import get_store
     answer = record.get("answer") if isinstance(record, dict) else None
     if not isinstance(answer, dict):
@@ -1371,7 +1372,7 @@ def keepable(record):
     claims, _ = dossiers.admitted(answer)
     try:
         evidence = comment_links.attach(answer.get("evidence"), comment_links.read(record))
-        return privacy.selectable_claims(claims, evidence, hidden, store)
+        return privacy.selectable_claims(claims, evidence, hidden, store, learned)
     except privacy.PeopleUnavailable:
         return None
 
@@ -1423,7 +1424,8 @@ def not_keepable(ids):
 
 
 def first_version(record, change, source, people=None):
-    ok = keepable(record)
+    learned = set()
+    ok = keepable(record, learned)
     if ok is None:
         return people_unavailable()
     change = dict(change)
@@ -1436,7 +1438,7 @@ def first_version(record, change, source, people=None):
     except dossiers.Refused as exc:
         return refused(exc)
     body = dossiers.build(record, sel, dossier_id=f"d_{secrets.token_hex(6)}", version=1,
-                          created_at=status_time(record.get("market")), source=source, people=people)
+                          created_at=status_time(record.get("market")), source=source, people=people, withheld=learned)
     return save_version(body, {}, 201)
 
 
@@ -1507,7 +1509,8 @@ def edit_dossier_to(dossier_id, change, from_version=None):
         record = source_record(latest["source_ask_id"])
         if record is None:
             return error(409, "not_ready", f"The source answer {latest['source_ask_id']} can no longer be read.")
-        ok = keepable(record)
+        learned = set()
+        ok = keepable(record, learned)
         if ok is None:
             return people_unavailable()
         try:
@@ -1530,7 +1533,7 @@ def edit_dossier_to(dossier_id, change, from_version=None):
             return refused(exc)
         body = dossiers.build(record, sel, dossier_id=dossier_id, version=latest["version"] + 1,
                               created_at=status_time(latest.get("market")), source=latest["source"],
-                              people=latest.get("people"))
+                              people=latest.get("people"), withheld=learned)
         return save_version(body, dossier_ticks(dossier_id), 200)
 
 

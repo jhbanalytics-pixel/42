@@ -495,16 +495,21 @@ def project_summary(summary, store, hidden=READ):
     return {**summary, **masked}
 
 
-def selectable(claim, source_evidence, hidden, store, gone=None):
+def selectable(claim, source_evidence, hidden, store, gone=None, names=None):
     """Whether a source claim may be kept in a dossier now: none of its evidence is a hidden person's and masking
-    its words with the list changes nothing (section 7). hidden None (UNAVAILABLE) makes nothing selectable."""
+    its words with the list changes nothing (section 7). The words are judged as the Ask read masks them, with the
+    handles the source evidence reveals for a hidden person, old ones too (names, collected here when gone is not
+    handed in). hidden None (UNAVAILABLE) makes nothing selectable."""
     if hidden is None:
         return False
-    if _claim_ids(claim) & (evidence_gone(source_evidence, hidden, store) if gone is None else gone):
+    if gone is None:
+        names = set()
+        gone = evidence_gone(source_evidence, hidden, store, names=names)
+    if _claim_ids(claim) & gone:
         return False
     words = {k: claim.get(k) for k in ("text", "basis", "falsifier")}
     words["quotes"] = [q.get("text") for q in claim.get("quotes") or [] if isinstance(q, dict)]
-    return _json(mask(words, hidden)) == _json(words)
+    return _json(mask(words, with_names(hidden, names))) == _json(words)
 
 
 AT_HANDLE = re.compile(r"@(\w[\w.\-]*)")
@@ -603,12 +608,20 @@ def place_chunk(events, hidden, store, seen, named=None):
 NO_STORE = {"Cache-Control": "no-store"}
 
 
-def selectable_claims(claims, evidence, hidden, store):
-    """{claim id: whether it may be kept in a dossier now} for the source answer's claims (see selectable)."""
+def selectable_claims(claims, evidence, hidden, store, learned=None):
+    """{claim id: whether it may be kept in a dossier now} for the source answer's claims (see selectable). learned,
+    when given, is a set that receives the ids of the claims whose words are clean under the list alone and are not
+    clean once the handles the source evidence reveals are counted: a dossier holds no hidden post to learn those
+    names from, so it must not carry such words at all."""
     if hidden is None:
         return {cid: False for cid in claims}
-    gone = evidence_gone(evidence, hidden, store)
-    return {cid: not _claim_ids(c) & gone and selectable(c, evidence, hidden, store, gone) for cid, c in claims.items()}
+    names = set()
+    gone = evidence_gone(evidence, hidden, store, names=names)
+    ok = {cid: not _claim_ids(c) & gone and selectable(c, evidence, hidden, store, gone, names) for cid, c in claims.items()}
+    if learned is not None:
+        learned.update(cid for cid, c in claims.items()
+                       if not ok[cid] and not _claim_ids(c) & gone and selectable(c, evidence, hidden, store, gone))
+    return ok
 
 
 def finding_blockers(record, store, hidden=READ):
@@ -620,13 +633,15 @@ def finding_blockers(record, store, hidden=READ):
     if hidden is None:
         raise PeopleUnavailable
     answer = record.get("answer") if isinstance(record, dict) else None
+    evidence = comment_links.attach(answer.get("evidence") if isinstance(answer, dict) else None, comment_links.read(record))
+    names = set()
+    gone = evidence_gone(evidence, hidden, store, names=names)
     named = (isinstance(record, dict) and isinstance(record.get("question"), str)
-             and mask({"q": record["question"]}, hidden)["q"] != record["question"])
+             and mask({"q": record["question"]}, with_names(hidden, names))["q"] != record["question"])
     if not isinstance(answer, dict):
         return [], named
-    evidence = comment_links.attach(answer.get("evidence"), comment_links.read(record))
     claims = [c for c in answer.get("claims") or [] if isinstance(c, dict)]
-    return [c.get("id") for c in claims if not selectable(c, evidence, hidden, store)], named
+    return [c.get("id") for c in claims if not selectable(c, evidence, hidden, store, gone, names)], named
 
 
 def withhold_digest(resp, store):

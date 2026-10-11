@@ -17,7 +17,7 @@ import html
 import json
 import re
 
-from core.api import comment_links, summary_state
+from core.api import comment_links, privacy, summary_state
 from core.api.export import (
     EXPORT_NOTICE, _LABEL, _MARKET, _PLATFORM, _STYLE, _date_text, _e, _normal, _number, _p, _web_link,
 )
@@ -132,14 +132,25 @@ def _claim(cid, claim, kept, note):
     return out
 
 
-def build(record, sel, *, dossier_id, version, created_at, source, who="passcode", people=None):
+def _withheld(claim):
+    """A claim not kept, whose words name a hidden person the dossier cannot learn from what it holds: the same keys,
+    with the words, the quotes and the evidence it rests on left out."""
+    out = {**claim, "text": privacy.CLAIM_WITHHELD, "evidence_ids": [], "quotes": []}
+    out.update({key: "" for key in ("basis", "falsifier") if key in claim})
+    return out
+
+
+def build(record, sel, *, dossier_id, version, created_at, source, who="passcode", people=None, withheld=()):
     """One draft version, rebuilt from the source record with the client's selection.
 
-    people, for a skin report, is who it may name: {"skin_id", "approved", "allowed"} (see shown)."""
+    people, for a skin report, is who it may name: {"skin_id", "approved", "allowed"} (see shown). withheld holds the ids
+    of claims not kept whose words only a name the source evidence reveals makes unshowable: they are stored without
+    their words (see _withheld)."""
     answer = answer_of(record)
     claims, left_out = admitted(answer)
     order = sel["keep"] + [cid for cid in claims if cid not in sel["keep"]]
     built = [_claim(cid, claims[cid], cid in sel["keep"], sel["notes"].get(cid)) for cid in order]
+    built = [_withheld(c) if c["claim_id"] in withheld and not c["kept"] else c for c in built]
     cited = {eid for c in built if c["kept"] for eid in c["evidence_ids"]}
     held = {e.get("id"): e for e in comment_links.attach(answer.get("evidence"), comment_links.read(record)) or []
             if isinstance(e, dict)}  # a comment keeps its post
