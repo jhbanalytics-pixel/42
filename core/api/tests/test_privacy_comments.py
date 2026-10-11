@@ -7,7 +7,7 @@ import copy
 
 import pytest
 
-from core.api import privacy
+from core.api import comment_links, privacy
 from core.api.tests.test_privacy_ask_routes import ASK, GOOD, api, remote_agent  # noqa: F401  (fixtures)
 from core.api.tests.test_privacy_projection import (P_HID1, P_REN1, P_VIS1, PrivStore, ask_record, body_of, claim_ids,
                                                     ev, handle_row, project)
@@ -304,30 +304,37 @@ def test_a_stream_drops_a_reply_whose_comment_it_sent_nothing_of():
 
 # The shape production stores: the comment is built by the tool, then kept by _output_record, which keeps parent_id and
 # drops "via". An answer stored before parent_id was kept holds the same comment without it.
-def built(parent_id=P_REN1, handle="hid_old_handle", legacy=False):
+def built(parent_id=P_REN1, handle="hid_old_handle", item_url=None):
+    """(stored post, stored comment, links): the comment is built by the tool, kept by _output_record (no parent_id, the
+    shape a Release A reader accepts) and linked to its post by comment_links, which is kept beside the answer."""
     from core.agent import checks
     from core.agent.tools.enrich_tools import _comment_record
     post = ev(parent_id, handle, "renamed creator words", "2026-10-05T01:00:00+02:00")
     item = {"comment_id": "77", "text": WORDS, "author": "fan_one", "created_at": "2026-10-05T10:00:00+02:00"}
-    stored = checks._output_record(_comment_record(item, post, "tiktok", "tiktok/post/comments"))
-    if legacy:
-        stored.pop("parent_id", None)
-    return checks._output_record(post), stored
+    if item_url:
+        item["url"] = item_url
+    run_record = _comment_record(item, post, "tiktok", "tiktok/post/comments")
+    stored = [checks._output_record(post), checks._output_record(run_record)]
+    links = checks.comment_links({"evidence": stored}, {post["id"]: post, run_record["id"]: run_record})
+    return stored[0], stored[1], links
 
 
-def stored_record(legacy=False):
-    post, remark = built(legacy=legacy)
+def stored_record(linked=True, **kw):
+    post, remark, links = built(**kw)
+    assert "parent_id" not in remark
     record = ask_record()
-    record["answer"]["evidence"] = [e for e in record["answer"]["evidence"] if e["id"] != P_REN1] + [post, remark]
+    record["answer"]["evidence"] = [e for e in record["answer"]["evidence"] if e["id"] != post["id"]] + [post, remark]
     record["answer"]["claims"].append(only_comment_claim(remark["id"]))
+    if linked:
+        record["evidence_links"] = links
     return record, remark
 
 
-@pytest.mark.parametrize("legacy", [False, True])
-def test_a_stored_comment_with_no_url_of_its_own_leaks_nothing_on_every_surface(api, legacy):
-    record, remark = stored_record(legacy)
+@pytest.mark.parametrize("linked", [True, False])
+def test_a_stored_comment_with_no_url_of_its_own_leaks_nothing_on_every_surface(api, linked):
+    record, remark = stored_record(linked)
     assert "hid_old_handle" in remark["url"]  # it took its post's address, old handle and all
-    assert ("parent_id" in remark) is (not legacy)
+    assert ("evidence_links" in record) is linked
     api.store.hide = {"c_ren"}
     api.store.records[ASK] = record
     client = api.serve(remote_agent({}))
@@ -339,18 +346,134 @@ def test_a_stored_comment_with_no_url_of_its_own_leaks_nothing_on_every_surface(
     store = api.store
     hidden = privacy.read_hidden(store)
     claim = only_comment_claim(remark["id"])
-    assert privacy.selectable(claim, record["answer"]["evidence"], hidden, store) is False
-    shown = privacy.project_dossier({"claims": [claim], "summary": "", "evidence": record["answer"]["evidence"]}, store)
+    evidence = comment_links.attach(record["answer"]["evidence"], comment_links.read(record))
+    assert privacy.selectable(claim, evidence, hidden, store) is False
+    assert privacy.finding_blockers(record, store)[0] == ["c4", "c9"]
+    view = {"claims": [claim], "summary": "", "evidence": evidence}
+    shown = privacy.project_dossier(view, store)
     assert "hid_old_handle" not in body_of(shown) and WORDS not in body_of(shown)
 
 
-def test_a_stored_comment_under_a_visible_post_is_kept_with_its_claim():
-    post, remark = built(parent_id=P_VIS1, handle="vis_handle")
+OWN_URL = "https://www.tiktok.com/@vis_handle/video/1?comment=77"  # a comment address that matches no post's address
+
+
+def visible_record(linked=True):
+    """A comment with an address of its own under a visible post: only the link says whose it is."""
+    from core.agent import checks
+    from core.agent.tools.enrich_tools import _comment_record
     record = ask_record()
-    record["answer"]["evidence"] += [post, remark]
+    post = next(e for e in record["answer"]["evidence"] if e["id"] == P_VIS1)
+    item = {"comment_id": "78", "text": WORDS, "author": "fan_one", "created_at": "2026-10-05T10:00:00+02:00", "url": OWN_URL}
+    made = _comment_record(item, post, "tiktok", "tiktok/post/comments")
+    remark = checks._output_record(made)
+    record["answer"]["evidence"].append(remark)
     record["answer"]["claims"].append(only_comment_claim(remark["id"]))
+    if linked:
+        record["evidence_links"] = checks.comment_links(record["answer"], {P_VIS1: post, remark["id"]: made})
+    return record, remark
+
+
+def test_a_linked_comment_with_an_address_of_its_own_under_a_visible_post_is_kept():
+    record, remark = visible_record()
     out = project(record, PrivStore(hide={"c_hid"}))
     assert remark["id"] in ids_of(out) and "c9" in claim_ids(out)
+
+
+def test_the_same_comment_with_the_link_missing_is_dropped_because_nothing_shows_whose_it_is():
+    record, remark = visible_record(linked=False)
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert remark["id"] not in ids_of(out) and "c9" not in claim_ids(out)
+
+
+def test_the_links_an_answer_shows_name_only_what_it_shows():
+    record, remark = visible_record()
+    record["evidence_links"]["parents"]["tiktok_comment_999"] = P_HID1
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert out["evidence_links"] == {"v": 1, "parents": {remark["id"]: P_VIS1}}
+
+
+def test_projecting_a_projection_keeps_the_links_and_the_comment():
+    record, remark = visible_record()
+    store = PrivStore(hide={"c_hid"})
+    once = project(record, store)
+    twice = project(once, store)
+    assert remark["id"] in ids_of(twice) and twice["evidence_links"] == once["evidence_links"]
+
+
+def test_an_answer_with_every_linked_comment_hidden_shows_no_links():
+    record, remark = stored_record()
+    out = project(record, renamed_store())
+    assert "evidence_links" not in out and remark["id"] not in body_of(out)
+
+
+def test_links_are_left_as_they_are_while_nobody_is_hidden():
+    record, _ = visible_record()
+    assert project(record, PrivStore(hide=set())) == record
+
+
+@pytest.mark.parametrize("links", [
+    None, [], "x", {"v": 2, "parents": {C_VIS: P_VIS1}}, {"v": 1}, {"v": 1, "parents": []},
+    {"v": 1, "parents": {C_VIS: 7}}, {"v": 1, "parents": {C_VIS: ""}}, {"v": True, "parents": {C_VIS: P_VIS1}}])
+def test_links_that_are_not_the_producers_shape_are_ignored_and_the_comment_fails_closed(links):
+    record, remark = visible_record(linked=False)
+    record["evidence_links"] = links
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert remark["id"] not in ids_of(out) and "evidence_links" not in out
+
+
+def test_a_link_cannot_make_a_hidden_authors_comment_visible():
+    url = "https://www.tiktok.com/@hid_handle/video/9"
+    record = ask_record()
+    record["answer"]["evidence"].append(without_parent(comment(C_HID, None, url=url)))
+    record["evidence_links"] = {"v": 1, "parents": {C_HID: P_VIS1}}
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert C_HID not in ids_of(out)
+
+
+def test_a_link_to_a_post_that_is_hidden_drops_the_comment_whatever_its_address_says():
+    record = ask_record()
+    record["answer"]["evidence"].append(without_parent(comment(C_VIS, None, url=OWN_URL)))
+    record["evidence_links"] = {"v": 1, "parents": {C_VIS: P_HID1}}
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert C_VIS not in ids_of(out)
+
+
+def test_attach_gives_a_comment_its_post_without_changing_the_stored_evidence():
+    evidence = [without_parent(comment(C_VIS, None)), ev(P_VIS1, "vis_handle", "x")]
+    before = copy.deepcopy(evidence)
+    out = comment_links.attach(evidence, {C_VIS: P_VIS1})
+    assert out[0]["parent_id"] == P_VIS1 and "parent_id" not in out[1] and evidence == before
+
+
+def test_attach_does_not_overwrite_a_parent_id_the_record_already_holds():
+    out = comment_links.attach([comment(C_VIS, P_HID1)], {C_VIS: P_VIS1})
+    assert out[0]["parent_id"] == P_HID1
+
+
+def test_the_run_record_keeps_the_links_the_run_returned():
+    from core.api import agent_app
+    links = {"v": 1, "parents": {C_VIS: P_VIS1}}
+    ask = agent_app.Ask({"ask_id": "a_20261010_bbbb0001", "question": "q", "market": "ZA"})
+    answer = ask_record()["answer"]
+    agent_app.execute(ask, lambda req, emit, stop: {"answer": answer, "run": {"run_id": "r_1"}, "evidence_links": links})
+    assert ask.record["evidence_links"] == links and ask.record["answer"] == answer
+
+
+def test_the_run_record_has_no_links_key_when_the_run_returned_none():
+    from core.api import agent_app
+    ask = agent_app.Ask({"ask_id": "a_20261010_bbbb0002", "question": "q", "market": "ZA"})
+    agent_app.execute(ask, lambda req, emit, stop: {"answer": ask_record()["answer"], "run": {"run_id": "r_2"}})
+    assert "evidence_links" not in ask.record
+
+
+def test_the_dossier_source_check_reads_the_links(monkeypatch):
+    from core.api import agent_app
+    record, remark = stored_record()
+    store = renamed_store()
+    monkeypatch.setattr("core.api.store.get_store", lambda: store)
+    assert agent_app.keepable(record)["c9"] is False
+    del record["evidence_links"]
+    assert agent_app.keepable(record)["c9"] is False  # and without them the legacy rule reaches the same answer
 
 
 def without_parent(c):

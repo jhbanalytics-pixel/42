@@ -453,19 +453,3 @@ def test_en_dashes_in_patterns_are_written_as_escapes():
     tests = Path(checks.__file__).parent / "tests"
     for path in (EVAL / "promptfooconfig.yaml", Path(checks.__file__), Path(__file__), tests / "test_checks.py"):
         assert chr(0x2013) not in path.read_text(encoding="utf-8"), path
-
-
-@pytest.mark.parametrize("parent_id", ["tt_1", "obs1_" + "a" * 32])
-def test_parent_id_is_accepted_by_python_and_js(parent_id):
-    answer = fixture()
-    answer["evidence"][0]["parent_id"] = parent_id
-    assert validate_answer(answer) == []
-    assert run_node(answer)["js"] == {"ok": True, "problems": []}
-
-
-@pytest.mark.parametrize("parent_id", ["", 7, None, ["tt_1"]])
-def test_an_invalid_parent_id_is_rejected_by_python_and_js(parent_id):
-    answer = fixture()
-    answer["evidence"][0]["parent_id"] = parent_id
-    assert any("parent_id" in problem for problem in validate_answer(answer))
-    assert any("parent_id" in problem for problem in run_node(answer)["js"]["problems"])
