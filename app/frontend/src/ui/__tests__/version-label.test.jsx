@@ -18,7 +18,7 @@ GlobalRegistrator.register();
 
 const {createRoot} = await import('react-dom/client');
 const {flushSync} = await import('react-dom');
-const {VersionNote, parseChangelog, shaDiffers} = await import('../VersionNote.jsx');
+const {VersionNote, parseChangelog, shaDiffers, compareVersions, CHECK_GAP_MS, CHECK_EVERY_MS} = await import('../VersionNote.jsx');
 const {Rail42} = await import('../../rail42.jsx');
 const viteConfig = (await import('../../../vite.config.mjs')).default;
 const {releaseFacts} = await import('../../../vite.config.mjs');
@@ -28,7 +28,8 @@ const VERSION_TEXT = readFileSync(join(REPO, 'VERSION'), 'utf8');
 const CHANGELOG = readFileSync(join(REPO, 'CHANGELOG.md'), 'utf8');
 const HEAD = execFileSync('git', ['log', '-1', '--format=%H'], {cwd: REPO, encoding: 'utf8'}).trim();
 
-const BUILT = Object.freeze({version: '2.3.0', sha: 'd0aebe767b06', changelog: CHANGELOG});
+/* A placeholder sha: no live build pairs 2.3.0 with a real commit yet. */
+const BUILT = Object.freeze({version: '2.3.0', sha: '0123456789ab', changelog: CHANGELOG});
 const realFetch = globalThis.fetch;
 
 let host = null;
@@ -41,7 +42,15 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function settle(){ for (let i = 0; i < 12; i++) await pause(0); }
 const versionButton = () => host.querySelector('.rail42-version-button');
 const panel = () => host.querySelector('dialog.rail42-whatsnew');
-const hint = () => [...host.querySelectorAll('button')].find((b) => b.textContent.trim() === 'New version live, reload') || null;
+const hint = () => [...host.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Version changed, reload') || null;
+const minutes = (n) => n * 60 * 1000;
+/* Moves the clock the line reads, so a check can run under the default gap. */
+function shiftClock(ms){
+  const real = Date.now;
+  Date.now = () => real() + ms;
+  return () => { Date.now = real; };
+}
+const hiddenOrInert = (node) => { for (let at = node; at; at = at.parentElement) if (at.hidden || at.hasAttribute('inert')) return at; return null; };
 
 function serveHealth(version, {fail = false} = {}){
   globalThis.fetch = async (url) => {
@@ -97,6 +106,13 @@ describe('the release files', () => {
     expect(head).toMatch(/patch[^.]*fixes only/i);
   });
 
+  test('CHANGELOG.md says the number tracks the website, and a jobs-only release keeps it', () => {
+    const head = CHANGELOG.split(/\n## /)[0];
+    expect(head).toMatch(/number tracks what people see, the website/);
+    expect(head).toMatch(/From D0 on, a jobs-only release keeps the version number/);
+    expect(head).toMatch(/"Jobs update" entry under the current version/);
+  });
+
   test('the changelog lists 2.3.0 next, then Release C, B and A, each with its date and plain lines', () => {
     const releases = parseChangelog(CHANGELOG);
     expect(releases.map((r) => r.version)).toEqual(['2.3.0', '2.2.0', '2.1.0', '2.0.0']);
@@ -115,6 +131,25 @@ describe('the release files', () => {
     expect(releases[3].summary).toContain('Release A');
     expect(releases[3].summary).toContain('rel-3710c5e-01');
     for (const release of releases) expect(release.lines.length).toBeGreaterThan(0);
+    expect(releases[0].lines[0]).toBe('The menu shows the version 42 is on, with this list of what changed.');
+    expect(releases[0].lines).toContain('Ask\'s "The numbers" tiles say what each figure counts.');
+    expect(releases[1].lines).toContain('Instagram and X show their official marks.');
+    expect(releases[2].lines).toContain('Stored runs record which build produced them.');
+    expect(releases[3].lines).toContain('Today and Fieldwork read the culture desk and its kept creators in both the old and the new stored shape.');
+    expect(releases.map((r) => r.updates)).toEqual([[], [], [], []]);
+  });
+
+  test('a Jobs update sits under its version with its own date and lines', () => {
+    const text = [
+      '## 2.3.0 (20 October 2026)', '', 'Release D0.', '', '- A website line.', '',
+      '### Jobs update (24 October 2026)', '', '- A jobs line.', '- Another jobs line.', '',
+      '## 2.2.0 (11 October 2026)', '', 'Release C.', '', '- An older line.',
+    ].join('\n');
+    const releases = parseChangelog(text);
+    expect(releases.map((r) => r.version)).toEqual(['2.3.0', '2.2.0']);
+    expect(releases[0].lines).toEqual(['A website line.']);
+    expect(releases[0].updates).toEqual([{title: 'Jobs update', when: '24 October 2026', lines: ['A jobs line.', 'Another jobs line.']}]);
+    expect(releases[1].lines).toEqual(['An older line.']);
   });
 
   test('VERSION is the newest changelog entry', () => {
@@ -187,7 +222,7 @@ describe('the version line and What\'s new', () => {
   test('nothing renders when the build carries no version', () => {
     render(<VersionNote release={null} />);
     expect(host.innerHTML).toBe('');
-    render(<VersionNote release={{version: null, sha: 'd0aebe767b06', changelog: CHANGELOG}} />);
+    render(<VersionNote release={{version: null, sha: '0123456789ab', changelog: CHANGELOG}} />);
     expect(host.innerHTML).toBe('');
   });
 
@@ -196,9 +231,18 @@ describe('the version line and What\'s new', () => {
     const button = versionButton();
     expect(button.getAttribute('type')).toBe('button');
     expect(button.querySelector('.rail42-version-name').textContent).toBe('42 v2.3.0');
-    expect(button.querySelector('.rail42-version-sha').textContent).toBe('d0aebe7');
+    expect(button.querySelector('.rail42-version-sha').textContent).toBe('0123456');
     expect(button.getAttribute('aria-haspopup')).toBe('dialog');
     expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  test('the accessible name starts with the visible text', () => {
+    render(<VersionNote release={BUILT} />);
+    const button = versionButton();
+    const visible = [...button.children].filter((node) => !node.classList.contains('sr-only')).map((node) => node.textContent).join(' ');
+    expect(visible).toBe('42 v2.3.0 0123456');
+    expect(button.textContent).toBe('42 v2.3.0 0123456. What\'s new');
+    expect(button.textContent.startsWith(visible)).toBe(true);
   });
 
   test('clicking opens What\'s new with every version, its date and its lines', () => {
@@ -211,12 +255,55 @@ describe('the version line and What\'s new', () => {
     expect(title.textContent).toBe('What\'s new');
     const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
     expect(entries.map((e) => e.querySelector('.rail42-whatsnew-version').textContent)).toEqual(['2.3.0', '2.2.0', '2.1.0', '2.0.0']);
-    expect(entries[0].querySelector('.rail42-whatsnew-when').textContent).toBe('Next, not live yet');
     expect(entries[1].querySelector('.rail42-whatsnew-when').textContent).toBe('11 October 2026');
-    const parsed = parseChangelog(CHANGELOG);
-    entries.forEach((entry, index) => {
-      expect([...entry.querySelectorAll('li')].map((li) => li.textContent)).toEqual(parsed[index].lines);
-    });
+    const lines = entries.map((entry) => [...entry.querySelectorAll('li')].map((li) => li.textContent));
+    expect(lines[0][0]).toBe('The menu shows the version 42 is on, with this list of what changed.');
+    expect(lines[1]).toContain('Instagram and X show their official marks.');
+    expect(lines[2]).toContain('Stored runs record which build produced them.');
+    expect(lines[3]).toContain('Today and Fieldwork read the culture desk and its kept creators in both the old and the new stored shape.');
+    expect(lines.map((list) => list.length)).toEqual([3, 8, 4, 3]);
+    for (const line of lines.flat()) expect(line).not.toMatch(/^-/);
+  });
+
+  test('the version the page runs is marked This version and never Next, not live yet', () => {
+    render(<VersionNote release={BUILT} />);
+    click(versionButton());
+    const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
+    expect(entries[0].querySelector('.rail42-whatsnew-version').textContent).toBe('2.3.0');
+    expect(entries[0].textContent).not.toContain('Next, not live yet');
+    expect(entries[0].querySelector('.rail42-whatsnew-current').textContent).toBe('This version');
+    expect(entries.filter((entry) => entry.querySelector('.rail42-whatsnew-current'))).toHaveLength(1);
+    expect(panel().textContent).not.toContain('Next, not live yet');
+  });
+
+  test('an entry above the running version, and only that, reads Next, not live yet', () => {
+    render(<VersionNote release={{...BUILT, version: '2.2.0'}} />);
+    click(versionButton());
+    const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
+    expect(entries[0].querySelector('.rail42-whatsnew-when').textContent).toBe('Next, not live yet');
+    expect(entries[0].querySelector('.rail42-whatsnew-current')).toBeNull();
+    expect(entries[1].querySelector('.rail42-whatsnew-when').textContent).toBe('11 October 2026');
+    expect(entries[1].querySelector('.rail42-whatsnew-current').textContent).toBe('This version');
+    expect(entries.slice(1).some((entry) => entry.textContent.includes('Next, not live yet'))).toBe(false);
+  });
+
+  test('a Jobs update renders under its version with its date', () => {
+    const changelog = '## 2.3.0 (20 October 2026)\n\nRelease D0.\n\n- A website line.\n\n### Jobs update (24 October 2026)\n\n- A jobs line.\n';
+    render(<VersionNote release={{...BUILT, changelog}} />);
+    click(versionButton());
+    const update = panel().querySelector('.rail42-whatsnew-update');
+    expect(update.querySelector('.rail42-whatsnew-update-title').textContent).toBe('Jobs update');
+    expect(update.querySelector('.rail42-whatsnew-when').textContent).toBe('24 October 2026');
+    expect([...update.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['A jobs line.']);
+  });
+
+  test('a click on the backdrop closes the panel, a click inside it does not', () => {
+    render(<VersionNote release={BUILT} />);
+    click(versionButton());
+    click(panel().querySelector('.rail42-whatsnew-title'));
+    expect(panel().open).toBe(true);
+    click(panel());
+    expect(panel().open).toBe(false);
   });
 
   test('Escape closes the panel, goes no further, and gives focus back to the line', () => {
@@ -262,7 +349,7 @@ describe('the reload hint', () => {
   });
 
   test('the same sha, a dev server and a failed read show nothing', async () => {
-    for (const setup of [() => serveHealth('d0aebe767b06'), () => serveHealth('d0aebe7'), () => serveHealth('dev'), () => serveHealth('', {fail: true})]){
+    for (const setup of [() => serveHealth('0123456789ab'), () => serveHealth('0123456'), () => serveHealth('dev'), () => serveHealth('', {fail: true})]){
       setup();
       render(<VersionNote key={calls.length} release={BUILT} gapMs={0} />);
       document.dispatchEvent(new Event('visibilitychange'));
@@ -271,17 +358,74 @@ describe('the reload hint', () => {
     }
   });
 
-  test('a hidden tab is not checked, and checks keep their gap', async () => {
+  test('a hidden tab is not checked, even with no gap', async () => {
     serveHealth('3710c5e59302');
     setHidden(true);
-    render(<VersionNote release={BUILT} />);
+    render(<VersionNote release={BUILT} gapMs={0} />);
     document.dispatchEvent(new Event('visibilitychange'));
     await settle();
     expect(calls).toEqual([]);
     setHidden(false);
     document.dispatchEvent(new Event('visibilitychange'));
     await settle();
+    expect(calls).toEqual(['/api/health']);
+  });
+
+  test('the defaults check every 15 minutes and never within 5 minutes of the last check', async () => {
+    expect(CHECK_GAP_MS).toBe(5 * 60 * 1000);
+    expect(CHECK_EVERY_MS).toBe(15 * 60 * 1000);
+    const realInterval = window.setInterval;
+    const delays = [];
+    window.setInterval = (fn, ms, ...rest) => { delays.push(ms); return realInterval(fn, ms, ...rest); };
+    let restore = () => {};
+    try {
+      serveHealth('3710c5e59302');
+      render(<VersionNote release={BUILT} />);
+      expect(delays).toContain(15 * 60 * 1000);
+      restore = shiftClock(minutes(4));
+      document.dispatchEvent(new Event('visibilitychange'));
+      await settle();
+      expect(calls).toEqual([]);
+      restore();
+      restore = shiftClock(minutes(6));
+      document.dispatchEvent(new Event('visibilitychange'));
+      await settle();
+      expect(calls).toEqual(['/api/health']);
+    } finally {
+      restore();
+      window.setInterval = realInterval;
+    }
+  });
+
+  test('a build with no sha never polls', async () => {
+    serveHealth('3710c5e59302');
+    render(<VersionNote release={{...BUILT, sha: null}} gapMs={0} everyMs={10} />);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await pause(40);
     expect(calls).toEqual([]);
+  });
+
+  test('a health answer that is not ok shows nothing', async () => {
+    globalThis.fetch = async (url) => { calls.push(String(url)); return {ok: false, status: 503, json: async () => ({version: '3710c5e59302'})}; };
+    render(<VersionNote release={BUILT} gapMs={0} />);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+    expect(calls).toEqual(['/api/health']);
+    expect(hint()).toBeNull();
+  });
+
+  test('a rollback reads Version changed, not New version live, and the hint clears when the build is live again', async () => {
+    serveHealth('3710c5e59302');
+    render(<VersionNote release={BUILT} gapMs={0} />);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+    expect(hint()).not.toBeNull();
+    expect(host.textContent).not.toMatch(/new version/i);
+    expect(hint().closest('[role="status"]')).not.toBeNull();
+    serveHealth('0123456789ab');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+    expect(hint()).toBeNull();
   });
 
   test('no check runs on mount: the page was just served, and App already reads health', async () => {
@@ -372,6 +516,54 @@ describe('in the rail', () => {
     expect(panel().open).toBe(false);
   });
 
+  test('at 390 px a changed version is shown and announced outside the closed More sheet', async () => {
+    globalThis.__F42_RELEASE__ = BUILT;
+    window.happyDOM.setViewport({width: 390, height: 844});
+    serveHealth('3710c5e59302');
+    mountRail();
+    const more = [...host.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith('More'));
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    expect(host.querySelector('.rail42-more-dot')).toBeNull();
+    const restore = shiftClock(minutes(6));
+    try {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await settle();
+    } finally {
+      restore();
+    }
+    expect(calls).toEqual(['/api/health']);
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    const dot = more.querySelector('.rail42-more-dot');
+    expect(dot).not.toBeNull();
+    expect(hiddenOrInert(dot)).toBeNull();
+    expect(more.textContent).toContain('version changed');
+    const sheet = document.getElementById(more.getAttribute('aria-controls'));
+    const announced = [...host.querySelectorAll('[role="status"]')].filter((node) => !sheet.contains(node));
+    expect(announced).toHaveLength(1);
+    expect(hiddenOrInert(announced[0])).toBeNull();
+    expect(announced[0].textContent).toBe('Version changed. Open More to reload.');
+    click(more);
+    expect(hint()).not.toBeNull();
+    expect(hiddenOrInert(hint())).toBeNull();
+  });
+
+  test('the wide rail announces a changed version once, beside the line', async () => {
+    globalThis.__F42_RELEASE__ = BUILT;
+    serveHealth('3710c5e59302');
+    mountRail();
+    const restore = shiftClock(minutes(6));
+    try {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await settle();
+    } finally {
+      restore();
+    }
+    expect(hint()).not.toBeNull();
+    expect(hiddenOrInert(hint())).toBeNull();
+    expect(host.querySelector('.rail42-more-dot')).toBeNull();
+    expect([...host.querySelectorAll('[role="status"]')].filter((node) => node.textContent.trim())).toHaveLength(1);
+  });
+
   test('the rail sheet keeps red to focus and every new rule on rail tokens', async () => {
     const css = await Bun.file(new URL('../../styles/rail42.css', import.meta.url)).text();
     const rules = css.replace(/\/\*[^]*?\*\//g, '').split('}').filter((rule) => /rail42-(version|whatsnew)/.test(rule));
@@ -380,5 +572,15 @@ describe('in the rail', () => {
       if (/--accent/.test(rule)) expect(rule).toMatch(/:focus-visible/);
       expect(rule).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     }
+  });
+});
+
+describe('compareVersions', () => {
+  test('orders major, minor and patch as numbers', () => {
+    expect(compareVersions('2.3.0', '2.2.0')).toBeGreaterThan(0);
+    expect(compareVersions('2.2.0', '2.3.0')).toBeLessThan(0);
+    expect(compareVersions('2.3.0', '2.3.0')).toBe(0);
+    expect(compareVersions('2.10.0', '2.9.0')).toBeGreaterThan(0);
+    expect(compareVersions('3.0.0', '2.99.99')).toBeGreaterThan(0);
   });
 });

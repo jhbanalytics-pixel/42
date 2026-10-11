@@ -405,3 +405,18 @@
 @media (min-width: 1024px) {
   .rail42-whatsnew { margin: auto auto var(--s-4) calc(176px + var(--s-4)); }
 }
+
+/* Below 1024 px the version line sits in the shut More sheet, so a changed
+   version marks More with a small square mark in the ink, not the accent:
+   red stays for focus, and the shape system keeps marks square. */
+.rail42-more-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-inline-start: var(--s-1);
+  background: var(--ink);
+}
+.rail42-whatsnew-current { font-weight: 400; color: var(--ink); }
+.rail42-whatsnew-update { margin-top: var(--s-3); }
+.rail42-whatsnew-update-title { font-weight: 600; }

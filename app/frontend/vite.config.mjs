@@ -49,8 +49,10 @@ function instrumentStylesheetSplit(){
    at the repository root and the 12 character sha f42-api reports as its
    version. The sha comes from git first, so a stale F42_VERSION cannot name
    the build; F42_VERSION is read only where there is no git, as in an image
-   build. A missing VERSION leaves the version out, and the menu then shows no
-   line; a malformed one stops the build. */
+   build. Outside the image a missing VERSION leaves the version out, and the
+   menu then shows no line; the image build copies VERSION and CHANGELOG.md
+   and fails without either (core/api/Dockerfile). A malformed VERSION stops
+   the build. */
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const SHA = /^[0-9a-f]{7,40}$/;
 

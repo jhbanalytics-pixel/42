@@ -104,7 +104,9 @@ function ThemeChoice({theme, onThemeChange}){
 }
 
 /* The version line (11 October 2026) sits between the theme and Log out,
-   in the wide foot and the phone More sheet (ui/VersionNote.jsx). */
+   in the wide foot and the phone More sheet (ui/VersionNote.jsx). While the
+   sheet is shut a changed version still shows: a dot on More, and a status
+   line outside the sheet that says so. */
 
 /* Log out (6 October 2026) sits after the theme, at the foot of the wide
    rail and the end of the phone More sheet: a quiet, always-there exit that
@@ -159,6 +161,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
   const moreRef = useRef(null);
   const sheetRef = useRef(null);
   const panelId = useId();
+  const [versionChanged, setVersionChanged] = useState(false);
 
   const setPanelOpen = useCallback((next) => {
     const wasOpen = openRef.current;
@@ -229,6 +232,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
         onClick={() => setPanelOpen((value) => !value)}
       >
         <span className="rail42-more-label">More</span>{compact && held ? <span className="sr-only">, you are on {held.label}</span> : null}
+        {compact && versionChanged ? <><span className="rail42-more-dot" aria-hidden="true" /><span className="sr-only">, version changed</span></> : null}
         {!compact ? <span className="rail42-more-chevron" aria-hidden="true" /> : null}
       </button>
       <div
@@ -243,7 +247,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
         {compact ? <Group id={`${panelId}-work`} title="Your work" items={SHEET_WORK} here={here} /> : null}
         {RAIL_MORE_GROUPS.map((group) => <Group key={group.id} id={`${panelId}-${group.id}`} title={group.title} items={group.items} here={here} />)}
         {compact ? <ThemeChoice theme={theme} onThemeChange={onThemeChange} /> : null}
-        {compact ? <VersionNote active={open} /> : null}
+        {compact ? <VersionNote active={open} onChange={setVersionChanged} /> : null}
         {compact ? <SignOut onSignOut={onSignOut} /> : null}
       </div>
     </div>
@@ -254,6 +258,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
       <nav className="rail42 rail42--bar" aria-label="Main" data-rail-layout="bar" onKeyDown={onKeyDown}>
         <ul className="rail42-list" data-rail-group="bar"><Links items={BAR_ITEMS} here={here} /></ul>
         {more}
+        <p className="sr-only" role="status">{versionChanged ? 'Version changed. Open More to reload.' : ''}</p>
       </nav>
     );
   }
