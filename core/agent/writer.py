@@ -12,6 +12,7 @@ from math import isfinite
 from typing import Protocol
 
 import core.agent.checks as checks
+from core.agent.asks import asks_ranked, asks_why
 from core.agent.checks import (EVIDENCE_KEYS, INSUFFICIENT, LABEL_RANK, _code_gap,
                                _country_people_candidates, _country_people_problems, _forecast_problem, _located,
                                _mentions, _searched, _text_breaches, check_answer, mostly_non_english)
@@ -298,15 +299,6 @@ You are 42's writer. Answer the question from the evidence pack only, as JSON in
 - Name a sound by the title its query row gives. When a row gives only a sound id, never write the id or its link and never make up a title: say 'original sound used by @handle' only when earliest_creator matches a handle from a cited post that uses the sound. That usage does not establish who made the sound or who first used it. If no cited usage post identifies a handle, call it an untitled sound and describe it from the posts that use it.
 - Gaps, searched and why are read by a strategist: never name a table, column, tool or check code in them."""
 
-# A question that asks for a cause: why, how come, what is behind or driving or made or caused it. A forecast
-# ("which do you expect to keep growing, and why") asks for a reason for a prediction and no cause the posts can show, so
-# it is left to the usual rules.
-_WHY = re.compile(r"\bwhy\b|\bhow come\b|\bwhat\s+lies\s+behind\b"
-                  r"|\bwhat(?:'s|\s+is|\s+was|\s+are|\s+were)?\s+(?:really\s+|actually\s+)?"
-                  r"(?:driving|behind|causing|fuelling|fueling|powering|explaining)\b"
-                  r"|\bwhat\s+(?:made|makes|caused|causes|drove|drives|explains)\b", re.IGNORECASE)
-_FORECAST = re.compile(r"\b(?:expect|predict|forecast|going\s+to|will)\b", re.IGNORECASE)
-
 # Ask power item 5, tracker row 15. Added to the writer's user message for a why question only, so the system prompt,
 # the schema, the checks and the hold are the ones every question has. The wording of the gap is spike-explain law 5.
 CAUSE_FIRST_RULE = (
@@ -319,22 +311,10 @@ CAUSE_FIRST_RULE = (
     "rule still holds for every claim.")
 
 
-def asks_why(question) -> bool:
-    """Whether a question asks for a cause, so its answer leads with one. A forecast question is not one."""
-    text = " ".join(str(question or "").replace("\u2019", "'").split())
-    return bool(_WHY.search(text)) and not _FORECAST.search(text)
-
-
-# A question that asks which stories lead: a ranking word and a word for what people say or post, about no one kind of
-# item. Sounds, hashtags, creators and brands have their own lists, a cause is the cause-first rule's and a forecast is
-# neither.
-_RANK_CUE = re.compile(r"\b(?:most(?!\s+likely)|top|biggest|largest|leading|trending|hottest|loudest|busiest)\b",
-                       re.IGNORECASE)
-_STORY_CUE = re.compile(r"\b(?:talk(?:ing|ed)?|post(?:ing|ed)?|saying|discuss(?:ing|ed)?|conversations?|stor(?:y|ies)"
-                        r"|topics?|trend(?:s|ing)?|news|happening|buzz|viral|headlines?|themes?|issues?)\b",
-                        re.IGNORECASE)
-_OWN_LIST = re.compile(r"\b(?:creators?|influencers?|accounts?|handles?|sounds?|audio|songs?|hashtags?|brands?)\b",
-                       re.IGNORECASE)
+# The skills whose answers are ranked story briefings: the default skill, and a call that names none. Every other skill
+# has an answer shape of its own (a brief's sections, an investigation's angles, a brand's lens, a creator's fit, a
+# spike's jump), and a rule that asks each claim to start with a story name would meet it in the same writer call.
+RANKED_RULE_SKILLS = (None, "culture-read")
 
 # Ranked briefing. Added to the writer's user message for a ranked story question only, so the system prompt, the schema,
 # the checks and the hold are the ones every question has. The story's name leads each of its claims because a stored
@@ -353,13 +333,6 @@ RANKED_BRIEFING_RULE = (
     "a guess. Cite one or two representative posts for each claim. Write one so_what line for each story, naming that "
     "story's claim ids and worded as interpretation for a brand or strategist. Every other rule still holds for every "
     "claim.")
-
-
-def asks_ranked(question) -> bool:
-    """Whether a question asks which stories lead, so its answer is a ranked briefing."""
-    text = " ".join(str(question or "").replace("’", "'").split())
-    return (bool(_RANK_CUE.search(text)) and bool(_STORY_CUE.search(text)) and not _OWN_LIST.search(text)
-            and not asks_why(text) and not _FORECAST.search(text))
 
 
 SUPPORT_SYSTEM = """You check one claim against the posts it cites. You see nothing else.
@@ -568,7 +541,7 @@ def write_answer(model: Model, *, question: str, as_of, market, window: str, ctx
     if skill != "spike-explain":  # a spike ask keeps its skill's first claim, the jump against its baseline
         if asks_why(question):
             parts.append(CAUSE_FIRST_RULE)
-        elif asks_ranked(question):
+        elif asks_ranked(question) and skill in RANKED_RULE_SKILLS:
             parts.append(RANKED_BRIEFING_RULE)
     if note:
         parts.append("Researcher's working note. Context for reading the pack, not evidence: evidence comes only from "

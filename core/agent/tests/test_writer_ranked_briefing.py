@@ -48,6 +48,10 @@ RANKED = [
     "Which stories are leading Nigerian social right now?",
     "Give me the three conversations with the most momentum in South Africa this week.",
     "What’s South African social talking about most?",
+    "What are the main conversations in Kenya this week?",
+    "What stories dominate Kenyan social this week?",
+    "What are the biggest moments on South African social this week?",
+    "What are the top stories this week and what should brands do?",
 ]
 NOT_RANKED = [
     "What is happening with amapiano Sundays?",
@@ -61,6 +65,17 @@ NOT_RANKED = [
     "Which Soweto brand is most likely to win the festive season?",
     "Compare football banter in South Africa, Nigeria and Kenya.",
     "Take the biggest Nigerian song or sound on TikTok in the last month.",
+    "Is amapiano trending in South Africa?",
+    "Is #gqomchallenge trending in Soweto this week?",
+    "What are people posting most about Checkers?",
+    "What is the top story about Bafana Bafana?",
+    "How should Castle Lager play the trending Springbok conversation?",
+    "Which TikTok trend is Nando's using most?",
+    "Is the loadshedding conversation trending up or down?",
+    "What are people saying about the top 3 banks?",
+    "Show me the most viral post about the Durban July.",
+    "How is the Springbok tour playing on social?",
+    "A brief for a data bundle aimed at students in Nigeria.",
     "",
 ]
 
@@ -82,6 +97,35 @@ def test_any_other_question_gets_no_ranked_briefing_rule(question, ctx):
 def test_of_the_benchmark_questions_only_the_most_momentum_one_asks_for_a_ranked_briefing():
     got = {qid for qid, text in eval_questions().items() if writer.asks_ranked(text)}
     assert got == {"NOW-01"}
+
+
+RANKED_SKILLS = ["culture-read", None]  # the default skill, and a call that names none
+OTHER_SKILLS = ["brand-lens", "context-pack", "creator-fit", "investigation", "spike-explain"]
+
+
+@pytest.mark.parametrize("skill", RANKED_SKILLS)
+def test_the_skills_that_answer_ranked_story_questions_get_the_rule(skill, ctx):
+    assert writer.RANKED_BRIEFING_RULE in call_for(RANKED[0], ctx, skill=skill)["user"]
+
+
+@pytest.mark.parametrize("skill", OTHER_SKILLS)
+def test_every_other_skill_keeps_its_own_answer_shape_and_gets_no_ranked_rule(skill, ctx):
+    assert writer.RANKED_BRIEFING_RULE not in call_for(RANKED[0], ctx, skill=skill)["user"]
+
+
+def test_the_skills_that_get_the_rule_are_listed_by_name_and_are_real_skills():
+    from core.agent import skills
+    assert set(writer.RANKED_RULE_SKILLS) == {None, skills.DEFAULT}
+    assert set(OTHER_SKILLS) | {skills.DEFAULT} == {p.name for p in (Path(skills.__file__).resolve().parents[1] / "skills").iterdir() if p.is_dir()}
+
+
+def test_a_numeric_repair_call_carries_the_same_skill_rule(ctx):
+    for skill, wanted in (("context-pack", False), ("culture-read", True)):
+        model = FakeModel(draft_output())
+        writer.repair_answer_numbers(model, draft=draft_output(), issues=[], question=RANKED[0],
+                                     as_of="2026-09-28T06:10:00+02:00", market="ZA", window="21 to 27 September 2026",
+                                     ctx=ctx, skill=skill)
+        assert (writer.RANKED_BRIEFING_RULE in model.calls[0]["user"]) is wanted
 
 
 def test_a_spike_ask_gets_neither_the_ranked_nor_the_cause_first_rule(ctx):
