@@ -93,9 +93,13 @@ jobs:
       # Windows with one failure that this tree fixes, and this tree adds 19 passing tests, so 27063 pass on Windows. The two Release C end to
       # end files (test_release_e2e, test_release_prior_e2e: 26 tests) skip on Linux, so 27037 are expected to pass here, and the floor sits
       # 42 under that count, as the earlier floors did. The total and the passed floor are one number.
+      # Raised again with the Release C review 4 fixes: the tree collects 27241 tests (24 new, none removed), so 27087 pass on Windows. Less
+      # the 26 end to end tests that skip on Linux and the one declared names test that passes only beside the handoff folder
+      # (test_the_two_digests_are_the_sha256_of_the_real_names, found in review 4), 27060 are expected to pass here, one fewer than the
+      # count above would give. The floor sits 42 under 27060.
       - name: Report the skipped opt-in tests and the number of tests that ran
         if: always()
-        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 26995 --min-passed 26995 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
+        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 27018 --min-passed 27018 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
 
       # The ops partition has floors of its own. Its tests are in a separate JUnit file, so the core floors above cannot
       # see a loss there. Pinned a little under the 161 tests the partition collected and the 158 that passed under the

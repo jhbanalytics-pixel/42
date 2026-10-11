@@ -303,7 +303,7 @@ def test_no_step_writes_to_the_runner_environment_file(path):
     assert "github_env" not in text
 
 
-CORE_FLOOR = 26_995  # exact, not a minimum: 27063 pass on the Windows tree with Release C (27217 collected), 26 of them skip on Linux, and 26995 sits 42 under the 27037 left
+CORE_FLOOR = 27_018  # exact, not a minimum: 27087 pass on the Windows tree with the Release C fixes (27241 collected), 27 of them skip on Linux, and 27018 sits 42 under the 27060 left
 CORE_RATCHET_GAP = 800  # exact: the job fails when the passed count has grown more than this past the floor
 
 
