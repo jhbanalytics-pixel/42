@@ -32,7 +32,7 @@ export function ruleWords(rule){
     return 'When it enters ' + r.state_in.map(stateWord).join(' or ');
   }
   if (r.ratio_over !== undefined) return 'When growth passes ' + r.ratio_over + ' times';
-  if (r.reach_over !== undefined) return 'When reach passes ' + r.reach_over + ' creators';
+  if (r.reach_over !== undefined) return 'When reach passes ' + r.reach_over + ' accounts posting';
   if (r.breakout) return BREAKOUT;
   if (r.tone_flip) return TONE_FLIP;
   if (r.creator_surge) return SURGE;
@@ -60,7 +60,7 @@ export function ruleFrom(choice, {creator = false} = {}){
   }
   if (choice.kind === 'reach'){
     const n = Number(choice.reach);
-    return String(choice.reach).trim() && Number.isInteger(n) && n > 0 ? {rule: {reach_over: n}} : {error: 'Reach must be a whole number of creators above 0.'};
+    return String(choice.reach).trim() && Number.isInteger(n) && n > 0 ? {rule: {reach_over: n}} : {error: 'Reach must be a whole number of accounts posting above 0.'};
   }
   if (choice.kind === 'breakout') return {rule: {breakout: true}};
   if (choice.kind === 'tone_flip') return {rule: {tone_flip: true}};
@@ -91,9 +91,9 @@ export function RuleChoice({choice, onChange, creator = false, showUnbuilt = SHO
           <input type="radio" name="rule" value="reach" checked={choice.kind === 'reach'} onChange={() => set({kind: 'reach'})} />
           When reach passes
         </label>
-        <input type="number" name="reach" className="w42-number" min="1" step="1" value={choice.reach} aria-label="Reach, creators in 3 days"
+        <input type="number" name="reach" className="w42-number" min="1" step="1" value={choice.reach} aria-label="Reach, accounts posting in the last 3 days"
           onFocus={() => set({kind: 'reach'})} onChange={(e) => set({kind: 'reach', reach: e.target.value})} />
-        creators
+        accounts posting
       </span>
       <label className="w42-rule">
         <input type="radio" name="rule" value="breakout" checked={choice.kind === 'breakout'} onChange={() => set({kind: 'breakout'})} />

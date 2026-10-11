@@ -682,7 +682,7 @@ function AlertsStrip({alerts}){
             <li key={a.watch_id + ':' + a.market + ':' + a.item_id} data-held={held ? '' : undefined}>
               <a className="t42-link" href={topicHref(a.item_id, a.market)}>{a.label}</a>:{' '}
               {held && <><span className="a42-held">{heldWords(held)}</span> · </>}
-              {a.fired_because} · {MARKET_WORDS[a.market] || a.market}
+              {accountsWords(a.fired_because)} · {MARKET_WORDS[a.market] || a.market}
             </li>
           );
         })}

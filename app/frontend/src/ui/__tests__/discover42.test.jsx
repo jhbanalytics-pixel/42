@@ -434,9 +434,9 @@ test('reach uses creator for one and keeps creators plural for other counts', ()
     <TrendCard card={oneCreatorTotal} market="ZA" date="2026-10-20" />
   </ol>));
   expect([...host.querySelectorAll('[data-figure="reach"]')].map((reach) => reach.textContent)).toEqual([
-    'Reach: 1 creator in 3 days',
-    'Reach: 2 creators in 3 days',
-    'Reach: 0 creators in 3 days',
+    'Reach: 1 account posting, last 3 days',
+    'Reach: 2 accounts posting, last 3 days',
+    'Reach: 0 accounts posting, last 3 days',
     'Reach: 1 creator',
   ]);
 });
@@ -1046,10 +1046,14 @@ test('reach is said once: a count line that says the same as reach gives way to 
   </ol>));
   const [one, two] = [...host.querySelectorAll('[data-card]')];
   expect(Boolean(one.querySelector('.t42-count'))).toBe(false);
-  expect(one.querySelector('[data-figure="reach"]').textContent).toBe('Reach: 31 creators in 3 days');
+  expect(one.querySelector('[data-figure="reach"]').textContent).toBe('Reach: 31 accounts posting, last 3 days');
   expect(one.querySelector('[data-figure="reach"]').getAttribute('data-query-id')).toBe(same.reach.query_id);
-  expect(two.querySelector('.t42-count').textContent).toBe('12 creators, 3 days');
-  expect(two.querySelector('[data-figure="reach"]').textContent).toBe('Reach: 4 creators in 3 days');
+  /* Design audit item 12: the card reads through the one accounts helper on
+     every page, so a stored line counting other accounts gives way to the
+     measured figure here as it does on Today and in Discover. */
+  expect(Boolean(two.querySelector('.t42-count'))).toBe(false);
+  expect(two.textContent).not.toContain('12 creators');
+  expect(two.querySelector('[data-figure="reach"]').textContent).toBe('Reach: 4 accounts posting, last 3 days');
 });
 
 /* Audit, 4 October 2026 (F07): the kind, state, platform and sort filters

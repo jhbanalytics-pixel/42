@@ -97,11 +97,13 @@ function StatusFilter({status, onChange, panelId}){
 
 const MAX_ANGLES = 8;
 
-/* What pressing Draft a plan does, said before it is pressed. */
+/* What pressing Draft a plan does, said before it is pressed. Design audit
+   item 12: credits are the reader's only money, so the model budget is said
+   as today's research budget and never as dollars. */
 function draftWords(question, market){
-  if (question.trim().length < 3) return 'Write the question first. Drafting the plan uses a little model spend; the research itself waits until you press Start.';
+  if (question.trim().length < 3) return "Write the question first. Drafting the plan uses a little of today's research budget; the research itself waits until you press Start.";
   const where = (MARKETS.find((m) => m.code === market) || {}).name;
-  return '42 drafts a plan ' + (where ? 'for ' + where : 'and reads the market from the question') + ', which uses a little model spend. The research itself waits until you press Start.';
+  return '42 drafts a plan ' + (where ? 'for ' + where : 'and reads the market from the question') + ", which uses a little of today's research budget. The research itself waits until you press Start.";
 }
 
 /* What was left today when a plan was drafted, saved or last read. A draft's
@@ -116,7 +118,6 @@ export function rememberBudget(investigationId, left){
 }
 
 const plural = (count, word) => readerFigure(count) + ' ' + word + (count === 1 ? '' : 's');
-const usd = (value) => 'USD ' + (typeof value === 'number' ? value : 0).toFixed(2);
 const platformWords = (list) => (Array.isArray(list) ? list : []).map((p) => PLATFORM_WORD[p] || p).join(', ');
 
 function useAuthHandover(onAuth){
@@ -160,7 +161,7 @@ export function InvestigationsPage({onAuth, region}){
   return (
     <main className="ask42 inv42" aria-labelledby="inv42-title">
       <h1 className="ask42-title" id="inv42-title">Investigations</h1>
-      <p className="inv42-lede">What is 42 researching for you in depth? 42 drafts a research plan first, and drafting uses some of today's model spend. Check the plan, then press Start and the research runs in the background.</p>
+      <p className="inv42-lede">What is 42 researching for you in depth? 42 drafts a research plan first, and drafting uses some of today's research budget. Check the plan, then press Start and the research runs in the background.</p>
       {/* Layout pass, 4 October 2026: the form sits beside what an
           investigation hands back, so the right of a wide screen says what
           the reader will get rather than standing empty. */}
@@ -463,7 +464,7 @@ function PlanView({plan}){
         ))}
       </ol>
       <p className="inv42-line">{plural(plan.researchers ?? 0, 'researcher') + ' · ' + (plan.gap_round ? 'A gap round after the first pass' : 'No gap round')}</p>
-      <p className="inv42-line">{'Stops at ' + plural(plan.max_credits ?? 0, 'credit') + ' or ' + usd(plan.max_model_usd) + ' of model spend, whichever comes first.'}</p>
+      <p className="inv42-line">{'Spends at most ' + plural(plan.max_credits ?? 0, 'credit') + '.'}</p>
     </section>
   );
 }
@@ -473,9 +474,9 @@ function EstimateView({estimate, budget}){
   return (
     <section className="inv42-section" data-section="estimate" aria-labelledby="inv42-estimate-title">
       <h2 className="inv42-section-title" id="inv42-estimate-title">The estimate</h2>
-      <p className="inv42-line">{'About ' + plural(e.credits ?? 0, 'credit') + ', ' + usd(e.model_usd) + ' of model spend and ' + plural(Math.ceil(e.minutes ?? 0), 'minute') + '.'}</p>
+      <p className="inv42-line">{'About ' + plural(e.credits ?? 0, 'credit') + ' and ' + plural(Math.ceil(e.minutes ?? 0), 'minute') + '.'}</p>
       {budget
-        ? <p className="inv42-line">{'Left today: ' + plural(budget.credits ?? 0, 'credit') + ' and ' + usd(budget.model_usd) + ' of model spend. Both are checked again when you start.'}</p>
+        ? <p className="inv42-line">{'Left today: ' + plural(budget.credits ?? 0, 'credit') + '. What is left is checked again when you start.'}</p>
         : <p className="inv42-line">What is left today is checked again when you start.</p>}
     </section>
   );

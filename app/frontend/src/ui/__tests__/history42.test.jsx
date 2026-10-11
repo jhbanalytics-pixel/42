@@ -158,7 +158,7 @@ test('History opens on answered Asks; Show all and Show older use only loaded pa
   const rows = () => [...section('asks').querySelectorAll('li')];
   const answered = fixture.asks.asks.filter((ask) => ['complete', 'partial'].includes(ask.answer_status));
   expect(rows().map((r) => r.querySelector('[data-question]').textContent)).toEqual(answered.map((a) => a.question));
-  expect(text(rows()[0])).toContain('Partly answered');
+  expect(text(rows()[0])).toContain('Partial answer');
   expect(text(rows()[0])).toContain('30 September 2026');
   expect(hrefs(rows()[0])).toEqual(['#/ask?follow=a_20260930_h2']);
   expect(text(rows()[0].querySelector('a'))).toBe('Read answer');
@@ -402,7 +402,7 @@ test('Asks retry a failed older page at the same cursor and append its rows once
   const expected = [...fixture.asks.asks, ...fixture.asks_older.asks]
     .filter((ask) => ['complete', 'partial'].includes(ask.answer_status)).map((ask) => ask.question);
   const expectedRows = [
-    {question: expected[0], details: '30 September 2026, 08:00 · Partly answered'},
+    {question: expected[0], details: '30 September 2026, 08:00 · Partial answer'},
     {question: expected[1], details: '29 September 2026, 10:00 · Answered'},
   ];
   expect(rows()).toEqual(expectedRows);
@@ -424,7 +424,7 @@ test('Ask rows keep their SAST time when the API writes the stamp with a space, 
   expect(details).toEqual([
     '1 October 2026, 20:22 · Answered',
     '1 October 2026, 00:30 · Answered',
-    '29 September 2026, 10:00 · Partly answered',
+    '29 September 2026, 10:00 · Partial answer',
   ]);
 });
 
@@ -441,7 +441,7 @@ test('each ask row carries its time as a time element and its status as a marked
   expect(rows.map((row) => row.querySelector('.hi42-state').dataset.status)).toEqual(['answered', 'partial', 'failed']);
   expect(rows.map((row) => row.querySelector('.hi42-muted').textContent)).toEqual([
     '29 September 2026, 10:00 · Answered',
-    '28 September 2026, 10:00 · Partly answered',
+    '28 September 2026, 10:00 · Partial answer',
     '27 September 2026, 10:00 · Did not finish',
   ]);
 });

@@ -10,7 +10,7 @@ import {useEffect, useId, useRef, useState} from 'react';
 import {archiveSkin, createSkin, getSkin, getSkinToday, listDossiers, listInvestigations, listSkins, listWatches, startSkinReport, updateSkin} from './api42.js';
 import {rememberBudget} from './investigations42.jsx';
 import {go} from './router.js';
-import {EvidenceList, TrendCard, longDate, platformWord, topicHref} from './ui/TrendCard.jsx';
+import {EvidenceList, TrendCard, accountsWords, longDate, platformWord, topicHref} from './ui/TrendCard.jsx';
 import {MARKET_WORDS, heldWords, ruleWords} from './ui/WatchDialog.jsx';
 import './styles/today42.css';
 import './styles/alerts42.css';
@@ -593,7 +593,7 @@ function SkinWatches({skin, today, onAuth}){
                 <li key={a.watch_id + ':' + a.market + ':' + a.item_id} className="a42-alert" data-held={held ? '' : undefined}>
                   <a className="t42-link a42-name" href={topicHref(a.item_id, a.market)}>{a.label}</a>
                   {held && <span className="a42-held">{heldWords(held)}</span>}
-                  <span className="a42-meta">{a.fired_because} · {marketWord(a.market)}{a.since ? ' · since ' + longDate(a.since) : ''}</span>
+                  <span className="a42-meta">{accountsWords(a.fired_because)} · {marketWord(a.market)}{a.since ? ' · since ' + longDate(a.since) : ''}</span>
                 </li>
               );
             })}
