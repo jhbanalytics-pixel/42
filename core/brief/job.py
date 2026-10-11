@@ -85,10 +85,11 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # Local label, W8-DEC-03d the narrowed K6 score and date terms switched on, W8-DEC-06b ballot and voter political only
 # beside a party, leader or election term, k6-b7-decade the K6 decade rule of closure review B (CB-4), k6-names the K6
 # false hold exemptions for names, titles and identifiers, k6-n13-n15 the N13-T and N15 K6 age words, rule1-old-age the
-# rule 1 words old man, old woman and elders, g1-gap a missing baseline day after history began read as invalid for G1.
+# rule 1 words old man, old woman and elders, g1-gap a missing baseline day after history began read as invalid for G1,
+# zero-count-hold a card with a measured zero creators or posts in its counted 3 days held.
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
-                "+k6-n13-n15+rule1-old-age+g1-gap")
+                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -107,6 +108,7 @@ BOARD_WORDS = {"board_tiktok_hashtag": "TikTok hashtag board", "board_youtube": 
                "board_apple_music": "Apple Music chart"}
 NO_CONFIRM = {"kind": "thin_coverage",
               "text": "Cross-platform confirmation did not run today: cards rest on 42's own collection only"}
+NO_COUNTED_DAYS = "No creator posted about it in the last 3 days"
 PACK_MAX, PER_CREATOR = 12, 2  # core/brief/sql/evidence.sql: at most 12 posts in a pack and 2 per creator
 # Leave this reserve for the boards, moments, claim_checks, briefs and chain.finish. Each model dispatch reads the
 # remaining allowance to this cutoff and the daily deadline. HTTP phase timeouts are clamped again after auth;
@@ -497,7 +499,24 @@ def _gate(cand, passed):
     if decision.where == "today" and len(local) < 2:
         cand["held_reason"], cand["floor_held"] = "not_confirmed", True
         return _floor_held_decision(cand, "local", "Fewer than 2 supported local posts", evidence)
+    # The floors above read the 7 day pack; the card's own counts are the last 3 days. A card whose counted days hold
+    # no creator or no post would show "0 creators and 0 posts in 3 days" over examples older than those days. Only a
+    # measured zero holds: a count detect did not give is not a zero. Not a floor hold: confirm finds posts, never
+    # detect's counts, so a search cannot change the answer.
+    if decision.where == "today" and _measured_zero(cand):
+        cand["held_reason"] = "too_few_creators"
+        return _held(NO_COUNTED_DAYS)
     return decision
+
+
+def _measured_zero(cand):
+    """True when the pack pinned a 0 for the creators or the posts of the card's counted 3 days."""
+    return 0 in (_pinned(cand, "creators in 3 days"), _pinned(cand, "posts in 3 days"))
+
+
+def _pinned(cand, unit):
+    """The pack's pinned number with this unit, None when the pack has none."""
+    return next((n.get("value") for n in cand["pack"].get("numbers") or [] if n.get("unit") == unit), None)
 
 
 def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_terms, core, agent, hidden=None,
@@ -1236,7 +1255,7 @@ def _floor_held(cand):
     """A current-market candidate held only for too few posts it can show or too few local posts. Confirm searches
     it too (ENGINE.md section 3: one search on each top candidate), since the posts confirm finds are the only way
     its pack can grow; every other hold stands whatever a search finds, so those are never searched."""
-    return (bool(cand.get("floor_held")) and not cand.get("error")
+    return (bool(cand.get("floor_held")) and not cand.get("error") and not _measured_zero(cand)
             and cand["row"].get("market_scope") == "market")
 
 
