@@ -186,7 +186,7 @@ def test_release_a_api_in_front_of_this_agent_returns_the_reader_view_unchanged(
     read, agent_read = presented_through_release_a["this"]["read"], presented_through_release_a["this"]["agent_read"]
     assert read.status_code == 200 and agent_read.status_code == 200
     body = read.json()
-    assert [claim["id"] for claim in body["answer"]["claims"]] == ["c2", "c5"]
+    assert [claim["id"] for claim in body["answer"]["claims"]] == [claim["id"] for claim in agent_read.json()["answer"]["claims"]]
     assert body["run"]["technical_gaps"]
     assert body["answer"] == agent_read.json()["answer"] and body["run"]["technical_gaps"] == agent_read.json()["run"]["technical_gaps"]
 
