@@ -1,0 +1,92 @@
+{
+  "id": "WHY-01",
+  "note": "Strong stored side (more than 100 posts read), three platforms, two comment claims. Seeded: an Eskom-as-cause claim the support check rejects, and a claim with an age lens. One cited creator is hidden after the answer is stored.",
+  "tier": "T1",
+  "hidden_after": [{"platform": "x", "handle": "@bucketbrigade_za"}],
+  "posts": [
+    {"id": "tt_w1", "platform": "tiktok", "handle": "@tapdry_thandi", "days_ago": 3, "text": "Day four with no water in Joburg South and the municipality says check back tomorrow. I am bathing from a kettle like it is 1850", "views": 91000},
+    {"id": "tt_w2", "platform": "tiktok", "handle": "@geyser_gary", "days_ago": 9, "text": "water outage but make it a lifestyle, bucket gym is open", "views": 64000},
+    {"id": "x_w1", "platform": "x", "handle": "@bucketbrigade_za", "days_ago": 5, "text": "Load shedding at least had a schedule. Water outages just arrive like a bad relative", "views": 41000},
+    {"id": "x_w2", "platform": "x", "handle": "@sipho_notes", "days_ago": 12, "text": "Eskom has been on stage zero for two weeks and my group chat has moved on to who owns a tank", "views": 18000},
+    {"id": "ig_w1", "platform": "instagram", "handle": "@jozi_jojo", "days_ago": 7, "text": "queue for the bucket shower is longer than the queue at the tuck shop", "views": 33000},
+    {"id": "tt_w3", "platform": "tiktok", "handle": "@tankertalk_tebogo", "days_ago": 15, "text": "my neighbour sells water from a tank and now he has a bakkie and a girlfriend", "views": 52000},
+    {"id": "x_w3", "platform": "x", "handle": "@dry_tap_dineo", "days_ago": 20, "text": "the tap coughed twice and gave up, same energy as my fourth month of gym", "views": 12500},
+    {"id": "tt_l1", "platform": "tiktok", "handle": "@darkhouse_dee", "days_ago": 40, "text": "stage two tonight and the fridge is already crying", "views": 14000},
+    {"id": "x_l1", "platform": "x", "handle": "@candle_clan", "days_ago": 25, "text": "candles are cheap now, the real luxury is a Tuesday with water and power", "views": 9000}
+  ],
+  "bulk": {
+    "count": 130, "prefix": "wb", "creators": 44, "platforms": ["tiktok", "x", "instagram"], "days": [0, 59],
+    "stems": [
+      "no water again, the bucket is now part of the family",
+      "water outage group chat has more messages than the family group",
+      "tanker truck sighting, everyone run",
+      "load shedding jokes feel retro next to this",
+      "the tap just made a sound like a ghost",
+      "stage zero and still no water, who do we thank"
+    ]
+  },
+  "queries": [
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"term": "load shedding"},
+     "rows": [{"posts": 14, "authors": 11, "platforms": 3}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"term": "water"},
+     "rows": [{"posts": 63, "authors": 38, "platforms": 3}]}
+  ],
+  "socialcrawl": {
+    "tiktok/post/comments": {
+      "credits_charged": 1.0,
+      "items": [
+        {"id": "c101", "created_at": "2026-10-08T09:14:00+02:00", "author": "@lerato_k", "likes": 412, "text": "at least Eskom gave us a schedule, the water just disappears"},
+        {"id": "c102", "created_at": "2026-10-08T09:14:00+02:00", "author": "@dumi_dee", "likes": 88, "text": "nobody is joking about load shedding anymore, we cannot even flush"},
+        {"id": "c103", "created_at": "2026-10-08T09:14:00+02:00", "author": "@mpho_m", "likes": 31, "text": "honestly the candle jokes are tired, the taps gave us new material"}
+      ]
+    }
+  },
+  "research": {
+    "note": "Reading: load shedding and water outage humour, South Africa, the last two months.",
+    "tokens": [110000, 5200],
+    "calls": [
+      {"tool": "search_posts", "query": "water outage", "as": "water_a", "args": {"since": "2026-08-13", "until": "2026-09-12"}},
+      {"tool": "search_posts", "query": "load shedding", "as": "ls_a", "args": {"since": "2026-09-13", "until": "2026-10-11"}},
+      {"tool": "sql_query", "as": "ls", "purpose": "load shedding posts, creators and platforms in the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term)",
+       "params": {"term": "load shedding"}},
+      {"tool": "sql_query", "as": "water", "purpose": "water outage posts, creators and platforms in the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term)",
+       "params": {"term": "water"}},
+      {"tool": "get_comments", "evidence_id": "tt_w1", "limit": 5}
+    ]
+  },
+  "writer": {
+    "short_answer": "Water outages have taken over from load shedding as the shared complaint, with more posts and the same jokes about waiting and buckets.",
+    "claims": [
+      {"id": "c1", "text": "Water outage jokes outnumber load shedding jokes in the two months: 63 posts against 14.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_w1", "x_w1", "ig_w1"],
+       "quotes": [{"evidence_id": "x_w1", "text": "Water outages just arrive like a bad relative"}],
+       "numbers": [{"value": 63, "unit": "posts", "query_id": "@water"}, {"value": 14, "unit": "posts", "query_id": "@ls"}]},
+      {"id": "c2", "text": "The water jokes run across TikTok, X and Instagram and keep returning to buckets and tanks.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_w2", "x_w2", "ig_w1", "tt_w3"],
+       "quotes": [{"evidence_id": "tt_w2", "text": "bucket gym is open"}, {"evidence_id": "ig_w1", "text": "queue for the bucket shower"}],
+       "numbers": []},
+      {"id": "c3", "text": "One reading in the comments is that water cuts arrive without a schedule, where load shedding came with one.", "label": "inferred", "kind": "interpretation",
+       "evidence_ids": ["tiktok_comment_c101", "tt_w1"],
+       "quotes": [{"evidence_id": "tiktok_comment_c101", "text": "Eskom gave us a schedule"}],
+       "numbers": []},
+      {"id": "c4", "text": "A rival reading is that the load shedding jokes wore out and the taps gave people new material.", "label": "inferred", "kind": "interpretation",
+       "evidence_ids": ["tiktok_comment_c103", "tt_w1"],
+       "quotes": [{"evidence_id": "tiktok_comment_c103", "text": "the candle jokes are tired"}],
+       "numbers": []},
+      {"id": "c5", "text": "Eskom's better supply is why the load shedding jokes faded.", "label": "inferred", "kind": "interpretation",
+       "evidence_ids": ["x_w2"], "quotes": [], "numbers": []},
+      {"id": "c6", "text": "Younger creators are driving the water jokes.", "label": "inferred", "kind": "interpretation",
+       "evidence_ids": ["tt_w2"], "quotes": [], "numbers": []}
+    ],
+    "so_what": [{"text": "A brand can join the water jokes as a shared wait, not as a fix.", "claim_ids": ["c1", "c2"]}],
+    "watch_next": [{"text": "Watch whether the load shedding jokes return when the schedule does.", "claim_ids": ["c1"], "forecast": false}],
+    "gaps": [{"what": "No live search was run for this question", "searched": "stored posts only, 13 August to 11 October", "why": "the stored side was deep enough"}],
+    "context": ""
+  },
+  "headline_rewrite": "Water outage jokes are more common than load shedding jokes over the two months, and they run across several platforms.",
+  "support": {
+    "c5": {"verdict": "unsupported", "reason": "the cited post says nothing about why the jokes faded"}
+  }
+}

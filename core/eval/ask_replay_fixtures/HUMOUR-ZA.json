@@ -1,0 +1,76 @@
+{
+  "id": "HUMOUR-ZA",
+  "note": "The regression. It has the shape of the staging export in the ask-depth diagnosis: stored search finds three posts by three creators, live search stays on TikTok (seventy posts over three calls), and seven claims rest on those three posts. Nothing here is cut, because nothing the gate checks is wrong; what is wrong is the depth, and the depth measures must keep failing in this replay. They will pass in the live evaluation only if ask-depth and ask-power work, which this replay cannot show.",
+  "tier": "T1",
+  "question": "#humor in South Africa this week",
+  "vars": {
+    "id": "HUMOUR-ZA", "family": "now", "markets": ["ZA"], "window": "this week", "window_days": 7,
+    "expected_answerability": "answerable",
+    "min_evidence": {"posts": 8, "platforms": 2, "creators": 6,
+                     "summary": "ASK-POWER-PLAN section 1: at least 8 cited posts by 6 creators on 2 platforms"}
+  },
+  "posts": [
+    {"id": "tt_h1", "platform": "tiktok", "handle": "@laughing_lindiwe", "days_ago": 1, "text": "when the load shedding hits in the middle of the braai #humor #memes #comedia", "views": 54000},
+    {"id": "tt_h2", "platform": "tiktok", "handle": "@meme_machine_sa", "days_ago": 3, "text": "taxi driver versus the GPS be like #humor #memes #comedia", "views": 71000},
+    {"id": "tt_h3", "platform": "tiktok", "handle": "@comedia_cape", "days_ago": 5, "text": "my mom reading the family group chat out loud #humor #memes #comedia", "views": 39000}
+  ],
+  "queries": [
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"term": "#humor"},
+     "rows": [{"posts": 3, "authors": 3, "platforms": 1}]}
+  ],
+  "socialcrawl": {
+    "tiktok/search/top": {
+      "credits_charged": 4.0,
+      "bulk": {"count": 50, "prefix": "hl", "creators": 38, "market": "ZA", "days": [0, 6],
+               "stems": ["funny moments from the weekend", "this one got me", "tag someone who needs this", "sound on for this one"]}
+    },
+    "tiktok/search/hashtag": {
+      "credits_charged": 2.0,
+      "bulk": {"count": 10, "prefix": "hm", "creators": 9, "market": "ZA", "days": [0, 6],
+               "stems": ["comedy skit part one", "meme of the day"]}
+    },
+    "tiktok/hashtag": {
+      "credits_charged": 2.0,
+      "bulk": {"count": 10, "prefix": "hn", "creators": 8, "market": "ZA", "days": [0, 6],
+               "stems": ["humor challenge entry", "laugh with me"]}
+    }
+  },
+  "research": {
+    "note": "Reading: #humor, South Africa, this week.",
+    "tokens": [60000, 3200],
+    "calls": [
+      {"tool": "search_posts", "query": "#humor", "as": "stored", "args": {"since": "2026-10-05", "until": "2026-10-11"}},
+      {"tool": "sql_query", "as": "humor_count", "purpose": "posts, creators and platforms carrying humor this week",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term)",
+       "params": {"term": "#humor"}},
+      {"tool": "socialcrawl", "platform": "tiktok", "endpoint": "search/top", "params": {"query": "humor", "country": "ZA"}, "max_credits": 5},
+      {"tool": "socialcrawl", "platform": "tiktok", "endpoint": "search/hashtag", "params": {"hashtag": "humor", "country": "ZA"}, "max_credits": 5},
+      {"tool": "socialcrawl", "platform": "tiktok", "endpoint": "hashtag", "params": {"hashtag": "humor", "country": "ZA"}, "max_credits": 5}
+    ]
+  },
+  "writer": {
+    "short_answer": "The humor tag is small in South Africa this week: three stored posts from three creators on TikTok, all tagged with memes and comedia as well.",
+    "claims": [
+      {"id": "c1", "text": "Three posts carry the humor tag in South Africa this week, from three creators, all on TikTok.", "label": "observed", "kind": "observation",
+       "evidence_ids": ["tt_h1", "tt_h2", "tt_h3"], "quotes": [],
+       "numbers": [{"value": 3, "unit": "posts", "query_id": "@humor_count"}, {"value": 3, "unit": "creators", "query_id": "@humor_count"}]},
+      {"id": "c2", "text": "Every one of them also carries the memes and comedia tags.", "label": "observed", "kind": "observation",
+       "evidence_ids": ["tt_h1", "tt_h2", "tt_h3"], "quotes": [{"evidence_id": "tt_h2", "text": "#humor #memes #comedia"}], "numbers": []},
+      {"id": "c3", "text": "One post jokes about load shedding interrupting a braai.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["tt_h1"], "quotes": [{"evidence_id": "tt_h1", "text": "load shedding hits in the middle of the braai"}], "numbers": []},
+      {"id": "c4", "text": "One post jokes about a taxi driver and a GPS disagreeing.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["tt_h2"], "quotes": [{"evidence_id": "tt_h2", "text": "taxi driver versus the GPS"}], "numbers": []},
+      {"id": "c5", "text": "One post jokes about a parent reading a family group chat aloud.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["tt_h3"], "quotes": [{"evidence_id": "tt_h3", "text": "reading the family group chat out loud"}], "numbers": []},
+      {"id": "c6", "text": "The newest of the three posts was published yesterday and the oldest five days ago.", "label": "observed", "kind": "observation",
+       "evidence_ids": ["tt_h1", "tt_h3"], "quotes": [], "numbers": []},
+      {"id": "c7", "text": "The jokes are about everyday South African situations.", "label": "inferred", "kind": "interpretation",
+       "evidence_ids": ["tt_h1", "tt_h2", "tt_h3"], "quotes": [], "numbers": []}
+    ],
+    "so_what": [],
+    "watch_next": [],
+    "gaps": [],
+    "context": ""
+  },
+  "support": {}
+}

@@ -1,0 +1,82 @@
+{
+  "id": "BRD-03",
+  "note": "Deep stored side over the two-month window, English posts so the corroborated labels stand, no live search. Seeded: a claim citing a Nigerian post as Kenyan talk (K3).",
+  "tier": "T1",
+  "posts": [
+    {"id": "tt_b1", "platform": "tiktok", "handle": "@bundle_baba_ke", "days_ago": 4, "text": "my data bundle expired at 11:59 and I am still refreshing the app like it will change its mind", "views": 142000},
+    {"id": "tt_b2", "platform": "tiktok", "handle": "@airtime_alex", "days_ago": 12, "text": "airtime tokens are the real Kenyan currency, I owe three people already", "views": 88000},
+    {"id": "x_b1", "platform": "x", "handle": "@kenya_connected", "days_ago": 19, "text": "Safaricom is down again and the whole timeline is a group therapy session", "views": 61000},
+    {"id": "x_b2", "platform": "x", "handle": "@nairobi_techie", "days_ago": 19, "text": "outage update: nothing works, even payments, I am writing this from a neighbour's wifi", "views": 74000},
+    {"id": "x_b3", "platform": "x", "handle": "@bundle_watch", "days_ago": 35, "text": "they changed the bundle sizes again and called it an upgrade", "views": 25000},
+    {"id": "ig_b1", "platform": "instagram", "handle": "@telco_memes_ke", "days_ago": 22, "text": "Airtel and Safaricom customers comparing bundles like it is a football transfer window", "views": 49000},
+    {"id": "tt_b3", "platform": "tiktok", "handle": "@resigned_to_data", "days_ago": 28, "text": "I have made peace with my bundle running out at the worst possible time", "views": 36000},
+    {"id": "x_b4", "platform": "x", "handle": "@promo_hunter_ke", "days_ago": 15, "text": "new weekend bundle promo is actually decent, sharing before they take it back", "views": 18000},
+    {"id": "ig_b2", "platform": "instagram", "handle": "@savvy_saver_ke", "days_ago": 8, "text": "bundle ritual: top up on Friday, regret on Sunday", "views": 31000},
+    {"id": "tt_b4", "platform": "tiktok", "handle": "@angry_but_loyal", "days_ago": 20, "text": "the outage was bad but I am still not changing my sim, I know it is a sickness", "views": 57000},
+    {"id": "x_ng1", "platform": "x", "handle": "@lagos_data_gal", "days_ago": 10, "text": "my Airtel data bundle finished faster than my salary", "views": 14000, "geo_market": "NG"}
+  ],
+  "bulk": {
+    "count": 140, "prefix": "bb", "creators": 52, "platforms": ["tiktok", "x", "instagram"], "days": [0, 59],
+    "stems": [
+      "bundle expiry jokes are the only reliable content this week",
+      "airtime top up before the weekend, we know the routine",
+      "network complaint thread, add yours",
+      "promo bundle spotted, share before it ends"
+    ]
+  },
+  "queries": [
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"theme": "expiry"},
+     "rows": [{"posts": 164, "authors": 98, "platforms": 3}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"theme": "outage"},
+     "rows": [{"posts": 71, "authors": 52, "platforms": 3}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"theme": "spike"},
+     "rows": [{"posts": 412, "authors": 260, "platforms": 3}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"theme": "baseline"},
+     "rows": [{"posts": 38, "authors": 29, "platforms": 3}]}
+  ],
+  "research": {
+    "note": "Reading: Kenyan talk about mobile data and airtime, the last two months.",
+    "tokens": [112000, 5400],
+    "calls": [
+      {"tool": "search_posts", "query": "bundle OR airtime OR data", "as": "early", "args": {"since": "2026-08-13", "until": "2026-09-12"}},
+      {"tool": "search_posts", "query": "bundle OR airtime OR data", "as": "late", "args": {"since": "2026-09-13", "until": "2026-10-11"}},
+      {"tool": "sql_query", "as": "expiry", "purpose": "bundle expiry posts in the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @theme = 'expiry'",
+       "params": {"term": "bundle", "theme": "expiry"}},
+      {"tool": "sql_query", "as": "outage", "purpose": "outage posts in the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @theme = 'outage'",
+       "params": {"term": "outage", "theme": "outage"}},
+      {"tool": "sql_query", "as": "spike", "purpose": "telco posts on the outage day",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @theme = 'spike'",
+       "params": {"term": "safaricom", "theme": "spike"}},
+      {"tool": "sql_query", "as": "baseline", "purpose": "telco posts on an ordinary day in the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @theme = 'baseline'",
+       "params": {"term": "safaricom", "theme": "baseline"}}
+    ]
+  },
+  "writer": {
+    "short_answer": "Kenyan talk about data and airtime is steady jokes about bundle expiry, with sharp spikes when the network goes down and a tone that is more teasing than angry.",
+    "claims": [
+      {"id": "c1", "text": "Bundle expiry jokes are the steady theme, with 164 posts in the window, against 71 posts about outages.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_b1", "ig_b2", "x_b3", "tt_b3"],
+       "quotes": [{"evidence_id": "ig_b2", "text": "top up on Friday, regret on Sunday"}],
+       "numbers": [{"value": 164, "unit": "posts", "query_id": "@expiry"}, {"value": 71, "unit": "posts", "query_id": "@outage"}]},
+      {"id": "c2", "text": "An outage produced a one day spike of 412 posts against an ordinary day of 38, so it is an event and not a trend.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["x_b1", "x_b2", "tt_b4"],
+       "quotes": [{"evidence_id": "x_b1", "text": "the whole timeline is a group therapy session"}],
+       "numbers": [{"value": 412, "unit": "posts", "query_id": "@spike"}, {"value": 38, "unit": "posts", "query_id": "@baseline"}]},
+      {"id": "c3", "text": "The tone is affectionate teasing on TikTok and Instagram, resignation in the bundle posts and anger on X during outages.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_b2", "ig_b1", "tt_b3", "x_b2", "tt_b4", "x_b4"],
+       "quotes": [{"evidence_id": "tt_b4", "text": "I know it is a sickness"}, {"evidence_id": "tt_b3", "text": "made peace with my bundle"}],
+       "numbers": []},
+      {"id": "c4", "text": "Airtel bundles are mocked on X as running out faster than pay.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["x_ng1"], "quotes": [], "numbers": []}
+    ],
+    "so_what": [{"text": "A telco should sound like a friend who knows the routine: tease the expiry, own the outage, and never lecture.", "claim_ids": ["c1", "c2", "c3"]}],
+    "watch_next": [],
+    "gaps": [],
+    "context": ""
+  },
+  "headline_rewrite": "Data and airtime talk in Kenya is steady bundle expiry jokes with outage spikes and a mostly teasing tone.",
+  "support": {}
+}

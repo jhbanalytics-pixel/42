@@ -1,0 +1,93 @@
+{
+  "id": "RISE-02",
+  "note": "Thin stored side, X and TikTok searched live (two platforms, so the live-platform measure fails), Pidgin quotes, and one brand crossover shown by the brand's own post. Seeded: a brand claim whose cited post is not a brand post (K4), and a claim citing a Kenyan post for a Nigerian phrase (K3).",
+  "tier": "T1",
+  "posts": [
+    {"id": "tt_r1", "platform": "tiktok", "handle": "@skit_sade", "days_ago": 17, "text": "sapa reset: when your salary enter and exit the same day, abeg no vex", "views": 133000},
+    {"id": "tt_r2", "platform": "tiktok", "handle": "@lagos_laughs", "days_ago": 12, "text": "doing a sapa reset this month, no outing, no data, only prayers", "views": 91000},
+    {"id": "x_r1", "platform": "x", "handle": "@payday_pidgin", "days_ago": 9, "text": "sapa reset don reach the timeline, everybody dey do am now", "views": 40000},
+    {"id": "x_r2", "platform": "x", "handle": "@abuja_budget_gal", "days_ago": 6, "text": "I am on a sapa reset until further notice", "views": 21000},
+    {"id": "x_b1", "platform": "x", "handle": "@nairaplus_bank", "days_ago": 4, "text": "Sapa reset? Our save-small account has you covered", "views": 15000},
+    {"id": "tt_r3", "platform": "tiktok", "handle": "@wahala_package_skits", "days_ago": 14, "text": "wahala package episode three, wetin you carry come", "views": 75000},
+    {"id": "tt_r4", "platform": "tiktok", "handle": "@kano_to_lagos", "days_ago": 8, "text": "wahala package is the new way to say you came with problems", "views": 38000},
+    {"id": "x_r3", "platform": "x", "handle": "@jollof_journal", "days_ago": 5, "text": "this wahala package skit is why I stay on this app", "views": 17000},
+    {"id": "x_ke1", "platform": "x", "handle": "@nairobi_payday", "days_ago": 3, "text": "payday reset is the Kenyan version of this, same energy", "views": 8000, "geo_market": "KE"}
+  ],
+  "bulk": {
+    "count": 30, "prefix": "wr", "creators": 16, "platforms": ["tiktok", "x"], "days": [0, 20],
+    "stems": [
+      "sapa reset season is here",
+      "another wahala package skit just dropped",
+      "abeg tell me I am not the only one doing a sapa reset"
+    ]
+  },
+  "queries": [
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"term": "sapa reset", "part": "first"},
+     "rows": [{"posts": 14, "authors": 11, "platforms": 2}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"term": "sapa reset", "part": "last"},
+     "rows": [{"posts": 46, "authors": 37, "platforms": 2}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"term": "wahala package", "part": "all"},
+     "rows": [{"posts": 22, "authors": 17, "platforms": 2}]}
+  ],
+  "socialcrawl": {
+    "tiktok/search/top": {
+      "credits_charged": 3.0,
+      "items": [
+        {"id": "r501", "handle": "@sade_sketches", "market": "NG", "posted_at": "2026-10-10T11:00:00+01:00", "url": "https://example.test/tiktok/r501", "text": "sapa reset challenge, show me your last five hundred naira", "engagement": {"views": 52000, "likes": 4100}}
+      ]
+    },
+    "twitter/search/tweets": {
+      "credits_charged": 2.0,
+      "items": [
+        {"id": "r511", "handle": "@lagos_news_desk", "market": "NG", "posted_at": "2026-10-09T08:30:00+01:00", "url": "https://example.test/x/r511", "text": "Headline writers have started using sapa reset for the cost of living pieces", "engagement": {"views": 26000, "likes": 700}}
+      ]
+    }
+  },
+  "research": {
+    "note": "Reading: new Nigerian slang on X and TikTok, the last three weeks.",
+    "tokens": [90000, 4500],
+    "calls": [
+      {"tool": "search_posts", "query": "sapa reset OR wahala package", "as": "stored", "args": {"since": "2026-09-21", "until": "2026-10-11"}},
+      {"tool": "sql_query", "as": "sapa_first", "purpose": "sapa reset posts in the first week of the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'first'",
+       "params": {"term": "sapa reset", "part": "first"}},
+      {"tool": "sql_query", "as": "sapa_last", "purpose": "sapa reset posts in the latest week of the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'last'",
+       "params": {"term": "sapa reset", "part": "last"}},
+      {"tool": "sql_query", "as": "wahala", "purpose": "wahala package posts in the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'all'",
+       "params": {"term": "wahala package", "part": "all"}},
+      {"tool": "socialcrawl", "platform": "tiktok", "endpoint": "search/top", "params": {"query": "sapa reset", "country": "NG"}, "max_credits": 5},
+      {"tool": "socialcrawl", "platform": "twitter", "endpoint": "search/tweets", "params": {"query": "sapa reset", "country": "NG"}, "max_credits": 5}
+    ]
+  },
+  "writer": {
+    "short_answer": "Sapa reset is the phrase that is rising fastest in Nigerian feeds, and wahala package is a skit phrase that has not left TikTok skits yet.",
+    "claims": [
+      {"id": "c1", "text": "Sapa reset began in TikTok skits and reached X, growing from 14 posts in its first week to 46 in the latest.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["tt_r1", "tt_r2", "x_r1", "x_r2"],
+       "quotes": [{"evidence_id": "tt_r1", "text": "when your salary enter and exit the same day"}, {"evidence_id": "x_r1", "text": "everybody dey do am now"}],
+       "numbers": [{"value": 14, "unit": "posts", "query_id": "@sapa_first"}, {"value": 46, "unit": "posts", "query_id": "@sapa_last"}]},
+      {"id": "c2", "text": "Wahala package is a TikTok skit phrase with 22 posts, now also on X.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["tt_r3", "tt_r4", "x_r3"],
+       "quotes": [{"evidence_id": "tt_r4", "text": "the new way to say you came with problems"}],
+       "numbers": [{"value": 22, "unit": "posts", "query_id": "@wahala"}]},
+      {"id": "c3", "text": "A bank account post on X and a news desk post both used sapa reset, so it has crossed from skits into brand and news posts.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["x_b1", "twitter_r511"],
+       "quotes": [{"evidence_id": "x_b1", "text": "Our save-small account has you covered"}],
+       "numbers": []},
+      {"id": "c4", "text": "A telco has also used wahala package in an ad.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["tt_r4"], "quotes": [], "numbers": []},
+      {"id": "c5", "text": "Sapa reset is used for payday jokes.", "label": "single_source", "kind": "observation",
+       "evidence_ids": ["x_ke1"], "quotes": [], "numbers": []}
+    ],
+    "so_what": [{"text": "A savings or fintech brand can use sapa reset now, while it is still climbing.", "claim_ids": ["c1", "c3"]}],
+    "watch_next": [],
+    "gaps": [],
+    "context": ""
+  },
+  "headline_rewrite": "Sapa reset is rising in Nigerian feeds and has reached a brand post and a news post, while wahala package stays in skits.",
+  "support": {
+    "c4": {"verdict": "unsupported", "reason": "the cited post is a fan post and shows no telco ad"}
+  }
+}

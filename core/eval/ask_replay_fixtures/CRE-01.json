@@ -1,0 +1,82 @@
+{
+  "id": "CRE-01",
+  "note": "Named creators and their comment sections. Thin stored side, TikTok and Instagram searched live. One named creator is hidden after the answer is stored, which withholds the claim that names them. Seeded: a follower figure no query holds (K2) and an audience described by age (K6).",
+  "tier": "T1",
+  "hidden_after": [{"platform": "instagram", "handle": "@ibadan_pot_diaries"}],
+  "posts": [
+    {"id": "tt_c1", "platform": "tiktok", "handle": "@mama_put_kitchen", "days_ago": 3, "text": "market run for egusi soup, six thousand naira and I will show you every stall", "views": 81000},
+    {"id": "tt_c2", "platform": "tiktok", "handle": "@budget_jollof_ben", "days_ago": 6, "text": "jollof for four people under three thousand naira, receipts included", "views": 64000},
+    {"id": "ig_c1", "platform": "instagram", "handle": "@ibadan_pot_diaries", "days_ago": 8, "text": "amala and ewedu the way my aunty in Ibadan makes it, full recipe in the caption", "views": 47000},
+    {"id": "ig_c2", "platform": "instagram", "handle": "@suya_sunday_spot", "days_ago": 10, "text": "homemade suya spice in ten minutes, no excuses this weekend", "views": 39000},
+    {"id": "tt_c3", "platform": "tiktok", "handle": "@northern_flavours_zee", "days_ago": 12, "text": "tuwo shinkafa and miyan kuka explained for people who have never had it", "views": 52000},
+    {"id": "ig_c3", "platform": "instagram", "handle": "@lagos_market_mimi", "days_ago": 5, "text": "price check at Mushin market this week, tomatoes are not funny again", "views": 28000},
+    {"id": "tt_c4", "platform": "tiktok", "handle": "@recipe_duet_remi", "days_ago": 15, "text": "duet with your best egusi, mine is not winning but I am happy", "views": 22000}
+  ],
+  "bulk": {
+    "count": 35, "prefix": "cc", "creators": 17, "platforms": ["tiktok", "instagram"], "days": [0, 29],
+    "stems": [
+      "weekly meal prep on a budget, full list in the caption",
+      "market run vlog, what I bought and what it cost",
+      "regional dish explainer, part two"
+    ]
+  },
+  "socialcrawl": {
+    "tiktok/post/comments": {
+      "credits_charged": 1.0,
+      "items": [
+        {"id": "m601", "created_at": "2026-10-08T20:10:00+01:00", "author": "@yetunde_y", "likes": 210, "text": "please do the full price list for the soup next time"},
+        {"id": "m602", "created_at": "2026-10-08T20:25:00+01:00", "author": "@chidi_c", "likes": 95, "text": "that stall price is a lie in my area, tomatoes are double"},
+        {"id": "m603", "created_at": "2026-10-08T21:00:00+01:00", "author": "@aisha_a", "likes": 61, "text": "in the north we cook it with groundnut oil, try it"}
+      ]
+    },
+    "tiktok/search/top": {
+      "credits_charged": 3.0,
+      "items": [
+        {"id": "m611", "handle": "@ogbono_olamide", "market": "NG", "posted_at": "2026-10-09T13:00:00+01:00", "url": "https://example.test/tiktok/m611", "text": "ogbono soup on a student budget, here is the market breakdown", "engagement": {"views": 33000, "likes": 2400}}
+      ]
+    },
+    "instagram/search/reels": {
+      "credits_charged": 3.0,
+      "items": [
+        {"id": "m621", "handle": "@pepper_soup_papi", "market": "NG", "posted_at": "2026-10-07T09:00:00+01:00", "url": "https://example.test/instagram/m621", "text": "pepper soup for the weekend, the spice mix is in the first comment", "engagement": {"views": 26000, "likes": 1900}}
+      ]
+    }
+  },
+  "research": {
+    "note": "Reading: mid-sized Nigerian food and home-cooking creators, the last month.",
+    "tokens": [96000, 4800],
+    "calls": [
+      {"tool": "search_posts", "query": "recipe OR soup OR jollof OR suya", "as": "stored", "args": {"since": "2026-09-12", "until": "2026-10-11"}},
+      {"tool": "get_comments", "evidence_id": "tt_c1", "limit": 5},
+      {"tool": "socialcrawl", "platform": "tiktok", "endpoint": "search/top", "params": {"query": "nigerian home cooking", "country": "NG"}, "max_credits": 5},
+      {"tool": "socialcrawl", "platform": "instagram", "endpoint": "search/reels", "params": {"query": "nigerian recipes", "country": "NG"}, "max_credits": 5}
+    ]
+  },
+  "writer": {
+    "short_answer": "Mid-sized Nigerian food creators work in market-run vlogs, budget meal series and regional dish explainers, and their comment sections ask for prices and recipes.",
+    "claims": [
+      {"id": "c1", "text": "Four mid-sized food creators lead the list in what was collected: @mama_put_kitchen, @budget_jollof_ben and @northern_flavours_zee on TikTok and @ibadan_pot_diaries on Instagram.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_c1", "tt_c2", "tt_c3", "ig_c1"],
+       "quotes": [{"evidence_id": "tt_c2", "text": "receipts included"}],
+       "numbers": []},
+      {"id": "c2", "text": "They use three formats: market-run vlogs, budget meal series and regional dish explainers.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["tt_c1", "tt_c2", "tt_c3", "ig_c3", "tiktok_m611"],
+       "quotes": [{"evidence_id": "tt_c1", "text": "I will show you every stall"}, {"evidence_id": "tiktok_m611", "text": "market breakdown"}],
+       "numbers": []},
+      {"id": "c3", "text": "Their comment sections ask for full price lists and recipes, argue about whether stall prices hold in other areas, and trade regional variations.", "label": "inferred", "kind": "interpretation",
+       "evidence_ids": ["tiktok_comment_m601", "tiktok_comment_m602", "tiktok_comment_m603", "tt_c1"],
+       "quotes": [{"evidence_id": "tiktok_comment_m601", "text": "do the full price list"}, {"evidence_id": "tiktok_comment_m602", "text": "tomatoes are double"}],
+       "numbers": []},
+      {"id": "c4", "text": "The mid-sized tier averages 48,000 followers.", "label": "observed", "kind": "observation",
+       "evidence_ids": ["tt_c1", "tt_c2"], "quotes": [], "numbers": []},
+      {"id": "c5", "text": "Their audience is mostly young adults.", "label": "inferred", "kind": "interpretation",
+       "evidence_ids": ["tt_c4"], "quotes": [], "numbers": []}
+    ],
+    "so_what": [{"text": "A brand can sponsor a market run, where the price list is the content, and avoid scripted taste tests.", "claim_ids": ["c2", "c3"]}],
+    "watch_next": [],
+    "gaps": [{"what": "This list is what was collected, not a census of Nigerian food creators", "searched": "stored posts and live TikTok and Instagram search", "why": "collection covers the creators the searches reached"}],
+    "context": ""
+  },
+  "headline_rewrite": "Mid-sized Nigerian food creators use market-run vlogs, budget meal series and regional dish explainers, and their comments ask for prices and recipes.",
+  "support": {}
+}

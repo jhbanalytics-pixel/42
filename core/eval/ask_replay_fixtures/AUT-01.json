@@ -1,0 +1,120 @@
+{
+  "id": "AUT-01",
+  "note": "Authenticity indicators for three invented political hashtags. Thin stored side, TikTok and X searched live, two live creators suppressed while it ran, one cited creator hidden after the answer is stored. Seeded: an allegation of a paid network the posts cannot show (K4), and a coordination claim on one platform only, whose corroborated label is lowered (K5).",
+  "tier": "T1",
+  "hidden_before": [{"platform": "x", "handle": "@vote_squad_ng"}, {"platform": "tiktok", "handle": "@naija_voice_ten"}],
+  "hidden_after": [{"platform": "x", "handle": "@ballot_box_bola"}],
+  "posts": [
+    {"id": "x_t1", "platform": "x", "handle": "@user_8841", "days_ago": 2, "text": "Our future, our vote, our voice #NaijaDecides", "views": 4200},
+    {"id": "x_t2", "platform": "x", "handle": "@voice_ng_22", "days_ago": 2, "text": "Our future, our vote, our voice! #NaijaDecides", "views": 3900},
+    {"id": "x_t3", "platform": "x", "handle": "@ballot_box_bola", "days_ago": 2, "text": "Our future and our voice, our vote #NaijaDecides", "views": 4100},
+    {"id": "x_t4", "platform": "x", "handle": "@change_now_9", "days_ago": 2, "text": "Our future, our vote, our voice #NaijaDecides", "views": 3800},
+    {"id": "tt_t1", "platform": "tiktok", "handle": "@civic_clips_ng", "days_ago": 3, "text": "Why I am watching #NaijaDecides closely this month", "views": 26000},
+    {"id": "x_e1", "platform": "x", "handle": "@lekan_writes", "days_ago": 5, "text": "Three hours in a queue for a card and I still believe it matters #EnoughIsEnough", "views": 31000},
+    {"id": "x_e2", "platform": "x", "handle": "@amina_audits", "days_ago": 7, "text": "Local council budget thread, read it before you argue #EnoughIsEnough", "views": 22000},
+    {"id": "tt_e1", "platform": "tiktok", "handle": "@kemi_on_the_street", "days_ago": 4, "text": "asked ten people what #EnoughIsEnough means to them, answers were all different", "views": 54000},
+    {"id": "tt_e2", "platform": "tiktok", "handle": "@market_woman_mama_e", "days_ago": 9, "text": "my stall, my vote, my words #EnoughIsEnough", "views": 33000},
+    {"id": "x_b1", "platform": "x", "handle": "@bridge_builder_tunde", "days_ago": 6, "text": "Meet your neighbours, plan the town hall #BridgeBuilders", "views": 12000},
+    {"id": "x_b2", "platform": "x", "handle": "@bridge_builder_ify", "days_ago": 6, "text": "Meet your neighbours and plan the town hall #BridgeBuilders", "views": 11000},
+    {"id": "tt_b1", "platform": "tiktok", "handle": "@community_chair_ada", "days_ago": 10, "text": "town hall tonight, bring a chair, #BridgeBuilders", "views": 17000}
+  ],
+  "bulk": {
+    "count": 40, "prefix": "au", "creators": 28, "platforms": ["tiktok", "x"], "days": [0, 13],
+    "stems": [
+      "thread on the hashtag everyone is posting under",
+      "who else saw the same line under three different accounts",
+      "town hall this weekend, details in the thread"
+    ]
+  },
+  "queries": [
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"tag": "naijadecides", "indicator": "total"}, "rows": [{"posts": 120, "authors": 90, "platforms": 2}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"tag": "naijadecides", "indicator": "duplicate"}, "rows": [{"posts": 74, "authors": 52, "platforms": 2}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"tag": "naijadecides", "indicator": "burst"}, "rows": [{"posts": 58, "authors": 49, "platforms": 2}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"tag": "naijadecides", "indicator": "new"}, "rows": [{"posts": 97, "authors": 41, "platforms": 2}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"tag": "enoughisenough", "indicator": "total"}, "rows": [{"posts": 140, "authors": 121, "platforms": 2}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"tag": "enoughisenough", "indicator": "duplicate"}, "rows": [{"posts": 9, "authors": 8, "platforms": 2}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"tag": "bridgebuilders", "indicator": "total"}, "rows": [{"posts": 60, "authors": 44, "platforms": 2}]},
+    {"match": "CONTAINS_SUBSTR(p.text, @term)", "params": {"tag": "bridgebuilders", "indicator": "duplicate"}, "rows": [{"posts": 23, "authors": 18, "platforms": 2}]}
+  ],
+  "socialcrawl": {
+    "tiktok/search/top": {
+      "credits_charged": 3.0,
+      "items": [
+        {"id": "a701", "handle": "@naija_voice_ten", "market": "NG", "posted_at": "2026-10-09T10:00:00+01:00", "url": "https://example.test/tiktok/a701", "text": "Our future, our vote, our voice #NaijaDecides", "engagement": {"views": 9000, "likes": 300}},
+        {"id": "a702", "handle": "@explainer_emeka", "market": "NG", "posted_at": "2026-10-08T16:00:00+01:00", "url": "https://example.test/tiktok/a702", "text": "A calm explainer on how the hashtags work, and why the same sentence keeps showing up", "engagement": {"views": 21000, "likes": 1400}}
+      ]
+    },
+    "twitter/search/tweets": {
+      "credits_charged": 2.0,
+      "items": [
+        {"id": "a711", "handle": "@vote_squad_ng", "market": "NG", "posted_at": "2026-10-09T10:01:00+01:00", "url": "https://example.test/x/a711", "text": "Our future, our vote, our voice #NaijaDecides", "engagement": {"views": 3000, "likes": 20}},
+        {"id": "a712", "handle": "@fact_check_funmi", "market": "NG", "posted_at": "2026-10-10T08:00:00+01:00", "url": "https://example.test/x/a712", "text": "Same sentence under one tag from many accounts is a pattern worth watching, not proof of anything", "engagement": {"views": 12000, "likes": 800}}
+      ]
+    }
+  },
+  "research": {
+    "note": "Reading: Nigerian political hashtags, signs of coordination, the last two weeks.",
+    "tokens": [101000, 5000],
+    "calls": [
+      {"tool": "search_posts", "query": "NaijaDecides OR EnoughIsEnough OR BridgeBuilders", "as": "stored", "args": {"since": "2026-09-28", "until": "2026-10-11"}},
+      {"tool": "sql_query", "as": "nd_total", "purpose": "NaijaDecides posts and accounts in the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @tag = 'naijadecides' AND @indicator = 'total'",
+       "params": {"term": "NaijaDecides", "tag": "naijadecides", "indicator": "total"}},
+      {"tool": "sql_query", "as": "nd_dup", "purpose": "NaijaDecides near duplicate posts",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @tag = 'naijadecides' AND @indicator = 'duplicate'",
+       "params": {"term": "NaijaDecides", "tag": "naijadecides", "indicator": "duplicate"}},
+      {"tool": "sql_query", "as": "nd_burst", "purpose": "NaijaDecides posts inside the busiest ten minutes",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @tag = 'naijadecides' AND @indicator = 'burst'",
+       "params": {"term": "NaijaDecides", "tag": "naijadecides", "indicator": "burst"}},
+      {"tool": "sql_query", "as": "nd_new", "purpose": "NaijaDecides posts by recently created accounts",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @tag = 'naijadecides' AND @indicator = 'new'",
+       "params": {"term": "NaijaDecides", "tag": "naijadecides", "indicator": "new"}},
+      {"tool": "sql_query", "as": "ei_total", "purpose": "EnoughIsEnough posts and accounts in the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @tag = 'enoughisenough' AND @indicator = 'total'",
+       "params": {"term": "EnoughIsEnough", "tag": "enoughisenough", "indicator": "total"}},
+      {"tool": "sql_query", "as": "ei_dup", "purpose": "EnoughIsEnough near duplicate posts",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @tag = 'enoughisenough' AND @indicator = 'duplicate'",
+       "params": {"term": "EnoughIsEnough", "tag": "enoughisenough", "indicator": "duplicate"}},
+      {"tool": "sql_query", "as": "bb_total", "purpose": "BridgeBuilders posts and accounts in the window",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @tag = 'bridgebuilders' AND @indicator = 'total'",
+       "params": {"term": "BridgeBuilders", "tag": "bridgebuilders", "indicator": "total"}},
+      {"tool": "sql_query", "as": "bb_dup", "purpose": "BridgeBuilders near duplicate posts",
+       "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @tag = 'bridgebuilders' AND @indicator = 'duplicate'",
+       "params": {"term": "BridgeBuilders", "tag": "bridgebuilders", "indicator": "duplicate"}},
+      {"tool": "socialcrawl", "platform": "tiktok", "endpoint": "search/top", "params": {"query": "NaijaDecides", "country": "NG"}, "max_credits": 5},
+      {"tool": "socialcrawl", "platform": "twitter", "endpoint": "search/tweets", "params": {"query": "NaijaDecides", "country": "NG"}, "max_credits": 5}
+    ]
+  },
+  "writer": {
+    "short_answer": "One of the three hashtags shows several signs of coordination, one looks organic and one is mixed, and none of the indicators says who is behind them.",
+    "claims": [
+      {"id": "c1", "text": "NaijaDecides is flagged: of 120 posts, 74 were near duplicates, 58 landed inside one ten minute window, and 41 of the 90 accounts were recently created.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["x_t1", "x_t2", "x_t4", "tt_t1"],
+       "quotes": [{"evidence_id": "x_t1", "text": "Our future, our vote, our voice"}],
+       "numbers": [{"value": 120, "unit": "posts", "query_id": "@nd_total"}, {"value": 74, "unit": "posts", "query_id": "@nd_dup"},
+                   {"value": 58, "unit": "posts", "query_id": "@nd_burst"}, {"value": 41, "unit": "creators", "query_id": "@nd_new"},
+                   {"value": 90, "unit": "creators", "query_id": "@nd_total"}]},
+      {"id": "c2", "text": "EnoughIsEnough looks organic, with 9 near duplicates among 140 posts and a spread of different wording, at medium confidence.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["x_e1", "x_e2", "tt_e1", "tt_e2"],
+       "quotes": [{"evidence_id": "tt_e1", "text": "answers were all different"}],
+       "numbers": [{"value": 9, "unit": "posts", "query_id": "@ei_dup"}, {"value": 140, "unit": "posts", "query_id": "@ei_total"}]},
+      {"id": "c3", "text": "BridgeBuilders is mixed, with 23 near duplicates among 60 posts, mostly from accounts that also post about other things.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["x_b1", "x_b2", "tt_b1", "tiktok_a702"],
+       "quotes": [{"evidence_id": "x_b1", "text": "Meet your neighbours, plan the town hall"}],
+       "numbers": [{"value": 23, "unit": "posts", "query_id": "@bb_dup"}, {"value": 60, "unit": "posts", "query_id": "@bb_total"}]},
+      {"id": "c4", "text": "NaijaDecides is a paid bot network run by a party.", "label": "inferred", "kind": "interpretation",
+       "evidence_ids": ["x_t1", "x_t2"], "quotes": [], "numbers": []},
+      {"id": "c5", "text": "The near identical posts under NaijaDecides came from X accounts within minutes of each other.", "label": "corroborated", "kind": "observation",
+       "evidence_ids": ["x_t1", "x_t2", "x_t3", "x_t4", "twitter_a712"],
+       "quotes": [], "numbers": []}
+    ],
+    "so_what": [{"text": "A brand should keep scheduled posts off the NaijaDecides push times and not reply to that tag.", "claim_ids": ["c1", "c5"]}],
+    "watch_next": [],
+    "gaps": [{"what": "The indicators show a pattern, not who is behind it", "searched": "stored posts and live TikTok and X search", "why": "no indicator can name who pays for posts"}],
+    "context": ""
+  },
+  "headline_rewrite": "One hashtag shows several signs of coordination, one looks organic and one is mixed, and the indicators do not say who is behind them.",
+  "support": {
+    "c4": {"verdict": "unsupported", "reason": "the cited posts show repeated wording and say nothing about payment or a party"}
+  }
+}
