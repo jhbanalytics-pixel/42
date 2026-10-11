@@ -974,6 +974,7 @@ async def _projected(record: dict, inbound=None, poll=None) -> dict:
 
 @gated.get("/api/ask/{ask_id}")
 async def api_ask_read(ask_id: str) -> Response:
+    from core.agent import answer_view
     from core.api import privacy
 
     _check_ask_id(ask_id)
@@ -993,7 +994,8 @@ async def api_ask_read(ask_id: str) -> Response:
     record = await _stored_record(ask_id)
     if record is None:
         raise ApiError(404, "not_found", "No Ask with that id.")
-    return JSONResponse(jsonable_encoder(await _projected(record)), headers=privacy.NO_STORE)
+    shown = answer_view.present(await _projected(record))  # the reader's view, as the agent and the export give it
+    return JSONResponse(jsonable_encoder(shown), headers=privacy.NO_STORE)
 
 
 def _sse(seq: int, event: str, data: dict) -> str:
