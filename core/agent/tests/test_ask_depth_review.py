@@ -10,8 +10,7 @@ import pytest
 
 from core.agent import ask
 from core.agent.context import RunContext
-from core.agent.tests.test_ask import make_research
-from core.agent.tests.test_ask_depth_sweep import (AskWarehouse, QUESTION, SweepWarehouse, make_row, sweep_harness)
+from core.agent.tests.test_ask_depth_sweep import (QUESTION, SweepWarehouse, make_row, sweep_harness)
 from core.agent.tests.test_warehouse_tools import SplitWarehouse, kw
 from core.agent.tools import sql_query as sql_module
 from core.agent.tools import warehouse as wh_module
