@@ -414,6 +414,8 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
         if ans.get("status") == "complete" and not kept:
             ans["status"] = "partial"
         _ranked(out, claims_gone, present, hidden, unavailable)
+        if (claims_gone or unavailable) and isinstance(out.get("run"), dict):
+            out["run"].pop("briefing", None)  # a reader that wants it builds it again from the claims that are left
     shown = {e.get("id") for e in (ans.get("evidence") if isinstance(ans, dict) else None) or [] if isinstance(e, dict)}
     out.pop(comment_links.KEY, None)
     if comment_links.prune(links, shown):

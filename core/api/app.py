@@ -184,6 +184,7 @@ async def _again(resp: httpx.Response, kind: str) -> Response:
     predates the check cannot leak through the hop. kind says what the body is: a record, an investigation, a list
     of investigations, a dossier view or a list of dossiers. Anything but a 200 or a 201 (a write that made a dossier
     or a draft) goes through as it is, and the status the agent sent is kept."""
+    from core.agent import answer_view
     from core.api import privacy, store, summary_state
 
     if resp.status_code not in (200, 201):
@@ -198,8 +199,10 @@ async def _again(resp: httpx.Response, kind: str) -> Response:
         with privacy.one_read():
             hidden = privacy.read_hidden(lazy)
             if kind == "record" and isinstance(body, dict) and "answer" in body:
-                return privacy.project_record(summary_state.with_wire(body, from_agent=True), lazy, hidden,
-                                              body.get("privacy"))
+                # The agent's reader view was built with the list it read; this pass can withhold more, so the view is
+                # read again from what is left and a ranked briefing never names a story the pass took out.
+                return answer_view.present(privacy.project_record(summary_state.with_wire(body, from_agent=True), lazy,
+                                                                  hidden, body.get("privacy")))
             if kind == "investigation" and isinstance(body, dict):
                 record = body.get("record")
                 if isinstance(record, dict):
