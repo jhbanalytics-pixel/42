@@ -2143,7 +2143,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         draft, usage = timed("write", write_answer, stop_model, question=question, as_of=as_of, market=market,
                                     window=f"{window[0].isoformat()} to {window[1].isoformat()}", ctx=ctx,
                                     failed_sources=[r for r in source_status if r["status"] != "ok"], note=note,
-                                    model_name=model_name)
+                                    model_name=model_name, skill=skill)
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         excluded = getattr(ctx, "writer_evidence_exclusions", None) or {}
         if excluded.get("count"):  # why retrieved posts could not be cited, by missing field, for the service log
