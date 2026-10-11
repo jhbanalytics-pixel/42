@@ -2049,6 +2049,14 @@ def _with_parents(cited, stored):
     return out
 
 
+def cited_with_parents(claims, stored):
+    """The evidence ids the claims cite, and the post each cited comment sits under when the run holds it. A prune that
+    rebuilds an answer's evidence from the claims that stay keeps these, so a comment kept alone keeps its post and the
+    link between them (C5 v2 5.1)."""
+    cited = {eid for claim in claims for eid in claim.get("evidence_ids") or [] if isinstance(eid, str)}
+    return cited | set(_with_parents(sorted(cited), stored))
+
+
 def comment_links(answer, stored):
     """{"v": 1, "parents": {comment id: post id}} for the comments an answer shows whose post it shows too, or None. It
     is kept beside the answer, not in it: the evidence shape is the one Release A readers accept, and the privacy check

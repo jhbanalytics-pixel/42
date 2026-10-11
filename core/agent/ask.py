@@ -1029,7 +1029,7 @@ def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[
     removed = {c["id"]: c for c in answer["claims"] if c.get("id") in cut}
     kept = [c for c in answer["claims"] if c.get("id") not in cut]
     answer["claims"] = kept
-    cited = {e for c in kept for e in c.get("evidence_ids") or []}
+    cited = checks.cited_with_parents(kept, ctx.evidence if ctx is not None else {})
     answer["evidence"] = [r for r in answer.get("evidence") or [] if r.get("id") in cited]
     for cid, claim in removed.items():
         pending = cut[cid]["reason"] == critic.ROW_REASON["pending"]
