@@ -610,17 +610,20 @@ NO_STORE = {"Cache-Control": "no-store"}
 
 def selectable_claims(claims, evidence, hidden, store, learned=None):
     """{claim id: whether it may be kept in a dossier now} for the source answer's claims (see selectable). learned,
-    when given, is a set that receives the ids of the claims whose words are clean under the list alone and are not
-    clean once the handles the source evidence reveals are counted: a dossier holds no hidden post to learn those
-    names from, so it must not carry such words at all."""
+    when given, is a set that receives the ids of the claims whose words the handles the source evidence reveals mask
+    further than the list alone does: a dossier holds no hidden post to learn those names from, so one that does not
+    keep such a claim stores it without its words."""
     if hidden is None:
         return {cid: False for cid in claims}
     names = set()
     gone = evidence_gone(evidence, hidden, store, names=names)
     ok = {cid: not _claim_ids(c) & gone and selectable(c, evidence, hidden, store, gone, names) for cid, c in claims.items()}
     if learned is not None:
-        learned.update(cid for cid, c in claims.items()
-                       if not ok[cid] and not _claim_ids(c) & gone and selectable(c, evidence, hidden, store, gone))
+        for cid, c in claims.items():
+            words = {k: c.get(k) for k in ("text", "basis", "falsifier")}
+            words["quotes"] = [q.get("text") for q in c.get("quotes") or [] if isinstance(q, dict)]
+            if not ok[cid] and _json(mask(words, with_names(hidden, names))) != _json(mask(words, hidden)):
+                learned.add(cid)
     return ok
 
 
