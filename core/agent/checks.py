@@ -386,9 +386,15 @@ RULE_GAPS = {
            "every quoted span must be verbatim in a cited post"),
     "K9": ("a forecast before it has beaten persistence",
            "forecasts remain held until they beat the persistence baseline"),
-    "K10": ("a short answer that named a story with no claim left",
-            "the short answer may name only a story that still has a claim that passed the checks"),
 }
+
+# K10 labels more than one kind of row (a claim cut or kept, a so_what or watch_next item resting on cut claims, a short
+# answer the support or critic path blanked, each rewrite outcome), so it has no entry in RULE_GAPS, which gives one
+# wording to a rule. The lead cut, a short answer that names a story whose claims were all cut, has its own.
+LEAD_STORY_GAP = {"what": "Short answer removed: it named a story whose claims were all cut (K10)",
+                  "searched": "the short answer text",
+                  "why": "the short answer may name only a story that still has a claim that passed the checks"}
+LEAD_STORY_REASON = "the short answer named a story whose claims were all cut, so it was blanked"
 WORDS = re.compile(r"[\w']+")
 
 # K3 places (Albert, 29 September 2026): "a post with no location may support a claim that names no place; only posts
@@ -885,12 +891,15 @@ def _answer_fields(fields, claims, ctx, row, *, allow, gap_indexes, code_gaps=()
     short_answer = fields.get("short_answer") or ""
     problems = ({} if short_answer == INSUFFICIENT
                 else _field_problems(short_answer, claims, ctx.evidence, ids, allow, ctx))
-    if lead_cut and short_answer and short_answer != INSUFFICIENT:
-        problems = {**problems, "K10": f"the short answer names {lead_cut}, every claim of which was cut"}
+    lead = bool(lead_cut) and bool(short_answer) and short_answer != INSUFFICIENT
     if problems:
         drop("short_answer", "Short answer", "the short answer text", problems)
         short_answer = ""
-    out["short_answer"], headline_cut = short_answer, bool(problems)
+    if lead:
+        row("short_answer", "K10", "cut", LEAD_STORY_REASON)
+        gaps.append(dict(LEAD_STORY_GAP))
+        short_answer = ""
+    out["short_answer"], headline_cut = short_answer, bool(problems) or lead
 
     context = fields.get("context")
     if isinstance(context, str):

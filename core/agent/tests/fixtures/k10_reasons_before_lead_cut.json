@@ -1,0 +1,5709 @@
+{
+ "AUT-01": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "cut",
+    "unsupported by its cited posts (K4)"
+   ],
+   [
+    "c5",
+    "downgraded",
+    "label lowered to observed (K5)"
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_t1, x_t2, x_t4, tt_t1"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_e1, x_e2, tt_e1, tt_e2"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_b1, x_b2, tt_b1, tiktok_a702"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label inferred is within the maximum inferred: inferred claims, interpretations and proposals stay inferred"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_t1, x_t2"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "downgrade",
+    "label corroborated lowered to observed: 3 unrelated author groups on 1 platform"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_t1, x_t2, x_t3, x_t4, twitter_a712"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "cut",
+    "the cited posts show repeated wording and say nothing about payment or a party"
+   ],
+   [
+    "c5",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "cut by the checks; evidence shown as [unresolved]"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "the short answer rested on a cut or narrowed claim and was blanked; it was rewritten once from the surviving claims and then checked as a first draft's is"
+   ]
+  ]
+ },
+ "BRD-03": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "cut",
+    "a post outside the window or the market, or a place no cited post is located in (K3): every cited post must fall inside the question's window and market, and text that names a place must cite a post located there, checked stored evidence x_ng1"
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 4 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_b1, ig_b2, x_b3, tt_b3"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_b1, x_b2, tt_b4"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 6 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_b2, ig_b1, tt_b3, x_b2, tt_b4, x_b4"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "cut",
+    "x_ng1 is from NG, not KE"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_ng1"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "cut",
+    "cut by K3; the answer is at most partial"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ]
+  ]
+ },
+ "CRE-01": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "cut",
+    "a number with no query behind it (K2): every number must come from a query recorded in this run and come back the same on re-run, checked recorded queries none cited"
+   ],
+   [
+    "c5",
+    "cut",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_c4"
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_c1, tt_c2, tt_c3, ig_c1"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 5 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_c1, tt_c2, tt_c3, ig_c3, tiktok_m611"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label inferred is within the maximum inferred: inferred claims, interpretations and proposals stay inferred"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tiktok_comment_m601, tiktok_comment_m602, tiktok_comment_m603, tt_c1"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "cut",
+    "numeral 48,000 has no pinned, reproduced numbers entry"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label observed is within the maximum observed: 2 unrelated author groups on 1 platform"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_c1, tt_c2"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "cut",
+    "cut by K2; the answer is at most partial"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label inferred is within the maximum inferred: inferred claims, interpretations and proposals stay inferred"
+   ],
+   [
+    "c5",
+    "K6",
+    "cut",
+    "breach: age or generation term"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "cut",
+    "cut by K6; the answer is at most partial"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ]
+  ]
+ },
+ "HUMOUR-ZA": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "verified",
+    null
+   ],
+   [
+    "c5",
+    "verified",
+    null
+   ],
+   [
+    "c6",
+    "verified",
+    null
+   ],
+   [
+    "c7",
+    "verified",
+    null
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 3 unrelated author groups on 1 platform"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_h1, tt_h2, tt_h3"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label observed is within the maximum observed: 3 unrelated author groups on 1 platform"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_h1, tt_h2, tt_h3"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_h1"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_h2"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_h3"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c6",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c6",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c6",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c6",
+    "K5",
+    "pass",
+    "label observed is within the maximum observed: 2 unrelated author groups on 1 platform"
+   ],
+   [
+    "c6",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_h1, tt_h3"
+   ],
+   [
+    "c6",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c6",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c6",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c7",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c7",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c7",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c7",
+    "K5",
+    "pass",
+    "label inferred is within the maximum inferred: inferred claims, interpretations and proposals stay inferred"
+   ],
+   [
+    "c7",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_h1, tt_h2, tt_h3"
+   ],
+   [
+    "c7",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c7",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c7",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c5",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c6",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c7",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ]
+  ]
+ },
+ "NOW-01": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "verified",
+    null
+   ],
+   [
+    "c5",
+    "verified",
+    null
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_p1, tt_p2, ig_p1"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_t1, tt_t2, x_t1"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence ig_r1, ig_r2, x_r1"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_p1, x_p1"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 6 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_p1, ig_p1, tt_t1, x_t1, ig_r1, x_r1"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c5",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ]
+  ]
+ },
+ "NOW-01-RANKED": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "verified",
+    null
+   ],
+   [
+    "c5",
+    "verified",
+    null
+   ],
+   [
+    "c6",
+    "verified",
+    null
+   ],
+   [
+    "c7",
+    "verified",
+    null
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_p1, tt_p2, ig_p1"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_p1, x_p1"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_p1, ig_p1"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_t1, tt_t2, x_t1"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label single_source is within the maximum observed: 2 unrelated author groups on 1 platform"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_t1, tt_t2"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c6",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c6",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c6",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c6",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c6",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence ig_r1, ig_r2, x_r1"
+   ],
+   [
+    "c6",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c6",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c6",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c7",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c7",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c7",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c7",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 6 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c7",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_p1, ig_p1, tt_t1, x_t1, ig_r1, x_r1"
+   ],
+   [
+    "c7",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c7",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c7",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c5",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c6",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c7",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ]
+  ]
+ },
+ "NOW-03": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "cut",
+    "a citation that does not match its stored post (K1): every evidence id must resolve to a stored post, and every quote must be verbatim in it, checked stored evidence tt_n1"
+   ],
+   [
+    "c4",
+    "verified",
+    null
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_n1, tt_n2, x_n1, tiktok_n402"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_n3, tt_n4, x_n2, tiktok_n402"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "cut",
+    "quote not verbatim in stored record tt_n1"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_n1"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "cut",
+    "cut by K1; the answer is at most partial"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 5 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_n4, tt_n6, x_n3, tt_n5, twitter_n411"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ]
+  ]
+ },
+ "NOW-03-RANKED": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "cut",
+    "a citation that does not match its stored post (K1): every evidence id must resolve to a stored post, and every quote must be verbatim in it, checked stored evidence tt_n1"
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "verified",
+    null
+   ],
+   [
+    "c5",
+    "verified",
+    null
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_n1, tt_n2, x_n1, tiktok_n402"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "cut",
+    "quote not verbatim in stored record tt_n1"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_n1"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "cut",
+    "cut by K1; the answer is at most partial"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_n3, tt_n4, x_n2, tiktok_n402"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_n6"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_n3, tt_n5, twitter_n411"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c5",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ]
+  ]
+ },
+ "RISE-02": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "cut",
+    "unsupported by its cited posts (K4)"
+   ],
+   [
+    "c5",
+    "cut",
+    "a post outside the window or the market, or a place no cited post is located in (K3): every cited post must fall inside the question's window and market, and text that names a place must cite a post located there, checked stored evidence x_ke1"
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_r1, tt_r2, x_r1, x_r2"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_r3, tt_r4, x_r3"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label single_source is within the maximum observed: 2 unrelated author groups on 1 platform"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_b1, twitter_r511"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_r4"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "cut",
+    "x_ke1 is from KE, not NG"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_ke1"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "cut",
+    "cut by K3; the answer is at most partial"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "cut",
+    "the cited post is a fan post and shows no telco ad"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "cut by the checks; evidence shown as [unresolved]"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "the short answer rested on a cut or narrowed claim and was blanked; it was rewritten once from the surviving claims and then checked as a first draft's is"
+   ]
+  ]
+ },
+ "RISE-02-RANKED": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "cut",
+    "a post outside the window or the market, or a place no cited post is located in (K3): every cited post must fall inside the question's window and market, and text that names a place must cite a post located there, checked stored evidence x_ke1"
+   ],
+   [
+    "c5",
+    "verified",
+    null
+   ],
+   [
+    "c6",
+    "cut",
+    "unsupported by its cited posts (K4)"
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_r1, tt_r2, x_r1, x_r2"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_r1, tt_r2, x_r1, x_r2"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label single_source is within the maximum observed: 2 unrelated author groups on 1 platform"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_b1, twitter_r511"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "cut",
+    "x_ke1 is from KE, not NG"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_ke1"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "cut",
+    "cut by K3; the answer is at most partial"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_r3, tt_r4, x_r3"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c6",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c6",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c6",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c6",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c6",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_r4"
+   ],
+   [
+    "c6",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c6",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c6",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c5",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c6",
+    "K4",
+    "cut",
+    "the cited post is a fan post and shows no telco ad"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "cut by the checks; evidence shown as [unresolved]"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "the short answer rested on a cut or narrowed claim and was blanked; it was rewritten once from the surviving claims and then checked as a first draft's is"
+   ]
+  ]
+ },
+ "TOP-ZA": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "verified",
+    null
+   ],
+   [
+    "c5",
+    "verified",
+    null
+   ],
+   [
+    "c6",
+    "verified",
+    null
+   ],
+   [
+    "c7",
+    "verified",
+    null
+   ],
+   [
+    "c8",
+    "verified",
+    null
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_u1, x_u1, yt_u1"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_u1, x_u1"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence yt_u1, x_u1"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_c1, x_c1, ig_c1"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_c1, yt_c1"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c6",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c6",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c6",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c6",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c6",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_c1, tt_c1"
+   ],
+   [
+    "c6",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c6",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c6",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c7",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c7",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c7",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c7",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c7",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_t1, tt_t1, x_t2"
+   ],
+   [
+    "c7",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c7",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c7",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c8",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c8",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c8",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c8",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 4 unrelated author groups on 4 platforms"
+   ],
+   [
+    "c8",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_u2, yt_u1, ig_c1, tt_c1"
+   ],
+   [
+    "c8",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c8",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c8",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c5",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c6",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c7",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c8",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ]
+  ]
+ },
+ "TOP-ZA-K1CUT": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "verified",
+    null
+   ],
+   [
+    "c5",
+    "verified",
+    null
+   ],
+   [
+    "c6",
+    "verified",
+    null
+   ],
+   [
+    "c7",
+    "cut",
+    "a citation that does not match its stored post (K1): every evidence id must resolve to a stored post, and every quote must be verbatim in it, checked stored evidence x_t1, tt_t1, x_t2"
+   ],
+   [
+    "c8",
+    "verified",
+    null
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_u1, x_u1, yt_u1"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_u1, x_u1"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence yt_u1, x_u1"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_c1, x_c1, ig_c1"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_c1, yt_c1"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c6",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c6",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c6",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c6",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c6",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_c1, tt_c1"
+   ],
+   [
+    "c6",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c6",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c6",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c7",
+    "K1",
+    "cut",
+    "quote not verbatim in stored record x_t1"
+   ],
+   [
+    "c7",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c7",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c7",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c7",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_t1, tt_t1, x_t2"
+   ],
+   [
+    "c7",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c7",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c7",
+    "K10",
+    "cut",
+    "cut by K1; the answer is at most partial"
+   ],
+   [
+    "c8",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c8",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c8",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c8",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 4 unrelated author groups on 4 platforms"
+   ],
+   [
+    "c8",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_u2, yt_u1, ig_c1, tt_c1"
+   ],
+   [
+    "c8",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c8",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c8",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "so_what/2",
+    "K10",
+    "cut",
+    "cut by the checks; evidence shown as [unresolved]"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c5",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c6",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c8",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ]
+  ]
+ },
+ "TOP-ZA-SUPPORTCUT": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "verified",
+    null
+   ],
+   [
+    "c5",
+    "verified",
+    null
+   ],
+   [
+    "c6",
+    "verified",
+    null
+   ],
+   [
+    "c7",
+    "cut",
+    "unsupported by its cited posts (K4)"
+   ],
+   [
+    "c8",
+    "verified",
+    null
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_u1, x_u1, yt_u1"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_u1, x_u1"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label single_source is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence yt_u1, x_u1"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_c1, x_c1, ig_c1"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_c1, yt_c1"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c6",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c6",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c6",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c6",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 2 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c6",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_c1, tt_c1"
+   ],
+   [
+    "c6",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c6",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c6",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c7",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c7",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c7",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c7",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c7",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_t1, tt_t1, x_t2"
+   ],
+   [
+    "c7",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c7",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c7",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c8",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c8",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c8",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c8",
+    "K5",
+    "pass",
+    "label observed is within the maximum corroborated: 4 unrelated author groups on 4 platforms"
+   ],
+   [
+    "c8",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_u2, yt_u1, ig_c1, tt_c1"
+   ],
+   [
+    "c8",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c8",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c8",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c5",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c6",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c7",
+    "K4",
+    "cut",
+    "the cited posts do not show a trial being followed"
+   ],
+   [
+    "c8",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "cut by the checks; evidence shown as [unresolved]"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "the short answer rested on a cut or narrowed claim and was blanked; it was rewritten once from the surviving claims and then checked as a first draft's is"
+   ]
+  ]
+ },
+ "WHY-01": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "verified",
+    null
+   ],
+   [
+    "c5",
+    "cut",
+    "unsupported by its cited posts (K4)"
+   ],
+   [
+    "c6",
+    "cut",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_w2"
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_w1, x_w1, ig_w1"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 4 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_w2, x_w2, ig_w1, tt_w3"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label inferred is within the maximum inferred: inferred claims, interpretations and proposals stay inferred"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tiktok_comment_c101, tt_w1"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label inferred is within the maximum inferred: inferred claims, interpretations and proposals stay inferred"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tiktok_comment_c103, tt_w1"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label inferred is within the maximum inferred: inferred claims, interpretations and proposals stay inferred"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_w2"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c6",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c6",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c6",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c6",
+    "K5",
+    "pass",
+    "label inferred is within the maximum inferred: inferred claims, interpretations and proposals stay inferred"
+   ],
+   [
+    "c6",
+    "K6",
+    "cut",
+    "breach: age or generation term"
+   ],
+   [
+    "c6",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c6",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c6",
+    "K10",
+    "cut",
+    "cut by K6; the answer is at most partial"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c4",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c5",
+    "K4",
+    "cut",
+    "the cited post says nothing about why the jokes faded"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "cut by the checks; evidence shown as [unresolved]"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "the short answer rested on a cut or narrowed claim and was blanked; it was rewritten once from the surviving claims and then checked as a first draft's is"
+   ]
+  ]
+ },
+ "WHY-02": {
+  "events": [
+   [
+    "c1",
+    "verified",
+    null
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "verified",
+    null
+   ],
+   [
+    "c4",
+    "cut",
+    "a number with no query behind it (K2): every number must come from a query recorded in this run and come back the same on re-run, checked recorded queries q_3"
+   ],
+   [
+    "c5",
+    "cut",
+    "a citation that does not match its stored post (K1): every evidence id must resolve to a stored post, and every quote must be verbatim in it, checked stored evidence: 1 id that does not resolve, shown as [unresolved]"
+   ],
+   [
+    "c6",
+    "downgraded",
+    "label lowered to single_source (K5)"
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 3 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_d1, x_d1, ig_d1"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 7 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_d1, x_d2, tiktok_t901, twitter_w913, tt_d2, x_d3, tt_d3, youtube_y921"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "pass",
+    "label inferred is within the maximum inferred: inferred claims, interpretations and proposals stay inferred"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_d1, twitter_w911"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "cut",
+    "number 43 is not in the recorded result of q_3; numeral 43% has no pinned, reproduced numbers entry"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "downgrade",
+    "label observed lowered to single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_d2"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c4",
+    "K10",
+    "cut",
+    "cut by K2; the answer is at most partial"
+   ],
+   [
+    "c5",
+    "K1",
+    "cut",
+    "a citation that does not match its stored post (K1): every evidence id must resolve to a stored post, and every quote must be verbatim in it, checked stored evidence: 1 id that does not resolve, shown as [unresolved]"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 0 unrelated author groups on 0 platforms"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence: 1 id that does not resolve, shown as [unresolved]"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "cut",
+    "cut by K1; the answer is at most partial"
+   ],
+   [
+    "c6",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c6",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c6",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c6",
+    "K5",
+    "downgrade",
+    "label corroborated lowered to single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c6",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_d1, twitter_w911"
+   ],
+   [
+    "c6",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c6",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c6",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c6",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ]
+  ]
+ },
+ "WHY-03": {
+  "events": [
+   [
+    "c1",
+    "downgraded",
+    "label lowered to single_source (K5)"
+   ],
+   [
+    "c2",
+    "verified",
+    null
+   ],
+   [
+    "c3",
+    "downgraded",
+    "label lowered to single_source (K5)"
+   ],
+   [
+    "c4",
+    "cut",
+    "a forecast before it has beaten persistence (K9): forecasts remain held until they beat the persistence baseline, checked stored evidence tt_a1, x_a3"
+   ],
+   [
+    "c5",
+    "verified",
+    null
+   ],
+   [
+    "c6",
+    "verified",
+    null
+   ]
+  ],
+  "rows": [
+   [
+    "c1",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c1",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c1",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c1",
+    "K5",
+    "downgrade",
+    "label corroborated lowered to single_source: 3 unrelated author groups on 3 platforms; the native-language tone cap applies to non-English post(s) tt_a1 without a cleared eligible review"
+   ],
+   [
+    "c1",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_a1, x_a1, yt_a1"
+   ],
+   [
+    "c1",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c1",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c1",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c2",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c2",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c2",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c2",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 4 unrelated author groups on 2 platforms"
+   ],
+   [
+    "c2",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_a1, tt_a2, x_a3, tiktok_comment_k201, tiktok_s301"
+   ],
+   [
+    "c2",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c2",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c2",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c3",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c3",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c3",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c3",
+    "K5",
+    "downgrade",
+    "label corroborated lowered to single_source: 5 unrelated author groups on 1 platform; the native-language tone cap applies to non-English post(s) x_a2, tiktok_comment_k202 without a cleared eligible review"
+   ],
+   [
+    "c3",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_a1, x_a2, x_a4, x_a5, tiktok_comment_k202, twitter_s312"
+   ],
+   [
+    "c3",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c3",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c3",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c4",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c4",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c4",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c4",
+    "K5",
+    "pass",
+    "label inferred is within the maximum inferred: inferred claims, interpretations and proposals stay inferred"
+   ],
+   [
+    "c4",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_a1, x_a3"
+   ],
+   [
+    "c4",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c4",
+    "K9",
+    "cut",
+    "forecast has no matching current-run log; publication held pending persistence proof"
+   ],
+   [
+    "c4",
+    "K10",
+    "cut",
+    "cut by K9; the answer is at most partial"
+   ],
+   [
+    "c5",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c5",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c5",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c5",
+    "K5",
+    "pass",
+    "label corroborated is within the maximum corroborated: 6 unrelated author groups on 3 platforms"
+   ],
+   [
+    "c5",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence tt_a3, yt_a1, tiktok_s301, x_a1, twitter_s311, twitter_s312"
+   ],
+   [
+    "c5",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c5",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c5",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c6",
+    "K1",
+    "pass",
+    "every evidence id resolves to a stored record that matches the draft, and every quote is verbatim"
+   ],
+   [
+    "c6",
+    "K2",
+    "pass",
+    "every numeral is pinned to a recorded query and reproduced on re-run"
+   ],
+   [
+    "c6",
+    "K3",
+    "pass",
+    "every cited post is inside the window and market, every named place has located or feed evidence, feed-only claims say they were seen in that market's feeds with no other mention of that market, and people named by origin have a post located in their own market"
+   ],
+   [
+    "c6",
+    "K5",
+    "pass",
+    "label single_source is within the maximum single_source: 1 unrelated author group on 1 platform"
+   ],
+   [
+    "c6",
+    "K6",
+    "pass",
+    "a term or source the trust rules do not allow (K6): the text used a term or cited a source that the trust rules do not allow, checked stored evidence x_a5"
+   ],
+   [
+    "c6",
+    "K8",
+    "pass",
+    "every quoted span is verbatim in a cited record"
+   ],
+   [
+    "c6",
+    "K9",
+    "pass",
+    "no forecast is published before it beats the persistence baseline"
+   ],
+   [
+    "c6",
+    "K10",
+    "pass",
+    "claim survives every code check"
+   ],
+   [
+    "c1",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c2",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c3",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c5",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "c6",
+    "K4",
+    "pass",
+    "supported by the cited post"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "downgrade",
+    "the support check narrowed a claim to the wording its cited posts support; dependent answer text was cleared for rechecking"
+   ],
+   [
+    "short_answer",
+    "K10",
+    "pass",
+    "the short answer rested on a cut or narrowed claim and was blanked; it was rewritten once from the surviving claims and then checked as a first draft's is"
+   ]
+  ]
+ }
+}

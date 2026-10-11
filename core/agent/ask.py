@@ -1760,7 +1760,7 @@ def _claim_check_reason(row: dict, draft: dict, evidence: dict, queries: dict):
     if row.get("checker") != "code" or reason is None:
         return reason
     if reason in {"numeric query scope unavailable", "cited post missing", FIELD_UNCHECKED_REASON,
-                  NARROWED_K10_REASON, *HEADLINE_REASONS} \
+                  NARROWED_K10_REASON, checks.LEAD_STORY_REASON, *HEADLINE_REASONS} \
             and not checks._text_breaches(reason):
         return reason
     claim = next((c for c in draft.get("claims") or [] if c.get("id") == row.get("claim_id")), None)

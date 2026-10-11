@@ -82,7 +82,7 @@ def test_a_code_check_that_cuts_a_whole_story_blanks_the_lead_that_names_it(runs
     assert [r["verdict"] for r in rows(result, "c7", "K1")] == ["cut"]
     assert answer["short_answer"] == "" and answer["status"] == "partial"
     lead_rows = rows(result, "short_answer", "K10")
-    assert [r["verdict"] for r in lead_rows] == ["cut"] and "named a story with no claim left" in lead_rows[0]["reason"]
+    assert [r["verdict"] for r in lead_rows] == ["cut"] and lead_rows[0]["reason"] == checks.LEAD_STORY_REASON
     assert "Forbes" not in lead_rows[0]["reason"]  # the stored row names the rule, not the story
     assert any("Short answer removed" in gap["what"] for gap in answer["gaps"])
     assert "Forbes" not in str(answer["gaps"])  # a gap names the rule and the field, never the story
