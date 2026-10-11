@@ -808,7 +808,7 @@ function MeasuredStrip({data, points, market, held, kind}){
     /* A row with no flag was checked and raised none: "not recorded" there
        read as if every trend went unchecked. */
     if (key === 'flag' && cells.noFlag) return <span className="d42-unknown">no flag</span>;
-    if (key === 'flag' && cells.fewPlaced) return <span className="d42-unknown" title={FEW_PLACED}>few placed posts</span>;
+    if (key === 'flag' && cells.fewPlaced) return <span className="d42-unknown" title={FEW_PLACED}>few posts with a known place</span>;
     return <span className="d42-unknown">not recorded</span>;
   };
   return (

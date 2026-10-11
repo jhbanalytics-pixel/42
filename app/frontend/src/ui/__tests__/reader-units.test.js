@@ -32,3 +32,11 @@ test('record ids in a gap search become a count', () => {
   expect(plainSearched('cited posts obs1_7c5bbc4782cb6b3b0567d5670c39d603')).toBe('1 cited post');
   expect(plainSearched('the what to watch next text')).toBe('the what to watch next text');
 });
+
+/* Design audit item 10: a dossier gap printed the source key "instagram/hashtag". The route reads as its
+   platform and a search term after it as "for <term>", the way the Ask page says it. */
+test('a source route in a gap search reads as its platform', () => {
+  expect(plainSearched('instagram/hashtag #fixture, 21 to 27 September: 0 found')).toBe('Instagram for #fixture, 21 to 27 September: 0 found');
+  expect(plainSearched('tiktok/search/videos amapiano: 3 found')).toBe('TikTok for amapiano: 3 found');
+  expect(plainSearched('x/search')).toBe('X');
+});

@@ -436,7 +436,7 @@ test('checked-held summary stays limited to checked topics when the omission aud
     } else if (audit?.count === 0){
       expect(omissions.textContent).toContain('No topics were left unassessed.');
     } else {
-      expect(omissions.textContent).toContain('Selection audit unavailable for this brief.');
+      expect(omissions.textContent).toContain('This brief does not list the topics it did not assess.');
       expect(omissions.textContent).not.toContain('No topics were left unassessed.');
     }
     expect(host.querySelector('[data-glance-market="NG"]').textContent).toContain('0 trends cleared');

@@ -1006,7 +1006,7 @@ function NotAssessed({audit}){
     <details className="t42-left-out" data-not-assessed="">
       <summary>Not assessed{known ? ' (' + audit.count + ')' : ''}</summary>
       {!known
-        ? <p className="t42-line-text">Selection audit unavailable for this brief.</p>
+        ? <p className="t42-line-text">This brief does not list the topics it did not assess.</p>
         : audit.items.length === 0
           ? <p className="t42-line-text">No topics were left unassessed.</p>
           : <ul className="t42-line-list">

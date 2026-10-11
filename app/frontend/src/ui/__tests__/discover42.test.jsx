@@ -1173,7 +1173,7 @@ test('Radar says no flag only for a row with no flag, never for a market it coul
   const flagOf = (label) => rows.find((row) => row.textContent.includes(label)).querySelector('[data-col="flag"]').textContent;
   expect(flagOf('Trend number 0')).toBe('Likely coordinated');
   /* Market unconfirmed was recorded: fewer than 8 placed posts in 7 days. */
-  expect(flagOf('Trend number 1')).toBe('few placed posts');
+  expect(flagOf('Trend number 1')).toBe('few posts with a known place');
   expect(rows.find((row) => row.textContent.includes('Trend number 1')).querySelector('[data-col="flag"] span').getAttribute('title'))
     .toBe('Fewer than 8 posts in 7 days had a known place, so 42 has not confirmed the market');
   expect(flagOf('Trend number 2')).toBe('no flag');

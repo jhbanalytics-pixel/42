@@ -37,7 +37,7 @@ MAX_TEXT = 500
 MAX_RESEARCHERS = MAX_SUB_QUESTIONS
 ROUND_USD = 4
 
-MODEL_SPENT = "Today's model budget is spent; try tomorrow or ask Albert to raise MODEL_DAILY_USD"
+MODEL_SPENT = "Today's research budget is used up. Try again tomorrow."
 BUDGET_UNKNOWN = ("Today's spend could not be read, so 42 will not {what} an investigation that might overspend; "
                   "try again in a few minutes.")
 NEED_T3 = "Investigations need the T3 agent"
@@ -181,18 +181,15 @@ RESERVED = Reservations()
 
 def refusal(estimate, left):
     """The words for whichever budget the estimate breaks, or None when it fits both."""
-    broken, caps_named = [], []
+    # The reader sees these words as written, so they name no setting or person and only one currency.
+    broken = []
     if estimate["credits"] > left["credits"]:
-        broken.append(f"This plan needs about {estimate['credits']:,} credits but only {left['credits']:,} are left "
-                      "today under ASK_DAILY")
-        caps_named.append("ASK_DAILY")
+        broken.append(f"about {estimate['credits']:,} credits but only {left['credits']:,} are left today")
     if estimate["model_usd"] > left["model_usd"]:
-        broken.append(f"This plan needs about USD {estimate['model_usd']:.2f} of model spend but only "
-                      f"USD {left['model_usd']:.2f} is left today under MODEL_DAILY_USD")
-        caps_named.append("MODEL_DAILY_USD")
+        broken.append("more of today's research budget than is left")
     if not broken:
         return None
-    return "; ".join(broken) + f". Trim the plan, try tomorrow or ask Albert to raise {' and '.join(caps_named)} for today."
+    return "This plan needs " + ", and ".join(broken) + ". Try a smaller plan or try again tomorrow."
 
 
 def ceilings(plan, left):

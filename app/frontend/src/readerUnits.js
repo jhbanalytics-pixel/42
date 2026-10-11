@@ -3,6 +3,8 @@
    unit the model wrote as a warehouse name ("located_posts") reads as words.
    Only the leading noun changes; the rest of the unit stays as sent. */
 
+import {platformLabel} from './ui/PlatformGlyph.jsx';
+
 const PLURALS = Object.freeze({
   posts: 'post', creators: 'creator', items: 'item', days: 'day', credits: 'credit', accounts: 'account',
   topics: 'topic', searches: 'search', views: 'view', platforms: 'platform', markets: 'market', hashtags: 'hashtag',
@@ -47,10 +49,16 @@ export function boardTitle(title){
 
 /* A gap's search can name the records it read by their ids ("cited posts
    obs1_7bfd..., obs1_66fa..."). A reader gets how many; the ids stay in
-   the stored record. */
+   the stored record. A search can also lead with its source route
+   ("instagram/hashtag #fixture"), which reads as the platform and the term
+   it searched for ("Instagram for #fixture"). */
+const SOURCE_ROUTE = /^([a-z0-9_]+)\/[a-z0-9_/]+(?:\s+([^,:]+?))?(?=,|:|$)/i;
+const routeWords = (text) => text.replace(SOURCE_ROUTE, (whole, platform, term) =>
+  (platformLabel(platform) || platform.charAt(0).toUpperCase() + platform.slice(1).replace(/_/g, ' ')) + (term ? ' for ' + term.trim() : ''));
+
 export function plainSearched(text){
   const ids = String(text || '').match(/\bobs\d*_[0-9a-f]{8,}\b/gi) || [];
-  if (ids.length === 0) return String(text || '');
+  if (ids.length === 0) return routeWords(String(text || ''));
   const rest = String(text).replace(/\s*\bobs\d*_[0-9a-f]{8,}\b,?/gi, '').replace(/[\s,:]+$/, '').trim();
   if (/\bposts$/i.test(rest)) return ids.length + ' ' + (ids.length === 1 ? rest.replace(/posts$/i, 'post') : rest);
   return (rest ? rest + ', ' : '') + ids.length + (ids.length === 1 ? ' post' : ' posts');

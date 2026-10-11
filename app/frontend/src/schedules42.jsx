@@ -271,7 +271,6 @@ function AddSchedule({prefill, onAdd, onAuth}){
               {d.label}
             </label>
           ))}
-          <p className="a42-meta">Sending answers to the team channel is not connected yet.</p>
         </fieldset>
         {note.status === 'error' && <p className="w42-error" role="alert">{note.message}</p>}
         <p className="a42-saved" role="status">{note.status === 'saved' ? note.message : ''}</p>
