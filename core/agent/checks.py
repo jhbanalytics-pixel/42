@@ -2037,12 +2037,22 @@ def source_gaps(ctx, window) -> list[dict]:
     return gaps
 
 
+_COMMENT_ID = re.compile(r"^[a-z0-9]+_comment_")  # a comment record's id: "<platform>_comment_<native>"
+
+
+def _parent_of(eid, stored):
+    """The post id a comment record names as its parent. Only a comment has one here: any other record that carries a
+    parent_id, a transcript span for one, is not linked to it."""
+    record = stored.get(eid) or {}
+    return record.get("parent_id") if isinstance(eid, str) and _COMMENT_ID.match(eid) else None
+
+
 def _with_parents(cited, stored):
     """cited with the post each cited comment sits under placed just before it, once, when the run holds that post:
     the privacy check judges a comment by its post, so an answer that keeps a comment keeps its post (C5 v2 5.1)."""
     out = []
     for eid in cited:
-        parent = (stored.get(eid) or {}).get("parent_id")
+        parent = _parent_of(eid, stored)
         for one in (parent, eid):
             if isinstance(one, str) and one in stored and one not in out:
                 out.append(one)
@@ -2062,9 +2072,9 @@ def comment_links(answer, stored):
     is kept beside the answer, not in it: the evidence shape is the one Release A readers accept, and the privacy check
     needs the link to judge a comment by its post (C5 v2 5.1)."""
     shown = {r.get("id") for r in answer.get("evidence") or [] if isinstance(r, dict)}
-    parents = {eid: stored[eid]["parent_id"] for eid in shown
-               if isinstance(eid, str) and eid in stored and isinstance(stored[eid].get("parent_id"), str)
-               and stored[eid]["parent_id"] in shown}
+    parents = {eid: _parent_of(eid, stored) for eid in shown
+               if isinstance(eid, str) and eid in stored and isinstance(_parent_of(eid, stored), str)
+               and _parent_of(eid, stored) in shown}
     return {"v": 1, "parents": parents} if parents else None
 
 

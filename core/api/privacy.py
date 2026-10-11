@@ -203,16 +203,19 @@ def _place_stored(stored, ids, store, creators, gone):
 
 
 def _under_gone_parents(records, earlier, gone):
-    """Add the ids of the records that sit under a post that is gone, or under none that can be found. The chain is
-    walked to a record with no parent_id; more hops than there are records means a loop, and that is gone too."""
+    """Add the ids of the comments that sit under a post that is gone, or under none that can be found. The chain is
+    walked from a comment to a record that is not a comment or has no parent_id; more hops than there are records means
+    a loop, and that is gone too. A record that is not a comment is never walked, whatever parent_id it carries."""
     by_id = {}
     for e in records + earlier:
         if isinstance(e.get("id"), str):
             by_id.setdefault(e["id"], e)
     for e in records:
+        if not _is_comment(e):
+            continue
         cur = e
         for _ in range(len(by_id) + 1):
-            if cur.get("parent_id") is None:
+            if not _is_comment(cur) or cur.get("parent_id") is None:
                 break
             parent = by_id.get(cur["parent_id"]) if isinstance(cur["parent_id"], str) else None
             if parent is None or parent.get("id") in gone:
