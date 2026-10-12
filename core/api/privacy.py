@@ -70,7 +70,7 @@ def read_hidden(store):
         if rows is not None:
             ids = set(rows["ids"])
             keys = {creator_key(p, h) for p, h in rows["people"]} - {None}
-            found = keys, ids, today.hidden_names(store, keys, ids)
+            found = keys, ids, today.hidden_names(store, keys, ids, rows.get("names"))
     except Exception as exc:
         log.warning("the suppression list could not be read (%s); no evidence author is named", type(exc).__name__)
     if memo is not None:

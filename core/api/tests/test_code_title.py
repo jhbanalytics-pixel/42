@@ -27,7 +27,7 @@ def test_code_count_line_names_the_card_as_its_title_does(case):
 
 def test_every_case_is_read():
     # A parametrize over an empty list passes by skipping, so the number of cases is pinned here and in the app.
-    assert len(CASES) == 58
+    assert len(CASES) == 61
 
 
 @pytest.mark.parametrize("case", [c for c in CASES if "shown" in c], ids=lambda c: c["name"])
@@ -88,77 +88,12 @@ def test_a_card_from_a_brief_that_writes_no_titles_keeps_its_label():
     assert code_title.shown_code_title(dict(card, title_written=None)) == "Posts about Kaizer and Chiefs"
 
 
-HIDDEN = (frozenset({"tiktok:thabo_dances"}), frozenset(), ())
-
-
-def _hidden_card(title, *others, kind="topic"):
-    """A card with one post by the hidden person (handle thabo_dances, display name Thabo Mokoena) and others'."""
-    return {"cards": [{"item_id": "i1", "kind": kind, "title": title, "explained": False, "title_written": None,
-                       "state_word": "Rising", "market": "ZA", "date": "2026-10-12",
-                       "count_line": f"4 creators ({title} only)", "evidence": [
-                           {"id": "p1", "platform": "tiktok", "handle": "@thabo_dances", "author_name": "Thabo Mokoena",
-                            "text": "Thabo Mokoena dances"},
-                           *({"id": f"p{i + 2}", "platform": "tiktok", "handle": "@other", "text": t}
-                             for i, t in enumerate(others))]}]}
-
-
-def _leaks(*bodies):
-    return [b for b in bodies if "thabo" in json.dumps(b, ensure_ascii=False).lower()]
-
-
-def test_a_hidden_persons_handle_term_is_left_out_of_the_code_title():
-    """The projection masks a suppressed creator's handle in every title (today.without_hidden); the code title leaves
-    the masked term out and names the rest."""
-    card = today.without_hidden(_hidden_card("@thabo_dances, amapiano", "Amapiano is life"), HIDDEN, label_terms=True)["cards"][0]
-    assert code_title.code_title(card) == "Posts about Amapiano"
-    assert _leaks(card, code_title.shown_title(card), channel._card_words(card, "ZA", "2026-10-12")) == []
-
-
-def test_a_hidden_persons_display_name_term_is_left_out_of_the_code_title():
-    """Albert's lead ruling, 12 Oct 2026: a code title, and the digest and channel post it feeds, never holds the
-    display name or handle of a hidden person. The projection masks a label term that is their name, so the code
-    title drops it, and says this topic when nothing is left."""
-    card = today.without_hidden(_hidden_card("thabo mokoena, amapiano", "Amapiano is life"), HIDDEN, label_terms=True)["cards"][0]
-    assert card["title"] == "***, amapiano"
-    assert code_title.code_title(card) == "Posts about Amapiano"
-    words = channel._card_words(card, "ZA", "2026-10-12")
-    assert words == "Posts about Amapiano, Rising, 4 creators (Amapiano only)"
-    joined = today.without_hidden(_hidden_card("thabomokoena", "Big up Thabo Mokoena"), HIDDEN, label_terms=True)["cards"][0]
-    assert joined["title"] == "***"
-    assert code_title.code_title(joined) == "Posts about this topic"
-    resp = {"date": "2026-10-12", "waiting": [], "alerts": [
-        {"watch_id": "w1", "label": code_title.shown_title(c), "item_id": "i1", "market": "ZA",
-         "fired_because": "Entered Rising", "card": c} for c in (card, joined)]}
-    # Other people's posts may still say the name (the projection leaves free text alone); the titles never do.
-    assert _leaks(card["title"], joined["title"], code_title.shown_title(card), code_title.shown_title(joined), words,
-                  channel._card_words(joined, "ZA", "2026-10-12"), digest.render_text(resp, "https://example.test"),
-                  digest.render_html(resp, "https://example.test")) == []
-
-
-def test_a_name_on_the_hidden_list_is_masked_only_as_a_whole_term():
-    """A name from the hidden list (a hidden YouTube channel's display name) masks a label term that is that name;
-    a longer term that only holds a one word name stays, as a name such as Music is also a word."""
-    out = today.without_hidden({"cards": [
-        {"item_id": "a", "kind": "topic", "title": "music, amapiano", "title_written": None},
-        {"item_id": "b", "kind": "hashtag", "title": "Music festival buzz", "title_written": None}]},
-        (set(), {"UC" + "a" * 22}, {"Music"}), label_terms=True)
-    assert [c["title"] for c in out["cards"]] == ["***, amapiano", "Music festival buzz"]
-    assert code_title.code_title(out["cards"][0]) == "Posts about Amapiano"
-
-
-def test_with_the_list_unreadable_no_evidence_authors_name_is_a_term():
-    """While the hidden list cannot be read no evidence author may be named, so a label term that is one goes."""
-    card = today.without_hidden(_hidden_card("thabo mokoena, amapiano", "Amapiano is life"), None, label_terms=True)["cards"][0]
-    assert code_title.code_title(card) == "Posts about Amapiano"
-    assert _leaks(card["title"], code_title.shown_title(card), channel._card_words(card, "ZA", "2026-10-12")) == []
-
-
 def test_casing_comes_only_from_posts_the_projection_leaves():
     payload = {"cards": [{"item_id": "i1", "kind": "topic", "title": "mofokeng", "explained": False,
                           "evidence": [{"id": "p1", "platform": "tiktok", "handle": "@hidden_one", "text": "MOFOKENG"},
                                        {"id": "p2", "platform": "tiktok", "handle": "@hidden_one", "text": "MOFOKENG"},
                                        {"id": "p3", "platform": "tiktok", "handle": "@other", "text": "mofokeng"}]}]}
-    shown = today.without_hidden(payload, (frozenset({"tiktok:hidden_one"}), frozenset(), ()), label_terms=True)
+    shown = today.without_hidden(payload, (frozenset({"tiktok:hidden_one"}), frozenset(), ()))
     assert code_title.code_title(shown["cards"][0]) == "Posts about Mofokeng"
     assert code_title.code_title(payload["cards"][0]) == "Posts about MOFOKENG"
 
@@ -191,7 +126,7 @@ def test_an_alert_is_labelled_by_the_code_title(monkeypatch):
 
     card = dict(ZA_03)
     monkeypatch.setattr(discover, "_run", lambda store, until=None: {"run_date": "2026-10-12", "run_id": "r1"})
-    monkeypatch.setattr(discover, "_cards", lambda store, run, market: ([({"item_id": "za03", "market": "ZA"}, card, None)], None))
+    monkeypatch.setattr(discover, "_cards", lambda store, run, market, hidden=None: ([({"item_id": "za03", "market": "ZA"}, card, None)], None))
     monkeypatch.setattr(discover.alerts, "evaluate", lambda *a, **k: [
         {"watch_id": "w1", "label": "bafanabafana, mofokeng, relebohile", "item_id": "za03", "market": "ZA",
          "fired_because": "Entered Rising", "since": "2026-10-12"}])
@@ -215,7 +150,7 @@ def test_a_watch_the_user_named_keeps_its_name(monkeypatch):
     from core.api import discover
 
     monkeypatch.setattr(discover, "_run", lambda store, until=None: {"run_date": "2026-10-12", "run_id": "r1"})
-    monkeypatch.setattr(discover, "_cards", lambda store, run, market: ([({"item_id": "za03", "market": "ZA"}, dict(ZA_03), None)], None))
+    monkeypatch.setattr(discover, "_cards", lambda store, run, market, hidden=None: ([({"item_id": "za03", "market": "ZA"}, dict(ZA_03), None)], None))
     monkeypatch.setattr(discover.alerts, "evaluate", lambda *a, **k: [
         {"watch_id": "w1", "label": "Bafana watch", "item_id": "za03", "market": "ZA",
          "fired_because": "Entered Rising", "since": "2026-10-12"}])
@@ -256,42 +191,12 @@ def test_the_digest_says_a_code_title_once_per_alert():
     assert "Bafana watch, South Africa\n" in digest.render_text(named, "https://example.test")
 
 
-def test_the_brief_jobs_projection_leaves_label_terms_alone():
-    """The brief job writes its payloads through without_hidden (core/brief/job.py) and feeds the writer from it, so
-    the label term masking is the readers' alone and the stored payload and the title gate's input are unchanged."""
-    card = today.without_hidden(_hidden_card("thabo mokoena, amapiano", "Amapiano is life"), HIDDEN)["cards"][0]
-    assert card["title"] == "thabo mokoena, amapiano"
-
-
-def test_todays_reader_masks_a_hidden_persons_label_term():
-    class Store:
-        def suppressed_creators(self):
-            return ["c1"]
-
-        def creators_by_id(self, ids):
-            return [{"creator_id": "c1", "platform": "tiktok", "handle": "thabo_dances"}]
-
-        def map_items(self, ids):
-            return []
-
-        def briefs(self, date):
-            return [{"market": "ZA", "brief_date": date, "payload": _hidden_card("thabo mokoena, amapiano", "Amapiano")}]
-
-    row = today._WithoutHidden(Store()).briefs("2026-10-12")[0]
-    card = row["payload"]["cards"][0]
-    assert card["title"] == "***, amapiano"
-    assert code_title.shown_title(card) == "Posts about Amapiano"
-
-
-def test_a_hidden_persons_full_name_inside_a_longer_term_is_masked():
-    card = today.without_hidden(_hidden_card("thabo mokoena fans, amapiano", "Amapiano is life"), HIDDEN,
-                                label_terms=True)["cards"][0]
-    assert card["title"] == "***, amapiano"
-    assert code_title.code_title(card) == "Posts about Amapiano"
-
-
-def test_with_the_list_unreadable_a_joined_author_name_is_masked_too():
-    card = today.without_hidden(_hidden_card("thabomokoena, amapiano", "Amapiano is life"), None,
-                                label_terms=True)["cards"][0]
-    assert card["title"] == "***, amapiano"
-    assert _leaks(card["title"], code_title.shown_title(card)) == []
+def test_the_digest_head_keeps_the_label_when_a_written_title_leads_the_card():
+    """The market line drops the label only when the label is the card's own code title; under a written title the
+    card line says the raw label, so the head keeps the label."""
+    card = dict(ZA_03, title_written="MTN8 final", count_line="5 creators")
+    resp = {"date": "2026-10-12", "waiting": [], "alerts": [
+        {"watch_id": "w1", "label": card["title"], "item_id": "za03", "market": "ZA",
+         "fired_because": "Entered Rising", "card": card}]}
+    lines = digest.render_text(resp, "https://example.test").splitlines()
+    assert "bafanabafana, mofokeng, relebohile, South Africa" in lines

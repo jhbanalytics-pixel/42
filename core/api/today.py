@@ -156,23 +156,31 @@ def hidden_people(store):
         if ids is None:
             log.warning("the suppression view does not exist; no evidence author is named")
             return None
+        reader = getattr(store, "hidden_display_names", None)
         rows = (store.creators_by_id(sorted(ids)) or []) if ids else []
         keys = {creator_key(c.get("platform"), c.get("handle")) for c in rows} - {None}
-        names = hidden_names(store, keys, ids)
+        names = hidden_names(store, keys, ids, reader(sorted(ids), []) if ids and callable(reader) else set())
     except Exception as exc:
         log.warning("the suppression list could not be read (%s); no evidence author is named", type(exc).__name__)
         return None
     return keys, set(ids), names
 
 
-def hidden_names(store, keys, ids):
-    """The display names of the hidden people's YouTube channels: the map labels of their own creator items. One
-    read of the map, and only when one of them is a channel."""
+def hidden_names(store, keys, ids, display_names=None):
+    """The hidden people's display names: the display_name of their creators rows, found by creator id or by
+    handle (store.hidden_display_names, one read; a failed read raises, so the list reads as unreadable), and the map
+    labels of their YouTube channels' own creator items (one read of the map, only when one of them is a channel).
+    display_names, when the caller's own read of the list already holds them (store.hidden_people_rows), saves the
+    first read. The stored briefs carry no author name, so this is where every reader learns a hidden person's name."""
     channels = _channel_ids(keys, ids)
     items = _creator_items((), channels)
     mapped = (store.map_items(sorted(items)) or []) if items else []
-    return {r["label"].strip() for r in mapped if isinstance(r, dict) and r.get("item_id") in items
-            and isinstance(r.get("label"), str) and _readable(r["label"])}
+    names = {r["label"].strip() for r in mapped if isinstance(r, dict) and r.get("item_id") in items
+             and isinstance(r.get("label"), str) and _readable(r["label"])}
+    reader = getattr(store, "hidden_display_names", None)
+    found = display_names if display_names is not None else (
+        reader(sorted(ids), sorted(keys)) if callable(reader) and (ids or keys) else None)
+    return names | {n.strip() for n in found or () if isinstance(n, str) and _readable(n)}
 
 
 def _channel_ids(keys, ids):
@@ -215,15 +223,16 @@ def _evidence_holders(value):
             yield from _evidence_holders(v)
 
 
-def without_hidden(value, hidden, label_terms=False):
+def without_hidden(value, hidden, label_terms=True):
     """A copy of value (a brief payload, a card or a topic page) with no suppressed person in it (SETUP.md data
     protection): their posts leave every evidence list, with the thumbnails and evidence_ids that point at them,
     and their handle and YouTube channel id are masked in every other string. Their display name (the map label
     of their own creator item, or an author name on a left-out post) is masked only where it names them: their
     own creator item (title, label, ask and aliases), titled as a YouTube channel when it is one, and the author
-    fields of evidence. label_terms (the readers' projection, never the brief job's) also masks a topic or hashtag
-    label term that is their name or handle (Albert's ruling of 12 Oct 2026, so the code title built from the label
-    leaves it out; _mask_label_terms); the payload the brief writes is unchanged. Claims lose the quotes of a left-out
+    fields of evidence. label_terms, on unless the caller turns it off, also masks a label term that is their name
+    or handle (Albert's ruling of 12 Oct 2026, so no code title, digest or channel post names them;
+    _mask_label_terms). Only the brief job's write path turns it off, so the payload it stores and the title gate's
+    input are unchanged. Claims lose the quotes of a left-out
     post. A claim that rested only on left-out posts keeps
     its evidence ids, so Today's checks hold its card back with their reason. A claim that also cites posts that stay
     is checked again on those by the brief's rules, and an explained card that lost posts meets the brief's card
@@ -233,11 +242,11 @@ def without_hidden(value, hidden, label_terms=False):
 
     if hidden is None:
         records = [e for h in _evidence_holders(value) for e in h["evidence"] if isinstance(e, dict)]
-        authors = {str(e[k]).strip().lstrip("@") for e in records for k in ("handle",) + skins.NAME_KEYS
-                   if isinstance(e.get(k), str) and e[k].strip()}
+        handles = {e["handle"].strip().lstrip("@") for e in records if isinstance(e.get("handle"), str)}
+        authors = {str(e[k]).strip() for e in records for k in skins.NAME_KEYS if isinstance(e.get(k), str)}
         # One deepcopy keeps the records shared with the body, so stripping them strips the body's.
         body = skins.mask_people({"evidence": records, "body": value}, (), ())["body"]
-        return _mask_label_terms(body, authors) if label_terms else body
+        return _mask_label_terms(body, authors, handles) if label_terms else body
     keys, ids, names = hidden
     if not keys and not ids:
         return value
@@ -304,26 +313,41 @@ def without_hidden(value, hidden, label_terms=False):
                 if isinstance(e.get(k), str) and " ".join(e[k].split()).lower().lstrip("@") in names:
                     e[k] = skins.URL_MASK
     out = skins._mask_strings(out, masked, lambda text: text)
-    return _mask_label_terms(out, names | handles) if label_terms else out
+    return _mask_label_terms(out, names, handles) if label_terms else out
 
 
-def _mask_label_terms(value, people):
-    """value with each topic and hashtag label term that names one of people masked (code_title.mask_hidden_terms),
-    in the title and label and where the ask and the count line repeat the title."""
+def _mask_label_terms(value, names, handles):
+    """value with each label term that names a hidden person masked (code_title.mask_hidden_terms): the title, label
+    and aliases of every item, card, row, subject, news story and watch in it, and the ask and count line where they
+    repeat the title. Post records keep their words (their authors are handled above) and a creator item keeps its
+    account name, since the hidden person's own item is masked by the rule above."""
+    if not names and not handles:
+        return value
+    posts = {id(e) for h in _evidence_holders(value) for e in h["evidence"] if isinstance(e, dict)}
     for item in _dicts(value):
-        if item.get("kind") not in code_title.KINDS or not isinstance(item.get("title"), str):
+        if id(item) in posts or item.get("kind") == "creator":
             continue
-        old = item["title"]
-        new = code_title.mask_hidden_terms(old, people)
-        if isinstance(item.get("label"), str):
-            item["label"] = code_title.mask_hidden_terms(item["label"], people)
-        if new == old:
-            continue
-        item["title"] = new
-        for key in ("ask", "count_line"):
+        old = item.get("title")
+        for key in ("title", "label"):
             if isinstance(item.get(key), str):
-                item[key] = item[key].replace(old, new)
+                item[key] = code_title.mask_hidden_terms(item[key], names, handles)
+        if isinstance(item.get("aliases"), list):
+            item["aliases"] = [code_title.mask_hidden_terms(a, names, handles) if isinstance(a, str) else a
+                               for a in item["aliases"]]
+        if isinstance(old, str) and item["title"] != old:
+            for key in ("ask", "count_line"):
+                if isinstance(item.get(key), str):
+                    item[key] = item[key].replace(old, item["title"])
     return value
+
+
+def label_people(hidden):
+    """(names, handles) the label masking reads from a hidden list as hidden_people gives it, or empty sets when the
+    list cannot be read (code_title.mask_hidden_terms)."""
+    if hidden is None:
+        return set(), set()
+    keys, ids, names = hidden
+    return set(names), {k.split(":", 1)[1] for k in keys}
 
 
 def _recheck_explanation(card, gone):
@@ -391,7 +415,7 @@ class _WithoutHidden:
         return getattr(self._store, name)
 
     def _row(self, row):
-        return dict(row, payload=without_hidden(row.get("payload"), self._hidden, label_terms=True)) if row else row
+        return dict(row, payload=without_hidden(row.get("payload"), self._hidden)) if row else row
 
     def briefs(self, date):
         return [self._row(r) for r in self._store.briefs(date) or []]

@@ -206,7 +206,7 @@ async def _again(resp: httpx.Response, kind: str) -> Response:
                     record = summary_state.with_wire(record, from_agent=True)
                     body["record"] = privacy.project_record(record, lazy, hidden, record.get("privacy"))
                 return privacy.mask(body, hidden)
-            if kind == "investigations":
+            if kind in ("investigations", "watches"):
                 return privacy.mask(body, hidden)
             if kind == "dossier" and isinstance(body, dict):
                 return privacy.project_dossier(body, lazy, hidden, body.get("privacy"),
@@ -689,7 +689,9 @@ def _check_watch_id(watch_id: str) -> None:
 
 @gated.get("/api/watches")
 async def api_watches() -> Response:
-    return _passthrough(await _forward("GET", "/api/watches"))
+    # A watch label is stored when the watch is made and may name someone hidden since, so the list is read through
+    # the hidden list as it is shown (Albert's ruling, 12 Oct 2026).
+    return await _again(await _forward("GET", "/api/watches"), "watches")
 
 
 @gated.post("/api/watches")

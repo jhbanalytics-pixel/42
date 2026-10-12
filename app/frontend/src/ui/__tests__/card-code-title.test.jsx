@@ -49,7 +49,7 @@ afterEach(() => {
 
 test('every case is read', () => {
   // A loop over an empty list passes, so the number of cases is pinned here and in the services' runner.
-  expect(CASES.length).toBe(58);
+  expect(CASES.length).toBe(61);
 });
 
 for (const c of CASES){

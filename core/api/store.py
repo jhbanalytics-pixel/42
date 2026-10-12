@@ -529,6 +529,16 @@ default day and Coverage's way back from an empty day)."""
             return None
         return [{k: r.get(k) for k in CREATOR_COLUMNS} for r in rows if r["creator_id"] in creator_ids]
 
+    def hidden_display_names(self, creator_ids, keys):
+        """The display names of the creators rows with one of creator_ids or whose creator_key is one of keys."""
+        rows = self._optional("people_creators")
+        if rows is None:
+            return set()
+        ids, keys = set(creator_ids or ()), set(keys or ())
+        return {r["display_name"].strip() for r in rows if isinstance(r.get("display_name"), str)
+                and r["display_name"].strip()
+                and (r.get("creator_id") in ids or creator_key(r.get("platform"), r.get("handle")) in keys)}
+
     def creators_by_handle(self, keys):
         rows = self._optional("people_creators")
         if rows is None:
@@ -589,7 +599,8 @@ default day and Coverage's way back from an empty day)."""
         creators = (self.creators_by_id(sorted(wanted)) or []) if wanted else []
         people = {(c["platform"], c["handle"]) for c in creators if c.get("platform") and c.get("handle")}
         people |= {(r["platform"], r["handle"]) for r in held if r.get("platform") and r.get("handle")}
-        return {"ids": wanted, "people": sorted(people)}
+        names = self.hidden_display_names(wanted, {creator_key(p, h) for p, h in people})
+        return {"ids": wanted, "people": sorted(people), "names": names}
 
     def _posts(self):
         posts = self._both("posts", "people_posts")
@@ -1462,6 +1473,22 @@ or None."""
             "QUALIFY ROW_NUMBER() OVER (PARTITION BY c.creator_id ORDER BY c.followers DESC) = 1",
             creator_ids=("ARRAY<STRING>", list(creator_ids)))
 
+    def hidden_display_names(self, creator_ids, keys):
+        """The display names of the creators rows with one of creator_ids or whose creator_key (as creators_by_handle
+        reads it) is one of keys: how every reader learns a hidden person's name, as the stored briefs carry none.
+        An empty set without the table; a failed read raises, so the hidden list reads as unreadable. Read only."""
+        creators = self._find("creators")
+        if creators is None or not (creator_ids or keys):
+            return set()
+        rows = self._query(
+            f"SELECT DISTINCT TRIM(c.display_name) AS display_name FROM {creators} c\n"
+            "WHERE c.display_name IS NOT NULL AND TRIM(c.display_name) != ''\n"
+            "  AND (c.creator_id IN UNNEST(@creator_ids)\n"
+            "    OR CONCAT(IF(LOWER(TRIM(c.platform)) = 'twitter', 'x', LOWER(TRIM(c.platform))), ':',\n"
+            "      LOWER(REGEXP_REPLACE(TRIM(c.handle), r'^@*(u/)?', ''))) IN UNNEST(@keys))",
+            creator_ids=("ARRAY<STRING>", sorted(creator_ids or ())), keys=("ARRAY<STRING>", sorted(keys or ())))
+        return {r["display_name"] for r in rows if r.get("display_name")}
+
     def creators_by_handle(self, keys):
         """Creators rows whose creator_key (store.creator_key, in SQL) is one of keys, or None without the table."""
         creators = self._find("creators")
@@ -1530,7 +1557,9 @@ or None."""
     def hidden_people_rows(self):
         """Everyone hidden now, in one job: the ids on v_suppressed_creators and on the current suppression rows that
         are not lifted, each with the platform and handle of its creators row, and the rows that name only a platform
-        and handle. {"ids": ..., "people": [(platform, handle)]}, or None while the view does not exist. Read only."""
+        and handle. {"ids": ..., "people": [(platform, handle)], "names": display names}, or None while the view does
+        not exist. The display names come from the same creators rows, by id or by handle, in the same job: the stored
+        briefs carry no author name, so this is where a reader learns a hidden person's name. Read only."""
         view, table, creators = (self._find(n) for n in ("v_suppressed_creators", "suppressions", "creators"))
         if view is None:
             return None
@@ -1543,24 +1572,36 @@ or None."""
             "CAST(NULL AS STRING) AS creator_id, CAST(NULL AS STRING) AS platform, CAST(NULL AS STRING) AS handle "
             "FROM (SELECT 1) WHERE FALSE)")
         named = (
-            f"named AS (SELECT i.creator_id, k.platform, k.handle FROM ids i LEFT JOIN {creators} k\n"
+            f"named AS (SELECT i.creator_id, k.platform, k.handle, k.display_name FROM ids i LEFT JOIN {creators} k\n"
             "  ON k.creator_id = i.creator_id WHERE TRUE QUALIFY ROW_NUMBER() OVER (PARTITION BY i.creator_id\n"
             "    ORDER BY k.followers DESC) = 1)"
             if creators else
-            "named AS (SELECT i.creator_id, CAST(NULL AS STRING) AS platform, CAST(NULL AS STRING) AS handle "
-            "FROM ids i)")
+            "named AS (SELECT i.creator_id, CAST(NULL AS STRING) AS platform, CAST(NULL AS STRING) AS handle, "
+            "CAST(NULL AS STRING) AS display_name FROM ids i)")
+
+        def key(t):  # creator_key in SQL, as creators_by_handle reads it
+            return (f"CONCAT(IF(LOWER(TRIM({t}.platform)) = 'twitter', 'x', LOWER(TRIM({t}.platform))), ':', "
+                    f"LOWER(REGEXP_REPLACE(TRIM({t}.handle), r'^@*(u/)?', '')))")
+
+        by_handle = (
+            f"SELECT CAST(NULL AS STRING), c.platform, c.handle, k.display_name FROM cur c LEFT JOIN {creators} k\n"
+            f"  ON {key('k')} = {key('c')}\n"
+            if creators else
+            "SELECT CAST(NULL AS STRING), c.platform, c.handle, CAST(NULL AS STRING) FROM cur c\n")
         rows = self._query(
             f"WITH {current},\n"
             f"ids AS (SELECT s.creator_id FROM {view} s WHERE s.creator_id IS NOT NULL\n"
             "  UNION DISTINCT\n"
             "  SELECT c.creator_id FROM cur c WHERE c.status != 'lifted' AND c.creator_id IS NOT NULL),\n"
             f"{named}\n"
-            "SELECT n.creator_id, n.platform, n.handle FROM named n\n"
+            "SELECT n.creator_id, n.platform, n.handle, n.display_name FROM named n\n"
             "UNION ALL\n"
-            "SELECT CAST(NULL AS STRING), c.platform, c.handle FROM cur c\n"
+            f"{by_handle}"
             "WHERE c.status != 'lifted' AND c.platform IS NOT NULL AND c.handle IS NOT NULL")
         return {"ids": {r["creator_id"] for r in rows if r.get("creator_id")},
-                "people": sorted({(r["platform"], r["handle"]) for r in rows if r.get("platform") and r.get("handle")})}
+                "people": sorted({(r["platform"], r["handle"]) for r in rows if r.get("platform") and r.get("handle")}),
+                "names": {r["display_name"].strip() for r in rows
+                          if isinstance(r.get("display_name"), str) and r["display_name"].strip()}}
 
     def suppressions(self):
         """L1's suppression list as f42-web reads it (contract.md section 16): the current row per suppression_id,

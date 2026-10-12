@@ -629,9 +629,33 @@
    "name": "a link or a profile path term is left out",
    "card": {
     "kind": "topic",
-    "title": "https://t.co/abc, u/thabo, x.com/thabo, dance"
+    "title": "https://t.co/abc, u/thabo, R/southafrica, x.com/thabo, dance"
    },
    "title": "Posts about Dance"
+  },
+  {
+   "name": "a slash inside a word stays",
+   "card": {
+    "kind": "topic",
+    "title": "ac/dc, 24/7, and/or"
+   },
+   "title": "Posts about Ac/dc, 24/7 and And/or"
+  },
+  {
+   "name": "a ten letter word written twice is spaced",
+   "card": {
+    "kind": "topic",
+    "title": "kumbakumba"
+   },
+   "title": "Posts about Kumba Kumba"
+  },
+  {
+   "name": "marks tell two terms apart",
+   "card": {
+    "kind": "topic",
+    "title": "\u1eb9\u0300k\u1ecd, \u1eb9k\u1ecd"
+   },
+   "title": "Posts about \u1eb8\u0300k\u1ecd and \u1eb8k\u1ecd"
   },
   {
    "name": "a term with no letters is left out",

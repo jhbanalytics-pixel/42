@@ -5,8 +5,8 @@
    core/api/code_title.py's, line for line, and one list of cases pins both
    (core/api/tests/fixtures/code_titles.json):
    the label splits at commas and dashes, a long word written twice is spaced,
-   and each term is said once; a term holding a mask, a handle, a link or a
-   birth label is left out (the privacy projection masks a hidden person's
+   and each term is said once; a term holding a mask, a handle, a link or
+   profile path, or a birth label is left out (the privacy projection masks a hidden person's
    name or handle), and with nothing left the title says "this topic"; a term
    cased in the label keeps its casing, else it takes the form the most posts
    write it in, lower case included, and only the casing, never a space,
@@ -14,7 +14,7 @@
 const KINDS = ['topic', 'hashtag'];
 const FALLBACK = 'this topic';
 const UNNAMED = /^[Tt][Oo][Pp][Ii][Cc] [0-9a-fA-F]{8}$/u;
-const DROPPED = ['@', '*', '[link]', '/'];
+const DROPPED = ['@', '*', '[link]'];
 const SEPARATORS = /,|\u2013|\u2014|\s-\s/u;
 const DOUBLED_HALF = 5;
 const WORD = /[\p{L}\p{M}\p{N}]/u;
@@ -71,7 +71,15 @@ function doubled(term){
   return a === b ? a + ' ' + b : term;
 }
 
-const dropped = (term) => !key(term) || UNNAMED.test(term) || DROPPED.some((mark) => term.includes(mark));
+/* A link or a profile path ("https://t.co/x", "u/thabo", "r/southafrica",
+   "x.com/thabo"), not a word with a slash in it ("ac/dc", "24/7"). */
+function isPath(word){
+  const head = word.split('/')[0];
+  return word.includes('/') && (word.includes('://') || ['u', 'r'].includes(head.toLowerCase()) || head.includes('.'));
+}
+
+const dropped = (term) => !key(term) || UNNAMED.test(term) || DROPPED.some((mark) => term.includes(mark))
+  || term.split(' ').some(isPath);
 
 function terms(label){
   const raw = label.split(SEPARATORS).map(squash).filter(Boolean);

@@ -15,7 +15,7 @@ from core.api.searching import searching_now
 from core.api.store import canon_platform, creator_key
 from core.api.today import (FLAG_WORDS, LABELS, MARKETS, MUSIC_PLATFORMS, PLATFORM_WORDS, SAST, STATE_WORDS, NotFound,
                             NotReady, _card, _display_title, _platform_word, _series_name, _warmup, hidden_people,
-                            state_word, without_hidden)
+                            label_people, state_word, without_hidden)
 from core.trust import locality
 
 SORTS = ("order", "velocity", "reach", "new")
@@ -331,8 +331,9 @@ def _worth_key(row):
 
 
 def _cards(store, run, market, hidden=UNREAD):
-    """Every item of the run as (row, card, held) with order set on the shown items. Each card is read through
-    without_hidden, with hidden as hidden_people(store) gives it (read here when not given)."""
+    """Every item of the run as (row, card, held) with order set on the shown items. The cards are read through
+    without_hidden together, as Today reads a market's payload, so a name it learns from one item masks every other;
+    hidden is as hidden_people(store) gives it (read here when not given)."""
     hidden = hidden_people(store) if hidden is UNREAD else hidden
     rows = _creator_names(store, store.item_states(run, market), hidden)
     spreads = store.item_spread(run["run_date"], market)
@@ -349,11 +350,11 @@ def _cards(store, run, market, hidden=UNREAD):
         shown = [r for r in rows if r["market"] == m and held[r["item_id"] + "|" + m] is None]
         for n, r in enumerate(sorted(shown, key=lambda r: (_worth_key(r), r["item_id"]), reverse=True), 1):
             order[r["item_id"] + "|" + m] = n
+    built = without_hidden([_build_card(r, briefs.get((r["market"], r["item_id"])), warmup,
+                                        order.get(r["item_id"] + "|" + r["market"])) for r in rows], hidden)
     out = []
-    for r in rows:
+    for r, card in zip(rows, built):
         key = r["item_id"] + "|" + r["market"]
-        card = without_hidden(_build_card(r, briefs.get((r["market"], r["item_id"])), warmup, order.get(key)), hidden,
-                              label_terms=True)
         if held[key]:
             rule, reason, text = held[key]
             status, failed = _hold_basis(briefs.get((r["market"], r["item_id"])),
@@ -695,7 +696,7 @@ def build_topic(store, item_id, market):
             for w in sorted(waves, key=lambda w: w["peak_date"], reverse=True)],
         "authenticity": {"flag": auth, "flag_word": FLAG_WORDS.get(auth), "signals": signals},
         "evidence": _evidence(None if evidence is None else without_hidden({"evidence": evidence}, hidden)["evidence"]),
-    }, hidden, label_terms=True)
+    }, hidden)
 
 
 def build_alerts(store, watches, date=None):
@@ -704,22 +705,32 @@ def build_alerts(store, watches, date=None):
     Each alert carries the item's Discover card with watch_id set; rules whose data does not exist yet are
     listed under waiting with the watch's label."""
     run = _run(store, until=date)
-    cards, _ = _cards(store, run, "all")
+    hidden = hidden_people(store)
+    cards, _ = _cards(store, run, "all", hidden)
     before = store.latest_detect_run(
         until=(dt.date.fromisoformat(run["run_date"]) - dt.timedelta(days=1)).isoformat())
     fired = alerts.evaluate(watches, [r for r, _, _ in cards], store.item_states(before, "all") if before else None,
                             store.watch_matches(run), store.watch_matches(before) if before else None)
     by_item = {(r["item_id"], r["market"]): c for r, c, _ in cards}
     labels = {w.get("watch_id"): w.get("label") for w in watches}
+    # A watch label is stored when the watch is made and may name someone hidden since (Albert's ruling, 12 Oct 2026).
+    names, handles = label_people(hidden)
+
+    def masked(text):
+        return code_title.mask_hidden_terms(text, names, handles) if isinstance(text, str) else text
+
     out, waiting = [], []
     for a in fired:
         if "waiting" in a:
-            waiting.append({"watch_id": a["watch_id"], "label": labels.get(a["watch_id"]), "waiting": a["waiting"]})
+            waiting.append({"watch_id": a["watch_id"], "label": masked(labels.get(a["watch_id"])),
+                            "waiting": a["waiting"]})
         else:
             card = dict(by_item[(a["item_id"], a["market"])], watch_id=a["watch_id"])
-            # A label the user typed stays theirs; one that is the card's own raw label gives way to its code title.
+            # A label the user typed stays theirs; one that is the card's own raw label, or that names a hidden person,
+            # gives way to its code title.
             own = labels.get(a["watch_id"])
-            coded = code_title.shown_code_title(card) if not own or own == card.get("title") else None
-            label = alerts._written_title(card, run["run_date"], a["market"]) or coded or a["label"]
+            named = isinstance(own, str) and masked(own) != own
+            coded = code_title.shown_code_title(card) if not own or named or own == card.get("title") else None
+            label = alerts._written_title(card, run["run_date"], a["market"]) or coded or masked(a["label"])
             out.append({**a, "label": label, "card": card})
     return {"date": run["run_date"], "run_id": run["run_id"], "alerts": out, "waiting": waiting}

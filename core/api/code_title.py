@@ -25,7 +25,7 @@ import unicodedata
 KINDS = ("topic", "hashtag")
 FALLBACK = "this topic"
 _UNNAMED = re.compile(r"[Tt][Oo][Pp][Ii][Cc] [0-9a-fA-F]{8}")
-_DROPPED = ("@", "*", "[link]", "/")
+_DROPPED = ("@", "*", "[link]")
 _SEPARATORS = re.compile(r",|\u2013|\u2014|\s-\s")
 _DOUBLED_HALF = 5
 # Python and JavaScript disagree on these six as whitespace, so both read them alike: the zero width no-break space
@@ -101,8 +101,16 @@ def _words(term):
     return [w.lstrip("#").upper() for w in term.split()]
 
 
+def _path(word):
+    """A link or a profile path ("https://t.co/x", "u/thabo", "r/southafrica", "x.com/thabo"), not a word with a slash
+    in it ("ac/dc", "24/7")."""
+    head = word.split("/", 1)[0]
+    return "/" in word and ("://" in word or head.lower() in ("u", "r") or "." in head)
+
+
 def _dropped(term):
-    return not _key(term) or _UNNAMED.fullmatch(term) or any(mark in term for mark in _DROPPED)
+    return (not _key(term) or _UNNAMED.fullmatch(term) or any(mark in term for mark in _DROPPED)
+            or any(_path(w) for w in term.split()))
 
 
 def _terms(label):
@@ -221,25 +229,42 @@ def code_count_line(card, line):
     return line
 
 
-def mask_hidden_terms(label, people):
-    """The label with each term that names a hidden person replaced by the mask, or the label unchanged.
+def _folded(text):
+    """Letters and digits of a text with accents folded and case ignored, as words; the hidden people's names and
+    the label's terms are matched on these."""
+    text = unicodedata.normalize("NFKD", _clean(text))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return "".join(ch if _word_char(ch) else " " for ch in text).casefold().split()
 
-    people holds the hidden people's handles and display names. A term names one when its letters are a name's or a
-    handle's letters (so "thabomokoena" and "Thabo Mokoena" both name "Thabo Mokoena"), or when its words hold a name
-    of two or more words in order. A one word name inside a longer term is left alone, as the projection leaves a
-    name such as Music that is also a word."""
-    if not isinstance(label, str) or not people:
+
+def mask_hidden_terms(label, names, handles):
+    """The label with each term that names a hidden person replaced by the mask, or the label exactly as it was.
+
+    names are the hidden people's display names (from their creators rows and the map labels of their channels),
+    handles their handles. A term names one when, with accents and case ignored,
+    - its letters are a name's or a handle's letters ("thabomokoena", "#thabodances", "thabo dances");
+    - one of its words is a handle, or the letters of a name of two or more words;
+    - its words hold every word of a name of two or more words, in any order ("fans of thabo mokoena");
+    - or terms made only of a name's words hold all of them together ("mofokeng, relebohile"), and then each of those
+      terms is masked.
+    A one word name masks only a term that is that word, as the projection leaves a name such as Music that is also a
+    word inside a longer term."""
+    if not isinstance(label, str) or not (names or handles):
         return label
-    keys = {_key(_clean(p)) for p in people} - {""}
-    multi = [_words(_squash(_clean(p).lstrip("@"))) for p in people]
-    multi = [w for w in multi if len(w) > 1]
+    names = [w for w in (_folded(str(n).lstrip("@")) for n in names or ()) if w]
+    handles = {"".join(_folded(str(h).lstrip("@"))) for h in handles or ()} - {""}
+    whole = {"".join(n) for n in names} | handles
+    word_keys = {"".join(n) for n in names if len(n) > 1} | handles
+    multi = [set(n) for n in names if len(n) > 1]
     parts = _SEPARATORS.split(label)
-    out, changed = [], False
-    for part in parts:
-        term = _squash(_clean(part))
-        words = _words(term)
-        hit = term and (_key(term) in keys or any(
-            words[i:i + len(m)] == m for m in multi for i in range(len(words) - len(m) + 1)))
-        out.append("***" if hit else term)
-        changed = changed or bool(hit)
-    return ", ".join(t for t in out if t) if changed else label
+    terms = [_folded(part) for part in parts]
+    hit = [bool(t) and ("".join(t) in whole or any(w in word_keys for w in t) or any(m <= set(t) for m in multi))
+           for t in terms]
+    for m in multi:
+        inside = [i for i, t in enumerate(terms) if t and set(t) <= m]
+        if m <= {w for i in inside for w in terms[i]}:
+            for i in inside:
+                hit[i] = True
+    if not any(hit):
+        return label
+    return ", ".join("***" if h else _squash(_clean(part)) for part, h in zip(parts, hit) if h or _squash(_clean(part)))

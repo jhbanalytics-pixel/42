@@ -1450,3 +1450,34 @@ def test_discover_routes_refuse_unknown_platforms_and_states(v2, query):
     for path in ("/api/discover?market=ZA&", "/api/discover/radar?market=ZA&"):
         r = v2.client.get(path + query, headers=GOOD)
         assert r.status_code == 400 and r.json()["error"] == "bad_request" and r.json()["message"]
+
+
+from core.api import privacy as _privacy  # noqa: E402
+
+READ_HIDDEN = _privacy.read_hidden  # the real reader, before nobody_hidden stands in for it
+
+
+def test_the_watch_list_masks_a_label_that_names_a_hidden_person(v2, monkeypatch):
+    """A watch label saved before its person was hidden (the Watch button stores the card's shown title) is masked
+    when the Alerts screen reads the list (Albert's ruling, 12 Oct 2026)."""
+    from core.api.store import FixtureStore
+
+    class Store(FixtureStore):
+        def suppressed_creators(self):
+            return {"c_thabo"}
+
+        def _optional(self, name):
+            rows = super()._optional(name)
+            if name != "people_creators":
+                return rows
+            return list(rows or []) + [{"creator_id": "c_thabo", "platform": "tiktok", "handle": "thabo_dances",
+                                        "followers": 900, "tier": "nano", "home_market": "ZA",
+                                        "display_name": "Thabo Mokoena"}]
+
+    monkeypatch.setattr(core.api, "store", types.SimpleNamespace(get_store=lambda: Store()), raising=False)
+    monkeypatch.setattr(_privacy, "read_hidden", READ_HIDDEN)
+    v2.seen["watches"] = [{"watch_id": "w1", "label": "Posts about Thabo Mokoena and Amapiano", "status": "active"},
+                          {"watch_id": "w2", "label": "Amapiano watch", "status": "active"}]
+    r = v2.client.get("/api/watches", headers=GOOD)
+    assert r.status_code == 200
+    assert [w["label"] for w in r.json()["watches"]] == ["***", "Amapiano watch"]

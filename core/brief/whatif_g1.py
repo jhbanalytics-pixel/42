@@ -175,7 +175,8 @@ def judge(client, d, market, item, row, hidden, *, campaign_hashtags, political_
     """One G1-held item's Outcome with G1 treated as clear. row: its v_item_state_current row, or None."""
     item_id = item["item_id"]
     # The stored title is masked again, as Today does at read time: the list can grow after the brief ran.
-    title = without_hidden(item["title"], hidden) if isinstance(item.get("title"), str) else None
+    title = (without_hidden(item["title"], hidden, label_terms=False)
+             if isinstance(item.get("title"), str) else None)
     missing = {}  # gate -> what could not be read
 
     def lack(gate, what):
@@ -191,10 +192,10 @@ def judge(client, d, market, item, row, hidden, *, campaign_hashtags, political_
     numbers = item.get("numbers") if isinstance(item.get("numbers"), list) else []
 
     # As _prepare in core/brief/job.py: the suppression mask, the title, then the market scope read.
-    row = without_hidden(dict(row), hidden)
+    row = without_hidden(dict(row), hidden, label_terms=False)
     row["kind"] = row.get("kind") or row.get("map_kind")
     readable = readable_title(row.get("label"), row.get("canonical_key"))
-    row["title"] = without_hidden(readable or f"Unnamed {row['kind']}", hidden)
+    row["title"] = without_hidden(readable or f"Unnamed {row['kind']}", hidden, label_terms=False)
     row["nameless"] = readable is None
     try:
         scope = read_market_scope(client, row, d, market, core=core, agent=agent)

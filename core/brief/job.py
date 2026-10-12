@@ -467,10 +467,11 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
     masked before anything reads it. hidden: what read_hidden returned, read here when not given. calendar: the
     market's moments (moments()), which the pack's day lines name on their dates."""
     hidden = read_hidden(client, core=core, agent=agent) if hidden is None else hidden
-    row = without_hidden(row, hidden)
+    row = without_hidden(row, hidden, label_terms=False)
     row["kind"] = row.get("kind") or row.get("map_kind")
     title = card_title(row)
-    row["title"], row["nameless"] = without_hidden(title or f"Unnamed {row['kind']}", hidden), title is None
+    row["title"] = without_hidden(title or f"Unnamed {row['kind']}", hidden, label_terms=False)
+    row["nameless"] = title is None
     row["seen_platforms"] = list(row.get("seen_platforms") or [])
     scope = {"market_scope": "global", "market_posts7": None, "total_posts7": None, "market_share7": None}
     scope_error = False
@@ -1568,7 +1569,7 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                                   boards_=boards_, issues=_unnamed_issue(unnamed), selection_audit=selection_audits.get(m))
         # Titles, aliases and model text never name a suppressed person either, as Today reads them.
         selection_receipt = payload.pop("selection_receipt", None)
-        payload = without_hidden(payload, hidden)
+        payload = without_hidden(payload, hidden, label_terms=False)
         payload["selection_receipt"] = selection_receipt
         cards += len(payload["cards"]) + len(payload["more"])
         held += payload["held_back"]["count"]

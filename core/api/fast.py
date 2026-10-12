@@ -36,8 +36,8 @@ CACHED = frozenset({
     "first_ok_collect_date", "collection_health", "calendar", "runs", "search_signals", "item_history", "item_waves",
     "coord_signals", "item_evidence", "item_series", "item_origin", "news_followthrough", "item_reach",
     "health_days", "watch_matches", "detect_states", "sensitive_items", "generic_items", "board_items",
-    "community_edges", "creators_by_handle", "creators_by_id", "creator_names", "map_items", "waves", "item_days",
-    "nearest_items", "search_items", "compare_counts", "latest_aggregate_run", "health_range",
+    "community_edges", "creators_by_handle", "creators_by_id", "creator_names", "hidden_display_names", "map_items",
+    "waves", "item_days", "nearest_items", "search_items", "compare_counts", "latest_aggregate_run", "health_range",
 })  # not here: suppressed_creators and hidden_people_rows, which are read fresh on every request
 
 _POOL = ThreadPoolExecutor(max_workers=WORKERS, thread_name_prefix="f42-read")
@@ -208,7 +208,7 @@ def _days_before(day, n):
 
 
 def _hidden_start(p):
-    """hidden_people's reads: the suppression list, then the creators rows of the ids on it."""
+    """hidden_people's reads: the suppression list, then the creators rows and the display names of the ids on it."""
     p.start("suppressed_creators")
 
 
@@ -216,6 +216,7 @@ def _hidden_then(p):
     ids = p.peek("suppressed_creators")
     if ids:
         p.start("creators_by_id", sorted(ids))
+        p.start("hidden_display_names", sorted(ids), [])
 
 
 def _run_cards(p, run, market):
