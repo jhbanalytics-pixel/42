@@ -10,8 +10,10 @@ Rules, all for today in SAST (RUN_DATE overrides the day):
   brief_late          from 06:30, a market with no published briefs row
   model_spend         model spend booked in runs over 80% of MODEL_DAILY_USD: counts.model_usd on every stage's
                       runs plus record.run.model_usd on ask runs, once per run_id
-  schema_drift        a route whose successful raw_responses today carry a top-level key never seen in the last
-                      7 days, or lack one every response of those 7 days carried. Checked once a day, in the
+  schema_drift        a route whose successful raw_responses today lack a top-level key every response of the last
+                      7 days carried, or carry a key with a JSON value type (object, array, string, number,
+                      boolean) the key never had in those 7 days. A key turning null, or a null key gaining a value,
+                      is not a retype. A key that is only new is schema_added's, below. Checked once a day, in the
                       07:00 run, because it reads 8 days of response bodies.
   agent_error_rate    over 5% of today's finished ask runs failed, once there are at least 20
   seeds_failed        the day's latest seeds runs row (the seed queue writer inside f42-detect) is failed
@@ -24,8 +26,8 @@ Rules, all for today in SAST (RUN_DATE overrides the day):
 credits_low and reconcile come from the reconcile job's own lines, and job_failed from Cloud Run's job
 failure logs.
 
-Five more rules are log only (LOG_ONLY): they write the same "42 ALERT <name>:" line at WARNING (INFO for
-brief_all_held), and no Cloud Monitoring policy matches them, so they add no cloud resource until someone adds one
+Six more rules are log only (LOG_ONLY): they write the same "42 ALERT <name>:" line at WARNING (INFO for
+brief_all_held, NOTICE for schema_added), and no Cloud Monitoring policy matches them, so they add no cloud resource until someone adds one
 to core/setup/monitoring.py:
   brief_empty         from 06:30, a market whose current brief is published or partial with no cards and nothing
                       held back
@@ -35,6 +37,9 @@ to core/setup/monitoring.py:
   stage_dead          a stage whose latest runs row for the day is still running past its chain.TIMEOUTS: the
                       run was killed and never wrote a final row
   watchdog_gap        the watchdog's own last runs row today is more than 90 minutes old, so it was not running
+  schema_added        a route whose successful raw_responses today carry a top-level key never seen in the last
+                      7 days, in the same 07:00 run and from the same read as schema_drift. An added key leaves
+                      every key a parser reads where it was, so it is a notice, not an alert.
 A log-only rule that cannot run is logged at WARNING and recorded in counts.log_only_errors, but it never fails
 the job: a failed job reaches the job_failed policy and pages, which a log-only signal must not do.
 Nothing here can tell that the watchdog is dead for good: only a Cloud Monitoring absence policy on its runs can,
@@ -65,8 +70,8 @@ AGENT = f"{PROJECT}.intelligence_42_agent"
 STAGE = "watchdog"
 ALERTS = ("collection_missing", "zero_rows", "brief_late", "model_spend", "schema_drift", "agent_error_rate",
           "seeds_failed", "agent_views_failed", "understand_degraded")
-LOG_ONLY = ("brief_empty", "brief_all_held", "brief_data_issue", "stage_dead", "watchdog_gap")
-SEVERITY = {"brief_all_held": "INFO"}
+LOG_ONLY = ("brief_empty", "brief_all_held", "brief_data_issue", "stage_dead", "watchdog_gap", "schema_added")
+SEVERITY = {"brief_all_held": "INFO", "schema_added": "NOTICE"}
 NEEDS_NOW = ("model_spend", "stage_dead", "watchdog_gap")
 SPEND_SHARE = 0.8
 COLLECT_BY = time(4, 0)
@@ -133,11 +138,13 @@ def _model_spend(store, d, clock, now):
         return f"model spend for {d} is USD {usd:.2f}, over {SPEND_SHARE:.0%} of MODEL_DAILY_USD {cap:.0f}"
 
 
-def _schema_drift(store, d, clock):
+def _key_changes(store, d, clock):
+    """Each route's top-level key changes today against the last 7 days, as (added, gone, retyped), each
+    {route: [text]}, or None outside the 07:00 run. Only routes called both today and in those 7 days count."""
     start = datetime.combine(d, DRIFT_AT)
     if not start <= datetime.combine(d, clock) < start + DRIFT_WINDOW:
         return None
-    added, gone = defaultdict(list), defaultdict(list)
+    added, gone, retyped = defaultdict(list), defaultdict(list), defaultdict(list)
     for r in store.route_keys(d):
         if not (r["today_total"] and r["prior_total"]):
             continue
@@ -145,13 +152,36 @@ def _schema_drift(store, d, clock):
             added[r["route"]].append(r["key"])
         elif not r["today_rows"] and r["prior_rows"] == r["prior_total"]:
             gone[r["route"]].append(r["key"])
+        elif r["today_rows"] and r["prior_rows"]:
+            was = set(r["prior_types"]) - {"null"}
+            new = set(r["today_types"]) - {"null"} - was
+            if was and new:
+                retyped[r["route"]].append(f"{r['key']} {'/'.join(sorted(was))} to {'/'.join(sorted(new))}")
+    return added, gone, retyped
+
+
+def _schema_drift(store, d, clock):
+    changes = _key_changes(store, d, clock)
+    if changes is None:
+        return None
+    _, gone, retyped = changes
     parts = []
-    for route in sorted(set(added) | set(gone)):
-        change = [f"new {', '.join(sorted(added[route]))}" if added[route] else "",
-                  f"missing {', '.join(sorted(gone[route]))}" if gone[route] else ""]
+    for route in sorted(set(gone) | set(retyped)):
+        change = [f"missing {', '.join(sorted(gone[route]))}" if gone[route] else "",
+                  f"retyped {', '.join(sorted(retyped[route]))}" if retyped[route] else ""]
         parts.append(f"{route} ({'; '.join(c for c in change if c)})")
     if parts:
         return f"top-level keys changed against the last 7 days: {'; '.join(parts)}"
+
+
+def _schema_added(store, d, clock):
+    changes = _key_changes(store, d, clock)
+    if changes is None:
+        return None
+    added = changes[0]
+    if added:
+        parts = [f"{route} ({', '.join(sorted(added[route]))})" for route in sorted(added)]
+        return f"new top-level keys against the last 7 days: {'; '.join(parts)}"
 
 
 def _agent_error_rate(store, d, clock):
@@ -275,28 +305,36 @@ RULES = {"collection_missing": _collection_missing, "zero_rows": _zero_rows, "br
          "model_spend": _model_spend, "schema_drift": _schema_drift, "agent_error_rate": _agent_error_rate,
          "seeds_failed": _seeds_failed, "agent_views_failed": _agent_views_failed, "brief_empty": _brief_empty,
          "brief_all_held": _brief_all_held, "brief_data_issue": _brief_data_issue,
-         "understand_degraded": _understand_degraded, "stage_dead": _stage_dead, "watchdog_gap": _watchdog_gap}
+         "understand_degraded": _understand_degraded, "stage_dead": _stage_dead, "watchdog_gap": _watchdog_gap,
+         "schema_added": _schema_added}
 
 
-class _BriefStateOnce:
-    """The store, but brief_state answers from the first read: three rules ask the same question."""
+class _ReadOnce:
+    """The store, but brief_state and route_keys answer from the first read: three rules ask the first question
+    and two the second, which reads 8 days of response bodies."""
 
     def __init__(self, store):
-        self._store, self._brief_state = store, {}
+        self._store, self._read = store, {}
 
     def __getattr__(self, name):
         return getattr(self._store, name)
 
+    def _once(self, name, d):
+        if (name, d) not in self._read:
+            self._read[(name, d)] = getattr(self._store, name)(d)
+        return self._read[(name, d)]
+
     def brief_state(self, d):
-        if d not in self._brief_state:
-            self._brief_state[d] = self._store.brief_state(d)
-        return self._brief_state[d]
+        return self._once("brief_state", d)
+
+    def route_keys(self, d):
+        return self._once("route_keys", d)
 
 
 def check(now, store, errors=None, skip=()):
     """The alerts firing at now, in ALERTS order, leaving out the rules named in skip. A rule that raises is
     recorded in errors, if given, else re-raised."""
-    store = _BriefStateOnce(store)
+    store = _ReadOnce(store)
     d = chain.today(now)
     clock = now.astimezone(chain.SAST).time()
     alerts = []
@@ -379,15 +417,18 @@ WHERE brief_date = @d AND published_at IS NOT NULL""",
   WHERE r.run_date = @d
   GROUP BY r.run_id) u""",
     # Partitions are UTC days; the day and the 7 before it are SAST days, so one UTC day either side is read.
+    # today_types and prior_types are the distinct JSON types of the key's value, 'null' included.
     "route_keys": f"""WITH r AS (
-  SELECT route, DATE(fetched_at, 'Africa/Johannesburg') = @d is_today, JSON_KEYS(body, 1) ks
+  SELECT route, DATE(fetched_at, 'Africa/Johannesburg') = @d is_today, body, JSON_KEYS(body, 1) ks
   FROM `{CORE}.raw_responses`
   WHERE DATE(fetched_at) BETWEEN DATE_SUB(@d, INTERVAL 8 DAY) AND DATE_ADD(@d, INTERVAL 1 DAY)
     AND DATE(fetched_at, 'Africa/Johannesburg') BETWEEN DATE_SUB(@d, INTERVAL 7 DAY) AND @d
     AND http_status BETWEEN 200 AND 299 AND JSON_TYPE(body) = 'object'),
 t AS (SELECT route, COUNTIF(is_today) today_total, COUNTIF(NOT is_today) prior_total FROM r GROUP BY route)
 SELECT r.route, k key, COUNTIF(r.is_today) today_rows, COUNTIF(NOT r.is_today) prior_rows,
-  ANY_VALUE(t.today_total) today_total, ANY_VALUE(t.prior_total) prior_total
+  ANY_VALUE(t.today_total) today_total, ANY_VALUE(t.prior_total) prior_total,
+  ARRAY_AGG(DISTINCT IF(r.is_today, JSON_TYPE(r.body[k]), NULL) IGNORE NULLS) today_types,
+  ARRAY_AGG(DISTINCT IF(NOT r.is_today, JSON_TYPE(r.body[k]), NULL) IGNORE NULLS) prior_types
 FROM r CROSS JOIN UNNEST(r.ks) k JOIN t ON t.route = r.route
 GROUP BY r.route, k""",
     "ask_runs": f"""SELECT COUNT(*) total, COUNTIF(status = 'failed') failed FROM (
