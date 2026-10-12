@@ -61,6 +61,7 @@ from core.brief import gatectx
 from core.api.store import creator_key
 from core.api.today import without_hidden
 from core.brief import pack_order
+from core.brief import trend_test
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
@@ -1849,6 +1850,8 @@ def main(client=None, chain=None, model=None, make_sc=_AUTO, clock=None, **kw):
         traceback.print_exc()
         return 1
     print(json.dumps({"brief": d.isoformat(), "counts": counts}, default=str))
+    # The shadow label (TREND-TEST-v1) of the brief just finished: it reads the stored brief and swallows every failure.
+    trend_test.record_quietly(client, d, core=kw.get("core", CORE), agent=kw.get("agent", AGENT))
     return 0
 
 
