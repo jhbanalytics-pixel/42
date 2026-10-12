@@ -61,9 +61,10 @@ _BRIEF = re.compile(r"\b(?:an?|the|my|our|this)\s+(?:\w+\s+){0,3}brief\b|\bbrief
 # Around, on, for, with and re name a subject the way about does, unless what follows is the market, a platform, a place,
 # a day or a span: "on TikTok", "for the week", "on Monday", "on 10 October", "with Gen Z", "for Cape Town".
 _NOT_A_SUBJECT = "|".join(sorted({"most", "top", "biggest", "this", "today", "right", "now", "lately", "currently", "week",
-                                  "month", "year", "market", "social", "the"} | {c.lower() for c in _KNOWN_CAPITALS}))
-_SUBJECT_PREP = re.compile(r"\b(?:around|on|for|with)\s+(?!(?:" + _NOT_A_SUBJECT + r")\b|\d)\w"
-                           r"|\b(?:re|regarding|concerning)\s+\w", re.IGNORECASE)
+                                  "weekend", "month", "year", "market", "social", "timeline", "feed", "young", "women", "men",
+                                  "youth", "students", "people"} | {c.lower() for c in _KNOWN_CAPITALS}))
+_SUBJECT_PREP = re.compile(r"\b(?:around|on|for|with)\s+(?!(?:the\s+)?(?:" + _NOT_A_SUBJECT + r")\b|\d)\w"
+                           r"|\b(?:re|regarding)\b:?\s+\w", re.IGNORECASE)
 
 
 def _names_a_subject(text: str) -> bool:
