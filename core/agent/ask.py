@@ -979,12 +979,6 @@ def _label(model: str, plain: str) -> str:
     return plain
 
 
-def _cut_texts(before: dict, after: dict) -> list:
-    """The words of the claims before held that after no longer holds (cut by the stage between the two)."""
-    kept = {c.get("id") for c in after.get("claims") or [] if isinstance(c, dict)}
-    return [c.get("text") for c in before.get("claims") or [] if isinstance(c, dict) and c.get("id") not in kept]
-
-
 def _claim_fingerprint(claim: dict) -> str:
     """A claim's words and cited posts: what makes a later draft's claim the same claim as an earlier draft's."""
     return json.dumps([claim.get("text"), sorted(str(e) for e in claim.get("evidence_ids") or [])], ensure_ascii=False)
@@ -1142,7 +1136,7 @@ def _critic_counts(rows: list[dict]) -> dict:
 
 
 def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[date, date],
-                 draft_gaps: list, ledger=None) -> tuple[dict, list[dict], list[dict]]:
+                 draft_gaps: list, ledger=None, ranked: bool = False) -> tuple[dict, list[dict], list[dict]]:
     """Withhold what the critic cut, and every claim still pending, which becomes a cut with the critic's fixed
     reason. The status, short answer and items then follow as after a support cut (writer._k10, then
     checks.recheck_fields). Returns the answer, the final critic rows and the rows of those checks."""
@@ -1152,6 +1146,7 @@ def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[
     if not cut:
         return answer, rows, []
     pre_critic = answer_state.snapshot(answer)
+    pre_claims = copy.deepcopy(answer["claims"])
     answer = copy.deepcopy(answer)
     removed = {c["id"]: c for c in answer["claims"] if c.get("id") in cut}
     kept = [c for c in answer["claims"] if c.get("id") not in cut]
@@ -1177,7 +1172,10 @@ def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[
                                               code_gaps=checks.code_gap_indexes(draft_gaps, answer["gaps"]))
     if ledger is not None:
         ledger.observe("recheck", pre_recheck, answer, rechecked)
-    return answer, rows, [k10, *rechecked]
+    # After every check on this path, and there is no rewrite after the critic: a lead written over a story the critic
+    # cut is marked the same way as at the tail of gate().
+    answer, lead_row = checks.mark_lead_withheld(answer, pre_claims, ranked=ranked)
+    return answer, rows, [k10, *rechecked, *([lead_row] if lead_row else [])]
 
 
 RECEIPT_ROWS = 50  # rows a query receipt keeps; row_count and result_hash still cover every row
@@ -2192,11 +2190,6 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         with timings.begin("check", "code_checks", rule="all") as span:
             checked, verdicts = timed("checks", check, draft, ctx, deps.warehouse, window=window, markets=markets)
             span.set(claims=len(draft["claims"]), **_verdict_counts(verdicts))
-        # A lead that names or counts a story the code checks cut is rebuilt in code: never blanked, so it never
-        # reaches the one short answer rewrite, which is paid for only when the support check blanks a lead.
-        checked, lead_row = checks.replace_cut_story_lead(checked, _cut_texts(draft, checked), ranked=ranked_ask)
-        if lead_row:
-            verdicts = [*verdicts, {**lead_row, "run_id": ctx.run_id}]
         summary_ledger.observe("first_check", pre_check, checked, verdicts)
         if should_stop():
             raise _StopRequested()
@@ -2212,9 +2205,6 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                                            window=window, markets=markets,
                                            rewrite_attempted=rewrite_attempted)
             span.set(claims=len(checked.get("claims") or []), **_verdict_counts(support))
-        answer, lead_row = checks.replace_cut_story_lead(answer, _cut_texts(checked, answer), ranked=ranked_ask)
-        if lead_row:
-            support = [*support, lead_row]
         rewrite_ledger.update(presented[cid] for cid in rewrite_attempted if cid in presented)
         summary_ledger.observe("support_check", pre_support, answer, support)
         spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
@@ -2225,6 +2215,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         narrowed = any(claim.get("id") in original_words and original_words[claim.get("id")] != claim.get("text")
                        for claim in answer.get("claims") or [])
         answer, rewrote = headline(checked, answer)
+        kept_rewrite = answer.get("short_answer") if any(
+            row.get("claim_id") == "short_answer" and row.get("reason") == HEADLINE_REWRITTEN_REASON for row in rewrote) else None
         for row in rewrote:
             if row.get("claim_id") == "short_answer" and row.get("rule") == "K10" and row.get("reason") in _REWRITE_OUTCOMES:
                 summary_ledger.note_rewrite(_REWRITE_OUTCOMES[row["reason"]])
@@ -2252,7 +2244,13 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             # answer with no top line is lowered here as the field check lowers it. Never raised.
             if answer.get("status") == "complete":
                 answer["status"] = "partial"
-        return draft, answer, verdicts, support, [*rewrote, *rechecked, *fielded], allowed
+        # The lead is never blanked, rewritten or rebuilt by code. When a ranked ask lost a whole story and the final lead
+        # is not a kept rewrite, this appends the marker; the reader view withholds the lead (answer_view.present).
+        # It runs after every check and after the rewrite decision, so nothing downstream reads it and no call can follow.
+        answer, lead_row = checks.mark_lead_withheld(
+            answer, draft["claims"], ranked=ranked_ask and not (kept_rewrite and answer.get("short_answer") == kept_rewrite))
+        marked = [{**lead_row, "run_id": ctx.run_id}] if lead_row else []
+        return draft, answer, verdicts, support, [*rewrote, *rechecked, *fielded, *marked], allowed
 
     def review(answer: dict) -> tuple[dict, list[dict], dict | None]:
         """The critic once, in a fresh context. Its usd is already in ctx.model_usd_extra, so only its tokens are
@@ -2475,7 +2473,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                             "\n\n".join(n for n in (note, gap_note) if n), source_status)
                         answer, critic_rows, result = review(answer)
                 answer, critic_rows, cut_rows = _critic_cuts(answer, critic_rows, ctx, window, draft["gaps"],
-                                                             ledger=summary_ledger)
+                                                             ledger=summary_ledger, ranked=ranked_ask)
                 verdicts, later = [*verdicts, *critic_rows], [*later, *cut_rows]
             timings.phase("finalise")
             for event in _claim_events(draft, answer, verdicts, support, ctx.evidence, ctx.queries):

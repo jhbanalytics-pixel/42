@@ -204,3 +204,15 @@ test('a so-what line no story took carries the interpretation mark like the ones
   expect(words(heading)).toBe('More for a brand, interpretation');
   expect(words(host.querySelector('.ask42-answer-rest'))).toContain('A brand with a Soweto presence should pause scheduled posts');
 });
+
+test('a lead the checks withheld shows the one sentence in the short answer slot and the stories that passed beneath it', async () => {
+  const withheld = (await import('./fixtures/ask42_ranked_lead_withheld.json')).default;
+  const record = clone(withheld);
+  await open(record);
+  const sentence = 'The one-line summary is not shown because a story it was written over did not pass the checks. The stories that did are below.';
+  expect(words(host.querySelector('.ask42-short'))).toBe(sentence);
+  expect(host.textContent).not.toContain('Three stories led');
+  expect(host.textContent).not.toContain('Forbes');
+  expect(all('.ask42-story').map((s) => words(s.querySelector('.ask42-story-name')))).toEqual(['Soweto unrest', 'Pirates vs Sundowns cup final']);
+  expect(host.querySelector('[data-privacy-notice]')).toBeNull();
+});

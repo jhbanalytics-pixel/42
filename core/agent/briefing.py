@@ -26,10 +26,33 @@ from core.agent.asks import asks_ranked
 KIND = "ranked_stories"
 SIZE_UNITS = ("posts", "creators", "platforms")
 _STORY_KINDS = ("observation", "interpretation")
+STORY_KINDS = _STORY_KINDS
 _PREFIX = re.compile(r"^(?P<name>[^:\n]{1,60}): (?P<rest>\S.*)$", re.S)
 _NOT_A_NAME = re.compile(r"[\d#@*/\\<>\[\]{}()|\"]")  # a * is a name a skin has masked
 _MAX_NAME_WORDS = 8
 _HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+# The lead of a ranked answer that was written over a story with no claim left (checks.mark_lead_withheld writes the gap).
+# The reader view withholds it: answer_view.present replaces the short answer with LEAD_WITHHELD and dossiers.build stores
+# none. The gap here has no rule code; the producer's constant (checks.LEAD_STORY_GAP) is built from it, so the two cannot drift.
+LEAD_WITHHELD_GAP = {"what": "Short answer withheld: a story it was written over had every claim cut",
+                     "searched": "the short answer text",
+                     "why": "the short answer may be shown only when every story it was written over still has a claim "
+                            "that passed the checks"}
+LEAD_WITHHELD = ("The one-line summary is not shown because a story it was written over did not pass the checks. The "
+                 "stories that did are below.")
+_RULE_CODE = re.compile(r"\s*\(K10\)")
+
+
+def lead_withheld(answer) -> bool:
+    """Whether the answer carries the marker gap, read as a reader reads gaps (a rule code on the text is not part of it)."""
+    gaps = answer.get("gaps") if isinstance(answer, dict) else None
+    if not isinstance(gaps, list):
+        return False
+    return any(isinstance(g, dict) and isinstance(g.get("what"), str) and isinstance(g.get("why"), str)
+               and _RULE_CODE.sub("", g["what"]) == LEAD_WITHHELD_GAP["what"]
+               and _RULE_CODE.sub("", g["why"]) == LEAD_WITHHELD_GAP["why"] for g in gaps)
 
 
 def story_name(text) -> str | None:

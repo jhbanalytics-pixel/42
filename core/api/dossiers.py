@@ -17,6 +17,7 @@ import html
 import json
 import re
 
+from core.agent import briefing
 from core.api import comment_links, summary_state
 from core.api.export import (
     EXPORT_NOTICE, _LABEL, _MARKET, _PLATFORM, _STYLE, _date_text, _e, _normal, _number, _p, _web_link,
@@ -160,8 +161,8 @@ def build(record, sel, *, dossier_id, version, created_at, source, who="passcode
     # The source's typed summary state, read from the raw source record here, whatever the caller already did (C1 6.4).
     meta = summary_state.wire(record)
     body.update(body_v=2, source_answer_meta=meta)
-    if meta.get("check") == "unverified":
-        body["summary"] = None  # a state that did not verify withholds the summary; the claims are re-checked at freeze
+    if meta.get("check") == "unverified" or briefing.lead_withheld(answer):
+        body["summary"] = None  # a state that did not verify, or a lead withheld by the checks, is not copied; claims re-check at freeze
     return body
 
 

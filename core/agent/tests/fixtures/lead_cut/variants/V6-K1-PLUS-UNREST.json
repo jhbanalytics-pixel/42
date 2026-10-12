@@ -1,0 +1,562 @@
+{
+ "id": "V6-K1-PLUS-UNREST",
+ "note": "TOP-ZA with a seeded defect in the one claim of the third story: its quote is not verbatim in the post (K1), so the code checks cut the whole story. The lead still names it unless the checks blank it.",
+ "tier": "T1",
+ "question": "What are people in South Africa posting about most this week?",
+ "vars": {
+  "id": "V6-K1-PLUS-UNREST",
+  "family": "now",
+  "markets": [
+   "ZA"
+  ],
+  "window": "last 7 days",
+  "window_days": 7,
+  "expected_answerability": "answerable"
+ },
+ "posts": [
+  {
+   "id": "tt_u1",
+   "platform": "tiktok",
+   "handle": "@soweto_street_eye",
+   "days_ago": 1,
+   "text": "Roadblocks on the main routes in Soweto again this morning, burning tyres at the intersection and taxis not running",
+   "views": 188000
+  },
+  {
+   "id": "x_u1",
+   "platform": "x",
+   "handle": "@jozi_commuter_watch",
+   "days_ago": 1,
+   "text": "Taxis have stopped running in parts of Soweto after the overnight clashes, check your route before you leave",
+   "views": 64000
+  },
+  {
+   "id": "yt_u1",
+   "platform": "youtube",
+   "handle": "@eyewitness_sa",
+   "days_ago": 2,
+   "text": "Residents say the unrest began after a fight over taxi routes and spread to the roadblocks overnight",
+   "views": 91000
+  },
+  {
+   "id": "x_u2",
+   "platform": "x",
+   "handle": "@soweto_mama_speaks",
+   "days_ago": 3,
+   "text": "My street has had no bus since Tuesday, people just want the roads open again",
+   "views": 27000
+  },
+  {
+   "id": "tt_c1",
+   "platform": "tiktok",
+   "handle": "@kasi_football_hub",
+   "days_ago": 0,
+   "text": "Pirates vs Sundowns cup final tonight and the whole street is already in black and white and yellow",
+   "views": 244000
+  },
+  {
+   "id": "x_c1",
+   "platform": "x",
+   "handle": "@psl_chatter",
+   "days_ago": 1,
+   "text": "Ticket queues for the Pirates vs Sundowns cup final wrapped around the stadium by noon",
+   "views": 71000
+  },
+  {
+   "id": "ig_c1",
+   "platform": "instagram",
+   "handle": "@matchday_mzansi",
+   "days_ago": 2,
+   "text": "Pirates vs Sundowns cup final preview: whoever wins the midfield wins the trophy",
+   "views": 58000
+  },
+  {
+   "id": "yt_c1",
+   "platform": "youtube",
+   "handle": "@terrace_talk_za",
+   "days_ago": 3,
+   "text": "Full reaction to the semi final and why the Pirates vs Sundowns cup final will not be quiet",
+   "views": 83000
+  },
+  {
+   "id": "x_t1",
+   "platform": "x",
+   "handle": "@court_roll_za",
+   "days_ago": 1,
+   "text": "The Forbes and Motsoane murder trial resumes on Monday and the public gallery is expected to fill early",
+   "views": 39000
+  },
+  {
+   "id": "tt_t1",
+   "platform": "tiktok",
+   "handle": "@law_explained_za",
+   "days_ago": 2,
+   "text": "What happens next in the Forbes and Motsoane murder trial, explained in sixty seconds",
+   "views": 72000
+  },
+  {
+   "id": "x_t2",
+   "platform": "x",
+   "handle": "@newsdesk_jozi",
+   "days_ago": 4,
+   "text": "Another day in court for the Forbes and Motsoane murder trial",
+   "views": 21000
+  }
+ ],
+ "bulk": {
+  "count": 120,
+  "prefix": "tz",
+  "creators": 48,
+  "platforms": [
+   "tiktok",
+   "x",
+   "instagram",
+   "youtube"
+  ],
+  "days": [
+   0,
+   6
+  ],
+  "stems": [
+   "Soweto unrest update from the ground",
+   "Pirates vs Sundowns cup final countdown",
+   "Forbes and Motsoane murder trial update",
+   "what everyone is posting about today"
+  ]
+ },
+ "queries": [
+  {
+   "match": "CONTAINS_SUBSTR(p.text, @term)",
+   "params": {
+    "term": "soweto unrest",
+    "part": "all"
+   },
+   "rows": [
+    {
+     "posts": 640,
+     "authors": 301,
+     "platforms": 4
+    }
+   ]
+  },
+  {
+   "match": "CONTAINS_SUBSTR(p.text, @term)",
+   "params": {
+    "term": "soweto unrest",
+    "part": "daily"
+   },
+   "rows": [
+    {
+     "day": "2026-10-05",
+     "posts": 38
+    },
+    {
+     "day": "2026-10-06",
+     "posts": 64
+    },
+    {
+     "day": "2026-10-07",
+     "posts": 97
+    },
+    {
+     "day": "2026-10-08",
+     "posts": 152
+    },
+    {
+     "day": "2026-10-09",
+     "posts": 130
+    },
+    {
+     "day": "2026-10-10",
+     "posts": 99
+    },
+    {
+     "day": "2026-10-11",
+     "posts": 60
+    }
+   ]
+  },
+  {
+   "match": "CONTAINS_SUBSTR(p.text, @term)",
+   "params": {
+    "term": "cup final",
+    "part": "all"
+   },
+   "rows": [
+    {
+     "posts": 512,
+     "authors": 233,
+     "platforms": 4
+    }
+   ]
+  },
+  {
+   "match": "CONTAINS_SUBSTR(p.text, @term)",
+   "params": {
+    "term": "cup final",
+    "part": "first"
+   },
+   "rows": [
+    {
+     "posts": 38,
+     "authors": 31,
+     "platforms": 3
+    }
+   ]
+  },
+  {
+   "match": "CONTAINS_SUBSTR(p.text, @term)",
+   "params": {
+    "term": "cup final",
+    "part": "last"
+   },
+   "rows": [
+    {
+     "posts": 142,
+     "authors": 96,
+     "platforms": 4
+    }
+   ]
+  },
+  {
+   "match": "CONTAINS_SUBSTR(p.text, @term)",
+   "params": {
+    "term": "murder trial",
+    "part": "all"
+   },
+   "rows": [
+    {
+     "posts": 288,
+     "authors": 146,
+     "platforms": 3
+    }
+   ]
+  }
+ ],
+ "research": {
+  "note": "Reading: what South African social is posting about most this week.",
+  "tokens": [
+   112000,
+   5400
+  ],
+  "calls": [
+   {
+    "tool": "search_posts",
+    "query": "soweto unrest",
+    "as": "unrest",
+    "args": {
+     "since": "2026-10-05",
+     "until": "2026-10-11"
+    }
+   },
+   {
+    "tool": "search_posts",
+    "query": "cup final",
+    "as": "cup",
+    "args": {
+     "since": "2026-10-05",
+     "until": "2026-10-11"
+    }
+   },
+   {
+    "tool": "search_posts",
+    "query": "murder trial",
+    "as": "trial",
+    "args": {
+     "since": "2026-10-05",
+     "until": "2026-10-11"
+    }
+   },
+   {
+    "tool": "sql_query",
+    "as": "unrest_all",
+    "purpose": "soweto unrest posts, creators and platforms this week",
+    "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'all'",
+    "params": {
+     "term": "soweto unrest",
+     "part": "all"
+    }
+   },
+   {
+    "tool": "sql_query",
+    "as": "unrest_daily",
+    "purpose": "soweto unrest posts per day this week",
+    "sql": "SELECT p.post_date AS day, COUNT(*) AS posts FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'daily' GROUP BY p.post_date ORDER BY p.post_date",
+    "params": {
+     "term": "soweto unrest",
+     "part": "daily"
+    }
+   },
+   {
+    "tool": "sql_query",
+    "as": "cup_all",
+    "purpose": "cup final posts, creators and platforms this week",
+    "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'all'",
+    "params": {
+     "term": "cup final",
+     "part": "all"
+    }
+   },
+   {
+    "tool": "sql_query",
+    "as": "cup_first",
+    "purpose": "cup final posts on the first day of the window",
+    "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'first'",
+    "params": {
+     "term": "cup final",
+     "part": "first"
+    }
+   },
+   {
+    "tool": "sql_query",
+    "as": "cup_last",
+    "purpose": "cup final posts on the last day of the window",
+    "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'last'",
+    "params": {
+     "term": "cup final",
+     "part": "last"
+    }
+   },
+   {
+    "tool": "sql_query",
+    "as": "trial_all",
+    "purpose": "murder trial posts, creators and platforms this week",
+    "sql": "SELECT COUNT(*) AS posts, COUNT(DISTINCT p.creator_id) AS authors, COUNT(DISTINCT p.platform) AS platforms FROM intelligence_42_core.posts p WHERE CONTAINS_SUBSTR(p.text, @term) AND @part = 'all'",
+    "params": {
+     "term": "murder trial",
+     "part": "all"
+    }
+   }
+  ]
+ },
+ "writer": {
+  "short_answer": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "claims": [
+   {
+    "id": "c1",
+    "text": "Soweto unrest: the biggest story of the week, with roadblocks, burning tyres and stopped taxis on the main routes, in 640 posts from 301 creators on 4 platforms.",
+    "label": "corroborated",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_u1",
+     "x_u1",
+     "yt_u1"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_u1",
+      "text": "burning tyres at the intersection"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 640,
+      "unit": "posts",
+      "query_id": "@unrest_all"
+     },
+     {
+      "value": 301,
+      "unit": "creators",
+      "query_id": "@unrest_all"
+     },
+     {
+      "value": 4,
+      "unit": "platforms",
+      "query_id": "@unrest_all"
+     }
+    ]
+   },
+   {
+    "id": "c2",
+    "text": "Soweto unrest: posts peaked on 8 Oct at 152 in a day and had fallen to 60 by 11 Oct.",
+    "label": "observed",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_u1",
+     "x_u1"
+    ],
+    "quotes": [],
+    "numbers": [
+     {
+      "value": 152,
+      "unit": "posts",
+      "query_id": "@unrest_daily"
+     },
+     {
+      "value": 60,
+      "unit": "posts",
+      "query_id": "@unrest_daily"
+     }
+    ]
+   },
+   {
+    "id": "c3",
+    "text": "Soweto unrest: residents say it began after a fight over taxi routes and spread to the roadblocks overnight.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "yt_u1",
+     "x_u1"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "yt_u1",
+      "text": "began after a fight over taxi routes"
+     }
+    ],
+    "numbers": []
+   },
+   {
+    "id": "c4",
+    "text": "Pirates vs Sundowns cup final: the match fans are counting down to, in 512 posts from 233 creators on 4 platforms.",
+    "label": "corroborated",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_c1",
+     "x_c1",
+     "ig_c1"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_c1",
+      "text": "the whole street is already in black and white and yellow"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 512,
+      "unit": "posts",
+      "query_id": "@cup_all"
+     },
+     {
+      "value": 233,
+      "unit": "creators",
+      "query_id": "@cup_all"
+     },
+     {
+      "value": 4,
+      "unit": "platforms",
+      "query_id": "@cup_all"
+     }
+    ]
+   },
+   {
+    "id": "c5",
+    "text": "Pirates vs Sundowns cup final: posts about it rose from 38 on the first day of the week to 142 on the last, so it is still rising.",
+    "label": "observed",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_c1",
+     "yt_c1"
+    ],
+    "quotes": [],
+    "numbers": [
+     {
+      "value": 38,
+      "unit": "posts",
+      "query_id": "@cup_first"
+     },
+     {
+      "value": 142,
+      "unit": "posts",
+      "query_id": "@cup_last"
+     }
+    ]
+   },
+   {
+    "id": "c6",
+    "text": "Pirates vs Sundowns cup final: ticket queues wrapped around the stadium by noon, and fans were already wearing their colours in the street.",
+    "label": "corroborated",
+    "kind": "observation",
+    "evidence_ids": [
+     "x_c1",
+     "tt_c1"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "x_c1",
+      "text": "wrapped around the stadium by noon"
+     }
+    ],
+    "numbers": []
+   },
+   {
+    "id": "c7",
+    "text": "Forbes and Motsoane murder trial: followed through court updates and explainers, in 288 posts from 146 creators on 3 platforms.",
+    "label": "corroborated",
+    "kind": "observation",
+    "evidence_ids": [
+     "x_t1",
+     "tt_t1",
+     "x_t2"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "x_t1",
+      "text": "the public gallery will not fill early"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 288,
+      "unit": "posts",
+      "query_id": "@trial_all"
+     },
+     {
+      "value": 146,
+      "unit": "creators",
+      "query_id": "@trial_all"
+     },
+     {
+      "value": 3,
+      "unit": "platforms",
+      "query_id": "@trial_all"
+     }
+    ]
+   },
+   {
+    "id": "c8",
+    "text": "The unrest and the trial are followed mostly on X and YouTube, while the cup final is spread across all four platforms.",
+    "label": "observed",
+    "kind": "observation",
+    "evidence_ids": [
+     "x_u2",
+     "yt_u1",
+     "ig_c1",
+     "tt_c1"
+    ],
+    "quotes": [],
+    "numbers": []
+   }
+  ],
+  "so_what": [
+   {
+    "text": "A brand with a Soweto presence should pause scheduled posts near the affected routes and say nothing that reads as comment on the unrest.",
+    "claim_ids": [
+     "c1",
+     "c2",
+     "c3"
+    ]
+   },
+   {
+    "text": "A sports or drinks brand has a live, positive moment here: plan for the final whistle, not the build up, while attention is still climbing.",
+    "claim_ids": [
+     "c4",
+     "c5",
+     "c6"
+    ]
+   },
+   {
+    "text": "A brand should stay clear of the trial: it is an active murder case, not a place for brand content.",
+    "claim_ids": [
+     "c7"
+    ]
+   }
+  ],
+  "watch_next": [],
+  "gaps": [],
+  "context": ""
+ },
+ "support": {},
+ "headline_rewrite": "Two stories led South Africa this week: the Soweto unrest and the cup final."
+}

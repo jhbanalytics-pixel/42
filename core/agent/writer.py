@@ -1434,14 +1434,6 @@ def _headline_removed(before: dict, answer: dict) -> list:
     return removed
 
 
-def names_cut_story(text: str, before: dict, answer: dict) -> bool:
-    """Whether a short answer names a story that had claims in before and has none in answer."""
-    kept = [c for c in answer.get("claims") or [] if isinstance(c, dict)]
-    ids = {c.get("id") for c in kept}
-    gone = [c.get("text") for c in before.get("claims") or [] if isinstance(c, dict) and c.get("id") not in ids]
-    return checks.cut_story_in_lead(text, gone, [c.get("text") for c in kept]) is not None
-
-
 def _repeats(text: str, cid, claim_text) -> bool:
     """K10's _mentions, and for a claim under its eight words the whole claim's words in a row, so a short cut claim
     cannot pass whole into a rewrite."""
@@ -1478,7 +1470,7 @@ def rewrite_headline(model: Model, before: dict, answer: dict, ctx: RunContext,
         text += "."
     removed = _headline_removed(before, answer)
     ids = checks._id_pattern([*claims, *(c for c in before.get("claims") or [] if isinstance(c, dict))], ctx)
-    if (any(_repeats(text, cid, claim_text) for cid, claim_text in removed) or names_cut_story(text, before, answer)
+    if (any(_repeats(text, cid, claim_text) for cid, claim_text in removed)
             or (ids is not None and ids.search(text)) or re.search(r"(?<!\w)c[0-9]{1,3}(?!\w)", text)
             or re.search(r"https?:|www\.", text, re.IGNORECASE)):
         return None, usage, True, HEADLINE_REPEATS_REASON

@@ -1,0 +1,1792 @@
+{
+ "bench/AUT-01": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 5,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c5"
+  ],
+  "error": null,
+  "lead": "One hashtag shows several signs of coordination, one looks organic and one is mixed, and the indicators do not say who is behind them.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "bench/BRD-03": {
+  "calls": {
+   "fields": 1,
+   "support": 3,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3"
+  ],
+  "error": null,
+  "lead": "Kenyan talk about data and airtime is steady jokes about bundle expiry, with sharp spikes when the network goes down and a tone that is more teasing than angry.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "bench/CRE-01": {
+  "calls": {
+   "fields": 1,
+   "support": 3,
+   "writer": 2
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3"
+  ],
+  "error": null,
+  "lead": "Mid-sized Nigerian food creators work in market-run vlogs, budget meal series and regional dish explainers, and their comment sections ask for prices and recipes.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "bench/HUMOUR-ZA": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c7"
+  ],
+  "error": null,
+  "lead": "The humor tag is small in South Africa this week: three stored posts from three creators on TikTok, all tagged with memes and comedia as well.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "complete",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "bench/NOW-01": {
+  "calls": {
+   "fields": 1,
+   "support": 5,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5"
+  ],
+  "error": null,
+  "lead": "Three conversations lead the week: pap and gravy duets, taxi rank playlists and run club mornings, each on more than one platform.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "complete",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "bench/NOW-03": {
+  "calls": {
+   "fields": 1,
+   "support": 3,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c4"
+  ],
+  "error": null,
+  "lead": "Three things keep coming up in Kenyan feeds: the mambo ni matatu line, the Kasarani Kick sound and the si ulisema reply.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "bench/RISE-02": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 4,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3"
+  ],
+  "error": null,
+  "lead": "Sapa reset is rising in Nigerian feeds and has reached a brand post and a news post, while wahala package stays in skits.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "bench/WHY-01": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 5,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4"
+  ],
+  "error": null,
+  "lead": "Water outage jokes are more common than load shedding jokes over the two months, and they run across several platforms.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "bench/WHY-02": {
+  "calls": {
+   "fields": 1,
+   "support": 4,
+   "writer": 2
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c6"
+  ],
+  "error": null,
+  "lead": "Posts about December plans are up on last year in Lagos, led by event promoters and people abroad booking flights.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "bench/WHY-03": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 6,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c5",
+   "c6"
+  ],
+  "error": null,
+  "lead": "Excitement is ahead of cynicism in Kenyan posts, and the cynical posts are about stadiums and ticket prices.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_narrowed",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "critic/T2/K1CUT-COUNT/c4-c5-c6": {
+  "calls": {
+   "critic": 1,
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "critic/T2/TOP-ZA-K1CUT/c4-c5-c6": {
+  "calls": {
+   "critic": 1,
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "critic/T2/TOP-ZA/c4-c5-c6": {
+  "calls": {
+   "critic": 1,
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c7",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "critic/T2/TOP-ZA/c7": {
+  "calls": {
+   "critic": 1,
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "critic/T3/K1CUT-COUNT/c4-c5-c6": {
+  "calls": {
+   "critic": 1,
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "critic/T3/TOP-ZA-K1CUT/c4-c5-c6": {
+  "calls": {
+   "critic": 1,
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "critic/T3/TOP-ZA/c4-c5-c6": {
+  "calls": {
+   "critic": 1,
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c7",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "critic/T3/TOP-ZA/c7": {
+  "calls": {
+   "critic": 1,
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/K1CUT-COUNT/c1": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/K1CUT-COUNT/c2": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/K1CUT-COUNT/c3": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/K1CUT-COUNT/c4": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/K1CUT-COUNT/c5": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/K1CUT-COUNT/c6": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/K1CUT-COUNT/c7": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/K1CUT-COUNT/c8": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA-K1CUT/c1": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA-K1CUT/c2": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA-K1CUT/c3": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA-K1CUT/c4": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA-K1CUT/c5": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA-K1CUT/c6": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA-K1CUT/c7": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA-K1CUT/c8": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA-SUPPORTCUT/c1": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the Pirates vs Sundowns cup final.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "flag/TOP-ZA-SUPPORTCUT/c2": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the Pirates vs Sundowns cup final.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "flag/TOP-ZA-SUPPORTCUT/c3": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the Pirates vs Sundowns cup final.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "flag/TOP-ZA-SUPPORTCUT/c4": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the Pirates vs Sundowns cup final.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "flag/TOP-ZA-SUPPORTCUT/c5": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the Pirates vs Sundowns cup final.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "flag/TOP-ZA-SUPPORTCUT/c6": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the Pirates vs Sundowns cup final.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "flag/TOP-ZA-SUPPORTCUT/c7": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA-SUPPORTCUT/c8": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the Pirates vs Sundowns cup final.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "flag/TOP-ZA/c1": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c7",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA/c2": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c7",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA/c3": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c4",
+   "c5",
+   "c6",
+   "c7",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA/c4": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c5",
+   "c6",
+   "c7",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA/c5": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c6",
+   "c7",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA/c6": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c7",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA/c7": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "flag/TOP-ZA/c8": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c7"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "lead/K1CUT-COUNT": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "lead/K1CUT-UNRANKED": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "ranked/NOW-01-RANKED": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c7"
+  ],
+  "error": null,
+  "lead": "Three conversations led South African social this week: pap and gravy duets, taxi rank playlists and run club mornings.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "complete",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "ranked/NOW-03-RANKED": {
+  "calls": {
+   "fields": 1,
+   "support": 4,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c3",
+   "c4",
+   "c5"
+  ],
+  "error": null,
+  "lead": "Three things keep coming up in Kenyan feeds: the mambo ni matatu line, the Kasarani Kick sound and the si ulisema reply.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "ranked/RISE-02-RANKED": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 5,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c5"
+  ],
+  "error": null,
+  "lead": "Sapa reset is rising in Nigerian feeds and has reached a brand post and a news post, while wahala package stays in skits.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "ranked/TOP-ZA": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c7",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "complete",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "ranked/TOP-ZA-K1CUT": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "ranked/TOP-ZA-SUPPORTCUT": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "k4_rewrite": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the Pirates vs Sundowns cup final.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "variant/R3-T1-FOUR": {
+  "calls": {
+   "fields": 1,
+   "support": 3,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c4"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "variant/V1-EIGHT-UNNAMED": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "variant/V2-EIGHT-NAMED": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the cup final.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "variant/V3-EIGHT-NOCUT": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c6",
+   "c7",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "variant/V4-RESTATED": {
+  "calls": {
+   "fields": 1,
+   "headline_rewrite": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Two stories led South Africa this week: the Soweto unrest and the cup final.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "support_check"
+    }
+   ],
+   "rewrite": "kept",
+   "state": "shown_rewritten"
+  }
+ },
+ "variant/V5-K1-PLUS-CUP": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "variant/V6-K1-PLUS-UNREST": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c4",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "variant/V7-COUNT-PLUS-CUP": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c8"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "variant/V8-CROSS-CLAIM": {
+  "calls": {
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ },
+ "variant/V9-CROSS-NOCUT": {
+  "calls": {
+   "fields": 1,
+   "support": 8,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c4",
+   "c5",
+   "c6",
+   "c7"
+  ],
+  "error": null,
+  "lead": "Three stories led South Africa this week: the Soweto unrest, the Pirates vs Sundowns cup final and the Forbes and Motsoane murder trial.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "shown"
+  }
+ }
+}

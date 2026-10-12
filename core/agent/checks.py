@@ -390,11 +390,10 @@ RULE_GAPS = {
 
 # K10 labels more than one kind of row (a claim cut or kept, a so_what or watch_next item resting on cut claims, a short
 # answer the support or critic path blanked, each rewrite outcome), so it has no entry in RULE_GAPS, which gives one
-# wording to a rule. The lead cut, a short answer that names a story whose claims were all cut, has its own.
-LEAD_STORY_GAP = {"what": "Short answer replaced: it named a story whose claims were all cut (K10)",
-                  "searched": "the short answer text",
-                  "why": "the short answer may name only a story that still has a claim that passed the checks"}
-LEAD_STORY_REASON = "the short answer named a story whose claims were all cut, so it was rebuilt from the stories that passed"
+# wording to a rule. The lead marker, written when a ranked ask lost a whole story, has its own: the gap is the reader's
+# (briefing.LEAD_WITHHELD_GAP) with its rule code, so the producer and the reader cannot drift.
+LEAD_STORY_GAP = {**briefing.LEAD_WITHHELD_GAP, "what": briefing.LEAD_WITHHELD_GAP["what"] + " (K10)"}
+LEAD_STORY_REASON = "the short answer was written over a story whose claims were all cut, so it is withheld"
 WORDS = re.compile(r"[\w']+")
 
 # K3 places (Albert, 29 September 2026): "a post with no location may support a claim that names no place; only posts
@@ -1971,76 +1970,40 @@ def _k8(text, records):
 
 # K10 and assembly
 
-# An opening numeral is a count of stories only when a story word follows it (up to two words later): "three stories",
-# "5 trends", "two big stories", and not "179 posts", "5 creators" or "10 October".
-_STORY_COUNT = re.compile(r"\W*(two|three|four|five|six|seven|eight|nine|ten|[2-9]|10)\s+(?:[a-z']+\s+){0,2}"
-                          r"(?:stories|story|conversations?|trends?|topics?|themes?|moments?|things)\b", re.IGNORECASE)
-_COUNTS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
-           **{str(n): n for n in range(2, 11)}}
+def lost_story(before_claims, after_claims) -> bool:
+    """Whether the claims before a stage group into two or more stories (briefing.story_name, compared through the
+    reader's key) and at least one of those stories has no claim after it. No text of a lead is read."""
+    def stories(claims):
+        found = {}
+        for claim in claims or []:
+            if isinstance(claim, dict) and claim.get("kind") in briefing.STORY_KINDS:
+                name = briefing.story_name(claim.get("text"))
+                if name:
+                    found.setdefault(briefing._key(name), name)
+        return found
+
+    before, after = stories(before_claims), stories(after_claims)
+    return len(before) >= 2 and any(key not in after for key in before)
 
 
-def fold(text):
-    """A story name and a lead compared as plain text: curly apostrophes are straight ones."""
-    return str(text).replace("’", "'").replace("‘", "'")
-
-
-def cut_story_in_lead(short_answer, cut_texts, kept_texts):
-    """The name of a story the short answer names when every claim of that story was cut, or None. A ranked answer's
-    lead names its stories in plain words and shares no run of eight words with a claim, so _mentions never sees it rest
-    on one. A story is the claims that start with the same plain name and a colon (briefing.story_name); the test applies
-    only when the answer names two or more stories, so a single labelled claim is never read as a ranking."""
-    if not isinstance(short_answer, str) or not short_answer.strip():
-        return None
-
-    def key(name):
-        return " ".join(fold(name).split()).casefold()
-
-    kept = {key(name) for text in kept_texts if (name := briefing.story_name(text))}
-    cut = {}
-    for text in cut_texts:
-        if name := briefing.story_name(text):
-            cut.setdefault(key(name), name)
-    if len(kept | set(cut)) < 2:
-        return None
-    gone = [(name_key, name) for name_key, name in cut.items() if name_key not in kept]
-    for name_key, name in gone:
-        if re.search(r"(?<!\w)" + re.escape(fold(name)) + r"(?!\w)", fold(short_answer), re.IGNORECASE):
-            return name
-    count = _STORY_COUNT.match(fold(short_answer))
-    if gone and count and _COUNTS[count[1].lower()] > len(kept):  # a lead that counts a story the answer no longer has
-        return gone[0][1]
-    return None
-
-
-def _story_names(texts):
-    """The plain story names of texts, each once, in the order they were first written."""
-    names = {}
-    for text in texts:
-        if (name := briefing.story_name(text)) and " ".join(fold(name).split()).casefold() not in names:
-            names[" ".join(fold(name).split()).casefold()] = name
-    return list(names.values())
-
-
-def replace_cut_story_lead(answer, cut_texts, *, ranked):
-    """(answer, row): the short answer rebuilt in code from the names of the stories that survive, when the question was
-    a ranked story question and the lead names or counts a story whose claims were all cut (cut_story_in_lead). Nothing
-    is blanked and no model is asked: a blanked lead is the one short answer rewrite's trigger, and that call is paid
-    for only when the support check blanks a lead, as it was before this check. The row is None when nothing changed.
-    The answer is not changed; a copy comes back."""
+def mark_lead_withheld(answer, before_claims, *, ranked):
+    """(answer, row): the marker for a lead written over a story that has no claim left. Only for a ranked ask, a lead
+    that is not blank or the fixed insufficient text, and a story lost between before_claims and the answer's claims. It
+    appends LEAD_STORY_GAP once and returns one K10 downgrade row, and changes no other field. The caller passes ranked
+    false when the final lead is a kept rewrite. The answer is not changed; a copy comes back. Nothing blanks, rewrites
+    or rebuilds the lead: the reader view withholds it (answer_view.present), so no model call can follow from this."""
     short = answer.get("short_answer")
     if not ranked or not isinstance(short, str) or not short.strip() or short == INSUFFICIENT:
         return answer, None
-    kept = [c.get("text") for c in answer.get("claims") or [] if isinstance(c, dict)]
-    names = _story_names(kept)
-    if not names or cut_story_in_lead(short, cut_texts, kept) is None:
+    if not lost_story(before_claims, answer.get("claims")):
         return answer, None
-    listed = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
     gaps = list(answer.get("gaps") or [])
-    if LEAD_STORY_GAP not in gaps:
-        gaps.append(dict(LEAD_STORY_GAP))
+    if briefing.lead_withheld({"gaps": gaps}):
+        return answer, None
+    gaps.append(dict(LEAD_STORY_GAP))
     row = {"claim_id": "short_answer", "rule": "K10", "verdict": "downgrade", "reason": LEAD_STORY_REASON,
            "checker": "code"}
-    return {**answer, "short_answer": f"The stories that led: {listed}.", "gaps": gaps}, row
+    return {**answer, "gaps": gaps}, row
 
 
 def _mentions(short_answer, cid, claim_text):
