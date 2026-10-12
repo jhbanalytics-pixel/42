@@ -25,7 +25,7 @@ import unicodedata
 KINDS = ("topic", "hashtag")
 FALLBACK = "this topic"
 _UNNAMED = re.compile(r"[Tt][Oo][Pp][Ii][Cc] [0-9a-fA-F]{8}")
-_DROPPED = ("@", "*", "[link]", "://", "/")
+_DROPPED = ("@", "*", "[link]", "/")
 _SEPARATORS = re.compile(r",|\u2013|\u2014|\s-\s")
 _DOUBLED_HALF = 5
 # Python and JavaScript disagree on these six as whitespace, so both read them alike: the zero width no-break space

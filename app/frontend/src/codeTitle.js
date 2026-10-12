@@ -14,7 +14,7 @@
 const KINDS = ['topic', 'hashtag'];
 const FALLBACK = 'this topic';
 const UNNAMED = /^[Tt][Oo][Pp][Ii][Cc] [0-9a-fA-F]{8}$/u;
-const DROPPED = ['@', '*', '[link]', '://', '/'];
+const DROPPED = ['@', '*', '[link]', '/'];
 const SEPARATORS = /,|\u2013|\u2014|\s-\s/u;
 const DOUBLED_HALF = 5;
 const WORD = /[\p{L}\p{M}\p{N}]/u;

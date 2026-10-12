@@ -281,3 +281,17 @@ def test_todays_reader_masks_a_hidden_persons_label_term():
     card = row["payload"]["cards"][0]
     assert card["title"] == "***, amapiano"
     assert code_title.shown_title(card) == "Posts about Amapiano"
+
+
+def test_a_hidden_persons_full_name_inside_a_longer_term_is_masked():
+    card = today.without_hidden(_hidden_card("thabo mokoena fans, amapiano", "Amapiano is life"), HIDDEN,
+                                label_terms=True)["cards"][0]
+    assert card["title"] == "***, amapiano"
+    assert code_title.code_title(card) == "Posts about Amapiano"
+
+
+def test_with_the_list_unreadable_a_joined_author_name_is_masked_too():
+    card = today.without_hidden(_hidden_card("thabomokoena, amapiano", "Amapiano is life"), None,
+                                label_terms=True)["cards"][0]
+    assert card["title"] == "***, amapiano"
+    assert _leaks(card["title"], code_title.shown_title(card)) == []
