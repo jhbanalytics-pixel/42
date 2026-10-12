@@ -728,19 +728,19 @@ def test_ng_ig_gossip_panel_reads_only_pages_the_source_audit_kept():
     assert all(("instagram", h) in listed for h in handles["NG"])
 
 
-def test_za_ig_gossip_panel_swaps_its_two_dead_handles_for_live_pages_at_the_same_count():
-    # 30 Sept to 12 Oct 2026: @maphephandaba answered not_found on all 13 days and @tshisalive (536 followers, last
-    # post March 2023) returned no posts on any day, so the panel was a zero-yield day from 11 Oct. @yomzansi and
-    # @sahiphopmag are ZA pages the source audit kept that posted on 6 and 6 of the 9 days the curated rotation
-    # read them. @zalebs stays: it is still the market's gossip publisher, though quiet on Instagram since 28 Jul.
+def test_za_ig_gossip_panel_replaces_its_dead_handles_with_three_live_pages_at_the_same_count():
+    # 30 Sept to 12 Oct 2026: @maphephandaba answered not_found on all 13 days, and @zalebs (last post 28 Jul) and
+    # @tshisalive (536 followers, last post March 2023) returned no posts on any day, so the panel was a zero-yield
+    # day from 11 Oct. Chosen 12 Oct from the ZA gossip research shortlist: @entertainmentsa and @zkhiphani, which
+    # 42 reads nowhere else, and @sahiphopmag, a page the source audit kept that posted on 6 of 9 curated reads.
     from core.collect import curated_creators
     listed = {(r["platform"], r["handle"]) for r in curated_creators.load_manifest()
               if r["market"] == "ZA" and r["source"] == curated_creators.AUDITED_ACCOUNT_SOURCE and r["active"]}
     panel = {f.market: f for f in ls.plan(date(2026, 10, 13)) if f.source == "ig_gossip_panel"}
     za = [i["handle"] for i in panel["ZA"].params["items"]]
-    assert za == ["yomzansi", "sahiphopmag", "zalebs"]
-    assert not {"maphephandaba", "tshisalive"} & set(za)
-    assert all(("instagram", h) in listed for h in za if h != "zalebs")
+    assert za == ["entertainmentsa", "sahiphopmag", "zkhiphani"]
+    assert not {"maphephandaba", "zalebs", "tshisalive"} & set(za)
+    assert [h for h in za if ("instagram", h) in listed] == ["sahiphopmag"]
     assert {m: len(f.params["items"]) for m, f in panel.items()} == {"ZA": 3, "NG": 3, "KE": 3}
     assert {m: f.hold() for m, f in panel.items()} == {"ZA": 6, "NG": 6, "KE": 6}
 

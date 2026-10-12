@@ -76,7 +76,7 @@ def test_the_new_token_leaves_the_zero_item_reference_behind(name):
 def test_the_new_tokens_are_pinned():
     assert _song()["protocol"] == "tiktok/song?proto=v2"
     assert _desk("ZA")["protocol"] == "panel:9a3c154daf73:v2"
-    assert _gossip("ZA")["protocol"] == "panel:913d46fb659e:v2"
+    assert _gossip("ZA")["protocol"] == "panel:8c1baab685cf:v2"  # @entertainmentsa, @sahiphopmag, @zkhiphani
     for market in ("ZA", "NG", "KE"):
         for make in (_desk, _gossip):
             case = make(market)
