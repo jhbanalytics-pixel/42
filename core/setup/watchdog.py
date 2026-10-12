@@ -27,8 +27,8 @@ credits_low and reconcile come from the reconcile job's own lines, and job_faile
 failure logs.
 
 Six more rules are log only (LOG_ONLY): they write the same "42 ALERT <name>:" line at WARNING (INFO for
-brief_all_held, NOTICE for schema_added), and no Cloud Monitoring policy matches them, so they add no cloud resource until someone adds one
-to core/setup/monitoring.py:
+brief_all_held, NOTICE for schema_added), and no Cloud Monitoring policy matches them, so they add no cloud
+resource until someone adds one to core/setup/monitoring.py:
   brief_empty         from 06:30, a market whose current brief is published or partial with no cards and nothing
                       held back
   brief_all_held      from 06:30, a market with no cards because every candidate was held: information, not a fault
@@ -310,8 +310,8 @@ RULES = {"collection_missing": _collection_missing, "zero_rows": _zero_rows, "br
 
 
 class _ReadOnce:
-    """The store, but brief_state and route_keys answer from the first read: three rules ask the first question
-    and two the second, which reads 8 days of response bodies."""
+    """The store, but brief_state and route_keys answer from the first read, a failed one included: three rules
+    ask the first question and two the second, which reads 8 days of response bodies."""
 
     def __init__(self, store):
         self._store, self._read = store, {}
@@ -321,8 +321,14 @@ class _ReadOnce:
 
     def _once(self, name, d):
         if (name, d) not in self._read:
-            self._read[(name, d)] = getattr(self._store, name)(d)
-        return self._read[(name, d)]
+            try:
+                self._read[(name, d)] = (getattr(self._store, name)(d), None)
+            except Exception as exc:
+                self._read[(name, d)] = (None, exc)
+        value, exc = self._read[(name, d)]
+        if exc is not None:
+            raise exc
+        return value
 
     def brief_state(self, d):
         return self._once("brief_state", d)
