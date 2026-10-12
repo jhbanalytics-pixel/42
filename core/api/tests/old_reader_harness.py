@@ -24,7 +24,15 @@ from core.api.tests import compat_harness as ch
 
 ROOT = ch.ROOT
 RECORD_KEYS = {"answer_meta", "evidence_links"}  # the keys the record gains: the typed summary state, the comment links
-C_RECORD_KEYS = {"evidence_links"}  # the one key Release C adds on top of a previous release that already stores answer_meta
+
+
+def declared_keys(prior_keys):
+    """The keys a candidate read may add to a previous release's read: the keys the record gains, less the ones the previous writers
+    already store (prior_record_keys). Against a previous release that stores both, none."""
+    return RECORD_KEYS - set(prior_keys)
+
+
+C_RECORD_KEYS = declared_keys({"answer_meta"})  # the one key Release C adds on top of a previous release that already stores answer_meta
 
 DRIVER = r'''
 import json, os, sys, time
@@ -106,10 +114,11 @@ def link_producer_output(tree):
     return json.loads(lines[0][6:])
 
 
-def linked_rows(tree, written):
+def linked_rows(tree, written, suffix=""):
     """One complete row per scenario in LINK_SCENARIOS, or [] when the tree has no producer of the links. Each is the tree's own complete
     row with the comment and post records the scenario shows added to its evidence, the producer's link stored under evidence_links
-    (or not, where the scenario stores none) and, where the row holds answer_meta, a meta rebuilt for the new ask id."""
+    (or not, where the scenario stores none) and, where the row holds answer_meta, a meta rebuilt for the new ask id. suffix ends each
+    ask id, so the previous release's own rows (suffix _prior) sit beside the candidate's in one fixture table."""
     produced = link_producer_output(tree)
     if produced is None:
         return []
@@ -118,7 +127,7 @@ def linked_rows(tree, written):
     rows = []
     for number, name in enumerate(LINK_SCENARIOS, 1):
         row = copy.deepcopy(base)
-        ask_id = f"a_20261009_link{number:02d}"
+        ask_id = f"a_20261009_link{number:02d}{suffix}"
         row["record"]["ask_id"], row["run_id"] = ask_id, ask_id
         answer = row["record"]["answer"]
         held = {e["id"] for e in answer["evidence"]}
@@ -302,10 +311,26 @@ def layer2_problems(reads, twin_of, declared=RECORD_KEYS):
     return problems
 
 
-def links_problems(reads, rows):
-    """For every row read: the previous reader gives evidence_links back exactly as stored, and gives none where none is stored. The
-    stored value is the corpus row's, produced by the candidate; the returned value is the previous reader's own."""
-    problems = []
+def links_problems(reads, rows, twin_of=None, prior_rows=()):
+    """For every row read, the evidence_links value the previous reader gives back. Against a previous release whose writers do not
+    store the key, it comes back exactly as stored, and not at all where none is stored. The stored value is the corpus row's, produced
+    by the candidate; the returned value is the previous reader's own.
+
+    Against a previous release whose writers store the key, its readers act on it, so the expected value comes from that release:
+    prior_rows are its own link rows, made by its producer from its own complete row, and twin_of names the one of the same case for
+    each candidate row. Where its reader gave its own row's link back as stored, the candidate's comes back as the candidate stored it;
+    where its reader withheld or pruned its own, the candidate's comes back as its own did. At least one of its own rows must come back
+    as stored with a link in it, or no row shows the previous reader giving a link back and the rule compares nothing."""
+    own = {ask_id_of(row): row for row in prior_rows}
+    problems, as_stored = [], False
+    for row in prior_rows:
+        ask_id, stored = ask_id_of(row), row["record"].get("evidence_links", "absent")
+        got = reads.get(ask_id, {}).get("ask read")
+        if isinstance(got, dict) and got.get("kind") == "json" and "links" not in got:
+            problems.append(f"{ask_id} ask read.evidence_links: the read does not show what the previous reader gave back")
+        as_stored = as_stored or (isinstance(got, dict) and stored != "absent" and got.get("links") == stored)
+    if prior_rows and not as_stored:
+        problems.append("ask read.evidence_links: no link row of the previous release came back as stored, so its rows show nothing")
     for row in rows:
         ask_id, stored = ask_id_of(row), row["record"].get("evidence_links", "absent")
         got = reads.get(ask_id, {}).get("ask read")
@@ -314,6 +339,13 @@ def links_problems(reads, rows):
         if "links" not in got:
             if stored != "absent":
                 problems.append(f"{ask_id} ask read.evidence_links: the read does not show what the previous reader gave back")
+            continue
+        twin = own.get((twin_of or {}).get(ask_id))
+        twin_got = reads.get(ask_id_of(twin), {}).get("ask read") if twin is not None else None
+        if isinstance(twin_got, dict) and "links" in twin_got and twin_got["links"] != twin["record"].get("evidence_links", "absent"):
+            if got["links"] != twin_got["links"]:
+                problems.append(f"{ask_id} ask read.evidence_links: the previous reader gave {got['links']} where it gives its own record "
+                                f"of the case, {ask_id_of(twin)}, {twin_got['links']}")
         elif got["links"] != stored:
             problems.append(f"{ask_id} ask read.evidence_links: the previous reader gave {got['links']} where the record stores {stored}")
     return problems
@@ -377,6 +409,14 @@ def reverse_problems(reads):
         if meta not in ("absent", "null") and meta != {"check": "legacy_unknown"}:
             problems.append(f"{ask_id}: a record with no typed state reads as {meta}")
     return problems
+
+
+def prior_record_keys(legacy, prior_linked):
+    """The keys of RECORD_KEYS the previous release's writers store, read from what they wrote at the base commit and never typed:
+    answer_meta when every record its fixture writers left carries it (stores_answer_meta), evidence_links when its own producer stored
+    the key on one of its link rows (linked_rows on the base tree). a80be1d stores neither, Release A answer_meta, Release C both."""
+    keys = {"answer_meta"} if stores_answer_meta(legacy) else set()
+    return keys | ({"evidence_links"} if any("evidence_links" in row["record"] for row in prior_linked) else set())
 
 
 def stores_answer_meta(rows):
@@ -496,10 +536,13 @@ def layer_problems(data):
     """{layer name: [problems]} for the data collect returns, or the same shape built from fixtures by the tests."""
     rows, legacy = data["rows"], data["legacy"]
     stores = data.get("prior_stores_answer_meta", False)
-    ids, legacy_ids = [ask_id_of(row) for row in data.get("layer2_rows", rows)], [ask_id_of(row) for row in legacy]
+    prior_keys = set(data.get("prior_record_keys", {"answer_meta"} if stores else ()))
+    prior_linked = data.get("prior_linked", []) if "evidence_links" in prior_keys else []
+    layer2_rows = data.get("layer2_rows", rows)
+    ids, legacy_ids = [ask_id_of(row) for row in [*layer2_rows, *prior_linked]], [ask_id_of(row) for row in legacy]
     layer2 = [f"{ask_id}: no read of {route}" for route in ("ask read", "ask events", "ask export") for ask_id in unread(data["reads"], ids, route)]
-    layer2 += layer2_problems(data["reads"], data["twin_of"], declared=C_RECORD_KEYS if stores else RECORD_KEYS)
-    layer2 += links_problems(data["reads"], data.get("layer2_rows", rows))
+    layer2 += layer2_problems(data["reads"], data["twin_of"], declared=declared_keys(prior_keys))
+    layer2 += links_problems(data["reads"], layer2_rows, data["twin_of"], prior_linked)
     layer3 = [] if data["paths"] else ["no JSON path is read from the previous release"]
     layer3 += [] if legacy else ["no record written by the previous writers"]
     layer3 += layer3_problems(legacy, rows, data["paths"])
@@ -527,10 +570,12 @@ def collect(candidate_tree, log_dir, base_commit=ch.BASE_COMMIT):
     tmp = Path(log_dir)
     base = ch.archive(base_commit, tmp / "base")
     legacy = written_rows(base)
+    prior_linked = linked_rows(base, legacy, suffix="_prior")
     written = written_rows(candidate_tree)
     linked = linked_rows(candidate_tree, written)
     rows, twin_of = corpus(written, linked)
     stores = stores_answer_meta(legacy)
+    prior_keys = prior_record_keys(legacy, prior_linked)
     # A previous release that stores answer_meta is judged on the candidate's real records as written (the typed state present, as the
     # previous readers know it), against its own records of the same kind read by the same readers. The synthetic clones are not read.
     layer2_rows, layer2_twin = rows, twin_of
@@ -538,15 +583,22 @@ def collect(candidate_tree, log_dir, base_commit=ch.BASE_COMMIT):
         by_kind = {kind_of(row): ask_id_of(row) for row in legacy}
         layer2_rows = [*written, *linked, *legacy]
         layer2_twin = {ask_id_of(row): by_kind[kind_of(row)] for row in [*written, *linked] if kind_of(row) in by_kind}
+    # A previous release whose writers store evidence_links has readers that act on it, so each candidate link row is judged against
+    # that release's own row of the same case, not against a row with no link. Its own rows are read beside the candidate's.
+    if "evidence_links" in prior_keys:
+        layer2_twin = {**layer2_twin, **{ask_id_of(row): ask_id_of(own) for row, own in zip(linked, prior_linked)}}
+    else:
+        prior_linked = []
     with OldReader(base, tmp) as reader:
-        reader.load(layer2_rows)
-        reads = reader.read([ask_id_of(row) for row in layer2_rows])
+        reader.load([*layer2_rows, *prior_linked])
+        reads = reader.read([ask_id_of(row) for row in [*layer2_rows, *prior_linked]])
     candidate = copy_tree(candidate_tree, tmp / "candidate")
     with OldReader(candidate, tmp) as reader:
         reader.load(legacy)
         reverse = read_with_meta(reader, [ask_id_of(row) for row in legacy])
     return {"rows": rows, "twin_of": layer2_twin, "legacy": legacy, "paths": a80_record_paths(base), "reads": reads, "reverse": reverse,
-            "prior_stores_answer_meta": stores, "layer2_rows": layer2_rows, "candidate_writes_links": bool(linked)}
+            "prior_stores_answer_meta": stores, "layer2_rows": layer2_rows, "candidate_writes_links": bool(linked),
+            "prior_record_keys": sorted(prior_keys), "prior_linked": prior_linked}
 
 
 def changed_files(root):
