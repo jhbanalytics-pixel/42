@@ -1035,7 +1035,8 @@
    "core/setup/tests/test_jobs_effects.py",
    "core/collect/tests/test_chain_record.py",
    "core/detect/tests/test_js07_switch_columns.py",
-   "core/setup/tests/test_jobs_wiring.py"
+   "core/setup/tests/test_jobs_wiring.py",
+   "core/setup/tests/test_jobs_prior.py"
   ],
   "deploy": [
    "core/api/tests/test_deploy_candidate.py",

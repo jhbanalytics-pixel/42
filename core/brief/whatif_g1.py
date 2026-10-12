@@ -3,9 +3,10 @@
 For one brief date it reads each market's current brief (v_briefs_current), takes every held item whose rule is G1,
 and runs the brief's data gates on it again with each of the last three market-days on its main platform treated as
 valid: core/brief/job.py _gate, which applies core/trust/gate.py gate_card and then the brief's own data holds
-(platform-generic tag, no readable name, paid key, likely coordinated and the post floors). Only a copy of the gate
-context is changed; gate_card and _gate run as they are. Items held at G1 never reached the later gates, so this is
-how many of them would pass on a day G1 clears, before confirm, critic and support model checks.
+(platform-generic tag, no readable name, paid key, likely coordinated, the post floors and the hold on a measured zero in
+the counted 3 days). Only a copy of the gate context is changed; gate_card and _gate run as they are. Items held at G1
+never reached the later gates, so this is how many of them would pass on a day G1 clears, before confirm, critic and
+support model checks.
 
 A stored held item keeps item_id, title, rule, reason, reason_text, evidence (the pack's posts), numbers (the pack's
 pinned numbers less growth while untested), count_line and failed_reason. It does not keep the gate inputs: lane
@@ -33,7 +34,7 @@ from datetime import date
 from core.api.today import without_hidden
 from core.brief import gatectx, holds_report
 from core.brief.evidence import SuppressionUnreadable, read_hidden
-from core.brief.job import MARKETS, _gate, readable_title
+from core.brief.job import MARKETS, NO_COUNTED_DAYS, _gate, readable_title
 from core.brief.market_scope import read_market_scope
 from core.detect import sqlrun
 from core.detect.sqlrun import AGENT, CORE
@@ -49,8 +50,8 @@ LEFT JOIN {core}.cultural_map cm ON cm.item_id = s.item_id AND cm.valid_to IS NU
 WHERE s.metric_date = @d AND s.market = @market AND s.item_id IN UNNEST(SPLIT(@item_ids, ','))"""
 
 # The order _gate applies its holds in once G1 passes. G8 and G10 publish, so a card that reaches "end" passes.
-ORDER = ("G3", "G6", "G5", "G5b", "G4b", "G2", "name", "paid_key", "G4", "floor", "end")
-LABELS = {"name": "no readable name", "paid_key": "G5b", "floor": "post floor"}
+ORDER = ("G3", "G6", "G5", "G5b", "G4b", "G2", "name", "paid_key", "G4", "floor", "counted", "end")
+LABELS = {"name": "no readable name", "paid_key": "G5b", "floor": "post floor", "counted": "no creator in its counted 3 days"}
 PASSES = "passes data gates; still needs confirm, critic and support model checks"
 ROW_FIELDS = "item_state row (sponsored_share, state, map_status, authenticity, canonical_key, hashtags)"
 _WRITE = re.compile(r"\b(INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|TRUNCATE|ALTER)\b", re.IGNORECASE)
@@ -153,6 +154,8 @@ def _step(decision, cand):
         return decision.rule
     if cand.get("floor_held"):
         return "floor"
+    if decision.reason == NO_COUNTED_DAYS:
+        return "counted"
     return "name"
 
 

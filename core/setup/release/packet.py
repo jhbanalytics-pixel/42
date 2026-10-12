@@ -12,11 +12,12 @@
 Release B, the jobs image release, has the same four commands in mode jobs, plus the capture of baseline-J (W8-REL-B v2.1 3.8, JB-05):
 
     py -3.13 -m core.setup.release.packet capture-baseline-j --out <file> --gcloud-timeout-seconds <n> --a-readback <file>
-        --a-retire retired|waits_for_b
+        --a-retire retired|waits_for_b [--prior-jobs-release <file>]
     py -3.13 -m core.setup.release.packet bind --mode jobs [--producer-only] --repo <checkout> --release-commit <40 hex> --attempt 01
         --packet-dir <dir> --baseline-j <file> --caller-account <email> --gcloud-timeout-seconds <n> --http-timeout-seconds <n>
         --chain-evidence-bytes-cap <n> --collect-start-tolerance-minutes <0 to 30> --baseline-chain <file> --durable-manifest <file>
         --dry-run-receipt <file> --max-baseline-age-days <n> --max-candidate-age-hours <n>
+        [--prior-jobs-release <file> --release-letter <A-Z>]
     py -3.13 -m core.setup.release.packet lock|review|receipt --mode jobs ...   as above, with the jobs steps JobsCandidate JobsUpdate JobsRollback
     py -3.13 -m core.setup.release.packet receipt --mode jobs ... --authorisation-line-file <file> --quiet-line-file <file>
         a jobs receipt needs both lines Albert types; it records the quiet window and the promise of no manual start only from the second
@@ -25,6 +26,18 @@ bind --mode jobs --producer-only writes producer-bindings.json, the keys the cha
 manifest exists; the full bind then names that manifest. The rollback digest is a literal of this module (the e77c3819 image of
 W8-REL-B v2.1 FB-5) that baseline-J is held to, never a value read from baseline-J, and the schema receipt hash is worked out from the
 durable manifest. Every durable file of a jobs release lies in the packet directory, as the paste requires.
+
+A jobs release that follows a jobs release (Release D on the live Release B) is bound to it by a prior jobs release record:
+
+    py -3.13 -m core.setup.release.packet prior-jobs-release --prior-lock <file> --prior-packet-dir <dir> --expect-digest <sha256:...>
+        --out <file>
+
+The record is derived from the prior release's own lock and packet, and every tie in it is a recomputation: the review against the lock, the
+bindings against the lock, the manifest against its own hash, its sidecar and the FreezeJobs readback, the AfterJobsUpdate readback against
+the release, the fourteen definition hashes against the log of the JobsUpdate run. The digest the lead names with --expect-digest is the
+pin the derived digest is held to; nothing the files say about themselves stands in for it. With the record, the rollback digest is its
+digest (not the constant above), baseline-J must hold the fourteen jobs on that digest and in those definitions, the baseline chain is
+counted from the AfterJobsUpdate readback of the prior release, and the release letter of the two typed lines is the one given to bind.
 
 Each subcommand wraps a function that already exists (capture_baseline, validate_bindings and stage1, build_lock, lock_problems,
 review_for) and writes one file under a fixed name, once: an existing file is never replaced. The packet directory is also the
@@ -95,17 +108,38 @@ SCHEMA_RECEIPT_FILE = "schema-readback-receipt.json"
 JOBS_STEPS = ("JobsCandidate", "JobsUpdate", "JobsRollback")
 JOBS_BUILD_CONFIG = "core/setup/cloudbuild.jobs.yaml"
 JOBS_DOCKERFILE = "core/setup/jobs.Dockerfile"
-# The sentence Albert types to authorise Release B, as he approved it on 10 Oct 2026 (batch 8, FOR-ALBERT-PENDING item 11): the release id is
-# the one place that varies, the job count is taken from the code that holds the list of jobs, and nothing is added to it. The window and the
-# typed words are not part of what he approved. What he types must equal it after whitespace is normalised.
-JOBS_AUTHORISATION_TEMPLATE = (
-    "RELEASE B {release_id}: I authorise the jobs only release of this release id and nothing else. Only the {n_jobs} Cloud Run jobs "
+# The sentence Albert types to authorise Release B, as he approved it on 10 Oct 2026 (batch 8, FOR-ALBERT-PENDING item 11): the release id and
+# the release letter are the places that vary, the job count is taken from the code that holds the list of jobs, and nothing is added to it.
+# The window and the typed words are not part of what he approved. What he types must equal it after whitespace is normalised.
+_JOBS_AUTHORISATION = (
+    "RELEASE {letter} {{release_id}}: I authorise the jobs only release of this release id and nothing else. Only the {{n_jobs}} Cloud Run jobs "
     "change, to one image built from the release commit; no service revision, traffic entry, tag, scheduler entry, secret, "
     "environment variable or paid Ask changes.")
 # The second line Albert types for Release B: Release A's own quiet-window sentence with B's release id in front. The receipt says the window is
 # quiet and that no manual job will start only when he has typed this, because the approved line above carries neither and no snapshot or
 # observation can stand in for a promise.
-JOBS_QUIET_TEMPLATE = "RELEASE B {release_id} QUIET: The window is quiet and I will start no manual job until the execution ends."
+_JOBS_QUIET = "RELEASE {letter} {{release_id}} QUIET: The window is quiet and I will start no manual job until the execution ends."
+# The letter in the two lines is the one the release was bound with (D for the jobs release on top of B); a release bound without one is B.
+DEFAULT_LETTER = "B"
+RELEASE_LETTER = re.compile(r"[A-Z]\Z")
+
+
+def release_letter(text):
+    if not (isinstance(text, str) and RELEASE_LETTER.match(text)):
+        raise Refused("The release letter must be one capital letter")
+    return text
+
+
+def jobs_authorisation_template(letter=DEFAULT_LETTER):
+    return _JOBS_AUTHORISATION.format(letter=release_letter(letter))
+
+
+def jobs_quiet_template(letter=DEFAULT_LETTER):
+    return _JOBS_QUIET.format(letter=release_letter(letter))
+
+
+JOBS_AUTHORISATION_TEMPLATE = jobs_authorisation_template()
+JOBS_QUIET_TEMPLATE = jobs_quiet_template()
 
 
 def utc_now():
@@ -292,30 +326,159 @@ def read_a_readback(path):
     return {"kind": value["phase"], "at_utc": at_utc, "a_release_id": release_id}
 
 
+def load_prior_jobs_record(path):
+    """The prior jobs release record in a file (the one `prior-jobs-release` wrote), checked for shape. It is the pin: live is judged against it."""
+    record = read_json(path, "the prior jobs release record")
+    try:
+        jb.validate_prior_jobs_release(record)
+    except so.Stop as error:
+        raise Refused(f"The prior jobs release record is not accepted: {error.message}") from None
+    return record
+
+
 def cmd_capture_baseline_j(args):
     out = Path(args.out)
     refuse_existing(out)
+    prior = load_prior_jobs_record(args.prior_jobs_release) if args.prior_jobs_release else None
     a_terminal = read_a_readback(args.a_readback)
     captured = utc_now().replace(microsecond=0).isoformat()
     # An A that was rolled back restores the a80 pair, whose revision names are literals of this module, never typed.
     a80 = dict(A80_SERVING) if a_terminal["kind"] == "AfterRollback" else None
+    # With a prior release the jobs are held to its digest, which the record binds; without one, to the pinned digest of the release before B.
     baseline = jb.capture_baseline_j(baseline_reader(args.gcloud_timeout_seconds), a_terminal=a_terminal, a80_serving=a80,
-                                     rollback_digest=ROLLBACK_JOBS_DIGEST, a_retire=args.a_retire, captured_utc=captured)
+                                     rollback_digest=prior["image_digest"] if prior else ROLLBACK_JOBS_DIGEST, a_retire=args.a_retire,
+                                     captured_utc=captured, prior=prior)
     digest = jb.write_once(out, baseline)
     print(f"wrote {out}\nsha256 {digest}")
     return 0
 
 
-def load_baseline_j(path):
-    """(baseline-J, its sha256), from one read. Its fourteen images are held to the pinned rollback digest, which the file does not supply."""
+# prior-jobs-release
+
+MANIFEST_FILE = "release-manifest.json"
+SIDECAR_FILE = "release-manifest.sha256"
+
+
+def tie(ok, message):
+    if not ok:
+        raise Refused(message)
+
+
+def jobs_digest_argument(text):
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", text):
+        raise argparse.ArgumentTypeError("not a sha256 digest")
+    return text
+
+
+def latest_readback(packet_dir, phase):
+    """(the readback, its sha256) of the last readbacks/<phase>-<nn>.json of a packet directory, or Refused."""
+    found = sorted((Path(packet_dir) / "readbacks").glob(f"{phase}-*.json"))
+    tie(bool(found), f"The prior packet has no {phase} readback")
+    return read_input(found[-1], f"the prior {phase} readback")
+
+
+def update_definitions(packet_dir):
+    """(the fingerprint of each job as the JobsUpdate runs of a packet left it, the sha256 of the last log, that log). The runs are read in
+    the order they were made; a job named by a later log takes its fingerprint from that log, and every job must end with one."""
+    logs = sorted((Path(packet_dir) / "runs").glob("*-JobsUpdate/jobs-update-*.json"))
+    tie(bool(logs), "The prior packet holds no JobsUpdate log")
+    definitions, last, last_sha = {}, None, None
+    for path in logs:
+        last, last_sha = read_input(path, "the prior JobsUpdate log")
+        tie(last.get("schema_version") == so.SCHEMA_VERSION and last.get("action") == "update", "A JobsUpdate log of the prior packet is not an update log")
+        for entry in last["changed_definitions"]:
+            definitions[entry["job"]] = entry.get("after_sha256")
+    tie(last.get("complete") is True and last.get("stopped") is None, "The last JobsUpdate log of the prior packet is not a complete update")
+    tie(set(definitions) == set(so.JOB_NAMES) and all(isinstance(v, str) and jb.SHA256.match(v) for v in definitions.values()),
+        "The JobsUpdate logs of the prior packet do not give a definition hash for each of the fourteen jobs")
+    return definitions, last_sha, last
+
+
+def cmd_prior_jobs_release(args):
+    try:
+        return derive_prior_jobs_release(args)
+    except (AttributeError, KeyError, TypeError):
+        raise Refused("The prior packet is not shaped as a packet is") from None
+
+
+def derive_prior_jobs_release(args):
+    """The record of a jobs release that is live, derived from its own lock and the files that lock and the review tie together. Every tie
+    is a recomputation: the review against the lock, the bindings against the lock, the manifest against its own hash and its sidecar, and
+    the digest it freezes against the FreezeJobs readback and against the digest the lead named. The values come from the bindings, the
+    manifest and the readbacks; none comes from the file it is judged against, and the digest is held to a pin the caller supplies."""
+    out = Path(args.out)
+    refuse_existing(out)
+    packet_dir = Path(args.prior_packet_dir)
+    lock, lock_sha = read_input(args.prior_lock, "the prior lock")
+    rid = lock.get("release_id")
+    tie(isinstance(rid, str) and so.RELEASE_ID.match(rid) is not None, "The prior lock names no release id")
+    review, _ = read_input(packet_dir / REVIEW_FILE, "the prior independent review")
+    bindings, bindings_sha = read_input(packet_dir / BINDINGS_FILE, "the prior bindings")
+    tie(review.get("verdict") == "ACCEPT" and review.get("lock_sha256") == lock_sha, "The prior independent review does not accept this lock")
+    tie(isinstance(lock.get("bound_files"), dict) and lock["bound_files"].get("bindings") == bindings_sha, "The prior bindings differ from the prior lock")
+    try:
+        jo.validate_jobs_bindings(bindings)
+    except so.Stop as error:
+        raise Refused(f"The prior bindings are not accepted: {error.code}") from None
+    commit = bindings.get("target")
+    tie(bindings.get("mode") == "jobs" and bindings.get("status") == STATUS and bindings.get("release_id") == rid and review.get("target") == commit
+        and commit[:7] == rid[4:11], "The prior bindings and review are not for the jobs release the lock names")
+    manifest, manifest_sha = read_input(packet_dir / MANIFEST_FILE, "the prior release manifest")
+    recomputed = so.manifest_hash(manifest)
+    tie(manifest.get("manifest_sha256") == recomputed, "The prior manifest does not match its own hash")
+    sidecar = packet_dir / SIDECAR_FILE
+    tie(sidecar.is_file() and sidecar.read_text(encoding="utf-8").strip() == recomputed, "The prior manifest sidecar does not hold the manifest hash")
+    source = manifest.get("source") if isinstance(manifest.get("source"), dict) else {}
+    image = manifest.get("image") if isinstance(manifest.get("image"), dict) else {}
+    digest = image.get("digest")
+    tie(manifest.get("kind") == "jobs-release-manifest" and manifest.get("schema_version") == so.SCHEMA_VERSION and source.get("release_id") == rid
+        and source.get("commit") == commit, "The prior manifest is not for the release and commit the lock and bindings name")
+    tie(isinstance(digest, str) and jb.DIGEST.match(digest) and image.get("registry_digest") == digest
+        and image.get("reference") == f"{jo.JOBS_REPO}@{digest}", "The prior manifest image is not one digest")
+    tie(digest == args.expect_digest, "The digest the prior release froze is not the digest the lead named")
+    freeze, _ = latest_readback(packet_dir, "FreezeJobs")
+    seen = freeze.get("observations") if isinstance(freeze.get("observations"), dict) else {}
+    tie(freeze.get("phase") == "FreezeJobs" and freeze.get("mode") == "jobs" and freeze.get("release_id") == rid
+        and freeze.get("schema_version") == so.SCHEMA_VERSION and seen.get("manifest_sha256") == recomputed and seen.get("image_digest") == digest,
+        "The prior FreezeJobs readback does not hold this manifest and this digest")
+    for phase in ("BeforeJobsRollback", "AfterJobsRollback"):
+        tie(not list((packet_dir / "readbacks").glob(f"{phase}-*.json")), f"The prior release has a {phase} readback: it is no longer the live jobs release")
+    after, after_sha = latest_readback(packet_dir, "AfterJobsUpdate")
+    seen = after.get("observations") if isinstance(after.get("observations"), dict) else {}
+    terminal_at = after.get("at_utc")
+    tie(after.get("phase") == "AfterJobsUpdate" and after.get("mode") == "jobs" and after.get("release_id") == rid
+        and after.get("schema_version") == so.SCHEMA_VERSION and after.get("blocking") == {} and seen.get("jobs_at_digest") == len(jo.UPDATE_ORDER)
+        and jb.aware_utc(terminal_at) is not None, "The prior AfterJobsUpdate readback is not this release's, clean and timed, with the fourteen jobs at the digest")
+    definitions, log_sha, log = update_definitions(packet_dir)
+    tie(jb.aware_utc(log.get("finished_at")) is not None and jb.aware_utc(log["finished_at"]) <= jb.aware_utc(terminal_at),
+        "The last JobsUpdate log of the prior packet finished after its AfterJobsUpdate readback")
+    record = {"schema_version": so.SCHEMA_VERSION, "kind": jb.PRIOR_KIND, "release_id": rid, "commit": commit, "image_digest": digest,
+              "terminal": {"kind": jb.PRIOR_TERMINAL_KIND, "at_utc": terminal_at}, "job_definitions": {job: definitions[job] for job in so.JOB_NAMES},
+              "sources": {"lock_sha256": lock_sha, "bindings_sha256": bindings_sha, "manifest_sha256": manifest_sha, "after_update_sha256": after_sha,
+                          "update_log_sha256": log_sha}}
+    try:
+        jb.validate_prior_jobs_release(record)
+    except so.Stop as error:
+        raise Refused(f"The prior jobs release record would not be accepted: {error.message}") from None
+    write_json_new(out, record)
+    print(f"wrote {out}\nsha256 {sha_bytes(out)}")
+    return 0
+
+
+def load_baseline_j(path, prior=None):
+    """(baseline-J, its sha256), from one read. Its fourteen images are held to the pinned rollback digest, which the file does not supply:
+    the digest of the prior jobs release record when there is one (and the record the baseline carries must be that record, and the jobs
+    its definitions), else the pinned digest of the release before B."""
     baseline, digest = read_input(path, "baseline-J")
     if baseline.get("kind") != "baseline-J" or baseline.get("schema_version") != so.SCHEMA_VERSION:
         raise Refused("The baseline file is not a baseline-J receipt")
-    jo.load_baseline_j({"baselinePath": str(path), "baselineSha256": digest})
-    wanted = f"{jo.JOBS_REPO}@{ROLLBACK_JOBS_DIGEST}"
+    jo.load_baseline_j({"baselinePath": str(path), "baselineSha256": digest, **({"priorJobsRelease": prior} if prior is not None else {})})
+    wanted = f"{jo.JOBS_REPO}@{prior['image_digest'] if prior else ROLLBACK_JOBS_DIGEST}"
     for name, view in baseline["jobs"].items():
         if not isinstance(view, dict) or view.get("image") != wanted:
             raise Refused(f"The job {name} is not on the pinned rollback digest")
+        if prior is not None and so.fingerprint(view) != prior["job_definitions"][name]:
+            raise Refused(f"The job {name} is not the definition the prior jobs release left")
     return baseline, digest
 
 
@@ -337,15 +500,25 @@ def cmd_bind_jobs(args):
     if head != args.release_commit:
         raise Refused("The checkout is not at the commit named by --release-commit")
     release_id = f"rel-{head[:7]}-{args.attempt}"
-    baseline, baseline_sha = load_baseline_j(args.baseline_j)
+    prior = load_prior_jobs_record(args.prior_jobs_release) if args.prior_jobs_release else None
+    if args.release_letter is not None:
+        release_letter(args.release_letter)
+    elif prior is not None:
+        raise Refused("A release bound to a prior jobs release needs --release-letter")
+    baseline, baseline_sha = load_baseline_j(args.baseline_j, prior)
     root = packet_dir.resolve()
     bound = {
         "schema_version": so.SCHEMA_VERSION, "mode": "jobs", "release_id": release_id, "target": head, "tree": tree, "releaseDir": str(root),
-        "baselinePath": str(Path(args.baseline_j).resolve()), "baselineSha256": baseline_sha, "rollbackJobsDigest": ROLLBACK_JOBS_DIGEST,
+        "baselinePath": str(Path(args.baseline_j).resolve()), "baselineSha256": baseline_sha,
+        "rollbackJobsDigest": prior["image_digest"] if prior else ROLLBACK_JOBS_DIGEST,
         "callerAccount": args.caller_account, "readTimeoutSeconds": {"gcloud": args.gcloud_timeout_seconds, "http": args.http_timeout_seconds},
         "chainEvidenceBytesCap": args.chain_evidence_bytes_cap, "templateHashes": ce.template_hashes(),
         "collectStartToleranceMinutes": args.collect_start_tolerance_minutes,
     }
+    if prior is not None:
+        bound["priorJobsRelease"] = prior
+    if args.release_letter is not None:
+        bound["releaseLetter"] = args.release_letter
     if args.producer_only:
         jo.validate_jobs_bindings(bound, producer=True)
         write_json_new(out, bound)
@@ -384,7 +557,7 @@ def cmd_bind_jobs(args):
     # The baseline chain manifest says nothing about the tolerance, the cap or the caller it was produced under, so it is tied to the
     # producer bindings written in this packet directory: every key the producer read must be what these bindings say.
     produced = read_json(packet_dir / PRODUCER_FILE, "the producer bindings (run bind --producer-only first)")
-    differs = [key for key in (*jo.PRODUCER_BINDINGS, "schema_version", "mode") if produced.get(key) != bound.get(key)]
+    differs = [key for key in (*jo.PRODUCER_BINDINGS, "schema_version", "mode", "priorJobsRelease", "releaseLetter") if produced.get(key) != bound.get(key)]
     if differs:
         raise Refused("The baseline chain manifest was produced under other bindings than these: " + ", ".join(differs))
     chain_head = (read_json(chain_path, "the baseline chain manifest").get("generated_from") or {}).get("head")
@@ -558,21 +731,21 @@ def cmd_review(args):
 
 # receipt
 
-def jobs_authorisation(release_id):
-    return JOBS_AUTHORISATION_TEMPLATE.format(release_id=release_id, n_jobs=len(so.JOB_NAMES))
+def jobs_authorisation(release_id, letter=DEFAULT_LETTER):
+    return jobs_authorisation_template(letter).format(release_id=release_id, n_jobs=len(so.JOB_NAMES))
 
 
-def jobs_quiet(release_id):
-    return JOBS_QUIET_TEMPLATE.format(release_id=release_id)
+def jobs_quiet(release_id, letter=DEFAULT_LETTER):
+    return jobs_quiet_template(letter).format(release_id=release_id)
 
 
-def check_quiet(text, release_id):
-    if " ".join(text.split()) != jobs_quiet(release_id):
+def check_quiet(text, release_id, letter=DEFAULT_LETTER):
+    if " ".join(text.split()) != jobs_quiet(release_id, letter):
         raise Refused("The quiet window line is not the one the packet asks Albert to type for this release")
 
 
-def check_authorisation(text, release_id, mode="services-only"):
-    expected = jobs_authorisation(release_id) if mode == "jobs" else AUTHORISATION_TEMPLATE.format(release_id=release_id)
+def check_authorisation(text, release_id, mode="services-only", letter=DEFAULT_LETTER):
+    expected = jobs_authorisation(release_id, letter) if mode == "jobs" else AUTHORISATION_TEMPLATE.format(release_id=release_id)
     if " ".join(text.split()) != expected:
         raise Refused("The authorisation line is not the one the packet asks Albert to type for this release")
 
@@ -601,11 +774,12 @@ def cmd_receipt(args):
     line_file = Path(args.authorisation_line_file)
     if not line_file.is_file():
         raise Refused("The authorisation line file is missing")
-    check_authorisation(line_file.read_text(encoding="utf-8-sig"), bound["release_id"], args.mode)
+    letter = bound.get("releaseLetter", DEFAULT_LETTER) if jobs else DEFAULT_LETTER
+    check_authorisation(line_file.read_text(encoding="utf-8-sig"), bound["release_id"], args.mode, letter)
     if jobs:
         if not args.quiet_line_file or not Path(args.quiet_line_file).is_file():
             raise Refused("The quiet window line file is missing")
-        check_quiet(Path(args.quiet_line_file).read_text(encoding="utf-8-sig"), bound["release_id"])
+        check_quiet(Path(args.quiet_line_file).read_text(encoding="utf-8-sig"), bound["release_id"], letter)
         quiet_typed = True
     steps = [step for step in allowed if step in wanted]
     receipt = {"schema_version": so.SCHEMA_VERSION, "release_id": bound["release_id"], "target": bound["target"],
@@ -646,6 +820,8 @@ REQUIRED = {
 def check_required(parser, args):
     if args.command != "bind":
         return
+    if args.mode != "jobs" and (args.prior_jobs_release is not None or args.release_letter is not None):
+        parser.error("--prior-jobs-release and --release-letter belong to --mode jobs")
     names = list(REQUIRED[("bind", args.mode)])
     if args.mode == "jobs" and not args.producer_only:
         names += REQUIRED[("bind", "jobs-full")]
@@ -674,7 +850,15 @@ def build_parser():
     capture_j.add_argument("--gcloud-timeout-seconds", type=positive_int, required=True)
     capture_j.add_argument("--a-readback", type=Path, required=True, help="Release A's AfterPromotion or AfterRollback readback file")
     capture_j.add_argument("--a-retire", choices=jb.A_RETIRE, required=True, help="whether A's Retire is done or waits until after B")
+    capture_j.add_argument("--prior-jobs-release", type=Path, help="the record `prior-jobs-release` wrote: the jobs must be that release (default: the release before B)")
     capture_j.set_defaults(handler=cmd_capture_baseline_j)
+
+    prior_j = sub.add_parser("prior-jobs-release", help="derive the record of the live prior jobs release from its own lock and packet, once")
+    prior_j.add_argument("--prior-lock", type=Path, required=True)
+    prior_j.add_argument("--prior-packet-dir", type=Path, required=True)
+    prior_j.add_argument("--expect-digest", type=jobs_digest_argument, required=True, help="the image digest the prior release froze, as the lead names it")
+    prior_j.add_argument("--out", type=Path, required=True)
+    prior_j.set_defaults(handler=cmd_prior_jobs_release)
 
     bind = sub.add_parser("bind", help="write live-bindings.json in the packet directory")
     add_mode(bind)
@@ -697,6 +881,8 @@ def build_parser():
     bind.add_argument("--collect-start-tolerance-minutes", type=nonnegative_int)
     bind.add_argument("--max-baseline-age-days", type=positive_int)
     bind.add_argument("--max-candidate-age-hours", type=positive_int)
+    bind.add_argument("--prior-jobs-release", type=Path, help="mode jobs: the record `prior-jobs-release` wrote (default: the release before B)")
+    bind.add_argument("--release-letter", help="mode jobs: the letter of this release in the two lines Albert types; required with --prior-jobs-release")
     bind.set_defaults(handler=cmd_bind)
 
     lock = sub.add_parser("lock", help="write the packet lock into the checkout, once")

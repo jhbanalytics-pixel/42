@@ -1,6 +1,7 @@
 """baseline-J capture (W8-REL-B v2.1 section 3.8, JB-05). Read only: it reads job and service descriptions and writes one file.
 
-    capture_baseline_j(reader, a_terminal=..., a80_serving=..., rollback_digest=..., a_retire=..., captured_utc=...) -> baseline-J
+    capture_baseline_j(reader, a_terminal=..., a80_serving=..., rollback_digest=..., a_retire=..., captured_utc=..., prior=None) -> baseline-J
+    validate_prior_jobs_release(record) -> the record, or Stop PRIOR_RELEASE
     write_once(path, baseline) -> the sha256 of the bytes written, which the bindings bind
 
 baseline-J (kind "baseline-J", schema_version 1) is what Release B compares everything against: the 14 job views, the two
@@ -9,9 +10,16 @@ service states in the shape services_only.capture_baseline stores them, Release 
 waits until after B. Every expectation is a bound input: A's release id and the a80 revision names name the serving revision
 each service must show, the rollback digest names the one image all 14 jobs must run, and the retire declaration says what
 the tag set must be. The live read is the thing being proven, so nothing is taken from it as an expectation.
+
+A release that follows a jobs release (Release D on the live Release B) is bound to that release by a prior jobs release record, which the
+packet command derives from the prior release's own lock and packet. The record carries the digest the prior release froze, the terminal
+readback its chain is counted from (AfterJobsUpdate) and the fingerprint of each of the fourteen job definitions its JobsUpdate left. With
+a record the jobs must run that digest and be those definitions, the rollback digest is the record's, and baseline-J carries the record, so
+that a rollback restores the prior release exactly. Without a record nothing changes: the jobs run the digest the caller pinned.
 """
 from __future__ import annotations
 
+import copy
 import datetime as dt
 import json
 import re
@@ -25,6 +33,12 @@ JOBS_REPO = f"{so.REGION}-docker.pkg.dev/{so.PROJECT}/intelligence-42/jobs"
 A_TERMINAL_KINDS = ("AfterPromotion", "AfterRollback")
 A_RETIRE = ("retired", "waits_for_b")
 DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
+SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+COMMIT = re.compile(r"[0-9a-f]{40}\Z")
+PRIOR_KIND = "prior-jobs-release"
+PRIOR_TERMINAL_KIND = "AfterJobsUpdate"
+PRIOR_FIELDS = ("schema_version", "kind", "release_id", "commit", "image_digest", "terminal", "job_definitions", "sources")
+PRIOR_SOURCES = ("lock_sha256", "bindings_sha256", "manifest_sha256", "after_update_sha256", "update_log_sha256")
 
 
 def aware_utc(text):
@@ -33,6 +47,37 @@ def aware_utc(text):
     except (AttributeError, TypeError, ValueError):
         return None
     return value if value.tzinfo is not None else None
+
+
+def validate_prior_jobs_release(record):
+    """The record of a jobs release that is live, checked for shape and nothing else: exactly its fields, a digest, a release id that names
+    its commit, a timezone aware AfterJobsUpdate terminal, one definition fingerprint for each of the fourteen jobs, and the hashes of the
+    files it was derived from. What makes it true is the derivation that wrote it and the live read it is held to."""
+    def bad(message):
+        raise Stop("PRIOR_RELEASE", message)
+
+    if not (isinstance(record, dict) and set(record) == set(PRIOR_FIELDS)):
+        bad("The prior jobs release record does not hold exactly its fields")
+    if record["schema_version"] != SCHEMA_VERSION or record["kind"] != PRIOR_KIND:
+        bad("The prior jobs release record is not a prior-jobs-release of this schema version")
+    rid, commit = record["release_id"], record["commit"]
+    if not (isinstance(rid, str) and so.RELEASE_ID.match(rid) and isinstance(commit, str) and COMMIT.match(commit) and rid[4:11] == commit[:7]):
+        bad("The prior jobs release record names a release id that does not name its commit")
+    if not (isinstance(record["image_digest"], str) and DIGEST.match(record["image_digest"])):
+        bad("The prior jobs release record holds no sha256 image digest")
+    terminal = record["terminal"]
+    if not (isinstance(terminal, dict) and set(terminal) == {"kind", "at_utc"} and terminal["kind"] == PRIOR_TERMINAL_KIND
+            and aware_utc(terminal["at_utc"]) is not None):
+        bad("The prior jobs release record holds no timezone aware AfterJobsUpdate terminal")
+    definitions = record["job_definitions"]
+    if not (isinstance(definitions, dict) and set(definitions) == set(so.JOB_NAMES)
+            and all(isinstance(v, str) and SHA256.match(v) for v in definitions.values())):
+        bad("The prior jobs release record does not hold one definition hash for each of the fourteen jobs")
+    sources = record["sources"]
+    if not (isinstance(sources, dict) and set(sources) == set(PRIOR_SOURCES)
+            and all(isinstance(v, str) and SHA256.match(v) for v in sources.values())):
+        bad("The prior jobs release record does not hold the hashes of the files it was derived from")
+    return record
 
 
 def service_state(reader, name):
@@ -69,14 +114,23 @@ def check_terminal(a_terminal, captured_utc):
             "Release A's release id is not rel-<sha7>-<nn>")
 
 
-def capture_baseline_j(reader, *, a_terminal, a80_serving, rollback_digest, a_retire, captured_utc):
+def capture_baseline_j(reader, *, a_terminal, a80_serving, rollback_digest, a_retire, captured_utc, prior=None):
     check_terminal(a_terminal, captured_utc)
     require(isinstance(rollback_digest, str) and DIGEST.match(rollback_digest), "BASELINE", "The rollback digest is not a sha256 digest")
+    if prior is not None:
+        validate_prior_jobs_release(prior)
+        require(rollback_digest == prior["image_digest"], "BASELINE", "The rollback digest is not the digest the prior jobs release left")
+        require(aware_utc(prior["terminal"]["at_utc"]) <= aware_utc(captured_utc), "BASELINE",
+                "The prior jobs release's terminal readback is after the capture")
     require(a_retire in A_RETIRE, "BASELINE", "Release A's Retire is neither declared done nor declared waiting until after B")
     jobs = {name: so.job_view(reader.job(name)) for name in so.JOB_NAMES}
     images = {view["image"] for view in jobs.values()}
     require(len(images) == 1, "BASELINE", "The 14 jobs do not run one digest")
     require(images == {f"{JOBS_REPO}@{rollback_digest}"}, "BASELINE", "The jobs do not run the bound rollback digest")
+    if prior is not None:
+        for name in so.JOB_NAMES:
+            require(so.fingerprint(jobs[name]) == prior["job_definitions"][name], "BASELINE",
+                    f"The job {name} is not the definition the prior jobs release left")
     services = {name: service_state(reader, name) for name in so.SERVICES}
     expected = expected_serving(a_terminal, a80_serving)
     for name in so.SERVICES:
@@ -90,6 +144,8 @@ def capture_baseline_j(reader, *, a_terminal, a80_serving, rollback_digest, a_re
                 "aRetire": a_retire, "rollbackJobsDigest": rollback_digest, "jobs": jobs, "services": services}
     if a80_serving is not None:
         baseline["a80Serving"] = dict(a80_serving)
+    if prior is not None:
+        baseline["priorJobsRelease"] = copy.deepcopy(prior)
     return baseline
 
 

@@ -206,7 +206,7 @@ def test_bind_writes_exactly_the_key_set_the_paste_and_the_python_half_read_and_
     required = set(jo.RELEASE_BINDINGS) | {"schema_version", "mode", "status"}
     assert set(value) == required
     assert paste_bound_properties() <= required, paste_bound_properties() - required
-    assert library_bound_keys() <= required, library_bound_keys() - required
+    assert library_bound_keys() <= required | set(jo.OPTIONAL_BINDINGS), library_bound_keys() - required - set(jo.OPTIONAL_BINDINGS)
     assert {"release_id", "target", "tree", "releaseDir", "baselinePath", "baselineChainPath", "durableManifestPath", "dryRunReceiptPath",
             "schemaReadbackReceiptPath", "callerAccount"} <= paste_bound_properties()
     jo.validate_jobs_bindings(value)

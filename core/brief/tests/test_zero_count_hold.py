@@ -116,3 +116,30 @@ def test_end_to_end_the_zero_creator_card_is_held_and_not_shown():
     assert held["reason"] == "too_few_creators"
     assert held["reason_text"] == "No creator posted about it in the last 3 days"
     assert "za_safe" not in [call_c["item_id"] for call in r.confirm.calls for call_c in call["candidates"]]
+
+
+# The hold changes nothing about which rule it carries, and it belongs to Today only.
+
+def test_the_hold_carries_no_rule_so_the_scoreboard_counts_it_as_a_card_held_without_one(gate_passes):
+    # core/intel/funnel_daily.py counts a zero count hold only when the rule reads none (q06_brief_outcomes.sql IFNULL): a rule on it would move
+    # the P16 hold count into "other" and every other test would stay green.
+    decision = job._gate(gate_candidate(0, 0), None)
+    assert decision.where == "held_back" and decision.rule is None
+
+
+def test_end_to_end_the_held_item_of_the_zero_creator_card_carries_no_rule():
+    con = world(n=1)
+    add_item(con, "ZA", "za_bafana", 0.97, label="bafana, pitso, egypt", creators3=3, posts3=13)
+    add_item(con, "ZA", "za_safe", 0.96, label="South Africa vs Egypt", creators3=0, posts3=0)
+    r = brief(con, model=FakeModel(), confirm=FakeConfirm())
+    assert held_items(r, "ZA")["za_safe"]["rule"] is None
+
+
+def test_a_seasonal_card_with_a_measured_zero_stays_in_moments_because_the_hold_is_for_today_only(monkeypatch):
+    # G8 sends a seasonal card to Moments, where a count line is not shown as a Today count. The hold reads decision.where, so it never sees it.
+    monkeypatch.setattr(job, "gate_card", lambda *_: job.Decision(True, "moments", None, "Seasonal: last-year match", "G8", False))
+    cand = gate_candidate(0, 0)
+    decision = job._gate(cand, None)
+    assert (decision.publish, decision.where, decision.rule) == (True, "moments", "G8")
+    assert cand["held_reason"] is None and cand["floor_held"] is False
+

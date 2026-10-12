@@ -57,8 +57,14 @@ APPROVED_LINE = ("RELEASE B {release_id}: I authorise the jobs only release of t
                  "environment variable or paid Ask changes.")
 
 
-def authorisation_line(release_id):
-    return APPROVED_LINE.format(release_id=release_id)
+def with_letter(line, letter):
+    """The line of another release: the same sentence with the release letter Albert is asked to type in front."""
+    assert line.startswith("RELEASE B ")
+    return f"RELEASE {letter} " + line[len("RELEASE B "):]
+
+
+def authorisation_line(release_id, letter="B"):
+    return with_letter(APPROVED_LINE.format(release_id=release_id), letter)
 
 
 # The second line Albert types for Release B, pinned as written. It is Release A's own quiet-window sentence with B's release id in front.
@@ -66,23 +72,35 @@ def authorisation_line(release_id):
 QUIET_LINE = "RELEASE B {release_id} QUIET: The window is quiet and I will start no manual job until the execution ends."
 
 
-def quiet_line(release_id):
-    return QUIET_LINE.format(release_id=release_id)
+def quiet_line(release_id, letter="B"):
+    return with_letter(QUIET_LINE.format(release_id=release_id), letter)
 
 
 class JobsBench:
-    def __init__(self, tmp, monkeypatch, *, repo=None, fixture_class=None):
+    def __init__(self, tmp, monkeypatch, *, repo=None, fixture_class=None, fixture_kwargs=None, prepare=None, now=None, run_date=None, salt=None,
+                 letter=None, prior_file=None):
+        """`fixture_kwargs` and `prepare` shape the live world before the stand-in gcloud is written from it (a Release D bench starts from jobs
+        already on Release B's image); `now` and `run_date` move the clock and the date of the baseline chain; `salt` adds an empty commit so a
+        second release cut from the same tree has a commit of its own; `letter` and `prior_file` are the release letter and the prior jobs
+        release record the bind commands are given."""
         from core.setup.release import bound_readback as helper
 
         self.tmp = Path(tmp)
         self.monkeypatch = monkeypatch
+        self.now = now or NOW
+        self.run_date = run_date or jw.RUN_DATE
+        self.letter, self.prior_file = letter, prior_file
         self.repo = make_jobs_repo(repo or self.tmp / "repo")
+        if salt:
+            pw.git(self.repo, "commit", "-q", "--allow-empty", "-m", salt)
         self.packet = self.tmp / "packet"
-        self.fixture = (fixture_class or jw.ChainFixture)(self.tmp / "world")
+        self.fixture = (fixture_class or jw.ChainFixture)(self.tmp / "world", **(fixture_kwargs or {}))
         self.world = self.fixture.world
+        if prepare is not None:
+            prepare(self.fixture)
         self.argv, self.log = pw.fake_gcloud(self.tmp / "fake", self.world)
         monkeypatch.setattr(helper, "gcloud_command", lambda: self.argv)
-        monkeypatch.setattr(packet, "utc_now", lambda: NOW)
+        monkeypatch.setattr(packet, "utc_now", lambda: self.now)
         self.target = pw.head(self.repo)
         self.tree = pw.git(self.repo, "rev-parse", "HEAD^{tree}")
         self.release_id = f"rel-{self.target[:7]}-01"
@@ -103,6 +121,8 @@ class JobsBench:
     # the argument lists of each command, as the lead would type them
     def capture_argv(self, **over):
         flags = {"--out": self.baseline, "--gcloud-timeout-seconds": pw.GCLOUD_TIMEOUT, "--a-readback": self.a_readback, "--a-retire": "waits_for_b"}
+        if self.prior_file is not None:
+            flags["--prior-jobs-release"] = self.prior_file
         flags.update({k: v for k, v in over.items() if v is not None})
         out = ["capture-baseline-j"]
         for key, value in flags.items():
@@ -113,6 +133,10 @@ class JobsBench:
         flags = {"--mode": "jobs", "--repo": self.repo, "--release-commit": self.target, "--attempt": "01", "--packet-dir": self.packet,
                  "--baseline-j": self.baseline, "--caller-account": CALLER, "--gcloud-timeout-seconds": pw.GCLOUD_TIMEOUT,
                  "--http-timeout-seconds": pw.HTTP_TIMEOUT, "--chain-evidence-bytes-cap": "67108864", "--collect-start-tolerance-minutes": "10"}
+        if self.prior_file is not None:
+            flags["--prior-jobs-release"] = self.prior_file
+        if self.letter is not None:
+            flags["--release-letter"] = self.letter
         flags.update({k: v for k, v in over.items() if v is not None})
         return flags
 
@@ -171,17 +195,17 @@ class JobsBench:
     def write_chain(self, role="baseline", **over):
         """The baseline chain manifest, produced by the producer itself from the producer bindings the packet command wrote."""
         bound = json.loads(self.producer.read_text(encoding="utf-8"))
-        manifest = ce.build_manifest(bound, self.fixture.reader(), self.fixture.bq(), jw.RUN_DATE, role, now=lambda: NOW)
+        manifest = ce.build_manifest(bound, self.fixture.reader(), self.fixture.bq(), self.run_date, role, now=lambda: self.now)
         manifest.update(over)
         self.chain_dir.mkdir(parents=True, exist_ok=True)
         self.chain_path = ce.write_manifest(self.chain_dir, manifest)
         return self.chain_path
 
     def line_text(self):
-        return authorisation_line(self.release_id)
+        return authorisation_line(self.release_id, self.letter or "B")
 
     def quiet_text(self):
-        return quiet_line(self.release_id)
+        return quiet_line(self.release_id, self.letter or "B")
 
     def lock_file(self):
         return Path(self.lock_dir) / locklib.lock_path(self.repo, self.release_id).name

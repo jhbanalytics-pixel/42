@@ -152,6 +152,7 @@ TEST_FILES = (
     "core/setup/tests/e2e_world.py",
     "core/setup/tests/jobs_e2e_world.py",
     "core/setup/tests/jobs_packet_world.py",
+    "core/setup/tests/jobs_prior_world.py",
     "core/setup/tests/lock_closure.py",
     "core/setup/tests/test_deploy_jobs.py",
     "core/setup/tests/test_jobs_baseline.py",
@@ -163,6 +164,7 @@ TEST_FILES = (
     "core/setup/tests/test_jobs_image.py",
     "core/setup/tests/test_jobs_lock.py",
     "core/setup/tests/test_jobs_packet.py",
+    "core/setup/tests/test_jobs_prior.py",
     "core/setup/tests/test_jobs_source.py",
     "core/setup/tests/test_jobs_wiring.py",
 )

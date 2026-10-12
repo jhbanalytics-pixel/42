@@ -17,6 +17,8 @@ quiet snapshot and the run logs by the paste and its helpers."""
 from __future__ import annotations
 
 import contextlib
+import copy
+import datetime as dt
 import io
 import json
 import os
@@ -67,8 +69,10 @@ class PackedPaste(JobsPasteWorld):
 
 
 class EndToEnd:
-    def __init__(self, tmp, monkeypatch, **state_over):
-        self.bench = jpw.JobsBench(tmp, monkeypatch, fixture_class=jw.ReleaseWorld)
+    def __init__(self, tmp, monkeypatch, *, bench_kwargs=None, **state_over):
+        """`bench_kwargs` go to the JobsBench: a Release D run starts from the world Release B left, with a clock, a chain date, a commit,
+        a release letter and a prior release record of its own."""
+        self.bench = jpw.JobsBench(tmp, monkeypatch, fixture_class=jw.ReleaseWorld, **(bench_kwargs or {}))
         self.state_over = state_over
         self.state_path = self.bench.tmp / "state.pkl"
         self.bin = self.bench.tmp / "bin"
@@ -87,12 +91,12 @@ class EndToEnd:
         """The baseline chain manifest: chain_evidence.main with the producer bindings the packet command wrote, as the lead types it."""
         b = self.bench
         evidence = b.tmp / "producer-run"
-        argv = ["--date", jw.RUN_DATE.isoformat(), "--bindings", str(b.producer), "--evidence", str(evidence), "--expect", role]
+        argv = ["--date", b.run_date.isoformat(), "--bindings", str(b.producer), "--evidence", str(evidence), "--expect", role]
         err = io.StringIO()
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
-            code = ce.main(argv, reader_factory=lambda timeouts: b.fixture.reader(), bq_factory=lambda bound: b.fixture.bq(), now=lambda: jpw.NOW)
+            code = ce.main(argv, reader_factory=lambda timeouts: b.fixture.reader(), bq_factory=lambda bound: b.fixture.bq(), now=lambda: b.now)
         assert code == 0, err.getvalue()
-        b.chain_path = b.packet / f"chain-evidence-{jw.RUN_DATE.isoformat()}.json"
+        b.chain_path = b.packet / f"chain-evidence-{b.run_date.isoformat()}.json"
         self.tools_run.append("chain_evidence")
 
     def apply_dry_run(self):
@@ -131,8 +135,8 @@ class EndToEnd:
         self.cli(b.bind_argv())
         self.cli(b.lock_argv())
         self.cli(b.review_argv())
-        b.line.write_text(jpw.APPROVED_LINE.format(release_id=b.release_id) + chr(10), encoding="utf-8")
-        b.quiet_line_file.write_text(jpw.QUIET_LINE.format(release_id=b.release_id) + chr(10), encoding="utf-8")
+        b.line.write_text(b.line_text() + chr(10), encoding="utf-8")
+        b.quiet_line_file.write_text(b.quiet_text() + chr(10), encoding="utf-8")
         self.cli(b.receipt_argv())
         clock = cw.Clock(b.fixture.now)
         cloud = cw.FakeCloudRun(b.world, clock)
@@ -182,3 +186,40 @@ class EndToEnd:
 
     def run_folder(self, action):
         return next(iter(sorted((self.bench.packet / "runs").glob(f"*-{action}"))[-1:]), None)
+
+
+# Release D on top of the live Release B
+
+D_NOW = dt.datetime(2026, 10, 13, 8, 0, tzinfo=dt.timezone.utc)
+D_DAY = dt.date(2026, 10, 12)
+
+
+def release_b_live(tmp, monkeypatch):
+    """Release B walked to AfterJobsUpdate by the real paste, on the image it went live on: its packet is the one Release D is bound to."""
+    run = EndToEnd(Path(tmp) / "b", monkeypatch, new_digest=jw.B_LIVE_DIGEST).make_packet()
+    for action in ("JobsCandidate", "JobsUpdate"):
+        result = run.paste(action)
+        assert result.returncode == 0, (action, result.stderr, result.stdout)
+    return run
+
+
+def derive_prior(run_b, out, expect=jw.B_LIVE_DIGEST):
+    """The prior jobs release record, derived by the packet command from the lock and the packet Release B's paste and helpers left."""
+    out = Path(out)
+    run_b.cli(["prior-jobs-release", "--prior-lock", str(run_b.bench.lock_file()), "--prior-packet-dir", str(run_b.bench.packet),
+               "--expect-digest", expect, "--out", str(out)])
+    return json.loads(out.read_text(encoding="utf-8"))
+
+
+def release_d(tmp, monkeypatch, run_b, prior_file, **state_over):
+    """Release D's packet, made by the same tools on the world Release B left: the fourteen jobs as B's update left them, the services as
+    Release A left them, a chain of 12 Oct on B's image, and a clock on 13 Oct. D has a commit, a release id and an image of its own."""
+    left = copy.deepcopy(run_b.state()["cloud"].world.jobs)
+
+    def prepare(fixture):
+        fixture.world.jobs = left
+        fixture.now = D_NOW
+
+    bench_kwargs = {"fixture_kwargs": {"digest": jw.B_LIVE_DIGEST, "day": D_DAY}, "prepare": prepare, "now": D_NOW, "run_date": D_DAY,
+                    "salt": "release d", "letter": "D", "prior_file": prior_file}
+    return EndToEnd(Path(tmp) / "d", monkeypatch, bench_kwargs=bench_kwargs, new_digest=jw.D_DIGEST, **state_over).make_packet()

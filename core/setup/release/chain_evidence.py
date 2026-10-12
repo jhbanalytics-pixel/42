@@ -8,6 +8,11 @@ run on is the bound rollbackJobsDigest, and a chain that fails only DEGRADED on 
 baseline by the typed line (Q3). first-b is the first chain on Release B's image: the digest is the one FreezeJobs froze, read
 only after the release manifest hash is recomputed, and it never gets the allowance.
 
+For a release bound to a prior jobs release (Release D on the live Release B) the baseline is the chain on the prior release's image,
+the bound rollbackJobsDigest is that image, and a_terminal in the manifest is the prior release's AfterJobsUpdate readback, from which
+the chain is counted (jobs_only.chain_anchor). The role names stay as they are: first-b is the first chain on the image this release
+freezes, whichever release that is.
+
 Exit 0 when a manifest was written, qualifying or not; 1 on a contradiction (nothing written); 3 when a read could not complete
 (nothing written). Every expectation comes from the bindings, baseline-J (pinned by hash) or the frozen manifest. A stage's own
 rows and an execution's own description are the observations compared with them.
@@ -277,7 +282,8 @@ def build_manifest(bound, reader, bq_client, day, role, *, now=None):
     rows = ev.runner.run("stage_rows", {"d": day, "stages": [*jo.CHAIN_STAGES, *SUBSTAGES]})
     listed = {job: reader.executions(job) for job in so.JOB_NAMES}
     midnight = dt.datetime(day.year, day.month, day.day, tzinfo=SAST)
-    a_at = jo.aware(baseline["aTerminal"]["at_utc"])
+    anchor = jo.chain_anchor(baseline)
+    a_at = jo.aware(anchor["at_utc"])
 
     stages, bound_names, previous = {}, set(), None
     for stage in jo.CHAIN_STAGES:
@@ -312,7 +318,7 @@ def build_manifest(bound, reader, bq_client, day, role, *, now=None):
         "jobs_image": {"expected_digest": expected,
                        "definitions": {n: {"image": v["image"], "view_sha256": so.fingerprint(v)} for n, v in jobs.items()}},
         "services": services,
-        "a_terminal": {"kind": baseline["aTerminal"]["kind"], "at_utc": baseline["aTerminal"]["at_utc"]},
+        "a_terminal": anchor,
         "stages": stages, "detect_substages": substages, "side_executions": side, "verdict": verdict,
         "generated_from": {"head": bound["target"]}, "bytes_billed": ev.runner.log,
     }
