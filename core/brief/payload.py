@@ -99,6 +99,16 @@ def _worth(c):
     return (w is None, -(w or 0), c["item_id"])
 
 
+def _today_order(c):
+    """Today's order: the accounts posting in the counted window, as the card shows them ("creators in 3 days", which
+    Today says as "accounts posting, last 3 days"), then posts in that window, then _worth. On 12 October 2026 ZA card
+    01 had 2 accounts and 3 posts and led cards with 6 and 5 accounts, because the order was worth_raw alone. A card
+    without the figure comes after those with it."""
+    shown = {n["unit"]: n["value"] for n in c.get("numbers") or [] if "rival_field" not in n}
+    accounts, posts = shown.get("creators in 3 days"), shown.get("posts in 3 days")
+    return (accounts is None, -(accounts or 0), posts is None, -(posts or 0), *_worth(c))
+
+
 # A count of one reads "1 creator", "1 post" (tester report, 5 October 2026: "1 creators and 1 posts").
 ONE_NOUNS = {"creators": "creator", "posts": "post"}
 
@@ -315,7 +325,8 @@ def build_market_payload(market, brief_date, candidates, *, moments, boards, ban
     for c in candidates:
         by_where[_decision(c)["where"]].append(c)
 
-    ranked = sorted(by_where["today"], key=_worth)[:SHOWN]
+    # Which cards are shown stays the top SHOWN by worth; only their order is Today's.
+    ranked = sorted(sorted(by_where["today"], key=_worth)[:SHOWN], key=_today_order)
     shown, shown_posts = [], set()
     for r, c in enumerate(ranked, 1):
         card = _card(c, market, day, r, shown_posts)
