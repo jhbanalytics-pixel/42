@@ -22,6 +22,11 @@ NOT_REPLAYS = ("dispatch", "writer_source")  # goldens beside the fixtures
 PLATFORMS = list(ask_replay.ask.PLATFORM_GROUPS)
 CRITIC_CUTS = (("TOP-ZA-K1CUT", ("c4", "c5", "c6")), ("K1CUT-COUNT", ("c4", "c5", "c6")),
                ("TOP-ZA", ("c4", "c5", "c6")), ("TOP-ZA", ("c7",)))
+# Critic states in which the gate marks a lead and the critic then blanks it or leaves fewer than two claims (REVIEW5 I1).
+# S1: the critic cuts every claim but one, so the answer is the fixed text. S2: the critic cuts the claim whose story name the
+# lead repeats, so the lead is blanked.
+CRITIC_AFTER_MARK = (("S1", "ranked", "TOP-ZA-K1CUT", ("c1", "c2", "c3", "c4", "c5", "c6")),
+                     ("S2", "variants", "V2-EIGHT-NAMED", ("c4",)))
 FOLDERS = {"bench": BENCH, "ranked": FIXTURES / "ranked_briefing", "lead": FIXTURES / "lead_cut",
            "variants": FIXTURES / "lead_cut" / "variants"}
 
@@ -45,6 +50,9 @@ def scenarios():
         for qid, cut in CRITIC_CUTS:
             found.append({"id": f"critic/{tier}/{qid}/{'-'.join(cut)}", "folder": "ranked" if qid != "K1CUT-COUNT" else "lead",
                           "qid": qid, "tier": tier, "cut": list(cut)})
+    for label, folder, qid, cut in CRITIC_AFTER_MARK:
+        found.append({"id": f"after-mark/T2/{label}/{qid}/{'-'.join(cut)}", "folder": folder, "qid": qid, "tier": "T2",
+                      "cut": list(cut)})
     return found
 
 
@@ -52,6 +60,7 @@ def run(scenario, *, skill=None):
     """Run one scenario. Returns the calls by schema, the stored lead, status, claim ids, the typed summary state, the
     state check, the smoke's verdict on the stored record and the full replay result under "result"."""
     calls, captured, flags, cut = {}, {}, scenario.get("flags") or [], set(scenario.get("cut") or [])
+    pending, drop = set(scenario.get("pending") or []), {int(k): v for k, v in (scenario.get("writer_drop") or {}).items()}
     original, real_run_ask = ask_replay.ReplayModel.complete_json, ask_replay.ask.run_ask
 
     def spy(self, *, system, user, schema, model, max_tokens):
@@ -59,11 +68,15 @@ def run(scenario, *, skill=None):
         calls[name] = calls.get(name, 0) + 1
         if schema is critic.CRITIC_SCHEMA:
             ids = list(dict.fromkeys(re.findall(r'"id": "(c[0-9]+)"', user)))
-            verdicts = [{"claim_id": cid, "verdict": "cut" if cid in cut else "keep", "label": "", "reason": "r",
-                         "quote": "", "query": ""} for cid in ids]
+            first = calls["critic"] == 1
+            verdicts = [{"claim_id": cid, "verdict": "needs_evidence" if first and cid in pending else
+                         "cut" if cid in cut else "keep", "label": "", "reason": "r", "quote": "",
+                         "query": "one more search" if first and cid in pending else ""} for cid in ids]
             return ({"verdicts": verdicts, "missing_perspectives": [], "followups": [], "overall_risk": "low"},
                     {"input_tokens": 1000, "output_tokens": 100, "usd": 0.001})
         out, usage = original(self, system=system, user=user, schema=schema, model=model, max_tokens=max_tokens)
+        if schema is writer.WRITER_SCHEMA and calls["writer"] in drop:  # this pass of the writer leaves one claim out
+            out = {**out, "claims": [c for c in out["claims"] if c["id"] != drop[calls["writer"]]]}
         if flags and schema is writer.SUPPORT_SCHEMA:
             shown = ask_replay.CLAIM_LINE.match(user)
             if shown and any(shown.group(1).startswith(f) for f in flags):

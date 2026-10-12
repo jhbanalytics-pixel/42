@@ -1986,6 +1986,16 @@ def lost_story(before_claims, after_claims) -> bool:
     return len(before) >= 2 and any(key not in after for key in before)
 
 
+def unmark_unshown_lead(answer):
+    """The answer without the marker gap when its lead is no longer a lead: the critic path blanked it or left the fixed
+    text. A marker says a shown lead was written over a lost story, so it cannot stand beside a lead that is not shown."""
+    short = answer.get("short_answer")
+    if not briefing.lead_withheld(answer) or (isinstance(short, str) and short.strip() and short != INSUFFICIENT):
+        return answer
+    gaps = [g for g in answer.get("gaps") or [] if not briefing.lead_withheld({"gaps": [g]})]
+    return {**answer, "gaps": gaps}
+
+
 def mark_lead_withheld(answer, before_claims, *, ranked):
     """(answer, row): the marker for a lead written over a story that has no claim left. Only for a ranked ask, a lead
     that is not blank or the fixed insufficient text, and a story lost between before_claims and the answer's claims. It

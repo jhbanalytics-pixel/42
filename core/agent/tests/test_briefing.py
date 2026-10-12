@@ -192,6 +192,14 @@ def test_a_story_spelled_with_a_curly_and_a_straight_apostrophe_is_one_story():
     assert [(s["name"], s["claim_ids"]) for s in got["stories"]][0] == ("Nando's trial", ["c1", "c2"])
 
 
+def test_a_story_spelled_with_a_left_curly_quote_is_the_story_spelled_with_a_straight_one():
+    one = claim("c1", "'Amapiano' week: the biggest.", numbers=[number(412, "posts", "q_a"), number(188, "creators", "q_a")])
+    two = claim("c2", "‘Amapiano’ week: a second line.", evidence=("p2",))
+    got = briefing.stories(answer([one, two, THREE[2], THREE[3]]))
+    assert [(s["name"], s["claim_ids"]) for s in got["stories"]][0] == ("'Amapiano' week", ["c1", "c2"])
+    assert briefing._key("‘Amapiano’ week") == briefing._key("'Amapiano' week")
+
+
 def test_the_input_is_not_changed():
     before = copy.deepcopy(answer(THREE))
     briefing.stories(before)

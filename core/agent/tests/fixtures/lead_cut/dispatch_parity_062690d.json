@@ -1,4 +1,56 @@
 {
+ "after-mark/T2/S1/TOP-ZA-K1CUT/c1-c2-c3-c4-c5-c6": {
+  "calls": {
+   "critic": 1,
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c8"
+  ],
+  "error": null,
+  "lead": "42 found fewer than two claims that passed its checks, so it cannot answer this yet. The gaps list what was searched and why claims were held back.",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "insufficient_evidence",
+  "summary": {
+   "removals": [],
+   "rewrite": "not_attempted",
+   "state": "fixed_text"
+  }
+ },
+ "after-mark/T2/S2/V2-EIGHT-NAMED/c4": {
+  "calls": {
+   "critic": 1,
+   "fields": 1,
+   "support": 7,
+   "writer": 1
+  },
+  "claims": [
+   "c1",
+   "c2",
+   "c3",
+   "c5",
+   "c6",
+   "c8"
+  ],
+  "error": null,
+  "lead": "",
+  "meta_problem": null,
+  "smoke_ok": true,
+  "status": "partial",
+  "summary": {
+   "removals": [
+    {
+     "cause": "claim_cut",
+     "stage": "critic"
+    }
+   ],
+   "rewrite": "not_attempted",
+   "state": "removed"
+  }
+ },
  "bench/AUT-01": {
   "calls": {
    "fields": 1,

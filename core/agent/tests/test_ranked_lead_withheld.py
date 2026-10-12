@@ -11,6 +11,7 @@ import hashlib
 import inspect
 import io
 import json
+import os
 import subprocess
 import sys
 import tarfile
@@ -55,7 +56,7 @@ def wire_record(row):
 # 1 and 2: the dispatch counts by schema, and the typed summary state, equal the tree before the lane's, on every scenario.
 
 def test_the_golden_is_a_real_run_of_every_scenario():
-    assert set(PARITY) == set(SCENARIOS) and len(SCENARIOS) == 68
+    assert set(PARITY) == set(SCENARIOS) and len(SCENARIOS) == 70
     assert not [sid for sid, v in PARITY.items() if v["error"] or v["smoke_ok"] is not True]
 
 
@@ -128,7 +129,8 @@ def test_the_review3_state_the_lead_names_three_stories_the_fourth_is_cut_and_th
 def test_the_critic_path_marks_the_lead_pays_for_no_rewrite_and_keeps_the_state(sid, rows):
     row = rows[sid]
     # At T2 the ask is a ranked ask. At T3 the skill is the investigation's, which is not given the ranked rule, so the
-    # ask is not a ranked ask and nothing is marked; the dispatches and the state are the tree before the lane's either way.
+    # ask is not a ranked ask and nothing is marked. That is the builder's own reading of `ranked`, not a cost the ruling
+    # accepted, and it waits for an erratum (notes.md). The dispatches and the state are the tree before the lane's either way.
     assert marked(row) is sid.startswith("critic/T2/") and row["calls"].get("headline_rewrite", 0) == 0
     assert row["summary"] == PARITY[sid]["summary"] and row["lead"] == PARITY[sid]["lead"]
 
@@ -166,6 +168,98 @@ def test_the_marker_comes_from_the_final_pass_only(rows):
     # Each gate pass marks from its own draft and answer; the pass that is stored is the one whose answer carries the gap.
     stored = rows["ranked/TOP-ZA-K1CUT"]["result"]["answer"]
     assert sum(g["what"] == briefing.LEAD_WITHHELD_GAP["what"] for g in stored["gaps"]) == 1
+
+
+# REVIEW5 I1: a marker the gate wrote does not survive a critic that then blanks the lead or leaves fewer than two claims.
+
+AFTER_MARK = sorted(sid for sid in SCENARIOS if sid.startswith("after-mark/"))
+
+
+def lead_rows(result):
+    return [r for r in result["claim_checks"] if r["reason"] == checks.LEAD_STORY_REASON]
+
+
+def test_the_two_critic_after_mark_states_are_in_the_set():
+    assert len(AFTER_MARK) == 2 and AFTER_MARK[0].split("/")[2] == "S1" and AFTER_MARK[1].split("/")[2] == "S2"
+
+
+@pytest.mark.parametrize("sid", AFTER_MARK)
+def test_a_critic_that_blanks_the_lead_or_leaves_fewer_than_two_claims_drops_the_gates_marker(sid, rows):
+    row = rows[sid]
+    answer = row["result"]["answer"]
+    assert not marked(row) and not lead_rows(row["result"])
+    assert briefing.LEAD_WITHHELD_GAP["what"] not in [g["what"] for g in answer["gaps"]]
+    assert row["calls"].get("headline_rewrite", 0) == 0 and row["calls"].get("critic", 0) == 1
+
+
+def test_s1_the_fixed_text_is_what_the_reader_sees_and_the_state_is_the_one_before_the_lane(rows):
+    row = rows[next(sid for sid in AFTER_MARK if "/S1/" in sid)]
+    assert row["status"] == "insufficient_evidence" and row["summary"]["state"] == "fixed_text"
+    shown = answer_view.present(privacy.project_record(wire_record(row), None, hidden=NOBODY))
+    assert shown["answer"]["short_answer"] == checks.INSUFFICIENT == row["lead"]
+    assert answer_state.check_wire(shown) is None
+    assert smoke.check_ask_record(shown)[0]
+
+
+def test_s2_the_blank_lead_stays_blank_with_its_removal_and_the_state_is_the_one_before_the_lane(rows):
+    row = rows[next(sid for sid in AFTER_MARK if "/S2/" in sid)]
+    assert row["status"] == "partial" and row["lead"] == "" and row["summary"]["state"] == "removed"
+    assert [r["cause"] for r in row["summary"]["removals"]] == ["claim_cut"]
+    shown = answer_view.present(privacy.project_record(wire_record(row), None, hidden=NOBODY))
+    assert shown["answer"]["short_answer"] != briefing.LEAD_WITHHELD
+    assert answer_state.check_wire(shown) is None
+    ok, why = smoke.check_ask_record(shown)
+    assert ok, why
+    assert briefing.LEAD_WITHHELD not in export.render_answer_html(shown)
+
+
+def test_unmark_unshown_lead_drops_the_gap_only_when_the_lead_is_blank_or_the_fixed_text():
+    marker = dict(checks.LEAD_STORY_GAP)
+    other = {"what": "x", "searched": "y", "why": "z"}
+    for lead in ("", "   ", None, checks.INSUFFICIENT):
+        out = checks.unmark_unshown_lead(answer_of(lead, [A], gaps=[other, marker]))
+        assert out["gaps"] == [other], lead
+    kept = answer_of("A lead.", [A, B], gaps=[other, marker])
+    assert checks.unmark_unshown_lead(kept) is kept
+    plain_blank = answer_of("", [A], gaps=[other])
+    assert checks.unmark_unshown_lead(plain_blank) is plain_blank
+
+
+def test_the_reader_view_never_writes_the_withheld_sentence_over_a_blank_lead_or_the_fixed_text():
+    marker = dict(checks.LEAD_STORY_GAP)
+    for lead, status in (("", "partial"), (checks.INSUFFICIENT, "insufficient_evidence")):
+        record = {"answer": {**answer_of(lead, [A], gaps=[marker]), "status": status}}
+        assert answer_view.present(record)["answer"]["short_answer"] == lead
+    record = {"answer": {**answer_of("A lead.", [A, B], gaps=[marker]), "status": "partial"}}
+    assert answer_view.present(record)["answer"]["short_answer"] == briefing.LEAD_WITHHELD
+
+
+# REVIEW5 M3: where only the critic site marks, it writes one K10 row and one gap.
+
+@pytest.mark.parametrize("sid", ["critic/T2/TOP-ZA/c4-c5-c6", "critic/T2/TOP-ZA/c7"])
+def test_the_critic_site_alone_writes_one_gap_and_one_k10_row(sid, rows):
+    result = rows[sid]["result"]
+    assert [r["verdict"] for r in lead_rows(result)] == ["downgrade"] and lead_rows(result)[0]["rule"] == "K10"
+    assert sum(g["what"] == briefing.LEAD_WITHHELD_GAP["what"] for g in result["answer"]["gaps"]) == 1
+
+
+# REVIEW5 M2: a gap round. The marker comes from the pass that is stored, whichever pass lost the story.
+
+GAP_ROUND = {"id": "gap-round", "folder": "ranked", "qid": "TOP-ZA-K1CUT", "tier": "T2", "pending": ["c8"]}
+GAP_ROUND_CALLS = {"critic": 2, "fields": 2, "support": 14, "writer": 2}
+
+
+@pytest.mark.parametrize("name,drop,is_marked", [("lost in the first pass only", {"2": "c7"}, False),
+                                                 ("lost in the second pass only", {"1": "c7"}, True),
+                                                 ("lost in both passes", {}, True)])
+def test_a_gap_round_marks_from_the_final_pass_only(name, drop, is_marked):
+    row = lr.run({**GAP_ROUND, "id": f"gap-round/{name}", "writer_drop": drop})
+    assert row["error"] is None and row["calls"] == GAP_ROUND_CALLS and row["meta_problem"] is None
+    assert marked(row) is is_marked
+    result = row["result"]
+    assert len(lead_rows(result)) == (1 if is_marked else 0)
+    assert sum(g["what"] == briefing.LEAD_WITHHELD_GAP["what"] for g in result["answer"]["gaps"]) == (1 if is_marked else 0)
+    assert row["smoke"][0] is True
 
 
 # The helpers.
@@ -355,6 +449,10 @@ print(json.dumps({"checked": len(json.load(open(sys.argv[2], encoding="utf-8")))
 def test_release_c_reads_every_lead_cut_variant_and_critic_record(rows, tmp_path):
     git = subprocess.run(["git", "cat-file", "-e", "d0aebe7^{commit}"], capture_output=True, cwd=HERE.parents[2])
     if git.returncode != 0:
+        # d0aebe7 is not an ancestor of this branch, so a checkout can lack it. A run that must prove the old reader sets
+        # the switch and fails here instead of showing only in the skip count.
+        if os.environ.get("F42_REQUIRE_RELEASE_C"):
+            pytest.fail("the release C commit d0aebe7 is not in this checkout")
         pytest.skip("the release C commit d0aebe7 is not in this checkout")
     archive = subprocess.run(["git", "archive", "d0aebe7", "core"], capture_output=True, cwd=HERE.parents[2], check=True).stdout
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:

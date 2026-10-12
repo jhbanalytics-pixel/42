@@ -22,7 +22,7 @@ from decimal import Decimal
 from typing import Any, Callable
 from uuid import uuid4
 
-from core.agent import answer_state, checks, critic, native_review, plain, skills, timings as timing
+from core.agent import answer_state, briefing, checks, critic, native_review, plain, skills, timings as timing
 from core.agent.answer import validate_answer
 from core.agent.asks import asks_ranked
 from core.agent.checks import _text_breaches, _unpinned, check_answer, platform_label, source_gaps, window_text
@@ -1174,6 +1174,7 @@ def _critic_cuts(answer: dict, rows: list[dict], ctx: RunContext, window: tuple[
         ledger.observe("recheck", pre_recheck, answer, rechecked)
     # After every check on this path, and there is no rewrite after the critic: a lead written over a story the critic
     # cut is marked the same way as at the tail of gate().
+    answer = checks.unmark_unshown_lead(answer)
     answer, lead_row = checks.mark_lead_withheld(answer, pre_claims, ranked=ranked)
     return answer, rows, [k10, *rechecked, *([lead_row] if lead_row else [])]
 
@@ -2474,6 +2475,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                         answer, critic_rows, result = review(answer)
                 answer, critic_rows, cut_rows = _critic_cuts(answer, critic_rows, ctx, window, draft["gaps"],
                                                              ledger=summary_ledger, ranked=ranked_ask)
+                if not briefing.lead_withheld(answer):  # the critic left no shown lead: the gate's K10 row for it goes too
+                    later = [r for r in later if r.get("reason") != checks.LEAD_STORY_REASON]
                 verdicts, later = [*verdicts, *critic_rows], [*later, *cut_rows]
             timings.phase("finalise")
             for event in _claim_events(draft, answer, verdicts, support, ctx.evidence, ctx.queries):

@@ -1,14 +1,14 @@
-"""The lead cut is one more K10 case, and every older K10 row reads as it did before it.
+"""The lead marker is one more K10 case, and every older K10 row reads as it did before it.
 
 K10 labels several kinds of row: a claim the code checks cut or kept, a so_what or watch_next item resting only on cut
 claims, a short answer the support or critic path blanked, and each rewrite outcome. The reason a claim cut by any rule
 shows beside it in the live list, and the reason stored in claim_checks, are built from a table of one wording per rule.
 A K10 entry in that table gave every one of those rows the wording of the new check, so the new wording belongs to the
-lead cut alone.
+lead marker alone.
 
 k10_reasons_before_lead_cut.json holds the reason of every stored check row and every claim event of the ten benchmark
-replays and the ranked replays, written by the tree before the lead cut was added. The two replays whose lead the cut
-now blanks differ in their short_answer rows, and in nothing else."""
+replays and the ranked replays, written by the tree before the lead marker was added. The replays whose lead the marker
+now flags differ by the one K10 row on the short answer, and in nothing else."""
 import json
 from pathlib import Path
 
@@ -37,7 +37,7 @@ def replays():
 
 
 def seen(result, lead_cut):
-    """Every stored check row and claim event reason. In a replay whose lead the lead cut rebuilds, the one row it adds
+    """Every stored check row and claim event reason. In a replay whose lead the marker flags, the one row it adds
     (the K10 row on the short answer with LEAD_STORY_REASON) is left out and every other row is compared."""
     rows = [[c["claim_id"], c["rule"], c["verdict"], c["reason"]] for c in result["claim_checks"]]
     events = [[e["claim"]["id"], e.get("check"), e.get("reason")] for e in result["events"] if e.get("event") == "claim"]

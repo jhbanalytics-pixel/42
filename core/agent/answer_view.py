@@ -221,7 +221,8 @@ def present(record: dict) -> dict:
             run = {**run, "technical_gaps": _distinct(answer["gaps"])}
             shown["run"] = run
         answer = {**answer, "gaps": plain}
-    if briefing.lead_withheld(answer):  # a ranked ask lost a whole story its lead was written over (checks.mark_lead_withheld)
+    shown_lead = isinstance(answer.get("short_answer"), str) and answer["short_answer"].strip() and         answer.get("status") != "insufficient_evidence"  # a blank lead and the fixed text are not a lead a story was lost from
+    if shown_lead and briefing.lead_withheld(answer):  # a ranked ask lost a whole story its lead was written over (checks.mark_lead_withheld)
         answer = {**answer, "short_answer": briefing.LEAD_WITHHELD}
     shown["answer"] = answer
     if isinstance(shown.get("run"), dict) and isinstance(shown["run"].get("followups"), list):
