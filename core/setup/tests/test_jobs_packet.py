@@ -415,6 +415,16 @@ def test_bind_without_a_mode_is_still_the_services_bind(bench, capsys):
     assert stopped.value.code == 2
 
 
+@pytest.mark.parametrize("flag, value", [("--prior-release", "prior-release.json"), ("--expect-jobs-digest", "sha256:" + "a" * 64)])
+def test_a_jobs_bind_refuses_the_services_prior_flags_instead_of_ignoring_them(bench, capsys, flag, value):
+    for argv in (bench.producer_argv(**{flag: value}), bench.bind_argv(**{flag: value})):
+        with pytest.raises(SystemExit) as stopped:
+            packet.main(argv)
+        err = capsys.readouterr().err
+        assert stopped.value.code == 2 and flag in err and "services-only" in err, err
+        assert not bench.bindings.exists() and not bench.producer.exists()
+
+
 # bind --producer-only: the file the chain evidence producer reads (the lead wrote it by hand before)
 
 def test_the_producer_bindings_hold_exactly_the_keys_the_producer_reads_and_nothing_the_chain_manifest_has_yet_to_supply(bench, capsys):

@@ -1066,6 +1066,9 @@ def check_required(parser, args):
         return
     if args.mode != "jobs" and args.prior_jobs_release is not None:
         parser.error("--prior-jobs-release belongs to --mode jobs")
+    for flag in ("prior_release", "expect_jobs_digest"):
+        if args.mode == "jobs" and getattr(args, flag) is not None:
+            parser.error(f"--{flag.replace('_', '-')} belongs to --mode services-only; a jobs release is bound to a prior jobs release by --prior-jobs-release")
     names = list(REQUIRED[("bind", args.mode)])
     if args.mode == "jobs" and not args.producer_only:
         names += REQUIRED[("bind", "jobs-full")]
